@@ -840,6 +840,23 @@ void AddComboItems(ComboBox& combo)
 
     AddButtonTile(scene, flow, L"Button / Standard", L"Standard", ButtonVariant::Standard);
     AddButtonTile(scene, flow, L"Button / Primary", L"Primary", ButtonVariant::Standard, true);
+    for (const auto appearance : {ButtonAppearance::Subtle, ButtonAppearance::Outline, ButtonAppearance::Tab})
+    {
+        const auto name = appearance == ButtonAppearance::Subtle    ? L"Button / Subtle"
+                          : appearance == ButtonAppearance::Outline ? L"Button / Outline"
+                                                                    : L"Button / Tab";
+        const Tile tile = flow.Next(*scene.root, name);
+        auto* button    = scene.root->AddChild<Button>(appearance == ButtonAppearance::Tab ? L"Compose" : L"Find");
+        button->SetAppearance(appearance);
+        button->SetBounds(CenterIn(tile.content, 160.f, 36.f));
+        if (appearance == ButtonAppearance::Tab)
+            button->SetToggleState(true);
+        else
+        {
+            button->SetLeadingIcon(L"\xE721");
+            button->SetShortcutText(L"Ctrl+F");
+        }
+    }
     {
         const Tile tile = flow.Next(*scene.root, L"Button / Theme preview", 1u, 128.0f);
         auto* button    = scene.root->AddChild<Button>(L"Ocean");

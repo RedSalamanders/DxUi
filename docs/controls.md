@@ -1,5 +1,11 @@
 # Control guide
 
+Quiet document chrome can opt into `ButtonAppearance::Subtle`, `Outline` and checked `Tab` while preserving
+ordinary Button invocation and TogglePattern. Text buttons support `SetLeadingIcon` and `SetShortcutText`;
+the consumer owns shortcut dispatch. `TreeAppearance` exposes the pane ground and optionally suppresses
+decorative expanders without flattening hierarchy. Document editors can omit decorative focus chrome with
+`RichTextEditorAppearance::drawFocusIndicator=false`; high contrast always retains its indicator.
+
 RichTextEditor supports file-reference paste and caller-serviced native images.
 Remote HTTP(S) requests require explicit `SetRemoteImagesEnabled(true)`; the
 caller owns network transport, and disabling immediately retires remote pixels

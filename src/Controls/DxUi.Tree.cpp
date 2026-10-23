@@ -492,6 +492,20 @@ Tree::Tree()
     SetFocusable(true);
 }
 
+void Tree::SetAppearance(const TreeAppearance& appearance) noexcept
+{
+    if (_appearance == appearance)
+        return;
+    _appearance = appearance;
+    InvalidateTreeTextMeasurementCaches();
+    RequestInvalidate();
+}
+
+const TreeAppearance& Tree::GetAppearance() const noexcept
+{
+    return _appearance;
+}
+
 void Tree::InvalidateTreeTextMeasurementCaches() const noexcept
 {
     _badgeWidthCache.clear();
@@ -1157,7 +1171,15 @@ void Tree::Paint(ControlHost& host) const
     const ITreeModel* const model             = _model;
     const ThemePalette& theme                 = host.GetTheme();
     const TreeSurfaceVisualStyle surfaceStyle = ResolveTreeSurfaceVisualStyle(theme);
-    DrawRoundedRect(host, GetBounds(), surfaceStyle.fill, surfaceStyle.border, 4.0f);
+    if (_appearance.drawBackground || _appearance.drawBorder || theme.highContrast)
+    {
+        const auto transparent = D2D1::ColorF(0.f, 0.f, 0.f, 0.f);
+        DrawRoundedRect(host,
+                        GetBounds(),
+                        _appearance.drawBackground || theme.highContrast ? surfaceStyle.fill : transparent,
+                        _appearance.drawBorder || theme.highContrast ? surfaceStyle.border : transparent,
+                        4.0f);
+    }
 
     const D2D1_RECT_F contentRect = GetContentRect();
     if (! guard.IsCurrent())
@@ -2366,12 +2388,12 @@ TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, si
 
     const float rowTop  = contentRect.top + (static_cast<float>(visibleIndex) * _rowHeightDip) - _verticalScrollDip;
     metrics.rowRect     = D2D1::RectF(contentRect.left + 2.0f, rowTop, contentRect.right - 2.0f, rowTop + _rowHeightDip);
-    metrics.hasExpander = item.hasChildren;
+    metrics.hasExpander = item.hasChildren && _appearance.showExpanders;
     metrics.hasIcon     = ! item.iconText.empty();
     metrics.hasBadge    = ! item.badgeText.empty();
 
     float contentLeft = contentRect.left + 8.0f + (static_cast<float>(item.depth) * _indentDip);
-    if (metrics.hasExpander)
+    if (metrics.hasExpander || _appearance.reserveExpanderSpace)
     {
         metrics.expanderRect = D2D1::RectF(contentLeft, metrics.rowRect.top + 6.0f, contentLeft + 12.0f, metrics.rowRect.bottom - 6.0f);
         contentLeft          = metrics.expanderRect.right + 4.0f;
@@ -2548,7 +2570,7 @@ Tree::HitInfo Tree::HitTestPoint(PointDip pointDip) const noexcept
     const float indentRight        = contentRect.right - 8.0f - (static_cast<float>(item.depth) * _indentDip);
     const D2D1_RECT_F expanderRect = IsRightToLeft() ? D2D1::RectF(indentRight - 12.0f, hit.rectDip.top + 6.0f, indentRight, hit.rectDip.bottom - 6.0f)
                                                      : D2D1::RectF(indentLeft, hit.rectDip.top + 6.0f, indentLeft + 12.0f, hit.rectDip.bottom - 6.0f);
-    if (item.hasChildren && PointInRect(expanderRect, point))
+    if (item.hasChildren && _appearance.showExpanders && PointInRect(expanderRect, point))
     {
         hit.zone = HitZone::Expander;
     }

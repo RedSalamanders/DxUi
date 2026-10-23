@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Add opt-in subtle, outline and underlined-tab button presentation with leading icons and keyboard hints, frameless hierarchical trees and document-editor focus-chrome policy. Existing control defaults and high-contrast behavior remain intact; RedTilde adopts the changes through an exact SDK pin with its own harness verification.
 - Separate official SDK builds from receipt-verified Full native qualification in CI, with finite build/runtime ceilings
   and unchanged native watchdogs, assertions and consumer scopes. Reject invalid v2 SkipBuild identity before native
   probes and self-checks; add bounded top-level phase diagnostics and fixtures for gate refusal, workflow dependencies,

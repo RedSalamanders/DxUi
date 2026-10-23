@@ -408,6 +408,7 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
     // STL proxies can allocate during those moves.
     auto& value                       = _state->appearance;
     value.drawBorder                  = next.drawBorder;
+    value.drawFocusIndicator          = next.drawFocusIndicator;
     value.blendWithWindowBackground   = next.blendWithWindowBackground;
     value.useAccentLinkColor          = next.useAccentLinkColor;
     value.colorizeMarkdownSource      = next.colorizeMarkdownSource;
@@ -1673,14 +1674,15 @@ void RichTextEditor::Paint(ControlHost& host) const
         DrawRoundedRect(host, GetBounds(), style.fill, style.border, 4.0f);
     else
         context->FillRectangle(GetBounds(), host.GetSolidBrush(style.fill));
-    if (! appearance.drawBorder && (style.showFocus || (host.GetTheme().highContrast && HasFocus())))
+    const bool showFocusIndicator = appearance.drawFocusIndicator || host.GetTheme().highContrast;
+    if (showFocusIndicator && ! appearance.drawBorder && (style.showFocus || (host.GetTheme().highContrast && HasFocus())))
     {
         const auto bounds = GetBounds();
         context->DrawRectangle(D2D1::RectF(bounds.left + 1.0f, bounds.top + 1.0f, bounds.right - 1.0f, bounds.bottom - 1.0f),
                                host.GetSolidBrush(host.GetTheme().focusStroke),
                                1.0f);
     }
-    if (style.showFocus && appearance.drawBorder)
+    if (showFocusIndicator && style.showFocus && appearance.drawBorder)
         context->DrawLine(D2D1::Point2F(GetBounds().left + 4, GetBounds().bottom - 1),
                           D2D1::Point2F(GetBounds().right - 4, GetBounds().bottom - 1),
                           host.GetSolidBrush(host.GetTheme().accent),

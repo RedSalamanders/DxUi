@@ -17,6 +17,20 @@ List-item accent ink MUST use the exact marker range retained by block parsing,
 including nested, ordered, quoted, tab-indented and task-list items.
 
 Status: normative intended contract
+
+Button presentation is opt-in and independent of `ButtonVariant` and command/TogglePattern semantics.
+`Filled` preserves existing behavior; `Subtle` exposes the parent ground while idle, `Outline` retains a perimeter,
+and a checked `Tab` exposes an accent underline. Hover/press, disabled state and keyboard focus remain visible.
+High contrast preserves the existing system color pair and focus/border treatment. Primary actions retain their
+filled treatment. Leading Fluent icons and trailing keyboard hints on Standard/DropDown/Repeat buttons participate
+in intrinsic measurement, reserve the same paint lanes and mirror with flow direction. Hints describe consumer-owned
+shortcuts; they never register keys or change the button's accessible command name.
+
+`TreeAppearance` may suppress background/border or decorative expanders and may reserve the expander lane on
+leaf rows. Hit testing follows the visible lane; keyboard expansion, hierarchy, selection and UI Automation retain
+the same borrowed model. High contrast forces the system surface and border. `RichTextEditorAppearance::drawFocusIndicator`
+may omit decorative editor focus chrome for a document surface, without retiring text geometry, selection or history;
+the caret remains independent and high contrast always forces the focus indicator.
 Last reviewed: 2026-10-18
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending

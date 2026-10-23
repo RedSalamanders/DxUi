@@ -1,5 +1,9 @@
 # Tree
 
+`SetAppearance` can expose a pane's background and remove the outer frame. An outline may hide decorative
+expanders while retaining its hierarchical model, keyboard expansion and UIA semantics. File lists can reserve
+the expander lane for leaves to align their icons. High contrast always retains its system surface and perimeter.
+
 Inactive selected rows prefer `selectionText` on `selectionInactiveFill`; the
 shared contrast resolver replaces an unreadable preferred token. High contrast
 retains the explicit system Highlight/HighlightText pair. Icons and expanders

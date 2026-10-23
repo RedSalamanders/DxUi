@@ -10,6 +10,37 @@
 namespace
 {
 
+void TestTreeFramelessOutlinePreservesModelAndKeyboardExpansion()
+{
+    using namespace DxUi;
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0, 0, 220, 140));
+    MutableTreeModel model;
+    model.SetVisibleItems(
+        {TreeItemData{.id = 10, .text = L"Chapter", .hasChildren = true, .expanded = false}, TreeItemData{.id = 20, .text = L"Next chapter"}});
+    RecordingTreeDelegate delegate;
+    tree->SetModel(&model);
+    tree->SetDelegate(&delegate);
+    host.SetRoot(std::move(root));
+    const auto ordinary = tree->GetItemLayoutMetrics(host, 0);
+    tree->SetAppearance({.drawBackground = false, .drawBorder = false, .showExpanders = false});
+    const auto outline = tree->GetItemLayoutMetrics(host, 0);
+    Require(ordinary.hasExpander && ! outline.hasExpander && outline.textRect.left < ordinary.textRect.left,
+            "a frameless outline removes the disclosure lane without changing the model");
+    tree->SetSelectedItemId(10);
+    Require(tree->OnKeyDown(host, VK_RIGHT, 0) && tree->GetSelectedItemId() == 10,
+            "keyboard expansion still reaches the shared tree model when the decorative expander is hidden");
+    TreeItemData retained;
+    model.GetVisibleItem(0, retained);
+    Require(retained.id == 10 && retained.hasChildren, "presentation never flattens hierarchical model semantics");
+    tree->SetAppearance({.drawBackground = false, .drawBorder = false, .reserveExpanderSpace = true});
+    const auto leaf   = tree->GetItemLayoutMetrics(host, 1);
+    const auto parent = tree->GetItemLayoutMetrics(host, 0);
+    Require(leaf.textRect.left == parent.textRect.left, "file-tree leaves align with parent labels by reserving the expander lane");
+}
+
 void TestTreeTypographyOverrideValidatesAtomically()
 {
     using namespace DxUi;
@@ -3239,5 +3270,6 @@ void RunTreeTests()
     DXUI_RUN_TEST(TestTreeMultiSelectContextMenuExpanderAndDoubleClickKeepTheSelectionRules);
     DXUI_RUN_TEST(TestTreeSelectionSettersAndModeSwitchKeepTheSelectionCoherent);
     DXUI_RUN_TEST(TestTreeTypographyOverrideValidatesAtomically);
+    DXUI_RUN_TEST(TestTreeFramelessOutlinePreservesModelAndKeyboardExpansion);
     DXUI_RUN_TEST(TestTreeInactiveSelectionPrefersSelectionTextWhenReadable);
 }

@@ -2,6 +2,12 @@
 
 Push button with eight variants: Standard, DropDown, Selector, Split, Hyperlink, IconOnly, Disclosure and Repeat.
 
+`SetAppearance` independently selects Filled (default), Subtle, Outline or Tab. Use Subtle for quiet toolbars,
+Outline for secondary inspector actions, and checked Tab for an underlined view selector. Subtle checked commands
+still use selection fill/text; primary actions remain filled. Keyboard focus and system high contrast stay visible.
+`SetLeadingIcon` and `SetShortcutText` decorate text buttons with a Fluent glyph and a keyboard hint. Measurement
+reserves both lanes and RTL mirrors them; the consumer owns shortcut dispatch and the accessible command name.
+
 - **Consumer supplies**: the caption (constructor), `SetOnClick`, and `SetOnDropDownClick` for Split actions. Set bounds before preparation.
 - **Chrome**: 1 DIP `buttonBorder` on `buttonFill`, `radius-sm` (4); Selector uses `radius-md` (6). Hover blends to `buttonHotFill` over 140 ms; pressed uses `buttonPressedFill` and shifts the caption 1,1 DIP; disabled uses `buttonDisabledFill` and `disabledText`.
 - **Primary**: by default the fill and caption derive from the current theme selection colors. `ThemePalette::primaryButtonFill` and `primaryButtonText` optionally override those colors for normal themes; hover and pressed fills derive from the supplied fill. High contrast keeps the exact system selection pair.

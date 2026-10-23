@@ -2875,6 +2875,51 @@ ButtonVariant Button::GetVariant() const noexcept
     return _variant;
 }
 
+void Button::SetAppearance(ButtonAppearance appearance) noexcept
+{
+    if (_appearance == appearance)
+        return;
+    _appearance = appearance;
+    RequestInvalidate();
+}
+
+ButtonAppearance Button::GetAppearance() const noexcept
+{
+    return _appearance;
+}
+
+void Button::SetLeadingIcon(std::wstring glyph)
+{
+    if (_leadingIcon == glyph)
+        return;
+    _leadingIcon        = std::move(glyph);
+    const auto lifetime = GetLifetimeToken();
+    InvalidateMeasure();
+    if (! lifetime.expired())
+        RequestInvalidate();
+}
+
+std::wstring_view Button::GetLeadingIcon() const noexcept
+{
+    return _leadingIcon;
+}
+
+void Button::SetShortcutText(std::wstring text)
+{
+    if (_shortcutText == text)
+        return;
+    _shortcutText       = std::move(text);
+    const auto lifetime = GetLifetimeToken();
+    InvalidateMeasure();
+    if (! lifetime.expired())
+        RequestInvalidate();
+}
+
+std::wstring_view Button::GetShortcutText() const noexcept
+{
+    return _shortcutText;
+}
+
 void Button::SetDisclosureCollapsedDirection(ChevronDirection direction) noexcept
 {
     const ChevronDirection collapsedDirection = direction == ChevronDirection::Left ? ChevronDirection::Left : ChevronDirection::Right;
@@ -3011,7 +3056,7 @@ void Button::Paint(ControlHost& host) const
         host.RequestAnimation();
     }
     const FlowDirection flowDirection = GetFlowDirection();
-    const ButtonVisualStyle style     = ResolveButtonVisualStyle(host.GetTheme(),
+    auto style                        = ResolveButtonVisualStyle(host.GetTheme(),
                                                                  IsEnabled(),
                                                                  IsHovered(),
                                                                  IsPressed(),
@@ -3021,6 +3066,14 @@ void Button::Paint(ControlHost& host) const
                                                                  ResolveHoverAnimationProgress(host),
                                                                  ResolveFocusAnimationProgress(host),
                                                                  _toggleState.value_or(false));
+    style                             = ResolveButtonAppearanceVisualStyle(host.GetTheme(),
+                                                                           style,
+                                                                           _appearance,
+                                                                           IsEnabled(),
+                                                                           IsPressed(),
+                                                                           _primary || host.GetDefaultButton() == this,
+                                                                           _toggleState.value_or(false),
+                                                                           ResolveHoverAnimationProgress(host));
     const D2D1_COLOR_F transparent    = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
     const auto drawContent            = [&](std::wstring_view text, const D2D1_RECT_F& bounds, FontRole role, const D2D1_COLOR_F& color, bool wrap = false)
     {
@@ -3034,6 +3087,38 @@ void Button::Paint(ControlHost& host) const
                          wrap,
                          flowDirection,
                          ResolveContentTextFormat(host, role, wrap));
+    };
+
+    const auto drawDecoratedContent = [&](const D2D1_RECT_F& bounds, bool wrap = false)
+    {
+        auto textBounds = bounds;
+        const bool rtl  = flowDirection == FlowDirection::RightToLeft;
+        if (! _leadingIcon.empty())
+        {
+            const float left = rtl ? bounds.right - 26.0f : bounds.left + 10.0f;
+            const float top  = (bounds.top + bounds.bottom - 16.0f) * 0.5f;
+            DrawCenteredText(
+                host, _leadingIcon, D2D1::RectF(left, top, left + 16.0f, top + 16.0f), host.HasFluentIconFont() ? FontRole::Icon : FontRole::Body, style.text);
+            if (rtl)
+                textBounds.right -= 28.0f;
+            else
+                textBounds.left += 28.0f;
+        }
+        if (! _shortcutText.empty())
+        {
+            const float width = MeasureSingleLineTextWidthDip(&host, _shortcutText, FontRole::Small, 20.0f, ResolveReadingDirection(flowDirection)) + 10.0f;
+            const float left  = rtl ? textBounds.left + 6.0f : textBounds.right - width - 6.0f;
+            const float top   = (bounds.top + bounds.bottom - 20.0f) * 0.5f;
+            const auto hint   = D2D1::RectF(left, top, left + width, top + 20.0f);
+            DrawRoundedRect(host, hint, transparent, host.GetTheme().buttonBorder, 4.0f);
+            DrawCenteredText(host, _shortcutText, hint, FontRole::Small, IsEnabled() ? host.GetTheme().subduedText : style.text);
+            if (rtl)
+                textBounds.left = hint.right + 4.0f;
+            else
+                textBounds.right = hint.left - 4.0f;
+        }
+        if (textBounds.right > textBounds.left)
+            drawContent(_text, textBounds, FontRole::Body, style.text, wrap);
     };
 
     if (_variant == ButtonVariant::Hyperlink)
@@ -3101,7 +3186,17 @@ void Button::Paint(ControlHost& host) const
         return;
     }
 
-    DrawRoundedRect(host, GetBounds(), style.fill, style.showBorder ? style.border : transparent, kButtonCornerRadiusDip);
+    DrawRoundedRect(
+        host, GetBounds(), style.fill, style.showBorder ? style.border : transparent, _appearance == ButtonAppearance::Filled ? kButtonCornerRadiusDip : 6.0f);
+    if (style.showSelectionUnderline)
+    {
+        const auto bounds = GetBounds();
+        DrawLineWithColor(host,
+                          D2D1::Point2F(bounds.left + 6.0f, bounds.bottom - 1.0f),
+                          D2D1::Point2F(bounds.right - 6.0f, bounds.bottom - 1.0f),
+                          host.GetTheme().accent,
+                          2.0f);
+    }
     if (style.showFocus)
     {
         PaintFocusRing(host, GetBounds(), kButtonCornerRadiusDip);
@@ -3119,7 +3214,7 @@ void Button::Paint(ControlHost& host) const
                                                       layout.textRect.top + style.textOffsetYDip,
                                                       layout.textRect.right + style.textOffsetXDip,
                                                       layout.textRect.bottom + style.textOffsetYDip);
-        drawContent(_text, textRect, FontRole::Body, style.text);
+        drawDecoratedContent(textRect);
         DrawCenteredText(host, std::wstring_view(&kButtonDropDownChevronGlyph, 1u), layout.chevronRect, FontRole::Icon, style.text);
     }
     else if (_variant == ButtonVariant::Split)
@@ -3181,7 +3276,7 @@ void Button::Paint(ControlHost& host) const
                                                      GetBounds().top + style.textOffsetYDip + padY,
                                                      (std::max)(GetBounds().left + padX, GetBounds().right + style.textOffsetXDip - padX),
                                                      (std::max)(GetBounds().top + padY, GetBounds().bottom + style.textOffsetYDip - padY));
-            drawContent(_text, textRect, FontRole::Body, style.text, _multiline);
+            drawDecoratedContent(textRect, _multiline);
         }
     }
 }

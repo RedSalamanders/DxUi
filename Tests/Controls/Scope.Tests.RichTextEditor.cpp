@@ -527,6 +527,43 @@ void TestRichTextEditorNativeHostAndLayoutReuse()
     Require(raw->DebugGetState().layoutReady, "show prepares layout again");
 }
 
+void TestRichTextEditorDocumentFocusChromeDoesNotRetireTextGeometry()
+{
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<RichTextEditor>(L"A quiet writing surface.");
+    auto* editor = owned.get();
+    window.Host().SetRoot(std::move(owned));
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    auto appearance       = editor->GetAppearance();
+    appearance.drawBorder = false;
+    editor->SetAppearance(appearance);
+    window.Host().SetFocusControl(editor, true);
+    RenderEditor(window);
+    const auto source     = editor->Snapshot();
+    const auto selection  = editor->GetSelection();
+    const auto generation = editor->DebugGetState().layoutGeneration;
+    WindowHostBitmapCapture framed, quiet;
+    Require(window.Host().DebugCaptureBitmap(framed), "capture keyboard-focused borderless editor");
+    appearance.drawFocusIndicator = false;
+    editor->SetAppearance(appearance);
+    RenderEditor(window);
+    Require(window.Host().DebugCaptureBitmap(quiet) && quiet.bgraPixels != framed.bgraPixels,
+            "a document surface can omit the decorative perimeter while retaining its caret");
+    Require(editor->Snapshot().IsSameRevision(source) && editor->GetSelection() == selection && ! editor->CanUndo() &&
+                editor->DebugGetState().layoutGeneration == generation,
+            "focus presentation changes no source, selection, history or prepared geometry");
+    auto theme         = window.Host().GetTheme();
+    theme.highContrast = true;
+    window.Host().SetTheme(theme);
+    RenderEditor(window);
+    Require(window.Host().DebugCaptureBitmap(quiet), "capture document surface in high contrast");
+    appearance.drawFocusIndicator = true;
+    editor->SetAppearance(appearance);
+    RenderEditor(window);
+    Require(window.Host().DebugCaptureBitmap(framed) && framed.bgraPixels == quiet.bgraPixels,
+            "high contrast always retains the same focus indicator regardless of the document opt-out");
+}
+
 void TestRichTextEditorPreparedSourceInkPreservesGeometryAndSelection()
 {
     AttachedHostWindow window;
@@ -1637,6 +1674,7 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorSelectionGestureAndTextServicePublication);
     DXUI_RUN_TEST(TestRichTextEditorNativeHostAndLayoutReuse);
     DXUI_RUN_TEST(TestRichTextEditorPreparedSourceInkPreservesGeometryAndSelection);
+    DXUI_RUN_TEST(TestRichTextEditorDocumentFocusChromeDoesNotRetireTextGeometry);
     DXUI_RUN_TEST(TestRichTextEditorNativeUnicodeRoutingAndNavigation);
     DXUI_RUN_TEST(TestRichTextEditorClipboardAtomicityAndSourceContract);
     DXUI_RUN_TEST(TestRichTextEditorScrollAndHostClock);

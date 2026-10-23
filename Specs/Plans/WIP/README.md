@@ -2,6 +2,8 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
+- **ACTIVE**: [RedTilde visual fidelity](RedTildeVisualFidelity_2026-10-23.md). Shared subtle/outline/tab button presentation, icon/shortcut content, frameless trees and document focus chrome, with exact-pin consumer capture verification.
+
 - **SPEC READY**: [RichTextEditor file drag-and-drop](RichTextFileDrop_2026-10-20.md).
 Displayed image references and relative links for other files reuse the paste
 policy. Unicode OLE ownership, guarded caret insertion and native/embedded tests

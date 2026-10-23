@@ -282,6 +282,17 @@ HRESULT Button::MeasureOverride(const MeasureContext& context, const LayoutConst
         chrome += kButtonSplitDropDownSegmentDip;
     else if (variant == ButtonVariant::Selector)
         chrome += kButtonSelectorChevronWidthDip;
+    const bool decorated = variant == ButtonVariant::Standard || variant == ButtonVariant::DropDown || variant == ButtonVariant::Repeat;
+    if (decorated && ! GetLeadingIcon().empty())
+        chrome += 28.0f;
+    if (decorated && ! GetShortcutText().empty())
+    {
+        DesiredSize hint;
+        const HRESULT measured = MeasureText(context, {}, GetShortcutText(), FontRole::Small, GetFlowDirection(), false, 10.0f, 0.0f, 0.0f, 20.0f, hint);
+        if (FAILED(measured))
+            return measured;
+        chrome += hint.sizeDip.width + 10.0f;
+    }
     const bool icon            = variant == ButtonVariant::IconOnly || variant == ButtonVariant::Disclosure;
     const bool wrap            = IsMultiline() && variant == ButtonVariant::Standard;
     const bool overrideContent = GetContentFontSizeDip().has_value() && ! GetDisclosureExpanded().has_value();

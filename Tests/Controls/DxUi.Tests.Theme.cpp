@@ -808,6 +808,39 @@ void TestTreeBadgeVisualStyleUsesHighContrastAdornmentChrome()
     RequireColorNear(accent.text, theme.selectionText, "high-contrast tree accent badge keeps shared selection text");
 }
 
+void TestButtonQuietPresentationKeepsSelectionFocusAndContrast()
+{
+    using namespace DxUi;
+    for (const bool dark : {false, true})
+    {
+        auto theme          = MakeDefaultThemePalette(dark);
+        const auto ordinary = ResolveButtonVisualStyle(theme, true, false, false, false, false, false);
+        const auto subtle   = ResolveButtonAppearanceVisualStyle(theme, ordinary, ButtonAppearance::Subtle, true, false, false, false, 0.f);
+        Require(subtle.fill.a == 0.f && ! subtle.showBorder, "idle subtle buttons expose the parent surface");
+        RequireColorNear(subtle.text, theme.text, "subtle commands retain ordinary readable ink");
+        const auto tab = ResolveButtonAppearanceVisualStyle(theme, ordinary, ButtonAppearance::Tab, true, false, false, true, 0.f);
+        Require(tab.fill.a == 0.f && tab.showSelectionUnderline && ! tab.showBorder, "selected tabs use an underline without a filled button");
+        const auto outline = ResolveButtonAppearanceVisualStyle(theme, ordinary, ButtonAppearance::Outline, true, false, false, false, 0.f);
+        Require(outline.fill.a == 0.f && outline.showBorder, "outlined commands retain a perimeter over the parent surface");
+        const auto selected = ResolveButtonAppearanceVisualStyle(theme, ordinary, ButtonAppearance::Subtle, true, false, false, true, 0.f);
+        RequireColorNear(selected.fill, theme.selectionFill, "checked toolbar commands retain the selection fill");
+        RequireColorNear(selected.text, theme.selectionText, "checked toolbar commands retain the paired selection ink");
+        const auto focused = ResolveButtonVisualStyle(theme, true, false, false, true, true, false);
+        Require(ResolveButtonAppearanceVisualStyle(theme, focused, ButtonAppearance::Tab, true, false, false, true, 0.f).showFocus,
+                "tab presentation does not suppress the keyboard focus indicator");
+        theme.highContrast = true;
+        const auto system  = ResolveButtonVisualStyle(theme, true, false, false, true, true, false, true);
+        for (const auto appearance : {ButtonAppearance::Subtle, ButtonAppearance::Outline, ButtonAppearance::Tab})
+        {
+            const auto result = ResolveButtonAppearanceVisualStyle(theme, system, appearance, true, false, false, true, 0.f);
+            RequireColorNear(result.fill, system.fill, "high contrast preserves the exact system selection ground");
+            RequireColorNear(result.text, system.text, "high contrast preserves the exact system selection ink");
+            Require(result.showFocus == system.showFocus && result.showBorder == system.showBorder,
+                    "high contrast retains focus and border affordances for every appearance");
+        }
+    }
+}
+
 void TestButtonVisualStyleMatchesPreferencesFlatChrome()
 {
     using namespace DxUi;
@@ -2893,6 +2926,7 @@ void RunThemeTests()
     DXUI_RUN_TEST(TestTreeBadgeVisualStyleUsesViewerDerivedAdornmentChrome);
     DXUI_RUN_TEST(TestTreeBadgeVisualStyleUsesHighContrastAdornmentChrome);
     DXUI_RUN_TEST(TestButtonVisualStyleMatchesPreferencesFlatChrome);
+    DXUI_RUN_TEST(TestButtonQuietPresentationKeepsSelectionFocusAndContrast);
     DXUI_RUN_TEST(TestPrimaryButtonVisualStyleUsesAccentChrome);
     DXUI_RUN_TEST(TestPrimaryButtonVisualStyleFallsBackToReadableText);
     DXUI_RUN_TEST(TestButtonHighContrastFocusRingStaysVisibleWithoutKeyboardFocus);

@@ -307,6 +307,34 @@ GridProgressVisualStyle ResolveGridProgressVisualStyle(const ThemePalette& theme
     return style;
 }
 
+ButtonVisualStyle ResolveButtonAppearanceVisualStyle(const ThemePalette& theme,
+                                                     ButtonVisualStyle style,
+                                                     ButtonAppearance appearance,
+                                                     bool enabled,
+                                                     bool pressed,
+                                                     bool primary,
+                                                     bool checked,
+                                                     float hoverStrength) noexcept
+{
+    // Opt-in presentation never dilutes the system contrast pair or a primary action.
+    if (appearance == ButtonAppearance::Filled || primary || theme.highContrast)
+        return style;
+    const bool selected = checked && appearance != ButtonAppearance::Tab;
+    style.text          = ! enabled                                          ? theme.disabledText
+                          : selected                                         ? theme.selectionText
+                          : appearance == ButtonAppearance::Tab && ! checked ? theme.subduedText
+                                                                             : theme.text;
+    style.fill          = selected && enabled ? theme.selectionFill : pressed && enabled ? theme.buttonPressedFill : theme.buttonHotFill;
+    if (! selected && ! pressed)
+        style.fill.a *= enabled ? ClampUnit(hoverStrength) : 0.0f;
+    if (! enabled)
+        style.fill.a = 0.0f;
+    style.border                 = theme.buttonBorder;
+    style.showBorder             = appearance == ButtonAppearance::Outline;
+    style.showSelectionUnderline = enabled && checked && appearance == ButtonAppearance::Tab;
+    return style;
+}
+
 ButtonVisualStyle ResolveButtonVisualStyle(
     const ThemePalette& theme, bool enabled, bool hovered, bool pressed, bool focused, bool keyboardFocused, bool primary, bool toggled) noexcept
 {

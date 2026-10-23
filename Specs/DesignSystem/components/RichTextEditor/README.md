@@ -2,6 +2,9 @@
 
 Bounded Unicode editor with v0 formatting by default and an explicit semantic Markdown rendering preview.
 
+Document surfaces may set `drawFocusIndicator=false` alongside `drawBorder=false` to keep only the text caret.
+This visual-only option preserves prepared geometry and source/history; high contrast always keeps its focus indicator.
+
 - **Consumer supplies**: initial Markdown, a bounded rectangle, view/read-only policy and an optional text-change callback. Persistence belongs to the application.
 - **Metrics**: 8 DIP inset on each side, 6 when compact; 4 DIP corners; 1 DIP caret; 500 ms blink phase using the host clock. Wheel scrolling moves 48 DIP per detent.
 - **Document surface**: `SetAppearance` can remove the input border, blend with the window background, center a bounded text column and override body/code families, sizes, font-relative line height and heading scale or explicit per-level heading values. Defaults preserve the metrics above. Geometry, caret and accessible font attributes follow the same prepared options. Borderless keyboard focus retains a visible outline; focused high contrast retains it persistently.

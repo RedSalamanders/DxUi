@@ -41,6 +41,38 @@ bool WaitForContextMenuPopupState(HWND popupHwnd,
 // Button variant
 // ---------------------------------------------------------------------------
 
+void TestButtonDecoratedContentMeasuresAndPreservesInvocation()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root    = std::make_unique<Panel>();
+    auto* button = root->AddChild<Button>(L"Find");
+    window.Host().SetRoot(std::move(root));
+    DesiredSize plain, decorated, restored;
+    Require(SUCCEEDED(MeasureControl(*button, {window.Host()}, {}, plain)), "measure the ordinary text button");
+    button->SetLeadingIcon(L"\xE721");
+    button->SetShortcutText(L"Ctrl+F");
+    Require(SUCCEEDED(MeasureControl(*button, {window.Host()}, {}, decorated)) && decorated.sizeDip.width > plain.sizeDip.width + 40.f,
+            "intrinsic measurement reserves a real leading icon and the whole shortcut hint");
+    const auto revision = button->GetMeasureRevision();
+    button->SetLeadingIcon(L"\xE721");
+    button->SetShortcutText(L"Ctrl+F");
+    Require(button->GetMeasureRevision() == revision, "unchanged decoration does not invalidate retained measurements");
+    unsigned calls{};
+    button->SetOnClick([&] { ++calls; });
+    button->SetToggleState(false);
+    for (const auto appearance : {ButtonAppearance::Filled, ButtonAppearance::Subtle, ButtonAppearance::Outline, ButtonAppearance::Tab})
+    {
+        button->SetAppearance(appearance);
+        Require(button->Invoke(window.Host(), false) && button->GetToggleState() == false, "presentation preserves invocation and consumer-owned toggle state");
+    }
+    Require(calls == 4u, "every presentation invokes exactly one ordinary command");
+    button->SetLeadingIcon({});
+    button->SetShortcutText({});
+    Require(SUCCEEDED(MeasureControl(*button, {window.Host()}, {}, restored)) && restored.sizeDip.width == plain.sizeDip.width,
+            "clearing the decoration restores the exact intrinsic caption width");
+}
+
 void TestButtonVariantDefaultIsStandard()
 {
     using namespace DxUi;
@@ -2836,6 +2868,7 @@ void RunNewControlTests()
     DXUI_RUN_TEST(TestTabControlCloseCallbacksCanReplaceRootSafely);
     // Button variant
     DXUI_RUN_TEST(TestButtonVariantDefaultIsStandard);
+    DXUI_RUN_TEST(TestButtonDecoratedContentMeasuresAndPreservesInvocation);
     DXUI_RUN_TEST(TestButtonVariantRoundtripsAllValues);
     DXUI_RUN_TEST(TestButtonVariantPaintPathsHandleMissingDeviceContext);
     DXUI_RUN_TEST(TestButtonDisclosureChevronAnimatesAndHonorsReducedMotion);

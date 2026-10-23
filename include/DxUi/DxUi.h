@@ -227,6 +227,15 @@ enum class ButtonVariant : uint8_t
     Repeat,     // Fires continuously while held
 };
 
+// Presentation is independent of invocation, drop-down and accessibility semantics.
+enum class ButtonAppearance : uint8_t
+{
+    Filled,
+    Subtle,
+    Outline,
+    Tab,
+};
+
 enum class EasingCurve : uint8_t
 {
     Linear,
@@ -945,14 +954,15 @@ struct ThemePalette
 
 struct ButtonVisualStyle
 {
-    D2D1_COLOR_F fill    = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
-    D2D1_COLOR_F border  = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
-    D2D1_COLOR_F focus   = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
-    D2D1_COLOR_F text    = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
-    bool showBorder      = false;
-    bool showFocus       = false;
-    float textOffsetXDip = 0.0f;
-    float textOffsetYDip = 0.0f;
+    D2D1_COLOR_F fill           = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
+    D2D1_COLOR_F border         = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
+    D2D1_COLOR_F focus          = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
+    D2D1_COLOR_F text           = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
+    bool showBorder             = false;
+    bool showFocus              = false;
+    bool showSelectionUnderline = false;
+    float textOffsetXDip        = 0.0f;
+    float textOffsetYDip        = 0.0f;
 };
 
 inline constexpr float kButtonCornerRadiusDip         = 4.0f;
@@ -2044,6 +2054,13 @@ public:
     [[nodiscard]] std::optional<bool> GetToggleState() const noexcept;
     void SetVariant(ButtonVariant variant) noexcept;
     [[nodiscard]] ButtonVariant GetVariant() const noexcept;
+    void SetAppearance(ButtonAppearance appearance) noexcept;
+    [[nodiscard]] ButtonAppearance GetAppearance() const noexcept;
+    // Optional leading Fluent glyph and trailing keyboard hint for text buttons.
+    void SetLeadingIcon(std::wstring glyph);
+    [[nodiscard]] std::wstring_view GetLeadingIcon() const noexcept;
+    void SetShortcutText(std::wstring text);
+    [[nodiscard]] std::wstring_view GetShortcutText() const noexcept;
     void SetDisclosureCollapsedDirection(ChevronDirection direction) noexcept;
     void SetDisclosureExpanded(bool expanded) noexcept;
     [[nodiscard]] std::optional<bool> GetDisclosureExpanded() const noexcept;
@@ -2127,8 +2144,11 @@ private:
     std::optional<bool> _toggleState;
     std::optional<ButtonThemePreview> _themePreview;
     std::optional<float> _contentFontSizeDip;
-    bool _multiline        = false;
-    ButtonVariant _variant = ButtonVariant::Standard;
+    bool _multiline              = false;
+    ButtonVariant _variant       = ButtonVariant::Standard;
+    ButtonAppearance _appearance = ButtonAppearance::Filled;
+    std::wstring _leadingIcon;
+    std::wstring _shortcutText;
 };
 
 class Toggle : public Button
@@ -2871,7 +2891,9 @@ enum class RichTextLinkUnderlinePolicy : uint8_t
 };
 struct RichTextEditorAppearance
 {
-    bool drawBorder                = true;
+    bool drawBorder = true;
+    // High contrast always retains its focus indicator. The text caret is independent.
+    bool drawFocusIndicator        = true;
     bool blendWithWindowBackground = false;
     bool useAccentLinkColor        = false;
     bool colorizeMarkdownSource    = false;
@@ -4139,6 +4161,15 @@ private:
     uint64_t _hideTickMs           = 0u;
 };
 
+struct TreeAppearance final
+{
+    bool drawBackground                                   = true;
+    bool drawBorder                                       = true;
+    bool showExpanders                                    = true;
+    bool reserveExpanderSpace                             = false;
+    bool operator==(const TreeAppearance&) const noexcept = default;
+};
+
 class Tree final : public Control
 {
 public:
@@ -4151,6 +4182,8 @@ public:
     };
 
     Tree();
+    void SetAppearance(const TreeAppearance& appearance) noexcept;
+    [[nodiscard]] const TreeAppearance& GetAppearance() const noexcept;
 
     // Non-owning model pointer. Caller manages model lifetime from SetModel() until Tree destruction.
     // Model state accessed only on UI thread — no synchronization needed.
@@ -4363,6 +4396,7 @@ private:
     bool _multiSelect         = false;
     bool _invokeOnSingleClick = false;
     std::optional<TypographyOverride> _typographyOverride;
+    TreeAppearance _appearance;
     std::optional<uint64_t> _singleClickInvokeItemId;
     bool _singleClickCaptureArmed = false;
     std::optional<size_t> _hoveredVisibleIndex;
@@ -4845,6 +4879,14 @@ void RefreshAccentVariants(ThemePalette& palette, bool darkBase) noexcept;
                                                          float focusStrength,
                                                          bool toggled = false) noexcept;
 [[nodiscard]] LabelVisualStyle ResolveLabelVisualStyle(const ThemePalette& theme, const std::optional<D2D1_COLOR_F>& textColorOverride) noexcept;
+[[nodiscard]] ButtonVisualStyle ResolveButtonAppearanceVisualStyle(const ThemePalette& theme,
+                                                                   ButtonVisualStyle style,
+                                                                   ButtonAppearance appearance,
+                                                                   bool enabled,
+                                                                   bool pressed,
+                                                                   bool primary,
+                                                                   bool checked,
+                                                                   float hoverStrength) noexcept;
 [[nodiscard]] ToggleVisualStyle ResolveToggleVisualStyle(
     const ThemePalette& theme, bool enabled, bool hovered, bool pressed, bool focused, bool keyboardFocused, bool checked) noexcept;
 [[nodiscard]] ToggleVisualStyle ResolveToggleVisualStyle(const ThemePalette& theme,
