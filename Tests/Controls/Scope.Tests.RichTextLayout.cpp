@@ -397,6 +397,60 @@ void TestRichTextLayoutTransientLinkInkAndUnderlineRestoreSharedState()
     dormant.inkBrushes[static_cast<size_t>(TextInkRole::Accent)] = red.get();
     Require(render(layout, &dormant) != normal && render(layout, nullptr) == normal,
             "prepared source ink borrows brushes and restores shared DirectWrite drawing state");
+
+    const auto plainProjection = Project(document.Snapshot(), document.Revision(), ViewMode::Source);
+    Require(std::ranges::none_of(plainProjection.runs, [](const auto& run) { return (run.flags & Link) != 0u; }),
+            "plain source fixture has no link drawing transaction");
+    PreparedLayout plain;
+    plain.Prepare(factory.get(), plainProjection, 420.0f, 24.0f);
+    PreparedLayout plainShared(plain);
+    const auto plainGeneration      = plain.Generation();
+    const auto plainCaret           = plain.Caret(4u);
+    const auto plainRange           = plain.Range(0u, plainProjection.text.size());
+    const auto plainPixels          = render(plain, nullptr);
+    const auto requirePlainGeometry = [&]
+    {
+        const auto caret = plain.Caret(4u);
+        const auto range = plain.Range(0u, plainProjection.text.size());
+        Require(plain.Generation() == plainGeneration && plain.Content().source == document.Text() && plainShared.Content().source == document.Text() &&
+                    caret.x == plainCaret.x && caret.y == plainCaret.y && caret.height == plainCaret.height && range.size() == plainRange.size(),
+                "plain decoration preserves source, shared copy and prepared caret geometry");
+        for (size_t index = 0u; index < range.size(); ++index)
+            Require(range[index].left == plainRange[index].left && range[index].top == plainRange[index].top && range[index].right == plainRange[index].right &&
+                        range[index].bottom == plainRange[index].bottom,
+                    "plain decoration preserves every source range rectangle");
+    };
+    const auto requirePlainPixels = [&](const LinkDrawing& drawing, const char* message)
+    {
+        Require(render(plain, &drawing) == plainPixels && render(plainShared, nullptr) == plainPixels, message);
+        requirePlainGeometry();
+    };
+    LinkDrawing plainDrawing;
+    plainDrawing.underline = false;
+    requirePlainPixels(plainDrawing, "dormant link policy leaves plain paragraph pixels canonical");
+    plainDrawing.brush = red.get();
+    requirePlainPixels(plainDrawing, "accent link policy without link runs leaves plain paragraph pixels canonical");
+    plainDrawing.emphasis      = MarkdownRange{plainProjection.text.size(), plainProjection.text.size() + 4u};
+    plainDrawing.emphasisBrush = red.get();
+    requirePlainPixels(plainDrawing, "nonintersecting emphasis leaves plain paragraph pixels canonical");
+    plainDrawing.emphasis.reset();
+    plainDrawing.emphasisBrush = nullptr;
+    plainDrawing.inkRanges     = inkRanges;
+    requirePlainPixels(plainDrawing, "prepared ink without an effective role brush leaves plain paragraph pixels canonical");
+    plainDrawing.inkBrushes[static_cast<size_t>(TextInkRole::Accent)] = red.get();
+    plainDrawing.inkExclusion                                         = MarkdownRange{5u, 10u};
+    requirePlainPixels(plainDrawing, "fully excluded prepared ink leaves plain paragraph and shared-copy pixels canonical");
+    plainDrawing.inkExclusion   = MarkdownRange{7u, 10u};
+    const auto partialInkPixels = render(plain, &plainDrawing);
+    const std::array partialInkRanges{TextInkRange{{5u, 7u}, TextInkRole::Accent}};
+    plainDrawing.inkRanges = partialInkRanges;
+    plainDrawing.inkExclusion.reset();
+    Require(partialInkPixels != plainPixels && render(plainShared, &plainDrawing) == partialInkPixels && render(plainShared, nullptr) == plainPixels,
+            "partially excluded valid ink changes only its surviving range and restores shared canonical pixels");
+    requirePlainGeometry();
+    plain.Clear();
+    Require(! plain.Ready() && plainShared.Ready() && render(plainShared, nullptr) == plainPixels && plainShared.Content().source == document.Text(),
+            "retiring the plain owner preserves the shared layout's restored pixels and source");
 }
 void TestRichTextSourceInkPreparationRolesAndCapacity()
 {

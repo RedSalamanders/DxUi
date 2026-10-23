@@ -541,9 +541,12 @@ void PreparedLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POI
     // SDK drawing attributes are borrowed for this synchronous owner-thread
     // raster call. Copies may share the layout; restore its canonical style
     // even when setting a later range fails. No brush survives this call.
-    const auto restore    = wil::scope_exit([&]() noexcept
+    // Arm rollback before each fallible effect setter, including a failed one.
+    bool drawingEffectAttempted = false;
+    const auto restore          = wil::scope_exit([&]() noexcept
     {
-        static_cast<void>(state_->layout->SetDrawingEffect(nullptr, {state_->textOffset, static_cast<UINT32>(projection_.text.size())}));
+        if (drawingEffectAttempted)
+            static_cast<void>(state_->layout->SetDrawingEffect(nullptr, {state_->textOffset, static_cast<UINT32>(projection_.text.size())}));
         for (const auto& run : projection_.runs)
             if (run.flags & Link)
             {
@@ -551,16 +554,19 @@ void PreparedLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POI
                 static_cast<void>(state_->layout->SetUnderline(TRUE, range));
             }
     });
-    const auto intersects = [](const std::optional<MarkdownRange>& active, std::size_t first, std::size_t last) noexcept
+    const auto intersects       = [](const std::optional<MarkdownRange>& active, std::size_t first, std::size_t last) noexcept
     { return active && active->first < last && first < active->last; };
     if (links->emphasis && links->emphasisBrush)
     {
         const auto first = std::max(links->emphasis->first, links->displayOrigin);
         const auto last  = std::min(links->emphasis->last, links->displayOrigin + projection_.text.size());
         if (first < last)
+        {
+            drawingEffectAttempted = true;
             Check(state_->layout->SetDrawingEffect(links->emphasisBrush,
                                                    {static_cast<UINT32>(first - links->displayOrigin) + state_->textOffset, static_cast<UINT32>(last - first)}),
                   "Set paragraph emphasis ink");
+        }
     }
     for (auto ink = std::lower_bound(links->inkRanges.begin(),
                                      links->inkRanges.end(),
@@ -577,9 +583,12 @@ void PreparedLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POI
         const auto apply = [&](size_t begin, size_t end)
         {
             if (begin < end)
+            {
+                drawingEffectAttempted = true;
                 Check(state_->layout->SetDrawingEffect(
                           links->inkBrushes[role], {static_cast<UINT32>(begin - links->displayOrigin) + state_->textOffset, static_cast<UINT32>(end - begin)}),
                       "Set prepared source syntax ink");
+            }
         };
         if (links->inkExclusion && links->inkExclusion->first < last && first < links->inkExclusion->last)
         {
@@ -600,7 +609,10 @@ void PreparedLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POI
             auto* linkBrush =
                 links->emphasis && ! intersects(links->emphasis, first, last) && links->inactiveLinkBrush ? links->inactiveLinkBrush : links->brush;
             if (linkBrush)
+            {
+                drawingEffectAttempted = true;
                 Check(state_->layout->SetDrawingEffect(linkBrush, range), "Set transient link ink");
+            }
         }
     target->DrawTextLayout(origin, state_->layout.get(), brush, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
 }

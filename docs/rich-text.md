@@ -59,9 +59,18 @@ Use `SetOnSelectionChanged` for formatting state, selected-text actions and
 position status. It includes native text/TSF, UIA and programmatic routes. During
 pointer selection, `IsSelectionGestureActive()` lets the callback hide a transient
 toolbar and return immediately. Release/capture cancellation publishes final
-inactive state even when the endpoints are unchanged. The callback may replace
-itself, change selection or retire the editor; source and undo history stay owned
-by the editor. Unchanged endpoint/gesture state does not notify.
+inactive state even when the endpoints are unchanged. Notification deduplication
+includes source revision, endpoints and gesture state: changed non-notifying
+text-service previews and cancellation are observable even at unchanged ACPs,
+while an identical source/selection reimport is silent. Registration is silent.
+The callback may replace itself, change selection or retire the editor safely.
+These notifications do not create committed-text or history events.
+
+When both text and selection callbacks are registered, a committed edit first
+synchronizes native input, invokes `SetOnTextChanged` for the committed source,
+then publishes the current selection. Nested source edits, rebind, detach or
+retirement supersede the outer selection event. A text callback may clear or
+replace its own registration without suppressing that surviving selection event.
 
 `colorizeMarkdownSource=true` adds source ink from the configured Markdown
 analysis profile in Source view: subdued syntax delimiters, accent heading/list
@@ -217,15 +226,17 @@ host.SetRoot(std::move(root)); // ControlHost, or embedded.Controls()
 
 All mutable operations belong to the host/UI owner thread. Source UTF-16
 anchor/caret offsets include Markdown delimiters; invalid scalar/CRLF boundaries
-throw without mutation. `SetText` silently resets history; `SetSelection`
-and `SetViewMode(Source/Rich)` are silent and preserve source bytes.
-`ReplaceSelection`, `ToggleFormatting`, `Undo` and `Redo` notify once
-per actual source change. The four supported v0 formatting markers are described
-below. Read-only/disabled controls reject source commands; read-only allows
-selection and copy. `SetOnTextChanged` runs after publication and may replace/
-destroy the sender; standard exceptions are contained and do not roll back its
-committed edit. A scheduling callback that retires, rebinds or supersedes the
-editor stops the old notification.
+throw without mutation. `SetText` resets history without invoking the committed-
+text callback. `SetSelection` and `SetViewMode(Source/Rich)` preserve source bytes
+and do not invoke that text callback; installed selection observers follow the
+source-revision, selection and gesture publication contract above.
+`ReplaceSelection`, `ToggleFormatting`, `Undo` and `Redo` invoke the text callback
+once per actual committed source change. The four supported v0 formatting markers
+are described below. Read-only/disabled controls reject source commands; read-only
+allows selection and copy. `SetOnTextChanged` runs after publication and may replace
+or destroy the sender. `std::bad_alloc` is fatal; other standard exceptions are
+contained and do not roll back the committed edit. A scheduling callback that
+retires, rebinds or supersedes the editor stops the old notification.
 
 The preview implements pointer selection/word selection, Shift extension, host
 capture and cancellation, logical DirectWrite cluster navigation, word navigation,

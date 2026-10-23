@@ -840,3 +840,11 @@ allocation/SDK errors retain the existing failure contract. These bounds do not
 establish hard latency, browser layout equivalence or large-document acceptance.
 Resource/failure sweeps and all-current renderer qualification remain M4g work;
 earlier sealed parser/v0 packets do not establish semantic rendering performance.
+
+Transient rich-text raster ink borrows DirectWrite drawing effects only for the
+synchronous draw. Plain or fully excluded decoration must not clear an untouched
+effect range. Arm restoration before each attempted effect setter, including a
+failing setter, and restore canonical state before returning or propagating the
+failure. Preserve ordered underline application and restoration for overlapping
+admitted style runs. This optimization retains no additional layout or brush;
+pixel/geometry/copy regressions and measured CPU/memory evidence remain separate.
