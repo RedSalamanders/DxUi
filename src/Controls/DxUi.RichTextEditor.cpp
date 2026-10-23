@@ -79,10 +79,11 @@ struct RichTextEditor::State
     std::shared_ptr<const std::function<void()>> onTextChanged;
     std::shared_ptr<const std::function<void()>> onSelectionChanged;
     RichText::Selection publishedSelection{};
-    bool publishedSelectionGesture = false;
-    uint64_t typographyRevision    = 0;
-    uint64_t bindingRevision       = 0;
-    uint64_t resourceGeneration    = 0;
+    bool publishedSelectionGesture      = false;
+    uint64_t publishedSelectionRevision = 0u;
+    uint64_t typographyRevision         = 0;
+    uint64_t bindingRevision            = 0;
+    uint64_t resourceGeneration         = 0;
     uint64_t requestRevision = 0, requestBinding = 0, requestTypography = 0, requestResources = 0;
     IDWriteFactory* requestFactory = nullptr; // Identity only; staged layouts retain the factory through WIL.
     RichText::ViewMode requestMode = RichText::ViewMode::Rich;
@@ -903,9 +904,10 @@ void RichTextEditor::SetOnTextChanged(std::function<void()> callback)
 }
 void RichTextEditor::SetOnSelectionChanged(std::function<void()> callback)
 {
-    auto next                         = callback ? std::make_shared<const std::function<void()>>(std::move(callback)) : nullptr;
-    _state->publishedSelection        = GetSelection();
-    _state->publishedSelectionGesture = _state->dragging;
+    auto next                          = callback ? std::make_shared<const std::function<void()>>(std::move(callback)) : nullptr;
+    _state->publishedSelection         = GetSelection();
+    _state->publishedSelectionGesture  = _state->dragging;
+    _state->publishedSelectionRevision = Revision();
     _state->onSelectionChanged.swap(next);
 }
 bool RichTextEditor::IsSelectionGestureActive() const noexcept
@@ -916,13 +918,15 @@ void RichTextEditor::PublishSelectionChanged() noexcept
 {
     const auto selection = GetSelection();
     const bool gesture   = _state->dragging;
-    if (_state->publishedSelection == selection && _state->publishedSelectionGesture == gesture)
+    const auto revision  = Revision();
+    if (_state->publishedSelection == selection && _state->publishedSelectionGesture == gesture && _state->publishedSelectionRevision == revision)
         return;
     // Publish before invoking user code: nested selection changes must see their
     // actual predecessor, and self-replacement cannot invalidate this delegate.
-    _state->publishedSelection        = selection;
-    _state->publishedSelectionGesture = gesture;
-    const auto callback               = _state->onSelectionChanged;
+    _state->publishedSelection         = selection;
+    _state->publishedSelectionGesture  = gesture;
+    _state->publishedSelectionRevision = revision;
+    const auto callback                = _state->onSelectionChanged;
     if (! callback)
         return;
     try

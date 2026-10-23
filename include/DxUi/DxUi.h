@@ -3044,14 +3044,17 @@ public:
     // callback is registered, a notifying source edit invokes this callback before
     // publishing its corresponding selection notification. May replace/destroy
     // this control.
-    // Standard callback exceptions are contained; the committed edit remains.
+    // Allocation failure is fatal; other standard exceptions are contained and
+    // leave the committed edit intact.
     void SetOnTextChanged(std::function<void()> callback);
     // Owner-thread notification after source selection/gesture publication,
     // including keyboard, text services, UIA and programmatic selection. Silent
-    // registration; unchanged endpoints and gesture state are suppressed. During
-    // pointer selection, consumers can defer expensive work until the final
-    // release/capture-loss notification observes an inactive gesture. A callback
-    // may replace/destroy this control; standard exceptions are contained.
+    // registration; unchanged source revision, selection endpoints and gesture
+    // state are suppressed. During pointer selection, consumers can defer
+    // expensive work until the final release/capture-loss notification observes
+    // an inactive gesture. A callback may replace/destroy this control.
+    // Allocation failure is fatal; other standard exceptions are contained and
+    // leave the published selection intact.
     void SetOnSelectionChanged(std::function<void()> callback);
     [[nodiscard]] bool IsSelectionGestureActive() const noexcept;
     [[nodiscard]] RichTextEditorDebugState DebugGetState() const noexcept;

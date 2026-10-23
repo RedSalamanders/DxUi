@@ -351,6 +351,49 @@ void TestRichTextEditorCommittedTextThenSelectionCallbacks()
                 serviceEvents == std::vector<char>{'T', 'S'},
             "TSF commit uses committed text-then-selection callback ordering exactly once");
 
+    ControlHost repeatedPreviewHost;
+    auto repeatedPreviewOwner = std::make_unique<TextServiceEditor>(L"abcX");
+    auto* repeatedPreview     = repeatedPreviewOwner.get();
+    repeatedPreviewHost.SetRoot(std::move(repeatedPreviewOwner));
+    repeatedPreview->SetSelection({4u, 4u});
+    TextInputState repeatedCommitted;
+    Require(repeatedPreview->ExportTextInputState(repeatedCommitted), "same-anchor TSF baseline exports");
+    std::vector<char> repeatedEvents;
+    std::vector<Selection> repeatedSelections;
+    repeatedPreview->SetOnTextChanged([&] { repeatedEvents.push_back('T'); });
+    repeatedPreview->SetOnSelectionChanged([&]
+    {
+        repeatedEvents.push_back('S');
+        repeatedSelections.push_back(repeatedPreview->GetSelection());
+    });
+    Require(repeatedEvents.empty(), "same-anchor callback registration remains silent");
+    auto repeatedState                 = repeatedCommitted;
+    repeatedState.text                 = L"abcY";
+    repeatedState.caretIndex           = 4u;
+    repeatedState.selectionAnchorIndex = 4u;
+    Require(repeatedPreview->ImportTextInputState(repeatedPreviewHost, repeatedState, false) && repeatedPreview->GetText() == L"abcY" &&
+                repeatedEvents == std::vector<char>{'S'} && repeatedSelections == std::vector<Selection>{{4u, 4u}} && ! repeatedPreview->CanUndo() &&
+                ! repeatedPreview->CanRedo(),
+            "first non-notifying source revision publishes selection at the unchanged ACP without committed history");
+    Require(repeatedPreview->ImportTextInputState(repeatedPreviewHost, repeatedState, false) && repeatedEvents == std::vector<char>{'S'},
+            "same source revision and ACP suppress a duplicate text-service notification");
+    repeatedState.text = L"abcZ";
+    Require(repeatedPreview->ImportTextInputState(repeatedPreviewHost, repeatedState, false) && repeatedPreview->GetText() == L"abcZ" &&
+                repeatedEvents == std::vector<char>{'S', 'S'} && repeatedSelections == std::vector<Selection>{{4u, 4u}, {4u, 4u}} &&
+                ! repeatedPreview->CanUndo() && ! repeatedPreview->CanRedo(),
+            "second non-notifying source revision publishes even when ACP and gesture state are unchanged");
+    Require(repeatedPreview->ImportTextInputState(repeatedPreviewHost, repeatedCommitted, false) && repeatedPreview->GetText() == L"abcX" &&
+                repeatedEvents == std::vector<char>{'S', 'S', 'S'} && repeatedSelections.back() == Selection{4u, 4u} && ! repeatedPreview->CanUndo() &&
+                ! repeatedPreview->CanRedo(),
+            "cancellation publishes its restored source revision without creating history");
+    Require(repeatedPreview->ImportTextInputState(repeatedPreviewHost, repeatedCommitted, false) && repeatedEvents.size() == 3u,
+            "repeated unchanged cancellation remains silent");
+    auto repeatedCommit = repeatedCommitted;
+    repeatedCommit.text = L"abcW";
+    Require(repeatedPreview->ImportTextInputState(repeatedPreviewHost, repeatedCommit, true) && repeatedPreview->GetText() == L"abcW" &&
+                repeatedPreview->CanUndo() && repeatedEvents == std::vector<char>{'S', 'S', 'S', 'T', 'S'} && repeatedSelections.back() == Selection{4u, 4u},
+            "notifying commit retains text-then-selection order after same-anchor transient revisions");
+
     serviceEvents.clear();
     textEditor->SetSelection({4u, 4u});
     serviceEvents.clear();

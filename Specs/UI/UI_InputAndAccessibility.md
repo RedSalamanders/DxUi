@@ -38,9 +38,9 @@ perform layout, take focus or retain a consumer callback.
 
 `SetOnSelectionChanged` publishes owner-thread source-selection state from the
 same canonical path as keyboard, native text/TSF, UIA and programmatic selection.
-It changes neither source nor history. Unchanged endpoint/gesture state is silent;
-callbacks may replace themselves, change selection reentrantly or retire the
-editor. Notification state MUST publish before invocation so those changes cannot
+It changes neither source nor history. Unchanged source revision, endpoints and
+gesture state are silent; callbacks may replace themselves, change selection
+reentrantly or retire the editor. Notification state MUST publish before invocation so those changes cannot
 replay an older event. Standard callback failures retain committed selection;
 allocation failure is fatal at the native callback boundary.
 For a notifying source transaction with both `SetOnTextChanged` and
@@ -53,7 +53,11 @@ source edit, rebind, detach or retirement supersedes the outer selection event;
 the outer transaction MUST NOT publish stale selection state. This ordering lets
 the consumer derive document facts from committed source before receiving the
 selection notification. Selection-only changes and non-notifying TSF preview,
-cancellation and selection imports retain their immediate selection callback;
+cancellation and selection imports retain their immediate selection callback. A
+non-notifying text-service preview or cancellation that changes the source
+revision publishes selection state even when its anchor, caret and gesture state
+are unchanged; reimporting the same source revision and selection is silent. Such
+transient notifications never become committed text or history events;
 `SetText` remains silent for the text callback.
 `IsSelectionGestureActive` identifies pointer selection/press updates. Consumers
 may hide transient selection UI and return immediately while it is true.
