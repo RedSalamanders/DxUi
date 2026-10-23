@@ -1,5 +1,9 @@
 # Independent DxUi measurements
 
+- [RedTilde visual fidelity, 2026-10-23](VisualFidelity_2026-10-23/README.md): six SDK builds and 57 noninteractive
+  native suite passes, shared quiet controls and actual consumer capture verification. Both unpaired before/after
+  diagnostics require advice; performance, physical/platform, CI and release acceptance remain open.
+
 - [Explicit native WARP policy, 2026-10-21](RichText/2026-10-21-native-host-policy/README.md): six builds,
   57 default noninteractive suite passes with zero skips, software-adapter/conflict/device-replacement checks
   and retained failures. Complex-UI reports are unpaired diagnostics; application evidence and qualification stay separate.

@@ -42,7 +42,7 @@ document layout. All values are finite: margins 0..256 DIP, indentation 0..64 DI
 credit real source blank-line caret boxes; no source site is dropped, compressed or fabricated. An absent option
 preserves existing geometry. The option participates in complete geometry reuse/retirement and is validated before
 replacing a published layout. Ordinary source-view text geometry stays governed by its existing source policy.
-Last reviewed: 2026-10-18
+Last reviewed: 2026-10-23
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
