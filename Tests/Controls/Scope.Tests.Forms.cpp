@@ -818,7 +818,13 @@ void TestFormsEmbeddedReflowPreservesCompositionSelectionAndFocus()
     auto* second = form->AddField(L"height", L"Hauteur");
     second->AddEditor<NumericStepper>();
     view.Controls().SetRoot(std::move(root));
-    RequireSucceeded(view.Prepare(420, 400), "initial embedded form input layout");
+    const HRESULT initialPrepare = view.Prepare(420, 400);
+    RequireSucceeded(initialPrepare, "initial embedded form input layout");
+    if (initialPrepare == S_FALSE && view.Controls().HasPendingContentPreparation())
+        Require(view.NeedsPreparation(), "pending initial content preparation keeps the view dirty");
+    if (view.NeedsPreparation() || view.Controls().HasPendingContentPreparation())
+        RequireSucceeded(PrepareEmbeddedContentForTests(view, 420, 400), "complete initial embedded form input layout");
+    Require(! view.NeedsPreparation() && ! view.Controls().HasPendingContentPreparation(), "initial form input geometry is fully prepared");
     view.Controls().SetFocusControl(editor, false);
     editor->SetSelectionRange(1, 4);
     EmbeddedTextInputSnapshot before;
@@ -835,7 +841,11 @@ void TestFormsEmbeddedReflowPreservesCompositionSelectionAndFocus()
     first->SetDescription(L"Une description plus longue qui augmente la hauteur de la ligne.");
     RequireSucceeded(first->SetValidation(ValidationState::Error, L"Conservez le brouillon pendant cette présentation."),
                      "validation presentation while composing");
-    RequireSucceeded(view.Prepare(520, 450, 144), "DPI/flow/column/error reflow while composing");
+    const HRESULT reflowPrepare = view.Prepare(520, 450, 144);
+    RequireSucceeded(reflowPrepare, "DPI/flow/column/error reflow while composing");
+    if (view.NeedsPreparation() || view.Controls().HasPendingContentPreparation())
+        RequireSucceeded(PrepareEmbeddedContentForTests(view, 520, 450, 144), "complete DPI/flow/column/error reflow");
+    Require(! view.NeedsPreparation() && ! view.Controls().HasPendingContentPreparation(), "reflowed form input geometry is fully prepared");
     EmbeddedTextInputSnapshot after;
     Require(view.ReadTextInput(after) == S_OK && after.focusId == before.focusId && after.state.text == composition.text &&
                 after.state.compositionStartIndex == 0 && after.state.compositionEndIndex == 2 && view.Controls().GetFocusControl() == editor,

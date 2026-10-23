@@ -42,6 +42,11 @@ unsupported and growing custom minima; shared text budgets and cache invalidatio
 destructive, reentrant and detached callbacks; replacement editors during detach; embedded composition, selection
 and focus; and nonactivating native preparation. Accessibility additionally verifies both native and embedded
 form property providers and real client-thread property notifications, including weak label lifetime and teardown.
+Embedded form tests that read text snapshots after root installation or reflow MUST finish owner-driven preparation
+before asserting text geometry. A single successful HRESULT is insufficient because `Prepare` can return `S_FALSE`
+while cooperative content work remains pending. Use `PrepareEmbeddedContentForTests` or an equivalent bounded owner
+turn loop; do not retry only the text read or assume the first `Prepare` always yields.
+
 An existing manually positioned container must preserve its explicit geometry when these opt-in APIs are added.
 
 Real UIA event checks MUST fail when their bounded quiet wait expires; silently continuing loses the boundary

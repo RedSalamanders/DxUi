@@ -484,6 +484,13 @@ in the corresponding product repositories.
 
 ### Ongoing validation and resource budgets
 
+Canonical benchmark output keeps its fully qualified logical path for evidence ownership,
+receipt reads, comparisons and diagnostics. Only the Windows native benchmark argument uses
+an extended-length spelling: preserve an existing `\\?\` prefix, map ordinary UNC to
+`\\?\UNC\`, and prefix absolute drive paths with `\\?\`. Do not shorten or relocate
+run evidence to fit MAX_PATH. Before/after v2 attestation and native failure propagation remain
+required; path transport does not qualify an unpaired measurement.
+
 Every `test.ps1` invocation MUST report complex-UI FPS and memory, including filtered suites, and each suite receipt
 must include the measurement or its linked receipt. A failing/missing benchmark fails the test entrypoint. Unit-test
 execution rate and CPU command-submission rate must never be labeled rendered FPS. Hidden/static idle views have no

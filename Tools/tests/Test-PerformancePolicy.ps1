@@ -9,6 +9,101 @@ function Invoke-FixtureGit([string] $Root, [string[]] $Arguments) {
     if ($LASTEXITCODE -ne 0) { throw "git $($Arguments -join ' ') failed" }
 }
 
+Invoke-TestCase 'the actual benchmark call extends only native argv and preserves gates and failures' {
+    $tokens=$null; $errors=$null
+    $ast = [Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot '../../performance.ps1'),[ref]$tokens,[ref]$errors)
+    Assert-Equal 0 $errors.Count 'the performance entrypoint parses'
+    $before = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.AssignmentStatementAst] -and $Node.Left.Extent.Text -ceq '$before' },$true)
+    $gate = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.CommandAst] -and $Node.GetCommandName() -ceq 'Assert-PerformanceBuildAttestation' -and $Node.Extent.Text.Contains('-State $before') },$true)
+    $nativeTry = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.TryStatementAst] -and $Node.Body.Extent.Text.Contains('& $exe $benchmarkArgument') -and -not $Node.Body.Extent.Text.Contains('$benchmarkArgument = switch') },$true)
+    Assert-True ($null -ne $before -and $null -ne $gate -and $null -ne $nativeTry) 'extract the actual before gate and complete native try/catch'
+    # Execute production statements, including the conversion, native call, exit check and after gates. The
+    # scriptblock sentinel observes argv without opening files, running native code or evaluating real identity.
+    $stage = [scriptblock]::Create(@'
+param($OutputPath,$Probe,$exe)
+$Platform='x64'; $Configuration='Release'; $Scenario='Default'; $benchmarkArgument='--benchmark'
+function Get-PerformanceMeasurementState {
+    param($Root,$Platform,$Configuration)
+    $Probe.states++; $Probe.events.Add("state-$($Probe.states)")
+    return @{ ordinal=$Probe.states }
+}
+function Assert-PerformanceBuildAttestation {
+    param($Root,$Platform,$Configuration,$State)
+    $Probe.events.Add("attest-$($State.ordinal)")
+    if ($Probe.failBefore -and $State.ordinal -eq 1) { throw 'fixture-before-gate' }
+}
+function Assert-PerformanceMeasurementState {
+    param($Before,$After)
+    $Probe.events.Add('compare')
+    if ($Probe.failAfter) { throw 'fixture-after-gate' }
+}
+function Test-Path {
+    param($LiteralPath,$PathType)
+    $Probe.paths.Add($LiteralPath); $Probe.events.Add('exists')
+    return $Probe.outputExists
+}
+function Move-Item {
+    param($LiteralPath,$Destination)
+    $Probe.invalidated.Add($LiteralPath)
+}
+'@ + "`n" + $before.Extent.Text + "`n" + $gate.Extent.Text + "`n" + $nativeTry.Extent.Text)
+    $native = {
+        param($Flag,$Path)
+        $Probe.events.Add('native'); $Probe.arguments.Add($Flag); $Probe.arguments.Add($Path)
+        if ($Probe.nativeThrows) { throw 'fixture-native-exception' }
+        $global:LASTEXITCODE=$Probe.exitCode
+        'fixture-native-output'
+    }
+    $drive = 'C:\fixture space\' + ('long Unicode β\' * 24) + 'receipt.json'
+    $unc = '\\fixture.invalid\share space\' + ('long Unicode β\' * 24) + 'receipt.json'
+    Assert-True ($drive.Length -gt 260 -and $unc.Length -gt 260) 'long drive and UNC fixture paths exceed MAX_PATH'
+    $cases = @(
+        @($drive, ('\\?\' + $drive)),
+        @($unc, ('\\?\UNC\' + $unc.Substring(2))),
+        @('\\?\C:\fixture space\β.json', '\\?\C:\fixture space\β.json'),
+        @('\\?\UNC\fixture.invalid\share space\β.json', '\\?\UNC\fixture.invalid\share space\β.json'),
+        @('C:\fixture\short.json', '\\?\C:\fixture\short.json')
+    )
+    foreach ($case in $cases) {
+        $probe = @{ states=0; events=[Collections.Generic.List[string]]::new(); arguments=[Collections.Generic.List[string]]::new();
+            paths=[Collections.Generic.List[string]]::new(); invalidated=[Collections.Generic.List[string]]::new();
+            failBefore=$false; failAfter=$false; nativeThrows=$false; exitCode=0; outputExists=$true }
+        $logical = $case[0]
+        $output = @(& $stage $logical $probe $native)
+        Assert-Equal '--benchmark' $probe.arguments[0] 'benchmark selection is unchanged'
+        Assert-Equal $case[1] $probe.arguments[1] 'actual native call receives the extended spelling exactly once'
+        Assert-Equal $logical $probe.paths[0] 'output existence checks retain the logical evidence path'
+        Assert-Equal $case[0] $logical 'the caller logical path remains unchanged'
+        Assert-Equal 'state-1,attest-1,native,exists,state-2,compare,attest-2' ($probe.events -join ',') 'native work remains between both real extracted gates'
+        Assert-Equal 1 $output.Count 'conversion and gates add no success-stream output'
+        Assert-Equal 'fixture-native-output' $output[0] 'native success output is preserved'
+        Assert-Equal 0 $probe.invalidated.Count 'successful output is never invalidated'
+    }
+    foreach ($failure in @('before','exit','exception','missing','after')) {
+        $probe = @{ states=0; events=[Collections.Generic.List[string]]::new(); arguments=[Collections.Generic.List[string]]::new();
+            paths=[Collections.Generic.List[string]]::new(); invalidated=[Collections.Generic.List[string]]::new();
+            failBefore=($failure -eq 'before'); failAfter=($failure -eq 'after'); nativeThrows=($failure -eq 'exception');
+            exitCode=$(if ($failure -eq 'exit') { 7 } else { 0 }); outputExists=($failure -ne 'missing') }
+        $caught=$null
+        try { $null = & $stage $drive $probe $native } catch { $caught=$_ }
+        Assert-True ($null -ne $caught) "production failure propagates: $failure"
+        if ($failure -eq 'before') {
+            Assert-Equal 'fixture-before-gate' $caught.Exception.Message 'before-gate exception remains exact'
+            Assert-Equal 0 $probe.arguments.Count 'invalid identity starts no native operation'
+        } else {
+            Assert-Equal ('\\?\' + $drive) $probe.arguments[1] 'failure paths use the same native transport'
+            Assert-Equal 0 @($probe.paths | Where-Object { $_ -cne $drive }).Count 'failure evidence checks use only the logical path'
+            if ($failure -eq 'exit') { Assert-True $caught.Exception.Message.Contains('exit code 7') 'native exit status is preserved' }
+            if ($failure -eq 'exception') { Assert-Equal 'fixture-native-exception' $caught.Exception.Message 'native exception is preserved' }
+            if ($failure -eq 'missing') { Assert-True $caught.Exception.Message.Contains('wrote no receipt') 'missing output remains a failure' }
+            if ($failure -eq 'after') { Assert-Equal 'fixture-after-gate' $caught.Exception.Message 'after-gate exception is preserved' }
+            Assert-Equal $(if ($failure -eq 'after') { 2 } else { 1 }) $probe.states 'failed native/output work cannot reach after-state evaluation'
+            Assert-Equal $(if ($failure -eq 'missing') { 0 } else { 1 }) $probe.invalidated.Count 'existing invalid samples retain the production invalidation path'
+            if ($probe.invalidated.Count) { Assert-Equal $drive $probe.invalidated[0] 'invalidation keeps the logical output path' }
+        }
+    }
+}
+
 Invoke-FixtureCase 'only an independently qualified policy present in the measured base is trusted' {
     param($root)
     Invoke-FixtureGit $root @('init','-q','-b','main')

@@ -623,7 +623,9 @@ Callback-driven root replacement is supported and covered by a regression test.
 
 `ReadTextInput` returns an owned snapshot of the available focused control, a view revision and caret/viewport
 bounds in view-local DIPs. It clears its output on failure. No snapshot is available while hidden, suspended,
-detached or incoherently prepared. `ApplyTextInput` accepts only that view's current revision; any intervening
+detached or incoherently prepared. A cooperative `Prepare` that returns `S_FALSE` while `NeedsPreparation()` is true
+indicates yielded work, not ready text geometry; ordinary `TextField` input remains unavailable until preparation
+completes on a later owner turn. `ApplyTextInput` accepts only that view's current revision; any intervening
 invalidation, focus/tree replacement or device/attachment lifetime change invalidates the token. Read again after
 an accepted edit. These C++ records stay within a module; a consumer defines its own bounded plugin transport.
 

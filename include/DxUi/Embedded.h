@@ -140,7 +140,9 @@ public:
     // including zero. Keep the clock consistent for this attachment; advance only while requested.
     bool AdvanceAnimation(uint64_t nowTickMs) noexcept;
     // Physical pixel size and DPI. Text shaping and raster work happen only here, never in Composite.
-    // S_FALSE means hidden, zero-sized or already prepared; failure disables interaction until preparation succeeds.
+    // S_FALSE means hidden, zero-sized, already prepared, or cooperative content preparation remains pending;
+    // in the last case NeedsPreparation() stays true and the caller should prepare on a later owner turn, not spin.
+    // A failed HRESULT disables interaction until preparation succeeds.
     HRESULT Prepare(UINT widthPixels, UINT heightPixels, float dpi = 96.0f) noexcept;
     // After the caller finishes arranging live control bounds, acknowledge interaction changes without painting.
     // Only the last successfully painted extent/DPI is accepted. Initial/failed preparation, resize, hide and
