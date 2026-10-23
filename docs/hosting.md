@@ -113,6 +113,14 @@ return false and retain the ordinary translation/dispatch path. This boundary
 prevents a toolbar command that returns focus to an editor from typing its own
 activation character into the editor's retained selection.
 
+During active native IME composition, unmodified Return and Space remain owned
+by the input method for both TextField and RichTextEditor. The hook returns false
+without dispatching or translating either key; native key-down/key-up routing
+also keeps them out of retained control and host command callbacks. Keep the
+ordinary IME/TSF pretranslation path. After composition ends, Space produces its
+ordinary single character, and Return resumes the control's normal behavior.
+Modified-key routing and standalone committed IME characters are unchanged.
+
 ```cpp
 if (host.DispatchKeyboardMessage(message))
     continue;

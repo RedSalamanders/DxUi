@@ -13,6 +13,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 
 #include <msctf.h>
@@ -3968,69 +3969,140 @@ void TestNativeTextInputBackendImeCompositionOwnsSpecialKeys()
 {
     using namespace DxUi;
 
-    AttachedHostWindow window;
-    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
-    window.Host().SetTextInputBackend(TextInputBackend::Native);
-
-    auto root          = std::make_unique<Panel>();
-    auto* field        = root->AddChild<TextField>(L"alpha");
-    auto* nextButton   = root->AddChild<Button>(L"Next");
-    auto* cancelButton = root->AddChild<Button>(L"Cancel");
-    field->SetBounds(D2D1::RectF(0.0f, 0.0f, 180.0f, 28.0f));
-    nextButton->SetBounds(D2D1::RectF(0.0f, 40.0f, 120.0f, 68.0f));
-    cancelButton->SetBounds(D2D1::RectF(140.0f, 40.0f, 260.0f, 68.0f));
-
-    size_t defaultCount = 0u;
-    size_t cancelCount  = 0u;
-    nextButton->SetOnClick([&defaultCount] { ++defaultCount; });
-    cancelButton->SetOnClick([&cancelCount] { ++cancelCount; });
-
-    window.Host().SetRoot(std::move(root));
-    window.Host().SetDefaultButton(nextButton);
-    window.Host().SetCancelButton(cancelButton);
-    window.Host().SetFocusControl(field);
-
-    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
-
-    NativeTextInputState state;
-    Require(window.Host().TryReadNativeTextInputState(field, state) && state.compositionStartIndex.has_value(),
-            "native ime composition activates on the host hwnd");
-
-    for (const UINT key : {UINT{VK_RETURN}, UINT{VK_SPACE}})
+    const auto runScenario = []<typename TextControl>(const char* controlName)
     {
-        MSG ownedKey{};
-        ownedKey.hwnd    = window.Hwnd();
-        ownedKey.message = WM_KEYDOWN;
-        ownedKey.wParam  = key;
-        Require(! window.Host().DispatchKeyboardMessage(ownedKey), "the command pump leaves active IME-owned Return/Space to native pretranslation");
-    }
+        // Count only retained callbacks while preserving each canonical editor's
+        // behavior. The native IME gate must run before either override is called.
+        class KeyProbe final : public TextControl
+        {
+        public:
+            using TextControl::TextControl;
+            size_t keyDowns = 0u, keyUps = 0u;
+            bool OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noexcept override
+            {
+                ++keyDowns;
+                return TextControl::OnKeyDown(host, key, modifiers);
+            }
+            bool OnKeyUp(ControlHost& host, UINT key, UINT modifiers) noexcept override
+            {
+                ++keyUps;
+                return TextControl::OnKeyUp(host, key, modifiers);
+            }
+        };
 
-    static_cast<void>(SendMessageW(window.Hwnd(), WM_KEYDOWN, VK_RETURN, 0));
-    Require(defaultCount == 0u, "native ime composition keeps return from invoking the host default button");
-    Require(window.Host().GetFocusControl() == field, "native ime composition keeps focus on the text field after return");
-    Require(window.Host().DebugHasActiveNativeTextInputSession(), "native ime composition keeps the native session active after return");
+        AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+        window.Host().SetTextInputBackend(TextInputBackend::Native);
+        const char* failure = nullptr;
+        const auto sequence = [&]
+        {
+            failure           = nullptr;
+            const auto expect = [&](bool condition, const char* message)
+            {
+                if (! condition && ! failure)
+                    failure = message;
+            };
+            // A foreground takeover can replay this sequence with a fresh tree.
+            auto root          = std::make_unique<Panel>();
+            auto* field        = root->AddChild<KeyProbe>(L"alpha");
+            auto* nextButton   = root->AddChild<Button>(L"Next");
+            auto* cancelButton = root->AddChild<Button>(L"Cancel");
+            field->SetBounds(D2D1::RectF(0.0f, 0.0f, 180.0f, 28.0f));
+            nextButton->SetBounds(D2D1::RectF(0.0f, 40.0f, 120.0f, 68.0f));
+            cancelButton->SetBounds(D2D1::RectF(140.0f, 40.0f, 260.0f, 68.0f));
+            size_t defaultCount = 0u, cancelCount = 0u;
+            nextButton->SetOnClick([&] { ++defaultCount; });
+            cancelButton->SetOnClick([&] { ++cancelCount; });
+            window.Host().SetRoot(std::move(root));
+            window.Host().SetDefaultButton(nextButton);
+            window.Host().SetCancelButton(cancelButton);
+            window.Host().SetFocusControl(field);
+            NativeTextInputState entry;
+            expect(window.Host().TryReadNativeTextInputState(field, entry), "native editor has a readable entry state");
+            static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
+            NativeTextInputState state;
+            expect(window.Host().TryReadNativeTextInputState(field, state) && state.compositionStartIndex.has_value(),
+                   "native IME composition activates on the host HWND");
+            const auto compositionStart = state.compositionStartIndex, compositionEnd = state.compositionEndIndex;
 
-    static_cast<void>(SendMessageW(window.Hwnd(), WM_KEYDOWN, VK_ESCAPE, 0));
-    Require(cancelCount == 0u, "native ime composition keeps escape from invoking the host cancel button");
-    Require(window.Host().GetFocusControl() == field, "native ime composition keeps focus on the text field after escape");
+            MSG character{};
+            expect(! PeekMessageW(&character, window.Hwnd(), WM_CHAR, WM_CHAR, PM_NOREMOVE), "IME setup queues no ordinary character");
+            for (const UINT key : {UINT{VK_RETURN}, UINT{VK_SPACE}})
+            {
+                MSG ownedKey{};
+                ownedKey.hwnd    = window.Hwnd();
+                ownedKey.message = WM_KEYDOWN;
+                ownedKey.wParam  = key;
+                ownedKey.lParam  = 1 | static_cast<LPARAM>(MapVirtualKeyW(key, MAPVK_VK_TO_VSC) << 16);
+                ownedKey.time    = GetTickCount();
+                expect(! window.Host().DispatchKeyboardMessage(ownedKey),
+                       key == VK_RETURN ? "command pump bypasses active IME-owned Return" : "command pump bypasses active IME-owned Space");
+                expect(! PeekMessageW(&character, window.Hwnd(), WM_CHAR, WM_CHAR, PM_NOREMOVE),
+                       key == VK_RETURN ? "IME Return bypass queues no WM_CHAR" : "IME Space bypass queues no WM_CHAR");
+                static_cast<void>(SendMessageW(window.Hwnd(), WM_KEYDOWN, key, ownedKey.lParam));
+                static_cast<void>(SendMessageW(window.Hwnd(), WM_KEYUP, key, ownedKey.lParam | (LPARAM{3} << 30)));
+                expect(field->keyDowns == 0u && field->keyUps == 0u,
+                       key == VK_RETURN ? "native IME owns Return before retained key callbacks" : "native IME owns Space before retained key callbacks");
+            }
+            static_cast<void>(SendMessageW(window.Hwnd(), WM_KEYDOWN, VK_ESCAPE, 0));
+            static_cast<void>(SendMessageW(window.Hwnd(), WM_KEYDOWN, VK_TAB, 0));
+            expect(field->keyDowns == 0u && field->keyUps == 0u && defaultCount == 0u && cancelCount == 0u,
+                   "IME-owned keys invoke no retained callback or host default/cancel button");
+            expect(window.Host().TryReadNativeTextInputState(field, state) && state.text == entry.text && state.caretIndex == entry.caretIndex &&
+                       state.selectionAnchorIndex == entry.selectionAnchorIndex && state.compositionStartIndex == compositionStart &&
+                       state.compositionEndIndex == compositionEnd,
+                   "IME-owned keys preserve source, selection and composition span");
+            expect(window.Host().GetFocusControl() == field && window.Host().DebugHasActiveNativeTextInputSession(),
+                   "IME-owned keys preserve editor focus and native session");
+            if constexpr (std::is_same_v<TextControl, RichTextEditor>)
+                expect(! field->CanUndo() && ! field->CanRedo(), "IME-owned keys create no rich-text history");
 
-    static_cast<void>(SendMessageW(window.Hwnd(), WM_KEYDOWN, VK_TAB, 0));
-    Require(window.Host().GetFocusControl() == field, "native ime composition keeps tab from advancing host focus");
-    Require(window.Host().DebugHasActiveNativeTextInputSession(), "native ime composition keeps the native session active after tab");
+            static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_ENDCOMPOSITION, 0, 0));
+            expect(window.Host().TryReadNativeTextInputState(field, state) && ! state.compositionStartIndex && ! state.compositionEndIndex,
+                   "ending IME composition releases its ownership span");
+            MSG ordinarySpace{};
+            ordinarySpace.hwnd    = window.Hwnd();
+            ordinarySpace.message = WM_KEYDOWN;
+            ordinarySpace.wParam  = VK_SPACE;
+            ordinarySpace.lParam  = 1 | static_cast<LPARAM>(MapVirtualKeyW(VK_SPACE, MAPVK_VK_TO_VSC) << 16);
+            ordinarySpace.time    = GetTickCount();
+            expect(window.Host().DispatchKeyboardMessage(ordinarySpace), "ordinary Space resumes canonical command-pump dispatch after IME ends");
+            const bool translated = PeekMessageW(&character, window.Hwnd(), WM_CHAR, WM_CHAR, PM_REMOVE) != FALSE;
+            expect(translated && character.wParam == L' ', "ordinary Space queues its exact translated character after IME ends");
+            if (translated)
+                static_cast<void>(DispatchMessageW(&character));
+            expect(! PeekMessageW(&character, window.Hwnd(), WM_CHAR, WM_CHAR, PM_NOREMOVE), "ordinary Space queues exactly one character");
+            static_cast<void>(SendMessageW(window.Hwnd(), WM_KEYUP, VK_SPACE, ordinarySpace.lParam | (LPARAM{3} << 30)));
+            auto expectedText = entry.text;
+            expectedText.insert(entry.caretIndex, 1u, L' ');
+            expect(window.Host().TryReadNativeTextInputState(field, state) && state.text == expectedText && state.caretIndex == entry.caretIndex + 1u,
+                   "ordinary Space inserts exactly once into its original editor");
+            expect(field->keyDowns == 1u && field->keyUps == 1u, "ordinary Space resumes one retained keydown and keyup after IME ends");
+            if constexpr (std::is_same_v<TextControl, RichTextEditor>)
+                expect(field->CanUndo() && field->Undo() && field->GetText() == entry.text && ! field->CanUndo(),
+                       "one undo removes the single post-IME rich-text Space transaction");
 
-    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_ENDCOMPOSITION, 0, 0));
-
-    static_cast<void>(SendMessageW(window.Hwnd(), WM_KEYDOWN, VK_RETURN, 0));
-    Require(defaultCount == 1u, "return resumes host default-button routing after native ime composition ends");
-
-    window.Host().SetFocusControl(field);
-    static_cast<void>(SendMessageW(window.Hwnd(), WM_KEYDOWN, VK_ESCAPE, 0));
-    Require(cancelCount == 1u, "escape resumes host cancel-button routing after native ime composition ends");
-
-    window.Host().SetFocusControl(field);
-    static_cast<void>(SendMessageW(window.Hwnd(), WM_KEYDOWN, VK_TAB, 0));
-    Require(window.Host().GetFocusControl() == nextButton, "tab resumes host focus traversal after native ime composition ends");
-    Require(! window.Host().DebugHasActiveNativeTextInputSession(), "native session deactivates once tab resumes host focus traversal");
+            const auto beforeReturn = field->keyDowns;
+            static_cast<void>(SendMessageW(window.Hwnd(), WM_KEYDOWN, VK_RETURN, 0));
+            expect(field->keyDowns == beforeReturn + 1u, "Return resumes the retained key callback after IME ends");
+            expect(defaultCount == (std::is_same_v<TextControl, TextField> ? 1u : 0u),
+                   "post-IME Return keeps single-line default routing and rich multiline ownership");
+            window.Host().SetFocusControl(field);
+            static_cast<void>(SendMessageW(window.Hwnd(), WM_KEYDOWN, VK_ESCAPE, 0));
+            expect(cancelCount == 1u, "Escape resumes host cancel-button routing after IME ends");
+            window.Host().SetFocusControl(field);
+            static_cast<void>(SendMessageW(window.Hwnd(), WM_KEYDOWN, VK_TAB, 0));
+            expect(window.Host().GetFocusControl() == nextButton && ! window.Host().DebugHasActiveNativeTextInputSession(),
+                   "Tab resumes host focus traversal and retires the old native session after IME ends");
+            window.Host().SetRoot(nullptr);
+        };
+        if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, sequence), "native IME special-key ownership assertions"))
+            return;
+        const auto context = std::format("{}: {}", controlName, failure ? failure : "");
+        Require(failure == nullptr, context.c_str());
+    };
+    runScenario.operator()<TextField>("TextField");
+    runScenario.operator()<RichTextEditor>("RichTextEditor");
 }
 
 void TestNativeTextInputBackendImeCompositionLetsModifiedNavigationKeysRoute()

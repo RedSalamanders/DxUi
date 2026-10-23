@@ -288,8 +288,15 @@ the original weak owner, root and logical-focus epoch remain current. Idempotent
 focus refreshes preserve ownership; focus round trips, root retirement, detach
 and failed callbacks revoke it. Nested dispatch MUST NOT leak permission into an
 outer route. Multiline TextField/RichTextEditor Return reserves exactly one later
-character; preview/submission/default/button commands do not. Foreign/child HWND
-messages, system keys and IME-owned keys retain the existing path. Standalone
+character; preview/submission/default/button commands do not. Unmodified Return
+and Space during active native IME composition remain IME-owned: the command pump
+returns false without dispatch or character translation, and retained key-down/
+key-up handlers and host default/cancel actions MUST NOT receive those keys.
+This applies equally to TextField and RichTextEditor. After composition ends,
+ordinary Space translates and inserts exactly once into its original editor;
+Return resumes its ordinary single-line/default or multiline text ownership.
+Modified-key routing retains its existing policy. Foreign/child HWND messages,
+system keys and IME-owned keys retain the existing path. Standalone
 committed character input is unchanged. There is no queue scan, text removal,
 timer, sticky suppression flag or character reinterpretation in this boundary.
 `HandleMessage` without the pretranslation hook cannot establish this guarantee.

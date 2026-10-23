@@ -871,6 +871,7 @@ void ReleaseSharedWindowHostAttachment(ControlHost* host, DWORD ownerThreadId) n
     switch (virtualKey)
     {
         case VK_RETURN:
+        case VK_SPACE:
         case VK_ESCAPE:
         case VK_TAB:
         case VK_UP:
