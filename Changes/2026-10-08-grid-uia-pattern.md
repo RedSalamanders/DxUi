@@ -1,1 +1,0 @@
-- DxUi Grid controls expose UIA GridPattern counts and on-demand `GetItem` for offscreen rows, backed by a bounded snapshot cache retaining the 16 most recently materialized offscreen rows.

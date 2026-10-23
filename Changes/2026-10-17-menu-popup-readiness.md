@@ -1,1 +1,0 @@
-- Share menu fixture discovery of visible owned popups and establish modal dispatch readiness within the probe fixtures' existing discovery budget. Cover hidden and visible initialization deterministically, retaining probe deadlines, qualification HOLDs and existing performance thresholds.

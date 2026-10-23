@@ -6180,11 +6180,24 @@ void TestAccessibilityProviderExposesGridRowSelectionPatterns()
             ++selectionChangedCount;
             selectionCounts.push_back(sender.GetSelectionModel().GetCount());
             orderedSelection.assign(sender.GetSelectionModel().GetOrderedSelection().begin(), sender.GetSelectionModel().GetOrderedSelection().end());
+            if (detailToRelayout)
+            {
+                auto bounds = detailToRelayout->GetBounds();
+                bounds.right += 1.0f;
+                detailToRelayout->SetBounds(bounds);
+            }
+            if (modelToRebind)
+            {
+                auto* replacement = std::exchange(modelToRebind, nullptr);
+                sender.SetModel(replacement);
+            }
         }
 
         size_t selectionChangedCount = 0u;
         std::vector<size_t> selectionCounts;
         std::vector<uint64_t> orderedSelection;
+        Control* detailToRelayout = nullptr;
+        IGridModel* modelToRebind = nullptr;
     };
 
     AttachedHostWindow window;
@@ -6490,6 +6503,22 @@ void TestAccessibilityProviderExposesGridRowSelectionPatterns()
     Require(ReadSelectionProviderNames(*gridSelectionProvider.get(), "grid selection provider updates after removal") ==
                 std::vector<std::wstring>{L"Alpha | Ready"},
             "grid selection provider drops the removed row and preserves the remaining selection");
+
+    // A selection callback may arrange a sibling detail surface without retiring this row or model.
+    delegate.detailToRelayout = gridLabel;
+    RequireSucceeded(secondSelectionPattern->AddToSelection(), "Grid UIA add accepts sibling detail relayout in its selection callback");
+    Require(grid->IsRowSelected(0u) && grid->IsRowSelected(1u), "detail relayout preserves the accepted added selection");
+    RequireSucceeded(secondSelectionPattern->RemoveFromSelection(), "Grid UIA remove accepts sibling detail relayout in its selection callback");
+    Require(grid->IsRowSelected(0u) && ! grid->IsRowSelected(1u), "detail relayout preserves the accepted removal");
+    RequireSucceeded(secondSelectionPattern->Select(), "Grid UIA select accepts sibling detail relayout in its selection callback");
+    Require(! grid->IsRowSelected(0u) && grid->IsRowSelected(1u), "detail relayout preserves the accepted exclusive selection");
+    delegate.modelToRebind  = &gridModel;
+    const auto beforeRebind = grid->GetModelAssignmentGeneration();
+    const HRESULT rebindHr  = secondSelectionPattern->RemoveFromSelection();
+    Require(delegate.modelToRebind == nullptr && grid->GetModelAssignmentGeneration() != beforeRebind,
+            "the negative selection callback actually reassigns the same model");
+    Require(rebindHr == UIA_E_ELEMENTNOTAVAILABLE,
+            std::format("selection callback rebinding the same model disconnects the old row provider, hr=0x{:08X}", static_cast<uint32_t>(rebindHr)).c_str());
 }
 
 void TestAccessibilityProviderExposesHorizontallyScrolledGridRowStructure()

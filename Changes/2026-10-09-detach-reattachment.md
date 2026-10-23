@@ -1,1 +1,0 @@
-- 2026-10-09: Refuse reentrant native host attachment during teardown, preserving balanced HWND and shared-resource reservations while permitting a later attachment after detach completes.

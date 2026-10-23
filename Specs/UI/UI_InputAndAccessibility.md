@@ -725,3 +725,5 @@ model reconciliation does not call its pending selection-set delegate once publi
 multi-select mode change does not invalidate after that destruction. A provider's own identity checks and the event
 raiser's checks protect their continuations independently; retaining a provider or snapshot does not retain the
 control.
+
+Grid SelectionItem AddToSelection and RemoveFromSelection report accepted selection changes when a delegate updates or arranges sibling detail controls. Geometry changes alone do not retire the row. Owner lifetime and exact model-assignment generation remain authoritative after callbacks and accessibility publication, including reassignment of the same model pointer while publication is deferred.
