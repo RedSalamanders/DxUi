@@ -47,6 +47,9 @@ high contrast keep persistent underlines. `useAccentLinkColor=true` opts into
 the theme accent ink. This presentation changes neither destinations nor link
 activation policy; ordinary links remain inert. Source mode keeps raw syntax.
 
+Temporary link and source-ink decoration follows the shared
+[transient raster contract](../Specs/Core/Core_PerformanceAndResources.md#transient-raster-decoration).
+
 `SetSourceHighlights` accepts bounded source ranges with an optional `current`
 marker. These paint below selection and never alter source, selection or history;
 source edits clear them so a search owner can recompute current results.

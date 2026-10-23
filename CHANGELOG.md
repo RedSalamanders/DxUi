@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Complete scoped rich-editor presentation qualification at exact producer `38ec36be`: six builds, 74 zero-skip successful x64 suite executions, separate real ASan detector failures and reviewed gallery continuation. Publish Markdown integrity summaries while preserving raw evidence privately; paired performance-policy, physical input, native ARM64 runtime, consumer, CI and release acceptance remain open.
 - Avoid clearing untouched DirectWrite drawing effects during rich-text rasterization while preserving restoration after attempted or failed effect changes and ordered overlapping underlines.
   Extend native pixel, source geometry and shared-layout lifetime regressions for plain, excluded and partially applied ink. Paired performance acceptance and parent platform/input qualification remain separate gates.
 - Keep unmodified Space, like Return, owned by active native IME composition before command-pump translation or retained TextField/RichTextEditor key callbacks. Strengthen the foreground-gated regression for both controls, including no queued activation character and exactly one ordinary Space insertion after composition ends; native validation remains pending.

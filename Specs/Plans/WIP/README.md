@@ -2,8 +2,6 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
-- **NATIVE/GALLERY QUALIFIED; CLOSEOUT OPEN**: [Rich editor presentation](RichEditorPresentation_2026-10-22.md). Canonical presentation and input repairs have six successful builds, 62 ordinary and 12 foreground x64 suite executions with zero skips, and current reviewed gallery evidence. Final prose validation/evidence closeout remains open; parent performance, physical IME/AT, native ARM64 and consumer/release gates remain separate.
-
 - **SPEC READY**: [RichTextEditor file drag-and-drop](RichTextFileDrop_2026-10-20.md).
 Displayed image references and relative links for other files reuse the paste
 policy. Unicode OLE ownership, guarded caret insertion and native/embedded tests
