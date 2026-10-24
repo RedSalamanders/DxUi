@@ -22,6 +22,11 @@ geometry publication. It preserves every preceding assertion; consumer pin adopt
 
 Every supported capability has executable evidence and a truthful status in `capabilities.json`.
 
+Documentation gallery fixtures install synthetic tooltip content after queued window messages and cooperative
+preparation have settled, then verify the exact visible tooltip text immediately before synchronous capture.
+The owned-window leave interleaving must clear the preceding tooltip without activating or moving the desktop.
+This verifies fixture ordering; it does not attribute an earlier untraced capture or qualify physical hover input.
+
 M3 Markdown analysis checks every original expected HTML vector: 652 CommonMark
 0.31.2 and 672 GFM 0.29-gfm examples, without exclusions. Preserve each GFM
 example's declared extension flags; execute its two `disabled` task examples

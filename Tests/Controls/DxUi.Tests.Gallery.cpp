@@ -1508,9 +1508,18 @@ void ResizeClientArea(AttachedHostWindow& window, UINT widthPx, UINT heightPx)
     {
         static_cast<void>(scene.grid->Tick(window.Host(), 300u));
     }
+
+    // Exercise a native leave arriving between a previously visible tooltip and the final gallery overlay. The
+    // synthetic sample is installed after message settling and content preparation below; queued pointer
+    // messages are processed before the final fixture is installed.
     if (scene.tooltipOrigin)
     {
-        static_cast<void>(window.Host().SetTooltip(L"Tooltip sample", scene.tooltipOrigin.value()));
+        Require(window.Host().SetTooltip(L"Interleaved tooltip", scene.tooltipOrigin.value()), "gallery installs its interleaving tooltip");
+        Require(window.Host().HasTooltip() && window.Host().GetTooltipText() == L"Interleaved tooltip",
+                "gallery interleaving tooltip is present before native leave");
+        Require(PostMessageW(window.Hwnd(), WM_MOUSELEAVE, 0, 0) != FALSE, "gallery posts a native leave to its owned window");
+        window.PumpMessages(100u);
+        Require(! window.Host().HasTooltip(), "owned-window mouse leave clears the interleaved tooltip before gallery preparation");
     }
 
     RedrawWindow(window.Hwnd(), nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
@@ -1529,6 +1538,13 @@ void ResizeClientArea(AttachedHostWindow& window, UINT widthPx, UINT heightPx)
         Require(rect.left >= presentationBounds.left - 0.5f && rect.top >= presentationBounds.top - 0.5f && rect.right <= presentationBounds.right + 0.5f &&
                     rect.bottom <= presentationBounds.bottom + 0.5f && rect.right > rect.left && rect.bottom > rect.top,
                 "gallery presentation search highlight stays visible within its content tile");
+    }
+    if (scene.tooltipOrigin)
+    {
+        Require(window.Host().SetTooltip(L"Tooltip sample", scene.tooltipOrigin.value()), "gallery installs the synthetic tooltip after message settling");
+        RedrawWindow(window.Hwnd(), nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+        Require(window.Host().HasTooltip() && window.Host().GetTooltipText() == L"Tooltip sample",
+                "gallery installs its exact synthetic tooltip after message settling and preparation");
     }
     Require(window.Host().DebugCaptureBitmap(capture), "gallery section bitmap capture succeeds");
     Require(capture.widthPx > 0u && capture.heightPx > 0u && ! capture.bgraPixels.empty(), "gallery section capture is non-empty");
