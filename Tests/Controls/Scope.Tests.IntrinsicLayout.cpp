@@ -3,8 +3,12 @@
 #include "../../Samples/EmbeddedControls/GraphicsFixture.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 
+#include <iostream>
 #include <limits>
 #include <stdexcept>
+#include <string>
+#include <string_view>
+#include <thread>
 
 namespace
 {
@@ -67,6 +71,63 @@ protected:
         if (detached && ! lifetime.expired() && callback && *callback)
             (*callback)();
     }
+};
+
+struct VisualCancellationProbeState
+{
+    size_t prepared                     = 0u;
+    size_t cancelled                    = 0u;
+    size_t preparationRequests          = 0u;
+    bool insideVisualPreparation        = false;
+    bool requestDuringVisualPreparation = false;
+    std::function<void()> onPrepare;
+    std::function<void()> onCancel;
+};
+
+void RecordVisualPreparationWake(void* context) noexcept
+{
+    auto& state = *static_cast<VisualCancellationProbeState*>(context);
+    ++state.preparationRequests;
+    state.requestDuringVisualPreparation = state.requestDuringVisualPreparation || state.insideVisualPreparation;
+}
+
+class VisualCancellationProbe final : public Control
+{
+public:
+    explicit VisualCancellationProbe(VisualCancellationProbeState& state) : _state(&state)
+    {
+        EnableVisualContentPreparation();
+    }
+
+    void Paint(ControlHost&) const override
+    {
+    }
+
+protected:
+    void PrepareVisualContent(ControlHost&) noexcept override
+    {
+        // The callback may retire this control; the fixture state outlives its host.
+        VisualCancellationProbeState* const state = _state;
+        ++state->prepared;
+        state->insideVisualPreparation = true;
+        auto callback                  = std::move(state->onPrepare);
+        state->onPrepare               = {};
+        if (callback)
+            callback();
+        state->insideVisualPreparation = false;
+    }
+
+    void CancelVisualContentPreparation() noexcept override
+    {
+        ++_state->cancelled;
+        auto callback    = std::move(_state->onCancel);
+        _state->onCancel = {};
+        if (callback)
+            callback();
+    }
+
+private:
+    VisualCancellationProbeState* _state;
 };
 
 [[nodiscard]] FlexChildOptions Fixed(float width, float height)
@@ -164,6 +225,814 @@ void TestIntrinsicLeavesShapeUnicodeAndKeepEditorsStable()
     RequireSucceeded(checkbox.Measure({host}, {.maximumWidthDip = 140.0f}, checkboxSize), "measure wrapping checkbox chrome");
     Require(checkboxSize.sizeDip.height > 32.0f && checkboxSize.sizeDip.width >= 36.0f && (checkboxSize.sizeDip.width <= 140.01f || checkboxSize.overflow),
             "checkbox measurement reserves its indicator and vertical padding and reports excess natural width");
+}
+
+void TestLabelTypographyCharacterSpacingUsesRequestedTotal()
+{
+    ControlHost host;
+    Label baseline(L"MMMM");
+    Label spaced(L"MMMM");
+    const LabelTypography unspaced{.fontSizeDip = 16.0f, .fontWeight = DWRITE_FONT_WEIGHT_NORMAL, .characterSpacingDip = 0.0f};
+    auto tracked                = unspaced;
+    tracked.characterSpacingDip = 1.5f;
+    Require(baseline.SetTypographyOverride(unspaced) == S_OK && spaced.SetTypographyOverride(tracked) == S_OK,
+            "labels accept matching font metrics with explicit tracking");
+    DesiredSize baselineSize;
+    DesiredSize spacedSize;
+    RequireSucceeded(baseline.Measure({host}, {}, baselineSize), "measure untracked typography baseline");
+    RequireSucceeded(spaced.Measure({host}, {}, spacedSize), "measure tracked typography");
+    const float increase = spacedSize.sizeDip.width - baselineSize.sizeDip.width;
+    Require(increase > 5.8f && increase < 6.2f, "characterSpacingDip is the total 1.5 DIP per character across four glyphs, not 3 DIP per glyph");
+    const auto normalized = spaced.GetTypographyOverride();
+    Require(normalized && normalized->characterSpacingDip == 1.5f, "published character spacing uses the normalized public value");
+    tracked.characterSpacingDip = 1.5001f;
+    Require(spaced.SetTypographyOverride(tracked) == S_FALSE && spaced.GetTypographyOverride() == normalized,
+            "spacing values within one 1/64-DIP bucket publish idempotently");
+}
+
+void TestButtonContentFontSizeDefaultsValidationAndNormalization()
+{
+    Button button(L"Apply");
+    const auto initial = button.GetMeasureRevision();
+    Require(! button.GetContentFontSizeDip() && button.SetContentFontSizeDip(std::nullopt) == S_FALSE && button.GetMeasureRevision() == initial,
+            "button content inherits its existing role size by default without invalidating layout");
+    Require(button.SetContentFontSizeDip(14.0001f) == S_OK && button.GetContentFontSizeDip() == 14.0f,
+            "button content sizes normalize to one sixty-fourth DIP");
+    const auto changed = button.GetMeasureRevision();
+    Require(changed != initial && button.SetContentFontSizeDip(14.0002f) == S_FALSE && button.GetMeasureRevision() == changed,
+            "an equivalent normalized size is idempotent for intrinsic layout");
+    for (const float invalid :
+         {-1.0f, 0.0f, 5.99f, 96.01f, std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity(), std::numeric_limits<float>::quiet_NaN()})
+        Require(button.SetContentFontSizeDip(invalid) == E_INVALIDARG && button.GetContentFontSizeDip() == 14.0f && button.GetMeasureRevision() == changed,
+                "invalid content sizes leave the current size and measure epoch unchanged");
+    Require(button.SetContentFontSizeDip(6.0f) == S_OK && button.GetContentFontSizeDip() == 6.0f && button.SetContentFontSizeDip(96.0f) == S_OK &&
+                button.GetContentFontSizeDip() == 96.0f,
+            "the closed supported size interval accepts both endpoints");
+    Require(button.SetContentFontSizeDip(std::nullopt) == S_OK && ! button.GetContentFontSizeDip() && button.SetContentFontSizeDip(std::nullopt) == S_FALSE,
+            "clearing the override restores the inherited role size idempotently");
+}
+
+void TestButtonContentFontSizeShapesIntrinsicVariants()
+{
+    ControlHost host;
+    for (const auto variant : {ButtonVariant::Standard,
+                               ButtonVariant::DropDown,
+                               ButtonVariant::Selector,
+                               ButtonVariant::Split,
+                               ButtonVariant::Hyperlink,
+                               ButtonVariant::IconOnly,
+                               ButtonVariant::Disclosure,
+                               ButtonVariant::Repeat})
+    {
+        Button button(L"MMMMMMMM");
+        button.SetVariant(variant);
+        DesiredSize original;
+        RequireSucceeded(button.Measure({host}, {}, original), "measure inherited button content");
+        const bool icon       = variant == ButtonVariant::IconOnly || variant == ButtonVariant::Disclosure;
+        const float requested = icon ? 18.0f : 14.0f;
+        Require(button.SetContentFontSizeDip(requested) == S_OK, "override button content size");
+        const FontRole role =
+            icon ? (host.HasFluentIconFont() ? FontRole::Icon : (variant == ButtonVariant::IconOnly ? FontRole::Body : FontRole::Small)) : FontRole::Body;
+        auto* const base = host.GetTextFormat(role);
+        Require(base != nullptr, "host retains the original role format");
+        const auto baseSize = base->GetFontSize();
+        // A native layout changes only the original role's glyph size; it independently verifies
+        // Button's configured-format selection and baseline without relying on another control's optional baseline.
+        const DWRITE_TEXT_RANGE range{0u, static_cast<UINT32>(button.GetText().size())};
+        wil::com_ptr<IDWriteTextLayout> reference;
+        RequireSucceeded(
+            host.GetWriteFactory()->CreateTextLayout(
+                button.GetText().data(), range.length, base, (std::numeric_limits<float>::max)(), (std::numeric_limits<float>::max)(), reference.put()),
+            "create an independent native layout with the unchanged role family and weight");
+        RequireSucceeded(reference->SetFontSize(requested, range), "shape native glyphs at the requested size");
+        DWRITE_TEXT_METRICS text{};
+        DWRITE_LINE_METRICS line{};
+        UINT32 lineCount = 0u;
+        RequireSucceeded(reference->GetMetrics(&text), "measure independent requested glyph geometry");
+        RequireSucceeded(reference->GetLineMetrics(&line, 1u, &lineCount), "measure the independent first-line baseline");
+        Require(lineCount == 1u, "the single-line native reference has exactly one baseline");
+        DesiredSize sized;
+        RequireSucceeded(button.Measure({host}, {}, sized), "measure requested button content");
+        float horizontal = icon ? 16.0f : 24.0f;
+        if (variant == ButtonVariant::DropDown)
+            horizontal += kButtonDropDownChevronWidthDip;
+        else if (variant == ButtonVariant::Selector)
+            horizontal += kButtonSelectorChevronWidthDip;
+        else if (variant == ButtonVariant::Split)
+            horizontal += kButtonSplitDropDownSegmentDip;
+        Require(Close(sized.sizeDip.width, std::max(icon ? 32.0f : 0.0f, text.widthIncludingTrailingWhitespace + horizontal)) &&
+                    Close(sized.sizeDip.height, std::max(32.0f, text.height + 16.0f)) && sized.baselineDip &&
+                    Close(sized.baselineDip.value(), line.baseline + 8.0f),
+                "every button variant measures the requested glyph size with its unchanged chrome and baseline padding");
+        Require(base->GetFontSize() == baseSize, "a per-control size never mutates the host's role format");
+        Require(button.SetContentFontSizeDip(std::nullopt) == S_OK, "restore role defaults");
+        DesiredSize restored;
+        RequireSucceeded(button.Measure({host}, {}, restored), "remeasure restored role defaults");
+        Require(Close(original.sizeDip.width, restored.sizeDip.width) && Close(original.sizeDip.height, restored.sizeDip.height),
+                "null preserves exact default intrinsic metrics for every variant");
+    }
+    Button multiline(L"A translated caption that needs several measured lines at this width");
+    multiline.SetMultiline(true);
+    DesiredSize compactCaption, expandedCaption;
+    RequireSucceeded(multiline.SetContentFontSizeDip(14.0f), "size wrapped button text");
+    RequireSucceeded(multiline.Measure({host}, {.maximumWidthDip = 180.0f}, compactCaption), "measure wrapped 14-DIP caption");
+    RequireSucceeded(multiline.SetContentFontSizeDip(28.0f), "enlarge wrapped caption");
+    RequireSucceeded(multiline.Measure({host}, {.maximumWidthDip = 180.0f}, expandedCaption), "measure wrapped enlarged caption");
+    Require(expandedCaption.sizeDip.height > compactCaption.sizeDip.height && (expandedCaption.sizeDip.width <= 180.01f || expandedCaption.overflow),
+            "wrapped measurement uses the same requested font size and preserves truthful overflow");
+}
+
+void TestButtonContentFontSizeNativeGlyphPaintCacheAndGeneration()
+{
+    // A prior headless measure can initialize a hardware bucket for the runner thread. WARP ownership
+    // cannot replace a live graphics bucket, so keep this fixture on its own STA regardless of suite order.
+    std::jthread fixture([]
+    {
+        const auto apartment = wil::CoInitializeEx(COINIT_APARTMENTTHREADED);
+        DxUi::TestSupport::ScopedWindowActivationBlocker blocker;
+        Require(blocker.Start(), "the WARP fixture thread cannot activate or focus desktop windows");
+        AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, true);
+        auto& host             = window.Host();
+        auto theme             = host.GetTheme();
+        theme.reducedMotion    = true;
+        theme.text             = D2D1::ColorF(D2D1::ColorF::Black);
+        theme.windowBackground = theme.buttonFill = theme.buttonHotFill = theme.buttonPressedFill = theme.buttonBorder = D2D1::ColorF(D2D1::ColorF::White);
+        host.SetTheme(theme);
+        auto root    = std::make_unique<Panel>();
+        auto* button = root->AddChild<Button>(L"MMMMMMMM");
+        button->SetBounds(D2D1::RectF(20.0f, 20.0f, 220.0f, 100.0f));
+        host.SetRoot(std::move(root));
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        const auto capture = [&]
+        {
+            host.Invalidate();
+            WindowHostBitmapCapture pixels;
+            Require(host.DebugCaptureBitmap(pixels), "capture offscreen WARP button glyphs without desktop activation");
+            return pixels;
+        };
+        // This fixture needs the glyph's ink bounds inside a border-free white button interior;
+        // alpha/full-image comparison helpers deliberately measure a different property. Include antialiased
+        // edge coverage: a thin Fluent icon stem centered between pixel columns can have no RGB<80 pixels.
+        const auto ink = [&](const WindowHostBitmapCapture& pixels)
+        {
+            const auto bounds = button->GetBounds();
+            const UINT left   = static_cast<UINT>(std::ceil(host.DipsToPixels(bounds.left + 4.0f)));
+            const UINT right  = std::min(pixels.widthPx, static_cast<UINT>(std::floor(host.DipsToPixels(bounds.right - 4.0f))));
+            const UINT top    = static_cast<UINT>(std::ceil(host.DipsToPixels(bounds.top + 4.0f)));
+            const UINT bottom = std::min(pixels.heightPx, static_cast<UINT>(std::floor(host.DipsToPixels(bounds.bottom - 4.0f))));
+            UINT minX = right, minY = bottom, maxX = left, maxY = top;
+            bool found = false;
+            for (UINT y = top; y < bottom; ++y)
+                for (UINT x = left; x < right; ++x)
+                {
+                    const auto at = (static_cast<size_t>(y) * pixels.widthPx + x) * 4u;
+                    if (pixels.bgraPixels[at] < 224u && pixels.bgraPixels[at + 1u] < 224u && pixels.bgraPixels[at + 2u] < 224u)
+                    {
+                        minX  = std::min(minX, x);
+                        minY  = std::min(minY, y);
+                        maxX  = std::max(maxX, x);
+                        maxY  = std::max(maxY, y);
+                        found = true;
+                    }
+                }
+            Require(found, "button capture contains actual shaped glyph pixels");
+            return D2D1::SizeF(static_cast<float>(maxX - minX + 1u), static_cast<float>(maxY - minY + 1u));
+        };
+        const auto inherited = ink(capture());
+        RequireSucceeded(button->SetContentFontSizeDip(14.0f), "paint exact chrome label size");
+        const auto normal = ink(capture());
+        Require(normal.width > inherited.width, "14-DIP paint grows actual glyph geometry above the inherited 13-DIP role");
+        RequireSucceeded(button->SetContentFontSizeDip(28.0f), "paint doubled chrome label size");
+        const auto doubled = ink(capture());
+        Require(doubled.width > normal.width * 1.8f && doubled.height > normal.height * 1.7f,
+                "paint uses the requested content size rather than only enlarging intrinsic bounds");
+        RequireSucceeded(button->SetContentFontSizeDip(std::nullopt), "restore native role default");
+        const auto restored = ink(capture());
+        Require(Close(restored.width, inherited.width) && Close(restored.height, inherited.height), "clearing the size restores native default glyph geometry");
+
+        button->SetVariant(ButtonVariant::IconOnly);
+        button->SetText(host.HasFluentIconFont() ? L"\uE710" : L"+");
+        const auto originalIcon = ink(capture());
+        RequireSucceeded(button->SetContentFontSizeDip(18.0f), "paint 18-DIP line icon");
+        const auto sizedIcon = ink(capture());
+        Require(sizedIcon.width > originalIcon.width + 1.0f && sizedIcon.height > originalIcon.height + 1.0f,
+                "IconOnly scales actual Fluent or fallback glyphs using its retained host family");
+        const auto cacheCount = host.DebugGetConfiguredTextFormatCount();
+        for (unsigned repeat = 0u; repeat < 8u; ++repeat)
+            static_cast<void>(capture());
+        Require(host.DebugGetConfiguredTextFormatCount() == cacheCount, "repeated painting reuses configured formats without per-frame format growth");
+        const auto generation = host.GetResourceGeneration();
+        host.DebugSimulateDeviceLoss();
+        const auto recreated = ink(capture());
+        Require(host.GetResourceGeneration() != generation && Close(recreated.width, sizedIcon.width) && Close(recreated.height, sizedIcon.height) &&
+                    button->GetContentFontSizeDip() == 18.0f && host.DebugGetConfiguredTextFormatCount() == cacheCount,
+                "device-generation replacement preserves requested glyph geometry and device-independent format cache identity");
+
+        button->SetVariant(ButtonVariant::DropDown);
+        button->SetText(L"Apply");
+        RequireSucceeded(button->SetContentFontSizeDip(std::nullopt), "restore native drop-down baseline");
+        const auto before = capture();
+        RequireSucceeded(button->SetContentFontSizeDip(28.0f), "enlarge only the drop-down's caller content");
+        const auto after   = capture();
+        const auto chevron = ComputeButtonChromeLayout(button->GetBounds(), ButtonVariant::DropDown).chevronRect;
+        for (UINT y = static_cast<UINT>(host.DipsToPixels(chevron.top)); y < static_cast<UINT>(host.DipsToPixels(chevron.bottom)); ++y)
+            for (UINT x = static_cast<UINT>(host.DipsToPixels(chevron.left)); x < static_cast<UINT>(host.DipsToPixels(chevron.right)); ++x)
+            {
+                const auto at = (static_cast<size_t>(y) * before.widthPx + x) * 4u;
+                Require(std::equal(before.bgraPixels.begin() + at, before.bgraPixels.begin() + at + 4u, after.bgraPixels.begin() + at),
+                        "internal drop-down chevron keeps its original pixel geometry when the caption size changes");
+            }
+    });
+    Require(WaitForDxUiEventWithSentMessagesUntil(fixture.native_handle(), GetTickCount64() + 30000u) == WAIT_OBJECT_0,
+            "the isolated WARP fixture finishes including owner-thread COM and HWND cleanup");
+    fixture.join();
+}
+
+void TestButtonPreparedIconTextLayoutMatchesDrawTextW()
+{
+    std::jthread fixture([]
+    {
+        const auto apartment = wil::CoInitializeEx(COINIT_APARTMENTTHREADED);
+        DxUi::TestSupport::ScopedWindowActivationBlocker blocker;
+        Require(blocker.Start(), "the prepared-layout WARP fixture cannot activate or focus desktop windows");
+        AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, true);
+        auto& host   = window.Host();
+        auto root    = std::make_unique<Panel>();
+        auto* button = root->AddChild<Button>(L"\uE8DD");
+        auto* toggle = root->AddChild<Toggle>(L"\uE8DD");
+        auto* radio  = root->AddChild<RadioButton>(L"\uE8DD");
+        button->SetVariant(ButtonVariant::IconOnly);
+        button->SetBounds(D2D1::RectF(32.25f, 28.5f, 132.25f, 128.5f));
+        toggle->SetVariant(ButtonVariant::IconOnly);
+        toggle->SetBounds(D2D1::RectF(152.25f, 28.5f, 252.25f, 128.5f));
+        radio->SetVariant(ButtonVariant::IconOnly);
+        radio->SetBounds(D2D1::RectF(272.25f, 28.5f, 372.25f, 128.5f));
+        host.SetRoot(std::move(root));
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        std::cout << "prepared icon layout host font role=" << (host.HasFluentIconFont() ? "Icon" : "Body")
+                  << "; glyph fallback is resolved by DirectWrite and has no per-glyph face query in this SDK\n";
+
+        const auto capture = [&]
+        {
+            host.Invalidate();
+            WindowHostBitmapCapture pixels;
+            Require(host.DebugCaptureBitmap(pixels), "capture a no-activation prepared-layout frame");
+            return pixels;
+        };
+        const auto requireSamePixels = [](const WindowHostBitmapCapture& left, const WindowHostBitmapCapture& right, const char* reason)
+        {
+            Require(left.widthPx == right.widthPx && left.heightPx == right.heightPx && left.bgraPixels.size() == right.bgraPixels.size() &&
+                        std::equal(left.bgraPixels.begin(), left.bgraPixels.end(), right.bgraPixels.begin()),
+                    reason);
+        };
+        const auto requireFallbackParity = [&]
+        {
+            const uint64_t paintsBefore        = button->DebugGetPreparedIconTextLayoutPaintCount();
+            const auto prepared                = capture();
+            const uint64_t builds              = button->DebugGetPreparedIconTextLayoutBuildCount();
+            const uint64_t paintsAfterPrepared = button->DebugGetPreparedIconTextLayoutPaintCount();
+            Require(paintsAfterPrepared > paintsBefore, "the prepared capture actually draws its retained DirectWrite layout");
+            button->DebugSetPreparedIconTextLayoutDisabledForTest(true);
+            const auto fallback = capture();
+            button->DebugSetPreparedIconTextLayoutDisabledForTest(false);
+            const auto restored = capture();
+            requireSamePixels(prepared, fallback, "prepared DrawTextLayout output is byte-identical to the DrawTextW fallback");
+            requireSamePixels(prepared, restored, "restoring the prepared path preserves every captured BGRA byte");
+            Require(button->DebugGetPreparedIconTextLayoutBuildCount() == builds, "warm prepared-layout paints do not rebuild DirectWrite layouts");
+            Require(button->DebugGetPreparedIconTextLayoutPaintCount() > paintsAfterPrepared, "restoring the optimized path paints the retained layout again");
+        };
+
+        RequireSucceeded(button->SetContentFontSizeDip(12.0f), "cover a 12-DIP IconOnly content size");
+        static_cast<void>(capture());
+        Require(button->DebugGetPreparedIconTextLayoutBuildCount() == 1u, "the owner preparation pass builds one layout before the first optimized paint");
+        Require(button->DebugGetPreparedIconTextLayoutFactoryLookupCount() > 0u, "cold icon-layout preparation reaches the DirectWrite factory path");
+        Require(toggle->DebugGetPreparedIconTextLayoutBuildCount() == 0u, "a Toggle with its distinct Paint path does not retain an unused Button layout");
+        Require(radio->DebugGetPreparedIconTextLayoutBuildCount() == 0u, "a RadioButton with its distinct Paint path does not retain an unused Button layout");
+        const uint64_t factoryLookupsBeforeSizeChange = button->DebugGetPreparedIconTextLayoutFactoryLookupCount();
+        RequireSucceeded(button->SetContentFontSizeDip(18.0f), "use the same explicit content size as the app's icon buttons");
+        requireFallbackParity();
+        Require(button->DebugGetPreparedIconTextLayoutBuildCount() == 2u, "changing from 12 to 18 DIP prepares the new layout once");
+        Require(button->DebugGetPreparedIconTextLayoutFactoryLookupCount() == factoryLookupsBeforeSizeChange + 1u,
+                "a changed content-size key takes the DirectWrite factory path once");
+
+        // Clearing the bounded format map produces a new exact format identity. The retained layout must rebuild
+        // once for that identity, then the verified warm key must avoid another factory lookup.
+        for (int role = 0;
+             role <= static_cast<int>(FontRole::Small) && host.DebugGetConfiguredTextFormatCount() <= ControlHost::kConfiguredTextFormatCacheLimit;
+             ++role)
+        {
+            for (const auto alignment :
+                 {DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_TEXT_ALIGNMENT_TRAILING, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_TEXT_ALIGNMENT_JUSTIFIED})
+            {
+                for (const auto paragraph : {DWRITE_PARAGRAPH_ALIGNMENT_NEAR, DWRITE_PARAGRAPH_ALIGNMENT_FAR, DWRITE_PARAGRAPH_ALIGNMENT_CENTER})
+                {
+                    for (const bool wrap : {false, true})
+                    {
+                        static_cast<void>(host.GetTextFormat(FontRole(role), alignment, paragraph, wrap));
+                    }
+                }
+            }
+        }
+        Require(host.DebugGetConfiguredTextFormatCount() > ControlHost::kConfiguredTextFormatCacheLimit,
+                "distinct host text-format configurations overflow the bounded cache before the next paint");
+        const uint64_t buildsBeforeFormatTrim         = button->DebugGetPreparedIconTextLayoutBuildCount();
+        const uint64_t factoryLookupsBeforeFormatTrim = button->DebugGetPreparedIconTextLayoutFactoryLookupCount();
+        requireFallbackParity();
+        Require(host.DebugGetConfiguredTextFormatCount() <= ControlHost::kConfiguredTextFormatCacheLimit,
+                "the next paint trims the configured-format cache to its bound");
+        Require(button->DebugGetPreparedIconTextLayoutBuildCount() == buildsBeforeFormatTrim + 1u,
+                "format-cache eviction creates one replacement layout for the new exact format identity");
+        Require(button->DebugGetPreparedIconTextLayoutFactoryLookupCount() == factoryLookupsBeforeFormatTrim + 1u,
+                "format-cache eviction takes the DirectWrite factory path once for its replacement layout");
+        const uint64_t warmFactoryLookups = button->DebugGetPreparedIconTextLayoutFactoryLookupCount();
+        const uint64_t warmLayoutBuilds   = button->DebugGetPreparedIconTextLayoutBuildCount();
+        static_cast<void>(capture());
+        Require(button->DebugGetPreparedIconTextLayoutFactoryLookupCount() == warmFactoryLookups &&
+                    button->DebugGetPreparedIconTextLayoutBuildCount() == warmLayoutBuilds,
+                "a stable prepared-layout key skips factory lookup and layout creation on a warm owner pass");
+
+        // Scalar BMP Fluent glyphs, ordinary body fallback, a supplementary scalar, and RTL all keep the
+        // same format, layout options, and original brush while changing only the prepared layout resource.
+        const std::array<std::wstring, 5> glyphs{L"\uE8DD", L"\uE921", L"\u4E2D", L"\U0001F600", L"+"};
+        for (const auto& glyph : glyphs)
+        {
+            button->SetText(glyph);
+            for (const auto flow : {FlowDirection::LeftToRight, FlowDirection::RightToLeft})
+            {
+                button->SetFlowDirection(flow);
+                requireFallbackParity();
+            }
+        }
+
+        // Current Button paint has dynamic foreground and state. These changes must reuse the same layout and
+        // retain exact equality with the original DrawTextW path.
+        button->SetFlowDirection(FlowDirection::LeftToRight);
+        button->SetText(L"\uE8DD");
+        const uint64_t beforeStateKey = button->DebugGetPreparedIconTextLayoutBuildCount();
+        requireFallbackParity();
+        Require(button->DebugGetPreparedIconTextLayoutBuildCount() == beforeStateKey + 1u,
+                "restoring the glyph and flow prepares their new key before state-only reuse checks");
+        const uint64_t stateReuseBuilds = button->DebugGetPreparedIconTextLayoutBuildCount();
+        const D2D1_RECT_F hoverBounds   = button->GetBounds();
+        const auto hoverX               = static_cast<SHORT>(host.DipsToPixels((hoverBounds.left + hoverBounds.right) * 0.5f));
+        const auto hoverY               = static_cast<SHORT>(host.DipsToPixels((hoverBounds.top + hoverBounds.bottom) * 0.5f));
+        bool mouseMoveHandled           = false;
+        static_cast<void>(host.HandleMessage(window.Hwnd(), WM_MOUSEMOVE, 0u, MAKELPARAM(hoverX, hoverY), mouseMoveHandled));
+        Require(mouseMoveHandled && button->IsHovered(), "no-activation pointer movement exercises the hover paint state");
+        requireFallbackParity();
+        Require(button->DebugGetPreparedIconTextLayoutBuildCount() == stateReuseBuilds, "hover state reuses the prepared layout");
+        button->SetEnabled(false);
+        requireFallbackParity();
+        Require(button->DebugGetPreparedIconTextLayoutBuildCount() == stateReuseBuilds, "disabled state reuses the prepared layout");
+        button->SetEnabled(true);
+        button->SetPressedVisual(true);
+        requireFallbackParity();
+        Require(button->DebugGetPreparedIconTextLayoutBuildCount() == stateReuseBuilds, "pressed state reuses the prepared layout");
+        button->SetPressedVisual(false);
+
+        auto* const dc = host.GetDeviceContext();
+        Require(dc != nullptr, "prepared-layout WARP fixture exposes its device context");
+        const D2D1_TEXT_ANTIALIAS_MODE previousAntialias = dc->GetTextAntialiasMode();
+        for (const auto mode :
+             {D2D1_TEXT_ANTIALIAS_MODE_DEFAULT, D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE, D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE, D2D1_TEXT_ANTIALIAS_MODE_ALIASED})
+        {
+            dc->SetTextAntialiasMode(mode);
+            requireFallbackParity();
+        }
+        dc->SetTextAntialiasMode(previousAntialias);
+
+        const ThemePalette originalTheme = host.GetTheme();
+        ThemePalette contrastTheme       = originalTheme;
+        contrastTheme.highContrast       = ! originalTheme.highContrast;
+        host.SetTheme(contrastTheme);
+        const uint64_t beforeThemePaint = button->DebugGetPreparedIconTextLayoutBuildCount();
+        requireFallbackParity();
+        Require(button->DebugGetPreparedIconTextLayoutBuildCount() == beforeThemePaint, "color and contrast changes reuse the typography-only layout");
+        host.SetTheme(originalTheme);
+        requireFallbackParity();
+
+        // A pure origin move is not part of the layout key. A size change is.
+        const uint64_t beforeOriginMove = button->DebugGetPreparedIconTextLayoutBuildCount();
+        button->SetBounds(D2D1::RectF(40.25f, 44.5f, 140.25f, 144.5f));
+        requireFallbackParity();
+        Require(button->DebugGetPreparedIconTextLayoutBuildCount() == beforeOriginMove, "origin-only movement reuses the size-keyed layout");
+        button->SetBounds(D2D1::RectF(40.25f, 44.5f, 152.25f, 156.5f));
+        requireFallbackParity();
+        Require(button->DebugGetPreparedIconTextLayoutBuildCount() == beforeOriginMove + 1u, "a changed layout extent prepares one replacement layout");
+        RequireSucceeded(button->SetContentFontSizeDip(20.0f), "change the IconOnly effective text format");
+        requireFallbackParity();
+        Require(button->DebugGetPreparedIconTextLayoutBuildCount() == beforeOriginMove + 2u, "a typography change prepares a layout for the new format");
+        RequireSucceeded(button->SetContentFontSizeDip(18.0f), "restore the original IconOnly effective text format");
+        requireFallbackParity();
+        Require(button->DebugGetPreparedIconTextLayoutBuildCount() == beforeOriginMove + 3u, "restoring typography prepares exactly one current layout");
+
+        // Unsupported multi-scalar and malformed UTF-16 remain on the original shaping path.
+        for (const std::wstring unsupported : {std::wstring(L"AB"), std::wstring{static_cast<wchar_t>(0xD800)}})
+        {
+            const uint64_t builds = button->DebugGetPreparedIconTextLayoutBuildCount();
+            button->SetText(unsupported);
+            const auto first  = capture();
+            const auto second = capture();
+            requireSamePixels(first, second, "unsupported text keeps deterministic original DrawTextW rendering");
+            Require(button->DebugGetPreparedIconTextLayoutBuildCount() == builds, "unsupported text never enters the single-scalar layout cache");
+        }
+
+        button->SetText(L"\uE8DD");
+        static_cast<void>(capture());
+        const uint64_t beforeFailure         = button->DebugGetPreparedIconTextLayoutBuildCount();
+        const uint64_t attemptsBeforeFailure = button->DebugGetPreparedIconTextLayoutAttemptCount();
+        button->DebugFailNextPreparedIconTextLayoutForTest();
+        button->SetText(L"\uE921");
+        const auto failedPrepared = capture();
+        const auto failedAgain    = capture();
+        button->DebugSetPreparedIconTextLayoutDisabledForTest(true);
+        const auto failedFallback = capture();
+        button->DebugSetPreparedIconTextLayoutDisabledForTest(false);
+        requireSamePixels(failedPrepared, failedFallback, "failed optional preparation safely uses the exact original renderer");
+        requireSamePixels(failedPrepared, failedAgain, "a failed-key retry remains on the same deterministic fallback frame");
+        Require(button->DebugGetPreparedIconTextLayoutBuildCount() == beforeFailure, "one-shot layout failure publishes no partial cached resource");
+        Require(button->DebugGetPreparedIconTextLayoutAttemptCount() == attemptsBeforeFailure + 1u,
+                "a failed optional layout is not retried automatically on subsequent warm paints");
+        button->SetText(L"\uE8DD");
+        static_cast<void>(capture());
+        Require(button->DebugGetPreparedIconTextLayoutBuildCount() == beforeFailure + 1u,
+                "a later relevant text change retries and recovers prepared rendering");
+        Require(button->DebugGetPreparedIconTextLayoutAttemptCount() == attemptsBeforeFailure + 2u,
+                "one relevant text change performs exactly one subsequent preparation attempt");
+
+        // Hidden hosts cancel the retained resource. Showing again rebuilds without changing DXGI generation.
+        const uint64_t beforeHide          = button->DebugGetPreparedIconTextLayoutBuildCount();
+        const uint64_t resourcesBeforeHide = host.GetResourceGeneration();
+        ShowWindow(window.Hwnd(), SW_HIDE);
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        requireFallbackParity();
+        Require(button->DebugGetPreparedIconTextLayoutBuildCount() == beforeHide + 1u && host.GetResourceGeneration() == resourcesBeforeHide,
+                "owner hide/show cancels and rebuilds the layout without device-resource replacement");
+
+        for (const UINT dpi : {48u, 768u})
+        {
+            RECT suggested{0, 0, 640, 480};
+            bool handled = false;
+            static_cast<void>(host.HandleMessage(window.Hwnd(), WM_DPICHANGED, MAKELONG(dpi, dpi), reinterpret_cast<LPARAM>(&suggested), handled));
+            Require(handled && std::abs(host.GetDpi() - static_cast<float>(dpi)) <= 0.001f, "prepared-layout endpoint fixture applies the requested host DPI");
+            button->SetBounds(D2D1::RectF(12.25f, 12.5f, 24.25f, 24.5f));
+            const UINT requiredWidthPx  = static_cast<UINT>(std::ceil(24.25f * dpi / 96.0f));
+            const UINT requiredHeightPx = static_cast<UINT>(std::ceil(24.5f * dpi / 96.0f));
+            Require(host.DebugGetWidthPx() >= requiredWidthPx && host.DebugGetHeightPx() >= requiredHeightPx,
+                    "endpoint canvas fully contains the prepared glyph bounds without clipping");
+            requireFallbackParity();
+        }
+
+        const uint64_t resourcesBeforeLoss = host.GetResourceGeneration();
+        const uint64_t buildsBeforeLoss    = button->DebugGetPreparedIconTextLayoutBuildCount();
+        host.DebugSimulateDeviceLoss();
+        requireFallbackParity();
+        Require(host.GetResourceGeneration() != resourcesBeforeLoss && button->DebugGetPreparedIconTextLayoutBuildCount() == buildsBeforeLoss + 1u,
+                "device-resource cancellation retires and rebuilds the device-independent layout through owner preparation");
+    });
+    Require(WaitForDxUiEventWithSentMessagesUntil(fixture.native_handle(), GetTickCount64() + 30000u) == WAIT_OBJECT_0,
+            "the isolated prepared-layout fixture finishes without desktop activation");
+    fixture.join();
+}
+
+void TestButtonPreparedIconTextLayoutHidePreservesWarmSibling()
+{
+    // Earlier headless measurement can retain a hardware bucket on the runner thread.
+    // An isolated owner thread keeps forced WARP independent of that suite history.
+    std::jthread fixture([]
+    {
+        const auto apartment = wil::CoInitializeEx(COINIT_APARTMENTTHREADED);
+        DxUi::TestSupport::ScopedWindowActivationBlocker blocker;
+        Require(blocker.Start(), "the sibling WARP fixture cannot activate or focus desktop windows");
+        AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, true);
+        auto& host    = window.Host();
+        auto root     = std::make_unique<Panel>();
+        auto* branch  = root->AddChild<Panel>();
+        auto* hidden  = branch->AddChild<Button>(L"\uE8DD");
+        auto* sibling = root->AddChild<Button>(L"\uE921");
+        hidden->SetVariant(ButtonVariant::IconOnly);
+        sibling->SetVariant(ButtonVariant::IconOnly);
+        branch->SetBounds(D2D1::RectF(0.0f, 0.0f, 80.0f, 80.0f));
+        hidden->SetBounds(D2D1::RectF(4.0f, 4.0f, 72.0f, 72.0f));
+        sibling->SetBounds(D2D1::RectF(84.0f, 4.0f, 152.0f, 72.0f));
+        host.SetRoot(std::move(root));
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        const auto capture = [&]
+        {
+            host.Invalidate();
+            WindowHostBitmapCapture pixels;
+            Require(host.DebugCaptureBitmap(pixels), "capture prepared-layout sibling visibility state");
+        };
+        capture();
+        Require(hidden->DebugGetPreparedIconTextLayoutBuildCount() == 1u && sibling->DebugGetPreparedIconTextLayoutBuildCount() == 1u,
+                "both branches start with one retained text layout");
+        branch->SetVisible(false);
+        capture();
+        branch->SetVisible(true);
+        capture();
+        Require(hidden->DebugGetPreparedIconTextLayoutBuildCount() == 2u && sibling->DebugGetPreparedIconTextLayoutBuildCount() == 1u,
+                "hiding and revealing an ancestor rebuilds only that branch's layout");
+    });
+    Require(WaitForDxUiEventWithSentMessagesUntil(fixture.native_handle(), GetTickCount64() + 30000u) == WAIT_OBJECT_0,
+            "the isolated sibling fixture finishes including owner-thread cleanup");
+    fixture.join();
+}
+
+void TestEmbeddedVisualSurfaceReleaseCanDetachHost()
+{
+    const auto apartment = wil::CoInitializeEx(COINIT_MULTITHREADED);
+    const auto exercise  = [](bool detachHost)
+    {
+        GraphicsFixture graphics;
+        RequireSucceeded(graphics.Create(), "embedded visual-cancellation WARP fixture");
+        std::shared_ptr<GraphicsDevice> device;
+        RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "embedded visual-cancellation graphics pool");
+        VisualCancellationProbeState state;
+        EmbeddedHost view;
+        RequireSucceeded(view.Attach(device), "attach visual-cancellation embedded host");
+        auto root = std::make_unique<Panel>();
+        root->AddChild<VisualCancellationProbe>(state);
+        view.Controls().SetRoot(std::move(root));
+        RequireSucceeded(view.Prepare(80u, 80u, 96.0f), "prepare before arming visual cancellation");
+        Require(state.prepared == 1u, "the visual-only control prepares before surface release");
+        state.onCancel = [&]
+        {
+            if (detachHost)
+                view.Detach();
+            else
+                view.Controls().SetRoot(std::unique_ptr<Control>{});
+        };
+
+        view.SetVisible(false);
+        Require(state.cancelled >= 1u && view.GetStatistics().surfaceBytes == 0u, "final visual cancellation runs after surface state is safely released");
+        Require(view.Controls().GetRoot() == nullptr,
+                detachHost ? "reentrant cancellation detaches the host root safely" : "reentrant cancellation retires the root safely");
+    };
+    exercise(false);
+    exercise(true);
+}
+
+void TestEmbeddedVisualCancellationCanReenterDetach()
+{
+    const auto apartment = wil::CoInitializeEx(COINIT_MULTITHREADED);
+    GraphicsFixture graphics;
+    RequireSucceeded(graphics.Create(), "embedded visual-detach WARP fixture");
+    std::shared_ptr<GraphicsDevice> device;
+    RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "embedded visual-detach graphics pool");
+    VisualCancellationProbeState state;
+    EmbeddedHost view;
+    RequireSucceeded(view.Attach(device), "attach visual-detach embedded host");
+    auto root = std::make_unique<Panel>();
+    root->AddChild<VisualCancellationProbe>(state);
+    view.Controls().SetRoot(std::move(root));
+    RequireSucceeded(view.Prepare(80u, 80u, 96.0f), "prepare before direct detach");
+    state.onCancel = [&] { view.Detach(); };
+
+    view.Detach();
+
+    Require(state.cancelled == 1u && view.Controls().GetRoot() == nullptr, "direct detach remains single-entry when visual cancellation reenters Detach");
+}
+
+void TestEmbeddedVisualPreparationCanDetachHost()
+{
+    const auto apartment = wil::CoInitializeEx(COINIT_MULTITHREADED);
+    GraphicsFixture graphics;
+    RequireSucceeded(graphics.Create(), "embedded visual-prepare detach WARP fixture");
+    std::shared_ptr<GraphicsDevice> device;
+    RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "embedded visual-prepare detach graphics pool");
+    VisualCancellationProbeState state;
+    EmbeddedHost view;
+    RequireSucceeded(view.Attach(device), "attach visual-prepare detach embedded host");
+    auto root = std::make_unique<Panel>();
+    root->AddChild<VisualCancellationProbe>(state);
+    view.Controls().SetRoot(std::move(root));
+    state.onPrepare = [&] { view.Detach(); };
+
+    const HRESULT result = view.Prepare(80u, 80u, 96.0f);
+
+    Require(result == E_ABORT && state.prepared == 1u && state.cancelled == 1u && view.Controls().GetRoot() == nullptr,
+            "visual preparation detachment cancels safely and rejects the stale embedded frame");
+}
+
+void TestEmbeddedVisualPreparationRejectsReplacedDeviceAndRecovers()
+{
+    const auto apartment = wil::CoInitializeEx(COINIT_MULTITHREADED);
+    GraphicsFixture graphics;
+    RequireSucceeded(graphics.Create(), "embedded visual-prepare replacement WARP fixture");
+    std::shared_ptr<GraphicsDevice> device;
+    RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "embedded visual-prepare replacement graphics pool");
+    VisualCancellationProbeState state;
+    EmbeddedHost view;
+    const EmbeddedCallbacks callbacks{.context = &state, .requestPreparation = &RecordVisualPreparationWake};
+    RequireSucceeded(view.Attach(device, callbacks), "attach visual-prepare replacement embedded host");
+    Require(state.preparationRequests == 0u, "initial attachment does not synchronously request preparation");
+    auto root = std::make_unique<Panel>();
+    root->AddChild<VisualCancellationProbe>(state);
+    view.Controls().SetRoot(std::move(root));
+    HRESULT replaceResult     = E_PENDING;
+    state.onPrepare           = [&] { replaceResult = view.ReplaceDevice(device); };
+    state.preparationRequests = 0u;
+
+    const HRESULT staleFrame   = view.Prepare(80u, 80u, 96.0f);
+    const size_t deferredWakes = state.preparationRequests;
+    const HRESULT recovered    = view.Prepare(80u, 80u, 96.0f);
+
+    RequireSucceeded(replaceResult, "reentrant device replacement succeeds");
+    Require(staleFrame == E_ABORT && deferredWakes == 1u && state.preparationRequests == deferredWakes && recovered == S_OK &&
+                ! state.requestDuringVisualPreparation && view.GetStatistics().preparations == 1u,
+            "replacement invalidates the active frame, sends one deferred wake, and the owner can service the new resource epoch");
+    const size_t requestsBeforeOrdinaryReplacement = state.preparationRequests;
+    RequireSucceeded(view.ReplaceDevice(device), "ordinary device replacement does not fake a sent wake");
+    const size_t requestsAfterOrdinaryReplacement = state.preparationRequests;
+    view.Controls().Invalidate();
+    Require(requestsAfterOrdinaryReplacement == requestsBeforeOrdinaryReplacement && state.preparationRequests == requestsAfterOrdinaryReplacement + 1u,
+            "a later real invalidation still delivers its owner wake after ordinary device replacement");
+    const size_t cancellationsBeforeDetach = state.cancelled;
+    view.Detach();
+    Require(state.cancelled == cancellationsBeforeDetach + 1u && view.Controls().GetRoot() == nullptr,
+            "replacement recovery teardown cancels the remaining probe while its state is alive");
+}
+
+void TestEmbeddedHideShowDuringVisualPreparationDefersOneWake()
+{
+    const auto apartment = wil::CoInitializeEx(COINIT_MULTITHREADED);
+    GraphicsFixture graphics;
+    RequireSucceeded(graphics.Create(), "embedded visual hide-show WARP fixture");
+    std::shared_ptr<GraphicsDevice> device;
+    RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "embedded visual hide-show graphics pool");
+    VisualCancellationProbeState state;
+    EmbeddedHost view;
+    const EmbeddedCallbacks callbacks{.context = &state, .requestPreparation = &RecordVisualPreparationWake};
+    RequireSucceeded(view.Attach(device, callbacks), "attach visual hide-show embedded host");
+    auto root = std::make_unique<Panel>();
+    root->AddChild<VisualCancellationProbe>(state);
+    view.Controls().SetRoot(std::move(root));
+    state.onPrepare = [&]
+    {
+        view.SetVisible(false);
+        view.SetVisible(true);
+    };
+    state.preparationRequests = 0u;
+
+    const HRESULT staleFrame   = view.Prepare(80u, 80u, 96.0f);
+    const size_t deferredWakes = state.preparationRequests;
+    const HRESULT recovered    = view.Prepare(80u, 80u, 96.0f);
+
+    Require(staleFrame == E_ABORT && deferredWakes == 1u && state.preparationRequests == deferredWakes && recovered == S_OK &&
+                ! state.requestDuringVisualPreparation,
+            "hide/show during visual preparation coalesces to one owner wake after the stale frame unwinds");
+    const size_t cancellationsBeforeDetach = state.cancelled;
+    view.Detach();
+    Require(state.cancelled == cancellationsBeforeDetach + 1u && view.Controls().GetRoot() == nullptr,
+            "hide/show recovery teardown cancels the remaining probe while its state is alive");
+}
+
+void TestHiddenVisualPreparationDoesNotWakeUntilShown()
+{
+    const auto apartment = wil::CoInitializeEx(COINIT_MULTITHREADED);
+    GraphicsFixture graphics;
+    RequireSucceeded(graphics.Create(), "embedded hidden visual WARP fixture");
+    std::shared_ptr<GraphicsDevice> device;
+    RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "embedded hidden visual graphics pool");
+    VisualCancellationProbeState state;
+    EmbeddedHost view;
+    const EmbeddedCallbacks callbacks{.context = &state, .requestPreparation = &RecordVisualPreparationWake};
+    RequireSucceeded(view.Attach(device, callbacks), "attach hidden visual embedded host");
+    auto root = std::make_unique<Panel>();
+    root->AddChild<VisualCancellationProbe>(state);
+    view.Controls().SetRoot(std::move(root));
+    state.onPrepare           = [&] { view.SetVisible(false); };
+    state.preparationRequests = 0u;
+
+    const HRESULT staleFrame = view.Prepare(80u, 80u, 96.0f);
+    const size_t hiddenWakes = state.preparationRequests;
+    view.SetVisible(true);
+    const size_t shownWakes = state.preparationRequests;
+    const HRESULT recovered = view.Prepare(80u, 80u, 96.0f);
+
+    Require(staleFrame == E_ABORT && hiddenWakes == 0u && shownWakes == 1u && recovered == S_OK && ! state.requestDuringVisualPreparation,
+            "a hidden replacement frame sends no wake; a later show requests exactly one preparation");
+    const size_t cancellationsBeforeDetach = state.cancelled;
+    view.Detach();
+    Require(state.cancelled == cancellationsBeforeDetach + 1u && view.Controls().GetRoot() == nullptr,
+            "shown recovery teardown cancels the remaining probe while its state is alive");
+}
+
+void TestButtonContentFontSizeSurvivesEmbeddedMeasureAndRetirementCallbacks()
+{
+    GraphicsFixture graphics;
+    RequireSucceeded(graphics.Create(), "button typography embedded WARP fixture");
+    std::shared_ptr<GraphicsDevice> device;
+    RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "button typography graphics pool");
+    struct CallbackState
+    {
+        ControlHost* host{};
+        Button* button{};
+        bool armed{}, retire{};
+        HRESULT measured = E_PENDING;
+        DesiredSize desired;
+    } state;
+    EmbeddedHost view;
+    state.host = &view.Controls();
+    const EmbeddedCallbacks callbacks{.context            = &state,
+                                      .requestPreparation = [](void* context) noexcept
+    {
+        auto& current = *static_cast<CallbackState*>(context);
+        if (! current.armed)
+            return;
+        current.armed = false;
+        if (current.retire)
+            current.host->SetRoot(nullptr);
+        else
+            current.measured = current.button->Measure({*current.host}, {}, current.desired);
+    }};
+    RequireSucceeded(view.Attach(device, callbacks), "attach button typography callback fixture");
+    auto root    = std::make_unique<FlexPanel>();
+    state.button = root->AddChild<Button>(L"A caption measured synchronously");
+    view.Controls().SetRoot(std::move(root));
+    RequireSucceeded(view.Prepare(320u, 160u), "prepare callback fixture before changing typography");
+    state.armed = true;
+    Require(state.button->SetContentFontSizeDip(14.0f) == S_OK && state.measured == S_OK && state.desired.sizeDip.width > 50.0f,
+            "embedded scheduling can synchronously measure the already-published new typography without stale output");
+    RequireSucceeded(view.Prepare(320u, 160u), "prepare changed intrinsic typography");
+    const auto retiresOnSetter = [&](const std::function<void(Button&)>& change, const char* description)
+    {
+        state.armed   = false;
+        state.retire  = false;
+        auto nextRoot = std::make_unique<FlexPanel>();
+        state.button  = nextRoot->AddChild<Button>(L"draft");
+        view.Controls().SetRoot(std::move(nextRoot));
+        RequireSucceeded(view.Prepare(320u, 160u), "prepare a fresh owner-retirement button");
+        state.armed = state.retire = true;
+        change(*state.button);
+        Require(view.Controls().GetRoot() == nullptr, description);
+    };
+    retiresOnSetter([](Button& button) { button.SetText(L"updated draft"); }, "SetText returns without accessing a button retired by its preparation callback");
+    retiresOnSetter([](Button& button) { button.SetVariant(ButtonVariant::IconOnly); },
+                    "SetVariant returns without accessing a button retired by its preparation callback");
+    retiresOnSetter([](Button& button) { Require(button.SetContentFontSizeDip(18.0f) == S_OK, "set size before retirement"); },
+                    "SetContentFontSizeDip returns without accessing a button retired by its preparation callback");
+}
+
+void TestLabelAndSeparatorTypographySurviveEmbeddedMeasureAndRetirementCallbacks()
+{
+    const auto runRetiringSetter =
+        []<typename AddChild, typename ChangeTypography>(std::string_view fixtureName, AddChild&& addChild, ChangeTypography&& changeTypography)
+    {
+        GraphicsFixture graphics;
+        RequireSucceeded(graphics.Create(), "embedded WARP fixture for a retiring typography setter");
+        std::shared_ptr<GraphicsDevice> device;
+        RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "graphics pool for a retiring typography setter");
+        struct CallbackState
+        {
+            ControlHost* host{};
+            bool armed{};
+        } state;
+        EmbeddedHost view;
+        state.host = &view.Controls();
+        const EmbeddedCallbacks callbacks{.context            = &state,
+                                          .requestPreparation = [](void* context) noexcept
+        {
+            auto& current = *static_cast<CallbackState*>(context);
+            if (current.armed)
+            {
+                current.armed = false;
+                current.host->SetRoot(nullptr);
+            }
+        }};
+        RequireSucceeded(view.Attach(device, callbacks), "attach retiring typography callback fixture");
+        auto root              = std::make_unique<FlexPanel>();
+        Control* const control = addChild(*root);
+        Require(control != nullptr, "create intrinsic child for retiring typography setter");
+        view.Controls().SetRoot(std::move(root));
+        const std::string prepareMessage = std::string("prepare ") + std::string(fixtureName) + " callback fixture before changing typography";
+        RequireSucceeded(view.Prepare(320u, 160u), prepareMessage.c_str());
+        state.armed = true;
+        changeTypography(control);
+        const std::string retirementMessage = std::string(fixtureName) + " setter returns after embedded preparation retires its root";
+        Require(view.Controls().GetRoot() == nullptr, retirementMessage.c_str());
+    };
+
+    runRetiringSetter("Label font role", [](FlexPanel& root) -> Control* { return root.AddChild<Label>(L"Section heading"); }, [](Control* control) {
+        static_cast<Label*>(control)->SetFontRole(FontRole::Title);
+    });
+    runRetiringSetter("Label typography override",
+                      [](FlexPanel& root) -> Control* { return root.AddChild<Label>(L"Section heading"); },
+                      [](Control* control)
+    {
+        Require(static_cast<Label*>(control)->SetTypographyOverride(
+                    LabelTypography{.fontSizeDip = 16.0f, .fontWeight = DWRITE_FONT_WEIGHT_SEMI_BOLD, .characterSpacingDip = 0.5f}) == S_OK,
+                "label typography override is accepted before embedded retirement");
+    });
+    runRetiringSetter("Separator orientation",
+                      [](FlexPanel& root) -> Control*
+    {
+        auto* separator = root.AddChild<Separator>();
+        // Separator intentionally has no intrinsic size; callers supply an explicit layout extent.
+        RequireSucceeded(root.SetChildOptions(separator, Fixed(320.0f, 8.0f)), "give the separator an explicit layout extent");
+        return separator;
+    },
+                      [](Control* control) { static_cast<Separator*>(control)->SetOrientation(SeparatorOrientation::Horizontal); });
 }
 
 void TestFlexFlowWrapGrowthRtlAndOverflow()
@@ -782,12 +1651,122 @@ void TestIntrinsicReflowPreservesTextDraftAndCancelsMovedPress()
     static_cast<void>(view.DispatchPointer(event(PointerAction::Up, button->GetBounds())));
     Require(invocations == 0u, "a stale press cannot commit against the new rectangle");
 }
+
+void TestTextFieldFontRolePreservesEmbeddedCompositionAndUpdatesGeometry()
+{
+    using namespace DxUi;
+    GraphicsFixture graphics;
+    RequireSucceeded(graphics.Create(), "font-role embedded WARP fixture");
+    std::shared_ptr<GraphicsDevice> device;
+    RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "font-role shared graphics pool");
+    EmbeddedHost view;
+    RequireSucceeded(view.Attach(device), "font-role embedded attach");
+
+    auto root   = std::make_unique<FlexPanel>();
+    auto* panel = root.get();
+    auto* field = panel->AddChild<TextField>(L"iiiiiiiiiiiiiiiiiiiiiiii");
+    field->SetMultiline(true);
+    // Keep Body's narrow glyphs on one line while a Monospace run exceeds the text viewport,
+    // so the same interior ACP proves both the role change and embedded hit-test geometry.
+    RequireSucceeded(panel->SetChildOptions(field, Fixed(120.0f, 120.0f)), "font-role embedded editor extent");
+    RequireSucceeded(panel->SetOrientation(StackOrientation::Vertical), "font-role embedded editor flow");
+    view.Controls().SetRoot(std::move(root));
+    RequireSucceeded(view.Prepare(320u, 180u, 96.0f), "prepare embedded Body-role editor");
+    view.Controls().SetFocusControl(field);
+    RequireSucceeded(view.Prepare(320u, 180u, 96.0f), "prepare embedded Body-role caret geometry after focus changes");
+
+    EmbeddedTextInputSnapshot before;
+    Require(view.ReadTextInput(before) == S_OK && before.caretBoundsDip.has_value(), "embedded Body-role text geometry is published");
+    NativeTextInputState composition  = before.state;
+    composition.selectionAnchorIndex  = 2u;
+    composition.caretIndex            = 6u;
+    composition.compositionStartIndex = 2u;
+    composition.compositionEndIndex   = 6u;
+    RequireSucceeded(view.ApplyTextInput(before.revision, composition, EmbeddedTextInputAction::Preview), "preview an embedded composition before role change");
+    EmbeddedTextInputSnapshot preview;
+    Require(view.ReadTextInput(preview) == S_OK && preview.state.compositionStartIndex == composition.compositionStartIndex,
+            "embedded composition is active before changing typography");
+
+    D2D1_RECT_F bodyCaret{};
+    Require(field->DebugGetCaretRect(view.Controls(), 18u, bodyCaret), "embedded Body role measures a wrapped caret");
+    field->SetFontRole(FontRole::Monospace);
+    Require(view.NeedsPreparation(), "font role invalidation requests event-driven embedded preparation");
+    RequireSucceeded(view.Prepare(320u, 180u, 96.0f), "prepare embedded Monospace editor");
+    EmbeddedTextInputSnapshot after;
+    Require(view.ReadTextInput(after) == S_OK && after.state.text == preview.state.text &&
+                after.state.selectionAnchorIndex == preview.state.selectionAnchorIndex && after.state.caretIndex == preview.state.caretIndex &&
+                after.state.compositionStartIndex == preview.state.compositionStartIndex &&
+                after.state.compositionEndIndex == preview.state.compositionEndIndex,
+            "font role reflow preserves embedded draft, selection and active composition");
+    D2D1_RECT_F monoCaret{};
+    Require(field->DebugGetCaretRect(view.Controls(), 18u, monoCaret) && monoCaret.top > bodyCaret.top + 4.0f,
+            "embedded caret geometry uses the selected Monospace role");
+    size_t hitIndex                = 0u;
+    const D2D1_POINT_2F caretPoint = D2D1::Point2F(monoCaret.left + 0.1f, (monoCaret.top + monoCaret.bottom) * 0.5f);
+    Require(view.HitTestTextInput(after.revision, caretPoint, hitIndex) == S_OK && hitIndex == 18u,
+            "embedded text-service hit testing resolves the refreshed Monospace caret at ACP 18");
+    RequireSucceeded(view.ApplyTextInput(after.revision, {}, EmbeddedTextInputAction::Cancel), "cancel embedded composition after typography test");
+    Require(field->GetText() == L"iiiiiiiiiiiiiiiiiiiiiiii", "font role and composition cancellation preserve the underlying draft");
+}
+
+void TestTextFieldFontRoleReturnsAfterEmbeddedPreparationOwnerRetires()
+{
+    using namespace DxUi;
+    GraphicsFixture graphics;
+    RequireSucceeded(graphics.Create(), "font-role retirement WARP fixture");
+    std::shared_ptr<GraphicsDevice> device;
+    RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "font-role retirement graphics pool");
+
+    struct RetirementContext
+    {
+        ControlHost* controls = nullptr;
+        bool armed            = false;
+    } retirement;
+    EmbeddedHost view;
+    retirement.controls = &view.Controls();
+    const EmbeddedCallbacks callbacks{
+        .context = &retirement,
+        .requestPreparation =
+            [](void* context) noexcept
+    {
+        const auto* state = static_cast<RetirementContext*>(context);
+        if (state->armed)
+            state->controls->SetRoot(std::unique_ptr<Control>{});
+    },
+    };
+    RequireSucceeded(view.Attach(device, callbacks), "font-role retirement embedded attach");
+    auto root   = std::make_unique<FlexPanel>();
+    auto* field = root->AddChild<TextField>(L"draft");
+    field->SetMultiline(true);
+    view.Controls().SetRoot(std::move(root));
+    RequireSucceeded(view.Prepare(240u, 120u, 96.0f), "prepare font-role retirement editor");
+    retirement.armed = true;
+
+    // The preparation callback retires the control through its host when the setter invalidates layout.
+    // It does not re-enter EmbeddedHost; the setter must observe its expired control lifetime before continuing.
+    field->SetFontRole(FontRole::Monospace);
+    Require(view.Controls().GetRoot() == nullptr, "font-role setter returns safely after preparation retires its control");
+}
 } // namespace
 
 void RunIntrinsicLayoutTests()
 {
     DXUI_RUN_TEST(TestIntrinsicMeasurementContainsFailuresAndPreservesOutputs);
     DXUI_RUN_TEST(TestIntrinsicLeavesShapeUnicodeAndKeepEditorsStable);
+    DXUI_RUN_TEST(TestLabelTypographyCharacterSpacingUsesRequestedTotal);
+    DXUI_RUN_TEST(TestButtonContentFontSizeDefaultsValidationAndNormalization);
+    DXUI_RUN_TEST(TestButtonContentFontSizeShapesIntrinsicVariants);
+    DXUI_RUN_TEST(TestButtonContentFontSizeNativeGlyphPaintCacheAndGeneration);
+    DXUI_RUN_TEST(TestButtonPreparedIconTextLayoutMatchesDrawTextW);
+    DXUI_RUN_TEST(TestButtonPreparedIconTextLayoutHidePreservesWarmSibling);
+    DXUI_RUN_TEST(TestEmbeddedVisualSurfaceReleaseCanDetachHost);
+    DXUI_RUN_TEST(TestEmbeddedVisualCancellationCanReenterDetach);
+    DXUI_RUN_TEST(TestEmbeddedVisualPreparationCanDetachHost);
+    DXUI_RUN_TEST(TestEmbeddedVisualPreparationRejectsReplacedDeviceAndRecovers);
+    DXUI_RUN_TEST(TestEmbeddedHideShowDuringVisualPreparationDefersOneWake);
+    DXUI_RUN_TEST(TestHiddenVisualPreparationDoesNotWakeUntilShown);
+    DXUI_RUN_TEST(TestButtonContentFontSizeSurvivesEmbeddedMeasureAndRetirementCallbacks);
+    DXUI_RUN_TEST(TestLabelAndSeparatorTypographySurviveEmbeddedMeasureAndRetirementCallbacks);
     DXUI_RUN_TEST(TestFlexFlowWrapGrowthRtlAndOverflow);
     DXUI_RUN_TEST(TestFlexCacheInvalidationAndCompositeBounds);
     DXUI_RUN_TEST(TestFlexMeasureCallbacksCannotPublishStaleOwnershipOrGeometry);
@@ -798,4 +1777,6 @@ void RunIntrinsicLayoutTests()
     DXUI_RUN_TEST(TestFlexBudgetsAndUnsupportedChildrenFailBeforeGeometryCommit);
     DXUI_RUN_TEST(TestIntrinsicPreparationIsSharedByNativeAndEmbeddedHosts);
     DXUI_RUN_TEST(TestIntrinsicReflowPreservesTextDraftAndCancelsMovedPress);
+    DXUI_RUN_TEST(TestTextFieldFontRolePreservesEmbeddedCompositionAndUpdatesGeometry);
+    DXUI_RUN_TEST(TestTextFieldFontRoleReturnsAfterEmbeddedPreparationOwnerRetires);
 }

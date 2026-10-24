@@ -1,5 +1,9 @@
 # Completed plans
 
+- [RedTilde visual fidelity](RedTildeVisualFidelity_2026-10-23.md) — shared quiet controls, frameless navigation, semantic spacing and exact-pin consumer verification. Six SDK builds and 57 noninteractive x64 suite passes; actual matched RedTilde captures are retained in the consumer. Unpaired diagnostics remain advice-required; shared paired-performance, physical/platform and release gates stay open.
+
+- [Rich editor presentation](RichEditorPresentation_2026-10-22.md) — completed 2026-10-23 for the scoped implementation and native/gallery qualification. Exact `38ec36be` has six builds, 62 ordinary plus 12 foreground zero-skip x64 executions and three separate expected ASan detector failures. Markdown-only summaries preserve all source-bound evidence, including the failed mixed-JSON publication proposal and prior `2f276caa` results. Parent performance, physical IME/AT/touch, native ARM64, consumer, CI and release gates remain open.
+
 - [RedPrism qualification archive content audit](RedPrismArchiveDedup_2026-10-21.md) — content-hash all 754 distinct archive records, consolidate only verified duplicate payloads, preserve run provenance and metadata, and independently verify retained hashes, references and focused sandbox behavior.
 
 - [Completed batch review and integration](CompletedBatchesReview_2026-10-21.md) — reviewed archive/policy and generated-output batches across five projects, qualified the focused RedSalamander sandbox repair, published reviewed PRs and preserved concurrent work. CI availability and remaining qualification gates are explicit.

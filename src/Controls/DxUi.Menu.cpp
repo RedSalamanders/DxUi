@@ -6096,6 +6096,8 @@ void RunMenuModalLoop(MenuController& controller)
                                         TraceMenuMessageName(msg.message),
                                         static_cast<unsigned int>(msg.message),
                                         TraceHwndValue(msg.hwnd));
+            // The menu router owns this distinct popup HWND's key/character stream. Its commands
+            // cannot retarget a character into the owner's retained controls when the popup closes.
             TranslateMessage(&msg);
             DispatchMessageW(&msg);
             continue;
@@ -6184,8 +6186,11 @@ void RunMenuModalLoop(MenuController& controller)
         }
 
         // All WM_PAINT/WM_ERASEBKGND handled by MenuWndProc → ControlHost::HandleMessage
-        TranslateMessage(&msg);
-        DispatchMessageW(&msg);
+        if (! DispatchAttachedWindowHostKeyboardMessage(msg))
+        {
+            TranslateMessage(&msg);
+            DispatchMessageW(&msg);
+        }
     }
 
     flushRepeatedMessageTrace();

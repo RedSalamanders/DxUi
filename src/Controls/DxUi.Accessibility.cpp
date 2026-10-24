@@ -262,6 +262,13 @@ std::atomic<uint64_t> g_accessibilitySnapshotBuildCount{0u};
 std::atomic<size_t> g_accessibilityOffscreenSelectedRowMaterializationLimitOverride{0u};
 thread_local bool g_accessibilityResolutionCounting       = false;
 thread_local uint64_t g_accessibilityResolutionVisitCount = 0u;
+struct AccessibilityMutationInterestOverrideForTest
+{
+    HWND hwnd                  = nullptr;
+    uintptr_t attachmentCookie = 0u;
+    std::optional<bool> interested;
+};
+thread_local AccessibilityMutationInterestOverrideForTest g_accessibilityMutationInterestOverride;
 
 // The window whose GetFocus calls a test holds, and the events it uses. The window is stored last when arming and first
 // when clearing, so a call never meets events the test has not armed; the holders are the calls that met the gate.
@@ -555,6 +562,7 @@ struct AccessibilityRichTextSnapshot
         : document(std::move(source)),
           epoch(std::move(currentEpoch)),
           bounds(0u),
+          underlinedLinks(0u),
           bodyFont(0u, L' '),
           codeFont(0u, L' '),
           semanticRevision(capturedRevision)
@@ -563,8 +571,12 @@ struct AccessibilityRichTextSnapshot
     std::shared_ptr<const RichText::SemanticDocument> document;
     std::shared_ptr<const RichText::Detail::AccessibilityEpoch> epoch;
     std::vector<std::optional<D2D1_RECT_F>> bounds;
+    std::vector<RichText::MarkdownRange> underlinedLinks;
     std::wstring bodyFont, codeFont;
-    double fontSizePoints = 0.0;
+    double fontSizePoints     = 0.0;
+    double codeFontSizePoints = 0.0;
+    double headingScaleStep   = 0.15;
+    std::array<float, 6> headingFontSizeDip{};
     uint64_t semanticRevision;
     [[nodiscard]] bool IsCurrent() const noexcept
     {
@@ -2119,7 +2131,21 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
                     auto* body = host.GetTextFormat(FontRole::Body);
                     readFamily(body, rich->bodyFont);
                     readFamily(host.GetTextFormat(FontRole::Monospace), rich->codeFont);
-                    rich->fontSizePoints = static_cast<double>(body->GetFontSize()) * 72.0 / 96.0;
+                    rich->fontSizePoints   = static_cast<double>(body->GetFontSize()) * 72.0 / 96.0;
+                    const auto& appearance = editor->GetAppearance();
+                    if (! appearance.bodyFontFamily.empty())
+                        rich->bodyFont = appearance.bodyFontFamily;
+                    if (! appearance.codeFontFamily.empty())
+                        rich->codeFont = appearance.codeFontFamily;
+                    if (appearance.bodyFontSizeDip > 0.0f)
+                        rich->fontSizePoints = static_cast<double>(appearance.bodyFontSizeDip) * 72.0 / 96.0;
+                    rich->codeFontSizePoints =
+                        appearance.codeFontSizeDip > 0.0f ? static_cast<double>(appearance.codeFontSizeDip) * 72.0 / 96.0 : rich->fontSizePoints;
+                    rich->headingScaleStep   = appearance.headingScaleStep;
+                    rich->headingFontSizeDip = appearance.headingFontSizeDip;
+                    for (const auto& run : document->SourceRuns())
+                        if ((run.flags & RichText::Link) && editor->IsLinkUnderlineVisible(run.start))
+                            rich->underlinedLinks.push_back({run.start, run.start + run.length});
                     rich->bounds.reserve(document->Elements().size());
                     for (size_t element = 0u; element < document->Elements().size(); ++element)
                         rich->bounds.push_back(editor->GetSemanticElementBounds(host, element));
@@ -2144,6 +2170,10 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
         if (const auto* toggle = dynamic_cast<const Toggle*>(current))
         {
             record.controlToggleChecked = toggle->IsChecked();
+        }
+        else if (const auto* button = dynamic_cast<const Button*>(current); button && button->GetToggleState().has_value())
+        {
+            record.controlToggleChecked = button->GetToggleState().value();
         }
         if (const auto* slider = dynamic_cast<const Slider*>(current))
         {
@@ -4540,6 +4570,10 @@ struct TextRangeSpanMoveResult
     {
         return UIA_StatusBarControlTypeId;
     }
+    if (control && control->GetAccessibilityRole() == AccessibilityRole::Separator)
+    {
+        return UIA_SeparatorControlTypeId;
+    }
 
     if (dynamic_cast<const RichTextEditor*>(control))
         return UIA_DocumentControlTypeId;
@@ -4600,7 +4634,10 @@ struct TextRangeSpanMoveResult
 
 [[nodiscard]] bool SupportsTogglePattern(const Control* control) noexcept
 {
-    return dynamic_cast<const Toggle*>(control) != nullptr;
+    if (dynamic_cast<const Toggle*>(control) != nullptr)
+        return true;
+    const auto* button = dynamic_cast<const Button*>(control);
+    return button && button->GetToggleState().has_value();
 }
 
 [[nodiscard]] bool SupportsValuePattern(const Control* control) noexcept
@@ -5846,14 +5883,22 @@ struct RichSourceAttribute
         case UIA_IsItalicAttributeId: return {VT_BOOL, (flags & RichText::Italic) ? 1.0 : 0.0};
         case UIA_FontWeightAttributeId: return {VT_I4, (flags & RichText::Bold) ? 700.0 : run.heading ? 600.0 : 400.0};
         case UIA_UnderlineStyleAttributeId:
-            return {VT_I4,
-                    static_cast<double>((flags & (RichText::Underline | RichText::Link)) ? TextDecorationLineStyle_Single : TextDecorationLineStyle_None)};
+        {
+            const auto& ranges   = record.controlRichText->underlinedLinks;
+            const auto found     = std::lower_bound(ranges.begin(), ranges.end(), run.start, [](const auto& range, auto start) { return range.last <= start; });
+            const bool underline = (flags & RichText::Underline) || ((flags & RichText::Link) && found != ranges.end() && found->first <= run.start);
+            return {VT_I4, static_cast<double>(underline ? TextDecorationLineStyle_Single : TextDecorationLineStyle_None)};
+        }
         case UIA_StrikethroughStyleAttributeId:
             return {VT_I4, static_cast<double>((flags & RichText::Strike) ? TextDecorationLineStyle_Single : TextDecorationLineStyle_None)};
         case UIA_StyleIdAttributeId: return {VT_I4, run.heading ? StyleId_Heading1 + static_cast<double>(run.heading - 1u) : StyleId_Normal};
         case UIA_FontNameAttributeId: return {VT_BSTR, 0.0, (flags & RichText::Code) ? record.controlRichText->codeFont : record.controlRichText->bodyFont};
         case UIA_FontSizeAttributeId:
-            return {VT_R8, record.controlRichText->fontSizePoints * (run.heading ? (1.0 + 0.15 * static_cast<double>(7u - run.heading)) : 1.0)};
+            if (run.heading && record.controlRichText->headingFontSizeDip[run.heading - 1u] > 0.0f)
+                return {VT_R8, static_cast<double>(record.controlRichText->headingFontSizeDip[run.heading - 1u]) * 72.0 / 96.0};
+            return {VT_R8,
+                    ((flags & RichText::Code) ? record.controlRichText->codeFontSizePoints : record.controlRichText->fontSizePoints) *
+                        (run.heading ? (1.0 + record.controlRichText->headingScaleStep * static_cast<double>(7u - run.heading)) : 1.0)};
         default: return {};
     }
 }
@@ -10833,6 +10878,7 @@ HRESULT AccessibilityProvider::ExecuteToggleOnWindowThread() noexcept
     size_t columnIndex = 0u;
     GridCellData cellData{};
     DxUi::Toggle* toggle = nullptr;
+    DxUi::Button* button = nullptr;
     Grid* grid           = nullptr;
     {
         host = ResolveHost();
@@ -10850,22 +10896,29 @@ HRESULT AccessibilityProvider::ExecuteToggleOnWindowThread() noexcept
         }
         else
         {
-            toggle = dynamic_cast<DxUi::Toggle*>(ResolveMutableControl());
-            if (! toggle)
+            Control* const control = ResolveMutableControl();
+            toggle                 = dynamic_cast<DxUi::Toggle*>(control);
+            button                 = toggle ? nullptr : dynamic_cast<DxUi::Button*>(control);
+            if (! toggle && (! button || ! button->GetToggleState().has_value()))
                 return UIA_E_NOTSUPPORTED;
-            if (! toggle->IsEnabled())
+            if (toggle && ! toggle->IsEnabled())
                 return UIA_E_ELEMENTNOTENABLED;
-            owner = toggle;
+            if (button && ! button->IsEnabled())
+                return UIA_E_ELEMENTNOTENABLED;
+            owner = toggle ? static_cast<Control*>(toggle) : static_cast<Control*>(button);
         }
         ownerLifetime = GetControlLifetimeToken(*owner);
     }
 
     // Application delegates are allowed to query UI Automation or replace the retained tree.
-    const bool changed = grid ? grid->RequestToggleCheckboxCell(*host, rowIndex, columnIndex) : toggle->OnMnemonic(*host);
+    const bool changed =
+        grid ? grid->RequestToggleCheckboxCell(*host, rowIndex, columnIndex) : (toggle ? toggle->OnMnemonic(*host) : button->Invoke(*host, false));
     if (ownerLifetime.expired())
         return UIA_E_ELEMENTNOTAVAILABLE;
     {
-        if (ResolveHost() != host || (_kind == AccessibilityFragmentKind::GridCell ? ResolveMutableGridControl() != grid : ResolveMutableControl() != toggle))
+        if (ResolveHost() != host || (_kind == AccessibilityFragmentKind::GridCell
+                                          ? ResolveMutableGridControl() != grid
+                                          : ResolveMutableControl() != (toggle ? static_cast<Control*>(toggle) : static_cast<Control*>(button))))
             return UIA_E_ELEMENTNOTAVAILABLE;
         if (_kind == AccessibilityFragmentKind::GridCell)
         {
@@ -10883,7 +10936,8 @@ HRESULT AccessibilityProvider::ExecuteToggleOnWindowThread() noexcept
     if (ownerLifetime.expired())
         return UIA_E_ELEMENTNOTAVAILABLE;
     {
-        if (ResolveHost() != host || (grid ? ResolveMutableGridControl() != grid : ResolveMutableControl() != toggle))
+        if (ResolveHost() != host ||
+            (grid ? ResolveMutableGridControl() != grid : ResolveMutableControl() != (toggle ? static_cast<Control*>(toggle) : static_cast<Control*>(button))))
             return UIA_E_ELEMENTNOTAVAILABLE;
         if (grid)
         {
@@ -11984,8 +12038,17 @@ void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexce
     if (! target || target->ResolveHost() != host)
         return;
     ++target->dirtyRevision;
-    const bool interested = target->providerRequested.load(std::memory_order_acquire) || UiaClientsAreListening();
-    const auto before     = target->snapshot.load(std::memory_order_acquire);
+    bool interested = target->providerRequested.load(std::memory_order_acquire) || UiaClientsAreListening();
+#if DXUI_ENABLE_DIAGNOSTICS
+    // Tests override only this attachment's owner-thread mutation decision, never global UIA interest.
+    const auto& interestOverride = g_accessibilityMutationInterestOverride;
+    if (interestOverride.hwnd == hwnd && interestOverride.attachmentCookie == target->attachmentCookie && target->threadId == GetCurrentThreadId() &&
+        interestOverride.interested.has_value())
+        interested = interestOverride.interested.value();
+#endif
+    if (! interested)
+        return;
+    const auto before = target->snapshot.load(std::memory_order_acquire);
     // Windows' first focus event calls GetFocus on a worker. Only actual focus transitions publish synchronously.
     Control* focused = host->GetFocusControl();
     ControlPath path{};
@@ -13020,6 +13083,32 @@ void DebugSetAccessibilityUiActionDispatchTimeoutForTest(DWORD timeoutMs) noexce
 void DebugResetAccessibilityUiActionExecutionCountForTest() noexcept
 {
     g_accessibilityUiActionExecutionCount.store(0u, std::memory_order_release);
+}
+
+bool DebugSetAccessibilityMutationInterestForTest(HWND hwnd, std::optional<bool> interested) noexcept
+{
+    if (! hwnd)
+    {
+        if (interested.has_value())
+            return false;
+        g_accessibilityMutationInterestOverride = {};
+        return true;
+    }
+    constexpr auto releaseTarget = [](WindowHostAccessibilityTarget* target) noexcept { static_cast<void>(target->Release()); };
+    wil::unique_any<WindowHostAccessibilityTarget*, decltype(releaseTarget), releaseTarget> retained(AcquireWindowHostAccessibilityTarget(hwnd));
+    if (! retained || retained.get()->embedded || retained.get()->threadId != GetCurrentThreadId() || ! retained.get()->ResolveHost())
+        return false;
+    auto& interestOverride = g_accessibilityMutationInterestOverride;
+    if (! interested.has_value())
+    {
+        if (interestOverride.hwnd == hwnd && interestOverride.attachmentCookie == retained.get()->attachmentCookie)
+            interestOverride = {};
+        return true;
+    }
+    if (interestOverride.hwnd && (interestOverride.hwnd != hwnd || interestOverride.attachmentCookie != retained.get()->attachmentCookie))
+        return false;
+    interestOverride = {hwnd, retained.get()->attachmentCookie, interested};
+    return true;
 }
 
 uint64_t DebugGetAccessibilitySnapshotBuildCountForTest() noexcept

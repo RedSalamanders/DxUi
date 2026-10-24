@@ -10,7 +10,7 @@ bounds. The opt-in semantic accessibility contract below adds source-backed
 structure/style after coherent preparation. The raw parser accepting NUL does not change
 the editor/text-store admission contract.
 Opt-in native HTML and hanging marker presentation preserve that same source
-contract. Underlined Markdown/HTML links retain inert destination/title metadata;
+contract. Markdown/HTML links retain inert destination/title metadata;
 clicking places a caret and double-clicking selects source text. Neither action
 navigates or creates a text/history transaction. Validated tag/attribute ranges
 have no source glyph rectangles but remain searchable/selectable raw TextPattern
@@ -26,6 +26,44 @@ Document/node identities are syntax handles, not UTF-16 ACPs or semantic editing
 anchors. The retained editor supplies SourceSnapshot ancestry when preparing a
 new block tree, including edits among equal paragraphs. UIA/TSF continues to expose
 exact source; block analysis never silently substitutes native rich-text ranges.
+
+Rich editor link decoration is presentation state. UIA `UnderlineStyle` MUST
+report the currently rendered underline for every source-format run, including
+hover/caret opt-in, explicit `<u>` style and high-contrast override. Changing
+decoration MUST retain Hyperlink children, names, destinations and inert action
+semantics. UIA font families/sizes MUST reflect explicit appearance overrides
+and heading scale. Source mode continues to expose exact raw text without
+inventing semantic styles. Queries read captured owner-published state and never
+perform layout, take focus or retain a consumer callback.
+
+`SetOnSelectionChanged` publishes owner-thread source-selection state from the
+same canonical path as keyboard, native text/TSF, UIA and programmatic selection.
+It changes neither source nor history. Unchanged source revision, endpoints and
+gesture state are silent; callbacks may replace themselves, change selection
+reentrantly or retire the editor. Notification state MUST publish before invocation so those changes cannot
+replay an older event. Standard callback failures retain committed selection;
+allocation failure is fatal at the native callback boundary.
+For a notifying source transaction with both `SetOnTextChanged` and
+`SetOnSelectionChanged` registered, the editor first synchronizes native text
+input and internal selection state, invokes the text callback for the committed
+source, then publishes the final selection if the original editor, host binding
+and source revision remain current. The text callback may clear or replace
+itself without suppressing that transaction's selection notification. A nested
+source edit, rebind, detach or retirement supersedes the outer selection event;
+the outer transaction MUST NOT publish stale selection state. This ordering lets
+the consumer derive document facts from committed source before receiving the
+selection notification. Selection-only changes and non-notifying TSF preview,
+cancellation and selection imports retain their immediate selection callback. A
+non-notifying text-service preview or cancellation that changes the source
+revision publishes selection state even when its anchor, caret and gesture state
+are unchanged; reimporting the same source revision and selection is silent. Such
+transient notifications never become committed text or history events;
+`SetText` remains silent for the text callback.
+`IsSelectionGestureActive` identifies pointer selection/press updates. Consumers
+may hide transient selection UI and return immediately while it is true.
+Matching pointer release or capture cancellation MUST publish a final inactive
+gesture notification even when the source endpoints did not change. No polling
+timer or consumer subclass of pointer/key handlers is required.
 
 RichTextEditor object source editing shares the authoritative full-source ACP
 store. F2/UIA Invoke opens an acknowledged code/HTML/metadata leaf in place;
@@ -240,6 +278,29 @@ Retained providers disconnect when their page/control identity leaves that tree 
 Native key-down and system-key-down messages remain unhandled when neither a control nor a host action consumes
 them, so the application's window procedure and DefWindowProc retain their normal fallback behavior.
 
+Native retained-host pumps MUST call `DispatchKeyboardMessage` after application
+accelerators/TSF pretranslation and before ordinary Windows translation. For an
+exact attached-HWND Return/Space key-down, it dispatches the real window procedure
+once before deciding whether to produce a character. A handled command MUST NOT
+produce a character for a successor editor. Unhandled text-input keys and a
+handler's explicit `AllowTranslatedCharacter` permission may translate only while
+the original weak owner, root and logical-focus epoch remain current. Idempotent
+focus refreshes preserve ownership; focus round trips, root retirement, detach
+and failed callbacks revoke it. Nested dispatch MUST NOT leak permission into an
+outer route. Multiline TextField/RichTextEditor Return reserves exactly one later
+character; preview/submission/default/button commands do not. Unmodified Return
+and Space during active native IME composition remain IME-owned: the command pump
+returns false without dispatch or character translation, and retained key-down/
+key-up handlers and host default/cancel actions MUST NOT receive those keys.
+This applies equally to TextField and RichTextEditor. After composition ends,
+ordinary Space translates and inserts exactly once into its original editor;
+Return resumes its ordinary single-line/default or multiline text ownership.
+Modified-key routing retains its existing policy. Foreign/child HWND messages,
+system keys and IME-owned keys retain the existing path. Standalone
+committed character input is unchanged. There is no queue scan, text removal,
+timer, sticky suppression flag or character reinterpretation in this boundary.
+`HandleMessage` without the pretranslation hook cannot establish this guarantee.
+
 Form editors expose `LabeledBy`, `IsRequiredForForm`, `IsDataValidForForm`, textual error `ItemStatus`, description
 `HelpText` and the stable field identity as `AutomationId`. A `NumericStepper` attaches these semantics to its
 inner editable text provider. The visual label remains a real element with its own full name and mnemonic target;
@@ -402,7 +463,11 @@ snapshot. The event-diff baseline advances separately when the queued publicatio
 owner-thread query does not consume pending events. An interested host publishes an actual focus
 transition synchronously before returning, which keeps the first worker `GetFocus` answer current
 and captures focus-event attribution at that publication. Detaching retires the snapshot and
-attachment identity so an old queued flush cannot publish into a later host on the same HWND. These
+attachment identity so an old queued flush cannot publish into a later host on the same HWND. Without
+a requested provider or UIA listener, mutations remain dirty without loading a snapshot, resolving focus paths
+or posting a new flush. Existing queued publication is preserved; a later owner query resolves the latest revision.
+An internal diagnostics override is scoped to the owning thread, HWND and attachment cookie and changes only the
+mutation-interest decision, never provider-query freshness, other hosts or global listener state. These
 native scheduling rules do not change embedded hosting: the application still calls
 `UpdateAccessibility` after coherent preparation, placement or focus changes. A
 focus-changed callback that removes the control it was told about leaves no control focused. A control disabled, hidden
@@ -529,6 +594,12 @@ The next preparation applies that rule; input dispatched while the bounds revisi
 drag, so a consumer applies pane layout on its next preparation rather than inside the change callback.
 WindowHost applies the same rule at message entry: a captured control that is still in the tree but no longer
 interactive receives `OnCaptureLost` (its drag reports Cancel) instead of losing the capture silently.
+Native capture acquisition is synchronous and reentrant: `SetCapture` can deliver `WM_CAPTURECHANGED` to the
+previous HWND before the initiating input handler returns. The previous owner's `OnCaptureLost` callback may replace
+the initiating host's root and retire the control that requested capture. Controls MUST publish pending capture
+state before transfer, retain a weak lifetime across it, and revalidate both lifetime and current host ownership
+before later member access or callbacks. A retired requester consumes the original input without continuing against
+the replacement tree. This does not extend to destroying the owning host during its own callback.
 ControlHost retains native Win32 TSF/IME and UIA behavior, exercised by the
 ported suites. EmbeddedHost owns no OS-focus HWND. Application-side `TextInputServices` borrows the caller's HWND;
 `AttachAccessibility` publishes providers without creating one. Cross-plugin COM/POD transport, composition/IME
@@ -556,7 +627,9 @@ Callback-driven root replacement is supported and covered by a regression test.
 
 `ReadTextInput` returns an owned snapshot of the available focused control, a view revision and caret/viewport
 bounds in view-local DIPs. It clears its output on failure. No snapshot is available while hidden, suspended,
-detached or incoherently prepared. `ApplyTextInput` accepts only that view's current revision; any intervening
+detached or incoherently prepared. A cooperative `Prepare` that returns `S_FALSE` while `NeedsPreparation()` is true
+indicates yielded work, not ready text geometry; ordinary `TextField` input remains unavailable until preparation
+completes on a later owner turn. `ApplyTextInput` accepts only that view's current revision; any intervening
 invalidation, focus/tree replacement or device/attachment lifetime change invalidates the token. Read again after
 an accepted edit. These C++ records stay within a module; a consumer defines its own bounded plugin transport.
 
@@ -1020,7 +1093,12 @@ empty and transformed/image/task tokens are atomic. Source-range scrolling uses
 these fragments without taking focus. Source line units remain ordered raw ACP
 partitions, with cell-local wrapping and atomic objects coalesced across wrapped
 SDK lines. All geometry is unavailable until its current host/source/resource
-publication is acknowledged; queries never finish pending preparation.
+publication is acknowledged; queries never finish pending preparation. This is
+per editor: pending work in a sibling preview MUST NOT revoke current semantic
+actions, glyph geometry or vertical navigation. The editor's host binding, exact
+source revision, viewport width, typography/resource epochs and semantic document
+identity must remain coherent. Its own source/width/resource changes still reject
+old geometry immediately, including after undo restores equal source bytes.
 Pending semantic preparation uses raw source graphemes for logical commands,
 not another Markdown dialect's v0 projection. Exact document Home/End includes
 trailing raw trivia. A collapsed visual delete from inside a transformed/object

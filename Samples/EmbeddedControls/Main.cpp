@@ -83,7 +83,7 @@ struct App
     }
     static UINT Modifiers() noexcept
     {
-        return ((GetKeyState(VK_SHIFT) & 0x8000) ? MK_SHIFT : 0U) | ((GetKeyState(VK_CONTROL) & 0x8000) ? MK_CONTROL : 0U);
+        return DxUi::ComposeModifierMask((GetKeyState(VK_SHIFT) & 0x8000) != 0, (GetKeyState(VK_CONTROL) & 0x8000) != 0, (GetKeyState(VK_MENU) & 0x8000) != 0);
     }
     bool queued = false;
     float dpi   = 96;
@@ -240,7 +240,7 @@ struct App
                         ReleaseCapture();
                     return 0;
                 case WM_CAPTURECHANGED: app->View().DispatchPointer({DxUi::PointerAction::Cancel}); return 0;
-                case WM_KEYDOWN: app->View().DispatchKey(UINT(wp), true, Modifiers()); return 0;
+                case WM_KEYDOWN: static_cast<void>(app->View().DispatchKey(UINT(wp), true, Modifiers())); return 0;
                 case WM_KEYUP: app->View().DispatchKey(UINT(wp), false, Modifiers()); return 0;
                 case WM_CHAR: app->View().DispatchCharacter(wchar_t(wp), Modifiers()); return 0;
                 case WM_KILLFOCUS:
@@ -366,6 +366,18 @@ struct App
             if (handled)
             {
                 RefreshText();
+                continue;
+            }
+            if (message.hwnd == window.get() && message.message == WM_KEYDOWN && (message.wParam == VK_RETURN || message.wParam == VK_SPACE))
+            {
+                DxUi::EmbeddedKeyDispatchReceipt receipt;
+                static_cast<void>(View().DispatchKey(UINT(message.wParam), true, Modifiers(), receipt));
+                // Dispatch before OS translation so the focused command can suppress its activation character while
+                // same-owner text input keeps the active keyboard layout, including AltGr handling.
+                if (View().ShouldTranslateCharacter(receipt))
+                    TranslateMessage(&message);
+                RefreshText();
+                Request();
                 continue;
             }
             TranslateMessage(&message);

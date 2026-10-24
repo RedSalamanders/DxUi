@@ -1,4 +1,5 @@
 #include "../Controls/DxUi.Internal.h"
+#include "../Support/Diagnostics.h"
 #include <DxUi/Embedded.h>
 #include <DxUi/FrameRuntime.h>
 #include <DxUiCompositePS.h>
@@ -10,6 +11,47 @@
 
 namespace DxUi
 {
+void EmbeddedKeyDispatchReceipt::Reset() noexcept
+{
+    _embeddedHost = nullptr;
+    _controlHost  = nullptr;
+    _owner        = nullptr;
+    _root         = nullptr;
+    _ownerLifetime.reset();
+    _rootLifetime.reset();
+    _attachmentRevision     = 0u;
+    _focusOwnerEpoch        = 0u;
+    _sequence               = 0u;
+    _virtualKey             = 0u;
+    _ownerSupportsTextInput = false;
+    _allowCharacter         = false;
+    _valid                  = false;
+}
+EmbeddedKeyDispatchReceipt::EmbeddedKeyDispatchReceipt(EmbeddedKeyDispatchReceipt&& other) noexcept
+{
+    *this = std::move(other);
+}
+EmbeddedKeyDispatchReceipt& EmbeddedKeyDispatchReceipt::operator=(EmbeddedKeyDispatchReceipt&& other) noexcept
+{
+    if (this == &other)
+        return *this;
+    Reset();
+    _embeddedHost           = other._embeddedHost;
+    _controlHost            = other._controlHost;
+    _owner                  = other._owner;
+    _root                   = other._root;
+    _ownerLifetime          = std::move(other._ownerLifetime);
+    _rootLifetime           = std::move(other._rootLifetime);
+    _attachmentRevision     = other._attachmentRevision;
+    _focusOwnerEpoch        = other._focusOwnerEpoch;
+    _sequence               = other._sequence;
+    _virtualKey             = other._virtualKey;
+    _ownerSupportsTextInput = other._ownerSupportsTextInput;
+    _allowCharacter         = other._allowCharacter;
+    _valid                  = other._valid;
+    other.Reset();
+    return *this;
+}
 struct GraphicsDevice::State
 {
     DWORD thread = GetCurrentThreadId();
@@ -96,6 +138,7 @@ struct EmbeddedHost::State
     bool zeroSized                       = false;
     bool animationSuspended              = false;
     bool preparationRequested            = true; // Initial dirty state already requires the caller's first Prepare.
+    bool recoveryWakePending             = false;
     bool preparing                       = false;
     bool prepareCallActive               = false;
     bool contentPending                  = false;
@@ -111,7 +154,7 @@ EmbeddedHost::~EmbeddedHost()
 }
 HRESULT EmbeddedHost::Attach(std::shared_ptr<GraphicsDevice> graphics, EmbeddedCallbacks callbacks) noexcept
 {
-    if (! graphics || graphics->_state->thread != GetCurrentThreadId())
+    if (_detaching || ! graphics || graphics->_state->thread != GetCurrentThreadId())
         return E_INVALIDARG;
     if (_state)
         return HRESULT_FROM_WIN32(ERROR_ALREADY_INITIALIZED);
@@ -123,6 +166,7 @@ HRESULT EmbeddedHost::Attach(std::shared_ptr<GraphicsDevice> graphics, EmbeddedC
     {
         return E_OUTOFMEMORY;
     }
+    ++_attachmentRevision;
     _state->callbacks              = callbacks;
     _host._embedded                = true;
     _host._embeddedContext         = this;
@@ -139,8 +183,13 @@ HRESULT EmbeddedHost::Attach(std::shared_ptr<GraphicsDevice> graphics, EmbeddedC
 }
 void EmbeddedHost::Detach() noexcept
 {
-    if (! _state)
+    if (! _state || _detaching)
         return;
+    _detaching                 = true;
+    const auto finishDetach    = wil::scope_exit([this]() noexcept { _detaching = false; });
+    State* const attachedState = _state.get();
+    ++_attachmentRevision;
+    ++_operationRevision;
     DisconnectAccessibility();
     CancelPointer();
     CancelTextInput();
@@ -149,18 +198,29 @@ void EmbeddedHost::Detach() noexcept
     _host.Detach();
     _host._embedded                   = false;
     _host._embeddedAnimationRequested = false;
-    _textInputRevision += _state->revision + 1;
+    _textInputRevision += attachedState->revision + 1;
     _state.reset();
 }
 HRESULT EmbeddedHost::ReplaceDevice(std::shared_ptr<GraphicsDevice> graphics) noexcept
 {
-    if (! _state || ! graphics || graphics->_state->thread != GetCurrentThreadId())
+    if (! _state || _detaching || _replacingDevice || ! graphics || graphics->_state->thread != GetCurrentThreadId())
         return E_INVALIDARG;
+    State* const attachedState        = _state.get();
+    const uint64_t attachmentRevision = _attachmentRevision;
+    const uint64_t operationRevision  = ++_operationRevision;
+    _replacingDevice                  = true;
+    const auto finishReplacement      = wil::scope_exit([this]() noexcept { _replacingDevice = false; });
+    const auto attachmentIsCurrent    = [&]() noexcept { return _state.get() == attachedState && _attachmentRevision == attachmentRevision && ! _detaching; };
+    const auto operationIsCurrent     = [&]() noexcept { return attachmentIsCurrent() && _operationRevision == operationRevision; };
     ReleaseSurface();
-    auto& s = *_state;
+    if (! operationIsCurrent())
+        return E_ABORT;
+    auto& s = *attachedState;
     auto& g = *graphics->_state;
     s.graphics.reset();
     _host.DiscardDeviceResources();
+    if (! operationIsCurrent())
+        return E_ABORT;
     _host._d3dDevice     = g.device.get();
     _host._d2dFactory    = g.factory.get();
     _host._d2dDevice     = g.d2d.get();
@@ -172,8 +232,19 @@ HRESULT EmbeddedHost::ReplaceDevice(std::shared_ptr<GraphicsDevice> graphics) no
     _host._d2dContext->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
     if (! _host.EnsureDeviceIndependentResources())
         return E_FAIL;
+    if (! operationIsCurrent())
+        return E_ABORT;
     _host.RecreateBrushCache();
     s.graphics = std::move(graphics);
+    if (s.prepareCallActive)
+    {
+        // This frame belongs to the retired resource epoch. Queue one owner
+        // wake for the replacement; the retiring frame must not retry it.
+        s.recoveryWakePending  = true;
+        s.preparationRequested = false;
+    }
+    else
+        s.preparationRequested = false;
     return S_OK;
 }
 void EmbeddedHost::InvalidateThunk(void* context) noexcept
@@ -202,10 +273,21 @@ void EmbeddedHost::ReleaseSurface() noexcept
 {
     if (! _state)
         return;
+    State* const attachedState        = _state.get();
+    const uint64_t attachmentRevision = _attachmentRevision;
+    const uint64_t operationRevision  = _operationRevision;
+    const auto operationIsCurrent     = [&]() noexcept
+    { return _state.get() == attachedState && _attachmentRevision == attachmentRevision && _operationRevision == operationRevision && ! _detaching; };
     DisconnectAccessibility();
+    if (! operationIsCurrent())
+        return;
     CancelPointer();
+    if (! operationIsCurrent())
+        return;
     CancelTextInput();
-    auto& s = *_state;
+    if (! operationIsCurrent())
+        return;
+    auto& s = *attachedState;
     // Drop the borrowed D2D target before the bitmap so no context reference keeps the texture alive.
     if (_host._d2dContext)
         _host._d2dContext->SetTarget(nullptr);
@@ -219,18 +301,31 @@ void EmbeddedHost::ReleaseSurface() noexcept
     s.contentPending             = false;
     s.preparationRequested       = false;
     s.dirty                      = true;
+    // This is deliberately the final operation: visual cancellation can invoke
+    // arbitrary control callbacks, including detaching this EmbeddedHost.
+    _host.CancelPreparedVisualContent();
 }
 void EmbeddedHost::SetVisible(bool visible) noexcept
 {
-    if (! _state || _state->visible == visible)
+    if (! _state || _detaching || _state->visible == visible)
         return;
-    _state->visible = visible;
+    State* const attachedState        = _state.get();
+    const uint64_t attachmentRevision = _attachmentRevision;
+    const uint64_t operationRevision  = ++_operationRevision;
+    const auto attachmentIsCurrent    = [&]() noexcept { return _state.get() == attachedState && _attachmentRevision == attachmentRevision && ! _detaching; };
+    const auto operationIsCurrent     = [&]() noexcept { return attachmentIsCurrent() && _operationRevision == operationRevision; };
+    attachedState->visible            = visible;
     if (! visible)
     {
+        attachedState->recoveryWakePending = false;
         ReleaseSurface();
+        if (! operationIsCurrent())
+            return;
         // Nothing paints while the view is hidden, so its controls return what painting rebuilds (a Grid's text layouts).
         if (_host._root)
             _host._root->OnHidden();
+        if (! operationIsCurrent())
+            return;
         _state->animationSuspended        = _host._embeddedAnimationRequested;
         _host._embeddedAnimationRequested = false;
     }
@@ -239,7 +334,10 @@ void EmbeddedHost::SetVisible(bool visible) noexcept
         _host._embeddedAnimationRequested = _host._embeddedAnimationRequested || _state->animationSuspended;
         _state->animationSuspended        = false;
         _state->dirty                     = true;
-        RequestPreparation();
+        if (_state->prepareCallActive)
+            _state->recoveryWakePending = true;
+        else
+            RequestPreparation();
     }
 }
 bool EmbeddedHost::NeedsPreparation() const noexcept
@@ -272,27 +370,50 @@ bool EmbeddedHost::AdvanceAnimation(uint64_t tick) noexcept
 }
 HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
 {
-    if (! _state || ! _state->graphics)
+    if (! _state || ! _state->graphics || _detaching || _replacingDevice)
         return E_UNEXPECTED;
-    auto& s = *_state;
-    auto& g = *s.graphics->_state;
+    State* const attachedState        = _state.get();
+    const uint64_t attachmentRevision = _attachmentRevision;
+    const uint64_t operationRevision  = _operationRevision;
+    const auto attachmentIsCurrent    = [&]() noexcept { return _state.get() == attachedState && _attachmentRevision == attachmentRevision; };
+    const auto preparationIsCurrent   = [&]() noexcept
+    { return attachmentIsCurrent() && _operationRevision == operationRevision && ! _detaching && ! _replacingDevice; };
+    auto& s                  = *attachedState;
+    const auto graphicsOwner = s.graphics;
+    if (! graphicsOwner)
+        return E_UNEXPECTED;
+    auto& g = *graphicsOwner->_state;
     if (g.thread != GetCurrentThreadId())
         return RPC_E_WRONG_THREAD;
     if (s.prepareCallActive)
         return E_UNEXPECTED;
-    s.prepareCallActive          = true;
+    s.prepareCallActive = true;
+    // Keep the recursive-call guard set while the scheduling callback runs.
+    // The callback may detach or replace this attachment, so only clear the
+    // captured state when its attachment identity still matches on unwind.
+    const auto finishPrepareCall = wil::scope_exit([&]() noexcept
+    {
+        if (_state.get() == attachedState && _attachmentRevision == attachmentRevision)
+            attachedState->prepareCallActive = false;
+    });
     bool requestAfterPreparation = false;
     auto observedRevision        = s.revision;
     s.preparing                  = true;
     const auto finishPreparation = wil::scope_exit([&]
     {
+        if (! attachmentIsCurrent())
+            return;
         s.preparing = false;
         // Never invoke application scheduling while a control paint or layout
         // callback is still on the stack. A new reentrant request is distinct
         // from automatically retrying the same failed work.
-        if (requestAfterPreparation || s.revision != observedRevision)
+        const bool recoveryWake            = s.recoveryWakePending;
+        s.recoveryWakePending              = false;
+        const bool currentVisibleOperation = attachmentIsCurrent() && ! _detaching && ! _replacingDevice && s.visible && ! s.zeroSized;
+        const bool request =
+            currentVisibleOperation && (recoveryWake || (preparationIsCurrent() && (requestAfterPreparation || s.revision != observedRevision)));
+        if (request)
             RequestPreparation();
-        s.prepareCallActive = false;
     });
     s.preparationRequested       = false;
     s.contentPending             = false;
@@ -302,8 +423,12 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
     {
         // Neither state holds a surface; the next visible sized preparation allocates one.
         ReleaseSurface();
+        if (! preparationIsCurrent())
+            return E_ABORT;
         if (s.zeroSized && ! wasZeroSized && _host._root)
             _host._root->OnHidden();
+        if (! preparationIsCurrent())
+            return E_ABORT;
         return S_FALSE;
     }
     if (! std::isfinite(dpi) || dpi < 48 || dpi > 768 || width > D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION || height > D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION)
@@ -327,7 +452,11 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
     // the drag target, so that revision must not snap the drag back. A new view size, or a capture whose control
     // is gone, hidden or disabled, still cancels.
     if (targetChanged || (geometryChanged && ! CapturedDragContinues()))
+    {
         CancelPointer();
+        if (! preparationIsCurrent())
+            return E_ABORT;
+    }
     if (! s.dirty && s.coherent && width == s.width && height == s.height && dpi == s.dpi)
         return S_FALSE;
     s.coherent                   = false;
@@ -378,12 +507,26 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         if (_host._root)
         {
             if (dpiChanged)
+            {
                 _host._root->OnHostDpiChanged(_host);
+                if (! preparationIsCurrent())
+                    return E_ABORT;
+            }
             if (_host._root)
+            {
                 _host._root->SetBounds(D2D1::RectF(0, 0, float(width) * 96 / dpi, float(height) * 96 / dpi));
+                if (! preparationIsCurrent())
+                    return E_ABORT;
+            }
         }
-        observedRevision = s.revision;
-        if (! _host.PreparePendingPageLayout())
+        _host.TrimCaches();
+        if (! preparationIsCurrent())
+            return E_ABORT;
+        observedRevision       = s.revision;
+        const bool layoutReady = _host.PreparePendingPageLayout();
+        if (! preparationIsCurrent())
+            return E_ABORT;
+        if (! layoutReady)
         {
             s.contentPending             = _host._contentPreparationContinues;
             s.contentInteractionRevision = _host._interactionRevision;
@@ -397,11 +540,13 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         ID3D11ShaderResourceView* empty = nullptr;
         _host._d3dContext->PSSetShaderResources(0, 1, &empty);
         _host._d3dContext->OMSetRenderTargets(0, nullptr, nullptr);
-        observedRevision               = s.revision;
-        const auto revision            = s.revision;
-        const auto interactionRevision = _host._interactionRevision;
-        auto* dc                       = _host._d2dContext.get();
-        _host.TrimCaches();
+        observedRevision                                 = s.revision;
+        const auto revision                              = s.revision;
+        const auto interactionRevision                   = _host._interactionRevision;
+        wil::com_ptr_nothrow<ID2D1DeviceContext> dcOwner = _host._d2dContext;
+        auto* dc                                         = dcOwner.get();
+        if (! dc)
+            return E_UNEXPECTED;
         FrameStageScope renderStage(preparationStage, FrameStage::Render);
         dc->BeginDraw();
         auto finish = wil::scope_exit([&] { dc->EndDraw(); });
@@ -410,7 +555,10 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         Control* const paintRoot    = _host._root.get();
         const auto rootLifetime     = paintRoot ? GetControlLifetimeToken(*paintRoot) : std::weak_ptr<int>{};
         const auto treeStillCurrent = [&]() noexcept
-        { return (! paintRoot || ! rootLifetime.expired()) && _host._root.get() == paintRoot && _host._interactionRevision == interactionRevision; };
+        {
+            return preparationIsCurrent() && (! paintRoot || ! rootLifetime.expired()) && _host._root.get() == paintRoot &&
+                   _host._interactionRevision == interactionRevision;
+        };
         if (_host._root)
         {
             _host._root->Paint(_host);
@@ -421,15 +569,23 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
                 return E_ABORT;
         }
         if (_host._tooltipLayer.HasTooltip())
+        {
             _host._tooltipLayer.Paint(_host);
+            if (! treeStillCurrent())
+                return E_ABORT;
+        }
         finish.release();
         RETURN_IF_FAILED(dc->EndDraw());
+        if (! preparationIsCurrent())
+            return E_ABORT;
         s.preparedInteractionRevision = interactionRevision;
         s.coherent                    = interactionRevision == _host._interactionRevision;
         s.interactionLayoutAvailable  = true;
         s.dirty                       = s.revision != revision;
         ++s.stats.preparations;
         _host.PublishPreparedContent();
+        if (! preparationIsCurrent())
+            return E_ABORT;
         s.coherent              = s.coherent && interactionRevision == _host._interactionRevision;
         s.dirty                 = s.revision != revision;
         requestAfterPreparation = s.dirty;
@@ -448,9 +604,15 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
 }
 HRESULT EmbeddedHost::PrepareInteraction(UINT width, UINT height, float dpi) noexcept
 {
-    if (! _state || ! _state->graphics)
+    if (! _state || ! _state->graphics || _detaching || _replacingDevice)
         return E_UNEXPECTED;
-    auto& s = *_state;
+    State* const attachedState        = _state.get();
+    const uint64_t attachmentRevision = _attachmentRevision;
+    const uint64_t operationRevision  = _operationRevision;
+    const auto attachmentIsCurrent    = [&]() noexcept { return _state.get() == attachedState && _attachmentRevision == attachmentRevision; };
+    const auto preparationIsCurrent   = [&]() noexcept
+    { return attachmentIsCurrent() && _operationRevision == operationRevision && ! _detaching && ! _replacingDevice; };
+    auto& s = *attachedState;
     if (s.graphics->_state->thread != GetCurrentThreadId())
         return RPC_E_WRONG_THREAD;
     if (! std::isfinite(dpi) || dpi < 48 || dpi > 768)
@@ -474,7 +636,11 @@ HRESULT EmbeddedHost::PrepareInteraction(UINT width, UINT height, float dpi) noe
         return S_FALSE;
     const auto revision = _host._interactionRevision;
     if (! CapturedDragContinues())
+    {
         CancelPointer();
+        if (! preparationIsCurrent())
+            return E_ABORT;
+    }
     // A cancellation callback may itself change the tree or bounds. The caller has not arranged that state yet.
     if (revision != _host._interactionRevision)
     {
@@ -693,6 +859,52 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
 }
 bool EmbeddedHost::DispatchKey(UINT key, bool down, UINT modifiers) noexcept
 {
+    return DispatchKeyImpl(key, down, modifiers, nullptr);
+}
+bool EmbeddedHost::DispatchKey(UINT key, bool down, UINT modifiers, EmbeddedKeyDispatchReceipt& receipt) noexcept
+{
+    receipt.Reset();
+    return DispatchKeyImpl(key, down, modifiers, &receipt);
+}
+bool EmbeddedHost::DispatchKeyImpl(UINT key, bool down, UINT modifiers, EmbeddedKeyDispatchReceipt* receipt) noexcept
+{
+    uint64_t issuedReceiptSequence = 0u;
+    // Overlapping use of the same out-object cannot identify which caller's raw key should translate.
+    // Invalidate it on every outer exit, including a callback failure; independent receipts stay valid.
+    const auto invalidateOverlappedReceipt = wil::scope_exit([this, receipt, &issuedReceiptSequence]() noexcept
+    {
+        if (receipt && (receipt->_embeddedHost != this || receipt->_controlHost != &_host || receipt->_sequence != issuedReceiptSequence))
+            receipt->Reset();
+    });
+    ControlHost::KeyCharacterDispatch keyDispatch{.previous = _host._keyCharacterDispatch, .virtualKey = key, .messageRoute = down};
+    _host._keyCharacterDispatch = &keyDispatch;
+    const auto restoreDispatch  = wil::scope_exit([this, &keyDispatch]() noexcept { _host._keyCharacterDispatch = keyDispatch.previous; });
+
+    // Capture raw identities before pruning or input-modality callbacks. Only take a token from a control proven to
+    // belong to the current tree, so stale focus pointers are never dereferenced while issuing the receipt.
+    if (receipt && down && (key == VK_RETURN || key == VK_SPACE) && _state)
+    {
+        ++_keyDispatchSequence;
+        if (_keyDispatchSequence == 0u)
+            ++_keyDispatchSequence;
+        issuedReceiptSequence            = _keyDispatchSequence;
+        Control* const initialTarget     = _host.GetFocusControl();
+        Control* const initialRoot       = _host._root.get();
+        const bool ownerIsInTree         = initialTarget && IsControlInTree(initialRoot, initialTarget);
+        receipt->_embeddedHost           = this;
+        receipt->_controlHost            = &_host;
+        receipt->_owner                  = ownerIsInTree ? initialTarget : nullptr;
+        receipt->_root                   = initialRoot;
+        receipt->_ownerLifetime          = ownerIsInTree ? initialTarget->GetLifetimeToken() : std::weak_ptr<int>{};
+        receipt->_rootLifetime           = initialRoot ? initialRoot->GetLifetimeToken() : std::weak_ptr<int>{};
+        receipt->_attachmentRevision     = _textInputRevision;
+        receipt->_focusOwnerEpoch        = _host._keyboardOwnerEpoch;
+        receipt->_sequence               = issuedReceiptSequence;
+        receipt->_virtualKey             = key;
+        receipt->_ownerSupportsTextInput = ownerIsInTree && initialTarget->SupportsTextInput();
+        receipt->_valid                  = true;
+    }
+
     if (! TextInputIsAvailable())
         return false;
     try
@@ -701,8 +913,11 @@ bool EmbeddedHost::DispatchKey(UINT key, bool down, UINT modifiers) noexcept
         if (! TextInputIsAvailable())
             return false;
         _host.SetInputModality(InputModality::Keyboard);
+        auto* target = _host.GetFocusControl();
         if (down && _host.HandleTooltipInspectionKey(key))
+        {
             return true;
+        }
         if (down && key == VK_ESCAPE && _host._nativeTextInputImeComposing)
             return ApplyTextInput(_textInputRevision + _state->revision, {}, EmbeddedTextInputAction::Cancel) == S_OK;
         if (down && key == VK_TAB)
@@ -710,20 +925,41 @@ bool EmbeddedHost::DispatchKey(UINT key, bool down, UINT modifiers) noexcept
             // A semantic editor owns list/cell Tab before ordinary host focus
             // traversal, just as under WM_KEYDOWN. A declined callback may also
             // retire/rebind its owner: never traverse a successor in that frame.
-            auto* target        = _host.GetFocusControl();
-            const auto lifetime = target ? target->GetLifetimeToken() : std::weak_ptr<int>{};
-            if (target && target->OnKeyDown(_host, key, modifiers))
+            auto* tabTarget     = _host.GetFocusControl();
+            const auto lifetime = tabTarget ? tabTarget->GetLifetimeToken() : std::weak_ptr<int>{};
+            if (tabTarget && tabTarget->OnKeyDown(_host, key, modifiers))
                 return true;
-            if (target &&
-                (lifetime.expired() || _host.GetFocusControl() != target || target->GetHost() != &_host || ! target->IsEnabled() || ! target->IsVisible()))
+            if (tabTarget && (lifetime.expired() || _host.GetFocusControl() != tabTarget || tabTarget->GetHost() != &_host || ! tabTarget->IsEnabled() ||
+                              ! tabTarget->IsVisible()))
                 return true;
             return _host.HandleTabNavigation((modifiers & MK_SHIFT) != 0);
         }
-        auto* target = _host.GetFocusControl();
-        return target && (down ? target->OnKeyDown(_host, key, modifiers) : target->OnKeyUp(_host, key, modifiers));
+        target = _host.GetFocusControl();
+        if (! target)
+            return false;
+
+        const bool handled = down ? target->OnKeyDown(_host, key, modifiers) : target->OnKeyUp(_host, key, modifiers);
+        if (receipt && issuedReceiptSequence != 0u && receipt->_valid && receipt->_embeddedHost == this && receipt->_controlHost == &_host &&
+            receipt->_sequence == issuedReceiptSequence)
+        {
+            if (! handled && ! receipt->_ownerLifetime.expired() && target == _host.GetFocusControl() && target->GetHost() == &_host &&
+                _host._keyboardOwnerEpoch == receipt->_focusOwnerEpoch && target->SupportsTextInput())
+                keyDispatch.allowCharacter = true;
+            receipt->_allowCharacter = keyDispatch.allowCharacter;
+        }
+        return handled;
+    }
+    catch (const std::bad_alloc&)
+    {
+        std::terminate();
     }
     catch (const std::exception&)
     {
+        // Noexcept input boundary: a failed key route must not authorize a later translated character.
+        if (receipt && issuedReceiptSequence != 0u && receipt->_valid && receipt->_embeddedHost == this && receipt->_controlHost == &_host &&
+            receipt->_sequence == issuedReceiptSequence)
+            receipt->_allowCharacter = false;
+        Debug::Warning(L"DxUi::EmbeddedHost: key dispatch failed; translated character permission withheld.");
         return false;
     }
 }
@@ -741,6 +977,84 @@ bool EmbeddedHost::DispatchCharacter(wchar_t character, UINT modifiers) noexcept
     }
     catch (const std::exception&)
     {
+        return false;
+    }
+}
+bool EmbeddedHost::ShouldTranslateCharacter(const EmbeddedKeyDispatchReceipt& receipt) noexcept
+{
+    if (! receipt._valid || receipt._embeddedHost != this || receipt._controlHost != &_host || ! receipt._allowCharacter || ! receipt._ownerSupportsTextInput ||
+        ! _state || ! _state->visible || _state->zeroSized || receipt._attachmentRevision != _textInputRevision)
+        return false;
+
+    Control* const owner = receipt._owner;
+    Control* const root  = receipt._root;
+    if (! owner || receipt._ownerLifetime.expired() || ! root || receipt._rootLifetime.expired() || _host._root.get() != root ||
+        _host._keyboardOwnerEpoch != receipt._focusOwnerEpoch || _host.GetFocusControl() != owner || owner->GetHost() != &_host || ! owner->HasFocus() ||
+        ! owner->SupportsTextInput() || ! IsControlEffectivelyInteractive(root, owner))
+        return false;
+    if (_state->coherent && _state->preparedInteractionRevision == _host._interactionRevision)
+        return true;
+    return _state->contentPending && _state->contentInteractionRevision == _host._interactionRevision && IsControlInTree(_host._root.get(), owner) &&
+           owner->IsEnabled() && owner->IsVisible() && owner->HasFocus() && owner->AcceptsTextInputDuringPreparation();
+}
+bool EmbeddedHost::DispatchCharacter(wchar_t character, UINT modifiers, EmbeddedKeyDispatchReceipt& receipt) noexcept
+{
+    if (! receipt._valid)
+        return false;
+
+    const wchar_t expectedCharacter = receipt._virtualKey == VK_RETURN ? L'\r' : L' ';
+    const bool receiptBelongsHere   = receipt._embeddedHost == this && receipt._controlHost == &_host;
+    // A foreign view or an unrelated character does not consume the caller's token; it may still be delivered to
+    // the correct view/message. A matching attempt below consumes it before any user callback can re-enter.
+    if (! receiptBelongsHere || character != expectedCharacter)
+        return false;
+
+    const bool currentAttachment      = _state && receipt._attachmentRevision == _textInputRevision;
+    const auto owner                  = receipt._owner;
+    const auto ownerLifetime          = receipt._ownerLifetime;
+    const auto root                   = receipt._root;
+    const auto rootLifetime           = receipt._rootLifetime;
+    const uint64_t ownerEpoch         = receipt._focusOwnerEpoch;
+    const uint64_t attachmentRevision = receipt._attachmentRevision;
+    const bool ownerSupportsTextInput = receipt._ownerSupportsTextInput;
+    const bool allowCharacter         = receipt._allowCharacter;
+    receipt.Reset();
+
+    if (! currentAttachment)
+        return true;
+
+    // A matching character belongs to its key event even if that callback retired its owner, replaced the tree,
+    // detached this view, or moved focus. Never retarget it to a successor editor.
+    if (! _state || _textInputRevision != attachmentRevision || _host._root.get() != root || (root && rootLifetime.expired()) ||
+        _host._keyboardOwnerEpoch != ownerEpoch)
+        return true;
+    if (! owner)
+        return true;
+    if (ownerLifetime.expired() || _host.GetFocusControl() != owner || owner->GetHost() != &_host)
+        return true;
+
+    if (! allowCharacter)
+        return true;
+    if (! ownerSupportsTextInput || ! TextInputIsAvailable())
+        return true;
+
+    try
+    {
+        _host.PruneStaleInteractionState();
+        if (! _state || _textInputRevision != attachmentRevision || (root && rootLifetime.expired()) || _host._root.get() != root ||
+            _host._keyboardOwnerEpoch != ownerEpoch || ownerLifetime.expired() || _host.GetFocusControl() != owner || owner->GetHost() != &_host ||
+            ! owner->SupportsTextInput() || ! owner->HasFocus() || ! IsControlEffectivelyInteractive(root, owner))
+            return true;
+        return owner->OnChar(_host, character, modifiers);
+    }
+    catch (const std::bad_alloc&)
+    {
+        std::terminate();
+    }
+    catch (const std::exception&)
+    {
+        // Noexcept input boundary: the matching receipt remains consumed when a control callback fails.
+        Debug::Warning(L"DxUi::EmbeddedHost: correlated character dispatch failed; receipt consumed.");
         return false;
     }
 }

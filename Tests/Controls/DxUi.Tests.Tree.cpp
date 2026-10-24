@@ -10,6 +10,72 @@
 namespace
 {
 
+void TestTreeFramelessOutlinePreservesModelAndKeyboardExpansion()
+{
+    using namespace DxUi;
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0, 0, 220, 140));
+    MutableTreeModel model;
+    model.SetVisibleItems(
+        {TreeItemData{.id = 10, .text = L"Chapter", .hasChildren = true, .expanded = false}, TreeItemData{.id = 20, .text = L"Next chapter"}});
+    RecordingTreeDelegate delegate;
+    tree->SetModel(&model);
+    tree->SetDelegate(&delegate);
+    host.SetRoot(std::move(root));
+    const auto ordinary = tree->GetItemLayoutMetrics(host, 0);
+    tree->SetAppearance({.drawBackground = false, .drawBorder = false, .showExpanders = false});
+    const auto outline = tree->GetItemLayoutMetrics(host, 0);
+    Require(ordinary.hasExpander && ! outline.hasExpander && outline.textRect.left < ordinary.textRect.left,
+            "a frameless outline removes the disclosure lane without changing the model");
+    tree->SetSelectedItemId(10);
+    Require(tree->OnKeyDown(host, VK_RIGHT, 0) && tree->GetSelectedItemId() == 10,
+            "keyboard expansion still reaches the shared tree model when the decorative expander is hidden");
+    TreeItemData retained;
+    model.GetVisibleItem(0, retained);
+    Require(retained.id == 10 && retained.hasChildren, "presentation never flattens hierarchical model semantics");
+    tree->SetAppearance({.drawBackground = false, .drawBorder = false, .reserveExpanderSpace = true});
+    const auto leaf   = tree->GetItemLayoutMetrics(host, 1);
+    const auto parent = tree->GetItemLayoutMetrics(host, 0);
+    Require(leaf.textRect.left == parent.textRect.left, "file-tree leaves align with parent labels by reserving the expander lane");
+    const auto expandedEdge      = D2D1::Point2F(parent.expanderRect.right - 1.f, (parent.expanderRect.top + parent.expanderRect.bottom) * .5f);
+    const size_t previousToggles = delegate.toggleCount;
+    Require(tree->OnMouseDown(host, expandedEdge, false, 0) && delegate.toggleCount == previousToggles + 1u,
+            "the full painted expander lane is clickable when reservation widens it");
+    tree->OnMouseUp(host, expandedEdge, false, 0);
+    tree->SetAppearance({.drawBackground = false, .drawBorder = false, .showExpanders = false, .reserveExpanderSpace = true});
+    Require(tree->OnMouseDown(host, expandedEdge, false, 0) && delegate.toggleCount == previousToggles + 1u,
+            "a reserved but hidden expander lane selects the row without expanding it");
+    tree->OnMouseUp(host, expandedEdge, false, 0);
+    auto appearance               = tree->GetAppearance();
+    appearance.neutralDecorations = true;
+    tree->SetAppearance(appearance);
+    TreeDebugRowVisualState visual;
+    auto theme = MakeDefaultThemePalette(true);
+    Require(tree->DebugGetRowVisualState(theme, 1, false, visual) && visual.iconArgb == PackColorForTest(theme.subduedText),
+            "quiet file-tree decorations use subdued ink outside selection");
+}
+
+void TestTreeTypographyOverrideValidatesAtomically()
+{
+    using namespace DxUi;
+    Tree tree;
+    Require(! tree.GetTypographyOverride(), "tree typography is unchanged by default");
+    const Tree::TypographyOverride wanted{13.0f, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_WEIGHT_SEMI_BOLD};
+    Require(tree.SetTypographyOverride(wanted) == S_OK, "tree accepts bounded row typography");
+    Require(tree.GetTypographyOverride() == wanted, "tree returns its row typography override");
+    Require(tree.SetTypographyOverride(wanted) == S_FALSE, "same tree typography setting is idempotent");
+    auto sameBucket = wanted;
+    sameBucket.fontSizeDip += 0.003f;
+    Require(tree.SetTypographyOverride(sameBucket) == S_FALSE, "tree normalizes sizes to the documented 1/64-DIP step");
+    auto invalid              = wanted;
+    invalid.currentFontWeight = static_cast<DWRITE_FONT_WEIGHT>(901);
+    Require(tree.SetTypographyOverride(invalid) == E_INVALIDARG, "tree rejects invalid selected-row weight");
+    Require(tree.GetTypographyOverride() == wanted, "invalid tree typography leaves the prior value unchanged");
+    Require(tree.SetTypographyOverride(std::nullopt) == S_OK, "tree clears its optional typography override");
+}
+
 class ReentrantTreeModel final : public DxUi::ITreeModel
 {
 public:
@@ -1302,6 +1368,35 @@ void TestTreeSelectedRowUsesRainbowOnlyInRainbowMode()
             "tree high-contrast selected row falls back to the shared selection fill");
 }
 
+void TestTreeInactiveSelectionPrefersSelectionTextWhenReadable()
+{
+    using namespace DxUi;
+    Tree tree;
+    MutableTreeModel model;
+    model.SetVisibleItems({TreeItemData{.id = 1u, .text = L"Current document"}});
+    tree.SetModel(&model);
+    tree.SetSelectedItemId(1u);
+    auto theme                  = MakeDefaultThemePalette(false);
+    theme.rainbowMode           = false;
+    theme.surfaceBackground     = D2D1::ColorF(1, 1, 1, 1);
+    theme.selectionInactiveFill = D2D1::ColorF(.98f, .92f, .92f, 1);
+    theme.selectionText         = D2D1::ColorF(.63f, .16f, .20f, 1);
+    TreeDebugRowVisualState row;
+    Require(! tree.HasFocus() && tree.DebugGetRowVisualState(theme, 0u, false, row) && row.selected,
+            "inactive selected Tree row resolves through its native paint resolver");
+    Require(row.textArgb == PackColorForTest(theme.selectionText) && row.iconArgb == row.textArgb && row.expanderArgb == row.textArgb,
+            "readable selection text token controls inactive current-row label and icon chrome");
+    theme.selectionText = D2D1::ColorF(1, 1, 1, 1);
+    Require(tree.DebugGetRowVisualState(theme, 0u, false, row) &&
+                row.textArgb ==
+                    PackColorForTest(ChooseContrastingTextColorForTest(CompositeOverBackground(theme.selectionInactiveFill, theme.surfaceBackground))),
+            "unreadable inactive selection text still receives the shared contrast fallback");
+    theme.highContrast          = true;
+    theme.selectionInactiveFill = D2D1::ColorF(0, 0, .5f, 1);
+    Require(tree.DebugGetRowVisualState(theme, 0u, false, row) && row.textArgb == PackColorForTest(theme.selectionText),
+            "high contrast keeps the explicit HighlightText and Highlight pair");
+}
+
 void TestTreeNotifyDataChangedClearsMissingSelection()
 {
     using namespace DxUi;
@@ -1809,6 +1904,45 @@ public:
     RecordingTreeDelegate delegate;
     DxUi::Tree* tree = nullptr;
 };
+
+void TestTreeSingleClickInvokeIsOptInAndLeavesExpanderAndEnterSemanticsIntact()
+{
+    using namespace DxUi;
+
+    TreeSelectionFixture fixture(
+        {TreeItemData{.id = 10u, .text = L"Folder", .hasChildren = true, .expanded = false}, TreeItemData{.id = 20u, .text = L"File", .depth = 1u}});
+    fixture.tree->SetInvokeOnSingleClick(true);
+    const std::optional<D2D1_RECT_F> folderRow = fixture.tree->GetVisibleItemHitRect(0u);
+    Require(folderRow.has_value(), "the folder row has a hit rectangle");
+    const TreeItemLayoutMetrics metrics = fixture.tree->GetItemLayoutMetrics(fixture.host, 0u);
+    const D2D1_POINT_2F folderTextPoint = D2D1::Point2F(metrics.expanderRect.right + 6.0f, (folderRow->top + folderRow->bottom) * 0.5f);
+    Require(fixture.tree->OnMouseDown(fixture.host, folderTextPoint, false, 0u), "pressing a folder row is handled");
+    static_cast<void>(fixture.tree->OnMouseUp(fixture.host, folderTextPoint, false, 0u));
+    Require(fixture.delegate.invokedCount == 1u && fixture.delegate.lastInvokedItemId == 10u,
+            "single-click mode invokes a row with children so consumers can use it as navigation");
+
+    Require(fixture.tree->OnMouseDown(fixture.host, folderTextPoint, false, 0u), "a second folder press is handled");
+    static_cast<void>(fixture.tree->OnMouseUp(fixture.host, D2D1::Point2F(280.0f, 280.0f), false, 0u));
+    Require(fixture.delegate.invokedCount == 1u, "release outside the tree cancels single-click invocation");
+    static_cast<void>(fixture.tree->OnMouseUp(fixture.host, folderTextPoint, false, 0u));
+    Require(fixture.delegate.invokedCount == 1u, "a later release cannot reuse a cancelled click candidate");
+
+    const D2D1_POINT_2F expanderPoint =
+        D2D1::Point2F((metrics.expanderRect.left + metrics.expanderRect.right) * 0.5f, (metrics.expanderRect.top + metrics.expanderRect.bottom) * 0.5f);
+    Require(fixture.tree->OnMouseDown(fixture.host, expanderPoint, false, 0u), "pressing the expander is handled");
+    static_cast<void>(fixture.tree->OnMouseUp(fixture.host, expanderPoint, false, 0u));
+    Require(fixture.delegate.invokedCount == 1u, "expander clicks do not invoke the row");
+
+    Require(fixture.Key(VK_SPACE) && fixture.delegate.invokedCount == 1u, "single-click mode reserves keyboard invocation for Enter");
+    Require(fixture.Key(VK_RETURN) && fixture.delegate.invokedCount == 2u && fixture.delegate.lastInvokedItemId == 10u,
+            "Enter invokes the focused row in single-click mode");
+    const D2D1_POINT_2F filePoint = fixture.RowPoint(1u);
+    Require(fixture.tree->OnMouseDown(fixture.host, filePoint, false, 0u), "pressing a leaf row is handled");
+    static_cast<void>(fixture.tree->OnMouseUp(fixture.host, filePoint, false, 0u));
+    Require(fixture.delegate.invokedCount == 3u && fixture.delegate.lastInvokedItemId == 20u, "a leaf row invokes on its completed single click");
+    Require(fixture.tree->OnMouseDoubleClick(fixture.host, filePoint, false, 0u), "a leaf double-click remains handled");
+    Require(fixture.delegate.invokedCount == 3u, "the double-click message does not invoke a leaf a second time");
+}
 
 void TestTreeMultiSelectIsOptInAndSingleSelectIsUnchanged()
 {
@@ -2739,7 +2873,7 @@ void TestTreeMultiSelectPaintsEverySelectedRowWithTheSelectionColors()
         Require(tree.DebugGetRowVisualState(theme, index, true, state) && state.selected, "a selected row of an unfocused tree reports itself selected");
         Require(state.fillArgb == PackColorForTest(theme.selectionInactiveFill),
                 "a selected row of an unfocused tree is filled with the inactive selection color");
-        Require(state.textArgb == PackColorForTest(ResolveInactiveSelectionTextColor(theme, theme.text, theme.surfaceBackground)),
+        Require(state.textArgb == PackColorForTest(ResolveInactiveSelectionTextColor(theme, theme.selectionText, theme.surfaceBackground)),
                 "a selected row of an unfocused tree uses text contrasting with its painted inactive fill");
     }
 
@@ -2748,7 +2882,8 @@ void TestTreeMultiSelectPaintsEverySelectedRowWithTheSelectionColors()
         const ThemePalette polarityTheme = MakeDefaultThemePalette(dark);
         Require(tree.DebugGetRowVisualState(polarityTheme, 0u, true, state), "unfocused Tree resolves selected text in both light and dark themes");
         const D2D1_COLOR_F paintedFill = CompositeOverBackground(polarityTheme.selectionInactiveFill, polarityTheme.surfaceBackground);
-        Require(state.textArgb == PackColorForTest(ResolveInactiveSelectionTextColor(polarityTheme, polarityTheme.text, polarityTheme.surfaceBackground)),
+        Require(state.textArgb ==
+                    PackColorForTest(ResolveInactiveSelectionTextColor(polarityTheme, polarityTheme.selectionText, polarityTheme.surfaceBackground)),
                 "unfocused Tree preserves readable text or substitutes contrast over the painted alpha selection");
     }
 
@@ -2997,6 +3132,70 @@ void TestTreeSelectionSettersAndModeSwitchKeepTheSelectionCoherent()
     Require(log.selectionSetChangedCount == 3u, "only the Shift+Down and the two removals reported a set");
 }
 
+void TestTreeSingleClickCaptureTransferMayRetireTheTree()
+{
+    using namespace DxUi;
+    const HWND activeBefore = GetActiveWindow();
+    Require(GetCapture() == nullptr, "the test thread starts without native capture");
+    struct CaptureState
+    {
+        WindowHost* target{};
+        bool armed{};
+        unsigned notifications{};
+    } state;
+    MutableTreeModel model;
+    AttachedHostWindow window;
+    AttachedHostWindow previous;
+    state.target = &window.Host();
+    model.SetVisibleItems({TreeItemData{.id = 10u, .text = L"General"}});
+    auto root  = std::make_unique<Panel>();
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 160.0f));
+    tree->SetModel(&model);
+    tree->SetInvokeOnSingleClick(true);
+    window.Host().SetRoot(std::move(root));
+    // The press below focuses an already-logical, non-text owner; no native
+    // focus transfer or foreground input is needed to exercise capture handoff.
+    window.Host().SetFocusControl(tree, false);
+    const auto lifetime = GetControlLifetimeToken(*tree);
+    class PreviousCaptureOwner final : public Panel
+    {
+    public:
+        explicit PreviousCaptureOwner(CaptureState& state) noexcept : _state(state)
+        {
+        }
+        void OnCaptureLost(ControlHost&) override
+        {
+            if (! _state.armed)
+                return;
+            _state.armed = false;
+            ++_state.notifications;
+            _state.target->SetRoot(std::make_unique<Panel>());
+        }
+
+    private:
+        CaptureState& _state;
+    };
+    auto previousRoot  = std::make_unique<PreviousCaptureOwner>(state);
+    auto* captureOwner = previousRoot.get();
+    previousRoot->SetBounds(D2D1::RectF(0.0f, 0.0f, 80.0f, 80.0f));
+    previous.Host().SetRoot(std::move(previousRoot));
+    previous.Host().CaptureMouse(captureOwner);
+    const auto releaseOwnedCapture = wil::scope_exit([&]() noexcept
+    {
+        const HWND captured = GetCapture();
+        if (captured == previous.Hwnd() || captured == window.Hwnd())
+            static_cast<void>(ReleaseCapture());
+    });
+    Require(GetCapture() == previous.Hwnd(), "the previous owned HWND holds native capture without activation");
+    state.armed = true;
+    Require(tree->OnMouseDown(window.Host(), D2D1::Point2F(60.0f, 16.0f), false, 0u), "single-click capture handoff is handled");
+    Require(state.notifications == 1u && lifetime.expired() && window.Host().GetRoot() != nullptr,
+            "native capture-lost notification replaces the root before the original press returns");
+    Require(window.Host().GetCapturedControl() == nullptr && GetCapture() != window.Hwnd(), "retirement clears the original tree's capture");
+    Require(GetActiveWindow() == activeBefore, "capture handoff does not activate either owned test window");
+}
+
 // A tree press or double click on an item that focuses the tree, given a focus callback that replaces every control,
 // touches the destroyed tree no further (AddressSanitizer catches one that does).
 void TestTreeInputLeavesATreeTheFocusCallbackDestroyed()
@@ -3027,6 +3226,7 @@ void RunTreeTests()
     DXUI_RUN_TEST(TestTreePointerRechecksTheModelAfterFocusCallbacks);
     DXUI_RUN_TEST(TestTreeUnhandledKeysLeaveAnEmptySelectionAlone);
     DXUI_RUN_TEST(TestTreeInputLeavesATreeTheFocusCallbackDestroyed);
+    DXUI_RUN_TEST(TestTreeSingleClickCaptureTransferMayRetireTheTree);
     DXUI_RUN_TEST(TestTreeLocalizedEmptyStateRepaintsWithoutSelectionChange);
     DXUI_RUN_TEST(TestTreeIconFontAndReorderReleaseEdgeCases);
     DXUI_RUN_TEST(TestTreePointerSelectionNotifiesDelegate);
@@ -3034,6 +3234,7 @@ void RunTreeTests()
     DXUI_RUN_TEST(TestTreeDragReorderRejectsItsOwnSubtreeAndFollowsModelChanges);
     DXUI_RUN_TEST(TestTreeMultiRowDragRejectsEverySelectedSubtree);
     DXUI_RUN_TEST(TestTreeExpanderClickRequestsToggle);
+    DXUI_RUN_TEST(TestTreeSingleClickInvokeIsOptInAndLeavesExpanderAndEnterSemanticsIntact);
     DXUI_RUN_TEST(TestTreeExpanderReResolvesStableItemAfterSelectionReorder);
     DXUI_RUN_TEST(TestTreeSelectionDelegateCanReplaceRootSafely);
     DXUI_RUN_TEST(TestTreePaintStopsAfterModelGetterReplacesRoot);
@@ -3084,4 +3285,7 @@ void RunTreeTests()
     DXUI_RUN_TEST(TestTreeDragReorderKeepsItsSourceAndTheMultiSelection);
     DXUI_RUN_TEST(TestTreeMultiSelectContextMenuExpanderAndDoubleClickKeepTheSelectionRules);
     DXUI_RUN_TEST(TestTreeSelectionSettersAndModeSwitchKeepTheSelectionCoherent);
+    DXUI_RUN_TEST(TestTreeTypographyOverrideValidatesAtomically);
+    DXUI_RUN_TEST(TestTreeFramelessOutlinePreservesModelAndKeyboardExpansion);
+    DXUI_RUN_TEST(TestTreeInactiveSelectionPrefersSelectionTextWhenReadable);
 }
