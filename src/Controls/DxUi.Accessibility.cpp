@@ -2306,7 +2306,7 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
         }
         else if (const auto* button = dynamic_cast<const Button*>(current); button && button->GetToggleState().has_value())
         {
-            record.controlToggleChecked = button->GetToggleState().value();
+            record.controlToggleState = button->GetToggleState().value() ? ToggleState_On : ToggleState_Off;
         }
         if (const auto* slider = dynamic_cast<const Slider*>(current))
         {

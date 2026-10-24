@@ -2876,7 +2876,7 @@ bool ControlHost::DispatchKeyboardMessage(const MSG& message) noexcept
         return false;
 
     Control* const owner                   = _focusedControl;
-    const std::weak_ptr<int> ownerLifetime = owner && ControlBelongsToTree(_root.get(), owner) ? owner->GetLifetimeToken() : std::weak_ptr<int>{};
+    const std::weak_ptr<int> ownerLifetime = owner && IsControlInTree(_root.get(), owner) ? owner->GetLifetimeToken() : std::weak_ptr<int>{};
     Control* const root                    = _root.get();
     const std::weak_ptr<int> rootLifetime  = root ? root->GetLifetimeToken() : std::weak_ptr<int>{};
     const uint64_t ownerEpoch              = _keyboardOwnerEpoch;

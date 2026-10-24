@@ -4,6 +4,9 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Reconcile Button toggle publication with the confirmed accessibility toggle-state snapshot, and use the shared
+  logical-tree membership check when capturing a keyboard dispatch owner. Existing toggle-state and stale-owner
+  regressions remain enabled; preserve the first integration build failure separately from renewed qualification.
 - Reconcile retained-control lifetime, focus and accessibility remediation with current rich-text presentation,
   keyboard-character dispatch receipts and preparation retirement guards. Preserve both sets of regression tests,
   including bounded text-service edits in documents larger than one edit and rejection of oversized individual edits.
