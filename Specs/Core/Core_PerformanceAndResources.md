@@ -268,6 +268,13 @@ publish synchronously so the system's first worker focus query can report the ne
 baseline: a fresh owner query does not consume the queued notifications. Embedded views continue to publish explicitly
 after application preparation, with no snapshot work in composition.
 
+When neither a provider has been requested nor a UIA listener is present, a native mutation still marks the
+revision dirty but does not load the published snapshot, search the focused-control path or post a new flush.
+The next owner-thread provider query resolves the latest dirty revision. A flush already posted before interest
+ceased remains scheduled and includes subsequent mutations; interested focus-transition publication is unchanged.
+Diagnostics may override only this mutation-interest decision for an exact owner-thread HWND attachment cookie;
+the override must not alter other attachments, provider queries or global UIA listener state.
+
 The developer approved retaining this coalescing tradeoff after reviewing the 9 October 2026
 [paired scheduling study](../../Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/README.md).
 For its 128-operation synthetic batches, keystroke and selection total cost fell 95.92% and 98.43%, while representative

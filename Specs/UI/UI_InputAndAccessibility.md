@@ -463,7 +463,11 @@ snapshot. The event-diff baseline advances separately when the queued publicatio
 owner-thread query does not consume pending events. An interested host publishes an actual focus
 transition synchronously before returning, which keeps the first worker `GetFocus` answer current
 and captures focus-event attribution at that publication. Detaching retires the snapshot and
-attachment identity so an old queued flush cannot publish into a later host on the same HWND. These
+attachment identity so an old queued flush cannot publish into a later host on the same HWND. Without
+a requested provider or UIA listener, mutations remain dirty without loading a snapshot, resolving focus paths
+or posting a new flush. Existing queued publication is preserved; a later owner query resolves the latest revision.
+An internal diagnostics override is scoped to the owning thread, HWND and attachment cookie and changes only the
+mutation-interest decision, never provider-query freshness, other hosts or global listener state. These
 native scheduling rules do not change embedded hosting: the application still calls
 `UpdateAccessibility` after coherent preparation, placement or focus changes. A
 focus-changed callback that removes the control it was told about leaves no control focused. A control disabled, hidden

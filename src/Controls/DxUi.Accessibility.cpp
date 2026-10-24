@@ -262,6 +262,13 @@ std::atomic<uint64_t> g_accessibilitySnapshotBuildCount{0u};
 std::atomic<size_t> g_accessibilityOffscreenSelectedRowMaterializationLimitOverride{0u};
 thread_local bool g_accessibilityResolutionCounting       = false;
 thread_local uint64_t g_accessibilityResolutionVisitCount = 0u;
+struct AccessibilityMutationInterestOverrideForTest
+{
+    HWND hwnd                  = nullptr;
+    uintptr_t attachmentCookie = 0u;
+    std::optional<bool> interested;
+};
+thread_local AccessibilityMutationInterestOverrideForTest g_accessibilityMutationInterestOverride;
 
 // The window whose GetFocus calls a test holds, and the events it uses. The window is stored last when arming and first
 // when clearing, so a call never meets events the test has not armed; the holders are the calls that met the gate.
@@ -12031,8 +12038,17 @@ void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexce
     if (! target || target->ResolveHost() != host)
         return;
     ++target->dirtyRevision;
-    const bool interested = target->providerRequested.load(std::memory_order_acquire) || UiaClientsAreListening();
-    const auto before     = target->snapshot.load(std::memory_order_acquire);
+    bool interested = target->providerRequested.load(std::memory_order_acquire) || UiaClientsAreListening();
+#if DXUI_ENABLE_DIAGNOSTICS
+    // Tests override only this attachment's owner-thread mutation decision, never global UIA interest.
+    const auto& interestOverride = g_accessibilityMutationInterestOverride;
+    if (interestOverride.hwnd == hwnd && interestOverride.attachmentCookie == target->attachmentCookie && target->threadId == GetCurrentThreadId() &&
+        interestOverride.interested.has_value())
+        interested = interestOverride.interested.value();
+#endif
+    if (! interested)
+        return;
+    const auto before = target->snapshot.load(std::memory_order_acquire);
     // Windows' first focus event calls GetFocus on a worker. Only actual focus transitions publish synchronously.
     Control* focused = host->GetFocusControl();
     ControlPath path{};
@@ -13067,6 +13083,32 @@ void DebugSetAccessibilityUiActionDispatchTimeoutForTest(DWORD timeoutMs) noexce
 void DebugResetAccessibilityUiActionExecutionCountForTest() noexcept
 {
     g_accessibilityUiActionExecutionCount.store(0u, std::memory_order_release);
+}
+
+bool DebugSetAccessibilityMutationInterestForTest(HWND hwnd, std::optional<bool> interested) noexcept
+{
+    if (! hwnd)
+    {
+        if (interested.has_value())
+            return false;
+        g_accessibilityMutationInterestOverride = {};
+        return true;
+    }
+    constexpr auto releaseTarget = [](WindowHostAccessibilityTarget* target) noexcept { static_cast<void>(target->Release()); };
+    wil::unique_any<WindowHostAccessibilityTarget*, decltype(releaseTarget), releaseTarget> retained(AcquireWindowHostAccessibilityTarget(hwnd));
+    if (! retained || retained.get()->embedded || retained.get()->threadId != GetCurrentThreadId() || ! retained.get()->ResolveHost())
+        return false;
+    auto& interestOverride = g_accessibilityMutationInterestOverride;
+    if (! interested.has_value())
+    {
+        if (interestOverride.hwnd == hwnd && interestOverride.attachmentCookie == retained.get()->attachmentCookie)
+            interestOverride = {};
+        return true;
+    }
+    if (interestOverride.hwnd && (interestOverride.hwnd != hwnd || interestOverride.attachmentCookie != retained.get()->attachmentCookie))
+        return false;
+    interestOverride = {hwnd, retained.get()->attachmentCookie, interested};
+    return true;
 }
 
 uint64_t DebugGetAccessibilitySnapshotBuildCountForTest() noexcept

@@ -171,6 +171,10 @@ while text, selection and other ordinary state changes remain coalesced. Detachi
 cookie; an old queued flush cannot publish into a later host attached to the same HWND. Embedded accessibility follows
 its explicit `UpdateAccessibility` timing after coherent preparation, placement or focus changes.
 
+Without a requested provider or UIA listener, native mutations retain dirty state without walking focus paths or
+posting new publication work. The next owner-thread provider query sees the latest state, and a flush already
+queued before interest ceased still includes later mutations. No additional application refresh call is required.
+
 An element whose control was
 removed, or replaced at the same place in the tree, reports `UIA_E_ELEMENTNOTAVAILABLE`, and the replacement's
 elements get new runtime ids; after adding or removing children, call `RefreshAccessibilitySnapshot` (or let the next

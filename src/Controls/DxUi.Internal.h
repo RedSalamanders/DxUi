@@ -532,6 +532,9 @@ void DebugSetAccessibilityOffscreenSelectedRowMaterializationLimitForTest(size_t
 // largest uint64_t when the window has no registered host.
 [[nodiscard]] uint64_t DebugGetAccessibilityFocusResolutionCountForTest(HWND hwnd) noexcept;
 [[nodiscard]] uint64_t DebugGetAccessibilitySnapshotBuildCountForTest() noexcept;
+// Owner-thread-only mutation-interest override for this exact HWND attachment. Nullopt restores automatic interest;
+// null HWND with nullopt clears the calling thread's override. Other hosts, queries and UIA listeners are unchanged.
+[[nodiscard]] bool DebugSetAccessibilityMutationInterestForTest(HWND hwnd, std::optional<bool> interested) noexcept;
 // Holds every call of `hwnd`'s fragment-root GetFocus before it counts itself or reads the snapshot, so a test decides
 // when the system's focus event is answered: each call sets `enteredEvent` on arrival and waits, for at most five seconds
 // and never indefinitely, for `releaseEvent`. Null events clear the gate and return once the calls it held have left it.

@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Keep native accessibility mutations dirty while skipping snapshot loads, focus-path searches and new flush posts when no provider or UIA listener is interested; preserve existing queued publication and interested focus behavior. Extend deterministic coverage for late provider queries, retained-provider freshness, queued flushes and diagnostic attachment isolation. Current source awaits build, native and performance validation; prior private pilot results do not establish a macro performance benefit.
 - The canonical benchmark retains its logical evidence path and passes only the native Windows argument in extended-length drive/UNC form. Focused tooling fixtures cover long Unicode paths, idempotent conversion, before/after attestation and unchanged failure propagation; native qualification remains separate.
 - Forms test fixtures now complete cooperative embedded preparation before reading text snapshots after initial layout or reflow. The embedded contract and test guidance clarify that `Prepare` may return `S_FALSE` while owner-driven content preparation remains pending.
 - Complete quiet document presentation with shared heading margins/container indentation, one canonical Tree row layout for paint and exposed geometry, subdued tree decoration, accessible state dots and subtle idle splitters. Preserve real blank-source caret sites, full resize hit targets and high-contrast affordances.
