@@ -1476,7 +1476,12 @@ bool RichTextEditor::ScrollSourceRangeIntoView(ControlHost& host, size_t sourceS
         const auto source = Snapshot();
         if (GetHost() != &host || ! IsEnabled() || sourceStart > sourceEnd || ! source.IsBoundary(sourceStart) || ! source.IsBoundary(sourceEnd))
             return false;
-        RequireCurrentLayout(host);
+        // Scrolling is a geometry query too, but pending owner preparation is
+        // ordinary control flow here. Do not throw/catch for the expected
+        // not-current case; only a prepared current layout can reveal a range.
+        if (! LayoutIsCurrent(host))
+            return false;
+        UpdateCaretScroll();
         const auto& projection = _state->layout;
         const auto rectangles  = projection.SourceRange(sourceStart, sourceEnd);
         // Hidden-only syntax has no painted extent to reveal. Do not jump to

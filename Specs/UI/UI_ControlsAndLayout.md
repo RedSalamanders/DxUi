@@ -1262,6 +1262,13 @@ row placement, source line indexing and element bounds must complete before one
 publication; input/paint/geometry queries never drain staging. No HWND, worker,
 timer, graphics device or scheduler belongs to this backend.
 
+`ScrollSourceRangeIntoView` is a geometry query. It validates the current owner,
+enabled state and source boundaries, then returns `false` while the prepared
+layout is unavailable. Pending geometry is normal control flow: the query does
+not throw, advance or reschedule owner preparation, or change scroll, selection,
+history or source. With a current layout it retains the existing caret reveal
+and source-range scrolling behavior.
+
 #### Native markers, links and HTML (M4d.3)
 
 RichTextEditor presentation is library-owned. `SetAppearance` MUST validate its

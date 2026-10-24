@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- RichTextEditor source-range scrolling now returns unavailable directly while prepared geometry is stale, without exception-driven handling of the expected pending state. Repeated pending queries preserve source, history, selection, scroll and preparation progress; ready range reveal, boundary, disabled and detached behavior remain covered. Static validation is prepared; build and native qualification remain pending.
 - Keep embedded visual-preparation test state alive through host teardown and capture external probe state before callbacks that may retire the probe itself; assert recovered-host cancellation explicitly and retain the original reentry, scheduling and retirement checks.
 - Isolate the retained icon-layout sibling visibility test on its own STA with activation blocked, so earlier headless hardware graphics do not prevent its forced-WARP host from attaching; keep the original cache lifetime assertions and bounded owner-thread cleanup.
 - Embedded preparation keeps its active-call guard across the owner scheduling callback, so a synchronous callback cannot

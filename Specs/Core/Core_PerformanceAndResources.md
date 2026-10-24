@@ -827,6 +827,9 @@ One outstanding application wakeup is separate from dirty surface state. A
 pending turn may request one continuation; a failed turn must not self-reschedule.
 Clean/hidden work does not poll; new source after failure can request explicit
 retry. Existing retained/peak/source-limit bounds and zero-delta oracles remain.
+Repeated source-range scroll queries against a pending layout return unavailable
+without advancing preparation or changing source, history, selection or scroll.
+The prepared-layout path retains its ordinary caret and range reveal behavior.
 
 The [cooperative preparation record](../../Measurements/RichText/README.md) qualifies 57 ordinary x64 scopes, six builds and 324 exact WARP pairs without changing the existing ceilings or oracles. Work-unit bounds do not establish quiet-host frame acceptance, hard latency or large-document capacity.
 

@@ -710,6 +710,25 @@ void TestRichTextEditorScrollAndHostClock()
     raw->SetSelection({0, 0});
     RenderEditor(window);
     Require(raw->DebugGetState().scrollOffsetDip == 0, "selection reveals start caret");
+    const auto readyAdvances = raw->DebugGetState().preparationAdvances;
+    Require(raw->ScrollSourceRangeIntoView(window.Host(), 500u, 500u, true) && raw->DebugGetState().scrollOffsetDip > 0,
+            "ready scroll accepts the exact end boundary and reveals its insertion point");
+    Require(raw->ScrollSourceRangeIntoView(window.Host(), 0u, 0u, true) && raw->DebugGetState().scrollOffsetDip == 0 &&
+                raw->DebugGetState().preparationAdvances == readyAdvances,
+            "ready source-range scrolling retains prepared geometry and returns to the first boundary");
+    Require(! raw->ScrollSourceRangeIntoView(window.Host(), 501u, 501u, true), "ready scroll rejects an out-of-range source boundary");
+    raw->SetEnabled(false);
+    Require(! raw->ScrollSourceRangeIntoView(window.Host(), 0u, 0u, true), "disabled editor rejects direct source-range scrolling");
+    raw->SetEnabled(true);
+    ControlHost detachedHost;
+    auto detachedPanel = std::make_unique<Panel>();
+    auto* detachedRoot = detachedPanel.get();
+    auto* detachedText = detachedRoot->AddChild<RichTextEditor>(L"detached source");
+    detachedHost.SetRoot(std::move(detachedPanel));
+    auto detachedOwner = detachedRoot->TakeChild(0u);
+    detachedText       = dynamic_cast<RichTextEditor*>(detachedOwner.get());
+    Require(detachedText != nullptr && detachedText->GetHost() == nullptr && ! detachedText->ScrollSourceRangeIntoView(detachedHost, 0u, 4u, true),
+            "detached editor rejects a stale host scroll request");
     window.Host().SetFocusControl(raw, false);
     auto theme          = window.Host().GetTheme();
     theme.reducedMotion = false;
@@ -857,8 +876,22 @@ void TestRichTextEditorNativeCooperativePreparation()
     Require(! editor->TryGetTextInputCaretRect(window.Host(), 0u) && ! editor->TryGetTextInputRangeRects(window.Host(), 0u, 4u) &&
                 ! editor->GetVisibleSourceRange(window.Host()) && ! editor->GetSourceVisualLineRanges(window.Host()),
             "native text/UIA geometry is unavailable during pending preparation");
-    Require(! editor->ScrollSourceRangeIntoView(window.Host(), 0u, 4u, true) && editor->DebugGetState().preparationAdvances == pending.preparationAdvances,
-            "queries and scrolling never drain a pending native request");
+    const auto pendingSource    = editor->Snapshot();
+    const auto pendingSelection = editor->GetSelection();
+    const bool pendingUndo      = editor->CanUndo();
+    const bool pendingRedo      = editor->CanRedo();
+    size_t pendingTextNotifications{};
+    editor->SetOnTextChanged([&] { ++pendingTextNotifications; });
+    constexpr size_t pendingScrollQueries = 256u;
+    for (size_t query = 0u; query < pendingScrollQueries; ++query)
+        Require(! editor->ScrollSourceRangeIntoView(window.Host(), 0u, 4u, true), "pending source range never fabricates geometry");
+    const auto afterPendingScroll = editor->DebugGetState();
+    Require(editor->Snapshot().IsSameRevision(pendingSource) && editor->GetSelection() == pendingSelection && editor->CanUndo() == pendingUndo &&
+                editor->CanRedo() == pendingRedo && afterPendingScroll.scrollOffsetDip == pending.scrollOffsetDip &&
+                afterPendingScroll.preparationAdvances == pending.preparationAdvances && ! afterPendingScroll.layoutReady &&
+                window.Host().HasPendingContentPreparation() && pendingTextNotifications == 0u,
+            "repeated pending scroll queries preserve source, history, selection, viewport and owner work");
+    editor->SetOnTextChanged({});
     for (size_t key = 0u; key < 48u; ++key)
         Require(editor->OnChar(window.Host(), L'x', 0u), "rapid typing stays accepted before native geometry catches up");
     const auto latest = editor->GetText();
