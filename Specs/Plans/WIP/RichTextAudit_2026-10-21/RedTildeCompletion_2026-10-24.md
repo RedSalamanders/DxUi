@@ -16,9 +16,9 @@
 
 Status: **IMPLEMENTING; final profile and performance qualification remain open**. This appendix updates evidence
 and sequencing for the [existing audit](../RichTextAudit_2026-10-21.md); its implementation work-item IDs remain
-authoritative. The [RedTilde execution coordinator](../../../../../RedTilde/Specs/Plans/WIP/RedesignCompletionAndRendering_2026-10-24.md)
-contains the complete cross-repository sequence, compatibility test matrices, reviewed commands and closeout
-conditions. This appendix adds no second defect backlog or independent acceptance policy.
+authoritative. The separate RedTilde repository's `Specs/Plans/WIP/RedesignCompletionAndRendering_2026-10-24.md`
+contains the cross-repository sequence, compatibility test matrices, reviewed commands and closeout conditions.
+This appendix adds no second defect backlog or independent acceptance policy.
 
 ### Execution evidence — 24 October
 

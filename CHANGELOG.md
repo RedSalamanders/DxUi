@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Preserve exact Git path identity and deterministic ordinal ordering across scoped source and changed-path discovery, independent of host filesystem case behavior; retain intentionally case-insensitive scope matching and cover case variants, rename sides, Unicode paths, and prose-stable compiled identity in tooling tests.
 - Install documentation gallery tooltips after message settling and content preparation, and cover an owned-window leave interleaving with exact capture-state assertions. Native verification remains a separate gate.
 - Keep the interactive lease source guard aligned with its identity-verified descendant test cleanup, while retaining the ban on process-name discovery and unrelated termination. The native self-test remains the behavioral oracle for admission, timeout and descendant completion.
 - Bound interested accessibility focus updates using the existing validated path lookup, publish ProgressBar range-bound changes to subscribed clients, and refuse interactive test children when job containment fails. Regression diagnostics cover stale/hidden focus, real range events, job admission denial and descendant completion. Tooling tests also preserve later overlay edits and work in composed invocation; performance acceptance and final profile qualification remain separate gates.

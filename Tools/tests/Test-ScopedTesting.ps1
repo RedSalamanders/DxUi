@@ -126,6 +126,25 @@ try {
             try {Assert-ScopedTestNames $naming | Out-Null} catch [System.Management.Automation.RuntimeException] {$message=$_.Exception.Message}
             Assert-Scope ($message -match 'Invalid/missing native test source:|Historical/external source cannot enter|Use a component context instead of placeholder Scope') "Invalid inventory accepted: $invalid ($message)"
         }
+        $casePaths=@([IO.Directory]::GetFiles((Join-Path $naming 'Tests'),'Scope.*.Case.cpp') | ForEach-Object { [IO.Path]::GetFileName($_) })
+        if($casePaths.Count -eq 2) {
+            $tracked=@(& (Get-Module ScopedTesting) {param($root) Get-ScopedTrackedPaths $root} $fixture)
+            foreach($name in @('Scope.Tests.Case.cpp','Scope.tests.Case.cpp')) {
+                Assert-Scope ($tracked -ccontains "naming/Tests/$name") "Distinct Git path was lost during enumeration: naming/Tests/$name"
+            }
+        }
+    }
+    Run-Case 'Git path normalization is ordinal exact and preserves rename sides and Unicode' {
+        $inputPaths=@('Tests/Scope.tests.Case.cpp','Tests/Scope.Tests.Case.cpp','Tests/Scope.Tests.Case.cpp',
+            'renamed.cpp','renamed-new.cpp','Tests/Data/Größe.txt','Tests/Data/GRÖSSE.txt','Tests/Data/Größe.txt')
+        $paths=@(& (Get-Module ScopedTesting) {param([string[]]$items) Get-ScopedOrdinalUniquePaths $items} $inputPaths)
+        Assert-Scope ($paths.Count -eq 6) "Ordinal path normalization returned $($paths.Count) rows instead of six: $($paths -join ', ')"
+        foreach($path in @('Tests/Scope.Tests.Case.cpp','Tests/Scope.tests.Case.cpp','renamed.cpp','renamed-new.cpp','Tests/Data/Größe.txt','Tests/Data/GRÖSSE.txt')) {
+            Assert-Scope ($paths -ccontains $path) "Ordinal path normalization omitted '$path'"
+        }
+        for($index=1;$index -lt $paths.Count;$index++) {
+            Assert-Scope ([StringComparer]::Ordinal.Compare($paths[$index-1],$paths[$index]) -lt 0) "Path rows are not strictly ordinal-sorted at $($paths[$index-1]) / $($paths[$index])"
+        }
     }
     Run-Case 'committed, staged, working, deleted, both rename sides and spaced untracked paths count' {
         $paths=@(Get-ScopedChangedPaths $fixture $baseline)
