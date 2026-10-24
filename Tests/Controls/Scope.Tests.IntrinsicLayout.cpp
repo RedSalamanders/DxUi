@@ -505,11 +505,15 @@ void TestButtonPreparedIconTextLayoutMatchesDrawTextW()
         RequireSucceeded(button->SetContentFontSizeDip(12.0f), "cover a 12-DIP IconOnly content size");
         static_cast<void>(capture());
         Require(button->DebugGetPreparedIconTextLayoutBuildCount() == 1u, "the owner preparation pass builds one layout before the first optimized paint");
+        Require(button->DebugGetPreparedIconTextLayoutFactoryLookupCount() > 0u, "cold icon-layout preparation reaches the DirectWrite factory path");
         Require(toggle->DebugGetPreparedIconTextLayoutBuildCount() == 0u, "a Toggle with its distinct Paint path does not retain an unused Button layout");
         Require(radio->DebugGetPreparedIconTextLayoutBuildCount() == 0u, "a RadioButton with its distinct Paint path does not retain an unused Button layout");
+        const uint64_t factoryLookupsBeforeSizeChange = button->DebugGetPreparedIconTextLayoutFactoryLookupCount();
         RequireSucceeded(button->SetContentFontSizeDip(18.0f), "use the same explicit content size as the app's icon buttons");
         requireFallbackParity();
         Require(button->DebugGetPreparedIconTextLayoutBuildCount() == 2u, "changing from 12 to 18 DIP prepares the new layout once");
+        Require(button->DebugGetPreparedIconTextLayoutFactoryLookupCount() == factoryLookupsBeforeSizeChange + 1u,
+                "a changed content-size key takes the DirectWrite factory path once");
 
         // Clearing the bounded format map produces a new exact format identity. The retained layout must rebuild
         // once for that identity, then the verified warm key must avoid another factory lookup.
@@ -531,12 +535,15 @@ void TestButtonPreparedIconTextLayoutMatchesDrawTextW()
         }
         Require(host.DebugGetConfiguredTextFormatCount() > ControlHost::kConfiguredTextFormatCacheLimit,
                 "distinct host text-format configurations overflow the bounded cache before the next paint");
-        const uint64_t buildsBeforeFormatTrim = button->DebugGetPreparedIconTextLayoutBuildCount();
+        const uint64_t buildsBeforeFormatTrim         = button->DebugGetPreparedIconTextLayoutBuildCount();
+        const uint64_t factoryLookupsBeforeFormatTrim = button->DebugGetPreparedIconTextLayoutFactoryLookupCount();
         requireFallbackParity();
         Require(host.DebugGetConfiguredTextFormatCount() <= ControlHost::kConfiguredTextFormatCacheLimit,
                 "the next paint trims the configured-format cache to its bound");
         Require(button->DebugGetPreparedIconTextLayoutBuildCount() == buildsBeforeFormatTrim + 1u,
                 "format-cache eviction creates one replacement layout for the new exact format identity");
+        Require(button->DebugGetPreparedIconTextLayoutFactoryLookupCount() == factoryLookupsBeforeFormatTrim + 1u,
+                "format-cache eviction takes the DirectWrite factory path once for its replacement layout");
         const uint64_t warmFactoryLookups = button->DebugGetPreparedIconTextLayoutFactoryLookupCount();
         const uint64_t warmLayoutBuilds   = button->DebugGetPreparedIconTextLayoutBuildCount();
         static_cast<void>(capture());
