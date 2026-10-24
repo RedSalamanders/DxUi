@@ -727,7 +727,8 @@ void TestRichTextEditorScrollAndHostClock()
     detachedHost.SetRoot(std::move(detachedPanel));
     auto detachedOwner = detachedRoot->TakeChild(0u);
     detachedText       = dynamic_cast<RichTextEditor*>(detachedOwner.get());
-    Require(detachedText != nullptr && detachedText->GetHost() == nullptr && ! detachedText->ScrollSourceRangeIntoView(detachedHost, 0u, 4u, true),
+    Require(detachedText != nullptr && ControlModelQueryAccess::Host(*detachedText) == nullptr &&
+                ! detachedText->ScrollSourceRangeIntoView(detachedHost, 0u, 4u, true),
             "detached editor rejects a stale host scroll request");
     window.Host().SetFocusControl(raw, false);
     auto theme          = window.Host().GetTheme();
