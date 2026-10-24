@@ -144,5 +144,20 @@
     }
   ],
   "nativeSuitesPerX64Profile": 23,
-  "scope": "Local x64 execution and ARM64 cross-builds. Independent tooling/source checks are separate; runtime timings here are unpaired and may overlap compilation."
+  "scope": "Local x64 execution and ARM64 cross-builds. Independent tooling/source checks are separate; runtime timings here are unpaired and may overlap compilation.",
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-native-controls-embedded-matrix-v3",
+  "benchmarkInputs": {
+    "compiledSourceIdentity": "a2e506b8718945cf43d1384bb08daefb8d0520a42e56d0c3111f6361b31ddff4",
+    "Tests/Controls/DxUi.Tests.Accessibility.cpp": "5F21FBEE35D7D79716235A016A6B96DE649D1BEA8C103D140490ADA711E2F7BB",
+    "Tests/Controls/DxUi.Tests.NewControls.cpp": "4BCE947D86CBF7A9C5972480E4D13E1AAE92F3D6F33A43A01A7BF67A7C9D65E8",
+    "Tests/Embedded/Embedded.Tests.Embedded.cpp": "057989E491EE39EDC343E519EE891E5B4D1F21E4710E28496BDF8CCE911AE9DE"
+  },
+  "observationScope": "Historical native qualification at the recorded compiled source identity and original E:/DxUi.Perf/msvc1452 checkout. These fixture hashes describe that executed snapshot; they do not qualify the newer integration tree or establish a performance result.",
+  "preservedOriginal": {
+    "archive": "LocalValidation.v3.original.zip",
+    "entry": "LocalValidation.v3.json",
+    "bytes": 6008,
+    "sha256": "93098673AB483B25C4F0726B7C3DDAABBB14D8DA05B74AA154159DF6A0A71566"
+  }
 }
