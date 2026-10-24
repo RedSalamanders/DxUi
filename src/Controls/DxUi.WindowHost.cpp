@@ -3546,17 +3546,18 @@ try
                             return 0;
                         }
                     }
-                    // A focused editor takes the character a printable key produces (its WM_CHAR follows), so the key-down
-                    // is not the application's as well: a single-key accelerator would otherwise act on every letter typed.
-                    if (_focusedControl && _focusedControl->SupportsTextInput() && KeyProducesPrintableCharacter(static_cast<UINT>(wp)))
-                    {
-                        return 0;
-                    }
                 }
                 if (wp == VK_RETURN || wp == VK_SPACE)
                     if (Control* const characterOwner = RevalidateInteractiveDispatchedControl(keyTargetLifetime, _root.get(), keyTarget);
                         characterOwner && characterOwner == _focusedControl && characterOwner->SupportsTextInput())
                         AllowTranslatedCharacter();
+                // A focused editor takes the character a printable key produces (its WM_CHAR follows), so the key-down
+                // is not the application's as well. Preserve the guarded Space character permission before this return.
+                if (msg == WM_KEYDOWN && ! ModifiersContainAlt(modifiers) && ! ModifiersContainCtrl(modifiers) && _focusedControl &&
+                    _focusedControl->SupportsTextInput() && KeyProducesPrintableCharacter(static_cast<UINT>(wp)))
+                {
+                    return 0;
+                }
             }
             handled = false;
             return 0;

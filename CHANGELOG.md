@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Preserve guarded same-owner Space translation before suppressing printable editor keys from application accelerator fallback; retain exact Return/Space ownership assertions and report editor, key and translated-character count on failure. Native requalification remains pending.
 - Reconcile Button toggle publication with the confirmed accessibility toggle-state snapshot, and use the shared
   logical-tree membership check when capturing a keyboard dispatch owner. Existing toggle-state and stale-owner
   regressions remain enabled; preserve the first integration build failure separately from renewed qualification.

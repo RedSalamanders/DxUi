@@ -288,7 +288,8 @@ the original weak owner, root and logical-focus epoch remain current. Idempotent
 focus refreshes preserve ownership; focus round trips, root retirement, detach
 and failed callbacks revoke it. Nested dispatch MUST NOT leak permission into an
 outer route. Multiline TextField/RichTextEditor Return reserves exactly one later
-character; preview/submission/default/button commands do not. Unmodified Return
+character; preview/submission/default/button commands do not. Printable editor-key
+suppression MUST preserve the guarded same-owner Space character permission. Unmodified Return
 and Space during active native IME composition remain IME-owned: the command pump
 returns false without dispatch or character translation, and retained key-down/
 key-up handlers and host default/cancel actions MUST NOT receive those keys.

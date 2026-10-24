@@ -2413,7 +2413,13 @@ template <typename Editor> void CheckActivationCharacterOwnership()
                 "Return/Space activation produces no editor character, source change or undo entry after focus transfer");
         Require(host.DispatchKeyboardMessage(message), "the unchanged focused editor owns the next activation-shaped key");
         SendMessageW(window.Hwnd(), WM_KEYUP, key, message.lParam | static_cast<LPARAM>(0xc0000000u));
-        Require(DispatchTranslatedCharacters(window.Hwnd()) == 1u,
+        const auto actualTranslatedCharacters = DispatchTranslatedCharacters(window.Hwnd());
+        if (actualTranslatedCharacters != 1u)
+        {
+            std::cerr << "[DIAGNOSTIC] activation character ownership editor=" << (std::is_same_v<Editor, TextField> ? "TextField" : "RichTextEditor")
+                      << " key=" << key << " translatedCharacters=" << actualTranslatedCharacters << '\n';
+        }
+        Require(actualTranslatedCharacters == 1u,
                 "a same-owner editor produces exactly one real translated character, including key-up before character dispatch");
         const std::wstring expected = key == VK_SPACE ? L"a a" : (std::is_same_v<Editor, TextField> ? L"a\na" : L"a\r\na");
         Require(editor->GetText() == expected, "the current text owner inserts its own Return/Space once at the retained selection");
