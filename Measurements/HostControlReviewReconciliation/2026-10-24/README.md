@@ -24,6 +24,8 @@ annotations. Selection uses each final runner's PID and creation time, the exact
 receipt/log bytes, and current attested executable hashes. It excludes earlier failed or filtered attempts
 without editing them. Detailed process and desktop diagnostics, machine identities, security metadata and
 filesystem paths remain private.
+Public run labels are opaque; the private collector packet retains original run IDs and is bound by its
+SHA-256 in the public inventory. Started/completed record hashes preserve the original evidence binding.
 
 The final ASan foreground wrapper remains recorded as `FAILED` with exit code 1. Its in-process caller read
 the intentional ASan probe's leftover `$LASTEXITCODE` after `test.ps1` had completed successfully. The sealed

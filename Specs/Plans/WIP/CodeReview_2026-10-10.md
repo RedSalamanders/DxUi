@@ -661,10 +661,10 @@ Items marked [reported] were traced by a reviewer. The lead checked them only ag
     use trusted-base checkouts (including an independent verdict job over downloaded artifacts), update workflow
     structure/digest tests, and prove missing or mismatched IDs fail closed in negative workflow cases. Observe
     the hosted binding before closing this item. The existing CiRunScope plan remains a separate active owner.
-  - `Test-DualJudgeReceiptEvidence` checks that the recorded judge decisions agree and that receipt hashes match
-    ([BenchmarkGate.psm1:255-291](../../../Tools/BenchmarkGate.psm1#L255)). It never re-runs either judge.
-  - The decisions are written by the candidate's own `performance-paired.ps1`, and there is no CODEOWNERS.
-  - **Fix.** Re-run the base-pinned judge on the receipts and require equality. Add CODEOWNERS for `Tools/` and `.github/`.
+  - **Historical finding at #70.** `Test-DualJudgeReceiptEvidence` checked that the recorded judge decisions agreed and that receipt hashes matched
+    ([BenchmarkGate.psm1:255-291](../../../Tools/BenchmarkGate.psm1#L255)). It never re-ran either judge at that baseline.
+  - **Historical finding at #70.** The decisions were written by the candidate's own `performance-paired.ps1`, and CODEOWNERS was absent.
+  - **Original proposed fix.** Re-run the base-pinned judge on the receipts and require equality. Add CODEOWNERS for `Tools/` and `.github/`. The current partial implementation and remaining workflow work are recorded above.
 - [ ] **CR-30 Tooling defects reported by the tooling reviewer** [reported]
   - **Partly done (2026-10-18).** `format.yml`'s write job no longer runs for `main`. Changes to the window host, the TSF
     text store and the accessibility providers now owe the interactive suites they run under (Menu, NativeTextInput)

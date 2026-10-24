@@ -241,7 +241,7 @@
   ],
   "runs": [
     {
-      "id": "20261024T131407154Z-43512-a3f89e42b95d41a5be0282df9163ff2c",
+      "id": "native-interactive-x64-release",
       "mode": "Interactive",
       "configuration": "Release",
       "platform": "x64",
@@ -249,7 +249,7 @@
       "completedSha256": "17909627101ECF9EF1D9291B1E069FA893C0C12EF16A3AF24461B6B502EFBCB4"
     },
     {
-      "id": "20261024T133442966Z-43664-3cc5e534c14349d9a703051b8deb54fd",
+      "id": "native-ordinary-x64-release",
       "mode": "Ordinary",
       "configuration": "Release",
       "platform": "x64",
@@ -257,7 +257,7 @@
       "completedSha256": "C6724623FF34A26C6CAC3983B00E21269F33853A69245FD0728A9DF726ECDB33"
     },
     {
-      "id": "20261024T134121436Z-6000-3fa50ce00f6c4ed699cd3ed9ed9e7c14",
+      "id": "native-ordinary-x64-debug",
       "mode": "Ordinary",
       "configuration": "Debug",
       "platform": "x64",
@@ -265,7 +265,7 @@
       "completedSha256": "98576C9D46D33349D58829554129507F1320DFCE48516A4125A237433F0B699F"
     },
     {
-      "id": "20261024T134824848Z-37724-fc1069621fb545efb5536e10b394ee8c",
+      "id": "native-ordinary-x64-asan-debug",
       "mode": "Ordinary",
       "configuration": "ASan Debug",
       "platform": "x64",
@@ -273,7 +273,7 @@
       "completedSha256": "453FF8AB5261D0F7CD984F39BB51EE1B4A2FD4057FA1709B551CEBD1D2310F62"
     },
     {
-      "id": "20261024T135825341Z-49760-761da7481f4b45f6b6a1091112e7bf6b",
+      "id": "native-interactive-x64-debug",
       "mode": "Interactive",
       "configuration": "Debug",
       "platform": "x64",
@@ -281,7 +281,7 @@
       "completedSha256": "B660740BDD7C18B06812BB728E3FA9B4F9BA23C35D28CC526401EB29451BE104"
     },
     {
-      "id": "20261024T140315336Z-47000-ac3f1dd9cc914caba257a931b5e832d7",
+      "id": "native-interactive-x64-asan-debug",
       "mode": "Interactive",
       "configuration": "ASan Debug",
       "platform": "x64",
@@ -1275,37 +1275,37 @@
   ],
   "excludedEarlierAttempts": [
     {
-      "id": "20261024T112605077Z-6056-7d8aeafccd034cb29d5e90a87b0aad7d",
+      "id": "earlier-attempt-001",
       "startedSha256": "209C0E00A612F22409B3FB4F6699EAF55ED34860EF502D86ABC58B9B7D941DB8",
       "reason": "Earlier failed or filtered attempt; not this final matrix owner"
     },
     {
-      "id": "20261024T114644159Z-19548-e88b4aa599d84c0d9cbd9a5d12d30544",
+      "id": "earlier-attempt-002",
       "startedSha256": "C7DB81603F7DBAB4CC68289B76FA62098FFEF3669F39DE17098B8C44713C92B3",
       "reason": "Earlier failed or filtered attempt; not this final matrix owner"
     },
     {
-      "id": "20261024T120703346Z-27596-5875df71b5954c24ad96bae3c77b6c71",
+      "id": "earlier-attempt-003",
       "startedSha256": "A3C7C4349B3B40AE2AF73AE8DB581DDEA8FECCDD9DBF53915ABDB106041E3800",
       "reason": "Earlier failed or filtered attempt; not this final matrix owner"
     },
     {
-      "id": "20261024T121344423Z-7604-af3371539dc1452ebdb5c2b144f96950",
+      "id": "earlier-attempt-004",
       "startedSha256": "E32C37E1C81CADC83E9A3F084A2353AF53A55EC09206428F798F7BF690D61510",
       "reason": "Earlier failed or filtered attempt; not this final matrix owner"
     },
     {
-      "id": "20261024T122052290Z-16224-8765491058fd469cb2ec3e19de52936e",
+      "id": "earlier-attempt-005",
       "startedSha256": "FBBED304497AB0ACECBCCF666921DCFE0BB99B602579EAF1FFF4B5215002D379",
       "reason": "Earlier failed or filtered attempt; not this final matrix owner"
     },
     {
-      "id": "20261024T123100250Z-6636-e714872337aa4e6b934c8560be024db4",
+      "id": "earlier-attempt-006",
       "startedSha256": "DF8726F4937C1177CA21D42C8EBEF7BE080C560C11805C13215FC700F56718A9",
       "reason": "Earlier failed or filtered attempt; not this final matrix owner"
     },
     {
-      "id": "20261024T125232076Z-53436-c4139d8ac3b4429ab5915ea99c852273",
+      "id": "earlier-attempt-007",
       "startedSha256": "281829DF9F7B405F60677B64954DB0B63381ADE584752BA33B16609366342B18",
       "reason": "Earlier failed or filtered attempt; not this final matrix owner"
     }
@@ -1365,5 +1365,7 @@
     "aggregateWrapperPassClaim": false,
     "note": "One exact wrapper failure remains FAILED/1; its same-owner canonical native run passed and is counted only after source, interval and payload verification."
   },
-  "privacy": "Explicit whitelist of source identifiers, outcomes, profiles, architecture and content hashes. Raw paths, foreground identities, ACLs and security identifiers omitted."
+  "privacy": "Explicit whitelist of source identifiers, outcomes, profiles, architecture and content hashes. Raw paths, foreground identities, ACLs and security identifiers omitted.",
+  "privateCollectorPacketSha256": "6ED22012E8B73632EED57DA0EF6D99D8960FD62E337A2C05421AA01DF0C265EA",
+  "runLabels": "Opaque publication labels. Exact native run IDs and owner identities remain in the private collector packet; started/completed content hashes retain the evidence binding."
 }
