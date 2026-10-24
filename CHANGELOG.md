@@ -10,6 +10,11 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 - Publish the reconciled host/control review's gallery and exact local validation summary: 57 noninteractive x64 suite passes with zero skips, six native-profile builds and three exact-pin API-4 consumer fixtures. Preserve failed attempts and keep foreground, native ARM64 execution, matched performance and existing themed diagram visual acceptance explicit in draft PR #96.
 - Name the frozen API revision-4 consumer fixture ConsumerApi.Tests.Revision4.cpp without changing its source bytes.
   Include consumer fixture directories in the native inventory and reject placeholder Scope names; update source/generated references and handoff links.
+- Added the RichText audit remediation and completion plan with its findings register and Markdown, math and
+  Mermaid completeness specification. The audit read every rich-text partition, verified bug findings with
+  independent refute and reproduce passes, and maps every surviving finding to one plan item. It changes no
+  library code, tests, rendering or capability status; the documented defects and stale status data remain until
+  their plan items land.
 - Embedded preparation now trims configured text formats before visual preparation and schedules retained visual resources for re-preparation after eviction. Added an embedded IconOnly layout regression for exact pixels, one replacement build, and warm reuse. Source checks only; SDK builds and native suites remain pending.
 - Integrate shared RedTilde presentation, retained icon preparation, accessibility and pending-scroll improvements; retain the existing performance, interactive, platform and release qualification holds separately from the owner's requested merge.
 - Strengthen the retained icon-layout warm-path test with cold, invalidated-key and cache-eviction factory-lookup assertions; formatting/spec/changelog checks pass, with the official SDK build and ordinary native suite still pending.
