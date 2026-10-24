@@ -311,3 +311,5 @@ If solid-brush creation and its fallback fail, painting omits the affected primi
 ## Grid selection callbacks
 
 Grid selection callbacks may update sibling detail controls and layout. UI Automation selection changes preserve their successful result while the same owner and model binding survive. Reassigning the model disconnects retained row actions. This behavior correction leaves gallery appearance unchanged.
+
+ProgressBar animation can be paused with `SetAnimationPaused(true)`, retaining indeterminate and enabled state. Resume continues from the frozen phase. Consumers own the status caption; the reduced-motion gallery is unchanged.

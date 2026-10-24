@@ -3891,7 +3891,7 @@ void ProgressBar::SetIndeterminate(bool indeterminate) noexcept
     _indeterminate  = indeterminate;
     _animationPhase = 0.0f;
     _lastTickMs     = 0u;
-    if (indeterminate && IsEnabled() && IsVisible())
+    if (indeterminate && ! _animationPaused && IsEnabled() && IsVisible())
     {
         if (ControlHost* host = GetHost(); host && ! host->GetTheme().reducedMotion)
         {
@@ -3904,6 +3904,25 @@ void ProgressBar::SetIndeterminate(bool indeterminate) noexcept
 bool ProgressBar::IsIndeterminate() const noexcept
 {
     return _indeterminate;
+}
+
+void ProgressBar::SetAnimationPaused(bool paused) noexcept
+{
+    if (_animationPaused == paused)
+        return;
+    _animationPaused = paused;
+    _lastTickMs      = 0u;
+    if (! paused && _indeterminate && IsEnabled() && IsVisible())
+    {
+        if (ControlHost* host = GetHost(); host && ! host->GetTheme().reducedMotion)
+            host->RequestAnimation();
+    }
+    RequestInvalidate();
+}
+
+bool ProgressBar::IsAnimationPaused() const noexcept
+{
+    return _animationPaused;
 }
 
 void ProgressBar::SetTrackHeightDip(float heightDip) noexcept
@@ -3962,7 +3981,7 @@ void ProgressBar::Paint(ControlHost& host) const
     };
 
     // Reduced motion paints a resting segment and requests no ticks.
-    if (_indeterminate && IsEnabled() && IsVisible() && ! theme.reducedMotion && bounds.right > bounds.left && bounds.bottom > bounds.top)
+    if (_indeterminate && ! _animationPaused && IsEnabled() && IsVisible() && ! theme.reducedMotion && bounds.right > bounds.left && bounds.bottom > bounds.top)
     {
         host.RequestAnimation();
     }
@@ -4039,7 +4058,8 @@ bool ProgressBar::Tick(ControlHost& host, uint64_t nowTickMs)
 {
     // An empty bar has nothing to sweep: it requests no frames until it has bounds again.
     const D2D1_RECT_F bounds = GetBounds();
-    if (! _indeterminate || ! IsEnabled() || ! IsVisible() || host.GetTheme().reducedMotion || ! (bounds.right > bounds.left) || ! (bounds.bottom > bounds.top))
+    if (! _indeterminate || _animationPaused || ! IsEnabled() || ! IsVisible() || host.GetTheme().reducedMotion || ! (bounds.right > bounds.left) ||
+        ! (bounds.bottom > bounds.top))
     {
         _lastTickMs = 0u;
         return false;

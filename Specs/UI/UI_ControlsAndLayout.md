@@ -608,3 +608,5 @@ English defaults (No matches / No data). ComboBox remeasures an open empty-resul
 its string changes; Tree/Grid invalidate their empty view. String updates do not alter selection,
 query text, focus or callbacks. DxUi does not load consumer numeric resource IDs or cache a
 process-global language. Each product/module provides its current translated strings.
+
+`ProgressBar::SetAnimationPaused(true)` freezes its current indeterminate segment without changing value, enabled state or progress semantics. Its Paint and Tick request no animation continuation. Resume requests animation when permitted and re-seeds the clock without adding the paused interval. Reduced motion keeps its centered resting segment. Pause is false by default.

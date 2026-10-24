@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Add ProgressBar animation pause and resume while retaining indeterminate, enabled and value state, with phase, idle and real-client value-event coverage.
 - Preserve accepted Grid UI Automation selection changes when callbacks arrange sibling detail controls, while rejecting callbacks that reassign the model even before a fresh accessibility snapshot is published.
   - Cover AddToSelection, RemoveFromSelection and Select with sibling relayout, plus a same-pointer model-rebind negative control.
 - Record PR #87's verified post-merge native/consumer evidence and remaining ARM64 focus-restoration limitation, preserving all 20 qualification HOLDs, deadlines and thresholds.

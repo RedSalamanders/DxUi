@@ -513,3 +513,5 @@ smaller selection more slowly than the scan would, a model that keeps the room o
 `PreserveOrdered` that costs more than reading its list, or a paint that allocates for the selection regresses this
 budget. The
 [paired record](../../Measurements/GridSelection/2026-10-01/README.md) holds the measurements.
+
+An explicitly paused ProgressBar contributes no animation continuation. It keeps its indeterminate phase, enabled state and value; resuming seeds a new clock without replaying paused time. Other controls retain their own host scheduling.

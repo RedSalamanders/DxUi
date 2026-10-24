@@ -8890,6 +8890,8 @@ void TestAccessibilityRangeValueChangesReachSubscribedClient()
     expectValue(L"Opacity", 42.0);
     Require(slider->OnKeyDown(window.Host(), VK_RIGHT, 0u), "slider takes the keyboard range step");
     expectValue(L"Opacity", 43.0);
+    progress->SetAnimationPaused(true);
+    Require(progress->IsEnabled(), "pausing motion does not disable the accessible progress control");
     progress->SetValue(64.0);
     expectValue(L"Transfer", 64.0);
     splitter->SetPosition(160.0f);
