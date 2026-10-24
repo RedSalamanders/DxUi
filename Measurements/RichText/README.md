@@ -1,6 +1,6 @@
 # RichTextEditor validation summary
 
-DxUi-owned workload. Updated: 2026-10-21. PR
+DxUi-owned workload. Updated: 2026-10-23. Original integration PR
 [#89](https://github.com/RedSalamanders/DxUi/pull/89).
 
 ## Implemented scope
@@ -19,6 +19,36 @@ one mixed paste is one undo transaction. See the
 [spec and test plan](../../Specs/Plans/WIP/RichTextFileDrop_2026-10-20.md).
 Complete math/diagram/metadata support, larger-document capacity, physical
 IME/assistive-technology qualification and consumer adoption remain open.
+
+## Presentation qualification — 2026-10-23
+
+The exact SDK presentation producer `38ec36be42bf693dc649f1fe6b1dfc6cf34d4064`
+has six successful builds and 62 ordinary plus 12 foreground zero-skip x64 suite
+executions. Three expected ASan detector failures retain separate nonzero outcomes.
+All eighteen gallery PNGs retain eleven previously reviewed byte sequences;
+canonical Release gallery publication ran from exact clean 38ec. These source-bound
+results do not supply trusted paired SDK performance-policy acceptance.
+
+- [38ec presentation summary](2026-10-23-presentation-38ec36be.md): source identities,
+  native/foreground/gallery outcomes and a complete 54-file private selected inventory.
+  Effects-only rollback removes an untouched native reset; no causal application
+  performance gain is claimed.
+- [Prior qualified 2f presentation summary](2026-10-23-presentation.md): the unchanged
+  92-file private selected inventory, 81 producer origins, 22 historical metadata
+  proofs and unfavorable SDK observations. Both summaries total 146 private selected
+  file records and 128 byte-exact producer origins, including 36 private gallery PNGs.
+
+Only Markdown summaries and original-path/size/SHA inventories are published here.
+Raw JSON/status/child reports, logs, historical images and binary evidence remain
+private; reviewed tracked images remain in the [canonical gallery](../../docs/gallery/README.md).
+The first mixed-JSON publication proposal failed documentation validation with 102
+findings. Its bytes and failure remain preserved; the [scoped closeout](../../Specs/Plans/Done/RichEditorPresentation_2026-10-22.md)
+records the corrected publication and exact documentation-only continuation requirements.
+Both native inventories describe in-place, replaceable artifacts, not physical
+snapshots or independent rebuild/replay bundles. Shared performance-policy,
+physical IME/AT/touch, native ARM64 runtime/restoration, consumer/product, hosted CI
+and release gates remain open. Application measurements belong in their application
+repository and do not close SDK acceptance.
 
 ## Functional evidence
 

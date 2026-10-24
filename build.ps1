@@ -1,5 +1,7 @@
 <#
 .SYNOPSIS Builds the currently supported DxUi static targets and tests.
+.DESCRIPTION Prints bounded BEGIN/END/FAIL timing for six top-level build phases. UTC timestamps and monotonic elapsed
+milliseconds diagnose build orchestration; they are not native workload measurements or performance acceptance.
 .PARAMETER Configuration Debug, Release or ASan Debug.
 .PARAMETER Platform x64 or ARM64.
 .PARAMETER OutputRoot Optional isolated output root; defaults to this checkout's .build directory.
@@ -113,33 +115,44 @@ $script:UseInteractiveTerminal = Test-DxUiInteractiveTerminal
 $target = if ($Rebuild) { 'Rebuild' } else { 'Build' }
 Write-Host 'Locating Visual Studio and MSBuild...' -ForegroundColor Yellow
 # The one discovery: vcpkg-install.ps1 pins vcpkg to this installation and its default toolset.
-Import-Module (Join-Path $PSScriptRoot 'Tools/VisualStudio.psm1') -Force
-$installation = Get-DxUiVisualStudioInstallation
-$msbuild = Join-Path $installation 'MSBuild/Current/Bin/MSBuild.exe'
-if (-not (Test-Path -LiteralPath $msbuild)) { throw "MSBuild is missing: $msbuild" }
+Import-Module (Join-Path $PSScriptRoot 'Tools/PerformancePolicy.psm1') -Force
+$discovery = Invoke-DxUiBuildPhase -Phase VisualStudioDiscovery -Body {
+    Import-Module (Join-Path $PSScriptRoot 'Tools/VisualStudio.psm1') -Force
+    $installation = Get-DxUiVisualStudioInstallation
+    $msbuild = Join-Path $installation 'MSBuild/Current/Bin/MSBuild.exe'
+    if (-not (Test-Path -LiteralPath $msbuild)) { throw "MSBuild is missing: $msbuild" }
+    @{ installation=$installation; msbuild=$msbuild }
+}
+$installation = $discovery.installation
+$msbuild = $discovery.msbuild
 if (-not $OutputRoot) { $OutputRoot = Join-Path $PSScriptRoot '.build' }
 $output = [IO.Path]::GetFullPath($OutputRoot).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
-$executables = @('DxUi.FoundationTests.exe','DxUi.ControlTests.exe','DxUi.EmbeddedTests.exe','DxUi.EmbeddedControls.exe','DxUi.InteractiveLease.exe')
-foreach ($name in $executables) {
-    $expected = [IO.Path]::GetFullPath((Join-Path $output "$Platform/$Configuration/$name"))
-    foreach ($process in (Get-CimInstance Win32_Process -Filter "Name = '$name'")) {
-        if (-not $process.ExecutablePath) { throw "Cannot inspect running $name; no process was terminated." }
-        if ([IO.Path]::GetFullPath($process.ExecutablePath) -eq $expected) {
-            throw "Build output is running: PID $($process.ProcessId), $($process.ExecutablePath). No process was terminated."
+Invoke-DxUiBuildPhase -Phase OutputUseChecks -Body {
+    $executables = @('DxUi.FoundationTests.exe','DxUi.ControlTests.exe','DxUi.EmbeddedTests.exe','DxUi.EmbeddedControls.exe','DxUi.InteractiveLease.exe')
+    foreach ($name in $executables) {
+        $expected = [IO.Path]::GetFullPath((Join-Path $output "$Platform/$Configuration/$name"))
+        foreach ($process in (Get-CimInstance Win32_Process -Filter "Name = '$name'")) {
+            if (-not $process.ExecutablePath) { throw "Cannot inspect running $name; no process was terminated." }
+            if ([IO.Path]::GetFullPath($process.ExecutablePath) -eq $expected) {
+                throw "Build output is running: PID $($process.ProcessId), $($process.ExecutablePath). No process was terminated."
+            }
         }
     }
 }
-$triplet = if ($Platform -eq 'ARM64') { 'arm64-windows' } else { 'x64-windows' }
-if (-not (Test-Path -LiteralPath (Join-Path $output "vcpkg_installed/$Platform/$triplet/include/wil/resource.h"))) {
-    throw "Restore dependencies first: vcpkg-install.ps1 -Platform $Platform -OutputRoot `"$output`""
+Invoke-DxUiBuildPhase -Phase DependencyAdmission -Body {
+    $triplet = if ($Platform -eq 'ARM64') { 'arm64-windows' } else { 'x64-windows' }
+    if (-not (Test-Path -LiteralPath (Join-Path $output "vcpkg_installed/$Platform/$triplet/include/wil/resource.h"))) {
+        throw "Restore dependencies first: vcpkg-install.ps1 -Platform $Platform -OutputRoot `"$output`""
+    }
 }
 $defaultOutput = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '.build')).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
 $attestPerformanceBuild = [string]::Equals($output, $defaultOutput, [StringComparison]::OrdinalIgnoreCase)
 if ($attestPerformanceBuild) {
     # Consumer-owned output roots retain their separate integration contract. Default builds also serve performance.ps1
     # and test.ps1 -SkipBuild, so bind compiled source/dependencies and the resolved toolchain before invoking MSBuild.
-    Import-Module (Join-Path $PSScriptRoot 'Tools/PerformancePolicy.psm1') -Force
-    $performanceBuildBefore = Start-PerformanceBuildAttestation -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration
+    $performanceBuildBefore = Invoke-DxUiBuildPhase -Phase PreBuildAttestation -Body {
+        Start-PerformanceBuildAttestation -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration
+    }
     if ($performanceBuildBefore.rebuildRequired) {
         $target = 'Rebuild'
         Write-Host 'Rebuilding because no current v2 attestation binds these exact inputs, tools and artifacts.' -ForegroundColor Yellow
@@ -161,26 +174,30 @@ Write-Host "  Output:        $output" -ForegroundColor DarkGray
 Write-Host ''
 Write-Host 'Compiling DxUi...' -ForegroundColor Yellow
 $stopwatch = [Diagnostics.Stopwatch]::StartNew()
-if ($attestPerformanceBuild) { Push-Location -LiteralPath $PSScriptRoot }
-try {
-    # Match the attested MSBuildStartupDirectory even when a paired harness calls this baseline from another checkout.
-    # Consumer-owned output roots retain their caller's existing integration context.
-    & $msbuild @arguments 2>&1 | ForEach-Object { Write-DxUiMSBuildLine -Line $_.ToString() }
-    $buildExitCode = $LASTEXITCODE
-} finally { if ($attestPerformanceBuild) { Pop-Location } }
-$stopwatch.Stop()
-if ($buildExitCode -ne 0) {
-    Write-Host ''
-    Write-Host '========================================' -ForegroundColor Red
-    Write-Host 'DxUi build failed' -ForegroundColor Red
-    Write-Host "Exit code: $buildExitCode" -ForegroundColor Red
-    Write-Host "Build time: $($stopwatch.Elapsed.ToString('mm\:ss'))" -ForegroundColor Red
-    Write-Host "Log: $log" -ForegroundColor DarkGray
-    Write-Host '========================================' -ForegroundColor Red
-    throw "DxUi build failed. Log: $log"
+Invoke-DxUiBuildPhase -Phase MSBuild -Body {
+    if ($attestPerformanceBuild) { Push-Location -LiteralPath $PSScriptRoot }
+    try {
+        # Match the attested MSBuildStartupDirectory even when a paired harness calls this baseline from another checkout.
+        # Consumer-owned output roots retain their caller's existing integration context.
+        & $msbuild @arguments 2>&1 | ForEach-Object { Write-DxUiMSBuildLine -Line $_.ToString() }
+        $buildExitCode = $LASTEXITCODE
+    } finally { if ($attestPerformanceBuild) { Pop-Location } }
+    $stopwatch.Stop()
+    if ($buildExitCode -ne 0) {
+        Write-Host ''
+        Write-Host '========================================' -ForegroundColor Red
+        Write-Host 'DxUi build failed' -ForegroundColor Red
+        Write-Host "Exit code: $buildExitCode" -ForegroundColor Red
+        Write-Host "Build time: $($stopwatch.Elapsed.ToString('mm\:ss'))" -ForegroundColor Red
+        Write-Host "Log: $log" -ForegroundColor DarkGray
+        Write-Host '========================================' -ForegroundColor Red
+        throw "DxUi build failed. Log: $log"
+    }
 }
 if ($attestPerformanceBuild) {
-    Complete-PerformanceBuildAttestation -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration -Before $performanceBuildBefore
+    Invoke-DxUiBuildPhase -Phase PostBuildAttestation -Body {
+        Complete-PerformanceBuildAttestation -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration -Before $performanceBuildBefore
+    }
 }
 
 Write-Host ''

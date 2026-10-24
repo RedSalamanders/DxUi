@@ -1114,16 +1114,31 @@ void TestApplicationTextStoreInsertionAndLayout()
     client->snapshot.state.caretIndex = 65536;
     client->snapshot.state.selectionAnchorIndex.reset();
     ++client->snapshot.revision;
+    const std::wstring oversizedEdit(65537u, L'x');
     sink.onLockGranted = [&](DWORD) noexcept
     {
         LONG first = 99, last = 99;
-        Require(store->InsertTextAtSelection(TS_IAS_QUERYONLY, L"x", 1, &first, &last, nullptr) == HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW) && first == 0 &&
-                    last == 0,
-                "query-only obeys the same bound as insertion");
+        RequireSucceeded(store->InsertTextAtSelection(TS_IAS_QUERYONLY, L"x", 1, &first, &last, nullptr),
+                         "query-only permits a bounded edit in a document larger than one edit");
+        Require(first == 65536 && last == 65537 && client->snapshot.state.text.size() == 65536u, "query-only predicts the long document ACPs without editing");
+        Require(store->InsertTextAtSelection(TS_IAS_QUERYONLY, oversizedEdit.data(), static_cast<ULONG>(oversizedEdit.size()), &first, &last, nullptr) ==
+                        HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW) &&
+                    first == 0 && last == 0,
+                "query-only rejects an edit larger than the per-edit bound");
+        TS_TEXTCHANGE change{};
+        Require(store->InsertTextAtSelection(0, oversizedEdit.data(), static_cast<ULONG>(oversizedEdit.size()), &first, &last, &change) ==
+                        HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW) &&
+                    first == 0 && last == 0,
+                "insertion rejects the same oversized edit");
+        RETURN_IF_FAILED(store->InsertTextAtSelection(0, L"x", 1, &first, &last, &change));
+        Require(first == 65536 && last == 65537 && change.acpStart == 65536 && change.acpOldEnd == 65536 && change.acpNewEnd == 65537,
+                "a bounded insertion retains long document ACPs");
         return S_OK;
     };
     RequireSucceeded(store->RequestLock(TS_LF_READWRITE, &session), "capacity-query lock granted");
-    RequireSucceeded(session, "capacity rejection leaves document unchanged");
+    RequireSucceeded(session, "per-edit capacity checks and bounded insertion complete");
+    Require(client->snapshot.state.text.size() == 65537u && client->commits == 2,
+            "oversized edits leave the document unchanged and the bounded insertion commits once");
     client->snapshot.state.text       = L"External update";
     client->snapshot.state.caretIndex = 0;
     ++client->snapshot.revision;

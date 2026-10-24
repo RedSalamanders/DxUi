@@ -187,6 +187,7 @@ class MarkdownBlocks
         bool valid{}, ordered{}, empty{};
         unsigned start{}, indent{};
         wchar_t symbol{};
+        MarkdownRange source;
         Cursor content;
     };
     static Marker ListMarker(Cursor cursor)
@@ -197,7 +198,8 @@ class MarkdownBlocks
         if (indent > 3u)
             return result;
         cursor.Spaces(indent);
-        const auto marker = cursor.Peek();
+        const auto marker      = cursor.Peek();
+        const auto markerFirst = cursor.offset;
         if (marker == L'-' || marker == L'+' || marker == L'*')
         {
             result.symbol = marker;
@@ -220,6 +222,7 @@ class MarkdownBlocks
         }
         else
             return result;
+        const auto markerLast = cursor.offset;
         if (! cursor.Empty() && ! Space(cursor.Peek()))
             return {};
         const auto afterMarker = cursor;
@@ -236,6 +239,7 @@ class MarkdownBlocks
                 cursor.Take();
         }
         result.indent  = cursor.column - first + (result.empty && padding == 0u ? 1u : 0u);
+        result.source  = {markerFirst, markerLast};
         result.content = cursor;
         result.valid   = true;
         return result;
@@ -1140,6 +1144,7 @@ public:
                 if (blank_[list] && nodes_[list].firstChild != MarkdownNoNode)
                     nodes_[list].tight = false;
                 const auto item            = Add(Kind::ListItem, list);
+                nodes_[item].block.info    = marker.source;
                 nodes_[item].contentIndent = marker.indent;
                 open_.push_back(item);
                 ++containerIndent_;

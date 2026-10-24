@@ -714,8 +714,12 @@
     "Tools/InteractiveRun.psm1",
     "Tools/NativeScope.psm1",
     "Tools/ScopedTesting.psm1",
-    "Tools/SuiteFailure.psm1"
+    "Tools/SuiteFailure.psm1",
+    "Tools/TestRunEvidence.psm1",
+    "Tools/tests/Test-CiGate.ps1",
+    "Tools/tests/Test-NativeScope.ps1",
+    "Tools/tests/Test-RunEvidence.ps1"
   ],
-  "prWorkflowDigest": "7a16a8ddd3285a39e5320a125732a5f1d332d33d040f4c2120340dd899bfe554",
-  "prNativeScopeModule": "Tools/NativeScope.psm1"
+  "prNativeScopeModule": "Tools/NativeScope.psm1",
+  "prWorkflowDigest": "380a6872d4531fcd5cea47327f7087755d6aa1dc55db7b1d16aba74d8cce6096"
 }

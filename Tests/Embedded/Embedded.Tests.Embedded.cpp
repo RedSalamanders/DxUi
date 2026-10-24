@@ -564,6 +564,76 @@ __declspec(noinline) static void TestCacheBounds(GraphicsFixture& gpu)
     Check(trimmed.cachedBrushes == painted.cachedBrushes, "the trimmed brush cache holds exactly the painted working set");
 }
 
+// Evicting configured formats must invalidate visual-only retained layouts before this frame prepares its controls.
+__declspec(noinline) static void TestEmbeddedIconLayoutRebuildsAfterFormatCacheEviction(GraphicsFixture& gpu)
+{
+    std::shared_ptr<DxUi::GraphicsDevice> pool;
+    Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "format-eviction pool");
+    DxUi::EmbeddedHost view;
+    Hr(view.Attach(pool), "format-eviction view");
+    auto root    = std::make_unique<DxUi::Panel>();
+    auto* button = root->AddChild<DxUi::Button>(L"\uE8DD");
+    button->SetVariant(DxUi::ButtonVariant::IconOnly);
+    button->SetBounds(D2D1::RectF(8, 8, 88, 88));
+    Hr(button->SetContentFontSizeDip(18.0f), "set embedded icon text size");
+    view.Controls().SetRoot(std::move(root));
+
+    const auto capture = [&]()
+    {
+        Hr(PrepareRichEmbeddedContent(view, 320, 120), "prepare format-eviction view");
+        gpu.Bind();
+        Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "composite format-eviction view");
+        std::vector<uint8_t> pixels;
+        Hr(gpu.Read(pixels), "read format-eviction pixels");
+        return pixels;
+    };
+    const auto firstPixels = capture();
+    Check(button->DebugGetPreparedIconTextLayoutBuildCount() == 1u && button->DebugGetPreparedIconTextLayoutPaintCount() > 0u,
+          "the embedded icon prepares and paints one retained layout before eviction");
+
+    auto& controls = view.Controls();
+    for (int role = 0;
+         role <= static_cast<int>(DxUi::FontRole::Small) && view.GetStatistics().cachedTextFormats <= DxUi::ControlHost::kConfiguredTextFormatCacheLimit;
+         ++role)
+    {
+        for (const auto alignment :
+             {DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_TEXT_ALIGNMENT_TRAILING, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_TEXT_ALIGNMENT_JUSTIFIED})
+        {
+            for (const auto paragraph : {DWRITE_PARAGRAPH_ALIGNMENT_NEAR, DWRITE_PARAGRAPH_ALIGNMENT_FAR, DWRITE_PARAGRAPH_ALIGNMENT_CENTER})
+            {
+                for (const bool wrap : {false, true})
+                {
+                    Check(controls.GetTextFormat(DxUi::FontRole(role), alignment, paragraph, wrap) != nullptr,
+                          "populate distinct formats before embedded eviction");
+                }
+            }
+        }
+    }
+    Check(view.GetStatistics().cachedTextFormats > DxUi::ControlHost::kConfiguredTextFormatCacheLimit,
+          "the embedded fixture overflows the bounded configured-format cache");
+
+    const uint64_t buildsBeforeEviction  = button->DebugGetPreparedIconTextLayoutBuildCount();
+    const uint64_t lookupsBeforeEviction = button->DebugGetPreparedIconTextLayoutFactoryLookupCount();
+    const uint64_t paintsBeforeEviction  = button->DebugGetPreparedIconTextLayoutPaintCount();
+    view.MarkDirty();
+    const auto evictedPixels = capture();
+    Check(view.GetStatistics().cachedTextFormats <= DxUi::ControlHost::kConfiguredTextFormatCacheLimit,
+          "the next embedded update trims the configured-format cache before painting");
+    Check(button->DebugGetPreparedIconTextLayoutBuildCount() == buildsBeforeEviction + 1u &&
+              button->DebugGetPreparedIconTextLayoutFactoryLookupCount() == lookupsBeforeEviction + 1u,
+          "format eviction prepares exactly one replacement layout through the factory");
+    Check(button->DebugGetPreparedIconTextLayoutPaintCount() > paintsBeforeEviction, "the post-eviction embedded frame paints the prepared layout");
+    Check(firstPixels == evictedPixels, "format eviction preserves every embedded BGRA pixel");
+
+    const uint64_t warmBuilds  = button->DebugGetPreparedIconTextLayoutBuildCount();
+    const uint64_t warmLookups = button->DebugGetPreparedIconTextLayoutFactoryLookupCount();
+    view.MarkDirty();
+    const auto warmPixels = capture();
+    Check(button->DebugGetPreparedIconTextLayoutBuildCount() == warmBuilds && button->DebugGetPreparedIconTextLayoutFactoryLookupCount() == warmLookups,
+          "a subsequent warm embedded preparation adds no layout or factory lookup");
+    Check(evictedPixels == warmPixels, "the warm embedded frame remains pixel-identical after eviction");
+}
+
 __declspec(noinline) static void TestPointerDoesNotRetargetAfterHoverOrHitGeometryMutation(GraphicsFixture& gpu)
 {
     struct State final
@@ -1330,6 +1400,7 @@ __declspec(noinline) static int RunFunctionalTests()
     Hr(gpu.Create(), "supplied WARP device");
     TestMultilineCaretViewport(gpu);
     TestEmbeddedTextInput(gpu);
+    TestEmbeddedTranslatedCharacterOwnership(gpu);
     TestEmbeddedAccessibility(gpu);
     TestPreparedTreeAccessibilitySemantics(gpu);
     TestPreparedTreeRootDoesNotRetainSupersededSource(gpu);
@@ -1377,6 +1448,7 @@ __declspec(noinline) static int RunFunctionalTests()
     RichImageResourceTests::Admission(Check);
     TestRichImagePathAllocationFailures();
     TestRichImageDecoderAllocationFailures();
+    TestRichEditorSteadyLinkHoverAllocatesNothing(gpu);
     TestRichImageResourceAllocationFailures();
     TestRichImageGeometryAllocationFailures();
     TestRichImageRasterFailureAndBudgets();
@@ -1394,6 +1466,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichProjectionMaximumSourceStorageBudget();
     TestRetainedRichTextDefaultFontChunkReuse(gpu);
     TestRichTextCooperativeSchedulingAndTextInput(gpu);
+    TestEmbeddedContinuationCallbackCannotReenterOrUseDetachedState(gpu);
     TestEmbeddedLosslessMarkdownPreparation(gpu);
     TestEmbeddedFrontMatterFencesAndSourceEdits(gpu);
     TestEmbeddedFlowchartRenderingAndFallbacks(gpu);
@@ -1512,6 +1585,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestTooltipInspectionDismissalConsumesEmbeddedGesture(gpu);
     TestTickDirtying(gpu);
     TestCacheBounds(gpu);
+    TestEmbeddedIconLayoutRebuildsAfterFormatCacheEviction(gpu);
     EmbeddedScene scene;
     size_t requests = 0;
     Hr(scene.Initialize(gpu.device.get(), {&requests, [](void* p) noexcept { ++*static_cast<size_t*>(p); }}), "public scene");
@@ -1727,7 +1801,7 @@ __declspec(noinline) static int RunFunctionalTests()
         gpu.Bind();
         Check(a.Composite(gpu.context.get(), gpu.Viewport()) == S_OK, "catalog draws every concrete control without suppression");
     }
-    Check(DxUi::GetControlCatalog().size() == 34, "catalog contains all 34 controls");
+    Check(DxUi::GetControlCatalog().size() == 35, "catalog contains all 35 controls");
     b.Controls().SetRoot(std::make_unique<DxUi::Toggle>(L"Second view"));
     Hr(b.Prepare(320, 160, 144), "independent second layout");
     Check(a.GetStatistics().surfaceBytes != b.GetStatistics().surfaceBytes, "shared pool has independent surfaces");

@@ -74,6 +74,9 @@
     "headers": ["include/DxUi"]
   },
   "supported": [
+    "opt-in-quiet-button-tree-splitter-presentation",
+    "decorated-command-icons-and-keyboard-hints",
+    "source-preserving-document-heading-margins-and-indent",
     "frame-clock",
     "frame-stage-scope",
     "reduced-motion",
@@ -92,6 +95,7 @@
     "bounded-native-html-links-hanging-markers-preview",
     "bounded-source-exact-markdown-commands-preview",
     "bounded-semantic-style-structure-uia-preview",
+    "default-disabled-http-image-request-opt-in",
     "bounded-native-inline-display-math-preview",
     "native-window-host-explicit-warp-policy",
     "bounded-native-mermaid-state-class-preview",

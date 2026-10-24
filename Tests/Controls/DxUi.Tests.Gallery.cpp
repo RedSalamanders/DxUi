@@ -731,6 +731,9 @@ struct GalleryScene
     Slider* touchSlider                = nullptr;
     Control* focusedControl            = nullptr;
     Grid* grid                         = nullptr;
+    RichTextEditor* presentationEditor = nullptr;
+    size_t presentationLinkOffset      = 0u;
+    size_t presentationMatchOffset     = 0u;
     std::optional<D2D1_POINT_2F> tooltipOrigin;
     float heightDip = 1.0f;
 };
@@ -815,6 +818,18 @@ void AddComboItems(ComboBox& combo)
         label->SetBounds(CenterIn(tile.content, 220.0f, 28.0f));
     }
     {
+        const Tile tile = flow.Next(*scene.root, L"Label / Typography override");
+        auto* label     = scene.root->AddChild<Label>(L"Section heading");
+        static_cast<void>(label->SetTypographyOverride(LabelTypography{16.0f, DWRITE_FONT_WEIGHT_SEMI_BOLD, 0.2f}));
+        label->SetBounds(CenterIn(tile.content, 220.0f, 32.0f));
+    }
+    {
+        const Tile tile = flow.Next(*scene.root, L"Separator / Horizontal");
+        auto* separator = scene.root->AddChild<Separator>();
+        separator->SetOrientation(SeparatorOrientation::Horizontal);
+        separator->SetBounds(CenterIn(tile.content, 200.0f, 20.0f));
+    }
+    {
         const Tile tile = flow.Next(*scene.root, L"CardPanel / Inline");
         auto* card      = scene.root->AddChild<CardPanel>();
         card->SetBounds(CenterIn(tile.content, 220.0f, 50.0f));
@@ -825,6 +840,34 @@ void AddComboItems(ComboBox& combo)
 
     AddButtonTile(scene, flow, L"Button / Standard", L"Standard", ButtonVariant::Standard);
     AddButtonTile(scene, flow, L"Button / Primary", L"Primary", ButtonVariant::Standard, true);
+    for (const auto appearance : {ButtonAppearance::Subtle, ButtonAppearance::Outline, ButtonAppearance::Tab})
+    {
+        const auto name = appearance == ButtonAppearance::Subtle    ? L"Button / Subtle"
+                          : appearance == ButtonAppearance::Outline ? L"Button / Outline"
+                                                                    : L"Button / Tab";
+        const Tile tile = flow.Next(*scene.root, name);
+        auto* button    = scene.root->AddChild<Button>(appearance == ButtonAppearance::Tab ? L"Compose" : L"Find");
+        button->SetAppearance(appearance);
+        button->SetBounds(CenterIn(tile.content, 160.f, 36.f));
+        if (appearance == ButtonAppearance::Tab)
+            button->SetToggleState(true);
+        else
+        {
+            button->SetLeadingIcon(L"\xE721");
+            button->SetShortcutText(L"Ctrl+F");
+        }
+    }
+    {
+        const Tile tile = flow.Next(*scene.root, L"Button / Theme preview", 1u, 128.0f);
+        auto* button    = scene.root->AddChild<Button>(L"Ocean");
+        static_cast<void>(button->SetThemePreview(
+            ButtonThemePreview{{D2D1::ColorF(0.08f, 0.16f, 0.28f), D2D1::ColorF(0.12f, 0.48f, 0.72f), D2D1::ColorF(0.84f, 0.92f, 0.98f)}}));
+        const auto bounds = CenterIn(tile.content, 160.0f, 76.0f);
+        Require(bounds.left >= tile.content.left && bounds.top >= tile.content.top && bounds.right <= tile.content.right &&
+                    bounds.bottom <= tile.content.bottom,
+                "gallery theme preview stays within its content tile and clear of the caption");
+        button->SetBounds(bounds);
+    }
     {
         const Tile tile = flow.Next(*scene.root, L"Button / French multiline", 1u, 128.0f);
         auto* button    = scene.root->AddChild<Button>(L"Conserver les deux versions");
@@ -1059,6 +1102,12 @@ void AddComboItems(ComboBox& combo)
         scene.focusedControl = scene.focusedControl ? scene.focusedControl : field;
     }
     {
+        const Tile tile = flow.Next(*scene.root, L"TextField / Monospace");
+        auto* field     = scene.root->AddChild<TextField>(L"x^2 + y^2 = r^2");
+        field->SetFontRole(FontRole::Monospace);
+        field->SetBounds(CenterIn(tile.content, 280.0f, 32.0f));
+    }
+    {
         const Tile tile = flow.Next(*scene.root, L"TextField / Multiline");
         auto* field     = scene.root->AddChild<TextField>(L"Alpha\nBeta\nGamma");
         field->SetMultiline(true);
@@ -1089,6 +1138,56 @@ void AddComboItems(ComboBox& combo)
         editor->SetBounds(tile.content);
     }
     {
+        const Tile presentationTile      = flow.Next(*scene.root, L"RichTextEditor / document surface and link cues", 2u, 350.0f);
+        constexpr auto* presentationText = L"# Document surface\n\nA focused [link with **style**](local) has a native underline.\n\n"
+                                           L"Inactive paragraphs use subdued ink.\n\nSearch highlights preserve source.";
+        auto* presentation               = scene.root->AddChild<RichTextEditor>(presentationText);
+        presentation->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
+        presentation->SetMarkdownRenderingEnabled(true);
+        RichTextEditorAppearance appearance;
+        appearance.drawBorder                     = false;
+        appearance.blendWithWindowBackground      = true;
+        appearance.useAccentLinkColor             = true;
+        appearance.maximumTextWidthDip            = 520.0f;
+        appearance.bodyFontSizeDip                = 16.0f;
+        appearance.lineHeightMultiplier           = 1.65f;
+        appearance.paragraphSpacingAfterLines     = 1.0f;
+        appearance.listItemSpacingDip             = 10.0f;
+        appearance.headingFontSizeDip[0]          = 28.0f;
+        appearance.headingLineHeightMultiplier[0] = 1.2f;
+        presentation->SetAppearance(appearance);
+        presentation->SetLinkUnderlinePolicy(RichTextLinkUnderlinePolicy::HoverOrCaret);
+        presentation->SetFocusModeEnabled(true);
+        const auto text  = presentation->GetText();
+        const auto link  = text.find(L"link with");
+        const auto match = text.find(L"Search");
+        Require(link != std::wstring::npos && match != std::wstring::npos, "gallery presentation fixture has its link and search match");
+        presentation->SetSelection({link + 1u, link + 1u});
+        const std::array highlights{RichTextSourceHighlight{match, 6u, true}};
+        presentation->SetSourceHighlights(highlights);
+        presentation->SetBounds(presentationTile.content);
+        scene.presentationEditor      = presentation;
+        scene.presentationLinkOffset  = link + 1u;
+        scene.presentationMatchOffset = match;
+        scene.focusedControl          = presentation;
+    }
+    {
+        const Tile sourceTile = flow.Next(*scene.root, L"RichTextEditor / prepared Source syntax ink", 2u, 210.0f);
+        auto* sourceEditor    = scene.root->AddChild<RichTextEditor>(
+            L"# Source stays exact\n\n- **Emphasis** and [a local link](https://example.invalid/note)\n- `literal tokens` keep every delimiter.\n");
+        sourceEditor->SetBounds(sourceTile.content);
+        sourceEditor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::CommonMark0312);
+        sourceEditor->SetViewMode(RichText::ViewMode::Source);
+        RichTextEditorAppearance sourceAppearance;
+        sourceAppearance.drawBorder                = false;
+        sourceAppearance.blendWithWindowBackground = true;
+        sourceAppearance.colorizeMarkdownSource    = true;
+        sourceAppearance.bodyFontFamily            = L"Consolas";
+        sourceAppearance.bodyFontSizeDip           = 14.0f;
+        sourceAppearance.lineHeightMultiplier      = 1.6f;
+        sourceEditor->SetAppearance(sourceAppearance);
+        sourceEditor->SetReadOnly(true);
+
         const Tile tile = flow.Next(*scene.root, L"RichTextEditor / source-exact footnotes", 2u, 400.0f);
         auto* editor    = scene.root->AddChild<RichTextEditor>(L"[^second]: Unicode \u03b2 and exact source.\n[^first]: **Styled** note body.\n\n"
                                                                L"### Internal navigation\n\nFirst[^first], second[^second], repeated[^first].\n");
@@ -1419,6 +1518,18 @@ void ResizeClientArea(AttachedHostWindow& window, UINT widthPx, UINT heightPx)
 
     WindowHostBitmapCapture capture;
     Require(PrepareNativeContentForTests(window.Host()), "gallery cooperative controls reach one acknowledged frame");
+    Require(scene.presentationEditor && scene.presentationEditor->HasFocus(), "gallery presentation has logical focus without desktop activation");
+    Require(scene.presentationEditor->IsLinkUnderlineVisible(scene.presentationLinkOffset), "gallery presentation exposes its focused caret-link underline");
+    const auto matchRects =
+        scene.presentationEditor->TryGetTextInputRangeRects(window.Host(), scene.presentationMatchOffset, scene.presentationMatchOffset + 6u);
+    Require(matchRects.has_value() && ! matchRects.value().empty(), "gallery presentation search match has acknowledged native geometry");
+    const auto presentationBounds = scene.presentationEditor->GetBounds();
+    for (const auto& rect : matchRects.value())
+    {
+        Require(rect.left >= presentationBounds.left - 0.5f && rect.top >= presentationBounds.top - 0.5f && rect.right <= presentationBounds.right + 0.5f &&
+                    rect.bottom <= presentationBounds.bottom + 0.5f && rect.right > rect.left && rect.bottom > rect.top,
+                "gallery presentation search highlight stays visible within its content tile");
+    }
     Require(window.Host().DebugCaptureBitmap(capture), "gallery section bitmap capture succeeds");
     Require(capture.widthPx > 0u && capture.heightPx > 0u && ! capture.bgraPixels.empty(), "gallery section capture is non-empty");
     return capture;

@@ -1,5 +1,10 @@
 # Theme and typography
 
+Tree inactive selection MUST prefer the theme's `selectionText` token on the
+composited `selectionInactiveFill`, consistent with Grid. The shared contrast
+fallback still applies; high contrast preserves the supplied HighlightText pair.
+Selected row icons and expanders follow that resolved text color.
+
 Status: normative intended contract
 Last reviewed: 2026-09-29
 
@@ -36,6 +41,35 @@ application's theme record or icon assets. Preserve the original notice for any 
 Prepare changed Unicode text/layout and glyph resources outside composition. Use real font metrics and clip to
 control bounds without cutting essential ink. DPI changes rebuild appropriate resources; position-only movement
 does not. Transparent-target antialiasing, alpha blending, mixed scripts and narrow bounds require visual tests.
+
+RichTextEditor may override inherited body/code family and size, font-relative
+line height and heading scale through its public appearance value. These values
+are part of layout reuse identity and UIA font attributes. Opt-in accent links
+use the supplied theme accent, including the high-contrast palette; focus dimming
+uses subdued text and is disabled in high contrast. Consumer policy chooses
+whether normal-theme accent/link-to-text contrast calls for persistent cues.
+
+Optional `paragraphSpacingAfterLines` (finite 0..4) and `listItemSpacingDip`
+(finite 0..256) configure semantic minimum spacing. Both absent preserve the
+legacy 8-DIP gap after every box, including source-only empty caret boxes. Either
+override engages collapsed minimum-gap placement: an unset paragraph option is
+an 8-DIP minimum, while actual intervening blank-source line-box heights contribute
+to the requested gap. One separator must not stack another full paragraph
+margin; additional source blank lines keep their full, distinct geometry. A
+nominal body line uses body font/line metrics, excluding larger headings and
+inline objects. List minima apply at new-item transitions, including nested
+entry and following outer siblings; continuation paragraphs retain paragraph
+spacing. Table row/cell padding is unchanged. Values are validated and included
+in preparation/reuse identity; Source/v0 placement, exact ACPs, source selection,
+empty/container/trailing caret sites and undo/redo remain unchanged. No consumer
+may implement these gaps by rewriting source or displacing local glyphs.
+
+Spacing is measured between complete prepared content frames. A DirectWrite
+hit-test caret can be inset and shorter than its line box; its bottom is not
+the paragraph bottom. Geometry oracles use complete frames or equal-font
+caret-top advances against an independently specified line advance. Public
+semantic bounds are viewport-clipped, so frame-gap assertions must also prove
+that the queried frames are fully visible.
 
 The extracted MotionPolicy resolves immediately to the target when reduced motion is enabled and otherwise keeps
 the caller's animated progress. Shared controls paint with consumer-supplied theme tokens; text shaping and control

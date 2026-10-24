@@ -119,6 +119,57 @@ static void TestRichImageResourceAllocationFailures()
     countAllocations = oldCounting;
     Check(allocations == before, "coalesced image state, idle dispatch and retirement allocate no C++ storage");
     std::cout << "image resource allocation points stage=" << stages << " take=" << takes << " complete=" << completes << " idle/retire=0\n";
+
+    const auto remoteCandidate = RichImageResourceTests::Semantic(
+        L"![local](one.png) ![remote](HTTPS://Example.test/Picture.png?rev=One) ![duplicate](https://example.test/Picture.png?rev=One) "
+        L"![second](http://example.test/second.png) ![refused](https://user@example.test/no.png)");
+    const auto remoteSeed = [&]
+    {
+        auto state = seed();
+        state->SetRemoteImagesEnabled(true);
+        return state;
+    };
+    const auto remoteStage = [&](RichImageResources& state)
+    {
+        state.Begin(remoteCandidate, L"C:\\docs\\note.md", 2u, 1u);
+        finish(state);
+    };
+    auto remoteMeasured     = remoteSeed();
+    const auto remoteStages = observe([&] { remoteStage(*remoteMeasured); });
+    for (std::size_t point = 0u; point < remoteStages; ++point)
+    {
+        auto state        = remoteSeed();
+        const auto held   = state->Snapshot();
+        const bool failed = inject(point, [&] { remoteStage(*state); });
+        Check(failed && ! state->Pending() && state->Snapshot() == held,
+              "each mixed local/remote admission failure preserves ready pixels and retires incomplete staging");
+        remoteStage(*state);
+        std::vector<RichImageRequest> jobs(0u);
+        state->Take(jobs);
+        Check(jobs.size() == 3u && state->Statistics().imageElements == 4u,
+              "mixed admission retry coalesces canonical remote sources and retains rejected alternatives");
+        std::size_t localSources{}, remoteSources{};
+        for (const auto& job : jobs)
+        {
+            Check(! job.Cancelled(), "mixed admission retry never exposes abandoned stage tokens");
+            if (job.SourceKind() == RichImageSourceKind::LocalFile)
+            {
+                ++localSources;
+                Check(job.Source() == L"C:\\docs\\one.png", "mixed admission retains the local source resolver");
+            }
+            else
+            {
+                ++remoteSources;
+                Check(job.FilePath().empty() &&
+                          (job.Source() == L"https://example.test/Picture.png?rev=One" || job.Source() == L"http://example.test/second.png"),
+                      "remote resolution normalizes only scheme/authority and preserves exact path/query spelling");
+            }
+            Check(state->Complete(job, picture), "mixed admission retry accepts each current completion");
+        }
+        Check(localSources == 1u && remoteSources == 2u && state->Snapshot()->placements.size() == 4u,
+              "mixed admission retry publishes both duplicate remote placements exactly once");
+    }
+    std::cout << "mixed local/remote image admission allocation points=" << remoteStages << '\n';
 }
 
 static void TestRichImageGeometryAllocationFailures()

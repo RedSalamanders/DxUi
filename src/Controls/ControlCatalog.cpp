@@ -8,6 +8,7 @@ std::span<const ControlDescriptor> GetControlCatalog() noexcept
     static constexpr std::array entries{ControlDescriptor{ControlKind::Panel, L"Panel"},
                                         ControlDescriptor{ControlKind::PageHost, L"PageHost"},
                                         ControlDescriptor{ControlKind::CardPanel, L"CardPanel"},
+                                        ControlDescriptor{ControlKind::Separator, L"Separator"},
                                         ControlDescriptor{ControlKind::Label, L"Label"},
                                         ControlDescriptor{ControlKind::Button, L"Button"},
                                         ControlDescriptor{ControlKind::Toggle, L"Toggle"},
@@ -50,6 +51,7 @@ HRESULT CreateControl(ControlKind kind, std::unique_ptr<Control>& result) noexce
             case ControlKind::Panel: result = std::make_unique<Panel>(); return S_OK;
             case ControlKind::PageHost: result = std::make_unique<PageHost>(); return S_OK;
             case ControlKind::CardPanel: result = std::make_unique<CardPanel>(); return S_OK;
+            case ControlKind::Separator: result = std::make_unique<Separator>(); return S_OK;
             case ControlKind::Label: result = std::make_unique<Label>(); return S_OK;
             case ControlKind::Button: result = std::make_unique<Button>(); return S_OK;
             case ControlKind::Toggle: result = std::make_unique<Toggle>(); return S_OK;

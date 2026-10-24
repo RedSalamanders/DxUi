@@ -908,6 +908,7 @@ void ReleaseSharedWindowHostAttachment(ControlHost* host, DWORD ownerThreadId) n
     switch (virtualKey)
     {
         case VK_RETURN:
+        case VK_SPACE:
         case VK_ESCAPE:
         case VK_TAB:
         case VK_UP:
@@ -1957,6 +1958,7 @@ void ControlHost::SetFocusControl(Control* control, bool transferNativeFocus) no
         if (! isCurrentRequest())
             return;
     }
+    ++_keyboardOwnerEpoch;
     _focusedControl = nullptr;
     if (oldFocus && ! oldFocusLifetime.expired() && IsControlInTree(_root.get(), oldFocus))
     {
@@ -2513,6 +2515,38 @@ IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role,
     return _configuredTextFormats.emplace(key, std::move(format)).first->second.get();
 }
 
+IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role,
+                                              float fontSizeDip,
+                                              DWRITE_FONT_WEIGHT fontWeight,
+                                              DWRITE_TEXT_ALIGNMENT alignment,
+                                              DWRITE_PARAGRAPH_ALIGNMENT paragraphAlignment,
+                                              bool wrap,
+                                              DWRITE_READING_DIRECTION readingDirection) const noexcept
+{
+    if (! std::isfinite(fontSizeDip) || fontSizeDip < 6.0f || fontSizeDip > 96.0f || fontWeight < 100 || fontWeight > 900)
+        return GetTextFormat(role, alignment, paragraphAlignment, wrap, readingDirection);
+    const uint64_t sizeKey = static_cast<uint64_t>(std::lround(fontSizeDip * 64.0f));
+    const uint64_t key =
+        PackTextFormatKey(role, alignment, paragraphAlignment, wrap, readingDirection) | (sizeKey << 40u) | (static_cast<uint64_t>(fontWeight) << 53u);
+    if (const auto it = _configuredTextFormats.find(key); it != _configuredTextFormats.end())
+        return it->second.get();
+    if (! _dwriteFactory && ! EnsureDeviceIndependentResources())
+        return GetTextFormat(role, alignment, paragraphAlignment, wrap, readingDirection);
+    Typography::Spec spec = Typography::GetSpec(role);
+    // The cache key and the created format use the same 1/64-DIP normalized size.
+    spec.sizeDip = static_cast<float>(sizeKey) / 64.0f;
+    spec.weight  = fontWeight;
+    wil::com_ptr<IDWriteTextFormat> format;
+    const HRESULT hr = Typography::CreateTextFormat(_dwriteFactory.get(), spec, format.addressof());
+    if (FAILED(hr) || ! format)
+        return GetTextFormat(role, alignment, paragraphAlignment, wrap, readingDirection);
+    if (FAILED(format->SetTextAlignment(alignment)) || FAILED(format->SetParagraphAlignment(paragraphAlignment)) ||
+        FAILED(format->SetWordWrapping(wrap ? DWRITE_WORD_WRAPPING_WRAP : DWRITE_WORD_WRAPPING_NO_WRAP)) ||
+        FAILED(format->SetReadingDirection(readingDirection)))
+        return GetTextFormat(role, alignment, paragraphAlignment, wrap, readingDirection);
+    return _configuredTextFormats.emplace(key, std::move(format)).first->second.get();
+}
+
 bool ControlHost::HasFluentIconFont() const noexcept
 {
     if (! _dwriteFactory || ! _fluentIconFontAvailabilityChecked)
@@ -2825,6 +2859,58 @@ void ControlHost::OnDpiChanged(HWND hwnd, UINT newDpi, const RECT* suggestedRect
     Invalidate();
 }
 
+void ControlHost::AllowTranslatedCharacter() noexcept
+{
+    if (_keyCharacterDispatch && _keyCharacterDispatch->messageRoute &&
+        (_keyCharacterDispatch->virtualKey == VK_RETURN || _keyCharacterDispatch->virtualKey == VK_SPACE))
+        _keyCharacterDispatch->allowCharacter = true;
+}
+
+bool ControlHost::DispatchKeyboardMessage(const MSG& message) noexcept
+{
+    if (message.message != WM_KEYDOWN || (message.wParam != VK_RETURN && message.wParam != VK_SPACE) || ! message.hwnd ||
+        GetWindowThreadProcessId(message.hwnd, nullptr) != GetCurrentThreadId())
+        return false;
+    if (message.hwnd != _hwnd || _detachInProgress.load(std::memory_order_acquire) ||
+        (_nativeTextInputImeComposing && NativeImeCompositionOwnsKey(static_cast<UINT>(message.wParam), GetModifierState())))
+        return false;
+
+    Control* const owner                   = _focusedControl;
+    const std::weak_ptr<int> ownerLifetime = owner && ControlBelongsToTree(_root.get(), owner) ? owner->GetLifetimeToken() : std::weak_ptr<int>{};
+    Control* const root                    = _root.get();
+    const std::weak_ptr<int> rootLifetime  = root ? root->GetLifetimeToken() : std::weak_ptr<int>{};
+    const uint64_t ownerEpoch              = _keyboardOwnerEpoch;
+    KeyCharacterDispatch dispatch{.previous = _keyCharacterDispatch, .virtualKey = static_cast<UINT>(message.wParam)};
+    _keyCharacterDispatch      = &dispatch;
+    const auto restoreDispatch = wil::scope_exit([this, &dispatch]() noexcept { _keyCharacterDispatch = dispatch.previous; });
+
+    // Translating after dispatch gives the key's actual command/text route authority over character
+    // production. No queued text is inspected, removed, delayed or heuristically suppressed.
+    DispatchMessageW(&message);
+    if (dispatch.allowCharacter && _hwnd == message.hwnd && ownerEpoch == _keyboardOwnerEpoch && _root.get() == root && ! rootLifetime.expired() && owner &&
+        ! ownerLifetime.expired() && _focusedControl == owner && RevalidateInteractiveDispatchedControl(ownerLifetime, _root.get(), owner) == owner &&
+        owner->SupportsTextInput())
+        TranslateMessage(&message);
+    return true;
+}
+
+bool DispatchAttachedWindowHostKeyboardMessage(const MSG& message) noexcept
+{
+    if (message.message != WM_KEYDOWN || (message.wParam != VK_RETURN && message.wParam != VK_SPACE) || ! message.hwnd ||
+        GetWindowThreadProcessId(message.hwnd, nullptr) != GetCurrentThreadId())
+        return false;
+    ControlHost* host = nullptr;
+    {
+        const std::scoped_lock lock(GetAttachedWindowHostsMutex());
+        const auto& hosts = GetAttachedWindowHosts();
+        const auto found  = std::ranges::find(hosts, message.hwnd, &WindowHostAttachment::hwnd);
+        if (found != hosts.end() && found->ownerThreadId == GetCurrentThreadId())
+            host = found->host;
+    }
+    // All attachment changes are owner-thread-only. No registry lock crosses user dispatch.
+    return host && host->DispatchKeyboardMessage(message);
+}
+
 LRESULT ControlHost::HandleMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, bool& handled) noexcept
 try
 {
@@ -3012,6 +3098,7 @@ try
                 // the swap chain (including WM_SETREDRAW's asymmetric hide).
                 // The next real visible preparation rebuilds current geometry.
                 CancelPreparedContent();
+                CancelPreparedVisualContent();
                 DeactivateNativeTextInputSession();
             }
             handled = false;
@@ -3336,7 +3423,16 @@ try
         case WM_KEYDOWN:
         case WM_SYSKEYDOWN:
         {
-            handled = true;
+            KeyCharacterDispatch keyDispatch{.previous = _keyCharacterDispatch, .virtualKey = static_cast<UINT>(wp), .messageRoute = true};
+            _keyCharacterDispatch        = &keyDispatch;
+            const int dispatchExceptions = std::uncaught_exceptions();
+            const auto restoreDispatch   = wil::scope_exit([this, &keyDispatch, dispatchExceptions]() noexcept
+            {
+                _keyCharacterDispatch = keyDispatch.previous;
+                if (keyDispatch.previous && ! keyDispatch.previous->messageRoute && keyDispatch.previous->virtualKey == keyDispatch.virtualKey)
+                    keyDispatch.previous->allowCharacter = keyDispatch.allowCharacter && std::uncaught_exceptions() == dispatchExceptions;
+            });
+            handled                      = true;
             SetInputModality(InputModality::Keyboard);
             UpdateModifierStateForKey(static_cast<UINT>(wp), true, msg == WM_SYSKEYDOWN);
             if (HandleTooltipInspectionKey(static_cast<UINT>(wp)))
@@ -3457,6 +3553,10 @@ try
                         return 0;
                     }
                 }
+                if (wp == VK_RETURN || wp == VK_SPACE)
+                    if (Control* const characterOwner = RevalidateInteractiveDispatchedControl(keyTargetLifetime, _root.get(), keyTarget);
+                        characterOwner && characterOwner == _focusedControl && characterOwner->SupportsTextInput())
+                        AllowTranslatedCharacter();
             }
             handled = false;
             return 0;
@@ -3776,6 +3876,7 @@ bool ControlHost::EnsureDeviceResources() noexcept
     if (_sharedGraphicsGeneration != 0u && _sharedGraphicsGeneration != shared.generation)
     {
         CancelPreparedContent();
+        CancelPreparedVisualContent();
         DiscardSizeDependentResources(L"shared-generation-change");
         _dcompVisual.reset();
         _dcompTarget.reset();
@@ -4058,6 +4159,7 @@ void ControlHost::DiscardSizeDependentResources(const std::wstring_view reason) 
 void ControlHost::DiscardDeviceResources() noexcept
 {
     CancelPreparedContent();
+    CancelPreparedVisualContent();
     ++_resourceGeneration;
     _contentGeometryChanged = false;
     if (_d2dContext || _targetBitmap || _swapChain || _d3dContext)
@@ -4082,7 +4184,7 @@ void ControlHost::DiscardDeviceResources() noexcept
     _sharedGraphicsGeneration = 0u;
 }
 
-void ControlHost::TrimCaches() const noexcept
+void ControlHost::TrimCaches() noexcept
 {
     // Called only at paint/preparation start, before any brush or format is borrowed for the frame.
     if (_brushCache.size() > kSolidBrushCacheLimit)
@@ -4092,6 +4194,7 @@ void ControlHost::TrimCaches() const noexcept
     if (_configuredTextFormats.size() > kConfiguredTextFormatCacheLimit)
     {
         _configuredTextFormats.clear();
+        _forceAllVisualPreparation = true;
     }
 }
 
@@ -4595,7 +4698,10 @@ void ControlHost::OnSize(UINT widthPx, UINT heightPx) noexcept
     // Height-only suspension may leave a rich editor's shaping width unchanged.
     // Cancel explicitly before publishing zero-sized text/UIA geometry.
     if (_widthPx == 0u || _heightPx == 0u)
+    {
         CancelPreparedContent();
+        CancelPreparedVisualContent();
+    }
     if (_root)
     {
         _root->SetBounds(D2D1::RectF(0.0f, 0.0f, PixelsToDip(static_cast<float>(_widthPx)), PixelsToDip(static_cast<float>(_heightPx))));
@@ -4731,6 +4837,7 @@ bool ControlHost::IsInFocusGainTurn() const noexcept
 
 void ControlHost::OnKillFocus(bool clearRetainedFocus) noexcept
 {
+    ++_keyboardOwnerEpoch;
     const uint64_t requestRevision = ++_focusRequestRevision;
     _focusGainTurnStartedMs        = 0u;
     DeactivateTextInput();
@@ -4864,6 +4971,7 @@ void ControlHost::PruneStaleInteractionState() noexcept
     const ControlInteractionState focusedState = classifyInteractionState(_focusedControl);
     if (_focusedControl && ! focusedState.effectivelyInteractive)
     {
+        ++_keyboardOwnerEpoch;
         Control* const oldFocus = _focusedControl;
         _focusedControl         = nullptr;
         if (focusedState.inTree)
@@ -4907,6 +5015,7 @@ void ControlHost::PruneStaleInteractionState() noexcept
 
 void ControlHost::ResetRootInteractionState() noexcept
 {
+    ++_keyboardOwnerEpoch;
     ++_focusRequestRevision;
     const bool wasResetting                   = std::exchange(_resettingInteractionState, true);
     const auto endResetting                   = wil::scope_exit([this, wasResetting]() noexcept { _resettingInteractionState = wasResetting; });

@@ -2348,6 +2348,256 @@ void TestWindowHostSpaceAndReturnInvokeFocusedButtonWithoutDefaultButtonFallback
     Require(host.GetFocusControl() == focusedButton, "return keeps focus on the focused button");
 }
 
+MSG ActivationKeyMessage(HWND hwnd, UINT key)
+{
+    MSG message{};
+    message.hwnd    = hwnd;
+    message.message = WM_KEYDOWN;
+    message.wParam  = key;
+    message.lParam  = static_cast<LPARAM>(1u | (MapVirtualKeyW(key, MAPVK_VK_TO_VSC) << 16u));
+    return message;
+}
+
+size_t DispatchTranslatedCharacters(HWND hwnd)
+{
+    size_t count = 0u;
+    MSG character{};
+    while (PeekMessageW(&character, hwnd, WM_CHAR, WM_CHAR, PM_REMOVE))
+    {
+        Require(character.hwnd == hwnd && character.message == WM_CHAR, "the owned fixture retrieves only its translated characters");
+        DispatchMessageW(&character);
+        Require(++count <= 8u, "one key has a bounded character result");
+    }
+    return count;
+}
+
+template <typename Editor> void CheckActivationCharacterOwnership()
+{
+    using namespace DxUi;
+    for (const UINT key : {UINT{VK_RETURN}, UINT{VK_SPACE}})
+    {
+        AttachedHostWindow window;
+        auto& host   = window.Host();
+        auto root    = std::make_unique<Panel>();
+        auto* button = root->AddChild<Button>(L"Format");
+        auto* editor = root->AddChild<Editor>(L"alpha");
+        button->SetBounds(D2D1::RectF(10.0f, 10.0f, 90.0f, 44.0f));
+        editor->SetBounds(D2D1::RectF(10.0f, 60.0f, 300.0f, 180.0f));
+        if constexpr (std::is_same_v<Editor, TextField>)
+        {
+            editor->SetMultiline(true);
+            editor->SetSelectionRange(1u, 4u);
+        }
+        else
+            editor->SetSelection({4u, 1u});
+        size_t invoked = 0u;
+        button->SetOnClick([&]
+        {
+            ++invoked;
+            host.SetFocusControl(editor);
+        });
+        host.SetRoot(std::move(root));
+        host.SetFocusControl(button);
+        const auto message = ActivationKeyMessage(window.Hwnd(), key);
+        Require(host.DispatchKeyboardMessage(message) && invoked == 1u && host.GetFocusControl() == editor,
+                "the native pump dispatches a command through the actual window procedure exactly once");
+        SendMessageW(window.Hwnd(), WM_KEYUP, key, message.lParam | static_cast<LPARAM>(0xc0000000u));
+        const bool hasUndo = [&]
+        {
+            if constexpr (std::is_same_v<Editor, RichTextEditor>)
+                return editor->CanUndo();
+            else
+                return editor->OnKeyDown(host, 'Z', MK_CONTROL);
+        }();
+        Require(DispatchTranslatedCharacters(window.Hwnd()) == 0u && editor->GetText() == L"alpha" && ! hasUndo,
+                "Return/Space activation produces no editor character, source change or undo entry after focus transfer");
+        Require(host.DispatchKeyboardMessage(message), "the unchanged focused editor owns the next activation-shaped key");
+        SendMessageW(window.Hwnd(), WM_KEYUP, key, message.lParam | static_cast<LPARAM>(0xc0000000u));
+        Require(DispatchTranslatedCharacters(window.Hwnd()) == 1u,
+                "a same-owner editor produces exactly one real translated character, including key-up before character dispatch");
+        const std::wstring expected = key == VK_SPACE ? L"a a" : (std::is_same_v<Editor, TextField> ? L"a\na" : L"a\r\na");
+        Require(editor->GetText() == expected, "the current text owner inserts its own Return/Space once at the retained selection");
+        Require(editor->OnKeyDown(host, 'Z', MK_CONTROL) && editor->GetText() == L"alpha", "one undo restores the one translated edit");
+        SendMessageW(window.Hwnd(), WM_CHAR, L' ', 0);
+        Require(editor->GetText() != L"alpha", "unpaired standalone character input is never blocked by an earlier command");
+    }
+}
+
+void TestWindowHostKeyboardMessageKeepsActivationCharactersWithTheirOwner()
+{
+    CheckActivationCharacterOwnership<DxUi::TextField>();
+    CheckActivationCharacterOwnership<DxUi::RichTextEditor>();
+}
+
+void TestWindowHostKeyboardMessageIsolatesPreviewAndReentrantCharacters()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto& host   = window.Host();
+    auto root    = std::make_unique<Panel>();
+    auto* button = root->AddChild<Button>(L"Command");
+    auto* choice = root->AddChild<RadioButton>(L"Choice");
+    auto* field  = root->AddChild<TextField>(L"alpha");
+    field->SetBounds(D2D1::RectF(10.0f, 60.0f, 300.0f, 180.0f));
+    field->SetMultiline(true);
+    host.SetRoot(std::move(root));
+    host.SetFocusControl(field);
+    const auto space = ActivationKeyMessage(window.Hwnd(), VK_SPACE);
+    size_t previewed = 0u;
+    field->SetOnPreviewKeyDown([&](ControlHost&, UINT, UINT)
+    {
+        ++previewed;
+        return true;
+    });
+    Require(host.DispatchKeyboardMessage(space) && previewed == 1u && DispatchTranslatedCharacters(window.Hwnd()) == 0u && field->GetText() == L"alpha",
+            "same-owner preview commands consume Space without granting character permission");
+    field->SetOnPreviewKeyDown([&](ControlHost& current, UINT, UINT)
+    {
+        current.SetFocusControl(field);
+        return false;
+    });
+    Require(host.DispatchKeyboardMessage(space) && DispatchTranslatedCharacters(window.Hwnd()) == 1u,
+            "idempotent focus refresh preserves an unhandled text key's translation permission");
+    field->SetOnPreviewKeyDown({});
+    field->SetText(L"alpha");
+    field->SetOnPreviewKeyDown([&](ControlHost& current, UINT, UINT)
+    {
+        current.SetFocusControl(button);
+        current.SetFocusControl(field);
+        return false;
+    });
+    Require(host.DispatchKeyboardMessage(space) && DispatchTranslatedCharacters(window.Hwnd()) == 0u && field->GetText() == L"alpha",
+            "a focus round trip retires the old frame even when the focused pointer is the same again");
+    field->SetOnPreviewKeyDown({});
+    field->SetSelectionRange(1u, 4u);
+    button->SetOnClick([&]
+    {
+        host.SetFocusControl(field);
+        Require(host.DispatchKeyboardMessage(space) && DispatchTranslatedCharacters(window.Hwnd()) == 1u,
+                "a reentrant editor key owns its own native character before the outer command returns");
+    });
+    host.SetFocusControl(button);
+    Require(host.DispatchKeyboardMessage(ActivationKeyMessage(window.Hwnd(), VK_RETURN)) && field->GetText() == L"a a" &&
+                DispatchTranslatedCharacters(window.Hwnd()) == 0u,
+            "nested text permission cannot leak into the outer activation frame");
+    size_t commands = 0u;
+    button->SetOnClick([&] { ++commands; });
+    host.SetFocusControl(button);
+    for (unsigned repeat = 0u; repeat < 3u; ++repeat)
+        Require(host.DispatchKeyboardMessage(space), "repeated command dispatch succeeds");
+    Require(commands == 3u && DispatchTranslatedCharacters(window.Hwnd()) == 0u, "repeated activations leave no delayed character or suppression state");
+    field->SetMultiline(false);
+    host.SetFocusControl(field);
+    size_t submitted = 0u;
+    field->SetOnSubmitted([&] { ++submitted; });
+    Require(host.DispatchKeyboardMessage(ActivationKeyMessage(window.Hwnd(), VK_RETURN)) && submitted == 1u &&
+                DispatchTranslatedCharacters(window.Hwnd()) == 0u,
+            "a same-owner submitted callback consumes Return without generating text");
+    field->SetOnSubmitted({});
+    button->SetOnClick([&]
+    {
+        ++commands;
+        host.SetFocusControl(field);
+    });
+    host.SetDefaultButton(button);
+    Require(DispatchQueuedMessageForTest(ActivationKeyMessage(window.Hwnd(), VK_RETURN)) && commands == 4u && DispatchTranslatedCharacters(window.Hwnd()) == 0u,
+            "the shared attached-host pump dispatches default-button Return once without translating the command");
+    const std::wstring beforeChoice(field->GetText());
+    size_t selected = 0u;
+    choice->SetOnSelected([&]
+    {
+        ++selected;
+        host.SetFocusControl(field);
+    });
+    host.SetFocusControl(choice);
+    Require(host.DispatchKeyboardMessage(space) && selected == 1u && choice->IsChecked() && host.GetFocusControl() == field &&
+                DispatchTranslatedCharacters(window.Hwnd()) == 0u && field->GetText() == beforeChoice,
+            "a radio selection callback has the same command ownership without relying on Button::OnKeyDown");
+    field->SetOnPreviewKeyDown([](ControlHost&, UINT key, UINT modifiers) { return key == VK_RETURN && (modifiers & MK_CONTROL) != 0u; });
+    SendMessageW(window.Hwnd(), WM_KEYDOWN, VK_CONTROL, 0);
+    Require(host.DispatchKeyboardMessage(ActivationKeyMessage(window.Hwnd(), VK_RETURN)) && DispatchTranslatedCharacters(window.Hwnd()) == 0u &&
+                field->GetText() == beforeChoice,
+            "a source-commit-style Ctrl+Enter preview command produces no extra carriage return");
+    SendMessageW(window.Hwnd(), WM_KEYUP, VK_CONTROL, 0);
+}
+
+class ThrowingCharacterPermission final : public DxUi::Control
+{
+public:
+    ThrowingCharacterPermission()
+    {
+        SetFocusable(true);
+    }
+    void Paint(DxUi::ControlHost&) const override
+    {
+    }
+    bool OnKeyDown(DxUi::ControlHost& host, UINT, UINT) override
+    {
+        host.AllowTranslatedCharacter();
+        throw std::runtime_error("a permitted key failed before completing its route");
+    }
+
+protected:
+    bool SupportsTextInput() const noexcept override
+    {
+        return true;
+    }
+};
+
+void TestWindowHostKeyboardMessageRejectsRetiredForeignAndFailedOwners()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    AttachedHostWindow foreign;
+    auto& host             = window.Host();
+    auto root              = std::make_unique<Panel>();
+    auto* button           = root->AddChild<Button>(L"Replace");
+    TextField* replacement = nullptr;
+    button->SetOnClick([&]
+    {
+        auto next   = std::make_unique<Panel>();
+        replacement = next->AddChild<TextField>(L"preserved");
+        replacement->SetMultiline(true);
+        host.SetRoot(std::move(next));
+        host.SetFocusControl(replacement);
+    });
+    host.SetRoot(std::move(root));
+    host.SetFocusControl(button);
+    Require(host.DispatchKeyboardMessage(ActivationKeyMessage(window.Hwnd(), VK_RETURN)) && replacement && replacement->GetText() == L"preserved" &&
+                DispatchTranslatedCharacters(window.Hwnd()) == 0u,
+            "root replacement disconnects the old key owner without inserting into its successor");
+    auto foreignMessage = ActivationKeyMessage(foreign.Hwnd(), VK_RETURN);
+    Require(! host.DispatchKeyboardMessage(foreignMessage), "a host leaves another attached HWND's key entirely untouched");
+    wil::unique_hwnd child(CreateWindowExW(0u, L"STATIC", L"child", WS_CHILD, 0, 0, 10, 10, window.Hwnd(), nullptr, GetModuleHandleW(nullptr), nullptr));
+    Require(child && ! host.DispatchKeyboardMessage(ActivationKeyMessage(child.get(), VK_RETURN)),
+            "native child HWND traffic is never dispatched by the host hook");
+    auto other = ActivationKeyMessage(window.Hwnd(), 'A');
+    Require(! host.DispatchKeyboardMessage(other), "ordinary alphabetic input retains the existing message pump path");
+    other         = ActivationKeyMessage(window.Hwnd(), VK_RETURN);
+    other.message = WM_SYSKEYDOWN;
+    Require(! host.DispatchKeyboardMessage(other), "system-key translation retains the native menu/IME path");
+    other.message = WM_KEYUP;
+    Require(! host.DispatchKeyboardMessage(other), "native key releases retain their ordinary dispatch");
+    auto failed   = std::make_unique<ThrowingCharacterPermission>();
+    auto* failure = failed.get();
+    host.SetRoot(std::move(failed));
+    host.SetFocusControl(failure);
+    Require(host.DispatchKeyboardMessage(ActivationKeyMessage(window.Hwnd(), VK_SPACE)) && DispatchTranslatedCharacters(window.Hwnd()) == 0u,
+            "a failed callback cannot publish character permission during exception unwinding");
+    auto escapeField = std::make_unique<TextField>(L"retired");
+    auto* oldField   = escapeField.get();
+    host.SetRoot(std::move(escapeField));
+    host.SetFocusControl(oldField);
+    host.SetOnEscape([&]
+    {
+        host.SetRoot(std::make_unique<Panel>());
+        return false;
+    });
+    bool handled = false;
+    host.HandleMessage(window.Hwnd(), WM_KEYDOWN, VK_ESCAPE, 0, handled);
+    Require(! handled && host.GetRoot() && ! host.GetFocusControl(), "a declined root-retiring Escape callback never dereferences its retired key target");
+}
+
 void TestWindowHostDpiChangedIsHandled()
 {
     using namespace DxUi;
@@ -5926,6 +6176,9 @@ void TestWindowHostSecondaryPressCapturesOnlyWhileItOwnsThePointer()
 
 void RunWindowHostTests()
 {
+    DXUI_RUN_TEST(TestWindowHostKeyboardMessageKeepsActivationCharactersWithTheirOwner);
+    DXUI_RUN_TEST(TestWindowHostKeyboardMessageIsolatesPreviewAndReentrantCharacters);
+    DXUI_RUN_TEST(TestWindowHostKeyboardMessageRejectsRetiredForeignAndFailedOwners);
     DXUI_RUN_TEST(TestFocusAutomationCacheRequestInitializesOnItsClientThread);
     DXUI_RUN_TEST(TestThreadExitWaitServicesLateTeardownCallbacks);
     DXUI_RUN_TEST(TestSentMessageSetupWaitServicesCallbacksAndPreservesQueuedInput);

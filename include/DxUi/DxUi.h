@@ -7,6 +7,7 @@
 #include "RichSemantic.h"
 #include "RichSemanticDocument.h"
 #include "RichTextCommands.h"
+#include "RichTextPresentation.h"
 
 // Header capability: opt-in intrinsic measurement, flow layout and form presentation APIs are available.
 #define DXUI_HAS_INTRINSIC_LAYOUT 1
@@ -225,6 +226,15 @@ enum class ButtonVariant : uint8_t
     IconOnly,   // Square aspect, icon-only (no text label)
     Disclosure, // Card/group-integrated expand/collapse chevron without button chrome
     Repeat,     // Fires continuously while held
+};
+
+// Presentation is independent of invocation, drop-down and accessibility semantics.
+enum class ButtonAppearance : uint8_t
+{
+    Filled,
+    Subtle,
+    Outline,
+    Tab,
 };
 
 enum class EasingCurve : uint8_t
@@ -851,6 +861,8 @@ struct TreeItemData
     bool hasChildren        = false;
     bool expanded           = false;
     AdornmentTone badgeTone = AdornmentTone::Accent;
+    // A dot retains badgeText as its accessible state description.
+    bool badgeIsDot = false;
 };
 
 struct TreeItemLayoutMetrics
@@ -923,6 +935,9 @@ struct ThemePalette
     D2D1_COLOR_F buttonBorder      = D2D1::ColorF(0.74f, 0.74f, 0.74f, 1.0f);
     D2D1_COLOR_F buttonHotFill     = D2D1::ColorF(0.96f, 0.97f, 1.0f, 1.0f);
     D2D1_COLOR_F buttonPressedFill = D2D1::ColorF(0.92f, 0.95f, 1.0f, 1.0f);
+    // Optional primary-button colors. Empty keeps the shared default derived from selection colors.
+    std::optional<D2D1_COLOR_F> primaryButtonFill;
+    std::optional<D2D1_COLOR_F> primaryButtonText;
 
     // ── Input ────────────────────────────────────────────────────────
     D2D1_COLOR_F inputFill   = D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f);
@@ -948,14 +963,15 @@ struct ThemePalette
 
 struct ButtonVisualStyle
 {
-    D2D1_COLOR_F fill    = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
-    D2D1_COLOR_F border  = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
-    D2D1_COLOR_F focus   = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
-    D2D1_COLOR_F text    = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
-    bool showBorder      = false;
-    bool showFocus       = false;
-    float textOffsetXDip = 0.0f;
-    float textOffsetYDip = 0.0f;
+    D2D1_COLOR_F fill           = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
+    D2D1_COLOR_F border         = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
+    D2D1_COLOR_F focus          = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
+    D2D1_COLOR_F text           = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
+    bool showBorder             = false;
+    bool showFocus              = false;
+    bool showSelectionUnderline = false;
+    float textOffsetXDip        = 0.0f;
+    float textOffsetYDip        = 0.0f;
 };
 
 inline constexpr float kButtonCornerRadiusDip         = 4.0f;
@@ -1534,6 +1550,7 @@ enum class AccessibilityRole : uint8_t
     Default,
     Status,
     MenuItem,
+    Separator,
 };
 
 // Intrinsic layout is opt-in. Missing maximum axes are explicitly unbounded; no arranged position enters a measurement.
@@ -1706,6 +1723,11 @@ protected:
     void RequestContentPreparation(bool requestWake = true) const noexcept;
     [[nodiscard]] virtual HRESULT PrepareContent(ControlHost& host) noexcept;
     virtual void CancelContentPreparation() noexcept;
+    // Optional visual resources are prepared separately from geometry/input readiness.
+    void EnableVisualContentPreparation() noexcept;
+    void RequestVisualContentPreparation(bool requestWake = true) const noexcept;
+    virtual void PrepareVisualContent(ControlHost& host) noexcept;
+    virtual void CancelVisualContentPreparation() noexcept;
     [[nodiscard]] virtual bool AcceptsTextInputDuringPreparation() const noexcept;
     virtual void OnFocusChanged(ControlHost& host, bool focused);
     virtual void OnHoverChanged(ControlHost& host, bool hovered);
@@ -1760,6 +1782,8 @@ private:
     bool _intrinsicLayoutPending            = false;
     bool _contentPreparationEnabled         = false;
     mutable bool _contentPreparationPending = false;
+    bool _visualPreparationEnabled          = false;
+    mutable bool _visualPreparationPending  = false;
 };
 
 [[nodiscard]] inline HRESULT MeasureControl(const Control& control,
@@ -1945,6 +1969,16 @@ private:
     float _cornerRadiusDip = 4.0f; // 4 DIP inline card, 8 DIP overlay card
 };
 
+struct LabelTypography final
+{
+    float fontSizeDip             = 13.0f;
+    DWRITE_FONT_WEIGHT fontWeight = DWRITE_FONT_WEIGHT_NORMAL;
+    // Total added spacing per character in DIPs; normalized to 1/64 DIP before
+    // layout and paint. The host distributes this total across leading/trailing.
+    float characterSpacingDip                                                       = 0.0f;
+    friend bool operator==(const LabelTypography&, const LabelTypography&) noexcept = default;
+};
+
 class Label : public Control
 {
 public:
@@ -1957,6 +1991,9 @@ public:
     void SetAlignment(DWRITE_TEXT_ALIGNMENT alignment) noexcept;
     void SetMultiline(bool multiline) noexcept;
     void SetTextColor(std::optional<D2D1_COLOR_F> color) noexcept;
+    // Nullopt restores role defaults; invalid values leave the current override unchanged.
+    HRESULT SetTypographyOverride(std::optional<LabelTypography> typography) noexcept;
+    [[nodiscard]] std::optional<LabelTypography> GetTypographyOverride() const noexcept;
     void SetMnemonicTarget(Control* target) noexcept;
 
     void Paint(ControlHost& host) const override;
@@ -1973,7 +2010,52 @@ private:
     DWRITE_TEXT_ALIGNMENT _alignment = DWRITE_TEXT_ALIGNMENT_LEADING;
     bool _multiline                  = false;
     std::optional<D2D1_COLOR_F> _textColor;
-    Control* _mnemonicTarget = nullptr;
+    std::optional<LabelTypography> _typographyOverride;
+    mutable wil::com_ptr<IDWriteTextLayout> _typographyLayout;
+    mutable std::wstring _typographyLayoutText;
+    mutable IDWriteTextFormat* _typographyLayoutFormat = nullptr;
+    mutable D2D1_SIZE_F _typographyLayoutSize{};
+    mutable uint64_t _typographyLayoutGeneration = 0u;
+    mutable uint64_t _typographyLayoutRevision   = 0u;
+    Control* _mnemonicTarget                     = nullptr;
+};
+
+enum class SeparatorOrientation : uint8_t
+{
+    Horizontal,
+    Vertical,
+};
+
+class Separator final : public Control
+{
+public:
+    Separator() noexcept;
+    void SetOrientation(SeparatorOrientation orientation) noexcept;
+    [[nodiscard]] SeparatorOrientation GetOrientation() const noexcept;
+    void Paint(ControlHost& host) const override;
+    Control* HitTest(D2D1_POINT_2F point) override;
+    const Control* HitTest(D2D1_POINT_2F point) const override;
+
+private:
+    friend class Toolbar;
+    SeparatorOrientation _orientation = SeparatorOrientation::Vertical;
+    bool _toolbarStyle                = false;
+};
+
+struct ButtonThemePreview final
+{
+    std::array<D2D1_COLOR_F, 3> swatches{};
+    friend bool operator==(const ButtonThemePreview& left, const ButtonThemePreview& right) noexcept
+    {
+        for (size_t index = 0u; index < left.swatches.size(); ++index)
+        {
+            const auto& a = left.swatches[index];
+            const auto& b = right.swatches[index];
+            if (a.r != b.r || a.g != b.g || a.b != b.b || a.a != b.a)
+                return false;
+        }
+        return true;
+    }
 };
 
 class Button : public Control
@@ -1986,10 +2068,27 @@ public:
     // Opt-in wrapping for Standard button text. The caller measures and supplies sufficient bounds.
     void SetMultiline(bool multiline) noexcept;
     [[nodiscard]] bool IsMultiline() const noexcept;
+    // Optional consumer chrome size; null preserves the role default. Finite 6..96 DIP, normalized to 1/64 DIP.
+    // Applies to caller content only; built-in drop-down/disclosure chevrons retain their chrome metrics.
+    [[nodiscard]] HRESULT SetContentFontSizeDip(std::optional<float> fontSizeDip) noexcept;
+    [[nodiscard]] std::optional<float> GetContentFontSizeDip() const noexcept;
     void SetPrimary(bool primary) noexcept;
     [[nodiscard]] bool IsPrimary() const noexcept;
+    void SetThemePreview(std::optional<ButtonThemePreview> preview) noexcept;
+    [[nodiscard]] std::optional<ButtonThemePreview> GetThemePreview() const noexcept;
+    // Optional consumer-owned checked state exposed through UI Automation TogglePattern. Checked non-primary buttons use
+    // selection fill/text; clicks invoke the normal command and the consumer changes this value when its state changes.
+    void SetToggleState(std::optional<bool> checked) noexcept;
+    [[nodiscard]] std::optional<bool> GetToggleState() const noexcept;
     void SetVariant(ButtonVariant variant) noexcept;
     [[nodiscard]] ButtonVariant GetVariant() const noexcept;
+    void SetAppearance(ButtonAppearance appearance) noexcept;
+    [[nodiscard]] ButtonAppearance GetAppearance() const noexcept;
+    // Optional leading Fluent glyph and trailing keyboard hint for text buttons.
+    void SetLeadingIcon(std::wstring glyph);
+    [[nodiscard]] std::wstring_view GetLeadingIcon() const noexcept;
+    void SetShortcutText(std::wstring text);
+    [[nodiscard]] std::wstring_view GetShortcutText() const noexcept;
     void SetDisclosureCollapsedDirection(ChevronDirection direction) noexcept;
     void SetDisclosureExpanded(bool expanded) noexcept;
     [[nodiscard]] std::optional<bool> GetDisclosureExpanded() const noexcept;
@@ -2004,6 +2103,12 @@ public:
     [[nodiscard]] bool DebugIsDisclosureAnimationActive() const noexcept;
 #if DXUI_ENABLE_DIAGNOSTICS
     [[nodiscard]] bool DebugIsPressed() const noexcept;
+    [[nodiscard]] uint64_t DebugGetPreparedIconTextLayoutBuildCount() const noexcept;
+    [[nodiscard]] uint64_t DebugGetPreparedIconTextLayoutAttemptCount() const noexcept;
+    [[nodiscard]] uint64_t DebugGetPreparedIconTextLayoutFactoryLookupCount() const noexcept;
+    [[nodiscard]] uint64_t DebugGetPreparedIconTextLayoutPaintCount() const noexcept;
+    void DebugFailNextPreparedIconTextLayoutForTest() noexcept;
+    void DebugSetPreparedIconTextLayoutDisabledForTest(bool disabled) noexcept;
 #endif
 
     void Paint(ControlHost& host) const override;
@@ -2019,6 +2124,12 @@ protected:
     [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
     [[nodiscard]] bool IsPressed() const noexcept;
     void SetPressed(bool pressed) noexcept;
+    void PrepareVisualContent(ControlHost& host) noexcept override;
+    void CancelVisualContentPreparation() noexcept override;
+    void OnBoundsChanged() noexcept override;
+    void OnFlowDirectionChanged() noexcept override;
+    void OnDensityChanged() noexcept override;
+    void OnHostDpiChanged(ControlHost& host) noexcept override;
     void OnFocusChanged(ControlHost& host, bool focused) override;
     void OnHoverChanged(ControlHost& host, bool hovered) override;
     void OnCaptureLost(ControlHost& host) override;
@@ -2052,6 +2163,9 @@ private:
     [[nodiscard]] bool AdvanceDisclosureTransition(ControlHost& host, uint64_t nowTickMs) noexcept;
     [[nodiscard]] bool IsDropDownInvocationPoint(D2D1_POINT_2F point) const noexcept;
     [[nodiscard]] bool InvokeDropDown(ControlHost& host);
+    [[nodiscard]] IDWriteTextFormat* ResolveContentTextFormat(const ControlHost& host, FontRole role, bool wrap = false) const noexcept;
+    void RetirePreparedIconTextLayout() noexcept;
+    [[nodiscard]] bool HasCurrentPreparedIconTextLayout(const ControlHost& host, const D2D1_RECT_F& bounds, FlowDirection flowDirection) const noexcept;
 
     static constexpr uint64_t _interactionAnimationDurationMs = 140u;
     static constexpr uint64_t _disclosureAnimationDurationMs  = 240u;
@@ -2069,8 +2183,36 @@ private:
     bool _pressedDropDown                          = false;
     bool _dropDownOpen                             = false;
     bool _primary                                  = false;
-    bool _multiline                                = false;
-    ButtonVariant _variant                         = ButtonVariant::Standard;
+    std::optional<bool> _toggleState;
+    std::optional<ButtonThemePreview> _themePreview;
+    std::optional<float> _contentFontSizeDip;
+    wil::com_ptr<IDWriteTextFormat> _preparedIconTextFormat;
+    wil::com_ptr<IDWriteTextLayout> _preparedIconTextLayout;
+    ControlHost* _preparedIconTextHost   = nullptr;
+    uint64_t _preparedIconTextRevision   = 0u;
+    uint64_t _preparedIconTextResources  = 0u;
+    uint64_t _preparedIconTextTypography = 0u;
+    float _preparedIconTextWidthDip      = 0.0f;
+    float _preparedIconTextHeightDip     = 0.0f;
+    wchar_t _preparedIconText[2]{};
+    UINT32 _preparedIconTextLength      = 0u;
+    FlowDirection _preparedIconTextFlow = FlowDirection::LeftToRight;
+    uint64_t _iconTextInputRevision     = 0u;
+    bool _preparedIconTextKeyValid      = false;
+    bool _preparedIconTextFailed        = false;
+#if DXUI_ENABLE_DIAGNOSTICS
+    uint64_t _debugPreparedIconTextLayoutBuildCount         = 0u;
+    uint64_t _debugPreparedIconTextLayoutAttemptCount       = 0u;
+    uint64_t _debugPreparedIconTextLayoutFactoryLookupCount = 0u;
+    mutable uint64_t _debugPreparedIconTextLayoutPaintCount = 0u;
+    bool _debugFailNextPreparedIconTextLayout               = false;
+    bool _debugDisablePreparedIconTextLayout                = false;
+#endif
+    bool _multiline              = false;
+    ButtonVariant _variant       = ButtonVariant::Standard;
+    ButtonAppearance _appearance = ButtonAppearance::Filled;
+    std::wstring _leadingIcon;
+    std::wstring _shortcutText;
 };
 
 class Toggle : public Button
@@ -2819,6 +2961,43 @@ enum class MarkdownRenderingStatus
     Semantic,
     SourceFallback
 };
+enum class RichTextLinkUnderlinePolicy : uint8_t
+{
+    Always,
+    HoverOrCaret,
+};
+struct RichTextEditorAppearance
+{
+    bool drawBorder = true;
+    // High contrast always retains its focus indicator. The text caret is independent.
+    bool drawFocusIndicator        = true;
+    bool blendWithWindowBackground = false;
+    bool useAccentLinkColor        = false;
+    bool colorizeMarkdownSource    = false;
+    float maximumTextWidthDip      = 0.0f;
+    float paddingDip               = -1.0f; // Negative one inherits the density-specific inset.
+    float bodyFontSizeDip          = 0.0f;  // Zero inherits the host's body size.
+    float codeFontSizeDip          = 0.0f;  // Zero inherits the body size.
+    float lineHeightMultiplier     = 0.0f;  // Zero retains native spacing; otherwise font-size relative.
+    float headingScaleStep         = 0.15f;
+    std::array<float, 6> headingFontSizeDip{};
+    std::array<float, 6> headingLineHeightMultiplier{};
+    std::wstring bodyFontFamily; // Empty inherits the host body family.
+    std::wstring codeFontFamily; // Empty inherits the host monospace family.
+    // Semantic-only minimum gaps; either override credits real blank-source
+    // caret lines. Unset paragraph gap is then an 8-DIP minimum. Null/null
+    // preserves the existing 8-DIP gap after every semantic box.
+    std::optional<float> paragraphSpacingAfterLines; // Finite 0..4 nominal body lines.
+    std::optional<float> listItemSpacingDip;         // Finite 0..256 DIP between items.
+    bool operator==(const RichTextEditorAppearance&) const noexcept = default;
+    std::optional<RichText::SemanticSpacing> semanticSpacing;
+};
+struct RichTextSourceHighlight
+{
+    size_t start{}, length{};
+    bool current                                                   = false;
+    bool operator==(const RichTextSourceHighlight&) const noexcept = default;
+};
 struct RichTextEditorDebugState
 {
     bool layoutReady                   = false;
@@ -2845,6 +3024,8 @@ struct RichTextEditorDebugState
     bool semanticPreparationPending    = false;
     size_t semanticPreparationAdvances = 0;
     size_t lastAdvanceSemanticWork     = 0;
+    bool sourceInkPreparationPending   = false;
+    size_t sourceInkRangeCount         = 0;
 };
 
 class RichTextEditor : public Control
@@ -2862,8 +3043,13 @@ public:
     // rewrite occurs; no process working directory is used for relative links.
     void SetDocumentFilePath(std::wstring path);
     [[nodiscard]] std::wstring_view GetDocumentFilePath() const noexcept;
+    // Disabled by default. Only absolute HTTP(S) image requests are exposed
+    // after opt-in; no network I/O occurs here. Disabling immediately cancels
+    // remote requests and evicts their pixels, retaining local image resources.
+    void SetRemoteImagesEnabled(bool enabled);
+    [[nodiscard]] bool RemoteImagesEnabled() const noexcept;
     // Call after owner preparation. The application executes these bounded
-    // local-file requests in its own worker service and marshals completion to
+    // source requests in its own worker service and marshals completion to
     // this owner thread. No worker may call a ControlHost or editor directly.
     void TakePendingImageRequests(std::vector<RichText::RichImageRequest>& requests);
     // True accepts a current completion. Null/capacity keeps the image alt;
@@ -2882,6 +3068,21 @@ public:
     [[nodiscard]] RichText::Selection GetSelection() const noexcept;
     void SetViewMode(RichText::ViewMode mode);
     [[nodiscard]] RichText::ViewMode GetViewMode() const noexcept;
+    // Validated owner-thread presentation; never changes source/history.
+    // Font sizes are 0 (inherit) or 1..512 DIP, line height 0 or 1..4,
+    // heading step 0..1, inset -1 (density default) or 0..256 DIP.
+    void SetAppearance(const RichTextEditorAppearance& appearance);
+    [[nodiscard]] const RichTextEditorAppearance& GetAppearance() const noexcept;
+    void SetLinkUnderlinePolicy(RichTextLinkUnderlinePolicy policy);
+    [[nodiscard]] RichTextLinkUnderlinePolicy GetLinkUnderlinePolicy() const noexcept;
+    // Current semantic source style; source mode/pending geometry returns false.
+    [[nodiscard]] bool IsLinkUnderlineVisible(size_t sourceOffset) const noexcept;
+    // At most 4096 scalar/CRLF-safe source intervals; source edits clear them.
+    void SetSourceHighlights(std::span<const RichTextSourceHighlight> highlights);
+    void ClearSourceHighlights() noexcept;
+    [[nodiscard]] std::span<const RichTextSourceHighlight> GetSourceHighlights() const noexcept;
+    void SetFocusModeEnabled(bool enabled) noexcept;
+    [[nodiscard]] bool IsFocusModeEnabled() const noexcept;
     // Opt-in lossless block/lexical analysis on the host's preparation turns.
     // This does not replace the v0 formatted renderer or text-store ACPs. Null
     // disables analysis; changing profile preserves source, history and selection.
@@ -2939,9 +3140,23 @@ public:
     bool Redo();
     [[nodiscard]] bool CanUndo() const noexcept;
     [[nodiscard]] bool CanRedo() const noexcept;
-    // Called after publication/invalidation. May replace/destroy this control.
-    // Standard callback exceptions are contained; the committed edit remains.
+    // Called after committed source publication/invalidation. When the selection
+    // callback is registered, a notifying source edit invokes this callback before
+    // publishing its corresponding selection notification. May replace/destroy
+    // this control.
+    // Allocation failure is fatal; other standard exceptions are contained and
+    // leave the committed edit intact.
     void SetOnTextChanged(std::function<void()> callback);
+    // Owner-thread notification after source selection/gesture publication,
+    // including keyboard, text services, UIA and programmatic selection. Silent
+    // registration; unchanged source revision, selection endpoints and gesture
+    // state are suppressed. During pointer selection, consumers can defer
+    // expensive work until the final release/capture-loss notification observes
+    // an inactive gesture. A callback may replace/destroy this control.
+    // Allocation failure is fatal; other standard exceptions are contained and
+    // leave the published selection intact.
+    void SetOnSelectionChanged(std::function<void()> callback);
+    [[nodiscard]] bool IsSelectionGestureActive() const noexcept;
     [[nodiscard]] RichTextEditorDebugState DebugGetState() const noexcept;
     // Accessible ranges use source offsets; geometry follows the current rich
     // projection. Includes complete lines that are partially visible.
@@ -2958,6 +3173,7 @@ public:
     bool OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) noexcept override;
     bool OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) noexcept override;
     bool OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT modifiers) noexcept override;
+    bool OnMouseLeave(ControlHost& host) noexcept override;
     bool OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) noexcept override;
     bool OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float delta, UINT modifiers) noexcept override;
     bool OnCopy(ControlHost& host) noexcept override;
@@ -3000,10 +3216,16 @@ private:
     [[nodiscard]] bool CanChangeSemanticSourcePresentation(ControlHost& host) const;
     [[nodiscard]] bool CanPasteMarkdownFileReferences() const noexcept;
     void Changed(bool sourceChanged, bool synchronizeTextInput = true);
-    void SelectionChanged(bool synchronizeTextInput = true);
+    void SelectionChanged(bool synchronizeTextInput = true, bool preservePreferredCaretX = false, bool publishSelection = true);
+    void PublishSelectionChanged() noexcept;
     void MoveCaret(ControlHost& host, UINT key, bool extend, bool byWord);
     bool Erase(ControlHost& host, bool backwards);
     [[nodiscard]] size_t HitSource(ControlHost& host, D2D1_POINT_2F point) const;
+    [[nodiscard]] std::optional<RichText::MarkdownRange> CaretLinkDisplayRange() const noexcept;
+    void UpdateCaretLinkDisplayRange() noexcept;
+    bool PrepareSourceInk();
+    [[nodiscard]] std::optional<RichText::MarkdownRange> HoveredLinkDisplayRange(ControlHost& host, D2D1_POINT_2F point) const;
+    [[nodiscard]] std::optional<RichText::MarkdownRange> ActiveParagraphDisplayRange() const;
     [[nodiscard]] bool Editable() const noexcept;
 };
 
@@ -3016,6 +3238,9 @@ public:
     void SetText(std::wstring text);
     void SetTextAndNotify(std::wstring text);
     [[nodiscard]] std::wstring_view GetText() const noexcept;
+    // Selects the shared host font role used by text shaping, rendering and editor geometry. Body is the default.
+    void SetFontRole(FontRole fontRole) noexcept;
+    [[nodiscard]] FontRole GetFontRole() const noexcept;
     [[nodiscard]] size_t GetCaretIndex() const noexcept;
     void SetSelectionRange(size_t selectionStart, size_t selectionEnd) noexcept;
     [[nodiscard]] std::optional<std::pair<size_t, size_t>> GetSelectionRange() const noexcept;
@@ -3148,6 +3373,7 @@ private:
 
     std::wstring _text;
     std::wstring _placeholder;
+    FontRole _fontRole = FontRole::Body;
     std::shared_ptr<const std::function<void(std::wstring_view)>> _onTextChanged;
     std::shared_ptr<const std::function<void()>> _onSubmitted;
     std::shared_ptr<const std::function<bool(ControlHost& host, UINT virtualKey, UINT modifiers)>> _onPreviewKeyDown;
@@ -3163,6 +3389,7 @@ private:
     mutable wil::com_ptr<IDWriteTextLayout> _cachedMultilineLayout;
     mutable std::wstring _cachedLayoutText;
     mutable D2D1_SIZE_F _cachedLayoutSize           = D2D1::SizeF(0.0f, 0.0f);
+    mutable FontRole _cachedLayoutRole              = FontRole::Body;
     mutable bool _multilineLayoutDirty              = true;
     size_t _multilineFirstVisibleLine               = 0u;
     float _multilineWheelDeltaRemainder             = 0.0f;
@@ -4059,10 +4286,30 @@ private:
     uint64_t _hideTickMs           = 0u;
 };
 
+struct TreeAppearance final
+{
+    bool drawBackground                                   = true;
+    bool drawBorder                                       = true;
+    bool showExpanders                                    = true;
+    bool reserveExpanderSpace                             = false;
+    bool neutralDecorations                               = false;
+    bool operator==(const TreeAppearance&) const noexcept = default;
+};
+
 class Tree final : public Control
 {
 public:
+    struct TypographyOverride final
+    {
+        float fontSizeDip                                                                     = 13.0f;
+        DWRITE_FONT_WEIGHT fontWeight                                                         = DWRITE_FONT_WEIGHT_NORMAL;
+        DWRITE_FONT_WEIGHT currentFontWeight                                                  = DWRITE_FONT_WEIGHT_SEMI_BOLD;
+        friend bool operator==(const TypographyOverride&, const TypographyOverride&) noexcept = default;
+    };
+
     Tree();
+    void SetAppearance(const TreeAppearance& appearance) noexcept;
+    [[nodiscard]] const TreeAppearance& GetAppearance() const noexcept;
 
     // Non-owning model pointer. Caller manages model lifetime from SetModel() until Tree destruction.
     // Model state accessed only on UI thread — no synchronization needed.
@@ -4071,6 +4318,12 @@ public:
     void SetEmptyStateText(std::wstring text);
     [[nodiscard]] std::wstring_view GetEmptyStateText() const noexcept;
     void SetDelegate(ITreeDelegate* delegate) noexcept;
+    // Opt in to invoking the clicked row on pointer release. Expander clicks still only expand/collapse; Enter invokes
+    // the focused row, Space does not invoke in this mode, and a double-click does not invoke an already-clicked leaf twice.
+    void SetInvokeOnSingleClick(bool enabled) noexcept;
+    // Optional row typography; current/focused rows use currentFontWeight. Nullopt preserves role defaults.
+    HRESULT SetTypographyOverride(std::optional<TypographyOverride> typography) noexcept;
+    [[nodiscard]] std::optional<TypographyOverride> GetTypographyOverride() const noexcept;
     // Pointer drag of a row. Release reports one `OnTreeReorder`; Escape and capture loss cancel.
     void SetReorderEnabled(bool enabled) noexcept;
     [[nodiscard]] bool ReorderEnabled() const noexcept
@@ -4209,7 +4462,7 @@ private:
         Thumb,
     };
 
-    [[nodiscard]] HitInfo HitTestPoint(PointDip pointDip) const noexcept;
+    [[nodiscard]] HitInfo HitTestPoint(const ControlHost& host, PointDip pointDip) const noexcept;
     [[nodiscard]] static bool IsSameHitTarget(const HitInfo& before, const HitInfo& after) noexcept;
     [[nodiscard]] float GetVerticalScrollableExtent() const noexcept;
     [[nodiscard]] D2D1_RECT_F GetContentRect() const noexcept;
@@ -4275,7 +4528,12 @@ private:
     std::optional<uint64_t> _focusedItemId;
     // Multi-select only: the selected items and their anchor. Unused (empty) while `_multiSelect` is off.
     GridSelectionModel _selection;
-    bool _multiSelect = false;
+    bool _multiSelect         = false;
+    bool _invokeOnSingleClick = false;
+    std::optional<TypographyOverride> _typographyOverride;
+    TreeAppearance _appearance;
+    std::optional<uint64_t> _singleClickInvokeItemId;
+    bool _singleClickCaptureArmed = false;
     std::optional<size_t> _hoveredVisibleIndex;
     float _rowHeightBaseDip    = 28.0f;
     float _rowHeightDip        = 28.0f;
@@ -4779,7 +5037,7 @@ ThemePalette MakeThemePalette(const ThemeColors& viewerTheme) noexcept;
 void RefreshAccentVariants(ThemePalette& palette, bool darkBase) noexcept;
 
 [[nodiscard]] ButtonVisualStyle ResolveButtonVisualStyle(
-    const ThemePalette& theme, bool enabled, bool hovered, bool pressed, bool focused, bool keyboardFocused, bool primary) noexcept;
+    const ThemePalette& theme, bool enabled, bool hovered, bool pressed, bool focused, bool keyboardFocused, bool primary, bool toggled = false) noexcept;
 [[nodiscard]] ButtonVisualStyle ResolveButtonVisualStyle(const ThemePalette& theme,
                                                          bool enabled,
                                                          bool hovered,
@@ -4788,8 +5046,17 @@ void RefreshAccentVariants(ThemePalette& palette, bool darkBase) noexcept;
                                                          bool keyboardFocused,
                                                          bool primary,
                                                          float hoverStrength,
-                                                         float focusStrength) noexcept;
+                                                         float focusStrength,
+                                                         bool toggled = false) noexcept;
 [[nodiscard]] LabelVisualStyle ResolveLabelVisualStyle(const ThemePalette& theme, const std::optional<D2D1_COLOR_F>& textColorOverride) noexcept;
+[[nodiscard]] ButtonVisualStyle ResolveButtonAppearanceVisualStyle(const ThemePalette& theme,
+                                                                   ButtonVisualStyle style,
+                                                                   ButtonAppearance appearance,
+                                                                   bool enabled,
+                                                                   bool pressed,
+                                                                   bool primary,
+                                                                   bool checked,
+                                                                   float hoverStrength) noexcept;
 [[nodiscard]] ToggleVisualStyle ResolveToggleVisualStyle(
     const ThemePalette& theme, bool enabled, bool hovered, bool pressed, bool focused, bool keyboardFocused, bool checked) noexcept;
 [[nodiscard]] ToggleVisualStyle ResolveToggleVisualStyle(const ThemePalette& theme,
@@ -4904,6 +5171,9 @@ public:
     static constexpr float kHitSlopDip            = 2.0f;
 
     Splitter();
+    // A quiet idle divider keeps the full resize hit target; hover/drag/focus/contrast retain the handle.
+    void SetSubtle(bool subtle) noexcept;
+    [[nodiscard]] bool IsSubtle() const noexcept;
 
     void SetOrientation(SplitterOrientation orientation) noexcept;
     [[nodiscard]] SplitterOrientation GetOrientation() const noexcept;
@@ -4939,6 +5209,7 @@ protected:
 
 private:
     void NotifyChange(SplitterChangePhase phase) noexcept;
+    bool _subtle = false;
     [[nodiscard]] float Extent() const noexcept;
     [[nodiscard]] float PointerAxis(D2D1_POINT_2F point) const noexcept;
 
@@ -5347,6 +5618,13 @@ public:
     [[nodiscard]] uint64_t GetInteractionRevision() const noexcept;
     [[nodiscard]] IDWriteTextFormat* GetTextFormat(FontRole role) const noexcept;
     [[nodiscard]] IDWriteTextFormat* GetTextFormat(FontRole role,
+                                                   float fontSizeDip,
+                                                   DWRITE_FONT_WEIGHT fontWeight,
+                                                   DWRITE_TEXT_ALIGNMENT alignment,
+                                                   DWRITE_PARAGRAPH_ALIGNMENT paragraphAlignment,
+                                                   bool wrap,
+                                                   DWRITE_READING_DIRECTION readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT) const noexcept;
+    [[nodiscard]] IDWriteTextFormat* GetTextFormat(FontRole role,
                                                    DWRITE_TEXT_ALIGNMENT alignment,
                                                    DWRITE_PARAGRAPH_ALIGNMENT paragraphAlignment,
                                                    bool wrap,
@@ -5362,6 +5640,14 @@ public:
     [[nodiscard]] std::optional<std::wstring> ReadTextFromClipboard() const noexcept;
     [[nodiscard]] bool ReadClipboardContent(TextClipboardContent& content) const noexcept;
 
+    // Call after accelerator/TSF pretranslation and before TranslateMessage. For Return/Space key-down
+    // directed at this attached HWND, dispatches once through the real window procedure, then translates
+    // only an explicitly permitted character still owned by the original text-input control. Returns
+    // true when it dispatched the message; other messages/foreign HWNDs retain the ordinary pump path.
+    [[nodiscard]] bool DispatchKeyboardMessage(const MSG& message) noexcept;
+    // A key handler that consumes Return/Space but needs its translated character calls this before
+    // returning. Permission belongs only to the current dispatch frame; nested handlers are isolated.
+    void AllowTranslatedCharacter() noexcept;
     LRESULT HandleMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, bool& handled) noexcept;
 #if DXUI_ENABLE_DIAGNOSTICS
     // The device of the pointer events a test dispatches straight to a control, which no message or PointerEvent carries.
@@ -5445,10 +5731,17 @@ private:
     friend class FormPanel;
     friend class NativeTextStoreTarget;
     friend struct EmbeddedAccessibilityAccess;
-    void* _embeddedAccessibilityTarget        = nullptr;
-    bool _gainingWindowFocus                  = false; // In OnSetFocus: the system's focus event reports the element.
-    bool _resettingInteractionState           = false;
-    bool _replacingRoot                       = false;
+    void* _embeddedAccessibilityTarget = nullptr;
+    bool _gainingWindowFocus           = false; // In OnSetFocus: the system's focus event reports the element.
+    bool _resettingInteractionState    = false;
+    bool _replacingRoot                = false;
+    struct KeyCharacterDispatch final
+    {
+        KeyCharacterDispatch* previous = nullptr;
+        UINT virtualKey                = 0u;
+        bool messageRoute              = false;
+        bool allowCharacter            = false;
+    };
     ULONGLONG _focusGainTurnStartedMs         = 0u;    // From OnSetFocus until the message loop turns: the event may still report.
     WPARAM _focusGainTurnId                   = 0u;    // The turn the posted end message names; an earlier turn's message ends nothing.
     uint64_t _focusGainResolutions            = 0u;    // Fragment-root GetFocus calls begun when the latest gain began.
@@ -5457,10 +5750,14 @@ private:
     bool _pendingPageLayout                   = false;
     bool _pendingIntrinsicLayout              = false;
     mutable bool _pendingContentPreparation   = false;
+    bool _pendingVisualPreparation            = false;
+    bool _forceAllVisualPreparation           = false;
     bool _contentPreparationContinues         = false;
     bool _contentGeometryChanged              = false;
     uint64_t _preparedContentResources        = 0u;
     uint64_t _preparedContentTypography       = 0u;
+    uint64_t _preparedVisualResources         = 0u;
+    uint64_t _preparedVisualTypography        = 0u;
     mutable uint64_t _typographyRevision      = 0u;
     const Control* _intrinsicArrangeBranch    = nullptr;
     uint64_t _intrinsicArrangeForeignRevision = 0u;
@@ -5476,6 +5773,7 @@ private:
     [[nodiscard]] bool PreparePendingPageLayout() noexcept;
     void PublishPreparedContent() noexcept;
     void CancelPreparedContent() noexcept;
+    void CancelPreparedVisualContent(Control* subtree = nullptr) noexcept;
     bool _embedded                              = false;
     bool _embeddedAnimationRequested            = false;
     void* _embeddedContext                      = nullptr;
@@ -5492,7 +5790,7 @@ private:
     void DiscardSizeDependentResources(std::wstring_view reason = {}) noexcept;
     void DiscardDeviceResources() noexcept;
     void RecreateBrushCache() const;
-    void TrimCaches() const noexcept;
+    void TrimCaches() noexcept;
     void Render(const RECT* dirtyRectPx = nullptr, bool allowHidden = false) noexcept;
 #if DXUI_ENABLE_DIAGNOSTICS
     void Render(const RECT* dirtyRectPx, WindowHostBitmapCapture* capture, bool allowHidden = false) noexcept;
@@ -5748,6 +6046,9 @@ private:
     bool _animationTimelineRebase         = true;
     std::optional<uint64_t> _animationClockForTest;
     bool _animationSuspendedWhileHidden = false;
+    // Logical input ownership, unlike a focus-request revision, survives idempotent focus refreshes.
+    uint64_t _keyboardOwnerEpoch                = 0u;
+    KeyCharacterDispatch* _keyCharacterDispatch = nullptr; // Synchronous borrowed stack frame only.
 };
 
 struct TransientSurfaceBackdrop final

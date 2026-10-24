@@ -4,6 +4,35 @@ Import-Module (Join-Path $PSScriptRoot 'ScopedTesting.psm1')
 Import-Module (Join-Path $PSScriptRoot 'PerformanceComparison.psm1')
 Import-Module (Join-Path $PSScriptRoot 'Validation.psm1')
 
+# Fixed top-level diagnostics only: no input paths, environment values, nested records or acceptance thresholds.
+function Write-DxUiBuildPhaseEvent {
+    param([string] $Phase, [string] $State, [double] $ElapsedMilliseconds)
+    $elapsed = $ElapsedMilliseconds.ToString('F3', [Globalization.CultureInfo]::InvariantCulture)
+    Write-Host "[DXUI_BUILD_PHASE] phase=$Phase state=$State utc=$([DateTime]::UtcNow.ToString('O')) elapsedMs=$elapsed"
+}
+
+function Invoke-DxUiBuildPhase {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][ValidateSet('VisualStudioDiscovery','OutputUseChecks','DependencyAdmission','PreBuildAttestation','MSBuild','PostBuildAttestation','SkipBuildGate')][string] $Phase,
+        [Parameter(Mandatory)][scriptblock] $Body
+    )
+    $timer = [Diagnostics.Stopwatch]::StartNew()
+    try { $null = Write-DxUiBuildPhaseEvent -Phase $Phase -State BEGIN -ElapsedMilliseconds 0 }
+    catch { # Diagnostic sink failure must neither prevent the operation nor replace its result or exception.
+    }
+    $state = 'FAIL'
+    try {
+        & $Body
+        $state = 'END'
+    } finally {
+        $timer.Stop()
+        try { $null = Write-DxUiBuildPhaseEvent -Phase $Phase -State $state -ElapsedMilliseconds $timer.Elapsed.TotalMilliseconds }
+        catch { # Preserve the operation's success output and original terminating exception if diagnostics fail.
+        }
+    }
+}
+
 function Get-TrustedPerformancePolicy {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string] $BaselineCommit, [Parameter(Mandatory)][string] $RepositoryRoot, [Parameter(Mandatory)][string] $CandidatePolicyPath)
@@ -1027,6 +1056,6 @@ function Test-PerformanceReceiptIdentity {
     return [ordered]@{ verifiable=($missing.Count -eq 0); missing=@($missing | Select-Object -Unique) }
 }
 
-Export-ModuleMember -Function Get-TrustedPerformancePolicy, Test-PerformanceReceiptIdentity, Get-PerformanceToolIdentities, Get-ResolvedCompileItemsIdentity, Get-PreprocessedProjectIdentity,
+Export-ModuleMember -Function Invoke-DxUiBuildPhase, Get-TrustedPerformancePolicy, Test-PerformanceReceiptIdentity, Get-PerformanceToolIdentities, Get-ResolvedCompileItemsIdentity, Get-PreprocessedProjectIdentity,
     Get-PerformanceProjectProfile, Get-PerformanceResolvedToolPaths, Get-PerformanceBuildAttestationIdentity,
     Start-PerformanceBuildAttestation, Complete-PerformanceBuildAttestation, Assert-PerformanceBuildAttestation, Get-PerformanceMeasurementState, Assert-PerformanceMeasurementState

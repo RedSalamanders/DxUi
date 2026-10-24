@@ -5,6 +5,7 @@
 #include "../Support/Support.Tests.UiaTestClient.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include <cmath>
+#include <limits>
 #include <thread>
 
 namespace
@@ -15,6 +16,9 @@ class RichAccessibilityEditor final : public RichTextEditor
 {
 public:
     using RichTextEditor::ExportTextInputState;
+    using RichTextEditor::GetTextInputRangeRects;
+    using RichTextEditor::GetTextInputViewportRect;
+    using RichTextEditor::HitTestTextInputPoint;
     using RichTextEditor::ImportTextInputState;
     using RichTextEditor::RichTextEditor;
     // Exercise the same protected binding boundary used by retained owners,
@@ -1157,6 +1161,251 @@ UiaTest::ElementId FindClientPart(UiaTest::Client& client, UiaTest::ElementId pa
     }
     return 0u;
 }
+void RichEditorPresentationAndLinkCues(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true, true);
+    const std::wstring source = L"lead \U0001f600 before [alpha **bold** omega](local) after.\r\n\r\n"
+                                L"<a href=\"local\"><u>marked</u> label</a>\r\n\r\n# Heading\r\n\r\n`code`\r\n\r\nlast paragraph";
+    fixture.editor->SetText(source);
+    fixture.Publish();
+    auto* editor     = static_cast<RichAccessibilityEditor*>(fixture.editor);
+    const auto alpha = source.find(L"alpha"), bold = source.find(L"bold"), marked = source.find(L"marked");
+    Require(editor->GetLinkUnderlinePolicy() == RichTextLinkUnderlinePolicy::Always && editor->IsLinkUnderlineVisible(alpha),
+            "default presentation preserves persistent link underline");
+    Require(! editor->IsLinkUnderlineVisible(alpha - 1u) && ! editor->IsLinkUnderlineVisible(0u),
+            "plain source gaps and syntax never inherit the following run's underline");
+    UiaTest::Client client(fixture.Hwnd(), {}, [&] { fixture.Pump(); });
+    const auto owner = FindEditor(client, client.Root());
+    Require(owner && FindClientPart(client, owner, UIA_HyperlinkControlTypeId), "actual client reaches inert hyperlink children");
+    const auto initialGeneration = editor->DebugGetState().layoutGeneration;
+    editor->SetLinkUnderlinePolicy(RichTextLinkUnderlinePolicy::HoverOrCaret);
+    fixture.Publish();
+    Require(! editor->IsLinkUnderlineVisible(alpha) && editor->IsLinkUnderlineVisible(marked),
+            "hover policy suppresses link decoration while preserving explicit nested underline");
+    auto info = client.InspectTextRange(owner, L"alpha", {UIA_UnderlineStyleAttributeId});
+    Require(info.attributes[0].number == static_cast<double>(TextDecorationLineStyle_None), "actual client observes inactive link underline None");
+    editor->SetSelection({bold + 1u, bold + 1u});
+    fixture.Publish();
+    Require(editor->IsLinkUnderlineVisible(alpha) && editor->IsLinkUnderlineVisible(bold), "caret inside one style segment decorates the whole semantic link");
+    info = client.InspectTextRange(owner, L"alpha", {UIA_UnderlineStyleAttributeId});
+    Require(info.attributes[0].number == static_cast<double>(TextDecorationLineStyle_Single), "actual client sees caret-dependent underline");
+    editor->SetSelection({0u, 0u});
+    fixture.Publish();
+    const auto rectangles = editor->GetTextInputRangeRects(*fixture.controls, alpha, alpha + 5u);
+    Require(rectangles && ! rectangles->empty(), "prepared source glyph geometry remains available");
+    const auto rect  = rectangles->front();
+    const auto point = D2D1::Point2F(rect.left + .1f, (rect.top + rect.bottom) * .5f);
+    const auto hit   = editor->HitTestTextInputPoint(*fixture.controls, point);
+    Require(hit && hit.value() == alpha, "native/embedded glyph hit uses unchanged exact source coordinates");
+    static_cast<void>(editor->OnMouseMove(*fixture.controls, point, 0u));
+    fixture.Publish();
+    Require(editor->IsLinkUnderlineVisible(alpha), "actual glyph hover decorates the whole link");
+    info = client.InspectTextRange(owner, L"bold", {UIA_UnderlineStyleAttributeId});
+    Require(info.attributes[0].number == static_cast<double>(TextDecorationLineStyle_Single), "actual client sees hover across another style segment");
+    const auto viewport = editor->GetTextInputViewportRect();
+    Require(viewport.has_value(), "rich text viewport");
+    static_cast<void>(editor->OnMouseMove(*fixture.controls, D2D1::Point2F(viewport->right - .1f, point.y), 0u));
+    fixture.Publish();
+    Require(! editor->IsLinkUnderlineVisible(alpha), "blank space beside a link is not a glyph hover");
+    static_cast<void>(editor->OnMouseMove(*fixture.controls, point, 0u));
+    static_cast<void>(editor->OnMouseLeave(*fixture.controls));
+    fixture.Publish();
+    Require(! editor->IsLinkUnderlineVisible(alpha), "pointer leave retires the link cue");
+    Require(editor->DebugGetState().layoutGeneration == initialGeneration && editor->GetText() == source && ! editor->CanUndo(),
+            "pointer/caret decoration preserves geometry generation, source and history");
+    auto palette               = fixture.controls->GetTheme();
+    const auto originalPalette = palette;
+    palette.highContrast       = true;
+    fixture.controls->SetTheme(palette);
+    editor->SetFocusModeEnabled(true);
+    fixture.Publish();
+    Require(editor->IsLinkUnderlineVisible(alpha), "high contrast forces persistent link cues");
+    info = client.InspectTextRange(owner, L"alpha", {UIA_UnderlineStyleAttributeId});
+    Require(info.attributes[0].number == static_cast<double>(TextDecorationLineStyle_Single), "high contrast UIA agrees with visible link cues");
+    fixture.controls->SetTheme(originalPalette);
+    auto appearance                           = editor->GetAppearance();
+    appearance.drawBorder                     = false;
+    appearance.blendWithWindowBackground      = true;
+    appearance.maximumTextWidthDip            = 160.0f;
+    appearance.paddingDip                     = 12.0f;
+    appearance.bodyFontFamily                 = L"Georgia";
+    appearance.codeFontFamily                 = L"Consolas";
+    appearance.bodyFontSizeDip                = 16.0f;
+    appearance.codeFontSizeDip                = 13.5f;
+    appearance.lineHeightMultiplier           = 1.65f;
+    appearance.headingFontSizeDip[0]          = 34.0f;
+    appearance.headingFontSizeDip[1]          = 23.0f;
+    appearance.headingLineHeightMultiplier[0] = 1.2f;
+    appearance.headingLineHeightMultiplier[1] = 1.3f;
+    appearance.useAccentLinkColor             = true;
+    auto heldLink                             = FindSemanticPart(*fixture.Simple().get(), UIA_HyperlinkControlTypeId);
+    Require(heldLink != nullptr, "hold a reachable hyperlink before typography reflow");
+    editor->SetAppearance(appearance);
+    Require(! editor->DebugGetState().layoutReady, "typography/column changes retire old native geometry");
+    fixture.Publish();
+    Require(ReadProviderLongProperty(*heldLink.get(), UIA_ControlTypePropertyId, "held hyperlink after typography reflow") == UIA_HyperlinkControlTypeId,
+            "appearance-only reflow preserves held semantic provider identity");
+    const auto column = editor->GetTextInputViewportRect();
+    Require(column && std::abs(column->right - column->left - 160.0f) < .01f, "shared viewport owns bounded text width");
+    const auto bodyInfo    = client.InspectTextRange(owner, L"lead", {UIA_FontSizeAttributeId, UIA_FontNameAttributeId});
+    const auto codeInfo    = client.InspectTextRange(owner, L"code", {UIA_FontSizeAttributeId, UIA_FontNameAttributeId});
+    const auto headingInfo = client.InspectTextRange(owner, L"Heading", {UIA_FontSizeAttributeId});
+    Require(std::abs(bodyInfo.attributes[0].number - 12.0) < .001 && bodyInfo.attributes[1].text == L"Georgia" &&
+                std::abs(codeInfo.attributes[0].number - 10.125) < .001 && codeInfo.attributes[1].text == L"Consolas" &&
+                std::abs(headingInfo.attributes[0].number - 25.5) < .001,
+            "actual UIA font metrics match body/code/per-level heading options");
+    const auto generation = editor->DebugGetState().layoutGeneration;
+    const std::array highlights{RichTextSourceHighlight{alpha, 5u, false}, RichTextSourceHighlight{bold, 4u, true}};
+    editor->SetSourceHighlights(highlights);
+    fixture.Publish();
+    Require(editor->GetSourceHighlights().size() == 2u && editor->DebugGetState().layoutGeneration == generation,
+            "find highlights and focus paint reuse native geometry");
+    auto invalid            = appearance;
+    invalid.bodyFontSizeDip = std::numeric_limits<float>::quiet_NaN();
+    bool rejected           = false;
+    try
+    {
+        editor->SetAppearance(invalid);
+    }
+    catch (const std::invalid_argument&)
+    {
+        rejected = true;
+    }
+    Require(rejected && editor->GetAppearance() == appearance, "invalid appearance is atomically rejected");
+    rejected = false;
+    const std::array malformed{RichTextSourceHighlight{source.find(L"\U0001f600") + 1u, 1u, false}};
+    try
+    {
+        editor->SetSourceHighlights(malformed);
+    }
+    catch (const std::invalid_argument&)
+    {
+        rejected = true;
+    }
+    Require(rejected && editor->GetSourceHighlights().size() == 2u, "highlight cannot split a UTF-16 scalar");
+    editor->SetSelection({alpha, alpha});
+    Require(editor->ReplaceSelection(L"!") && editor->GetSourceHighlights().empty(), "source mutation retires all stale highlights");
+    Require(editor->Undo() && editor->GetText() == source, "presentation preserves atomic source undo");
+    fixture.Publish();
+    editor->SetVisible(false);
+    fixture.Publish();
+    Require(! editor->IsLinkUnderlineVisible(alpha), "hidden editor exposes no stale link cue");
+    editor->SetVisible(true);
+    fixture.Publish();
+    editor->SetViewMode(ViewMode::Source);
+    fixture.Publish();
+    Require(editor->GetText() == source && ! editor->GetAcknowledgedSemanticDocument(*fixture.controls),
+            "source mode preserves exact raw text and retires semantic decoration");
+    appearance.colorizeMarkdownSource = true;
+    editor->SetAppearance(appearance);
+    fixture.Publish();
+    Require(editor->DebugGetState().sourceInkRangeCount > 0u && client.DocumentText(owner) == source,
+            "native/embedded source ink keeps actual UIA text exact, including delimiters and original line endings");
+    editor->SetSelection({alpha, alpha + 5u});
+    fixture.Publish();
+    Require(client.TextSelectionText(owner) == L"alpha" && client.TextCaretPosition(owner) == alpha + 5u && ! editor->CanUndo(),
+            "syntax ink never replaces source selection, text-service offsets or history");
+}
+void TestRichTextAccessibilityWindowPresentationAndLinkCues()
+{
+    RichEditorPresentationAndLinkCues(false);
+}
+void TestRichTextAccessibilityEmbeddedPresentationAndLinkCues()
+{
+    EmbeddedCase(RichEditorPresentationAndLinkCues);
+}
+void RichEditorSelectionNotifications(bool embedded)
+{
+    RichAccessibilityFixture fixture(embedded);
+    UiaTest::Client client(fixture.Hwnd(), {}, [&] { fixture.Pump(); });
+    const auto owner = FindEditor(client, client.Root());
+    Require(owner != 0u, "selection callback fixture is application-reachable");
+    size_t calls        = 0u;
+    bool pointerGesture = false;
+    RichText::Selection published{};
+    fixture.editor->SetOnSelectionChanged([&]
+    {
+        ++calls;
+        published      = fixture.editor->GetSelection();
+        pointerGesture = fixture.editor->IsSelectionGestureActive();
+    });
+    RequireSucceeded(client.ExecuteTextRangeCommand(owner, L"beta", UiaTest::TextRangeCommand::AddToSelection), "actual client selects source beta");
+    const auto detail =
+        std::format("UIA source selection callback: calls={}, anchor={}, caret={}, gesture={}", calls, published.anchor, published.caret, pointerGesture);
+    Require(calls == 1u && ! pointerGesture && published == RichText::Selection{11u, 15u}, detail.c_str());
+    fixture.Publish();
+    Require(client.TextSelectionText(owner) == L"beta", "actual client reads source selection after owner snapshot publication");
+    RequireSucceeded(client.ExecuteTextRangeCommand(owner, L"beta", UiaTest::TextRangeCommand::AddToSelection), "actual client repeats beta selection");
+    Require(calls == 1u, "identical UIA selection does not duplicate consumer notification");
+    RequireSucceeded(client.ExecuteTextRangeCommand(owner, L"beta", UiaTest::TextRangeCommand::RemoveFromSelection), "actual client removes source beta");
+    Require(calls == 2u && published.anchor == published.caret && ! fixture.editor->CanUndo(),
+            "UIA deselection uses canonical publication without changing source history");
+    fixture.Publish();
+    Require(client.TextSelectionText(owner).empty(), "actual client reads deselection from the published owner snapshot");
+}
+void TestRichTextAccessibilityWindowSelectionNotifications()
+{
+    RichEditorSelectionNotifications(false);
+}
+void TestRichTextAccessibilityEmbeddedSelectionNotifications()
+{
+    EmbeddedCase(RichEditorSelectionNotifications);
+}
+void RichEditorAcknowledgementIsPerEditor(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded);
+    const std::wstring source = L"inline $x$ formula\r\n\r\nsecond paragraph";
+    auto panel                = std::make_unique<Panel>();
+    auto* editor              = panel->AddChild<RichAccessibilityEditor>(source);
+    editor->SetBounds(D2D1::RectF(0.0f, 0.0f, 440.0f, 120.0f));
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    auto* preview = panel->AddChild<RichTextEditor>(L"preview");
+    preview->SetBounds(D2D1::RectF(0.0f, 130.0f, 440.0f, 230.0f));
+    fixture.editor = editor;
+    fixture.controls->SetRoot(std::move(panel));
+    fixture.controls->SetFocusControl(editor, false);
+    fixture.Publish();
+    const auto document = editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+    Require(document != nullptr, "two-editor owner fixture acknowledges initial semantic geometry");
+    const auto math =
+        std::find_if(document->Elements().begin(), document->Elements().end(), [](const auto& element) { return element.role == SemanticRole::Math; });
+    Require(math != document->Elements().end() && source.substr(math->source.first, math->source.last - math->source.first) == L"$x$",
+            "acknowledged semantic math retains exact inline source envelope");
+    const auto index = static_cast<size_t>(math - document->Elements().begin());
+    editor->SetOnSelectionChanged([&] { preview->SetText(L"pending equation preview"); });
+    editor->SetSelection({math->source.first, math->source.first});
+    Require(fixture.controls->HasPendingContentPreparation() && editor->GetAcknowledgedSemanticDocument(*fixture.controls) == document &&
+                editor->GetSemanticElementBounds(*fixture.controls, index).has_value(),
+            "selection-triggered sibling preparation cannot revoke current main semantic geometry or math source");
+    const auto ranges = editor->GetTextInputRangeRects(*fixture.controls, 0u, 6u);
+    Require(ranges && ! ranges->empty(), "own source geometry stays usable while a sibling is pending");
+    Require(editor->OnKeyDown(*fixture.controls, VK_DOWN, 0u) && editor->GetSelection().caret > math->source.first,
+            "own prepared vertical navigation remains available during sibling work");
+    ControlHost foreign;
+    Require(! editor->GetAcknowledgedSemanticDocument(foreign), "foreign host never acknowledges the editor's geometry");
+    editor->SetOnSelectionChanged({});
+    editor->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 120.0f));
+    Require(! editor->GetAcknowledgedSemanticDocument(*fixture.controls), "own width reflow still rejects stale semantic geometry");
+    fixture.Publish();
+    editor->SetSelection({0u, 0u});
+    Require(editor->ReplaceSelection(L"!") && ! editor->GetAcknowledgedSemanticDocument(*fixture.controls),
+            "own source mutation immediately rejects old geometry even when a sibling is also preparing");
+    Require(editor->Undo() && editor->GetText() == source && ! editor->GetAcknowledgedSemanticDocument(*fixture.controls),
+            "undo retains exact source but still needs own current geometry acknowledgement");
+    fixture.Publish();
+    Require(editor->GetAcknowledgedSemanticDocument(*fixture.controls) != nullptr, "owner preparation restores acknowledgement without depending on siblings");
+}
+void TestRichTextAccessibilityWindowAcknowledgementIsPerEditor()
+{
+    RichEditorAcknowledgementIsPerEditor(false);
+}
+void TestRichTextAccessibilityEmbeddedAcknowledgementIsPerEditor()
+{
+    EmbeddedCase(RichEditorAcknowledgementIsPerEditor);
+}
 void SemanticAttributesAndFormats(bool embedded)
 {
     RichAccessibilityFixture fixture(embedded, true, true);
@@ -2079,6 +2328,12 @@ void TestRichTextAccessibilityEmbeddedFootnoteNavigation()
 void RunRichTextAccessibilityTests()
 {
     ScopedNonActivatingTestWindows nonActivating;
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowPresentationAndLinkCues);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedPresentationAndLinkCues);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowSelectionNotifications);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSelectionNotifications);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowAcknowledgementIsPerEditor);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedAcknowledgementIsPerEditor);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSemanticAttributesAndFormats);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSemanticCompositionBindingAndRetirement);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSemanticCompositionBindingAndRetirement);

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iterator>
+#include <limits>
 #include <span>
 #include <unordered_set>
 #include <vector>
@@ -55,7 +56,8 @@ struct TreeResolvedRowVisuals final
                                                            bool current,
                                                            bool focused,
                                                            bool keyboardFocused,
-                                                           bool hovered) noexcept
+                                                           bool hovered,
+                                                           bool neutralDecorations = false) noexcept
 {
     TreeResolvedRowVisuals visuals{};
     visuals.text = theme.text;
@@ -78,7 +80,7 @@ struct TreeResolvedRowVisuals final
     else if (selected)
     {
         visuals.fill = focused ? theme.selectionFill : theme.selectionInactiveFill;
-        visuals.text = focused ? theme.selectionText : ResolveInactiveSelectionTextColor(theme, theme.text, theme.surfaceBackground);
+        visuals.text = focused ? theme.selectionText : ResolveInactiveSelectionTextColor(theme, theme.selectionText, theme.surfaceBackground);
     }
     else if (hovered)
     {
@@ -90,9 +92,15 @@ struct TreeResolvedRowVisuals final
     const TreeBadgeVisualStyle badgeStyle = ResolveTreeBadgeVisualStyle(theme, badgeTone);
     visuals.badgeFill                     = badgeStyle.fill;
     visuals.badgeText                     = badgeStyle.text;
-    const RowFocusVisuals focus           = ResolveRowFocusVisuals(theme, visuals.fill, selected, current, focused, keyboardFocused);
-    visuals.focus                         = focus.color;
-    visuals.showFocus                     = focus.shown;
+    if (neutralDecorations && ! theme.highContrast)
+    {
+        visuals.icon      = selected ? visuals.text : theme.subduedText;
+        visuals.badgeFill = theme.buttonFill;
+        visuals.badgeText = theme.subduedText;
+    }
+    const RowFocusVisuals focus = ResolveRowFocusVisuals(theme, visuals.fill, selected, current, focused, keyboardFocused);
+    visuals.focus               = focus.color;
+    visuals.showFocus           = focus.shown;
     return visuals;
 }
 
@@ -172,12 +180,15 @@ void DrawTreeRow(ControlHost& host,
                  bool keyboardFocused,
                  float expanderProgress,
                  float alpha,
-                 FlowDirection flowDirection) noexcept
+                 FlowDirection flowDirection,
+                 const std::optional<Tree::TypographyOverride>& typographyOverride,
+                 bool neutralDecorations) noexcept
 {
-    const TreeResolvedRowVisuals rowVisuals = ResolveTreeRowVisuals(theme, item.text, item.badgeTone, selected, current, focused, keyboardFocused, hovered);
-    const D2D1_COLOR_F fill                 = WithAlpha(rowVisuals.fill, alpha);
-    const D2D1_COLOR_F textColor            = WithAlpha(rowVisuals.text, alpha);
-    const D2D1_COLOR_F transparent          = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
+    const TreeResolvedRowVisuals rowVisuals =
+        ResolveTreeRowVisuals(theme, item.text, item.badgeTone, selected, current, focused, keyboardFocused, hovered, neutralDecorations);
+    const D2D1_COLOR_F fill        = WithAlpha(rowVisuals.fill, alpha);
+    const D2D1_COLOR_F textColor   = WithAlpha(rowVisuals.text, alpha);
+    const D2D1_COLOR_F transparent = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
 
     if (fill.a > 0.0f)
     {
@@ -220,20 +231,52 @@ void DrawTreeRow(ControlHost& host,
 
     if (layout.hasBadge)
     {
-        DrawRoundedRect(host, layout.badgeRect, WithAlpha(rowVisuals.badgeFill, alpha), transparent, 9.0f);
+        if (item.badgeIsDot)
+            DrawRoundedRect(host, layout.badgeRect, WithAlpha(rowVisuals.text, alpha), transparent, 4.0f);
+        else
+        {
+            DrawRoundedRect(host, layout.badgeRect, WithAlpha(rowVisuals.badgeFill, alpha), transparent, 9.0f);
+            DrawCenteredText(host,
+                             item.badgeText,
+                             layout.badgeRect,
+                             FontRole::Small,
+                             WithAlpha(rowVisuals.badgeText, alpha),
+                             DWRITE_TEXT_ALIGNMENT_CENTER,
+                             DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                             false,
+                             flowDirection);
+        }
+    }
+
+    if (typographyOverride)
+    {
+        auto* const dc     = host.GetDeviceContext();
+        auto* const format = host.GetTextFormat(FontRole::Body,
+                                                typographyOverride->fontSizeDip,
+                                                current ? typographyOverride->currentFontWeight : typographyOverride->fontWeight,
+                                                DWRITE_TEXT_ALIGNMENT_LEADING,
+                                                DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                                                false,
+                                                ResolveReadingDirection(flowDirection));
+        if (dc && format)
+        {
+            if (auto* brush = host.GetSolidBrush(textColor))
+                dc->DrawTextW(
+                    item.text.data(), static_cast<UINT32>(item.text.size()), format, layout.textRect, brush, kTextDrawOptions, DWRITE_MEASURING_MODE_NATURAL);
+        }
+    }
+    else
+    {
         DrawCenteredText(host,
-                         item.badgeText,
-                         layout.badgeRect,
-                         FontRole::Small,
-                         WithAlpha(rowVisuals.badgeText, alpha),
-                         DWRITE_TEXT_ALIGNMENT_CENTER,
+                         item.text,
+                         layout.textRect,
+                         FontRole::Body,
+                         textColor,
+                         DWRITE_TEXT_ALIGNMENT_LEADING,
                          DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
                          false,
                          flowDirection);
     }
-
-    DrawCenteredText(
-        host, item.text, layout.textRect, FontRole::Body, textColor, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, flowDirection);
 }
 
 } // namespace
@@ -463,6 +506,20 @@ Tree::Tree()
     SetFocusable(true);
 }
 
+void Tree::SetAppearance(const TreeAppearance& appearance) noexcept
+{
+    if (_appearance == appearance)
+        return;
+    _appearance = appearance;
+    InvalidateTreeTextMeasurementCaches();
+    RequestInvalidate();
+}
+
+const TreeAppearance& Tree::GetAppearance() const noexcept
+{
+    return _appearance;
+}
+
 void Tree::InvalidateTreeTextMeasurementCaches() const noexcept
 {
     _badgeWidthCache.clear();
@@ -490,14 +547,18 @@ void Tree::SetModel(ITreeModel* model) noexcept
     const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
     ++_modelBindingRevision;
     ++_modelRevision;
-    const uint64_t revision           = _modelRevision;
-    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    const uint64_t revision             = _modelRevision;
+    const std::weak_ptr<int> lifetime   = GetLifetimeToken();
+    const bool cancelSingleClickCapture = _singleClickCaptureArmed || _singleClickInvokeItemId.has_value();
+    _singleClickInvokeItemId.reset();
     // A row drag cannot outlive the model it started in: ids in another model name other rows.
-    if (_reorderArmed)
+    if (_reorderArmed || cancelSingleClickCapture)
     {
-        ClearReorderDrag();
+        if (_reorderArmed)
+            ClearReorderDrag();
         if (ControlHost* const host = GetHost(); host && host->GetCapturedControl() == this)
         {
+            _singleClickCaptureArmed = false;
             host->ReleaseMouseCapture();
             if (lifetime.expired() || _modelRevision != revision)
                 return;
@@ -519,7 +580,37 @@ void Tree::SetDelegate(ITreeDelegate* delegate) noexcept
     const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
     ++_modelBindingRevision;
     ++_modelRevision;
+    _singleClickInvokeItemId.reset();
     _delegate = delegate;
+}
+
+void Tree::SetInvokeOnSingleClick(bool enabled) noexcept
+{
+    if (_invokeOnSingleClick == enabled)
+        return;
+    _invokeOnSingleClick = enabled;
+    _singleClickInvokeItemId.reset();
+}
+
+HRESULT Tree::SetTypographyOverride(std::optional<TypographyOverride> typography) noexcept
+{
+    if (typography &&
+        (! std::isfinite(typography->fontSizeDip) || typography->fontSizeDip < 6.0f || typography->fontSizeDip > 96.0f || typography->fontWeight < 100 ||
+         typography->fontWeight > 900 || typography->currentFontWeight < 100 || typography->currentFontWeight > 900))
+        return E_INVALIDARG;
+    if (typography)
+        typography->fontSizeDip = static_cast<float>(std::lround(typography->fontSizeDip * 64.0f)) / 64.0f;
+    if (_typographyOverride == typography)
+        return S_FALSE;
+    _typographyOverride = typography;
+    InvalidateTreeTextMeasurementCaches();
+    RequestInvalidate();
+    return S_OK;
+}
+
+std::optional<Tree::TypographyOverride> Tree::GetTypographyOverride() const noexcept
+{
+    return _typographyOverride;
 }
 
 void Tree::SetRowHeightDip(float rowHeightDip) noexcept
@@ -1070,11 +1161,11 @@ bool Tree::DebugGetRowVisualState(const ThemePalette& theme, size_t visibleIndex
     TreeItemData item;
     if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
         return false;
-    const bool selected = IsItemSelected(item.id);
-    const bool current  = _focusedItemId && _focusedItemId.value() == item.id;
-    const bool hovered  = _hoveredVisibleIndex && _hoveredVisibleIndex.value() == visibleIndex;
-    const TreeResolvedRowVisuals visuals =
-        ResolveTreeRowVisuals(theme, item.text, item.badgeTone, selected, current, HasFocus(), keyboardFocusVisible && HasFocus(), hovered);
+    const bool selected                  = IsItemSelected(item.id);
+    const bool current                   = _focusedItemId && _focusedItemId.value() == item.id;
+    const bool hovered                   = _hoveredVisibleIndex && _hoveredVisibleIndex.value() == visibleIndex;
+    const TreeResolvedRowVisuals visuals = ResolveTreeRowVisuals(
+        theme, item.text, item.badgeTone, selected, current, HasFocus(), keyboardFocusVisible && HasFocus(), hovered, _appearance.neutralDecorations);
     out.fillArgb         = PackColor(visuals.fill);
     out.textArgb         = PackColor(visuals.text);
     out.iconArgb         = PackColor(visuals.icon);
@@ -1117,7 +1208,15 @@ void Tree::Paint(ControlHost& host) const
     const ITreeModel* const model             = _model;
     const ThemePalette& theme                 = host.GetTheme();
     const TreeSurfaceVisualStyle surfaceStyle = ResolveTreeSurfaceVisualStyle(theme);
-    DrawRoundedRect(host, GetBounds(), surfaceStyle.fill, surfaceStyle.border, 4.0f);
+    if (_appearance.drawBackground || _appearance.drawBorder || theme.highContrast)
+    {
+        const auto transparent = D2D1::ColorF(0.f, 0.f, 0.f, 0.f);
+        DrawRoundedRect(host,
+                        GetBounds(),
+                        _appearance.drawBackground || theme.highContrast ? surfaceStyle.fill : transparent,
+                        _appearance.drawBorder || theme.highContrast ? surfaceStyle.border : transparent,
+                        4.0f);
+    }
 
     const D2D1_RECT_F contentRect = GetContentRect();
     if (! guard.IsCurrent())
@@ -1220,7 +1319,20 @@ void Tree::Paint(ControlHost& host) const
         const bool hovered           = hoveredVisibleIndex && hoveredVisibleIndex.value() == static_cast<size_t>(visibleIndex);
         const bool keyboardFocused   = current && HasFocus() && host.IsKeyboardFocusVisible();
         const float expanderProgress = theme.reducedMotion ? (item.expanded ? 1.0f : 0.0f) : GetExpanderProgress(item.id, item.expanded, nowTickMs);
-        DrawTreeRow(host, theme, layout, item, selected, current, hovered, HasFocus(), keyboardFocused, expanderProgress, rowAlpha, GetFlowDirection());
+        DrawTreeRow(host,
+                    theme,
+                    layout,
+                    item,
+                    selected,
+                    current,
+                    hovered,
+                    HasFocus(),
+                    keyboardFocused,
+                    expanderProgress,
+                    rowAlpha,
+                    GetFlowDirection(),
+                    _typographyOverride,
+                    _appearance.neutralDecorations);
     }
 
     if (animateTreeExpansion && _treeExpansionAnimation.has_value() && ! _treeExpansionAnimation->toExpanded)
@@ -1265,7 +1377,9 @@ void Tree::Paint(ControlHost& host) const
                             keyboardFocused,
                             expanderProgress,
                             1.0f - progress,
-                            GetFlowDirection());
+                            GetFlowDirection(),
+                            _typographyOverride,
+                            _appearance.neutralDecorations);
             }
         }
     }
@@ -1420,7 +1534,7 @@ bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
     }
 
     const ITreeModel* const model = _model;
-    const HitInfo hit             = HitTestPoint(MakePointDip(point));
+    const HitInfo hit             = HitTestPoint(host, MakePointDip(point));
     if (! guard.IsCurrent())
         return false;
     const std::optional<size_t> previousHoveredIndex = _hoveredVisibleIndex;
@@ -1480,9 +1594,10 @@ bool Tree::OnMouseLeave(ControlHost& host)
 
 bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
+    _singleClickInvokeItemId.reset();
     TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
-    const HitInfo aimed           = HitTestPoint(MakePointDip(point));
+    const HitInfo aimed           = HitTestPoint(host, MakePointDip(point));
     if (! guard.IsCurrent())
         return true;
     if (aimed.zone == HitZone::None)
@@ -1503,7 +1618,7 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
     // since it would otherwise act on whatever now lies there.
     if (! guard.ResumeAfterCallback())
         return true;
-    const HitInfo hit = HitTestPoint(MakePointDip(point));
+    const HitInfo hit = HitTestPoint(host, MakePointDip(point));
     if (! guard.IsCurrent() || ! IsSameHitTarget(aimed, hit))
         return true;
     TreeItemData hitItem;
@@ -1513,6 +1628,17 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
     SyncScrollbarAnimation(host);
     if (rightButton)
     {
+        if (_singleClickCaptureArmed)
+        {
+            _singleClickInvokeItemId.reset();
+            if (host.GetCapturedControl() == this)
+            {
+                _singleClickCaptureArmed = false;
+                host.ReleaseMouseCapture();
+                if (! guard.IsCurrent())
+                    return true;
+            }
+        }
         if (_reorderArmed)
         {
             // A second button cancels the row drag: its release would otherwise drop the capture without a cancel.
@@ -1630,6 +1756,16 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
             ClearReorderDrag();
         }
     }
+    if (_invokeOnSingleClick && hit.zone == HitZone::Item && guard.IsCurrent())
+    {
+        _singleClickInvokeItemId = hitItem.id;
+        _singleClickCaptureArmed = true;
+        // Native capture transfer can synchronously notify the previous owner,
+        // whose callback may retire this tree. Publish state before that boundary.
+        host.CaptureMouse(this);
+        if (! guard.IsCurrent())
+            return true;
+    }
     Invalidate(host);
     return true;
 }
@@ -1645,7 +1781,7 @@ bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
 
     TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
-    const HitInfo aimed           = HitTestPoint(MakePointDip(point));
+    const HitInfo aimed           = HitTestPoint(host, MakePointDip(point));
     if (! guard.IsCurrent())
         return true;
     if (aimed.zone != HitZone::Item && aimed.zone != HitZone::Expander)
@@ -1663,7 +1799,7 @@ bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
     // As for a press: only a focus handler that changed this tree's own layout or rows consumes the double-click.
     if (! guard.ResumeAfterCallback())
         return true;
-    const HitInfo hit = HitTestPoint(MakePointDip(point));
+    const HitInfo hit = HitTestPoint(host, MakePointDip(point));
     if (! guard.IsCurrent() || ! IsSameHitTarget(aimed, hit))
         return true;
     TreeItemData item;
@@ -1701,7 +1837,7 @@ bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
             host.RequestAnimation();
         }
     }
-    else if (_delegate)
+    else if (_delegate && ! _invokeOnSingleClick)
     {
         Invalidate(host);
         _delegate->OnTreeItemInvoked(currentItem.id);
@@ -1716,6 +1852,12 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     if (rightButton)
     {
+        _singleClickInvokeItemId.reset();
+        _singleClickCaptureArmed = false;
+        if (host.GetCapturedControl() == this)
+        {
+            host.ReleaseMouseCapture();
+        }
         return false;
     }
 
@@ -1732,9 +1874,12 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
         const bool commit   = dragged && _reorderDrop.has_value() && _delegate != nullptr;
         const TreeDrop drop = _reorderDrop.value_or(TreeDrop{});
         // A click (not a drag) on a row of a multi-selection selects that row alone once the pointer is up.
-        const bool collapse       = ! dragged && _reorderCollapsesSelection;
-        const uint64_t collapseId = _reorderSourceId;
+        const bool collapse                    = ! dragged && _reorderCollapsesSelection;
+        const uint64_t collapseId              = _reorderSourceId;
+        const std::optional<uint64_t> invokeId = (! dragged && _invokeOnSingleClick) ? _singleClickInvokeItemId : std::nullopt;
         ClearReorderDrag();
+        _singleClickInvokeItemId.reset();
+        _singleClickCaptureArmed = false;
         host.ReleaseMouseCapture();
         if (! guard.IsCurrent())
             return false;
@@ -1751,6 +1896,22 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
         {
             _delegate->OnTreeReorder(drop);
         }
+        if (invokeId.has_value() && ! guard.IsCurrent())
+            return dragged;
+        if (invokeId.has_value() && _delegate)
+        {
+            const HitInfo releaseHit = HitTestPoint(host, MakePointDip(point));
+            if (! guard.IsCurrent())
+                return false;
+            TreeItemData releaseItem{};
+            const ITreeModel* const model = _model;
+            if (releaseHit.zone == HitZone::Item && model && TryControlCallback([&] { model->GetVisibleItem(releaseHit.visibleIndex, releaseItem); }) &&
+                guard.IsCurrent() && releaseItem.id == invokeId.value())
+            {
+                ITreeDelegate* const delegate = _delegate;
+                delegate->OnTreeItemInvoked(releaseItem.id);
+            }
+        }
         // A click that never became a drag reports unhandled, like the tree without reordering.
         return dragged;
     }
@@ -1758,13 +1919,36 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
     const bool wasDragging = _dragVerticalThumb;
     _dragVerticalThumb     = false;
     _dragThumbOffsetDip    = 0.0f;
-    UpdateScrollbarHotState(HitTestPoint(MakePointDip(point)));
+    UpdateScrollbarHotState(HitTestPoint(host, MakePointDip(point)));
     if (! guard.IsCurrent())
         return wasDragging;
     SyncScrollbarAnimation(host);
     if (wasDragging)
     {
         Invalidate(host);
+    }
+    const std::optional<uint64_t> invokeId = std::exchange(_singleClickInvokeItemId, std::nullopt);
+    const bool releaseSingleClickCapture   = std::exchange(_singleClickCaptureArmed, false);
+    if (releaseSingleClickCapture && host.GetCapturedControl() == this)
+    {
+        host.ReleaseMouseCapture();
+        if (! guard.IsCurrent())
+            return wasDragging;
+    }
+    if (invokeId.has_value() && _invokeOnSingleClick && _delegate)
+    {
+        const HitInfo releaseHit = HitTestPoint(host, MakePointDip(point));
+        if (! guard.IsCurrent())
+            return wasDragging;
+        TreeItemData releaseItem{};
+        const ITreeModel* const model = _model;
+        if (releaseHit.zone == HitZone::Item && model && TryControlCallback([&] { model->GetVisibleItem(releaseHit.visibleIndex, releaseItem); }) &&
+            guard.IsCurrent() && releaseItem.id == invokeId.value())
+        {
+            ITreeDelegate* const delegate = _delegate;
+            delegate->OnTreeItemInvoked(releaseItem.id);
+            return true;
+        }
     }
     return wasDragging;
 }
@@ -1776,6 +1960,8 @@ void Tree::OnCaptureLost(ControlHost& host)
         ClearReorderDrag();
         Invalidate(host);
     }
+    _singleClickInvokeItemId.reset();
+    _singleClickCaptureArmed = false;
     if (_dragVerticalThumb)
     {
         _dragVerticalThumb  = false;
@@ -1822,9 +2008,21 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
     if (_reorderArmed && virtualKey == VK_ESCAPE)
     {
+        _singleClickInvokeItemId.reset();
+        _singleClickCaptureArmed = false;
         ClearReorderDrag();
         host.ReleaseMouseCapture();
         Invalidate(host);
+        return true;
+    }
+    if (_singleClickInvokeItemId.has_value() && virtualKey == VK_ESCAPE)
+    {
+        _singleClickInvokeItemId.reset();
+        if (host.GetCapturedControl() == this)
+        {
+            _singleClickCaptureArmed = false;
+            host.ReleaseMouseCapture();
+        }
         return true;
     }
 
@@ -1984,6 +2182,8 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             {
                 return landOn(currentIndex.value(), SelectMode::Toggle);
             }
+            if (virtualKey == VK_SPACE && _invokeOnSingleClick)
+                return true;
             if (_delegate)
             {
                 _delegate->OnTreeItemInvoked(item.id);
@@ -2086,7 +2286,7 @@ bool Tree::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_
     }
     else
     {
-        const HitInfo hit = HitTestPoint(MakePointDip(pointDip));
+        const HitInfo hit = HitTestPoint(host, MakePointDip(pointDip));
         if (! guard.IsCurrent())
             return false;
         if (hit.zone != HitZone::Item && hit.zone != HitZone::Expander)
@@ -2160,9 +2360,19 @@ std::wstring Tree::ResolveCachedTreeTooltipText(const ControlHost& host,
                                                 const TreeItemData& item,
                                                 const TreeItemLayoutMetrics& layout) const
 {
-    const float availableWidthDip   = (std::max)(0.0f, layout.textRect.right - layout.textRect.left);
-    auto* textFormat                = host.GetTextFormat(FontRole::Body);
-    TreeTooltipOverflowCache& cache = _tooltipOverflowCache;
+    const float availableWidthDip      = (std::max)(0.0f, layout.textRect.right - layout.textRect.left);
+    const DWRITE_FONT_WEIGHT rowWeight = _typographyOverride && _focusedItemId == std::optional<uint64_t>(item.id)
+                                             ? _typographyOverride->currentFontWeight
+                                             : (_typographyOverride ? _typographyOverride->fontWeight : DWRITE_FONT_WEIGHT_NORMAL);
+    auto* textFormat                   = _typographyOverride ? host.GetTextFormat(FontRole::Body,
+                                                                                  _typographyOverride->fontSizeDip,
+                                                                                  rowWeight,
+                                                                                  DWRITE_TEXT_ALIGNMENT_LEADING,
+                                                                                  DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                                                                                  false,
+                                                                                  ResolveReadingDirection(GetFlowDirection()))
+                                                             : host.GetTextFormat(FontRole::Body);
+    TreeTooltipOverflowCache& cache    = _tooltipOverflowCache;
     if (cache.valid && cache.visibleIndex == visibleIndex && cache.itemId == item.id && cache.text == item.text && cache.tooltipText == item.tooltipText &&
         cache.textFormat == textFormat && cache.availableWidthDip == availableWidthDip)
     {
@@ -2176,7 +2386,26 @@ std::wstring Tree::ResolveCachedTreeTooltipText(const ControlHost& host,
     }
     else if (availableWidthDip > 0.0f && ! item.text.empty())
     {
-        const float textWidthDip = MeasureSingleLineTextWidthDip(&host, item.text, FontRole::Body);
+        float textWidthDip = MeasureSingleLineTextWidthDip(&host, item.text, FontRole::Body);
+        if (_typographyOverride)
+        {
+            if (auto* factory = host.GetWriteFactory())
+            {
+                wil::com_ptr<IDWriteTextLayout> measuredLayout;
+                if (SUCCEEDED(factory->CreateTextLayout(item.text.data(),
+                                                        static_cast<UINT32>(item.text.size()),
+                                                        textFormat,
+                                                        (std::numeric_limits<float>::max)(),
+                                                        (std::numeric_limits<float>::max)(),
+                                                        measuredLayout.put())) &&
+                    measuredLayout)
+                {
+                    DWRITE_TEXT_METRICS metrics{};
+                    if (SUCCEEDED(measuredLayout->GetMetrics(&metrics)))
+                        textWidthDip = metrics.widthIncludingTrailingWhitespace;
+                }
+            }
+        }
         if (textWidthDip > (availableWidthDip + 0.5f))
         {
             resolvedTooltipText = item.text;
@@ -2200,6 +2429,13 @@ std::wstring Tree::ResolveCachedTreeTooltipText(const ControlHost& host,
 
 TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, size_t visibleIndex, const TreeItemData& item) const noexcept
 {
+    // Paint, input, tooltip and accessibility geometry share exactly one row layout.
+    const float rowTop = GetBounds().top + kTreeContentInsetDip + static_cast<float>(visibleIndex) * _rowHeightDip - _verticalScrollDip;
+    return ComputeItemLayoutMetrics(host, rowTop, item);
+}
+
+TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, float rowTopDip, const TreeItemData& item) const noexcept
+{
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     TreeItemLayoutMetrics metrics{};
     const D2D1_RECT_F contentRect = GetContentRect();
@@ -2208,97 +2444,35 @@ TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, si
         return metrics;
     }
 
-    const float rowTop  = contentRect.top + (static_cast<float>(visibleIndex) * _rowHeightDip) - _verticalScrollDip;
-    metrics.rowRect     = D2D1::RectF(contentRect.left + 2.0f, rowTop, contentRect.right - 2.0f, rowTop + _rowHeightDip);
-    metrics.hasExpander = item.hasChildren;
-    metrics.hasIcon     = ! item.iconText.empty();
-    metrics.hasBadge    = ! item.badgeText.empty();
-
-    float contentLeft = contentRect.left + 8.0f + (static_cast<float>(item.depth) * _indentDip);
-    if (metrics.hasExpander)
-    {
-        metrics.expanderRect = D2D1::RectF(contentLeft, metrics.rowRect.top + 6.0f, contentLeft + 12.0f, metrics.rowRect.bottom - 6.0f);
-        contentLeft          = metrics.expanderRect.right + 4.0f;
-    }
-
-    if (metrics.hasIcon)
-    {
-        const float iconTop = metrics.rowRect.top + (std::max)(2.0f, (_rowHeightDip - 18.0f) * 0.5f);
-        metrics.iconRect    = D2D1::RectF(contentLeft, iconTop, contentLeft + 18.0f, (std::min)(metrics.rowRect.bottom - 2.0f, iconTop + 18.0f));
-        contentLeft         = metrics.iconRect.right + 4.0f;
-    }
-
-    float contentRight = contentRect.right - 8.0f;
-    if (metrics.hasBadge)
-    {
-        const float badgeTextWidth = MeasureCachedBadgeTextWidthDip(host, item.badgeText);
-        const float badgeWidth     = (std::clamp)(badgeTextWidth + kTreeBadgeHorizontalPaddingDip,
-                                                  kTreeBadgeMinWidthDip,
-                                                  (std::max)(kTreeBadgeMinWidthDip, contentRect.right - contentRect.left - 16.0f));
-        const float badgeHeight    = (std::min)(kTreeBadgeMaxHeightDip, (std::max)(kTreeBadgeMinHeightDip, _rowHeightDip - 10.0f));
-        const float badgeTop       = metrics.rowRect.top + (std::max)(2.0f, (_rowHeightDip - badgeHeight) * 0.5f);
-        const float badgeLeft      = (std::max)(contentLeft + 20.0f, contentRight - badgeWidth);
-        metrics.badgeRect          = D2D1::RectF(badgeLeft, badgeTop, contentRight, badgeTop + badgeHeight);
-        contentRight               = metrics.badgeRect.left - 8.0f;
-    }
-
-    metrics.textRect = D2D1::RectF(contentLeft, metrics.rowRect.top, (std::max)(contentLeft, contentRight), metrics.rowRect.bottom);
-    if (IsRightToLeft())
-    {
-        const auto mirrorRect = [contentRect](D2D1_RECT_F& rect) noexcept
-        {
-            if (rect.right > rect.left)
-            {
-                const float left = contentRect.left + contentRect.right - rect.right;
-                rect.right       = contentRect.left + contentRect.right - rect.left;
-                rect.left        = left;
-            }
-        };
-        mirrorRect(metrics.rowRect);
-        mirrorRect(metrics.expanderRect);
-        mirrorRect(metrics.iconRect);
-        mirrorRect(metrics.badgeRect);
-        mirrorRect(metrics.textRect);
-    }
-    return metrics;
-}
-
-TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, float rowTopDip, const TreeItemData& item) const noexcept
-{
-    TreeItemLayoutMetrics metrics{};
-    const D2D1_RECT_F contentRect = GetContentRect();
-    if (contentRect.right <= contentRect.left || contentRect.bottom <= contentRect.top)
-    {
-        return metrics;
-    }
-
     metrics.rowRect     = D2D1::RectF(contentRect.left + 2.0f, rowTopDip, contentRect.right - 2.0f, rowTopDip + _rowHeightDip);
-    metrics.hasExpander = item.hasChildren;
+    metrics.hasExpander = item.hasChildren && _appearance.showExpanders;
     metrics.hasIcon     = ! item.iconText.empty();
     metrics.hasBadge    = ! item.badgeText.empty();
 
     float contentLeft = contentRect.left + 8.0f + (static_cast<float>(item.depth) * _indentDip);
-    if (metrics.hasExpander)
+    if (metrics.hasExpander || _appearance.reserveExpanderSpace)
     {
-        metrics.expanderRect = D2D1::RectF(contentLeft, metrics.rowRect.top + 6.0f, contentLeft + 12.0f, metrics.rowRect.bottom - 6.0f);
-        contentLeft          = metrics.expanderRect.right + 4.0f;
+        const float width    = _appearance.reserveExpanderSpace ? 16.f : 12.f;
+        metrics.expanderRect = D2D1::RectF(contentLeft, metrics.rowRect.top + 6.0f, contentLeft + width, metrics.rowRect.bottom - 6.0f);
+        contentLeft          = metrics.expanderRect.right + (_appearance.reserveExpanderSpace ? 6.f : 4.f);
     }
 
     if (metrics.hasIcon)
     {
         const float iconTop = metrics.rowRect.top + (std::max)(2.0f, (_rowHeightDip - 18.0f) * 0.5f);
         metrics.iconRect    = D2D1::RectF(contentLeft, iconTop, contentLeft + 18.0f, (std::min)(metrics.rowRect.bottom - 2.0f, iconTop + 18.0f));
-        contentLeft         = metrics.iconRect.right + 4.0f;
+        contentLeft         = metrics.iconRect.right + (_appearance.reserveExpanderSpace ? 6.f : 4.f);
     }
 
     float contentRight = contentRect.right - 8.0f;
     if (metrics.hasBadge)
     {
-        const float badgeTextWidth = MeasureCachedBadgeTextWidthDip(host, item.badgeText);
-        const float badgeWidth     = (std::clamp)(badgeTextWidth + kTreeBadgeHorizontalPaddingDip,
-                                                  kTreeBadgeMinWidthDip,
-                                                  (std::max)(kTreeBadgeMinWidthDip, contentRect.right - contentRect.left - 16.0f));
-        const float badgeHeight    = (std::min)(kTreeBadgeMaxHeightDip, (std::max)(kTreeBadgeMinHeightDip, _rowHeightDip - 10.0f));
+        const float badgeTextWidth = item.badgeIsDot ? 0.f : MeasureCachedBadgeTextWidthDip(host, item.badgeText);
+        const float badgeWidth     = item.badgeIsDot ? 8.f
+                                                     : (std::clamp)(badgeTextWidth + kTreeBadgeHorizontalPaddingDip,
+                                                                    kTreeBadgeMinWidthDip,
+                                                                    (std::max)(kTreeBadgeMinWidthDip, contentRect.right - contentRect.left - 16.0f));
+        const float badgeHeight    = item.badgeIsDot ? 8.f : (std::min)(kTreeBadgeMaxHeightDip, (std::max)(kTreeBadgeMinHeightDip, _rowHeightDip - 10.0f));
         const float badgeTop       = metrics.rowRect.top + (std::max)(2.0f, (_rowHeightDip - badgeHeight) * 0.5f);
         const float badgeLeft      = (std::max)(contentLeft + 20.0f, contentRight - badgeWidth);
         metrics.badgeRect          = D2D1::RectF(badgeLeft, badgeTop, contentRight, badgeTop + badgeHeight);
@@ -2326,7 +2500,7 @@ TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, fl
     return metrics;
 }
 
-Tree::HitInfo Tree::HitTestPoint(PointDip pointDip) const noexcept
+Tree::HitInfo Tree::HitTestPoint(const ControlHost& host, PointDip pointDip) const noexcept
 {
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
@@ -2388,11 +2562,10 @@ Tree::HitInfo Tree::HitTestPoint(PointDip pointDip) const noexcept
     hit.visibleIndex = visibleIndex;
     hit.rectDip      = D2D1::RectF(contentRect.left, rowTop, contentRect.right, rowTop + _rowHeightDip);
 
-    const float indentLeft         = contentRect.left + 8.0f + (static_cast<float>(item.depth) * _indentDip);
-    const float indentRight        = contentRect.right - 8.0f - (static_cast<float>(item.depth) * _indentDip);
-    const D2D1_RECT_F expanderRect = IsRightToLeft() ? D2D1::RectF(indentRight - 12.0f, hit.rectDip.top + 6.0f, indentRight, hit.rectDip.bottom - 6.0f)
-                                                     : D2D1::RectF(indentLeft, hit.rectDip.top + 6.0f, indentLeft + 12.0f, hit.rectDip.bottom - 6.0f);
-    if (item.hasChildren && PointInRect(expanderRect, point))
+    const auto layout = ComputeItemLayoutMetrics(host, rowTop, item);
+    if (! guard.IsCurrent())
+        return {};
+    if (layout.hasExpander && PointInRect(layout.expanderRect, point))
     {
         hit.zone = HitZone::Expander;
     }

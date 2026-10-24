@@ -1060,11 +1060,24 @@ void TestAccessibilityProviderExposesInvokeToggleAndLabeledValuePatterns()
     combo->SetBounds(D2D1::RectF(0.0f, 196.0f, 220.0f, 224.0f));
     comboLabel->SetMnemonicTarget(combo);
 
+    auto* separator = root->AddChild<Separator>();
+    separator->SetBounds(D2D1::RectF(240.0f, 196.0f, 360.0f, 204.0f));
+
     window.Host().SetRoot(std::move(root));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
     rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "debug accessibility provider is created for attached DX host");
+
+    wil::com_ptr_nothrow<IRawElementProviderFragment> separatorProvider =
+        GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 280.0f, 200.0f, "separator provider is resolved by point");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> separatorSimple;
+    RequireSucceeded(separatorProvider.query_to(separatorSimple.put()), "separator provider exposes a simple provider");
+    Require(ReadProviderLongProperty(*separatorSimple.get(), UIA_ControlTypePropertyId, "separator exposes UIA control type") == UIA_SeparatorControlTypeId,
+            "separator reports the UIA separator control type");
+    wil::com_ptr_nothrow<IUnknown> separatorInvoke;
+    RequireSucceeded(separatorSimple->GetPatternProvider(UIA_InvokePatternId, separatorInvoke.put()), "separator invoke pattern lookup succeeds");
+    Require(separatorInvoke == nullptr && ! separator->IsFocusable(), "separator has no invoke pattern or keyboard focus");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> buttonProvider =
         GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 24.0f, 16.0f, "button accessibility provider is resolved by point");
@@ -1077,6 +1090,27 @@ void TestAccessibilityProviderExposesInvokeToggleAndLabeledValuePatterns()
     wil::com_ptr_nothrow<IUnknown> invokePattern;
     RequireSucceeded(buttonSimple->GetPatternProvider(UIA_InvokePatternId, invokePattern.put()), "button invoke pattern lookup succeeds");
     Require(invokePattern != nullptr, "button accessibility provider exposes invoke pattern");
+    wil::com_ptr_nothrow<IUnknown> defaultTogglePattern;
+    RequireSucceeded(buttonSimple->GetPatternProvider(UIA_TogglePatternId, defaultTogglePattern.put()), "default button toggle pattern lookup succeeds");
+    Require(defaultTogglePattern == nullptr, "ordinary buttons keep their existing accessibility patterns by default");
+    button->SetToggleState(false);
+    button->SetOnClick([button] { button->SetToggleState(! button->GetToggleState().value_or(false)); });
+    wil::com_ptr_nothrow<IUnknown> buttonTogglePatternUnknown;
+    RequireSucceeded(buttonSimple->GetPatternProvider(UIA_TogglePatternId, buttonTogglePatternUnknown.put()), "opt-in button toggle pattern lookup succeeds");
+    Require(buttonTogglePatternUnknown != nullptr, "a button with consumer-owned checked state exposes TogglePattern");
+    wil::com_ptr_nothrow<IToggleProvider> buttonTogglePattern;
+    RequireSucceeded(buttonTogglePatternUnknown.query_to(buttonTogglePattern.put()), "button toggle pattern supports IToggleProvider");
+    ToggleState buttonToggleState = ToggleState_On;
+    RequireSucceeded(buttonTogglePattern->get_ToggleState(&buttonToggleState), "button checked state query succeeds");
+    Require(buttonToggleState == ToggleState_Off, "button TogglePattern reports the consumer-owned unchecked state");
+    RequireSucceeded(buttonTogglePattern->Toggle(), "button TogglePattern invokes its normal command");
+    Require(button->GetToggleState().value_or(false), "the button command owns and updates its checked state");
+    RequireSucceeded(buttonTogglePattern->get_ToggleState(&buttonToggleState), "button checked state can be queried after its command");
+    Require(buttonToggleState == ToggleState_On, "button TogglePattern reports the state set by its command");
+    button->SetToggleState(std::nullopt);
+    wil::com_ptr_nothrow<IUnknown> removedTogglePattern;
+    RequireSucceeded(buttonSimple->GetPatternProvider(UIA_TogglePatternId, removedTogglePattern.put()), "removed button toggle pattern lookup succeeds");
+    Require(removedTogglePattern == nullptr, "clearing optional checked state removes TogglePattern");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> toggleProvider =
         GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 200.0f, 64.0f, "toggle accessibility provider is resolved by point");
@@ -4266,6 +4300,117 @@ void TestAccessibilitySelectorFocusPreservesMembershipAndSelectionDoesNotActivat
 void TestAccessibilityLazyPublicationCoalescesAndOwnerQueriesStayFresh()
 {
     using namespace DxUi;
+    {
+        AttachedHostWindow mutationWindow;
+        auto mutationPanel  = std::make_unique<Panel>();
+        auto* mutationLabel = mutationPanel->AddChild<Label>(L"initial mutation label");
+        mutationLabel->SetBounds(D2D1::RectF(0, 0, 240, 28));
+        auto* mutationFocus = mutationPanel->AddChild<TextField>(L"stable logical focus");
+        mutationFocus->SetBounds(D2D1::RectF(0, 32, 240, 60));
+        mutationWindow.Host().SetRoot(std::move(mutationPanel));
+        mutationWindow.Host().SetFocusControl(mutationFocus, false);
+        mutationWindow.PumpMessages(); // Drain setup publication before the branch-specific observation.
+        Require(DebugSetAccessibilityMutationInterestForTest(mutationWindow.Hwnd(), false), "force only this attachment's mutation-interest decision");
+        const auto clearMutationInterest = wil::scope_exit([]() noexcept
+        { Require(DebugSetAccessibilityMutationInterestForTest(nullptr, std::nullopt), "clear the owner-thread mutation-interest override"); });
+        DebugSetAccessibilityResolutionCountingForTest(true);
+        const auto stopMutationCounting = wil::scope_exit([]() noexcept { DebugSetAccessibilityResolutionCountingForTest(false); });
+        DebugResetAccessibilityResolutionVisitCountForTest();
+        const uint64_t mutationBuilds = DebugGetAccessibilitySnapshotBuildCountForTest();
+        for (size_t mutationIndex = 0u; mutationIndex < 128u; ++mutationIndex)
+            mutationLabel->SetText(std::to_wstring(mutationIndex));
+        Require(DebugGetAccessibilityResolutionVisitCountForTest() == 0u, "uninterested real label mutations do not search the focused control's tree path");
+        Require(DebugGetAccessibilitySnapshotBuildCountForTest() == mutationBuilds, "uninterested label mutations do not synchronously rebuild a snapshot");
+        mutationWindow.PumpMessages();
+        Require(DebugGetAccessibilitySnapshotBuildCountForTest() == mutationBuilds, "uninterested mutations do not schedule an automatic snapshot publication");
+
+        Require(DebugSetAccessibilityMutationInterestForTest(mutationWindow.Hwnd(), std::nullopt), "restore real interest before the first provider query");
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> mutationProvider;
+        mutationProvider.attach(CreateWindowHostAccessibilityProvider(mutationWindow.Hwnd()));
+        Require(mutationProvider != nullptr, "obtain the mutation fixture's actual provider");
+        auto mutationLabelProvider = GetProviderAtDipPoint(
+            mutationWindow.Hwnd(), mutationWindow.Host(), *mutationProvider.get(), 20, 12, "locate the mutated label through its actual provider");
+        wil::com_ptr_nothrow<IRawElementProviderSimple> mutationLabelSimple;
+        RequireSucceeded(mutationLabelProvider.query_to(mutationLabelSimple.put()), "retain the label provider across mutation");
+        Require(ReadProviderStringProperty(*mutationLabelSimple.get(), UIA_NamePropertyId, "first uninterested batch label name") == L"127",
+                "first owner query sees the latest committed uninterested mutation");
+        Require(DebugGetAccessibilitySnapshotBuildCountForTest() == mutationBuilds + 1u,
+                "first owner query builds exactly one current snapshot after the uninterested batch");
+        mutationWindow.PumpMessages();
+        const uint64_t retainedMutationBuilds = DebugGetAccessibilitySnapshotBuildCountForTest();
+        Require(DebugSetAccessibilityMutationInterestForTest(mutationWindow.Hwnd(), false), "force synthetic uninterested mutation with a retained provider");
+        DebugResetAccessibilityResolutionVisitCountForTest();
+        mutationLabel->SetText(L"dirty after retained snapshot");
+        Require(DebugGetAccessibilityResolutionVisitCountForTest() == 0u && DebugGetAccessibilitySnapshotBuildCountForTest() == retainedMutationBuilds,
+                "synthetic uninterested mutation preserves its existing snapshot without a focus-path search");
+        Require(ReadProviderStringProperty(*mutationLabelSimple.get(), UIA_NamePropertyId, "retained provider sees dirty revision") ==
+                    L"dirty after retained snapshot",
+                "uninterested early return still marks the retained snapshot dirty for an owner query");
+        Require(DebugGetAccessibilitySnapshotBuildCountForTest() == retainedMutationBuilds + 1u,
+                "a retained-provider owner query rebuilds exactly once for the uninterested dirty revision");
+
+        Require(DebugSetAccessibilityMutationInterestForTest(mutationWindow.Hwnd(), std::nullopt),
+                "restore actual provider interest before queuing an ordinary mutation");
+        const uint64_t queuedMutationBuilds = DebugGetAccessibilitySnapshotBuildCountForTest();
+        mutationLabel->SetText(L"queued interested mutation");
+        Require(DebugGetAccessibilitySnapshotBuildCountForTest() == queuedMutationBuilds,
+                "an interested label mutation queues publication without rebuilding synchronously");
+        Require(DebugSetAccessibilityMutationInterestForTest(mutationWindow.Hwnd(), false),
+                "force only the later mutation uninterested while a flush is already queued");
+        DebugResetAccessibilityResolutionVisitCountForTest();
+        mutationLabel->SetText(L"final value after queued mutation");
+        Require(DebugGetAccessibilityResolutionVisitCountForTest() == 0u && DebugGetAccessibilitySnapshotBuildCountForTest() == queuedMutationBuilds,
+                "the later uninterested mutation marks dirty without searching focus or rebuilding");
+        mutationWindow.PumpMessages();
+        Require(DebugGetAccessibilitySnapshotBuildCountForTest() == queuedMutationBuilds + 1u,
+                "the existing queued flush remains scheduled and builds the final dirty revision exactly once");
+        Require(ReadProviderStringProperty(*mutationLabelSimple.get(), UIA_NamePropertyId, "queued final label name") == L"final value after queued mutation",
+                "the retained provider reads the final value published by the existing queued flush");
+        mutationWindow.PumpMessages();
+        Require(DebugGetAccessibilitySnapshotBuildCountForTest() == queuedMutationBuilds + 1u,
+                "reading the published value and another owner turn do not repeat the completed flush");
+
+        std::atomic<bool> nonOwnerMutationArmAccepted{true};
+        std::jthread mutationArmWorker([&]() noexcept
+        { nonOwnerMutationArmAccepted.store(DebugSetAccessibilityMutationInterestForTest(mutationWindow.Hwnd(), false), std::memory_order_relaxed); });
+        mutationArmWorker.join();
+        Require(! nonOwnerMutationArmAccepted.load(std::memory_order_relaxed), "another thread cannot arm this attachment's mutation-interest override");
+        Require(! DebugSetAccessibilityMutationInterestForTest(nullptr, false), "a mutation-interest override requires an actual owned attachment");
+        {
+            AttachedHostWindow independentWindow;
+            auto independentField  = std::make_unique<TextField>(L"independent initial");
+            auto* independentFocus = independentField.get();
+            independentField->SetBounds(D2D1::RectF(0, 0, 240, 28));
+            independentWindow.Host().SetRoot(std::move(independentField));
+            independentWindow.Host().SetFocusControl(independentFocus, false);
+            wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> independentProvider;
+            independentProvider.attach(CreateWindowHostAccessibilityProvider(independentWindow.Hwnd()));
+            Require(independentProvider != nullptr, "a different attachment retains real provider interest");
+            independentWindow.PumpMessages();
+            DebugResetAccessibilityResolutionVisitCountForTest();
+            independentFocus->SetText(L"independent interested mutation");
+            Require(DebugGetAccessibilityResolutionVisitCountForTest() > 0u,
+                    "an override for another HWND never suppresses an interested host's focus-path resolution");
+            independentWindow.PumpMessages();
+        }
+        // Keep the old override armed across reattachment: an HWND match alone must not carry it forward.
+        mutationWindow.Host().Detach();
+        Require(mutationWindow.Host().Attach(mutationWindow.Hwnd()), "reattach the same HWND under a new accessibility cookie");
+        auto reboundField  = std::make_unique<TextField>(L"rebound initial");
+        auto* reboundFocus = reboundField.get();
+        reboundField->SetBounds(D2D1::RectF(0, 0, 240, 28));
+        mutationWindow.Host().SetRoot(std::move(reboundField));
+        mutationWindow.Host().SetFocusControl(reboundFocus, false);
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> reboundProvider;
+        reboundProvider.attach(CreateWindowHostAccessibilityProvider(mutationWindow.Hwnd()));
+        Require(reboundProvider != nullptr, "new attachment has its own interested provider");
+        mutationWindow.PumpMessages();
+        DebugResetAccessibilityResolutionVisitCountForTest();
+        reboundFocus->SetText(L"rebound interested mutation");
+        Require(DebugGetAccessibilityResolutionVisitCountForTest() > 0u, "an old mutation-interest override cannot match the new attachment cookie");
+        mutationWindow.PumpMessages();
+    }
+    // Keep the original real-provider coalescing and owner-query checks independent of the synthetic branch above.
     const uint64_t initialBuilds = DebugGetAccessibilitySnapshotBuildCountForTest();
     AttachedHostWindow window;
     auto field          = std::make_unique<TextField>(L"initial");

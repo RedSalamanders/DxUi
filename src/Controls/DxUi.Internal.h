@@ -511,7 +511,8 @@ void DrawCenteredText(ControlHost& host,
                       DWRITE_TEXT_ALIGNMENT alignment               = DWRITE_TEXT_ALIGNMENT_CENTER,
                       DWRITE_PARAGRAPH_ALIGNMENT paragraphAlignment = DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
                       bool wrap                                     = false,
-                      FlowDirection flowDirection                   = FlowDirection::LeftToRight);
+                      FlowDirection flowDirection                   = FlowDirection::LeftToRight,
+                      IDWriteTextFormat* configuredFormat           = nullptr);
 void DrawTextWithMnemonic(ControlHost& host,
                           std::wstring_view text,
                           const D2D1_RECT_F& rect,
@@ -524,7 +525,7 @@ void DrawTextWithMnemonic(ControlHost& host,
                           FlowDirection flowDirection                   = FlowDirection::LeftToRight);
 
 [[nodiscard]] ButtonVisualStyle ResolveButtonVisualStyle(
-    const ThemePalette& theme, bool enabled, bool hovered, bool pressed, bool focused, bool keyboardFocused, bool primary) noexcept;
+    const ThemePalette& theme, bool enabled, bool hovered, bool pressed, bool focused, bool keyboardFocused, bool primary, bool toggled) noexcept;
 [[nodiscard]] ButtonVisualStyle ResolveButtonVisualStyle(const ThemePalette& theme,
                                                          bool enabled,
                                                          bool hovered,
@@ -533,7 +534,8 @@ void DrawTextWithMnemonic(ControlHost& host,
                                                          bool keyboardFocused,
                                                          bool primary,
                                                          float hoverStrength,
-                                                         float focusStrength) noexcept;
+                                                         float focusStrength,
+                                                         bool toggled) noexcept;
 [[nodiscard]] ToggleVisualStyle ResolveToggleVisualStyle(
     const ThemePalette& theme, bool enabled, bool hovered, bool pressed, bool focused, bool keyboardFocused, bool checked) noexcept;
 [[nodiscard]] ToggleVisualStyle ResolveToggleVisualStyle(const ThemePalette& theme,
@@ -575,6 +577,8 @@ void DrawTextWithMnemonic(ControlHost& host,
 [[nodiscard]] bool PressStillOwnsPointer(const ControlHost& host, bool rightButton) noexcept;
 
 inline constexpr PCWSTR kNativeAccessibilityTargetProperty = L"DxUi.ControlHost";
+// Exact attached HWND lookup for library-owned modal loops; never routes child/foreign window input.
+[[nodiscard]] bool DispatchAttachedWindowHostKeyboardMessage(const MSG& message) noexcept;
 void RegisterWindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexcept;
 void UnregisterWindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexcept;
 void NotifyWindowHostAccessibilityDestroyed(HWND hwnd) noexcept;
@@ -614,6 +618,9 @@ void DebugSetAccessibilityOffscreenSelectedRowMaterializationLimitForTest(size_t
 // largest uint64_t when the window has no registered host.
 [[nodiscard]] uint64_t DebugGetAccessibilityFocusResolutionCountForTest(HWND hwnd) noexcept;
 [[nodiscard]] uint64_t DebugGetAccessibilitySnapshotBuildCountForTest() noexcept;
+// Owner-thread-only mutation-interest override for this exact HWND attachment. Nullopt restores automatic interest;
+// null HWND with nullopt clears the calling thread's override. Other hosts, queries and UIA listeners are unchanged.
+[[nodiscard]] bool DebugSetAccessibilityMutationInterestForTest(HWND hwnd, std::optional<bool> interested) noexcept;
 // Holds every call of `hwnd`'s fragment-root GetFocus before it counts itself or reads the snapshot, so a test decides
 // when the system's focus event is answered: each call sets `enteredEvent` on arrival and waits, for at most five seconds
 // and never indefinitely, for `releaseEvent`. Null events clear the gate and return once the calls it held have left it.
@@ -719,7 +726,8 @@ void ClearSingleLineTextLayoutCache(SingleLineTextLayoutCache& cache, bool secur
                                                   std::wstring_view text,
                                                   FontRole role,
                                                   float heightDip                           = 24.0f,
-                                                  DWRITE_READING_DIRECTION readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT) noexcept;
+                                                  DWRITE_READING_DIRECTION readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT,
+                                                  IDWriteTextFormat* configuredFormat       = nullptr) noexcept;
 [[nodiscard]] wil::com_ptr<IDWriteTextLayout> CreateSingleLineTextLayout(
     const ControlHost* host,
     std::wstring_view text,

@@ -220,8 +220,12 @@ struct SemanticBox
 };
 bool SameOptions(const LayoutOptions& a, const LayoutOptions& b) noexcept
 {
-    return a.widthDip == b.widthDip && a.fontSizeDip == b.fontSizeDip && a.fontFamily == b.fontFamily && a.codeFontFamily == b.codeFontFamily &&
-           a.locale == b.locale && a.readingDirection == b.readingDirection && a.textAlignment == b.textAlignment;
+    return a.widthDip == b.widthDip && a.fontSizeDip == b.fontSizeDip && a.codeFontSizeDip == b.codeFontSizeDip &&
+           a.lineHeightMultiplier == b.lineHeightMultiplier && a.headingScaleStep == b.headingScaleStep && a.fontFamily == b.fontFamily &&
+           a.codeFontFamily == b.codeFontFamily && a.headingFontSizeDip == b.headingFontSizeDip &&
+           a.headingLineHeightMultiplier == b.headingLineHeightMultiplier && a.paragraphSpacingAfterLines == b.paragraphSpacingAfterLines &&
+           a.listItemSpacingDip == b.listItemSpacingDip && a.semanticSpacing == b.semanticSpacing && a.locale == b.locale &&
+           a.readingDirection == b.readingDirection && a.textAlignment == b.textAlignment;
 }
 void Union(std::optional<D2D1_RECT_F>& bounds, const D2D1_RECT_F& rectangle) noexcept
 {
@@ -380,6 +384,16 @@ struct PreparedSemanticGeometry::State
         }
         return chosen;
     }
+    SourceCaretHit HitSourceBox(std::size_t index, float x, float y) const
+    {
+        const auto& box = *boxes[index];
+        if (box.sourceCaret)
+            return {box.sourceCaret->insertion, index};
+        const auto hit      = box.layout.HitTest(x - box.x, y - box.y);
+        const auto affinity = hit.trailing ? MappingAffinity::Trailing : MappingAffinity::Leading;
+        const auto display  = document->Map().SnapDisplayBoundary(box.paragraph.display.first + hit.position, affinity);
+        return {document->Map().ToSource(display, affinity), index};
+    }
 };
 struct PreparedSemanticGeometry::Preparation
 {
@@ -390,6 +404,7 @@ struct PreparedSemanticGeometry::Preparation
         IndexCaretAnchors,
         IndexCaretSites,
         CountSites,
+        BodyLine,
         NativeObjects,
         NativeImages,
         MarkerLayouts,
@@ -419,6 +434,10 @@ struct PreparedSemanticGeometry::Preparation
           caretSites(0u),
           sourceBoxes(0u)
     {
+        if (options.listItemSpacingDip)
+            spacingItems = std::make_unique<std::vector<std::size_t>>(state->document->Syntax()->Nodes().size(), MarkdownNoNode);
+        if (options.paragraphSpacingAfterLines && options.lineHeightMultiplier > 0.0f)
+            SetBodyLineHeight(options.fontSizeDip * options.lineHeightMultiplier);
     }
     std::unique_ptr<State> state;
     wil::com_ptr<ID2D1RenderTarget> raster; // Retained only across cooperative staging; released before publication.
@@ -446,12 +465,54 @@ struct PreparedSemanticGeometry::Preparation
     std::vector<CaretAnchor> caretAnchors;
     std::vector<CaretSite> caretSites;
     std::vector<std::size_t> sourceBoxes;
+    // Only an opted-in list policy needs this bounded parent-first metadata.
+    // A nullable owner avoids even Debug STL proxy allocation for legacy calls.
+    std::unique_ptr<std::vector<std::size_t>> spacingItems;
     Phase phase = Phase::IndexElements;
     std::size_t paragraph{}, rowStart{}, rowPlacement{}, rowTable = MarkdownNoNode, rowIndex{}, boundsIndex{};
     float y{}, rowHeight{};
+    float flowBottom{}, emptyHeight{}, gapAfter{}, paragraphGap{};
+    std::size_t flowItem = MarkdownNoNode;
     bool rowActive{};
     std::size_t emptyLine{}, plannedBoxes{}, markerIndex{}, lastLayoutCalls{};
     std::size_t lineBox{}, lineOffset{}, sourceLineStart{};
+    bool HasSpacingPolicy() const noexcept
+    {
+        return state->options.paragraphSpacingAfterLines.has_value() || state->options.listItemSpacingDip.has_value() ||
+               state->options.semanticSpacing.has_value();
+    }
+    void SetBodyLineHeight(float height)
+    {
+        paragraphGap = height * state->options.paragraphSpacingAfterLines.value();
+        if (! std::isfinite(height) || height <= 0.0f || ! std::isfinite(paragraphGap))
+            throw std::overflow_error("Nonfinite semantic paragraph spacing");
+    }
+    void MeasureBodyLine()
+    {
+        // Only native-height opt-in calls need an SDK measurement. Uniform
+        // body heights are known from the same public size/multiplier policy.
+        Projection projection{
+            std::wstring(0u, L' '), std::wstring(0u, L' '), std::vector<std::size_t>(1u, 0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)};
+        projection.mode = ViewMode::Source;
+        PreparedLayout line;
+        line.PrepareSemanticOwned(state->factory.get(), projection, state->options);
+        const auto metrics = line.LineMetrics();
+        if (metrics.empty())
+            throw std::logic_error("Empty body layout has no native line metrics");
+        SetBodyLineHeight(metrics.front().height);
+    }
+    float IncomingGap(const SemanticParagraph& content) const noexcept
+    {
+        if (spacingItems && flowItem != MarkdownNoNode && content.markerOwner != MarkdownNoNode && content.markerOwner != flowItem)
+            return state->options.listItemSpacingDip.value();
+        if (state->options.semanticSpacing && content.heading > 0 && content.heading <= 6)
+            return std::max(gapAfter, state->options.semanticSpacing->headingBeforeDip[content.heading - 1]);
+        return gapAfter;
+    }
+    std::size_t ItemOwner(const SemanticParagraph& content) const noexcept
+    {
+        return spacingItems ? (*spacingItems)[content.syntaxNode] : MarkdownNoNode;
+    }
     std::size_t EmptyIndex(std::size_t index) const noexcept
     {
         return caretSites.empty() ? index : caretSites[index].index;
@@ -702,13 +763,20 @@ struct PreparedSemanticGeometry::Preparation
                 box->sourceCaret->insertion = insertion;
             }
         }
-        const bool rtl         = next.options.readingDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT;
-        const float baseIndent = static_cast<float>(std::min(content.indent, 64u)) * 16.0f;
-        const float indent     = std::min(next.options.widthDip - 1.0f, baseIndent + Gutter(content));
-        box->x                 = rtl ? 0.0f : indent;
-        box->y                 = y;
-        box->width             = next.options.widthDip - indent;
-        LayoutOptions options  = next.options;
+        const bool rtl = next.options.readingDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT;
+        if (HasSpacingPolicy() && ! rowActive)
+        {
+            // Empty source sites fill the requested margin. A second source
+            // blank adds another real line; no extra synthetic ACP is needed.
+            y = AddHeight(flowBottom, caretOnly ? emptyHeight : std::max(IncomingGap(content), emptyHeight));
+        }
+        const float baseIndent =
+            static_cast<float>(std::min(content.indent, 64u)) * (next.options.semanticSpacing ? next.options.semanticSpacing->containerIndentDip : 16.0f);
+        const float indent    = std::min(next.options.widthDip - 1.0f, baseIndent + Gutter(content));
+        box->x                = rtl ? 0.0f : indent;
+        box->y                = y;
+        box->width            = next.options.widthDip - indent;
+        LayoutOptions options = next.options;
         if (table)
         {
             if (! content.columns || content.column >= content.columns)
@@ -880,7 +948,26 @@ struct PreparedSemanticGeometry::Preparation
             next.boxes.push_back(std::move(marker));
         }
         if (table)
+        {
             rowHeight = std::max(rowHeight, box->height);
+            flowItem  = ItemOwner(content);
+        }
+        else if (HasSpacingPolicy())
+        {
+            if (caretOnly)
+                emptyHeight = AddHeight(emptyHeight, box->height);
+            else
+            {
+                flowBottom  = bottom;
+                emptyHeight = 0.0f;
+                gapAfter =
+                    next.options.paragraphSpacingAfterLines && next.document->Elements()[content.element].role == SemanticRole::Paragraph ? paragraphGap : 8.0f;
+                if (next.options.semanticSpacing && content.heading > 0 && content.heading <= 6)
+                    gapAfter = next.options.semanticSpacing->headingAfterDip[content.heading - 1];
+                flowItem = ItemOwner(content);
+            }
+            y = AddHeight(flowBottom, std::max(gapAfter, emptyHeight));
+        }
         else
             y = AddHeight(bottom, 8.0f);
         if (consumeParagraph)
@@ -899,14 +986,22 @@ struct PreparedSemanticGeometry::Preparation
         {
             auto& box = *next.boxes[rowPlacement++];
             const float cellWidth =
-                (next.options.widthDip -
-                 std::min(next.options.widthDip - 1.0f, static_cast<float>(std::min(box.paragraph.indent, 64u)) * 16.0f + Gutter(box.paragraph))) /
+                (next.options.widthDip - std::min(next.options.widthDip - 1.0f,
+                                                  static_cast<float>(std::min(box.paragraph.indent, 64u)) *
+                                                          (next.options.semanticSpacing ? next.options.semanticSpacing->containerIndentDip : 16.0f) +
+                                                      Gutter(box.paragraph))) /
                 static_cast<float>(box.paragraph.columns);
             box.frame                          = D2D1::RectF(box.x - 6.0f, y, box.x - 6.0f + cellWidth, y + rowHeight + 12.0f);
             next.bounds[box.paragraph.element] = box.frame;
             return;
         }
-        y         = AddHeight(y, rowHeight + 12.0f);
+        y = AddHeight(y, rowHeight + 12.0f);
+        if (HasSpacingPolicy())
+        {
+            flowBottom  = y; // Row frame already includes its original padding.
+            gapAfter    = 0.0f;
+            emptyHeight = 0.0f;
+        }
         rowActive = false;
         phase     = Phase::Layouts;
     }
@@ -921,8 +1016,11 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
                                                         std::shared_ptr<const RichImageResourceSet> images,
                                                         ID2D1RenderTarget* raster)
 {
+    const auto validSpacing = [](const std::optional<float>& value, float maximum) noexcept
+    { return ! value || (std::isfinite(value.value()) && value.value() >= 0.0f && value.value() <= maximum); };
     if (! factory || ! document || ! std::isfinite(options.widthDip) || options.widthDip <= 0.0f || ! std::isfinite(options.fontSizeDip) ||
-        options.fontSizeDip <= 0.0f)
+        options.fontSizeDip <= 0.0f || ! validSpacing(options.paragraphSpacingAfterLines, 4.0f) || ! validSpacing(options.listItemSpacingDip, 256.0f) ||
+        (options.semanticSpacing && ! options.semanticSpacing->IsValid()))
         throw std::invalid_argument("Invalid semantic geometry request");
     const auto diagrams    = SemanticExtensionAccess::Diagrams(*document);
     const auto nativeCount = diagrams.size() + SemanticExtensionAccess::Maths(*document).size();
@@ -969,8 +1067,9 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 {
                     work.boundsIndex = 0u;
                     std::ranges::sort(work.footerRanges, {}, [](const auto& row) { return row.source.first; });
-                    work.phase = work.literalDefinitionNodes.empty() && work.footerRanges.empty() ? Preparation::Phase::CountSites
-                                                                                                  : Preparation::Phase::IndexLiteralDefinitions;
+                    work.phase = work.literalDefinitionNodes.empty() && work.footerRanges.empty() && ! work.spacingItems
+                                     ? Preparation::Phase::CountSites
+                                     : Preparation::Phase::IndexLiteralDefinitions;
                     continue;
                 }
                 const auto index = work.boundsIndex++;
@@ -1003,6 +1102,10 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 if (parent != MarkdownNoNode && parent >= index)
                     throw std::logic_error("Invalid block ancestor order");
                 const auto element = work.state->nodeElements[index];
+                if (work.spacingItems)
+                    (*work.spacingItems)[index] = nodes[index].block.kind == MarkdownBlockKind::ListItem ? index
+                                                  : parent == MarkdownNoNode                             ? MarkdownNoNode
+                                                                                                         : (*work.spacingItems)[parent];
                 if (! work.literalDefinitionNodes.empty())
                     work.literalDefinitionNodes[index] = (parent != MarkdownNoNode && work.literalDefinitionNodes[parent]) ||
                                                          (nodes[index].block.kind == MarkdownBlockKind::FootnoteDefinition && element != MarkdownNoNode &&
@@ -1057,7 +1160,9 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 if (work.paragraph == paragraphs.size() && work.emptyLine == lines.size())
                 {
                     work.paragraph = work.emptyLine = 0u;
-                    work.phase                      = Preparation::Phase::NativeObjects;
+                    work.phase = work.state->options.paragraphSpacingAfterLines.value_or(0.0f) > 0.0f && work.state->options.lineHeightMultiplier == 0.0f
+                                     ? Preparation::Phase::BodyLine
+                                     : Preparation::Phase::NativeObjects;
                     continue;
                 }
                 std::size_t additional = 1u;
@@ -1080,6 +1185,14 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 work.plannedBoxes += additional;
                 if (work.plannedBoxes > SemanticDocument::MaximumParagraphs)
                     throw std::length_error("Semantic native paragraph/caret-site admission exceeded");
+            }
+            else if (work.phase == Preparation::Phase::BodyLine)
+            {
+                if (result.layoutsPrepared == budget.maximumLayouts)
+                    break;
+                work.MeasureBodyLine();
+                ++result.layoutsPrepared;
+                work.phase = Preparation::Phase::NativeObjects;
             }
             else if (work.phase == Preparation::Phase::NativeObjects)
             {
@@ -1401,14 +1514,50 @@ CaretGeometry PreparedSemanticGeometry::SourceCaret(std::size_t source, std::siz
 SourceCaretHit PreparedSemanticGeometry::HitTestSource(float x, float y) const
 {
     const auto& state = Current();
-    const auto index  = state.NearestBox(x, y);
-    const auto& box   = *state.boxes[index];
-    if (box.sourceCaret)
-        return {box.sourceCaret->insertion, index};
-    auto hit            = box.layout.HitTest(x - box.x, y - box.y);
-    const auto affinity = hit.trailing ? MappingAffinity::Trailing : MappingAffinity::Leading;
-    const auto display  = state.document->Map().SnapDisplayBoundary(box.paragraph.display.first + hit.position, affinity);
-    return {state.document->Map().ToSource(display, affinity), index};
+    return state.HitSourceBox(state.NearestBox(x, y), x, y);
+}
+SourceCaretHit PreparedSemanticGeometry::AdjacentSourceLine(std::size_t source, std::size_t site, float x, bool down) const
+{
+    const auto& state = Current();
+    if (! std::isfinite(x))
+        throw std::invalid_argument("Invalid semantic preferred caret x");
+    const auto index = state.SourceBox(source, site);
+    const auto caret = SourceCaret(source, index);
+    SourceCaretHit result{source, index};
+    float best = std::numeric_limits<float>::max(), bestX = best;
+    // Boxes are bounded and placed in visual flow order; tables can share a
+    // row. Scan toward the requested direction so ordinary nearest lines win
+    // before more distant SDK hits. Span reads and scalar queries allocate no
+    // storage; atomic objects retain their existing source hit/caret policy.
+    for (std::size_t offset = 0u; offset < state.boxes.size(); ++offset)
+    {
+        const auto boxIndex = down ? offset : state.boxes.size() - 1u - offset;
+        const auto& box     = *state.boxes[boxIndex];
+        if (box.markerOnly)
+            continue;
+        const auto lines = box.layout.LineMetrics();
+        float lineY      = box.y;
+        for (const auto& line : lines)
+        {
+            const auto bottom    = lineY + line.height;
+            const auto potential = down ? std::max(0.0f, lineY - caret.y) : std::max(0.0f, caret.y - bottom);
+            if (potential <= best + .01f && (down ? bottom > caret.y + .01f : lineY < caret.y - .01f))
+            {
+                const auto hit       = state.HitSourceBox(boxIndex, x, lineY + line.height * .5f);
+                const auto candidate = SourceCaret(hit.position, hit.site);
+                const auto distance  = down ? candidate.y - caret.y : caret.y - candidate.y;
+                const auto dx        = std::abs(candidate.x - x);
+                if (distance > .01f && (distance < best - .01f || (std::abs(distance - best) <= .01f && dx < bestX)))
+                {
+                    best   = distance;
+                    bestX  = dx;
+                    result = hit;
+                }
+            }
+            lineY = bottom;
+        }
+    }
+    return result;
 }
 SourceCaretHit PreparedSemanticGeometry::StepSource(std::size_t source, std::size_t site, bool forwards) const
 {
@@ -1661,7 +1810,8 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                                     float top,
                                     float bottom,
                                     ID2D1Brush* fill,
-                                    float imageOpacity) const
+                                    float imageOpacity,
+                                    const LinkDrawing* links) const
 {
     const auto& state = Current();
     if (! target || ! text || ! decoration || ! std::isfinite(top) || ! std::isfinite(bottom) || top > bottom || ! std::isfinite(imageOpacity) ||
@@ -1691,6 +1841,9 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
     for (const auto& box : state.boxes)
         if (box->frame.bottom > top && box->frame.top < bottom)
         {
+            const bool emphasized = links && links->emphasis && links->emphasisBrush && links->emphasis->first < box->paragraph.display.last &&
+                                    box->paragraph.display.first < links->emphasis->last;
+            auto* boxText         = emphasized ? links->emphasisBrush : text;
             if (elements[box->paragraph.element].role == SemanticRole::Rule)
                 target->DrawLine(D2D1::Point2F(origin.x + box->x, origin.y + box->y + box->height * .5f),
                                  D2D1::Point2F(origin.x + box->x + box->width, origin.y + box->y + box->height * .5f),
@@ -1706,10 +1859,12 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                     if (box->paragraph.table != MarkdownNoNode)
                         target->PopAxisAlignedClip();
                 });
-                box->layout.Draw(target, text, D2D1::Point2F(origin.x + box->x, origin.y + box->y));
+                auto localLinks        = links ? *links : LinkDrawing{};
+                localLinks.displayOrigin += box->paragraph.display.first;
+                box->layout.Draw(target, boxText, D2D1::Point2F(origin.x + box->x, origin.y + box->y), links ? &localLinks : nullptr);
                 if (box->native &&
                     ! box->native->paint->Draw(target,
-                                               text,
+                                               boxText,
                                                decoration,
                                                fill,
                                                D2D1::Point2F(origin.x + box->x + box->native->bounds.left, origin.y + box->y + box->native->bounds.top)))
@@ -1721,7 +1876,7 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                             if (image.math)
                             {
                                 image.math->Draw(target,
-                                                 text,
+                                                 boxText,
                                                  D2D1::Point2F(origin.x + box->x + image.bounds.left, origin.y + box->y + image.bounds.top),
                                                  (image.bounds.right - image.bounds.left) / image.Size().width);
                                 continue;

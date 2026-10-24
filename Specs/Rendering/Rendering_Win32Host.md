@@ -1,7 +1,7 @@
 # Window hosting
 
 Status: normative intended contract
-Last reviewed: 2026-10-16
+Last reviewed: 2026-10-23
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -21,6 +21,13 @@ painting it. Paint cleanup restores draw state when a standard exception occurs,
 for a later invalidation rather than scheduling a retry loop. A standard exception from an input callback is
 contained at `HandleMessage`, which consumes the partially processed message without replaying it. These boundaries
 do not qualify whole-host destruction inside a callback.
+After application/TSF pretranslation, native pumps call `DispatchKeyboardMessage` before Windows translation.
+Its exact attached-HWND Return/Space path dispatches once through the real window procedure, then translates only
+an explicitly permitted character still owned by the original live text control. Commands, failed callbacks and
+retired owners cannot produce text for a successor. Other HWNDs, child HWNDs, system keys and IME-owned keys retain
+their existing path. The detailed permission and reentrancy rules belong to
+[input and accessibility](../UI/UI_InputAndAccessibility.md); forwarding `HandleMessage` alone does not establish
+this pretranslation boundary.
 The same frame-abort rule applies to page and model geometry replacement. Incoming page bounds deferred during
 paint are synchronized before rendering in the next Update, even if the containing root bounds did not change.
 Supported child extraction, clearing, reparenting, visibility and enabled-state changes also invalidate an in-flight

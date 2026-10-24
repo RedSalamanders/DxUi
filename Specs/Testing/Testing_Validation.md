@@ -42,6 +42,11 @@ unsupported and growing custom minima; shared text budgets and cache invalidatio
 destructive, reentrant and detached callbacks; replacement editors during detach; embedded composition, selection
 and focus; and nonactivating native preparation. Accessibility additionally verifies both native and embedded
 form property providers and real client-thread property notifications, including weak label lifetime and teardown.
+Embedded form tests that read text snapshots after root installation or reflow MUST finish owner-driven preparation
+before asserting text geometry. A single successful HRESULT is insufficient because `Prepare` can return `S_FALSE`
+while cooperative content work remains pending. Use `PrepareEmbeddedContentForTests` or an equivalent bounded owner
+turn loop; do not retry only the text read or assume the first `Prepare` always yields.
+
 An existing manually positioned container must preserve its explicit geometry when these opt-in APIs are added.
 
 Real UIA event checks MUST fail when their bounded quiet wait expires; silently continuing loses the boundary
@@ -199,12 +204,25 @@ the 816 tests of the 15 non-foreground suites took 2.5 s in x64 Debug (`TestColo
 `MenuExitLifetime` 3 s at most. 300 s is forty times the slowest ASan test and about five times a UI Automation client test that waits
 out its allowances (20 s to set up, 20 s to end and several 3 s notification waits), and it ends a hung job in five minutes
 instead of at the enclosing native-job limit. The foreground suites take the same deadline; the `[DONE]` durations of a foreground run show
-how close any of their tests comes. Native CI bounds `test.ps1` at 35 minutes on x64 and 65 minutes on ARM64, and each clean-pin
-consumer qualification at 15 minutes, including hangs the per-test watchdog cannot reach (Foundation, Embedded, the consumer).
-The enclosing budgets are 55 minutes for x64 Debug/Release, 70 for x64 ASan Debug, 85 for ARM64 Debug/Release and 100 for ARM64
-ASan Debug. Each row includes its selected Full stage, regular consumer, separate annotations-disabled consumer when ASan,
-and five minutes for setup, resource/gallery work and artifact collection. The per-test watchdogs, six standard consumer qualifications, both
-annotations-disabled ASan qualifications and failure accounting remain required.
+how close any of their tests comes. Native CI runs the official `build.ps1` first, then
+`test.ps1 -Full -SkipTooling -SkipBuild` against its current canonical v2 attestation. Each stage has a separate
+35-minute ceiling on x64 or 65-minute ceiling on ARM64. The early SkipBuild gate verifies source, dependencies,
+resolved toolchain and final artifacts before any native desktop probe, filter/watchdog self-check or suite;
+a missing, old or stale receipt refuses instead of rebuilding or executing native work. Full still performs its
+existing before/after measurement and native checks. Each clean-pin consumer qualification retains its 15-minute
+limit, including hangs that the native per-test watchdog cannot reach (Foundation, Embedded, the consumer).
+The enclosing ceilings are 90 minutes for x64 Debug/Release, 105 for x64 ASan Debug, 150 for ARM64 Debug/Release
+and 165 for ARM64 ASan Debug: both build/Full windows, regular consumer, the separate annotations-disabled consumer
+when ASan, and five minutes for setup, resource/gallery work and artifact collection. These are reviewed finite
+ceilings, not measured normal durations or performance acceptance. Native watchdogs, all assertions, six standard
+consumer qualifications, both annotations-disabled ASan qualifications and failure accounting remain required.
+PR #99's retained x64 Release Full step exhausted its combined 35-minute window after 16 ordinary suite receipts;
+Accessibility was still in progress and had emitted no native timeout or failure. The observed 18-minute gap
+before the MSBuild banner has no measured subphase attribution. Bounded top-level build/gate BEGIN/END/FAIL records
+identify Visual Studio discovery, output-use checks, dependency admission, pre-build attestation, MSBuild,
+post-build attestation and the SkipBuild gate with UTC and monotonic elapsed milliseconds. They log no new path or
+environment values, do not alter operation results or failures, and do not establish a compiler bottleneck or hang.
+The split requires fresh complete CI receipts; prior incomplete results remain failures.
 PR #89's retained x64 ASan and ARM64 Release runs exceeded the previous 25/45-minute
 combined cold-build/provenance/Full windows; ARM64 Release was still compiling before
 its first native suite at minute 45. Their incomplete native results remain
@@ -766,6 +784,28 @@ window, process or thread identities. Existing raw desktop descriptions remain p
 while retaining each child's own duration. Repeated, incomplete, unknown or contradictory diagnostic fields
 MUST fail result validation. Historical receipts with neither field remain readable but establish no capture
 reason. A reason for `none` MUST NOT promote it to verified focus restoration or close qualification.
+New completed executions MUST have every protocol field written by the native lease exactly once, including
+the confirmation policy/countdown, original foreground description, focus capture diagnostic, all three
+restoration states, both pointer observations and the moved flag. Unknown, repeated, malformed or missing
+fields and child rows MUST fail validation; historical incomplete receipts remain readable for presentation
+only. Receipt and process exits MUST agree and both MUST be zero for success. Every requested child MUST occur
+exactly once in plan order with its exact name, `launched=1`, exit zero, and neither timeout nor interruption.
+Both public PowerShell lease wrappers validate the result against their original `Runs` through the shared
+`Get-DxUiLeaseProblems -ExpectedChildren` contract and return failures in `PolicyProblems`; consumers MUST check
+that collection as well as the process exit. A completed-state prefix or a successful child JSON cannot supply
+missing lease facts. Numeric codes, flags, finite nonnegative durations and physical pointer coordinates MUST
+validate before conversion, without throwing away a corrupt row or overflowing during diagnostic parsing.
+
+Foreground and pointer restoration MUST be `restored` or `unchanged`, with an original target and known original
+pointer position. `gone` is a truthful observation that the target disappeared, never verified restoration.
+`cursor.atExit` is the observation before restoration, so it may differ from `cursor.saved` or be unreadable;
+the native restore operation separately verifies the final pointer position. Never compare that earlier
+observation to the saved position as though it were a final readback.
+Focus capture failures, unavailable thread identity and unknown capture facts MUST leave the run unqualified.
+For `recorded` initial focus, its restoration MUST also be `restored` or `unchanged`. Only successful null-focus
+capture or the deliberate minimized-foreground guard permits a truthful `none` focus state; the summary MUST
+retain that limitation. A consumer requiring a complete real-focus restoration proof MUST also use
+`Get-DxUiLeaseProblems -RequireRecordedFocus`; definitive absence cannot satisfy that gate.
 If the native result is missing, the runner's fallback MUST keep capture metadata absent and still write
 the failed child receipt under strict mode; it MUST NOT invent a capture reason or throw on missing fields.
 Deterministic fake-backend, serialization, parser, presentation and child-receipt tests MUST cover these
@@ -802,8 +842,11 @@ refusal, authorization loss and active capture. These checks do not replace fres
 `DxUi.InteractiveLease.exe` exits 0 when every suite passed and the desktop is as it was, 1 when a suite failed, 2 for a malformed
 command line, 20 when there is no interactive desktop, 21 when the confirmation was cancelled or unanswered, 22 when another run holds
 the lease, 23 when the warning could not be shown (the desktop was not taken), 24 when a suite could not be started, 25 when the
-suites passed but the desktop could not be given back and 26 when the run was stopped; `Tools/tests/Test-InteractiveMode.ps1` keeps
+suites passed but the desktop could not be given back, 26 when the run was stopped and 27 when the native result
+could not be completely written/closed; `Tools/tests/Test-InteractiveMode.ps1` keeps
 `Tools/InteractiveRun.psm1`'s table equal to `LeaseExit` in `Tests/Support/Support.Tests.InteractiveLease.h`.
+The native writer MUST check buffered output through close and return the result-write failure even if child
+execution and restoration succeeded. A partial result MUST remain unqualified when retained as failure evidence.
 
 The `InteractiveLease` control suite (in every `test.ps1` run, with `--no-activate`) restores a desktop built of fake windows, a fake
 pointer and a fake foreground, so no window is activated and no pointer moves: untouched, moved, refused, never-sticking and
@@ -910,3 +953,8 @@ RedSalamander defers only entries whose complete portable entry contracts equal 
 CI invokes explicit full gates rather than the affected default. The forthcoming PR executes its candidate workflow; a reviewed local workflow digest and the enabled GitHub workflow gate delegation. Workflow edits invalidate that digest until the scope contract is reviewed and updated. RedXe's independent Windows tooling/skill tests execute once in its tooling job. DxUi's tooling has one Windows host qualification and one Linux portability qualification; its MSBuild-only staging fixture executes once on Windows; native runner/watchdog checks stay profile-specific. RedSalamander schedules skip unchanged commits only after successful matching workflow history; manual dispatch and unreadable/failed history execute. Hosted timing investigations still use paired, fixture-matched resource evidence; cached historical observations are not new measurements.
 
 PR delegation MUST account for conditional workflow jobs. DxUi uses the existing NativeScope contract to keep native obligations local when a documentation-only PR skips native CI; always-running Windows/Linux tooling remains covered. Native success identities exclude validator prose while tooling identities include it.
+
+
+## Test-run retention
+
+[Generated test-run evidence](Testing_RunEvidence.md) owns completed, failed and interrupted run storage, verification and CI collection.

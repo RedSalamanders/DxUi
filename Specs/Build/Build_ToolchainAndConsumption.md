@@ -98,7 +98,18 @@ fixed in Configuration.h and must not be overridden by consumers.
 
 `build.ps1` presents a DxUi banner and color-classifies streamed MSBuild diagnostics in interactive terminals while
 preserving plain redirected output and a complete file log. It rejects only running executables in the selected
-output directory and never terminates them.
+output directory and never terminates them. Its six fixed top-level phases (Visual Studio discovery, output-use
+checks, dependency admission, pre-build attestation, MSBuild and post-build attestation) emit bounded BEGIN and
+END/FAIL records with UTC and monotonic elapsed milliseconds. Consumer-owned output roots retain their existing
+separate attestation contract, so the two default-output attestation phases apply only to default builds. Timing
+records add no input paths or environment values and cannot replace operation output or its original failure;
+these diagnostics are not native workload measurements or performance acceptance.
+`test.ps1 -SkipBuild` first requires the canonical current v2 attestation, inside the fixed SkipBuildGate timing
+phase, before any native desktop probe, filter/watchdog self-check or suite. Source, dependency, resolved toolchain
+or final-artifact drift refuses early; no fallback relabels or rebuilds an invalid receipt. The later native and
+before/after measurement checks remain required. CI separates the official build and receipt-verified Full stages
+under the finite [validation ceilings](../Testing/Testing_Validation.md); timing helpers and the build entrypoint
+remain in the existing harness identity closure, and workflow delegation requires the exact reviewed workflow digest.
 `test.ps1` runs all three test executables, splitting inherited control suites into independent runs with exit-code,
 SHA256, native architecture and capability-skip receipts; `-Tests <Name>[,<Name>]` narrows each control-suite run to the
 named tests and `-TestTimeout <seconds>` sets the deadline each control test may run before the runner's watchdog ends the run

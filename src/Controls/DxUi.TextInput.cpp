@@ -994,6 +994,42 @@ std::wstring_view TextField::GetText() const noexcept
     return _text;
 }
 
+void TextField::SetFontRole(const FontRole fontRole) noexcept
+{
+    if (static_cast<uint8_t>(fontRole) > static_cast<uint8_t>(FontRole::IconLarge) || _fontRole == fontRole)
+        return;
+
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    _fontRole                         = fontRole;
+    InvalidateSingleLineLayoutCache();
+    InvalidateMultilineLayoutCache();
+    _preferredMultilineXOffsetDip.reset();
+    InvalidateMeasure();
+    if (lifetime.expired())
+        return;
+
+    if (ControlHost* const host = GetHost())
+    {
+        if (_multiline)
+            EnsureMultilineCaretVisible(host);
+        else
+            EnsureCaretVisible(host, std::max(1.0f, GetTextRect().right - GetTextRect().left));
+        if (HasFocus())
+            host->SyncTextInput(this);
+        if (lifetime.expired())
+            return;
+    }
+    RefreshAccessibilitySnapshot();
+    if (lifetime.expired())
+        return;
+    RequestInvalidate();
+}
+
+FontRole TextField::GetFontRole() const noexcept
+{
+    return _fontRole;
+}
+
 size_t TextField::GetCaretIndex() const noexcept
 {
     return _caretIndex;
@@ -1397,10 +1433,9 @@ bool TextField::DebugGetMultilineState(const ControlHost& host, TextFieldDebugMu
     const D2D1_RECT_F textRect     = GetTextRect();
     const float viewportHeightDip  = std::max(1.0f, textRect.bottom - textRect.top);
     const std::wstring displayText = GetDisplayText();
-    const auto multilineLayout =
-        CreateMultilineTextLayout(&host, displayText, FontRole::Body, std::max(1.0f, textRect.right - textRect.left), viewportHeightDip);
+    const auto multilineLayout = CreateMultilineTextLayout(&host, displayText, _fontRole, std::max(1.0f, textRect.right - textRect.left), viewportHeightDip);
     const std::vector<DWRITE_LINE_METRICS> lineMetrics = GetMultilineLineMetrics(multilineLayout.get());
-    const float fallbackLineHeightDip                  = EstimateMultilineFallbackLineHeightDip(&host, FontRole::Body);
+    const float fallbackLineHeightDip                  = EstimateMultilineFallbackLineHeightDip(&host, _fontRole);
     const MultilineViewportMetrics viewportMetrics     = BuildMultilineViewportMetrics(displayText, viewportHeightDip, lineMetrics, fallbackLineHeightDip);
     const size_t clampedFirstVisibleLine               = ClampMultilineFirstVisibleLine(_multilineFirstVisibleLine, viewportMetrics);
 
@@ -1442,8 +1477,8 @@ bool TextField::DebugGetSingleLinePaintState(const ControlHost& host, TextFieldD
     const std::optional<std::pair<size_t, size_t>> selectionRange = GetSelectionRange();
     const std::optional<std::pair<size_t, size_t>> displaySelectionRange =
         selectionRange.has_value() ? ControlTextRangeToDisplayTextRange(selectionRange.value().first, selectionRange.value().second) : std::nullopt;
-    if (const std::optional<D2D1_RECT_F> selectionPaintRect = ComputeSingleLineSelectionPaintRect(
-            host, GetDisplayText(), textRect, FontRole::Body, _horizontalScrollDip, displaySelectionRange, readingDirection);
+    if (const std::optional<D2D1_RECT_F> selectionPaintRect =
+            ComputeSingleLineSelectionPaintRect(host, GetDisplayText(), textRect, _fontRole, _horizontalScrollDip, displaySelectionRange, readingDirection);
         selectionPaintRect.has_value())
     {
         out.selectionPaintRect    = selectionPaintRect.value();
@@ -1504,10 +1539,9 @@ void TextField::OnBoundsChanged() noexcept
     }
 
     const float viewportHeightDip = std::max(1.0f, textRect.bottom - textRect.top);
-    const auto multilineLayout =
-        CreateMultilineTextLayout(host, displayText, FontRole::Body, std::max(1.0f, textRect.right - textRect.left), viewportHeightDip);
+    const auto multilineLayout    = CreateMultilineTextLayout(host, displayText, _fontRole, std::max(1.0f, textRect.right - textRect.left), viewportHeightDip);
     const std::vector<DWRITE_LINE_METRICS> lineMetrics = GetMultilineLineMetrics(multilineLayout.get());
-    const float fallbackLineHeightDip                  = EstimateMultilineFallbackLineHeightDip(host, FontRole::Body);
+    const float fallbackLineHeightDip                  = EstimateMultilineFallbackLineHeightDip(host, _fontRole);
     const MultilineViewportMetrics viewportMetrics     = BuildMultilineViewportMetrics(displayText, viewportHeightDip, lineMetrics, fallbackLineHeightDip);
     _multilineFirstVisibleLine                         = ClampMultilineFirstVisibleLine(_multilineFirstVisibleLine, viewportMetrics);
     if (HasFocus() && ! _readOnly)
@@ -1552,11 +1586,11 @@ void TextField::Paint(ControlHost& host) const
         const std::vector<DWRITE_LINE_METRICS> lineMetrics = GetMultilineLineMetrics(multilineLayout.get());
         const float multilineScrollDip                     = MeasureWrappedLineOffsetDip(lineMetrics, _multilineFirstVisibleLine);
         DrawMultilineSelection(
-            host, displayText, textRect, FontRole::Body, style.text, style.selectionFill, style.selectionText, multilineScrollDip, displaySelectionRange);
+            host, displayText, textRect, _fontRole, style.text, style.selectionFill, style.selectionText, multilineScrollDip, displaySelectionRange);
     }
     else if (usePlaceholder)
     {
-        DrawSingleLineTextClipped(host, std::wstring_view(_placeholder), textRect, FontRole::Body, style.placeholderText, 0.0f, readingDirection);
+        DrawSingleLineTextClipped(host, std::wstring_view(_placeholder), textRect, _fontRole, style.placeholderText, 0.0f, readingDirection);
     }
     else
     {
@@ -1569,7 +1603,7 @@ void TextField::Paint(ControlHost& host) const
         DrawSingleLineSelectionWithLayout(host,
                                           displayText,
                                           textRect,
-                                          FontRole::Body,
+                                          _fontRole,
                                           style.text,
                                           style.selectionFill,
                                           style.selectionText,
@@ -1595,7 +1629,7 @@ void TextField::Paint(ControlHost& host) const
             const std::vector<DWRITE_LINE_METRICS> lineMetrics = GetMultilineLineMetrics(multilineLayout.get());
             const float multilineScrollDip                     = MeasureWrappedLineOffsetDip(lineMetrics, _multilineFirstVisibleLine);
             caretRect =
-                MeasureMultilineCaretRectDip(&host, displayText, FontRole::Body, textRect, multilineScrollDip, ControlTextIndexToDisplayTextIndex(_caretIndex));
+                MeasureMultilineCaretRectDip(&host, displayText, _fontRole, textRect, multilineScrollDip, ControlTextIndexToDisplayTextIndex(_caretIndex));
         }
         else
         {
@@ -1820,11 +1854,11 @@ bool TextField::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightBu
         const D2D1_RECT_F textRect     = GetTextRect();
         const std::wstring displayText = GetDisplayText();
         const auto multilineLayout     = CreateMultilineTextLayout(
-            &host, displayText, FontRole::Body, std::max(1.0f, textRect.right - textRect.left), std::max(1.0f, textRect.bottom - textRect.top));
+            &host, displayText, _fontRole, std::max(1.0f, textRect.right - textRect.left), std::max(1.0f, textRect.bottom - textRect.top));
         const size_t displayHitIndex =
             HitTestMultilineCaretIndexDip(&host,
                                           displayText,
-                                          FontRole::Body,
+                                          _fontRole,
                                           textRect,
                                           MeasureWrappedLineOffsetDip(GetMultilineLineMetrics(multilineLayout.get()), _multilineFirstVisibleLine),
                                           point);
@@ -1848,7 +1882,7 @@ bool TextField::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightBu
         const D2D1_RECT_F textRect     = GetTextRect();
         const std::wstring displayText = GetDisplayText();
         const size_t displayHitIndex =
-            HitTestCaretIndexDip(&host, displayText, FontRole::Body, textRect, _horizontalScrollDip, point, ResolveReadingDirection(GetFlowDirection()));
+            HitTestCaretIndexDip(&host, displayText, _fontRole, textRect, _horizontalScrollDip, point, ResolveReadingDirection(GetFlowDirection()));
         const size_t hitIndex = DisplayTextIndexToControlTextIndex(displayHitIndex);
         _preferredMultilineXOffsetDip.reset();
         if (ModifiersContainShift(modifiers))
@@ -1887,11 +1921,11 @@ bool TextField::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool 
     if (_multiline)
     {
         const auto multilineLayout = CreateMultilineTextLayout(
-            &host, displayText, FontRole::Body, std::max(1.0f, textRect.right - textRect.left), std::max(1.0f, textRect.bottom - textRect.top));
+            &host, displayText, _fontRole, std::max(1.0f, textRect.right - textRect.left), std::max(1.0f, textRect.bottom - textRect.top));
         const size_t displayHitIndex =
             HitTestMultilineCaretIndexDip(&host,
                                           displayText,
-                                          FontRole::Body,
+                                          _fontRole,
                                           textRect,
                                           MeasureWrappedLineOffsetDip(GetMultilineLineMetrics(multilineLayout.get()), _multilineFirstVisibleLine),
                                           point);
@@ -1900,7 +1934,7 @@ bool TextField::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool 
     else
     {
         const size_t displayHitIndex =
-            HitTestCaretIndexDip(&host, displayText, FontRole::Body, textRect, _horizontalScrollDip, point, ResolveReadingDirection(GetFlowDirection()));
+            HitTestCaretIndexDip(&host, displayText, _fontRole, textRect, _horizontalScrollDip, point, ResolveReadingDirection(GetFlowDirection()));
         hitIndex = DisplayTextIndexToControlTextIndex(displayHitIndex);
     }
     _preferredMultilineXOffsetDip.reset();
@@ -1947,11 +1981,11 @@ bool TextField::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modif
     if (_multiline)
     {
         const auto multilineLayout = CreateMultilineTextLayout(
-            &host, displayText, FontRole::Body, std::max(1.0f, textRect.right - textRect.left), std::max(1.0f, textRect.bottom - textRect.top));
+            &host, displayText, _fontRole, std::max(1.0f, textRect.right - textRect.left), std::max(1.0f, textRect.bottom - textRect.top));
         const size_t displayHitIndex =
             HitTestMultilineCaretIndexDip(&host,
                                           displayText,
-                                          FontRole::Body,
+                                          _fontRole,
                                           textRect,
                                           MeasureWrappedLineOffsetDip(GetMultilineLineMetrics(multilineLayout.get()), _multilineFirstVisibleLine),
                                           point);
@@ -1960,7 +1994,7 @@ bool TextField::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modif
     else
     {
         const size_t displayHitIndex =
-            HitTestCaretIndexDip(&host, displayText, FontRole::Body, textRect, _horizontalScrollDip, point, ResolveReadingDirection(GetFlowDirection()));
+            HitTestCaretIndexDip(&host, displayText, _fontRole, textRect, _horizontalScrollDip, point, ResolveReadingDirection(GetFlowDirection()));
         hitIndex = DisplayTextIndexToControlTextIndex(displayHitIndex);
     }
     _preferredMultilineXOffsetDip.reset();
@@ -2035,10 +2069,9 @@ bool TextField::OnMouseWheel(ControlHost& host, D2D1_POINT_2F /*point*/, float w
     const D2D1_RECT_F textRect     = GetTextRect();
     const float viewportHeightDip  = std::max(1.0f, textRect.bottom - textRect.top);
     const std::wstring displayText = GetDisplayText();
-    const auto multilineLayout =
-        CreateMultilineTextLayout(&host, displayText, FontRole::Body, std::max(1.0f, textRect.right - textRect.left), viewportHeightDip);
+    const auto multilineLayout = CreateMultilineTextLayout(&host, displayText, _fontRole, std::max(1.0f, textRect.right - textRect.left), viewportHeightDip);
     const std::vector<DWRITE_LINE_METRICS> lineMetrics = GetMultilineLineMetrics(multilineLayout.get());
-    const float fallbackLineHeightDip                  = EstimateMultilineFallbackLineHeightDip(&host, FontRole::Body);
+    const float fallbackLineHeightDip                  = EstimateMultilineFallbackLineHeightDip(&host, _fontRole);
     const MultilineViewportMetrics viewportMetrics     = BuildMultilineViewportMetrics(displayText, viewportHeightDip, lineMetrics, fallbackLineHeightDip);
     const size_t wheelLineCount                        = ComputeMultilineWheelLineCount(viewportMetrics.visibleLineCount);
     if (wheelLineCount == 0u)
@@ -2429,9 +2462,8 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
     }
     if (_multiline && virtualKey == VK_UP)
     {
-        const bool extendSelection = ModifiersContainShift(modifiers);
-        const size_t nextCaretIndex =
-            MoveMultilineCaretVertically(&host, _text, FontRole::Body, GetTextRect(), _caretIndex, false, _preferredMultilineXOffsetDip);
+        const bool extendSelection  = ModifiersContainShift(modifiers);
+        const size_t nextCaretIndex = MoveMultilineCaretVertically(&host, _text, _fontRole, GetTextRect(), _caretIndex, false, _preferredMultilineXOffsetDip);
         BreakDirectEditMerge();
         SetSingleLineCaretIndex(_caretIndex, _selectionAnchorIndex, nextCaretIndex, extendSelection);
         refreshCaret();
@@ -2439,9 +2471,8 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
     }
     if (_multiline && virtualKey == VK_DOWN)
     {
-        const bool extendSelection = ModifiersContainShift(modifiers);
-        const size_t nextCaretIndex =
-            MoveMultilineCaretVertically(&host, _text, FontRole::Body, GetTextRect(), _caretIndex, true, _preferredMultilineXOffsetDip);
+        const bool extendSelection  = ModifiersContainShift(modifiers);
+        const size_t nextCaretIndex = MoveMultilineCaretVertically(&host, _text, _fontRole, GetTextRect(), _caretIndex, true, _preferredMultilineXOffsetDip);
         BreakDirectEditMerge();
         SetSingleLineCaretIndex(_caretIndex, _selectionAnchorIndex, nextCaretIndex, extendSelection);
         refreshCaret();
@@ -2451,9 +2482,9 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
     {
         const bool extendSelection                     = ModifiersContainShift(modifiers);
         const D2D1_RECT_F pageTextRect                 = GetTextRect();
-        const MultilineViewportMetrics viewportMetrics = ComputeMultilineViewportMetrics(&host, _text, FontRole::Body, pageTextRect);
+        const MultilineViewportMetrics viewportMetrics = ComputeMultilineViewportMetrics(&host, _text, _fontRole, pageTextRect);
         const size_t nextCaretIndex                    = MoveMultilineCaretByPage(
-            &host, _text, FontRole::Body, pageTextRect, _caretIndex, false, _preferredMultilineXOffsetDip, viewportMetrics.visibleLineCount);
+            &host, _text, _fontRole, pageTextRect, _caretIndex, false, _preferredMultilineXOffsetDip, viewportMetrics.visibleLineCount);
         BreakDirectEditMerge();
         SetSingleLineCaretIndex(_caretIndex, _selectionAnchorIndex, nextCaretIndex, extendSelection);
         refreshCaret();
@@ -2463,9 +2494,9 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
     {
         const bool extendSelection                     = ModifiersContainShift(modifiers);
         const D2D1_RECT_F pageTextRect                 = GetTextRect();
-        const MultilineViewportMetrics viewportMetrics = ComputeMultilineViewportMetrics(&host, _text, FontRole::Body, pageTextRect);
-        const size_t nextCaretIndex                    = MoveMultilineCaretByPage(
-            &host, _text, FontRole::Body, pageTextRect, _caretIndex, true, _preferredMultilineXOffsetDip, viewportMetrics.visibleLineCount);
+        const MultilineViewportMetrics viewportMetrics = ComputeMultilineViewportMetrics(&host, _text, _fontRole, pageTextRect);
+        const size_t nextCaretIndex =
+            MoveMultilineCaretByPage(&host, _text, _fontRole, pageTextRect, _caretIndex, true, _preferredMultilineXOffsetDip, viewportMetrics.visibleLineCount);
         BreakDirectEditMerge();
         SetSingleLineCaretIndex(_caretIndex, _selectionAnchorIndex, nextCaretIndex, extendSelection);
         refreshCaret();
@@ -2477,7 +2508,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         if (_multiline && ! ModifiersContainCtrl(modifiers))
         {
             const size_t nextCaretIndex =
-                TryMoveCaretToWrappedLineBoundary(&host, _text, FontRole::Body, GetTextRect(), _caretIndex, false).value_or(FindLineStart(_text, _caretIndex));
+                TryMoveCaretToWrappedLineBoundary(&host, _text, _fontRole, GetTextRect(), _caretIndex, false).value_or(FindLineStart(_text, _caretIndex));
             SetCaretIndex(nextCaretIndex, ModifiersContainShift(modifiers));
         }
         else
@@ -2493,7 +2524,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         if (_multiline && ! ModifiersContainCtrl(modifiers))
         {
             const size_t nextCaretIndex =
-                TryMoveCaretToWrappedLineBoundary(&host, _text, FontRole::Body, GetTextRect(), _caretIndex, true).value_or(FindLineEnd(_text, _caretIndex));
+                TryMoveCaretToWrappedLineBoundary(&host, _text, _fontRole, GetTextRect(), _caretIndex, true).value_or(FindLineEnd(_text, _caretIndex));
             SetCaretIndex(nextCaretIndex, ModifiersContainShift(modifiers));
         }
         else
@@ -2505,6 +2536,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
     }
     if (virtualKey == VK_RETURN && _multiline)
     {
+        host.AllowTranslatedCharacter();
         return true;
     }
     if (virtualKey == VK_RETURN && ! _multiline)
@@ -2744,7 +2776,7 @@ std::optional<D2D1_RECT_F> TextField::GetTextInputCaretRect(const ControlHost& h
             GetOrCreateMultilineLayout(&host, displayText, std::max(1.0f, textRect.right - textRect.left), std::max(1.0f, textRect.bottom - textRect.top));
         const std::vector<DWRITE_LINE_METRICS> lineMetrics = GetMultilineLineMetrics(multilineLayout.get());
         const float multilineScrollDip                     = MeasureWrappedLineOffsetDip(lineMetrics, _multilineFirstVisibleLine);
-        return MeasureMultilineCaretRectDip(&host, displayText, FontRole::Body, textRect, multilineScrollDip, displayCaretIndex);
+        return MeasureMultilineCaretRectDip(&host, displayText, _fontRole, textRect, multilineScrollDip, displayCaretIndex);
     }
 
     const bool perfEnabled                          = Debug::Perf::IsCaptureEnabled();
@@ -2918,7 +2950,7 @@ std::optional<size_t> TextField::HitTestTextInputPoint(const ControlHost& host, 
         const size_t displayHitIndex =
             HitTestMultilineCaretIndexDip(&host,
                                           displayText,
-                                          FontRole::Body,
+                                          _fontRole,
                                           textRect,
                                           MeasureWrappedLineOffsetDip(GetMultilineLineMetrics(multilineLayout.get()), _multilineFirstVisibleLine),
                                           point);
@@ -2926,7 +2958,7 @@ std::optional<size_t> TextField::HitTestTextInputPoint(const ControlHost& host, 
     }
 
     const size_t displayHitIndex =
-        HitTestCaretIndexDip(&host, displayText, FontRole::Body, textRect, _horizontalScrollDip, point, ResolveReadingDirection(GetFlowDirection()));
+        HitTestCaretIndexDip(&host, displayText, _fontRole, textRect, _horizontalScrollDip, point, ResolveReadingDirection(GetFlowDirection()));
     return DisplayTextIndexToControlTextIndex(displayHitIndex);
 }
 
@@ -2993,9 +3025,9 @@ bool TextField::ImportTextInputState(ControlHost& host, const TextInputState& st
                 {
                     const float viewportHeightDip = std::max(1.0f, textRect.bottom - textRect.top);
                     const auto multilineLayout =
-                        CreateMultilineTextLayout(&host, displayText, FontRole::Body, std::max(1.0f, textRect.right - textRect.left), viewportHeightDip);
+                        CreateMultilineTextLayout(&host, displayText, _fontRole, std::max(1.0f, textRect.right - textRect.left), viewportHeightDip);
                     const std::vector<DWRITE_LINE_METRICS> lineMetrics = GetMultilineLineMetrics(multilineLayout.get());
-                    const float fallbackLineHeightDip                  = EstimateMultilineFallbackLineHeightDip(&host, FontRole::Body);
+                    const float fallbackLineHeightDip                  = EstimateMultilineFallbackLineHeightDip(&host, _fontRole);
                     const MultilineViewportMetrics viewportMetrics =
                         BuildMultilineViewportMetrics(displayText, viewportHeightDip, lineMetrics, fallbackLineHeightDip);
                     _multilineFirstVisibleLine = ClampMultilineFirstVisibleLine(_multilineFirstVisibleLine, viewportMetrics);
@@ -3367,18 +3399,20 @@ wil::com_ptr<IDWriteTextLayout> TextField::GetOrCreateMultilineLayout(const Cont
 {
     if (! host || ! _multiline)
     {
-        return CreateMultilineTextLayout(host, text, FontRole::Body, widthDip, heightDip);
+        return CreateMultilineTextLayout(host, text, _fontRole, widthDip, heightDip);
     }
 
     const D2D1_SIZE_F desiredSize = D2D1::SizeF(widthDip, heightDip);
     const bool sizeChanged = std::abs(_cachedLayoutSize.width - desiredSize.width) > 0.5f || std::abs(_cachedLayoutSize.height - desiredSize.height) > 0.5f;
     const bool textChanged = text != _cachedLayoutText;
+    const bool roleChanged = _cachedLayoutRole != _fontRole;
 
-    if (_multilineLayoutDirty || sizeChanged || textChanged || ! _cachedMultilineLayout)
+    if (_multilineLayoutDirty || sizeChanged || textChanged || roleChanged || ! _cachedMultilineLayout)
     {
-        _cachedMultilineLayout = CreateMultilineTextLayout(host, text, FontRole::Body, widthDip, heightDip);
+        _cachedMultilineLayout = CreateMultilineTextLayout(host, text, _fontRole, widthDip, heightDip);
         _cachedLayoutText      = std::wstring(text);
         _cachedLayoutSize      = desiredSize;
+        _cachedLayoutRole      = _fontRole;
         _multilineLayoutDirty  = false;
     }
 
@@ -3390,10 +3424,10 @@ wil::com_ptr<IDWriteTextLayout> TextField::GetOrCreateSingleLineLayout(
 {
     if (_multiline)
     {
-        return GetOrCreateSingleLineTextLayout(host, nullptr, text, FontRole::Body, minimumWidthDip, heightDip, readingDirection);
+        return GetOrCreateSingleLineTextLayout(host, nullptr, text, _fontRole, minimumWidthDip, heightDip, readingDirection);
     }
 
-    return GetOrCreateSingleLineTextLayout(host, &_singleLineLayoutCache, text, FontRole::Body, minimumWidthDip, heightDip, readingDirection, true);
+    return GetOrCreateSingleLineTextLayout(host, &_singleLineLayoutCache, text, _fontRole, minimumWidthDip, heightDip, readingDirection, true);
 }
 
 void TextField::InvalidateSingleLineLayoutCache() const noexcept
@@ -3452,10 +3486,9 @@ void TextField::EnsureMultilineCaretVisible(const ControlHost* host) noexcept
     }
 
     const float viewportHeightDip = std::max(1.0f, textRect.bottom - textRect.top);
-    const auto multilineLayout =
-        CreateMultilineTextLayout(host, displayText, FontRole::Body, std::max(1.0f, textRect.right - textRect.left), viewportHeightDip);
+    const auto multilineLayout    = CreateMultilineTextLayout(host, displayText, _fontRole, std::max(1.0f, textRect.right - textRect.left), viewportHeightDip);
     const std::vector<DWRITE_LINE_METRICS> lineMetrics = GetMultilineLineMetrics(multilineLayout.get());
-    const float fallbackLineHeightDip                  = EstimateMultilineFallbackLineHeightDip(host, FontRole::Body);
+    const float fallbackLineHeightDip                  = EstimateMultilineFallbackLineHeightDip(host, _fontRole);
     const MultilineViewportMetrics viewportMetrics     = BuildMultilineViewportMetrics(displayText, viewportHeightDip, lineMetrics, fallbackLineHeightDip);
     const size_t displayCaretIndex                     = ControlTextIndexToDisplayTextIndex(_caretIndex);
     const size_t caretLine =

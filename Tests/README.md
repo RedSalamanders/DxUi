@@ -218,3 +218,7 @@ servicing callbacks. Optional activation diagnostics record existing operations 
 their stage and HRESULT. See the [ASan setup packet](../Measurements/TextInput/2026-10-18-asan-setup/README.md)
 for retained diagnostic failures and current validation limits. No setup failure or passing repeat closes a
 remaining qualification gate.
+
+
+Generated output is retained per invocation under `.build/evidence/test-runs/<id>/payload`. Read the
+[retention contract](../Specs/Testing/Testing_RunEvidence.md) for failed/interrupted runs and verification.

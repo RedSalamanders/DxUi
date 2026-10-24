@@ -191,6 +191,311 @@ void TestRichTextEditorCallbackRetirementAndFailure()
     Require(raw->ReplaceSelection(L"!") && raw->GetText() == L"application replacement" && ! raw->CanUndo(), "callback may replace source and delegate");
 }
 
+void TestRichTextEditorSelectionPublicationAndRetirement()
+{
+    ControlHost host;
+    RichTextEditor editor(L"alpha");
+    std::vector<Selection> selections;
+    editor.SetOnSelectionChanged([&] { selections.push_back(editor.GetSelection()); });
+    Require(selections.empty() && ! editor.IsSelectionGestureActive(), "selection registration is silent without a pointer gesture");
+    editor.SetSelection({2u, 2u});
+    editor.SetSelection({2u, 2u});
+    Require(selections == std::vector<Selection>{{2u, 2u}}, "programmatic publication suppresses unchanged endpoints");
+    Require(editor.OnKeyDown(host, VK_RIGHT, 0u) && selections.back() == Selection{3u, 3u} && selections.size() == 2u,
+            "keyboard source selection notifies synchronously");
+    editor.SetOnSelectionChanged([&]
+    {
+        selections.push_back(editor.GetSelection());
+        if (editor.GetSelection().caret == 1u)
+            editor.SetSelection({4u, 4u});
+    });
+    editor.SetSelection({1u, 1u});
+    Require(selections.size() == 4u && selections[2] == Selection{1u, 1u} && selections[3] == Selection{4u, 4u},
+            "reentrant publication observes each committed predecessor exactly once");
+    editor.SetOnSelectionChanged([&] { editor.SetOnSelectionChanged({}); });
+    editor.SetSelection({0u, 0u});
+    editor.SetSelection({1u, 1u});
+    editor.SetOnSelectionChanged([] { throw std::runtime_error("selection notification failed"); });
+    editor.SetSelection({2u, 2u});
+    Require(editor.GetSelection() == Selection{2u, 2u} && ! editor.CanUndo(), "notification failure preserves committed selection and history");
+
+    auto owned = std::make_unique<RichTextEditor>(L"owned");
+    auto* raw  = owned.get();
+    host.SetRoot(std::move(owned));
+    size_t calls = 0u;
+    raw->SetOnSelectionChanged([&]
+    {
+        ++calls;
+        host.SetRoot(std::make_unique<Label>(L"replacement"));
+    });
+    raw->SetSelection({1u, 1u});
+    Require(calls == 1u, "selection callback may retire its editor synchronously");
+}
+
+void TestRichTextEditorCommittedTextThenSelectionCallbacks()
+{
+    RichTextEditor editor(L"abc");
+    std::vector<char> events;
+    std::vector<Selection> selections;
+    editor.SetOnTextChanged([&] { events.push_back('T'); });
+    editor.SetOnSelectionChanged([&]
+    {
+        events.push_back('S');
+        selections.push_back(editor.GetSelection());
+    });
+    editor.SetSelection({1u, 1u});
+    events.clear();
+    selections.clear();
+    Require(editor.ReplaceSelection(L"x") && events == std::vector<char>{'T', 'S'} && selections == std::vector<Selection>{{2u, 2u}},
+            "committed edit notifies text consumer before final selection consumer");
+    events.clear();
+    selections.clear();
+    Require(editor.Undo() && events == std::vector<char>{'T', 'S'} && selections == std::vector<Selection>{{1u, 1u}},
+            "undo publishes committed source before its restored selection");
+
+    events.clear();
+    selections.clear();
+    editor.SetOnTextChanged([&]
+    {
+        events.push_back('T');
+        editor.SetOnTextChanged({});
+    });
+    Require(editor.Redo() && events == std::vector<char>{'T', 'S'} && selections == std::vector<Selection>{{2u, 2u}},
+            "self-clearing text callback does not suppress its surviving selection publication");
+
+    RichTextEditor throwing(L"ab");
+    throwing.SetSelection({1u, 1u});
+    std::vector<char> failedCallbackEvents;
+    throwing.SetOnTextChanged([&]
+    {
+        failedCallbackEvents.push_back('T');
+        throw std::runtime_error("planned committed text callback failure");
+    });
+    throwing.SetOnSelectionChanged([&] { failedCallbackEvents.push_back('S'); });
+    Require(throwing.ReplaceSelection(L"x") && throwing.GetText() == L"axb" && throwing.CanUndo() && failedCallbackEvents == std::vector<char>{'T', 'S'},
+            "standard text callback failure retains committed source/history and still publishes selection");
+
+    RichTextEditor replacedRegistration(L"abc");
+    replacedRegistration.SetSelection({1u, 1u});
+    unsigned oldSelectionCalls = 0u, newSelectionCalls = 0u;
+    replacedRegistration.SetOnSelectionChanged([&] { ++oldSelectionCalls; });
+    replacedRegistration.SetOnTextChanged([&] { replacedRegistration.SetOnSelectionChanged([&] { ++newSelectionCalls; }); });
+    Require(replacedRegistration.ReplaceSelection(L"x") && oldSelectionCalls == 0u && newSelectionCalls == 0u,
+            "selection callback replacement remains silent and does not receive an already-current registration event");
+    replacedRegistration.SetSelection({0u, 0u});
+    Require(newSelectionCalls == 1u, "replacement selection callback receives the next actual selection change");
+
+    RichTextEditor nested(L"abcd");
+    nested.SetSelection({1u, 1u});
+    std::vector<char> nestedEvents;
+    std::vector<Selection> nestedSelections;
+    unsigned callbackDepth = 0u;
+    nested.SetOnTextChanged([&]
+    {
+        nestedEvents.push_back('T');
+        if (callbackDepth++ == 0u)
+            Require(nested.ReplaceSelection(L"y"), "text callback can commit a nested edit");
+        --callbackDepth;
+    });
+    nested.SetOnSelectionChanged([&]
+    {
+        nestedEvents.push_back('S');
+        nestedSelections.push_back(nested.GetSelection());
+    });
+    Require(nested.ReplaceSelection(L"x") && nested.GetText() == L"axybcd" && nestedEvents == std::vector<char>{'T', 'T', 'S'} &&
+                nestedSelections == std::vector<Selection>{{3u, 3u}},
+            "nested source revision publishes only its final selection and suppresses stale outer publication");
+
+    RichTextEditor movedSelection(L"abc");
+    movedSelection.SetSelection({1u, 1u});
+    std::vector<char> movedEvents;
+    movedSelection.SetOnSelectionChanged([&] { movedEvents.push_back('S'); });
+    movedSelection.SetOnTextChanged([&]
+    {
+        movedEvents.push_back('T');
+        movedSelection.SetSelection({0u, 0u});
+    });
+    Require(movedSelection.ReplaceSelection(L"x") && movedEvents == std::vector<char>{'T', 'S'} && movedSelection.GetSelection() == Selection{0u, 0u},
+            "selection mutation inside text callback publishes once and prevents stale duplicate selection");
+
+    class TextServiceEditor final : public RichTextEditor
+    {
+    public:
+        using RichTextEditor::ExportTextInputState;
+        using RichTextEditor::ImportTextInputState;
+        using RichTextEditor::RichTextEditor;
+    };
+    ControlHost textHost;
+    auto textOwner   = std::make_unique<TextServiceEditor>(L"abc");
+    auto* textEditor = textOwner.get();
+    textHost.SetRoot(std::move(textOwner));
+    textEditor->SetSelection({1u, 1u});
+    TextInputState committed;
+    Require(textEditor->ExportTextInputState(committed), "text-service baseline exports");
+    auto preview                 = committed;
+    preview.text                 = L"aXbc";
+    preview.caretIndex           = 2u;
+    preview.selectionAnchorIndex = 2u;
+    std::vector<char> serviceEvents;
+    textEditor->SetOnTextChanged([&] { serviceEvents.push_back('T'); });
+    textEditor->SetOnSelectionChanged([&] { serviceEvents.push_back('S'); });
+    Require(textEditor->ImportTextInputState(textHost, preview, false) && textEditor->GetText() == L"aXbc" && serviceEvents == std::vector<char>{'S'} &&
+                ! textEditor->CanUndo(),
+            "TSF preview remains immediate and does not become a committed text/history event");
+    serviceEvents.clear();
+    Require(textEditor->ImportTextInputState(textHost, committed, false) && textEditor->GetText() == L"abc" && serviceEvents == std::vector<char>{'S'} &&
+                ! textEditor->CanUndo(),
+            "TSF cancellation immediately restores selection/source without history notification");
+    serviceEvents.clear();
+    Require(textEditor->ImportTextInputState(textHost, preview, true) && textEditor->GetText() == L"aXbc" && textEditor->CanUndo() &&
+                serviceEvents == std::vector<char>{'T', 'S'},
+            "TSF commit uses committed text-then-selection callback ordering exactly once");
+
+    ControlHost repeatedPreviewHost;
+    auto repeatedPreviewOwner = std::make_unique<TextServiceEditor>(L"abcX");
+    auto* repeatedPreview     = repeatedPreviewOwner.get();
+    repeatedPreviewHost.SetRoot(std::move(repeatedPreviewOwner));
+    repeatedPreview->SetSelection({4u, 4u});
+    TextInputState repeatedCommitted;
+    Require(repeatedPreview->ExportTextInputState(repeatedCommitted), "same-anchor TSF baseline exports");
+    std::vector<char> repeatedEvents;
+    std::vector<Selection> repeatedSelections;
+    repeatedPreview->SetOnTextChanged([&] { repeatedEvents.push_back('T'); });
+    repeatedPreview->SetOnSelectionChanged([&]
+    {
+        repeatedEvents.push_back('S');
+        repeatedSelections.push_back(repeatedPreview->GetSelection());
+    });
+    Require(repeatedEvents.empty(), "same-anchor callback registration remains silent");
+    auto repeatedState                 = repeatedCommitted;
+    repeatedState.text                 = L"abcY";
+    repeatedState.caretIndex           = 4u;
+    repeatedState.selectionAnchorIndex = 4u;
+    Require(repeatedPreview->ImportTextInputState(repeatedPreviewHost, repeatedState, false) && repeatedPreview->GetText() == L"abcY" &&
+                repeatedEvents == std::vector<char>{'S'} && repeatedSelections == std::vector<Selection>{{4u, 4u}} && ! repeatedPreview->CanUndo() &&
+                ! repeatedPreview->CanRedo(),
+            "first non-notifying source revision publishes selection at the unchanged ACP without committed history");
+    Require(repeatedPreview->ImportTextInputState(repeatedPreviewHost, repeatedState, false) && repeatedEvents == std::vector<char>{'S'},
+            "same source revision and ACP suppress a duplicate text-service notification");
+    repeatedState.text = L"abcZ";
+    Require(repeatedPreview->ImportTextInputState(repeatedPreviewHost, repeatedState, false) && repeatedPreview->GetText() == L"abcZ" &&
+                repeatedEvents == std::vector<char>{'S', 'S'} && repeatedSelections == std::vector<Selection>{{4u, 4u}, {4u, 4u}} &&
+                ! repeatedPreview->CanUndo() && ! repeatedPreview->CanRedo(),
+            "second non-notifying source revision publishes even when ACP and gesture state are unchanged");
+    Require(repeatedPreview->ImportTextInputState(repeatedPreviewHost, repeatedCommitted, false) && repeatedPreview->GetText() == L"abcX" &&
+                repeatedEvents == std::vector<char>{'S', 'S', 'S'} && repeatedSelections.back() == Selection{4u, 4u} && ! repeatedPreview->CanUndo() &&
+                ! repeatedPreview->CanRedo(),
+            "cancellation publishes its restored source revision without creating history");
+    Require(repeatedPreview->ImportTextInputState(repeatedPreviewHost, repeatedCommitted, false) && repeatedEvents.size() == 3u,
+            "repeated unchanged cancellation remains silent");
+    auto repeatedCommit = repeatedCommitted;
+    repeatedCommit.text = L"abcW";
+    Require(repeatedPreview->ImportTextInputState(repeatedPreviewHost, repeatedCommit, true) && repeatedPreview->GetText() == L"abcW" &&
+                repeatedPreview->CanUndo() && repeatedEvents == std::vector<char>{'S', 'S', 'S', 'T', 'S'} && repeatedSelections.back() == Selection{4u, 4u},
+            "notifying commit retains text-then-selection order after same-anchor transient revisions");
+
+    serviceEvents.clear();
+    textEditor->SetSelection({4u, 4u});
+    serviceEvents.clear();
+    textEditor->SetText(L"x");
+    Require(serviceEvents == std::vector<char>{'S'}, "silent SetText keeps its selection-only notification and never reports committed text");
+
+    ControlHost firstHost, secondHost;
+    auto panelOwner = std::make_unique<Panel>();
+    auto* panel     = panelOwner.get();
+    auto* rebound   = panelOwner->AddChild<RichTextEditor>();
+    rebound->SetText(L"kept");
+    rebound->SetSelection({4u, 4u});
+    firstHost.SetRoot(std::move(panelOwner));
+    unsigned reboundSelectionCalls = 0u;
+    rebound->SetOnTextChanged([&]
+    {
+        auto child = panel->TakeChild(0u);
+        secondHost.SetRoot(std::move(child));
+    });
+    rebound->SetOnSelectionChanged([&] { ++reboundSelectionCalls; });
+    Require(rebound->ReplaceSelection(L"!") && secondHost.GetRoot() == rebound && rebound->GetText() == L"kept!" && rebound->CanUndo() &&
+                reboundSelectionCalls == 0u,
+            "same editor rebind during text callback suppresses the stale outer selection while preserving source/history");
+    rebound->SetOnTextChanged({});
+    rebound->SetSelection({0u, 0u});
+    Require(reboundSelectionCalls == 1u, "rebound editor publishes later selection changes through its current host");
+
+    ControlHost retirementHost;
+    auto retiring        = std::make_unique<RichTextEditor>(L"abc");
+    auto* retiringEditor = retiring.get();
+    retirementHost.SetRoot(std::move(retiring));
+    unsigned staleSelections = 0u;
+    retiringEditor->SetSelection({1u, 1u});
+    retiringEditor->SetOnTextChanged([&] { retirementHost.SetRoot(std::make_unique<Label>(L"replacement")); });
+    retiringEditor->SetOnSelectionChanged([&] { ++staleSelections; });
+    Require(retiringEditor->ReplaceSelection(L"x") && dynamic_cast<Label*>(retirementHost.GetRoot()) && staleSelections == 0u,
+            "text callback retirement prevents a deferred selection access to the former editor");
+}
+
+void TestRichTextEditorSelectionGestureAndTextServicePublication()
+{
+    class SelectionAdapterEditor final : public RichTextEditor
+    {
+    public:
+        using RichTextEditor::ExportTextInputState;
+        using RichTextEditor::ImportTextInputState;
+        using RichTextEditor::OnCaptureLost;
+        using RichTextEditor::RichTextEditor;
+    };
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<SelectionAdapterEditor>(L"alpha beta gamma");
+    auto* editor = owned.get();
+    window.Host().SetRoot(std::move(owned));
+    RenderEditor(window);
+    window.Host().SetFocusControl(editor, false);
+    std::vector<std::pair<Selection, bool>> notifications;
+    editor->SetOnSelectionChanged([&] { notifications.emplace_back(editor->GetSelection(), editor->IsSelectionGestureActive()); });
+    const auto point = [&](size_t source)
+    {
+        const auto rectangle = editor->TryGetTextInputCaretRect(window.Host(), source);
+        Require(rectangle.has_value(), "prepared selection gesture caret geometry");
+        return D2D1::Point2F(rectangle->left + .1f, (rectangle->top + rectangle->bottom) * .5f);
+    };
+    const auto start = point(0u), end = point(8u);
+    Require(editor->OnMouseDown(window.Host(), start, false, 0u) && notifications.size() == 1u && notifications.back().second,
+            "pointer begin notifies active gesture even at unchanged insertion point");
+    Require(editor->OnMouseMove(window.Host(), end, 0u) && notifications.size() == 2u && notifications.back().second,
+            "pointer movement publishes source endpoints with active gesture state");
+    const auto selected = editor->GetSelection();
+    static_cast<void>(editor->OnMouseMove(window.Host(), end, 0u));
+    Require(notifications.size() == 2u && selected.anchor != selected.caret, "steady pointer selection suppresses duplicate notification");
+    Require(editor->OnMouseUp(window.Host(), end, false, 0u) && notifications.size() == 3u && ! notifications.back().second &&
+                notifications.back().first == selected,
+            "pointer release notifies inactive gesture without changing endpoints");
+    static_cast<void>(editor->OnMouseUp(window.Host(), end, false, 0u));
+    Require(notifications.size() == 3u, "repeated release cannot duplicate the completion callback");
+    Require(editor->OnMouseDown(window.Host(), end, false, 0u), "begin capture cancellation fixture");
+    editor->OnCaptureLost(window.Host());
+    Require(notifications.size() == 5u && ! notifications.back().second, "capture cancellation publishes final inactive gesture");
+    window.Host().ReleaseMouseCapture();
+    Require(notifications.size() == 5u, "host capture cleanup suppresses duplicate cancellation");
+    Require(editor->OnMouseDown(window.Host(), end, false, 0u) && editor->OnKeyDown(window.Host(), VK_ESCAPE, 0u) && notifications.size() == 7u &&
+                ! notifications.back().second,
+            "Escape completes pointer selection without an endpoint change");
+    TextInputState state;
+    Require(editor->ExportTextInputState(state), "export canonical text service state");
+    state.caretIndex           = 2u;
+    state.selectionAnchorIndex = 1u;
+    Require(editor->ImportTextInputState(window.Host(), state, false) && notifications.size() == 8u &&
+                notifications.back() == std::pair{Selection{1u, 2u}, false},
+            "text service selection-only import publishes through the same callback");
+    Require(editor->ImportTextInputState(window.Host(), state, false) && notifications.size() == 8u && ! editor->CanUndo(),
+            "unchanged native import preserves duplicate suppression and source history");
+    editor->SetOnSelectionChanged([&]
+    {
+        if (! editor->IsSelectionGestureActive())
+            window.Host().SetRoot(std::make_unique<Label>(L"replacement"));
+    });
+    Require(editor->OnMouseDown(window.Host(), end, false, 0u), "begin pointer release retirement fixture");
+    Require(editor->OnMouseUp(window.Host(), end, false, 0u), "final pointer callback may destroy its editor after publication");
+}
+
 void TestRichTextEditorNativeHostAndLayoutReuse()
 {
     AttachedHostWindow window;
@@ -220,6 +525,100 @@ void TestRichTextEditorNativeHostAndLayoutReuse()
     raw->SetVisible(true);
     RenderEditor(window);
     Require(raw->DebugGetState().layoutReady, "show prepares layout again");
+}
+
+void TestRichTextEditorDocumentFocusChromeDoesNotRetireTextGeometry()
+{
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<RichTextEditor>(L"A quiet writing surface.");
+    auto* editor = owned.get();
+    window.Host().SetRoot(std::move(owned));
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    auto appearance       = editor->GetAppearance();
+    appearance.drawBorder = false;
+    editor->SetAppearance(appearance);
+    window.Host().SetFocusControl(editor, false);
+    bool handled = false;
+    // Logical input on the owned test host sets keyboard modality without OS input or native focus transfer.
+    (void)window.Host().HandleMessage(window.Hwnd(), WM_KEYDOWN, VK_SHIFT, 0, handled);
+    (void)window.Host().HandleMessage(window.Hwnd(), WM_KEYUP, VK_SHIFT, 0, handled);
+    Require(editor->HasFocus() && window.Host().IsKeyboardFocusVisible(), "the focus-chrome fixture owns logical keyboard focus");
+    RenderEditor(window);
+    const auto source     = editor->Snapshot();
+    const auto selection  = editor->GetSelection();
+    const auto generation = editor->DebugGetState().layoutGeneration;
+    WindowHostBitmapCapture framed, quiet;
+    Require(window.Host().DebugCaptureBitmap(framed), "capture keyboard-focused borderless editor");
+    appearance.drawFocusIndicator = false;
+    editor->SetAppearance(appearance);
+    RenderEditor(window);
+    Require(window.Host().DebugCaptureBitmap(quiet) && quiet.bgraPixels != framed.bgraPixels,
+            "a document surface can omit the decorative perimeter while retaining its caret");
+    Require(editor->Snapshot().IsSameRevision(source) && editor->GetSelection() == selection && ! editor->CanUndo() &&
+                editor->DebugGetState().layoutGeneration == generation,
+            "focus presentation changes no source, selection, history or prepared geometry");
+    auto theme         = window.Host().GetTheme();
+    theme.highContrast = true;
+    window.Host().SetTheme(theme);
+    RenderEditor(window);
+    Require(window.Host().DebugCaptureBitmap(quiet), "capture document surface in high contrast");
+    appearance.drawFocusIndicator = true;
+    editor->SetAppearance(appearance);
+    RenderEditor(window);
+    Require(window.Host().DebugCaptureBitmap(framed) && framed.bgraPixels == quiet.bgraPixels,
+            "high contrast always retains the same focus indicator regardless of the document opt-out");
+}
+
+void TestRichTextEditorPreparedSourceInkPreservesGeometryAndSelection()
+{
+    AttachedHostWindow window;
+    const std::wstring source = L"# Heading\r\n\r\n- **strong** [label](https://example.invalid/path)\r\n";
+    auto owned                = std::make_unique<RichTextEditor>(source);
+    auto* editor              = owned.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::CommonMark0312);
+    editor->SetViewMode(ViewMode::Source);
+    window.Host().SetRoot(std::move(owned));
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    RenderEditor(window);
+    WindowHostBitmapCapture plain, colored, selectedColored, selectedPlain;
+    Require(window.Host().DebugCaptureBitmap(plain), "ordinary source fixture capture without activation");
+    const auto geometry               = editor->DebugGetState().layoutGeneration;
+    const auto before                 = editor->TryGetTextInputCaretRect(window.Host(), source.find(L"strong"));
+    auto appearance                   = editor->GetAppearance();
+    appearance.colorizeMarkdownSource = true;
+    editor->SetAppearance(appearance);
+    RenderEditor(window);
+    const auto after = editor->TryGetTextInputCaretRect(window.Host(), source.find(L"strong"));
+    Require(editor->DebugGetState().sourceInkRangeCount > 0u && ! editor->DebugGetState().sourceInkPreparationPending &&
+                editor->DebugGetState().layoutGeneration == geometry && before && after && before->left == after->left && before->top == after->top &&
+                before->bottom == after->bottom && editor->GetText() == source && ! editor->CanUndo(),
+            "source ink publication preserves exact source/SDK geometry and history");
+    Require(window.Host().DebugCaptureBitmap(colored) && colored.bgraPixels != plain.bgraPixels, "prepared source roles change actual glyph ink");
+    editor->SetFocusModeEnabled(true);
+    RenderEditor(window);
+    WindowHostBitmapCapture sourceFocused;
+    Require(window.Host().DebugCaptureBitmap(sourceFocused) && sourceFocused.bgraPixels == colored.bgraPixels, "Source view never receives focus dimming");
+    editor->SetSelection({0u, source.size()});
+    RenderEditor(window);
+    Require(window.Host().DebugCaptureBitmap(selectedColored), "selected colored source capture");
+    appearance.colorizeMarkdownSource = false;
+    editor->SetAppearance(appearance);
+    RenderEditor(window);
+    Require(window.Host().DebugCaptureBitmap(selectedPlain) && selectedPlain.bgraPixels == selectedColored.bgraPixels,
+            "true selection colors override all custom source roles");
+    editor->SetSelection({0u, 0u});
+    auto palette         = window.Host().GetTheme();
+    palette.highContrast = true;
+    window.Host().SetTheme(palette);
+    RenderEditor(window);
+    Require(window.Host().DebugCaptureBitmap(plain), "high contrast source capture");
+    appearance.colorizeMarkdownSource = true;
+    editor->SetAppearance(appearance);
+    RenderEditor(window);
+    Require(window.Host().DebugCaptureBitmap(colored) && colored.bgraPixels == plain.bgraPixels,
+            "high contrast suppresses custom syntax ink using the shared ordinary text pair");
+    editor->SetText(L"replacement");
+    Require(editor->DebugGetState().sourceInkRangeCount == 0u, "source replacement immediately retires all old ink");
 }
 
 void TestRichTextEditorNativeUnicodeRoutingAndNavigation()
@@ -311,6 +710,26 @@ void TestRichTextEditorScrollAndHostClock()
     raw->SetSelection({0, 0});
     RenderEditor(window);
     Require(raw->DebugGetState().scrollOffsetDip == 0, "selection reveals start caret");
+    const auto readyAdvances = raw->DebugGetState().preparationAdvances;
+    Require(raw->ScrollSourceRangeIntoView(window.Host(), 500u, 500u, true) && raw->DebugGetState().scrollOffsetDip > 0,
+            "ready scroll accepts the exact end boundary and reveals its insertion point");
+    Require(raw->ScrollSourceRangeIntoView(window.Host(), 0u, 0u, true) && raw->DebugGetState().scrollOffsetDip == 0 &&
+                raw->DebugGetState().preparationAdvances == readyAdvances,
+            "ready source-range scrolling retains prepared geometry and returns to the first boundary");
+    Require(! raw->ScrollSourceRangeIntoView(window.Host(), 501u, 501u, true), "ready scroll rejects an out-of-range source boundary");
+    raw->SetEnabled(false);
+    Require(! raw->ScrollSourceRangeIntoView(window.Host(), 0u, 0u, true), "disabled editor rejects direct source-range scrolling");
+    raw->SetEnabled(true);
+    ControlHost detachedHost;
+    auto detachedPanel = std::make_unique<Panel>();
+    auto* detachedRoot = detachedPanel.get();
+    auto* detachedText = detachedRoot->AddChild<RichTextEditor>(L"detached source");
+    detachedHost.SetRoot(std::move(detachedPanel));
+    auto detachedOwner = detachedRoot->TakeChild(0u);
+    detachedText       = dynamic_cast<RichTextEditor*>(detachedOwner.get());
+    Require(detachedText != nullptr && ControlModelQueryAccess::Host(*detachedText) == nullptr &&
+                ! detachedText->ScrollSourceRangeIntoView(detachedHost, 0u, 4u, true),
+            "detached editor rejects a stale host scroll request");
     window.Host().SetFocusControl(raw, false);
     auto theme          = window.Host().GetTheme();
     theme.reducedMotion = false;
@@ -458,8 +877,22 @@ void TestRichTextEditorNativeCooperativePreparation()
     Require(! editor->TryGetTextInputCaretRect(window.Host(), 0u) && ! editor->TryGetTextInputRangeRects(window.Host(), 0u, 4u) &&
                 ! editor->GetVisibleSourceRange(window.Host()) && ! editor->GetSourceVisualLineRanges(window.Host()),
             "native text/UIA geometry is unavailable during pending preparation");
-    Require(! editor->ScrollSourceRangeIntoView(window.Host(), 0u, 4u, true) && editor->DebugGetState().preparationAdvances == pending.preparationAdvances,
-            "queries and scrolling never drain a pending native request");
+    const auto pendingSource    = editor->Snapshot();
+    const auto pendingSelection = editor->GetSelection();
+    const bool pendingUndo      = editor->CanUndo();
+    const bool pendingRedo      = editor->CanRedo();
+    size_t pendingTextNotifications{};
+    editor->SetOnTextChanged([&] { ++pendingTextNotifications; });
+    constexpr size_t pendingScrollQueries = 256u;
+    for (size_t query = 0u; query < pendingScrollQueries; ++query)
+        Require(! editor->ScrollSourceRangeIntoView(window.Host(), 0u, 4u, true), "pending source range never fabricates geometry");
+    const auto afterPendingScroll = editor->DebugGetState();
+    Require(editor->Snapshot().IsSameRevision(pendingSource) && editor->GetSelection() == pendingSelection && editor->CanUndo() == pendingUndo &&
+                editor->CanRedo() == pendingRedo && afterPendingScroll.scrollOffsetDip == pending.scrollOffsetDip &&
+                afterPendingScroll.preparationAdvances == pending.preparationAdvances && ! afterPendingScroll.layoutReady &&
+                window.Host().HasPendingContentPreparation() && pendingTextNotifications == 0u,
+            "repeated pending scroll queries preserve source, history, selection, viewport and owner work");
+    editor->SetOnTextChanged({});
     for (size_t key = 0u; key < 48u; ++key)
         Require(editor->OnChar(window.Host(), L'x', 0u), "rapid typing stays accepted before native geometry catches up");
     const auto latest = editor->GetText();
@@ -555,6 +988,69 @@ void TestRichTextEditorNativeMessageSchedulingAndFailure()
             "multiple message-loop turns publish only the latest complete native document");
     window.PumpMessages(20u);
     Require(editor->DebugGetState().preparationAdvances == prepared.preparationAdvances, "completed native content leaves no preparation polling loop");
+}
+void TestRichTextEditorNativeDenseSourceAndSplitScheduling()
+{
+    class ObservedEditor final : public RichTextEditor
+    {
+    public:
+        using RichTextEditor::RichTextEditor;
+        size_t calls{};
+        std::chrono::microseconds maximumAdvance{};
+        HRESULT PrepareContent(ControlHost& host) noexcept override
+        {
+            ++calls;
+            const auto start = std::chrono::steady_clock::now();
+            const HRESULT hr = RichTextEditor::PrepareContent(host);
+            maximumAdvance   = std::max(maximumAdvance, std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start));
+            return hr;
+        }
+    };
+    for (const size_t blockCount : {1500u, 6000u})
+    {
+        std::wstring source;
+        for (size_t block = 0u; block < blockCount; ++block)
+            source.append(L"```\nx\n```\n");
+        AttachedHostWindow window;
+        auto root        = std::make_unique<Panel>();
+        auto* sourceView = root->AddChild<ObservedEditor>(source);
+        auto* richView   = root->AddChild<ObservedEditor>(source);
+        sourceView->SetBounds(D2D1::RectF(0.f, 0.f, 145.f, 145.f));
+        richView->SetBounds(D2D1::RectF(150.f, 0.f, 295.f, 145.f));
+        sourceView->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+        sourceView->SetViewMode(ViewMode::Source);
+        auto appearance                   = sourceView->GetAppearance();
+        appearance.colorizeMarkdownSource = true;
+        sourceView->SetAppearance(appearance);
+        richView->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+        richView->SetMarkdownRenderingEnabled(true);
+        window.Host().SetRoot(std::move(root));
+        Require((GetWindowLongPtrW(window.Hwnd(), GWL_EXSTYLE) & WS_EX_NOACTIVATE) != 0, "dense split fixture cannot activate the person's desktop window");
+        const auto start    = std::chrono::steady_clock::now();
+        const auto deadline = GetTickCount64() + 12000u;
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        while (window.Host().HasPendingContentPreparation() && GetTickCount64() < deadline)
+        {
+            window.PumpMessages(10u);
+            Sleep(1u); // A failed/stalled request must not turn the test's independent deadline into a busy loop.
+        }
+        const auto elapsed        = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+        const auto preparedSource = sourceView->DebugGetState(), preparedRich = richView->DebugGetState();
+        std::cout << "    [DENSE-SOURCE] blocks=" << blockCount << " elapsed_ms=" << elapsed.count() << " source_turns=" << sourceView->calls
+                  << " rich_turns=" << richView->calls << " source_max_us=" << sourceView->maximumAdvance.count()
+                  << " rich_max_us=" << richView->maximumAdvance.count() << " ink_ranges=" << preparedSource.sourceInkRangeCount << '\n';
+        Require(! window.Host().HasPendingContentPreparation() && preparedSource.layoutReady && preparedRich.layoutReady &&
+                    preparedSource.sourceInkRangeCount >= blockCount && ! preparedSource.sourceInkPreparationPending &&
+                    richView->GetMarkdownRenderingStatus() ==
+                        (blockCount < SemanticDocument::MaximumParagraphs ? MarkdownRenderingStatus::Semantic : MarkdownRenderingStatus::SourceFallback),
+                "ordinary native messages finish dense Source ink and sibling Rich geometry within the independent deadline");
+        Require(sourceView->GetText() == source && richView->GetText() == source && ! sourceView->CanUndo() && ! richView->CanUndo() &&
+                    sourceView->GetSelection() == Selection{} && richView->GetSelection() == Selection{},
+                "dense cooperative preparation preserves both exact source bindings, selection and histories");
+        const auto sourceCalls = sourceView->calls, richCalls = richView->calls;
+        window.PumpMessages(20u);
+        Require(sourceView->calls == sourceCalls && richView->calls == richCalls, "completed dense split preparation leaves no polling work");
+    }
 }
 void TestRichTextEditorNativeHostVisibilityAndZeroHeight()
 {
@@ -1132,6 +1628,79 @@ void TestRichTextEditorNativeLosslessMarkdownPreparation()
 }
 } // namespace
 
+namespace
+{
+void TestRichTextEditorRemoteImagePolicy()
+{
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<RichTextEditor>();
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    editor->SetDocumentFilePath(L"D:\\Writing\\Ideas.md");
+    window.Host().SetRoot(std::move(owned));
+    const std::wstring source = L"![local](cover.bmp)\n\n![remote](HTTPS://EXAMPLE.INVALID/Exact.bmp?q=Value)\n";
+    editor->SetText(source);
+    RenderEditor(window);
+    std::vector<RichImageRequest> requests(0u);
+    editor->TakePendingImageRequests(requests);
+    Require(! editor->RemoteImagesEnabled() && requests.size() == 1u && requests[0].SourceKind() == RichImageSourceKind::LocalFile &&
+                requests[0].FilePath() == L"D:\\Writing\\cover.bmp" && requests[0].Source() == requests[0].FilePath(),
+            "remote image requests are absent by default while local requests retain their explicit file base");
+    const auto local     = requests[0];
+    const auto revision  = editor->Snapshot();
+    const auto selection = editor->GetSelection();
+    constexpr std::array<std::byte, 4> red{std::byte{0}, std::byte{0}, std::byte{255}, std::byte{255}};
+    constexpr std::array<std::byte, 4> blue{std::byte{255}, std::byte{0}, std::byte{0}, std::byte{255}};
+    std::shared_ptr<const RichImage> localPixels, remotePixels;
+    RequireSucceeded(RichImage::CreatePbgra(1, 1, red, localPixels), "local privacy-policy image fixture");
+    RequireSucceeded(RichImage::CreatePbgra(1, 1, blue, remotePixels), "remote privacy-policy image fixture");
+    editor->SetRemoteImagesEnabled(true);
+    Require(! local.Cancelled() && editor->CompleteImageRequest(local, localPixels),
+            "opt-in preserves a dispatched local job and accepts its completion before policy preparation");
+    RenderEditor(window);
+    editor->TakePendingImageRequests(requests);
+    Require(editor->RemoteImagesEnabled() && requests.size() == 1u && requests[0].SourceKind() == RichImageSourceKind::RemoteHttp &&
+                requests[0].Source() == L"https://example.invalid/Exact.bmp?q=Value" && requests[0].FilePath().empty(),
+            "explicit opt-in emits an immutable HTTP source with exact path/query and no misleading local path");
+    const auto remote = requests[0];
+    Require(editor->CompleteImageRequest(remote, remotePixels), "current opted-in remote pixels publish only on their owner");
+    RenderEditor(window);
+    Require(editor->GetImageResourceStatistics().readySources == 2u && editor->GetImageResourceStatistics().decodedBytes == 8u,
+            "local and remote resources share the canonical decoded memory budget");
+    editor->SetRemoteImagesEnabled(false);
+    Require(! editor->RemoteImagesEnabled() && editor->GetImageResourceStatistics().readySources == 1u &&
+                editor->GetImageResourceStatistics().decodedBytes == 4u && ! editor->CompleteImageRequest(remote, remotePixels),
+            "opt-out immediately evicts remote pixels and rejects old completion while retaining local pixels");
+    RenderEditor(window);
+    editor->TakePendingImageRequests(requests);
+    Require(requests.empty(), "off-by-default/disabled remote sources do not form a retry loop");
+    editor->SetRemoteImagesEnabled(true);
+    RenderEditor(window);
+    editor->TakePendingImageRequests(requests);
+    Require(requests.size() == 1u && requests[0] != remote && ! requests[0].Cancelled(), "a later opt-in owns a new remote request identity");
+    const auto pending = requests[0];
+    editor->SetRemoteImagesEnabled(false);
+    Require(pending.Cancelled() && ! editor->CompleteImageRequest(pending, remotePixels),
+            "disabling cancels an in-flight remote request before any later owner preparation");
+    RenderEditor(window);
+    Require(editor->GetText() == source && editor->Snapshot().IsSameRevision(revision) && editor->GetSelection() == selection && ! editor->CanUndo(),
+            "all privacy transitions retain exact source, revision, selection and history");
+    using DxUi::RichText::Detail::ResolveRemoteImageSource;
+    for (const auto* invalid : {L"http://",
+                                L"//example.invalid/a.png",
+                                L"http://user:secret@example.invalid/a",
+                                L"http://example.invalid/a#fragment",
+                                L"http://example.invalid/a%",
+                                L"http://example.invalid:0/a",
+                                L"http://example.invalid:65536/a",
+                                L"http://example.invalid\\a",
+                                L"data:image/png,a",
+                                L"http://example.invalid/a\r\nCookie: secret"})
+        Require(! ResolveRemoteImageSource(invalid), "credentialed, ambiguous and unsupported sources are never remote image requests");
+}
+} // namespace
+
 void RunRichTextEditorTests()
 {
     ScopedNonActivatingTestWindows nonActivating;
@@ -1139,7 +1708,12 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorUnicodeCharacterTransactions);
     DXUI_RUN_TEST(TestRichTextEditorFormattingAndModePreserveSource);
     DXUI_RUN_TEST(TestRichTextEditorCallbackRetirementAndFailure);
+    DXUI_RUN_TEST(TestRichTextEditorSelectionPublicationAndRetirement);
+    DXUI_RUN_TEST(TestRichTextEditorCommittedTextThenSelectionCallbacks);
+    DXUI_RUN_TEST(TestRichTextEditorSelectionGestureAndTextServicePublication);
     DXUI_RUN_TEST(TestRichTextEditorNativeHostAndLayoutReuse);
+    DXUI_RUN_TEST(TestRichTextEditorPreparedSourceInkPreservesGeometryAndSelection);
+    DXUI_RUN_TEST(TestRichTextEditorDocumentFocusChromeDoesNotRetireTextGeometry);
     DXUI_RUN_TEST(TestRichTextEditorNativeUnicodeRoutingAndNavigation);
     DXUI_RUN_TEST(TestRichTextEditorClipboardAtomicityAndSourceContract);
     DXUI_RUN_TEST(TestRichTextEditorScrollAndHostClock);
@@ -1152,6 +1726,7 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorNativeCompatibilityWorkIsReported);
     DXUI_RUN_TEST(TestRichTextEditorNativeCooperativePreparation);
     DXUI_RUN_TEST(TestRichTextEditorNativeMessageSchedulingAndFailure);
+    DXUI_RUN_TEST(TestRichTextEditorNativeDenseSourceAndSplitScheduling);
     DXUI_RUN_TEST(TestRichTextEditorNativeHostVisibilityAndZeroHeight);
     DXUI_RUN_TEST(TestRichTextEditorNativePreparationCanReplaceRoot);
     DXUI_RUN_TEST(TestRichTextEditorNativeLosslessMarkdownPreparation);
@@ -1169,5 +1744,6 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorNativeFileReferencePaste);
     DXUI_RUN_TEST(TestRichTextNativeImageDecoder);
     DXUI_RUN_TEST(TestRichTextEditorNativeImageResources);
+    DXUI_RUN_TEST(TestRichTextEditorRemoteImagePolicy);
     DXUI_RUN_TEST(TestRichTextEditorNativeImagePixels);
 }

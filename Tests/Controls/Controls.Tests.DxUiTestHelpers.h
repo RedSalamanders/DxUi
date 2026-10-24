@@ -804,8 +804,11 @@ inline bool DispatchQueuedMessageForTest(const MSG& msg)
         return false;
     }
 
-    TranslateMessage(&msg);
-    DispatchMessageW(&msg);
+    if (! DxUi::DispatchAttachedWindowHostKeyboardMessage(msg))
+    {
+        TranslateMessage(&msg);
+        DispatchMessageW(&msg);
+    }
     return true;
 }
 

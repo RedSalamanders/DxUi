@@ -1889,7 +1889,7 @@ void TestPanelSkipsTheSlotOfAChildMovedOutThroughGetChildren()
 
 void TestEditorControlsAreCatalogued()
 {
-    Require(GetControlCatalog().size() == 34u, "the catalog lists 34 controls");
+    Require(GetControlCatalog().size() == 35u, "the catalog lists 35 controls");
     for (const ControlKind kind : {ControlKind::Splitter, ControlKind::NumericStepper, ControlKind::ColorPicker})
     {
         std::unique_ptr<Control> control;
@@ -1901,6 +1901,9 @@ void TestEditorControlsAreCatalogued()
         found = found || (descriptor.kind == ControlKind::ColorPicker && descriptor.name == L"ColorPicker");
     }
     Require(found, "the catalog names the color picker");
+    std::unique_ptr<Control> separator;
+    Require(SUCCEEDED(CreateControl(ControlKind::Separator, separator)) && dynamic_cast<Separator*>(separator.get()) != nullptr,
+            "the factory creates the decorative separator");
 }
 // A splitter or color picker press that focuses its control, given a focus callback that replaces every control, touches
 // the destroyed control no further (AddressSanitizer catches a press that does).

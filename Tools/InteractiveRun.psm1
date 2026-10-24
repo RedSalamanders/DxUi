@@ -28,7 +28,7 @@ $script:CiVariables = @('CI', 'GITHUB_ACTIONS', 'TF_BUILD', 'APPVEYOR', 'BUILDKI
 
 # The exit codes of DxUi.InteractiveLease.exe (DxUi::TestSupport::LeaseExit in Tests/Support/Support.Tests.InteractiveLease.h).
 $script:LeaseExit = [ordered]@{
-    Passed = 0; ChildFailed = 1; Usage = 2; NoDesktop = 20; Declined = 21; Busy = 22; NoWarning = 23; LaunchFailed = 24; NotRestored = 25; Interrupted = 26
+    Passed = 0; ChildFailed = 1; Usage = 2; NoDesktop = 20; Declined = 21; Busy = 22; NoWarning = 23; LaunchFailed = 24; NotRestored = 25; Interrupted = 26; ResultFailed = 27
 }
 
 function Get-DxUiInteractiveSuiteNames {
@@ -143,28 +143,51 @@ function New-DxUiLeasePlanText {
 }
 
 function Read-DxUiLeaseResult {
-    # The `key: value` lines DxUi.InteractiveLease.exe writes, as an object; $null for a result that is missing or empty.
+    # Historical/failed results remain readable for presentation. ReceiptProblems records malformed or incomplete
+    # current protocol facts; reading a completed state alone never establishes a successful run.
     [CmdletBinding()] param([AllowNull()][AllowEmptyString()][string] $Text)
     if ([string]::IsNullOrWhiteSpace($Text)) { return $null }
     $facts = [ordered]@{}
     $children = [Collections.Generic.List[object]]::new()
     $confirmationDuplicates = [Collections.Generic.List[string]]::new()
     $captureProblems = [Collections.Generic.List[string]]::new()
+    $receiptProblems = [Collections.Generic.List[string]]::new()
+    $keys = @('state','exit','reason','confirmation','confirmation.autoStart','confirmation.seconds','foreground.saved',
+        'focus.capture.reason','focus.capture.error','restoration.foreground','restoration.focus','restoration.cursor',
+        'cursor.saved','cursor.atExit','restoration.runMovedSomething')
+    $childNames = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     foreach ($line in $Text -split '\r?\n') {
-        if ($line -notmatch '^(?<key>[A-Za-z][A-Za-z0-9.]*): (?<value>.*)$') { continue }
+        if ($line -eq '') { continue }
+        if ($line -cnotmatch '^(?<key>[A-Za-z][A-Za-z0-9.]*): (?<value>[^\x00-\x1f]*)$') {
+            $receiptProblems.Add('malformed result line')
+            continue
+        }
         $key = $Matches['key']
         $value = $Matches['value']
         if ($key -eq 'child') {
-            if ($value -match '^(?<name>\S+) launched=(?<launched>[01]) exit=(?<exit>\d+) seconds=(?<seconds>[\d.]+) timedout=(?<timedout>[01]) interrupted=(?<interrupted>[01])$') {
+            if ($value -cmatch '^(?<name>.+) launched=(?<launched>[01]) exit=(?<exit>[0-9]{1,10}) seconds=(?<seconds>[0-9]+(?:\.[0-9]+)?) timedout=(?<timedout>[01]) interrupted=(?<interrupted>[01])$') {
+                $child = $Matches.Clone()
+                [uint32]$childExit = 0
+                [double]$seconds = 0
+                if ([string]::IsNullOrWhiteSpace($child['name']) -or
+                    -not [uint32]::TryParse($child['exit'], [ref]$childExit) -or
+                    -not [double]::TryParse($child['seconds'], [Globalization.NumberStyles]::AllowDecimalPoint,
+                        [Globalization.CultureInfo]::InvariantCulture, [ref]$seconds) -or [double]::IsInfinity($seconds)) {
+                    $receiptProblems.Add('invalid child name, exit code or duration')
+                    continue
+                }
+                if (-not $childNames.Add($child['name'])) { $receiptProblems.Add("repeated child $($child['name'])") }
                 # An exit code is a 32-bit pattern ($LASTEXITCODE shows 0xC0000005 as -1073741819), so it is read as one.
                 $children.Add([pscustomobject]@{
-                    Name = $Matches['name']; Launched = $Matches['launched'] -eq '1'
-                    ExitCode = [BitConverter]::ToInt32([BitConverter]::GetBytes([uint32][uint64]$Matches['exit']), 0)
-                    Seconds = [double]::Parse($Matches['seconds'], [Globalization.CultureInfo]::InvariantCulture)
-                    TimedOut = $Matches['timedout'] -eq '1'; Interrupted = $Matches['interrupted'] -eq '1'
+                    Name = $child['name']; Launched = $child['launched'] -eq '1'
+                    ExitCode = [BitConverter]::ToInt32([BitConverter]::GetBytes($childExit), 0)
+                    Seconds = $seconds
+                    TimedOut = $child['timedout'] -eq '1'; Interrupted = $child['interrupted'] -eq '1'
                 })
-            }
+            } else { $receiptProblems.Add('malformed child result') }
         } else {
+            if ($key -cnotin $keys) { $receiptProblems.Add("unknown result field $key"); continue }
+            if ($facts.Contains($key)) { $receiptProblems.Add("repeated $key") }
             if ($key -in @('focus.capture.reason','focus.capture.error') -and $facts.Contains($key)) {
                 $captureProblems.Add("repeated $key")
             }
@@ -176,6 +199,47 @@ function Read-DxUiLeaseResult {
     }
     if (-not $facts.Contains('state')) { return $null }
     $part = { param([string] $Key) if ($facts.Contains($Key)) { $facts[$Key] } else { 'none' } }
+    $required = @('state','exit','confirmation','confirmation.autoStart','confirmation.seconds')
+    if ($facts['state'] -ceq 'completed') {
+        $required += @('foreground.saved','focus.capture.reason','focus.capture.error',
+            'restoration.foreground','restoration.focus','restoration.cursor','cursor.saved','cursor.atExit','restoration.runMovedSomething')
+    }
+    foreach ($key in $required) { if (-not $facts.Contains($key)) { $receiptProblems.Add("missing $key") } }
+    if ($facts['state'] -cnotin @('completed','checked','invalid','refused','busy','declined','timedout','interrupted','unwarned','launchfailed')) {
+        $receiptProblems.Add('unknown lease state')
+    }
+    [int]$exit = -1
+    if ($facts.Contains('exit') -and ($facts['exit'] -cnotmatch '^[0-9]{1,10}$' -or -not [int]::TryParse($facts['exit'], [ref]$exit))) {
+        $receiptProblems.Add('invalid lease exit code')
+        $exit = -1
+    }
+    if ($facts.Contains('confirmation') -and $facts['confirmation'] -cnotin @('none','started','autostarted','declined','timedout','interrupted','unavailable')) {
+        $receiptProblems.Add('unknown confirmation')
+    }
+    if ($facts.Contains('confirmation.autoStart') -and $facts['confirmation.autoStart'] -cnotin @('0','1')) {
+        $receiptProblems.Add('invalid automatic-start flag')
+    }
+    [uint32]$confirmationSeconds = 0
+    $validSeconds = $facts.Contains('confirmation.seconds') -and $facts['confirmation.seconds'] -cmatch '^[0-9]{1,10}$' -and
+        [uint32]::TryParse($facts['confirmation.seconds'], [ref]$confirmationSeconds)
+    if ($facts.Contains('confirmation.seconds') -and -not $validSeconds) { $receiptProblems.Add('invalid confirmation seconds') }
+    foreach ($key in 'restoration.foreground','restoration.focus','restoration.cursor') {
+        if ($facts.Contains($key) -and $facts[$key] -cnotin @('none','unchanged','restored','gone','failed','skipped')) {
+            $receiptProblems.Add("unknown $key")
+        }
+    }
+    foreach ($key in 'cursor.saved','cursor.atExit') {
+        if (-not $facts.Contains($key) -or $facts[$key] -ceq 'unknown') { continue }
+        $point = $facts[$key] -split ','
+        [int]$x = 0; [int]$y = 0
+        if ($facts[$key] -cnotmatch '^-?[0-9]{1,10},-?[0-9]{1,10}$' -or $point.Count -ne 2 -or
+            -not [int]::TryParse($point[0], [ref]$x) -or -not [int]::TryParse($point[1], [ref]$y)) {
+            $receiptProblems.Add("invalid $key")
+        }
+    }
+    if ($facts.Contains('restoration.runMovedSomething') -and $facts['restoration.runMovedSomething'] -cnotin @('0','1')) {
+        $receiptProblems.Add('invalid moved flag')
+    }
     $capture = $null
     if ($facts.Contains('focus.capture.reason') -or $facts.Contains('focus.capture.error')) {
         $captureReason = & $part 'focus.capture.reason'
@@ -196,11 +260,11 @@ function Read-DxUiLeaseResult {
     }
     return [pscustomobject]@{
         State = $facts['state']
-        Exit = if ($facts.Contains('exit')) { [int]$facts['exit'] } else { -1 }
+        Exit = $exit
         Reason = if ($facts.Contains('reason')) { $facts['reason'] } else { '' }
         Confirmation = & $part 'confirmation'
         AutoStart = $facts.Contains('confirmation.autoStart') -and $facts['confirmation.autoStart'] -eq '1'
-        ConfirmationSeconds = if ($facts.Contains('confirmation.seconds') -and $facts['confirmation.seconds'] -match '^\d+$') { [uint32]$facts['confirmation.seconds'] } else { $null }
+        ConfirmationSeconds = if ($validSeconds) { $confirmationSeconds } else { $null }
         ConfirmationDuplicates = $confirmationDuplicates.ToArray()
         SavedForeground = if ($facts.Contains('foreground.saved')) { $facts['foreground.saved'] } else { '' }
         Foreground = & $part 'restoration.foreground'
@@ -212,6 +276,7 @@ function Read-DxUiLeaseResult {
         CursorAtExit = & $part 'cursor.atExit'
         RunMovedSomething = $facts.Contains('restoration.runMovedSomething') -and $facts['restoration.runMovedSomething'] -eq '1'
         Children = $children.ToArray()
+        ReceiptProblems = $receiptProblems.ToArray()
     }
 }
 
@@ -229,6 +294,7 @@ function Get-DxUiLeaseExitMeaning {
         24 { 'a suite could not be started' }
         25 { 'the suites passed, but the desktop could not be given back' }
         26 { 'the run was stopped' }
+        27 { 'the native lease could not write its complete result' }
         default { "the lease ended with the unexpected exit code $ExitCode" }
     }
 }
@@ -236,7 +302,10 @@ function Get-DxUiLeaseExitMeaning {
 function Get-DxUiLeaseProblems {
     # What is wrong with a finished lease, as messages; nothing when every suite ran and the desktop is as the person had it.
     # `Result` is the parsed result and `ExitCode` the lease's own exit code.
-    [CmdletBinding()] param([AllowNull()] $Result, [Parameter(Mandatory)][int] $ExitCode)
+    # ExpectedChildren binds the receipt to a requested plan. RequireRecordedFocus additionally qualifies a
+    # complete keyboard-focus round trip, rather than a truthful result with no initial active focus target.
+    [CmdletBinding()] param([AllowNull()] $Result, [Parameter(Mandatory)][int] $ExitCode,
+        [AllowEmptyCollection()][string[]] $ExpectedChildren = @(), [switch] $RequireRecordedFocus)
     $problems = [Collections.Generic.List[string]]::new()
     if ($null -eq $Result) {
         $problems.Add("the lease wrote no result: $(Get-DxUiLeaseExitMeaning $ExitCode) (exit code $ExitCode)")
@@ -245,6 +314,20 @@ function Get-DxUiLeaseProblems {
     if ($Result.State -ne 'completed') {
         $why = if ($Result.Reason) { $Result.Reason } else { Get-DxUiLeaseExitMeaning $ExitCode }
         $problems.Add("the interactive run did not take place ($($Result.State)): $why")
+        return $problems.ToArray()
+    }
+    if (-not $Result.PSObject.Properties['ReceiptProblems']) {
+        $problems.Add('invalid lease receipt: no parsed schema facts')
+        return $problems.ToArray()
+    }
+    if (@($Result.ReceiptProblems).Count) {
+        $problems.Add("invalid lease receipt: $($Result.ReceiptProblems -join '; ')")
+    }
+    if ($Result.Exit -ne $ExitCode) { $problems.Add("the receipt exit $($Result.Exit) differs from process exit $ExitCode") }
+    if ($ExitCode -ne 0) { $problems.Add("the lease failed: $(Get-DxUiLeaseExitMeaning $ExitCode) (exit code $ExitCode)") }
+    if ($Result.Confirmation -cnotin @('started','autostarted') -or
+        ($Result.Confirmation -ceq 'autostarted' -and (-not $Result.AutoStart -or $Result.ConfirmationSeconds -le 0))) {
+        $problems.Add('the completed lease did not record an authorized Start')
     }
     if ($Result.PSObject.Properties['FocusCaptureProblems'] -and @($Result.FocusCaptureProblems).Count) {
         $problems.Add("invalid focus capture diagnostic: $($Result.FocusCaptureProblems -join '; ')")
@@ -254,6 +337,47 @@ function Get-DxUiLeaseProblems {
     if ($failed.Count) {
         $window = if ($Result.SavedForeground) { " (the window was $($Result.SavedForeground))" } else { '' }
         $problems.Add("the desktop could not be given back: $($failed -join ', ') failed$window")
+    }
+    foreach ($part in 'Foreground','Cursor') {
+        if ($Result.$part -cnotin @('restored','unchanged','failed')) {
+            $problems.Add("the $($part.ToLowerInvariant()) restoration was not verified ($($Result.$part))")
+        }
+    }
+    if ($Result.Cursor -cin @('restored','unchanged') -and $Result.CursorSaved -ceq 'unknown') {
+        $problems.Add('pointer restoration has no recorded starting position')
+    }
+    if ([string]::IsNullOrWhiteSpace($Result.SavedForeground) -or $Result.SavedForeground -cin @('none','unknown','no window')) {
+        $problems.Add('the completed lease recorded no foreground target')
+    }
+    if ($null -eq $Result.FocusCapture) {
+        $problems.Add('keyboard focus capture was not established')
+    } elseif ($Result.FocusCapture.Reason -ceq 'recorded') {
+        if ($Result.Focus -cnotin @('restored','unchanged','failed')) { $problems.Add("keyboard focus restoration was not verified ($($Result.Focus))") }
+    } elseif ($Result.FocusCapture.Reason -cin @('query-returned-null','foreground-minimized')) {
+        if ($Result.Focus -cne 'none') { $problems.Add('absent keyboard focus contradicts its restoration state') }
+    } else {
+        $problems.Add("keyboard focus capture was not verified ($($Result.FocusCapture.Reason))")
+    }
+    if ($RequireRecordedFocus -and ($null -eq $Result.FocusCapture -or $Result.FocusCapture.Reason -cne 'recorded')) {
+        $problems.Add('a complete keyboard-focus round trip requires recorded initial active focus')
+    }
+    if (@($Result.Children).Count -eq 0) { $problems.Add('the completed lease recorded no child execution') }
+    foreach ($child in $Result.Children) {
+        if (-not $child.Launched -or $child.ExitCode -ne 0 -or $child.TimedOut -or $child.Interrupted) {
+            $problems.Add("child $($child.Name) did not complete successfully (launched=$($child.Launched), exit=$($child.ExitCode), timedout=$($child.TimedOut), interrupted=$($child.Interrupted))")
+        }
+    }
+    if ($PSBoundParameters.ContainsKey('ExpectedChildren')) {
+        if ($ExpectedChildren.Count -eq 0 -or @($Result.Children).Count -ne $ExpectedChildren.Count) {
+            $problems.Add('the recorded children do not match the requested execution count')
+        } else {
+            for ($index = 0; $index -lt $ExpectedChildren.Count; ++$index) {
+                if ($Result.Children[$index].Name -cne $ExpectedChildren[$index]) {
+                    $problems.Add('the recorded children do not match the requested execution order and names')
+                    break
+                }
+            }
+        }
     }
     return $problems.ToArray()
 }
@@ -392,6 +516,9 @@ function Invoke-DxUiLeaseCore {
     if ($null -ne $parsed -and $parsed.Confirmation -eq 'autostarted' -and (-not $parsed.AutoStart -or $parsed.ConfirmationSeconds -le 0)) {
         $policyProblems += 'the native lease recorded automatic Start without a positive approved countdown'
     }
+    # Bind receipt validation to this plan here, so every consumer of either public wrapper gets the same
+    # exact-child and restoration checks even if it only examines PolicyProblems and the process exit.
+    $policyProblems += @(Get-DxUiLeaseProblems -Result $parsed -ExitCode $exit -ExpectedChildren @($Runs | ForEach-Object { [string]$_.Name }))
     return [pscustomobject]@{ ExitCode = $exit; Result = $parsed; ResultPath = $result; PlanPath = $plan;
         RequestedAutoStart=[bool]$AutoStart; RequestedConfirmationSeconds=$ConfirmSeconds; PolicyProblems=$policyProblems }
 }

@@ -21,6 +21,11 @@ class RichImageDecoder;
 class RichImageResources;
 struct RichImageRequestState;
 } // namespace Detail
+enum class RichImageSourceKind
+{
+    LocalFile,
+    RemoteHttp
+};
 // A caller-owned worker may retain this immutable request. Its cancellation
 // flag has no callbacks; retiring an editor/request never runs application code.
 class RichImageRequest final
@@ -29,6 +34,10 @@ public:
     RichImageRequest() noexcept                             = default;
     bool operator==(const RichImageRequest&) const noexcept = default;
     std::uint64_t Id() const noexcept;
+    RichImageSourceKind SourceKind() const noexcept;
+    std::wstring_view Source() const noexcept;
+    // Compatibility/local-only accessor. Remote requests return an empty path;
+    // applications must explicitly branch on SourceKind before transport I/O.
     std::wstring_view FilePath() const noexcept;
     bool Cancelled() const noexcept;
     const std::atomic_bool* Cancellation() const noexcept;

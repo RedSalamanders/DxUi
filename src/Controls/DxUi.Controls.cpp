@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cwctype>
+#include <dwrite_1.h>
 #include <format>
 #include <limits>
 #include <memory>
@@ -21,6 +22,21 @@ std::weak_ptr<int> GetControlLifetimeToken(const Control& control) noexcept
 
 namespace
 {
+[[nodiscard]] bool CaptureSingleUnicodeScalar(std::wstring_view text, wchar_t (&buffer)[2], UINT32& length) noexcept
+{
+    length = 0u;
+    if (text.empty())
+        return false;
+    const Utf16CodePoint scalar = ReadCodePointAt(text, 0u);
+    if (scalar.end != text.size() || (scalar.value >= 0xD800u && scalar.value <= 0xDFFFu))
+        return false;
+    buffer[0] = text[0];
+    length    = static_cast<UINT32>(scalar.end);
+    if (length == 2u)
+        buffer[1] = text[1];
+    return true;
+}
+
 template <typename TCallback> [[nodiscard]] Control* FindPanelChildHit(Panel& panel, const std::weak_ptr<int>& ownerLifetime, TCallback&& callback)
 {
     size_t index             = panel.GetLogicalChildCount();
@@ -1039,10 +1055,12 @@ void DrawCenteredText(ControlHost& host,
                       DWRITE_TEXT_ALIGNMENT alignment,
                       DWRITE_PARAGRAPH_ALIGNMENT paragraphAlignment,
                       bool wrap,
-                      FlowDirection flowDirection)
+                      FlowDirection flowDirection,
+                      IDWriteTextFormat* configuredFormat)
 {
-    auto* dc     = host.GetDeviceContext();
-    auto* format = host.GetTextFormat(fontRole, alignment, paragraphAlignment, wrap, ResolveReadingDirection(flowDirection));
+    auto* dc = host.GetDeviceContext();
+    auto* format =
+        configuredFormat ? configuredFormat : host.GetTextFormat(fontRole, alignment, paragraphAlignment, wrap, ResolveReadingDirection(flowDirection));
     if (! dc || ! format)
     {
         return;
@@ -2271,20 +2289,27 @@ void PageHost::SyncChildBounds() noexcept
 bool ControlHost::PreparePendingPageLayout() noexcept
 {
     const bool prepareAllContent = _preparedContentResources != GetResourceGeneration() || _preparedContentTypography != GetTypographyRevision();
+    const bool prepareAllVisual =
+        _forceAllVisualPreparation || _preparedVisualResources != GetResourceGeneration() || _preparedVisualTypography != GetTypographyRevision();
     _contentPreparationContinues = false;
-    if (! _pendingPageLayout && ! _pendingIntrinsicLayout && ! _pendingContentPreparation && ! prepareAllContent)
+    if (! _pendingPageLayout && ! _pendingIntrinsicLayout && ! _pendingContentPreparation && ! prepareAllContent && ! _pendingVisualPreparation &&
+        ! prepareAllVisual)
         return true;
     _pendingPageLayout         = false;
     _pendingIntrinsicLayout    = false;
     _pendingContentPreparation = false;
-    bool contentPending        = false;
-    bool intrinsicPending      = false;
-    bool complete              = true;
-    bool preparedIntrinsic     = false;
-    Control* const root        = _root.get();
-    const auto rootLifetime    = root ? GetControlLifetimeToken(*root) : std::weak_ptr<int>{};
-    const auto rootCurrent     = [&]() noexcept { return root && ! rootLifetime.expired() && _root.get() == root; };
-    const auto prepare         = [&](auto&& self, Control& control, bool ancestorsVisible) noexcept -> void
+    _pendingVisualPreparation  = false;
+    if (prepareAllVisual)
+        _forceAllVisualPreparation = false;
+    bool contentPending     = false;
+    bool visualPending      = false;
+    bool intrinsicPending   = false;
+    bool complete           = true;
+    bool preparedIntrinsic  = false;
+    Control* const root     = _root.get();
+    const auto rootLifetime = root ? GetControlLifetimeToken(*root) : std::weak_ptr<int>{};
+    const auto rootCurrent  = [&]() noexcept { return root && ! rootLifetime.expired() && _root.get() == root; };
+    const auto prepare      = [&](auto&& self, Control& control, bool ancestorsVisible) noexcept -> void
     {
         const auto lifetime = GetControlLifetimeToken(control);
         const bool visible  = ancestorsVisible && control.IsVisible();
@@ -2335,6 +2360,14 @@ bool ControlHost::PreparePendingPageLayout() noexcept
             if (content == S_OK)
                 _contentGeometryChanged = true;
         }
+        if (visible && control._visualPreparationEnabled && (prepareAllVisual || control._visualPreparationPending))
+        {
+            control._visualPreparationPending = false;
+            control.PrepareVisualContent(*this);
+            // Visual preparation is optional and cannot reject the current geometry or input pass.
+            if (lifetime.expired() || ! rootCurrent() || control.GetHost() != this)
+                return;
+        }
         const size_t visitBudget = control.GetLogicalChildCount();
         if (lifetime.expired() || ! rootCurrent())
             return;
@@ -2376,6 +2409,7 @@ bool ControlHost::PreparePendingPageLayout() noexcept
             return;
         intrinsicPending = intrinsicPending || (visible && control._intrinsicLayoutEnabled && control._intrinsicLayoutPending);
         contentPending   = contentPending || (visible && control._contentPreparationEnabled && control._contentPreparationPending);
+        visualPending    = visualPending || (visible && control._visualPreparationEnabled && control._visualPreparationPending);
     };
     if (root)
         prepare(prepare, *root, true);
@@ -2385,6 +2419,7 @@ bool ControlHost::PreparePendingPageLayout() noexcept
         // A later callback may dirty an owner already visited in this pass.
         // Keep that request; an extra no-work traversal is safer than losing it.
         _pendingContentPreparation = _pendingContentPreparation || contentPending;
+        _pendingVisualPreparation  = _pendingVisualPreparation || visualPending;
     }
     if (complete && preparedIntrinsic && rootCurrent() && _capturedControl)
     {
@@ -2417,10 +2452,64 @@ bool ControlHost::PreparePendingPageLayout() noexcept
     {
         _preparedContentResources  = GetResourceGeneration();
         _preparedContentTypography = GetTypographyRevision();
+        _preparedVisualResources   = GetResourceGeneration();
+        _preparedVisualTypography  = GetTypographyRevision();
     }
     if (layoutComplete && preparedIntrinsic)
         _contentGeometryChanged = true; // Publish deferred geometry only after the frame completes.
     return layoutComplete && ! _pendingContentPreparation;
+}
+
+void ControlHost::CancelPreparedVisualContent(Control* subtree) noexcept
+{
+    _pendingVisualPreparation = true;
+    Control* const root       = _root.get();
+    const auto rootLifetime   = root ? GetControlLifetimeToken(*root) : std::weak_ptr<int>{};
+    const auto rootCurrent    = [&]() noexcept { return root && ! rootLifetime.expired() && _root.get() == root; };
+    Control* const start      = subtree ? subtree : root;
+    const auto startLifetime  = start ? GetControlLifetimeToken(*start) : std::weak_ptr<int>{};
+    if (! subtree)
+        _forceAllVisualPreparation = true;
+    if (subtree && (! rootCurrent() || subtree->GetHost() != this || ! IsControlInTree(root, subtree)))
+        return;
+    const auto cancel = [&](auto&& self, Control& control) noexcept -> void
+    {
+        const auto lifetime = GetControlLifetimeToken(control);
+        if (control._visualPreparationEnabled)
+        {
+            control.CancelVisualContentPreparation();
+            if (lifetime.expired() || ! rootCurrent() || control.GetHost() != this)
+                return;
+            control._visualPreparationPending = true;
+        }
+        const size_t budget = control.GetLogicalChildCount();
+        if (lifetime.expired() || ! rootCurrent())
+            return;
+        size_t index = 0u;
+        for (size_t visits = 0u; visits < budget; ++visits)
+        {
+            const size_t count = control.GetLogicalChildCount();
+            if (lifetime.expired() || ! rootCurrent() || index >= count)
+                return;
+            Control* const child = control.GetLogicalChild(index);
+            if (lifetime.expired() || ! rootCurrent())
+                return;
+            const auto childLifetime = child ? GetControlLifetimeToken(*child) : std::weak_ptr<int>{};
+            if (child)
+                self(self, *child);
+            if (lifetime.expired() || ! rootCurrent())
+                return;
+            Control* const current = control.GetLogicalChild(index);
+            if (lifetime.expired() || ! rootCurrent())
+                return;
+            if (! child || (! childLifetime.expired() && current == child))
+                ++index;
+        }
+        if (auto* const page = dynamic_cast<PageHost*>(&control); page && page->_outgoingPage && page->_outgoingPage != page->_currentPage)
+            self(self, *page->_outgoingPage);
+    };
+    if (start && ! startLifetime.expired() && rootCurrent())
+        cancel(cancel, *start);
 }
 void ControlHost::CancelPreparedContent() noexcept
 {
@@ -2519,6 +2608,61 @@ void CardPanel::Paint(ControlHost& host) const
     Panel::Paint(host);
 }
 
+Separator::Separator() noexcept
+{
+    SetFocusable(false);
+    SetAccessibilityRole(AccessibilityRole::Separator);
+}
+
+void Separator::SetOrientation(SeparatorOrientation orientation) noexcept
+{
+    const auto next = orientation == SeparatorOrientation::Horizontal ? SeparatorOrientation::Horizontal : SeparatorOrientation::Vertical;
+    if (_orientation == next)
+        return;
+    _orientation        = next;
+    const auto lifetime = GetLifetimeToken();
+    InvalidateMeasure();
+    // Embedded layout scheduling can synchronously retire the control's root.
+    if (lifetime.expired())
+        return;
+    RequestInvalidate();
+}
+
+SeparatorOrientation Separator::GetOrientation() const noexcept
+{
+    return _orientation;
+}
+
+void Separator::Paint(ControlHost& host) const
+{
+    const auto bounds = GetBounds();
+    if (bounds.right <= bounds.left || bounds.bottom <= bounds.top)
+        return;
+    const float inset = host.GetTheme().density == Density::Compact ? 4.0f : 6.0f;
+    const auto color  = host.GetTheme().highContrast ? host.GetTheme().border
+                                                     : (_toolbarStyle ? ResolveToolbarVisualStyle(host.GetTheme()).separatorLine : host.GetTheme().gridLine);
+    if (_orientation == SeparatorOrientation::Vertical)
+    {
+        const float centerX = std::floor((bounds.left + bounds.right) * 0.5f) + 0.5f;
+        DrawLineWithColor(host, D2D1::Point2F(centerX, bounds.top + inset), D2D1::Point2F(centerX, bounds.bottom - inset), color, 1.0f);
+    }
+    else
+    {
+        const float centerY = std::floor((bounds.top + bounds.bottom) * 0.5f) + 0.5f;
+        DrawLineWithColor(host, D2D1::Point2F(bounds.left + inset, centerY), D2D1::Point2F(bounds.right - inset, centerY), color, 1.0f);
+    }
+}
+
+Control* Separator::HitTest(D2D1_POINT_2F /*point*/)
+{
+    return nullptr;
+}
+
+const Control* Separator::HitTest(D2D1_POINT_2F /*point*/) const
+{
+    return nullptr;
+}
+
 Label::Label(std::wstring text) : _text(std::move(text))
 {
 }
@@ -2551,8 +2695,12 @@ void Label::SetFontRole(FontRole fontRole) noexcept
 {
     if (_fontRole == fontRole)
         return;
-    _fontRole = fontRole;
+    _fontRole           = fontRole;
+    const auto lifetime = GetLifetimeToken();
     InvalidateMeasure();
+    // Embedded layout scheduling can synchronously retire the control's root.
+    if (lifetime.expired())
+        return;
     RequestInvalidate();
 }
 
@@ -2577,6 +2725,36 @@ void Label::SetTextColor(std::optional<D2D1_COLOR_F> color) noexcept
     RequestInvalidate();
 }
 
+HRESULT Label::SetTypographyOverride(std::optional<LabelTypography> typography) noexcept
+{
+    if (typography && (! std::isfinite(typography->fontSizeDip) || typography->fontSizeDip < 6.0f || typography->fontSizeDip > 96.0f ||
+                       typography->fontWeight < 100 || typography->fontWeight > 900 || ! std::isfinite(typography->characterSpacingDip) ||
+                       typography->characterSpacingDip < -4.0f || typography->characterSpacingDip > 16.0f))
+        return E_INVALIDARG;
+    if (typography)
+    {
+        typography->fontSizeDip         = static_cast<float>(std::lround(typography->fontSizeDip * 64.0f)) / 64.0f;
+        typography->characterSpacingDip = static_cast<float>(std::lround(typography->characterSpacingDip * 64.0f)) / 64.0f;
+    }
+    if (_typographyOverride == typography)
+        return S_FALSE;
+    _typographyOverride = typography;
+    _typographyLayout.reset();
+    _typographyLayoutText.clear();
+    const auto lifetime = GetLifetimeToken();
+    InvalidateMeasure();
+    // Embedded layout scheduling can synchronously retire the control's root.
+    if (lifetime.expired())
+        return S_OK;
+    RequestInvalidate();
+    return S_OK;
+}
+
+std::optional<LabelTypography> Label::GetTypographyOverride() const noexcept
+{
+    return _typographyOverride;
+}
+
 void Label::SetMnemonicTarget(Control* target) noexcept
 {
     if (_mnemonicTarget != target)
@@ -2592,6 +2770,58 @@ void Label::SetMnemonicTarget(Control* target) noexcept
 void Label::Paint(ControlHost& host) const
 {
     const LabelVisualStyle style = ResolveLabelVisualStyle(host.GetTheme(), _textColor);
+    if (_typographyOverride)
+    {
+        auto* dc           = host.GetDeviceContext();
+        const auto bounds  = GetBounds();
+        const float width  = (std::max)(1.0f, bounds.right - bounds.left);
+        const float height = (std::max)(1.0f, bounds.bottom - bounds.top);
+        auto* format       = host.GetTextFormat(_fontRole,
+                                                _typographyOverride->fontSizeDip,
+                                                _typographyOverride->fontWeight,
+                                                _alignment,
+                                                DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                                                _multiline,
+                                                ResolveReadingDirection(GetFlowDirection()));
+        if (dc && format && host.GetWriteFactory())
+        {
+            const bool stale = ! _typographyLayout || _typographyLayoutText != _text || _typographyLayoutFormat != format ||
+                               _typographyLayoutSize.width != width || _typographyLayoutSize.height != height ||
+                               _typographyLayoutGeneration != host.GetResourceGeneration() || _typographyLayoutRevision != host.GetTypographyRevision();
+            if (stale)
+            {
+                _typographyLayout.reset();
+                _typographyLayoutFormat = nullptr;
+                wil::com_ptr<IDWriteTextLayout> layout;
+                if (SUCCEEDED(
+                        host.GetWriteFactory()->CreateTextLayout(_text.data(), static_cast<UINT32>(_text.size()), format, width, height, layout.addressof())) &&
+                    layout)
+                {
+                    const DWRITE_TEXT_RANGE range{0u, static_cast<UINT32>(_text.size())};
+                    const float spacing = _typographyOverride->characterSpacingDip * 0.5f;
+                    wil::com_ptr<IDWriteTextLayout1> layout1;
+                    if (SUCCEEDED(layout->QueryInterface(IID_PPV_ARGS(layout1.put()))) &&
+                        SUCCEEDED(layout1->SetCharacterSpacing(spacing, spacing, 0.0f, range)))
+                    {
+                        if (const auto mnemonicIndex = FindMnemonicTextIndex(_text, GetMnemonic()); mnemonicIndex)
+                            static_cast<void>(layout->SetUnderline(TRUE, DWRITE_TEXT_RANGE{static_cast<UINT32>(*mnemonicIndex), 1u}));
+                        _typographyLayout           = std::move(layout);
+                        _typographyLayoutText       = _text;
+                        _typographyLayoutFormat     = format;
+                        _typographyLayoutSize       = D2D1::SizeF(width, height);
+                        _typographyLayoutGeneration = host.GetResourceGeneration();
+                        _typographyLayoutRevision   = host.GetTypographyRevision();
+                    }
+                }
+            }
+            if (_typographyLayout)
+            {
+                if (auto* brush = host.GetSolidBrush(style.text))
+                    dc->DrawTextLayout(D2D1::Point2F(bounds.left, bounds.top), _typographyLayout.get(), brush, kTextDrawOptions);
+                return;
+            }
+        }
+    }
     DrawTextWithMnemonic(
         host, _text, GetBounds(), _fontRole, style.text, GetMnemonic(), _alignment, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, _multiline, GetFlowDirection());
 }
@@ -2622,6 +2852,25 @@ Button::Button(std::wstring text) : _text(std::move(text))
     SetFocusable(true);
 }
 
+void Button::RetirePreparedIconTextLayout() noexcept
+{
+    wil::com_ptr<IDWriteTextLayout> retiredLayout = std::move(_preparedIconTextLayout);
+    wil::com_ptr<IDWriteTextFormat> retiredFormat = std::move(_preparedIconTextFormat);
+    _preparedIconTextHost                         = nullptr;
+    _preparedIconTextRevision                     = 0u;
+    _preparedIconTextResources                    = 0u;
+    _preparedIconTextTypography                   = 0u;
+    _preparedIconTextWidthDip                     = 0.0f;
+    _preparedIconTextHeightDip                    = 0.0f;
+    _preparedIconText[0]                          = L'\0';
+    _preparedIconText[1]                          = L'\0';
+    _preparedIconTextLength                       = 0u;
+    _preparedIconTextFlow                         = FlowDirection::LeftToRight;
+    _preparedIconTextKeyValid                     = false;
+    _preparedIconTextFailed                       = false;
+    ++_iconTextInputRevision;
+}
+
 void Button::SetMultiline(bool multiline) noexcept
 {
     if (_multiline != multiline)
@@ -2637,15 +2886,283 @@ bool Button::IsMultiline() const noexcept
     return _multiline;
 }
 
+HRESULT Button::SetContentFontSizeDip(std::optional<float> fontSizeDip) noexcept
+{
+    if (fontSizeDip && (! std::isfinite(fontSizeDip.value()) || fontSizeDip.value() < 6.0f || fontSizeDip.value() > 96.0f))
+        return E_INVALIDARG;
+    if (fontSizeDip)
+        fontSizeDip = static_cast<float>(std::lround(fontSizeDip.value() * 64.0f)) / 64.0f;
+    if (_contentFontSizeDip == fontSizeDip)
+        return S_FALSE;
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    _contentFontSizeDip               = fontSizeDip;
+    RetirePreparedIconTextLayout();
+    if (lifetime.expired())
+        return S_OK;
+    RequestVisualContentPreparation(false);
+    InvalidateMeasure();
+    // Embedded preparation scheduling may synchronously retire this control or its owning root.
+    if (! lifetime.expired())
+        RequestInvalidate();
+    return S_OK;
+}
+
+std::optional<float> Button::GetContentFontSizeDip() const noexcept
+{
+    return _contentFontSizeDip;
+}
+
+IDWriteTextFormat* Button::ResolveContentTextFormat(const ControlHost& host, FontRole role, bool wrap) const noexcept
+{
+    const auto reading = ResolveReadingDirection(GetFlowDirection());
+    auto* const base   = host.GetTextFormat(role, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, wrap, reading);
+    if (! _contentFontSizeDip || ! base)
+        return base;
+    // Retain the actual role/fallback family and weight; only the caller's content size changes.
+    if (role == FontRole::Icon && ! host.HasFluentIconFont())
+        role = FontRole::Small;
+    return host.GetTextFormat(
+        role, _contentFontSizeDip.value(), base->GetFontWeight(), DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, wrap, reading);
+}
+
+bool Button::HasCurrentPreparedIconTextLayout(const ControlHost& host, const D2D1_RECT_F& bounds, FlowDirection flowDirection) const noexcept
+{
+    const float widthDip  = bounds.right - bounds.left;
+    const float heightDip = bounds.bottom - bounds.top;
+    wchar_t text[2]{};
+    UINT32 length = 0u;
+    return _variant == ButtonVariant::IconOnly && _preparedIconTextKeyValid && _preparedIconTextLayout && _preparedIconTextHost == &host &&
+           _preparedIconTextRevision == _iconTextInputRevision && _preparedIconTextResources == host.GetResourceGeneration() &&
+           _preparedIconTextTypography == host.GetTypographyRevision() && _preparedIconTextFlow == flowDirection && std::isfinite(widthDip) &&
+           std::isfinite(heightDip) && widthDip > 0.0f && heightDip > 0.0f && _preparedIconTextWidthDip == widthDip &&
+           _preparedIconTextHeightDip == heightDip && CaptureSingleUnicodeScalar(_text, text, length) && length == _preparedIconTextLength &&
+           text[0] == _preparedIconText[0] && text[1] == _preparedIconText[1];
+}
+
+void Button::PrepareVisualContent(ControlHost& host) noexcept
+{
+    const std::weak_ptr<int> lifetime     = GetLifetimeToken();
+    Control* const root                   = host.GetRoot();
+    const std::weak_ptr<int> rootLifetime = root ? GetControlLifetimeToken(*root) : std::weak_ptr<int>{};
+    const auto hostStillCurrent           = [&]() noexcept
+    { return ! lifetime.expired() && ! rootLifetime.expired() && GetHost() == &host && host.GetRoot() == root && IsControlInTree(root, this); };
+    // Toggle and radio-button descendants have distinct Paint implementations; preparing a base-button layout
+    // for them would retain a resource that can never be consumed.
+    if (_variant != ButtonVariant::IconOnly || dynamic_cast<const Toggle*>(this) || dynamic_cast<const RadioButton*>(this) || ! root ||
+        rootLifetime.expired() || GetHost() != &host || ! IsControlInTree(root, this))
+    {
+        RetirePreparedIconTextLayout();
+        return;
+    }
+
+    wchar_t text[2]{};
+    UINT32 length = 0u;
+    if (! CaptureSingleUnicodeScalar(_text, text, length))
+    {
+        RetirePreparedIconTextLayout();
+        return;
+    }
+    const D2D1_RECT_F bounds = GetBounds();
+    const float widthDip     = bounds.right - bounds.left;
+    const float heightDip    = bounds.bottom - bounds.top;
+    if (! std::isfinite(widthDip) || ! std::isfinite(heightDip) || widthDip <= 0.0f || heightDip <= 0.0f)
+    {
+        RetirePreparedIconTextLayout();
+        return;
+    }
+
+    const FlowDirection flow    = GetFlowDirection();
+    const uint64_t revision     = _iconTextInputRevision;
+    const uint64_t resources    = host.GetResourceGeneration();
+    const uint64_t typography   = host.GetTypographyRevision();
+    const FontRole role         = host.HasFluentIconFont() ? FontRole::Icon : FontRole::Body;
+    const auto contentFontSize  = _contentFontSizeDip;
+    const auto readingDirection = ResolveReadingDirection(flow);
+    auto* rawFormat             = host.GetTextFormat(role, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, readingDirection);
+    if (! hostStillCurrent())
+        return;
+    wil::com_ptr<IDWriteTextFormat> format = rawFormat;
+    if (! hostStillCurrent())
+        return;
+    if (format && contentFontSize)
+    {
+        FontRole sizedRole = role;
+        if (sizedRole == FontRole::Icon && ! host.HasFluentIconFont())
+            sizedRole = FontRole::Small;
+        if (! hostStillCurrent())
+            return;
+        const DWRITE_FONT_WEIGHT weight = format->GetFontWeight();
+        if (! hostStillCurrent())
+            return;
+        rawFormat = host.GetTextFormat(
+            sizedRole, contentFontSize.value(), weight, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, readingDirection);
+        if (! hostStillCurrent())
+            return;
+        format = rawFormat;
+        if (! hostStillCurrent())
+            return;
+    }
+    const auto stillCurrent = [&]() noexcept
+    {
+        if (lifetime.expired() || rootLifetime.expired())
+            return false;
+        const auto currentBounds = GetBounds();
+        return GetHost() == &host && host.GetRoot() == root && IsControlInTree(root, this) && _variant == ButtonVariant::IconOnly &&
+               _iconTextInputRevision == revision && _text.size() == length && _text[0] == text[0] && (length == 1u || _text[1] == text[1]) &&
+               GetFlowDirection() == flow && currentBounds.left == bounds.left && currentBounds.top == bounds.top && currentBounds.right == bounds.right &&
+               currentBounds.bottom == bounds.bottom && host.GetResourceGeneration() == resources && host.GetTypographyRevision() == typography;
+    };
+    if (! stillCurrent())
+        return;
+
+    const bool sameKey = _preparedIconTextKeyValid && _preparedIconTextHost == &host && _preparedIconTextRevision == revision &&
+                         _preparedIconTextResources == resources && _preparedIconTextTypography == typography && _preparedIconTextFlow == flow &&
+                         _preparedIconTextWidthDip == widthDip && _preparedIconTextHeightDip == heightDip && _preparedIconTextLength == length &&
+                         _preparedIconText[0] == text[0] && _preparedIconText[1] == text[1] && _preparedIconTextFormat.get() == format.get();
+    if (sameKey && (_preparedIconTextLayout || _preparedIconTextFailed))
+        return;
+
+    // The exact configured format pointer is part of the key. After current inputs are revalidated, a warm pass needs
+    // neither the factory accessor nor another tree-membership walk after that COM boundary.
+
+#if DXUI_ENABLE_DIAGNOSTICS
+    ++_debugPreparedIconTextLayoutFactoryLookupCount;
+#endif
+    auto* rawFactory = host.GetWriteFactory();
+    if (! hostStillCurrent())
+        return;
+    wil::com_ptr<IDWriteFactory> factory = rawFactory;
+    if (! hostStillCurrent())
+        return;
+    if (! format || ! factory || GetHost() != &host || rootLifetime.expired() || host.GetRoot() != root)
+    {
+        RetirePreparedIconTextLayout();
+        return;
+    }
+    if (! stillCurrent())
+        return;
+
+    wil::com_ptr<IDWriteTextLayout> layout;
+    HRESULT createResult = E_FAIL;
+    bool forcedFailure   = false;
+#if DXUI_ENABLE_DIAGNOSTICS
+    ++_debugPreparedIconTextLayoutAttemptCount;
+    if (_debugFailNextPreparedIconTextLayout)
+    {
+        _debugFailNextPreparedIconTextLayout = false;
+        forcedFailure                        = true;
+    }
+    else
+#endif
+    {
+        createResult = factory->CreateTextLayout(text, length, format.get(), widthDip, heightDip, layout.put());
+    }
+    if (FAILED(createResult))
+        layout.reset();
+    if (! stillCurrent())
+        return;
+
+    wil::com_ptr<IDWriteTextLayout> retiredLayout = std::move(_preparedIconTextLayout);
+    wil::com_ptr<IDWriteTextFormat> retiredFormat = std::move(_preparedIconTextFormat);
+    _preparedIconTextHost                         = &host;
+    _preparedIconTextRevision                     = revision;
+    _preparedIconTextResources                    = resources;
+    _preparedIconTextTypography                   = typography;
+    _preparedIconTextWidthDip                     = widthDip;
+    _preparedIconTextHeightDip                    = heightDip;
+    _preparedIconText[0]                          = text[0];
+    _preparedIconText[1]                          = text[1];
+    _preparedIconTextLength                       = length;
+    _preparedIconTextFlow                         = flow;
+    _preparedIconTextFormat                       = std::move(format);
+    _preparedIconTextLayout                       = std::move(layout);
+    _preparedIconTextKeyValid                     = true;
+    _preparedIconTextFailed                       = FAILED(createResult) || ! _preparedIconTextLayout;
+#if DXUI_ENABLE_DIAGNOSTICS
+    if (! _preparedIconTextFailed)
+        ++_debugPreparedIconTextLayoutBuildCount;
+#endif
+    if (_preparedIconTextFailed && ! forcedFailure)
+        Debug::Warning(L"DxUi::Button: CreateTextLayout failed; using DrawTextW fallback (0x{:08X})", static_cast<uint32_t>(createResult));
+}
+
+void Button::CancelVisualContentPreparation() noexcept
+{
+    RetirePreparedIconTextLayout();
+}
+
+void Button::OnBoundsChanged() noexcept
+{
+    const D2D1_RECT_F bounds = GetBounds();
+    const float widthDip     = bounds.right - bounds.left;
+    const float heightDip    = bounds.bottom - bounds.top;
+    if (_preparedIconTextKeyValid && _preparedIconTextWidthDip == widthDip && _preparedIconTextHeightDip == heightDip)
+    {
+        Control::OnBoundsChanged();
+        return;
+    }
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    RetirePreparedIconTextLayout();
+    if (lifetime.expired())
+        return;
+    RequestVisualContentPreparation(false);
+    Control::OnBoundsChanged();
+}
+
+void Button::OnFlowDirectionChanged() noexcept
+{
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    RetirePreparedIconTextLayout();
+    if (lifetime.expired())
+        return;
+    RequestVisualContentPreparation(false);
+    Control::OnFlowDirectionChanged();
+    if (! lifetime.expired())
+        RequestVisualContentPreparation(false);
+}
+
+void Button::OnDensityChanged() noexcept
+{
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    RetirePreparedIconTextLayout();
+    if (lifetime.expired())
+        return;
+    RequestVisualContentPreparation(false);
+    Control::OnDensityChanged();
+    if (! lifetime.expired())
+        RequestVisualContentPreparation(false);
+}
+
+void Button::OnHostDpiChanged(ControlHost& host) noexcept
+{
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    RetirePreparedIconTextLayout();
+    if (lifetime.expired())
+        return;
+    RequestVisualContentPreparation(false);
+    Control::OnHostDpiChanged(host);
+    if (! lifetime.expired())
+        RequestVisualContentPreparation(false);
+}
+
 void Button::SetText(std::wstring text)
 {
     if (_text != text)
     {
-        _text = std::move(text);
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
+        _text                             = std::move(text);
+        RetirePreparedIconTextLayout();
+        if (lifetime.expired())
+            return;
+        RequestVisualContentPreparation(false);
         InvalidateMeasure();
+        if (lifetime.expired())
+            return;
         if (ControlHost* const host = GetHost())
         {
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+            if (lifetime.expired())
+                return;
         }
         RequestInvalidate();
     }
@@ -2662,18 +3179,115 @@ bool Button::IsPrimary() const noexcept
     return _primary;
 }
 
+void Button::SetThemePreview(std::optional<ButtonThemePreview> preview) noexcept
+{
+    const auto sameColor = [](const D2D1_COLOR_F& left, const D2D1_COLOR_F& right) noexcept
+    { return left.r == right.r && left.g == right.g && left.b == right.b && left.a == right.a; };
+    const auto validColor = [](const D2D1_COLOR_F& color) noexcept
+    {
+        return std::isfinite(color.r) && std::isfinite(color.g) && std::isfinite(color.b) && std::isfinite(color.a) && color.r >= 0.0f && color.r <= 1.0f &&
+               color.g >= 0.0f && color.g <= 1.0f && color.b >= 0.0f && color.b <= 1.0f && color.a >= 0.0f && color.a <= 1.0f;
+    };
+    if (preview && ! std::ranges::all_of(preview->swatches, validColor))
+        return;
+    if (_themePreview.has_value() == preview.has_value() && (! preview || std::ranges::equal(_themePreview->swatches, preview->swatches, sameColor)))
+        return;
+    _themePreview = std::move(preview);
+    RequestInvalidate();
+}
+
+std::optional<ButtonThemePreview> Button::GetThemePreview() const noexcept
+{
+    return _themePreview;
+}
+
+void Button::SetToggleState(std::optional<bool> checked) noexcept
+{
+    if (_toggleState == checked)
+        return;
+    _toggleState                      = checked;
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    if (ControlHost* const host = GetHost())
+    {
+        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+    }
+    if (lifetime.expired())
+        return;
+    RequestInvalidate();
+}
+
+std::optional<bool> Button::GetToggleState() const noexcept
+{
+    return _toggleState;
+}
+
 void Button::SetVariant(ButtonVariant variant) noexcept
 {
     if (_variant == variant)
         return;
-    _variant = variant;
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    _variant                          = variant;
+    RetirePreparedIconTextLayout();
+    if (lifetime.expired())
+        return;
+    if (variant == ButtonVariant::IconOnly && ! dynamic_cast<Toggle*>(this) && ! dynamic_cast<RadioButton*>(this))
+        EnableVisualContentPreparation();
+    else
+        RequestVisualContentPreparation(false);
     InvalidateMeasure();
+    if (lifetime.expired())
+        return;
     RequestInvalidate();
 }
 
 ButtonVariant Button::GetVariant() const noexcept
 {
     return _variant;
+}
+
+void Button::SetAppearance(ButtonAppearance appearance) noexcept
+{
+    if (_appearance == appearance)
+        return;
+    _appearance = appearance;
+    RequestInvalidate();
+}
+
+ButtonAppearance Button::GetAppearance() const noexcept
+{
+    return _appearance;
+}
+
+void Button::SetLeadingIcon(std::wstring glyph)
+{
+    if (_leadingIcon == glyph)
+        return;
+    _leadingIcon        = std::move(glyph);
+    const auto lifetime = GetLifetimeToken();
+    InvalidateMeasure();
+    if (! lifetime.expired())
+        RequestInvalidate();
+}
+
+std::wstring_view Button::GetLeadingIcon() const noexcept
+{
+    return _leadingIcon;
+}
+
+void Button::SetShortcutText(std::wstring text)
+{
+    if (_shortcutText == text)
+        return;
+    _shortcutText       = std::move(text);
+    const auto lifetime = GetLifetimeToken();
+    InvalidateMeasure();
+    if (! lifetime.expired())
+        RequestInvalidate();
+}
+
+std::wstring_view Button::GetShortcutText() const noexcept
+{
+    return _shortcutText;
 }
 
 void Button::SetDisclosureCollapsedDirection(ChevronDirection direction) noexcept
@@ -2812,7 +3426,7 @@ void Button::Paint(ControlHost& host) const
         host.RequestAnimation();
     }
     const FlowDirection flowDirection = GetFlowDirection();
-    const ButtonVisualStyle style     = ResolveButtonVisualStyle(host.GetTheme(),
+    auto style                        = ResolveButtonVisualStyle(host.GetTheme(),
                                                                  IsEnabled(),
                                                                  IsHovered(),
                                                                  IsPressed(),
@@ -2820,8 +3434,76 @@ void Button::Paint(ControlHost& host) const
                                                                  HasFocus() && host.IsKeyboardFocusVisible(),
                                                                  _primary || host.GetDefaultButton() == this,
                                                                  ResolveHoverAnimationProgress(host),
-                                                                 ResolveFocusAnimationProgress(host));
+                                                                 ResolveFocusAnimationProgress(host),
+                                                                 _toggleState.value_or(false));
+    style                             = ResolveButtonAppearanceVisualStyle(host.GetTheme(),
+                                                                           style,
+                                                                           _appearance,
+                                                                           IsEnabled(),
+                                                                           IsPressed(),
+                                                                           _primary || host.GetDefaultButton() == this,
+                                                                           _toggleState.value_or(false),
+                                                                           ResolveHoverAnimationProgress(host));
     const D2D1_COLOR_F transparent    = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
+    const auto drawContent            = [&](std::wstring_view text, const D2D1_RECT_F& bounds, FontRole role, const D2D1_COLOR_F& color, bool wrap = false)
+    {
+        DrawCenteredText(host,
+                         text,
+                         bounds,
+                         role,
+                         color,
+                         DWRITE_TEXT_ALIGNMENT_CENTER,
+                         DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                         wrap,
+                         flowDirection,
+                         ResolveContentTextFormat(host, role, wrap));
+    };
+
+    const auto drawDecoratedContent = [&](const D2D1_RECT_F& bounds, bool wrap = false)
+    {
+        auto textBounds = bounds;
+        const bool rtl  = flowDirection == FlowDirection::RightToLeft;
+        if (! _leadingIcon.empty())
+        {
+            const float left = rtl ? bounds.right - 26.0f : bounds.left + 10.0f;
+            const float top  = (bounds.top + bounds.bottom - 16.0f) * 0.5f;
+            DrawCenteredText(host,
+                             _leadingIcon,
+                             D2D1::RectF(left, top, left + 16.0f, top + 16.0f),
+                             host.HasFluentIconFont() ? FontRole::Icon : FontRole::Body,
+                             style.text,
+                             DWRITE_TEXT_ALIGNMENT_CENTER,
+                             DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                             false,
+                             flowDirection,
+                             host.GetTextFormat(host.HasFluentIconFont() ? FontRole::Icon : FontRole::Body,
+                                                16.f,
+                                                DWRITE_FONT_WEIGHT_NORMAL,
+                                                DWRITE_TEXT_ALIGNMENT_CENTER,
+                                                DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                                                false,
+                                                ResolveReadingDirection(flowDirection)));
+            if (rtl)
+                textBounds.right -= 28.0f;
+            else
+                textBounds.left += 28.0f;
+        }
+        if (! _shortcutText.empty())
+        {
+            const float width = MeasureSingleLineTextWidthDip(&host, _shortcutText, FontRole::Small, 20.0f, ResolveReadingDirection(flowDirection)) + 10.0f;
+            const float left  = rtl ? textBounds.left + 6.0f : textBounds.right - width - 6.0f;
+            const float top   = (bounds.top + bounds.bottom - 20.0f) * 0.5f;
+            const auto hint   = D2D1::RectF(left, top, left + width, top + 20.0f);
+            DrawRoundedRect(host, hint, transparent, host.GetTheme().buttonBorder, 4.0f);
+            DrawCenteredText(host, _shortcutText, hint, FontRole::Small, IsEnabled() ? host.GetTheme().subduedText : style.text);
+            if (rtl)
+                textBounds.left = hint.right + 4.0f;
+            else
+                textBounds.right = hint.left - 4.0f;
+        }
+        if (textBounds.right > textBounds.left)
+            drawContent(_text, textBounds, FontRole::Body, style.text, wrap);
+    };
 
     if (_variant == ButtonVariant::Hyperlink)
     {
@@ -2831,14 +3513,15 @@ void Button::Paint(ControlHost& host) const
         {
             PaintFocusRing(host, GetBounds(), kButtonCornerRadiusDip);
         }
-        DrawCenteredText(host, _text, GetBounds(), FontRole::Body, fg, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, flowDirection);
+        drawContent(_text, GetBounds(), FontRole::Body, fg);
         if (IsHovered() && IsEnabled())
         {
-            const D2D1_RECT_F b           = GetBounds();
-            const float widthDip          = (std::max)(0.0f, b.right - b.left);
-            const float heightDip         = (std::max)(1.0f, b.bottom - b.top);
-            const float availableDip      = (std::max)(0.0f, widthDip - 8.0f);
-            const float textWidthDip      = MeasureSingleLineTextWidthDip(&host, _text, FontRole::Body, heightDip, ResolveReadingDirection(flowDirection));
+            const D2D1_RECT_F b      = GetBounds();
+            const float widthDip     = (std::max)(0.0f, b.right - b.left);
+            const float heightDip    = (std::max)(1.0f, b.bottom - b.top);
+            const float availableDip = (std::max)(0.0f, widthDip - 8.0f);
+            const float textWidthDip = MeasureSingleLineTextWidthDip(
+                &host, _text, FontRole::Body, heightDip, ResolveReadingDirection(flowDirection), ResolveContentTextFormat(host, FontRole::Body));
             const float underlineWidthDip = (std::clamp)(textWidthDip, 0.0f, availableDip);
             const float underlineLeftDip  = b.left + ((widthDip - underlineWidthDip) * 0.5f);
             const float underlineRightDip = underlineLeftDip + underlineWidthDip;
@@ -2862,8 +3545,7 @@ void Button::Paint(ControlHost& host) const
         spec.hoverStrength   = ResolveHoverAnimationProgress(host);
         spec.focusStrength   = ResolveFocusAnimationProgress(host);
 
-        IDWriteTextFormat* const textFormat =
-            host.GetTextFormat(FontRole::Body, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, ResolveReadingDirection(flowDirection));
+        IDWriteTextFormat* const textFormat = ResolveContentTextFormat(host, FontRole::Body);
         IDWriteTextFormat* const iconFormat =
             host.GetTextFormat(FontRole::Icon, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, ResolveReadingDirection(flowDirection));
         DrawButtonChrome(host.GetDeviceContext(), host.GetSolidBrush(style.text), textFormat, iconFormat, host.GetTheme(), spec);
@@ -2883,12 +3565,22 @@ void Button::Paint(ControlHost& host) const
         }
         else
         {
-            DrawCenteredText(host, _text, GetBounds(), FontRole::Icon, style.text);
+            drawContent(_text, GetBounds(), FontRole::Icon, style.text);
         }
         return;
     }
 
-    DrawRoundedRect(host, GetBounds(), style.fill, style.showBorder ? style.border : transparent, kButtonCornerRadiusDip);
+    DrawRoundedRect(
+        host, GetBounds(), style.fill, style.showBorder ? style.border : transparent, _appearance == ButtonAppearance::Filled ? kButtonCornerRadiusDip : 6.0f);
+    if (style.showSelectionUnderline)
+    {
+        const auto bounds = GetBounds();
+        DrawLineWithColor(host,
+                          D2D1::Point2F(bounds.left + 10.0f, bounds.bottom - 1.0f),
+                          D2D1::Point2F(bounds.right - 10.0f, bounds.bottom - 1.0f),
+                          host.GetTheme().accent,
+                          2.0f);
+    }
     if (style.showFocus)
     {
         PaintFocusRing(host, GetBounds(), kButtonCornerRadiusDip);
@@ -2906,8 +3598,7 @@ void Button::Paint(ControlHost& host) const
                                                       layout.textRect.top + style.textOffsetYDip,
                                                       layout.textRect.right + style.textOffsetXDip,
                                                       layout.textRect.bottom + style.textOffsetYDip);
-        DrawCenteredText(
-            host, _text, textRect, FontRole::Body, style.text, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, flowDirection);
+        drawDecoratedContent(textRect);
         DrawCenteredText(host, std::wstring_view(&kButtonDropDownChevronGlyph, 1u), layout.chevronRect, FontRole::Icon, style.text);
     }
     else if (_variant == ButtonVariant::Split)
@@ -2917,8 +3608,7 @@ void Button::Paint(ControlHost& host) const
                                                       layout.textRect.top + style.textOffsetYDip,
                                                       layout.textRect.right + style.textOffsetXDip,
                                                       layout.textRect.bottom + style.textOffsetYDip);
-        DrawCenteredText(
-            host, _text, textRect, FontRole::Body, style.text, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, flowDirection);
+        drawContent(_text, textRect, FontRole::Body, style.text);
         DrawLineWithColor(
             host, D2D1::Point2F(layout.dividerX, GetBounds().top + 6.0f), D2D1::Point2F(layout.dividerX, GetBounds().bottom - 6.0f), style.border, 1.0f);
         DrawCenteredText(host, std::wstring_view(&kButtonDropDownChevronGlyph, 1u), layout.chevronRect, FontRole::Icon, style.text);
@@ -2927,18 +3617,85 @@ void Button::Paint(ControlHost& host) const
     {
         // Segoe Fluent Icons when that family is installed (the same choice as RedSalamander chrome). A missing
         // family draws the caller's Unicode stand-in in the UI font instead of a private-use box.
-        DrawCenteredText(host, _text, GetBounds(), host.HasFluentIconFont() ? FontRole::Icon : FontRole::Body, style.text);
+        const D2D1_RECT_F bounds        = GetBounds();
+        const FontRole role             = host.HasFluentIconFont() ? FontRole::Icon : FontRole::Body;
+        IDWriteTextFormat* const format = ResolveContentTextFormat(host, role);
+        bool usePreparedLayout          = HasCurrentPreparedIconTextLayout(host, bounds, flowDirection) && format && _preparedIconTextFormat.get() == format;
+#if DXUI_ENABLE_DIAGNOSTICS
+        usePreparedLayout = usePreparedLayout && ! _debugDisablePreparedIconTextLayout;
+#endif
+        if (usePreparedLayout)
+        {
+            if (auto* const dc = host.GetDeviceContext())
+            {
+                if (auto* const brush = host.GetSolidBrush(style.text))
+                {
+                    dc->DrawTextLayout(D2D1::Point2F(bounds.left, bounds.top), _preparedIconTextLayout.get(), brush, kTextDrawOptions);
+#if DXUI_ENABLE_DIAGNOSTICS
+                    ++_debugPreparedIconTextLayoutPaintCount;
+#endif
+                }
+                else
+                {
+                    DrawCenteredText(
+                        host, _text, bounds, role, style.text, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, flowDirection, format);
+                }
+            }
+            else
+            {
+                DrawCenteredText(
+                    host, _text, bounds, role, style.text, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, flowDirection, format);
+            }
+        }
+        else
+        {
+            DrawCenteredText(
+                host, _text, bounds, role, style.text, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, flowDirection, format);
+        }
     }
     else
     {
-        const float padX           = _multiline ? 12.0f : 0.0f;
-        const float padY           = _multiline ? 8.0f : 0.0f;
-        const D2D1_RECT_F textRect = D2D1::RectF(GetBounds().left + style.textOffsetXDip + padX,
-                                                 GetBounds().top + style.textOffsetYDip + padY,
-                                                 (std::max)(GetBounds().left + padX, GetBounds().right + style.textOffsetXDip - padX),
-                                                 (std::max)(GetBounds().top + padY, GetBounds().bottom + style.textOffsetYDip - padY));
-        DrawCenteredText(
-            host, _text, textRect, FontRole::Body, style.text, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, _multiline, flowDirection);
+        if (_themePreview)
+        {
+            const auto bounds        = GetBounds();
+            const float width        = std::max(0.0f, bounds.right - bounds.left);
+            const float swatchTop    = bounds.top + 5.0f;
+            const float swatchBottom = std::min(bounds.bottom - 18.0f, bounds.top + 18.0f);
+            const float margin       = std::min(10.0f, width * 0.08f);
+            const float gap          = 4.0f;
+            const float usableWidth  = std::max(0.0f, width - margin * 2.0f - gap * 2.0f);
+            const float swatchWidth  = usableWidth / 3.0f;
+            const auto& theme        = host.GetTheme();
+            const std::array<D2D1_COLOR_F, 3> highContrastSwatches{theme.windowBackground, theme.selectionFill, theme.selectionText};
+            const auto& swatches = theme.highContrast ? highContrastSwatches : _themePreview->swatches;
+            for (size_t i = 0u; i < swatches.size(); ++i)
+            {
+                const float left  = bounds.left + margin + static_cast<float>(i) * (swatchWidth + gap);
+                const auto swatch = D2D1::RectF(left, swatchTop, left + swatchWidth, swatchBottom);
+                if (auto* dc = host.GetDeviceContext())
+                {
+                    if (auto* brush = host.GetSolidBrush(swatches[i]))
+                        dc->FillRectangle(swatch, brush);
+                    if (auto* border = host.GetSolidBrush(theme.highContrast ? theme.border : theme.buttonBorder))
+                        dc->DrawRectangle(swatch, border, 1.0f);
+                }
+            }
+            const auto textRect = D2D1::RectF(bounds.left + style.textOffsetXDip,
+                                              swatchBottom + 1.0f + style.textOffsetYDip,
+                                              bounds.right + style.textOffsetXDip,
+                                              bounds.bottom + style.textOffsetYDip - 2.0f);
+            drawContent(_text, textRect, FontRole::Small, style.text);
+        }
+        else
+        {
+            const float padX           = _multiline ? 12.0f : 0.0f;
+            const float padY           = _multiline ? 8.0f : 0.0f;
+            const D2D1_RECT_F textRect = D2D1::RectF(GetBounds().left + style.textOffsetXDip + padX,
+                                                     GetBounds().top + style.textOffsetYDip + padY,
+                                                     (std::max)(GetBounds().left + padX, GetBounds().right + style.textOffsetXDip - padX),
+                                                     (std::max)(GetBounds().top + padY, GetBounds().bottom + style.textOffsetYDip - padY));
+            drawDecoratedContent(textRect, _multiline);
+        }
     }
 }
 
@@ -3150,6 +3907,32 @@ std::wstring_view Button::GetText() const noexcept
 bool Button::DebugIsPressed() const noexcept
 {
     return IsPressed();
+}
+uint64_t Button::DebugGetPreparedIconTextLayoutBuildCount() const noexcept
+{
+    return _debugPreparedIconTextLayoutBuildCount;
+}
+uint64_t Button::DebugGetPreparedIconTextLayoutAttemptCount() const noexcept
+{
+    return _debugPreparedIconTextLayoutAttemptCount;
+}
+uint64_t Button::DebugGetPreparedIconTextLayoutFactoryLookupCount() const noexcept
+{
+    return _debugPreparedIconTextLayoutFactoryLookupCount;
+}
+uint64_t Button::DebugGetPreparedIconTextLayoutPaintCount() const noexcept
+{
+    return _debugPreparedIconTextLayoutPaintCount;
+}
+void Button::DebugFailNextPreparedIconTextLayoutForTest() noexcept
+{
+    _debugFailNextPreparedIconTextLayout = true;
+    RequestVisualContentPreparation();
+}
+void Button::DebugSetPreparedIconTextLayoutDisabledForTest(bool disabled) noexcept
+{
+    _debugDisablePreparedIconTextLayout = disabled;
+    RequestInvalidate();
 }
 #endif
 
@@ -6684,16 +7467,14 @@ Toggle* Toolbar::AddToggleButton(std::wstring tooltip, std::wstring iconGlyph)
 
 void Toolbar::AddSeparator()
 {
-    auto* separator = AddChild<Label>();
-    separator->SetEnabled(false);
+    auto* separator          = AddChild<Separator>();
+    separator->_toolbarStyle = true;
 }
 
 void Toolbar::Paint(ControlHost& host) const
 {
     const ToolbarVisualStyle style = ResolveToolbarVisualStyle(host.GetTheme());
-    const ThemePalette& theme      = host.GetTheme();
     const D2D1_RECT_F bounds       = GetBounds();
-    const float separatorInsetDip  = theme.density == Density::Compact ? 4.0f : 6.0f;
 
     // Background
     if (host.GetDeviceContext())
@@ -6702,28 +7483,6 @@ void Toolbar::Paint(ControlHost& host) const
         // Bottom border (1 DIP)
         const D2D1_RECT_F borderLine = D2D1::RectF(bounds.left, bounds.bottom - 1.0f, bounds.right, bounds.bottom);
         FillRectangleWithColor(host, borderLine, style.bottomBorder);
-
-        for (const auto& child : GetChildren())
-        {
-            const auto* label = dynamic_cast<const Label*>(child.get());
-            if (! label || ! label->GetText().empty())
-            {
-                continue;
-            }
-
-            const D2D1_RECT_F childBounds = child->GetBounds();
-            if (childBounds.right <= childBounds.left || childBounds.bottom <= childBounds.top)
-            {
-                continue;
-            }
-
-            const float centerX = std::floor((childBounds.left + childBounds.right) * 0.5f) + 0.5f;
-            DrawLineWithColor(host,
-                              D2D1::Point2F(centerX, childBounds.top + separatorInsetDip),
-                              D2D1::Point2F(centerX, childBounds.bottom - separatorInsetDip),
-                              style.separatorLine,
-                              1.0f);
-        }
     }
 
     // Paint children (buttons)
