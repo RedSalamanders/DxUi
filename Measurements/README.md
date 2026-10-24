@@ -1,5 +1,14 @@
 # Independent DxUi measurements
 
+- [Host/control review integration, 2026-10-24](HostControlReviewReconciliation/2026-10-24/README.md):
+  six builds, 57 ordinary and 12 authorized foreground zero-skip x64 suite executions, two ASan probes,
+  three exact-pin consumers and six reviewed harness captures. Performance, native-platform/manual/product,
+  remaining RichText visual, workflow trust wiring and deferred administrative acceptance remain open.
+
+- [Historical host/control review reconciliation, 2026-10-21](HostControlReviewReconciliation/2026-10-21/README.md):
+  the original 57 ordinary passes, six builds, consumer pins and gallery checkpoint remain source-specific;
+  the 24 October record qualifies the later integrated source and closes its local foreground obligation.
+
 - [Design refresh integration, 2026-10-24](DesignRefresh_2026-10-24/README.md): completed shared-control changes,
   the retained format-cache regression and corrected source checkpoint; performance and final qualification stay open.
 

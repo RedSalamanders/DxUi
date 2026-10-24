@@ -1046,6 +1046,16 @@ const TextField& NumericStepper::Field() const noexcept
     return *_field;
 }
 
+std::unique_ptr<Control> NumericStepper::TakeChild(size_t /*index*/) noexcept
+{
+    // The parts' pointers are used for the stepper's whole life; one taken out would leave Field() dangling.
+    return {};
+}
+
+void NumericStepper::ClearChildren() noexcept
+{
+}
+
 Button& NumericStepper::IncrementButton() noexcept
 {
     return *_increment;
@@ -1932,6 +1942,16 @@ void ColorPicker::OnCaptureLost(ControlHost& host)
     }
     _drag = Drag::None;
     Cancel(host);
+}
+
+std::unique_ptr<Control> ColorPicker::TakeChild(size_t /*index*/) noexcept
+{
+    // The parts' pointers are used for the picker's whole life; one taken out would leave them dangling.
+    return {};
+}
+
+void ColorPicker::ClearChildren() noexcept
+{
 }
 
 void ColorPicker::PropagateHost(ControlHost* host) noexcept

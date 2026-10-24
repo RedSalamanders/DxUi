@@ -4,6 +4,20 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Publish opaque native-run labels while retaining original process identities in private evidence, and mark the review's original trust findings as historical alongside its current partial implementation and remaining workflow requirements.
+- Qualify the integrated host/control review at one exact SDK source with six builds, 69 zero-skip x64 native suite executions, two ASan probes, three isolated consumers and reviewed harness captures; preserve failed integration attempts, document the remaining workflow trust gap, and retain performance, platform, product and remaining RichText visual acceptance HOLDs.
+- Retire stale retained focus and native text input when a rejected focus request names the current unavailable owner, while leaving unrelated rejected requests inside blur callbacks inert. Extend the existing native-session regression for disabled, hidden and ancestor-disabled owners, local focus state, source preservation and reactivation.
+- Keep native TSF long-document edits available while enforcing the application adapter's separate 65,536-unit snapshot ceiling consistently in insertion queries and mutations. Add capacity coverage for rejected growth, oversized edits, exact-bound insertions and same-length replacements without partial edits.
+- Preserve guarded same-owner Space translation before suppressing printable editor keys from application accelerator fallback; retain exact Return/Space ownership assertions and report editor, key and translated-character count on failure. Native requalification remains pending.
+- Reconcile Button toggle publication with the confirmed accessibility toggle-state snapshot, and use the shared
+  logical-tree membership check when capturing a keyboard dispatch owner. Existing toggle-state and stale-owner
+  regressions remain enabled; preserve the first integration build failure separately from renewed qualification.
+- Reconcile retained-control lifetime, focus and accessibility remediation with current rich-text presentation,
+  keyboard-character dispatch receipts and preparation retirement guards. Preserve both sets of regression tests,
+  including bounded text-service edits in documents larger than one edit and rejection of oversized individual edits.
+- Publish the reconciled host/control review's gallery and exact local validation summary: 57 noninteractive x64 suite passes with zero skips, six native-profile builds and three exact-pin API-4 consumer fixtures. Preserve failed attempts and keep foreground, native ARM64 execution, matched performance and existing themed diagram visual acceptance explicit in draft PR #96.
+- Name the frozen API revision-4 consumer fixture ConsumerApi.Tests.Revision4.cpp without changing its source bytes.
+  Include consumer fixture directories in the native inventory and reject placeholder Scope names; update source/generated references and handoff links.
 - Added the RichText audit remediation and completion plan with its findings register and Markdown, math and
   Mermaid completeness specification. The audit read every rich-text partition, verified bug findings with
   independent refute and reproduce passes, and maps every surviving finding to one plan item. It changes no
@@ -59,6 +73,253 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 - Content-audit all 754 RedPrism qualification archives and preserve their distinct receipts and paths while
   consolidating 9,382 verified duplicate payload copies into read-only shared storage; independently verify every
   path, retained hashes, live references and the focused ReFS sandbox behavior, with original metadata journaled.
+- Preserve deferred embedded preparation scheduling from current main: root replacement requests coalesce after callbacks unwind,
+  while unchanged content preparation failure remains dirty without automatic retries. Extend both regression scenarios.
+- Reconcile wildcard test-scope rules with contextual native filenames. Batch inventory pattern checks and stop at the first match,
+  preserving scalar matching, directory boundaries, Unicode and case behavior. Native scope selection remains conservative.
+- Reconcile the retained review remediation with current main: preserve rich-content preparation, semantic text ranges,
+  source-only pending input, current Menu behavior and native allocation-fault/resource fixtures. Keyboard dispatch may
+  continue through unrelated geometry invalidation while text-service publication retains its stricter coherence checks.
+  UI Automation actions share a named-exception boundary and preserve rich selection/scroll actions. Replace placeholder
+  native test scopes with component contexts and retain a historical rename map. Qualification and consumer gates remain
+  explicit in the active review plan; this change does not activate the private bounded-repaint or consumer migrations.
+- Measure wrapped text without the space that ends each wrapped line (the later merges' review, N-17). That space
+  hangs past the width the text wrapped to, so a wrapped `Label` or multiline `Checkbox` measured wider than its
+  constraint and reported overflow at a width that holds every line; text on one line keeps its trailing space.
+- Publish the UI Automation state that keyboard and mnemonic actions change (CR-12 of the 10 October review): a toggle,
+  checkbox or radio button changed from the keyboard reports its new state, an indeterminate checkbox reports
+  Indeterminate, and an embedded host keeps its coherent prior snapshot when a model getter throws while it publishes
+  (CR-17). The native host also republishes after each deferred layout pass, so bounding rectangles match the arranged
+  controls.
+- Let the paired gate take its trust anchor from the workflow and add CODEOWNERS (Q12, CR-29 and N-20 of the 10 October
+  review). The verdict, both scope steps and the aggregate check accept the pull request's base and merge commits as the
+  workflow names them: a summary that records other commits is invalid evidence, the named base supplies the trusted
+  policy and judge, and a scope computed for another merge ref fails its step. The measured tree's judge is hashed
+  before anything loads it, and only the trusted tree's copy of the approved source runs. The verdict can judge the
+  single run of a downloaded artifact and write its verdict elsewhere, and the aggregate check verifies that a measured
+  pull request compared exactly the named pair and that a separate verdict job passed it. `.github/CODEOWNERS` names
+  `@eric-jesover` for the workflows, `Tools`, the performance scripts and the agent instructions, and a tooling test
+  keeps every such path owned. The workflow switches to running the gate from the base commit in a follow-up change.
+- Harden window trust, composite parts and embedded event delivery (CR-18, CR-28 and the later merges' review). Another
+  process can no longer detach a host with the well-known process-exit message, which now carries a per-process nonce,
+  nor make UI Automation use a pointer it wrote into the host window's property. NumericStepper, ColorPicker and
+  TagPicker keep their own parts through `TakeChild` and `ClearChildren`, which had left their part pointers dangling.
+  An embedded view's UI Automation update raises the selection and focus events pending since the last update even when
+  an uncached GridPattern `GetItem` published in between. `format.yml` never pushes formatting to `main`.
+  A FormField hides an empty label, so its editor's `LabeledBy` never names an element without a name, and unchanged
+  Toggle state labels no longer relay out.
+- Let the native text store edit long documents and re-advise its sink (the later merges' review, CR-22). One TSF edit
+  still inserts at most 65,536 UTF-16 units, but a multiline field longer than that no longer refuses every IME, emoji
+  or dictation edit; the documented 65,536-unit ceiling of the embedded transport is unchanged. `AdviseSink` lets the
+  advised sink advise again to change its mask and refuses another sink with `CONNECT_E_ADVISELIMIT`, as the
+  `ITextStoreACP` contract requires, instead of failing both.
+- Give screen readers a TabControl's tabs (CR-27 of the 10 October review). A TabControl is now a Tab element whose
+  children are its visible tabs, TabItem elements named by their titles; its page follows it, as a property sheet's
+  strip and page do. The selected tab is its single, required selection: UI Automation's Select chooses a tab as a
+  click does, SetFocus also focuses the tab control, and a focused tab control reports its selected tab as the focus.
+  A change of tab raises the selection events, and adding, closing, hiding, moving or renaming a tab invalidates the
+  structure. The tabs used to be no elements at all. A tab control's selection, close-request and closed callbacks no
+  longer end the process when they throw; a close request that fails keeps the tab.
+- Bring the control documentation in line with the code (the later merges' review, CR-36). A described menu entry's
+  UI Automation name is its label or `accessibleName` and its secondary text is HelpText, so the sample no longer
+  speaks the path twice; the Tree example reports the primary selected member, not the focused row; the Grid entry
+  documents the Ctrl+C format and the separate focused-row calls, and the Tree entry its silent focus setter.
+- Fix smaller interaction and publication defects (CR-25 to CR-27 of the 10 October review). A dragged tab moves past a
+  neighbor only when the pointer crosses that neighbor's midpoint, so it no longer swaps the moment a drag starts,
+  flips back and forth, or stops short of the last slot. A StackPanel extent no longer passes to a control created at a
+  destroyed child's address, a Grid keeps its rows' UI Automation identity when its delegate changes, and wheel
+  scrolling and DPI changes republish UI Automation geometry. The raw-message diagnostic trace costs nothing unless a
+  diagnostics sink listens.
+- Share one focus-ring rule between Tree and Grid rows (the later merges' review, N-21). Both now resolve the current
+  row's ring color and visibility through `ResolveRowFocusVisuals`, so the two controls cannot drift apart; no pixel
+  changes.
+- Document that a host owns its root's bounds (the later merges' review, CR-26). A window host sets them to its client
+  area when it installs the root, resizes, changes DPI and paints, and an embedded view sets them at every
+  preparation; an application insets content inside the root. A window-host test pins that an inset root is given
+  the client area again at the next paint.
+- Give screen readers radio buttons and tree expansion (CR-27 of the 10 October review). A RadioButton is now a
+  RadioButton element with the SelectionItem pattern, selected while it is checked, instead of an invokable Button:
+  Select chooses it as a click does, and every change of choice, including `SetChecked` and `SetSelectedIndex`, raises
+  ElementSelected and the IsSelected changes. A RadioButtons group publishes a change of choice once. A Tree item that
+  expands or collapses raises its ExpandCollapseState change, and the rows it shows or hides invalidate the structure;
+  before, neither was raised and a client kept the old rows.
+- Report the focused item's expansion in a tree with prepared accessibility rows (the later merges' review, CR-27). A
+  prepared source is never traversed, so such a tree raised only the structure change when a row expanded; it now also
+  raises the ExpandCollapseState change of its focused item before or after the change, the item a key, an expander
+  click or the focused row's ExpandCollapse acts on, read from both sources with `FindItem`.
+- Tell screen readers where a radio choice or a tab stands (the later merges' review, CR-27). A choice in a
+  `RadioButtons` group reports its place among the group's present choices, and a tab its place among the visible
+  tabs, as UI Automation's PositionInSet and SizeOfSet; under the window's flat root a screen reader would otherwise
+  count every radio button in the window as one set.
+- Keep pointer gestures with the control that owns them (the later merges' review, N-19). A right-click while a
+  slider's thumb is held no longer ends the capture or, in a ScrollPanel, hands the gesture to the control under the
+  pointer, which had left the slider dragging under a plain hover; the capture lasts until the gesture's own button is
+  up. A right press that focused a control in a ScrollPanel without opening a menu no longer blurs it again. A second
+  right-click within the double-click time opens a Grid's, Tree's, ComboBox's or scrolled control's menu again, and a
+  second click on a Tree's or ScrollPanel's scrollbar track pages again instead of being dropped (and, in a
+  ScrollPanel, clearing the focus). A page transition begun or left running while its page host was hidden resumes when
+  it paints, instead of holding the incoming page invisible; an open ComboBox list no longer keeps frames ticking. A
+  keyboard context menu opens inside the visible scroll viewport and at the right edge in a right-to-left layout, and
+  Grid and Tree resolve menu anchors through the virtual `ResolveContextMenuAnchor`.
+- Keep cross-thread requests from waiting on each other or holding the registry (CR-28 of the 10 October review). Two
+  UI threads that ask for each other's window providers at once now answer each other: a sender goes on answering the
+  messages sent to its own windows while it waits, where both used to wait out the five-second timeout and fail. A
+  request that times out, a provider request or a UI Automation action, gives back its payload slot and the provider
+  references it held, instead of keeping one of the process's 128 slots until the unanswering window answered or was
+  destroyed; a late delivery then runs nothing.
+- Expose a PageIndicator to screen readers (CR-27 of the 10 October review). An indicator with at least two pages is
+  now a Slider element whose RangeValue is the page, from 1 to the page count; UI Automation's SetValue chooses the
+  nearest whole page as an arrow key does, and a change of page republishes. The indicator was no element at all, and
+  the English "Page 2 of 5" it set as its accessible name, replacing the application's, never reached a client; it
+  leaves the name to the application now.
+- Fix defects found reviewing the layout, forms and input merges of 11 to 17 October.
+  - A layout that fails (an oversized paste, an unsupported child) keeps its previous geometry and the window still
+    paints, reporting the failure once through the diagnostics sink, instead of leaving the window unpainted.
+  - A FlexPanel or FormPanel below a hidden plain container is laid out when the container is shown; a fixed-size Flex
+    child no longer fails layout at inexact origins; removed children and fields no longer count against the 1,024 and
+    256 limits; a RadioButton measures the chrome it paints.
+  - A text or validation change inside a form no longer makes an embedded host drop the next keys or characters (the
+    second half of a surrogate pair included): keys, characters and text services reach the focused control between
+    preparations. Unchanged FormField setters are no-ops.
+  - FormField parts moved out of a field are no longer dereferenced, a smaller `SetEditorPreferredSize` shrinks the
+    editor, and an editor that leaves its field takes no label, help text or automation id with it.
+  - A Grid sort glyph settles, so later animations stop repainting the grid and the old column gives its title back.
+  - A secondary press whose handler ran a blocking context menu, or opened a popup, no longer leaves a stale capture;
+    a ScrollPanel's forwarded gesture ends when its capture goes away silently; printable keys typed into a focused
+    editor no longer reach the application's key fallback; `Checkbox::OnMouseUp`, `OnKeyDown` and `OnMnemonic` are
+    public again.
+  - Tree and Grid clicks hold their row by stable id across focus handlers, a Grid right-click menu opens for the
+    pressed row, and a published refusal of a Tree expansion makes the UI Automation request fail.
+- Keep the ampersands of a converted native menu entry (CR-20 of the 10 October review). `ConvertNativeHMenuToFlyoutItems`
+  stripped them, so `E&xit` answered to E instead of X, `R&&D` showed `RD` and `Save && Close` lost its ampersand and
+  took a space as its mnemonic. The popup now decodes the label as it decodes any menu text, so an explicit mnemonic
+  wins over an inferred one; a menu bar title keeps its separate mnemonic as before.
+- Fix menu keyboard defects (CR-21 of the 10 October review). In a right-to-left menu, Right after a submenu closes only
+  that submenu instead of also switching to the previous root menu, and Left on a submenu row without a submenu moves to
+  the next root menu, as Right does left-to-right, instead of closing the submenu. A slider row's mnemonic moves the
+  keyboard selection to the slider, where the arrows choose a stop and Enter commits it, instead of invoking a command
+  and closing the menu. AltGr (a right Alt with Ctrl down) keeps the menu open, so its characters can be mnemonics; any
+  other Alt still dismisses it. A menu that another thread's message dismisses ends its loop at once instead of waiting
+  for input.
+- Owe the interactive suites a run when their shared paths change (the later merges' review, CR-30). A change to the
+  window host, the TSF text store or the UI Automation providers now reports INTERACTIVE_NOT_RUN for Menu and
+  NativeTextInput (the text store for NativeTextInput alone), as menu and native text-input changes already did, and
+  the scope manifest no longer repeats its NewControls rule.
+- Check the hosted ARM64 desktop preparation's precondition on every machine (the later merges' review, N-20). The script
+  now takes its whole decision from `Test-DxUiHostedArmDesktopRunner`, whose tooling test refuses each missing or wrong
+  GitHub marker, a lowercase runner architecture and an x64, x86 or Arm system; before, an x64 machine refused through
+  the system architecture alone, so the marker checks were never exercised off ARM64.
+- Read the retained hosted A/A sets from test fixtures (Q11 of the 10 October review). `Test-BenchmarkGate.ps1` took
+  their summaries and controls from the two `reports.zip` archives under `Measurements/HostedPairedGate`, which leave
+  the repository with the other raw evidence. The fixtures hold only what the gate reads of a run, with a README that
+  names each archive and its SHA-256.
+- Let screen readers move through a grid row reached outside the viewport (CR-19 of the 10 October review). A row that
+  GridPattern's `GetItem` materialized offscreen now has its cells as children, and those cells are siblings, as on
+  screen; before, a client could read only the one cell `GetItem` returned. Acting on rows outside the viewport still
+  needs them scrolled into view.
+- Give the Grid a visible keyboard focus model (CR-7 to CR-11 of the 10 October review). The focused row draws its own
+  focus ring during keyboard use, Ctrl with any movement key moves only the focus, and Ctrl+Left and Ctrl+Right choose a
+  current column that the focused row outlines (a one-column grid leaves both keys to the application). With no focused
+  row the keys start from the last selected row; `SetSelectedRowIds` selects rows silently and focuses the last one. F1
+  is no longer taken: `InspectFocusedCell` and `IsFocusedCellClipped` let the application offer inspection as a command.
+  A touch double-tap activates a row again, Ctrl+C with nothing selected is left unhandled, and a focused row can no
+  longer be re-seeded by a data refresh after the application cleared it.
+- Make a grid's UI Automation follow its column display order (the later merges' review, Q15 and CR-19). After a
+  column reorder, `GetItem`'s column, `GridItem.Column`, a row's cells and the words of its name, and the column headers
+  follow the order the headers, pixels and Ctrl+C use, so a screen reader names the column the user sees; the
+  application's delegate calls keep model indices. Every column has a header element, rows and cells have ScrollItem,
+  and SetFocus or Toggle on a cell of a scrolled-out column or an offscreen row scrolls it into view first instead of
+  failing.
+- Fix the paired gate's reported defects (CR-30, CR-31 and N-20 of the 10 October review). A rise of an exact budget's
+  raw-round maximum alone, which only the paired-block judge regresses, reaches the verdict table instead of making the
+  run inconclusive with no table, and any other judge disagreement names its metrics. An exact budget's change is that
+  of its medians, not always 0.00%. The legacy rank test counts in doubles, so nineteen and twenty blocks no longer
+  overflow. A non-ASCII library input no longer breaks the source fingerprint, committed judge, policy and assignment
+  sources are hashed from their exact bytes, and measured paths match in any case. `test.ps1 -Interactive` starts the
+  lease attached to its console, so Ctrl+C reaches the lease, which restores the desktop, instead of PowerShell ending
+  it. PrePush delegation binds the workflow, the scripts and modules that decide its coverage, and the coverage claimed,
+  not the workflow alone.
+- Read a pull request's changed paths as git stores them in the benchmark gate (the later merges' review, N-20).
+  `Get-PullRequestChangedPaths` now reads `git diff -z` as UTF-8, so a library file whose name git would quote, or
+  whose non-ASCII name the console's code page would misdecode, still counts as a measured change instead of letting
+  the pull request skip the paired benchmark.
+- Keep a FormField's own parts (the later merges' review, N-18). `TakeChild` no longer takes the label, description or
+  validation out of a field, which had left `SetLabel`, `SetDescription` and `SetValidation` without a part to show for
+  good, and `ClearChildren` removes the editor and other additions only, keeping the parts' text and state, so the field
+  takes a new editor as it was; swapping editors no longer leaves empty child slots behind. The FormField note and the
+  control guide now say that a new error is not announced on its own: the application raises
+  `RaiseWindowHostAccessibilityNotification` when it should be spoken.
+- Keep focus requests and application exceptions from breaking the host (CR-23 and CR-24 of the 10 October review). A
+  blur handler that asks to focus a disabled or hidden control no longer cancels the focus change it runs inside, which
+  left nothing focused. A Tab boundary callback, a custom control's hover or move handler, or a Tree focus delegate
+  under UI Automation's SetFocus that throws is contained instead of ending the process, and UI Automation `SetValue`
+  refuses an oversized string before copying it.
+- Lay an embedded view out again after `EmbeddedHost::ReplaceDevice` (the later merges' review, N-17). The replacement
+  brings another text factory and invalidates the cached measurements, but requested no layout, so intrinsic content
+  kept its old geometry until some other change asked for one; the next preparation now remeasures each visible leaf
+  once, as a DPI change does.
+- Add `Panel::CompactChildren()` (the later merges' review, Q16). `TakeChild` keeps leaving an empty slot so indices stay
+  valid while an application takes children in a loop; a panel whose children are swapped for a long session now
+  removes those slots explicitly, in order, once it holds no index. A flex panel keeps each child's options through it
+  and a radio group its choice, and the accessibility tree is republished with the new paths.
+- Harden CI: no checkout keeps the job's token in the workspace, and a hosted ARM64 desktop that cannot be prepared
+  fails only the foreground suites instead of stopping every suite before it runs.
+- Contain the last application callbacks that could terminate the process from a window host or a text range (the
+  later merges' review, CR-24). A control whose mnemonic or character handler throws has the key taken instead of
+  ending the process, a throwing `Tick` stops the tree's ticks until a control asks for animation again, and a text
+  range's `Select` and the line and bounds work it sends to the window's thread fail with `E_FAIL` behind the same
+  boundary as every other UI Automation action. The hosting guide and the input contract now state the policy: code
+  that DxUi calls throws only `std::exception` types.
+- Count the benchmark's allocations with one instrument on both sides (CR-31 of the 10 October review). The replaced
+  allocation functions and their counters moved from `Embedded.Tests.Embedded.cpp` into
+  `Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h`, a benchmark input: a receipt's `benchmarkSha256` covers it, a
+  paired run copies it onto both trees and the profiling identity includes it, so a change to the instrument can no
+  longer move an exact allocation budget unnoticed. A base that predates the header still counts with its own copy.
+- Contain a throwing application callback under a UI Automation action (CR-24 and A5 of the 10 October review). A
+  Toggle, Invoke, SetValue, selection, expansion or focus request whose callback, delegate or model getter throws now
+  ends with E_FAIL (E_OUTOFMEMORY for an allocation failure) and a diagnostic, whether it ran on the window's thread or
+  was dispatched to it, and the view republishes what the action left. The actions were `noexcept`, so such an
+  exception ended the process from a screen reader's command. Callbacks should throw only `std::exception` types; one
+  of another type is contained at this boundary alone.
+- Give every control one animation clock (Q14, N-14 and N-15 of the 10 October review). `ControlHost::GetAnimationTickMs()`
+  is the host's animation clock: natively the UI thread's dispatcher timeline, and embedded a timeline that
+  `AdvanceAnimation` advances by the difference between consecutive application ticks, standing still while the view is
+  idle, hidden or zero-sized. Every transition stamps it and `Tick` receives it. With an application clock below system
+  uptime, the Grid sort glyph no longer animates forever, a Tree expansion no longer freezes and a view's first tooltip
+  shows after its delay; with a clock above uptime, a Button hover no longer completes at its first tick; at any epoch a
+  caret restarts visible after typing. Natively, a transition started after the dispatcher lost a stall no longer stands
+  still for the lost time. A Tree expansion requested through UI Automation asks for its own ticks, and a tooltip's hide
+  delay saturates instead of wrapping.
+- Stop AltGr characters from running editing shortcuts, and let a non-focusable TabControl remove a focused page (CR-13
+  and CR-14 of the 10 October review). AltGr arrives as Ctrl+Alt, so a Polish ą no longer selected all the text before
+  replacing it and a Czech @ no longer pasted, in a TextField or an editable ComboBox. `RemoveTab`, `TakeTab` and
+  `CloseTab` on a TabControl that cannot take focus now clear the focus held in the page instead of silently keeping
+  the page.
+- Leave Alt characters to the system (the later merges' review, Q7, CR-13 and CR-22). A window host no longer types a
+  `WM_SYSCHAR` that names no mnemonic into the focused editor: it reaches `DefWindowProc`, so Alt+Space opens the window
+  menu and a menu bar takes its access keys, as over a Win32 edit control. `TextField` and `ComboBox` type no character
+  that arrives with Alt alone, while AltGr, which arrives as Ctrl+Alt, still types.
+- Treat the content of a `PageHost` page as part of the window (CR-6 of the 10 October review). A field on a page gets
+  its native text-input session (TSF, IME, emoji panel and system caret), Tab reaches the page's controls, and they have
+  UI Automation elements and label names. Every tree walk now goes through logical children: the private Panel-only
+  copies in native text input, the text store, Tab order, the ComboBox scroll-container lookup and the UI Automation
+  builder are gone, and so are two duplicates of `IsControlInTree`.
+- Fix three crashes and a stalled publication found by the 10 October review. `WM_GETOBJECT` returns the window root even
+  when a publication cannot finish, instead of dereferencing a null root. A Grid row that a UIA client fetched and an
+  ordinary refresh then deleted, or that the model cannot read, now drops only that request rather than failing every
+  later publication. `WM_CAPTURECHANGED` no longer reads a hovered control that a capture-loss callback destroyed.
+  `Panel::TakeChild` tells every enclosing panel through the new protected `Panel::OnDescendantDetaching`, so a
+  `ScrollPanel` ends the hover and gesture of an inner control that leaves it, and it never dereferences one that is gone.
+- Keep Tree and Grid gestures going after application callbacks that refresh the model or change another control (CR-5
+  of the 10 October review). A selection callback that enables a toolbar button no longer drops the later set and focus
+  reports, the right-click menu, the reveal, the row drag or the checkbox toggle, and UI Automation Select and
+  AddToSelection report success. A delegate that publishes with `NotifyDataChanged` keeps the tree's expansion animation
+  and lets `ApplyGroupLayout` restore every group. A focus handler that moves, scrolls or mirrors the clicked control
+  itself still consumes that click.
+- Add an indexed WIP plan from a lead-verified review of the 30 September - 10 October merges (#29-#71), centred on the
+  #70 remediation and the #69 Grid automation: three crashes reproduced with nonactivating tests and AddressSanitizer,
+  gesture, PageHost, Grid focus-model, text-input, menu, embedded-host and CI defects with fixes, simplification
+  proposals and the developer's open questions, with the reproduction tests kept as a patch beside the plan.
 - Inventory 13 existing project `.Perf` roots and remove 679 SHA-256-verified redundant cache files in 114
   directories, preserving retained build archives, unique qualification evidence and active targets; verify all
   22 live junctions and fresh ReFS success plus the expected NTFS capability skip, with prior runs preserved.

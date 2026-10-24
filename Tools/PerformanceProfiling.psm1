@@ -337,8 +337,8 @@ function Get-ProfilingMeasurementState {
     param([Parameter(Mandatory)][string] $Root, [string] $Platform, [string] $Configuration)
     $state = Get-PerformanceMeasurementState -Root $Root -Platform $Platform -Configuration $Configuration
     $inputs = [ordered]@{}
-    foreach ($path in @('Tests/Embedded/Scope.Tests.ComplexUiProfiling.h','Tests/Embedded/Scope.Tests.ComplexUiBoundaries.h','Tests/Embedded/Embedded.Tests.Embedded.cpp',
-            'Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h','Tests/Support/Support.Tests.HeapDiagnostic.h',
+    foreach ($path in @('Tests/Embedded/Embedded.Tests.ComplexUiProfiling.h','Tests/Embedded/Embedded.Tests.ComplexUiBoundaries.h','Tests/Embedded/Embedded.Tests.Embedded.cpp',
+            'Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h','Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h','Tests/Support/Support.Tests.HeapDiagnostic.h',
             'Samples/ComplexUi/ComplexUiScene.h','Samples/EmbeddedControls/GraphicsFixture.h',
             'performance-profile.ps1','Tools/PerformanceProfiling.psm1','Tools/PerformancePolicy.psm1','Tools/ScopedTesting.psm1')) {
         $inputs[$path] = (Get-FileHash -LiteralPath (Join-Path $Root $path) -Algorithm SHA256).Hash

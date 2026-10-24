@@ -180,6 +180,31 @@ Invoke-FixtureCase 'only an independently qualified policy present in the measur
     Assert-Equal 'policy-review-required' $changed.status 'mutated policy status'
 }
 
+Invoke-FixtureCase 'a qualified base is trusted by the bytes of its sources, non-ASCII text and a missing final newline included' {
+    param($root)
+    # CR-30 of the 10 October review: the committed sources were read through the console's code page and split into lines,
+    # so a non-ASCII byte or a missing final newline made the base differ from the files it was committed from.
+    Invoke-FixtureGit $root @('init','-q','-b','main')
+    $judge = "# Gr$([char]0x00F6)$([char]0x00DF)e $([char]0x2264) bound`nfunction Get-PairedPerformanceJudgeVersion { 'dxui-fixture-v1' }`nfunction Get-PairedAssignmentProtocol { 'fixture-independent-v1' }`nExport-ModuleMember -Function Get-PairedPerformanceJudgeVersion, Get-PairedAssignmentProtocol"
+    $assignment = "# assignment fixture $([char]0x00E9)t$([char]0x00E9)"
+    Set-FixtureFile $root 'Tools/PerformanceComparison.psm1' $judge
+    Set-FixtureFile $root 'Tools/PairedRun.psm1' $assignment
+    $hash = { param([string] $Text) [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($Text))) }
+    $policy = [ordered]@{ schemaVersion=1; qualificationStatus='qualified'; qualified=$true; policyId='fixture-v1'; judgeVersion='dxui-fixture-v1'; approvedJudgeSha256=(& $hash $judge);
+        assignmentProtocol='fixture-independent-v1'; approvedAssignmentSha256=(& $hash $assignment) }
+    $path = Join-Path $root 'Tools/PerformanceAcceptancePolicy.v1.json'
+    [IO.File]::WriteAllText($path, (ConvertTo-Json -InputObject $policy -Depth 4), [Text.UTF8Encoding]::new($false))
+    Invoke-FixtureGit $root @('-c','core.autocrlf=false','add','-A'); Invoke-FixtureGit $root @('commit','-q','-m','non-ASCII sources without a final newline')
+    $commit = (& git -C $root rev-parse HEAD).Trim()
+    $previous = [Console]::OutputEncoding
+    $switched = $false
+    try {
+        try { [Console]::OutputEncoding = [Text.Encoding]::ASCII; $switched = $true } catch [System.IO.IOException] { }
+        $trusted = Get-TrustedPerformancePolicy -BaselineCommit $commit -RepositoryRoot $root -CandidatePolicyPath $path
+    } finally { if ($switched) { [Console]::OutputEncoding = $previous } }
+    Assert-True $trusted.trusted "the committed sources hash as the files they were committed from: $($trusted.reason)"
+}
+
 Invoke-FixtureCase 'a missing or unqualified base policy cannot be bootstrapped by the candidate' {
     param($root)
     Invoke-FixtureGit $root @('init','-q','-b','main')

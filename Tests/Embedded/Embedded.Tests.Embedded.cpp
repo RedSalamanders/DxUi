@@ -5,10 +5,10 @@
 #include "../../Samples/EmbeddedControls/GraphicsFixture.h"
 #include "../../src/Controls/DxUi.TextElements.h"
 #include "../../src/Support/PostedPayload.h"
-#include "../Support/Scope.Tests.MarkdownSourceCorrelation.h"
-#include "../Support/Scope.Tests.RichTextStateReplacement.h"
-#include "../Support/Scope.Tests.SemanticSourceBlock.h"
 #include "../Support/Support.Tests.FailureReports.h"
+#include "../Support/Support.Tests.MarkdownSourceCorrelation.h"
+#include "../Support/Support.Tests.RichTextStateReplacement.h"
+#include "../Support/Support.Tests.SemanticSourceBlock.h"
 #include <DxUi/AccessibilityTextUnits.h>
 #include <DxUi/ControlCatalog.h>
 #include <DxUi/Diagnostics.h>
@@ -25,107 +25,7 @@
 #include <new>
 #include <stdexcept>
 
-// Counts library C++ heap calls within the deliberately isolated composition loop, not driver allocations. The bytes they ask
-// for are counted beside them, for the opt-in measurement of Embedded.Tests.GridSelectionBenchmark.h. That measurement also asks what this
-// thread's heap holds at a moment: while countLiveBytes is set, liveBytes is the sizes of the blocks this thread has allocated
-// less those it has freed (the plain forms only, which every standard container uses), read as a difference between two points.
-static thread_local bool countAllocations  = false;
-static thread_local size_t allocations     = 0;
-static thread_local size_t allocationBytes = 0;
-static thread_local bool countLiveBytes    = false;
-static thread_local ptrdiff_t liveBytes    = 0;
-// Opt-in replacement-peak observation for geometry/parser resource fixtures. Dormant
-// for canonical benchmarks and all earlier live-storage measurements.
-static thread_local ptrdiff_t* liveBytesPeak = nullptr;
-// Test-only fault injection is dormant outside an explicit operation sweep.
-static thread_local size_t failAllocationAfter = std::numeric_limits<size_t>::max();
-static void FailAllocationIfRequested()
-{
-    if (failAllocationAfter != std::numeric_limits<size_t>::max())
-    {
-        if (! failAllocationAfter)
-            throw std::bad_alloc();
-        --failAllocationAfter;
-    }
-}
-void* operator new(size_t bytes)
-{
-    FailAllocationIfRequested();
-    if (countAllocations)
-    {
-        ++allocations;
-        allocationBytes += bytes;
-    }
-    if (auto* p = malloc(bytes ? bytes : 1))
-    {
-        if (countLiveBytes)
-        {
-            liveBytes += static_cast<ptrdiff_t>(_msize(p));
-            if (liveBytesPeak)
-                *liveBytesPeak = std::max(*liveBytesPeak, liveBytes);
-        }
-        return p;
-    }
-    throw std::bad_alloc();
-}
-void* operator new[](size_t bytes)
-{
-    return ::operator new(bytes);
-}
-static void FreeBlock(void* p) noexcept
-{
-    if (p && countLiveBytes)
-        liveBytes -= static_cast<ptrdiff_t>(_msize(p));
-    free(p);
-}
-void operator delete(void* p) noexcept
-{
-    FreeBlock(p);
-}
-void operator delete[](void* p) noexcept
-{
-    FreeBlock(p);
-}
-void operator delete(void* p, size_t) noexcept
-{
-    FreeBlock(p);
-}
-void operator delete[](void* p, size_t) noexcept
-{
-    FreeBlock(p);
-}
-void* operator new(size_t bytes, std::align_val_t alignment)
-{
-    FailAllocationIfRequested();
-    if (countAllocations)
-    {
-        ++allocations;
-        allocationBytes += bytes;
-    }
-    if (auto* p = _aligned_malloc(bytes ? bytes : 1, static_cast<size_t>(alignment)))
-        return p;
-    throw std::bad_alloc();
-}
-void* operator new[](size_t b, std::align_val_t a)
-{
-    return ::operator new(b, a);
-}
-void operator delete(void* p, std::align_val_t) noexcept
-{
-    _aligned_free(p);
-}
-void operator delete[](void* p, std::align_val_t) noexcept
-{
-    _aligned_free(p);
-}
-void operator delete(void* p, size_t, std::align_val_t) noexcept
-{
-    _aligned_free(p);
-}
-void operator delete[](void* p, size_t, std::align_val_t) noexcept
-{
-    _aligned_free(p);
-}
+#include "Embedded.Tests.BenchmarkInstrument.h"
 static size_t checks = 0;
 static void Check(bool value, const char* text)
 {
@@ -154,29 +54,29 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
     }
     return HRESULT_FROM_WIN32(ERROR_TIMEOUT);
 }
-#include "../Support/Scope.Tests.RichSemantic.h"
-#include "../Support/Scope.Tests.RichSemanticEditor.h"
-#include "../Support/Scope.Tests.RichSemanticGeometry.h"
+#include "../Support/Support.Tests.RichSemantic.h"
+#include "../Support/Support.Tests.RichSemanticEditor.h"
+#include "../Support/Support.Tests.RichSemanticGeometry.h"
 #include "Embedded.Tests.ComplexUiBenchmark.h"
+#include "Embedded.Tests.ComplexUiBoundaries.h"
+#include "Embedded.Tests.ComplexUiProfiling.h"
 #include "Embedded.Tests.EmbeddedAccessibility.h"
 #include "Embedded.Tests.EmbeddedTextInput.h"
 #include "Embedded.Tests.EmbeddedUia.h"
 #include "Embedded.Tests.GridSelectionBenchmark.h"
 #include "Embedded.Tests.InteractionLayout.h"
 #include "Embedded.Tests.LocalizedLayout.h"
-#include "Scope.Tests.ComplexUiBoundaries.h"
-#include "Scope.Tests.ComplexUiProfiling.h"
-#include "Scope.Tests.RichDocumentStorageResources.h"
-#include "Scope.Tests.RichGeometryResources.h"
-#include "Scope.Tests.RichImageCapture.h"
-#include "Scope.Tests.RichImageFailures.h"
-#include "Scope.Tests.RichProjectionResources.h"
-#include "Scope.Tests.RichSemanticDocumentResources.h"
-#include "Scope.Tests.RichSemanticGeometryResources.h"
-#include "Scope.Tests.RichSemanticResources.h"
-#include "Scope.Tests.RichTextResources.h"
+#include "Embedded.Tests.RichDocumentStorageResources.h"
+#include "Embedded.Tests.RichGeometryResources.h"
+#include "Embedded.Tests.RichImageCapture.h"
+#include "Embedded.Tests.RichImageFailures.h"
+#include "Embedded.Tests.RichProjectionResources.h"
+#include "Embedded.Tests.RichSemanticDocumentResources.h"
+#include "Embedded.Tests.RichSemanticGeometryResources.h"
+#include "Embedded.Tests.RichSemanticResources.h"
+#include "Embedded.Tests.RichTextResources.h"
 #if defined(DXUI_HAS_INTRINSIC_LAYOUT)
-#include "Scope.Tests.FormLayoutBenchmark.h"
+#include "Embedded.Tests.FormLayoutBenchmark.h"
 #endif
 #include "Embedded.Tests.PreparedTreeAccessibilityBenchmark.h"
 #include "Embedded.Tests.PreparedTreeAccessibilitySemantics.h"
@@ -942,11 +842,17 @@ __declspec(noinline) static void TestPreparationCallbacksCanRetireRoot(GraphicsF
         {
             State state;
             DxUi::EmbeddedHost view;
-            Hr(view.Attach(graphics), "attach preparation retirement host");
+            size_t preparationRequests = 0u;
+            DxUi::EmbeddedCallbacks callbacks{};
+            callbacks.context            = &preparationRequests;
+            callbacks.requestPreparation = [](void* context) noexcept { ++*static_cast<size_t*>(context); };
+            Hr(view.Attach(graphics, callbacks), "attach preparation retirement host");
             view.Controls().SetRoot(std::make_unique<CallbackRoot>(state));
-            auto& callback = duringOverlay ? state.overlay : state.paint;
-            callback       = [&] { view.Controls().SetRoot(replaceRoot ? std::make_unique<DxUi::Panel>() : nullptr); };
+            auto& callback              = duringOverlay ? state.overlay : state.paint;
+            callback                    = [&] { view.Controls().SetRoot(replaceRoot ? std::make_unique<DxUi::Panel>() : nullptr); };
+            const size_t requestsBefore = preparationRequests;
             Check(view.Prepare(320, 160) == E_ABORT, "preparation aborts the frame whose paint callback retired the root");
+            Check(preparationRequests == requestsBefore + 1u, "the aborted frame coalesces one request for its replacement after callbacks unwind");
             Check(state.paintCalls == 1u && state.overlayCalls == (duringOverlay ? 1u : 0u), "no stale overlay follows root retirement during painting");
             Check(view.NeedsPreparation(), "root replacement remains pending after the aborted frame");
             gpu.Bind();
@@ -1929,7 +1835,9 @@ __declspec(noinline) static int RunFunctionalTests()
     Check(! b.AdvanceAnimation(tick + 16), "stopped animation goes idle");
     b.Controls().SetTheme(desktopTheme);
     Check(b.Controls().SetTooltipDelayed(L"Help", D2D1::Point2F(8, 8)), "schedule embedded tooltip");
+    // The first tick after animation is requested again starts the view's clock; the next one passes the show delay.
     b.AdvanceAnimation(tick + 2000);
+    b.AdvanceAnimation(tick + 4000);
     Check(b.Controls().HasTooltip(), "host ticks advance tooltip deadlines");
     Hr(scene.view.Prepare(480, 240), "prepare before resize cancellation");
     const double resizeInitial = scene.slider->GetValue();

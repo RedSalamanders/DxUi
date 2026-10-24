@@ -17,6 +17,7 @@
 #include <utility>
 
 #include <msctf.h>
+#include <olectl.h>
 #include <textstor.h>
 
 namespace
@@ -1382,6 +1383,30 @@ void TestNativeTextInputBackendClearsSessionWhenFocusedControlBecomesStale()
     Require(! window.Host().DebugHasActiveNativeTextInputSession(), "native text input session clears after focused control is disabled");
     Require(! window.Host().DebugGetNativeTextInputCaretRect(caretRectDip, caretRectScreenPx),
             "native text input caret clears after focused control is disabled");
+    Require(window.Host().GetFocusControl() == nullptr && ! field->HasFocus() && ! window.Host().HasActiveTextInput() && field->GetText() == L"alpha",
+            "disabled current owner loses logical and backend-neutral focus without changing source");
+
+    field->SetEnabled(true);
+    window.Host().SetFocusControl(field);
+    Require(window.Host().DebugHasActiveNativeTextInputSession(), "re-enabled current owner can start a new native session");
+    field->SetVisible(false);
+    window.Host().SetFocusControl(field);
+    Require(! window.Host().DebugHasActiveNativeTextInputSession() && ! window.Host().HasActiveTextInput() && window.Host().GetFocusControl() == nullptr &&
+                ! field->HasFocus(),
+            "requesting a hidden current owner prunes logical and native input state");
+    Require(! window.Host().DebugGetNativeTextInputCaretRect(caretRectDip, caretRectScreenPx) && field->GetText() == L"alpha",
+            "hidden current owner loses its caret without changing source");
+
+    field->SetVisible(true);
+    window.Host().SetFocusControl(field);
+    Require(window.Host().DebugHasActiveNativeTextInputSession(), "visible current owner can restart native input");
+    window.Host().GetRoot()->SetEnabled(false);
+    window.Host().SetFocusControl(field);
+    Require(! window.Host().DebugHasActiveNativeTextInputSession() && ! window.Host().HasActiveTextInput() && window.Host().GetFocusControl() == nullptr &&
+                ! field->HasFocus(),
+            "requesting a current owner beneath a disabled ancestor prunes logical and native input state");
+    Require(! window.Host().DebugGetNativeTextInputCaretRect(caretRectDip, caretRectScreenPx) && field->GetText() == L"alpha",
+            "ancestor-disabled current owner loses its caret without changing source");
 }
 
 void TestNativeTextInputBackendUpdatesCaretWhenFocusedFieldMoves()
@@ -4766,7 +4791,9 @@ void TestNativeTextInputBackendEditableComboDeleteKeysAndPathWordDeleteSyncState
             "native editable combo path deletion syncs native state");
 }
 
-void TestNativeTextInputBackendSyncsPrintableSysCharIntoSessionState()
+// Q7 of the 10 October review: Alt with a character that names no mnemonic is the system's, as over a Win32 edit control
+// (Alt+Space opens the window menu, a menu bar takes its access keys). The native backend typed it into the focused field.
+void TestNativeTextInputBackendLeavesASystemCharacterToTheSystem()
 {
     using namespace DxUi;
 
@@ -4781,13 +4808,14 @@ void TestNativeTextInputBackendSyncsPrintableSysCharIntoSessionState()
     window.Host().SetRoot(std::move(root));
     window.Host().SetFocusControl(field);
 
-    static_cast<void>(SendMessageW(window.Hwnd(), WM_SYSCHAR, L'Z', 0));
+    // Straight to the host: DefWindowProc would beep for a character no menu takes.
+    bool handled = true;
+    static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_SYSCHAR, L'Z', 0, handled));
 
     NativeTextInputState state;
-    Require(window.Host().TryReadNativeTextInputState(field, state), "native session state is readable after printable system character input");
-    Require(field->GetText() == L"alphaZ", "native host wm_syschar updates the retained text field");
-    Require(state.text == L"alphaZ", "native session state mirrors retained text after printable system character input");
-    Require(state.caretIndex == 6u, "native session state mirrors caret after printable system character input");
+    Require(! handled, "the host leaves a system character that names no mnemonic to the system");
+    Require(window.Host().TryReadNativeTextInputState(field, state), "native session state is readable after a system character");
+    Require(field->GetText() == L"alpha" && state.text == L"alpha" && state.caretIndex == 5u, "the focused field types nothing");
 }
 
 void TestNativeTextInputBackendSyncsKeySelectionIntoSessionState()
@@ -9154,6 +9182,101 @@ void TestNativeTextInputTextStoreUnadviseRequiresAdvisedSink()
     RequireSucceeded(store->UnadviseSink(&advisedSink), "native text store UnadviseSink accepts the advised sink");
 }
 
+// CR-22 of the 10 October review: ITextStoreACP::AdviseSink lets the advised sink advise again to change its mask and
+// refuses another sink with CONNECT_E_ADVISELIMIT. The store answered E_FAIL to both.
+void TestNativeTextInputTextStoreReAdviseChangesTheSinksMask()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+    window.Host().SetTextInputBackend(TextInputBackend::Native);
+
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"alpha beta");
+    field->SetBounds(D2D1::RectF(0.0f, 0.0f, 260.0f, 32.0f));
+
+    window.Host().SetRoot(std::move(root));
+    window.Host().SetFocusControl(field);
+    window.Host().SyncTextInput(field);
+
+    NativeTextStoreTestSink advisedSink;
+    NativeTextStoreTestSink otherSink;
+    wil::com_ptr_nothrow<ITextStoreACP> store;
+    store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
+    Require(store != nullptr, "native text store creates a store for re-advising");
+
+    RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &advisedSink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE | TS_AS_LAYOUT_CHANGE),
+                     "native text store advises the first sink");
+    Require(store->AdviseSink(__uuidof(ITextStoreACPSink), &otherSink, TS_AS_TEXT_CHANGE) == CONNECT_E_ADVISELIMIT,
+            "native text store refuses a second sink with CONNECT_E_ADVISELIMIT");
+    RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &advisedSink, TS_AS_SEL_CHANGE),
+                     "native text store lets the advised sink advise again with a new mask");
+
+    advisedSink.onLockGranted = [](DWORD /*lockFlags*/) noexcept { return S_OK; };
+    field->SetTextAndNotify(L"alpha gamma");
+    window.Host().SyncTextInput(field);
+    NotifyTextStoreChanged(store.get());
+
+    HRESULT sessionHr = E_UNEXPECTED;
+    RequireSucceeded(store->RequestLock(TS_LF_READ, &sessionHr), "native text store re-advised sink takes a lock");
+    RequireSucceeded(sessionHr, "native text store re-advised lock succeeds");
+    Require(advisedSink.textChangeCount == 0u && otherSink.textChangeCount == 0u, "the new mask leaves text changes out");
+
+    RequireSucceeded(store->UnadviseSink(&advisedSink), "native text store unadvises the re-advised sink");
+}
+
+// CR-22 of the 10 October review: one TSF edit inserts at most 65,536 UTF-16 units, but a long document still takes
+// small edits. The store refused every edit once a multiline field held more than 65,536 units, so IME, emoji and
+// dictation stopped working there.
+void TestNativeTextInputTextStoreEditsALongDocument()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+    window.Host().SetTextInputBackend(TextInputBackend::Native);
+
+    constexpr size_t kLength = 70'000u;
+    auto root                = std::make_unique<Panel>();
+    auto* field              = root->AddChild<TextField>(std::wstring(kLength, L'x'));
+    field->SetMultiline(true);
+    field->SetBounds(D2D1::RectF(0.0f, 0.0f, 260.0f, 120.0f));
+
+    window.Host().SetRoot(std::move(root));
+    window.Host().SetFocusControl(field);
+    field->SetSelectionRange(kLength, kLength);
+    window.Host().SyncTextInput(field);
+
+    NativeTextStoreTestSink sink;
+    wil::com_ptr_nothrow<ITextStoreACP> store;
+    store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
+    Require(store != nullptr, "native text store creates a store for a long document");
+    RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE | TS_AS_LAYOUT_CHANGE),
+                     "native text store long-document test advises a sink");
+
+    const std::wstring oversized(65'537u, L'z');
+    HRESULT smallEdit  = E_UNEXPECTED;
+    HRESULT largeEdit  = E_UNEXPECTED;
+    sink.onLockGranted = [&](DWORD /*lockFlags*/) noexcept
+    {
+        LONG start = -1;
+        LONG end   = -1;
+        TS_TEXTCHANGE change{};
+        smallEdit = store->InsertTextAtSelection(0u, L"y", 1u, &start, &end, &change);
+        largeEdit = store->InsertTextAtSelection(0u, oversized.data(), static_cast<ULONG>(oversized.size()), &start, &end, &change);
+        return S_OK;
+    };
+    HRESULT sessionHr = E_UNEXPECTED;
+    RequireSucceeded(store->RequestLock(TS_LF_READWRITE, &sessionHr), "native text store long-document read-write lock dispatches");
+    RequireSucceeded(sessionHr, "native text store long-document lock succeeds");
+    RequireSucceeded(smallEdit, "a one-character TSF edit lands in a document longer than 65,536 units");
+    Require(largeEdit == HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW), "one TSF edit longer than 65,536 units is refused");
+    Require(field->GetText().size() == kLength + 1u && field->GetText().back() == L'y', "the field holds the small edit only");
+
+    RequireSucceeded(store->UnadviseSink(&sink), "native text store long-document test unadvises the sink");
+}
+
 void TestNativeTextInputTextStoreReadWriteLockBracketsEditTransactionAndRejectsReentrantLock()
 {
     using namespace DxUi;
@@ -9446,7 +9569,7 @@ void RunNativeTextInputTests()
     DXUI_RUN_TEST(TestNativeTextInputBackendEditableComboCommandsAndPopupSyncState);
     DXUI_RUN_TEST(TestNativeTextInputBackendEditableComboExactMatchCommandsSyncSelection);
     DXUI_RUN_TEST(TestNativeTextInputBackendEditableComboDeleteKeysAndPathWordDeleteSyncState);
-    DXUI_RUN_TEST(TestNativeTextInputBackendSyncsPrintableSysCharIntoSessionState);
+    DXUI_RUN_TEST(TestNativeTextInputBackendLeavesASystemCharacterToTheSystem);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreRequiresLockAndExposesTextSelectionGeometry);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreRejectsDestroyedControlDuringTeardown);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreExposesOwnerCompositionSink);
@@ -9474,6 +9597,8 @@ void RunNativeTextInputTests()
     DXUI_RUN_TEST(TestNativeTextInputTextStoreExternalChangeNotificationHandlesSinkRequestedLock);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreRepeatedEmojiExternalChangesStayBounded);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreUnadviseRequiresAdvisedSink);
+    DXUI_RUN_TEST(TestNativeTextInputTextStoreReAdviseChangesTheSinksMask);
+    DXUI_RUN_TEST(TestNativeTextInputTextStoreEditsALongDocument);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreReadWriteLockBracketsEditTransactionAndRejectsReentrantLock);
     DXUI_RUN_TEST(TestNativeTextStoreExternalTextWinsCompositionEndAndDisconnect);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreEditableComboBoxSelectionAndMutation);

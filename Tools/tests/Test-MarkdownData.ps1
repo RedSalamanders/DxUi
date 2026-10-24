@@ -6,12 +6,12 @@ $repository=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $generators=@(
     @{script='Tools/Generate-MarkdownEntityData.ps1';inputs='ThirdParty/Markdown/whatwg-2026-10-18';output='src/Controls/DxUi.MarkdownEntityData.h';
       pins=@('entities.json','LICENSE.txt')},
-    @{script='Tools/Generate-MarkdownTestData.ps1';inputs='ThirdParty/Markdown';output='Tests/Controls/Scope.Tests.MarkdownCorpus.h';
+    @{script='Tools/Generate-MarkdownTestData.ps1';inputs='ThirdParty/Markdown';output='Tests/Controls/Controls.Tests.MarkdownCorpus.h';
       pins=@('corpora/CommonMark-0.31.2-spec.json','corpora/CommonMark-0.31.2-LICENSE.txt','corpora/GFM-0.29.0.gfm.13-spec.txt',
              'corpora/GFM-0.29.0.gfm.13-COPYING.txt','whatwg-2026-10-18/entities.json','whatwg-2026-10-18/LICENSE.txt')},
     @{script='Tools/Generate-MarkdownUnicodeData.ps1';inputs='ThirdParty/Unicode/17.0.0';output='src/Controls/DxUi.MarkdownUnicodeData.h';
       pins=@('CaseFolding.txt','UnicodeData.txt','LICENSE.txt')},
-    @{script='Tools/Generate-NativeFlowchartTestData.ps1';inputs='ThirdParty/Markdown/mermaid-11.4.1';output='Tests/Support/Scope.Tests.NativeFlowchartCorpus.h';
+    @{script='Tools/Generate-NativeFlowchartTestData.ps1';inputs='ThirdParty/Markdown/mermaid-11.4.1';output='Tests/Support/Support.Tests.NativeFlowchartCorpus.h';
       pins=@('collection.json','syntax-inventory.json','dxui-flowchart-expectations.json','dxui-family-matrix.json')+
         @((Get-Content -LiteralPath (Join-Path $repository 'ThirdParty/Markdown/mermaid-11.4.1/collection.json') -Raw | ConvertFrom-Json).file)}
 )

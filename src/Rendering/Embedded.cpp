@@ -6,6 +6,7 @@
 #include <DxUiCompositeVS.h>
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <new>
 #include <wil/result.h>
 
@@ -167,7 +168,11 @@ HRESULT EmbeddedHost::Attach(std::shared_ptr<GraphicsDevice> graphics, EmbeddedC
         return E_OUTOFMEMORY;
     }
     ++_attachmentRevision;
-    _state->callbacks              = callbacks;
+    _state->callbacks = callbacks;
+    // A new attachment brings its own application clock: its first tick sets the baseline. The timeline continues from the
+    // clock the host read before, so a transition stamped then neither waits for it nor jumps.
+    _host._animationTimelineMs     = (std::max)(_host._animationTimelineMs, _host.GetAnimationTickMs());
+    _host._animationTimelineRebase = true;
     _host._embedded                = true;
     _host._embeddedContext         = this;
     _host._embeddedInvalidate      = &InvalidateThunk;
@@ -226,6 +231,10 @@ HRESULT EmbeddedHost::ReplaceDevice(std::shared_ptr<GraphicsDevice> graphics) no
     _host._d2dDevice     = g.d2d.get();
     _host._dwriteFactory = g.write.get();
     ++_host._typographyRevision;
+    // Text measured through the old factory no longer counts: the next preparation lays the content out again, as a DPI
+    // change does, instead of keeping the old geometry until some other change asks for layout.
+    if (_host._root)
+        ControlModelQueryAccess::RequestIntrinsicLayoutOfTree(*_host._root);
     g.device->GetImmediateContext(_host._d3dContext.put());
     RETURN_IF_FAILED(g.d2d->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, _host._d2dContext.put()));
     _host._d2dContext->SetUnitMode(D2D1_UNIT_MODE_DIPS);
@@ -333,6 +342,7 @@ void EmbeddedHost::SetVisible(bool visible) noexcept
     {
         _host._embeddedAnimationRequested = _host._embeddedAnimationRequested || _state->animationSuspended;
         _state->animationSuspended        = false;
+        _host._animationTimelineRebase    = true;
         _state->dirty                     = true;
         if (_state->prepareCallActive)
             _state->recoveryWakePending = true;
@@ -352,13 +362,23 @@ bool EmbeddedHost::AdvanceAnimation(uint64_t tick) noexcept
 {
     if (! NeedsAnimation())
         return false;
+    // The timeline counts the time between ticks the view asked for: the first tick after a pause sets the baseline,
+    // and a tick that goes back adds nothing.
+    if (! _host._animationTimelineRebase && tick > _host._lastSuppliedAnimationTickMs)
+    {
+        const uint64_t deltaMs     = tick - _host._lastSuppliedAnimationTickMs;
+        const uint64_t remainingMs = (std::numeric_limits<uint64_t>::max)() - _host._animationTimelineMs;
+        _host._animationTimelineMs = deltaMs > remainingMs ? (std::numeric_limits<uint64_t>::max)() : _host._animationTimelineMs + deltaMs;
+    }
+    _host._lastSuppliedAnimationTickMs = tick;
+    _host._animationTimelineRebase     = false;
+    const uint64_t nowTickMs           = _host._animationTimelineMs;
     try
     {
-        _host._lastAnimationTickMs = tick;
         _host.ValidateSupplementalTooltipTarget();
         // Ticks dirty the view only through control invalidation; an idle tick leaves a clean surface clean.
-        const bool rootTicking            = _host._root && _host._root->Tick(_host, tick);
-        const bool tooltipTicking         = _host._tooltipLayer.Tick(_host, tick);
+        const bool rootTicking            = _host._root && _host._root->Tick(_host, nowTickMs);
+        const bool tooltipTicking         = _host._tooltipLayer.Tick(_host, nowTickMs);
         _host._embeddedAnimationRequested = rootTicking || tooltipTicking;
         return _host._embeddedAnimationRequested;
     }
@@ -419,6 +439,8 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
     s.contentPending             = false;
     const bool wasZeroSized      = s.zeroSized;
     s.zeroSized                  = ! width || ! height;
+    if (s.zeroSized != wasZeroSized)
+        _host._animationTimelineRebase = true;
     if (! s.visible || s.zeroSized)
     {
         // Neither state holds a surface; the next visible sized preparation allocates one.
@@ -535,6 +557,8 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
                 requestAfterPreparation = true;
                 return S_FALSE;
             }
+            // The finish guard schedules a changed revision after callbacks unwind.
+            // A failure of unchanged content stays dirty without an automatic retry.
             return E_ABORT;
         }
         ID3D11ShaderResourceView* empty = nullptr;
@@ -756,6 +780,15 @@ bool EmbeddedHost::TextInputIsAvailable() noexcept
     return target && IsControlInTree(_host._root.get(), target) && target->GetHost() == &_host && target->IsEnabled() && target->IsVisible() &&
            target->HasFocus() && target->AcceptsTextInputDuringPreparation();
 }
+bool EmbeddedHost::KeyboardInputIsAvailable() noexcept
+{
+    if (! _state || ! _state->visible || _state->zeroSized)
+        return false;
+    // Pending rich preparation keeps its source-only permission and revision checks.
+    if (_state->contentPending)
+        return TextInputIsAvailable();
+    return _state->interactionLayoutAvailable;
+}
 bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
 {
     // Pointer hit-testing is valid on a paint-dirty view. Requiring a clean surface
@@ -905,12 +938,12 @@ bool EmbeddedHost::DispatchKeyImpl(UINT key, bool down, UINT modifiers, Embedded
         receipt->_valid                  = true;
     }
 
-    if (! TextInputIsAvailable())
+    if (! KeyboardInputIsAvailable())
         return false;
     try
     {
         _host.PruneStaleInteractionState();
-        if (! TextInputIsAvailable())
+        if (! KeyboardInputIsAvailable())
             return false;
         _host.SetInputModality(InputModality::Keyboard);
         auto* target = _host.GetFocusControl();
@@ -965,12 +998,12 @@ bool EmbeddedHost::DispatchKeyImpl(UINT key, bool down, UINT modifiers, Embedded
 }
 bool EmbeddedHost::DispatchCharacter(wchar_t character, UINT modifiers) noexcept
 {
-    if (! TextInputIsAvailable())
+    if (! KeyboardInputIsAvailable())
         return false;
     try
     {
         _host.PruneStaleInteractionState();
-        if (! TextInputIsAvailable())
+        if (! KeyboardInputIsAvailable())
             return false;
         auto* target = _host.GetFocusControl();
         return target && target->OnChar(_host, character, modifiers);

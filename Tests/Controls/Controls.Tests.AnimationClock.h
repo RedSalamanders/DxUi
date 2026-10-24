@@ -1,0 +1,12 @@
+#pragma once
+
+void TestEmbeddedButtonHoverTransitionAtAnyEpoch();
+void TestEmbeddedSliderVisualTransitionsAtAnyEpoch();
+void TestEmbeddedCaretRestartsVisibleAndBlinksAtAnyEpoch();
+void TestEmbeddedTreeExpansionAnimatesAndCompletesAtAnyEpoch();
+void TestEmbeddedGridSortGlyphSettlesAtAnyEpoch();
+void TestEmbeddedFirstTooltipHonorsItsDelayAtAnyEpoch();
+void TestEmbeddedAnimationClockSkipsPausesInTicking();
+void TestEmbeddedAnimationClockContinuesAcrossAttachments();
+void TestNativeAnimationClockIsTheDispatcherTimeline();
+void TestNativeTransitionStartsOnTheDispatcherTimelineAfterAStall();

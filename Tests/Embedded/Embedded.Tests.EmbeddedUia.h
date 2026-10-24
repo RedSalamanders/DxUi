@@ -444,6 +444,32 @@ __declspec(noinline) static void TestEmbeddedSingleGridEventsReachAClientSubscri
     }),
                      {row(L"Removed", 2u), row(L"Removed", 3u), row(L"IsSelected:false", 2u), row(L"IsSelected:false", 3u)},
                      "clearing the selection");
+
+    // CR-18 of the 10 October review: an uncached GetItem publishes between two updates. The update after it still raises
+    // the selection events pending since the one before, instead of finding nothing new.
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> patternRoot;
+    Hr(test.view.GetAccessibilityProvider(patternRoot.put()), "the view's root provider for GridPattern");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> patternRootFragment;
+    Hr(patternRoot.query_to(patternRootFragment.put()), "the view's root is a fragment");
+    const auto patternGridElement = EmbeddedFirstChild(*patternRootFragment.get());
+    wil::com_ptr_nothrow<IRawElementProviderSimple> patternGridSimple;
+    Hr(patternGridElement.query_to(patternGridSimple.put()), "the grid is a simple provider");
+    wil::com_ptr_nothrow<IUnknown> gridPatternUnknown;
+    Hr(patternGridSimple->GetPatternProvider(UIA_GridPatternId, gridPatternUnknown.put()), "the grid advertises GridPattern");
+    wil::com_ptr_nothrow<IGridProvider> gridPattern;
+    Hr(gridPatternUnknown.query_to(gridPattern.put()), "the GridPattern provider");
+    walk.ExpectHeard(hear(2u,
+                          "a click reported after an uncached GetItem",
+                          [&]
+    {
+        click(1u);
+        wil::com_ptr_nothrow<IRawElementProviderSimple> offscreen;
+        Hr(gridPattern->GetItem(20, 0, offscreen.put()), "an uncached GetItem publishes an offscreen row");
+    }),
+                     {row(L"Selected", 1u), row(L"IsSelected:true", 1u)},
+                     "a click reported after an uncached GetItem");
+    walk.ExpectHeard(
+        hear(2u, "clearing that selection", [&] { click(1u, MK_CONTROL); }), {row(L"Removed", 1u), row(L"IsSelected:false", 1u)}, "clearing that selection");
     walk.ExpectHeard(hear(1u,
                           "Ctrl+A",
                           [&]

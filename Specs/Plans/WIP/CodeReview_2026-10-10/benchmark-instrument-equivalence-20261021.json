@@ -1,0 +1,9 @@
+{
+  "baselineRevision": "fa5821c87f563a1d5b24ced7832b9c4fb9c1dcab",
+  "baselineBlock": "Tests/Embedded/Embedded.Tests.Embedded.cpp",
+  "candidateBlock": "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h",
+  "normalization": "CRLF to LF and trailing block whitespace only",
+  "identical": true,
+  "baselineSha256": "A17E152AFC13678906FCFF7B6D3CF892FD329BC0DCC066A5C4CAB03C308CFF24",
+  "candidateSha256": "A17E152AFC13678906FCFF7B6D3CF892FD329BC0DCC066A5C4CAB03C308CFF24"
+}

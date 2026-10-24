@@ -23,8 +23,8 @@ adopting a new pin because adding a virtual hook changes the C++ ABI.
 
 Flex supports row/column flow, explicit wrapping, gap, padding, grow weights and cross-axis alignment. Call
 `SetChildOptions` to declare a child's minimum, maximum, explicit size, grow weight and alignment. Geometry
-mirrors in RTL while ownership and tab order retain their logical sequence. Each Flex has at most 1,024 logical
-slots. Library text shaping consumes at most 65,536 UTF-16 units in one container measurement pass, including
+mirrors in RTL while ownership and tab order retain their logical sequence. Each Flex has at most 1,024 live
+children (a removed child frees its place). Library text shaping consumes at most 65,536 UTF-16 units in one container measurement pass, including
 nested containers and repeated uncached labels. Each standalone measured text value has the same bound.
 Cached results consume no shaping budget. Custom hooks remain responsible for their own bounded work.
 Flex stages represented endpoints before moving children, preserving minima, gaps and padding at fractional
@@ -51,7 +51,7 @@ const HRESULT result = form->ApplyLayout(host);
 ```
 
 Check the returned HRESULTs and nullable construction results in production code. A FormPanel accepts at most
-256 fields, with nonempty unique IDs of at most 65,536 UTF-16 units. `AddEditor` accepts one editor; a failed
+256 live fields (a removed field frees its place), with nonempty unique IDs of at most 65,536 UTF-16 units. `AddEditor` accepts one editor; a failed
 binding removes the inserted editor while the field remains live. A field's standalone measurement uses an
 above-editor label; the form supplies the shared beside-label context without mutating measurement inputs.
 Default editor preference is 180 by 32 DIP. `SetEditorPreferredSize` accepts an application-selected extent
@@ -77,7 +77,11 @@ same weak label relationship without transferring ownership.
 
 Measurement and numeric validation fail before applying child bounds. A callback that changes layout inputs,
 ownership, host, focus or another branch stops an active arrangement with `E_ABORT`; the host retries preparation
-before publishing usable input geometry. Allocation failures return their HRESULT from measurement/layout and
+before publishing usable input geometry. When a host prepares pending layout and an owner's layout fails (text
+beyond the shaping budget, an unsupported child without an explicit size), it keeps that owner's previous geometry,
+paints the frame and reports the failure once through `DxUi::Diagnostics::sink`; fix the content and the owner lays
+out again. Unchanged label, description, validation and required values are no-ops, so validating on every edit
+relays out only when the answer changes. Allocation failures return their HRESULT from measurement/layout and
 validation APIs. Presentation setters may have already updated text before a later accessibility allocation
 fails; retry the presentation update after recovery. Forms do not implement a validation engine or a save
 transaction.

@@ -1,5 +1,5 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
-#include "Scope.Tests.MenuPopupReadiness.h"
+#include "Controls.Tests.MenuPopupReadiness.h"
 
 #include <chrono>
 #include <cmath>
@@ -2719,12 +2719,42 @@ void TestMutableCallbackCaptureStatePersistsForTabControlReorder()
         const D2D1_RECT_F firstRect  = tabControl->DebugGetTabRect(0u);
         const D2D1_RECT_F secondRect = tabControl->DebugGetTabRect(1u);
         const D2D1_POINT_2F from     = D2D1::Point2F((firstRect.left + firstRect.right) * 0.5f, (firstRect.top + firstRect.bottom) * 0.5f);
-        const D2D1_POINT_2F to       = D2D1::Point2F(secondRect.left + 2.0f, (secondRect.top + secondRect.bottom) * 0.5f);
+        // A drag reorders once it crosses the neighbor's midpoint.
+        const D2D1_POINT_2F to = D2D1::Point2F((secondRect.left + secondRect.right) * 0.5f + 2.0f, (secondRect.top + secondRect.bottom) * 0.5f);
         Require(tabControl->OnMouseDown(host, from, false, 0u), "TabControl accepts the reorder drag start");
         Require(tabControl->OnMouseMove(host, to, 0u), "TabControl processes the reorder drag move");
         static_cast<void>(tabControl->OnMouseUp(host, to, false, 0u));
     }
     Require(callbackCounts == std::vector<size_t>{1u, 2u}, "TabControl retains mutable reorder callback state across moves");
+}
+
+// Review of the later merges (N-19): a composite control's own parts cannot be taken out or cleared through Panel's public
+// removal, which left the pointers its methods use (NumericStepper::Field, the picker's channels) dangling.
+void TestCompositeControlsKeepTheirOwnParts()
+{
+    using namespace DxUi;
+    NumericStepper stepper;
+    const size_t stepperParts = stepper.GetChildren().size();
+    for (size_t index = 0u; index < stepperParts; ++index)
+        Require(! stepper.TakeChild(index), "a stepper part cannot be taken out");
+    stepper.ClearChildren();
+    Require(stepper.GetChildren().size() == stepperParts && &stepper.Field() == stepper.GetChildren()[0].get(), "clearing a stepper keeps its parts");
+    stepper.Field().SetText(L"42");
+    Require(stepper.Field().GetText() == L"42", "the stepper's field is still its own");
+
+    ColorPicker picker;
+    const size_t pickerParts = picker.GetChildren().size();
+    for (size_t index = 0u; index < pickerParts; ++index)
+        Require(! picker.TakeChild(index), "a color picker part cannot be taken out");
+    picker.ClearChildren();
+    Require(picker.GetChildren().size() == pickerParts && std::ranges::all_of(picker.GetChildren(), [](const auto& child) { return child != nullptr; }),
+            "clearing a color picker keeps its parts");
+
+    TagPicker tags;
+    Require(! tags.TakeChild(0u), "the tag picker's input box cannot be taken out");
+    tags.ClearChildren();
+    Require(tags.DebugGetEmbeddedCombo() != nullptr && tags.GetChildren().size() == 1u && tags.GetChildren()[0].get() == tags.DebugGetEmbeddedCombo(),
+            "clearing a tag picker keeps its input box");
 }
 
 void TestMutableCallbackCaptureStatePersistsForTagPicker()
@@ -2862,6 +2892,7 @@ void RunNewControlTests()
     DXUI_RUN_TEST(TestMutableCallbackCaptureStatePersistsForTabControlSelectionAndCloseEvents);
     DXUI_RUN_TEST(TestMutableCallbackCaptureStatePersistsForTabControlReorder);
     DXUI_RUN_TEST(TestMutableCallbackCaptureStatePersistsForTagPicker);
+    DXUI_RUN_TEST(TestCompositeControlsKeepTheirOwnParts);
     DXUI_RUN_TEST(TestTabControlSelectionSnapshotCleanupCanRetireRootBeforeMouseDownTail);
     DXUI_RUN_TEST(TestMenuBarHoverMoveSnapshotCleanupCanRetireRootSafely);
     DXUI_RUN_TEST(TestMenuBarHoverLeaveSnapshotCleanupCanRetireRootSafely);

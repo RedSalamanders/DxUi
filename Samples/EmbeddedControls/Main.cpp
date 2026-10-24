@@ -131,6 +131,9 @@ struct App
             }
         }
         const HRESULT prepared = View().Prepare(gpu.width, gpu.height, dpi);
+        // A superseded frame is not an error: the view already asked for the preparation that replaces it.
+        if (prepared == E_ABORT)
+            return S_FALSE;
         RETURN_IF_FAILED(prepared);
         if (imageLoading && scene.rich)
         {

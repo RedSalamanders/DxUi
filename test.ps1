@@ -188,10 +188,18 @@ try {
         $leaseStart = if ($hostedForegroundLease) { 'under verified hosted-runner authorization' } elseif ($InteractiveAutoStart) { 'after an approved automatic Start countdown (30 seconds; Cancel stops it)' } else { 'after local confirmation' }
         Write-Host "Foreground run: $label takes the desktop for about $([Math]::Ceiling($estimate / 60.0)) minute(s) $leaseStart."
         if ($hostedForegroundLease) {
+            # A desktop that cannot be prepared fails only the foreground suites: the others still run and leave receipts.
+            $preparationProblem = $null
             if ($Platform -eq 'ARM64') {
-                & (Join-Path $PSScriptRoot 'Tools/Prepare-HostedArmDesktop.ps1')
+                try { & (Join-Path $PSScriptRoot 'Tools/Prepare-HostedArmDesktop.ps1') }
+                catch { $preparationProblem = "hosted desktop preparation failed: $($_.Exception.Message)" }
             }
-            $lease = Invoke-DxUiHostedForegroundLease -Executable $leaseExecutable -Runs $plan -Label $label -EstimateSeconds $estimate -WorkDirectory $logs -ChildTimeoutSeconds $bound
+            if ($preparationProblem) {
+                Write-Host "FAIL $preparationProblem"
+                $lease = [pscustomobject]@{ ExitCode = -1; Result = $null; RequestedAutoStart = $false; RequestedConfirmationSeconds = $null; PolicyProblems = @($preparationProblem) }
+            } else {
+                $lease = Invoke-DxUiHostedForegroundLease -Executable $leaseExecutable -Runs $plan -Label $label -EstimateSeconds $estimate -WorkDirectory $logs -ChildTimeoutSeconds $bound
+            }
         } else {
             $lease = Invoke-DxUiInteractiveLease -Executable $leaseExecutable -Runs $plan -Label $label -EstimateSeconds $estimate -WorkDirectory $logs -ChildTimeoutSeconds $bound -AutoStart:$InteractiveAutoStart
         }

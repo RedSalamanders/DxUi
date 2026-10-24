@@ -1,7 +1,7 @@
 # Validation and evidence
 
 Status: normative intended contract
-Last reviewed: 2026-10-18
+Last reviewed: 2026-10-24
 
 Native staged-TSF reconciliation tests count the current generation-tagged production dispatch separately from
 the rest of the HWND queue. A general pump can also deliver an independent geometry change, whose layout
@@ -161,6 +161,12 @@ menu resource measurements. This opt-in diagnostic remains nonactivating and its
 Release CI run retains the common benchmark receipt.
 `test.ps1` builds the selected configuration, runs Foundation, Embedded and all inherited control suites and records a JSON receipt with
 architecture, configuration, time and executable path under `.build/reports`. Failures propagate as nonzero exits.
+Callers MUST judge a PowerShell runner through a fresh process's exit code or invocation success (`$?`)
+captured immediately after the script call. Ambient `$LASTEXITCODE` can retain an intentional native ASan
+probe's nonzero result after a successful in-process script; it is not that script's completion status.
+Preserve wrapper failures separately from sealed native outcomes. A reporting-error disposition requires
+independent source/invocation proof and exact owner, source, artifact and sealed-payload binding; it MUST
+NOT rewrite failed records, hide a real suite/lease failure or claim aggregate wrapper success.
 Every invocation also runs the populated complex-UI benchmark through `performance.ps1` and includes FPS/memory
 scenarios and the performance receipt path in each suite receipt. `-PerformanceBaseline` requires a matched
 comparison and fails for a suspected regression or invalid evidence; no baseline is explicitly `unpaired`.
@@ -366,7 +372,7 @@ Physical touch, a human IME session and screen-reader interaction are manual ado
 messages or a green foundation suite.
 
 Menu fixture discovery shares the process/owner/visibility rule in
-`Tests/Controls/Scope.Tests.MenuPopupReadiness.h`: the hidden measurement HWND is not a ready popup.
+`Tests/Controls/Controls.Tests.MenuPopupReadiness.h`: the hidden measurement HWND is not a ready popup.
 `Control` exercises hidden initialization, reveal, wrong owner/class and hidden-again/never-ready states on a
 private desktop that is never made the input desktop. This deterministic regression requires no foreground lease;
 the actual Menu fixtures still require their existing lease and retain their render/scroll assertions and cleanup.
@@ -719,7 +725,9 @@ interactive desktop lease: `DxUi.InteractiveLease.exe` (`Tests/InteractiveLease`
   three times and read back for up to a second each time), and the pointer must land exactly. This happens on every exit path: passing
   suites, a failing suite, the watchdog's 124, a hung child, a child that cannot start, a cancelled or unanswered confirmation, a
   warning that cannot be shown, and Ctrl+C or a closing console. It cannot happen if the lease process itself is killed; its job then
-  ends the child. Windows may refuse to restore a window of a process with higher integrity than the lease (an elevated terminal
+  ends the child. So `test.ps1` starts the lease attached to its console and never reads its output through a pipeline, which
+  PowerShell would end with the lease when Ctrl+C stops the run: the lease takes the same Ctrl+C and restores the desktop while
+  `test.ps1` waits for it. Windows may refuse to restore a window of a process with higher integrity than the lease (an elevated terminal
   while the lease is not elevated); the report then says `failed`, and the person's window stays where Windows left it.
 - **Reporting.** The line `Restoration: foreground=... focus=... cursor=...` names what became of each part: `unchanged` (the run
   was unchanged when checked), `restored`, `gone` (the window closed during the run), `failed`, `skipped` (the focus of a window
@@ -931,7 +939,7 @@ specified by the performance contract.
 
 `-Mode Full` selects the full local noninteractive obligation. `Test-PrePush.ps1 -Explain` is the six-profile accounting entry point; after reviewing it, `Test-PrePush.ps1` runs each x64/ARM64 Debug/Release/ASan Debug profile. Identical independent tooling evidence is reused across the six invocations and executes once. ARM64 runtime work must run on a native ARM64 host or remain explicitly pending in the verified PR gate; a cross-build does not satisfy it. Use `Test-Changes.ps1 -Mode PrePush -Platform <x64|ARM64> -Configuration <Debug|Release|ASan Debug>` for one profile.
 
-Delegation requires a clean committed, attached non-default branch on the canonical remote; an open pull request whose head SHA is exactly the candidate; the active workflow with bytes matching the reviewed manifest digest; an available local ref for the pull request's actual base; and a matching native profile. This supports stacked pull requests without treating `origin/main` as their base. Staged, unstaged and untracked inputs retain obligations locally; a dirty tree, detached/default branch, foreign remote or changed HEAD during the coverage lookup rejects delegation. Nightly and weekly jobs are not PR coverage. Workflow/API uncertainty keeps obligations local. A delegated run reports `CI_PENDING`, never repository `PASSED`; the PR must pass `ci-gate`. Main/release acceptance remains separate because its merge tree, configuration matrix or requirements can differ.
+Delegation requires a clean committed, attached non-default branch on the canonical remote; an open pull request whose head SHA is exactly the candidate; the active workflow; the bytes of the workflow and of every script and module that decides its coverage (`prContractFiles` in `Tests/test-scopes.json`: the runners, the native-scope classifier and the modules they import), with the coverage the manifest claims, matching the reviewed digest `prWorkflowDigest` (a CI-only change to a runner therefore keeps every obligation local until the digest is reviewed again); an available local ref for the pull request's actual base; and a matching native profile. This supports stacked pull requests without treating `origin/main` as their base. Staged, unstaged and untracked inputs retain obligations locally; a dirty tree, detached/default branch, foreign remote or changed HEAD during the coverage lookup rejects delegation. Nightly and weekly jobs are not PR coverage. Workflow/API uncertainty keeps obligations local. A delegated run reports `CI_PENDING`, never repository `PASSED`; the PR must pass `ci-gate`. Main/release acceptance remains separate because its merge tree, configuration matrix or requirements can differ.
 
 On 11 October 2026 the developer requested merging the completed S0-S2 library implementation while retaining
 S3-S7 and unfinished qualification in indexed WIP. This implementation-only decision permits normal PR integration

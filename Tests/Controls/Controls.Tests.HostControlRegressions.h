@@ -1,0 +1,16 @@
+#pragma once
+
+void TestPageHostTabTraversalUsesCurrentLogicalChildren();
+void TestPageHostWindowUiaTraversesInvokesAndRetiresPageChildren();
+void TestPageHostEmbeddedUiaTraversesInvokesAndRetiresPageChildren();
+void TestEmbeddedTransitionsUseApplicationClockIncludingZero();
+void TestNativeCaretTicksInvalidateOnlyWhenPixelsChange();
+void TestScrollPanelForwardsSecondaryPressInContentCoordinates();
+void TestScrollPanelModelContextMenusUseScreenCoordinates();
+void TestASecondButtonDuringADragLeavesTheDragToItsControl();
+void TestScrollPanelScrollbarDoubleClickPagesAgain();
+void TestScrollPanelKeepsTheFocusAChildTakesOnAnUnhandledPress();
+void TestKeyboardContextAnchorsStayInsideTheScrollViewport();
+void TestNativeUnhandledKeysReachApplicationFallback();
+void TestExtractedRadioDoesNotUseItsFormerGroup();
+void TestEmbeddedGraphicsRetirementPreservesApplicationBindings();

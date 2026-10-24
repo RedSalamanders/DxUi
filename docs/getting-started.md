@@ -78,6 +78,8 @@ view.Controls().SetRoot(std::move(root));
 ```
 
 The root owns descendants. `AddChild` returns a borrowed pointer, valid only while that child remains in the tree.
+The host owns the root's bounds. A window host sets them to its client area when it installs the root, resizes, changes
+DPI and paints; an embedded view sets them to its prepared size on every preparation. Inset content inside the root.
 Bounds use host-space device-independent pixels (DIPs), including children of ordinary Panels; a Panel does not
 automatically offset child bounds by its own origin. Host preparation uses physical pixels and an explicit DPI.
 Keep callback captures and borrowed models alive until detached or removed. Use the

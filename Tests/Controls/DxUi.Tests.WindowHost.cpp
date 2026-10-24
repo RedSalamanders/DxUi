@@ -3,8 +3,8 @@
 #include "../Support/Support.Tests.PerformanceCapture.h"
 #include "Controls.Tests.DxUiFocusEventClient.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
-#include "Scope.Tests.HostControlRegressions.h"
-#include "Scope.Tests.NativeDevicePolicy.h"
+#include "Controls.Tests.HostControlRegressions.h"
+#include "Controls.Tests.NativeDevicePolicy.h"
 #include <DxUi/NativeMenuInterop.h>
 
 #include <array>
@@ -1169,6 +1169,23 @@ void TestProcessExitShutdownMarshalsForeignWindowHostDetachToOwnerThread()
     worker.join();
 }
 
+// CR-28 of the 10 October review: the process-exit detach message is registered under a well-known name, so another process
+// could send it. Only this process's own shutdown sweep, which carries a per-process nonce, detaches a host.
+void TestWindowHostIgnoresAForeignProcessExitDetachMessage()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    window.Host().SetRoot(std::make_unique<Panel>());
+    const size_t attached = DebugGetAttachedWindowHostCount();
+    const UINT message    = RegisterWindowMessageW(L"RedSalamanders.DxUi.WindowHost.ProcessExitDetach.v1");
+    Require(message != 0u, "the detach message is registered");
+    for (const WPARAM guess : {WPARAM{0u}, WPARAM{2u}, ~WPARAM{0u} - 1u})
+        static_cast<void>(SendMessageW(window.Hwnd(), message, guess, 0));
+    Require(DebugGetAttachedWindowHostCount() == attached && window.Host().GetHwnd() == window.Hwnd() && window.Host().GetRoot() != nullptr,
+            "a detach message without this process's nonce detaches nothing");
+}
+
 void TestWindowHostDetachKeepsSharedGraphicsAttachmentUntilControlTreeDestroyed()
 {
     using namespace DxUi;
@@ -1369,6 +1386,15 @@ void TestWindowHostCaptureDiscardsFrameWhenPaintReplacesItsRoot()
     Require(((pixel >> 8u) & 0xFFu) > 160u && ((pixel >> 16u) & 0xFFu) < 96u,
             "the fresh capture contains replacement-root green content rather than retired-frame pixels");
     Require(replacementCallbackCount == 1u, "the root-replacement callback runs only once across the recovery capture");
+
+    // The host owns the root's bounds: an inset the application gives the root lasts until the next paint.
+    const D2D1_RECT_F client = window.Host().GetClientBoundsDip();
+    window.Host().GetRoot()->SetBounds(D2D1::RectF(client.left + 8.0f, client.top + 8.0f, client.right - 8.0f, client.bottom - 8.0f));
+    WindowHostBitmapCapture insetFrame;
+    Require(window.Host().DebugCaptureBitmap(insetFrame), "a capture after the application inset the root succeeds");
+    const auto reset = window.Host().GetRoot()->GetBounds();
+    Require(reset.left == client.left && reset.top == client.top && reset.right == client.right && reset.bottom == client.bottom,
+            "painting gives the root the client area again");
 }
 
 void TestWindowHostCaptureDiscardsFrameWhenPaintMutatesTheChildTree()
@@ -2387,7 +2413,13 @@ template <typename Editor> void CheckActivationCharacterOwnership()
                 "Return/Space activation produces no editor character, source change or undo entry after focus transfer");
         Require(host.DispatchKeyboardMessage(message), "the unchanged focused editor owns the next activation-shaped key");
         SendMessageW(window.Hwnd(), WM_KEYUP, key, message.lParam | static_cast<LPARAM>(0xc0000000u));
-        Require(DispatchTranslatedCharacters(window.Hwnd()) == 1u,
+        const auto actualTranslatedCharacters = DispatchTranslatedCharacters(window.Hwnd());
+        if (actualTranslatedCharacters != 1u)
+        {
+            std::cerr << "[DIAGNOSTIC] activation character ownership editor=" << (std::is_same_v<Editor, TextField> ? "TextField" : "RichTextEditor")
+                      << " key=" << key << " translatedCharacters=" << actualTranslatedCharacters << '\n';
+        }
+        Require(actualTranslatedCharacters == 1u,
                 "a same-owner editor produces exactly one real translated character, including key-up before character dispatch");
         const std::wstring expected = key == VK_SPACE ? L"a a" : (std::is_same_v<Editor, TextField> ? L"a\na" : L"a\r\na");
         Require(editor->GetText() == expected, "the current text owner inserts its own Return/Space once at the retained selection");
@@ -5137,6 +5169,24 @@ void TestWindowHostUnknownMnemonicRemainsUnhandled()
     Require(host.GetFocusControl() == nullptr, "unknown mnemonic does not move focus");
 }
 
+// CR-20 and Q8 of the 10 October review: a converted HMENU entry keeps its ampersands for the popup to decode, so an
+// explicit mnemonic wins and a doubled ampersand shows one. The conversion stripped them: `E&xit` answered to E,
+// `R&&D` showed RD and `Save && Close` showed "Save  Close" with a space for its mnemonic.
+void TestNativeMenuConversionKeepsAmpersandsForThePopupToDecode()
+{
+    using namespace DxUi;
+    wil::unique_hmenu menu(CreatePopupMenu());
+    Require(menu != nullptr, "a native popup menu is created");
+    Require(AppendMenuW(menu.get(), MF_STRING, 1u, L"&Copy path\tCtrl+C") != FALSE && AppendMenuW(menu.get(), MF_STRING, 2u, L"Save && Close") != FALSE &&
+                AppendMenuW(menu.get(), MF_STRING, 3u, L"R&&D") != FALSE && AppendMenuW(menu.get(), MF_STRING, 4u, L"E&xit") != FALSE,
+            "the native menu holds four commands");
+    const std::vector<MenuFlyoutItem> items = ConvertNativeHMenuToFlyoutItems(menu.get());
+    Require(items.size() == 4u, "every command converts");
+    Require(items[0].text == L"&Copy path" && items[0].acceleratorText == L"Ctrl+C", "the label keeps its mnemonic and loses only its accelerator");
+    Require(items[1].text == L"Save && Close" && items[2].text == L"R&&D", "doubled ampersands stay doubled for the popup");
+    Require(items[3].text == L"E&xit", "an explicit mnemonic stays where the menu put it");
+}
+
 void TestWindowHostHiddenAnimationTickDropsSubscriptionUntilShown()
 {
     using namespace DxUi;
@@ -5858,6 +5908,278 @@ void TestWindowHostReadsThePointerDeviceOfEachMouseMessage()
     static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONUP, 0, point, handled));
 }
 
+void TestWindowHostCaptureLossCallbackCanRemoveTheHoveredControl()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root        = std::make_unique<Panel>();
+    Panel* rootPanel = root.get();
+    auto* container  = root->AddChild<Panel>();
+    container->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 100.0f));
+    auto* slider = container->AddChild<Slider>();
+    slider->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 40.0f));
+    size_t cancelCount = 0u;
+    slider->SetOnChange([container, &cancelCount](SliderChange change)
+    {
+        if (change.phase == SliderChangePhase::Cancel)
+        {
+            ++cancelCount;
+            container->ClearChildren();
+        }
+    });
+    host.SetRoot(std::move(root));
+    rootPanel->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 200.0f));
+
+    bool handled       = false;
+    const LPARAM point = MAKELPARAM(150, 20);
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, point, handled));
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, point, handled));
+    Require(host.GetCapturedControl() == slider && slider->IsHovered(), "the slider drag holds both capture and hover");
+
+    // Losing capture cancels the drag, and the cancel callback destroys the hovered slider. The host then ends hover
+    // without touching the destroyed control (ASan reported a use-after-free here before the fix).
+    static_cast<void>(host.HandleMessage(nullptr, WM_CAPTURECHANGED, 0, 0, handled));
+    Require(cancelCount == 1u && container->GetChildren().empty(), "the cancel callback ran once and removed the slider");
+    Require(host.GetCapturedControl() == nullptr, "capture loss leaves no captured control");
+
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, point, handled));
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSELEAVE, 0, 0, handled));
+    Require(cancelCount == 1u, "later pointer messages cancel nothing more");
+}
+
+// CR-6 of the 10 October review: a PageHost's page is part of the tree for text input and for Tab, as a Panel's children are.
+void TestWindowHostPageHostContentTakesTextInputAndTab()
+{
+    using namespace DxUi;
+    WindowHost host;
+    auto root    = std::make_unique<Panel>();
+    auto* before = root->AddChild<Button>(std::wstring(L"Before"));
+    before->SetBounds(D2D1::RectF(0.0f, 0.0f, 100.0f, 30.0f));
+    auto* pageHost = root->AddChild<PageHost>();
+    pageHost->SetBounds(D2D1::RectF(0.0f, 40.0f, 300.0f, 240.0f));
+    auto page   = std::make_unique<Panel>();
+    auto* field = page->AddChild<TextField>(std::wstring(L"hello"));
+    field->SetBounds(D2D1::RectF(0.0f, 50.0f, 220.0f, 78.0f));
+    pageHost->SetPage(std::move(page));
+    auto* after = root->AddChild<Button>(std::wstring(L"After"));
+    after->SetBounds(D2D1::RectF(0.0f, 250.0f, 100.0f, 280.0f));
+    host.SetRoot(std::move(root));
+
+    host.SetFocusControl(field);
+    Require(host.GetFocusControl() == field && host.HasActiveTextInput() && host.DebugHasActiveNativeTextInputSession(),
+            "a focused field on a page gets the native text-input session a field in a Panel gets");
+
+    host.SetFocusControl(before);
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_KEYDOWN, VK_TAB, 0, handled));
+    Require(host.GetFocusControl() == field, "Tab moves from the control before the PageHost into its page");
+    static_cast<void>(host.HandleMessage(nullptr, WM_KEYDOWN, VK_TAB, 0, handled));
+    Require(host.GetFocusControl() == after, "Tab leaves the page for the control after the PageHost");
+}
+
+// CR-23 of the 10 October review: a blur handler that asks to focus a control the host refuses (here a disabled one)
+// leaves the request it runs inside alone, so the requested control takes the focus instead of nothing.
+void TestWindowHostRefusedFocusRequestInABlurHandlerKeepsTheOuterRequest()
+{
+    using namespace DxUi;
+    class BlurRequestsFocus final : public Control
+    {
+    public:
+        explicit BlurRequestsFocus(Control*& target) : _target(&target)
+        {
+            SetFocusable(true);
+        }
+        void Paint(WindowHost& /*host*/) const override
+        {
+        }
+
+    protected:
+        void OnFocusChanged(WindowHost& host, bool focused) override
+        {
+            Control::OnFocusChanged(host, focused);
+            if (! focused && *_target)
+                host.SetFocusControl(*_target);
+        }
+
+    private:
+        Control** _target = nullptr;
+    };
+
+    WindowHost host;
+    auto root         = std::make_unique<Panel>();
+    Control* refused  = nullptr;
+    auto* oldFocus    = root->AddChild<BlurRequestsFocus>(refused);
+    auto* next        = root->AddChild<Button>(L"Next");
+    auto* unavailable = root->AddChild<Button>(L"Unavailable");
+    oldFocus->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 32.0f));
+    next->SetBounds(D2D1::RectF(0.0f, 40.0f, 120.0f, 72.0f));
+    unavailable->SetBounds(D2D1::RectF(0.0f, 80.0f, 120.0f, 112.0f));
+    unavailable->SetEnabled(false);
+    refused = unavailable;
+    host.SetRoot(std::move(root));
+    host.SetFocusControl(oldFocus);
+    Require(host.GetFocusControl() == oldFocus, "the control with the blur handler starts focused");
+    host.SetFocusControl(next);
+    Require(host.GetFocusControl() == next, "a refused request from the blur handler leaves the outer request to complete");
+}
+
+// CR-24 of the 10 October review: application code reached from noexcept host paths (the Tab boundary callback, hover
+// and move dispatch, a mnemonic, a character and an animation tick) that throws is contained instead of terminating the
+// process.
+void TestWindowHostContainsThrowingCallbacksOnNoexceptPaths()
+{
+    using namespace DxUi;
+    class ThrowingHoverControl final : public Control
+    {
+    public:
+        void Paint(ControlHost& /*host*/) const override
+        {
+        }
+        bool OnMouseMove(ControlHost& /*host*/, D2D1_POINT_2F /*point*/, UINT /*modifiers*/) override
+        {
+            ++moves;
+            throw std::runtime_error("move failure");
+        }
+        size_t moves = 0u;
+
+    protected:
+        void OnHoverChanged(ControlHost& host, bool hovered) override
+        {
+            Control::OnHoverChanged(host, hovered);
+            throw std::runtime_error("hover failure");
+        }
+    };
+    class ThrowingKeyboardControl final : public Control
+    {
+    public:
+        ThrowingKeyboardControl()
+        {
+            SetFocusable(true);
+            SetMnemonic(L'q');
+        }
+        void Paint(ControlHost& /*host*/) const override
+        {
+        }
+        bool OnChar(ControlHost& /*host*/, wchar_t /*ch*/, UINT /*modifiers*/) override
+        {
+            ++characters;
+            throw std::runtime_error("character failure");
+        }
+        bool OnMnemonic(ControlHost& /*host*/) override
+        {
+            ++mnemonics;
+            throw std::runtime_error("mnemonic failure");
+        }
+        bool Tick(ControlHost& /*host*/, uint64_t /*nowTickMs*/) override
+        {
+            ++ticks;
+            throw std::runtime_error("tick failure");
+        }
+        size_t characters = 0u;
+        size_t mnemonics  = 0u;
+        size_t ticks      = 0u;
+    };
+
+    WindowHost host;
+    auto root        = std::make_unique<Panel>();
+    Panel* rootPanel = root.get();
+    auto* first      = root->AddChild<Button>(std::wstring(L"First"));
+    first->SetBounds(D2D1::RectF(0.0f, 0.0f, 100.0f, 30.0f));
+    auto* last = root->AddChild<Button>(std::wstring(L"Last"));
+    last->SetBounds(D2D1::RectF(0.0f, 40.0f, 100.0f, 70.0f));
+    auto* probe = root->AddChild<ThrowingHoverControl>();
+    probe->SetBounds(D2D1::RectF(0.0f, 100.0f, 100.0f, 140.0f));
+    host.SetRoot(std::move(root));
+    rootPanel->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 240.0f));
+
+    host.SetOnTabBoundary([](bool) -> bool { throw std::runtime_error("boundary failure"); });
+    host.SetFocusControl(last);
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_KEYDOWN, VK_TAB, 0, handled));
+    Require(host.GetFocusControl() == first, "a throwing Tab boundary callback handles nothing, and Tab wraps");
+
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(50, 120), handled));
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(52, 122), handled));
+    Require(probe->moves == 2u, "hover and move dispatch go on after a control's callbacks threw");
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(50, 20), handled));
+    Require(first->IsHovered(), "the hover moves on to the next control");
+
+    auto* keys = rootPanel->AddChild<ThrowingKeyboardControl>();
+    keys->SetBounds(D2D1::RectF(0.0f, 150.0f, 100.0f, 180.0f));
+    host.SetFocusControl(keys);
+    Require(host.GetFocusControl() == keys, "the throwing keyboard control takes the focus");
+    handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_CHAR, L'x', 0, handled));
+    Require(keys->characters == 1u && handled, "a character whose handler threw is taken");
+    handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_SYSCHAR, L'q', 0, handled));
+    Require(keys->mnemonics == 1u && handled && keys->characters == 1u,
+            "a mnemonic whose handler threw is taken, and not offered to the focused control as Alt+character");
+    Require(! host.DebugAnimationTickForTest(1'000u) && keys->ticks == 1u, "a tree whose Tick threw stops ticking");
+    static_cast<void>(host.HandleMessage(nullptr, WM_CHAR, L'y', 0, handled));
+    Require(keys->characters == 2u && host.GetFocusControl() == keys, "and the host goes on dispatching to the same control");
+}
+
+// A secondary press whose handler already consumed the release (a blocking menu loop) or handed the pointer to a popup
+// leaves no capture behind, which would strand the next moves and clicks or close the popup; one still held captures.
+void TestWindowHostSecondaryPressCapturesOnlyWhileItOwnsThePointer()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root    = std::make_unique<Panel>();
+    auto* button = root->AddChild<Button>(std::wstring(L"Item"));
+    button->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 32.0f));
+    std::function<void()> onMenu;
+    size_t menus = 0u;
+    button->SetOnContextMenu([&](POINT, bool)
+    {
+        ++menus;
+        if (onMenu)
+            onMenu();
+    });
+    window.Host().SetRoot(std::move(root));
+
+    // The thread's own button state, which its message loops advance, stands in for the hardware.
+    BYTE saved[256]{};
+    Require(GetKeyboardState(saved) != FALSE, "the thread's key state is read");
+    const auto restore    = wil::scope_exit([&]
+    {
+        static_cast<void>(SetKeyboardState(saved));
+        static_cast<void>(ReleaseCapture());
+    });
+    const auto pressRight = [&](bool stillDown)
+    {
+        BYTE keys[256]{};
+        std::copy(std::begin(saved), std::end(saved), keys);
+        keys[VK_LBUTTON] = 0u;
+        keys[VK_RBUTTON] = stillDown ? 0x80u : 0u;
+        Require(SetKeyboardState(keys) != FALSE, "the thread's button state is set");
+        static_cast<void>(SendMessageW(window.Hwnd(), WM_RBUTTONDOWN, stillDown ? MK_RBUTTON : 0u, MAKELPARAM(20, 12)));
+    };
+
+    pressRight(true);
+    // Separate checks name which precondition failed in an intermittent ASan Debug run (2026-10-18): the press reaching
+    // the button, the thread keeping the button state it was given (a message read in between resyncs it), or capture.
+    Require(menus == 1u, "a secondary press reaches the button's context menu");
+    Require(GetKeyState(VK_RBUTTON) < 0, "the thread still reports the secondary button it was given as held");
+    Require(GetCapture() == nullptr || GetCapture() == window.Hwnd(), "no other window of the thread holds the pointer");
+    Require(window.Host().GetCapturedControl() == button, "a secondary press still held captures its control");
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_RBUTTONUP, 0u, MAKELPARAM(20, 12)));
+    Require(window.Host().GetCapturedControl() == nullptr, "its release ends the capture");
+
+    pressRight(false);
+    Require(menus == 2u && window.Host().GetCapturedControl() == nullptr, "a secondary press whose release a nested loop consumed leaves no capture");
+
+    wil::unique_hwnd popup(CreateWindowExW(
+        WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW, L"STATIC", L"", WS_POPUP, -32000, -32000, 8, 8, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr));
+    Require(popup != nullptr, "the popup window is created");
+    onMenu = [&] { static_cast<void>(SetCapture(popup.get())); };
+    pressRight(true);
+    Require(menus == 3u && GetCapture() == popup.get() && window.Host().GetCapturedControl() == nullptr,
+            "a popup that took the pointer during the handler keeps it");
+}
+
 void RunWindowHostTests()
 {
     DXUI_RUN_TEST(TestWindowHostKeyboardMessageKeepsActivationCharactersWithTheirOwner);
@@ -5877,7 +6199,16 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestNativeCaretTicksInvalidateOnlyWhenPixelsChange);
     DXUI_RUN_TEST(TestScrollPanelForwardsSecondaryPressInContentCoordinates);
     DXUI_RUN_TEST(TestScrollPanelModelContextMenusUseScreenCoordinates);
+    DXUI_RUN_TEST(TestASecondButtonDuringADragLeavesTheDragToItsControl);
+    DXUI_RUN_TEST(TestScrollPanelScrollbarDoubleClickPagesAgain);
+    DXUI_RUN_TEST(TestScrollPanelKeepsTheFocusAChildTakesOnAnUnhandledPress);
+    DXUI_RUN_TEST(TestKeyboardContextAnchorsStayInsideTheScrollViewport);
     DXUI_RUN_TEST(TestNativeUnhandledKeysReachApplicationFallback);
+    DXUI_RUN_TEST(TestWindowHostPageHostContentTakesTextInputAndTab);
+    DXUI_RUN_TEST(TestWindowHostSecondaryPressCapturesOnlyWhileItOwnsThePointer);
+    DXUI_RUN_TEST(TestWindowHostContainsThrowingCallbacksOnNoexceptPaths);
+    DXUI_RUN_TEST(TestWindowHostRefusedFocusRequestInABlurHandlerKeepsTheOuterRequest);
+    DXUI_RUN_TEST(TestWindowHostCaptureLossCallbackCanRemoveTheHoveredControl);
     DXUI_RUN_TEST(TestWindowHostTakesTheRequestedLifetimeBeforePruningFocus);
     DXUI_RUN_TEST(TestWindowHostNewerCallbackFocusRequestWins);
     DXUI_RUN_TEST(TestWindowHostFailedBlurBeforeBasePreservesOnlyTheNewFocus);
@@ -5965,6 +6296,7 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestWindowHostDetachDeactivatesSecureTextInputBeforeDestroyingRoot);
     DXUI_RUN_TEST(TestWindowHostProcessExitDetachAbandonsRetainedControlObserversBeforeNativeTeardown);
     DXUI_RUN_TEST(TestProcessExitShutdownMarshalsForeignWindowHostDetachToOwnerThread);
+    DXUI_RUN_TEST(TestWindowHostIgnoresAForeignProcessExitDetachMessage);
     DXUI_RUN_TEST(TestWindowHostClearChildrenPrunesDestroyedTreeInteractionState);
     DXUI_RUN_TEST(TestWindowHostKeyDownCallbackDisablingFocusPrunesBeforePostDispatchSync);
     DXUI_RUN_TEST(TestWindowHostCharCallbackDisablingFocusPrunesBeforePostDispatchSync);
@@ -5994,6 +6326,7 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestWindowHostMnemonicActivatesButton);
     DXUI_RUN_TEST(TestWindowHostLabelMnemonicTargetsField);
     DXUI_RUN_TEST(TestWindowHostUnknownMnemonicRemainsUnhandled);
+    DXUI_RUN_TEST(TestNativeMenuConversionKeepsAmpersandsForThePopupToDecode);
     DXUI_RUN_TEST(TestWindowHostHiddenAnimationTickDropsSubscriptionUntilShown);
     DXUI_RUN_TEST(TestWindowHostRestoreFromMinimizeRearmsSuspendedAnimation);
     DXUI_RUN_TEST(TestNoninteractiveWindowActivationBlockerRejectsFocusStealing);

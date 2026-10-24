@@ -144,6 +144,14 @@ Invoke-FixtureCase 'a pull request builds natively unless it changes documentati
         }
     }
     Assert-Throws { & (Join-Path $repository 'Tools/Get-NativeScope.ps1') -EventName 'pull_request' -BaseRef '' -Repository $work 6>$null } 'a pull request without its base branch'
+    # The last merge ref, against the commits the workflow names (Q12 of the 10 October review).
+    $merge = (& git -C $work rev-parse HEAD).Trim()
+    $base = (& git -C $work rev-parse 'HEAD^1').Trim()
+    $named = Invoke-ScopeScript @{ EventName = 'pull_request'; BaseRef = 'main'; Repository = $work; ExpectedBaseSha = $base; ExpectedCandidateSha = $merge } (Join-Path $root 'named')
+    Assert-Equal 0 $named.Code 'the named pair is scoped'
+    foreach ($case in @(@{ Base = ('0' * 40); Merge = $merge }, @{ Base = $base; Merge = ('0' * 40) }, @{ Base = $base.Substring(0, 12); Merge = $merge })) {
+        Assert-Throws { & (Join-Path $repository 'Tools/Get-NativeScope.ps1') -EventName 'pull_request' -BaseRef 'main' -Repository $work -ExpectedBaseSha $case.Base -ExpectedCandidateSha $case.Merge 6>$null } "a merge ref other than the named one ($($case.Base.Substring(0, 4))/$($case.Merge.Substring(0, 4))) fails the step"
+    }
     # A repository without a commit (the fixtures live inside this checkout, so a plain directory would find it instead).
     $empty = Join-Path $root 'empty'
     New-Item -ItemType Directory -Path $empty | Out-Null

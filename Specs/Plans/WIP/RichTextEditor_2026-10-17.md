@@ -94,7 +94,7 @@ Read [the Menu fixtures](../../../Tests/Controls/DxUi.Tests.Menu.cpp), especiall
 `SendSettledClientMouseMoveForMenuSuite`, `ScopedMenuPointerFixture`, and
 `MenuHoverTraceForTest`. Read the existing
 [foreground-attempt helpers](../../../Tests/Controls/Controls.Tests.DxUiTestHelpers.h),
-[popup readiness helpers](../../../Tests/Controls/Scope.Tests.MenuPopupReadiness.h)
+[popup readiness helpers](../../../Tests/Controls/Controls.Tests.MenuPopupReadiness.h)
 and [production pointer routing](../../../src/Controls/DxUi.Menu.cpp).
 
 The settled-move helper currently delegates only to a sent `WM_MOUSEMOVE`; it
@@ -2039,9 +2039,9 @@ The following are inspected entry points, not completed M4 designs:
   review. Current normative rich attributes support IsReadOnly; structured/style
   semantics and rendered-only text are pending. Inspect prepared accessibility
   snapshots/part ownership before choosing a structured child-provider mechanism.
-- Existing tests: `Tests/Controls/Scope.Tests.RichMarkdown.cpp`, RichTextEditor,
+- Existing tests: `Tests/Controls/Controls.Tests.RichMarkdown.cpp`, RichTextEditor,
   RichTextLayout, RichDocumentLayout, RichProjectionBlocks, RichTextInput and
-  RichTextAccessibility; `Tests/Embedded/Scope.Tests.RichTextResources.h`,
+  RichTextAccessibility; `Tests/Embedded/Embedded.Tests.RichTextResources.h`,
   RichGeometryResources and RichProjectionResources; shared Markdown fixtures
   under `Tests/Support`. UIA client tests must use the actual in-process client
   and embedded bridge rather than asserting provider internals alone.

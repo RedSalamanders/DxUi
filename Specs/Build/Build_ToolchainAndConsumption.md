@@ -224,7 +224,26 @@ Revision 3 covers changes made at revision 2:
 - The Python tools were removed; `validate-build-matrix.ps1` replaces the Python build-matrix validator.
 - Private window messages are registered by name, and menu-bar hover is posted through `ContextMenu::PostMenuBarHover`.
 
-Revision 4 advances because Grid selection behavior and tab extraction semantics changed in ways an existing consumer could observe. It includes the compatible migration APIs `Panel::TakeChild`, `TabControl::TakeTab`/`TakeChild`, independent Grid focus accessors and `RequestFocusRow`, Tree focused-item accessors and `RequestFocusVisibleItem`, focus notifications, and the `GridSelectionModel` anchor setter; it also records quoted TSV output behavior. Those additions alone would not require a revision bump. The frozen [`Revision4.cpp`](../../Tools/ConsumerApi/Revision4.cpp) consumer fixture compiles with every consumer profile; review it alongside public headers whenever the revision changes.
+Revision 4 advances because Grid selection behavior and tab extraction semantics changed in ways an existing consumer could observe. It includes the compatible migration APIs `Panel::TakeChild`, `TabControl::TakeTab`/`TakeChild`, independent Grid focus accessors and `RequestFocusRow`, Tree focused-item accessors and `RequestFocusVisibleItem`, focus notifications, and the `GridSelectionModel` anchor setter; it also records quoted TSV output behavior. Those additions alone would not require a revision bump. The frozen [`Revision4.cpp`](../../Tools/ConsumerApi/ConsumerApi.Tests.Revision4.cpp) consumer fixture compiles with every consumer profile; review it alongside public headers whenever the revision changes.
+
+A consumer moving its pin to revision 4 sets `apiRevision` to 4 and reviews these changes:
+
+- `Panel::AddChild` and `TabControl::AddTab` return null when a callback retires the panel or the new child while it
+  is inserted; check the result before using it.
+- `Panel::TakeChild(index)` leaves an empty slot, while `TabControl::TakeChild` and `TakeTab` remove the tab. Either
+  returns empty when a focus or capture callback keeps the child in place: check it before giving it to `SetRoot` or
+  `PageHost::SetPage`, since `SetRoot` with an empty pointer destroys the tree that still holds the child.
+  `RemoveTab` keeps the tab in that case too.
+- `ITreeDelegate::OnTreeSelectionChanged` reports a membership change to a nonempty selection, with its primary member;
+  a move of the focus alone reports `OnTreeFocusedItemChanged`. Grid reports its focused row through
+  `OnGridFocusedRowChanged`, apart from `OnGridSelectionChanged`.
+- A described menu entry's UI Automation name is its label or `accessibleName`, and its secondary text is its
+  HelpText: an `accessibleName` that repeated the secondary text now speaks it twice.
+- `ContextMenuSessionCallbacks::flowDirection` sits between `rootVerticalPlacement` and `minRootWidthDip`; initialize
+  the aggregate by member name.
+
+The fixture also derives a consumer's Grid and Tree models and delegates, so a later pure virtual or a changed
+signature of an overridden virtual stops it compiling.
 
 `capabilities.json` declares the supported PowerShell versions for each consumer script and module. The published restore entry point `vcpkg-install.ps1` remains compatible with Windows PowerShell 5.1 and PowerShell 7. The consumer-facing `validate-build-matrix.ps1 -Root` runs under PowerShell 7 and resolves a relative root against the caller's working directory. `Tools/validate_consumer.ps1` and the shared `ConsumerBuild`, `ConsumerUpdate`, `VisualStudio` and `VcpkgTriplet` modules remain compatible with 5.1 and 7. Repository validation and scoped-iteration tools require PowerShell 7. The dependency validator parses each declared entry, rejects newly mandatory parameters unless declared, and rejects missing or unsupported PowerShell version promises.
 
