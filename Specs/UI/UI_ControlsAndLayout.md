@@ -1,7 +1,48 @@
 # Controls and layout
 
+RichTextEditor `RichTextEditorAppearance::colorizeMarkdownSource` is opt-in and
+uses the configured lossless Markdown analysis profile. Source glyph geometry
+MUST stay identical: syntax delimiters receive subdued ink, heading/list markers
+and exact source link destinations receive accent ink, and selection ink wins.
+No source text, UTF-16 offset, history or text-service state changes. Color ranges
+MUST publish only after complete owner preparation, be disjoint/sorted and stay
+bounded to 65,536 staging events. Source/host/layout retirement cancels pending
+ink. Capacity overflow falls back to the whole ordinary source view and is
+remembered for that syntax identity. High contrast disables custom source ink.
+Every owner preparation advance MUST share a 256-step budget across block-marker
+walks, inline delimiter runs, link child walks, raw destination scans,
+incremental bottom-up event ordering and range publication. Long scans and sort
+passes resume on later advances; no partial range set is visible before completion.
+List-item accent ink MUST use the exact marker range retained by block parsing,
+including nested, ordered, quoted, tab-indented and task-list items.
+
 Status: normative intended contract
-Last reviewed: 2026-10-18
+
+Button presentation is opt-in and independent of `ButtonVariant` and command/TogglePattern semantics.
+`Filled` preserves existing behavior; `Subtle` exposes the parent ground while idle, `Outline` retains a perimeter,
+and a checked `Tab` exposes an accent underline. Hover/press, disabled state and keyboard focus remain visible.
+High contrast preserves the existing system color pair and focus/border treatment. Primary actions retain their
+filled treatment. Leading Fluent icons and trailing keyboard hints on Standard/DropDown/Repeat buttons participate
+in intrinsic measurement, reserve the same paint lanes and mirror with flow direction. Hints describe consumer-owned
+shortcuts; they never register keys or change the button's accessible command name.
+
+`TreeAppearance` may suppress background/border or decorative expanders and may reserve the expander lane on
+leaf rows. Hit testing follows the visible lane; keyboard expansion, hierarchy, selection and UI Automation retain
+the same borrowed model. High contrast forces the system surface and border. `RichTextEditorAppearance::drawFocusIndicator`
+may omit decorative editor focus chrome for a document surface, without retiring text geometry, selection or history;
+the caret remains independent and high contrast always forces the focus indicator.
+
+Tree row painting, hit testing, tooltip and accessibility geometry use one canonical row calculation, including
+hidden/reserved expanders. Neutral decorations opt into subdued unselected icons and count badges; a dot badge
+retains its textual accessible description. Subtle Splitters paint a thin idle seam while preserving the full resize
+hit target and keyboard/drag behavior; hover, dragging, keyboard focus and high contrast retain the normal handle.
+
+`RichText::SemanticSpacing` optionally supplies per-level heading margins and container indentation to semantic
+document layout. All values are finite: margins 0..256 DIP, indentation 0..64 DIP. Heading margins are minima and
+credit real source blank-line caret boxes; no source site is dropped, compressed or fabricated. An absent option
+preserves existing geometry. The option participates in complete geometry reuse/retirement and is validated before
+replacing a published layout. Ordinary source-view text geometry stays governed by its existing source policy.
+Last reviewed: 2026-10-23
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -54,6 +95,13 @@ child's measurement revision, constraints, host typography revision, DPI, flow a
 wrapping, chrome, availability, ownership and inherited settings invalidate the relevant records. Color,
 checked state, hover and position-only changes reuse shape results. Containers retain no DirectWrite layout
 per leaf, and hidden containers retire their numeric entries for one fresh preparation when shown again.
+
+`TextField::SetFontRole` selects one valid shared `FontRole` for its text and placeholder, with `Body` as the
+default. The role is used consistently for intrinsic measurement, single- and multiline shaping/paint, selection,
+caret and hit-test geometry, scrolling, keyboard movement and native/embedded text-service geometry. Changing the
+role is idempotent for the current value; an invalid enum value leaves state unchanged. A change retires the
+single- and multiline shaped-layout caches and intrinsic measurement revision, then refreshes attached input and
+accessibility geometry. It preserves the draft, selection, undo/redo history and active text composition.
 
 Intrinsic owners request work through the shared pending-layout traversal used by native painting and embedded
 `Prepare`. Layout, shaping and allocation remain outside embedded `Composite`. A failed or superseded layout
@@ -286,6 +334,50 @@ geometry from already measured sizes, with unchanged outputs on invalid/capacity
 Hidden `{0,0}` entries retain their index and receive empty bounds. The caller measures overlong
 labels at the available width and reserves the returned action height before laying out body content.
 `Button::SetMultiline` is opt-in for Standard text buttons, with 12/8 DIP per-side text padding.
+`Button::SetContentFontSizeDip(std::optional<float>)` optionally sizes the caller's text or icon content in all
+Button variants. Null preserves the existing role defaults (Body 13 DIP, Icon 12 DIP). Accept only finite
+6..96-DIP sizes, normalized to 1/64 DIP; return `E_INVALIDARG` without mutation for invalid input, `S_FALSE`
+for a normalized no-op and `S_OK` for a change. The getter returns the normalized optional value. Intrinsic
+measurement, wrapping, glyph painting and hyperlink underline width MUST use the same requested size while
+retaining the host role's UI/icon family, fallback, weight, alignment and flow direction. Internal dropdown,
+selector, split and acknowledged disclosure chevrons retain their original chrome metrics. Consumers can
+request 14-DIP chrome labels and 18-DIP line icons without changing global typography or creating local controls.
+Reuse the host's bounded configured-format cache and common drawing/measurement helpers; stable painting MUST
+not allocate new formats per frame. A changed override invalidates intrinsic measurement before requesting
+paint, and a synchronous embedded preparation callback may measure the new state or retire its control; the
+setter MUST stop touching a retired control. Native glyph capture, wrapped intrinsic metrics, cache stability,
+resource-generation replacement and embedded callback tests cover the opt-in behavior.
+`Label` typography/font-role and `Separator` orientation setters follow this callback boundary as well. In an embedded
+view, measurement invalidation may synchronously reach the consumer's preparation-scheduling callback; the consumer
+may retire or replace controls through a `ControlHost` reference borrowed before that callback. The callback must not
+re-enter `EmbeddedHost` preparation, composition, input, device or lifecycle methods. A setter continuing after the
+callback MUST check its captured weak lifetime before touching the control again, and MUST verify current host
+ownership before continuing with host-specific work. Whole-host destruction from inside a callback is not covered.
+
+An `IconOnly` base `Button` with exactly one valid Unicode scalar may retain one `IDWriteTextLayout` for its current
+host format, flow direction and exact DIP extent. Prepare it through the visual-only owner preparation channel,
+never lazily in `Paint`; this channel does not mark content geometry changed, publish text-input/UIA state or delay
+input readiness. An owner preparation pass resolves the effective format and compares its exact COM identity with
+the retained key before taking the warm return; only a changed key looks up the DirectWrite factory and creates a
+replacement layout. Thus clearing the bounded host format map cannot reuse a layout with a different format pointer.
+Paint the retained layout at the current origin with the current foreground brush and the same
+DirectWrite draw options as the ordinary text path, so state/color changes do not rebuild it. The key retains the
+effective format identity and host/resource/typography generation; text, format, size, flow, host detach, hide and
+device/resource cancellation retire it. At most one layout is retained per eligible Button. Toggle and RadioButton
+descendants keep their distinct paint paths and do not prepare a base-Button resource. Empty, multi-scalar and
+malformed UTF-16 content, and any failed optional preparation, continue through the existing `DrawTextW` path.
+Never change the caller's text or geometry to make the cache eligible. Exact-pixel tests cover supported glyph/fallback, flow, DPI, bounds, rendering
+state and text-antialias cases against the original path; any unsupported case remains on that path.
+
+When the bounded configured-format cache is evicted, the host marks visual preparation for the next owner update.
+Embedded hosting trims that cache before its control preparation pass, so an IconOnly Button resolves the new exact
+format identity and replaces its layout before painting the same frame. Eviction does not change geometry or input
+readiness; a clean composition does not trim caches or schedule preparation.
+
+Control callbacks that synchronously transfer native mouse capture use the same rule. Before transfer, publish state
+needed by the ensuing capture notification and capture the requesting control's weak lifetime. The previous HWND's
+`WM_CAPTURECHANGED` callback may replace the requesting host's root before capture returns; afterward the requester
+MUST verify that its lifetime and current host ownership still match before reading members or continuing input.
 A multiline `TextField` draws its caret only inside its text viewport, at every DPI and editable or read-only: a caret on a
 partly visible line is cut at the viewport's edge, and one the wheel scrolled out of view is not drawn.
 Checkbox honors the inherited multiline option with the indicator/text geometry above. Disclosure
@@ -300,9 +392,10 @@ separate work as recorded in capabilities.json.
 
 ### Public catalog and gallery
 
-The public API exposes Panel, PageHost, CardPanel, Label, Button, Toggle, Checkbox, RadioButton, RadioButtons,
+The public API exposes Panel, PageHost, CardPanel, Separator, Label, Button, Toggle, Checkbox, RadioButton, RadioButtons,
 ProgressBar, PageIndicator, ThroughputGraph, Slider, Toolbar, MenuBar, TabControl, ColorSwatch, TextField, ComboBox, TagPicker,
-StatusStrip, PopupLayer, StackPanel, ScrollPanel, TooltipLayer, Tree, Grid, Splitter, NumericStepper and ColorPicker.
+StatusStrip, PopupLayer, StackPanel, ScrollPanel, TooltipLayer, Tree, Grid, Splitter, NumericStepper, ColorPicker,
+FlexPanel, FormField, FormPanel and RichTextEditor.
 GetControlCatalog returns immutable
 descriptors; CreateControl constructs the selected kind and returns E_INVALIDARG for unknown kinds, leaving the
 existing result intact on failure. Controls with models are configured by the caller; the factory does not invent
@@ -312,6 +405,14 @@ Adding a control requires an aligned public declaration/implementation, catalog 
 behavior tests and a populated gallery tile. `gallery.ps1` generates light, dark, rainbow light/dark and high-contrast
 PNG sheets with interactive-state variants, plus a supplied-device toggle/slider image. Gallery rendering supplements
 runtime tests; empty-control construction alone does not prove selection, keyboard, editing or accessibility behavior.
+
+`Separator` is a decorative, nonfocusable control with horizontal and vertical orientations. It reports UIA Separator
+control type and exposes neither Invoke nor a pointer hit target. In high contrast it uses the system border color;
+`Toolbar::AddSeparator` uses the toolbar's existing divider color. `Label::SetTypographyOverride` and
+`Tree::SetTypographyOverride` are optional; font size is bounded to 6–96 DIP and normalized to 1/64 DIP, weights are
+100–900, and Label character spacing is bounded to −4..16 DIP. Invalid values leave the prior override unchanged;
+`nullopt` restores role-default behavior. Tree current/focused rows use the configured current-row weight. Labels and
+Tree rows use host-cached DirectWrite formats and do not mutate shared font-role formats.
 
 ### Page indicator
 
@@ -832,7 +933,7 @@ owner publication. The initial raster profile uses the built-in PNG/JPEG/BMP/GIF
 TIFF codecs and first static frame; GIF canvas placement/transparency/background
 and JPEG/TIFF EXIF orientation MUST be preserved. Unsupported resources MUST keep
 the source-exact alternative. Admission is at most 16 MiB encoded, 4096 per side,
-4,194,304 decoded pixels, 32 unique active file sources and 64 MiB unique retained
+4,194,304 decoded pixels, 32 unique active image sources and 64 MiB unique retained
 CPU pixels. Native image placements plus diagrams MUST stay within 128 objects.
 Shared immutable pixel objects MUST be counted/uploaded once. Other source/format
 capacity contracts are unchanged; process/driver and transient staging overhead
@@ -844,6 +945,23 @@ names, ambiguous extended/trailing-component spellings and malformed/remote URI
 schemes MUST NOT become file requests. Drive/server root case is insensitive;
 directory/share/file component spelling remains exact. Relative paths require
 a saved base; the control MUST NOT query CWD or perform file/network I/O.
+
+Remote image admission MUST be disabled by default. Explicit
+`SetRemoteImagesEnabled(true)` MAY expose absolute HTTP(S) destinations as
+`RichImageSourceKind::RemoteHttp` requests. `Source()` retains the URL's exact
+path/query while normalizing ASCII scheme/host case; `FilePath()` MUST be empty
+for a remote request. Admission accepts ASCII DNS/punycode and bracketed IPv6
+hosts, rejects credentials, fragments, controls, malformed percent escapes and
+unsupported schemes, and bounds each URL to 8,192 UTF-16 units. This is lexical
+admission, not network authorization or a fetch implementation. A caller MUST
+apply its own transport, TLS, timeout, cancellation and encoded-size policy,
+then reuse the existing bounded `RichImage::Decode` utility on its worker.
+The library MUST NOT own HTTP, DNS, a worker, a proxy, cookies or a network cache.
+Disabling the policy MUST immediately cancel remote jobs and evict their retained
+pixels. Local jobs/pixels MUST retain identity and admissible completion during
+the policy-only bounded preparation rebuild. Re-enabling remote admission creates
+fresh remote identities; old completions MUST never republish pixels. Every policy
+transition MUST preserve exact document source, selection, history and IME state.
 
 Image requests MUST execute in caller-owned scheduling, with callback-free
 cancellation and source/base/binding/visibility validation at owner completion.
@@ -1152,7 +1270,42 @@ row placement, source line indexing and element bounds must complete before one
 publication; input/paint/geometry queries never drain staging. No HWND, worker,
 timer, graphics device or scheduler belongs to this backend.
 
+`ScrollSourceRangeIntoView` is a geometry query. It validates the current owner,
+enabled state and source boundaries, then returns `false` while the prepared
+layout is unavailable. Pending geometry is normal control flow: the query does
+not throw, advance or reschedule owner preparation, or change scroll, selection,
+history or source. With a current layout it retains the existing caret reveal
+and source-range scrolling behavior.
+
 #### Native markers, links and HTML (M4d.3)
+
+RichTextEditor presentation is library-owned. `SetAppearance` MUST validate its
+complete value before publication and preserve source/history/selection. The
+default input frame, host body/code families, density inset and native line
+spacing remain compatible. Opt-in borderless/window-background presentation,
+centered maximum text width, font overrides, line-height multiplier and heading
+scale or per-level heading sizes/heights MUST govern the same geometry used for drawing, caret, selection, pointer
+hit-testing and accessibility. Invalid/nonfinite values cannot leave partial
+state. Appearance geometry changes retire pending/current geometry; paint-only
+changes invalidate pixels without reparsing or editing. Explicit line height is
+font-size-relative (for example 16 DIP * 1.65); inline image/math ascent/descent
+must still fit completely. Borderless presentation retains a keyboard-visible
+focus outline and a persistent outline while focused in high contrast.
+
+`RichTextLinkUnderlinePolicy::Always` is the default. `HoverOrCaret` MUST apply
+the underline to a complete semantic link while the pointer is over an actual
+visible glyph fragment or the focused caret is inside its source range. Blank
+space within a multiline link's union bounds is not a link hit. Explicit
+Underline style and high contrast MUST remain underlined. Pointer leave, scroll,
+hide, detach and source/layout replacement MUST retire stale hover state.
+Theme accent link ink is opt-in. Link decoration changes MUST preserve native
+layout generation, source maps, hit geometry, source bytes and undo history.
+
+Source search highlights are bounded source intervals, painted below selection
+without changing source/history. Any source mutation clears stale highlights.
+Focus mode is optional: inactive paragraphs use subdued ink while the caret's
+paragraph retains normal ink. High contrast disables dimming. Neither feature
+introduces a worker, timer, HWND or idle activity.
 
 Native no-wrap prefix measurement establishes a shared maximum marker advance
 per list. Ordinary marker/body layouts share a first baseline; wrapped lines and

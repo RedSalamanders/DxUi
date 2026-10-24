@@ -20,6 +20,10 @@ lease. Foreground suites on verified hosted Windows runners use the separately g
 Use only after the person at the desktop explicitly agrees to automatic start and the time. Requires -Interactive. The visible
 dialog defaults to Start and starts after 30 seconds if nobody clicks; Cancel, Esc, closing the dialog and Ctrl+C stop the run.
 All desktop checks, the warning, suite accounting and verified restoration still apply. Ordinary -Interactive retains its Cancel default.
+.PARAMETER SkipBuild
+Requires the canonical current v2 build attestation before any native desktop probe, filter/watchdog self-check or suite.
+Missing, old or stale source/dependency/toolchain/output identity fails closed; build.ps1 creates the attestation.
+The bounded SkipBuildGate phase reports UTC/elapsed diagnostics without changing receipt or native assertions.
 .PARAMETER SkipTooling
 Leaves independent tooling tests to the selected Tooling scope or the CI validation job. Native runner/watchdog checks remain.
 .PARAMETER Full
@@ -84,6 +88,12 @@ if (-not $SkipTooling) {
 $nativeArchitecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
 if (($Platform -eq 'ARM64') -and ($nativeArchitecture -ne 'Arm64')) { throw 'ARM64 runtime tests require an ARM64 host; use build.ps1 for cross-compilation.' }
 if (-not $SkipBuild) { & (Join-Path $PSScriptRoot 'build.ps1') -Configuration $Configuration -Platform $Platform }
+else {
+    Import-Module (Join-Path $PSScriptRoot 'Tools/PerformancePolicy.psm1') -Force
+    Invoke-DxUiBuildPhase -Phase SkipBuildGate -Body {
+        Assert-PerformanceBuildAttestation -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration
+    }
+}
 $leaseExecutable = Join-Path $PSScriptRoot ".build/$Platform/$Configuration/DxUi.InteractiveLease.exe"
 if ($Interactive -and -not $hostedForegroundLease) {
     # The session is asked again, natively, for what the environment cannot say (a locked screen, a disconnected session, a screen

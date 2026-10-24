@@ -341,8 +341,12 @@ constexpr float kSingleLineMeasureWidthDip = 32768.0f;
     return caret;
 }
 
-[[nodiscard]] float MeasureSingleLineTextWidthDip(
-    const ControlHost* host, std::wstring_view text, FontRole role, float heightDip, DWRITE_READING_DIRECTION readingDirection) noexcept
+[[nodiscard]] float MeasureSingleLineTextWidthDip(const ControlHost* host,
+                                                  std::wstring_view text,
+                                                  FontRole role,
+                                                  float heightDip,
+                                                  DWRITE_READING_DIRECTION readingDirection,
+                                                  IDWriteTextFormat* configuredFormat) noexcept
 {
     if (text.empty())
     {
@@ -352,7 +356,8 @@ constexpr float kSingleLineMeasureWidthDip = 32768.0f;
     if (host)
     {
         auto* factory = host->GetWriteFactory();
-        auto* format  = host->GetTextFormat(role, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, readingDirection);
+        auto* format  = configuredFormat ? configuredFormat
+                                         : host->GetTextFormat(role, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, readingDirection);
         if (factory && format)
         {
             wil::com_ptr<IDWriteTextLayout> layout;

@@ -15,6 +15,14 @@ std::uint64_t RichImageRequest::Id() const noexcept
 }
 std::wstring_view RichImageRequest::FilePath() const noexcept
 {
+    return state_ && state_->sourceKind == RichImageSourceKind::LocalFile ? std::wstring_view(state_->filePath) : std::wstring_view{};
+}
+RichImageSourceKind RichImageRequest::SourceKind() const noexcept
+{
+    return state_ ? state_->sourceKind : RichImageSourceKind::LocalFile;
+}
+std::wstring_view RichImageRequest::Source() const noexcept
+{
     return state_ ? std::wstring_view(state_->filePath) : std::wstring_view{};
 }
 bool RichImageRequest::Cancelled() const noexcept

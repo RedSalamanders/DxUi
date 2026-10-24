@@ -1,5 +1,23 @@
 # Performance and resources
 
+Semantic spacing overrides are prepared geometry policy. Both absent retain
+legacy placement and allocate no new spacing metadata. An opted-in list minimum
+may stage one nearest-ListItem index per bounded syntax node in the existing
+parent-first metadata pass; it is retired with staging, not queried by walking
+ancestors during input or composition. A paragraph minimum in native body lines
+uses at most one additional native empty-body layout, counted against the SDK
+layout budget; an explicit body line-height multiplier needs no such layout.
+Only scalar margin/blank-credit state changes placement. Cancellation and every
+allocation/SDK failure retain the previous complete source/geometry publication.
+Warm queries, clean/hidden frames and composition add no spacing allocations,
+layout calls, timers or workers. Tests cover both override combinations, exact
+empty-site navigation, native-height allocation failure and unchanged defaults.
+Only an opted-in non-page Up/Down hit which stays on the same visual line uses
+the adjacent-line fallback. It reads bounded prepared box/SDK line spans and
+the existing source hit/caret mapping, preserving preferred x and site affinity
+across large gaps without allocation or layout. Ordinary wrapped movement and
+the default fixed-spacing fallback remain unchanged.
+
 The lossless Markdown analysis preview retains bounded source (65,536 UTF-16
 units), one staged result and one published result per parser. Advance has an
 operation budget; source validation/copy/comparison and allocator work are not
@@ -133,6 +151,24 @@ Among correct designs, minimize steady-state CPU/GPU time, private/resident memo
 synchronization, thread/handle count, wake-ups and graphics submissions. Preserve correctness, accessibility,
 security and visual quality; do not trade them away for an unmeasured optimization. All consumers share this policy.
 
+Prepared text rendering may retain at most one device-independent DirectWrite layout per eligible IconOnly base
+Button. Create or replace it only in the separate owner visual-preparation pass, never during composition. A warm
+paint draws it with the current origin and brush and performs no layout creation. Text/format/extent/flow changes,
+host retirement, hide and resource cancellation release it; optional preparation failure preserves the existing
+DrawTextW rendering path. Toggle and RadioButton descendants retain their distinct paint paths and do not prepare a
+base-Button layout. This visual-only work MUST NOT set content-geometry-changed state, publish UIA/text-input
+geometry, or make input wait for layout readiness. Include the bounded retained COM resource and its preparation
+CPU in measurements; do not infer a process-memory benefit from avoiding per-paint shaping.
+
+On a warm owner pass, resolve the current effective text-format pointer and check it against the retained key before
+returning. This preserves exact-format identity through bounded host-cache eviction; a changed pointer prepares one
+replacement. A matching key skips the DirectWrite factory lookup and text-layout creation. This is a narrow owner-pass
+work reduction, not evidence of lower process memory or a measured performance gain.
+
+Evicting the bounded configured text-format cache marks visual preparation for the next owner update. Embedded
+hosts trim before that update's visual-preparation traversal, allowing retained layouts to rebind to the new exact
+format identity before painting. Cache trimming is not performed on clean composition frames.
+
 Before changing implementation, measure the existing code with the same workload that will measure the candidate.
 Retain the original baseline and measure again after the change. Record exact source/content and executable/fixture
 fingerprints, compiler/dependencies, architecture/configuration, hardware/OS/driver, power policy, resolution/DPI,
@@ -249,6 +285,13 @@ query flushes that revision synchronously; worker queries read the last complete
 publish synchronously so the system's first worker focus query can report the new control. Event comparison has a separate
 baseline: a fresh owner query does not consume the queued notifications. Embedded views continue to publish explicitly
 after application preparation, with no snapshot work in composition.
+
+When neither a provider has been requested nor a UIA listener is present, a native mutation still marks the
+revision dirty but does not load the published snapshot, search the focused-control path or post a new flush.
+The next owner-thread provider query resolves the latest dirty revision. A flush already posted before interest
+ceased remains scheduled and includes subsequent mutations; interested focus-transition publication is unchanged.
+Diagnostics may override only this mutation-interest decision for an exact owner-thread HWND attachment cookie;
+the override must not alter other attachments, provider queries or global UIA listener state.
 
 The developer approved retaining this coalescing tradeoff after reviewing the 9 October 2026
 [paired scheduling study](../../Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/README.md).
@@ -465,6 +508,13 @@ still require their own evidence. Consumer measurements and their accepted costs
 in the corresponding product repositories.
 
 ### Ongoing validation and resource budgets
+
+Canonical benchmark output keeps its fully qualified logical path for evidence ownership,
+receipt reads, comparisons and diagnostics. Only the Windows native benchmark argument uses
+an extended-length spelling: preserve an existing `\\?\` prefix, map ordinary UNC to
+`\\?\UNC\`, and prefix absolute drive paths with `\\?\`. Do not shorten or relocate
+run evidence to fit MAX_PATH. Before/after v2 attestation and native failure propagation remain
+required; path transport does not qualify an unpaired measurement.
 
 Every `test.ps1` invocation MUST report complex-UI FPS and memory, including filtered suites, and each suite receipt
 must include the measurement or its linked receipt. A failing/missing benchmark fails the test entrypoint. Unit-test
@@ -786,6 +836,9 @@ One outstanding application wakeup is separate from dirty surface state. A
 pending turn may request one continuation; a failed turn must not self-reschedule.
 Clean/hidden work does not poll; new source after failure can request explicit
 retry. Existing retained/peak/source-limit bounds and zero-delta oracles remain.
+Repeated source-range scroll queries against a pending layout return unavailable
+without advancing preparation or changing source, history, selection or scroll.
+The prepared-layout path retains its ordinary caret and range reveal behavior.
 
 The [cooperative preparation record](../../Measurements/RichText/README.md) qualifies 57 ordinary x64 scopes, six builds and 324 exact WARP pairs without changing the existing ceilings or oracles. Work-unit bounds do not establish quiet-host frame acceptance, hard latency or large-document capacity.
 
@@ -822,3 +875,13 @@ allocation/SDK errors retain the existing failure contract. These bounds do not
 establish hard latency, browser layout equivalence or large-document acceptance.
 Resource/failure sweeps and all-current renderer qualification remain M4g work;
 earlier sealed parser/v0 packets do not establish semantic rendering performance.
+
+#### Transient raster decoration
+
+Transient rich-text raster ink borrows DirectWrite drawing effects only for the
+synchronous draw. Plain or fully excluded decoration must not clear an untouched
+effect range. Arm restoration before each attempted effect setter, including a
+failing setter, and restore canonical state before returning or propagating the
+failure. Preserve ordered underline application and restoration for overlapping
+admitted style runs. This optimization retains no additional layout or brush;
+pixel/geometry/copy regressions and measured CPU/memory evidence remain separate.

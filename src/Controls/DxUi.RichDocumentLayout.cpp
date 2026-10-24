@@ -28,9 +28,12 @@ bool SameStyles(const Projection& left, const Projection& right) noexcept
 }
 bool SameOptions(const LayoutOptions& left, const LayoutOptions& right) noexcept
 {
-    return left.widthDip == right.widthDip && left.fontSizeDip == right.fontSizeDip && left.fontFamily == right.fontFamily &&
-           left.codeFontFamily == right.codeFontFamily && left.locale == right.locale && left.readingDirection == right.readingDirection &&
-           left.textAlignment == right.textAlignment;
+    return left.widthDip == right.widthDip && left.fontSizeDip == right.fontSizeDip && left.codeFontSizeDip == right.codeFontSizeDip &&
+           left.lineHeightMultiplier == right.lineHeightMultiplier && left.headingScaleStep == right.headingScaleStep && left.fontFamily == right.fontFamily &&
+           left.headingFontSizeDip == right.headingFontSizeDip && left.headingLineHeightMultiplier == right.headingLineHeightMultiplier &&
+           left.paragraphSpacingAfterLines == right.paragraphSpacingAfterLines && left.listItemSpacingDip == right.listItemSpacingDip &&
+           left.semanticSpacing == right.semanticSpacing && left.codeFontFamily == right.codeFontFamily && left.locale == right.locale &&
+           left.readingDirection == right.readingDirection && left.textAlignment == right.textAlignment;
 }
 void JoinBlocks(Projection& result, const std::vector<ProjectionBlock>& blocks, std::size_t first, std::size_t end, ViewMode mode)
 {
@@ -621,7 +624,7 @@ std::pair<std::size_t, std::size_t> PreparedDocumentLayout::VisibleRange(float t
     }
     return {first.value_or(0u), last};
 }
-void PreparedDocumentLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, float top, float bottom) const
+void PreparedDocumentLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, float top, float bottom, const LinkDrawing* links) const
 {
     const auto& state = Prepared();
     if (! target || ! brush || ! std::isfinite(top) || ! std::isfinite(bottom) || bottom < top)
@@ -650,13 +653,17 @@ void PreparedDocumentLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, 
             ++state.last.wholeLayoutsPrepared;
             state.last.wholeLayoutSourceUnits = state.projection.SourceLength();
         }
-        state.reference->Draw(target, brush, origin);
+        state.reference->Draw(target, brush, origin, links);
         return;
     }
     for (const auto& chunk : state.chunks)
     {
         if (! canCull || (chunk.geometry->drawingTop - padding < bottom && chunk.geometry->drawingBottom + padding > top))
-            chunk.geometry->layout.Draw(target, brush, origin);
+        {
+            auto local = links ? *links : LinkDrawing{};
+            local.displayOrigin += chunk.displayStart;
+            chunk.geometry->layout.Draw(target, brush, origin, links ? &local : nullptr);
+        }
     }
 }
 } // namespace DxUi::RichText

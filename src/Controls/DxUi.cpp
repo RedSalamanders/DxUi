@@ -59,8 +59,11 @@ ModalLoopResult RunModalLoop(HWND hwnd, const ModalLoopOptions& options) noexcep
             return ModalLoopResult::Quit;
         }
 
-        TranslateMessage(&msg);
-        DispatchMessageW(&msg);
+        if (! DispatchAttachedWindowHostKeyboardMessage(msg))
+        {
+            TranslateMessage(&msg);
+            DispatchMessageW(&msg);
+        }
     }
 
     return ModalLoopResult::Completed;
@@ -425,15 +428,28 @@ void Control::SetVisible(bool visible) noexcept
             ++_host->_interactionRevision;
         _visible = visible;
         if (_host)
+        {
             _host->_pendingContentPreparation = true;
-        InvalidateMeasure();
+            _host->_pendingVisualPreparation  = true;
+        }
+        if (_visualPreparationEnabled)
+            _visualPreparationPending = true;
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
+        InvalidateMeasure();
+        if (lifetime.expired())
+            return;
         if (! visible)
         {
             OnHidden();
             if (lifetime.expired())
             {
                 return;
+            }
+            if (ControlHost* const host = GetHost())
+            {
+                host->CancelPreparedVisualContent(this);
+                if (lifetime.expired())
+                    return;
             }
         }
         RequestInvalidate();
@@ -1108,6 +1124,29 @@ HRESULT Control::PrepareContent(ControlHost&) noexcept
 void Control::CancelContentPreparation() noexcept
 {
 }
+void Control::EnableVisualContentPreparation() noexcept
+{
+    _visualPreparationEnabled = true;
+    RequestVisualContentPreparation(false);
+}
+void Control::RequestVisualContentPreparation(bool requestWake) const noexcept
+{
+    if (! _visualPreparationEnabled)
+        return;
+    _visualPreparationPending = true;
+    if (_host)
+    {
+        _host->_pendingVisualPreparation = true;
+        if (requestWake)
+            _host->Invalidate();
+    }
+}
+void Control::PrepareVisualContent(ControlHost& /*host*/) noexcept
+{
+}
+void Control::CancelVisualContentPreparation() noexcept
+{
+}
 bool Control::AcceptsTextInputDuringPreparation() const noexcept
 {
     return false;
@@ -1115,27 +1154,38 @@ bool Control::AcceptsTextInputDuringPreparation() const noexcept
 
 void Control::PropagateHost(ControlHost* host) noexcept
 {
-    if (_host != host)
+    if (_host == host)
+        return;
+
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    ControlHost* const previousHost   = _host;
+    if (previousHost && _visualPreparationEnabled)
     {
-        if (_host)
-        {
-            ++_host->_interactionRevision;
-            _host->Invalidate();
-        }
-        if (host)
-        {
-            ++host->_interactionRevision;
-            host->Invalidate();
-        }
+        CancelVisualContentPreparation();
+        if (lifetime.expired() || _host != previousHost)
+            return;
+        _visualPreparationPending = true;
     }
-    const bool changed = _host != host;
-    _host              = host;
-    if (changed)
+    if (previousHost)
     {
-        RequestContentPreparation(false);
-        InvalidateMeasure();
+        ++previousHost->_interactionRevision;
+        previousHost->Invalidate();
+        if (lifetime.expired() || _host != previousHost)
+            return;
+    }
+    if (host)
+    {
+        ++host->_interactionRevision;
+        host->Invalidate();
+        if (lifetime.expired() || _host != previousHost)
+            return;
+    }
+    _host = host;
+    RequestContentPreparation(false);
+    RequestVisualContentPreparation(false);
+    InvalidateMeasure();
+    if (! lifetime.expired() && _host == host)
         RequestIntrinsicLayout();
-    }
 }
 
 void Control::SetParent(Panel* parent) noexcept

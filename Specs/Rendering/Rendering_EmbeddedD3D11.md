@@ -56,7 +56,9 @@ pipeline state and does not preserve the caller's state while drawing.
 ### Preparation and composition
 
 1. Input, model, theme, DPI and geometry changes mark bounded dirty state. The supplied callback asks the application
-   to schedule preparation. Coalesce work, reject stale instance requests and avoid recursive preparation dispatch.
+   to schedule preparation. Coalesce work and reject stale instance requests. Keep the active-Prepare guard set while
+   invoking the scheduling callback so a synchronous callback cannot recursively drain another preparation turn;
+   clear it after the callback only if the same attachment still owns the state.
 2. On the owning UI thread, prepare changed visible content before scene composition. Allocation, layout, shaping
    and raster work belong here, including content changes at an unchanged size. No application ABI is prescribed.
 3. Composite the prepared surface without layout, allocation, rasterization, application calls, I/O or blocking work.
@@ -85,6 +87,25 @@ Applications retain HWND/TSF client, focusId/revision and screen-placement owner
 prepare changed composition/scroll/DPI before publishing geometry or accessibility.
 Real IME/AT/physical qualification remains pending. See [the rich-text guide](../../docs/rich-text.md).
 
+For embedded Return/Space keydown, `DispatchKey` can issue a move-only
+`EmbeddedKeyDispatchReceipt` that binds the original view attachment, control
+tree and focused owner before callbacks. A raw Win32 pump uses
+`ShouldTranslateCharacter(receipt)` after dispatch and calls the OS
+`TranslateMessage` only when the same live text owner has permission; the later
+`WM_CHAR` uses ordinary `DispatchCharacter`. A transport that can preserve the
+exact key/character association may instead pass the receipt to the correlated
+`DispatchCharacter` overload. The receipt is one-use for a matching character;
+foreign and mismatched attempts are rejected without consuming it, while a
+matching character whose original owner or attachment has retired is consumed
+without retargeting. Standalone committed characters remain independent of
+pending receipts. Handled command activation does not authorize text; an
+explicitly accepted editor Return or an unhandled text-input key can translate
+once for that same owner. The API does not infer provenance from character
+value or time. Nested key dispatches use distinct receipt objects. If overlapping
+calls reuse one receipt object, the outer call invalidates that shared association
+on completion, including when unwinding a callback; neither call may authorize a
+delayed character through the reused object.
+
 Cooperative content preparation: Prepare returns
 S_FALSE with NeedsPreparation=true while owner work remains; the application
 callback requests the next event-driven turn. No partial surface is composed.
@@ -106,6 +127,23 @@ callback is synchronous and must not re-enter the host. Dirty requests coalesce;
 remain pending after preparation. The caller advances animation only when NeedsAnimation is true. Hidden views
 request no periodic work; zero-sized targets disable interaction. Prepare returns S_FALSE for a clean or suspended
 view. Failed preparation suppresses composition/input until a successful prepare. No automatic retry loop exists.
+The callback must not re-enter EmbeddedHost preparation, composition, input, device replacement or lifecycle methods.
+It may retire or replace controls through a `ControlHost` reference borrowed before the callback; this limited
+retirement is tolerated. Library continuations that may run after synchronous scheduling or measurement callbacks
+MUST keep a weak control lifetime and stop before later member access if it expired. Host-specific continuation also
+revalidates current ownership. This contract does not promise safety when the callback destroys the owning host.
+
+Optional control visual preparation and cancellation are separate from content-geometry preparation. They may
+retain bounded resources but MUST NOT publish text-input/UIA geometry or delay input readiness. Cancellation runs
+after the retiring surface state has been cleared. A control hook may retire its tree or detach the embedded view
+while the owning host object remains alive; every continuation revalidates attachment lifetime and the current
+device/visibility operation before accessing borrowed state. Ordinary dirty revisions remain independent of those
+identities. An in-progress draw retains its device context until EndDraw even if a callback retires host resources.
+A device replacement or hide/show transition during preparation aborts that stale frame. When the same attachment
+survives, preparation clears its active flags and delivers one deferred owner wake for the new visible, sized
+operation; a hidden or zero-sized view sends no wake. This is a new operation request, not an automatic retry of a
+failed frame. Initial Attach still leaves the first preparation to its caller. Ordinary device replacement never
+marks a notification as sent without delivering one, so a later real invalidation can request preparation.
 
 Embedded PageHost and Slider transitions interpret AdvanceAnimation timestamps as monotonic application
 milliseconds and anchor their start on the first supplied tick, including zero. They never subtract system uptime
@@ -145,6 +183,11 @@ replacement peak, allocation/preparation/composition counts and the per-view cac
 (`ControlHost::kSolidBrushCacheLimit`, `kConfiguredTextFormatCacheLimit`); a cache beyond its bound is cleared at the
 start of the next preparation, never mid-paint. Consumers must additionally admit the combined cost of every
 simultaneous view.
+
+Cache trimming happens only after a dirty view enters owner preparation and before the control preparation pass.
+Evicting configured text formats forces visual-only preparation in that same pass, so retained control resources
+rebuild against current format identities before Paint. Trimming never occurs on a clean Composite and does not
+change geometry or input-readiness state.
 
 Composite requires the same device's immediate context and a host-bound render target. It issues one premultiplied
 alpha triangle, sets the viewport and every other state it depends on (including disabled scissor/depth/predication

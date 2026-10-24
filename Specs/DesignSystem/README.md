@@ -54,6 +54,6 @@ DxUi is a Windows C++ retained-control library drawn with Direct2D and DirectWri
 
 ## Rendering and captures
 
-- Every screenshot in [`docs/gallery`](../../docs/gallery/README.md) was produced by the test harness (`gallery.ps1 -PublishDocs`), never by desktop capture. Each sheet shows all 34 controls in one theme, on a 1600 DIP canvas with 7 columns, a 24 DIP margin and a 10 DIP gap.
+- Every screenshot in [`docs/gallery`](../../docs/gallery/README.md) was produced by the test harness (`gallery.ps1 -PublishDocs`), never by desktop capture. Each sheet shows all 35 controls in one theme, on a 1600 DIP canvas with 7 columns, a 24 DIP margin and a 10 DIP gap.
 - The component previews in this system are static HTML renditions of the Direct2D controls. Where they differ, the gallery captures are authoritative.
-- Every one of the 34 catalog controls has a guideline and a preview. A new control is not complete until it has both, alongside its `docs/controls.md` entry and gallery tile.
+- Every one of the 35 catalog controls has a guideline and a preview. A new control is not complete until it has both, alongside its `docs/controls.md` entry and gallery tile.

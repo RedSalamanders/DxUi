@@ -70,7 +70,7 @@ static void TestRichSemanticEditorQueryFailureBudgets(GraphicsFixture& gpu, bool
     }
 }
 
-static void TestRichSemanticGeometryFailureBudgets(bool trace = false, bool literalFootnotes = false, bool renderedFootnotes = false)
+static void TestRichSemanticGeometryFailureBudgets(bool trace = false, bool literalFootnotes = false, bool renderedFootnotes = false, bool spacing = false)
 {
     using namespace DxUi::RichText;
     using DxUi::RichText::Detail::PreparedSemanticGeometry;
@@ -86,7 +86,14 @@ static void TestRichSemanticGeometryFailureBudgets(bool trace = false, bool lite
                                  L"<b>native</b>\n10. next\n\n<p><a href='#x'>HTML</a><br/>&fjlig;</p>\n\n<p><b></b></p>\n");
     LayoutOptions options;
     options.widthDip = 240.0f;
-    size_t requests  = 0u;
+    if (spacing)
+    {
+        // The native-height opt-in also sweeps the separately budgeted empty
+        // body measurement and optional parent-first item metadata allocation.
+        options.paragraphSpacingAfterLines = 1.0f;
+        options.listItemSpacingDip         = 10.0f;
+    }
+    size_t requests = 0u;
     {
         PreparedSemanticGeometry geometry;
         const auto oldCount = countAllocations;
@@ -148,6 +155,8 @@ static void TestRichSemanticGeometryFailureBudgets(bool trace = false, bool lite
         geometry.HitTest(4.0f, 4.0f);
         geometry.SourceCaret(0u);
         const auto sourceHit = geometry.HitTestSource(4.0f, 4.0f);
+        geometry.AdjacentSourceLine(sourceHit.position, sourceHit.site, 4.0f, true);
+        geometry.AdjacentSourceLine(sourceHit.position, sourceHit.site, 4.0f, false);
         geometry.StepSource(sourceHit.position, sourceHit.site, true);
         geometry.StepSource(sourceHit.position, sourceHit.site, false);
         geometry.SourceLineBoundary(sourceHit.position, sourceHit.site, true);
@@ -157,12 +166,16 @@ static void TestRichSemanticGeometryFailureBudgets(bool trace = false, bool lite
             const auto caret = geometry.SourceCaret(line.insertion);
             const auto hit   = geometry.HitTestSource(caret.x, caret.y + caret.height * .5f);
             geometry.SourceCaret(hit.position, hit.site);
+            geometry.AdjacentSourceLine(hit.position, hit.site, caret.x, true);
+            geometry.AdjacentSourceLine(hit.position, hit.site, caret.x, false);
         }
         geometry.SourceLines();
     }
     geometry.Clear();
     countAllocations = false;
     Check(allocations == oldCalls, "semantic geometry coalescing, scalar geometry queries and retirement allocate no owned C++ storage");
-    std::cout << "rich semantic geometry literalFootnotes=" << literalFootnotes << " renderedFootnotes=" << renderedFootnotes
+    std::cout << "rich semantic geometry literalFootnotes=" << literalFootnotes << " renderedFootnotes=" << renderedFootnotes << " spacing=" << spacing
               << " completeFailures=" << requests << " idle/retireAllocations=0\n";
+    if (! spacing)
+        TestRichSemanticGeometryFailureBudgets(trace, literalFootnotes, renderedFootnotes, true);
 }

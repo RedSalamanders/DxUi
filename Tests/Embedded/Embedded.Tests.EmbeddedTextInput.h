@@ -1,5 +1,7 @@
 #include <algorithm>
+#include <stdexcept>
 #include <thread>
+#include <utility>
 
 // Exercise real caret pixels on a supplied WARP surface, without an HWND or OS focus.
 static void TestMultilineCaretViewport(GraphicsFixture& gpu)
@@ -370,4 +372,386 @@ static void TestEmbeddedTextInput(GraphicsFixture& gpu)
     Check(view.ApplyTextInput(snapshot.revision, state, Action::Commit) == S_OK, "commit callback may destroy edited tree");
     Check(view.ReadTextInput(snapshot) == S_FALSE, "removed control disconnects its text service");
     Check(view.Controls().GetHwnd() == nullptr, "text transport creates no HWND");
+}
+
+static void TestEmbeddedTranslatedCharacterOwnership(GraphicsFixture& gpu)
+{
+    std::shared_ptr<DxUi::GraphicsDevice> pool;
+    Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "key correlation pool");
+
+    const auto makeView = [&]()
+    {
+        auto view = std::make_unique<DxUi::EmbeddedHost>();
+        Hr(view->Attach(pool), "key correlation attach");
+        return view;
+    };
+    const auto makeInputTree = [](DxUi::EmbeddedHost& view, std::wstring value, DxUi::TextField*& field, DxUi::Button*& button)
+    {
+        auto root = std::make_unique<DxUi::Panel>();
+        button    = root->AddChild<DxUi::Button>(L"Transfer focus");
+        field     = root->AddChild<DxUi::TextField>(std::move(value));
+        button->SetOnClick([&view, field] { view.Controls().SetFocusControl(field); });
+        view.Controls().SetRoot(std::move(root));
+        Hr(view.Prepare(480, 240), "prepare key correlation controls");
+    };
+
+    for (const UINT key : {UINT(VK_RETURN), UINT(VK_SPACE)})
+    {
+        auto view              = makeView();
+        DxUi::TextField* field = nullptr;
+        DxUi::Button* button   = nullptr;
+        makeInputTree(*view, L"alpha", field, button);
+        view->Controls().SetFocusControl(button);
+        DxUi::EmbeddedKeyDispatchReceipt receipt;
+        Check(view->DispatchKey(key, true, 0u, receipt), "button handles activation keydown");
+        Check(view->Controls().GetFocusControl() == field, "activation callback transfers focus to the editor");
+        Check(! view->ShouldTranslateCharacter(receipt), "activation commands do not ask the OS to translate a text character");
+        const wchar_t character = key == VK_RETURN ? L'\r' : L' ';
+        Check(view->DispatchCharacter(character, 0u, receipt), "translated activation character is consumed");
+        Check(field->GetText() == L"alpha", "activation character does not edit the newly focused control");
+        Check(! view->DispatchCharacter(character, 0u, receipt), "a correlated receipt is one-use");
+    }
+
+    // An unhandled printable Space and an explicitly accepted multiline Return still reach the same editor.
+    {
+        auto view              = makeView();
+        DxUi::TextField* field = nullptr;
+        DxUi::Button* button   = nullptr;
+        makeInputTree(*view, L"alpha", field, button);
+        static_cast<void>(button);
+        view->Controls().SetFocusControl(field);
+        DxUi::EmbeddedKeyDispatchReceipt receipt;
+        bool recursiveHandled = true;
+        field->SetOnTextChanged([&](std::wstring_view) { recursiveHandled = view->DispatchCharacter(L' ', 0u, receipt); });
+        Check(! view->DispatchKey(VK_SPACE, true, 0u, receipt), "ordinary text Space is unhandled by the key route");
+        Check(view->ShouldTranslateCharacter(receipt), "same-owner text key permits OS character translation");
+        Check(! view->DispatchKey(VK_SPACE, false, 0u), "key-up remains a separate ordinary key event");
+        Check(view->DispatchCharacter(L' ', 0u, receipt) && field->GetText() == L"alpha ", "same-owner Space is inserted once");
+        Check(! recursiveHandled && field->GetText() == L"alpha ", "receipt is consumed before a reentrant edit callback");
+        field->SetMultiline(true);
+        Hr(view->Prepare(480, 240), "prepare multiline key route");
+        DxUi::EmbeddedKeyDispatchReceipt enter;
+        Check(view->DispatchKey(VK_RETURN, true, 0u, enter), "multiline editor accepts Return keydown");
+        Check(view->ShouldTranslateCharacter(enter), "explicitly accepted multiline Return permits OS character translation");
+        Check(view->DispatchCharacter(L'\r', 0u, enter) && field->GetText() == L"alpha \n", "explicit multiline Return is inserted once");
+    }
+
+    // A receipt rejected by another view or for another character remains usable by its originating view.
+    {
+        auto first                   = makeView();
+        auto second                  = makeView();
+        DxUi::TextField* firstField  = nullptr;
+        DxUi::Button* firstButton    = nullptr;
+        DxUi::TextField* secondField = nullptr;
+        DxUi::Button* secondButton   = nullptr;
+        makeInputTree(*first, L"first", firstField, firstButton);
+        makeInputTree(*second, L"second", secondField, secondButton);
+        static_cast<void>(firstButton);
+        static_cast<void>(secondButton);
+        first->Controls().SetFocusControl(firstField);
+        DxUi::EmbeddedKeyDispatchReceipt receipt;
+        Check(! first->DispatchKey(VK_SPACE, true, 0u, receipt), "originating text keydown records receipt");
+        Check(! second->ShouldTranslateCharacter(receipt), "foreign view cannot grant translation permission");
+        Check(! second->DispatchCharacter(L' ', 0u, receipt) && firstField->GetText() == L"first" && secondField->GetText() == L"second",
+              "foreign view rejects without mutating either control");
+        Check(! first->DispatchCharacter(L'\r', 0u, receipt) && firstField->GetText() == L"first", "mismatched character is rejected without editing");
+        Check(first->DispatchCharacter(L' ', 0u, receipt) && firstField->GetText() == L"first ", "the matching character still consumes the receipt");
+    }
+
+    // Stale focus/root identities consume their matching character without routing it into a successor.
+    {
+        auto view              = makeView();
+        DxUi::TextField* field = nullptr;
+        DxUi::Button* button   = nullptr;
+        makeInputTree(*view, L"old", field, button);
+        static_cast<void>(button);
+        view->Controls().SetFocusControl(field);
+        DxUi::EmbeddedKeyDispatchReceipt receipt;
+        Check(! view->DispatchKey(VK_SPACE, true, 0u, receipt), "stale-owner keydown records receipt");
+        auto replacement = std::make_unique<DxUi::TextField>();
+        replacement->SetText(L"new");
+        auto* replacementField = replacement.get();
+        view->Controls().SetRoot(std::move(replacement));
+        Hr(view->Prepare(480, 240), "prepare replacement owner");
+        view->Controls().SetFocusControl(replacementField);
+        Check(! view->ShouldTranslateCharacter(receipt), "replacement owner cannot inherit stale translation permission");
+        Check(view->DispatchCharacter(L' ', 0u, receipt) && replacementField->GetText() == L"new", "stale matching character is consumed, not retargeted");
+    }
+
+    {
+        auto view              = makeView();
+        DxUi::TextField* field = nullptr;
+        DxUi::Button* button   = nullptr;
+        makeInputTree(*view, L"roundtrip", field, button);
+        static_cast<void>(button);
+        view->Controls().SetFocusControl(field);
+        DxUi::EmbeddedKeyDispatchReceipt receipt;
+        Check(! view->DispatchKey(VK_SPACE, true, 0u, receipt), "focus-roundtrip keydown records receipt");
+        view->Controls().SetFocusControl(nullptr);
+        view->Controls().SetFocusControl(field);
+        Check(! view->ShouldTranslateCharacter(receipt), "focus roundtrip invalidates translation permission");
+        Check(view->DispatchCharacter(L' ', 0u, receipt) && field->GetText() == L"roundtrip", "focus roundtrip consumes without editing");
+    }
+
+    {
+        auto view = makeView();
+        auto rich = std::make_unique<DxUi::RichTextEditor>(L"rich");
+        rich->SetMarkdownRenderingEnabled(false);
+        auto* editor = rich.get();
+        view->Controls().SetRoot(std::move(rich));
+        Hr(view->Prepare(480, 240), "prepare rich editor key route");
+        view->Controls().SetFocusControl(editor);
+        editor->SetSelection({4u, 4u});
+        DxUi::EmbeddedKeyDispatchReceipt space;
+        Check(! view->DispatchKey(VK_SPACE, true, 0u, space) && view->ShouldTranslateCharacter(space), "rich editor Space keeps same-owner text translation");
+        Check(view->DispatchCharacter(L' ', 0u, space) && editor->GetText() == L"rich ", "rich editor accepts its correlated Space once");
+        Hr(view->Prepare(480, 240), "prepare rich editor Return route");
+        DxUi::EmbeddedKeyDispatchReceipt enter;
+        Check(view->DispatchKey(VK_RETURN, true, 0u, enter) && view->ShouldTranslateCharacter(enter), "rich editor explicitly permits Return translation");
+        Check(view->DispatchCharacter(L'\r', 0u, enter) && editor->GetText() == L"rich \r\n", "rich editor accepts its correlated Return once");
+    }
+
+    {
+        auto view = makeView();
+        view->Controls().SetRoot(std::make_unique<DxUi::Panel>());
+        Hr(view->Prepare(480, 240), "prepare ownerless key route");
+        DxUi::EmbeddedKeyDispatchReceipt receipt;
+        Check(! view->DispatchKey(VK_SPACE, true, 0u, receipt), "ownerless keydown still issues a correlation receipt");
+        auto successor = std::make_unique<DxUi::TextField>(L"successor");
+        auto* field    = successor.get();
+        view->Controls().SetRoot(std::move(successor));
+        Hr(view->Prepare(480, 240), "prepare ownerless successor");
+        view->Controls().SetFocusControl(field);
+        Check(view->DispatchCharacter(L' ', 0u, receipt) && field->GetText() == L"successor", "ownerless translated character cannot be retargeted");
+    }
+
+    {
+        auto view              = makeView();
+        DxUi::TextField* field = nullptr;
+        DxUi::Button* button   = nullptr;
+        makeInputTree(*view, L"reattached", field, button);
+        static_cast<void>(button);
+        view->Controls().SetFocusControl(field);
+        DxUi::EmbeddedKeyDispatchReceipt receipt;
+        Check(! view->DispatchKey(VK_SPACE, true, 0u, receipt), "pre-detach keydown records receipt");
+        view->Detach();
+        Hr(view->Attach(pool), "key receipt reattach");
+        auto successor = std::make_unique<DxUi::TextField>(L"new attachment");
+        auto* newField = successor.get();
+        view->Controls().SetRoot(std::move(successor));
+        Hr(view->Prepare(480, 240), "prepare reattached text owner");
+        view->Controls().SetFocusControl(newField);
+        Check(view->DispatchCharacter(L' ', 0u, receipt) && newField->GetText() == L"new attachment", "detach and reattach consume an old receipt");
+    }
+
+    {
+        auto view              = makeView();
+        DxUi::TextField* field = nullptr;
+        DxUi::Button* button   = nullptr;
+        makeInputTree(*view, L"move", field, button);
+        static_cast<void>(button);
+        view->Controls().SetFocusControl(field);
+        DxUi::EmbeddedKeyDispatchReceipt original;
+        Check(! view->DispatchKey(VK_SPACE, true, 0u, original), "move test records a receipt");
+        DxUi::EmbeddedKeyDispatchReceipt moved(std::move(original));
+        Check(! view->ShouldTranslateCharacter(original), "moved-from receipt is invalid");
+        Check(view->DispatchCharacter(L' ', 0u, moved) && field->GetText() == L"move ", "moved receipt remains one-use and valid");
+    }
+
+    // A pending activation receipt does not affect independent text-only input when no translated char arrives.
+    {
+        auto view              = makeView();
+        DxUi::TextField* field = nullptr;
+        DxUi::Button* button   = nullptr;
+        makeInputTree(*view, L"pending", field, button);
+        view->Controls().SetFocusControl(field);
+        DxUi::EmbeddedKeyDispatchReceipt receipt;
+        Check(! view->DispatchKey(VK_SPACE, true, 0u, receipt), "pending receipt keydown is unhandled");
+        Check(view->DispatchCharacter(L'x') && field->GetText() == L"pendingx", "standalone committed text remains independent of a pending receipt");
+        Check(view->DispatchCharacter(L' ', 0u, receipt) && field->GetText() == L"pendingx ",
+              "later matching translated char remains paired with its own receipt");
+    }
+
+    // Nested dispatch has its own translated-character permission and cannot leak it to an outer handled command.
+    {
+        auto view = makeView();
+        struct NestedField final : DxUi::TextField
+        {
+            explicit NestedField(DxUi::EmbeddedHost& embedded) : embedded(embedded)
+            {
+                SetMultiline(true);
+                SetText(L"nested");
+            }
+            bool OnKeyDown(DxUi::ControlHost& host, UINT key, UINT modifiers) override
+            {
+                if (key == VK_SPACE)
+                {
+                    static_cast<void>(embedded.DispatchKey(VK_RETURN, true, modifiers));
+                    return true;
+                }
+                return TextField::OnKeyDown(host, key, modifiers);
+            }
+            DxUi::EmbeddedHost& embedded;
+        };
+        auto root   = std::make_unique<DxUi::Panel>();
+        auto* field = root->AddChild<NestedField>(*view);
+        view->Controls().SetRoot(std::move(root));
+        Hr(view->Prepare(480, 240), "prepare nested key frame");
+        view->Controls().SetFocusControl(field);
+        DxUi::EmbeddedKeyDispatchReceipt receipt;
+        Check(view->DispatchKey(VK_SPACE, true, 0u, receipt), "nested preview command handles Space");
+        Check(view->DispatchCharacter(L' ', 0u, receipt) && field->GetText() == L"nested", "nested Return permission does not authorize outer Space");
+    }
+
+    // Reusing the same receipt object for overlapping calls fails closed even if the nested call receives permission.
+    {
+        auto view = makeView();
+        struct ReusingReceiptField final : DxUi::TextField
+        {
+            ReusingReceiptField(DxUi::EmbeddedHost& embedded, DxUi::EmbeddedKeyDispatchReceipt& receipt, bool outerReturn, bool throwAfterNested)
+                : embedded(embedded),
+                  receipt(receipt),
+                  outerReturn(outerReturn),
+                  throwAfterNested(throwAfterNested)
+            {
+                SetMultiline(true);
+                SetText(L"unchanged");
+            }
+            bool OnKeyDown(DxUi::ControlHost& host, UINT key, UINT modifiers) override
+            {
+                if (outerReturn && ! nested && key == VK_RETURN)
+                {
+                    const bool handled = TextField::OnKeyDown(host, key, modifiers);
+                    nested             = true;
+                    static_cast<void>(embedded.DispatchKey(VK_SPACE, true, modifiers, receipt));
+                    nested = false;
+                    return handled;
+                }
+                if (! outerReturn && ! nested && key == VK_SPACE)
+                {
+                    nested = true;
+                    static_cast<void>(embedded.DispatchKey(VK_SPACE, true, modifiers, receipt));
+                    nested = false;
+                    if (throwAfterNested)
+                        throw std::runtime_error("intentional nested dispatch failure");
+                    return true;
+                }
+                if (outerReturn && key == VK_SPACE)
+                    return true; // The nested activation is a handled command and must not inherit the outer Return grant.
+                return TextField::OnKeyDown(host, key, modifiers);
+            }
+            DxUi::EmbeddedHost& embedded;
+            DxUi::EmbeddedKeyDispatchReceipt& receipt;
+            bool outerReturn      = false;
+            bool throwAfterNested = false;
+            bool nested           = false;
+        };
+
+        for (const auto [outerReturn, throwAfterNested] : {std::pair{true, false}, std::pair{false, false}, std::pair{false, true}})
+        {
+            DxUi::EmbeddedKeyDispatchReceipt receipt;
+            auto root   = std::make_unique<DxUi::Panel>();
+            auto* field = root->AddChild<ReusingReceiptField>(*view, receipt, outerReturn, throwAfterNested);
+            view->Controls().SetRoot(std::move(root));
+            Hr(view->Prepare(480, 240), "prepare overlapping receipt route");
+            view->Controls().SetFocusControl(field);
+            const UINT outerKey = outerReturn ? VK_RETURN : VK_SPACE;
+            Check(view->DispatchKey(outerKey, true, 0u, receipt) == ! throwAfterNested, "outer overlapping key dispatch reports its command result");
+            Check(! view->ShouldTranslateCharacter(receipt), "overlapping reuse invalidates the shared receipt at outer completion");
+            Check(! view->DispatchCharacter(outerReturn ? L'\r' : L' ', 0u, receipt),
+                  "overlapping shared receipt cannot dispatch a delayed correlated character");
+            Check(! view->DispatchCharacter(L' ', 0u, receipt), "overlapping shared receipt rejects a second delayed character attempt");
+            Check(field->GetText() == L"unchanged", "overlapping receipt rejection leaves the source unchanged");
+            view->Controls().SetRoot(nullptr);
+        }
+    }
+
+    // Distinct receipt objects preserve nested event associations independently.
+    {
+        auto view = makeView();
+        struct SeparateReceiptField final : DxUi::TextField
+        {
+            SeparateReceiptField(DxUi::EmbeddedHost& embedded, DxUi::EmbeddedKeyDispatchReceipt& nestedReceipt)
+                : embedded(embedded),
+                  nestedReceipt(nestedReceipt)
+            {
+                SetMultiline(true);
+                SetText(L"separate");
+            }
+            bool OnKeyDown(DxUi::ControlHost& host, UINT key, UINT modifiers) override
+            {
+                if (key == VK_RETURN && ! nesting)
+                {
+                    const bool handled = TextField::OnKeyDown(host, key, modifiers);
+                    nesting            = true;
+                    static_cast<void>(embedded.DispatchKey(VK_SPACE, true, modifiers, nestedReceipt));
+                    nesting = false;
+                    return handled;
+                }
+                return TextField::OnKeyDown(host, key, modifiers);
+            }
+            DxUi::EmbeddedHost& embedded;
+            DxUi::EmbeddedKeyDispatchReceipt& nestedReceipt;
+            bool nesting = false;
+        };
+        DxUi::EmbeddedKeyDispatchReceipt outerReceipt;
+        DxUi::EmbeddedKeyDispatchReceipt nestedReceipt;
+        auto root   = std::make_unique<DxUi::Panel>();
+        auto* field = root->AddChild<SeparateReceiptField>(*view, nestedReceipt);
+        view->Controls().SetRoot(std::move(root));
+        Hr(view->Prepare(480, 240), "prepare distinct nested receipt route");
+        view->Controls().SetFocusControl(field);
+        field->SetSelectionRange(8u, 8u);
+        Check(view->DispatchKey(VK_RETURN, true, 0u, outerReceipt), "outer multiline Return is handled");
+        Check(view->ShouldTranslateCharacter(outerReceipt), "distinct outer receipt retains its own Return permission");
+        // The nested Space has its own key event and receipt; it remains usable independently of the outer event.
+        Check(view->ShouldTranslateCharacter(nestedReceipt), "distinct nested receipt preserves its own permission");
+        Check(view->DispatchCharacter(L' ', 0u, nestedReceipt) && field->GetText() == L"separate ",
+              "distinct nested receipt dispatches its associated character");
+        Check(view->DispatchCharacter(L'\r', 0u, outerReceipt) && field->GetText() == L"separate \n",
+              "distinct outer receipt dispatches its own character once");
+    }
+
+    // Per-view counters can coincide, so receipt issuance also validates the producing EmbeddedHost and ControlHost.
+    {
+        auto outerView = makeView();
+        auto innerView = makeView();
+        DxUi::EmbeddedKeyDispatchReceipt sharedReceipt;
+        struct CrossViewField final : DxUi::TextField
+        {
+            CrossViewField(DxUi::EmbeddedHost& other, DxUi::EmbeddedKeyDispatchReceipt& receipt) : other(other), receipt(receipt)
+            {
+                SetMultiline(true);
+                SetText(L"outer");
+            }
+            bool OnKeyDown(DxUi::ControlHost& host, UINT key, UINT modifiers) override
+            {
+                if (key == VK_RETURN)
+                {
+                    const bool handled = TextField::OnKeyDown(host, key, modifiers);
+                    static_cast<void>(other.DispatchKey(VK_SPACE, true, modifiers, receipt));
+                    return handled;
+                }
+                return TextField::OnKeyDown(host, key, modifiers);
+            }
+            DxUi::EmbeddedHost& other;
+            DxUi::EmbeddedKeyDispatchReceipt& receipt;
+        };
+        auto outerRoot   = std::make_unique<DxUi::Panel>();
+        auto* outerField = outerRoot->AddChild<CrossViewField>(*innerView, sharedReceipt);
+        outerView->Controls().SetRoot(std::move(outerRoot));
+        auto innerRoot   = std::make_unique<DxUi::TextField>(L"inner");
+        auto* innerField = innerRoot.get();
+        innerView->Controls().SetRoot(std::move(innerRoot));
+        Hr(outerView->Prepare(480, 240), "prepare cross-view outer route");
+        Hr(innerView->Prepare(480, 240), "prepare cross-view inner route");
+        outerView->Controls().SetFocusControl(outerField);
+        innerView->Controls().SetFocusControl(innerField);
+        Check(outerView->DispatchKey(VK_RETURN, true, 0u, sharedReceipt), "outer host grants Return during cross-view callback");
+        Check(! outerView->ShouldTranslateCharacter(sharedReceipt), "equal per-view sequences cannot authorize a foreign nested receipt");
+        Check(! innerView->ShouldTranslateCharacter(sharedReceipt), "cross-view overlap invalidates the nested view's translation permission too");
+        Check(! outerView->DispatchCharacter(L'\r', 0u, sharedReceipt), "outer host rejects the overwritten foreign receipt");
+        Check(! innerView->DispatchCharacter(L' ', 0u, sharedReceipt), "nested host rejects delayed delivery after cross-view overlap");
+        Check(outerField->GetText() == L"outer" && innerField->GetText() == L"inner", "cross-view overlap leaves both sources unchanged");
+    }
 }

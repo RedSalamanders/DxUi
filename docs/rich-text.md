@@ -1,5 +1,96 @@
 # Unicode rich text
 
+## Editor presentation
+
+`RichTextEditor::SetAppearance` owns the editor's frame and text viewport. Keep
+the default options for the existing input frame, or set `drawBorder=false` and
+`blendWithWindowBackground=true` for a document surface. A positive
+`maximumTextWidthDip` centers and bounds the text column; `paddingDip=-1` retains
+the 8 DIP inset (6 when compact). Explicit body/code font families and sizes,
+line-height multiplier, heading scale and per-level `headingFontSizeDip` /
+`headingLineHeightMultiplier` arrays belong to the same prepared geometry,
+including caret, hit-testing and UI Automation. Zero font sizes and line height
+inherit the existing host/native defaults. Invalid options fail atomically.
+
+`paragraphSpacingAfterLines` and `listItemSpacingDip` are optional semantic
+spacing values, also available on pure `LayoutOptions`. With both unset, the
+legacy 8-DIP gap after every native semantic box is unchanged. Setting either
+engages minimum-gap spacing: an unset paragraph value means an 8-DIP minimum,
+and real intervening blank-source caret lines contribute their full line-box heights
+to the gap instead of adding a second margin. Set `paragraphSpacingAfterLines=1`
+and `listItemSpacingDip=10` for one nominal body line after paragraphs and 10 DIP
+between list items. Values accept finite 0..4 lines / 0..256 DIP; zero is an
+explicit zero minimum. One separator line occupies the paragraph margin; two
+real separator lines still occupy two lines. Leading, trailing, empty/container
+and equal-ACP table caret sites retain their source identity and navigation.
+Nested item entry and following siblings use the item minimum; continuation
+paragraphs in one item use the paragraph minimum. Loose-list separator lines
+contribute to the item minimum. Table row padding is unchanged. Source/v0 line
+placement is unaffected. Both values belong to geometry reuse identity, and
+changing them never edits source, selection or history.
+
+These are gaps between complete content frames. Native caret rectangles use
+DirectWrite hit-test extents, which may be inset and shorter than the line
+advance. Compare full frames or equal-font caret-top advances when measuring
+spacing; public semantic element bounds are clipped to the text viewport.
+
+A nominal body line uses the configured body size and explicit line-height
+multiplier, excluding enlarged headings and inline objects. If line height is
+native, preparation measures one empty native body layout, counted against the
+cooperative SDK budget. No measurement, traversal or allocation runs during
+composition or caret queries. The gallery's document-presentation tile opts in.
+
+`SetLinkUnderlinePolicy(RichTextLinkUnderlinePolicy::HoverOrCaret)` opts into
+underlines on the whole link while its visible glyphs are hovered or its source
+contains the focused caret. `Always` is the default. Explicit `<u>` style and
+high contrast keep persistent underlines. `useAccentLinkColor=true` opts into
+the theme accent ink. This presentation changes neither destinations nor link
+activation policy; ordinary links remain inert. Source mode keeps raw syntax.
+
+Temporary link and source-ink decoration follows the shared
+[transient raster contract](../Specs/Core/Core_PerformanceAndResources.md#transient-raster-decoration).
+
+`SetSourceHighlights` accepts bounded source ranges with an optional `current`
+marker. These paint below selection and never alter source, selection or history;
+source edits clear them so a search owner can recompute current results.
+`SetFocusModeEnabled(true)` draws inactive paragraphs with subdued text while the
+caret paragraph stays normal, including the final source insertion. Selection
+remains fully legible; source mode and high contrast disable dimming. These options work in both hosting modes and create no timer,
+worker, native editor window or consumer-owned rendering workaround.
+
+Use `SetOnSelectionChanged` for formatting state, selected-text actions and
+position status. It includes native text/TSF, UIA and programmatic routes. During
+pointer selection, `IsSelectionGestureActive()` lets the callback hide a transient
+toolbar and return immediately. Release/capture cancellation publishes final
+inactive state even when the endpoints are unchanged. Notification deduplication
+includes source revision, endpoints and gesture state: changed non-notifying
+text-service previews and cancellation are observable even at unchanged ACPs,
+while an identical source/selection reimport is silent. Registration is silent.
+The callback may replace itself, change selection or retire the editor safely.
+These notifications do not create committed-text or history events.
+
+When both text and selection callbacks are registered, a committed edit first
+synchronizes native input, invokes `SetOnTextChanged` for the committed source,
+then publishes the current selection. Nested source edits, rebind, detach or
+retirement supersede the outer selection event. A text callback may clear or
+replace its own registration without suppressing that surviving selection event.
+
+`colorizeMarkdownSource=true` adds source ink from the configured Markdown
+analysis profile in Source view: subdued syntax delimiters, accent heading/list
+markers and link-colored exact source destinations. Configure analysis with
+`SetMarkdownAnalysisProfile` first. Geometry, source UTF-16 offsets, native text
+services, selection and history are unchanged. Preparation publishes complete
+disjoint ranges; drawing never parses. High contrast uses the ordinary text
+pair. The 65,536-event presentation bound falls back to the complete uncolored
+source view rather than publishing partial syntax or repeatedly retrying it.
+List marker ink uses the parser's exact source token range, so nested, ordered,
+quoted and task-list prefixes stay aligned with their original UTF-16 offsets.
+Each owner preparation advance uses at most 256 work steps shared across block
+markers, inline delimiter runs, link-label children, raw destination scans,
+incremental event ordering and range publication. Long scans and bottom-up merge
+passes resume on later advances; ranges remain hidden until the complete set is
+ready.
+
 The additive v0 API lives in `DxUi::RichText` and links through the single
 `DxUi.lib`. Include `DxUi/RichDocument.h`, `DxUi/RichMarkdown.h` and
 `DxUi/RichTextLayout.h`. The catalog also contains the retained
@@ -138,15 +229,17 @@ host.SetRoot(std::move(root)); // ControlHost, or embedded.Controls()
 
 All mutable operations belong to the host/UI owner thread. Source UTF-16
 anchor/caret offsets include Markdown delimiters; invalid scalar/CRLF boundaries
-throw without mutation. `SetText` silently resets history; `SetSelection`
-and `SetViewMode(Source/Rich)` are silent and preserve source bytes.
-`ReplaceSelection`, `ToggleFormatting`, `Undo` and `Redo` notify once
-per actual source change. The four supported v0 formatting markers are described
-below. Read-only/disabled controls reject source commands; read-only allows
-selection and copy. `SetOnTextChanged` runs after publication and may replace/
-destroy the sender; standard exceptions are contained and do not roll back its
-committed edit. A scheduling callback that retires, rebinds or supersedes the
-editor stops the old notification.
+throw without mutation. `SetText` resets history without invoking the committed-
+text callback. `SetSelection` and `SetViewMode(Source/Rich)` preserve source bytes
+and do not invoke that text callback; installed selection observers follow the
+source-revision, selection and gesture publication contract above.
+`ReplaceSelection`, `ToggleFormatting`, `Undo` and `Redo` invoke the text callback
+once per actual committed source change. The four supported v0 formatting markers
+are described below. Read-only/disabled controls reject source commands; read-only
+allows selection and copy. `SetOnTextChanged` runs after publication and may replace
+or destroy the sender. `std::bad_alloc` is fatal; other standard exceptions are
+contained and do not roll back the committed edit. A scheduling callback that
+retires, rebinds or supersedes the editor stops the old notification.
 
 The preview implements pointer selection/word selection, Shift extension, host
 capture and cancellation, logical DirectWrite cluster navigation, word navigation,
@@ -209,8 +302,10 @@ native/embedded pixels, clipboard-to-worker decoding, source/history preservatio
 and UIA alternatives/bounds. All six build profiles pass, including ARM64 cross-builds. Final native-platform/resource qualification remains
 open in M5g; this prototype does not close the D4c performance hold.
 
-Applications call `TakePendingImageRequests` after owner preparation, authorize
-each absolute file path and run `RichImage::LoadFile` in their own worker service.
+Applications call `TakePendingImageRequests` after owner preparation, inspect
+`SourceKind()`, authorize each source and use their own worker service.
+`LocalFile` requests expose the absolute path through `Source()` and `FilePath()`;
+run `RichImage::LoadFile` for those requests.
 The caller initializes COM and supplies its WIC factory. It marshals the result
 back to the owner and calls `CompleteImageRequest`; a null result preserves the
 alternative. Source/base/binding/visibility changes cancel tokens and reject stale
@@ -228,8 +323,20 @@ placements/sources, rather than every image token or a cumulative error count.
 
 The raster profile is built-in PNG, JPEG, BMP, GIF and TIFF, with one static first
 frame. GIF respects its logical canvas/offsets/background/transparency; JPEG/TIFF
-EXIF orientation is applied to the pixels. HTTP/data URIs, SVG and unavailable
-formats keep their alternative. The source parser still preserves every original
+EXIF orientation is applied to the pixels. Remote images are disabled by default;
+call `SetRemoteImagesEnabled(true)` only after the application authorizes network
+loading. Absolute HTTP(S) destinations then produce `RemoteHttp` requests with
+the URL in `Source()` and an empty `FilePath()`. The application fetches bounded
+encoded bytes on its worker and calls the existing `RichImage::Decode`; DxUi
+does no HTTP, DNS, proxy lookup, authentication, cookie storage or cache I/O.
+URLs are bounded to 8,192 UTF-16 units and accept ASCII DNS/punycode or bracketed
+IPv6 authorities; credentials, fragments, control characters and malformed
+percent escapes are refused. Path/query case remains exact. Toggling the policy
+off immediately cancels remote jobs and evicts their pixels while preserving
+local jobs, local completions, source, selection and history. A later opt-in
+creates new remote identities. The sample loader remains local-file-only; a
+consumer must provide its own explicit remote transport and failure policy.
+Data URIs, SVG and unavailable formats keep their alternative. The source parser still preserves every original
 destination. Limits are 16 MiB encoded, 4096 pixels per side, 4,194,304 decoded
 pixels, 32 unique sources, 128 native placements shared with diagrams and 64 MiB
 of unique retained CPU pixels. Shared images also share prepared GPU bitmaps.
@@ -930,7 +1037,8 @@ can be ready before native geometry; neither getter advances preparation.
 The preview displays resolved Unicode values, styles, headings, quote/list
 indentation, rules, code/image outlines and equal-width table cells with declared
 alignment and RTL columns. Images show their alternative; destinations remain
-inert. Links are underlined in inherited theme text ink. Validated native HTML
+inert. By default, links are underlined in inherited theme text ink; the public
+presentation options above own opt-in accent ink and conditional cues. Validated native HTML
 uses the policy below. Selection, composition rectangles and scrolling
 use mapped source fragments. Text services and UIA still expose exact source
 ACPs, including hidden Markdown and original line endings.

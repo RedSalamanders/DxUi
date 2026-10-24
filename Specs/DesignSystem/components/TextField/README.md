@@ -2,7 +2,7 @@
 
 Single- or multi-line editable text with IME, selection and clipboard support.
 
-- **Consumer supplies**: text and editing options; `SetOnTextChanged`, `SetOnSubmitted`, `SetOnBlur`. Full IME/native text needs the host bridge.
+- **Consumer supplies**: text and editing options; `SetOnTextChanged`, `SetOnSubmitted`, `SetOnBlur`. `SetFontRole` selects a shared host typography role (Body by default); use `Monospace` for source or equation entry. Measurement, paint, caret/hit-test geometry and text services use that same role. Full IME/native text needs the host bridge.
 - **Metrics**: padding 8 left/right, 4 top/bottom; `radius-sm`; clear (U+E711) and reveal (U+E7B3) buttons 30 DIP wide; caret blink 530 ms.
 - **Colors**: `inputFill` with `inputBorder`; hover blends the border 24% (light) / 32% (dark) toward `focusStroke`; focus paints `focusStroke`.
 

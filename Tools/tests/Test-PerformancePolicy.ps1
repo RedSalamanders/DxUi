@@ -9,6 +9,101 @@ function Invoke-FixtureGit([string] $Root, [string[]] $Arguments) {
     if ($LASTEXITCODE -ne 0) { throw "git $($Arguments -join ' ') failed" }
 }
 
+Invoke-TestCase 'the actual benchmark call extends only native argv and preserves gates and failures' {
+    $tokens=$null; $errors=$null
+    $ast = [Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot '../../performance.ps1'),[ref]$tokens,[ref]$errors)
+    Assert-Equal 0 $errors.Count 'the performance entrypoint parses'
+    $before = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.AssignmentStatementAst] -and $Node.Left.Extent.Text -ceq '$before' },$true)
+    $gate = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.CommandAst] -and $Node.GetCommandName() -ceq 'Assert-PerformanceBuildAttestation' -and $Node.Extent.Text.Contains('-State $before') },$true)
+    $nativeTry = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.TryStatementAst] -and $Node.Body.Extent.Text.Contains('& $exe $benchmarkArgument') -and -not $Node.Body.Extent.Text.Contains('$benchmarkArgument = switch') },$true)
+    Assert-True ($null -ne $before -and $null -ne $gate -and $null -ne $nativeTry) 'extract the actual before gate and complete native try/catch'
+    # Execute production statements, including the conversion, native call, exit check and after gates. The
+    # scriptblock sentinel observes argv without opening files, running native code or evaluating real identity.
+    $stage = [scriptblock]::Create(@'
+param($OutputPath,$Probe,$exe)
+$Platform='x64'; $Configuration='Release'; $Scenario='Default'; $benchmarkArgument='--benchmark'
+function Get-PerformanceMeasurementState {
+    param($Root,$Platform,$Configuration)
+    $Probe.states++; $Probe.events.Add("state-$($Probe.states)")
+    return @{ ordinal=$Probe.states }
+}
+function Assert-PerformanceBuildAttestation {
+    param($Root,$Platform,$Configuration,$State)
+    $Probe.events.Add("attest-$($State.ordinal)")
+    if ($Probe.failBefore -and $State.ordinal -eq 1) { throw 'fixture-before-gate' }
+}
+function Assert-PerformanceMeasurementState {
+    param($Before,$After)
+    $Probe.events.Add('compare')
+    if ($Probe.failAfter) { throw 'fixture-after-gate' }
+}
+function Test-Path {
+    param($LiteralPath,$PathType)
+    $Probe.paths.Add($LiteralPath); $Probe.events.Add('exists')
+    return $Probe.outputExists
+}
+function Move-Item {
+    param($LiteralPath,$Destination)
+    $Probe.invalidated.Add($LiteralPath)
+}
+'@ + "`n" + $before.Extent.Text + "`n" + $gate.Extent.Text + "`n" + $nativeTry.Extent.Text)
+    $native = {
+        param($Flag,$Path)
+        $Probe.events.Add('native'); $Probe.arguments.Add($Flag); $Probe.arguments.Add($Path)
+        if ($Probe.nativeThrows) { throw 'fixture-native-exception' }
+        $global:LASTEXITCODE=$Probe.exitCode
+        'fixture-native-output'
+    }
+    $drive = 'C:\fixture space\' + ('long Unicode β\' * 24) + 'receipt.json'
+    $unc = '\\fixture.invalid\share space\' + ('long Unicode β\' * 24) + 'receipt.json'
+    Assert-True ($drive.Length -gt 260 -and $unc.Length -gt 260) 'long drive and UNC fixture paths exceed MAX_PATH'
+    $cases = @(
+        @($drive, ('\\?\' + $drive)),
+        @($unc, ('\\?\UNC\' + $unc.Substring(2))),
+        @('\\?\C:\fixture space\β.json', '\\?\C:\fixture space\β.json'),
+        @('\\?\UNC\fixture.invalid\share space\β.json', '\\?\UNC\fixture.invalid\share space\β.json'),
+        @('C:\fixture\short.json', '\\?\C:\fixture\short.json')
+    )
+    foreach ($case in $cases) {
+        $probe = @{ states=0; events=[Collections.Generic.List[string]]::new(); arguments=[Collections.Generic.List[string]]::new();
+            paths=[Collections.Generic.List[string]]::new(); invalidated=[Collections.Generic.List[string]]::new();
+            failBefore=$false; failAfter=$false; nativeThrows=$false; exitCode=0; outputExists=$true }
+        $logical = $case[0]
+        $output = @(& $stage $logical $probe $native)
+        Assert-Equal '--benchmark' $probe.arguments[0] 'benchmark selection is unchanged'
+        Assert-Equal $case[1] $probe.arguments[1] 'actual native call receives the extended spelling exactly once'
+        Assert-Equal $logical $probe.paths[0] 'output existence checks retain the logical evidence path'
+        Assert-Equal $case[0] $logical 'the caller logical path remains unchanged'
+        Assert-Equal 'state-1,attest-1,native,exists,state-2,compare,attest-2' ($probe.events -join ',') 'native work remains between both real extracted gates'
+        Assert-Equal 1 $output.Count 'conversion and gates add no success-stream output'
+        Assert-Equal 'fixture-native-output' $output[0] 'native success output is preserved'
+        Assert-Equal 0 $probe.invalidated.Count 'successful output is never invalidated'
+    }
+    foreach ($failure in @('before','exit','exception','missing','after')) {
+        $probe = @{ states=0; events=[Collections.Generic.List[string]]::new(); arguments=[Collections.Generic.List[string]]::new();
+            paths=[Collections.Generic.List[string]]::new(); invalidated=[Collections.Generic.List[string]]::new();
+            failBefore=($failure -eq 'before'); failAfter=($failure -eq 'after'); nativeThrows=($failure -eq 'exception');
+            exitCode=$(if ($failure -eq 'exit') { 7 } else { 0 }); outputExists=($failure -ne 'missing') }
+        $caught=$null
+        try { $null = & $stage $drive $probe $native } catch { $caught=$_ }
+        Assert-True ($null -ne $caught) "production failure propagates: $failure"
+        if ($failure -eq 'before') {
+            Assert-Equal 'fixture-before-gate' $caught.Exception.Message 'before-gate exception remains exact'
+            Assert-Equal 0 $probe.arguments.Count 'invalid identity starts no native operation'
+        } else {
+            Assert-Equal ('\\?\' + $drive) $probe.arguments[1] 'failure paths use the same native transport'
+            Assert-Equal 0 @($probe.paths | Where-Object { $_ -cne $drive }).Count 'failure evidence checks use only the logical path'
+            if ($failure -eq 'exit') { Assert-True $caught.Exception.Message.Contains('exit code 7') 'native exit status is preserved' }
+            if ($failure -eq 'exception') { Assert-Equal 'fixture-native-exception' $caught.Exception.Message 'native exception is preserved' }
+            if ($failure -eq 'missing') { Assert-True $caught.Exception.Message.Contains('wrote no receipt') 'missing output remains a failure' }
+            if ($failure -eq 'after') { Assert-Equal 'fixture-after-gate' $caught.Exception.Message 'after-gate exception is preserved' }
+            Assert-Equal $(if ($failure -eq 'after') { 2 } else { 1 }) $probe.states 'failed native/output work cannot reach after-state evaluation'
+            Assert-Equal $(if ($failure -eq 'missing') { 0 } else { 1 }) $probe.invalidated.Count 'existing invalid samples retain the production invalidation path'
+            if ($probe.invalidated.Count) { Assert-Equal $drive $probe.invalidated[0] 'invalidation keeps the logical output path' }
+        }
+    }
+}
+
 Invoke-FixtureCase 'only an independently qualified policy present in the measured base is trusted' {
     param($root)
     Invoke-FixtureGit $root @('init','-q','-b','main')
@@ -975,24 +1070,215 @@ Invoke-FixtureCase 'default build entrypoint rebuilds stale inputs and preserves
     $arguments = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.AssignmentStatementAst] -and $Node.Left.Extent.Text -ceq '$arguments' }, $true)
     # Execute the actual pre-MSBuild entrypoint stage with real v2 attestation logic. No native build is invoked;
     # only its import is suppressed because the test already imported the production module and supplies a VS fixture.
-    $stage = [scriptblock]::Create('param($PSScriptRoot,$Platform,$Configuration,$attestPerformanceBuild,$Rebuild)' + "`n" +
+    $stageText = 'param($Platform,$Configuration,$attestPerformanceBuild,$Rebuild)' + "`n" +
         "function Import-Module { param(`$Name, [switch]`$Force) }`n" + $initial.Extent.Text + "`n" + $guard.Extent.Text + "`n" +
         '$log="fixture.log"; $output=(Join-Path $PSScriptRoot ''.build'')' + "`n" + $arguments.Extent.Text + "`n" +
-        '[ordered]@{ arguments=$arguments; state=$(if ($attestPerformanceBuild) { $performanceBuildBefore } else { $null }) }')
+        '[ordered]@{ arguments=$arguments; state=$(if ($attestPerformanceBuild) { $performanceBuildBefore } else { $null }) }'
+    # File-backed nested blocks retain the production automatic PSScriptRoot; ScriptBlock.Create has none.
+    Set-FixtureFile $root 'build-entrypoint-stage.ps1' $stageText
+    $stage = Join-Path $root 'build-entrypoint-stage.ps1'
     Invoke-PerformanceBuildFixture $root {
         param($fixture)
         foreach ($case in @(@($true,$false,'/t:Rebuild'), @($true,$false,'/t:Build'), @($true,$true,'/t:Rebuild'), @($false,$false,'/t:Build'))) {
-            $result = & $stage $fixture x64 Release $case[0] $case[1] 6>$null
+            $result = & $stage x64 Release $case[0] $case[1] 6>$null
             Assert-Contains $result.arguments $case[2] 'the actual native invocation receives the required build target'
             if ($case[0]) { Complete-PerformanceBuildAttestation -Root $fixture -Platform x64 -Configuration Release -Before $result.state }
         }
         $path = Join-Path $fixture '.build/toolchain/compiler.bin'
         [IO.File]::WriteAllText($path, 'changed compiler bytes')
-        $result = & $stage $fixture x64 Release $true $false 6>$null
+        $result = & $stage x64 Release $true $false 6>$null
         Assert-Contains $result.arguments '/t:Rebuild' 'a stale receipt forces the entrypoint to recompile rather than stamp existing object files'
     }
 }
 
+Invoke-FixtureCase 'the timed production MSBuild stage preserves arguments, diagnostics, failure text and working-directory restoration' {
+    param($root)
+    $tokens=$null; $errors=$null
+    $ast = [Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot '../../build.ps1'),[ref]$tokens,[ref]$errors)
+    Assert-Equal 0 $errors.Count 'the build entrypoint parses'
+    $phase = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.CommandAst] -and
+        $Node.GetCommandName() -eq 'Invoke-DxUiBuildPhase' -and $Node.Extent.Text.StartsWith('Invoke-DxUiBuildPhase -Phase MSBuild ') },$true)
+    Assert-True ($null -ne $phase) 'the production MSBuild invocation is timed as one top-level phase'
+    # Run the actual native-invocation stage with only the compiler and its diagnostic sink replaced by pure
+    # PowerShell fixtures. No native child, build, build receipt or environment discovery runs in this test.
+    $stageText = 'param($Probe,$Code,$Failure)' + "`n" + @'
+$Platform='x64'; $Configuration='Release'; $attestPerformanceBuild=$true
+$arguments=@('fixture.sln','/t:Build','/p:Configuration=Release')
+$msbuild='Invoke-FixtureCompiler'; $log='fixture.log'; $stopwatch=[Diagnostics.Stopwatch]::StartNew()
+function Invoke-FixtureCompiler {
+    param([Parameter(ValueFromRemainingArguments)][string[]] $Values)
+    $Probe.arguments=$Values; $Probe.directory=(Get-Location).Path
+    'first native diagnostic'; 'second native diagnostic'
+    if ($null -ne $Failure) { throw $Failure }
+    $global:LASTEXITCODE=$Code
+}
+function Write-DxUiMSBuildLine { param([string]$Line) $Probe.lines.Add($Line) }
+'@ + "`n" + $phase.Extent.Text
+    Set-FixtureFile $root 'msbuild-invocation-stage.ps1' $stageText
+    $stage = Join-Path $root 'msbuild-invocation-stage.ps1'
+    $originalDirectory = (Get-Location).Path
+    foreach ($code in @(0,7)) {
+        $probe = @{ lines=[Collections.Generic.List[string]]::new() }
+        $caught = $null
+        try { $output = @(& $stage $probe $code $null 6>$null) } catch { $caught = $_.Exception }
+        Assert-Equal 'fixture.sln|/t:Build|/p:Configuration=Release' ($probe.arguments -join '|') 'compiler arguments are passed through unchanged'
+        Assert-Equal $root $probe.directory 'the attested build uses its own startup directory'
+        Assert-Equal $originalDirectory (Get-Location).Path 'the caller working directory is restored on success or nonzero exit'
+        Assert-Equal 'first native diagnostic|second native diagnostic' ($probe.lines -join '|') 'every native diagnostic reaches the existing formatter in order'
+        if ($code -eq 0) {
+            Assert-True ($null -eq $caught) 'successful compilation stays successful'
+            Assert-Equal 0 $output.Count 'timing does not add success output to the native stage'
+        } else {
+            Assert-Equal 'DxUi build failed. Log: fixture.log' $caught.Message 'nonzero exit retains the existing build exception'
+        }
+    }
+    $failure = [InvalidOperationException]::new('fixture compiler invocation failure')
+    $probe = @{ lines=[Collections.Generic.List[string]]::new() }; $caught=$null
+    try { & $stage $probe 0 $failure 6>$null } catch { $caught=$_.Exception }
+    Assert-True ([object]::ReferenceEquals($failure,$caught)) 'a thrown invocation error is not replaced by timing'
+    Assert-Equal $originalDirectory (Get-Location).Path 'the caller working directory is also restored on a thrown invocation'
+}
+
+Invoke-TestCase 'top-level phase records are bounded invariant diagnostics with UTC time' {
+    $culture = [Threading.Thread]::CurrentThread.CurrentCulture
+    try {
+        [Threading.Thread]::CurrentThread.CurrentCulture = [Globalization.CultureInfo]::GetCultureInfo('de-DE')
+        $records = @(& (Get-Module PerformancePolicy) { Write-DxUiBuildPhaseEvent -Phase MSBuild -State END -ElapsedMilliseconds 1.25 } 6>&1)
+        Assert-Equal 1 $records.Count 'one call writes one information record'
+        $match = [regex]::Match([string]$records[0],'^\[DXUI_BUILD_PHASE\] phase=MSBuild state=END utc=(?<utc>\d{4}-\d{2}-\d{2}T[^ ]+Z) elapsedMs=1\.250$')
+        Assert-True $match.Success 'only the fixed phase/state, UTC timestamp and invariant elapsed fields are logged'
+        $stamp = [DateTime]::Parse($match.Groups['utc'].Value,[Globalization.CultureInfo]::InvariantCulture,[Globalization.DateTimeStyles]::RoundtripKind)
+        Assert-Equal ([DateTimeKind]::Utc) $stamp.Kind 'timestamp is explicitly UTC'
+    } finally { [Threading.Thread]::CurrentThread.CurrentCulture=$culture }
+}
+
+Invoke-TestCase 'top-level build timings preserve output, object identity and original failures even if the diagnostic sink fails' {
+    $module = Get-Module PerformancePolicy
+    $original = & $module { (Get-Command Write-DxUiBuildPhaseEvent).ScriptBlock }
+    $events = [Collections.Generic.List[object]]::new()
+    try {
+        & $module {
+            param($Events)
+            $script:BuildPhaseEvents = $Events
+            function script:Write-DxUiBuildPhaseEvent {
+                param($Phase,$State,$ElapsedMilliseconds)
+                $script:BuildPhaseEvents.Add(@{ phase=$Phase; state=$State; elapsed=$ElapsedMilliseconds })
+            }
+        } $events
+        $identity = [ordered]@{ value='unchanged' }
+        $expected = @('first',$identity,'last')
+        $actual = @(Invoke-DxUiBuildPhase -Phase MSBuild -Body { 'first'; $identity; 'last' })
+        Assert-Equal $expected.Count $actual.Count 'no diagnostic success output leaks into the operation result'
+        Assert-Equal 'first' $actual[0] 'output ordering is preserved'
+        Assert-True ([object]::ReferenceEquals($identity,$actual[1])) 'returned dictionary is neither copied nor flattened'
+        Assert-Equal 'last' $actual[2] 'last output is preserved'
+        Assert-Equal 'BEGIN,END' (($events | ForEach-Object { $_.state }) -join ',') 'a successful operation emits one bounded pair'
+        Assert-True ($events[1].elapsed -ge 0) 'elapsed time is nonnegative'
+        $discovery = [ordered]@{ installation='synthetic installation'; msbuild='synthetic MSBuild' }
+        $discoveryOutput = @(Invoke-DxUiBuildPhase -Phase VisualStudioDiscovery -Body { $discovery })
+        Assert-Equal 1 $discoveryOutput.Count 'discovery returns only its one structured result'
+        Assert-True ([object]::ReferenceEquals($discovery,$discoveryOutput[0])) 'discovery preserves its result identity'
+        $events.Clear()
+        $failure = [InvalidOperationException]::new('original phase failure')
+        $caught = $null
+        try { Invoke-DxUiBuildPhase -Phase PreBuildAttestation -Body { throw $failure } } catch { $caught = $_.Exception }
+        Assert-True ([object]::ReferenceEquals($failure,$caught)) 'the original operation exception propagates'
+        Assert-Equal 'BEGIN,FAIL' (($events | ForEach-Object { $_.state }) -join ',') 'a failed operation emits failure rather than END'
+        $partial = [Collections.Generic.List[object]]::new(); $caught=$null
+        try {
+            Invoke-DxUiBuildPhase -Phase MSBuild -Body { 'before failure'; throw $failure } | ForEach-Object { $partial.Add($_) }
+        } catch { $caught=$_.Exception }
+        Assert-Equal 1 $partial.Count 'success output emitted before failure is preserved'
+        Assert-Equal 'before failure' $partial[0] 'partial output retains its value'
+        Assert-True ([object]::ReferenceEquals($failure,$caught)) 'partial output does not replace the original failure'
+        & $module { function script:Write-DxUiBuildPhaseEvent { param($Phase,$State,$ElapsedMilliseconds) throw 'synthetic unavailable diagnostic sink' } }
+        $actual = @(Invoke-DxUiBuildPhase -Phase DependencyAdmission -Body { 'first'; $identity; 'last' })
+        Assert-Equal 3 $actual.Count 'a failed diagnostic sink preserves success output'
+        Assert-True ([object]::ReferenceEquals($identity,$actual[1])) 'a failed sink preserves result identity'
+        $caught = $null
+        try { Invoke-DxUiBuildPhase -Phase PostBuildAttestation -Body { throw $failure } } catch { $caught = $_.Exception }
+        Assert-True ([object]::ReferenceEquals($failure,$caught)) 'a failed sink cannot replace the operation exception'
+        $none = @(Invoke-DxUiBuildPhase -Phase OutputUseChecks -Body {})
+        Assert-Equal 0 $none.Count 'void phases remain void'
+        Assert-Throws { Invoke-DxUiBuildPhase -Phase UnboundedInternalProject -Body {} } 'only fixed top-level phase names are admitted'
+    } finally {
+        & $module { param($Original) Set-Item -LiteralPath 'Function:script:Write-DxUiBuildPhaseEvent' -Value $Original; Remove-Variable -Name BuildPhaseEvents -Scope Script } $original
+    }
+}
+
+Invoke-FixtureCase 'the actual SkipBuild runner gate rejects invalid v2 identity before its first native operation' {
+    param($root)
+    $tokens=$null; $errors=$null
+    $ast = [Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot '../../test.ps1'),[ref]$tokens,[ref]$errors)
+    Assert-Equal 0 $errors.Count 'the native entrypoint parses'
+    $guard = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.IfStatementAst] -and $Node.Extent.Text.StartsWith('if (-not $SkipBuild)') -and $Node.Extent.Text.Contains('Assert-PerformanceBuildAttestation') },$true)
+    Assert-True ($null -ne $guard) 'the entrypoint owns an explicit canonical SkipBuild gate'
+    $native = $ast.FindAll({ param($Node) $Node -is [Management.Automation.Language.CommandAst] -and
+        ($Node.GetCommandName() -in @('Test-DxUiDesktopAvailable','Invoke-DxUiHostedForegroundLease','Invoke-DxUiInteractiveLease','Start-TestRunEvidence') -or
+         $Node.Extent.Text -match '^& \$(leaseExecutable|controlExecutable|executable|exe|probe)\b' -or
+         $Node.Extent.Text -match 'Tools/tests/Test-(TestFilter|TestWatchdog|InteractiveLease)\.ps1') },$true)
+    Assert-True ($native.Count -gt 0) 'the entrypoint has real native operations after the gate'
+    foreach ($command in $native) { Assert-True ($guard.Extent.EndOffset -le $command.Extent.StartOffset) 'native preflight/self-checks cannot precede the gate' }
+    # Execute the production gate, suppressing only its already-loaded module import. The sentinel represents the
+    # next native operation; real source/dependency/output bytes and v2 receipts use the existing build fixture.
+    $stageText = 'param($Sentinel)' + "`n" +
+        '$Platform="x64"; $Configuration="Release"; $SkipBuild=$true' + "`n" +
+        'function Import-Module { param($Name,[switch]$Force) }' + "`n" + $guard.Extent.Text + "`n" +
+        '$Sentinel.nativeCalls++; "native operation reached"'
+    Set-FixtureFile $root 'skip-build-gate-stage.ps1' $stageText
+    $stage = Join-Path $root 'skip-build-gate-stage.ps1'
+    Invoke-PerformanceBuildFixture $root {
+        param($fixture)
+        $sentinel = @{ nativeCalls=0 }
+        Assert-Throws { & $stage $sentinel 6>$null } 'missing attestation must refuse before native work'
+        Assert-Equal 0 $sentinel.nativeCalls 'missing receipt starts no native operation'
+        Set-FixtureFile $fixture '.build/x64/Release/DxUi.EmbeddedTests.pdb' 'synthetic debug-symbol identity'
+        $beforeOutput = @(Invoke-DxUiBuildPhase -Phase PreBuildAttestation -Body {
+            Start-PerformanceBuildAttestation -Root $fixture -Platform x64 -Configuration Release
+        } 6>$null)
+        Assert-Equal 1 $beforeOutput.Count 'the timed pre-build stage returns only its one attestation state'
+        Assert-True ($beforeOutput[0] -is [Collections.IDictionary]) 'the attestation state retains its dictionary type'
+        $before = $beforeOutput[0]
+        $afterOutput = @(Invoke-DxUiBuildPhase -Phase PostBuildAttestation -Body {
+            Complete-PerformanceBuildAttestation -Root $fixture -Platform x64 -Configuration Release -Before $before
+        } 6>$null)
+        Assert-Equal 0 $afterOutput.Count 'the real post-build attestation remains void'
+        $gateOutput = @(Invoke-DxUiBuildPhase -Phase SkipBuildGate -Body {
+            Assert-PerformanceBuildAttestation -Root $fixture -Platform x64 -Configuration Release
+        } 6>$null)
+        Assert-Equal 0 $gateOutput.Count 'the real successful SkipBuild gate remains void'
+        $output = @(& $stage $sentinel 6>$null)
+        Assert-Equal 1 $sentinel.nativeCalls 'a current v2 receipt admits exactly the next operation'
+        Assert-Equal 'native operation reached' $output[0] 'diagnostics do not pollute gate output'
+        $receipt = & (Get-Module PerformancePolicy) { param($Root) Get-PerformanceBuildAttestationPath $Root x64 Release } $fixture
+        $receiptBytes = [IO.File]::ReadAllBytes($receipt)
+        foreach ($invalid in @('{', '{}', '{"buildIdentityVersion":1}')) {
+            [IO.File]::WriteAllText($receipt,$invalid)
+            Assert-Throws { & $stage $sentinel 6>$null } 'malformed, incomplete and old receipts fail early'
+            Assert-Equal 1 $sentinel.nativeCalls 'invalid receipt starts no further native operation'
+        }
+        [IO.File]::WriteAllBytes($receipt,$receiptBytes)
+        foreach ($relative in @('src/Control.cpp','.build/toolchain/compiler.bin','.build/toolchain/resolved-project.json',
+                '.build/vcpkg_installed/x64/x64-windows/include/wil/resource.h','.build/x64/Release/DxUi.EmbeddedTests.exe',
+                '.build/x64/Release/DxUi.EmbeddedTests.pdb','.build/x64/Release/DxUi.lib','.build/x64/Release/runtime.dll')) {
+            $path = Join-Path $fixture $relative
+            $bytes = [IO.File]::ReadAllBytes($path)
+            [IO.File]::AppendAllText($path,' changed after official build')
+            try {
+                Assert-Throws { & $stage $sentinel 6>$null } "stale identity fails early: $relative"
+                Assert-Equal 1 $sentinel.nativeCalls 'stale receipt starts no further native operation'
+            } finally { [IO.File]::WriteAllBytes($path,$bytes) }
+        }
+        $null = & $stage $sentinel 6>$null
+        Assert-Equal 2 $sentinel.nativeCalls 'exact restoration of fixture bytes permits the current receipt again'
+        $revoked = Start-PerformanceBuildAttestation -Root $fixture -Platform x64 -Configuration Release
+        Assert-Throws { & $stage $sentinel 6>$null } 'an unfinished build revokes prior admission even with identical artifacts'
+        Assert-Equal 2 $sentinel.nativeCalls 'a revoked receipt starts no further native operation'
+        Complete-PerformanceBuildAttestation -Root $fixture -Platform x64 -Configuration Release -Before $revoked
+        $null = & $stage $sentinel 6>$null
+        Assert-Equal 3 $sentinel.nativeCalls 'only a completed current attestation admits execution again'
+    }
+}
 Invoke-FixtureCase 'incremental reuse binds the full intermediate inventory while SkipBuild remains final-output only' {
     param($root)
     Invoke-PerformanceBuildFixture $root {

@@ -5,6 +5,7 @@ MultilineGridHeap adds process-local heap walks outside timed rounds for attribu
 MultilineGridHeapPaced additionally targets 50 retention frames/second to distinguish frame-count retention from wall-clock cleanup effects.
 MultilineGridDistinct gives every grid cell its own French multiline text, so a layout cache must hold one layout per visible cell.
 .PARAMETER SkipBuild Reuse only a successful v2 default-output build attested against its complete per-side compiled projects, resolved compiler/shader/link profiles and actual artifacts. Older attestations require a fresh build. Every measurement verifies its complete identity before and after native execution.
+.PARAMETER OutputPath Logical receipt path retained for evidence reads and diagnostics; the native Windows argument uses an extended-length spelling when needed.
 #>
 [CmdletBinding()]
 param(
@@ -54,7 +55,11 @@ try {
     $before = Get-PerformanceMeasurementState -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration
     Assert-PerformanceBuildAttestation -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration -State $before
     try {
-        & $exe $benchmarkArgument $OutputPath
+        # Keep the logical evidence path; only the Windows native argument needs the extended-length spelling.
+        $nativeOutputPath = if ($OutputPath.StartsWith('\\?\', [StringComparison]::Ordinal)) { $OutputPath }
+            elseif ($OutputPath.StartsWith('\\', [StringComparison]::Ordinal)) { '\\?\UNC\' + $OutputPath.Substring(2) }
+            else { '\\?\' + $OutputPath }
+        & $exe $benchmarkArgument $nativeOutputPath
         if ($LASTEXITCODE -ne 0) { throw "Complex-UI benchmark failed with exit code $LASTEXITCODE. Executable: $exe" }
         if (-not (Test-Path -LiteralPath $OutputPath -PathType Leaf)) { throw "The benchmark wrote no receipt for scenario ${Scenario}: $OutputPath. Executable: $exe" }
         $completedUtc = [DateTime]::UtcNow.ToString('o')

@@ -307,10 +307,38 @@ GridProgressVisualStyle ResolveGridProgressVisualStyle(const ThemePalette& theme
     return style;
 }
 
-ButtonVisualStyle ResolveButtonVisualStyle(
-    const ThemePalette& theme, bool enabled, bool hovered, bool pressed, bool focused, bool keyboardFocused, bool primary) noexcept
+ButtonVisualStyle ResolveButtonAppearanceVisualStyle(const ThemePalette& theme,
+                                                     ButtonVisualStyle style,
+                                                     ButtonAppearance appearance,
+                                                     bool enabled,
+                                                     bool pressed,
+                                                     bool primary,
+                                                     bool checked,
+                                                     float hoverStrength) noexcept
 {
-    return ResolveButtonVisualStyle(theme, enabled, hovered, pressed, focused, keyboardFocused, primary, hovered ? 1.0f : 0.0f, focused ? 1.0f : 0.0f);
+    // Opt-in presentation never dilutes the system contrast pair or a primary action.
+    if (appearance == ButtonAppearance::Filled || primary || theme.highContrast)
+        return style;
+    const bool selected = checked && appearance != ButtonAppearance::Tab;
+    style.text          = ! enabled                                          ? theme.disabledText
+                          : selected                                         ? theme.selectionText
+                          : appearance == ButtonAppearance::Tab && ! checked ? theme.subduedText
+                                                                             : theme.text;
+    style.fill          = selected && enabled ? theme.selectionFill : pressed && enabled ? theme.buttonPressedFill : theme.buttonHotFill;
+    if (! selected && ! pressed)
+        style.fill.a *= enabled ? ClampUnit(hoverStrength) : 0.0f;
+    if (! enabled)
+        style.fill.a = 0.0f;
+    style.border                 = theme.buttonBorder;
+    style.showBorder             = appearance == ButtonAppearance::Outline;
+    style.showSelectionUnderline = enabled && checked && appearance == ButtonAppearance::Tab;
+    return style;
+}
+
+ButtonVisualStyle ResolveButtonVisualStyle(
+    const ThemePalette& theme, bool enabled, bool hovered, bool pressed, bool focused, bool keyboardFocused, bool primary, bool toggled) noexcept
+{
+    return ResolveButtonVisualStyle(theme, enabled, hovered, pressed, focused, keyboardFocused, primary, hovered ? 1.0f : 0.0f, focused ? 1.0f : 0.0f, toggled);
 }
 
 LabelVisualStyle ResolveLabelVisualStyle(const ThemePalette& theme, const std::optional<D2D1_COLOR_F>& textColorOverride) noexcept
@@ -328,7 +356,8 @@ ButtonVisualStyle ResolveButtonVisualStyle(const ThemePalette& theme,
                                            bool keyboardFocused,
                                            bool primary,
                                            float hoverStrength,
-                                           float focusStrength) noexcept
+                                           float focusStrength,
+                                           bool toggled) noexcept
 {
     ButtonVisualStyle style{};
     const float hoverAmount    = ClampUnit(hoverStrength);
@@ -355,8 +384,66 @@ ButtonVisualStyle ResolveButtonVisualStyle(const ThemePalette& theme,
         return style;
     }
 
+    if (toggled && ! primary)
+    {
+        style.fill       = enabled ? theme.selectionFill : theme.buttonFill;
+        style.text       = enabled ? theme.selectionText : theme.disabledText;
+        style.border     = theme.highContrast ? theme.border : theme.buttonBorder;
+        style.focus      = theme.highContrast ? theme.focusStroke : BlendColor(style.fill, theme.focusStroke, theme.dark ? 0.44f : 0.34f);
+        style.showBorder = theme.highContrast || hoverAmount > 0.0f || focusAmount > 0.0f;
+        style.showFocus  = enabled && focusAmount > 0.0f;
+        if (style.showFocus && ! theme.highContrast)
+            style.focus = ScaleAlpha(style.focus, focusAmount);
+        if (enabled && pressed)
+        {
+            style.textOffsetXDip = 1.0f;
+            style.textOffsetYDip = 1.0f;
+        }
+        return style;
+    }
+
     if (primary)
     {
+        if (theme.primaryButtonFill.has_value() || theme.primaryButtonText.has_value())
+        {
+            const D2D1_COLOR_F legacyIdleFill    = BlendColor(theme.buttonFill, theme.selectionFill, theme.dark ? (110.0f / 255.0f) : (90.0f / 255.0f));
+            const D2D1_COLOR_F legacyHoverFill   = BlendColor(legacyIdleFill, theme.selectionText, theme.dark ? (18.0f / 255.0f) : (12.0f / 255.0f));
+            const D2D1_COLOR_F legacyPressedFill = BlendColor(legacyIdleFill, theme.selectionText, theme.dark ? (24.0f / 255.0f) : (16.0f / 255.0f));
+            const D2D1_COLOR_F baseFill          = theme.primaryButtonFill.value_or(legacyIdleFill);
+            const float hoverDarken              = theme.dark ? 0.08f : 0.10f;
+            const float pressedDarken            = theme.dark ? 0.14f : 0.18f;
+            const D2D1_COLOR_F hoverFill =
+                theme.primaryButtonFill.has_value() ? BlendColor(baseFill, D2D1::ColorF(0.0f, 0.0f, 0.0f, 1.0f), hoverDarken) : legacyHoverFill;
+            const D2D1_COLOR_F pressedFill =
+                theme.primaryButtonFill.has_value() ? BlendColor(baseFill, D2D1::ColorF(0.0f, 0.0f, 0.0f, 1.0f), pressedDarken) : legacyPressedFill;
+            style.fill  = enabled ? (pressed ? pressedFill : BlendColor(baseFill, hoverFill, hoverAmount))
+                                  : BlendColor(theme.windowBackground, baseFill, theme.dark ? 0.56f : 0.42f);
+            style.text  = enabled ? theme.primaryButtonText.value_or(ResolvePrimaryButtonTextColor(theme, style.fill)) : theme.disabledText;
+            style.focus = BlendColor(style.fill, theme.focusStroke, theme.dark ? 0.44f : 0.34f);
+            if (! enabled)
+                return style;
+
+            if (pressed)
+            {
+                style.showBorder     = true;
+                style.border         = BlendColor(theme.buttonBorder, style.text, theme.dark ? 0.34f : 0.26f);
+                style.textOffsetXDip = 1.0f;
+                style.textOffsetYDip = 1.0f;
+            }
+            else
+            {
+                const D2D1_COLOR_F hoverBorder = BlendColor(theme.buttonBorder, style.text, theme.dark ? 0.24f : 0.18f);
+                const D2D1_COLOR_F focusBorder = BlendColor(theme.buttonBorder, theme.focusStroke, theme.dark ? 0.40f : 0.30f);
+                style.border                   = BlendColor(theme.buttonBorder, hoverBorder, hoverAmount);
+                if (focusAmount > 0.0f)
+                    style.border = BlendColor(style.border, focusBorder, focusAmount);
+                style.showBorder = hoverAmount > 0.0f || focusAmount > 0.0f;
+            }
+            style.focus     = ScaleAlpha(style.focus, focusAmount);
+            style.showFocus = focusAmount > 0.0f;
+            return style;
+        }
+
         const D2D1_COLOR_F idleFill    = BlendColor(theme.buttonFill, theme.selectionFill, theme.dark ? (110.0f / 255.0f) : (90.0f / 255.0f));
         const D2D1_COLOR_F hoverFill   = BlendColor(idleFill, theme.selectionText, theme.dark ? (18.0f / 255.0f) : (12.0f / 255.0f));
         const D2D1_COLOR_F pressedFill = BlendColor(idleFill, theme.selectionText, theme.dark ? (24.0f / 255.0f) : (16.0f / 255.0f));

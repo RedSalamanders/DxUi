@@ -1,5 +1,6 @@
 #include "Scope.Tests.RichTextLayout.h"
 #include "../../Samples/EmbeddedControls/GraphicsFixture.h"
+#include "../../src/Controls/DxUi.RichSourceInk.h"
 #include "../Support/Scope.Tests.PreparedFlowchart.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include <DxUi/RichTextLayout.h>
@@ -102,6 +103,12 @@ void TestRichTextLayoutOptionsFailureAtomicityAndRetirement()
     invalid        = options;
     invalid.locale = std::wstring(L"fr\0FR", 5);
     Reject([&] { layout.Prepare(factory.get(), projection, invalid); }, "embedded NUL locale rejected");
+    invalid                            = options;
+    invalid.paragraphSpacingAfterLines = std::numeric_limits<float>::quiet_NaN();
+    Reject([&] { layout.Prepare(factory.get(), projection, invalid); }, "nonfinite semantic paragraph spacing rejected at public layout admission");
+    invalid                    = options;
+    invalid.listItemSpacingDip = 257.0f;
+    Reject([&] { layout.Prepare(factory.get(), projection, invalid); }, "out-of-range semantic list spacing rejected at public layout admission");
     auto malformed                = projection;
     malformed.runs.front().length = projection.text.size() + 1;
     Reject([&] { layout.Prepare(factory.get(), malformed, options); }, "out-of-range public style rejected");
@@ -314,8 +321,319 @@ void TestPreparedFlowchartEdgeLabelsCannotBeObscured()
 {
     PreparedFlowchartTests::EdgeLabelRasterOracle(Require);
 }
+void TestRichTextLayoutTransientLinkInkAndUnderlineRestoreSharedState()
+{
+    const auto factory = CreateRichTextTestFactory();
+    Document document(L"link plain");
+    auto projection = Project(document.Snapshot(), document.Revision(), ViewMode::Rich);
+    projection.runs.clear();
+    projection.runs.push_back({0u, 4u, Link, 0u});
+    projection.runs.push_back({4u, 6u, Regular, 0u});
+    PreparedLayout layout;
+    layout.Prepare(factory.get(), projection, 420.0f, 24.0f);
+    PreparedLayout shared(layout);
+    const auto generation    = layout.Generation();
+    const auto originalCaret = layout.Caret(4u);
+    GraphicsFixture graphics;
+    THROW_IF_FAILED(graphics.Create());
+    wil::com_ptr<ID2D1Factory1> d2dFactory;
+    THROW_IF_FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, IID_PPV_ARGS(d2dFactory.put())));
+    wil::com_ptr<IDXGIDevice> dxgiDevice;
+    THROW_IF_FAILED(graphics.device.query_to(dxgiDevice.put()));
+    wil::com_ptr<ID2D1Device> device;
+    THROW_IF_FAILED(d2dFactory->CreateDevice(dxgiDevice.get(), device.put()));
+    wil::com_ptr<ID2D1DeviceContext> context;
+    THROW_IF_FAILED(device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, context.put()));
+    wil::com_ptr<IDXGISurface> surface;
+    THROW_IF_FAILED(graphics.target.query_to(surface.put()));
+    const auto properties = D2D1::BitmapProperties1(D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+                                                    D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+    wil::com_ptr<ID2D1Bitmap1> bitmap;
+    THROW_IF_FAILED(context->CreateBitmapFromDxgiSurface(surface.get(), &properties, bitmap.put()));
+    context->SetTarget(bitmap.get());
+    wil::com_ptr<ID2D1SolidColorBrush> white, red;
+    THROW_IF_FAILED(context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), white.put()));
+    THROW_IF_FAILED(context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Red), red.put()));
+    const auto render = [&](const PreparedLayout& value, const LinkDrawing* drawing)
+    {
+        context->BeginDraw();
+        context->Clear(D2D1::ColorF(0u, 0.0f));
+        value.Draw(context.get(), white.get(), D2D1::Point2F(8.0f, 8.0f), drawing);
+        THROW_IF_FAILED(context->EndDraw());
+        std::vector<uint8_t> pixels;
+        THROW_IF_FAILED(graphics.Read(pixels));
+        return pixels;
+    };
+    const auto persistent = render(layout, nullptr);
+    LinkDrawing dormant;
+    dormant.underline    = false;
+    const auto unadorned = render(layout, &dormant);
+    Require(persistent != unadorned, "native DirectWrite removes the actual link underline in dormant presentation");
+    Require(render(shared, nullptr) == persistent, "drawing restores canonical styles on the SDK layout shared with copies");
+    dormant.hover = MarkdownRange{0u, 4u};
+    Require(render(layout, &dormant) == persistent, "hover draws the exact native persistent underline");
+    dormant.hover.reset();
+    dormant.caret = MarkdownRange{0u, 4u};
+    Require(render(layout, &dormant) == persistent, "caret draws the same native underline without hand-painted geometry");
+    dormant.caret.reset();
+    dormant.brush = red.get();
+    Require(render(layout, &dormant) != unadorned && render(shared, nullptr) == persistent,
+            "link ink is borrowed only during synchronous rasterization and never leaks to another view");
+    dormant.brush         = nullptr;
+    dormant.emphasis      = MarkdownRange{5u, 10u};
+    dormant.emphasisBrush = red.get();
+    Require(render(layout, &dormant) != unadorned && render(shared, nullptr) == persistent,
+            "active paragraph ink is borrowed and restored with no duplicate glyph overpainting");
+    Require(layout.Generation() == generation && layout.Caret(4u).x == originalCaret.x && layout.Caret(4u).height == originalCaret.height,
+            "decoration and emphasis preserve all prepared glyph geometry");
+    projection.runs.front().flags |= Underline;
+    layout.Prepare(factory.get(), projection, 420.0f, 24.0f);
+    dormant.emphasis.reset();
+    dormant.emphasisBrush = nullptr;
+    Require(render(layout, &dormant) == render(layout, nullptr), "explicit underline survives hover-only link policy");
+    const auto normal = render(layout, nullptr);
+    const std::array inkRanges{TextInkRange{{5u, 10u}, TextInkRole::Accent}};
+    dormant.inkRanges                                            = inkRanges;
+    dormant.inkBrushes[static_cast<size_t>(TextInkRole::Accent)] = red.get();
+    Require(render(layout, &dormant) != normal && render(layout, nullptr) == normal,
+            "prepared source ink borrows brushes and restores shared DirectWrite drawing state");
+
+    const auto plainProjection = Project(document.Snapshot(), document.Revision(), ViewMode::Source);
+    Require(std::ranges::none_of(plainProjection.runs, [](const auto& run) { return (run.flags & Link) != 0u; }),
+            "plain source fixture has no link drawing transaction");
+    PreparedLayout plain;
+    plain.Prepare(factory.get(), plainProjection, 420.0f, 24.0f);
+    PreparedLayout plainShared(plain);
+    const auto plainGeneration      = plain.Generation();
+    const auto plainCaret           = plain.Caret(4u);
+    const auto plainRange           = plain.Range(0u, plainProjection.text.size());
+    const auto plainPixels          = render(plain, nullptr);
+    const auto requirePlainGeometry = [&]
+    {
+        const auto caret = plain.Caret(4u);
+        const auto range = plain.Range(0u, plainProjection.text.size());
+        Require(plain.Generation() == plainGeneration && plain.Content().source == document.Text() && plainShared.Content().source == document.Text() &&
+                    caret.x == plainCaret.x && caret.y == plainCaret.y && caret.height == plainCaret.height && range.size() == plainRange.size(),
+                "plain decoration preserves source, shared copy and prepared caret geometry");
+        for (size_t index = 0u; index < range.size(); ++index)
+            Require(range[index].left == plainRange[index].left && range[index].top == plainRange[index].top && range[index].right == plainRange[index].right &&
+                        range[index].bottom == plainRange[index].bottom,
+                    "plain decoration preserves every source range rectangle");
+    };
+    const auto requirePlainPixels = [&](const LinkDrawing& drawing, const char* message)
+    {
+        Require(render(plain, &drawing) == plainPixels && render(plainShared, nullptr) == plainPixels, message);
+        requirePlainGeometry();
+    };
+    LinkDrawing plainDrawing;
+    plainDrawing.underline = false;
+    requirePlainPixels(plainDrawing, "dormant link policy leaves plain paragraph pixels canonical");
+    plainDrawing.brush = red.get();
+    requirePlainPixels(plainDrawing, "accent link policy without link runs leaves plain paragraph pixels canonical");
+    plainDrawing.emphasis      = MarkdownRange{plainProjection.text.size(), plainProjection.text.size() + 4u};
+    plainDrawing.emphasisBrush = red.get();
+    requirePlainPixels(plainDrawing, "nonintersecting emphasis leaves plain paragraph pixels canonical");
+    plainDrawing.emphasis.reset();
+    plainDrawing.emphasisBrush = nullptr;
+    plainDrawing.inkRanges     = inkRanges;
+    requirePlainPixels(plainDrawing, "prepared ink without an effective role brush leaves plain paragraph pixels canonical");
+    plainDrawing.inkBrushes[static_cast<size_t>(TextInkRole::Accent)] = red.get();
+    plainDrawing.inkExclusion                                         = MarkdownRange{5u, 10u};
+    requirePlainPixels(plainDrawing, "fully excluded prepared ink leaves plain paragraph and shared-copy pixels canonical");
+    plainDrawing.inkExclusion   = MarkdownRange{7u, 10u};
+    const auto partialInkPixels = render(plain, &plainDrawing);
+    const std::array partialInkRanges{TextInkRange{{5u, 7u}, TextInkRole::Accent}};
+    plainDrawing.inkRanges = partialInkRanges;
+    plainDrawing.inkExclusion.reset();
+    Require(partialInkPixels != plainPixels && render(plainShared, &plainDrawing) == partialInkPixels && render(plainShared, nullptr) == plainPixels,
+            "partially excluded valid ink changes only its surviving range and restores shared canonical pixels");
+    requirePlainGeometry();
+    plain.Clear();
+    Require(! plain.Ready() && plainShared.Ready() && render(plainShared, nullptr) == plainPixels && plainShared.Content().source == document.Text(),
+            "retiring the plain owner preserves the shared layout's restored pixels and source");
+}
+void TestRichTextSourceInkPreparationRolesAndCapacity()
+{
+    const auto parse = [](std::wstring_view source)
+    {
+        MarkdownParser parser;
+        parser.Begin(source, 1u, MarkdownProfile::Gfm029);
+        for (size_t turn = 0u; turn < 100000u; ++turn)
+            if (parser.Advance().status == MarkdownPreparationStatus::Complete)
+                return parser.Published();
+        throw std::runtime_error("source ink syntax fixture did not complete");
+    };
+    const std::wstring source = L"# Heading\r\n\r\n- **strong** [label](https://example.invalid/a\\(b\\))\r\n";
+    const auto syntax         = parse(source);
+    Detail::RichSourceInk ink;
+    size_t turns = 0u;
+    while (! ink.Advance(syntax, [](size_t value) { return value; }))
+    {
+        Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn, "source ink shares one bounded preparation budget");
+        ++turns;
+        Require(ink.Ranges().empty() && turns < 1000u, "staged source ink never publishes partial ranges");
+    }
+    Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn, "final source ink turn stays within its work budget");
+    const auto roleAt = [&](size_t offset) -> std::optional<TextInkRole>
+    {
+        for (const auto& range : ink.Ranges())
+            if (range.display.first <= offset && offset < range.display.last)
+                return range.role;
+        return std::nullopt;
+    };
+    Require(roleAt(0u) == TextInkRole::Accent, "ATX heading marker receives accent ink");
+    Require(roleAt(source.find(L"- ")) == TextInkRole::Accent, "list marker receives accent ink");
+    Require(roleAt(source.find(L"**")) == TextInkRole::Subtle, "strong delimiter receives subtle ink");
+    Require(roleAt(source.find(L"https:")) == TextInkRole::Link && roleAt(source.find(L"\\(")) == TextInkRole::Link,
+            "escaped explicit-link destination receives exact source link ink");
+    Require(! roleAt(source.find(L"Heading")) && ! roleAt(source.find(L"strong")), "ordinary heading and strong content retain their normal ink");
+    size_t previous = 0u;
+    for (const auto& range : ink.Ranges())
+    {
+        Require(previous <= range.display.first && range.display.first < range.display.last && range.display.last <= source.size(),
+                "published source ink is bounded, sorted and disjoint");
+        previous = range.display.last;
+    }
+
+    const std::wstring listFixture = L"- outer\n  - nested\n-\t- tab nested\n12. ordered\n> - quoted\n- [x] task\n";
+    const auto listSyntax          = parse(listFixture);
+    const std::array<std::wstring_view, 7> markers{L"-", L"-", L"-", L"-", L"12.", L"-", L"-"};
+    const std::array<size_t, 7> markerOffsets{listFixture.find(L"- outer"),
+                                              listFixture.find(L"- nested"),
+                                              listFixture.find(L"-\t- tab nested"),
+                                              listFixture.find(L"- tab nested"),
+                                              listFixture.find(L"12."),
+                                              listFixture.find(L"- quoted"),
+                                              listFixture.find(L"- [x]")};
+    for (size_t index = 0u; index < markers.size(); ++index)
+    {
+        Require(markerOffsets[index] != std::wstring::npos, "list marker fixture offset exists");
+        const auto found = std::ranges::find_if(listSyntax->Nodes(),
+                                                [&](const auto& node)
+        {
+            return node.block.kind == MarkdownBlockKind::ListItem && node.block.info.first == markerOffsets[index] &&
+                   node.block.info.last == markerOffsets[index] + markers[index].size() &&
+                   listFixture.substr(node.block.info.first, node.block.info.last - node.block.info.first) == markers[index];
+        });
+        Require(found != listSyntax->Nodes().end(), "list parser publishes exact source ranges for nested, ordered, quote, tab and task markers");
+    }
+    turns = 0u;
+    while (! ink.Advance(listSyntax, [](size_t value) { return value; }))
+    {
+        Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && ink.Ranges().empty(),
+                "list marker preparation remains bounded and unpublished while pending");
+        ++turns;
+    }
+    for (const auto offset : markerOffsets)
+    {
+        const auto found = std::ranges::any_of(
+            ink.Ranges(), [&](const auto& range) { return range.role == TextInkRole::Accent && range.display.first <= offset && offset < range.display.last; });
+        Require(found, "each parsed list marker receives accent ink at its exact source offset");
+    }
+
+    std::wstring longCode(700u, L'`');
+    longCode += L"x";
+    longCode.append(700u, L'`');
+    const auto longCodeSyntax = parse(longCode);
+    turns                     = 0u;
+    while (! ink.Advance(longCodeSyntax, [](size_t value) { return value; }))
+    {
+        Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && ink.Ranges().empty(),
+                "long inline delimiter scan yields without partial ranges or budget overflow");
+        ++turns;
+    }
+    const auto codeRoleAt = [&](size_t offset)
+    {
+        return std::ranges::any_of(
+            ink.Ranges(), [&](const auto& range) { return range.role == TextInkRole::Subtle && range.display.first <= offset && offset < range.display.last; });
+    };
+    Require(turns >= 2u && ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && codeRoleAt(0u) && codeRoleAt(699u) && ! codeRoleAt(700u),
+            "long code delimiter runs are colored exactly after resumable scanning");
+
+    std::wstring manyChildren = L"[";
+    for (size_t i = 0u; i < 300u; ++i)
+        manyChildren.append(L"**x** ");
+    manyChildren.append(L"](https://example.invalid/");
+    manyChildren.append(1400u, L'a');
+    manyChildren.append(L")");
+    const auto manyChildrenSyntax = parse(manyChildren);
+    turns                         = 0u;
+    while (! ink.Advance(manyChildrenSyntax, [](size_t value) { return value; }))
+    {
+        Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && ink.Ranges().empty(), "link label and destination scans share the bounded turn budget");
+        ++turns;
+    }
+    const auto linkedRoleAt = [&](size_t offset)
+    {
+        return std::ranges::any_of(
+            ink.Ranges(), [&](const auto& range) { return range.role == TextInkRole::Link && range.display.first <= offset && offset < range.display.last; });
+    };
+    const auto destination = manyChildren.find(L"https:");
+    Require(turns >= 3u && ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && linkedRoleAt(destination) && linkedRoleAt(manyChildren.find_last_of(L'a')),
+            "many-child link and long destination publish exact link ink after yielding");
+
+    std::wstring mergeFixture;
+    for (size_t i = 0u; i < 6000u; ++i)
+        mergeFixture.append(L"```\nx\n```\n");
+    const auto mergeSyntax = parse(mergeFixture);
+    turns                  = 0u;
+    while (! ink.Advance(mergeSyntax, [](size_t value) { return value; }))
+    {
+        Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && ink.Ranges().empty(),
+                "incremental event merge does not publish partial ranges or exceed its per-turn budget");
+        ++turns;
+    }
+    Require(turns > 200u && ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && ! ink.Ranges().empty(),
+            "multiple merge passes complete incrementally for a dense admitted source");
+
+    std::wstring crowded;
+    for (size_t i = 0u; i < 10000u; ++i)
+        crowded.append(L"# `x`\n");
+    Require(crowded.size() <= Document::MaximumUnits, "source ink overflow fixture stays within the admitted Markdown source limit");
+    const auto crowdedSyntax = parse(crowded);
+    turns                    = 0u;
+    while (! ink.Advance(crowdedSyntax, [](size_t value) { return value; }))
+    {
+        Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && ink.Ranges().empty(), "capacity-bound source ink yields without partial publication");
+        Require(++turns < 10000u, "capacity fallback remains bounded");
+    }
+    Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn && ink.Ranges().empty() && ! ink.Pending(),
+            "source ink capacity overflow falls back to the complete ordinary view");
+    Require(ink.Advance(crowdedSyntax, [](size_t value) { return value; }) && ink.Ranges().empty(), "capacity rejection coalesces for exact syntax identity");
+    ink.Clear();
+    Require(! ink.Pending() && ink.Ranges().empty(), "source retirement cancels staged and published ink");
+}
+void TestRichTextLayoutExplicitTypographyAndInvalidOptions()
+{
+    const auto factory = CreateRichTextTestFactory();
+    Document document(L"# Heading\nbody `code`");
+    const auto projection = Project(document.Snapshot(), document.Revision(), ViewMode::Rich);
+    PreparedLayout layout;
+    LayoutOptions options;
+    options.widthDip              = 500.0f;
+    options.fontSizeDip           = 16.0f;
+    options.headingFontSizeDip[0] = 34.0f;
+    options.codeFontSizeDip       = 13.5f;
+    options.lineHeightMultiplier  = 1.65f;
+    layout.Prepare(factory.get(), projection, options);
+    const auto generation        = layout.Generation();
+    const auto height            = layout.Height();
+    auto invalid                 = options;
+    invalid.lineHeightMultiplier = std::numeric_limits<float>::infinity();
+    Reject([&] { layout.Prepare(factory.get(), projection, invalid); }, "nonfinite line spacing rejected");
+    invalid                       = options;
+    invalid.headingFontSizeDip[4] = -1.0f;
+    Reject([&] { layout.Prepare(factory.get(), projection, invalid); }, "invalid explicit heading size rejected");
+    invalid                                = options;
+    invalid.headingLineHeightMultiplier[0] = 0.5f;
+    Reject([&] { layout.Prepare(factory.get(), projection, invalid); }, "clipping-prone heading line spacing rejected");
+    Require(layout.Generation() == generation && layout.Height() == height, "invalid typography retains prior source/geometry publication");
+}
 void RunRichTextLayoutTests()
 {
+    DXUI_RUN_TEST(TestRichTextLayoutTransientLinkInkAndUnderlineRestoreSharedState);
+    DXUI_RUN_TEST(TestRichTextLayoutExplicitTypographyAndInvalidOptions);
+    DXUI_RUN_TEST(TestRichTextSourceInkPreparationRolesAndCapacity);
     DXUI_RUN_TEST(TestPreparedFlowchartSdkBudgetAndLifetime);
     DXUI_RUN_TEST(TestPreparedFlowchartIndependentSdkRasterOracle);
     DXUI_RUN_TEST(TestPreparedFlowchartBorrowedWarpTargets);

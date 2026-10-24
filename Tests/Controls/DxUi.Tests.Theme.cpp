@@ -808,6 +808,39 @@ void TestTreeBadgeVisualStyleUsesHighContrastAdornmentChrome()
     RequireColorNear(accent.text, theme.selectionText, "high-contrast tree accent badge keeps shared selection text");
 }
 
+void TestButtonQuietPresentationKeepsSelectionFocusAndContrast()
+{
+    using namespace DxUi;
+    for (const bool dark : {false, true})
+    {
+        auto theme          = MakeDefaultThemePalette(dark);
+        const auto ordinary = ResolveButtonVisualStyle(theme, true, false, false, false, false, false);
+        const auto subtle   = ResolveButtonAppearanceVisualStyle(theme, ordinary, ButtonAppearance::Subtle, true, false, false, false, 0.f);
+        Require(subtle.fill.a == 0.f && ! subtle.showBorder, "idle subtle buttons expose the parent surface");
+        RequireColorNear(subtle.text, theme.text, "subtle commands retain ordinary readable ink");
+        const auto tab = ResolveButtonAppearanceVisualStyle(theme, ordinary, ButtonAppearance::Tab, true, false, false, true, 0.f);
+        Require(tab.fill.a == 0.f && tab.showSelectionUnderline && ! tab.showBorder, "selected tabs use an underline without a filled button");
+        const auto outline = ResolveButtonAppearanceVisualStyle(theme, ordinary, ButtonAppearance::Outline, true, false, false, false, 0.f);
+        Require(outline.fill.a == 0.f && outline.showBorder, "outlined commands retain a perimeter over the parent surface");
+        const auto selected = ResolveButtonAppearanceVisualStyle(theme, ordinary, ButtonAppearance::Subtle, true, false, false, true, 0.f);
+        RequireColorNear(selected.fill, theme.selectionFill, "checked toolbar commands retain the selection fill");
+        RequireColorNear(selected.text, theme.selectionText, "checked toolbar commands retain the paired selection ink");
+        const auto focused = ResolveButtonVisualStyle(theme, true, false, false, true, true, false);
+        Require(ResolveButtonAppearanceVisualStyle(theme, focused, ButtonAppearance::Tab, true, false, false, true, 0.f).showFocus,
+                "tab presentation does not suppress the keyboard focus indicator");
+        theme.highContrast = true;
+        const auto system  = ResolveButtonVisualStyle(theme, true, false, false, true, true, false, true);
+        for (const auto appearance : {ButtonAppearance::Subtle, ButtonAppearance::Outline, ButtonAppearance::Tab})
+        {
+            const auto result = ResolveButtonAppearanceVisualStyle(theme, system, appearance, true, false, false, true, 0.f);
+            RequireColorNear(result.fill, system.fill, "high contrast preserves the exact system selection ground");
+            RequireColorNear(result.text, system.text, "high contrast preserves the exact system selection ink");
+            Require(result.showFocus == system.showFocus && result.showBorder == system.showBorder,
+                    "high contrast retains focus and border affordances for every appearance");
+        }
+    }
+}
+
 void TestButtonVisualStyleMatchesPreferencesFlatChrome()
 {
     using namespace DxUi;
@@ -968,6 +1001,59 @@ void TestPrimaryButtonContrastPreservesSystemColorPairs()
         const auto style      = ResolveButtonVisualStyle(theme, true, false, false, false, false, true);
         Require(style.fill.a == 1.0f && style.text.a == 1.0f, "contrast primary colors are opaque");
     }
+}
+
+void TestPrimaryButtonOptionalPaletteUsesCustomNormalChromeAndSystemContrastPair()
+{
+    using namespace DxUi;
+    const D2D1_COLOR_F scarlet              = D2D1::ColorF(0xC8 / 255.0f, 0x3C / 255.0f, 0x46 / 255.0f, 1.0f);
+    const D2D1_COLOR_F white                = D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f);
+    ThemePalette textOnlyTheme              = MakeDefaultThemePalette(false);
+    const ButtonVisualStyle defaultPrimary  = ResolveButtonVisualStyle(textOnlyTheme, true, false, false, false, false, true);
+    textOnlyTheme.primaryButtonText         = white;
+    const ButtonVisualStyle textOnlyPrimary = ResolveButtonVisualStyle(textOnlyTheme, true, false, false, false, false, true);
+    RequireColorNear(textOnlyPrimary.fill, defaultPrimary.fill, "a text-only override preserves the default primary fill");
+    RequireColorNear(textOnlyPrimary.text, white, "a text-only override independently sets primary text");
+    for (const bool dark : {false, true})
+    {
+        ThemePalette theme              = MakeDefaultThemePalette(dark);
+        theme.primaryButtonFill         = scarlet;
+        theme.primaryButtonText         = white;
+        const ButtonVisualStyle idle    = ResolveButtonVisualStyle(theme, true, false, false, false, false, true);
+        const ButtonVisualStyle hover   = ResolveButtonVisualStyle(theme, true, true, false, false, false, true);
+        const ButtonVisualStyle pressed = ResolveButtonVisualStyle(theme, true, false, true, false, false, true);
+        RequireColorNear(idle.fill, scarlet, "normal primary button uses its optional custom fill");
+        RequireColorNear(idle.text, white, "normal primary button uses its optional custom text");
+        RequireColorNear(hover.text, white, "hover keeps the caller's primary text color");
+        RequireColorNear(pressed.text, white, "pressed keeps the caller's primary text color");
+        RequireColorDifferent(hover.fill, idle.fill, "custom primary hover derives an explicit hover fill");
+        RequireColorDifferent(pressed.fill, idle.fill, "custom primary press derives an explicit pressed fill");
+        RequireColorDifferent(pressed.fill, hover.fill, "custom primary pressed and hover fills remain distinct");
+
+        theme.highContrast               = true;
+        theme.selectionFill              = D2D1::ColorF(0.0f, 0.0f, 0.5f, 1.0f);
+        theme.selectionText              = white;
+        const ButtonVisualStyle contrast = ResolveButtonVisualStyle(theme, true, true, true, true, true, true);
+        RequireColorNear(contrast.fill, theme.selectionFill, "high-contrast primary buttons retain the system selection fill");
+        RequireColorNear(contrast.text, theme.selectionText, "high-contrast primary buttons retain the system selection text");
+    }
+}
+
+void TestButtonToggleStateUsesPersistentSelectionChrome()
+{
+    using namespace DxUi;
+    ThemePalette theme          = MakeDefaultThemePalette(false);
+    const ButtonVisualStyle off = ResolveButtonVisualStyle(theme, true, false, false, false, false, false, false);
+    const ButtonVisualStyle on  = ResolveButtonVisualStyle(theme, true, false, false, false, false, false, true);
+    RequireColorNear(off.fill, theme.buttonFill, "an unchecked command button keeps ordinary button fill");
+    RequireColorNear(off.text, theme.text, "an unchecked command button keeps ordinary button text");
+    RequireColorNear(on.fill, theme.selectionFill, "a checked command button persistently uses selection fill");
+    RequireColorNear(on.text, theme.selectionText, "a checked command button uses the paired selection text");
+
+    theme.highContrast                     = true;
+    const ButtonVisualStyle highContrastOn = ResolveButtonVisualStyle(theme, true, true, true, false, false, false, true);
+    RequireColorNear(highContrastOn.fill, theme.selectionFill, "checked high-contrast button preserves the system selection fill");
+    RequireColorNear(highContrastOn.text, theme.selectionText, "checked high-contrast button preserves the system selection text");
 }
 
 void TestButtonHighContrastDisabledBorderStaysVisible()
@@ -1860,6 +1946,45 @@ void TestLabelVisualStyleUsesPaletteTextChrome()
 
     RequireColorNear(defaultStyle.text, theme.text, "default label style uses the palette text color");
     RequireColorNear(customStyle.text, customText, "label style honors explicit text color overrides");
+}
+
+void TestLabelTypographyOverrideValidatesAtomically()
+{
+    using namespace DxUi;
+    Label label(L"Section");
+    const LabelTypography wanted{14.0f, DWRITE_FONT_WEIGHT_SEMI_BOLD, 0.5f};
+    Require(label.SetTypographyOverride(wanted) == S_OK, "label accepts a bounded typography override");
+    Require(label.GetTypographyOverride() == wanted, "label returns its typography override");
+    Require(label.SetTypographyOverride(wanted) == S_FALSE, "setting the same label typography is idempotent");
+    auto sameBucket = wanted;
+    sameBucket.fontSizeDip += 0.003f;
+    Require(label.SetTypographyOverride(sameBucket) == S_FALSE, "label normalizes sizes to the documented 1/64-DIP step");
+    const LabelTypography invalid{std::numeric_limits<float>::infinity(), DWRITE_FONT_WEIGHT_NORMAL, 0.0f};
+    Require(label.SetTypographyOverride(invalid) == E_INVALIDARG, "label rejects a non-finite font size");
+    Require(label.GetTypographyOverride() == wanted, "invalid label typography leaves the prior value unchanged");
+    Require(label.SetTypographyOverride(std::nullopt) == S_OK, "null override restores role defaults");
+    Require(! label.GetTypographyOverride(), "default typography is restored");
+}
+
+void TestButtonThemePreviewValidatesAndPreservesAccessibleButton()
+{
+    using namespace DxUi;
+    Button button(L"Appearance");
+    const ButtonThemePreview preview{{D2D1::ColorF(0.1f, 0.2f, 0.3f), D2D1::ColorF(0.4f, 0.5f, 0.6f), D2D1::ColorF(0.7f, 0.8f, 0.9f)}};
+    button.SetToggleState(false);
+    button.SetThemePreview(preview);
+    Require(button.GetThemePreview().has_value(), "theme preview is opt-in");
+    Require(button.GetToggleState() == std::optional<bool>(false), "theme preview remains a Button with toggle semantics");
+    const auto retained   = button.GetThemePreview();
+    auto invalid          = preview;
+    invalid.swatches[1].r = std::numeric_limits<float>::quiet_NaN();
+    button.SetThemePreview(invalid);
+    const auto afterInvalid = button.GetThemePreview();
+    Require(afterInvalid.has_value() && retained.has_value(), "invalid preview keeps an existing value");
+    for (size_t index = 0u; index < retained->swatches.size(); ++index)
+        RequireColorNear(afterInvalid->swatches[index], retained->swatches[index], "invalid theme-preview swatches leave prior colors unchanged");
+    button.SetThemePreview(std::nullopt);
+    Require(! button.GetThemePreview(), "theme preview can be removed");
 }
 
 void TestLabelVisualStyleUsesViewerDerivedTextChrome()
@@ -2801,10 +2926,13 @@ void RunThemeTests()
     DXUI_RUN_TEST(TestTreeBadgeVisualStyleUsesViewerDerivedAdornmentChrome);
     DXUI_RUN_TEST(TestTreeBadgeVisualStyleUsesHighContrastAdornmentChrome);
     DXUI_RUN_TEST(TestButtonVisualStyleMatchesPreferencesFlatChrome);
+    DXUI_RUN_TEST(TestButtonQuietPresentationKeepsSelectionFocusAndContrast);
     DXUI_RUN_TEST(TestPrimaryButtonVisualStyleUsesAccentChrome);
     DXUI_RUN_TEST(TestPrimaryButtonVisualStyleFallsBackToReadableText);
     DXUI_RUN_TEST(TestButtonHighContrastFocusRingStaysVisibleWithoutKeyboardFocus);
     DXUI_RUN_TEST(TestPrimaryButtonContrastPreservesSystemColorPairs);
+    DXUI_RUN_TEST(TestPrimaryButtonOptionalPaletteUsesCustomNormalChromeAndSystemContrastPair);
+    DXUI_RUN_TEST(TestButtonToggleStateUsesPersistentSelectionChrome);
     DXUI_RUN_TEST(TestButtonHighContrastDisabledBorderStaysVisible);
     DXUI_RUN_TEST(TestButtonVisualStyleInterpolatesHoverAndFocusStrength);
     DXUI_RUN_TEST(TestPrimaryButtonVisualStyleUsesViewerDerivedSelectionTextChrome);
@@ -2837,6 +2965,8 @@ void RunThemeTests()
     DXUI_RUN_TEST(TestTooltipHighContrastBorderStrengthensLegibility);
     DXUI_RUN_TEST(TestCheckboxVisualStyleMatchesStandardCheckboxChrome);
     DXUI_RUN_TEST(TestLabelVisualStyleUsesPaletteTextChrome);
+    DXUI_RUN_TEST(TestLabelTypographyOverrideValidatesAtomically);
+    DXUI_RUN_TEST(TestButtonThemePreviewValidatesAndPreservesAccessibleButton);
     DXUI_RUN_TEST(TestLabelVisualStyleUsesViewerDerivedTextChrome);
     DXUI_RUN_TEST(TestLabelVisualStyleUsesHighContrastTextChrome);
     DXUI_RUN_TEST(TestCheckboxVisualStyleInterpolatesHoverStrength);

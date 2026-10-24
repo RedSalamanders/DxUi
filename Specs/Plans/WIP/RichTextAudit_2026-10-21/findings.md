@@ -7,7 +7,8 @@ finding as reported, followed by the independent verifiers' verdicts: bugs, secu
 a non-refuting verifier gave. **Status** is *confirmed* when no verifier refuted, *refuted* when every verdict
 refuted, *disputed* when verifiers disagreed and *uncertain* when none could decide. **Plan** names the checklist
 item that owns the fix. The plan, not this appendix, is the curated list; several entries describe the same defect.
-Long reviewer text is shortened where marked.
+Long reviewer text is shortened where marked. Locations refer to `fa5821c8`; main later changed many of
+the cited files (through `bba8da23`), so plan item W0.3 revalidates each affected entry before a fix starts.
 
 | Area | Findings | Confirmed | Disputed | Uncertain | Refuted |
 | --- | ---: | ---: | ---: | ---: | ---: |

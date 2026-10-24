@@ -62,6 +62,9 @@ public:
     // It distinguishes padded cells that share one exact raw insertion offset.
     CaretGeometry SourceCaret(std::size_t sourceOffset, std::size_t site = MarkdownNoNode) const;
     SourceCaretHit HitTestSource(float x, float y) const;
+    // Nearest distinct prepared visual line, independent of inter-block gaps.
+    // Retains source/site affinity and preferred x; performs no preparation.
+    SourceCaretHit AdjacentSourceLine(std::size_t sourceOffset, std::size_t site, float preferredX, bool down) const;
     SourceCaretHit StepSource(std::size_t sourceOffset, std::size_t site, bool forwards) const;
     SourceCaretHit SourceLineBoundary(std::size_t sourceOffset, std::size_t site, bool end) const;
     bool IsEmptySourceSite(std::size_t sourceOffset, std::size_t site) const;
@@ -84,8 +87,9 @@ public:
               D2D1_POINT_2F origin,
               float top,
               float bottom,
-              ID2D1Brush* fill   = nullptr,
-              float imageOpacity = 1.0f) const;
+              ID2D1Brush* fill         = nullptr,
+              float imageOpacity       = 1.0f,
+              const LinkDrawing* links = nullptr) const;
 
 private:
     struct State;

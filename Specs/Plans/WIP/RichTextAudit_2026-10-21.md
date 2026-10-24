@@ -5,7 +5,11 @@ Owner request (2026-10-21): review all RichText code in DxUi for bugs and archit
 cheaper agents where that helps to establish what a complete Markdown, Mermaid and math implementation needs,
 and record a detailed specification plan of everything to fix or improve.
 Starting revision: `fa5821c8`. No RichText source, test, plan or pinned data changed up to `b69f452f`, so every
-location below applies to both.
+location below applies to both. Main then merged the completed
+[rich editor presentation plan](../Done/RichEditorPresentation_2026-10-22.md) and related work (through
+`bba8da23`). That work changed files cited by 123 findings, including `DxUi.RichTextEditor.cpp`,
+`DxUi.RichSemanticGeometry.cpp`, `DxUi.MarkdownBlocks.h` and `docs/rich-text.md`. Locations therefore refer to
+`fa5821c8`; W0.3 revalidates them before any fix starts.
 
 This plan owns remediation of the audit findings and the completion roadmap. It does not close or replace any gate
 of [the rich-text editor plan](RichTextEditor_2026-10-17.md): its M5/M6 milestones, the D4c performance HOLD,
@@ -98,6 +102,13 @@ where two items share a file. Wave 3 is the measurable candidate for the parent 
 - [ ] W0.2 Add a turn-bounded shared "prepare until settled" helper and allocation-sweep helper for the rich test
   binaries (tests-engine-11, tests-host-03, tests-host-19) so the new regression tests below do not add more
   copies.
+- [ ] W0.3 Revalidate against current main before starting a fix. Re-read every finding whose file changed after
+  `b69f452f` (123 findings, mostly in the editor, semantic geometry, block parser, v0 layout, accessibility,
+  embedded host, image and docs files), update its location, and record any that the later work fixed or changed.
+  Recheck the completeness entries that the presentation plan partly implemented: find highlights and decorations
+  (MD-01, MD-02), link underlines (MD-05), the selection-changed event (MD-06), palette and spacing (MD-11, MD-31),
+  Source syntax ink (MD-21) and opt-in remote image requests (MD-16). Regenerate the register and appendix with the
+  archived generators.
 
 ### Wave 1: correctness defects
 
