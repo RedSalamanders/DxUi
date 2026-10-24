@@ -655,35 +655,45 @@ void TestButtonPreparedIconTextLayoutMatchesDrawTextW()
 
 void TestButtonPreparedIconTextLayoutHidePreservesWarmSibling()
 {
-    const auto apartment = wil::CoInitializeEx(COINIT_MULTITHREADED);
-    AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, true);
-    auto& host    = window.Host();
-    auto root     = std::make_unique<Panel>();
-    auto* branch  = root->AddChild<Panel>();
-    auto* hidden  = branch->AddChild<Button>(L"\uE8DD");
-    auto* sibling = root->AddChild<Button>(L"\uE921");
-    hidden->SetVariant(ButtonVariant::IconOnly);
-    sibling->SetVariant(ButtonVariant::IconOnly);
-    branch->SetBounds(D2D1::RectF(0.0f, 0.0f, 80.0f, 80.0f));
-    hidden->SetBounds(D2D1::RectF(4.0f, 4.0f, 72.0f, 72.0f));
-    sibling->SetBounds(D2D1::RectF(84.0f, 4.0f, 152.0f, 72.0f));
-    host.SetRoot(std::move(root));
-    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
-    const auto capture = [&]
+    // Earlier headless measurement can retain a hardware bucket on the runner thread.
+    // An isolated owner thread keeps forced WARP independent of that suite history.
+    std::jthread fixture([]
     {
-        host.Invalidate();
-        WindowHostBitmapCapture pixels;
-        Require(host.DebugCaptureBitmap(pixels), "capture prepared-layout sibling visibility state");
-    };
-    capture();
-    Require(hidden->DebugGetPreparedIconTextLayoutBuildCount() == 1u && sibling->DebugGetPreparedIconTextLayoutBuildCount() == 1u,
-            "both branches start with one retained text layout");
-    branch->SetVisible(false);
-    capture();
-    branch->SetVisible(true);
-    capture();
-    Require(hidden->DebugGetPreparedIconTextLayoutBuildCount() == 2u && sibling->DebugGetPreparedIconTextLayoutBuildCount() == 1u,
-            "hiding and revealing an ancestor rebuilds only that branch's layout");
+        const auto apartment = wil::CoInitializeEx(COINIT_APARTMENTTHREADED);
+        DxUi::TestSupport::ScopedWindowActivationBlocker blocker;
+        Require(blocker.Start(), "the sibling WARP fixture cannot activate or focus desktop windows");
+        AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, true);
+        auto& host    = window.Host();
+        auto root     = std::make_unique<Panel>();
+        auto* branch  = root->AddChild<Panel>();
+        auto* hidden  = branch->AddChild<Button>(L"\uE8DD");
+        auto* sibling = root->AddChild<Button>(L"\uE921");
+        hidden->SetVariant(ButtonVariant::IconOnly);
+        sibling->SetVariant(ButtonVariant::IconOnly);
+        branch->SetBounds(D2D1::RectF(0.0f, 0.0f, 80.0f, 80.0f));
+        hidden->SetBounds(D2D1::RectF(4.0f, 4.0f, 72.0f, 72.0f));
+        sibling->SetBounds(D2D1::RectF(84.0f, 4.0f, 152.0f, 72.0f));
+        host.SetRoot(std::move(root));
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        const auto capture = [&]
+        {
+            host.Invalidate();
+            WindowHostBitmapCapture pixels;
+            Require(host.DebugCaptureBitmap(pixels), "capture prepared-layout sibling visibility state");
+        };
+        capture();
+        Require(hidden->DebugGetPreparedIconTextLayoutBuildCount() == 1u && sibling->DebugGetPreparedIconTextLayoutBuildCount() == 1u,
+                "both branches start with one retained text layout");
+        branch->SetVisible(false);
+        capture();
+        branch->SetVisible(true);
+        capture();
+        Require(hidden->DebugGetPreparedIconTextLayoutBuildCount() == 2u && sibling->DebugGetPreparedIconTextLayoutBuildCount() == 1u,
+                "hiding and revealing an ancestor rebuilds only that branch's layout");
+    });
+    Require(WaitForDxUiEventWithSentMessagesUntil(fixture.native_handle(), GetTickCount64() + 30000u) == WAIT_OBJECT_0,
+            "the isolated sibling fixture finishes including owner-thread cleanup");
+    fixture.join();
 }
 
 void TestEmbeddedVisualSurfaceReleaseCanDetachHost()
