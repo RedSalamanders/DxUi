@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Preserve the original native qualification record while declaring its library-owned fixtures and input hashes; distinguish the executed source snapshot from the newer integration tree. Retain the API 4 selection/progress backport ancestry without changing the already integrated implementation or contracts.
 - Require MSVC 14.52.x and enable explicit Release function-level linking, unused-function elimination and whole-program/full link-time optimization; forward the exact compiler and WPO policy to consumer archive builds. Qualification and measured size/runtime evidence are tracked in the active build-policy plan.
 - Prepare and verify the required MSVC 14.52 toolchain in active Windows CI, with read-only local checks and refusal controls; hosted installation and native ARM64 runtime results remain separate qualification gates.
 - Preserve successful Grid UI Automation selection changes when their callbacks relayout sibling detail controls; retain lifetime/model-binding rejection and cover same-pointer model rebinding.
