@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Keep embedded visual-preparation test state alive through host teardown and capture external probe state before callbacks that may retire the probe itself; assert recovered-host cancellation explicitly and retain the original reentry, scheduling and retirement checks.
 - Isolate the retained icon-layout sibling visibility test on its own STA with activation blocked, so earlier headless hardware graphics do not prevent its forced-WARP host from attaching; keep the original cache lifetime assertions and bounded owner-thread cleanup.
 - Embedded preparation keeps its active-call guard across the owner scheduling callback, so a synchronous callback cannot
   recursively drain another turn. Cleanup clears the guard only while the captured attachment remains current; focused

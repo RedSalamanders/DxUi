@@ -106,13 +106,15 @@ public:
 protected:
     void PrepareVisualContent(ControlHost&) noexcept override
     {
-        ++_state->prepared;
-        _state->insideVisualPreparation = true;
-        auto callback                   = std::move(_state->onPrepare);
-        _state->onPrepare               = {};
+        // The callback may retire this control; the fixture state outlives its host.
+        VisualCancellationProbeState* const state = _state;
+        ++state->prepared;
+        state->insideVisualPreparation = true;
+        auto callback                  = std::move(state->onPrepare);
+        state->onPrepare               = {};
         if (callback)
             callback();
-        _state->insideVisualPreparation = false;
+        state->insideVisualPreparation = false;
     }
 
     void CancelVisualContentPreparation() noexcept override
@@ -705,8 +707,8 @@ void TestEmbeddedVisualSurfaceReleaseCanDetachHost()
         RequireSucceeded(graphics.Create(), "embedded visual-cancellation WARP fixture");
         std::shared_ptr<GraphicsDevice> device;
         RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "embedded visual-cancellation graphics pool");
-        EmbeddedHost view;
         VisualCancellationProbeState state;
+        EmbeddedHost view;
         RequireSucceeded(view.Attach(device), "attach visual-cancellation embedded host");
         auto root = std::make_unique<Panel>();
         root->AddChild<VisualCancellationProbe>(state);
@@ -737,8 +739,8 @@ void TestEmbeddedVisualCancellationCanReenterDetach()
     RequireSucceeded(graphics.Create(), "embedded visual-detach WARP fixture");
     std::shared_ptr<GraphicsDevice> device;
     RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "embedded visual-detach graphics pool");
-    EmbeddedHost view;
     VisualCancellationProbeState state;
+    EmbeddedHost view;
     RequireSucceeded(view.Attach(device), "attach visual-detach embedded host");
     auto root = std::make_unique<Panel>();
     root->AddChild<VisualCancellationProbe>(state);
@@ -758,8 +760,8 @@ void TestEmbeddedVisualPreparationCanDetachHost()
     RequireSucceeded(graphics.Create(), "embedded visual-prepare detach WARP fixture");
     std::shared_ptr<GraphicsDevice> device;
     RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "embedded visual-prepare detach graphics pool");
-    EmbeddedHost view;
     VisualCancellationProbeState state;
+    EmbeddedHost view;
     RequireSucceeded(view.Attach(device), "attach visual-prepare detach embedded host");
     auto root = std::make_unique<Panel>();
     root->AddChild<VisualCancellationProbe>(state);
@@ -779,8 +781,8 @@ void TestEmbeddedVisualPreparationRejectsReplacedDeviceAndRecovers()
     RequireSucceeded(graphics.Create(), "embedded visual-prepare replacement WARP fixture");
     std::shared_ptr<GraphicsDevice> device;
     RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "embedded visual-prepare replacement graphics pool");
-    EmbeddedHost view;
     VisualCancellationProbeState state;
+    EmbeddedHost view;
     const EmbeddedCallbacks callbacks{.context = &state, .requestPreparation = &RecordVisualPreparationWake};
     RequireSucceeded(view.Attach(device, callbacks), "attach visual-prepare replacement embedded host");
     Require(state.preparationRequests == 0u, "initial attachment does not synchronously request preparation");
@@ -805,6 +807,10 @@ void TestEmbeddedVisualPreparationRejectsReplacedDeviceAndRecovers()
     view.Controls().Invalidate();
     Require(requestsAfterOrdinaryReplacement == requestsBeforeOrdinaryReplacement && state.preparationRequests == requestsAfterOrdinaryReplacement + 1u,
             "a later real invalidation still delivers its owner wake after ordinary device replacement");
+    const size_t cancellationsBeforeDetach = state.cancelled;
+    view.Detach();
+    Require(state.cancelled == cancellationsBeforeDetach + 1u && view.Controls().GetRoot() == nullptr,
+            "replacement recovery teardown cancels the remaining probe while its state is alive");
 }
 
 void TestEmbeddedHideShowDuringVisualPreparationDefersOneWake()
@@ -814,8 +820,8 @@ void TestEmbeddedHideShowDuringVisualPreparationDefersOneWake()
     RequireSucceeded(graphics.Create(), "embedded visual hide-show WARP fixture");
     std::shared_ptr<GraphicsDevice> device;
     RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "embedded visual hide-show graphics pool");
-    EmbeddedHost view;
     VisualCancellationProbeState state;
+    EmbeddedHost view;
     const EmbeddedCallbacks callbacks{.context = &state, .requestPreparation = &RecordVisualPreparationWake};
     RequireSucceeded(view.Attach(device, callbacks), "attach visual hide-show embedded host");
     auto root = std::make_unique<Panel>();
@@ -835,6 +841,10 @@ void TestEmbeddedHideShowDuringVisualPreparationDefersOneWake()
     Require(staleFrame == E_ABORT && deferredWakes == 1u && state.preparationRequests == deferredWakes && recovered == S_OK &&
                 ! state.requestDuringVisualPreparation,
             "hide/show during visual preparation coalesces to one owner wake after the stale frame unwinds");
+    const size_t cancellationsBeforeDetach = state.cancelled;
+    view.Detach();
+    Require(state.cancelled == cancellationsBeforeDetach + 1u && view.Controls().GetRoot() == nullptr,
+            "hide/show recovery teardown cancels the remaining probe while its state is alive");
 }
 
 void TestHiddenVisualPreparationDoesNotWakeUntilShown()
@@ -844,8 +854,8 @@ void TestHiddenVisualPreparationDoesNotWakeUntilShown()
     RequireSucceeded(graphics.Create(), "embedded hidden visual WARP fixture");
     std::shared_ptr<GraphicsDevice> device;
     RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "embedded hidden visual graphics pool");
-    EmbeddedHost view;
     VisualCancellationProbeState state;
+    EmbeddedHost view;
     const EmbeddedCallbacks callbacks{.context = &state, .requestPreparation = &RecordVisualPreparationWake};
     RequireSucceeded(view.Attach(device, callbacks), "attach hidden visual embedded host");
     auto root = std::make_unique<Panel>();
@@ -862,6 +872,10 @@ void TestHiddenVisualPreparationDoesNotWakeUntilShown()
 
     Require(staleFrame == E_ABORT && hiddenWakes == 0u && shownWakes == 1u && recovered == S_OK && ! state.requestDuringVisualPreparation,
             "a hidden replacement frame sends no wake; a later show requests exactly one preparation");
+    const size_t cancellationsBeforeDetach = state.cancelled;
+    view.Detach();
+    Require(state.cancelled == cancellationsBeforeDetach + 1u && view.Controls().GetRoot() == nullptr,
+            "shown recovery teardown cancels the remaining probe while its state is alive");
 }
 
 void TestButtonContentFontSizeSurvivesEmbeddedMeasureAndRetirementCallbacks()
@@ -870,7 +884,6 @@ void TestButtonContentFontSizeSurvivesEmbeddedMeasureAndRetirementCallbacks()
     RequireSucceeded(graphics.Create(), "button typography embedded WARP fixture");
     std::shared_ptr<GraphicsDevice> device;
     RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "button typography graphics pool");
-    EmbeddedHost view;
     struct CallbackState
     {
         ControlHost* host{};
@@ -878,7 +891,9 @@ void TestButtonContentFontSizeSurvivesEmbeddedMeasureAndRetirementCallbacks()
         bool armed{}, retire{};
         HRESULT measured = E_PENDING;
         DesiredSize desired;
-    } state{.host = &view.Controls()};
+    } state;
+    EmbeddedHost view;
+    state.host = &view.Controls();
     const EmbeddedCallbacks callbacks{.context            = &state,
                                       .requestPreparation = [](void* context) noexcept
     {
@@ -1662,12 +1677,13 @@ void TestTextFieldFontRoleReturnsAfterEmbeddedPreparationOwnerRetires()
     std::shared_ptr<GraphicsDevice> device;
     RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "font-role retirement graphics pool");
 
-    EmbeddedHost view;
     struct RetirementContext
     {
         ControlHost* controls = nullptr;
         bool armed            = false;
-    } retirement{&view.Controls()};
+    } retirement;
+    EmbeddedHost view;
+    retirement.controls = &view.Controls();
     const EmbeddedCallbacks callbacks{
         .context = &retirement,
         .requestPreparation =
