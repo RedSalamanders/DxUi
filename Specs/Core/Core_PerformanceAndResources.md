@@ -822,3 +822,5 @@ allocation/SDK errors retain the existing failure contract. These bounds do not
 establish hard latency, browser layout equivalence or large-document acceptance.
 Resource/failure sweeps and all-current renderer qualification remain M4g work;
 earlier sealed parser/v0 packets do not establish semantic rendering performance.
+
+A paused ProgressBar contributes no animation continuation and keeps its current indeterminate phase. Pausing and resuming use one retained boolean and reset the tick seed; elapsed paused time is not replayed as catch-up work. A host may continue animation for other controls. Regression coverage must observe idle pause, active-to-paused phase preservation and resume without a phase jump, with enabled/indeterminate state unchanged.

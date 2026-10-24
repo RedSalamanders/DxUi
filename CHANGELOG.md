@@ -4,6 +4,10 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Add explicit ProgressBar animation pause and resume while preserving indeterminate, enabled and value state, with idle, phase, resume and accessible value-event regression coverage.
+- Preserve successful Grid UI Automation selection changes when their callbacks relayout sibling detail controls; retain lifetime/model-binding rejection and cover same-pointer model rebinding.
+- Prepare and verify the required MSVC 14.52 toolchain in active Windows CI, with read-only local checks and refusal controls; hosted installation and native ARM64 runtime results remain separate qualification gates.
+- Require MSVC 14.52.x and enable explicit Release function-level linking, unused-function elimination and whole-program/full link-time optimization; forward the exact compiler and WPO policy to consumer archive builds. Qualification and measured size/runtime evidence are tracked in the active build-policy plan.
 - Verify retained run inventories using fresh pinned-handle metadata and stable path/stream ordering; preserve before/after move diagnostics and exact safety checks, with stale-metadata and reversed-enumeration regressions.
 - Execute filesystem preservation regressions on Windows, explicitly reporting their coverage as not run in the Linux validator; keep all Windows identity, stream, ACL and reparse-point controls enabled.
 - Preserve unique successful, failed and interrupted test output in verified per-run evidence; retain shared read-only payloads and existing qualification checks.

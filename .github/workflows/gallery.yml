@@ -24,6 +24,10 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.ref }}
+      - name: Prepare required MSVC 14.52 tools
+        uses: ./.github/actions/setup-msvc
+        with:
+          platform: x64
       - shell: pwsh
         run: ./vcpkg-install.ps1 -Platform x64
       - shell: pwsh
