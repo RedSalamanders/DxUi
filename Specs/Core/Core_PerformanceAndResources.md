@@ -151,6 +151,15 @@ Among correct designs, minimize steady-state CPU/GPU time, private/resident memo
 synchronization, thread/handle count, wake-ups and graphics submissions. Preserve correctness, accessibility,
 security and visual quality; do not trade them away for an unmeasured optimization. All consumers share this policy.
 
+Prepared text rendering may retain at most one device-independent DirectWrite layout per eligible IconOnly base
+Button. Create or replace it only in the separate owner visual-preparation pass, never during composition. A warm
+paint draws it with the current origin and brush and performs no layout creation. Text/format/extent/flow changes,
+host retirement, hide and resource cancellation release it; optional preparation failure preserves the existing
+DrawTextW rendering path. Toggle and RadioButton descendants retain their distinct paint paths and do not prepare a
+base-Button layout. This visual-only work MUST NOT set content-geometry-changed state, publish UIA/text-input
+geometry, or make input wait for layout readiness. Include the bounded retained COM resource and its preparation
+CPU in measurements; do not infer a process-memory benefit from avoiding per-paint shaping.
+
 Before changing implementation, measure the existing code with the same workload that will measure the candidate.
 Retain the original baseline and measure again after the change. Record exact source/content and executable/fixture
 fingerprints, compiler/dependencies, architecture/configuration, hardware/OS/driver, power policy, resolution/DPI,

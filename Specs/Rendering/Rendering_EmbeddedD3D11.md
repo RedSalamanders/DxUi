@@ -131,6 +131,18 @@ retirement is tolerated. Library continuations that may run after synchronous sc
 MUST keep a weak control lifetime and stop before later member access if it expired. Host-specific continuation also
 revalidates current ownership. This contract does not promise safety when the callback destroys the owning host.
 
+Optional control visual preparation and cancellation are separate from content-geometry preparation. They may
+retain bounded resources but MUST NOT publish text-input/UIA geometry or delay input readiness. Cancellation runs
+after the retiring surface state has been cleared. A control hook may retire its tree or detach the embedded view
+while the owning host object remains alive; every continuation revalidates attachment lifetime and the current
+device/visibility operation before accessing borrowed state. Ordinary dirty revisions remain independent of those
+identities. An in-progress draw retains its device context until EndDraw even if a callback retires host resources.
+A device replacement or hide/show transition during preparation aborts that stale frame. When the same attachment
+survives, preparation clears its active flags and delivers one deferred owner wake for the new visible, sized
+operation; a hidden or zero-sized view sends no wake. This is a new operation request, not an automatic retry of a
+failed frame. Initial Attach still leaves the first preparation to its caller. Ordinary device replacement never
+marks a notification as sent without delivering one, so a later real invalidation can request preparation.
+
 Embedded PageHost and Slider transitions interpret AdvanceAnimation timestamps as monotonic application
 milliseconds and anchor their start on the first supplied tick, including zero. They never subtract system uptime
 from application time. Native hosting retains its dispatcher clock. Hiding/zero-sizing still suspends ticks under

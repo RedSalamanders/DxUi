@@ -1715,6 +1715,11 @@ protected:
     void RequestContentPreparation(bool requestWake = true) const noexcept;
     [[nodiscard]] virtual HRESULT PrepareContent(ControlHost& host) noexcept;
     virtual void CancelContentPreparation() noexcept;
+    // Optional visual resources are prepared separately from geometry/input readiness.
+    void EnableVisualContentPreparation() noexcept;
+    void RequestVisualContentPreparation(bool requestWake = true) const noexcept;
+    virtual void PrepareVisualContent(ControlHost& host) noexcept;
+    virtual void CancelVisualContentPreparation() noexcept;
     [[nodiscard]] virtual bool AcceptsTextInputDuringPreparation() const noexcept;
     virtual void OnFocusChanged(ControlHost& host, bool focused);
     virtual void OnHoverChanged(ControlHost& host, bool hovered);
@@ -1769,6 +1774,8 @@ private:
     bool _intrinsicLayoutPending            = false;
     bool _contentPreparationEnabled         = false;
     mutable bool _contentPreparationPending = false;
+    bool _visualPreparationEnabled          = false;
+    mutable bool _visualPreparationPending  = false;
 };
 
 [[nodiscard]] inline HRESULT MeasureControl(const Control& control,
@@ -2078,6 +2085,11 @@ public:
     [[nodiscard]] bool DebugIsDisclosureAnimationActive() const noexcept;
 #if DXUI_ENABLE_DIAGNOSTICS
     [[nodiscard]] bool DebugIsPressed() const noexcept;
+    [[nodiscard]] uint64_t DebugGetPreparedIconTextLayoutBuildCount() const noexcept;
+    [[nodiscard]] uint64_t DebugGetPreparedIconTextLayoutAttemptCount() const noexcept;
+    [[nodiscard]] uint64_t DebugGetPreparedIconTextLayoutPaintCount() const noexcept;
+    void DebugFailNextPreparedIconTextLayoutForTest() noexcept;
+    void DebugSetPreparedIconTextLayoutDisabledForTest(bool disabled) noexcept;
 #endif
 
     void Paint(ControlHost& host) const override;
@@ -2093,6 +2105,12 @@ protected:
     [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
     [[nodiscard]] bool IsPressed() const noexcept;
     void SetPressed(bool pressed) noexcept;
+    void PrepareVisualContent(ControlHost& host) noexcept override;
+    void CancelVisualContentPreparation() noexcept override;
+    void OnBoundsChanged() noexcept override;
+    void OnFlowDirectionChanged() noexcept override;
+    void OnDensityChanged() noexcept override;
+    void OnHostDpiChanged(ControlHost& host) noexcept override;
     void OnFocusChanged(ControlHost& host, bool focused) override;
     void OnHoverChanged(ControlHost& host, bool hovered) override;
     void OnCaptureLost(ControlHost& host) override;
@@ -2127,6 +2145,8 @@ private:
     [[nodiscard]] bool IsDropDownInvocationPoint(D2D1_POINT_2F point) const noexcept;
     [[nodiscard]] bool InvokeDropDown(ControlHost& host);
     [[nodiscard]] IDWriteTextFormat* ResolveContentTextFormat(const ControlHost& host, FontRole role, bool wrap = false) const noexcept;
+    void RetirePreparedIconTextLayout() noexcept;
+    [[nodiscard]] bool HasCurrentPreparedIconTextLayout(const ControlHost& host, const D2D1_RECT_F& bounds, FlowDirection flowDirection) const noexcept;
 
     static constexpr uint64_t _interactionAnimationDurationMs = 140u;
     static constexpr uint64_t _disclosureAnimationDurationMs  = 240u;
@@ -2147,6 +2167,27 @@ private:
     std::optional<bool> _toggleState;
     std::optional<ButtonThemePreview> _themePreview;
     std::optional<float> _contentFontSizeDip;
+    wil::com_ptr<IDWriteTextFormat> _preparedIconTextFormat;
+    wil::com_ptr<IDWriteTextLayout> _preparedIconTextLayout;
+    ControlHost* _preparedIconTextHost   = nullptr;
+    uint64_t _preparedIconTextRevision   = 0u;
+    uint64_t _preparedIconTextResources  = 0u;
+    uint64_t _preparedIconTextTypography = 0u;
+    float _preparedIconTextWidthDip      = 0.0f;
+    float _preparedIconTextHeightDip     = 0.0f;
+    wchar_t _preparedIconText[2]{};
+    UINT32 _preparedIconTextLength      = 0u;
+    FlowDirection _preparedIconTextFlow = FlowDirection::LeftToRight;
+    uint64_t _iconTextInputRevision     = 0u;
+    bool _preparedIconTextKeyValid      = false;
+    bool _preparedIconTextFailed        = false;
+#if DXUI_ENABLE_DIAGNOSTICS
+    uint64_t _debugPreparedIconTextLayoutBuildCount         = 0u;
+    uint64_t _debugPreparedIconTextLayoutAttemptCount       = 0u;
+    mutable uint64_t _debugPreparedIconTextLayoutPaintCount = 0u;
+    bool _debugFailNextPreparedIconTextLayout               = false;
+    bool _debugDisablePreparedIconTextLayout                = false;
+#endif
     bool _multiline              = false;
     ButtonVariant _variant       = ButtonVariant::Standard;
     ButtonAppearance _appearance = ButtonAppearance::Filled;
@@ -5570,10 +5611,14 @@ private:
     bool _pendingPageLayout                   = false;
     bool _pendingIntrinsicLayout              = false;
     mutable bool _pendingContentPreparation   = false;
+    bool _pendingVisualPreparation            = false;
+    bool _forceAllVisualPreparation           = false;
     bool _contentPreparationContinues         = false;
     bool _contentGeometryChanged              = false;
     uint64_t _preparedContentResources        = 0u;
     uint64_t _preparedContentTypography       = 0u;
+    uint64_t _preparedVisualResources         = 0u;
+    uint64_t _preparedVisualTypography        = 0u;
     mutable uint64_t _typographyRevision      = 0u;
     const Control* _intrinsicArrangeBranch    = nullptr;
     uint64_t _intrinsicArrangeForeignRevision = 0u;
@@ -5582,6 +5627,7 @@ private:
     [[nodiscard]] bool PreparePendingPageLayout() noexcept;
     void PublishPreparedContent() noexcept;
     void CancelPreparedContent() noexcept;
+    void CancelPreparedVisualContent(Control* subtree = nullptr) noexcept;
     bool _embedded                              = false;
     bool _embeddedAnimationRequested            = false;
     void* _embeddedContext                      = nullptr;

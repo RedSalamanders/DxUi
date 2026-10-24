@@ -192,6 +192,10 @@ icons. The optional getter returns the normalized size, and `std::nullopt` resto
 Finite sizes from 6 through 96 DIP normalize to 1/64 DIP; the HRESULT setter returns `S_FALSE` for an unchanged
 normalized value and `E_INVALIDARG` without mutation for invalid input. Measurement and painting retain the
 host's family/weight and share cached formats; internal dropdown/disclosure chevrons keep their normal metrics.
+An IconOnly base Button may reuse one prepared DirectWrite layout for a single valid Unicode scalar. Layout creation
+runs in the visual-only owner preparation pass, while paint keeps the current origin, brush and draw options. The
+bounded layout is retired on relevant text/format/extent/flow or host-resource changes; failure and unsupported text
+use the unchanged DrawTextW path. Toggle and RadioButton descendants keep their own paint paths.
 
 A Button with `SetDisclosureExpanded(bool)` exposes UIA ExpandCollapse as well as Invoke. Repeated
 requests for the already acknowledged state do nothing. A changed request invokes the normal click

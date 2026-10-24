@@ -2993,6 +2993,7 @@ try
                 // the swap chain (including WM_SETREDRAW's asymmetric hide).
                 // The next real visible preparation rebuilds current geometry.
                 CancelPreparedContent();
+                CancelPreparedVisualContent();
                 DeactivateNativeTextInputSession();
             }
             handled = false;
@@ -3735,6 +3736,7 @@ bool ControlHost::EnsureDeviceResources() noexcept
     if (_sharedGraphicsGeneration != 0u && _sharedGraphicsGeneration != shared.generation)
     {
         CancelPreparedContent();
+        CancelPreparedVisualContent();
         DiscardSizeDependentResources(L"shared-generation-change");
         _dcompVisual.reset();
         _dcompTarget.reset();
@@ -4017,6 +4019,7 @@ void ControlHost::DiscardSizeDependentResources(const std::wstring_view reason) 
 void ControlHost::DiscardDeviceResources() noexcept
 {
     CancelPreparedContent();
+    CancelPreparedVisualContent();
     ++_resourceGeneration;
     _contentGeometryChanged = false;
     if (_d2dContext || _targetBitmap || _swapChain || _d3dContext)
@@ -4554,7 +4557,10 @@ void ControlHost::OnSize(UINT widthPx, UINT heightPx) noexcept
     // Height-only suspension may leave a rich editor's shaping width unchanged.
     // Cancel explicitly before publishing zero-sized text/UIA geometry.
     if (_widthPx == 0u || _heightPx == 0u)
+    {
         CancelPreparedContent();
+        CancelPreparedVisualContent();
+    }
     if (_root)
     {
         _root->SetBounds(D2D1::RectF(0.0f, 0.0f, PixelsToDip(static_cast<float>(_widthPx)), PixelsToDip(static_cast<float>(_heightPx))));

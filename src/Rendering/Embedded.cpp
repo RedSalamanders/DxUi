@@ -138,6 +138,7 @@ struct EmbeddedHost::State
     bool zeroSized                       = false;
     bool animationSuspended              = false;
     bool preparationRequested            = true; // Initial dirty state already requires the caller's first Prepare.
+    bool recoveryWakePending             = false;
     bool preparing                       = false;
     bool prepareCallActive               = false;
     bool contentPending                  = false;
@@ -153,7 +154,7 @@ EmbeddedHost::~EmbeddedHost()
 }
 HRESULT EmbeddedHost::Attach(std::shared_ptr<GraphicsDevice> graphics, EmbeddedCallbacks callbacks) noexcept
 {
-    if (! graphics || graphics->_state->thread != GetCurrentThreadId())
+    if (_detaching || ! graphics || graphics->_state->thread != GetCurrentThreadId())
         return E_INVALIDARG;
     if (_state)
         return HRESULT_FROM_WIN32(ERROR_ALREADY_INITIALIZED);
@@ -165,6 +166,7 @@ HRESULT EmbeddedHost::Attach(std::shared_ptr<GraphicsDevice> graphics, EmbeddedC
     {
         return E_OUTOFMEMORY;
     }
+    ++_attachmentRevision;
     _state->callbacks              = callbacks;
     _host._embedded                = true;
     _host._embeddedContext         = this;
@@ -181,8 +183,13 @@ HRESULT EmbeddedHost::Attach(std::shared_ptr<GraphicsDevice> graphics, EmbeddedC
 }
 void EmbeddedHost::Detach() noexcept
 {
-    if (! _state)
+    if (! _state || _detaching)
         return;
+    _detaching                 = true;
+    const auto finishDetach    = wil::scope_exit([this]() noexcept { _detaching = false; });
+    State* const attachedState = _state.get();
+    ++_attachmentRevision;
+    ++_operationRevision;
     DisconnectAccessibility();
     CancelPointer();
     CancelTextInput();
@@ -191,18 +198,29 @@ void EmbeddedHost::Detach() noexcept
     _host.Detach();
     _host._embedded                   = false;
     _host._embeddedAnimationRequested = false;
-    _textInputRevision += _state->revision + 1;
+    _textInputRevision += attachedState->revision + 1;
     _state.reset();
 }
 HRESULT EmbeddedHost::ReplaceDevice(std::shared_ptr<GraphicsDevice> graphics) noexcept
 {
-    if (! _state || ! graphics || graphics->_state->thread != GetCurrentThreadId())
+    if (! _state || _detaching || _replacingDevice || ! graphics || graphics->_state->thread != GetCurrentThreadId())
         return E_INVALIDARG;
+    State* const attachedState        = _state.get();
+    const uint64_t attachmentRevision = _attachmentRevision;
+    const uint64_t operationRevision  = ++_operationRevision;
+    _replacingDevice                  = true;
+    const auto finishReplacement      = wil::scope_exit([this]() noexcept { _replacingDevice = false; });
+    const auto attachmentIsCurrent    = [&]() noexcept { return _state.get() == attachedState && _attachmentRevision == attachmentRevision && ! _detaching; };
+    const auto operationIsCurrent     = [&]() noexcept { return attachmentIsCurrent() && _operationRevision == operationRevision; };
     ReleaseSurface();
-    auto& s = *_state;
+    if (! operationIsCurrent())
+        return E_ABORT;
+    auto& s = *attachedState;
     auto& g = *graphics->_state;
     s.graphics.reset();
     _host.DiscardDeviceResources();
+    if (! operationIsCurrent())
+        return E_ABORT;
     _host._d3dDevice     = g.device.get();
     _host._d2dFactory    = g.factory.get();
     _host._d2dDevice     = g.d2d.get();
@@ -214,8 +232,19 @@ HRESULT EmbeddedHost::ReplaceDevice(std::shared_ptr<GraphicsDevice> graphics) no
     _host._d2dContext->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
     if (! _host.EnsureDeviceIndependentResources())
         return E_FAIL;
+    if (! operationIsCurrent())
+        return E_ABORT;
     _host.RecreateBrushCache();
     s.graphics = std::move(graphics);
+    if (s.prepareCallActive)
+    {
+        // This frame belongs to the retired resource epoch. Queue one owner
+        // wake for the replacement; the retiring frame must not retry it.
+        s.recoveryWakePending  = true;
+        s.preparationRequested = false;
+    }
+    else
+        s.preparationRequested = false;
     return S_OK;
 }
 void EmbeddedHost::InvalidateThunk(void* context) noexcept
@@ -244,10 +273,21 @@ void EmbeddedHost::ReleaseSurface() noexcept
 {
     if (! _state)
         return;
+    State* const attachedState        = _state.get();
+    const uint64_t attachmentRevision = _attachmentRevision;
+    const uint64_t operationRevision  = _operationRevision;
+    const auto operationIsCurrent     = [&]() noexcept
+    { return _state.get() == attachedState && _attachmentRevision == attachmentRevision && _operationRevision == operationRevision && ! _detaching; };
     DisconnectAccessibility();
+    if (! operationIsCurrent())
+        return;
     CancelPointer();
+    if (! operationIsCurrent())
+        return;
     CancelTextInput();
-    auto& s = *_state;
+    if (! operationIsCurrent())
+        return;
+    auto& s = *attachedState;
     // Drop the borrowed D2D target before the bitmap so no context reference keeps the texture alive.
     if (_host._d2dContext)
         _host._d2dContext->SetTarget(nullptr);
@@ -261,18 +301,31 @@ void EmbeddedHost::ReleaseSurface() noexcept
     s.contentPending             = false;
     s.preparationRequested       = false;
     s.dirty                      = true;
+    // This is deliberately the final operation: visual cancellation can invoke
+    // arbitrary control callbacks, including detaching this EmbeddedHost.
+    _host.CancelPreparedVisualContent();
 }
 void EmbeddedHost::SetVisible(bool visible) noexcept
 {
-    if (! _state || _state->visible == visible)
+    if (! _state || _detaching || _state->visible == visible)
         return;
-    _state->visible = visible;
+    State* const attachedState        = _state.get();
+    const uint64_t attachmentRevision = _attachmentRevision;
+    const uint64_t operationRevision  = ++_operationRevision;
+    const auto attachmentIsCurrent    = [&]() noexcept { return _state.get() == attachedState && _attachmentRevision == attachmentRevision && ! _detaching; };
+    const auto operationIsCurrent     = [&]() noexcept { return attachmentIsCurrent() && _operationRevision == operationRevision; };
+    attachedState->visible            = visible;
     if (! visible)
     {
+        attachedState->recoveryWakePending = false;
         ReleaseSurface();
+        if (! operationIsCurrent())
+            return;
         // Nothing paints while the view is hidden, so its controls return what painting rebuilds (a Grid's text layouts).
         if (_host._root)
             _host._root->OnHidden();
+        if (! operationIsCurrent())
+            return;
         _state->animationSuspended        = _host._embeddedAnimationRequested;
         _host._embeddedAnimationRequested = false;
     }
@@ -281,7 +334,10 @@ void EmbeddedHost::SetVisible(bool visible) noexcept
         _host._embeddedAnimationRequested = _host._embeddedAnimationRequested || _state->animationSuspended;
         _state->animationSuspended        = false;
         _state->dirty                     = true;
-        RequestPreparation();
+        if (_state->prepareCallActive)
+            _state->recoveryWakePending = true;
+        else
+            RequestPreparation();
     }
 }
 bool EmbeddedHost::NeedsPreparation() const noexcept
@@ -314,10 +370,19 @@ bool EmbeddedHost::AdvanceAnimation(uint64_t tick) noexcept
 }
 HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
 {
-    if (! _state || ! _state->graphics)
+    if (! _state || ! _state->graphics || _detaching || _replacingDevice)
         return E_UNEXPECTED;
-    auto& s = *_state;
-    auto& g = *s.graphics->_state;
+    State* const attachedState        = _state.get();
+    const uint64_t attachmentRevision = _attachmentRevision;
+    const uint64_t operationRevision  = _operationRevision;
+    const auto attachmentIsCurrent    = [&]() noexcept { return _state.get() == attachedState && _attachmentRevision == attachmentRevision; };
+    const auto preparationIsCurrent   = [&]() noexcept
+    { return attachmentIsCurrent() && _operationRevision == operationRevision && ! _detaching && ! _replacingDevice; };
+    auto& s                  = *attachedState;
+    const auto graphicsOwner = s.graphics;
+    if (! graphicsOwner)
+        return E_UNEXPECTED;
+    auto& g = *graphicsOwner->_state;
     if (g.thread != GetCurrentThreadId())
         return RPC_E_WRONG_THREAD;
     if (s.prepareCallActive)
@@ -328,13 +393,20 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
     s.preparing                  = true;
     const auto finishPreparation = wil::scope_exit([&]
     {
+        if (! attachmentIsCurrent())
+            return;
         s.preparing = false;
         // Never invoke application scheduling while a control paint or layout
         // callback is still on the stack. A new reentrant request is distinct
         // from automatically retrying the same failed work.
-        if (requestAfterPreparation || s.revision != observedRevision)
-            RequestPreparation();
+        const bool recoveryWake            = s.recoveryWakePending;
+        s.recoveryWakePending              = false;
+        const bool currentVisibleOperation = attachmentIsCurrent() && ! _detaching && ! _replacingDevice && s.visible && ! s.zeroSized;
+        const bool request =
+            currentVisibleOperation && (recoveryWake || (preparationIsCurrent() && (requestAfterPreparation || s.revision != observedRevision)));
         s.prepareCallActive = false;
+        if (request)
+            RequestPreparation();
     });
     s.preparationRequested       = false;
     s.contentPending             = false;
@@ -344,8 +416,12 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
     {
         // Neither state holds a surface; the next visible sized preparation allocates one.
         ReleaseSurface();
+        if (! preparationIsCurrent())
+            return E_ABORT;
         if (s.zeroSized && ! wasZeroSized && _host._root)
             _host._root->OnHidden();
+        if (! preparationIsCurrent())
+            return E_ABORT;
         return S_FALSE;
     }
     if (! std::isfinite(dpi) || dpi < 48 || dpi > 768 || width > D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION || height > D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION)
@@ -369,7 +445,11 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
     // the drag target, so that revision must not snap the drag back. A new view size, or a capture whose control
     // is gone, hidden or disabled, still cancels.
     if (targetChanged || (geometryChanged && ! CapturedDragContinues()))
+    {
         CancelPointer();
+        if (! preparationIsCurrent())
+            return E_ABORT;
+    }
     if (! s.dirty && s.coherent && width == s.width && height == s.height && dpi == s.dpi)
         return S_FALSE;
     s.coherent                   = false;
@@ -420,12 +500,23 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         if (_host._root)
         {
             if (dpiChanged)
+            {
                 _host._root->OnHostDpiChanged(_host);
+                if (! preparationIsCurrent())
+                    return E_ABORT;
+            }
             if (_host._root)
+            {
                 _host._root->SetBounds(D2D1::RectF(0, 0, float(width) * 96 / dpi, float(height) * 96 / dpi));
+                if (! preparationIsCurrent())
+                    return E_ABORT;
+            }
         }
-        observedRevision = s.revision;
-        if (! _host.PreparePendingPageLayout())
+        observedRevision       = s.revision;
+        const bool layoutReady = _host.PreparePendingPageLayout();
+        if (! preparationIsCurrent())
+            return E_ABORT;
+        if (! layoutReady)
         {
             s.contentPending             = _host._contentPreparationContinues;
             s.contentInteractionRevision = _host._interactionRevision;
@@ -439,10 +530,13 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         ID3D11ShaderResourceView* empty = nullptr;
         _host._d3dContext->PSSetShaderResources(0, 1, &empty);
         _host._d3dContext->OMSetRenderTargets(0, nullptr, nullptr);
-        observedRevision               = s.revision;
-        const auto revision            = s.revision;
-        const auto interactionRevision = _host._interactionRevision;
-        auto* dc                       = _host._d2dContext.get();
+        observedRevision                                 = s.revision;
+        const auto revision                              = s.revision;
+        const auto interactionRevision                   = _host._interactionRevision;
+        wil::com_ptr_nothrow<ID2D1DeviceContext> dcOwner = _host._d2dContext;
+        auto* dc                                         = dcOwner.get();
+        if (! dc)
+            return E_UNEXPECTED;
         _host.TrimCaches();
         FrameStageScope renderStage(preparationStage, FrameStage::Render);
         dc->BeginDraw();
@@ -452,7 +546,10 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         Control* const paintRoot    = _host._root.get();
         const auto rootLifetime     = paintRoot ? GetControlLifetimeToken(*paintRoot) : std::weak_ptr<int>{};
         const auto treeStillCurrent = [&]() noexcept
-        { return (! paintRoot || ! rootLifetime.expired()) && _host._root.get() == paintRoot && _host._interactionRevision == interactionRevision; };
+        {
+            return preparationIsCurrent() && (! paintRoot || ! rootLifetime.expired()) && _host._root.get() == paintRoot &&
+                   _host._interactionRevision == interactionRevision;
+        };
         if (_host._root)
         {
             _host._root->Paint(_host);
@@ -463,15 +560,23 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
                 return E_ABORT;
         }
         if (_host._tooltipLayer.HasTooltip())
+        {
             _host._tooltipLayer.Paint(_host);
+            if (! treeStillCurrent())
+                return E_ABORT;
+        }
         finish.release();
         RETURN_IF_FAILED(dc->EndDraw());
+        if (! preparationIsCurrent())
+            return E_ABORT;
         s.preparedInteractionRevision = interactionRevision;
         s.coherent                    = interactionRevision == _host._interactionRevision;
         s.interactionLayoutAvailable  = true;
         s.dirty                       = s.revision != revision;
         ++s.stats.preparations;
         _host.PublishPreparedContent();
+        if (! preparationIsCurrent())
+            return E_ABORT;
         s.coherent              = s.coherent && interactionRevision == _host._interactionRevision;
         s.dirty                 = s.revision != revision;
         requestAfterPreparation = s.dirty;
@@ -490,9 +595,15 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
 }
 HRESULT EmbeddedHost::PrepareInteraction(UINT width, UINT height, float dpi) noexcept
 {
-    if (! _state || ! _state->graphics)
+    if (! _state || ! _state->graphics || _detaching || _replacingDevice)
         return E_UNEXPECTED;
-    auto& s = *_state;
+    State* const attachedState        = _state.get();
+    const uint64_t attachmentRevision = _attachmentRevision;
+    const uint64_t operationRevision  = _operationRevision;
+    const auto attachmentIsCurrent    = [&]() noexcept { return _state.get() == attachedState && _attachmentRevision == attachmentRevision; };
+    const auto preparationIsCurrent   = [&]() noexcept
+    { return attachmentIsCurrent() && _operationRevision == operationRevision && ! _detaching && ! _replacingDevice; };
+    auto& s = *attachedState;
     if (s.graphics->_state->thread != GetCurrentThreadId())
         return RPC_E_WRONG_THREAD;
     if (! std::isfinite(dpi) || dpi < 48 || dpi > 768)
@@ -516,7 +627,11 @@ HRESULT EmbeddedHost::PrepareInteraction(UINT width, UINT height, float dpi) noe
         return S_FALSE;
     const auto revision = _host._interactionRevision;
     if (! CapturedDragContinues())
+    {
         CancelPointer();
+        if (! preparationIsCurrent())
+            return E_ABORT;
+    }
     // A cancellation callback may itself change the tree or bounds. The caller has not arranged that state yet.
     if (revision != _host._interactionRevision)
     {

@@ -354,6 +354,18 @@ re-enter `EmbeddedHost` preparation, composition, input, device or lifecycle met
 callback MUST check its captured weak lifetime before touching the control again, and MUST verify current host
 ownership before continuing with host-specific work. Whole-host destruction from inside a callback is not covered.
 
+An `IconOnly` base `Button` with exactly one valid Unicode scalar may retain one `IDWriteTextLayout` for its current
+host format, flow direction and exact DIP extent. Prepare it through the visual-only owner preparation channel,
+never lazily in `Paint`; this channel does not mark content geometry changed, publish text-input/UIA state or delay
+input readiness. Paint the retained layout at the current origin with the current foreground brush and the same
+DirectWrite draw options as the ordinary text path, so state/color changes do not rebuild it. The key retains the
+effective format identity and host/resource/typography generation; text, format, size, flow, host detach, hide and
+device/resource cancellation retire it. At most one layout is retained per eligible Button. Toggle and RadioButton
+descendants keep their distinct paint paths and do not prepare a base-Button resource. Empty, multi-scalar and
+malformed UTF-16 content, and any failed optional preparation, continue through the existing `DrawTextW` path.
+Never change the caller's text or geometry to make the cache eligible. Exact-pixel tests cover supported glyph/fallback, flow, DPI, bounds, rendering
+state and text-antialias cases against the original path; any unsupported case remains on that path.
+
 Control callbacks that synchronously transfer native mouse capture use the same rule. Before transfer, publish state
 needed by the ensuing capture notification and capture the requesting control's weak lifetime. The previous HWND's
 `WM_CAPTURECHANGED` callback may replace the requesting host's root before capture returns; afterward the requester

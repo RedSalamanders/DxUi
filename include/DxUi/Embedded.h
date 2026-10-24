@@ -195,8 +195,13 @@ private:
     struct State;
     std::unique_ptr<State> _state;
     ControlHost _host;
-    // Attachment epoch plus the existing dirty revision forms the text token. Ordinary invalidation adds no
-    // new hot-path work; the epoch advances at detach so old services cannot address a new tree.
+    bool _detaching       = false;
+    bool _replacingDevice = false;
+    // Attachment identity protects State lifetime; operation identity also rejects stale work after hide/device changes.
+    uint64_t _attachmentRevision = 0u;
+    uint64_t _operationRevision  = 0u;
+    // The attachment epoch rejects reentrant detach/reattach while text revisions continue independently.
+    // Ordinary invalidation adds no new hot-path work; detach advances the epoch before a new tree is attached.
     uint64_t _textInputRevision   = 1;
     uint64_t _keyDispatchSequence = 0u;
     static void InvalidateThunk(void* context) noexcept;

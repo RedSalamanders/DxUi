@@ -32,6 +32,8 @@ device; the application owns immediate-context scheduling and presentation.
    work. `S_FALSE` means already clean, hidden, zero-sized, or that cooperative content preparation remains pending.
    When `NeedsPreparation()` is true, honor the next owner-turn request and call `Prepare` again; do not spin.
    A failed HRESULT suppresses input/composition until preparation succeeds.
+   Optional control visual preparation is separate from content preparation: it may retain bounded visual resources,
+   but it does not mark content geometry changed, publish text-input/UIA geometry, or hold input readiness pending.
 4. Bind the application's render target, then call `view.Composite(context, viewport)`. It binds its required
    pipeline state and draws the prepared texture. It changes D3D state: rebind your state for subsequent drawing.
 5. Present through the application. DxUi embedded mode owns no HWND, swap chain, timer, worker or presentation loop.
