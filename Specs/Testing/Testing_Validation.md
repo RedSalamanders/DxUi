@@ -725,6 +725,10 @@ interactive desktop lease: `DxUi.InteractiveLease.exe` (`Tests/InteractiveLease`
   capture or wait failure fails the child result. Membership can change during capture, so this is not an atomic whole-tree
   completion barrier; kill-on-close containment also covers members created during that interval. A child that outlives its bound
   (15 minutes, or three times `-TestTimeout` when that is longer; none with `-TestTimeout 0`) ends with the watchdog's exit code, 124.
+  The native self-test verifies both normal-exit and timeout descendant completion against the fixture's PID and
+  creation time. Its single defensive descendant cleanup is allowed only after that identity check; source guards
+  retain the direct-created-handle restriction elsewhere and the ban on process-name discovery. These source guards
+  supplement the required successful behavioral self-test rather than proving process ownership by themselves.
 - **Restoring.** The foreground window, then its keyboard focus, then the pointer in physical coordinates, last because activating a
   window can move it. Each is verified by reading the desktop again, never by trusting a call's result (the foreground is asked for
   three times and read back for up to a second each time), and the pointer must land exactly. This happens on every exit path: passing

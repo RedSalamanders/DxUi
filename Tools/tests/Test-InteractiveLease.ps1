@@ -178,19 +178,36 @@ Invoke-TestCase 'ordinary confirmation defaults to Cancel; an explicitly approve
     Assert-True ($module -match '\[int\] \$ConfirmSeconds = 120') 'and so does the script that starts it, which never passes a longer time'
     Assert-True (-not ([IO.File]::ReadAllText((Join-Path $repo 'test.ps1')) -match '-ConfirmSeconds')) 'test.ps1 offers no way to wait longer, or to skip the question'
 }
-Invoke-TestCase 'the lease ends only the processes it started' {
+Invoke-TestCase 'the lease ends only its child and the identity-verified descendant fixture' {
     # The repository's rule for every tool: never end an application that was launched independently, never find one by name. The
     # lease starts its children itself, ends exactly them through their job or handle, and has no way to name anything else.
     $sources = foreach ($path in @('Tests/InteractiveLease/InteractiveLease.Tests.Runner.cpp', 'Tests/InteractiveLease/InteractiveLease.Tests.ChildProcess.h', 'Tests/InteractiveLease/InteractiveLease.Tests.Confirmation.h', 'Tests/InteractiveLease/InteractiveLease.Tests.WarningBanner.h',
             'Tests/Support/Support.Tests.DesktopLease.h', 'Tests/Support/Support.Tests.InteractiveLease.h')) { [pscustomobject]@{ Path = $path; Text = [IO.File]::ReadAllText((Join-Path $repo $path)) } }
+    $descendantCleanups = 0
     foreach ($source in $sources) {
         foreach ($match in [regex]::Matches($source.Text, 'TerminateProcess\(([^,]+),')) {
-            Assert-Equal 'process.hProcess' $match.Groups[1].Value.Trim() "$($source.Path) ends only the process it created"
+            $argument = $match.Groups[1].Value.Trim()
+            if ($source.Path -ceq 'Tests/InteractiveLease/InteractiveLease.Tests.Runner.cpp' -and $argument -ceq 'descendant.get()') {
+                # The native self-test's failure cleanup has one additional owned
+                # handle. Keep this allowance confined to its fixture, after both
+                # PID parsing and a successful creation-time identity comparison.
+                # The successful native self-test above is the behavioral oracle.
+                $begin = $source.Text.IndexOf('    void DescendantProcesses()', [StringComparison]::Ordinal)
+                $end = $source.Text.IndexOf('    struct FakeHostedInputOperations', [StringComparison]::Ordinal)
+                Assert-True ($begin -ge 0 -and $match.Index -gt $begin -and $end -gt $match.Index) 'descendant termination stays in the owned failure-cleanup fixture'
+                $prefix = $source.Text.Substring($begin, $match.Index - $begin)
+                Assert-True ($prefix -match 'GetProcessTimes\(descendant.get\(\)' -and $prefix -match 'if \(! identified\)\s*continue;') 'unidentified descendant handles cannot reach termination'
+                Assert-True ($prefix -match '(?s)if \(actualCreation != creation\)\s*\{[^}]*continue;\s*\}') 'reused PIDs cannot reach descendant termination'
+                ++$descendantCleanups
+            } else {
+                Assert-Equal 'process.hProcess' $argument "$($source.Path) ends only the process it created"
+            }
         }
         foreach ($call in @('CreateToolhelp32Snapshot', 'EnumProcesses', 'Process32First', 'FindWindow', 'AllowSetForegroundWindow(ASFW_ANY')) {
             Assert-True (-not $source.Text.Contains($call)) "$($source.Path) never looks for another process or grants the foreground to any: $call"
         }
     }
+    Assert-Equal 1 $descendantCleanups 'only the reviewed descendant failure-cleanup call has this additional allowance'
     $grants = @($sources | ForEach-Object { [regex]::Matches($_.Text, 'AllowSetForegroundWindow\(([^)]*)\)') } | ForEach-Object { $_.Groups[1].Value })
     Assert-True ($grants.Count -ge 1 -and @($grants | Where-Object { $_ -ne 'process.dwProcessId' }).Count -eq 0) "the foreground is granted only to the child it just created: $($grants -join ', ')"
     foreach ($script in @('test.ps1', 'Tools/InteractiveRun.psm1')) {
