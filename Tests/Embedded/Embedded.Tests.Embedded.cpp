@@ -1490,6 +1490,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichProjectionMaximumSourceStorageBudget();
     TestRetainedRichTextDefaultFontChunkReuse(gpu);
     TestRichTextCooperativeSchedulingAndTextInput(gpu);
+    TestEmbeddedContinuationCallbackCannotReenterOrUseDetachedState(gpu);
     TestEmbeddedLosslessMarkdownPreparation(gpu);
     TestEmbeddedFrontMatterFencesAndSourceEdits(gpu);
     TestEmbeddedFlowchartRenderingAndFallbacks(gpu);

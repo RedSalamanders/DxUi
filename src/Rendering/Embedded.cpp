@@ -387,7 +387,15 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         return RPC_E_WRONG_THREAD;
     if (s.prepareCallActive)
         return E_UNEXPECTED;
-    s.prepareCallActive          = true;
+    s.prepareCallActive = true;
+    // Keep the recursive-call guard set while the scheduling callback runs.
+    // The callback may detach or replace this attachment, so only clear the
+    // captured state when its attachment identity still matches on unwind.
+    const auto finishPrepareCall = wil::scope_exit([&]() noexcept
+    {
+        if (_state.get() == attachedState && _attachmentRevision == attachmentRevision)
+            attachedState->prepareCallActive = false;
+    });
     bool requestAfterPreparation = false;
     auto observedRevision        = s.revision;
     s.preparing                  = true;
@@ -404,7 +412,6 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         const bool currentVisibleOperation = attachmentIsCurrent() && ! _detaching && ! _replacingDevice && s.visible && ! s.zeroSized;
         const bool request =
             currentVisibleOperation && (recoveryWake || (preparationIsCurrent() && (requestAfterPreparation || s.revision != observedRevision)));
-        s.prepareCallActive = false;
         if (request)
             RequestPreparation();
     });

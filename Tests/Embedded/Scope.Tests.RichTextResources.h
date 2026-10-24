@@ -2067,6 +2067,75 @@ static void TestRichTextCooperativeFailureDoesNotRetryAutomatically(GraphicsFixt
     Check(editor->GetText() == L"new source permits retry" && editor->DebugGetState().layoutReady, "explicit retry publishes retained source");
 }
 
+static void TestEmbeddedContinuationCallbackCannotReenterOrUseDetachedState(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    class OneDeferredPreparation final : public RichTextEditor
+    {
+    public:
+        OneDeferredPreparation() : RichTextEditor(L"deferred source")
+        {
+        }
+        size_t prepareCalls{};
+        HRESULT PrepareContent(ControlHost& host) noexcept override
+        {
+            ++prepareCalls;
+            return prepareCalls == 1u ? S_FALSE : RichTextEditor::PrepareContent(host);
+        }
+    };
+    struct Requests
+    {
+        EmbeddedHost* view{};
+        size_t count{};
+        bool reenter{};
+        bool detach{};
+        bool detached{};
+        HRESULT reentrantResult = S_OK;
+    };
+    const auto request = [](void* context) noexcept
+    {
+        auto& state = *static_cast<Requests*>(context);
+        ++state.count;
+        if (std::exchange(state.reenter, false))
+            state.reentrantResult = state.view->Prepare(480u, 240u);
+        if (std::exchange(state.detach, false))
+        {
+            state.view->Detach();
+            state.detached = true;
+        }
+    };
+
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "continuation reentry graphics");
+
+    Requests reentrant;
+    EmbeddedHost reentrantView;
+    reentrant.view = &reentrantView;
+    Hr(reentrantView.Attach(graphics, {&reentrant, request}), "continuation reentry host");
+    auto reentrantEditor     = std::make_unique<OneDeferredPreparation>();
+    auto* reentrantEditorRaw = reentrantEditor.get();
+    reentrantView.Controls().SetRoot(std::move(reentrantEditor));
+    const size_t beforeReentry = reentrant.count;
+    reentrant.reenter          = true;
+    Check(reentrantView.Prepare(480u, 240u) == S_FALSE && reentrantView.NeedsPreparation() && reentrant.count == beforeReentry + 1u &&
+              reentrant.reentrantResult == E_UNEXPECTED && reentrantEditorRaw->prepareCalls == 1u,
+          "one continuation wake rejects recursive preparation without advancing a second turn");
+    Hr(PrepareRichEmbeddedContent(reentrantView, 480u, 240u), "service deferred continuation after callback returns");
+    Check(reentrantEditorRaw->prepareCalls == 2u && ! reentrantView.NeedsPreparation(), "the owner can service the continuation on a later turn");
+
+    Requests detached;
+    EmbeddedHost detachedView;
+    detached.view = &detachedView;
+    Hr(detachedView.Attach(graphics, {&detached, request}), "continuation detach host");
+    auto detachedEditor = std::make_unique<OneDeferredPreparation>();
+    detachedView.Controls().SetRoot(std::move(detachedEditor));
+    const size_t beforeDetach = detached.count;
+    detached.detach           = true;
+    Check(detachedView.Prepare(480u, 240u) == S_FALSE && detached.detached && detached.count == beforeDetach + 1u,
+          "the continuation callback may detach its host");
+    Check(detachedView.Prepare(480u, 240u) == E_UNEXPECTED, "detached continuation cleanup does not reuse retired host state");
+}
+
 // Included by the supplied-device fixture after its Check/Hr and allocation counter.
 static void TestUnicodeGraphemeForwardWalkAllocationBudget()
 {

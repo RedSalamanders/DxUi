@@ -4,6 +4,9 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Embedded preparation keeps its active-call guard across the owner scheduling callback, so a synchronous callback cannot
+  recursively drain another turn. Cleanup clears the guard only while the captured attachment remains current; focused
+  regression coverage exercises deferred continuation and detach during the callback.
 - Reuse one owner-prepared DirectWrite layout for eligible IconOnly base Buttons while preserving the DrawTextW fallback and dynamic paint state. Add exact-pixel, cancellation and reentrant embedded-host recovery coverage; consumer performance acceptance remains separate.
 - Keep native accessibility mutations dirty while skipping snapshot loads, focus-path searches and new flush posts when no provider or UIA listener is interested; preserve existing queued publication and interested focus behavior. Extend deterministic coverage for late provider queries, retained-provider freshness, queued flushes and diagnostic attachment isolation. Current source awaits build, native and performance validation; prior private pilot results do not establish a macro performance benefit.
 - The canonical benchmark retains its logical evidence path and passes only the native Windows argument in extended-length drive/UNC form. Focused tooling fixtures cover long Unicode paths, idempotent conversion, before/after attestation and unchanged failure propagation; native qualification remains separate.

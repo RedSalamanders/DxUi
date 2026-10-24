@@ -526,13 +526,17 @@ void TestButtonPreparedIconTextLayoutMatchesDrawTextW()
         // retain exact equality with the original DrawTextW path.
         button->SetFlowDirection(FlowDirection::LeftToRight);
         button->SetText(L"\uE8DD");
-        const D2D1_RECT_F hoverBounds = button->GetBounds();
-        const auto hoverX             = static_cast<SHORT>(host.DipsToPixels((hoverBounds.left + hoverBounds.right) * 0.5f));
-        const auto hoverY             = static_cast<SHORT>(host.DipsToPixels((hoverBounds.top + hoverBounds.bottom) * 0.5f));
-        bool mouseMoveHandled         = false;
+        const uint64_t beforeStateKey = button->DebugGetPreparedIconTextLayoutBuildCount();
+        requireFallbackParity();
+        Require(button->DebugGetPreparedIconTextLayoutBuildCount() == beforeStateKey + 1u,
+                "restoring the glyph and flow prepares their new key before state-only reuse checks");
+        const uint64_t stateReuseBuilds = button->DebugGetPreparedIconTextLayoutBuildCount();
+        const D2D1_RECT_F hoverBounds   = button->GetBounds();
+        const auto hoverX               = static_cast<SHORT>(host.DipsToPixels((hoverBounds.left + hoverBounds.right) * 0.5f));
+        const auto hoverY               = static_cast<SHORT>(host.DipsToPixels((hoverBounds.top + hoverBounds.bottom) * 0.5f));
+        bool mouseMoveHandled           = false;
         static_cast<void>(host.HandleMessage(window.Hwnd(), WM_MOUSEMOVE, 0u, MAKELPARAM(hoverX, hoverY), mouseMoveHandled));
         Require(mouseMoveHandled && button->IsHovered(), "no-activation pointer movement exercises the hover paint state");
-        const uint64_t stateReuseBuilds = button->DebugGetPreparedIconTextLayoutBuildCount();
         requireFallbackParity();
         Require(button->DebugGetPreparedIconTextLayoutBuildCount() == stateReuseBuilds, "hover state reuses the prepared layout");
         button->SetEnabled(false);

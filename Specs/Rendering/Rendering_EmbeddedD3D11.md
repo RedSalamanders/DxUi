@@ -56,7 +56,9 @@ pipeline state and does not preserve the caller's state while drawing.
 ### Preparation and composition
 
 1. Input, model, theme, DPI and geometry changes mark bounded dirty state. The supplied callback asks the application
-   to schedule preparation. Coalesce work, reject stale instance requests and avoid recursive preparation dispatch.
+   to schedule preparation. Coalesce work and reject stale instance requests. Keep the active-Prepare guard set while
+   invoking the scheduling callback so a synchronous callback cannot recursively drain another preparation turn;
+   clear it after the callback only if the same attachment still owns the state.
 2. On the owning UI thread, prepare changed visible content before scene composition. Allocation, layout, shaping
    and raster work belong here, including content changes at an unchanged size. No application ABI is prescribed.
 3. Composite the prepared surface without layout, allocation, rasterization, application calls, I/O or blocking work.
