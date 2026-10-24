@@ -19,6 +19,12 @@ Debug B2-hover failure; its original artifacts are retained.
 Leading YAML/TOML source envelopes and source-current UIA diagnostics now pass
 focused Debug checks; metadata validity and remaining extensions are in progress.
 
+- **SPEC READY**: [RichText audit remediation and completion](RichTextAudit_2026-10-21.md). A verified audit of
+the rich-text engine records one memory-safety defect, contract violations in failure containment, admission,
+math ownership, input and host paste, stale capability status, a non-incremental semantic pipeline, and the
+Markdown, math and Mermaid completeness gaps. Waves 0 to 5, a test track and owner-scoped completion tracks
+sequence the work; no library code has changed. The parent rich-text plan keeps its own gates.
+
 - **ACTIVE**: [Menu fixture popup readiness](PopupReadiness_2026-10-17.md). Registered hover input now precedes pending popup paint; a deterministic paint-stream case fails against the old library and passes with the priority fix. PR #85's post-merge run completes 110/110 Menu cases and both hover regressions in all six native profiles, with zero skips. Original untraced Debug/ARM64 failures remain unattributed; ARM64 focus restoration and shared qualification remain open in the qualification ledger.
 
 - **ACTIVE**: [Production review and remediation](ProductionReview_2026-10-05.md). Requested ten-day review covers #28-#68, with the earlier #21-#65 review retained for context. The approved automatic-Start candidate has six builds and 69 passing x64 suite executions: 57 noninteractive and all four focus suites in Debug, Release and ASan Debug, with zero native skips and verified restoration. Earlier failures, refusals and cancellations remain separately retained; fresh passes do not prove their causes. The repaired v2 A/A repeat has all 72 controls unstable; policy/required-CI acceptance, native ARM64, physical-input and consumer qualification remain open.
