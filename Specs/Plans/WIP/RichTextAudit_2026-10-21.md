@@ -19,6 +19,9 @@ close it in the parent plan in the same change.
 
 Appendices:
 
+- [RedTilde completion continuation, 24 October](RichTextAudit_2026-10-21/RedTildeCompletion_2026-10-24.md):
+  current-source corroboration, ordered library work packages and expanded compatibility/coverage gates for the
+  consumer request. Existing W/T/C IDs remain the implementation owners; no product code changed in planning.
 - [Findings register](RichTextAudit_2026-10-21/findings.md): every finding with location, failure scenario,
   proposed fix and verifier verdicts.
 - [Completeness specification](RichTextAudit_2026-10-21/completeness.md): Markdown (MD-*), math (MA-*) and

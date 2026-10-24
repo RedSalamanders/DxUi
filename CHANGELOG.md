@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Extend the rich-text audit plan with current-source RedTilde completion findings and ordered math, Mermaid, failure-containment, test and performance work. Preserve existing work-item ownership and qualification holds; no library implementation changed in this planning pass.
 - Publish opaque native-run labels while retaining original process identities in private evidence, and mark the review's original trust findings as historical alongside its current partial implementation and remaining workflow requirements.
 - Qualify the integrated host/control review at one exact SDK source with six builds, 69 zero-skip x64 native suite executions, two ASan probes, three isolated consumers and reviewed harness captures; preserve failed integration attempts, document the remaining workflow trust gap, and retain performance, platform, product and remaining RichText visual acceptance HOLDs.
 - Retire stale retained focus and native text input when a rejected focus request names the current unavailable owner, while leaving unrelated rejected requests inside blur callbacks inert. Extend the existing native-session regression for disabled, hidden and ancestor-disabled owners, local focus state, source preservation and reactivation.
