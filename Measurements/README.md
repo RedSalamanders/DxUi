@@ -1,5 +1,8 @@
 # Independent DxUi measurements
 
+- [Design refresh integration, 2026-10-24](DesignRefresh_2026-10-24/README.md): completed shared-control changes,
+  the retained format-cache regression and corrected source checkpoint; performance and final qualification stay open.
+
 - [RedTilde visual fidelity, 2026-10-23](VisualFidelity_2026-10-23/README.md): six SDK builds and 57 noninteractive
   native suite passes, shared quiet controls and actual consumer capture verification. Both unpaired before/after
   diagnostics require advice; performance, physical/platform, CI and release acceptance remain open.
