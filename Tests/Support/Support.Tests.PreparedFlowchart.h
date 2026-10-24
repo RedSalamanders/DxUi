@@ -424,6 +424,94 @@ template <typename Check> inline void EdgeLabelRasterOracle(Check&& check)
         }
     std::cout << "Edge label interior pixels compared=" << compared << " different=" << different << "\n";
     check(compared > 100u && different == 0u, "routes must not obscure edge labels or their opaque background");
+
+    const auto arrowHeadCenter = [&](std::wstring_view source)
+    {
+        const auto relationGraph = FlowchartLayoutTests::Graph(source);
+        PreparedFlowchart relationPaint;
+        relationPaint.Begin(write.get(), drawing.get(), relationGraph, options, {2u, 2u});
+        Complete(relationPaint, check);
+        const auto relationPlan = relationPaint.Geometry();
+        wil::com_ptr<IWICBitmap> bitmap;
+        THROW_IF_FAILED(imaging->CreateBitmap(512u, 512u, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+        wil::com_ptr<ID2D1RenderTarget> target;
+        THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), D2D1::RenderTargetProperties(), target.put()));
+        wil::com_ptr<ID2D1SolidColorBrush> black, white;
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), black.put()));
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), white.put()));
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        check(relationPaint.Draw(target.get(), black.get(), black.get(), white.get(), {}), "class relation fixture submits native painting");
+        THROW_IF_FAILED(target->EndDraw());
+        constexpr UINT stride = 512u * 4u;
+        std::vector<BYTE> pixels(stride * 512u);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+        const auto& head  = relationPlan->edges.front().arrow;
+        const auto x      = static_cast<UINT>(std::lround((head[0u].x + head[1u].x + head[2u].x) / 3.0));
+        const auto y      = static_cast<UINT>(std::lround((head[0u].y + head[1u].y + head[2u].y) / 3.0));
+        const auto offset = (static_cast<std::size_t>(y) * 512u + x) * 4u;
+        return std::array<BYTE, 4u>{pixels[offset], pixels[offset + 1u], pixels[offset + 2u], pixels[offset + 3u]};
+    };
+    for (const auto direction : {L"TB", L"BT", L"LR", L"RL"})
+    {
+        const auto header = L"classDiagram\ndirection " + std::wstring(direction) + L"\n";
+        const auto hollow = arrowHeadCenter(header + L"Base <|-- Derived\n");
+        const auto filled = arrowHeadCenter(header + L"Base --> Derived\n");
+        check(hollow[0u] > 240u && hollow[1u] > 240u && hollow[2u] > 240u && filled[0u] < 32u && filled[1u] < 32u && filled[2u] < 32u,
+              "class inheritance has a hollow triangle and associations a filled arrowhead in all four directions");
+    }
+
+    const auto stadiumGraph = FlowchartLayoutTests::Graph(L"flowchart LR;Terminal([capsule])");
+    PreparedFlowchart stadiumPaint;
+    stadiumPaint.Begin(write.get(), drawing.get(), stadiumGraph, options, {3u, 3u});
+    Complete(stadiumPaint, check);
+    const auto stadiumPlan   = stadiumPaint.Geometry();
+    const auto stadiumBounds = stadiumPlan->nodes.front().bounds;
+    wil::com_ptr<IWICBitmap> stadiumBitmap;
+    THROW_IF_FAILED(imaging->CreateBitmap(512u, 512u, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, stadiumBitmap.put()));
+    wil::com_ptr<ID2D1RenderTarget> stadiumTarget;
+    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(stadiumBitmap.get(), D2D1::RenderTargetProperties(), stadiumTarget.put()));
+    wil::com_ptr<ID2D1SolidColorBrush> stadiumBlack, stadiumWhite, stadiumFill;
+    THROW_IF_FAILED(stadiumTarget->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), stadiumBlack.put()));
+    THROW_IF_FAILED(stadiumTarget->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), stadiumWhite.put()));
+    THROW_IF_FAILED(stadiumTarget->CreateSolidColorBrush(D2D1::ColorF(.9f, .95f, 1.0f), stadiumFill.put()));
+    stadiumTarget->BeginDraw();
+    stadiumTarget->Clear(D2D1::ColorF(D2D1::ColorF::White));
+    check(stadiumPaint.Draw(stadiumTarget.get(), stadiumBlack.get(), stadiumBlack.get(), stadiumFill.get(), {}), "stadium geometry submits native painting");
+    THROW_IF_FAILED(stadiumTarget->EndDraw());
+    constexpr UINT stadiumStride = 512u * 4u;
+    std::vector<BYTE> stadiumPixels(stadiumStride * 512u);
+    THROW_IF_FAILED(stadiumBitmap->CopyPixels(nullptr, stadiumStride, static_cast<UINT>(stadiumPixels.size()), stadiumPixels.data()));
+    const auto pixel = [&](double x, double y)
+    {
+        const auto offset = (static_cast<std::size_t>(std::lround(y)) * 512u + static_cast<UINT>(std::lround(x))) * 4u;
+        return std::array<BYTE, 4u>{stadiumPixels[offset], stadiumPixels[offset + 1u], stadiumPixels[offset + 2u], stadiumPixels[offset + 3u]};
+    };
+    const auto radius          = stadiumBounds.height / 2.0;
+    const auto corner          = pixel(stadiumBounds.x + 1.0, stadiumBounds.y + 1.0);
+    const auto capOutside      = pixel(stadiumBounds.x + 1.0, stadiumBounds.y + stadiumBounds.height * .2);
+    const auto topMid          = pixel(stadiumBounds.x + stadiumBounds.width / 2.0, stadiumBounds.y);
+    const auto inside          = pixel(stadiumBounds.x + radius + 2.0, stadiumBounds.y + radius);
+    const auto capsuleContains = [&](double x, double y)
+    {
+        const auto centerX  = stadiumBounds.x + stadiumBounds.width / 2.0;
+        const auto centerY  = stadiumBounds.y + radius;
+        const auto nearestX = std::clamp(x, centerX - (stadiumBounds.width / 2.0 - radius), centerX + (stadiumBounds.width / 2.0 - radius));
+        const auto dx = x - nearestX, dy = y - centerY;
+        return dx * dx + dy * dy <= radius * radius;
+    };
+    const bool capsuleRaster = ! capsuleContains(stadiumBounds.x + 1.0, stadiumBounds.y + 1.0) &&
+                               capsuleContains(stadiumBounds.x + radius + 2.0, stadiumBounds.y + radius) && corner[0u] > 240u && corner[1u] > 240u &&
+                               corner[2u] > 240u && capOutside[0u] > 240u && capOutside[1u] > 240u && capOutside[2u] > 240u && topMid[0u] < 200u &&
+                               inside[2u] > 180u;
+    if (! capsuleRaster)
+    {
+        std::cerr << "Stadium bounds=" << stadiumBounds.x << ',' << stadiumBounds.y << ',' << stadiumBounds.width << ',' << stadiumBounds.height;
+        for (const auto& sample : {corner, capOutside, topMid, inside})
+            std::cerr << " pixel=" << unsigned(sample[0u]) << ',' << unsigned(sample[1u]) << ',' << unsigned(sample[2u]) << ',' << unsigned(sample[3u]);
+        std::cerr << '\n';
+    }
+    check(capsuleRaster, "stadium raster has rounded capsule corners, a curved top boundary, and filled center rather than rectangular corners");
 }
 
 } // namespace PreparedFlowchartTests

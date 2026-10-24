@@ -126,6 +126,7 @@
   "Tests/Support/Support.Tests.MarkdownHtml.h",
   "Tests/Support/Support.Tests.MarkdownInlines.h",
   "Tests/Support/Support.Tests.MarkdownSourceCorrelation.h",
+  "Tests/Support/Support.Tests.MathCorpus.h",
   "Tests/Support/Support.Tests.NativeFlowchartCorpus.h",
   "Tests/Support/Support.Tests.PerformanceCapture.h",
   "Tests/Support/Support.Tests.PreparedFlowchart.h",

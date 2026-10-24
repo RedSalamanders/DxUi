@@ -1643,6 +1643,58 @@ void SemanticDiagramAlternatives(bool embedded)
     Require(image->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE,
             "restoring presentation cannot resurrect an old graphic provider");
 }
+void SemanticMathLiteralFallback(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    const auto verify = [&](const std::wstring& source, std::wstring_view expression, std::wstring_view helpText, std::wstring_view linkTitle)
+    {
+        fixture.editor->SetText(source);
+        fixture.Publish();
+        auto simple = fixture.Simple();
+        auto math   = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
+        Require(math != nullptr &&
+                    ReadProviderLongProperty(*math.get(), UIA_ControlTypePropertyId, "literal math UIA control type") == UIA_ImageControlTypeId &&
+                    ReadProviderStringProperty(*math.get(), UIA_NamePropertyId, "literal math UIA name") == expression &&
+                    ReadProviderStringProperty(*math.get(), UIA_HelpTextPropertyId, "literal math UIA help") == helpText,
+                "literal math retains its logical Image role, TeX interior name and failure-specific help text");
+        const auto delimiter = source.find(expression);
+        Require(delimiter != std::wstring::npos, "literal math source has the expected TeX interior");
+        const auto delimiterUnits = delimiter >= 2u && source[delimiter - 1u] == L'$' && source[delimiter - 2u] == L'$' ? 4u : 2u;
+        const auto semantic       = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+        Require(semantic && std::ranges::any_of(semantic->Elements(),
+                                                [&](const auto& element)
+        {
+            return element.role == SemanticRole::Math && element.name == expression &&
+                   element.source.last - element.source.first == expression.size() + delimiterUnits;
+        }),
+                "literal math remains a semantic Math element over its complete source envelope");
+        auto text = TextProvider(fixture);
+        wil::com_ptr_nothrow<ITextRangeProvider> raw;
+        RequireSucceeded(text->RangeFromChild(math.get(), raw.put()), "literal math exact raw source range");
+        Require(ReadTextRangeText(*raw.get(), -1, "literal math source") == source.substr(delimiter - delimiterUnits / 2u, expression.size() + delimiterUnits),
+                "UIA Math child exposes the exact original delimiters and TeX source");
+        wil::com_ptr_nothrow<ITextRangeProvider> whole;
+        RequireSucceeded(text->get_DocumentRange(whole.put()), "literal math full source range");
+        Require(ReadTextRangeText(*whole.get(), -1, "literal math full document") == source,
+                "literal math fallback leaves complete raw document text unchanged");
+        auto link = FindSemanticPart(*simple.get(), UIA_HyperlinkControlTypeId);
+        Require(link && ReadProviderStringProperty(*link.get(), UIA_HelpTextPropertyId, "adjacent link title") == linkTitle,
+                "math fallback leaves an adjacent Markdown link title unchanged");
+    };
+
+    const std::wstring unsupportedExpression = L"\\unknown{x}";
+    const std::wstring unsupportedSource     = L"before $" + unsupportedExpression + L"$ and [link](https://example.test \"original title\") after\r\n";
+    verify(unsupportedSource, unsupportedExpression, L"Unsupported or oversized native equation. Exact source is preserved.", L"original title");
+
+    const std::wstring capacityExpression = L"\\text{" + std::wstring(1400u, L'm') + L"}";
+    const std::wstring capacitySource     = L"before $$" + capacityExpression + L"$$ after [link](https://example.test \"capacity title\")\r\n";
+    auto appearance                       = fixture.editor->GetAppearance();
+    appearance.bodyFontSizeDip            = 96.f;
+    fixture.editor->SetAppearance(appearance);
+    verify(capacitySource, capacityExpression, L"Equation exceeds native geometry capacity for this view. Exact source is preserved.", L"capacity title");
+}
 void SemanticDecodedImages(bool embedded)
 {
     using namespace RichText;
@@ -2287,6 +2339,14 @@ void TestRichTextAccessibilityWindowDiagramAlternatives()
 {
     SemanticDiagramAlternatives(false);
 }
+void TestRichTextAccessibilityWindowMathLiteralFallback()
+{
+    SemanticMathLiteralFallback(false);
+}
+void TestRichTextAccessibilityEmbeddedMathLiteralFallback()
+{
+    EmbeddedCase(SemanticMathLiteralFallback);
+}
 void TestRichTextAccessibilityWindowDecodedImages()
 {
     SemanticDecodedImages(false);
@@ -2344,6 +2404,8 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSemanticFrontMatterDiagnostics);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowFootnoteNavigation);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowDiagramAlternatives);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowMathLiteralFallback);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedMathLiteralFallback);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowDecodedImages);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedDecodedImages);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowObjectSourceEditing);

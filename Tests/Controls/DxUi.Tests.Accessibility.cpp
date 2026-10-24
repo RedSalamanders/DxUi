@@ -4297,6 +4297,65 @@ void TestAccessibilitySelectorFocusPreservesMembershipAndSelectionDoesNotActivat
     }
 }
 
+void TestAccessibilityInterestedMutationsBoundFocusedPathResolution()
+{
+    using namespace DxUi;
+    ScopedNonActivatingTestWindows nonActivating;
+    AttachedHostWindow window;
+    auto root   = std::make_unique<Panel>();
+    auto* panel = root.get();
+    auto* label = root->AddChild<Label>(L"initial status");
+    label->SetBounds(D2D1::RectF(0, 0, 200, 28));
+    for (size_t index = 0u; index < 512u; ++index)
+        root->AddChild<Label>(L"unrelated sibling")->SetBounds(D2D1::RectF(220, 0, 400, 28));
+    auto* field = root->AddChild<TextField>(L"stable logical focus");
+    field->SetAccessibleName(L"Tracked focus");
+    field->SetBounds(D2D1::RectF(0, 40, 200, 68));
+    window.Host().SetRoot(std::move(root));
+    window.Host().SetFocusControl(field, false);
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+    provider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(provider != nullptr, "create a real interested provider for the wide tree");
+    auto labelProvider = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *provider.get(), 20, 12, "find the status label in the wide tree");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> labelSimple;
+    RequireSucceeded(labelProvider.query_to(labelSimple.put()), "retain the status label provider");
+    window.PumpMessages();
+    Require(DebugSetAccessibilityMutationInterestForTest(window.Hwnd(), true), "keep this attachment interested during the bounded batch");
+    const auto clearInterest = wil::scope_exit([]() noexcept
+    { Require(DebugSetAccessibilityMutationInterestForTest(nullptr, std::nullopt), "clear the wide-tree mutation-interest override"); });
+    DebugSetAccessibilityResolutionCountingForTest(true);
+    const auto stopCounting = wil::scope_exit([]() noexcept { DebugSetAccessibilityResolutionCountingForTest(false); });
+    DebugResetAccessibilityResolutionVisitCountForTest();
+    const auto builds = DebugGetAccessibilitySnapshotBuildCountForTest();
+    for (size_t index = 0u; index < 128u; ++index)
+        label->SetText(std::to_wstring(index));
+    const auto visits = DebugGetAccessibilityResolutionVisitCountForTest();
+    std::cerr << "    [FOCUSED-PATH-BATCH] siblings=512 mutations=128 visits=" << visits << '\n';
+    Require(visits > 0u && visits <= 128u * 32u, "stable interested focus resolution is bounded by path depth instead of sibling count");
+    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == builds, "interested label changes still coalesce without synchronous rebuilds");
+    Require(ReadProviderStringProperty(*labelSimple.get(), UIA_NamePropertyId, "final wide-tree status") == L"127",
+            "the first owner query publishes the last committed status");
+    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == builds + 1u, "the first owner query performs one coherent rebuild");
+    window.PumpMessages();
+
+    auto removed = panel->TakeChild(1u);
+    Require(removed != nullptr && panel->CompactChildren() == 1u, "shift the tracked focus away from its published path");
+    DebugResetAccessibilityResolutionVisitCountForTest();
+    label->SetText(L"after sibling removal");
+    Require(DebugGetAccessibilityResolutionVisitCountForTest() > 400u, "an invalid published path falls back to live-tree resolution");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> focused;
+    RequireSucceeded(provider->GetFocus(focused.put()), "resolve the tracked focus after its path changed");
+    Require(focused != nullptr, "the changed path retains the actual focused control");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> focusedSimple;
+    RequireSucceeded(focused.query_to(focusedSimple.put()), "query the relocated focus identity");
+    Require(ReadProviderStringProperty(*focusedSimple.get(), UIA_NamePropertyId, "relocated focus name") == L"Tracked focus",
+            "stale cached paths cannot select another sibling");
+    field->SetVisible(false);
+    focused.reset();
+    RequireSucceeded(provider->GetFocus(focused.put()), "query after the focused control is hidden");
+    Require(! focused, "a hidden cached focus is not exposed as an accessible focused element");
+}
+
 void TestAccessibilityLazyPublicationCoalescesAndOwnerQueriesStayFresh()
 {
     using namespace DxUi;
@@ -9227,6 +9286,24 @@ void TestAccessibilityRangeValueChangesReachSubscribedClient()
     expectValue(L"Opacity", 43.0);
     progress->SetValue(64.0);
     expectValue(L"Transfer", 64.0);
+    progress->SetMinimum(10.0);
+    expectValue(L"Transfer", 10.0, UIA_RangeValueMinimumPropertyId);
+    progress->SetMaximum(120.0);
+    expectValue(L"Transfer", 120.0, UIA_RangeValueMaximumPropertyId);
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> progressRoot;
+    progressRoot.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(progressRoot != nullptr, "progress range mutation retains its root provider");
+    auto progressProvider = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *progressRoot.get(), 120, 60, "find the progress range provider");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> progressSimple;
+    RequireSucceeded(progressProvider.query_to(progressSimple.put()), "progress range exposes simple properties");
+    wil::com_ptr_nothrow<IUnknown> progressPattern;
+    RequireSucceeded(progressSimple->GetPatternProvider(UIA_RangeValuePatternId, progressPattern.put()), "progress range pattern remains available");
+    wil::com_ptr_nothrow<IRangeValueProvider> progressRange;
+    RequireSucceeded(progressPattern.query_to(progressRange.put()), "query the changed progress range");
+    double minimum{}, maximum{};
+    RequireSucceeded(progressRange->get_Minimum(&minimum), "read the changed progress minimum");
+    RequireSucceeded(progressRange->get_Maximum(&maximum), "read the changed progress maximum");
+    Require(minimum == 10.0 && maximum == 120.0, "progress provider getters reflect both changed bounds");
     splitter->SetPosition(160.0f);
     expectValue(L"Pane width", 160.0);
     slider->SetMinimum(44.0);
@@ -11174,6 +11251,7 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestAccessibilityGridCellFocusChoosesTheInspectedColumn);
     DXUI_RUN_TEST(TestAccessibilityPublicationMutationBatchRetainsFinalStateAndReportsCost);
     DXUI_RUN_TEST(TestAccessibilityLazyPublicationCoalescesAndOwnerQueriesStayFresh);
+    DXUI_RUN_TEST(TestAccessibilityInterestedMutationsBoundFocusedPathResolution);
     DXUI_RUN_TEST(TestAccessibilityGetFocusDoesNotBindCapturedSnapshotToReplacementAtSamePath);
     DXUI_RUN_TEST(TestAccessibilitySnapshotDerivedPeerFactoriesRejectSamePathReplacement);
     DXUI_RUN_TEST(TestAccessibilityCaptionReentrancyCannotPublishARetiredRoot);

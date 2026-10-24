@@ -57,11 +57,11 @@
   },
   {
     "id": 8,
-    "outcome": "Unsupported",
-    "nodes": 0,
+    "outcome": "Prepared",
+    "nodes": 1,
     "edges": 0,
-    "direction": "TopBottom",
-    "reason": "expanded-shape-syntax"
+    "direction": "LeftRight",
+    "reason": "admitted-stadium-shape"
   },
   {
     "id": 9,
@@ -633,19 +633,19 @@
   },
   {
     "id": 80,
-    "outcome": "Unsupported",
-    "nodes": 0,
-    "edges": 0,
-    "direction": "TopBottom",
-    "reason": "expanded-edge-syntax"
+    "outcome": "Prepared",
+    "nodes": 4,
+    "edges": 4,
+    "direction": "LeftRight",
+    "reason": "admitted-endpoint-fanout"
   },
   {
     "id": 81,
-    "outcome": "Unsupported",
-    "nodes": 0,
-    "edges": 0,
+    "outcome": "Prepared",
+    "nodes": 4,
+    "edges": 4,
     "direction": "TopBottom",
-    "reason": "expanded-edge-syntax"
+    "reason": "admitted-endpoint-fanout"
   },
   {
     "id": 82,

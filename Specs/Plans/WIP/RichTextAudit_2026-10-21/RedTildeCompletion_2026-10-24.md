@@ -14,11 +14,37 @@
 - [ ] W3: measure and qualify semantic reuse; keep W4/W5 consolidation conditional on evidence.
 - [ ] Close library gates and exact consumer handoff with current-source evidence; do not close parent HOLDs by inference.
 
-Status: **PLAN READY; no product code or tests changed in this planning pass**. This appendix updates evidence
+Status: **IMPLEMENTING; final profile and performance qualification remain open**. This appendix updates evidence
 and sequencing for the [existing audit](../RichTextAudit_2026-10-21.md); its implementation work-item IDs remain
 authoritative. The [RedTilde execution coordinator](../../../../../RedTilde/Specs/Plans/WIP/RedesignCompletionAndRendering_2026-10-24.md)
 contains the complete cross-repository sequence, compatibility test matrices, reviewed commands and closeout
 conditions. This appendix adds no second defect backlog or independent acceptance policy.
+
+### Execution evidence — 24 October
+
+The combined Debug diagnostics reproduce and repair table/source-history corruption, local semantic/geometry fallback,
+math ownership/limits/recognition and prepared placement, Mermaid fan-out/state-label semantics, hollow inheritance and
+capsule rendering. All 105 pinned flowcharts and the 20-family outcome matrix remain represented. The bounded math
+profile has 30 positive formulas, 20 negative forms and 27 symbol goldens; full KaTeX or Mermaid parity is not claimed.
+
+`combined-14` passes full EditorControls (69.9 s) and Embedded (55.2 s; 455,446 checks), plus the expanded parser and
+layout/paint allocation sweeps. The initial Debug failure-injection termination and its exact later reproduction are
+preserved, including the unavailable original binary boundary. `combined-16` characterizes interested focus lookup:
+66,048 visits before, 1,792 after for 128 mutations among 512 unrelated siblings, with stale/hidden focus assertions.
+The real ProgressBar range-client regression fails before and passes after publication changes. These diagnostics
+do not replace final-source Debug/Release/ASan profiles, ARM64 builds/native execution, or paired performance acceptance.
+
+The interactive lease setup denial regression fails before admission is made mandatory. Its descendant regression
+exposes job accounting reaching zero before a process handle signals; retained verified member handles correct this
+observed completion race. `combined-19` passes all 98 lease self-checks. A first direct Accessibility invocation omitted
+`--no-activate` and failed its native-focus invariant; that invocation and exact executable are retained separately.
+The governed rerun and subsequent final profiles own their own results. Seven historical whole-feature performance
+regressions, including approximately 11% higher private memory, remain open pending a fresh actual-base comparison.
+
+The governed full Accessibility rerun passes in 123.6 s. Both repositories' static/tooling validators pass; the separately
+selected installed CMake also passes all 12 triplet checks. The owner selected finishing current profiles and qualification,
+leaving full TeX font assemblies and additional Mermaid families in the existing language roadmap. That scope decision
+does not close their W/T/C items or turn the bounded profiles into full KaTeX/Mermaid compatibility.
 
 ## Revision and drift
 
@@ -113,8 +139,9 @@ and offline negative/generation tests; keep this planning pass free of tool chan
 
 ## Reference projects and adoption decision
 
-Recommended: extend owned C++ mechanisms, studying a small number of concrete algorithms. Keep a replacement
-engine as a measured alternative with explicit integration/licensing/resource costs, not a presumed fix.
+The owner explicitly excludes new dependencies. Extend owned C++ mechanisms, studying concrete algorithms and
+independent test ideas. MicroTeX, Mermaid renderers and KaTeX are reference material; replacement engines,
+Rust/FFI backends and imported rendering or font packages are outside this execution.
 
 - [mermaid-rs-renderer at 3726ccb](https://github.com/1jehuang/mermaid-rs-renderer/tree/3726ccbffe0e8032361eb9668694b24f77858060):
   study stage invariants and route-label obstacles. Its [manifest](https://github.com/1jehuang/mermaid-rs-renderer/blob/3726ccbffe0e8032361eb9668694b24f77858060/Cargo.toml)

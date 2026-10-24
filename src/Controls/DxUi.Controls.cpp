@@ -4831,6 +4831,8 @@ void ProgressBar::SetMinimum(double minimum) noexcept
         return;
     _minimum = minimum;
     RequestInvalidate();
+    if (ControlHost* const host = GetHost())
+        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
 }
 
 double ProgressBar::GetMinimum() const noexcept
@@ -4844,6 +4846,8 @@ void ProgressBar::SetMaximum(double maximum) noexcept
         return;
     _maximum = maximum;
     RequestInvalidate();
+    if (ControlHost* const host = GetHost())
+        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
 }
 
 double ProgressBar::GetMaximum() const noexcept

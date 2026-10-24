@@ -718,7 +718,12 @@ interactive desktop lease: `DxUi.InteractiveLease.exe` (`Tests/InteractiveLease`
   running and to keep hands off the keyboard and mouse; it also holds the foreground that the child is granted. The session-wide lease
   `Local\DxUi.InteractiveTestRun.v1` makes a second run refuse (exit code 22) instead of queueing behind the first, and the system and
   the display stay awake. Each suite is a child of its own, in a kill-on-close job, with its output in its log. The foreground is
-  granted to that child alone and never to any process, and the lease ends only a process it started: a child that outlives its bound
+  granted to that child alone and never to any process. Failed creation, configuration or assignment of the owned job refuses
+  the still-suspended child before its entrypoint can execute. Teardown terminates only this job and its contained descendants,
+  never a process chosen by name. Before job termination it captures and verifies current member handles and waits for those
+  handles within one bounded teardown deadline. Job accounting reaching zero does not prove that a process handle is signaled;
+  capture or wait failure fails the child result. Membership can change during capture, so this is not an atomic whole-tree
+  completion barrier; kill-on-close containment also covers members created during that interval. A child that outlives its bound
   (15 minutes, or three times `-TestTimeout` when that is longer; none with `-TestTimeout 0`) ends with the watchdog's exit code, 124.
 - **Restoring.** The foreground window, then its keyboard focus, then the pointer in physical coordinates, last because activating a
   window can move it. Each is verified by reading the desktop again, never by trusting a call's result (the foreground is asked for
@@ -924,7 +929,7 @@ and sink callbacks releasing the final caller reference. The initial optional sa
 
 ## Scoped iteration and PR coverage
 
-Active native test sources, helpers, fixtures and seams MUST use `Scope.Tests.Something.h/.cpp`. `Tests/native-test-files.json` owns active membership. Historical archived harnesses and sealed reproduction inputs keep their original identity; they do not define new source naming. Rename project entries, includes, current inventories and callers together. DxUi historical source/test origins retain their original identities and map to current paths separately.
+Active native test sources, helpers, fixtures and seams MUST use `<Component>.Tests.Something.h/.cpp`, with the actual component context (`Controls`, `Support`, `Embedded`, etc.). Literal `Scope` is a rejected placeholder. `Tests/native-test-files.json` owns active membership. Historical archived harnesses and sealed reproduction inputs keep their original identity; they do not define new source naming. Rename project entries, includes, current inventories and callers together. DxUi historical source/test origins retain their original identities and map to current paths separately.
 
 `Test-Changes.ps1` is the ordinary iteration entrypoint. Its default is affected coverage, including committed changes since a local merge base and independent staged, unstaged, deletion, rename-side and untracked discovery. No ref is fetched. Unknown executable inputs widen coverage; prose alone does not require native tests. Explanations name paths, consumers and fallback reasons. Explicit selectors reject unknown scopes. Affected, filtered and environment-reduced coverage MUST NOT be reported as a full repository pass.
 
@@ -955,6 +960,12 @@ Ordinary qualification and main/release acceptance requirements remain unchanged
 RedSalamander defers only entries whose complete portable entry contracts equal the PR plan, retaining writers, in-product cases and extra scenarios locally. Its `-NonInteractive` option omits focus-taking entries and records incomplete coverage; it cannot alter an exact Resume. DxUi foreground suites remain explicit `test.ps1 -Interactive` work after agreement to the time. Noninteractive iteration and CI do not claim those manual gates. No screenshot or desktop automation is introduced.
 
 `Tests/test-scopes.json` owns the standalone scope and verified PR-profile mapping; RedSalamander's `Tools/validation-impact.json` and canonical plan continue to own its affected execution. Specific standalone test-source rules use their semantic entry tags, while common support and unknown paths retain conservative fan-out. New source/build/runtime/runner dependencies must extend the relevant manifest and focused regression coverage.
+
+Rich Markdown math, diagram, semantic-document and retained editor implementation changes select `EditorControls`,
+`Embedded` and `Accessibility` together. Their focused support headers and generators retain the same integration
+consumers; public rich-text header changes also select accessibility. `Tools/tests/Test-ScopedTesting.ps1` independently
+checks the affected path mapping, including the owned math compatibility corpus, without widening those known
+paths to every suite. This selection remains affected evidence rather than whole-repository qualification.
 
 CI invokes explicit full gates rather than the affected default. The forthcoming PR executes its candidate workflow; a reviewed local workflow digest and the enabled GitHub workflow gate delegation. Workflow edits invalidate that digest until the scope contract is reviewed and updated. RedXe's independent Windows tooling/skill tests execute once in its tooling job. DxUi's tooling has one Windows host qualification and one Linux portability qualification; its MSBuild-only staging fixture executes once on Windows; native runner/watchdog checks stay profile-specific. RedSalamander schedules skip unchanged commits only after successful matching workflow history; manual dispatch and unreadable/failed history execute. Hosted timing investigations still use paired, fixture-matched resource evidence; cached historical observations are not new measurements.
 

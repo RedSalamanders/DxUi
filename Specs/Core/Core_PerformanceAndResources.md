@@ -286,6 +286,10 @@ publish synchronously so the system's first worker focus query can report the ne
 baseline: a fresh owner query does not consume the queued notifications. Embedded views continue to publish explicitly
 after application preparation, with no snapshot work in composition.
 
+Interested native mutations resolve unchanged focus through the published address/path index first. Validate
+that path against the live tree, visibility and semantic control type on every use; a stale or absent path
+falls back to the canonical live-tree search. Do not retain a second focus cache or skip focus-transition publication.
+
 When neither a provider has been requested nor a UIA listener is present, a native mutation still marks the
 revision dirty but does not load the published snapshot, search the focused-control path or post a new flush.
 The next owner-thread provider query resolves the latest dirty revision. A flush already posted before interest
@@ -754,8 +758,10 @@ Renamed benchmark headers MUST also overlay any existing legacy include paths in
 current payload. Those aliases exist only in the temporary overlay and are restored with it; recorded current inputs
 and the older entrypoint must reach the same fixture bytes. Every overlaid path MUST match its retained SHA-256
 after copying, before build/reuse, and before and after every measurement.
-Overlay rollback MUST retain and verify the original hash, refuse changed backups, attempt the remaining restorations,
-and report failure when a completed study cannot restore a named tree. A failed or mismatched overlay supplies no
+Overlay rollback MUST retain and verify the original hash, refuse changed backups, preserve and report later edits
+to either replaced or overlay-created paths, and attempt the remaining restorations. It records the actual installed
+bytes immediately after copying so an owned partial copy can still be rolled back without treating later edits as its own,
+and MUST report failure when a completed study cannot restore a named tree. A failed or mismatched overlay supplies no
 performance qualification; preserve its original records for diagnosis before starting a fresh study.
 
 Application-specific adoption reports, configurations, endpoint workloads and budgets belong in that application's

@@ -25,6 +25,7 @@
 #include "InteractiveLease.Tests.WarningBanner.h"
 
 #include <atomic>
+#include <charconv>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -540,6 +541,7 @@ public:
         if (! SetUpDirectory())
             return TS::LeaseExit::kUsage;
         ChildProcesses();
+        DescendantProcesses();
         HostedWarningInput();
         WarningForegroundBetweenChildren();
         SessionLease();
@@ -591,6 +593,56 @@ private:
     void ChildProcesses()
     {
         wil::unique_event_nothrow never(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+        for (unsigned stage = 0u; stage < 3u; ++stage)
+        {
+            struct FailureProbe
+            {
+                unsigned stage{}, resumes{};
+            } probe{stage};
+            IL::ChildJobOperations operations;
+            operations.context = &probe;
+            operations.create  = [](void* context) noexcept -> HANDLE
+            {
+                if (static_cast<FailureProbe*>(context)->stage == 0u)
+                {
+                    SetLastError(ERROR_ACCESS_DENIED);
+                    return nullptr;
+                }
+                return CreateJobObjectW(nullptr, nullptr);
+            };
+            operations.configure = [](void* context, HANDLE job, JOBOBJECT_EXTENDED_LIMIT_INFORMATION& limits) noexcept -> BOOL
+            {
+                if (static_cast<FailureProbe*>(context)->stage == 1u)
+                {
+                    SetLastError(ERROR_ACCESS_DENIED);
+                    return FALSE;
+                }
+                return SetInformationJobObject(job, JobObjectExtendedLimitInformation, &limits, sizeof(limits));
+            };
+            operations.assign = [](void* context, HANDLE job, HANDLE process) noexcept -> BOOL
+            {
+                if (static_cast<FailureProbe*>(context)->stage == 2u)
+                {
+                    SetLastError(ERROR_ACCESS_DENIED);
+                    return FALSE;
+                }
+                return AssignProcessToJobObject(job, process);
+            };
+            operations.resume = [](void* context, HANDLE thread) noexcept
+            {
+                ++static_cast<FailureProbe*>(context)->resumes;
+                return ResumeThread(thread);
+            };
+            const auto name   = std::format(L"job-denied-{}", stage);
+            const auto run    = ChildOf(name.c_str(), L"exit:7");
+            const auto result = IL::RunChildProcess(run, 60u, never.get(), false, {}, operations);
+            Check(! result.launched && ! result.error.empty(), "job setup failure refuses the child with a launch diagnostic");
+            constexpr std::string_view failures[] = {
+                "cannot create the child job (error 5)", "cannot configure the child job (error 5)", "cannot assign the child job (error 5)"};
+            Check(result.error == failures[stage], "the launch diagnostic identifies the exact denied job stage");
+            Check(probe.resumes == 0u && ReadText(run.logPath).empty(), "uncontained suspended child never executes its entrypoint");
+            Check(! result.timedOut && ! result.interrupted, "job admission failure is distinct from a timeout or interruption");
+        }
         {
             const TS::ChildRun run       = ChildOf(L"exits", L"exit:7");
             const TS::ChildResult result = IL::RunChildProcess(run, 60u, never.get(), false);
@@ -628,6 +680,71 @@ private:
             const TS::ChildRun run       = {L"nolog", (_directory / L"no-such-directory" / L"x.log").wstring(), L"cmd.exe /c exit 0"};
             const TS::ChildResult result = IL::RunChildProcess(run, 60u, never.get(), false);
             Check(! result.launched && ! result.error.empty(), "a log that cannot be created stops the child from starting");
+        }
+    }
+
+    void DescendantProcesses()
+    {
+        for (const bool hangs : {false, true})
+        {
+            const auto run    = ChildOf(hangs ? L"descendant-timeout" : L"descendant-exit", hangs ? L"descendant-hang" : L"descendant-exit");
+            const auto result = IL::RunChildProcess(run, 2u, nullptr, false);
+            Check(result.launched && result.error.empty() && result.timedOut == hangs && result.exitCode == (hangs ? TS::kTestTimeoutExitCode : 0u),
+                  "a contained descendant fixture reports its parent's normal exit or timeout");
+            const auto log    = ReadText(run.logPath);
+            const auto marker = log.find("owned descendant ");
+            if (marker == std::string::npos)
+            {
+                Check(false, "the owned child records its descendant's PID and creation identity");
+                continue;
+            }
+            DWORD pid{};
+            uint64_t creation{};
+            const auto* end      = log.data() + log.size();
+            const auto parsedPid = std::from_chars(log.data() + marker + 17u, end, pid);
+            if (parsedPid.ec != std::errc{} || parsedPid.ptr == end || *parsedPid.ptr != ' ')
+            {
+                Check(false, "the descendant PID record is valid");
+                continue;
+            }
+            const auto parsedCreation = std::from_chars(parsedPid.ptr + 1u, end, creation);
+            if (parsedCreation.ec != std::errc{} || creation == 0u)
+            {
+                Check(false, "the descendant creation-time record is valid");
+                continue;
+            }
+            wil::unique_handle descendant(OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE, FALSE, pid));
+            if (! descendant)
+            {
+                Check(GetLastError() == ERROR_INVALID_PARAMETER, "the owned descendant has already exited before the lease returns");
+                continue;
+            }
+            FILETIME created{}, exited{}, kernel{}, user{};
+            const bool identified = GetProcessTimes(descendant.get(), &created, &exited, &kernel, &user) != FALSE;
+            Check(identified, "the retained descendant handle exposes its creation identity");
+            if (! identified)
+                continue;
+            const auto actualCreation = (static_cast<uint64_t>(created.dwHighDateTime) << 32u) | created.dwLowDateTime;
+            if (actualCreation != creation)
+            {
+                Check(true, "PID reuse cannot turn another process into the owned descendant");
+                continue;
+            }
+            const bool finished = WaitForSingleObject(descendant.get(), 0u) == WAIT_OBJECT_0;
+            Check(finished, "the exact owned descendant has terminated before the lease returns");
+            if (! finished)
+            {
+                DWORD code{};
+                GetExitCodeProcess(descendant.get(), &code);
+                std::printf("descendant cleanup diagnostic: pid=%lu creation=%llu exit=%lu\n", pid, static_cast<unsigned long long>(creation), code);
+                // Failure cleanup is limited to the retained handle whose PID
+                // and creation identity the owned fixture recorded above.
+                const BOOL terminated = TerminateProcess(descendant.get(), 1u);
+                const DWORD error     = terminated != FALSE ? ERROR_SUCCESS : GetLastError();
+                const DWORD waited    = WaitForSingleObject(descendant.get(), 5000u);
+                std::printf("descendant cleanup diagnostic: terminateError=%lu wait=%lu\n", error, waited);
+                Check(waited == WAIT_OBJECT_0, "failed descendant fixture cleanup waits only for its own verified process");
+            }
         }
     }
 
@@ -1047,6 +1164,28 @@ int SelfTestChild(std::wstring_view mode)
     std::fputs("child output\n", stdout);
     std::fputs("child error\n", stderr);
     std::fflush(stdout);
+    if (mode == L"descendant-exit" || mode == L"descendant-hang")
+    {
+        wchar_t executable[MAX_PATH]{};
+        const auto length = GetModuleFileNameW(nullptr, executable, static_cast<DWORD>(std::size(executable)));
+        if (! length || length == std::size(executable))
+            return 1;
+        auto command = std::format(L"\"{}\" --self-test-child=hang", executable);
+        STARTUPINFOW startup{};
+        startup.cb = sizeof(startup);
+        wil::unique_process_information descendant;
+        if (CreateProcessW(nullptr, command.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &startup, descendant.addressof()) == FALSE)
+            return 1;
+        FILETIME created{}, exited{}, kernel{}, user{};
+        if (GetProcessTimes(descendant.hProcess, &created, &exited, &kernel, &user) == FALSE)
+            return 1;
+        const auto creation = (static_cast<uint64_t>(created.dwHighDateTime) << 32u) | created.dwLowDateTime;
+        std::printf("owned descendant %lu %llu\n", descendant.dwProcessId, static_cast<unsigned long long>(creation));
+        std::fflush(stdout);
+        if (mode == L"descendant-hang")
+            Sleep(INFINITE);
+        return 0;
+    }
     if (mode == L"hang")
     {
         Sleep(INFINITE);

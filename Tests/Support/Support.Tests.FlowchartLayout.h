@@ -63,11 +63,30 @@ template <typename Check> inline void Geometry(Check&& check)
               "forward edge follows the independent six-point corridor oracle");
     check(plan->edges[0u].hasArrow && Near(plan->edges[0u].arrow[1u].x, 24.0) && Near(plan->edges[0u].arrow[1u].y, 88.0),
           "arrow head ends on the target shape boundary");
+    const auto relations = Place(Graph(L"classDiagram\nBase <|-- Derived\nDerived --> Client\nClient -- Contract\n"), check);
+    check(relations->edges.size() == 3u && relations->edges[0u].relation == FlowchartRelation::Inheritance && relations->edges[0u].hasArrow &&
+              relations->edges[1u].relation == FlowchartRelation::Arrow && relations->edges[1u].hasArrow &&
+              relations->edges[2u].relation == FlowchartRelation::Line && ! relations->edges[2u].hasArrow,
+          "class inheritance, directed association and plain association retain distinct edge kinds through layout");
     const auto shapes = Place(Graph(L"graph TD;A[box];B(round);C((circle));D{diamond}"), check);
     check(Near(shapes->nodes[0u].bounds.width, 40.0) && Near(shapes->nodes[1u].bounds.width, 40.0) && Near(shapes->nodes[2u].bounds.width, std::sqrt(2624.0)) &&
               Near(shapes->nodes[2u].bounds.height, std::sqrt(2624.0)) && Near(shapes->nodes[3u].bounds.width, 80.0) &&
               Near(shapes->nodes[3u].bounds.height, 64.0),
           "each supported shape contains the padded measured label");
+    const auto stadium           = Place(Graph(L"flowchart LR;A([capsule label])-->B([target])"), check);
+    const auto& capsule          = stadium->nodes[0u];
+    const auto& port             = stadium->edges[0u].path[0u];
+    const auto& target           = stadium->nodes[1u].bounds;
+    const auto& targetPort       = stadium->edges[0u].path[5u];
+    const auto radius            = capsule.bounds.height / 2.0;
+    const auto textHalfHeight    = capsule.label.height / 2.0;
+    const auto straightHalfWidth = (capsule.bounds.width - capsule.bounds.height) / 2.0;
+    check(capsule.shape == FlowchartShape::Stadium && capsule.bounds.width >= capsule.label.width + capsule.bounds.height &&
+              straightHalfWidth >= capsule.label.width / 2.0 && textHalfHeight < radius,
+          "stadium label rectangle stays inside its capsule straight band with shape-aware clearance");
+    check(Near(port.x, capsule.bounds.x + capsule.bounds.width) && Near(port.y, capsule.bounds.y + capsule.bounds.height / 2.0) &&
+              Near(targetPort.x, target.x) && Near(targetPort.y, target.y + target.height / 2.0) && radius > 0.0,
+          "left-to-right edge ports land on the true capsule end boundaries");
     const auto cycles = Place(Graph(L"graph TD;A-->B;B-->A;A-->A;A-->B"), check);
     check(cycles->edges[0u].route == FlowchartRoute::Forward && cycles->edges[1u].route == FlowchartRoute::Back &&
               cycles->edges[2u].route == FlowchartRoute::Self && cycles->edges[3u].route == FlowchartRoute::Forward &&
@@ -171,7 +190,21 @@ template <typename Check> inline void Corpus(Check&& check)
                       "budget choice cannot change edge routing");
         ++admitted;
     }
-    check(admitted == 13u, "geometry covers every admitted original reference graph");
+    check(admitted == 16u, "geometry covers every admitted original reference graph");
+    const auto fanoutGraph = Graph(L"flowchart LR;A & B --> C & D --> E");
+    const auto fanoutPlan  = Place(fanoutGraph, check, 7u);
+    check(fanoutGraph->outcome == FlowchartOutcome::Prepared && fanoutPlan->nodes.size() == 5u && fanoutPlan->edges.size() == 6u,
+          "grouped endpoint cross-products reach the existing bounded router with deterministic topology");
+    Invariants(*fanoutPlan, check);
+    for (const auto& edge : fanoutPlan->edges)
+    {
+        check(std::isfinite(edge.path.front().x) && std::isfinite(edge.path.front().y) && std::isfinite(edge.path.back().x) &&
+                  std::isfinite(edge.path.back().y),
+              "fan-out routing emits finite ports for every expanded edge");
+        check(edge.path.front().x <= fanoutPlan->extent.width && edge.path.front().y <= fanoutPlan->extent.height &&
+                  edge.path.back().x <= fanoutPlan->extent.width && edge.path.back().y <= fanoutPlan->extent.height,
+              "fan-out ports remain within the finite diagram resource envelope");
+    }
     for (const auto source : {L"graph TD;A-->B;B-->C;A-->C;C-->A;B-->B;D", L"graph RL;A-->|yes|B;B-->C;C-->|again|A;A-->A"})
         Invariants(*Place(Graph(source), check), check);
     std::wstring chain = L"graph TD;";

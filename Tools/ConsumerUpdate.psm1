@@ -33,6 +33,44 @@ function Get-DxUiUpdateNotice {
     }
 }
 
+function Invoke-DxUiOwnedProcess {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][Diagnostics.ProcessStartInfo] $StartInfo,
+        [ValidateRange(1, 10000)][int] $TimeoutMilliseconds = 2000,
+        [ValidateRange(1, 5000)][int] $TerminationConfirmationMilliseconds = 1000,
+        [ValidateRange(1, 1000)][int] $PipeDrainMilliseconds = 250
+    )
+
+    $process = [Diagnostics.Process]::new()
+    $process.StartInfo = $StartInfo
+    try {
+        if (-not $process.Start()) { return [pscustomobject]@{ TimedOut = $false; ExitCode = -1; StandardOutput = '' } }
+        # Drain both redirected streams concurrently; waiting for exit before reading can deadlock on a full pipe.
+        $standardOutput = $process.StandardOutput.ReadToEndAsync()
+        $standardError = $process.StandardError.ReadToEndAsync()
+        if (-not $process.WaitForExit($TimeoutMilliseconds)) {
+            try { $process.Kill() }
+            catch [InvalidOperationException] {
+                # The owned helper can exit between the timeout result and Kill; still confirm the same process handle below.
+            }
+            if (-not $process.WaitForExit($TerminationConfirmationMilliseconds)) {
+                throw 'The owned credential helper did not exit after timeout termination.'
+            }
+            $drain = [Threading.Tasks.Task]::WhenAll([Threading.Tasks.Task[]]@($standardOutput, $standardError))
+            [void]$drain.Wait($PipeDrainMilliseconds)
+            return [pscustomobject]@{ TimedOut = $true; ExitCode = $null; StandardOutput = '' }
+        }
+        $drain = [Threading.Tasks.Task]::WhenAll([Threading.Tasks.Task[]]@($standardOutput, $standardError))
+        if (-not $drain.Wait($PipeDrainMilliseconds)) {
+            # A descendant may have inherited a redirected pipe. Do not block the advisory on its EOF.
+            return [pscustomobject]@{ TimedOut = $false; ExitCode = $process.ExitCode; StandardOutput = '' }
+        }
+        $output = if ($process.ExitCode -eq 0) { $standardOutput.GetAwaiter().GetResult() } else { '' }
+        return [pscustomobject]@{ TimedOut = $false; ExitCode = $process.ExitCode; StandardOutput = $output }
+    } finally { $process.Dispose() }
+}
+
 function Show-DxUiUpdateNotice {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string] $LockFile)
@@ -50,17 +88,13 @@ function Show-DxUiUpdateNotice {
             $start.CreateNoWindow = $true
             $start.RedirectStandardOutput = $true
             $start.RedirectStandardError = $true
-            $process = [Diagnostics.Process]::new()
-            $process.StartInfo = $start
             try {
-                if ($process.Start()) {
-                    if ($process.WaitForExit(2000)) {
-                        if ($process.ExitCode -eq 0) { $token = $process.StandardOutput.ReadToEnd().Trim() }
-                    } else { $process.Kill() }
-                }
+                $lookup = Invoke-DxUiOwnedProcess -StartInfo $start -TimeoutMilliseconds 2000
+                if (-not $lookup.TimedOut -and $lookup.ExitCode -eq 0) { $token = $lookup.StandardOutput.Trim() }
             } catch [System.Exception] {
                 # Missing/locked credentials are an advisory lookup failure, never a restore failure.
-            } finally { $process.Dispose() }
+                # Do not echo transport exceptions: private-repository authentication must stay private.
+            }
         }
     }
     $headers = @{ Accept = 'application/vnd.github+json'; 'X-GitHub-Api-Version' = '2022-11-28' }

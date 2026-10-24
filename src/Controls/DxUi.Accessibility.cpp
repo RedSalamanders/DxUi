@@ -12914,7 +12914,7 @@ void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexce
     // Windows' first focus event calls GetFocus on a worker. Only actual focus transitions publish synchronously.
     Control* focused = host->GetFocusControl();
     ControlPath path{};
-    if (focused && ! FindAccessibilityPathForTarget(host->GetRoot(), ControlPath{}, focused, path))
+    if (focused && ! FindWindowHostControlPath(before.get(), host->GetRoot(), focused, path))
         focused = nullptr;
     bool focusChanged = focused != nullptr;
     if (before && before->alive)

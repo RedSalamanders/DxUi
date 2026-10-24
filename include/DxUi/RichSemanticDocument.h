@@ -189,8 +189,12 @@ public:
     std::shared_ptr<const SemanticDocument> Published() const noexcept;
 
 private:
+    // Host-owned geometry rejection is presentation state for one layout key.
+    // It never edits syntax and is not a consumer-authored source mask.
+    void BeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyntax> syntax, std::size_t sourceBlock, std::span<const MarkdownRange> sourceObjects);
     struct Preparation;
     std::unique_ptr<Preparation> next_;
     std::shared_ptr<const SemanticDocument> published_;
+    friend struct Detail::SemanticExtensionAccess;
 };
 } // namespace DxUi::RichText

@@ -1,9 +1,46 @@
 #include "Controls.Tests.RichSemanticGeometry.h"
+#include "../../src/Controls/DxUi.SemanticExtensions.h"
 #include "../Support/Support.Tests.RichSemanticEditor.h"
 #include "../Support/Support.Tests.RichSemanticGeometry.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 namespace
 {
+void TestRichSemanticNativeObjectFailureContainment()
+{
+    AttachedHostWindow window;
+    RichSemanticTests::Run([&]
+    {
+        RichSemanticEditorTests::NativeObjectFailureContainment(
+            window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native local object fallback"); });
+    });
+}
+void TestRichSemanticNativeFallbackSyntaxOwnership()
+{
+    using namespace DxUi::RichText;
+    const auto syntax = RichSemanticDocumentTests::Parse(L"# Heading\n\n$x$ **after**\n", MarkdownProfile::RichMarkdown);
+    SemanticBuilder builder;
+    builder.Begin(syntax);
+    const auto original = RichSemanticDocumentTests::Complete(builder, *syntax);
+    const auto math     = std::ranges::find(syntax->Inlines(), MarkdownInlineKind::Math, &MarkdownInline::kind);
+    Require(math != syntax->Inlines().end(), "fallback ownership fixture contains one native object");
+    for (const auto bad : {MarkdownRange{0u, 1u}, MarkdownRange{math->source.first + 1u, math->source.last}, MarkdownRange{3u, 2u}})
+    {
+        const std::array ranges{bad};
+        RichSemanticTests::Reject<std::invalid_argument>([&] { Detail::SemanticExtensionAccess::BeginWithNativeFallbacks(builder, syntax, ranges); },
+                                                         "fallback cannot mask arbitrary or partial source");
+        Require(builder.Published() == original && ! builder.HasPendingPreparation(), "invalid fallback keeps the prior coherent publication");
+    }
+    const std::array ranges{math->source};
+    Detail::SemanticExtensionAccess::BeginWithNativeFallbacks(builder, syntax, ranges);
+    const auto fallback = RichSemanticDocumentTests::Complete(builder, *syntax);
+    Require(fallback->Map().Display() == L"Heading\n$x$ after\n" && fallback->Diagnostics().size() == 1u &&
+                original->Map().Display().find(L'\ufffc') != std::wstring::npos,
+            "source fallback preserves one exact object while old native publications remain immutable");
+    builder.Begin(syntax);
+    const auto retry = RichSemanticDocumentTests::Complete(builder, *syntax);
+    Require(retry->Diagnostics().empty() && retry->Map().Display() == original->Map().Display(),
+            "clearing presentation rejection retries the unchanged syntax");
+}
 void TestRichSemanticNativeMathAndBroaderDiagrams()
 {
     AttachedHostWindow window;
@@ -94,6 +131,8 @@ void TestRichSemanticNativeRenderingAdmissionFallback()
 } // namespace
 void RunRichSemanticGeometryTests()
 {
+    DXUI_RUN_TEST(TestRichSemanticNativeObjectFailureContainment);
+    DXUI_RUN_TEST(TestRichSemanticNativeFallbackSyntaxOwnership);
     DXUI_RUN_TEST(TestRichSemanticNativeMathAndBroaderDiagrams);
     DXUI_RUN_TEST(TestRichSemanticGeometryParagraphsTablesAndSourceRanges);
     DXUI_RUN_TEST(TestRichSemanticDocumentHeadingMarginsAndIndentation);

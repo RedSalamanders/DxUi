@@ -132,6 +132,21 @@ try {
         foreach($path in @('committed.cpp','staged.cpp','code.cpp','deleted.cpp','renamed.cpp','renamed-new.cpp','untracked file.cpp')) {Assert-Scope ($path -in $paths) "Missing impact: $path"}
     }
     Run-Case 'unmapped executable input widens to every scope' {$plan=Get-ScopedTestPlan $manifest @('Unknown/new.cpp');Assert-Scope $plan.full 'Fallback was narrowed'}
+    if($manifest.repository -like '*/DxUi') {
+        Run-Case 'native rich grammar geometry and shared fixtures retain accessibility coverage' {
+            foreach($path in @('include/DxUi/RichMath.h','include/DxUi/RichSemanticDocument.h','src/Controls/DxUi.RichSemanticDocument.cpp',
+                              'src/Controls/DxUi.NativeMath.cpp','src/Controls/DxUi.PreparedMath.h','src/Controls/DxUi.NativeFlowchart.cpp',
+                              'src/Controls/DxUi.NativeFlowchartLayout.h','src/Controls/DxUi.PreparedFlowchart.cpp','src/Controls/DxUi.SemanticExtensions.h',
+                              'Tests/Support/Support.Tests.RichSemanticEditor.h','Tests/Support/Support.Tests.MarkdownBlocks.h',
+                              'Tests/Support/Support.Tests.FlowchartLayout.h','Tests/Support/Support.Tests.PreparedFlowchart.h')) {
+                $plan=Get-ScopedTestPlan $manifest @($path)
+                Assert-Scope (-not $plan.full) "Rich presentation input unexpectedly fell through to an unmapped full plan: $path"
+                foreach($scope in @('EditorControls','Embedded','Accessibility')) {
+                    Assert-Scope ($scope -in $plan.scopes) "Rich presentation consumer omitted for ${path}: $scope"
+                }
+            }
+        }
+    }
     Run-Case 'executable schema changes are never mistaken for prose' {$plan=Get-ScopedTestPlan $manifest @('Specs/Unmapped.schema.json');Assert-Scope $plan.full 'Schema was ignored'}
     Run-Case 'prose selects only independent validators, and empty changes select nothing' {
         foreach($path in @('Specs/Testing/explanation.md','Plugins/Weather/README.md','.agents/skills/example/SKILL.md')) {

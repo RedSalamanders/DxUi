@@ -21,6 +21,16 @@ class NativeObjectCapacity final : public std::length_error
 {
 public:
     using std::length_error::length_error;
+    NativeObjectCapacity(const char* message, std::size_t element) : std::length_error(message), element_(element)
+    {
+    }
+    std::size_t Element() const noexcept
+    {
+        return element_;
+    }
+
+private:
+    std::size_t element_ = MarkdownNoNode;
 };
 struct SourceCaretHit
 {

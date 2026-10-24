@@ -4,6 +4,7 @@
 #include "GraphicsFixture.h"
 #include "RichImageLoader.h"
 #include <iostream>
+#include <new>
 #include <windowsx.h>
 #pragma comment(lib, "user32.lib")
 namespace
@@ -290,6 +291,7 @@ struct App
         }
         catch (const std::exception&)
         {
+            // Win32 callback boundary: stop the owned sample on a standard failure.
             PostQuitMessage(1);
             return 0;
         }
@@ -498,8 +500,9 @@ int wmain(int argc, wchar_t** argv)
                             text = L" \u6771\u4eac";
                             return S_OK;
                         }
-                        catch (...)
+                        catch (const std::bad_alloc&)
                         {
+                            // COM-style clipboard boundary: leave the caller's edit uncommitted.
                             return E_OUTOFMEMORY;
                         }
                     }
