@@ -1892,7 +1892,13 @@ void ControlHost::SetFocusControl(Control* control, bool transferNativeFocus) no
         Control* const live =
             _root ? RevalidateInteractiveDispatchedControl(lifetime, _root.get(), control) : (_replacingRoot || lifetime.expired() ? nullptr : control);
         if (! live || ! live->IsFocusable())
+        {
+            // Rejecting another unavailable target must not disturb an outer focus request. A stale current owner
+            // still needs the normal focus/native-session cleanup, without starting a new focus request.
+            if (control == _focusedControl)
+                PruneStaleInteractionState();
             return;
+        }
     }
     const uint64_t requestRevision = ++_focusRequestRevision;
     const auto isCurrentRequest    = [this, requestRevision]() noexcept

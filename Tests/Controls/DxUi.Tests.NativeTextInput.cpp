@@ -1383,6 +1383,30 @@ void TestNativeTextInputBackendClearsSessionWhenFocusedControlBecomesStale()
     Require(! window.Host().DebugHasActiveNativeTextInputSession(), "native text input session clears after focused control is disabled");
     Require(! window.Host().DebugGetNativeTextInputCaretRect(caretRectDip, caretRectScreenPx),
             "native text input caret clears after focused control is disabled");
+    Require(window.Host().GetFocusControl() == nullptr && ! field->HasFocus() && ! window.Host().HasActiveTextInput() && field->GetText() == L"alpha",
+            "disabled current owner loses logical and backend-neutral focus without changing source");
+
+    field->SetEnabled(true);
+    window.Host().SetFocusControl(field);
+    Require(window.Host().DebugHasActiveNativeTextInputSession(), "re-enabled current owner can start a new native session");
+    field->SetVisible(false);
+    window.Host().SetFocusControl(field);
+    Require(! window.Host().DebugHasActiveNativeTextInputSession() && ! window.Host().HasActiveTextInput() && window.Host().GetFocusControl() == nullptr &&
+                ! field->HasFocus(),
+            "requesting a hidden current owner prunes logical and native input state");
+    Require(! window.Host().DebugGetNativeTextInputCaretRect(caretRectDip, caretRectScreenPx) && field->GetText() == L"alpha",
+            "hidden current owner loses its caret without changing source");
+
+    field->SetVisible(true);
+    window.Host().SetFocusControl(field);
+    Require(window.Host().DebugHasActiveNativeTextInputSession(), "visible current owner can restart native input");
+    window.Host().GetRoot()->SetEnabled(false);
+    window.Host().SetFocusControl(field);
+    Require(! window.Host().DebugHasActiveNativeTextInputSession() && ! window.Host().HasActiveTextInput() && window.Host().GetFocusControl() == nullptr &&
+                ! field->HasFocus(),
+            "requesting a current owner beneath a disabled ancestor prunes logical and native input state");
+    Require(! window.Host().DebugGetNativeTextInputCaretRect(caretRectDip, caretRectScreenPx) && field->GetText() == L"alpha",
+            "ancestor-disabled current owner loses its caret without changing source");
 }
 
 void TestNativeTextInputBackendUpdatesCaretWhenFocusedFieldMoves()

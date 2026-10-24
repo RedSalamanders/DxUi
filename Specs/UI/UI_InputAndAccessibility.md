@@ -252,7 +252,10 @@ visibility, disabled and read-only transitions. AltGr text remains accepted.
 
 Native focus transfer can synchronously re-enter activation through `WM_SETFOCUS`. A failed or superseded outer
 request may retire only its own session generation, including when the newer session uses the same retained editor.
-Each explicit logical focus request supersedes an older request. After application or TSF callbacks, an older
+Each accepted explicit logical focus request supersedes an older request. A rejected request for an unrelated
+ineligible target MUST NOT advance the focus-request revision or disturb healthy current focus; a rejected request
+for the current owner MUST still prune stale retained focus and native text-input state before returning.
+After application or TSF callbacks, an older
 setter stops before assigning, clearing or publishing focus belonging to the newer request. Standard exceptions
 from focus callbacks are contained at the host boundary. A live control whose override fails before acknowledging
 the transition receives the base focus-state acknowledgement, unless a newer request has superseded that transition.
