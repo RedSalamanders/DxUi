@@ -46,6 +46,35 @@ selected installed CMake also passes all 12 triplet checks. The owner selected f
 leaving full TeX font assemblies and additional Mermaid families in the existing language roadmap. That scope decision
 does not close their W/T/C items or turn the bounded profiles into full KaTeX/Mermaid compatibility.
 
+### Current bounded dispositions and qualification checkpoint
+
+The profile implementation is `f5a2cea9`; `94bf9801` adds the lease source-contract correction and `8a38e598`
+adds the gallery fixture repair. At `8a38e598`, all six official SDK builds pass. All 19 ordinary x64 suites pass
+in both Debug and ASan Debug with zero skips, including a real ASan detection probe. The earlier SDK94 Release
+19-suite and four foreground-suite passes remain separately bound to their source and binaries. Hosted ARM64
+Debug/Release native suites pass; ARM64 ASan's native step fails and is under investigation. Later consumer
+steps do not erase that failure.
+
+The next host source snapshot (`866fb8fc62eb06756f65845e5130a10a8e8bb4fb3a805deba0ebd0ccc7713187`)
+passes all 14 targeted Release cases in `host-regressions-green-v2` at 21:29 UTC. The prior epoch diagnostic
+reproduces unnecessary full-tree work after unrelated presentation changes, while its corrected tab fixture passes.
+The production run covers bounded/reset-scoped submissions, native-paint and capture failures, tree mutation,
+live moved/expired observers, reentrant cleanup and final-state cache validation. These focused passes do not
+replace the final native/platform matrix, foreground suites or fresh whole-feature performance comparisons.
+
+| Existing owner | Completed bounded portion | Remaining boundary |
+| --- | --- | --- |
+| W1.1 | Table-column zero/short-row bounds and retained source/selection/history regressions | Other broad structural roadmap items retain their original owners. |
+| W1.2/W1.5 | Per-formula fallback, failure-key retry bounds, independent Math ownership and parent link title/destination preservation | Do not infer completion of the whole shared native-object admission-ledger roadmap. |
+| W1.6/C4/T1 | Explicit delimiter recognition, glyph identities, modifier/script binding, shared root/matrix budgets and typed atom/style/limits layout | Full command/font assemblies and the complete target inventory remain open. W1.12's separate geometry/DPI requirements are not closed by atom-layout work. |
+| W1.7/C6/C7/C8/T2 | Current flowchart/state/class grammar, descriptions, fan-out, stadium ports and typed hollow inheritance with directed model/layout/render/source tests | The broader family, routing, wrapping/style and language tracks remain open. |
+| W1.11 | Bounded math status/limits and limited state/class matrix truth repaired together with their tests | The full documentation/gallery/platform closeout needs final-source evidence. |
+
+The actual-base same-SDK app comparison and independent audit are complete at `fa0757d`; seven regressions remain,
+including +12.23%/+12.68% private bytes in Compose/Split. The separate starting-redesign cohort resolves no change.
+Those records are retained without accepting a cost or qualifying D4c. New production memory/latency fixes trigger
+new fixed-scope studies; they do not replace or pool the older observations.
+
 ## Revision and drift
 
 Planned at DxUi `ceffe76a429d15039ceff1f7dfae7e1d7126323e`, clean main. RedTilde main is

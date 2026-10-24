@@ -2331,6 +2331,11 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             const bool dismissForCancel     = msg == WM_CANCELMODE;
             if (dismissForActivation || dismissForCancel)
             {
+                DXUI_MENU_DIAGNOSTICS_TRACE(dismissForActivation ? L"menu.dismiss-cause-activation" : L"menu.dismiss-cause-cancel",
+                                            L"msg={} msgId={:#x} hwnd={:#x}",
+                                            TraceMenuMessageName(msg),
+                                            static_cast<unsigned int>(msg),
+                                            TraceHwndValue(hwnd));
                 controller->Dismiss();
                 if (controller->asyncSession && controller->asyncInteractionActive)
                     FinalizeAsyncMenuController(*controller);
@@ -2341,6 +2346,11 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 msg == WM_CAPTURECHANGED && (! controller->GetRootPopup() || reinterpret_cast<HWND>(lp) != controller->GetRootPopup()->hwnd);
             if (controller->asyncSession && controller->asyncInteractionActive && dismissForCaptureLoss)
             {
+                DXUI_MENU_DIAGNOSTICS_TRACE(L"menu.dismiss-cause-capture-loss",
+                                            L"msg={} msgId={:#x} hwnd={:#x}",
+                                            TraceMenuMessageName(msg),
+                                            static_cast<unsigned int>(msg),
+                                            TraceHwndValue(hwnd));
                 controller->Dismiss();
                 FinalizeAsyncMenuController(*controller);
                 return 0;
@@ -5199,6 +5209,13 @@ void TraceMenuPointerRoute(MenuController& controller,
         {
             if (event.mayDismiss)
             {
+                DXUI_MENU_DIAGNOSTICS_TRACE(L"menu.dismiss-cause-pointer-outside",
+                                            L"source={} kind={} hwnd={:#x} screen=({}, {})",
+                                            TraceInputSourceName(event.source),
+                                            TracePointerKindName(event.kind),
+                                            TraceHwndValue(event.hwnd),
+                                            event.screenPoint.x,
+                                            event.screenPoint.y);
                 controller.Dismiss();
                 return finish(MenuInputDisposition::Dismissed);
             }
@@ -5360,6 +5377,13 @@ void TraceMenuPointerRoute(MenuController& controller,
         }
         else if (! targetPopup && event.mayDismiss)
         {
+            DXUI_MENU_DIAGNOSTICS_TRACE(L"menu.dismiss-cause-pointer-outside",
+                                        L"source={} kind={} hwnd={:#x} screen=({}, {})",
+                                        TraceInputSourceName(event.source),
+                                        TracePointerKindName(event.kind),
+                                        TraceHwndValue(event.hwnd),
+                                        event.screenPoint.x,
+                                        event.screenPoint.y);
             controller.Dismiss();
             return finish(MenuInputDisposition::Dismissed);
         }
@@ -5535,6 +5559,8 @@ void TraceMenuPointerRoute(MenuController& controller,
                 controller.CloseTopmostSubmenu();
                 return MenuInputDisposition::Consumed;
             }
+            DXUI_MENU_DIAGNOSTICS_TRACE(
+                L"menu.dismiss-cause-key-escape", L"source={} hwnd={:#x}", TraceInputSourceName(event.source), TraceHwndValue(event.hwnd));
             controller.Dismiss();
             return MenuInputDisposition::Dismissed;
         case MenuKeyboardKind::Alt:
@@ -5543,10 +5569,17 @@ void TraceMenuPointerRoute(MenuController& controller,
             {
                 return MenuInputDisposition::Consumed;
             }
+            DXUI_MENU_DIAGNOSTICS_TRACE(L"menu.dismiss-cause-key-alt", L"source={} hwnd={:#x}", TraceInputSourceName(event.source), TraceHwndValue(event.hwnd));
             controller.Dismiss();
             return MenuInputDisposition::Dismissed;
         case MenuKeyboardKind::Tab:
-        case MenuKeyboardKind::F10: controller.Dismiss(); return MenuInputDisposition::Dismissed;
+            DXUI_MENU_DIAGNOSTICS_TRACE(L"menu.dismiss-cause-key-tab", L"source={} hwnd={:#x}", TraceInputSourceName(event.source), TraceHwndValue(event.hwnd));
+            controller.Dismiss();
+            return MenuInputDisposition::Dismissed;
+        case MenuKeyboardKind::F10:
+            DXUI_MENU_DIAGNOSTICS_TRACE(L"menu.dismiss-cause-key-f10", L"source={} hwnd={:#x}", TraceInputSourceName(event.source), TraceHwndValue(event.hwnd));
+            controller.Dismiss();
+            return MenuInputDisposition::Dismissed;
         case MenuKeyboardKind::Right:
         {
             const bool rightToLeft = topmost->flowDirection == FlowDirection::RightToLeft;

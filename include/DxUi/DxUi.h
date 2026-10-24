@@ -1630,6 +1630,8 @@ public:
     virtual bool OnCopy(ControlHost& host);
     virtual bool OnSelectAll(ControlHost& host);
     virtual bool OnMnemonic(ControlHost& host);
+    // Traversal queries are read-only: do not mutate the tree, invoke application callbacks or pump messages.
+    // Returned child pointers are borrowed until the next supported tree mutation on the owning UI thread.
     [[nodiscard]] virtual size_t GetLogicalChildCount() const noexcept;
     [[nodiscard]] virtual Control* GetLogicalChild(size_t index) noexcept;
     [[nodiscard]] virtual const Control* GetLogicalChild(size_t index) const noexcept;
@@ -1861,6 +1863,7 @@ public:
     bool Tick(ControlHost& host, uint64_t nowTickMs) override;
 
 protected:
+    void NotifyChildTreeChanged() noexcept;
     static void DetachChildPreservingInheritance(Control& child) noexcept;
     // TakeChild and TabControl's tab removal call this on the panel and on each enclosing panel, across non-panel
     // containers such as PageHost, while `subtree` is still attached, before it leaves the tree. A container that keeps
@@ -5499,6 +5502,8 @@ public:
         // Default attachments inherit that policy. Conflicting forced requests
         // fail with ERROR_INVALID_STATE without changing existing peers.
         bool forceWarp = false;
+        // Submit bounded batches only while painting the first full native swap-chain frame after a reset.
+        bool batchInitialRootChildren = false;
     };
 
     ControlHost() = default;
@@ -5671,7 +5676,22 @@ public:
     [[nodiscard]] uint64_t DebugGetPresentFailureCount() const noexcept;
     [[nodiscard]] uint64_t DebugGetFullPresentAttemptCount() const noexcept;
     [[nodiscard]] uint64_t DebugGetPartialPresentAttemptCount() const noexcept;
+    [[nodiscard]] uint64_t DebugGetInitialRootChildBatchFlushCount() const noexcept;
+    void DebugSetNextInitialRootChildBatchFlushResultForTest(HRESULT result) noexcept;
+    void DebugSetNextInitialRootChildBatchEndDrawResultForTest(HRESULT result) noexcept;
     [[nodiscard]] HRESULT DebugGetLastPresentResult() const noexcept;
+    [[nodiscard]] uint64_t DebugGetMessagePrunePassCount() const noexcept
+    {
+        return _messagePrunePassSerial;
+    }
+    [[nodiscard]] uint64_t DebugGetMessagePruneResolverNodeVisitCount() const noexcept
+    {
+        return _debugMessagePruneResolverNodeVisitCount;
+    }
+    void DebugResetMessagePruneResolverNodeVisitCountForTest() noexcept
+    {
+        _debugMessagePruneResolverNodeVisitCount = 0u;
+    }
     // Directly drives the native renderer with a partial invalidation for lifecycle regression tests.
     void DebugRenderDirtyRectForTest(const RECT& dirtyRectPx) noexcept;
     [[nodiscard]] bool DebugHasActiveAnimationSubscription() const noexcept;
@@ -5731,6 +5751,16 @@ private:
     friend class FormPanel;
     friend class NativeTextStoreTarget;
     friend struct EmbeddedAccessibilityAccess;
+    struct InitialRootChildBatchFrame final
+    {
+        Panel* root                  = nullptr;
+        uint64_t interactionRevision = 0u;
+        uint8_t flushesRemaining     = 0u;
+        HRESULT firstFlushFailure    = S_OK;
+    };
+    [[nodiscard]] bool IsInitialRootChildBatchActive(const Panel& root) const noexcept;
+    void FlushInitialRootChildBatch(const Panel& root) noexcept;
+    void NotifyRetainedTreeMutation() noexcept;
     void* _embeddedAccessibilityTarget = nullptr;
     bool _gainingWindowFocus           = false; // In OnSetFocus: the system's focus event reports the element.
     bool _resettingInteractionState    = false;
@@ -5742,26 +5772,59 @@ private:
         bool messageRoute              = false;
         bool allowCharacter            = false;
     };
-    ULONGLONG _focusGainTurnStartedMs         = 0u;    // From OnSetFocus until the message loop turns: the event may still report.
-    WPARAM _focusGainTurnId                   = 0u;    // The turn the posted end message names; an earlier turn's message ends nothing.
-    uint64_t _focusGainResolutions            = 0u;    // Fragment-root GetFocus calls begun when the latest gain began.
-    bool _focusGainTurnAnnounced              = false; // The host announced a focus move of the gain's turn itself.
-    uint64_t _interactionRevision             = 0;
-    bool _pendingPageLayout                   = false;
-    bool _pendingIntrinsicLayout              = false;
-    mutable bool _pendingContentPreparation   = false;
-    bool _pendingVisualPreparation            = false;
-    bool _forceAllVisualPreparation           = false;
-    bool _contentPreparationContinues         = false;
-    bool _contentGeometryChanged              = false;
-    uint64_t _preparedContentResources        = 0u;
-    uint64_t _preparedContentTypography       = 0u;
-    uint64_t _preparedVisualResources         = 0u;
-    uint64_t _preparedVisualTypography        = 0u;
-    mutable uint64_t _typographyRevision      = 0u;
-    const Control* _intrinsicArrangeBranch    = nullptr;
-    uint64_t _intrinsicArrangeForeignRevision = 0u;
-    uint64_t _intrinsicArrangeBoundsRevision  = 0u;
+    ULONGLONG _focusGainTurnStartedMs = 0u;    // From OnSetFocus until the message loop turns: the event may still report.
+    WPARAM _focusGainTurnId           = 0u;    // The turn the posted end message names; an earlier turn's message ends nothing.
+    uint64_t _focusGainResolutions    = 0u;    // Fragment-root GetFocus calls begun when the latest gain began.
+    bool _focusGainTurnAnnounced      = false; // The host announced a focus move of the gain's turn itself.
+    struct MessagePruneObserverSnapshot final
+    {
+        Control* control = nullptr;
+        std::weak_ptr<int> lifetime;
+        struct LogicalPath final
+        {
+            std::array<uint16_t, 64u> reverseChildIndices{};
+            size_t depth = 0u;
+            bool valid   = false;
+        } path;
+    };
+    struct MessagePruneSnapshot final
+    {
+        Control* root = nullptr;
+        std::weak_ptr<int> rootLifetime;
+        uint64_t interactionRevision = 0u;
+        std::array<MessagePruneObserverSnapshot, 5u> observers{};
+        bool valid = false;
+    };
+    struct MessagePrunePass final
+    {
+        MessagePruneSnapshot entry;
+        std::array<std::weak_ptr<int>, 5u> validatedObserverLifetimes{};
+        std::array<MessagePruneObserverSnapshot::LogicalPath, 5u> validatedObserverPaths{};
+        uint64_t resolverNodeVisits = 0u;
+        uint64_t serial             = 0u;
+    };
+    [[nodiscard]] MessagePruneSnapshot CaptureMessagePruneSnapshot() const noexcept;
+    [[nodiscard]] bool CanReuseMessagePruneSnapshot(const MessagePruneSnapshot& current) const noexcept;
+    [[nodiscard]] bool CanPublishMessagePrunePass(const MessagePrunePass& pass) const noexcept;
+    MessagePruneSnapshot _messagePruneSnapshot;
+    uint64_t _messagePrunePassSerial                        = 0u;
+    uint64_t _interactionRevision                           = 0;
+    InitialRootChildBatchFrame* _initialRootChildBatchFrame = nullptr;
+    bool _pendingPageLayout                                 = false;
+    bool _pendingIntrinsicLayout                            = false;
+    mutable bool _pendingContentPreparation                 = false;
+    bool _pendingVisualPreparation                          = false;
+    bool _forceAllVisualPreparation                         = false;
+    bool _contentPreparationContinues                       = false;
+    bool _contentGeometryChanged                            = false;
+    uint64_t _preparedContentResources                      = 0u;
+    uint64_t _preparedContentTypography                     = 0u;
+    uint64_t _preparedVisualResources                       = 0u;
+    uint64_t _preparedVisualTypography                      = 0u;
+    mutable uint64_t _typographyRevision                    = 0u;
+    const Control* _intrinsicArrangeBranch                  = nullptr;
+    uint64_t _intrinsicArrangeForeignRevision               = 0u;
+    uint64_t _intrinsicArrangeBoundsRevision                = 0u;
     // The latest intrinsic layout failure the host reported, so a failure that repeats is reported once.
     const Control* _reportedLayoutFailureControl = nullptr;
     HRESULT _reportedLayoutFailure               = S_OK;
@@ -5827,10 +5890,10 @@ private:
     void RaiseNativeTextInputAccessibilityEvents(const NativeTextInputState& previousState) noexcept;
     [[nodiscard]] bool TryGetNativeTextInputCaretRects(D2D1_RECT_F& outRectDip, RECT& outClientRectPx, RECT& outScreenRectPx) const noexcept;
     // Drops interaction state on controls that left the tree or became inert; a dropped focus is published.
-    void PruneStaleInteractionState() noexcept;
+    void PruneStaleInteractionState(MessagePrunePass* pass = nullptr) noexcept;
     // Message entry only, where no dispatched control is borrowed: a captured control that is still in the tree but
     // no longer interactive (it or an ancestor was hidden or disabled) cancels its drag, as EmbeddedHost does.
-    void CancelStaleCapture() noexcept;
+    void CancelStaleCapture(MessagePrunePass* pass = nullptr) noexcept;
     void CancelCapturedControlInteraction() noexcept;
     void NotifyControlFocusChanged(Control* control, bool focused) noexcept;
     void ResetRootInteractionState() noexcept;
@@ -5935,6 +5998,7 @@ private:
     uint64_t _sharedGraphicsGeneration     = 0u;
     uint64_t _resourceGeneration           = 1u;
     bool _forceFullPresentAfterBufferReset = false;
+    bool _initialRootChildBatchPending     = false;
 
     mutable std::unordered_map<uint32_t, wil::com_ptr<ID2D1SolidColorBrush>> _brushCache;
     mutable wil::com_ptr<ID2D1SolidColorBrush> _fallbackBrush;
@@ -6004,6 +6068,10 @@ private:
     mutable uint64_t _debugPresentFailureCount                  = 0u;
     mutable uint64_t _debugFullPresentAttemptCount              = 0u;
     mutable uint64_t _debugPartialPresentAttemptCount           = 0u;
+    mutable uint64_t _debugInitialRootChildBatchFlushCount      = 0u;
+    HRESULT _debugNextInitialRootChildBatchFlushResult          = S_OK;
+    HRESULT _debugNextInitialRootChildBatchEndDrawResult        = S_OK;
+    mutable uint64_t _debugMessagePruneResolverNodeVisitCount   = 0u;
     mutable HRESULT _debugLastPresentResult                     = E_PENDING;
     // Non-owning observers into the current retained control tree. Ownership stays with
     // `_root` / `Panel::_children`, so these pointers must be cleared or ignored before
@@ -6035,6 +6103,7 @@ private:
     InputModality _inputModality       = InputModality::Pointer;
     PointerDevice _pointerDevice       = PointerDevice::Mouse;
     PresentationMode _presentationMode = PresentationMode::HwndSwapChain;
+    bool _batchInitialRootChildren     = false;
     bool _smokeOverlayVisible          = false;
     std::atomic_bool _detachInProgress{false};
     DWORD _attachmentOwnerThreadId    = 0u;

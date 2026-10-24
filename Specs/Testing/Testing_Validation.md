@@ -81,6 +81,8 @@ inside the same 900 ms guard. Its unchanged-library counterfactual must retain t
 hover, active paint backlog and absence of callback entry. Bounded UI/driver trace storage uses the synchronous
 borrowed diagnostic sink; records retain phase names, relative times and query outcomes rather than desktop
 identities. Capturing a possible failure path does not attribute an earlier untraced occurrence.
+Dismissal records distinguish popup activation/cancellation, asynchronous capture loss, outside pointer input,
+and Escape/Alt/Tab/F10. Preserve those cause tags in the same bounded test trace without changing either guard.
 
 `performance-forms.ps1` runs the fixed `dxui-form-layout-cost-v1` synthetic fixture. Before timing it requires identical
 manual/form leaf state, geometry and captured pixels across five states in two profiles. It reports raw frame and

@@ -151,6 +151,33 @@ Among correct designs, minimize steady-state CPU/GPU time, private/resident memo
 synchronization, thread/handle count, wake-ups and graphics submissions. Preserve correctness, accessibility,
 security and visual quality; do not trade them away for an unmeasured optimization. All consumers share this policy.
 
+At the native host message-entry pruning seam, a completed stale-interaction pass may be reused only while the
+root identity and lifetime, all retained observer identities, and each observer lifetime
+remain unchanged. For each nonnull observer, the full resolver captures a bounded reverse path of logical-child
+indices during its existing traversal; a cache hit checks the observer's weak token before walking that path from
+the currently owned root, requires every path node to remain visible and enabled, and verifies the final identity.
+This membership proof detects a live control moved out through mutable `Panel::GetChildren()` even when its address,
+lifetime and host interaction revision are unchanged. An over-depth or over-index path is not cached and uses the
+full pruning pass on each message until it fits. Cache-path validation uses the host's effective-interactivity rule
+for every retained observer; it is distinct from UIA's visible-only control-path semantics.
+An ordinary cache hit compares observer identities and checks weak-token expiry without dereferencing a stale control.
+Invalidate the published snapshot before invoking cancellation or pruning callbacks; reentrant message handling
+must validate independently, and an outer pass may publish only if it was not superseded and its entry state still
+matches. Acquire observer lifetime tokens only after the resolver proves effective interactivity. A missing root,
+observer identity change, expired token or invalid live path requires the full cleanup pass, including native
+text-input deactivation. An unrelated completed presentation mutation may advance the interaction revision without
+invalidating these live paths: the full prune classifies membership and effective visibility/enabled state, not
+bounds or text. After validating the paths, recheck the entry root/lifetime, revision, pass serial and all observer
+keys; a change during validation requires the full pass. In-progress full-pass publication still requires the
+unchanged entry revision and latest pass serial. Logical-child queries obey the stable read-only traversal contract
+in `UI_ControlsAndLayout.md`; a final state check is not support for destructive getter reentry.
+Do not extend this optimization to other prune call sites. Deterministic host tests must show zero additional full
+resolver visits for stable messages and unrelated presentation mutations, plus fresh cleanup for invalid paths,
+state/lifetime changes, same-message reentry and injected observer changes during path validation.
+The diagnostic pass count also distinguishes an uncached cleanup of an empty observer set from a cache hit;
+an empty set can require a new pass while visiting no resolver nodes. Cached path walks are separate from full
+recursive resolver visits and must not be reported as zero total tree-node work.
+
 Prepared text rendering may retain at most one device-independent DirectWrite layout per eligible IconOnly base
 Button. Create or replace it only in the separate owner visual-preparation pass, never during composition. A warm
 paint draws it with the current origin and brush and performs no layout creation. Text/format/extent/flow changes,

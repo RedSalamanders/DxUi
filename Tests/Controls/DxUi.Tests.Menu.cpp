@@ -799,6 +799,14 @@ public:
                 std::pair{L"menu.loop-dismiss-activation", "dismiss.activation"},
                 std::pair{L"menu.loop-dismiss-missing-root", "dismiss.missing-root"},
                 std::pair{L"menu.loop-message-stale", "dispatch.stale-window"},
+                std::pair{L"menu.dismiss-cause-activation", "dismiss.cause.activation"},
+                std::pair{L"menu.dismiss-cause-cancel", "dismiss.cause.cancel"},
+                std::pair{L"menu.dismiss-cause-capture-loss", "dismiss.cause.capture-loss"},
+                std::pair{L"menu.dismiss-cause-pointer-outside", "dismiss.cause.pointer-outside"},
+                std::pair{L"menu.dismiss-cause-key-escape", "dismiss.cause.key-escape"},
+                std::pair{L"menu.dismiss-cause-key-alt", "dismiss.cause.key-alt"},
+                std::pair{L"menu.dismiss-cause-key-tab", "dismiss.cause.key-tab"},
+                std::pair{L"menu.dismiss-cause-key-f10", "dismiss.cause.key-f10"},
                 std::pair{L"menu.dismiss", "dismiss"},
             };
             for (const auto& [marker, phase] : phases)

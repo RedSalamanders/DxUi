@@ -338,7 +338,9 @@ physical application DPI presentation and real assistive-technology journeys req
   PageHost's current page. Membership (`IsControlInTree`), Tab order, native text input and its text store, the
   ComboBox scroll-container lookup and the UI Automation tree all use that one walk, so the content of a page takes
   focus by Tab, receives IME and TSF input and has UI Automation elements exactly as the same content in a Panel does.
-  Element paths index logical children.
+  Element paths index logical children. Logical-child accessors are stable, read-only traversal queries on the
+  owning UI thread: they must not mutate the tree, invoke application callbacks or pump messages. Returned child
+  pointers are borrowed until the next supported tree mutation; traversals do not support destructive getter reentry.
 
 The consumer chooses information hierarchy and whether repeated text is useful. Shared controls
 must support a single semantic heading with associated labelled values and complete exact-value

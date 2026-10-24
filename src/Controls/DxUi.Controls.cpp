@@ -63,10 +63,16 @@ template <typename TCallback> [[nodiscard]] Control* FindPanelChildHit(Panel& pa
     return nullptr;
 }
 
-template <typename TPanel, typename TCallback>
-void ForEachPanelChildCallback(TPanel& panel,
-                               const std::weak_ptr<int>& ownerLifetime,
-                               TCallback&& callback) noexcept(noexcept(std::declval<TCallback&>()(std::declval<Control&>())))
+struct NoopPanelChildCallback final
+{
+    void operator()(Control&) const noexcept
+    {
+    }
+};
+
+template <typename TPanel, typename TCallback, typename TAfterCallback = NoopPanelChildCallback>
+void ForEachPanelChildCallback(TPanel& panel, const std::weak_ptr<int>& ownerLifetime, TCallback&& callback, TAfterCallback afterCallback = {}) noexcept(
+    noexcept(std::declval<TCallback&>()(std::declval<Control&>())) && noexcept(std::declval<TAfterCallback&>()(std::declval<Control&>())))
 {
     const size_t visitBudget = panel.GetLogicalChildCount();
     size_t index             = 0u;
@@ -103,6 +109,7 @@ void ForEachPanelChildCallback(TPanel& panel,
         children = panel.GetChildren();
         if (! childLifetime.expired() && index < children.size() && children[index].get() == child)
         {
+            afterCallback(*child);
             ++index;
         }
         else if (! childLifetime.expired())
@@ -1343,11 +1350,18 @@ std::unique_ptr<Control> Panel::TakeChild(size_t index) noexcept
     return {};
 }
 
+void Panel::NotifyChildTreeChanged() noexcept
+{
+    if (ControlHost* const host = GetHost())
+        host->NotifyRetainedTreeMutation();
+}
+
 size_t Panel::CompactChildren() noexcept
 {
     const size_t removed = std::erase_if(_children, [](const std::unique_ptr<Control>& child) noexcept { return ! child; });
     if (removed == 0u)
         return 0u;
+    NotifyChildTreeChanged();
     // The children's indices, and the accessibility paths built from them, changed.
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     InvalidateMeasure();
@@ -1469,14 +1483,26 @@ void Panel::OnHostDpiChanged(ControlHost& host) noexcept
 
 void Panel::Paint(ControlHost& host) const
 {
-    ForEachPanelChildCallback(*this,
-                              GetLifetimeToken(),
-                              [&host](const Control& child)
+    const auto paintChild = [&host](const Control& child)
     {
         if (child.IsVisible())
         {
             child.Paint(host);
         }
+    };
+    if (! host.IsInitialRootChildBatchActive(*this))
+    {
+        ForEachPanelChildCallback(*this, GetLifetimeToken(), paintChild);
+        return;
+    }
+
+    ForEachPanelChildCallback(*this,
+                              GetLifetimeToken(),
+                              paintChild,
+                              [this, &host](Control& child)
+    {
+        if (child.IsVisible())
+            host.FlushInitialRootChildBatch(*this);
     });
 }
 
@@ -9120,6 +9146,7 @@ void TabControl::ReorderTab(size_t fromIndex, size_t toIndex) noexcept
     children.erase(children.begin() + static_cast<ptrdiff_t>(fromIndex));
     _tabs.insert(_tabs.begin() + static_cast<ptrdiff_t>(toIndex), std::move(movedTab));
     children.insert(children.begin() + static_cast<ptrdiff_t>(toIndex), std::move(movedChild));
+    NotifyChildTreeChanged();
 
     if (_selectedIndex.has_value())
     {

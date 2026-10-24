@@ -1355,7 +1355,7 @@ void TestWindowHostCaptureDiscardsFrameWhenPaintReplacesItsRoot()
 {
     using namespace DxUi;
 
-    AttachedHostWindow window;
+    AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, false, true);
     ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
     window.PumpMessages();
     WindowHostRootReplacementPaintState state;
@@ -1365,11 +1365,16 @@ void TestWindowHostCaptureDiscardsFrameWhenPaintReplacesItsRoot()
         ++replacementCallbackCount;
         host.SetRoot(std::make_unique<WindowHostSolidColorPaintControl>(D2D1::ColorF(0.05f, 0.80f, 0.18f, 1.0f)));
     };
-    window.Host().SetRoot(std::make_unique<ReplaceRootDuringWindowHostPaintControl>(state));
+    auto root                  = std::make_unique<Panel>();
+    auto* const replacingChild = root->AddChild<ReplaceRootDuringWindowHostPaintControl>(state);
+    replacingChild->SetBounds(D2D1::RectF(0.0f, 0.0f, 280.0f, 180.0f));
+    window.Host().SetRoot(std::move(root));
 
     WindowHostBitmapCapture retiredFrame;
     const bool retiredFrameCaptured = window.Host().DebugCaptureBitmap(retiredFrame);
     Require(! retiredFrameCaptured, "root replacement during paint rejects the frame being rendered from the retired tree");
+    Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == 0u,
+            "root retirement during a direct child paint prevents its post-child batch submission");
     Require(retiredFrame.widthPx == 0u && retiredFrame.heightPx == 0u && retiredFrame.bgraPixels.empty(),
             "the retired-tree capture publishes no mixed-frame pixels");
     Require(replacementCallbackCount == 1u && state.paintCount == 1u, "the external one-shot callback survives retirement of the control that invoked it");
@@ -1433,12 +1438,10 @@ void TestWindowHostCaptureDiscardsFrameWhenPaintMutatesTheChildTree()
         PaintState* _state;
         bool _first;
     };
-    for (const unsigned mutation : {0u, 1u, 2u, 3u, 4u})
+    for (const unsigned mutation : {0u, 1u, 2u, 3u, 4u, 5u})
     {
         PaintState state;
-        AttachedHostWindow window;
-        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
-        window.PumpMessages();
+        AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, false, true);
         auto root   = std::make_unique<Panel>();
         auto* panel = root.get();
         root->AddChild<ChildPainter>(state, true)->SetBounds(D2D1::RectF(0, 0, 160, 80));
@@ -1447,8 +1450,11 @@ void TestWindowHostCaptureDiscardsFrameWhenPaintMutatesTheChildTree()
         auto* destination = root->AddChild<PageHost>();
         destination->SetBounds(D2D1::RectF(0, 0, 160, 80));
         window.Host().SetRoot(std::move(root));
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
         WindowHostBitmapCapture initialFrame;
         Require(window.Host().DebugCaptureBitmap(initialFrame), "initial child-tree capture completes");
+        const uint64_t initialBatchFlushCount = window.Host().DebugGetInitialRootChildBatchFlushCount();
+        Require(initialBatchFlushCount == 3u, "the initial tree submits one batch per visible direct root child");
         ValidateRect(window.Hwnd(), nullptr);
         Require(GetUpdateRect(window.Hwnd(), nullptr, FALSE) == FALSE, "initial capture has no pending native corrective paint");
         state.firstPaints  = 0u;
@@ -1463,14 +1469,18 @@ void TestWindowHostCaptureDiscardsFrameWhenPaintMutatesTheChildTree()
                 case 2u: destination->SetPage(panel->TakeChild(0u)); break;
                 case 3u: second->SetVisible(false); break;
                 case 4u: second->SetEnabled(false); break;
+                case 5u: window.Host().SetRoot(std::make_unique<Panel>()); break;
             }
         };
+        window.Host().DebugSimulateDeviceLoss();
         WindowHostBitmapCapture partialFrame;
         Require(! window.Host().DebugCaptureBitmap(partialFrame), "supported child-tree mutation during paint rejects the incomplete frame");
+        Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == initialBatchFlushCount,
+                "root replacement or child-tree mutation prevents any batch after the mutating child callback");
         Require(partialFrame.widthPx == 0u && partialFrame.heightPx == 0u && partialFrame.bgraPixels.empty(),
                 "child-tree mutation cannot publish mixed-frame pixels");
         Require(state.firstPaints >= 1u && state.callbackCount == 1u, "the one-shot mutation runs from the first child paint");
-        Require(window.Host().GetRoot() == panel, "child mutation keeps the native root identity unchanged");
+        Require((window.Host().GetRoot() == panel) == (mutation != 5u), "only root replacement changes the native root identity");
         if (mutation == 0u)
             Require(state.secondPaints == 0u && panel->GetChildren().empty(), "clearing children skips the retired sibling paint");
         Require(GetUpdateRect(window.Hwnd(), nullptr, FALSE) != FALSE, "child-tree mutation schedules corrective native painting");
@@ -1482,6 +1492,114 @@ void TestWindowHostCaptureDiscardsFrameWhenPaintMutatesTheChildTree()
             const auto pixel = GetWindowHostCapturePixelBgra(freshFrame, freshFrame.widthPx / 2u, freshFrame.heightPx / 2u);
             Require(! (((pixel >> 8u) & 0xFFu) > 180u && ((pixel >> 16u) & 0xFFu) < 40u), "recovery excludes the removed or hidden green sibling content");
         }
+    }
+}
+
+void TestWindowHostBatchingStopsAfterCompactionAndTabReorder()
+{
+    using namespace DxUi;
+    struct PaintState final
+    {
+        std::function<void()> onPaint;
+    };
+    class MutationPainter final : public Control
+    {
+    public:
+        explicit MutationPainter(PaintState& state) noexcept : _state(&state)
+        {
+        }
+        void Paint(ControlHost& host) const override
+        {
+            if (auto* const context = host.GetDeviceContext())
+            {
+                if (auto* const brush = host.GetSolidBrush(D2D1::ColorF(0.24f, 0.52f, 0.80f, 1.0f)))
+                    context->FillRectangle(host.GetClientBoundsDip(), brush);
+            }
+            auto callback = std::move(_state->onPaint);
+            if (callback)
+                callback();
+        }
+
+    private:
+        PaintState* _state;
+    };
+
+    {
+        PaintState state;
+        AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, false, true);
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        auto root           = std::make_unique<Panel>();
+        auto* const panel   = root.get();
+        auto* const painter = root->AddChild<MutationPainter>(state);
+        painter->SetBounds(D2D1::RectF(0.0f, 0.0f, 260.0f, 180.0f));
+        root->AddChild<Label>(L"kept sibling");
+        root->AddChild<Label>(L"empty slot to compact");
+        auto removed = root->TakeChild(2u);
+        Require(removed != nullptr, "compaction fixture creates an empty supported child slot");
+        removed.reset();
+        window.Host().SetRoot(std::move(root));
+        WindowHostBitmapCapture initialFrame;
+        Require(window.Host().DebugCaptureBitmap(initialFrame), "compaction fixture starts from a complete batched frame");
+        const uint64_t beforeMutationFlushes = window.Host().DebugGetInitialRootChildBatchFlushCount();
+        Require(beforeMutationFlushes == 2u, "compaction fixture batches its two visible direct root children");
+        state.onPaint = [panel] { static_cast<void>(panel->CompactChildren()); };
+        window.Host().DebugSimulateDeviceLoss();
+        WindowHostBitmapCapture changedFrame;
+        Require(! window.Host().DebugCaptureBitmap(changedFrame), "compacting child slots during paint aborts the mixed frame");
+        Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == beforeMutationFlushes,
+                "Panel::CompactChildren advances the frame revision before any later batch submission");
+    }
+
+    {
+        PaintState state;
+        AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, false, true);
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        auto root           = std::make_unique<Panel>();
+        auto* const painter = root->AddChild<MutationPainter>(state);
+        painter->SetBounds(D2D1::RectF(0.0f, 0.0f, 260.0f, 180.0f));
+        auto* const tabs = root->AddChild<TabControl>();
+        tabs->SetBounds(D2D1::RectF(0.0f, 0.0f, 280.0f, 180.0f));
+        Label* const firstPage  = tabs->AddTab<Label>(L"first", L"one");
+        Label* const secondPage = tabs->AddTab<Label>(L"second", L"two");
+        tabs->SetFocusable(false);
+        tabs->SetTabReorderingEnabled(true);
+        Require(firstPage && secondPage && tabs->GetLogicalChild(0u) == firstPage && tabs->GetLogicalChild(1u) == secondPage,
+                "tab reorder fixture starts with the expected logical page order");
+        size_t reorderCallbackCount = 0u;
+        size_t reorderedFrom        = 2u;
+        size_t reorderedTo          = 2u;
+        tabs->SetOnTabReordered([&](size_t from, size_t to)
+        {
+            ++reorderCallbackCount;
+            reorderedFrom = from;
+            reorderedTo   = to;
+        });
+        window.Host().SetRoot(std::move(root));
+        WindowHostBitmapCapture initialFrame;
+        Require(window.Host().DebugCaptureBitmap(initialFrame), "tab reorder fixture starts from a complete batched frame");
+        const uint64_t beforeMutationFlushes = window.Host().DebugGetInitialRootChildBatchFlushCount();
+        Require(beforeMutationFlushes == 2u, "tab reorder fixture batches its two visible direct root children");
+        state.onPaint = [tabs, host = &window.Host()]
+        {
+            const D2D1_RECT_F firstTab  = tabs->DebugGetTabRect(0u);
+            const D2D1_RECT_F secondTab = tabs->DebugGetTabRect(1u);
+            const D2D1_POINT_2F start   = D2D1::Point2F((firstTab.left + firstTab.right) * 0.5f, (firstTab.top + firstTab.bottom) * 0.5f);
+            // Reordering uses a strict midpoint crossing; finish past the midpoint rather than exactly on it.
+            const D2D1_POINT_2F finish = D2D1::Point2F(secondTab.right - 1.0f, (secondTab.top + secondTab.bottom) * 0.5f);
+            Require(tabs->OnMouseDown(*host, start, false, 0u), "public tab mouse-down starts the first-tab drag");
+            Require(tabs->OnMouseMove(*host, finish, MK_LBUTTON), "public tab mouse-move processes the drag");
+        };
+        window.Host().DebugSimulateDeviceLoss();
+        WindowHostBitmapCapture changedFrame;
+        const bool completedMixedFrame = window.Host().DebugCaptureBitmap(changedFrame);
+        const D2D1_RECT_F reorderedTab = tabs->DebugGetTabRect(1u);
+        static_cast<void>(tabs->OnMouseUp(window.Host(), D2D1::Point2F(reorderedTab.right - 1.0f, (reorderedTab.top + reorderedTab.bottom) * 0.5f), false, 0u));
+        Require(reorderCallbackCount == 1u && reorderedFrom == 0u && reorderedTo == 1u,
+                "the public drag path actually reorders tab zero to tab one during paint");
+        Require(tabs->GetLogicalChild(0u) == secondPage && tabs->GetLogicalChild(1u) == firstPage, "the public drag path changes the logical page order");
+        Require(! completedMixedFrame, "reordering tabs during paint aborts the mixed frame");
+        Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == beforeMutationFlushes,
+                "TabControl::ReorderTab advances the frame revision before any later batch submission");
     }
 }
 
@@ -1738,6 +1856,17 @@ void TestWindowHostAttachmentReservationIsExclusiveAndIdempotent()
 
     Require(first.Host().Attach(first.Hwnd()), "repeating an attachment to the same HWND and options is idempotent");
     Require(DebugGetAttachedWindowHostCount() == baselineCount + 2u, "idempotent Attach does not double-count the host");
+    WindowHost::AttachOptions conflictingOptions{};
+    conflictingOptions.batchInitialRootChildren = true;
+    SetLastError(ERROR_SUCCESS);
+    Require(! first.Host().Attach(first.Hwnd(), conflictingOptions), "reattaching the same HWND with a different batching option is rejected");
+    Require(GetLastError() == ERROR_ALREADY_EXISTS, "conflicting repeated attachment options report ERROR_ALREADY_EXISTS");
+    {
+        AttachedHostWindow batched(WindowHost::PresentationMode::HwndSwapChain, false, true);
+        WindowHost::AttachOptions matchingBatchOptions{};
+        matchingBatchOptions.batchInitialRootChildren = true;
+        Require(batched.Host().Attach(batched.Hwnd(), matchingBatchOptions), "repeating the same opt-in native attachment remains idempotent");
+    }
 
     {
         WindowHost competingHost;
@@ -2846,7 +2975,12 @@ void TestWindowHostLogicalEditorFocusCanAvoidNativeActivation()
     const HWND focusBefore      = GetFocus();
 
     window.Host().SetTextInputBackend(TextInputBackend::Native);
-    auto root   = std::make_unique<Panel>();
+    auto root       = std::make_unique<Panel>();
+    auto* rootPanel = root.get();
+    for (size_t index = 0u; index < 512u; ++index)
+        static_cast<void>(root->AddChild<Label>(L"Unrelated sibling"));
+    Control* const unrelatedSibling = root->GetLogicalChild(0u);
+    Require(unrelatedSibling != nullptr, "the pruning fixture owns an unrelated sibling");
     auto* field = root->AddChild<TextField>(L"logical focus");
     window.Host().SetRoot(std::move(root));
     window.Host().SetFocusControl(field, false);
@@ -2865,6 +2999,330 @@ void TestWindowHostLogicalEditorFocusCanAvoidNativeActivation()
             "idempotent focus and explicit text synchronization retain the active editor cache");
     Require(GetForegroundWindow() == foregroundBefore && GetFocus() == focusBefore,
             "idempotent focus and text synchronization still do not activate or focus the HWND");
+
+    // Native text-service setup may already have validated these observers.
+    // Retain that work in the count instead of forcing an unrelated mutation.
+    bool handled = false;
+    static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_NULL, 0u, 0, handled));
+    const uint64_t stableVisits = window.Host().DebugGetMessagePruneResolverNodeVisitCount();
+    Require(stableVisits > 512u, "the first stable host message validates focus and native text beyond 512 unrelated siblings");
+    constexpr wchar_t caption[] = L"Retained host identity";
+    for (size_t index = 0u; index < 128u; ++index)
+    {
+        static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_NULL, 0u, 0, handled));
+        static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_SETTEXT, 0u, reinterpret_cast<LPARAM>(caption), handled));
+        Require(! handled, "valid caption messages still pass through for application/default handling");
+    }
+    Require(window.Host().DebugGetMessagePruneResolverNodeVisitCount() == stableVisits,
+            "unchanged WM_NULL and WM_SETTEXT reuse completed pruning without another tree traversal");
+
+    for (size_t index = 0u; index < 64u; ++index)
+    {
+        const uint64_t revisionBefore = window.Host().GetInteractionRevision();
+        unrelatedSibling->SetVisible(! unrelatedSibling->IsVisible());
+        unrelatedSibling->SetEnabled(! unrelatedSibling->IsEnabled());
+        unrelatedSibling->SetBounds(D2D1::RectF(0.0f, 0.0f, static_cast<float>(index + 1u), 10.0f));
+        Require(window.Host().GetInteractionRevision() != revisionBefore, "unrelated presentation changes advance the host revision");
+        static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_NULL, 0u, 0, handled));
+        static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_SETTEXT, 0u, reinterpret_cast<LPARAM>(caption), handled));
+        Require(! handled && window.Host().GetFocusControl() == field && window.Host().HasActiveTextInput(),
+                "unrelated presentation changes preserve native text ownership and caption dispatch");
+    }
+    Require(window.Host().DebugGetMessagePruneResolverNodeVisitCount() == stableVisits,
+            "unrelated presentation mutations reuse live observer paths without full-tree resolver visits");
+
+    rootPanel->SetEnabled(false);
+    static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_NULL, 0u, 0, handled));
+    Require(window.Host().DebugGetMessagePruneResolverNodeVisitCount() > stableVisits,
+            "disabling the native-text ancestor invalidates the warm pruning snapshot");
+    Require(window.Host().GetFocusControl() == nullptr && ! window.Host().HasActiveTextInput(),
+            "the next host message still prunes focus and deactivates native text input after the owner is disabled");
+}
+
+void TestWindowHostMessagePruneCacheRejectsChangesDuringPathValidation()
+{
+    using namespace DxUi;
+    // Fault injection at a normally read-only query exercises the final state guard.
+    // This does not model or permit destructive getter reentry.
+    class QueryProbePanel final : public Panel
+    {
+    public:
+        using Panel::GetLogicalChild;
+
+        void Arm(ControlHost& host, Control& target, bool changeCapture) noexcept
+        {
+            _queryHost     = &host;
+            _target        = &target;
+            _changeCapture = changeCapture;
+            _armed         = true;
+        }
+        const Control* GetLogicalChild(size_t index) const noexcept override
+        {
+            if (std::exchange(_armed, false))
+            {
+                ++_mutationCount;
+                if (_changeCapture)
+                    _queryHost->CaptureMouse(_target);
+                else
+                    _target->SetEnabled(false);
+            }
+            return Panel::GetLogicalChild(index);
+        }
+        size_t MutationCount() const noexcept
+        {
+            return _mutationCount;
+        }
+
+    private:
+        ControlHost* _queryHost       = nullptr;
+        Control* _target              = nullptr;
+        bool _changeCapture           = false;
+        mutable bool _armed           = false;
+        mutable size_t _mutationCount = 0u;
+    };
+
+    for (const bool changeCapture : {false, true})
+    {
+        WindowHost host;
+        auto root          = std::make_unique<QueryProbePanel>();
+        auto* const probe  = root.get();
+        auto* const focus  = root->AddChild<Button>(L"Focus");
+        auto* const hidden = root->AddChild<Button>(L"Hidden capture");
+        hidden->SetVisible(false);
+        auto* const unrelated = root->AddChild<Label>(L"Unrelated");
+        host.SetRoot(std::move(root));
+        host.SetFocusControl(focus, false);
+        const auto sendNull = [&host]
+        {
+            bool handled = false;
+            static_cast<void>(host.HandleMessage(host.GetHwnd(), WM_NULL, 0u, 0, handled));
+        };
+        sendNull();
+        const uint64_t warmVisits = host.DebugGetMessagePruneResolverNodeVisitCount();
+        Require(warmVisits > 0u && host.GetFocusControl() == focus && ! host.GetCapturedControl(),
+                "query injection starts with a completed focus-only pruning snapshot");
+        const uint64_t entryRevision = host.GetInteractionRevision();
+        probe->Arm(host, changeCapture ? static_cast<Control&>(*hidden) : static_cast<Control&>(*unrelated), changeCapture);
+        sendNull();
+        Require(probe->MutationCount() == 1u, "the cached logical-path query performs exactly one injected mutation");
+        Require(host.DebugGetMessagePruneResolverNodeVisitCount() > warmVisits, "a mutation during cached path validation forces a fresh full pruning pass");
+        Require(host.GetFocusControl() == focus && host.GetCapturedControl() == nullptr,
+                "final state validation preserves valid focus and clears a newly introduced hidden capture");
+        Require(changeCapture ? host.GetInteractionRevision() == entryRevision : host.GetInteractionRevision() != entryRevision,
+                "query fault coverage distinguishes observer-only changes from interaction-revision changes");
+    }
+}
+
+void TestWindowHostMessagePruneCacheTracksObserverLifetimeAndSetterChanges()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root       = std::make_unique<Panel>();
+    auto* rootPanel = root.get();
+    auto* first     = root->AddChild<Button>(L"First");
+    auto* second    = root->AddChild<Button>(L"Second");
+    auto* hidden    = root->AddChild<Button>(L"Hidden");
+    hidden->SetVisible(false);
+    const std::weak_ptr<int> hiddenLifetime = GetControlLifetimeToken(*hidden);
+    host.SetRoot(std::move(root));
+    rootPanel->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 120.0f));
+    first->SetBounds(D2D1::RectF(0.0f, 0.0f, 100.0f, 40.0f));
+    second->SetBounds(D2D1::RectF(110.0f, 0.0f, 210.0f, 40.0f));
+    hidden->SetBounds(D2D1::RectF(220.0f, 0.0f, 310.0f, 40.0f));
+    host.SetFocusControl(first, false);
+
+    const auto send = [&host](UINT message)
+    {
+        bool handled = false;
+        static_cast<void>(host.HandleMessage(host.GetHwnd(), message, 0u, 0, handled));
+    };
+    host.DebugResetMessagePruneResolverNodeVisitCountForTest();
+    send(WM_NULL);
+    const uint64_t firstPassVisits = host.DebugGetMessagePruneResolverNodeVisitCount();
+    Require(firstPassVisits > 0u, "the first retained-focus message traverses the logical tree");
+
+    host.SetFocusControl(second, false);
+    send(WM_NULL);
+    const uint64_t changedFocusVisits = host.DebugGetMessagePruneResolverNodeVisitCount();
+    Require(changedFocusVisits > firstPassVisits && host.GetFocusControl() == second,
+            "changing focused-control identity invalidates the completed pruning snapshot");
+
+    host.CaptureMouse(hidden);
+    send(WM_NULL);
+    const uint64_t hiddenCaptureVisits = host.DebugGetMessagePruneResolverNodeVisitCount();
+    Require(hiddenCaptureVisits > changedFocusVisits && host.GetCapturedControl() == nullptr,
+            "a direct capture change to an already hidden in-tree control is revalidated and rejected");
+    Require(! hiddenLifetime.expired(), "the hidden capture target remains owned while the host rejects its capture");
+
+    std::weak_ptr<int> oldRootLifetime = GetControlLifetimeToken(*rootPanel);
+    auto replacement                   = std::make_unique<Panel>();
+    auto* replacementFocus             = replacement->AddChild<Button>(L"Replacement");
+    host.SetRoot(std::move(replacement));
+    host.SetFocusControl(replacementFocus, false);
+    Require(oldRootLifetime.expired(), "root replacement retires the lifetime token held by the previous pruning snapshot");
+    const uint64_t beforeReplacementMessage = host.DebugGetMessagePruneResolverNodeVisitCount();
+    send(WM_NULL);
+    Require(host.DebugGetMessagePruneResolverNodeVisitCount() > beforeReplacementMessage && host.GetFocusControl() == replacementFocus,
+            "a replacement root and its focus target receive a fresh validation pass");
+
+    const std::weak_ptr<int> replacementFocusLifetime = GetControlLifetimeToken(*replacementFocus);
+    static_cast<Panel*>(host.GetRoot())->ClearChildren();
+    Require(replacementFocusLifetime.expired(), "removing the focused observer expires its cached lifetime token");
+    const uint64_t beforeExpiredObserverMessage = host.DebugGetMessagePruneResolverNodeVisitCount();
+    send(WM_NULL);
+    Require(host.DebugGetMessagePruneResolverNodeVisitCount() > beforeExpiredObserverMessage && host.GetFocusControl() == nullptr,
+            "an expired observer lifetime forces a full safe prune instead of a cache hit");
+}
+
+void TestWindowHostMessagePruneCacheRevalidatesLiveMovedObserver()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root         = std::make_unique<Panel>();
+    auto* const panel = root.get();
+    auto* const focus = root->AddChild<Button>(L"Moved focus");
+    root->AddChild<Button>(L"Sibling");
+    host.SetRoot(std::move(root));
+    host.SetFocusControl(focus, false);
+
+    const std::weak_ptr<int> focusLifetime = GetControlLifetimeToken(*focus);
+    const auto sendNull                    = [&host]
+    {
+        bool handled = false;
+        static_cast<void>(host.HandleMessage(host.GetHwnd(), WM_NULL, 0u, 0, handled));
+    };
+    sendNull();
+    const uint64_t warmVisits = host.DebugGetMessagePruneResolverNodeVisitCount();
+    Require(warmVisits > 0u && host.GetFocusControl() == focus, "the warm message validates the live focused child");
+
+    const uint64_t revisionBeforeMove = host.GetInteractionRevision();
+    auto movedFocus                   = std::move(panel->GetChildren()[0u]);
+    Require(movedFocus.get() == focus && ! focusLifetime.expired(), "the mutable child span keeps the moved observer alive outside the tree");
+    Require(host.GetInteractionRevision() == revisionBeforeMove, "moving a unique_ptr slot through GetChildren does not publish a retained-tree revision");
+
+    sendNull();
+    Require(host.DebugGetMessagePruneResolverNodeVisitCount() > warmVisits,
+            "the cached logical-index path detects the missing child slot and falls back to full pruning");
+    Require(host.GetFocusControl() == nullptr && ! focusLifetime.expired() && movedFocus.get() == focus,
+            "membership pruning clears the stale focus observer without destroying the still-owned control");
+}
+
+void TestWindowHostMessagePruneCachePathOverflowUsesFullPruneFallback()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root                      = std::make_unique<Panel>();
+    Panel* deepest                 = root.get();
+    constexpr size_t kNestedPanels = 72u; // Exceeds the fixed path cache depth; correctness must use the full resolver.
+    for (size_t index = 0u; index < kNestedPanels; ++index)
+        deepest = deepest->AddChild<Panel>();
+    auto* const focus = deepest->AddChild<Button>(L"Deep focus");
+    host.SetRoot(std::move(root));
+    host.SetFocusControl(focus, false);
+
+    const auto sendNull = [&host]
+    {
+        bool handled = false;
+        static_cast<void>(host.HandleMessage(host.GetHwnd(), WM_NULL, 0u, 0, handled));
+    };
+    sendNull();
+    const uint64_t firstPassVisits = host.DebugGetMessagePruneResolverNodeVisitCount();
+    Require(firstPassVisits > 64u && host.GetFocusControl() == focus, "the deep focused observer is found by the ordinary full resolver");
+    sendNull();
+    Require(host.DebugGetMessagePruneResolverNodeVisitCount() > firstPassVisits && host.GetFocusControl() == focus,
+            "an uncacheable over-depth path repeats full validation instead of risking a stale membership hit");
+}
+
+void TestWindowHostMessagePruneCacheDoesNotPublishAcrossReentrantPruning()
+{
+    using namespace DxUi;
+
+    for (const bool disableFocusOnLeave : {false, true})
+    {
+        struct ReentryState final
+        {
+            bool armed                = false;
+            uint64_t nestedVisitCount = 0u;
+            Control* disableOnLeave   = nullptr;
+        } state;
+        class ReentrantHover final : public Control
+        {
+        public:
+            explicit ReentrantHover(ReentryState& state) noexcept : _state(&state)
+            {
+            }
+            void Paint(WindowHost&) const override
+            {
+            }
+
+        protected:
+            void OnHoverChanged(WindowHost& host, bool hovered) override
+            {
+                Control::OnHoverChanged(host, hovered);
+                if (! hovered && std::exchange(_state->armed, false))
+                {
+                    if (_state->disableOnLeave)
+                        _state->disableOnLeave->SetEnabled(false);
+                    bool handled = false;
+                    static_cast<void>(host.HandleMessage(host.GetHwnd(), WM_NULL, 0u, 0, handled));
+                    _state->nestedVisitCount = host.DebugGetMessagePruneResolverNodeVisitCount();
+                }
+            }
+
+        private:
+            ReentryState* _state = nullptr;
+        };
+
+        WindowHost host;
+        auto root   = std::make_unique<Panel>();
+        auto* focus = root->AddChild<Button>(L"Focus");
+        auto* hover = root->AddChild<ReentrantHover>(state);
+        root->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 80.0f));
+        focus->SetBounds(D2D1::RectF(120.0f, 0.0f, 220.0f, 40.0f));
+        hover->SetBounds(D2D1::RectF(0.0f, 0.0f, 100.0f, 40.0f));
+        host.SetRoot(std::move(root));
+        // SetRoot assigns the client bounds; this unattached fixture has no native client area.
+        host.GetRoot()->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 80.0f));
+        host.SetFocusControl(focus, false);
+        bool handled = false;
+        static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0u, MAKELPARAM(8, 8), handled));
+        Require(host.GetFocusControl() == focus && hover->IsHovered(),
+                "the reentrant-prune fixture starts with retained focus and a genuinely hovered control");
+
+        host.DebugResetMessagePruneResolverNodeVisitCountForTest();
+        static_cast<void>(host.HandleMessage(nullptr, WM_NULL, 0u, 0, handled));
+        const uint64_t warmVisits = host.DebugGetMessagePruneResolverNodeVisitCount();
+        Require(warmVisits > 0u, "the initial message validates the focus and hover observers");
+        state.disableOnLeave = disableFocusOnLeave ? focus : nullptr;
+        state.armed          = true;
+        hover->SetVisible(false);
+        static_cast<void>(host.HandleMessage(nullptr, WM_NULL, 0u, 0, handled));
+        Require(state.nestedVisitCount > warmVisits,
+                "a pruning callback that reenters HandleMessage performs its own complete validation while the outer cache is invalid");
+
+        const uint64_t afterOuterPass      = host.DebugGetMessagePruneResolverNodeVisitCount();
+        const uint64_t afterOuterPassCount = host.DebugGetMessagePrunePassCount();
+        static_cast<void>(host.HandleMessage(nullptr, WM_NULL, 0u, 0, handled));
+        if (disableFocusOnLeave)
+        {
+            Require(host.GetFocusControl() == nullptr && host.DebugGetMessagePrunePassCount() == afterOuterPassCount + 1u,
+                    "availability mutation inside the callback prunes focus and forces fresh validation after the nested cleanup");
+            const auto settledVisits = host.DebugGetMessagePruneResolverNodeVisitCount();
+            const auto settledPasses = host.DebugGetMessagePrunePassCount();
+            static_cast<void>(host.HandleMessage(nullptr, WM_NULL, 0u, 0, handled));
+            Require(host.DebugGetMessagePruneResolverNodeVisitCount() == settledVisits && host.DebugGetMessagePrunePassCount() == settledPasses,
+                    "the coherent empty-observer state can then be reused without another cleanup pass");
+        }
+        else
+        {
+            Require(host.DebugGetMessagePruneResolverNodeVisitCount() == afterOuterPass && host.DebugGetMessagePrunePassCount() == afterOuterPassCount,
+                    "the superseded outer pass cannot overwrite the nested pass's validated snapshot");
+            Require(host.GetFocusControl() == focus, "reentrant pruning preserves the still-interactive focus owner");
+        }
+    }
 }
 
 void TestWindowHostEscapeClosesComboPopupBeforeCancelButton()
@@ -6230,6 +6688,7 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestWindowHostCaptureRecoversAfterControlPaintThrows);
     DXUI_RUN_TEST(TestWindowHostCaptureDiscardsFrameWhenPaintReplacesItsRoot);
     DXUI_RUN_TEST(TestWindowHostCaptureDiscardsFrameWhenPaintMutatesTheChildTree);
+    DXUI_RUN_TEST(TestWindowHostBatchingStopsAfterCompactionAndTabReorder);
     DXUI_RUN_TEST(TestWindowHostGridFocusMutationCannotRetargetTheCurrentClick);
     DXUI_RUN_TEST(TestWindowHostBlocksLayoutMutationDuringRender);
     DXUI_RUN_TEST(TestPostMessagePayloadTeardownDrainDeletesUndeliveredPayloads);
@@ -6276,6 +6735,11 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestNativeMenuBarRefreshMutableCallbackRetainsState);
     DXUI_RUN_TEST(TestWindowHostFocusChangedMutableCallbackRetainsState);
     DXUI_RUN_TEST(TestWindowHostLogicalEditorFocusCanAvoidNativeActivation);
+    DXUI_RUN_TEST(TestWindowHostMessagePruneCacheRejectsChangesDuringPathValidation);
+    DXUI_RUN_TEST(TestWindowHostMessagePruneCacheTracksObserverLifetimeAndSetterChanges);
+    DXUI_RUN_TEST(TestWindowHostMessagePruneCacheRevalidatesLiveMovedObserver);
+    DXUI_RUN_TEST(TestWindowHostMessagePruneCachePathOverflowUsesFullPruneFallback);
+    DXUI_RUN_TEST(TestWindowHostMessagePruneCacheDoesNotPublishAcrossReentrantPruning);
     DXUI_RUN_TEST(TestWindowHostCaptionMessagesReachApplicationAndDefaultHandling);
     DXUI_RUN_TEST(TestWindowHostEscapeClosesComboPopupBeforeCancelButton);
     DXUI_RUN_TEST(TestWindowHostMenuKeyInvokesFocusedButtonContextMenu);
