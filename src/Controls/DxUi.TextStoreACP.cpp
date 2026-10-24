@@ -1346,6 +1346,10 @@ public:
 
     HRESULT STDMETHODCALLTYPE QueryInsert(LONG acpTestStart, LONG acpTestEnd, ULONG cch, LONG* pacpResultStart, LONG* pacpResultEnd) noexcept override
     {
+        if (pacpResultStart)
+            *pacpResultStart = 0;
+        if (pacpResultEnd)
+            *pacpResultEnd = 0;
         if (! pacpResultStart || ! pacpResultEnd)
         {
             return E_POINTER;
@@ -1358,8 +1362,10 @@ public:
         }
 
         const AcpRange range = ClampAcpRange(acpTestStart, acpTestEnd, state.text.size());
-        *pacpResultStart     = ToAcp(range.start);
-        *pacpResultEnd       = ToAcp(range.start + cch);
+        if (! ReplacementFitsCapacity(state.text.size(), range, cch))
+            return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
+        *pacpResultStart = ToAcp(range.start);
+        *pacpResultEnd   = ToAcp(range.start + cch);
         return S_OK;
     }
 
@@ -1700,7 +1706,7 @@ public:
         const AcpRange range = GetSelectionRange(state);
         // One edit inserts at most 65,536 UTF-16 units. The document is as long as its field allows: a long multiline
         // field takes IME, emoji and dictation edits like a short one.
-        if (cch > kMaximumTextStoreEditUnits)
+        if (! ReplacementFitsCapacity(state.text.size(), range, cch))
             return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
         if (! queryOnly)
         {
@@ -1755,8 +1761,19 @@ private:
         return _target->ApplyState(state, notifyChange);
     }
 
+    [[nodiscard]] bool ReplacementFitsCapacity(size_t textLength, const AcpRange& range, size_t insertedUnits) const noexcept
+    {
+        if (insertedUnits > kMaximumTextStoreEditUnits)
+            return false;
+        const size_t retainedUnits = textLength - (range.end - range.start);
+        const size_t maximumUnits  = _target->GetMaximumDocumentTextUnits();
+        return retainedUnits <= maximumUnits && insertedUnits <= maximumUnits - retainedUnits;
+    }
+
     HRESULT ReplaceTextRange(DWORD dwFlags, LONG acpStart, LONG acpEnd, const WCHAR* pchText, ULONG cch, TS_TEXTCHANGE* pChange) noexcept
     {
+        if (pChange)
+            *pChange = {};
         TextInputState state{};
         if (! ReadState(state))
         {
@@ -1772,6 +1789,8 @@ private:
         }
 
         const AcpRange range = ClampAcpRange(acpStart, acpEnd, state.text.size());
+        if (! ReplacementFitsCapacity(state.text.size(), range, cch))
+            return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
         if ((dwFlags & TS_IAS_QUERYONLY) != 0u)
         {
             if (pChange)
@@ -1787,8 +1806,6 @@ private:
         const size_t newCaret      = range.start + replacement.size();
         const bool selfEditChanged = state.text.compare(range.start, range.end - range.start, replacement) != 0 || state.caretIndex != newCaret ||
                                      state.selectionAnchorIndex.has_value();
-        if (replacement.size() > kMaximumTextStoreEditUnits)
-            return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
         try
         {
             state.text.replace(range.start, range.end - range.start, replacement);

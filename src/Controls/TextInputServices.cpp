@@ -72,6 +72,10 @@ HRESULT ReadCompositionRange(ITfCompositionView* composition, ITfRange* supplied
 class ClientTextStoreTarget final : public TextStoreTarget
 {
 public:
+    [[nodiscard]] size_t GetMaximumDocumentTextUnits() const noexcept override
+    {
+        return kMaximumTextUnits;
+    }
     ClientTextStoreTarget(HWND hwnd, std::shared_ptr<TextInputClient> client, uint64_t focusId, TextStoreDispatch dispatch) noexcept
         : _hwnd(hwnd),
           _client(std::move(client)),

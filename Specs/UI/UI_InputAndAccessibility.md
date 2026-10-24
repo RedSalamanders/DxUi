@@ -708,7 +708,10 @@ the callback's newer state and balances the sink edit transaction. Editable Comb
 text snapshot so their argument and callable survive destruction of the control.
 
 The native WindowHost text store stages edits for each TSF lock. One TSF edit inserts at most 65,536 UTF-16 units, while the
-document is as long as its field allows; the advised sink may advise again to change its mask, and another sink is
+document is as long as its field allows. The shared ACP store separately honors the target's document ceiling:
+application-side snapshots remain limited to 65,536 units. `QueryInsert`, query-only insertion and mutation MUST
+use the same prospective replacement length, reject overflow before mutation with cleared outputs, and permit
+same-length replacements at capacity. The advised sink may advise again to change its mask, and another sink is
 refused with `CONNECT_E_ADVISELIMIT`. An active composition previews text without a
 model notification; `OnEndComposition` restores the captured base and applies the final state once, so the whole
 composition is one undo step even when the last preview already equals the committed text. Sequential completed
