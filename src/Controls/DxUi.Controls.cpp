@@ -2990,19 +2990,18 @@ void Button::PrepareVisualContent(ControlHost& host) noexcept
                GetFlowDirection() == flow && currentBounds.left == bounds.left && currentBounds.top == bounds.top && currentBounds.right == bounds.right &&
                currentBounds.bottom == bounds.bottom && host.GetResourceGeneration() == resources && host.GetTypographyRevision() == typography;
     };
+    if (! stillCurrent())
+        return;
+
     const bool sameKey = _preparedIconTextKeyValid && _preparedIconTextHost == &host && _preparedIconTextRevision == revision &&
                          _preparedIconTextResources == resources && _preparedIconTextTypography == typography && _preparedIconTextFlow == flow &&
                          _preparedIconTextWidthDip == widthDip && _preparedIconTextHeightDip == heightDip && _preparedIconTextLength == length &&
                          _preparedIconText[0] == text[0] && _preparedIconText[1] == text[1] && _preparedIconTextFormat.get() == format.get();
     if (sameKey && (_preparedIconTextLayout || _preparedIconTextFailed))
-    {
-        if (! stillCurrent())
-            return;
         return;
-    }
 
-    // The exact configured format pointer is part of the key. Once it has been checked, a warm pass needs neither
-    // the factory accessor nor another tree-membership walk after that COM boundary.
+    // The exact configured format pointer is part of the key. After current inputs are revalidated, a warm pass needs
+    // neither the factory accessor nor another tree-membership walk after that COM boundary.
 
 #if DXUI_ENABLE_DIAGNOSTICS
     ++_debugPreparedIconTextLayoutFactoryLookupCount;
