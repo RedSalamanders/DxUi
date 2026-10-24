@@ -1,5 +1,9 @@
 # Using DxUi
 
+Builds require the default MSVC 14.52.x toolset. Release archives use function-level and whole-program compilation;
+consumer EXE/DLL links use unused-function elimination and full LTCG with the exact matching tools. See
+[toolchain and consumer integration](../Specs/Build/Build_ToolchainAndConsumption.md) for forwarding and cache identity.
+
 DxUi is a Windows C++ retained-control library delivered as one static archive, **DxUi.lib**.
 The API uses namespace `DxUi`. It supports a supplied-device embedded view and an HWND-based native host.
 

@@ -4,6 +4,10 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Require MSVC 14.52.x and enable explicit Release function-level linking, unused-function elimination and whole-program/full link-time optimization; forward the exact compiler and WPO policy to consumer archive builds. Qualification and measured size/runtime evidence are tracked in the active build-policy plan.
+- Prepare and verify the required MSVC 14.52 toolchain in active Windows CI, with read-only local checks and refusal controls; hosted installation and native ARM64 runtime results remain separate qualification gates.
+- Preserve successful Grid UI Automation selection changes when their callbacks relayout sibling detail controls; retain lifetime/model-binding rejection and cover same-pointer model rebinding.
+- Add explicit ProgressBar animation pause and resume while preserving indeterminate, enabled and value state, with idle, phase, resume and accessible value-event regression coverage.
 - Added the RichText audit remediation and completion plan with its findings register and Markdown, math and
   Mermaid completeness specification. The audit read every rich-text partition, verified bug findings with
   independent refute and reproduce passes, and maps every surviving finding to one plan item. It changes no

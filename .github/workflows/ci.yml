@@ -49,6 +49,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Prepare required MSVC 14.52 tools
+        uses: ./.github/actions/setup-msvc
+        with:
+          platform: x64
       - shell: pwsh
         run: ./validate.ps1
       - shell: pwsh
@@ -116,6 +120,10 @@ jobs:
     timeout-minutes: ${{ matrix.jobTimeoutMinutes }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Prepare required MSVC 14.52 tools
+        uses: ./.github/actions/setup-msvc
+        with:
+          platform: ${{ matrix.platform }}
       - shell: pwsh
         run: ./vcpkg-install.ps1 -Platform ${{ matrix.platform }}
       # Separate finite build and receipt-verified Full windows; PR #99 exhausted the combined x64 Release window.
@@ -196,6 +204,10 @@ jobs:
           fetch-depth: 0
       # Whether this pull request changes anything the benchmark measures, and the two commits to compare. A step that cannot
       # decide fails the job, so nothing passes unmeasured because its scope could not be read.
+      - name: Prepare required MSVC 14.52 tools
+        uses: ./.github/actions/setup-msvc
+        with:
+          platform: x64
       - id: scope
         if: ${{ github.event_name == 'pull_request' }}
         shell: pwsh

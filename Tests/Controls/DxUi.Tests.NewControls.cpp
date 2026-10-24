@@ -994,6 +994,42 @@ void TestProgressBarPaintHandlesMissingDeviceContext()
     Require(true, "progress bar indeterminate paint tolerates a missing device context");
 }
 
+void TestProgressBarPausedIndeterminatePreservesPhaseAndState()
+{
+    using namespace DxUi;
+    WindowHost host;
+    EnableMotionForTest(host);
+    auto root = std::make_unique<Panel>();
+    auto* bar = root->AddChild<ProgressBar>();
+    bar->SetBounds(D2D1::RectF(0, 0, 200, 6));
+    bar->SetValue(42.0);
+    Require(! bar->IsAnimationPaused(), "progress motion is not paused by default");
+    bar->SetAnimationPaused(true);
+    host.SetRoot(std::move(root));
+    bar->SetIndeterminate(true);
+    bar->Paint(host);
+    Require(! host.DebugHasActiveAnimationSubscription(), "paused indeterminate state and paint request no animation");
+    Require(! bar->Tick(host, 1000u) && ! bar->Tick(host, 1500u), "paused indeterminate ticks remain idle");
+    Require(bar->IsIndeterminate() && bar->IsEnabled() && bar->GetValue() == 42.0, "pause preserves unknown progress, enabled state and value");
+
+    bar->SetAnimationPaused(false);
+    Require(host.DebugHasActiveAnimationSubscription(), "resuming an attached indeterminate bar wakes its host");
+    Require(bar->Tick(host, 2000u) && bar->Tick(host, 2500u), "resumed motion advances");
+    const auto frozen = bar->DebugGetIndeterminateSegmentRect(host.GetTheme());
+    bar->SetAnimationPaused(true);
+    Require(! bar->Tick(host, 900000u), "pausing an already moving segment stops ticks");
+    const auto held = bar->DebugGetIndeterminateSegmentRect(host.GetTheme());
+    RequireFloatNear(held.left, frozen.left, 0.01f, "pause freezes the segment's leading edge");
+    RequireFloatNear(held.right, frozen.right, 0.01f, "pause freezes the segment's trailing edge");
+    bar->SetAnimationPaused(false);
+    Require(bar->Tick(host, 950000u), "resume re-seeds after a long paused interval");
+    const auto resumed = bar->DebugGetIndeterminateSegmentRect(host.GetTheme());
+    RequireFloatNear(resumed.left, held.left, 0.01f, "resume does not jump by time spent paused");
+    RequireFloatNear(resumed.right, held.right, 0.01f, "resume preserves the frozen phase on its first tick");
+    Require(bar->Tick(host, 950200u), "a later resumed tick advances normally");
+    Require(bar->DebugGetIndeterminateSegmentRect(host.GetTheme()).left > resumed.left, "resumed phase moves after its new clock seed");
+}
+
 void TestProgressBarDisabledIndeterminateStateDoesNotAnimateUntilReenabled()
 {
     using namespace DxUi;
@@ -2908,6 +2944,7 @@ void RunNewControlTests()
     DXUI_RUN_TEST(TestProgressBarExplicitTrackHeightRoundtrips);
     DXUI_RUN_TEST(TestProgressBarIndeterminateRequestsAnimationWhenAttached);
     DXUI_RUN_TEST(TestProgressBarPaintHandlesMissingDeviceContext);
+    DXUI_RUN_TEST(TestProgressBarPausedIndeterminatePreservesPhaseAndState);
     DXUI_RUN_TEST(TestProgressBarDisabledIndeterminateStateDoesNotAnimateUntilReenabled);
     DXUI_RUN_TEST(TestProgressBarReducedMotionRestsIndeterminateSegment);
     DXUI_RUN_TEST(TestProgressBarRightToLeftMirrorsMovingSegment);

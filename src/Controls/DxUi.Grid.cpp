@@ -2988,33 +2988,34 @@ bool Grid::RequestAddRowSelection(size_t rowIndex)
     _currentRowId                               = rowId;
     _focusedRowIndex                            = rowIndex;
     EnsureRowVisible(rowIndex);
-    if (! guard.IsCurrent())
+    // Selection has committed. A callback may arrange sibling detail controls; only owner/model rebinding retires this action.
+    if (! guard.IsBindingCurrent())
     {
         return false;
     }
     if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
     {
-        if (! TryControlCallback([&] { _delegate->OnGridSelectionChanged(*this); }) || ! guard.IsCurrent())
+        if (! TryControlCallback([&] { _delegate->OnGridSelectionChanged(*this); }) || ! guard.IsBindingCurrent())
         {
             return false;
         }
     }
     if (_delegate && previousFocus != _currentRowId)
     {
-        if (! TryControlCallback([&] { _delegate->OnGridFocusedRowChanged(*this, _currentRowId); }) || ! guard.IsCurrent())
+        if (! TryControlCallback([&] { _delegate->OnGridFocusedRowChanged(*this, _currentRowId); }) || ! guard.IsBindingCurrent())
         {
             return false;
         }
     }
     RefreshAccessibilitySnapshot();
-    if (guard.IsCurrent())
+    if (guard.IsBindingCurrent())
     {
         if (ControlHost* host = GetHost())
         {
             Invalidate(*host);
         }
     }
-    return guard.IsCurrent();
+    return guard.IsBindingCurrent();
 }
 
 bool Grid::RequestRemoveRowSelection(size_t rowIndex)
@@ -3062,14 +3063,14 @@ bool Grid::RequestRemoveRowSelection(size_t rowIndex)
     if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
     {
         // The delegate may rebuild the controls and destroy this grid; the caller revalidates its element.
-        if (! TryControlCallback([&] { _delegate->OnGridSelectionChanged(*this); }) || ! guard.IsCurrent())
+        if (! TryControlCallback([&] { _delegate->OnGridSelectionChanged(*this); }) || ! guard.IsBindingCurrent())
         {
             return false;
         }
     }
     RefreshAccessibilitySnapshot();
 
-    return guard.IsCurrent();
+    return guard.IsBindingCurrent();
 }
 
 bool Grid::RequestFocusRow(size_t rowIndex)

@@ -9,6 +9,8 @@ complex-UI FPS, memory budgets, before/after comparisons and the distinction bet
 ## Build, test and generate every control
 
 Requires Visual Studio 2026/v145, Windows SDK 10.0.26100, x64 or ARM64, and Git for pinned WIL/vcpkg restore.
+The installed default MSVC tools must be **14.52.x**. Release builds use `/Gy /GL` and final `/OPT:REF /LTCG`;
+Debug/ASan retain their diagnostic settings. See the [toolchain and consumption policy](Specs/Build/Build_ToolchainAndConsumption.md).
 
 ```powershell
 .\vcpkg-install.ps1 -Platform All
