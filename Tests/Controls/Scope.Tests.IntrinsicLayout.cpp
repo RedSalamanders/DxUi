@@ -511,6 +511,39 @@ void TestButtonPreparedIconTextLayoutMatchesDrawTextW()
         requireFallbackParity();
         Require(button->DebugGetPreparedIconTextLayoutBuildCount() == 2u, "changing from 12 to 18 DIP prepares the new layout once");
 
+        // Clearing the bounded format map produces a new exact format identity. The retained layout must rebuild
+        // once for that identity, then the verified warm key must avoid another factory lookup.
+        for (int role = 0;
+             role <= static_cast<int>(FontRole::Small) && host.DebugGetConfiguredTextFormatCount() <= ControlHost::kConfiguredTextFormatCacheLimit;
+             ++role)
+        {
+            for (const auto alignment :
+                 {DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_TEXT_ALIGNMENT_TRAILING, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_TEXT_ALIGNMENT_JUSTIFIED})
+            {
+                for (const auto paragraph : {DWRITE_PARAGRAPH_ALIGNMENT_NEAR, DWRITE_PARAGRAPH_ALIGNMENT_FAR, DWRITE_PARAGRAPH_ALIGNMENT_CENTER})
+                {
+                    for (const bool wrap : {false, true})
+                    {
+                        static_cast<void>(host.GetTextFormat(FontRole(role), alignment, paragraph, wrap));
+                    }
+                }
+            }
+        }
+        Require(host.DebugGetConfiguredTextFormatCount() > ControlHost::kConfiguredTextFormatCacheLimit,
+                "distinct host text-format configurations overflow the bounded cache before the next paint");
+        const uint64_t buildsBeforeFormatTrim = button->DebugGetPreparedIconTextLayoutBuildCount();
+        requireFallbackParity();
+        Require(host.DebugGetConfiguredTextFormatCount() <= ControlHost::kConfiguredTextFormatCacheLimit,
+                "the next paint trims the configured-format cache to its bound");
+        Require(button->DebugGetPreparedIconTextLayoutBuildCount() == buildsBeforeFormatTrim + 1u,
+                "format-cache eviction creates one replacement layout for the new exact format identity");
+        const uint64_t warmFactoryLookups = button->DebugGetPreparedIconTextLayoutFactoryLookupCount();
+        const uint64_t warmLayoutBuilds   = button->DebugGetPreparedIconTextLayoutBuildCount();
+        static_cast<void>(capture());
+        Require(button->DebugGetPreparedIconTextLayoutFactoryLookupCount() == warmFactoryLookups &&
+                    button->DebugGetPreparedIconTextLayoutBuildCount() == warmLayoutBuilds,
+                "a stable prepared-layout key skips factory lookup and layout creation on a warm owner pass");
+
         // Scalar BMP Fluent glyphs, ordinary body fallback, a supplementary scalar, and RTL all keep the
         // same format, layout options, and original brush while changing only the prepared layout resource.
         const std::array<std::wstring, 5> glyphs{L"\uE8DD", L"\uE921", L"\u4E2D", L"\U0001F600", L"+"};

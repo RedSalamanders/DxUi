@@ -2087,6 +2087,7 @@ public:
     [[nodiscard]] bool DebugIsPressed() const noexcept;
     [[nodiscard]] uint64_t DebugGetPreparedIconTextLayoutBuildCount() const noexcept;
     [[nodiscard]] uint64_t DebugGetPreparedIconTextLayoutAttemptCount() const noexcept;
+    [[nodiscard]] uint64_t DebugGetPreparedIconTextLayoutFactoryLookupCount() const noexcept;
     [[nodiscard]] uint64_t DebugGetPreparedIconTextLayoutPaintCount() const noexcept;
     void DebugFailNextPreparedIconTextLayoutForTest() noexcept;
     void DebugSetPreparedIconTextLayoutDisabledForTest(bool disabled) noexcept;
@@ -2184,6 +2185,7 @@ private:
 #if DXUI_ENABLE_DIAGNOSTICS
     uint64_t _debugPreparedIconTextLayoutBuildCount         = 0u;
     uint64_t _debugPreparedIconTextLayoutAttemptCount       = 0u;
+    uint64_t _debugPreparedIconTextLayoutFactoryLookupCount = 0u;
     mutable uint64_t _debugPreparedIconTextLayoutPaintCount = 0u;
     bool _debugFailNextPreparedIconTextLayout               = false;
     bool _debugDisablePreparedIconTextLayout                = false;

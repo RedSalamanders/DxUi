@@ -2980,6 +2980,33 @@ void Button::PrepareVisualContent(ControlHost& host) noexcept
         if (! hostStillCurrent())
             return;
     }
+    const auto stillCurrent = [&]() noexcept
+    {
+        if (lifetime.expired() || rootLifetime.expired())
+            return false;
+        const auto currentBounds = GetBounds();
+        return GetHost() == &host && host.GetRoot() == root && IsControlInTree(root, this) && _variant == ButtonVariant::IconOnly &&
+               _iconTextInputRevision == revision && _text.size() == length && _text[0] == text[0] && (length == 1u || _text[1] == text[1]) &&
+               GetFlowDirection() == flow && currentBounds.left == bounds.left && currentBounds.top == bounds.top && currentBounds.right == bounds.right &&
+               currentBounds.bottom == bounds.bottom && host.GetResourceGeneration() == resources && host.GetTypographyRevision() == typography;
+    };
+    const bool sameKey = _preparedIconTextKeyValid && _preparedIconTextHost == &host && _preparedIconTextRevision == revision &&
+                         _preparedIconTextResources == resources && _preparedIconTextTypography == typography && _preparedIconTextFlow == flow &&
+                         _preparedIconTextWidthDip == widthDip && _preparedIconTextHeightDip == heightDip && _preparedIconTextLength == length &&
+                         _preparedIconText[0] == text[0] && _preparedIconText[1] == text[1] && _preparedIconTextFormat.get() == format.get();
+    if (sameKey && (_preparedIconTextLayout || _preparedIconTextFailed))
+    {
+        if (! stillCurrent())
+            return;
+        return;
+    }
+
+    // The exact configured format pointer is part of the key. Once it has been checked, a warm pass needs neither
+    // the factory accessor nor another tree-membership walk after that COM boundary.
+
+#if DXUI_ENABLE_DIAGNOSTICS
+    ++_debugPreparedIconTextLayoutFactoryLookupCount;
+#endif
     auto* rawFactory = host.GetWriteFactory();
     if (! hostStillCurrent())
         return;
@@ -2991,23 +3018,6 @@ void Button::PrepareVisualContent(ControlHost& host) noexcept
         RetirePreparedIconTextLayout();
         return;
     }
-    const bool sameKey = _preparedIconTextKeyValid && _preparedIconTextHost == &host && _preparedIconTextRevision == revision &&
-                         _preparedIconTextResources == resources && _preparedIconTextTypography == typography && _preparedIconTextFlow == flow &&
-                         _preparedIconTextWidthDip == widthDip && _preparedIconTextHeightDip == heightDip && _preparedIconTextLength == length &&
-                         _preparedIconText[0] == text[0] && _preparedIconText[1] == text[1] && _preparedIconTextFormat.get() == format.get();
-    if (sameKey && (_preparedIconTextLayout || _preparedIconTextFailed))
-        return;
-
-    const auto stillCurrent = [&]() noexcept
-    {
-        if (lifetime.expired() || rootLifetime.expired())
-            return false;
-        const auto currentBounds = GetBounds();
-        return GetHost() == &host && host.GetRoot() == root && IsControlInTree(root, this) && _variant == ButtonVariant::IconOnly &&
-               _iconTextInputRevision == revision && _text.size() == length && _text[0] == text[0] && (length == 1u || _text[1] == text[1]) &&
-               GetFlowDirection() == flow && currentBounds.left == bounds.left && currentBounds.top == bounds.top && currentBounds.right == bounds.right &&
-               currentBounds.bottom == bounds.bottom && host.GetResourceGeneration() == resources && host.GetTypographyRevision() == typography;
-    };
     if (! stillCurrent())
         return;
 
@@ -3884,6 +3894,10 @@ uint64_t Button::DebugGetPreparedIconTextLayoutBuildCount() const noexcept
 uint64_t Button::DebugGetPreparedIconTextLayoutAttemptCount() const noexcept
 {
     return _debugPreparedIconTextLayoutAttemptCount;
+}
+uint64_t Button::DebugGetPreparedIconTextLayoutFactoryLookupCount() const noexcept
+{
+    return _debugPreparedIconTextLayoutFactoryLookupCount;
 }
 uint64_t Button::DebugGetPreparedIconTextLayoutPaintCount() const noexcept
 {

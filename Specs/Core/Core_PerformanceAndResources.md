@@ -160,6 +160,11 @@ base-Button layout. This visual-only work MUST NOT set content-geometry-changed 
 geometry, or make input wait for layout readiness. Include the bounded retained COM resource and its preparation
 CPU in measurements; do not infer a process-memory benefit from avoiding per-paint shaping.
 
+On a warm owner pass, resolve the current effective text-format pointer and check it against the retained key before
+returning. This preserves exact-format identity through bounded host-cache eviction; a changed pointer prepares one
+replacement. A matching key skips the DirectWrite factory lookup and text-layout creation. This is a narrow owner-pass
+work reduction, not evidence of lower process memory or a measured performance gain.
+
 Before changing implementation, measure the existing code with the same workload that will measure the candidate.
 Retain the original baseline and measure again after the change. Record exact source/content and executable/fixture
 fingerprints, compiler/dependencies, architecture/configuration, hardware/OS/driver, power policy, resolution/DPI,

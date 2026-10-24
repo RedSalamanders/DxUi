@@ -357,7 +357,10 @@ ownership before continuing with host-specific work. Whole-host destruction from
 An `IconOnly` base `Button` with exactly one valid Unicode scalar may retain one `IDWriteTextLayout` for its current
 host format, flow direction and exact DIP extent. Prepare it through the visual-only owner preparation channel,
 never lazily in `Paint`; this channel does not mark content geometry changed, publish text-input/UIA state or delay
-input readiness. Paint the retained layout at the current origin with the current foreground brush and the same
+input readiness. An owner preparation pass resolves the effective format and compares its exact COM identity with
+the retained key before taking the warm return; only a changed key looks up the DirectWrite factory and creates a
+replacement layout. Thus clearing the bounded host format map cannot reuse a layout with a different format pointer.
+Paint the retained layout at the current origin with the current foreground brush and the same
 DirectWrite draw options as the ordinary text path, so state/color changes do not rebuild it. The key retains the
 effective format identity and host/resource/typography generation; text, format, size, flow, host detach, hide and
 device/resource cancellation retire it. At most one layout is retained per eligible Button. Toggle and RadioButton
