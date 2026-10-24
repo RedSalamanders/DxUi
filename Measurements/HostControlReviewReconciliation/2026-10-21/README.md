@@ -1,5 +1,9 @@
 # Host/control review reconciled with current main
 
+Historical checkpoint: this record describes the source and acceptance state on 21 October. The
+[24 October integration qualification](../2026-10-24/README.md) records the later native/foreground matrix.
+Original pins, receipts and pending items below are preserved as historical evidence.
+
 Source: `a424c968d2055c7c8bd4683a906d39b6eb9eb685`, including main
 `fa5821c87f563a1d5b24ced7832b9c4fb9c1dcab`. Subsequent summary/gallery publication changes no native inputs.
 This is independent DxUi evidence on an x64 Windows host using WARP and synthetic library-owned models.

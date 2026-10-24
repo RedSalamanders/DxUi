@@ -1,7 +1,7 @@
 # Validation and evidence
 
 Status: normative intended contract
-Last reviewed: 2026-10-18
+Last reviewed: 2026-10-24
 
 Native staged-TSF reconciliation tests count the current generation-tagged production dispatch separately from
 the rest of the HWND queue. A general pump can also deliver an independent geometry change, whose layout
@@ -161,6 +161,12 @@ menu resource measurements. This opt-in diagnostic remains nonactivating and its
 Release CI run retains the common benchmark receipt.
 `test.ps1` builds the selected configuration, runs Foundation, Embedded and all inherited control suites and records a JSON receipt with
 architecture, configuration, time and executable path under `.build/reports`. Failures propagate as nonzero exits.
+Callers MUST judge a PowerShell runner through a fresh process's exit code or invocation success (`$?`)
+captured immediately after the script call. Ambient `$LASTEXITCODE` can retain an intentional native ASan
+probe's nonzero result after a successful in-process script; it is not that script's completion status.
+Preserve wrapper failures separately from sealed native outcomes. A reporting-error disposition requires
+independent source/invocation proof and exact owner, source, artifact and sealed-payload binding; it MUST
+NOT rewrite failed records, hide a real suite/lease failure or claim aggregate wrapper success.
 Every invocation also runs the populated complex-UI benchmark through `performance.ps1` and includes FPS/memory
 scenarios and the performance receipt path in each suite receipt. `-PerformanceBaseline` requires a matched
 comparison and fails for a suspected regression or invalid evidence; no baseline is explicitly `unpaired`.

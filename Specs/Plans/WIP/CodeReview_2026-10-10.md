@@ -1,6 +1,31 @@
 # Code review of the ten-day merge window (#29-#71)
 
-## Current reconciliation — 21 October 2026
+## Current integration qualification — 24 October 2026
+
+Status: ACTIVE. [PR #96](https://github.com/RedSalamanders/DxUi/pull/96) integrates main
+`ceffe76a429d15039ceff1f7dfae7e1d7126323e` while retaining its newer RichText, semantic UIA,
+preparation, presentation and keyboard ownership contracts. Frozen native source
+`da335d360f7ccccab0e7e627366114f82162f29a` passed the complete local matrix in the
+[24 October summary](../../../Measurements/HostControlReviewReconciliation/2026-10-24/README.md)
+and [curated receipt inventory](CodeReview_2026-10-10/qualification-20261024.json).
+Later documentation/gallery publication changes no compiled inputs or tested artifact bytes.
+
+- [x] Reconcile current main and repair the translated-character ordering, target-specific TSF capacity and stale-current-focus regressions; preserve original failed attempts and exact binaries.
+- [x] Pass six build profiles and all 57 ordinary x64 suite executions with zero skips.
+- [x] Pass all four authorized keyboard/menu suites in x64 Debug, Release and ASan Debug: 12 zero-skip executions, using the existing automatic Start warning/lease and recorded restoration outcomes.
+- [x] Detect both separate intentional ASan probes and pass all three exact-pin isolated consumer profiles with default STL annotations.
+- [x] Pass all five validators, the complete tooling roster, all 12 CMake read-back cases and pinned formatting; regenerate and inspect all six gallery images.
+- [ ] Receive final enabled hosted CI results and qualify native ARM64 runtime, manual IME/AT, physical devices and product adoption under their owning contracts.
+- [ ] Close the paired performance/policy and separate RedTilde R10 optimization/advice gates without a cost waiver or rebaseline.
+- [x] Inspect populated native diagram content in all five fresh theme sheets; the historical blank-tile observation is not reproduced at this source.
+- [ ] Complete remaining RichText visual/manual and platform qualification HOLDs.
+- [ ] Complete CR-29/Q12 event-SHA propagation, trusted-base workflow execution and negative workflow tests; deferred release-asset/history/ruleset administration remains separately governed.
+
+The earlier checkpoints below are historical and source-specific. The 24 October foreground passes close the
+local interactive obligation for the exact frozen source; they do not establish manual or native ARM64 acceptance.
+The plan remains WIP while the acceptance items above are open.
+
+## Historical reconciliation — 21 October 2026
 
 Status: ACTIVE; [draft PR #96](https://github.com/RedSalamanders/DxUi/pull/96) is prepared on
 `ej/review-remediation-20261021`. The original review branch remains a recovery reference.
@@ -627,14 +652,15 @@ Items marked [reported] were traced by a reviewer. The lead checked them only ag
 ## Tooling, CI and process
 
 - [ ] **CR-29 The paired benchmark verdict is never recomputed from trusted code** (#70) [code]
-  - **Partly done (2026-10-18, Q12).** The verdict already replays both judges on the retained receipt bytes. It now takes
-    the workflow's base and merge commits as its trust anchor (`-ExpectedBaseSha`, `-ExpectedCandidateSha`), hashes the
-    measured tree's judge before loading anything and runs only the trusted tree's approved copy (`-RepositoryRoot`,
-    `-CandidateRoot`); the scope steps and `Test-CiGate` check the named pair; `.github/CODEOWNERS` exists with a
-    tooling test. Remaining, as the second step: `ci.yml` runs the scope steps, the verdict (a `paired-verdict` job on a
-    fresh runner, from a base-commit checkout, over the downloaded artifact) and `ci-gate` from the base commit and passes
-    the three commits, with the workflow digest and structure tests updated. It must land after this change, whose
-    parameters its base needs.
+  - **Partly done; wiring audited 2026-10-24 (Q12).** The verdict replays both judges on retained receipt
+    bytes and supports optional expected base/merge IDs plus a trusted repository root. It hashes the measured
+    judge before loading only the trusted tree's approved copy. Scope and aggregate tools also enforce expected
+    IDs when supplied; CODEOWNERS and its tooling test exist. The current workflow supplies none of those event
+    IDs and executes scope, verdict and aggregate from the merge-ref checkout. This is no independent event-pair
+    or trusted-base execution boundary. Remaining: propagate the event's base/merge IDs through all three paths,
+    use trusted-base checkouts (including an independent verdict job over downloaded artifacts), update workflow
+    structure/digest tests, and prove missing or mismatched IDs fail closed in negative workflow cases. Observe
+    the hosted binding before closing this item. The existing CiRunScope plan remains a separate active owner.
   - `Test-DualJudgeReceiptEvidence` checks that the recorded judge decisions agree and that receipt hashes match
     ([BenchmarkGate.psm1:255-291](../../../Tools/BenchmarkGate.psm1#L255)). It never re-runs either judge.
   - The decisions are written by the candidate's own `performance-paired.ps1`, and there is no CODEOWNERS.
@@ -952,8 +978,9 @@ has a test that fails against the code before it, unless the entry says the fail
     newline. Open: the zero-median block effect (Q17).
   - CR-29 is half fixed: the judge is pinned, but the code that applies the pin (`BenchmarkGate.psm1`, `Test-CiGate.ps1`,
     `ci.yml` itself) is read from the pull request's checkout, the verdict takes its base commit from the summary it
-    judges, and there is no CODEOWNERS. See Q12. Done (2026-10-18): the scripts take the workflow's commits and trusted
-    tree (CR-29), and CODEOWNERS names `@eric-jesover`; the `ci.yml` switch is the follow-up step.
+    judges, and there is no CODEOWNERS at that historical baseline. See Q12. Implemented parameters accept
+    expected commits and a trusted tree (CR-29), and CODEOWNERS now names `@eric-jesover`. The 24 October audit
+    confirms that event-SHA propagation and trusted-base workflow execution remain unwired follow-up work.
   - The tracked tree grew from 154.7 to 316.9 MiB (+5,273 files). `Test-DxUiMeasurements` reads only `*.json` and limits
     nothing; 222 files embed a personal `C:\Users\` path, receipts carry runner host names and API dumps an e-mail
     address. See Q11.

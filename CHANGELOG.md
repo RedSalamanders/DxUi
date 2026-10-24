@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Qualify the integrated host/control review at one exact SDK source with six builds, 69 zero-skip x64 native suite executions, two ASan probes, three isolated consumers and reviewed harness captures; preserve failed integration attempts, document the remaining workflow trust gap, and retain performance, platform, product and remaining RichText visual acceptance HOLDs.
 - Retire stale retained focus and native text input when a rejected focus request names the current unavailable owner, while leaving unrelated rejected requests inside blur callbacks inert. Extend the existing native-session regression for disabled, hidden and ancestor-disabled owners, local focus state, source preservation and reactivation.
 - Keep native TSF long-document edits available while enforcing the application adapter's separate 65,536-unit snapshot ceiling consistently in insertion queries and mutations. Add capacity coverage for rejected growth, oversized edits, exact-bound insertions and same-length replacements without partial edits.
 - Preserve guarded same-owner Space translation before suppressing printable editor keys from application accelerator fallback; retain exact Return/Space ownership assertions and report editor, key and translated-character count on failure. Native requalification remains pending.

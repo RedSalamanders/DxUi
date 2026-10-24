@@ -371,19 +371,19 @@ candidate-only policy is explicitly untrusted. `Tools/tests/Test-BenchmarkGate.p
   agree on every metric but one expected difference: the paired-block judge bounds every round of an exact budget, so a
   rise of its raw-round maximum alone regresses there and not in the median-based judge, and reaches the verdict table.
   Any other disagreement keeps the run inconclusive and names the metrics that differ.
-- **Trust anchor.** The summary is written by the measured pull request's own code, so it never chooses the commit
-  whose policy and judge are trusted. `Get-BenchmarkConclusion`, `Publish-BenchmarkVerdict.ps1` and both scope steps
-  take the pull request's base and merge commits from the workflow (`-ExpectedBaseSha`, `-ExpectedCandidateSha`): a
-  summary that records another baseline, candidate, judge base or harness commit is invalid evidence, and the named
-  base is the anchor. The verdict reads that base's policy and judge from the trusted tree's git objects
-  (`-RepositoryRoot`) and hashes the measured tree's judge before anything loads it; only the trusted tree's copy of
-  the approved source runs, so the pull request's judge, assignment generator and policy are data (`-CandidateRoot`).
-  `Test-CiGate.ps1` checks that a measured pull request compared exactly the named pair and, when a verdict job of its
-  own judges the run, that it passed. Running the verdict and the aggregate from a checkout of the base commit, in a
-  job of their own, is the follow-up change to `ci.yml`: its base must already hold these parameters, so it lands
-  after them, and until then the workflow runs both from the merge ref. A pull request can still change `ci.yml`
-  itself; `.github/CODEOWNERS` names the owner of `.github`, `Tools`, the performance scripts and the agent
-  instructions, and requiring a code owner's review is the maintainer's ruleset switch.
+- **Trust anchor and current workflow boundary.** The required contract binds a pull-request measurement to
+  the event's named base and merge commits, loads the qualified policy and approved judge from that base, and
+  rejects mismatches between the event pair, measured summary, verdict and aggregate check. The scope, verdict
+  and aggregate tools accept `-ExpectedBaseSha` and `-ExpectedCandidateSha` and enforce equality when supplied.
+  In the current `.github/workflows/ci.yml`, these expected IDs are not supplied from the event: scope derives
+  the candidate from checkout `HEAD` and the base from its first parent, and verdict and aggregate receive no
+  expected-pair values. All three still execute from the merge-ref checkout. Hosted CI therefore uses a
+  merge-ref-derived pair and does not independently bind it to the event or provide a trusted-base execution
+  boundary. CR-29/Q12 retains the follow-up: propagate the event IDs through every step, run scope/verdict/aggregate
+  from the trusted base, and add workflow-level negative coverage proving missing or mismatched IDs fail closed.
+  The base policy must still be independently qualified and match its approved judge hash; a candidate's policy
+  or judge cannot qualify itself. `.github/CODEOWNERS` names the owner of `.github`, `Tools`, performance scripts
+  and agent instructions; requiring a code owner's review remains a maintainer ruleset decision.
 - **Controls of the metric in question.** A shared hosted runner drifts beyond some band in nearly every control, in a few
   metrics (mostly the p95 of frame, preparation and composition times, and the working set), so the check judges the
   controls of the metric a set flagged, not of all twenty-six together. The
