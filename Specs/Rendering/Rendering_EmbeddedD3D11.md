@@ -184,6 +184,11 @@ replacement peak, allocation/preparation/composition counts and the per-view cac
 start of the next preparation, never mid-paint. Consumers must additionally admit the combined cost of every
 simultaneous view.
 
+Cache trimming happens only after a dirty view enters owner preparation and before the control preparation pass.
+Evicting configured text formats forces visual-only preparation in that same pass, so retained control resources
+rebuild against current format identities before Paint. Trimming never occurs on a clean Composite and does not
+change geometry or input-readiness state.
+
 Composite requires the same device's immediate context and a host-bound render target. It issues one premultiplied
 alpha triangle, sets the viewport and every other state it depends on (including disabled scissor/depth/predication
 and unused shader stages), then unbinds its SRV. It does not preserve the caller's pipeline state. Negative origins

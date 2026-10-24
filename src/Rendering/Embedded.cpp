@@ -519,6 +519,9 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
                     return E_ABORT;
             }
         }
+        _host.TrimCaches();
+        if (! preparationIsCurrent())
+            return E_ABORT;
         observedRevision       = s.revision;
         const bool layoutReady = _host.PreparePendingPageLayout();
         if (! preparationIsCurrent())
@@ -544,7 +547,6 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         auto* dc                                         = dcOwner.get();
         if (! dc)
             return E_UNEXPECTED;
-        _host.TrimCaches();
         FrameStageScope renderStage(preparationStage, FrameStage::Render);
         dc->BeginDraw();
         auto finish = wil::scope_exit([&] { dc->EndDraw(); });

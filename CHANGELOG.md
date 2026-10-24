@@ -4,6 +4,8 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Embedded preparation now trims configured text formats before visual preparation and schedules retained visual resources for re-preparation after eviction. Added an embedded IconOnly layout regression for exact pixels, one replacement build, and warm reuse. Source checks only; SDK builds and native suites remain pending.
+- Integrate shared RedTilde presentation, retained icon preparation, accessibility and pending-scroll improvements; retain the existing performance, interactive, platform and release qualification holds separately from the owner's requested merge.
 - Strengthen the retained icon-layout warm-path test with cold, invalidated-key and cache-eviction factory-lookup assertions; formatting/spec/changelog checks pass, with the official SDK build and ordinary native suite still pending.
 - A warm IconOnly Button visual-preparation pass now returns after the current effective format identity matches its retained key, avoiding the factory lookup and redundant post-key tree checks; configured-format cache eviction still rebuilds once for the replacement identity. Deterministic coverage checks warm factory lookup counts and eviction/rebuild behavior; no build, native qualification or performance result is claimed yet.
 - RichTextEditor source-range scrolling now returns unavailable directly while prepared geometry is stale, without exception-driven handling of the expected pending state. Repeated pending queries preserve source, history, selection, scroll and preparation progress; ready range reveal, boundary, disabled and detached behavior remain covered. Static validation is prepared; build and native qualification remain pending.

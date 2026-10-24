@@ -4044,7 +4044,7 @@ void ControlHost::DiscardDeviceResources() noexcept
     _sharedGraphicsGeneration = 0u;
 }
 
-void ControlHost::TrimCaches() const noexcept
+void ControlHost::TrimCaches() noexcept
 {
     // Called only at paint/preparation start, before any brush or format is borrowed for the frame.
     if (_brushCache.size() > kSolidBrushCacheLimit)
@@ -4054,6 +4054,7 @@ void ControlHost::TrimCaches() const noexcept
     if (_configuredTextFormats.size() > kConfiguredTextFormatCacheLimit)
     {
         _configuredTextFormats.clear();
+        _forceAllVisualPreparation = true;
     }
 }
 

@@ -369,6 +369,11 @@ malformed UTF-16 content, and any failed optional preparation, continue through 
 Never change the caller's text or geometry to make the cache eligible. Exact-pixel tests cover supported glyph/fallback, flow, DPI, bounds, rendering
 state and text-antialias cases against the original path; any unsupported case remains on that path.
 
+When the bounded configured-format cache is evicted, the host marks visual preparation for the next owner update.
+Embedded hosting trims that cache before its control preparation pass, so an IconOnly Button resolves the new exact
+format identity and replaces its layout before painting the same frame. Eviction does not change geometry or input
+readiness; a clean composition does not trim caches or schedule preparation.
+
 Control callbacks that synchronously transfer native mouse capture use the same rule. Before transfer, publish state
 needed by the ensuing capture notification and capture the requesting control's weak lifetime. The previous HWND's
 `WM_CAPTURECHANGED` callback may replace the requesting host's root before capture returns; afterward the requester

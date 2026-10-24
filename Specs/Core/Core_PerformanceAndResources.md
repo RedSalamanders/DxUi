@@ -165,6 +165,10 @@ returning. This preserves exact-format identity through bounded host-cache evict
 replacement. A matching key skips the DirectWrite factory lookup and text-layout creation. This is a narrow owner-pass
 work reduction, not evidence of lower process memory or a measured performance gain.
 
+Evicting the bounded configured text-format cache marks visual preparation for the next owner update. Embedded
+hosts trim before that update's visual-preparation traversal, allowing retained layouts to rebind to the new exact
+format identity before painting. Cache trimming is not performed on clean composition frames.
+
 Before changing implementation, measure the existing code with the same workload that will measure the candidate.
 Retain the original baseline and measure again after the change. Record exact source/content and executable/fixture
 fingerprints, compiler/dependencies, architecture/configuration, hardware/OS/driver, power policy, resolution/DPI,

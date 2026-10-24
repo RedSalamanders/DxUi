@@ -5646,7 +5646,7 @@ private:
     void DiscardSizeDependentResources(std::wstring_view reason = {}) noexcept;
     void DiscardDeviceResources() noexcept;
     void RecreateBrushCache() const;
-    void TrimCaches() const noexcept;
+    void TrimCaches() noexcept;
     void Render(const RECT* dirtyRectPx = nullptr, bool allowHidden = false) noexcept;
 #if DXUI_ENABLE_DIAGNOSTICS
     void Render(const RECT* dirtyRectPx, WindowHostBitmapCapture* capture, bool allowHidden = false) noexcept;
