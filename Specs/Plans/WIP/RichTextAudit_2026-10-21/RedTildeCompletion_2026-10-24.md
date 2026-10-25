@@ -19,14 +19,61 @@
 - [x] baff43d8 late counterfactuals and Tree regressions: six source-bound counterfactual variants and the late Tree cases complete; their evidence remains distinct from whole-source acceptance.
 - [x] baff43d8 hosted paired evidence: publish all 78 independently replayed rows and source bindings; zero regressions do not qualify the unqualified base policy or unstable controls.
 - [x] Diagnose the remaining be1ad177 Embedded ASan failure: the first publication's rows are independently enqueued, so the worker can gate Alpha alone and leave Beta's first value pending for coalescing. A longer wait does not make that batch atomic.
-- [ ] Validate the deterministic Tree fixture: deliver both first values before gating one unrelated event; preserve ordinary deadlines, held silence, per-ID coalescing, pruning and exact counts. Fresh local and hosted validation remain pending.
-- [ ] Close current-source native/build/input and performance gates; retain the failed be1ad177 ASan attempt and all earlier evidence.
+- [x] Validate the deterministic Tree fixture at `594d67fb`: all 19 ordinary suites pass in each x64 profile and all six hosted Full native steps pass, preserving ordinary deadlines, held silence, per-ID coalescing, pruning and exact counts.
+- [x] Current local qualification: all six `594d67fb` builds pass; independently verify 74 artifacts, 57 suite/executable bindings and 288 payload files, with real ASan detection and zero ordinary capability skips.
+- [x] Current hosted native qualification: workflow `40177964080` passes all six native jobs, relocated consumers and galleries. Optional STL-annotations-disabled consumers pass in both ASan profiles; menu-resource scaling passes in x64 Release only.
+- [x] Current hosted evidence publication: independently replay all six Full payload inventories (496 files), source/probe bindings and the lead verification; publish the sanitized packet with exact head versus compiled merge identities and artifact-retention limits.
+- [x] Current actual-base paired publication: publish all 78 rows/936 block effects, 144 receipts, both measured executable bindings and the lead replay for `594d67fb`. Zero flags coexist with 69/72 unstable controls, observer cadence breaches and an inconclusive policy gate; no acceptance is implied.
+- [x] Current foreground menu/input: complete the agreed normal Start-confirmed four-suite run at `594d67fb`; verify zero skips, all 17 payload files, current executable bytes and restoration. The report's dirty-source inventory limit remains explicit.
+- [ ] Close the remaining performance-policy/advice and product-acceptance gates; retain the failed be1ad177 ASan attempt and all earlier evidence. Current native/build/input completion is recorded separately above.
 
-Status: **IMPLEMENTING; final profile and performance qualification remain open**. This appendix updates evidence
+Status: **IMPLEMENTED; performance qualification and product acceptance remain open**. This appendix updates evidence
 and sequencing for the [existing audit](../RichTextAudit_2026-10-21.md); its implementation work-item IDs remain
 authoritative. The separate RedTilde repository's `Specs/Plans/WIP/RedesignCompletionAndRendering_2026-10-24.md`
 contains the cross-repository sequence, compatibility test matrices, reviewed commands and closeout conditions.
 This appendix adds no second defect backlog or independent acceptance policy.
+
+### Current qualification — 25 October
+
+SDK `594d67fb0fcc3829541211a7c8f100df046c87e3` passes all six local builds and all 19 ordinary suites in
+x64 Debug, Release and ASan Debug, with zero capability skips and real sanitizer detection. Independent replay
+verifies 74 retained artifacts, all 57 suite/executable bindings and 288 completed payload files without a hash
+mismatch. The [local matrix packet](../../../../Measurements/RedTildeCompletion_2026-10-24/qualification-594d67fb/README.md)
+retains source, runner, receipt, completion and executable digests. ARM64 local rows are cross-build only.
+
+Hosted workflow `40177964080` passes all six actual Full native steps and complete native jobs, their relocated
+public consumers and galleries. Both ASan profiles also pass the STL-annotations-disabled consumer; the other
+four optional instances are skipped. Menu-resource scaling passes only in x64 Release; its other five instances
+are skipped. The workflow compiles merge `8c78b5adf821daa216bee53572b3f9aae7d40ef7`, with first parent actual PR
+base `b06f534b` and second parent head `594d67fb`; its tree equals the head's tree. Preserve the recorded compiled
+merge in receipts. The [hosted native packet](../../../../Measurements/RedTildeCompletion_2026-10-24/hosted-594d67fb/README.md)
+retains six matching provider ZIP digests, all 126 Full-suite outcomes, independent replay of 496 payload files,
+both deliberate sanitizer probes and the lead's repeated verification. Hosted Full has 21 suites, including
+Menu and NativeTextInput under the runner's owned lease; the local noninteractive catalogue has 19. The ZIPs do
+not retain native build binaries, so their reported compiler/executable digests are not independently rehashed
+binary artifacts; optional payload inventories are not separately replayed. The
+[fresh paired packet](../../../../Measurements/RedTildeCompletion_2026-10-24/sdk-594d67fb/README.md) retains the
+completed collection, all 78 rows/936 block effects and 144 receipt digests, with repeated independent arithmetic
+and projection checks. Unlike the native ZIPs, its paired ZIP retains 24 EXE/PDB/library files; both measured
+EmbeddedTests executable hashes match all 72 corresponding run receipts. Baseline receipts report a dirty
+checkout with three named harness overlays but no complete dirty-path inventory; candidate receipts report a
+clean compiled merge. Source/object and compiler/linker bytes are absent. It has zero regression flags and
+69/72 unstable controls. The overall workflow fails its inconclusive policy gate. Observer replay places all
+144 completions inside the sample span but finds 28 QPC and 29 UTC sample-start periods above the retained
+2.5-second consistency bound; whole-machine weighted CPU is about 36.6%. Continuous/quiet-host coverage and
+performance are not accepted. No new AA calibration or candidate policy self-approval is implied.
+
+The bounded current math/Mermaid profiles remain the selected scope. The new fixture correction changes no
+production code, API or product dependency, and the consumer remains pinned to production revision `baff43d8`.
+The [current foreground packet](../../../../Measurements/RedTildeCompletion_2026-10-24/foreground-594d67fb/README.md)
+records all four x64 Release menu/input suites passing with zero skips after normal Start confirmation and
+verified foreground/focus/pointer restoration. Independent replay verifies all 17 payload files, the three
+executed/preflight binaries and the matrix build identity. Its unpaired preflight records a dirty checkout;
+audit-time changes are documentation/evidence only, but the report lacks a complete dirty-path inventory.
+RedTilde's later documentation head `be41564` has byte-identical
+six-profile app artifacts and its hosted run `40182090717` again executes no steps because of the account
+payment/spending restriction. The owner-requested RedTilde hosted ARM64 gate stays open. Current R10/D4c cost,
+control and policy advice remains open; the implementation plans therefore stay in WIP.
 
 ### Deterministic held-batch correction — 25 October
 
@@ -43,13 +90,14 @@ then holds one unrelated Gamma event before queuing the middle/final updates and
 held-event mark preserves the silence check; all original exact first/final, superseded-value, stale-ID and
 replacement getter assertions remain. Gamma's already extracted event is outside pending pruning and is not an
 asserted outcome. The existing 20-second gated allowance is unchanged. No runtime code, public hook or dependency
-is added. These changes require new source-bound local and hosted validation; the failed attempts remain retained.
+is added. New source-bound local and hosted validation was pending at this correction checkpoint; the current
+qualification above records its completed native profiles. The failed attempts remain retained.
 
 ### Late SDK checkpoint — baff43d8 (25 October)
 
 The final local SDK x64 matrix at `baff43d8` passes all 19 ordinary suites with zero skips in Debug, Release and ASan Debug; the real ASan detection probe passes. ARM64 Debug, Release and ASan Debug cross-builds pass, but do not establish native ARM64 execution. Six source-bound late counterfactual variants and the late Tree regression cases are complete; those focused results do not replace whole-source qualification.
 
-Hosted workflow `40154492633` binds PR #100 head `baff43d8` and actual base `b06f534b`. Four ordinary native jobs pass. Two ASan Embedded gated batches time out on the existing 3-second ItemStatus notification wait; no sanitizer memory report was produced. The later `be1ad177` test-only correction uses the existing 20-second request allowance, but its local ASan attempt still fails with a missing Beta first value, as recorded above. The deterministic fixture correction and new hosted validation remain open. Corrected test executables are distinct artifacts; the test edits do not change the measured production source.
+Hosted workflow `40154492633` binds PR #100 head `baff43d8` and actual base `b06f534b`. Four ordinary native jobs pass. Two ASan Embedded gated batches time out on the existing 3-second ItemStatus notification wait; no sanitizer memory report was produced. The later `be1ad177` test-only correction uses the existing 20-second request allowance, but its local ASan attempt still fails with a missing Beta first value, as recorded above. The deterministic fixture correction and new validation were open at this checkpoint; the current qualification above records the completed native profiles. Corrected test executables are distinct artifacts; the test edits do not change the measured production source.
 
 The hosted benchmark still binds production source fingerprint `F423000D1AD799EDBAA3EE17B121480C5AE567CC75E2BCE2AF0D783AC7AB26F1` and the same six workload inputs. The canonical [SDK baff43d8 hosted packet](../../../../Measurements/RedTildeCompletion_2026-10-24/sdk-baff43d8/README.md) retains all 78 paired rows and independent numeric/integrity replays. It reports zero regressions, but 71/72 same-side controls are unstable and the base policy is unqualified; no performance acceptance is claimed. The baseline has a clean fingerprint match from prior verification but is marked dirty with three known harness overlays and no complete dirty-path inventory.
 

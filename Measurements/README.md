@@ -1,6 +1,26 @@
 # Independent DxUi measurements
 
-- [SDK baff43d8 hosted actual-base comparison, 2026-10-25](RedTildeCompletion_2026-10-24/sdk-baff43d8/README.md): all 78 metric rows and independent numeric/integrity replays are retained. The paired study reports zero regressions, but 71/72 same-side controls are unstable and the acceptance policy remains unqualified; the hosted ASan Embedded timeout is a separate open gate.
+- [Fresh SDK actual-base comparison, 2026-10-25](RedTildeCompletion_2026-10-24/sdk-594d67fb/README.md): all 78
+  metric rows, 144 receipts and both measured executables are independently replayed. Zero regression flags
+  coexist with 69/72 unstable controls, observer cadence breaches and an unqualified policy; the verdict remains
+  inconclusive. The RedTilde repository retains an exact two-file mirror.
+
+- [Final SDK foreground qualification, 2026-10-25](RedTildeCompletion_2026-10-24/foreground-594d67fb/README.md):
+  the four x64 Release menu/input suites pass with zero skips after normal Start confirmation. All 17 payload
+  files and three executed/preflight binaries are independently verified; desktop restoration and the dirty-source
+  report's inventory limit remain explicit. The unpaired preflight is not performance acceptance.
+
+- [Hosted SDK native qualification, 2026-10-25](RedTildeCompletion_2026-10-24/hosted-594d67fb/README.md): all six
+  x64/ARM64 profiles pass their 21-suite hosted catalogues with zero capability skips. Independent replay checks
+  496 Full payload files and both isolated ASan probes; build-binary retention and optional-payload limits stay
+  explicit. Performance and current product/foreground qualification remain separate.
+
+- [Final local SDK matrix, 2026-10-25](RedTildeCompletion_2026-10-24/qualification-594d67fb/README.md): all six
+  builds and 57 ordinary x64 suite executions at `594d67fb` pass with zero capability skips and real ASan
+  detection. Independent checks verify 74 artifacts and 288 payload files. ARM64 here is cross-build only;
+  hosted native execution, foreground input and performance acceptance are separate.
+
+- [SDK baff43d8 hosted actual-base comparison, 2026-10-25](RedTildeCompletion_2026-10-24/sdk-baff43d8/README.md): all 78 metric rows and independent numeric/integrity replays are retained. The paired study reports zero regressions, but 71/72 same-side controls are unstable and the acceptance policy remains unqualified. Its failed Embedded fixture remains historical; the corrected `594d67fb` fixture has separate current qualification.
 - [SDK cfe875fd paired studies, 2026-10-24](RedTildeCompletion_2026-10-24/sdk-cfe875fd/README.md): two separate DxUi benchmark studies, local same-build AA and hosted actual-base comparison, with all 156 metric rows and independent numeric audits. Both remain review-required and unqualified; AA side controls are unstable 24/24 per scenario and do not qualify a noise floor, while hosted controls are unstable 23/24, 23/24, and 22/24. The hosted baseline sourceDirty limitation is explicit.
 
 
