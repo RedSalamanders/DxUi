@@ -588,7 +588,13 @@ void NotifyWindowHostAccessibilityDestroyed(HWND hwnd) noexcept;
 // snapshot; with one, a focus change republishes at once. While the window itself gains focus, the system's focus event
 // reports it; a move later in the turn of the gain is left to that event only in a window whose fragment-root GetFocus
 // no call has ever begun on, because the first such call reports the moved-to element (see ReporterOfFocusMove).
-void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexcept;
+enum class AccessibilityMutationKind : unsigned
+{
+    General,
+    // Only content changes that cannot alter focus, visibility, enabled state or logical structure.
+    ContentOnly
+};
+void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host, AccessibilityMutationKind mutation = AccessibilityMutationKind::General) noexcept;
 // A window host begins to gain focus, before it publishes anything: records how many fragment-root GetFocus calls had
 // begun, which says whether UI Automation will ask for what the gain focuses or restores (none had) or answer without
 // asking (see EndWindowHostFocusGainTurn), and starts the gain with no announcement made.

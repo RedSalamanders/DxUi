@@ -12958,7 +12958,7 @@ void NotifyWindowHostAccessibilityDestroyed(HWND hwnd) noexcept
     }
 }
 
-void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexcept
+void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host, AccessibilityMutationKind mutation) noexcept
 {
     if (! host)
         return;
@@ -12971,6 +12971,9 @@ void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexce
     if (! target || target->ResolveHost() != host)
         return;
     ++target->dirtyRevision;
+    // The already-posted flush will publish content changes. Focus-capable mutations keep the general path below.
+    if (mutation == AccessibilityMutationKind::ContentOnly && target->flushPosted)
+        return;
     bool interested = target->providerRequested.load(std::memory_order_acquire) || UiaClientsAreListening();
 #if DXUI_ENABLE_DIAGNOSTICS
     // Tests override only this attachment's owner-thread mutation decision, never global UIA interest.

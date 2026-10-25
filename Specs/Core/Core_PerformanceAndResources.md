@@ -316,6 +316,10 @@ after application preparation, with no snapshot work in composition.
 Interested native mutations resolve unchanged focus through the published address/path index first. Validate
 that path against the live tree, visibility and semantic control type on every use; a stale or absent path
 falls back to the canonical live-tree search. Do not retain a second focus cache or skip focus-transition publication.
+Label text, button text and button toggle changes may reuse an already-posted publication without repeating
+interest/focus checks. They still mark the exact attachment revision dirty. This content-only path is forbidden
+for focus, focusability, enabled state, visibility or logical-structure changes. General mutations must reconcile
+focus even while publication is pending; provider queries must still return all latest text and toggle state.
 
 When neither a provider has been requested nor a UIA listener is present, a native mutation still marks the
 revision dirty but does not load the published snapshot, search the focused-control path or post a new flush.
