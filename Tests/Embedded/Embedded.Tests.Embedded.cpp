@@ -57,6 +57,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "../Support/Support.Tests.RichSemantic.h"
 #include "../Support/Support.Tests.RichSemanticEditor.h"
 #include "../Support/Support.Tests.RichSemanticGeometry.h"
+#include "Embedded.Tests.CleanPrepareTimerDiagnostic.h"
 #include "Embedded.Tests.ComplexUiBenchmark.h"
 #include "Embedded.Tests.ComplexUiBoundaries.h"
 #include "Embedded.Tests.ComplexUiProfiling.h"
@@ -1365,6 +1366,29 @@ __declspec(noinline) static int RunFunctionalTests()
         RunPreparedTreeAccessibilityBenchmark(gpu, true);
         return 0;
     }
+    if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--test-clean-prepare-timer-oracle")
+    {
+        if (__argc != 2)
+        {
+            std::fputs("Clean Prepare timer oracle accepts no additional arguments.\n", stderr);
+            return 2;
+        }
+        CleanPrepareTimerDiagnostic::RunOracle();
+        std::cout << "PASS clean Prepare timer integration oracle\n";
+        return 0;
+    }
+    if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--benchmark-clean-prepare-floor")
+    {
+        if (__argc != 4)
+        {
+            std::fputs("Clean Prepare timer diagnostic requires a fresh output file and an unsigned seed.\n", stderr);
+            return 2;
+        }
+        uint64_t seed = 0;
+        Check(CleanPrepareTimerDiagnostic::TryParseSeed(__wargv[3], seed), "clean Prepare timer diagnostic seed is an unsigned integer");
+        CleanPrepareTimerDiagnostic::Run(__wargv[2], seed);
+        return 0;
+    }
     // The opt-in grid selection measurement is dispatched here, not in Embedded.Tests.BenchmarkMain.h, whose hash identifies the complex-UI fixture.
     if ((__argc == 3 || __argc == 4) && std::wstring_view(__wargv[1]) == L"--benchmark-grid-selection")
     {
@@ -1396,6 +1420,7 @@ __declspec(noinline) static int RunFunctionalTests()
     Check(diagnosticCalls == 1, "native trace reaches caller sink");
     DxUi::Diagnostics::sink = nullptr;
     Check(! DxUi::IsContextMenuDiagnosticsEnabled(), "clearing sink disables native diagnostics");
+    CleanPrepareTimerDiagnostic::RunOracle();
     GraphicsFixture gpu;
     Hr(gpu.Create(), "supplied WARP device");
     TestMultilineCaretViewport(gpu);

@@ -765,6 +765,17 @@ unpaced and must not replace ordinary unpaced performance/resource acceptance. D
 includes sampling overhead. [The grid investigation](../../Measurements/GridTextOverflow/2026-09-21/heap-attribution/README.md)
 records the implemented opt-in diagnostics and their unresolved conclusions.
 
+The opt-in `--benchmark-clean-prepare-floor <fresh-report.json> <seed>` diagnostic is dispatched outside the
+canonical six-input complex-UI benchmark. It measures the already prepared default scene on WARP with one QPC
+bracket per batch of 1, 8, 64 or 512 no-op Prepare calls. Retain the seeded size ordering, balanced group positions,
+alternating preparation/reference order, all raw ticks, frequency, call counts and normalization. An empty-loop
+reference is a separate observation; never subtract it from canonical metrics or change their investigation bands.
+Verify unchanged preparation/composition counters, resource statistics and the sampled model/slider/progress/Grid
+selection state. These consistency fingerprints do not establish every control's state or visual equivalence.
+The native `--test-clean-prepare-timer-oracle` checks the call/tick normalization and real prepared-scene invariants;
+unknown argument counts fail before functional suites, and reports refuse to overwrite existing evidence. A
+batched diagnostic does not replace the canonical clean preparation p95, same-side controls or policy review.
+
 Steady-state hot paths use bounded reusable storage; cache derived state and batch compatible work. Never allocate,
 shape text, create targets, traverse layout, do I/O, block or read back in clean composition. Coalesce dirty state and
 prepare only changed visible content. Hidden, minimized, occluded, suspended, display-off and idle work is event-blocked,

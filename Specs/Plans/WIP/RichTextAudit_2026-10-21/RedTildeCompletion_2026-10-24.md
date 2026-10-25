@@ -2,6 +2,12 @@
 
 ## Progress checklist
 
+- [x] P10 integration: push and merge PR #100 as `dc67aed6` at the owner's explicit request; its tree exactly matches qualified documentation head `9a642c52`. This is implementation integration, not performance-policy or product acceptance.
+- [x] P10 CI checkpoint: workflow `40187599911` passes static/tooling checks and x64 Debug/Release; at 11:46 UTC, remaining native profiles and paired collection are still pending. Earlier six-profile runtime evidence remains tied to `594d67fb` / compiled merge `8c78b5ad`.
+- [x] P10 later native checkpoint: the same workflow subsequently passes all six native jobs, including ARM64 and ASan. Paired collection is still running at 12:31 UTC; this checkpoint covers merged implementation `9a642c52`, not the new timer diagnostic.
+- [ ] P10 control investigation: retain reproducible per-metric/control, chronology, timer and memory analysis of the current hosted packet and separate same-binary calibration; diagnose causes before changing measurement behavior.
+- [ ] P10 repair/qualification: verify any source or diagnostic fix with the required regressions and fixed matched-harness comparisons, preserving exact budgets, every raw receipt and the unqualified measured-base policy.
+- [ ] P10 handoff: synchronize domain contracts and changelog, review current hashes, push/merge reviewed follow-up and retain the consumer's hosted ARM64 gate if billing remains blocked.
 - [x] Inspect current main, consumer pin, existing audit ownership and primary reference projects.
 - [x] Independently re-read the source locations admitted below; distinguish current defects from old findings.
 - [x] Route library work to existing W/T/C rows and consumer execution to one coordinator.
