@@ -263,14 +263,17 @@ HRESULT Label::MeasureOverride(const MeasureContext& context, const LayoutConstr
         if (FAILED(hr) || ! layout)
             return FAILED(hr) ? hr : E_FAIL;
         const DWRITE_TEXT_RANGE range{0u, static_cast<UINT32>(text.size())};
-        wil::com_ptr<IDWriteTextLayout1> layout1;
-        hr = layout->QueryInterface(IID_PPV_ARGS(layout1.put()));
-        if (FAILED(hr))
-            return hr;
         const float halfSpacing = _typographyOverride->characterSpacingDip * 0.5f;
-        hr                      = layout1->SetCharacterSpacing(halfSpacing, halfSpacing, 0.0f, range);
-        if (FAILED(hr))
-            return hr;
+        if (halfSpacing != 0.0f)
+        {
+            wil::com_ptr<IDWriteTextLayout1> layout1;
+            hr = layout->QueryInterface(IID_PPV_ARGS(layout1.put()));
+            if (FAILED(hr))
+                return hr;
+            hr = layout1->SetCharacterSpacing(halfSpacing, halfSpacing, 0.0f, range);
+            if (FAILED(hr))
+                return hr;
+        }
         DWRITE_TEXT_METRICS metrics{};
         hr = layout->GetMetrics(&metrics);
         if (FAILED(hr))

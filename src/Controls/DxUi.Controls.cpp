@@ -2835,9 +2835,14 @@ void Label::Paint(ControlHost& host) const
                 {
                     const DWRITE_TEXT_RANGE range{0u, static_cast<UINT32>(_text.size())};
                     const float spacing = _typographyOverride->characterSpacingDip * 0.5f;
-                    wil::com_ptr<IDWriteTextLayout1> layout1;
-                    if (SUCCEEDED(layout->QueryInterface(IID_PPV_ARGS(layout1.put()))) &&
-                        SUCCEEDED(layout1->SetCharacterSpacing(spacing, spacing, 0.0f, range)))
+                    bool spacingApplied = spacing == 0.0f;
+                    if (! spacingApplied)
+                    {
+                        wil::com_ptr<IDWriteTextLayout1> layout1;
+                        spacingApplied = SUCCEEDED(layout->QueryInterface(IID_PPV_ARGS(layout1.put()))) &&
+                                         SUCCEEDED(layout1->SetCharacterSpacing(spacing, spacing, 0.0f, range));
+                    }
+                    if (spacingApplied)
                     {
                         if (const auto mnemonicIndex = FindMnemonicTextIndex(_text, GetMnemonic()); mnemonicIndex)
                             static_cast<void>(layout->SetUnderline(TRUE, DWRITE_TEXT_RANGE{static_cast<UINT32>(*mnemonicIndex), 1u}));

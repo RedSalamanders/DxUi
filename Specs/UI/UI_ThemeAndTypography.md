@@ -41,6 +41,11 @@ Alignment, paragraph alignment, wrapping and reading direction remain in the key
 remain separate. Icon, HeroIcon and IconLarge use the role-default key only when the Fluent icon family is available;
 without it, the default Small fallback and explicit custom-format creation/retry paths remain intact. This alias does not
 change the bounded cache capacity or its owner-paint/preparation eviction timing.
+For `Label` typography overrides, `characterSpacingDip == 0` uses DirectWrite's default zero character spacing.
+Measurement and painting leave a new or retained text layout at that default instead of querying
+`IDWriteTextLayout1` and applying an explicit zero mutation. Nonzero spacing keeps the existing query, mutation and
+failure handling. This does not replace or invalidate retained layouts, and zero spacing does not alter layout-cache
+identity.
 Do not add a dependency on either
 application's theme record or icon assets. Preserve the original notice for any later imported assets.
 
