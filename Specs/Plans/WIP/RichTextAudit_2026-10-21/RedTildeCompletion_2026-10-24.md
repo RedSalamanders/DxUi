@@ -11,6 +11,7 @@
 - [x] P10 repeated-work baseline: the retained pre-repair Release executable passes its focused non-activating case and reports 1,792 focus-resolution visits for 128 interested label changes. A narrow content-only coalescing patch is implemented with dirty-revision, synchronous general-focus, stale-path and text/toggle-query checks. The source-bound local x64 suite matrix and ARM64 cross-builds pass at `1714f8b0`; hosted native qualification is recorded separately below. Performance policy and product acceptance remain open.
 - [x] P10 common-fixture counterfactual: the same final test source fails against actual PR #101-base production at 1,820 visits and passes against `1714f8b0` at 14. This is the comparable repeated-work result; the earlier 1,792 count uses the earlier fixture. The public [1714 local qualification packet](../../../../Measurements/RedTildeCompletion_2026-10-24/local-qualification-1714f8b0/README.md) records all 57 ordinary x64 suite receipts and all 15 ARM64 cross-build artifact hashes with source and attestation bindings. Neither operation counts nor cross-builds substitute for whole-feature performance or native ARM64 runtime qualification.
 - [x] P10 later CI checkpoint: workflow `40187599911` finishes all six native jobs successfully, collects its paired packet, then fails verdict publication and `ci-gate` with an unqualified base policy. The independent new-packet replay finds 71/72 unstable controls and 248/1,872 breached observations; this packet is separate from `594d67fb` and does not qualify the policy.
+- [x] P10 final hosted checkpoint: workflow `40197354712` finishes all six native jobs, all static/tooling jobs and the ARM64 ASan consumer checks successfully. Paired collection finishes, but verdict publication and `ci-gate` fail solely because the base policy is not independently qualified. The [new source-bound packet](../../../../Measurements/RedTildeCompletion_2026-10-24/controls-investigation-20261025/hosted-1714-final/README.md) retains 144 receipts, 72 unstable controls, 384/1,872 breached observations and all 78 metric rows. This supersedes the earlier in-progress CI snapshot; controls, observer qualification and policy acceptance remain open.
 - [ ] P10 handoff: synchronize domain contracts and changelog, review current hashes, push/merge reviewed follow-up and retain the consumer's hosted ARM64 gate if billing remains blocked.
 - [x] Inspect current main, consumer pin, existing audit ownership and primary reference projects.
 - [x] Independently re-read the source locations admitted below; distinguish current defects from old findings.
@@ -368,9 +369,13 @@ ASan Debug cross-builds pass; these are not native ARM64 execution. The hosted D
 pass. The [public local qualification packet](../../../../Measurements/RedTildeCompletion_2026-10-24/local-qualification-1714f8b0/README.md)
 records all 57 x64 suite/executable matches, their current executable/build-attestation digests, and all 15 ARM64
 cross-build artifact hashes and PE architectures. Hosted CI run `40197354712` targets this source: all six Full
-native steps pass, including ARM64 ASan native and relocated-consumer qualification, while the annotations-disabled
-ARM64 ASan consumer and paired benchmark remain in progress. No final CI conclusion is available yet. Interactive
-qualification remains open.
+native steps pass. The [completed hosted packet](../../../../Measurements/RedTildeCompletion_2026-10-24/controls-investigation-20261025/hosted-1714-final/README.md)
+supersedes its earlier in-progress snapshot: all six native jobs and consumer checks pass, including the ARM64 ASan
+annotations-disabled consumer. The paired verdict remains inconclusive because the base policy is unqualified.
+Independent replay retains 72/72 unstable controls, 384/1,872 breached observations, 30/78 metric keys held in all
+controls and no key breached in all controls. The observer records shared-host activity and coverage gaps; it does
+not establish a quiet host or isolate one cause. No threshold, fixture or baseline change is accepted from these
+observations. Interactive qualification remains open.
 
 The separately retained [9a hosted control replay](../../../../Measurements/RedTildeCompletion_2026-10-24/controls-investigation-20261025/hosted-9a-final/README.md)
 is inconclusive because the base policy requires review; its 71/72 unstable controls and 248/1,872 breaches do not

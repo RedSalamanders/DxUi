@@ -38,3 +38,9 @@ The [hosted 9a control replay](hosted-9a-final/README.md) is also separate. It r
 identities. The 9a policy verdict is inconclusive and observer status is not established; neither quiet-host nor
 performance-policy acceptance is claimed. Published projections omit absolute paths, raw source content, machine
 details, account data and per-process identities.
+
+The [latest 1714 hosted replay](hosted-1714-final/README.md) is another independent cohort. All six native CI jobs
+pass; the paired verdict remains inconclusive because the base policy is unqualified. Its 72/72 unstable controls
+and 384/1,872 breached observations remain separate from both earlier packets. Lead replay verifies 2,448
+source/executable/fixture and raw-median bindings across all 144 receipts and rehashes the provider ZIP. Shared-host
+activity and observer gaps remain explicit; these findings do not identify one cause or authorize a changed band.

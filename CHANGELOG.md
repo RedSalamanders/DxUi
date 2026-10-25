@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Archive the completed accessibility-coalescing hosted qualification: all six native profiles and consumer checks pass, while the paired verdict stays inconclusive under the unqualified base policy. Preserve the separately replayed controls, raw-median/archive bindings and observer limits without changing thresholds or claiming performance acceptance.
 - Document the content-only accessibility coalescing qualification and publish separate privacy-safe 9a control and 1714 timer-floor evidence, correcting the b4 executable-retention statement; local x64 suites and ARM64 cross-builds pass, hosted ASan, performance policy, quiet-host and interactive qualification remain open.
 - Coalesce repeated native label text, button text and toggle accessibility checks while an exact attachment publication is already queued. Keep dirty revisions, fresh owner queries and synchronous general focus updates, and retain stale-path validation for structural changes. Add focused text/toggle/focus regressions; paired performance and final platform qualification remain open.
 - Merge the bounded native-profile implementation at the owner's request and investigate unstable paired controls independently. Add a separate opt-in batch timing diagnostic for the sub-microsecond clean-Prepare timer floor, preserving canonical benchmark inputs, exact budgets and raw receipts. Keep policy qualification and product acceptance distinct from implementation integration.
