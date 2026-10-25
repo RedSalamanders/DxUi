@@ -236,3 +236,19 @@ hover follow-up additionally changes modal input priority. Neither changes galle
 no gallery regeneration is needed. No baseline, policy, investigation band, exact budget or allocation ceiling is
 changed. All existing performance-policy, ARM64 opt-in resource, physical input/device-removal, real IME/AT/touch
 and consumer acceptance gates remain open. Source-specific functional repair does not close shared qualification.
+
+### Latest merged-main native observation (25 October 2026)
+
+DxUi main run [40204528951](https://github.com/RedSalamanders/DxUi/actions/runs/40204528951), built from
+`4faf16ed647df71cd7d5623c1682738592771c3e`, completed five of six native profiles successfully. ARM64 Debug
+failed `TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar`; the prior comparable ARM64 Debug run
+[40197354712](https://github.com/RedSalamanders/DxUi/actions/runs/40197354712) passed, and the menu implementation
+and test source blobs are unchanged between those main commits. The failed hosted trace records
+`pointer.callback`, `pointer.accepted`, and `root.switch.begin` before the existing 180 ms pointer-only guard fails.
+The test's `MenuHoverTraceForTest` had pointer capture disabled, so the accepted event's source, HWND and point are
+unknown. Successful `PostMessageW` had not been checked either. This evidence establishes a pointer-driven root
+switch during the guard, but does not attribute it to the synthetic posted move or the real cursor.
+
+The focused follow-up enables the trace's existing bounded pointer capture and checks that the probe message was
+posted. It changes no production path, hover contract, guard duration or performance threshold. Fresh native
+execution and source-specific attribution remain pending; do not treat the 5/6 result as a green matrix.
