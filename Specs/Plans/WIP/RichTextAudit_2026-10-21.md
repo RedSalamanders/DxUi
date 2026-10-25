@@ -1,6 +1,6 @@
 # RichText audit: defects, simplification and Markdown/math/Mermaid completion
 
-Status: IMPLEMENTING. The original audit and planning baseline is retained below. The bounded math, flowchart,
+Status: IMPLEMENTING. Current SDK qualification evidence is recorded in the linked 24 October continuation; it does not close the RichText implementation audit, D4c performance HOLD, physical IME/AT, or product acceptance. The continuation records the current 2fed local and hosted native evidence, its pending paired benchmark, and the still-unexplained earlier ARM64 Debug Menu failure. The original audit and planning baseline is retained below. The bounded math, flowchart,
 state and class corrections are implemented in the [24 October continuation](RichTextAudit_2026-10-21/RedTildeCompletion_2026-10-24.md).
 Their final-source qualification, performance and consumer handoff remain open; the full language roadmap is separate.
 Owner request (2026-10-21): review all RichText code in DxUi for bugs and architectural simplification, use

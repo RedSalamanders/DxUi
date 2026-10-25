@@ -1,5 +1,19 @@
 # Independent DxUi measurements
 
+- [Current local qualification, 2fed8246](RedTildeCompletion_2026-10-24/sdk-2fed8246-local/README.md):
+  six builds, 57 ordinary x64 suite outcomes, real ASan detection, 74 retained artifacts and 317 payload streams.
+  The separate [foreground run](RedTildeCompletion_2026-10-24/sdk-2fed8246-foreground/README.md) passes all four
+  authorized menu/input suites with desktop restoration. Local ARM64 rows are cross-builds only.
+
+- [Current hosted PR native qualification](RedTildeCompletion_2026-10-24/hosted-2fed-pr102-native/README.md)
+  and [exact-head manual qualification](RedTildeCompletion_2026-10-24/hosted-2fed-manual-native/README.md):
+  each passes all six native x64/ARM64 profiles. The compiled source identities and archives stay separate;
+  the PR's paired benchmark was still running at capture.
+
+- [Historical CD35 actual-base comparison](RedTildeCompletion_2026-10-24/controls-investigation-20261025/hosted-cd35-paired/README.md):
+  144 receipts and all 78 metric rows are replayed. Zero reported regressions coexist with 69/72 unstable
+  controls and an inconclusive policy verdict; this does not qualify the current 2fed changes.
+
 - [Fresh SDK actual-base comparison, 2026-10-25](RedTildeCompletion_2026-10-24/sdk-594d67fb/README.md): all 78
   metric rows, 144 receipts and both measured executables are independently replayed. Zero regression flags
   coexist with 69/72 unstable controls, observer cadence breaches and an unqualified policy; the verdict remains

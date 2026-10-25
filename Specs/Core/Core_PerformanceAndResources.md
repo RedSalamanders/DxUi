@@ -123,6 +123,13 @@ observations record native cumulative CPU counters, process CPU/memory, sample
 gaps and collection intervals; a failed observer cannot admit a completed study.
 Inspect observer cost and missing/inaccessible processes explicitly. These
 observations are neither a quiet-host guarantee nor a scheduler/GPU trace.
+When an observer reports weighted whole-host busy time from `GetSystemTimes`,
+that aggregate includes the benchmark, the observer, and other processes on the covered processors.
+The API covers all processors on systems with at most 64 processors; above that it covers the calling thread's
+primary processor group, so the field name alone does not prove whole-host coverage. Retain that
+[documented coverage limit](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getsystemtimes).
+It does not isolate external contention or establish that preemption caused a
+timing change; report it as shared-host context only.
 Analysis MUST retain the original ISO-8601 UTC timestamp precision and parse it
 independently of the machine's locale. Implicit JSON date conversion followed by
 culture-sensitive string conversion cannot establish process-lifetime bounds.
@@ -430,6 +437,9 @@ candidate-only policy is explicitly untrusted. `Tools/tests/Test-BenchmarkGate.p
   need a re-run. The strict reading,
   any unstable control making its scenario inconclusive, is the `-StrictControls` switch of
   `Tools/Publish-BenchmarkVerdict.ps1`; it is off because it would have made every hosted run inconclusive.
+  An unstable control means at least one metric in that control crossed its band. Report this control count
+  separately from the number of metric observations that crossed bands, with both denominators and per-key counts;
+  an unstable-control total does not mean every metric drifted.
 - **Identical library inputs.** Matching source or executable hashes are provenance only. Timing/memory flags remain
   unresolved unless a trusted policy and its independent block/A/A evidence support the inference. Exact deterministic
   budgets retain the run-median check and add a separately reported no-tolerance comparison of raw-round maxima. The
@@ -598,6 +608,12 @@ checks complete finite samples and reproduces the reported FPS/percentiles with 
 Paired receipts must use the same clock metadata. Historical receipts without either diagnostic group remain
 readable under their original harness; partial new groups are invalid. A no-op preparation taking a few counter
 ticks warrants quantization analysis, not an automatic noise waiver or a silently batched replacement metric.
+
+In historical complex-UI receipts, `composeCpuP95Ms` is the elapsed steady-clock/QPC duration around Composite,
+not thread CPU time; preserve the field name for compatibility and interpret the value as wall duration. The
+whole-frame/FPS bracket also includes dirty Update and the blocking one-pixel WARP readback. Report QPC frequency
+and counter-tick duration with few-tick no-op preparation tails; those observations are floor-sensitive and do
+not justify changing the metric, band, or sampling protocol.
 
 Benchmark receipts also record process-memory phases at entry, device creation, scene
 creation, warm-up, screenshot encoding and the hidden state. These untimed samples help

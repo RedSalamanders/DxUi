@@ -9,3 +9,13 @@
 
 No regression row is reported, but this does not qualify a candidate pass. The shared-host observer does not establish a quiet or dedicated host.
 
+“72/72 unstable” means each same-binary control comparison crossed a band on at least one metric; 384/1,872 metric
+observations crossed bands and 1,488 held. The legacy `composeCpuP95Ms` field is elapsed QPC time around Composite,
+not thread CPU time. At 10 MHz, one QPC tick is 100 ns, so clean no-op Prepare P95 values near a few ticks are
+floor-sensitive.
+
+The observer reported 32.85% weighted whole-host busy time. This `GetSystemTimes` aggregate includes the benchmark,
+the observer and other processes; it does not identify external contention, establish a quiet host, or show that
+preemption caused the timing variation. Replay found no control-pair matching defect and established no cause for
+the shared scenario/time movement. No thresholds, fixtures or bands changed.
+
