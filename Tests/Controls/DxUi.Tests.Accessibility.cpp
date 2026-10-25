@@ -4314,6 +4314,9 @@ void TestAccessibilityInterestedMutationsBoundFocusedPathResolution()
     auto* field = root->AddChild<TextField>(L"stable logical focus");
     field->SetAccessibleName(L"Tracked focus");
     field->SetBounds(D2D1::RectF(0, 40, 200, 68));
+    auto* replacementFocus = root->AddChild<Button>(L"Replacement focus");
+    replacementFocus->SetAccessibleName(L"Replacement focus");
+    replacementFocus->SetBounds(D2D1::RectF(220, 40, 400, 68));
     window.Host().SetRoot(std::move(root));
     window.Host().SetFocusControl(field, false);
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
@@ -4322,6 +4325,9 @@ void TestAccessibilityInterestedMutationsBoundFocusedPathResolution()
     auto labelProvider = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *provider.get(), 20, 12, "find the status label in the wide tree");
     wil::com_ptr_nothrow<IRawElementProviderSimple> labelSimple;
     RequireSucceeded(labelProvider.query_to(labelSimple.put()), "retain the status label provider");
+    auto actionProvider = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *provider.get(), 240, 52, "find the content-updated action");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> actionSimple;
+    RequireSucceeded(actionProvider.query_to(actionSimple.put()), "retain the action provider before its content changes");
     window.PumpMessages();
     Require(DebugSetAccessibilityMutationInterestForTest(window.Hwnd(), true), "keep this attachment interested during the bounded batch");
     const auto clearInterest = wil::scope_exit([]() noexcept
@@ -4330,30 +4336,64 @@ void TestAccessibilityInterestedMutationsBoundFocusedPathResolution()
     const auto stopCounting = wil::scope_exit([]() noexcept { DebugSetAccessibilityResolutionCountingForTest(false); });
     DebugResetAccessibilityResolutionVisitCountForTest();
     const auto builds = DebugGetAccessibilitySnapshotBuildCountForTest();
-    for (size_t index = 0u; index < 128u; ++index)
+    label->SetText(L"0");
+    const auto firstMutationVisits = DebugGetAccessibilityResolutionVisitCountForTest();
+    Require(firstMutationVisits > 0u && firstMutationVisits <= 32u, "the first interested content mutation resolves the published focus path once");
+    for (size_t index = 1u; index < 128u; ++index)
         label->SetText(std::to_wstring(index));
+    replacementFocus->SetText(L"Updated action caption");
+    replacementFocus->SetToggleState(true);
     const auto visits = DebugGetAccessibilityResolutionVisitCountForTest();
     std::cerr << "    [FOCUSED-PATH-BATCH] siblings=512 mutations=128 visits=" << visits << '\n';
-    Require(visits > 0u && visits <= 128u * 32u, "stable interested focus resolution is bounded by path depth instead of sibling count");
+    Require(visits == firstMutationVisits, "later interested content mutations skip redundant focus-path resolution while the flush is pending");
     Require(DebugGetAccessibilitySnapshotBuildCountForTest() == builds, "interested label changes still coalesce without synchronous rebuilds");
     Require(ReadProviderStringProperty(*labelSimple.get(), UIA_NamePropertyId, "final wide-tree status") == L"127",
             "the first owner query publishes the last committed status");
     Require(DebugGetAccessibilitySnapshotBuildCountForTest() == builds + 1u, "the first owner query performs one coherent rebuild");
+    wil::com_ptr_nothrow<IUnknown> togglePattern;
+    RequireSucceeded(actionSimple->GetPatternProvider(UIA_TogglePatternId, togglePattern.put()), "query the updated action toggle pattern");
+    Require(togglePattern != nullptr, "the pending content batch publishes the new action pattern");
+    wil::com_ptr_nothrow<IToggleProvider> toggle;
+    RequireSucceeded(togglePattern.query_to(toggle.put()), "query the retained action's toggle interface");
+    ToggleState state = ToggleState_Off;
+    RequireSucceeded(toggle->get_ToggleState(&state), "read the batched toggle state");
+    Require(state == ToggleState_On && replacementFocus->GetText() == L"Updated action caption",
+            "the content batch retains the exact action text and exposed toggle state");
+    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == builds + 1u, "all content queries reuse the coherent snapshot");
     window.PumpMessages();
+
+    const uint64_t pendingFocusBuilds = DebugGetAccessibilitySnapshotBuildCountForTest();
+    label->SetText(L"content before pending focus change");
+    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == pendingFocusBuilds, "content mutation queues without synchronously rebuilding");
+    window.Host().SetFocusControl(replacementFocus, false);
+    Require(window.Host().GetFocusControl() == replacementFocus, "general focus mutation moves logical focus while the content flush is pending");
+    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == pendingFocusBuilds + 1u,
+            "focus-capable mutation synchronously reconciles despite the pending content flush");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> changedFocus;
+    RequireSucceeded(provider->GetFocus(changedFocus.put()), "query the synchronously reconciled focus");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> changedFocusSimple;
+    RequireSucceeded(changedFocus.query_to(changedFocusSimple.put()), "query reconciled focus properties");
+    Require(ReadProviderStringProperty(*changedFocusSimple.get(), UIA_NamePropertyId, "pending-flush replacement focus") == L"Replacement focus",
+            "pending content flush does not suppress the new focused element");
+    window.PumpMessages();
+    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == pendingFocusBuilds + 1u, "the queued publication reuses the synchronous focus snapshot");
 
     auto removed = panel->TakeChild(1u);
     Require(removed != nullptr && panel->CompactChildren() == 1u, "shift the tracked focus away from its published path");
     DebugResetAccessibilityResolutionVisitCountForTest();
+    // A structural mutation can already have queued publication. A general focus request must still validate
+    // its stale published path; subsequent content updates may reuse that pending publication.
+    window.Host().SetFocusControl(replacementFocus, false);
+    Require(DebugGetAccessibilityResolutionVisitCountForTest() > 400u, "a general mutation resolves an invalid cached focus path in the live tree");
     label->SetText(L"after sibling removal");
-    Require(DebugGetAccessibilityResolutionVisitCountForTest() > 400u, "an invalid published path falls back to live-tree resolution");
     wil::com_ptr_nothrow<IRawElementProviderFragment> focused;
     RequireSucceeded(provider->GetFocus(focused.put()), "resolve the tracked focus after its path changed");
     Require(focused != nullptr, "the changed path retains the actual focused control");
     wil::com_ptr_nothrow<IRawElementProviderSimple> focusedSimple;
     RequireSucceeded(focused.query_to(focusedSimple.put()), "query the relocated focus identity");
-    Require(ReadProviderStringProperty(*focusedSimple.get(), UIA_NamePropertyId, "relocated focus name") == L"Tracked focus",
+    Require(ReadProviderStringProperty(*focusedSimple.get(), UIA_NamePropertyId, "relocated replacement focus name") == L"Replacement focus",
             "stale cached paths cannot select another sibling");
-    field->SetVisible(false);
+    replacementFocus->SetVisible(false);
     focused.reset();
     RequireSucceeded(provider->GetFocus(focused.put()), "query after the focused control is hidden");
     Require(! focused, "a hidden cached focus is not exposed as an accessible focused element");

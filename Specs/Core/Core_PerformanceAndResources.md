@@ -316,6 +316,10 @@ after application preparation, with no snapshot work in composition.
 Interested native mutations resolve unchanged focus through the published address/path index first. Validate
 that path against the live tree, visibility and semantic control type on every use; a stale or absent path
 falls back to the canonical live-tree search. Do not retain a second focus cache or skip focus-transition publication.
+Label text, button text and button toggle changes may reuse an already-posted publication without repeating
+interest/focus checks. They still mark the exact attachment revision dirty. This content-only path is forbidden
+for focus, focusability, enabled state, visibility or logical-structure changes. General mutations must reconcile
+focus even while publication is pending; provider queries must still return all latest text and toggle state.
 
 When neither a provider has been requested nor a UIA listener is present, a native mutation still marks the
 revision dirty but does not load the published snapshot, search the focused-control path or post a new flush.
@@ -764,6 +768,20 @@ pace retention frames to compare wall-clock allocation rates, but must leave mea
 unpaced and must not replace ordinary unpaced performance/resource acceptance. Diagnostic timing
 includes sampling overhead. [The grid investigation](../../Measurements/GridTextOverflow/2026-09-21/heap-attribution/README.md)
 records the implemented opt-in diagnostics and their unresolved conclusions.
+
+The opt-in `--benchmark-clean-prepare-floor <fresh-report.json> <seed>` diagnostic is dispatched outside the
+canonical six-input complex-UI benchmark. It measures the already prepared default scene on WARP with one QPC
+bracket per batch of 1, 8, 64 or 512 no-op Prepare calls. Retain the seeded size ordering, balanced group positions,
+alternating preparation/reference order, all raw ticks, frequency, call counts and normalization. An empty-loop
+reference is a separate observation; never subtract it from canonical metrics or change their investigation bands.
+Verify unchanged preparation/composition counters, resource statistics and the sampled model/slider/progress/Grid
+selection state. These consistency fingerprints do not establish every control's state or visual equivalence.
+The native `--test-clean-prepare-timer-oracle` checks the call/tick normalization and real prepared-scene invariants;
+unknown argument counts fail before functional suites, and reports refuse to overwrite existing evidence. A
+batched diagnostic does not replace the canonical clean preparation p95, same-side controls or policy review.
+The bracket includes HRESULT and loop bookkeeping; normalized values are bracket averages, not isolated method
+latency. The [control investigation](../../Measurements/RedTildeCompletion_2026-10-24/controls-investigation-20261025/README.md)
+retains aggregate replay and diagnostic limits. Internal assertions cover more state than the serialized subset.
 
 Steady-state hot paths use bounded reusable storage; cache derived state and batch compatible work. Never allocate,
 shape text, create targets, traverse layout, do I/O, block or read back in clean composition. Coalesce dirty state and

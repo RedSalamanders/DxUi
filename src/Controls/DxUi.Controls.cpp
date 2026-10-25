@@ -2705,7 +2705,7 @@ void Label::SetText(std::wstring text)
             return;
         if (ControlHost* const host = GetHost())
         {
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host, AccessibilityMutationKind::ContentOnly);
             if (lifetime.expired())
                 return;
         }
@@ -3196,7 +3196,7 @@ void Button::SetText(std::wstring text)
             return;
         if (ControlHost* const host = GetHost())
         {
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host, AccessibilityMutationKind::ContentOnly);
             if (lifetime.expired())
                 return;
         }
@@ -3245,7 +3245,7 @@ void Button::SetToggleState(std::optional<bool> checked) noexcept
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     if (ControlHost* const host = GetHost())
     {
-        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host, AccessibilityMutationKind::ContentOnly);
     }
     if (lifetime.expired())
         return;

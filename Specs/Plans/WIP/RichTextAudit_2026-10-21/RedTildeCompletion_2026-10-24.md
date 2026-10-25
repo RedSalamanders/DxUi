@@ -2,6 +2,17 @@
 
 ## Progress checklist
 
+- [x] P10 integration: push and merge PR #100 as `dc67aed6` at the owner's explicit request; its tree exactly matches qualified documentation head `9a642c52`. This is implementation integration, not performance-policy or product acceptance.
+- [x] P10 CI checkpoint: workflow `40187599911` passes static/tooling checks and x64 Debug/Release; at 11:46 UTC, remaining native profiles and paired collection are still pending. Earlier six-profile runtime evidence remains tied to `594d67fb` / compiled merge `8c78b5ad`.
+- [x] P10 later native checkpoint: the same workflow subsequently passes all six native jobs, including ARM64 and ASan. Paired collection is still running at 12:31 UTC; this checkpoint covers merged implementation `9a642c52`, not the new timer diagnostic.
+- [x] P10 control investigation checkpoint: retain the per-metric/control, chronology, timer and memory analysis for the hosted packets and separate timer cohort. The [current 9a control replay](../../../../Measurements/RedTildeCompletion_2026-10-24/controls-investigation-20261025/hosted-9a-final/README.md) and earlier `594d67fb` investigation remain distinct evidence; neither qualifies controls or policy.
+- [x] P10 control replay checkpoint: independently match the 9a packet's 144 raw hashes, 1,872 metric observations and all 72 statuses; publish the [9a projection](../../../../Measurements/RedTildeCompletion_2026-10-24/controls-investigation-20261025/hosted-9a-final/control-summary.md). It reports 71/72 unstable controls and 248 breaches. The earlier `594d67fb` packet reports 69/72 and 307 breaches. These are different commits and must not be pooled. The b4 four-process timer diagnostic separately passes its 512-row/schedule and six CLI checks.
+- [ ] P10 repair/qualification: verify any source or diagnostic fix with the required regressions and fixed matched-harness comparisons, preserving exact budgets, every raw receipt and the unqualified measured-base policy.
+- [x] P10 repeated-work baseline: the retained pre-repair Release executable passes its focused non-activating case and reports 1,792 focus-resolution visits for 128 interested label changes. A narrow content-only coalescing patch is implemented with dirty-revision, synchronous general-focus, stale-path and text/toggle-query checks. The source-bound local x64 suite matrix and ARM64 cross-builds pass at `1714f8b0`; hosted native qualification is recorded separately below. Performance policy and product acceptance remain open.
+- [x] P10 common-fixture counterfactual: the same final test source fails against actual PR #101-base production at 1,820 visits and passes against `1714f8b0` at 14. This is the comparable repeated-work result; the earlier 1,792 count uses the earlier fixture. The public [1714 local qualification packet](../../../../Measurements/RedTildeCompletion_2026-10-24/local-qualification-1714f8b0/README.md) records all 57 ordinary x64 suite receipts and all 15 ARM64 cross-build artifact hashes with source and attestation bindings. Neither operation counts nor cross-builds substitute for whole-feature performance or native ARM64 runtime qualification.
+- [x] P10 later CI checkpoint: workflow `40187599911` finishes all six native jobs successfully, collects its paired packet, then fails verdict publication and `ci-gate` with an unqualified base policy. The independent new-packet replay finds 71/72 unstable controls and 248/1,872 breached observations; this packet is separate from `594d67fb` and does not qualify the policy.
+- [x] P10 final hosted checkpoint: workflow `40197354712` finishes all six native jobs, all static/tooling jobs and the ARM64 ASan consumer checks successfully. Paired collection finishes, but verdict publication and `ci-gate` fail solely because the base policy is not independently qualified. The [new source-bound packet](../../../../Measurements/RedTildeCompletion_2026-10-24/controls-investigation-20261025/hosted-1714-final/README.md) retains 144 receipts, 72 unstable controls, 384/1,872 breached observations and all 78 metric rows. This supersedes the earlier in-progress CI snapshot; controls, observer qualification and policy acceptance remain open.
+- [ ] P10 handoff: synchronize domain contracts and changelog, review current hashes, push/merge reviewed follow-up and retain the consumer's hosted ARM64 gate if billing remains blocked.
 - [x] Inspect current main, consumer pin, existing audit ownership and primary reference projects.
 - [x] Independently re-read the source locations admitted below; distinguish current defects from old findings.
 - [x] Route library work to existing W/T/C rows and consumer execution to one coordinator.
@@ -349,6 +360,35 @@ existing contracts. The coordinator gives the current RedTilde commands and fina
 No interactive suite runs without the applicable agreement to time and the governed restoring lease. Preserve
 still-applicable human authorization; a historical successful run alone is not present scheduling agreement.
 No runtime, gallery, platform or performance claim is established by this plan's static validation.
+
+### Current source and evidence closeout — 25 October
+
+The content-only accessibility mutation change is at source revision `1714f8b0c0fa628bcef56de76078f85c869fc50c`.
+The local x64 Debug, Release and ASan Debug profiles each pass all 19 ordinary suites. ARM64 Debug, Release and
+ASan Debug cross-builds pass; these are not native ARM64 execution. The hosted Debug and Release ARM64 profiles
+pass. The [public local qualification packet](../../../../Measurements/RedTildeCompletion_2026-10-24/local-qualification-1714f8b0/README.md)
+records all 57 x64 suite/executable matches, their current executable/build-attestation digests, and all 15 ARM64
+cross-build artifact hashes and PE architectures. Hosted CI run `40197354712` targets this source: all six Full
+native steps pass. The [completed hosted packet](../../../../Measurements/RedTildeCompletion_2026-10-24/controls-investigation-20261025/hosted-1714-final/README.md)
+supersedes its earlier in-progress snapshot: all six native jobs and consumer checks pass, including the ARM64 ASan
+annotations-disabled consumer. The paired verdict remains inconclusive because the base policy is unqualified.
+Independent replay retains 72/72 unstable controls, 384/1,872 breached observations, 30/78 metric keys held in all
+controls and no key breached in all controls. The observer records shared-host activity and coverage gaps; it does
+not establish a quiet host or isolate one cause. No threshold, fixture or baseline change is accepted from these
+observations. Interactive qualification remains open.
+
+The separately retained [9a hosted control replay](../../../../Measurements/RedTildeCompletion_2026-10-24/controls-investigation-20261025/hosted-9a-final/README.md)
+is inconclusive because the base policy requires review; its 71/72 unstable controls and 248/1,872 breaches do not
+qualify the policy or establish quiet-host performance. The older `594d67fb` packet's 69/72 result is a different
+commit and remains separate. The independently audited [1714 timer-floor aggregate](../../../../Measurements/RedTildeCompletion_2026-10-24/controls-investigation-20261025/clean-prepare-timer-1714f8b0-public-summary.json)
+contains 512 rows, four raw report hashes, six passing CLI contract checks, recomputed group totals, and four
+manifest-verified frozen artifacts. It retains the empty-loop reference separately and makes no latency, acceptance,
+quiet-host, or cross-cohort pooling claim.
+
+The earlier b4 timer executable SHA was checked before and after its diagnostic interval, but the executable itself
+was not archived before the later rebuild. The current 1714 frozen artifact packet does not repair that b4 custody
+gap; the two diagnostics and their evidence chains remain separate. The performance-policy, consumer, and interactive
+gates remain open.
 
 Stop a slice on mismatched source, an unproved bug, an unplanned public ABI change, unsupported font/license/
 resource assumptions, incompatible baselines or repeat verification failure. Do not weaken tests/rebaseline to

@@ -79,6 +79,7 @@
   "Tests/Controls/DxUi.Tests.WindowHost.cpp",
   "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h",
   "Tests/Embedded/Embedded.Tests.BenchmarkMain.h",
+  "Tests/Embedded/Embedded.Tests.CleanPrepareTimerDiagnostic.h",
   "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h",
   "Tests/Embedded/Embedded.Tests.ComplexUiBoundaries.h",
   "Tests/Embedded/Embedded.Tests.ComplexUiProfiling.h",
