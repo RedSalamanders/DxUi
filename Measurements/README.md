@@ -10,6 +10,8 @@
   each passes all six native x64/ARM64 profiles. The compiled source identities and archives stay separate;
   the PR's paired benchmark was still running at capture.
 
+- [Final hosted 2fed paired comparison, 25 October](RedTildeCompletion_2026-10-24/controls-investigation-20261025/hosted-2fed-final/README.md): the PR #102 run later completed with zero reported regressions, but verdict publication and ci-gate failed because the base policy remains unqualified. Independent replay matched all 144 receipts, 936 paired effects and 78 metric rows; controls are 71/72 unstable (260/1,872 observations crossed bands). This is separate from the native snapshot that recorded the paired job pending at capture.
+
 - [Historical CD35 actual-base comparison](RedTildeCompletion_2026-10-24/controls-investigation-20261025/hosted-cd35-paired/README.md):
   144 receipts and all 78 metric rows are replayed. Zero reported regressions coexist with 69/72 unstable
   controls and an inconclusive policy verdict; this does not qualify the current 2fed changes.

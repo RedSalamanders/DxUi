@@ -1,6 +1,6 @@
 # RichText audit: defects, simplification and Markdown/math/Mermaid completion
 
-Status: IMPLEMENTING. Current SDK qualification evidence is recorded in the linked 24 October continuation; it does not close the RichText implementation audit, D4c performance HOLD, physical IME/AT, or product acceptance. The continuation records the current 2fed local and hosted native evidence, its pending paired benchmark, and the still-unexplained earlier ARM64 Debug Menu failure. The original audit and planning baseline is retained below. The bounded math, flowchart,
+Status: IMPLEMENTING. Current SDK qualification evidence is recorded in the linked 24 October continuation; it does not close the RichText implementation audit, D4c performance HOLD, physical IME/AT, or product acceptance. The continuation records the current 2fed local and hosted native evidence, the final inconclusive paired result under an unqualified base policy, and the still-unexplained earlier ARM64 Debug Menu failure. The original audit and planning baseline is retained below. The bounded math, flowchart,
 state and class corrections are implemented in the [24 October continuation](RichTextAudit_2026-10-21/RedTildeCompletion_2026-10-24.md).
 Their final-source qualification, performance and consumer handoff remain open; the full language roadmap is separate.
 Owner request (2026-10-21): review all RichText code in DxUi for bugs and architectural simplification, use
@@ -18,6 +18,8 @@ of [the rich-text editor plan](RichTextEditor_2026-10-17.md): its M5/M6 mileston
 physical IME/AT, native ARM64 and consumer gates stay there. [File drag-and-drop](RichTextFileDrop_2026-10-20.md)
 stays separate. Where an item here completes a parent milestone (for example M5c math or M5e.2b inline objects),
 close it in the parent plan in the same change.
+
+Current performance checkpoint (25 October): PR #102 paired collection completed with zero provider-reported regressions, but verdict publication and ci-gate failed because the base policy is not independently qualified. Independent replay matched 144 receipts, 936 effects and 78 rows; 71/72 controls are unstable (260/1,872 observations crossed bands). The result is inconclusive and does not close D4c or product acceptance. See the [final hosted packet](../../../Measurements/RedTildeCompletion_2026-10-24/controls-investigation-20261025/hosted-2fed-final/README.md). Earlier cohort results remain separate.
 
 Appendices:
 
