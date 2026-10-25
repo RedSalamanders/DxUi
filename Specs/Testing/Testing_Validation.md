@@ -1,7 +1,7 @@
 # Validation and evidence
 
 Status: normative intended contract
-Last reviewed: 2026-10-24
+Last reviewed: 2026-10-25
 
 Native staged-TSF reconciliation tests count the current generation-tagged production dispatch separately from
 the rest of the HWND queue. A general pump can also deliver an independent geometry change, whose layout
@@ -60,6 +60,13 @@ can arrive later. Diagnostic callback times/sequence numbers MUST remain outside
 deduplication. The Grid unchanged-selection regression records both provider emission attempts and client arrivals,
 retains the original empty-event assertion, and freezes failure snapshots before diagnostic tree queries pump more
 messages. A passing rerun alone does not attribute or erase an earlier intermittent failure.
+
+The embedded Tree badge regression deliberately holds property delivery across several publications to test
+per-item coalescing and removed-ID pruning. After releasing that artificial gate, its four expected first/final
+notifications use the existing 20-second UIA client request allowance. Log elapsed time on slow arrival or timeout;
+retain every identity, coalescing, superseded-value and stale-ID assertion and the runner watchdog. The preceding
+ordinary status-only wait retains its 3-second notification deadline. This bounded held-batch test budget changes
+no product notification SLA, focus-event deadline or performance acceptance rule. Preserve earlier failed runs.
 
 The native IME undo-grouping fixture MUST restore its initial text and undo history after successful attempt
 admission and before `SetFocusControl`. A direct edit can survive foreground loss; focusing the same editor does

@@ -1,5 +1,6 @@
 # Independent DxUi measurements
 
+- [SDK baff43d8 hosted actual-base comparison, 2026-10-25](RedTildeCompletion_2026-10-24/sdk-baff43d8/README.md): all 78 metric rows and independent numeric/integrity replays are retained. The paired study reports zero regressions, but 71/72 same-side controls are unstable and the acceptance policy remains unqualified; the hosted ASan Embedded timeout is a separate open gate.
 - [SDK cfe875fd paired studies, 2026-10-24](RedTildeCompletion_2026-10-24/sdk-cfe875fd/README.md): two separate DxUi benchmark studies, local same-build AA and hosted actual-base comparison, with all 156 metric rows and independent numeric audits. Both remain review-required and unqualified; AA side controls are unstable 24/24 per scenario and do not qualify a noise floor, while hosted controls are unstable 23/24, 23/24, and 22/24. The hosted baseline sourceDirty limitation is explicit.
 
 

@@ -14,6 +14,11 @@
 - [ ] W3: measure and qualify semantic reuse; keep W4/W5 consolidation conditional on evidence.
 - [ ] Close library gates and exact consumer handoff with current-source evidence; do not close parent HOLDs by inference.
 - [x] Late focused checks: pass both Tree status/prepared-row Debug cases, the injected math Debug case and full Embedded suite, and the Label retirement case under x64 ASan Debug; final matrix and counterfactuals remain open.
+- [x] baff43d8 final local SDK x64 matrix: all 19 ordinary suites pass with zero skips in Debug, Release and ASan Debug; the real ASan detection probe passes.
+- [x] baff43d8 ARM64 cross-builds: Debug, Release and ASan Debug build successfully; this is not native ARM64 execution.
+- [x] baff43d8 late counterfactuals and Tree regressions: six source-bound counterfactual variants and the late Tree cases complete; their evidence remains distinct from whole-source acceptance.
+- [x] baff43d8 hosted paired evidence: publish all 78 independently replayed rows and source bindings; zero regressions do not qualify the unqualified base policy or unstable controls.
+- [ ] baff43d8 hosted ASan Embedded gate: two gated batches hit the 3-second ItemStatus notification timeout, with no sanitizer memory report. The bounded test-only wait adjustment to the existing 20-second request allowance is patched; fresh local and hosted validation remain pending.
 
 Status: **IMPLEMENTING; final profile and performance qualification remain open**. This appendix updates evidence
 and sequencing for the [existing audit](../RichTextAudit_2026-10-21.md); its implementation work-item IDs remain
@@ -21,6 +26,15 @@ authoritative. The separate RedTilde repository's `Specs/Plans/WIP/RedesignCompl
 contains the cross-repository sequence, compatibility test matrices, reviewed commands and closeout conditions.
 This appendix adds no second defect backlog or independent acceptance policy.
 
+### Late SDK checkpoint — baff43d8 (25 October)
+
+The final local SDK x64 matrix at `baff43d8` passes all 19 ordinary suites with zero skips in Debug, Release and ASan Debug; the real ASan detection probe passes. ARM64 Debug, Release and ASan Debug cross-builds pass, but do not establish native ARM64 execution. Six source-bound late counterfactual variants and the late Tree regression cases are complete; those focused results do not replace whole-source qualification.
+
+Hosted workflow `40154492633` binds PR #100 head `baff43d8` and actual base `b06f534b`. Four ordinary native jobs pass. Two ASan Embedded gated batches time out on the existing 3-second ItemStatus notification wait; no sanitizer memory report was produced. A bounded test-only correction now uses the existing 20-second request allowance for the gated notification batch and preserves the normal 3-second wait and semantics. Fresh local execution and a new hosted run are pending, so the hosted gate remains open. The corrected Embedded test will have a distinct future executable; it does not change the measured production source.
+
+The hosted benchmark still binds production source fingerprint `F423000D1AD799EDBAA3EE17B121480C5AE567CC75E2BCE2AF0D783AC7AB26F1` and the same six workload inputs. The canonical [SDK baff43d8 hosted packet](../../../../Measurements/RedTildeCompletion_2026-10-24/sdk-baff43d8/README.md) retains all 78 paired rows and independent numeric/integrity replays. It reports zero regressions, but 71/72 same-side controls are unstable and the base policy is unqualified; no performance acceptance is claimed. The baseline has a clean fingerprint match from prior verification but is marked dirty with three known harness overlays and no complete dirty-path inventory.
+
+This owner-selected work remains limited to the bounded current profiles. Broader compatibility families and full font assemblies are deferred. Physical/foreground input, native ARM64 execution and consumer integration gates remain open; no full-parity, release or repository-wide acceptance claim follows from this checkpoint.
 ### Frozen-source checkpoint — 25 October
 
 DxUi `cfe875fd815b0a39336100df9bde8f29ea2f0aa0` and RedTilde `fd24623a9f27d04b85deb27a43a9af724dc030ca`

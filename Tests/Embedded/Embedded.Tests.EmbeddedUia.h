@@ -511,15 +511,21 @@ __declspec(noinline) static void TestEmbeddedTreeBadgeStatusNotificationsArePerI
     SetEvent(release.get());
     DxUi::DebugSetAccessibilityPropertyDeliveryGateForTest(nullptr, nullptr, nullptr);
     clearGate.release();
-    walk.Expect(walk.client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs,
-                                      [&]
+    // The artificial gate holds several publications; sanitized runners may need the client request allowance to drain them.
+    // The ordinary status-only notification above retains its shorter deadline.
+    const ULONGLONG batchStarted = GetTickCount64();
+    const bool batchArrived      = walk.client.WaitUntil(UiaTest::Client::kRequestAllowanceMs,
+                                                         [&]
     {
         return walk.client.Count([&](const UiaTest::HeardEvent& event) { return matchesStatus(event, L"Alpha", L"A-first"); }) != 0u &&
                walk.client.Count([&](const UiaTest::HeardEvent& event) { return matchesStatus(event, L"Beta", L"B-first"); }) != 0u &&
                walk.client.Count([&](const UiaTest::HeardEvent& event) { return matchesStatus(event, L"Alpha", L"A-final"); }) != 0u &&
                walk.client.Count([&](const UiaTest::HeardEvent& event) { return matchesStatus(event, L"Beta", L"B-final"); }) != 0u;
-    }),
-                "the client receives each distinct first status and both coalesced final statuses before the notification deadline");
+    });
+    const ULONGLONG batchWaited  = GetTickCount64() - batchStarted;
+    if (! batchArrived || batchWaited >= UiaTest::Client::kSlowArrivalMs)
+        std::cerr << "    [UIA] held TreeItem status batch " << (batchArrived ? "arrived" : "timed out") << " after " << batchWaited << " ms\n";
+    walk.Expect(batchArrived, "the client receives each distinct first status and both coalesced final statuses within the held-batch allowance");
     static_cast<void>(walk.client.WaitOutTheStream());
     const auto events      = walk.client.DistinctSince(mark);
     const auto countStatus = [&](std::wstring_view name, std::wstring_view value)
