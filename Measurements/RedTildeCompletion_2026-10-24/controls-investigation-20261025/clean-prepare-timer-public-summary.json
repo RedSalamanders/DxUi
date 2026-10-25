@@ -1,0 +1,481 @@
+{
+  "schema": "dxui-clean-prepare-timer-public-summary-v1",
+  "study": {
+    "diagnosticId": "dxui-clean-prepare-timer-v1",
+    "fixtureId": "dxui-complex-ui-v2",
+    "processCount": 4,
+    "batchSizes": [
+      1,
+      8,
+      64,
+      512
+    ],
+    "repetitionsPerSize": 16,
+    "qpcTickNanoseconds": 100,
+    "callsPerKindPerProcess": 9360,
+    "reference": "separate empty-loop reference; never subtracted",
+    "isolatedMethodLatency": false
+  },
+  "integrity": {
+    "sampleRowsAudited": 512,
+    "uniqueSizeRepetitionKindTuples": 512,
+    "receiptSha256Verified": 4,
+    "normalizationAndScheduleChecksPassed": true,
+    "functionalCliCasesPassed": 6,
+    "oraclePassed": true,
+    "preExistingReportUnchanged": true
+  },
+  "timingDistributions": [
+    {
+      "batchSize": 1,
+      "kind": "prepare",
+      "sampleCount": 64,
+      "callCount": 64,
+      "elapsedTicksTotal": 28,
+      "perCallTicks": {
+        "min": 0,
+        "p25": 0.0,
+        "median": 0.0,
+        "p75": 1.0,
+        "p95": 1.0,
+        "max": 3
+      },
+      "elapsedTicks": {
+        "min": 0,
+        "p25": 0.0,
+        "median": 0.0,
+        "p75": 1.0,
+        "p95": 1.0,
+        "max": 3
+      },
+      "processes": [
+        {
+          "ordinal": 1,
+          "seed": 20261025,
+          "sampleCount": 16,
+          "calls": 16,
+          "elapsedTicks": 6
+        },
+        {
+          "ordinal": 2,
+          "seed": 20261026,
+          "sampleCount": 16,
+          "calls": 16,
+          "elapsedTicks": 10
+        },
+        {
+          "ordinal": 3,
+          "seed": 20261027,
+          "sampleCount": 16,
+          "calls": 16,
+          "elapsedTicks": 7
+        },
+        {
+          "ordinal": 4,
+          "seed": 20261028,
+          "sampleCount": 16,
+          "calls": 16,
+          "elapsedTicks": 5
+        }
+      ]
+    },
+    {
+      "batchSize": 1,
+      "kind": "emptyLoop",
+      "sampleCount": 64,
+      "callCount": 64,
+      "elapsedTicksTotal": 17,
+      "perCallTicks": {
+        "min": 0,
+        "p25": 0.0,
+        "median": 0.0,
+        "p75": 1.0,
+        "p95": 1.0,
+        "max": 1
+      },
+      "elapsedTicks": {
+        "min": 0,
+        "p25": 0.0,
+        "median": 0.0,
+        "p75": 1.0,
+        "p95": 1.0,
+        "max": 1
+      },
+      "processes": [
+        {
+          "ordinal": 1,
+          "seed": 20261025,
+          "sampleCount": 16,
+          "calls": 16,
+          "elapsedTicks": 3
+        },
+        {
+          "ordinal": 2,
+          "seed": 20261026,
+          "sampleCount": 16,
+          "calls": 16,
+          "elapsedTicks": 5
+        },
+        {
+          "ordinal": 3,
+          "seed": 20261027,
+          "sampleCount": 16,
+          "calls": 16,
+          "elapsedTicks": 4
+        },
+        {
+          "ordinal": 4,
+          "seed": 20261028,
+          "sampleCount": 16,
+          "calls": 16,
+          "elapsedTicks": 5
+        }
+      ]
+    },
+    {
+      "batchSize": 8,
+      "kind": "prepare",
+      "sampleCount": 64,
+      "callCount": 512,
+      "elapsedTicksTotal": 116,
+      "perCallTicks": {
+        "min": 0.125,
+        "p25": 0.125,
+        "median": 0.25,
+        "p75": 0.25,
+        "p95": 0.4812499999999993,
+        "max": 0.5
+      },
+      "elapsedTicks": {
+        "min": 1,
+        "p25": 1.0,
+        "median": 2.0,
+        "p75": 2.0,
+        "p95": 3.8499999999999943,
+        "max": 4
+      },
+      "processes": [
+        {
+          "ordinal": 1,
+          "seed": 20261025,
+          "sampleCount": 16,
+          "calls": 128,
+          "elapsedTicks": 24
+        },
+        {
+          "ordinal": 2,
+          "seed": 20261026,
+          "sampleCount": 16,
+          "calls": 128,
+          "elapsedTicks": 31
+        },
+        {
+          "ordinal": 3,
+          "seed": 20261027,
+          "sampleCount": 16,
+          "calls": 128,
+          "elapsedTicks": 31
+        },
+        {
+          "ordinal": 4,
+          "seed": 20261028,
+          "sampleCount": 16,
+          "calls": 128,
+          "elapsedTicks": 30
+        }
+      ]
+    },
+    {
+      "batchSize": 8,
+      "kind": "emptyLoop",
+      "sampleCount": 64,
+      "callCount": 512,
+      "elapsedTicksTotal": 20,
+      "perCallTicks": {
+        "min": 0,
+        "p25": 0.0,
+        "median": 0.0,
+        "p75": 0.125,
+        "p95": 0.125,
+        "max": 0.375
+      },
+      "elapsedTicks": {
+        "min": 0,
+        "p25": 0.0,
+        "median": 0.0,
+        "p75": 1.0,
+        "p95": 1.0,
+        "max": 3
+      },
+      "processes": [
+        {
+          "ordinal": 1,
+          "seed": 20261025,
+          "sampleCount": 16,
+          "calls": 128,
+          "elapsedTicks": 3
+        },
+        {
+          "ordinal": 2,
+          "seed": 20261026,
+          "sampleCount": 16,
+          "calls": 128,
+          "elapsedTicks": 5
+        },
+        {
+          "ordinal": 3,
+          "seed": 20261027,
+          "sampleCount": 16,
+          "calls": 128,
+          "elapsedTicks": 6
+        },
+        {
+          "ordinal": 4,
+          "seed": 20261028,
+          "sampleCount": 16,
+          "calls": 128,
+          "elapsedTicks": 6
+        }
+      ]
+    },
+    {
+      "batchSize": 64,
+      "kind": "prepare",
+      "sampleCount": 64,
+      "callCount": 4096,
+      "elapsedTicksTotal": 751,
+      "perCallTicks": {
+        "min": 0.171875,
+        "p25": 0.171875,
+        "median": 0.171875,
+        "p75": 0.1875,
+        "p95": 0.24296874999999973,
+        "max": 0.28125
+      },
+      "elapsedTicks": {
+        "min": 11,
+        "p25": 11.0,
+        "median": 11.0,
+        "p75": 12.0,
+        "p95": 15.549999999999983,
+        "max": 18
+      },
+      "processes": [
+        {
+          "ordinal": 1,
+          "seed": 20261025,
+          "sampleCount": 16,
+          "calls": 1024,
+          "elapsedTicks": 176
+        },
+        {
+          "ordinal": 2,
+          "seed": 20261026,
+          "sampleCount": 16,
+          "calls": 1024,
+          "elapsedTicks": 203
+        },
+        {
+          "ordinal": 3,
+          "seed": 20261027,
+          "sampleCount": 16,
+          "calls": 1024,
+          "elapsedTicks": 188
+        },
+        {
+          "ordinal": 4,
+          "seed": 20261028,
+          "sampleCount": 16,
+          "calls": 1024,
+          "elapsedTicks": 184
+        }
+      ]
+    },
+    {
+      "batchSize": 64,
+      "kind": "emptyLoop",
+      "sampleCount": 64,
+      "callCount": 4096,
+      "elapsedTicksTotal": 36,
+      "perCallTicks": {
+        "min": 0,
+        "p25": 0.0,
+        "median": 0.015625,
+        "p75": 0.015625,
+        "p95": 0.015625,
+        "max": 0.046875
+      },
+      "elapsedTicks": {
+        "min": 0,
+        "p25": 0.0,
+        "median": 1.0,
+        "p75": 1.0,
+        "p95": 1.0,
+        "max": 3
+      },
+      "processes": [
+        {
+          "ordinal": 1,
+          "seed": 20261025,
+          "sampleCount": 16,
+          "calls": 1024,
+          "elapsedTicks": 10
+        },
+        {
+          "ordinal": 2,
+          "seed": 20261026,
+          "sampleCount": 16,
+          "calls": 1024,
+          "elapsedTicks": 13
+        },
+        {
+          "ordinal": 3,
+          "seed": 20261027,
+          "sampleCount": 16,
+          "calls": 1024,
+          "elapsedTicks": 8
+        },
+        {
+          "ordinal": 4,
+          "seed": 20261028,
+          "sampleCount": 16,
+          "calls": 1024,
+          "elapsedTicks": 5
+        }
+      ]
+    },
+    {
+      "batchSize": 512,
+      "kind": "prepare",
+      "sampleCount": 64,
+      "callCount": 32768,
+      "elapsedTicksTotal": 5828,
+      "perCallTicks": {
+        "min": 0.16796875,
+        "p25": 0.169921875,
+        "median": 0.17578125,
+        "p75": 0.177734375,
+        "p95": 0.19892578125,
+        "max": 0.236328125
+      },
+      "elapsedTicks": {
+        "min": 86,
+        "p25": 87.0,
+        "median": 90.0,
+        "p75": 91.0,
+        "p95": 101.85,
+        "max": 121
+      },
+      "processes": [
+        {
+          "ordinal": 1,
+          "seed": 20261025,
+          "sampleCount": 16,
+          "calls": 8192,
+          "elapsedTicks": 1385
+        },
+        {
+          "ordinal": 2,
+          "seed": 20261026,
+          "sampleCount": 16,
+          "calls": 8192,
+          "elapsedTicks": 1535
+        },
+        {
+          "ordinal": 3,
+          "seed": 20261027,
+          "sampleCount": 16,
+          "calls": 8192,
+          "elapsedTicks": 1462
+        },
+        {
+          "ordinal": 4,
+          "seed": 20261028,
+          "sampleCount": 16,
+          "calls": 8192,
+          "elapsedTicks": 1446
+        }
+      ]
+    },
+    {
+      "batchSize": 512,
+      "kind": "emptyLoop",
+      "sampleCount": 64,
+      "callCount": 32768,
+      "elapsedTicksTotal": 94,
+      "perCallTicks": {
+        "min": 0.001953125,
+        "p25": 0.001953125,
+        "median": 0.001953125,
+        "p75": 0.00390625,
+        "p95": 0.00390625,
+        "max": 0.005859375
+      },
+      "elapsedTicks": {
+        "min": 1,
+        "p25": 1.0,
+        "median": 1.0,
+        "p75": 2.0,
+        "p95": 2.0,
+        "max": 3
+      },
+      "processes": [
+        {
+          "ordinal": 1,
+          "seed": 20261025,
+          "sampleCount": 16,
+          "calls": 8192,
+          "elapsedTicks": 22
+        },
+        {
+          "ordinal": 2,
+          "seed": 20261026,
+          "sampleCount": 16,
+          "calls": 8192,
+          "elapsedTicks": 21
+        },
+        {
+          "ordinal": 3,
+          "seed": 20261027,
+          "sampleCount": 16,
+          "calls": 8192,
+          "elapsedTicks": 25
+        },
+        {
+          "ordinal": 4,
+          "seed": 20261028,
+          "sampleCount": 16,
+          "calls": 8192,
+          "elapsedTicks": 26
+        }
+      ]
+    }
+  ],
+  "invariants": {
+    "prepareCalls": 37440,
+    "emptyLoopCalls": 37440,
+    "preparationAndCompositionCountersUnchanged": true,
+    "reportedStateFieldsUnchanged": true,
+    "perProcessPreparationFirstBalance": "8 true / 8 false for each batch size",
+    "perProcessGroupPositionBalance": "8 observations at each of four positions for each batch size"
+  },
+  "limits": [
+    "Each QPC bracket includes loop bookkeeping and HRESULT checks; per-call bracket averages are not isolated Prepare latency.",
+    "The four processes form one diagnostic cohort, not a stable distribution or performance acceptance result.",
+    "SDK/tooling validation was still running; no build was concurrent with the cohort.",
+    "No host quietness, observer-overhead, or canonical performance-acceptance claim is made."
+  ],
+  "timingDistributionsMethod": "Per-call and elapsed bracket percentiles use linear interpolation at index (n-1)*q over sorted observations.",
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-complex-ui-v2",
+  "sourceCommit": "b4b28b4de3b5e83995f90048e40f01df9495288a",
+  "executableSha256": "66EAD642341F5A9DF8B6EC5A91FE56EE0B072DBBEDFAFB3A9A411C72CBA5720F",
+  "benchmarkInputs": {
+    "Tests/Embedded/Embedded.Tests.CleanPrepareTimerDiagnostic.h": "85E334577C0890D59CB954E2416FC8AF7FA8CE17DC1DC0AD7609BBE414AA470C",
+    "Tests/Embedded/Embedded.Tests.Embedded.cpp": "0163728C013B226102AF82AA82C3F28C2E782F29D88EB18E67C49AB584620BD0",
+    "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+    "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+  }
+}

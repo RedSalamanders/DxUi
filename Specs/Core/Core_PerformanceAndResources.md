@@ -775,6 +775,9 @@ selection state. These consistency fingerprints do not establish every control's
 The native `--test-clean-prepare-timer-oracle` checks the call/tick normalization and real prepared-scene invariants;
 unknown argument counts fail before functional suites, and reports refuse to overwrite existing evidence. A
 batched diagnostic does not replace the canonical clean preparation p95, same-side controls or policy review.
+The bracket includes HRESULT and loop bookkeeping; normalized values are bracket averages, not isolated method
+latency. The [control investigation](../../Measurements/RedTildeCompletion_2026-10-24/controls-investigation-20261025/README.md)
+retains aggregate replay and diagnostic limits. Internal assertions cover more state than the serialized subset.
 
 Steady-state hot paths use bounded reusable storage; cache derived state and batch compatible work. Never allocate,
 shape text, create targets, traverse layout, do I/O, block or read back in clean composition. Coalesce dirty state and
