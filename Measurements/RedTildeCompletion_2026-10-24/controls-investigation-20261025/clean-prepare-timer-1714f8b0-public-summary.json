@@ -1,0 +1,528 @@
+{
+  "schema": "dxui-clean-prepare-timer-public-v2",
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-complex-ui-v2",
+  "study": {
+    "diagnosticId": "dxui-clean-prepare-timer-v1",
+    "workloadOwner": "DxUi",
+    "fixture": "dxui-complex-ui-v2",
+    "scene": "ComplexUiScene Default",
+    "graphics": "WARP",
+    "width": 1280,
+    "height": 720,
+    "processCount": 4,
+    "seeds": [
+      20261025,
+      20261026,
+      20261027,
+      20261028
+    ],
+    "batchSizes": [
+      1,
+      8,
+      64,
+      512
+    ],
+    "repetitionsPerSize": 16,
+    "qpcFrequency": 10000000,
+    "qpcTickNanoseconds": 100,
+    "reference": "separate empty-loop reference; never subtracted",
+    "isolatedMethodLatency": false,
+    "measurement": "one QPC bracket per loop including HRESULT checks and bookkeeping"
+  },
+  "identity": {
+    "sourceCommit": "1714f8b0c0fa628bcef56de76078f85c869fc50c",
+    "executableSha256": "61A8035A3B52430DF277E41E79CA1EAFBC17C4D7E202CE10A5D80CF35835C264",
+    "frozenArtifactManifestVerified": true,
+    "artifacts": [
+      {
+        "file": "DxUi.EmbeddedTests.exe",
+        "sha256": "61A8035A3B52430DF277E41E79CA1EAFBC17C4D7E202CE10A5D80CF35835C264",
+        "length": 6879744
+      },
+      {
+        "file": "DxUi.EmbeddedTests.pdb",
+        "sha256": "E538FDC611F2F655560FC898134F04AB2A686490DD4EF07D14E1474EF8108448",
+        "length": 40628224
+      },
+      {
+        "file": "DxUi.lib",
+        "sha256": "31762B68C388DAF8EE42C86B72D6E04F7ADB1D7750EA78643CA61CDC268D3E05",
+        "length": 59451026
+      },
+      {
+        "file": "DxUi.pdb",
+        "sha256": "29608A64C0831711A1F7F638E0D6CBC1EEFB28BA6E4E581F982B6AA978DC03C6",
+        "length": 11464704
+      }
+    ],
+    "buildAttestation": {
+      "outcome": "PASSED",
+      "identity": "d6447c65ff75f6ef9d85a8e8f1550c3e6af457dbfe5b39dbc9a2dbbff68a4314",
+      "digest": "93addaa1746201b698616e2f355de1bcc889169814a3c24a2c2b8076ce499490"
+    }
+  },
+  "benchmarkInputs": {
+    "Tests/Embedded/Embedded.Tests.CleanPrepareTimerDiagnostic.h": "85E334577C0890D59CB954E2416FC8AF7FA8CE17DC1DC0AD7609BBE414AA470C",
+    "Tests/Embedded/Embedded.Tests.Embedded.cpp": "0163728C013B226102AF82AA82C3F28C2E782F29D88EB18E67C49AB584620BD0",
+    "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+    "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+  },
+  "integrity": {
+    "sampleRowsAudited": 512,
+    "rowsPerSeed": 128,
+    "seedReportHashesVerified": 4,
+    "scheduleAndPairingPassed": true,
+    "normalizationPassed": true,
+    "stateAndCounterInvariantsPassed": true,
+    "storedGroupSumsRecomputedAndMatched": true,
+    "functionalCliCasesPassed": 6,
+    "existingReportPreservationPassed": true,
+    "ordinaryEmbeddedOracleReportedPassed": true
+  },
+  "rawReports": [
+    {
+      "seed": 20261025,
+      "sha256": "05085627B6AC9D221EAFCF1459FBE2EF3E61EB3684C788FDDCE5C3F4A9D98AA1",
+      "rows": 128
+    },
+    {
+      "seed": 20261026,
+      "sha256": "14C834F5E6A1AC58C16A831239874B0AF886DECDF6C489A2363CE1EC5F2F9287",
+      "rows": 128
+    },
+    {
+      "seed": 20261027,
+      "sha256": "3A76A8E7FB945F213B9B51B4F6583D4CB66058305F41B7880811B462C7345232",
+      "rows": 128
+    },
+    {
+      "seed": 20261028,
+      "sha256": "6C21760F70744F251DA89B7D95E298B488388BFF4A51A5B03F62ED04FAB90DCC",
+      "rows": 128
+    }
+  ],
+  "groupTotals": [
+    {
+      "batchSize": 1,
+      "kind": "emptyLoop",
+      "sampleCount": 64.0,
+      "calls": 64,
+      "elapsedTicksTotal": 24,
+      "pooledTicksPerCall": 0.375,
+      "pooledNanosecondsPerCall": 0.0
+    },
+    {
+      "batchSize": 1,
+      "kind": "prepare",
+      "sampleCount": 64.0,
+      "calls": 64,
+      "elapsedTicksTotal": 65,
+      "pooledTicksPerCall": 1.015625,
+      "pooledNanosecondsPerCall": 0.0
+    },
+    {
+      "batchSize": 8,
+      "kind": "emptyLoop",
+      "sampleCount": 64.0,
+      "calls": 512,
+      "elapsedTicksTotal": 31,
+      "pooledTicksPerCall": 0.060546875,
+      "pooledNanosecondsPerCall": 0.0
+    },
+    {
+      "batchSize": 8,
+      "kind": "prepare",
+      "sampleCount": 64.0,
+      "calls": 512,
+      "elapsedTicksTotal": 161,
+      "pooledTicksPerCall": 0.314453125,
+      "pooledNanosecondsPerCall": 0.0
+    },
+    {
+      "batchSize": 64,
+      "kind": "emptyLoop",
+      "sampleCount": 64.0,
+      "calls": 4096,
+      "elapsedTicksTotal": 48,
+      "pooledTicksPerCall": 0.01171875,
+      "pooledNanosecondsPerCall": 0.0
+    },
+    {
+      "batchSize": 64,
+      "kind": "prepare",
+      "sampleCount": 64.0,
+      "calls": 4096,
+      "elapsedTicksTotal": 1037,
+      "pooledTicksPerCall": 0.253173828125,
+      "pooledNanosecondsPerCall": 0.0
+    },
+    {
+      "batchSize": 512,
+      "kind": "emptyLoop",
+      "sampleCount": 64.0,
+      "calls": 32768,
+      "elapsedTicksTotal": 128,
+      "pooledTicksPerCall": 0.00390625,
+      "pooledNanosecondsPerCall": 0.0
+    },
+    {
+      "batchSize": 512,
+      "kind": "prepare",
+      "sampleCount": 64.0,
+      "calls": 32768,
+      "elapsedTicksTotal": 7869,
+      "pooledTicksPerCall": 0.240142822265625,
+      "pooledNanosecondsPerCall": 0.0
+    }
+  ],
+  "perSeedGroupSums": [
+    {
+      "seed": 20261025,
+      "batchSize": 1,
+      "kind": "emptyLoop",
+      "sampleCount": 16,
+      "calls": 16,
+      "elapsedTicksTotal": 4,
+      "ticksPerCall": 0.25
+    },
+    {
+      "seed": 20261025,
+      "batchSize": 1,
+      "kind": "prepare",
+      "sampleCount": 16,
+      "calls": 16,
+      "elapsedTicksTotal": 15,
+      "ticksPerCall": 0.9375
+    },
+    {
+      "seed": 20261025,
+      "batchSize": 8,
+      "kind": "emptyLoop",
+      "sampleCount": 16,
+      "calls": 128,
+      "elapsedTicksTotal": 4,
+      "ticksPerCall": 0.03125
+    },
+    {
+      "seed": 20261025,
+      "batchSize": 8,
+      "kind": "prepare",
+      "sampleCount": 16,
+      "calls": 128,
+      "elapsedTicksTotal": 30,
+      "ticksPerCall": 0.234375
+    },
+    {
+      "seed": 20261025,
+      "batchSize": 64,
+      "kind": "emptyLoop",
+      "sampleCount": 16,
+      "calls": 1024,
+      "elapsedTicksTotal": 6,
+      "ticksPerCall": 0.005859375
+    },
+    {
+      "seed": 20261025,
+      "batchSize": 64,
+      "kind": "prepare",
+      "sampleCount": 16,
+      "calls": 1024,
+      "elapsedTicksTotal": 195,
+      "ticksPerCall": 0.1904296875
+    },
+    {
+      "seed": 20261025,
+      "batchSize": 512,
+      "kind": "emptyLoop",
+      "sampleCount": 16,
+      "calls": 8192,
+      "elapsedTicksTotal": 27,
+      "ticksPerCall": 0.0032958984375
+    },
+    {
+      "seed": 20261025,
+      "batchSize": 512,
+      "kind": "prepare",
+      "sampleCount": 16,
+      "calls": 8192,
+      "elapsedTicksTotal": 1525,
+      "ticksPerCall": 0.1861572265625
+    },
+    {
+      "seed": 20261026,
+      "batchSize": 1,
+      "kind": "emptyLoop",
+      "sampleCount": 16,
+      "calls": 16,
+      "elapsedTicksTotal": 6,
+      "ticksPerCall": 0.375
+    },
+    {
+      "seed": 20261026,
+      "batchSize": 1,
+      "kind": "prepare",
+      "sampleCount": 16,
+      "calls": 16,
+      "elapsedTicksTotal": 18,
+      "ticksPerCall": 1.125
+    },
+    {
+      "seed": 20261026,
+      "batchSize": 8,
+      "kind": "emptyLoop",
+      "sampleCount": 16,
+      "calls": 128,
+      "elapsedTicksTotal": 8,
+      "ticksPerCall": 0.0625
+    },
+    {
+      "seed": 20261026,
+      "batchSize": 8,
+      "kind": "prepare",
+      "sampleCount": 16,
+      "calls": 128,
+      "elapsedTicksTotal": 45,
+      "ticksPerCall": 0.3515625
+    },
+    {
+      "seed": 20261026,
+      "batchSize": 64,
+      "kind": "emptyLoop",
+      "sampleCount": 16,
+      "calls": 1024,
+      "elapsedTicksTotal": 10,
+      "ticksPerCall": 0.009765625
+    },
+    {
+      "seed": 20261026,
+      "batchSize": 64,
+      "kind": "prepare",
+      "sampleCount": 16,
+      "calls": 1024,
+      "elapsedTicksTotal": 297,
+      "ticksPerCall": 0.2900390625
+    },
+    {
+      "seed": 20261026,
+      "batchSize": 512,
+      "kind": "emptyLoop",
+      "sampleCount": 16,
+      "calls": 8192,
+      "elapsedTicksTotal": 36,
+      "ticksPerCall": 0.00439453125
+    },
+    {
+      "seed": 20261026,
+      "batchSize": 512,
+      "kind": "prepare",
+      "sampleCount": 16,
+      "calls": 8192,
+      "elapsedTicksTotal": 2374,
+      "ticksPerCall": 0.289794921875
+    },
+    {
+      "seed": 20261027,
+      "batchSize": 1,
+      "kind": "emptyLoop",
+      "sampleCount": 16,
+      "calls": 16,
+      "elapsedTicksTotal": 9,
+      "ticksPerCall": 0.5625
+    },
+    {
+      "seed": 20261027,
+      "batchSize": 1,
+      "kind": "prepare",
+      "sampleCount": 16,
+      "calls": 16,
+      "elapsedTicksTotal": 21,
+      "ticksPerCall": 1.3125
+    },
+    {
+      "seed": 20261027,
+      "batchSize": 8,
+      "kind": "emptyLoop",
+      "sampleCount": 16,
+      "calls": 128,
+      "elapsedTicksTotal": 11,
+      "ticksPerCall": 0.0859375
+    },
+    {
+      "seed": 20261027,
+      "batchSize": 8,
+      "kind": "prepare",
+      "sampleCount": 16,
+      "calls": 128,
+      "elapsedTicksTotal": 49,
+      "ticksPerCall": 0.3828125
+    },
+    {
+      "seed": 20261027,
+      "batchSize": 64,
+      "kind": "emptyLoop",
+      "sampleCount": 16,
+      "calls": 1024,
+      "elapsedTicksTotal": 19,
+      "ticksPerCall": 0.0185546875
+    },
+    {
+      "seed": 20261027,
+      "batchSize": 64,
+      "kind": "prepare",
+      "sampleCount": 16,
+      "calls": 1024,
+      "elapsedTicksTotal": 325,
+      "ticksPerCall": 0.3173828125
+    },
+    {
+      "seed": 20261027,
+      "batchSize": 512,
+      "kind": "emptyLoop",
+      "sampleCount": 16,
+      "calls": 8192,
+      "elapsedTicksTotal": 38,
+      "ticksPerCall": 0.004638671875
+    },
+    {
+      "seed": 20261027,
+      "batchSize": 512,
+      "kind": "prepare",
+      "sampleCount": 16,
+      "calls": 8192,
+      "elapsedTicksTotal": 2225,
+      "ticksPerCall": 0.2716064453125
+    },
+    {
+      "seed": 20261028,
+      "batchSize": 1,
+      "kind": "emptyLoop",
+      "sampleCount": 16,
+      "calls": 16,
+      "elapsedTicksTotal": 5,
+      "ticksPerCall": 0.3125
+    },
+    {
+      "seed": 20261028,
+      "batchSize": 1,
+      "kind": "prepare",
+      "sampleCount": 16,
+      "calls": 16,
+      "elapsedTicksTotal": 11,
+      "ticksPerCall": 0.6875
+    },
+    {
+      "seed": 20261028,
+      "batchSize": 8,
+      "kind": "emptyLoop",
+      "sampleCount": 16,
+      "calls": 128,
+      "elapsedTicksTotal": 8,
+      "ticksPerCall": 0.0625
+    },
+    {
+      "seed": 20261028,
+      "batchSize": 8,
+      "kind": "prepare",
+      "sampleCount": 16,
+      "calls": 128,
+      "elapsedTicksTotal": 37,
+      "ticksPerCall": 0.2890625
+    },
+    {
+      "seed": 20261028,
+      "batchSize": 64,
+      "kind": "emptyLoop",
+      "sampleCount": 16,
+      "calls": 1024,
+      "elapsedTicksTotal": 13,
+      "ticksPerCall": 0.0126953125
+    },
+    {
+      "seed": 20261028,
+      "batchSize": 64,
+      "kind": "prepare",
+      "sampleCount": 16,
+      "calls": 1024,
+      "elapsedTicksTotal": 220,
+      "ticksPerCall": 0.21484375
+    },
+    {
+      "seed": 20261028,
+      "batchSize": 512,
+      "kind": "emptyLoop",
+      "sampleCount": 16,
+      "calls": 8192,
+      "elapsedTicksTotal": 27,
+      "ticksPerCall": 0.0032958984375
+    },
+    {
+      "seed": 20261028,
+      "batchSize": 512,
+      "kind": "prepare",
+      "sampleCount": 16,
+      "calls": 8192,
+      "elapsedTicksTotal": 1745,
+      "ticksPerCall": 0.2130126953125
+    }
+  ],
+  "cliCases": [
+    {
+      "case": "oracle.process.json",
+      "expectedExit": 0,
+      "observedExit": 0,
+      "timedOut": false,
+      "outputTruncated": false,
+      "contractMatched": true
+    },
+    {
+      "case": "missing-args.process.json",
+      "expectedExit": 2,
+      "observedExit": 2,
+      "timedOut": false,
+      "outputTruncated": false,
+      "contractMatched": true
+    },
+    {
+      "case": "existing-report.process.json",
+      "expectedExit": 1,
+      "observedExit": 1,
+      "timedOut": false,
+      "outputTruncated": false,
+      "contractMatched": true
+    },
+    {
+      "case": "negative-seed.process.json",
+      "expectedExit": 1,
+      "observedExit": 1,
+      "timedOut": false,
+      "outputTruncated": false,
+      "contractMatched": true
+    },
+    {
+      "case": "oracle-extra-arg.process.json",
+      "expectedExit": 2,
+      "observedExit": 2,
+      "timedOut": false,
+      "outputTruncated": false,
+      "contractMatched": true
+    },
+    {
+      "case": "overflow-seed.process.json",
+      "expectedExit": 1,
+      "observedExit": 1,
+      "timedOut": false,
+      "outputTruncated": false,
+      "contractMatched": true
+    }
+  ],
+  "limits": [
+    "Timer-floor diagnostic, not canonical performance acceptance.",
+    "Four processes are one diagnostic cohort; do not pool with b4 or any other cohort.",
+    "Host load/quietness and observer overhead are not qualified.",
+    "No native ARM64 execution claim follows from ARM64 cross-build receipts."
+  ],
+  "privacy": "Aggregate only; contains hashes and relative source identifiers, no absolute paths, raw source content, machine names, process identifiers, account data, or per-process receipts."
+}

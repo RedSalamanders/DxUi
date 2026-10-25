@@ -9,7 +9,7 @@ and 72 statuses. Its [aggregate JSON](controls-summary.json) records 69 controls
 307/1,872 breached metric observations. Thirty of 78 metric keys held in every control; none breached every control.
 Temporal trends differ by scenario and do not identify a production defect or a host cause.
 
-The [separate timer diagnostic](clean-prepare-timer-public-summary.json) uses SDK source `b4b28b4d`, the same native
+The [separate b4 timer diagnostic](clean-prepare-timer-public-summary.json) uses SDK source `b4b28b4d`, the same native
 library implementation, four independent default-scene WARP processes, seeds 20261025–20261028, and 16 repetitions
 of each 1/8/64/512-call batch. All 512 rows, schedule positions, counters, reported fixture-state fields and four raw
 hashes were independently checked. Six CLI checks pass, including invalid/overflow seed rejection and preservation
@@ -23,5 +23,18 @@ there was no concurrent build. No quiet-host, observer-overhead or performance-p
 
 The native assertions additionally compare replacement-peak bytes and animation state; the current report omits
 those two fields, so external replay is limited to the serialized subset. Raw reports, owned-child records,
-executables, compiler/build attestations, complete control replay and unsuccessful attempts remain in private
-repository-local build evidence. Published projections omit local paths, host details and per-process identities.
+pre/post executable hash receipts and unsuccessful attempts remain in private repository-local build evidence. The b4 timer
+executable itself was **not archived before the later rebuild**; its recorded hash identifies the binary observed
+before and after the diagnostic but does not provide a retained executable. The separately frozen 1714 executable
+packet does not close that earlier custody gap.
+
+The [1714 timer-floor aggregate](clean-prepare-timer-1714f8b0-public-summary.json) is a distinct later cohort at
+source `1714f8b0`. It independently replays 512 rows and six CLI contracts and verifies the four raw report hashes
+plus the frozen executable and companion artifact hashes. Its JSON records `workloadOwner`, fixture, and benchmark
+input hashes. It is diagnostic only and is not pooled with b4 or treated as performance acceptance.
+
+The [hosted 9a control replay](hosted-9a-final/README.md) is also separate. It reports 71/72 unstable controls and
+248/1,872 breaches, while the earlier `594d67fb` packet above reports 69/72. These packets have different source
+identities. The 9a policy verdict is inconclusive and observer status is not established; neither quiet-host nor
+performance-policy acceptance is claimed. Published projections omit absolute paths, raw source content, machine
+details, account data and per-process identities.
