@@ -1,0 +1,327 @@
+{
+  "asanDetectionProbe": {
+    "detected": true,
+    "expectedProbeExitCode": 1,
+    "binding": "matches x64 ASan Debug artifact manifest",
+    "executable": "DxUi.FoundationTests.exe",
+    "receiptSha256": "7B5376BBE72B6C86583DAFF33F05A0D05B36678CEBE56321D9B429CAD6BC83D7",
+    "executableSha256": "09F1FBB882A63E165DB41D2616AF838546C1A9E68860EB0071FE7475311C1217"
+  },
+  "matrixRuns": [
+    {
+      "outcome": "PASSED",
+      "runJsonSha256": "55CEE8C65C75CCC09237C8E66212DDB0DAB0E9FCFBBAABC3C6E3AF669AEC8CF8",
+      "completedUtc": "2026-10-25T09:49:36.33623Z",
+      "platform": "x64",
+      "runId": "20261025T090231428Z-b0c587fe4ee940c19a527544972b7d0e"
+    },
+    {
+      "outcome": "PASSED",
+      "runJsonSha256": "C5ABC1C183CF897172242F0D33DD7D2D859E722D7BC598FDAC609EE725A4D0F6",
+      "completedUtc": "2026-10-25T09:24:16.7950637Z",
+      "platform": "ARM64",
+      "runId": "20261025T090231387Z-3e268c71c5a7497baee52e59ba296806"
+    }
+  ],
+  "source": {
+    "commit": "594d67fb0fcc3829541211a7c8f100df046c87e3",
+    "checkoutClean": true,
+    "tree": "fa4193a259c9e2b087a21399ec13cde387202002"
+  },
+  "totals": {
+    "x64NativeSuites": 57,
+    "artifactHashMismatches": 0,
+    "profiles": 6,
+    "retainedArtifacts": 74,
+    "arm64NativeSuites": 0,
+    "x64CapabilitySkips": 0
+  },
+  "runnerScripts": {
+    "buildPs1Sha256": "357DCCEFD0839BAC6ACFC8833A2C80B0493577AB599D673B1320FB773EB0F2A5",
+    "testPs1Sha256": "D02B57752BE28864BD9F0F4ED4235EC86DD74B2EA65AAC76E74CCF2AED867A9E"
+  },
+  "reviewStatus": "audited local SDK matrix; performance acceptance remains open",
+  "profiles": [
+    {
+      "platform": "ARM64",
+      "artifactCount": 12,
+      "buildReceiptDigest": "243b8e931030140cdd3d3b21e85aba4b5fa559f04b8e8b0491b24e2e9bd6e389",
+      "capabilitySkips": null,
+      "scope": "cross-build-only",
+      "testExitCode": null,
+      "buildExitCode": 0,
+      "buildReceiptIdentity": "57379716d4fb5507a5a90809aedca7289d6c88315e46261178029aa3cc0a706d",
+      "nativeSuitesPassed": null,
+      "executableArtifacts": [
+        {
+          "name": "DxUi.ControlTests.exe",
+          "sha256": "69F07E145EE2ED216C810CB2FDE32DDFC9FC541D14B0C9194F3C705630505744"
+        },
+        {
+          "name": "DxUi.EmbeddedControls.exe",
+          "sha256": "6401D573A204D8D93467CB8EA0FB427759E401AA1500326FF05562CC604C4FDC"
+        },
+        {
+          "name": "DxUi.EmbeddedTests.exe",
+          "sha256": "D30961DD77BC745A8EBC3A8D5741141AE84486DBA8DE2543AF001461E98A97E6"
+        },
+        {
+          "name": "DxUi.FoundationTests.exe",
+          "sha256": "1BAF057F18C774B83AE3865991471562A778C28B8BC540FBE5AEF8D395DF3EC2"
+        },
+        {
+          "name": "DxUi.InteractiveLease.exe",
+          "sha256": "A6A1DE93407778C6C3D06220BCF5E41DB86B21B67BA4AE354BD062D9803CE7AA"
+        }
+      ],
+      "manifestSha256": "20976161B4A8504A38C059C08ABF2965483EE3D1EF77F99A3B3F1AB712C5BDA2",
+      "configuration": "Debug",
+      "buildReceiptSha256": "9367147EDF4750DCA1FA84E39242912A32B0FDCF401B5767FBFF1AA8B4ACF455"
+    },
+    {
+      "platform": "ARM64",
+      "artifactCount": 12,
+      "buildReceiptDigest": "358783b8da34881881848469ea4fcddb166e3d4c5af5d234340dcf333abce6f0",
+      "capabilitySkips": null,
+      "scope": "cross-build-only",
+      "testExitCode": null,
+      "buildExitCode": 0,
+      "buildReceiptIdentity": "7d69abbbc862415e39fb3d9aee67699b5a1739b33330b789a8af3c95794cdc4d",
+      "nativeSuitesPassed": null,
+      "executableArtifacts": [
+        {
+          "name": "DxUi.ControlTests.exe",
+          "sha256": "705A81A583E0AD9EEA637AC22774EAB728DEA739C72218051BCDF6ECC4E1550D"
+        },
+        {
+          "name": "DxUi.EmbeddedControls.exe",
+          "sha256": "61F05F573C55444695C37616D0B095B763451FFEB84C9CAD6A0B209D234179F2"
+        },
+        {
+          "name": "DxUi.EmbeddedTests.exe",
+          "sha256": "4F1D7ABF10A4C292C44F939337F77C110D8B9587C8147D67758C73B320046A28"
+        },
+        {
+          "name": "DxUi.FoundationTests.exe",
+          "sha256": "A20C359388C92DB380B6EE2710C756230665FB8FADF9DBE0B2D4E9B7EB7A4994"
+        },
+        {
+          "name": "DxUi.InteractiveLease.exe",
+          "sha256": "1806672B5079541FE63884C83B311DE6F6EE442588C500493FCF7409DDF142C1"
+        }
+      ],
+      "manifestSha256": "827A3AFE0CF71BD815AC62949809143DA204346E91212C38F5E6F7BB3DD48A5A",
+      "configuration": "Release",
+      "buildReceiptSha256": "11A72223BD96E824835B76CF782ACA5A3FA8D0A96F7C28C2D6E09CB65F17FC71"
+    },
+    {
+      "platform": "ARM64",
+      "artifactCount": 13,
+      "buildReceiptDigest": "5e54a4b6012cb99fc4134a0cad9eac9082b579c1b73884a1f5ec797c2d6ef377",
+      "capabilitySkips": null,
+      "scope": "cross-build-only",
+      "testExitCode": null,
+      "buildExitCode": 0,
+      "buildReceiptIdentity": "e18479363a0f4efa5e327b771ff644d32259fae98ae87221845ece943df53b40",
+      "nativeSuitesPassed": null,
+      "executableArtifacts": [
+        {
+          "name": "DxUi.ControlTests.exe",
+          "sha256": "84C04E6190214A8965A047AF5085D27049B2C202B607445E7E9B4899DF46B6EF"
+        },
+        {
+          "name": "DxUi.EmbeddedControls.exe",
+          "sha256": "2FBF44B94122573BBAE9F4BC5C72B3EC6798F72D28298384A6566C2B5FE8BF16"
+        },
+        {
+          "name": "DxUi.EmbeddedTests.exe",
+          "sha256": "136A638163B78C8817FB3F978AA15BD0BF032BB95E32D4C09D8F40B7502DBD8F"
+        },
+        {
+          "name": "DxUi.FoundationTests.exe",
+          "sha256": "0D0519500FBCC6C67890AD1A226E0406B1943B94C26DD4D2BB5DE10CD9DA24E5"
+        },
+        {
+          "name": "DxUi.InteractiveLease.exe",
+          "sha256": "17A3FCD1C84BC8CCEC8193F46A4814C75BE14C38D1F6BD6C8A1E995A695ACBBF"
+        }
+      ],
+      "manifestSha256": "59AE135D5702CF249EBAC3FAACC5E47FF8913FD9393D510D08165710ED030BC2",
+      "configuration": "ASan Debug",
+      "buildReceiptSha256": "A2AFE4C0627C93AA5E4D3AA0CBE9F42637F46D6705AC07455E4AF803EEEC24E3"
+    },
+    {
+      "platform": "x64",
+      "artifactCount": 13,
+      "buildReceiptDigest": "92a991a020ea0961aa51f62c1fa8702ed72c4784275e60b58088752784d7c883",
+      "capabilitySkips": 0,
+      "scope": "native-suite-runtime",
+      "testExitCode": 0,
+      "buildExitCode": 0,
+      "buildReceiptIdentity": "3eac3a03b75c34faf6383ec981627d1ef172fe94809db61a805e863f883d0a2f",
+      "nativeSuitesPassed": 19,
+      "executableArtifacts": [
+        {
+          "name": "DxUi.ControlTests.exe",
+          "sha256": "2ED38C9ACAD0D83C6247D2C1BA5D8F74FD91C28B03512E7E63A278B20C2FC036"
+        },
+        {
+          "name": "DxUi.EmbeddedControls.exe",
+          "sha256": "4B1DEEBFD0D4B3D646839C3F141045903752F066695D129EB5BDF80B959DB686"
+        },
+        {
+          "name": "DxUi.EmbeddedTests.exe",
+          "sha256": "AE77863FF4F6B07BEFFBC23B261002F411AD506232A4400E540813872F3F6884"
+        },
+        {
+          "name": "DxUi.FoundationTests.exe",
+          "sha256": "09F1FBB882A63E165DB41D2616AF838546C1A9E68860EB0071FE7475311C1217"
+        },
+        {
+          "name": "DxUi.InteractiveLease.exe",
+          "sha256": "C463BA05C67124A5B792D0B2E65629805F5796DF8376019576D60D251C928031"
+        }
+      ],
+      "manifestSha256": "30384D1613EBB9552422A8E74A44DCBB02B0D6C653F050E345EBE59B5D72D42B",
+      "configuration": "ASan Debug",
+      "buildReceiptSha256": "9492D81D86D313C638E460E9DCE3959A2EC10D5DA92AF80689A1EFF5E1D2437A"
+    },
+    {
+      "platform": "x64",
+      "artifactCount": 12,
+      "buildReceiptDigest": "3ba4acb1d1239932553190f7452325a7291c8eac42a32816b6a3084030e6c1ef",
+      "capabilitySkips": 0,
+      "scope": "native-suite-runtime",
+      "testExitCode": 0,
+      "buildExitCode": 0,
+      "buildReceiptIdentity": "1886a18fd3fb1572ad77167705cb04e62a9876e38bd6e6f50d28aaf6bb279748",
+      "nativeSuitesPassed": 19,
+      "executableArtifacts": [
+        {
+          "name": "DxUi.ControlTests.exe",
+          "sha256": "865F091DFBAC6B4CFC4715A0A81929239B3ACB64BA8AD8B9243C72E914EB50A9"
+        },
+        {
+          "name": "DxUi.EmbeddedControls.exe",
+          "sha256": "1E2D7664335F801AADC001EE1B966624AD32E75948A98E85CB477C80DBBCCFA4"
+        },
+        {
+          "name": "DxUi.EmbeddedTests.exe",
+          "sha256": "92370322FA995C6CFFE53C7526911B6214DE14E27D4EB7AA3B94071FDE48DD24"
+        },
+        {
+          "name": "DxUi.FoundationTests.exe",
+          "sha256": "EBC30304B7B17D6F6C864FCD69F9D0D9963EA03080A3DA1AFC7463B8B3F0A902"
+        },
+        {
+          "name": "DxUi.InteractiveLease.exe",
+          "sha256": "DE9AF63EA104B0DEE0EA24E7FE709BB4097E7F429F89A445E118781CF5220990"
+        }
+      ],
+      "manifestSha256": "B2DAABDA15DC84585C420B4713AD3B1A3AEA9A801F59F6559A6FBAA740A3FFDA",
+      "configuration": "Debug",
+      "buildReceiptSha256": "65D98EEA112C0D26E032B0AEC8775F61CB7AF56EFA6C18FE5CFE430094A3600E"
+    },
+    {
+      "platform": "x64",
+      "artifactCount": 12,
+      "buildReceiptDigest": "68d911a6969cbe3bfc531ba4a79a3c2328f3265933bb5c782943054bbd07b741",
+      "capabilitySkips": 0,
+      "scope": "native-suite-runtime",
+      "testExitCode": 0,
+      "buildExitCode": 0,
+      "buildReceiptIdentity": "492ddb9e6c0da597ff92ffb210e4ee20bd63eca8dde777836a5cdf87c4949ddd",
+      "nativeSuitesPassed": 19,
+      "executableArtifacts": [
+        {
+          "name": "DxUi.ControlTests.exe",
+          "sha256": "275EBC4FB1B39231355C476B2D2D87759D58D41FF6C4652F01D091AFF654D167"
+        },
+        {
+          "name": "DxUi.EmbeddedControls.exe",
+          "sha256": "E5B69A419CE081296EE020E3F920E7DA118A521ACEAFD00C0059F1DC1FE025DE"
+        },
+        {
+          "name": "DxUi.EmbeddedTests.exe",
+          "sha256": "02A81CE5E6DEF233156EB5E168642ECF365390BAD877FEA8CAB191212276C21F"
+        },
+        {
+          "name": "DxUi.FoundationTests.exe",
+          "sha256": "4B86715E8881D332A805F9C273F63F58DD6637430C16DC4A579CCCBEB0BDF6F4"
+        },
+        {
+          "name": "DxUi.InteractiveLease.exe",
+          "sha256": "4A17AAD39B3FCFACFC658C97676DC6CCC9F8CD1B361F09D3E337036C4C1B3638"
+        }
+      ],
+      "manifestSha256": "021DCB99F0107B1A0816357FE3AA799F921317AC7602BD7B2B759B44A0EA3DDB",
+      "configuration": "Release",
+      "buildReceiptSha256": "4A0F588CEB764B6C667CAABDFA74CD1BFD4C85D9CF8191F8538F4FCAFE83E616"
+    }
+  ],
+  "repository": "DxUi",
+  "independentAudit": {
+    "filename": "final-local-sdk-independent-594d67fb-20261025.json",
+    "sha256": "10AB6723349A1D9F2B2AA6FEB04C2365D20C826EC697104FF36F4E02E734F324"
+  },
+  "schemaVersion": 1,
+  "nativeTestEvidence": [
+    {
+      "platform": "x64",
+      "completionReceiptSha256": "33767AFBB7A5ED1E44109547A201488011EB5887C9F2BC63155A74E138CBFD1F",
+      "suiteExecutablesBoundToProfile": "19/19",
+      "suiteReceipts": 19,
+      "configuration": "ASan Debug",
+      "payloadHashMismatches": 0,
+      "verifiedPayloadFileCount": 98,
+      "nativeEvidenceRunReferenceSha256": "AD19526D266C1EA034093F7BA11B99108D3A0B70171F1740F0CEC0CECD70544E",
+      "runTimestampUtc": "20261025T090942331Z"
+    },
+    {
+      "platform": "x64",
+      "completionReceiptSha256": "C2C6027AAB89D1C8F49B5D13EE8D0185E4B2BF5F4D9F4928D3691C32BA3CAF13",
+      "suiteExecutablesBoundToProfile": "19/19",
+      "suiteReceipts": 19,
+      "configuration": "Debug",
+      "payloadHashMismatches": 0,
+      "verifiedPayloadFileCount": 95,
+      "nativeEvidenceRunReferenceSha256": "96094545AF39BBBD6A86C52F37843E176678EA245CAAF6BED3FE70E01306C338",
+      "runTimestampUtc": "20261025T092809757Z"
+    },
+    {
+      "platform": "x64",
+      "completionReceiptSha256": "D81427D5F4692EB0E24D91403D53DF4B20A9BAA001020B599D3B466E21152DC4",
+      "suiteExecutablesBoundToProfile": "19/19",
+      "suiteReceipts": 19,
+      "configuration": "Release",
+      "payloadHashMismatches": 0,
+      "verifiedPayloadFileCount": 95,
+      "nativeEvidenceRunReferenceSha256": "CE7E368CEE70B5C9EE4900CE950758243B65D9A1AE188B67DB8C27F118256E36",
+      "runTimestampUtc": "20261025T094331768Z"
+    }
+  ],
+  "boundaries": [
+    "Local SDK evidence only; hosted workflow evidence is separate.",
+    "ARM64 profiles are cross-build-only and make no native runtime claim.",
+    "ASan detection is a separate expected-failure probe, not an ordinary suite.",
+    "No performance acceptance, quiet-host claim, or RedTilde whole-product acceptance is implied."
+  ],
+  "evidenceReferenceNote": "Exact local evidence run IDs remain in the private audit. Public references use SHA-256 of each exact ID plus its timestamp and completion receipt SHA-256.",
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-complex-ui-v2",
+  "benchmarkInputs": {
+    "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+    "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+    "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+  },
+  "fixtureMetadataProvenance": {
+    "sourceCommit": "594d67fb0fcc3829541211a7c8f100df046c87e3",
+    "reportSha256": "25EF1E2D49AA7646C0B3FEB9D3DF7B358217C8404D9BCD127277736A3EB7681D",
+    "currentSourceFilesIndependentlyHashed": 6,
+    "nativeExecutionRetagged": false,
+    "scope": "Shared Complex UI preflight fixture metadata from the matching SDK source revision; not the full native suite input closure."
+  }
+}

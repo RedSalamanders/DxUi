@@ -1,7 +1,7 @@
 # Validation and evidence
 
 Status: normative intended contract
-Last reviewed: 2026-10-24
+Last reviewed: 2026-10-25
 
 Native staged-TSF reconciliation tests count the current generation-tagged production dispatch separately from
 the rest of the HWND queue. A general pump can also deliver an independent geometry change, whose layout
@@ -21,6 +21,11 @@ capture cancellation/continuation, unavailable/full-failure transitions, cross-t
 geometry publication. It preserves every preceding assertion; consumer pin adoption requires actual host tests.
 
 Every supported capability has executable evidence and a truthful status in `capabilities.json`.
+
+Documentation gallery fixtures install synthetic tooltip content after queued window messages and cooperative
+preparation have settled, then verify the exact visible tooltip text immediately before synchronous capture.
+The owned-window leave interleaving must clear the preceding tooltip without activating or moving the desktop.
+This verifies fixture ordering; it does not attribute an earlier untraced capture or qualify physical hover input.
 
 M3 Markdown analysis checks every original expected HTML vector: 652 CommonMark
 0.31.2 and 672 GFM 0.29-gfm examples, without exclusions. Preserve each GFM
@@ -56,6 +61,19 @@ deduplication. The Grid unchanged-selection regression records both provider emi
 retains the original empty-event assertion, and freezes failure snapshots before diagnostic tree queries pump more
 messages. A passing rerun alone does not attribute or erase an earlier intermittent failure.
 
+The embedded Tree badge regression deliberately holds property delivery across several publications to test
+per-item coalescing and removed-ID pruning. First deliver both distinct rows' first statuses within the ordinary
+3-second notification deadline and finish the bounded quiet wait. Then hold one unrelated row's active event at
+the delivery gate before queuing both tested rows' middle/final statuses and removing the unrelated row. Individual
+rows enqueue separately: the worker can extract the first row before the next enqueue, so a gate must not assume
+one publication's row events form an atomic batch. Assert held silence from a separate event mark. After releasing
+the gate, both coalesced final notifications use the existing 20-second UIA client request allowance. Log elapsed
+time on slow arrival or timeout; retain exact first/final counts, superseded-value and stale-ID assertions, the
+replacement getter and the runner watchdog. The unrelated event extracted before the gate is outside pending-queue
+pruning and has no delivery assertion. The preceding ordinary status-only wait also retains its 3-second deadline.
+These fixture boundaries change no product notification SLA, focus-event deadline or performance acceptance rule.
+Preserve earlier failed runs, including a longer timeout that cannot repair the batch-ordering assumption.
+
 The native IME undo-grouping fixture MUST restore its initial text and undo history after successful attempt
 admission and before `SetFocusControl`. A direct edit can survive foreground loss; focusing the same editor does
 not initialize it again. Each admitted attempt clears the field with `SetText(L"")` before creating its one earlier
@@ -76,6 +94,8 @@ inside the same 900 ms guard. Its unchanged-library counterfactual must retain t
 hover, active paint backlog and absence of callback entry. Bounded UI/driver trace storage uses the synchronous
 borrowed diagnostic sink; records retain phase names, relative times and query outcomes rather than desktop
 identities. Capturing a possible failure path does not attribute an earlier untraced occurrence.
+Dismissal records distinguish popup activation/cancellation, asynchronous capture loss, outside pointer input,
+and Escape/Alt/Tab/F10. Preserve those cause tags in the same bounded test trace without changing either guard.
 
 `performance-forms.ps1` runs the fixed `dxui-form-layout-cost-v1` synthetic fixture. Before timing it requires identical
 manual/form leaf state, geometry and captured pixels across five states in two profiles. It reports raw frame and
@@ -718,8 +738,17 @@ interactive desktop lease: `DxUi.InteractiveLease.exe` (`Tests/InteractiveLease`
   running and to keep hands off the keyboard and mouse; it also holds the foreground that the child is granted. The session-wide lease
   `Local\DxUi.InteractiveTestRun.v1` makes a second run refuse (exit code 22) instead of queueing behind the first, and the system and
   the display stay awake. Each suite is a child of its own, in a kill-on-close job, with its output in its log. The foreground is
-  granted to that child alone and never to any process, and the lease ends only a process it started: a child that outlives its bound
+  granted to that child alone and never to any process. Failed creation, configuration or assignment of the owned job refuses
+  the still-suspended child before its entrypoint can execute. Teardown terminates only this job and its contained descendants,
+  never a process chosen by name. Before job termination it captures and verifies current member handles and waits for those
+  handles within one bounded teardown deadline. Job accounting reaching zero does not prove that a process handle is signaled;
+  capture or wait failure fails the child result. Membership can change during capture, so this is not an atomic whole-tree
+  completion barrier; kill-on-close containment also covers members created during that interval. A child that outlives its bound
   (15 minutes, or three times `-TestTimeout` when that is longer; none with `-TestTimeout 0`) ends with the watchdog's exit code, 124.
+  The native self-test verifies both normal-exit and timeout descendant completion against the fixture's PID and
+  creation time. Its single defensive descendant cleanup is allowed only after that identity check; source guards
+  retain the direct-created-handle restriction elsewhere and the ban on process-name discovery. These source guards
+  supplement the required successful behavioral self-test rather than proving process ownership by themselves.
 - **Restoring.** The foreground window, then its keyboard focus, then the pointer in physical coordinates, last because activating a
   window can move it. Each is verified by reading the desktop again, never by trusting a call's result (the foreground is asked for
   three times and read back for up to a second each time), and the pointer must land exactly. This happens on every exit path: passing
@@ -924,7 +953,9 @@ and sink callbacks releasing the final caller reference. The initial optional sa
 
 ## Scoped iteration and PR coverage
 
-Active native test sources, helpers, fixtures and seams MUST use `Scope.Tests.Something.h/.cpp`. `Tests/native-test-files.json` owns active membership. Historical archived harnesses and sealed reproduction inputs keep their original identity; they do not define new source naming. Rename project entries, includes, current inventories and callers together. DxUi historical source/test origins retain their original identities and map to current paths separately.
+Active native test sources, helpers, fixtures and seams MUST use `<Component>.Tests.Something.h/.cpp`, with the actual component context (`Controls`, `Support`, `Embedded`, etc.). Literal `Scope` is a rejected placeholder. `Tests/native-test-files.json` owns active membership. Historical archived harnesses and sealed reproduction inputs keep their original identity; they do not define new source naming. Rename project entries, includes, current inventories and callers together. DxUi historical source/test origins retain their original identities and map to current paths separately.
+
+Git path discovery and changed-path aggregation MUST preserve exact path identity with ordinal, case-sensitive deduplication and ordering, regardless of the host filesystem's case behavior. Scope-pattern matching remains intentionally case-insensitive.
 
 `Test-Changes.ps1` is the ordinary iteration entrypoint. Its default is affected coverage, including committed changes since a local merge base and independent staged, unstaged, deletion, rename-side and untracked discovery. No ref is fetched. Unknown executable inputs widen coverage; prose alone does not require native tests. Explanations name paths, consumers and fallback reasons. Explicit selectors reject unknown scopes. Affected, filtered and environment-reduced coverage MUST NOT be reported as a full repository pass.
 
@@ -955,6 +986,12 @@ Ordinary qualification and main/release acceptance requirements remain unchanged
 RedSalamander defers only entries whose complete portable entry contracts equal the PR plan, retaining writers, in-product cases and extra scenarios locally. Its `-NonInteractive` option omits focus-taking entries and records incomplete coverage; it cannot alter an exact Resume. DxUi foreground suites remain explicit `test.ps1 -Interactive` work after agreement to the time. Noninteractive iteration and CI do not claim those manual gates. No screenshot or desktop automation is introduced.
 
 `Tests/test-scopes.json` owns the standalone scope and verified PR-profile mapping; RedSalamander's `Tools/validation-impact.json` and canonical plan continue to own its affected execution. Specific standalone test-source rules use their semantic entry tags, while common support and unknown paths retain conservative fan-out. New source/build/runtime/runner dependencies must extend the relevant manifest and focused regression coverage.
+
+Rich Markdown math, diagram, semantic-document and retained editor implementation changes select `EditorControls`,
+`Embedded` and `Accessibility` together. Their focused support headers and generators retain the same integration
+consumers; public rich-text header changes also select accessibility. `Tools/tests/Test-ScopedTesting.ps1` independently
+checks the affected path mapping, including the owned math compatibility corpus, without widening those known
+paths to every suite. This selection remains affected evidence rather than whole-repository qualification.
 
 CI invokes explicit full gates rather than the affected default. The forthcoming PR executes its candidate workflow; a reviewed local workflow digest and the enabled GitHub workflow gate delegation. Workflow edits invalidate that digest until the scope contract is reviewed and updated. RedXe's independent Windows tooling/skill tests execute once in its tooling job. DxUi's tooling has one Windows host qualification and one Linux portability qualification; its MSBuild-only staging fixture executes once on Windows; native runner/watchdog checks stay profile-specific. RedSalamander schedules skip unchanged commits only after successful matching workflow history; manual dispatch and unreadable/failed history execute. Hosted timing investigations still use paired, fixture-matched resource evidence; cached historical observations are not new measurements.
 

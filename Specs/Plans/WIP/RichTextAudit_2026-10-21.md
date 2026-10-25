@@ -1,6 +1,8 @@
 # RichText audit: defects, simplification and Markdown/math/Mermaid completion
 
-Status: SPEC READY. Audit, adversarial verification and planning are complete; no library code has changed.
+Status: IMPLEMENTING. The original audit and planning baseline is retained below. The bounded math, flowchart,
+state and class corrections are implemented in the [24 October continuation](RichTextAudit_2026-10-21/RedTildeCompletion_2026-10-24.md).
+Their final-source qualification, performance and consumer handoff remain open; the full language roadmap is separate.
 Owner request (2026-10-21): review all RichText code in DxUi for bugs and architectural simplification, use
 cheaper agents where that helps to establish what a complete Markdown, Mermaid and math implementation needs,
 and record a detailed specification plan of everything to fix or improve.
@@ -19,6 +21,9 @@ close it in the parent plan in the same change.
 
 Appendices:
 
+- [RedTilde completion continuation, 24 October](RichTextAudit_2026-10-21/RedTildeCompletion_2026-10-24.md):
+  current-source corroboration, ordered library work packages and expanded compatibility/coverage gates for the
+  consumer request. Existing W/T/C IDs remain the implementation owners; no product code changed in planning.
 - [Findings register](RichTextAudit_2026-10-21/findings.md): every finding with location, failure scenario,
   proposed fix and verifier verdicts.
 - [Completeness specification](RichTextAudit_2026-10-21/completeness.md): Markdown (MD-*), math (MA-*) and
@@ -46,7 +51,13 @@ refuted. Disputed findings are scheduled only as optional cleanups or contract p
 the register with the refuting evidence and are not scheduled. Every other finding is assigned to exactly one
 checklist item below; the register's **plan** field names it.
 
-## Conclusions
+## Conclusions at the 21 October audit baseline
+
+The following findings describe the recorded audit revision, not current capability. The 24 October implementation
+corrects the bounded math status/limits and state/class matrix discrepancies. Current tests retain all 105 original
+flowcharts: 16 admitted, 89 explicitly unsupported; the separate 20-family matrix records two limited profiles and
+18 unsupported families. The current math corpus has 30 positive, 20 negative and 27 symbol-identity fixtures.
+These corrections do not close broad W/T/C rows, full TeX/Mermaid support, D4c, physical input/AT or final platform gates.
 
 1. **Correctness.** One memory-safety defect (commands-01: `DeleteTableColumn` reads `slots[column - 1]` with
    `column == 0` for a one-cell body row) and a cluster of contract violations need prompt fixes: one formula

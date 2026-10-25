@@ -67,7 +67,7 @@ fail with actionable diagnostics. Both tracked and untracked source changes inva
 
 vcpkg builds with the Visual Studio installation and default MSVC toolset that MSBuild compiles DxUi with, not with the
 newest toolset it finds. The two differ when a newer toolset is installed beside the default and lacks a compiler for a
-target (VS 18 Insiders' 14.52, beside the default 14.51, has no x64-hosted ARM64 compiler, so every fresh ARM64 restore
+target (the earlier VS 18 Insiders installation had 14.52 beside default 14.51 without its x64-hosted ARM64 compiler, so each fresh ARM64 restore
 failed configuring `wil:arm64-windows`); for compiled vcpkg libraries a toolset newer than the one that links them is also
 a link hazard. `vcpkg-install.ps1` takes the installation from `Get-DxUiVisualStudioInstallation` (`Tools/VisualStudio.psm1`),
 the one discovery `build.ps1` also uses (`vswhere -latest -prerelease -requires Microsoft.Component.MSBuild`), and the
@@ -255,7 +255,10 @@ the exact main commit whose latest push run of `ci.yml` completed successfully. 
 quiet; pending/failed/unavailable validation keeps the pin selected; divergent/ahead pins require review.
 The notice includes the comparison URL and lock to update. It is plain build output, never an MSBuild
 warning, automatic edit, PR comment, push, or scheduling service. Private read access uses existing
-GH_TOKEN/GITHUB_TOKEN or a bounded local gh credential lookup. Each of at most three API requests has
-a two-second timeout; credential lookup has a two-second timeout. Lookup failures are explicitly
-unavailable and cannot fail an otherwise valid fixed-pin build. Authentication details are never logged.
+GH_TOKEN/GITHUB_TOKEN or a bounded local gh credential lookup. The gh child has a two-second run
+deadline; on timeout only that owned child is terminated and its exit is confirmed within one additional
+second. Standard output and error drain concurrently and have a bounded drain wait; only a zero-exit,
+fully drained result can supply the token. Each of at most three API requests has a two-second timeout.
+Lookup failures are explicitly unavailable and cannot fail an otherwise valid fixed-pin build.
+Authentication details are never logged.
 The consumer still validates/restores its exact source pin independently and fails on a real pin error.

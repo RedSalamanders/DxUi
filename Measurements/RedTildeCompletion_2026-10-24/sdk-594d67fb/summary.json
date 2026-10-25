@@ -1,0 +1,3981 @@
+{
+  "schemaVersion": 1,
+  "packetId": "sdk-594d67fb-paired-private-draft-v2",
+  "scope": "one hosted x64 Release actual-base paired study; 78 metric rows",
+  "verdict": "inconclusive",
+  "acceptance": {
+    "policyReviewRequired": true,
+    "selfApproval": false,
+    "acceptanceClaimed": false,
+    "quietHostClaimed": false,
+    "causalAttributionClaimed": false,
+    "lateSourceQualificationClaimed": false,
+    "fullWorkflowClaimedComplete": false
+  },
+  "interpretation": [
+    "Independent numeric replay matches the producer for all 78 rows and all 144 run-receipt hashes; each of the three scenario sets has zero independently regressed metrics.",
+    "Same-side controls are unstable in 69 of 72 comparisons (Default 22/24, MultilineGrid 24/24, MultilineGridDistinct 23/24); the result is therefore inconclusive and does not qualify the noise floor.",
+    "The migrated independent verdict is within-noise-budget in every scenario, but the producer legacy verdict disagrees for MultilineGrid / clean / prepareP95Ms and MultilineGridDistinct / clean / prepareP95Ms: legacy says improved while the independent paired verdict is within-noise.",
+    "Baseline source is marked dirty and reports the clean-base fingerprint, with three documented harness replacements; a complete baseline dirty-path inventory and retained baseline checkout/status are absent, so exclusivity of those overlays is not independently established.",
+    "The six hosted Full native profiles are a separate evidence packet; the workflow itself failed at paired benchmark verdict publication because policy remained unqualified.",
+    "Independent observer replay places all 144 receipt completions inside the sample span but finds 28 QPC and 29 UTC sample-start periods above the existing 2.5-second consistency bound; continuous or quiet-host coverage is not qualified.",
+    "The hosted workflow completed with failure at Publish-BenchmarkVerdict.ps1 -Gate; the paired collection itself succeeded, produced an inconclusive verdict, and all six hosted Full native jobs succeeded in their separate packet."
+  ],
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-complex-ui-v2",
+  "scenarioFixtures": {
+    "Default": "dxui-complex-ui-v2",
+    "MultilineGrid": "dxui-complex-ui-multiline-grid-v1",
+    "MultilineGridDistinct": "dxui-complex-ui-multiline-grid-distinct-v1"
+  },
+  "benchmarkInputs": {
+    "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+    "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+    "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+  },
+  "studies": [
+    {
+      "studyId": "hosted-actual-base-594d67fb",
+      "purpose": "regression-qualification",
+      "platform": "x64",
+      "configuration": "Release",
+      "workflowHead": "594d67fb0fcc3829541211a7c8f100df046c87e3",
+      "compiledMergeCommit": "8c78b5adf821daa216bee53572b3f9aae7d40ef7",
+      "compiledMergeParents": [
+        "b06f534b36ffc2c0c9671a142d1e51545480be22",
+        "594d67fb0fcc3829541211a7c8f100df046c87e3"
+      ],
+      "compiledMergeTree": null,
+      "actualBase": "b06f534b36ffc2c0c9671a142d1e51545480be22",
+      "completedUtc": "2026-10-25T10:21:32.0233287Z",
+      "seed": 811064005,
+      "blocks": 12,
+      "allocation": "independent-ABBA-BAAB-v1",
+      "receiptSet": {
+        "count": 144,
+        "sha256": [
+          {
+            "file": "Default-A01.json",
+            "sha256": "EF093F10BEE5FEE2A996822FBC6845098B68A2BCFA5D4F1AFA032A5C6602E4ED"
+          },
+          {
+            "file": "Default-A02.json",
+            "sha256": "FCF47D5FF61149C9D337B05EA394E04C6D0DEDF7E2DD030A963C72D6C13CFEAE"
+          },
+          {
+            "file": "Default-A03.json",
+            "sha256": "CFC34DFFD67D8A918EA18165CFB9F94F541FD09519B61C60B611942EE23F8BCF"
+          },
+          {
+            "file": "Default-A04.json",
+            "sha256": "3916A13D8BB017309B89EED920CEF3208A996D64AB497A92C5BD7E705B65C1F4"
+          },
+          {
+            "file": "Default-A05.json",
+            "sha256": "60CCB8167ABD271ED59E8D7DE7F0D6ABE3C8E230D1BCC1461699A509D2A231B0"
+          },
+          {
+            "file": "Default-A06.json",
+            "sha256": "29DADCFBAE1277E241E0880858DCE9D877102CFE468413A56AAC42FF8F17F099"
+          },
+          {
+            "file": "Default-A07.json",
+            "sha256": "E71E0F45D438547F08B01AB995DD25224AAD26738D816422206C57C31344BDF3"
+          },
+          {
+            "file": "Default-A08.json",
+            "sha256": "9FF7A6C432A31EFE44E211DC232742E2A36ABA8EB0438A5806D85EB3B540739C"
+          },
+          {
+            "file": "Default-A09.json",
+            "sha256": "06D78DD4644C81132BE4F929134D0A78FF5E8E1784CF181492C71A4B841063E3"
+          },
+          {
+            "file": "Default-A10.json",
+            "sha256": "AB296DFBBD42C130FF82D31D3CCDBBB9EB621B9321A3651FB20A433FAD6B0721"
+          },
+          {
+            "file": "Default-A11.json",
+            "sha256": "8F1314BE96D793CF0BCD5D5595AD84EF391F3FFA6B098772B6F5D0FDF814BDA4"
+          },
+          {
+            "file": "Default-A12.json",
+            "sha256": "99B47EB5BE5611C159FFA1F99FD954089C577F37421EA8C73C22F27E495ACEC4"
+          },
+          {
+            "file": "Default-A13.json",
+            "sha256": "99700D2C8AB08445A4ADE9139DA0DA54D43B03AEA08980EA30760DA5FD0328B1"
+          },
+          {
+            "file": "Default-A14.json",
+            "sha256": "F4A551DCE0AF6168EF4A4C0B9CC4DDD8A5E3B2360A57E0198638BFB1476DB988"
+          },
+          {
+            "file": "Default-A15.json",
+            "sha256": "DAE5C0AB2339A63791C91CEF2CA70D6B263B7E76EA56E4905DCCC71074B2BD5E"
+          },
+          {
+            "file": "Default-A16.json",
+            "sha256": "F8459D9D8D1A4CB0958EF5E3ED68E20EBE19DFA5FAB69CE8D3CD9329720ECDF1"
+          },
+          {
+            "file": "Default-A17.json",
+            "sha256": "30B06E3AD1471B0C590E0591C56C76FE9CABE1C82F266FFDE443A09707EDB302"
+          },
+          {
+            "file": "Default-A18.json",
+            "sha256": "891A0650F0D34092127E540FFEFA915FFEE4B5CFB05A7C37BB2B61F8F97E0480"
+          },
+          {
+            "file": "Default-A19.json",
+            "sha256": "5AFC1805E17B6E2A6FE196E130E383C2576D08C69E1819F5CF7F4012715121AC"
+          },
+          {
+            "file": "Default-A20.json",
+            "sha256": "7F21262C604CAE1461F6282485047AA977962971654881DCFF7C722253E1F14A"
+          },
+          {
+            "file": "Default-A21.json",
+            "sha256": "16DEC9678373D443873D396DC55857C4FA8F9885584C59D248F0BE0F2A392F0C"
+          },
+          {
+            "file": "Default-A22.json",
+            "sha256": "0509D1BC95531A8DD339D8FAF5E7B016D534830D7D37E5A5B0E23249357CD679"
+          },
+          {
+            "file": "Default-A23.json",
+            "sha256": "C15C60DA9F9E88930E71BB5BF7390DC016FAFB83D06816B30213F918F26DAA76"
+          },
+          {
+            "file": "Default-A24.json",
+            "sha256": "3C376FB4EB36D6BD7B973C430E249B6E737C48905397A86AAB29A07C1BF4C21D"
+          },
+          {
+            "file": "Default-B01.json",
+            "sha256": "C79C8D8801DDCE06F57D866E18D6464BA9FF751091554F0258E66AA840041C1B"
+          },
+          {
+            "file": "Default-B02.json",
+            "sha256": "025DE430763BCE06F7C612789736E17B8320211AFA3A3F83E402EDD9A512DE69"
+          },
+          {
+            "file": "Default-B03.json",
+            "sha256": "F9B3FD051D0292E308AB46EDA19ACD44A1E5B7530632CE56948DF8494D89EC76"
+          },
+          {
+            "file": "Default-B04.json",
+            "sha256": "60BB346E11A67D74AF124EA6F20227DABE08655FE4BBC551171E51F30ACCF1AE"
+          },
+          {
+            "file": "Default-B05.json",
+            "sha256": "EC18727CD48EC87629DD6DBB2B31B995B59C3A939B8A553920F9B38A2C3A1FB8"
+          },
+          {
+            "file": "Default-B06.json",
+            "sha256": "4F7974F554A7B80CF33A50A01D9E0DA7E14873256DB9B14D538FE41D7F997D72"
+          },
+          {
+            "file": "Default-B07.json",
+            "sha256": "0EB14A7D091C83A0D24C206424D1EFA867BC8A0A132FA2CA9A9511A3F0DA9803"
+          },
+          {
+            "file": "Default-B08.json",
+            "sha256": "E093357CBABBF6EFC0929610482863659C40D60CDCBB96A387A3062E4C7F4E7F"
+          },
+          {
+            "file": "Default-B09.json",
+            "sha256": "78154038799BEBEBA0C0154344CA864AE9428B30857896E6E30913F00AF7EDD4"
+          },
+          {
+            "file": "Default-B10.json",
+            "sha256": "78B352C253E00CF15B4E6C0803CB8BE45CD64E761BD53DE626C9F8A569E94A06"
+          },
+          {
+            "file": "Default-B11.json",
+            "sha256": "4991D226935477760C264E2EA8C51A8B4F900412D1E1801DCC4AE20055FA96F7"
+          },
+          {
+            "file": "Default-B12.json",
+            "sha256": "4307FA590796A1BFEA97E046F1F526CCF78515E85E79BFB6B4498DB5C8332617"
+          },
+          {
+            "file": "Default-B13.json",
+            "sha256": "C506EF2A7C50E1C73C5A58749D890B1FE0F5EF3247D9525638B0772ABB93D686"
+          },
+          {
+            "file": "Default-B14.json",
+            "sha256": "49E412638A7E71421A4BD80A06B415F340B42E726C6680907BDE1C5D1DBE8671"
+          },
+          {
+            "file": "Default-B15.json",
+            "sha256": "1181AC9316A9C54F4F829C1827863572071D4B5DB001110A0207006A442A4C0E"
+          },
+          {
+            "file": "Default-B16.json",
+            "sha256": "F80BC1C60F6CDC17A5EE35C6E619A5461C1A14CB4D91ED030D9F8744A03534A6"
+          },
+          {
+            "file": "Default-B17.json",
+            "sha256": "3EC4CAA6E56CEBB9374D00B15B3D12D0AFA98CD9D36FC561FDF83A0D48620BA1"
+          },
+          {
+            "file": "Default-B18.json",
+            "sha256": "B9902E9A46FA8CF9320AC3F8526D8B991555429B22959EFBB77E162DAC8B7418"
+          },
+          {
+            "file": "Default-B19.json",
+            "sha256": "F01A1E587D7B47B6A8F5F6CF1F46E70B43EAC7B3E83AF5E0A65F1EF966A0BFEA"
+          },
+          {
+            "file": "Default-B20.json",
+            "sha256": "ED5CACE36FC407B40BB9A7342DA3A9CE34A999515E0FCA1A05B72996BB5F2167"
+          },
+          {
+            "file": "Default-B21.json",
+            "sha256": "18C95A174B6A1281C3B63BD5C23462AEDF4692B0A7BD14A47FC5571ADA5B004B"
+          },
+          {
+            "file": "Default-B22.json",
+            "sha256": "6CEA85E38F3219A72B8AC97906CEBF4E085C1B1E0C529B64F871143240EC3DB9"
+          },
+          {
+            "file": "Default-B23.json",
+            "sha256": "20D1A77C792D42D0DCDC8E026CC6D4938B476FC96923820193BAAE7AF7369E30"
+          },
+          {
+            "file": "Default-B24.json",
+            "sha256": "564F19564E6F2ACF6D7FC75C3989991C7F3D7D668543A5FF405EF601513E7689"
+          },
+          {
+            "file": "MultilineGrid-A01.json",
+            "sha256": "7F23A242F95DCEA1E4A28C09273DEDF2CA9601CB0C6D2054BC2AD26FC41B686B"
+          },
+          {
+            "file": "MultilineGrid-A02.json",
+            "sha256": "8AF2DA527CE8DFF2A806F25F1BC7F3A474386D96334F3366E873DAA111875046"
+          },
+          {
+            "file": "MultilineGrid-A03.json",
+            "sha256": "D07EC985D4DDCDF366E311B5D89B79E91E3CE5ED86CE5BB904A089B239425EF7"
+          },
+          {
+            "file": "MultilineGrid-A04.json",
+            "sha256": "C91B54CB5EA6E8D666590126627951E923A1711D6F20374C8EA8A47AFF58F1C9"
+          },
+          {
+            "file": "MultilineGrid-A05.json",
+            "sha256": "122F54DC450F76593FBA396A0F89DF14F4D3025B40CE63E41215989F4EA5C384"
+          },
+          {
+            "file": "MultilineGrid-A06.json",
+            "sha256": "6BB97785B35A4B19E191DF5EAD2A798A55F893345742FCB1E3BAFEC3C8500888"
+          },
+          {
+            "file": "MultilineGrid-A07.json",
+            "sha256": "8122B96E1023FA251B32B93EC32F89F5127DEE045BF175EC94AFB817DDABFE66"
+          },
+          {
+            "file": "MultilineGrid-A08.json",
+            "sha256": "7A2452F401B1B875C5899C34FEA6F34B1F5AE6B13BE4F686EB3C32E6A3755141"
+          },
+          {
+            "file": "MultilineGrid-A09.json",
+            "sha256": "02E2E0AA501016EBD0723AF355446FF080410120E9967A082603615A6B1880E6"
+          },
+          {
+            "file": "MultilineGrid-A10.json",
+            "sha256": "8C277BE5C1BD46BA39B4649763E6147281DED2C30B1EA43169877599AA50F541"
+          },
+          {
+            "file": "MultilineGrid-A11.json",
+            "sha256": "14CCA35D9EC20F95F64B1D7188D2E2B7F5233F6AF66649C9B75D0B1601450C6A"
+          },
+          {
+            "file": "MultilineGrid-A12.json",
+            "sha256": "B8143549CADF3447CCC324F406004C26467853AD8930BB28E39F60EDEDE09876"
+          },
+          {
+            "file": "MultilineGrid-A13.json",
+            "sha256": "E3B95509CDFCFF058BF32E86EA370ACBEEE5A261E571E385C3DDE0E8D808C2EF"
+          },
+          {
+            "file": "MultilineGrid-A14.json",
+            "sha256": "A604E37C1EB8D6B1B5EC065E4B8C4CF5FBF19A8EFAF7DE54B830F53A1F070ACB"
+          },
+          {
+            "file": "MultilineGrid-A15.json",
+            "sha256": "A883AC3CE692047455645F73980F1A3A017BF2A24DF3ECF0194E2E16F6808680"
+          },
+          {
+            "file": "MultilineGrid-A16.json",
+            "sha256": "174E9FEFAE9576F93F94745EC7CF8AEC58E620922085B7446EEEE454FB6A2172"
+          },
+          {
+            "file": "MultilineGrid-A17.json",
+            "sha256": "F73B05E7130EFEC5790983088CDADB3F71D8F46D9C9D879D062B9B4E3061C4DF"
+          },
+          {
+            "file": "MultilineGrid-A18.json",
+            "sha256": "0CBAD63EC907944D0C9C49A98FB438854A1BC45C300CF285E3375A3C4248E438"
+          },
+          {
+            "file": "MultilineGrid-A19.json",
+            "sha256": "EE5921AE9B9F07EC7867377C11E69472C519A7E7BD646EB7A0BC439B994F7027"
+          },
+          {
+            "file": "MultilineGrid-A20.json",
+            "sha256": "BA785DD89AD9DE487C523E314A5E7CA1EA5CAE2FDE37C3D1878AC075D499724C"
+          },
+          {
+            "file": "MultilineGrid-A21.json",
+            "sha256": "A1AE25041F8D4FC037288AB38F460555AFBA3053D5CE8D5C4D276333E89826FF"
+          },
+          {
+            "file": "MultilineGrid-A22.json",
+            "sha256": "6C16ACFA28B1569004BCC708971A92687F468F52F0A857217CC223F4619D49CA"
+          },
+          {
+            "file": "MultilineGrid-A23.json",
+            "sha256": "8A8D0ED9B5329D84342A70E22C94F51242744F0DB9B401C0D2D90C9303451CDD"
+          },
+          {
+            "file": "MultilineGrid-A24.json",
+            "sha256": "711B8E086E8EDFDE56F0A9822BA0629146FC2BA84895C131BF0337FFE185F2F5"
+          },
+          {
+            "file": "MultilineGrid-B01.json",
+            "sha256": "4496B22ACBA6B61DD1B2491AD00B6B7CC01617AC9BA9C3C225B7A200DA46CAC0"
+          },
+          {
+            "file": "MultilineGrid-B02.json",
+            "sha256": "43C7A92FFE3F874CD0E0F13459733F5E97FF2FD8F6A4505557C5281044ECA6C2"
+          },
+          {
+            "file": "MultilineGrid-B03.json",
+            "sha256": "B5F4A45725124FAA2BFA4F35C4B6A7434A95974F9246FA4C593E1E20DEA529F8"
+          },
+          {
+            "file": "MultilineGrid-B04.json",
+            "sha256": "4A5D479589DFF030EB29C474B50784B6F40FA62D205CB392499B0397E9B5CF50"
+          },
+          {
+            "file": "MultilineGrid-B05.json",
+            "sha256": "A7A9C7DB11B03A76C2D2747D317B162FB6F0B147E2D0C0C708016D9D0FCAB2C4"
+          },
+          {
+            "file": "MultilineGrid-B06.json",
+            "sha256": "FA2C9686706B715E78EAC5C7BFA9BCF450A80CD5C2016AD7AB4727F32C44DA73"
+          },
+          {
+            "file": "MultilineGrid-B07.json",
+            "sha256": "A2EDB04B43969CA63FFA9010E3306027F6D38C4FB80AF36BBB217B858C68FC4B"
+          },
+          {
+            "file": "MultilineGrid-B08.json",
+            "sha256": "01F9BFEFDC41CEDF332ABE10F9ABE9230490106BFB7C0B6A44A08738E32D785E"
+          },
+          {
+            "file": "MultilineGrid-B09.json",
+            "sha256": "765A17557CE7FB452A6C577226EC6BFBF755B938BD22E81F42CF0A4EE3ADCBFA"
+          },
+          {
+            "file": "MultilineGrid-B10.json",
+            "sha256": "3F9117091E13D979ED624D3C631019CDA116738DE03B85E08379B2FDE50C9F46"
+          },
+          {
+            "file": "MultilineGrid-B11.json",
+            "sha256": "2086A6B5287645BDE3BBDE15322F724083CAE54B3D1D8E5CF7624F88C816DFA7"
+          },
+          {
+            "file": "MultilineGrid-B12.json",
+            "sha256": "4B6876812C5C75E55B028BC3D7B82A987D70BEA339BF8729EA7F97822565455A"
+          },
+          {
+            "file": "MultilineGrid-B13.json",
+            "sha256": "D3B3A5D52D643BF1BBFD6C9DFAF003329911986BB189303A255A3C322C2E5029"
+          },
+          {
+            "file": "MultilineGrid-B14.json",
+            "sha256": "75B01D8E01BB229C5FF41A0A2C23E982D819AF24C8FBE2097B0E1C88B91FF8E8"
+          },
+          {
+            "file": "MultilineGrid-B15.json",
+            "sha256": "5F38FBDC5CBCC35C0CA28023F2603455F1E686205DFE298447DEB66EADFACF44"
+          },
+          {
+            "file": "MultilineGrid-B16.json",
+            "sha256": "E09257B5F6748394FBC6AAFAD478E309A0A71FC154172713FC4CB0058C33B40C"
+          },
+          {
+            "file": "MultilineGrid-B17.json",
+            "sha256": "CE6E776361B92FD7429B2141A6E2DED689206906A295A631F9F66B7479F5F398"
+          },
+          {
+            "file": "MultilineGrid-B18.json",
+            "sha256": "8DC743B3B52011C7350ADAAFA058B3A8E2AB81C05DEB6E78AAC5135326AFB8CA"
+          },
+          {
+            "file": "MultilineGrid-B19.json",
+            "sha256": "FAF4009C3C9FF4EC984ECE8AA11108FA6F8AB2EE61454B62B5355494C74D2374"
+          },
+          {
+            "file": "MultilineGrid-B20.json",
+            "sha256": "687C30BDBD3C8BDFBB44FE520D7F513438E614AED5C2F7EF0E33BC831916E777"
+          },
+          {
+            "file": "MultilineGrid-B21.json",
+            "sha256": "3626FC14B339E022DC10439727901E77920C1C80B05C04328DFC8DEB0A95066E"
+          },
+          {
+            "file": "MultilineGrid-B22.json",
+            "sha256": "0CCB5A73034B839AA3104B3040E5DAABB83466764F20F794481A13CAAFAE386D"
+          },
+          {
+            "file": "MultilineGrid-B23.json",
+            "sha256": "ECEB464034915FD9732202ECF459E329347115D7C16016C06F6F5973256FF499"
+          },
+          {
+            "file": "MultilineGrid-B24.json",
+            "sha256": "1B34FED3A7EBC037A62934F119C40DE79F3B92E69D59D6CA22DFFE061A37231E"
+          },
+          {
+            "file": "MultilineGridDistinct-A01.json",
+            "sha256": "39CA715A3DD2D02993344E4A521735C2DD6D0B8E51D698837767160938E213CA"
+          },
+          {
+            "file": "MultilineGridDistinct-A02.json",
+            "sha256": "AE9BAD86DE46B7D6CF4EC6026D8BC8FA8D02F64B97960E676978DE06588F4ACB"
+          },
+          {
+            "file": "MultilineGridDistinct-A03.json",
+            "sha256": "0C44950709A479ED7A9EC21D219C7AC47908573FF0022F8FE7EBB45D8FAADBEB"
+          },
+          {
+            "file": "MultilineGridDistinct-A04.json",
+            "sha256": "8BBE91E8F1D5FE058BBB379753004501BF561B1AA9B69E992E02499421C648D4"
+          },
+          {
+            "file": "MultilineGridDistinct-A05.json",
+            "sha256": "4EEF0AB9493839011FA16BAA9174C781728E276B1568B106447F34DE7CADE057"
+          },
+          {
+            "file": "MultilineGridDistinct-A06.json",
+            "sha256": "5C1C3D21198A7721260A7AD24C842DAB478BC0E6B32F81B134C0243424ACBD44"
+          },
+          {
+            "file": "MultilineGridDistinct-A07.json",
+            "sha256": "57D0B30FAF01A4F6A3C56F5A7371D2E506716890F878C751AF3C63687B3583E1"
+          },
+          {
+            "file": "MultilineGridDistinct-A08.json",
+            "sha256": "B07B2B108C1D715F583DE328D0D4ECA20573EAD8BFA1290F1FAC331E24120963"
+          },
+          {
+            "file": "MultilineGridDistinct-A09.json",
+            "sha256": "80F5C2E67EC26850493F741629455FB8762B6B8E13B3445FE5B9BE5213230239"
+          },
+          {
+            "file": "MultilineGridDistinct-A10.json",
+            "sha256": "598654AB5FF824B35D59FCD4B9828088A900B9B8CE2FDE782AF5223D771F2302"
+          },
+          {
+            "file": "MultilineGridDistinct-A11.json",
+            "sha256": "63CB8F4D1D044AD5B19430970604CA8F65F00012F532E165E497087DC902D4DA"
+          },
+          {
+            "file": "MultilineGridDistinct-A12.json",
+            "sha256": "E67FB204FB7B62F66E673E58512AB6EED4A276A6B6383A160376BB8A1ADA7DE4"
+          },
+          {
+            "file": "MultilineGridDistinct-A13.json",
+            "sha256": "EBD5F3D2735B9336EB425C19C91B68E81A32CA864573D295744C327515475905"
+          },
+          {
+            "file": "MultilineGridDistinct-A14.json",
+            "sha256": "2D81FDBADB87649FCFF30E09539B13C27281534C99C64897A066781D03B84B86"
+          },
+          {
+            "file": "MultilineGridDistinct-A15.json",
+            "sha256": "1F14B6D665E92EAF16A25ED2D0B88AD9BCED6378F5A833A72D5F3DFD8B55D9EB"
+          },
+          {
+            "file": "MultilineGridDistinct-A16.json",
+            "sha256": "86B170739C82C0EBB84F06A3915F8C7404515FAEAE0BD7CD01E65D46F797C6CF"
+          },
+          {
+            "file": "MultilineGridDistinct-A17.json",
+            "sha256": "4E74A9A7729974E1F085E5D962CC90B72CFD188185E942E3BE5E779CC8495985"
+          },
+          {
+            "file": "MultilineGridDistinct-A18.json",
+            "sha256": "35546AA9F56D06112DACD1B2EBF42267F99892667977A4720485557542461AA2"
+          },
+          {
+            "file": "MultilineGridDistinct-A19.json",
+            "sha256": "A96BA17AE36975F00C08C6F0EE5B6D5B57CC21653E5B2D0E04C624F20E902DCF"
+          },
+          {
+            "file": "MultilineGridDistinct-A20.json",
+            "sha256": "66970E90309439B47523298CB2B3844BBE9E91D0CEA3690C7503DF6E548B43AD"
+          },
+          {
+            "file": "MultilineGridDistinct-A21.json",
+            "sha256": "EF9F9C809E37A04B4327BAF5F97AB31F2E70FAE6735E51945E5EA2D2A98BA87A"
+          },
+          {
+            "file": "MultilineGridDistinct-A22.json",
+            "sha256": "43F23092A9D168BB96B99E2D16CC354457A72795F7C7C3489D701BDED2C33A4E"
+          },
+          {
+            "file": "MultilineGridDistinct-A23.json",
+            "sha256": "E17C22C41AC56F71553940383DEC6D8F4853DE89A2F02C2DAF0D929CA7E36179"
+          },
+          {
+            "file": "MultilineGridDistinct-A24.json",
+            "sha256": "BEE5825061A0953C5E4CB1C56D2909EE9E1400391D4828B02EA280B587DFF126"
+          },
+          {
+            "file": "MultilineGridDistinct-B01.json",
+            "sha256": "F95BDD524E4E69112DA4DC29A4A80A5767F8DCC78A0BFB7E541A2DB6E0619172"
+          },
+          {
+            "file": "MultilineGridDistinct-B02.json",
+            "sha256": "9EBB4738BD84BF45D1E634B760BA49031AC7EDFB37D52645AD886A93997AF845"
+          },
+          {
+            "file": "MultilineGridDistinct-B03.json",
+            "sha256": "27C3C238AC8D9F00F62DE4E7B450E0E8B943EECDB9F5B0DEBA3DCF660873B2DB"
+          },
+          {
+            "file": "MultilineGridDistinct-B04.json",
+            "sha256": "15B9A21E05CB85710F9D0A386433F07C7F22E65B113121BE78BF72C9DECE1D31"
+          },
+          {
+            "file": "MultilineGridDistinct-B05.json",
+            "sha256": "41CD610860197F753A61F5A66FA33B904B51BB20DF3292CA79C32C1D39A0DD35"
+          },
+          {
+            "file": "MultilineGridDistinct-B06.json",
+            "sha256": "A6004A12E1F6851A67F299265F56679C56053537C9846D8CB7A451A7044293AE"
+          },
+          {
+            "file": "MultilineGridDistinct-B07.json",
+            "sha256": "23FA789CB49EEC7F0EC9A268DE4A3344668FA4CFBD0C862477CE8B9CEEC54F45"
+          },
+          {
+            "file": "MultilineGridDistinct-B08.json",
+            "sha256": "6EA6D53733ED09414772508181BA6CF85A15D8D75C1C5652C17F2A47B35AA00F"
+          },
+          {
+            "file": "MultilineGridDistinct-B09.json",
+            "sha256": "3731D1BBBF1B47233627974F3E4BDB74468676FDB84BDC5C21ADAAA18A832960"
+          },
+          {
+            "file": "MultilineGridDistinct-B10.json",
+            "sha256": "753A7909951B610212D78B8D63E67C104F9E92E0732EE3BE363F4B4BFA73C51D"
+          },
+          {
+            "file": "MultilineGridDistinct-B11.json",
+            "sha256": "8DAC8B9225D5AB42ABDC8A0BDE625CF7673A8403FFD5B143611895B4770CFD9B"
+          },
+          {
+            "file": "MultilineGridDistinct-B12.json",
+            "sha256": "3DB04D4CA99023C02B7E74B5094E23A2C372008156ED90CB5EC1008EF5DE185A"
+          },
+          {
+            "file": "MultilineGridDistinct-B13.json",
+            "sha256": "A4DB565326A3B029D7C5ACD17DBA65BCFAADEBA3AB02E27ABF2EA4C2CE17AC20"
+          },
+          {
+            "file": "MultilineGridDistinct-B14.json",
+            "sha256": "04A1EC4FA9808ECE06033FC1071B9515D0CEF75C5A2735A63AB406BF39619D00"
+          },
+          {
+            "file": "MultilineGridDistinct-B15.json",
+            "sha256": "F60B36C5C0C57DC4DF42212B29EB3F74D9944EB510B82C59AD64B393FC8E507C"
+          },
+          {
+            "file": "MultilineGridDistinct-B16.json",
+            "sha256": "D52F24087FA4F320987DEF624929CB46A5E48365BA58D658158688FEE09DFD8B"
+          },
+          {
+            "file": "MultilineGridDistinct-B17.json",
+            "sha256": "194F66F74A4313A0C5C81FC1B4C53BFA29EC6768B842BDD213C0BE2B6EE44A51"
+          },
+          {
+            "file": "MultilineGridDistinct-B18.json",
+            "sha256": "92D787E2F1D5E04A7F2125A2F81547D62E6F6F893C17E796A824545E8AFC5DFE"
+          },
+          {
+            "file": "MultilineGridDistinct-B19.json",
+            "sha256": "1179E5487AFD7A653D605A819087EE2812AC9E1A44E1EC11F163A366FE638015"
+          },
+          {
+            "file": "MultilineGridDistinct-B20.json",
+            "sha256": "AA9F0B410EA80ED54F8005C9044B463F30F73C8623C0F486AAD6EF4455C847B4"
+          },
+          {
+            "file": "MultilineGridDistinct-B21.json",
+            "sha256": "710D7A0AD4E844D5EB65736DDF079C9263C343F73FBB1530F7C4D31F4164CC2F"
+          },
+          {
+            "file": "MultilineGridDistinct-B22.json",
+            "sha256": "06426942C3622A05A018D80DEBFE57767788DE40A447D33E87883D7E5939EB31"
+          },
+          {
+            "file": "MultilineGridDistinct-B23.json",
+            "sha256": "8087EF6B2B611239882DAFFF7D63AAA4EC733C8F4FE01A756B79EADDBBC47AB9"
+          },
+          {
+            "file": "MultilineGridDistinct-B24.json",
+            "sha256": "6D572F8C2211F9EFA5293C1D3AE7FD08F368120F5BB6B08182BC1CDE3EED8855"
+          }
+        ]
+      },
+      "sourceRoles": [
+        {
+          "role": "baseline",
+          "sourceCommit": "b06f534b36ffc2c0c9671a142d1e51545480be22",
+          "sourceDirty": true,
+          "sourceFingerprint": "0BA64DA69F28AEC624D9E5A104FA777DC82AC2FE6680CDD52EA7F230E762BE52",
+          "executableSha256": "CB5529BCA86898D7E7D9EF04FCE3B8CA3D08D3875D73B83B9785E30B6A89A3CF",
+          "benchmarkSha256": "E39D45D6EAAD430C06B66A4F4AC18DDBE78718794D455FFF59114C99A4730A15",
+          "buildInputIdentity": "ca8491b4a26236ab174102fae82bcc96736c22c423772689770c37a8f961d6d1",
+          "buildArtifactIdentity": "ebc5b039300cc33cea8162b711dc0290d227c39c149a87495f39a0d6389a6341",
+          "resolvedBuildIdentity": "21238e1fbe19572ef5ee42705869400b15298500e0fdf49fe7cfeb72502bffa1",
+          "buildAttestationIdentity": "382a1b176ed95e58ec41527a5bec6849582d233cebc106473933c149490ab9eb",
+          "toolchainIdentity": "2E287CB92C45291D3A0F2CDE2A7DD951C69FF05C9D005091850095984FD707A7",
+          "dependencyIdentity": "BCF6C01892D9A91858261765D3E51BBC407818091194480081D6A4CC7F861845",
+          "harnessIdentity": "7940D7B0F257657FF989009F63DF91537E3F9363FF0BC1A83040586B3D68E6DA",
+          "benchmarkInputDigests": {
+            "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+            "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+            "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+            "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+            "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "role": "candidate",
+          "sourceCommit": "8c78b5adf821daa216bee53572b3f9aae7d40ef7",
+          "sourceDirty": false,
+          "sourceFingerprint": "F423000D1AD799EDBAA3EE17B121480C5AE567CC75E2BCE2AF0D783AC7AB26F1",
+          "executableSha256": "C5916C9BD2BC2A0F19B710F8FE6B94203B7ED2B5A7E2D0C86DCC20F6C080C85A",
+          "benchmarkSha256": "E39D45D6EAAD430C06B66A4F4AC18DDBE78718794D455FFF59114C99A4730A15",
+          "buildInputIdentity": "cec51b3991cba1c951691d61ca4ec45acf051611be29eb8a3f396a18ce938e0e",
+          "buildArtifactIdentity": "39c83bebb0fcdfc7d3057d46fc685504e7db96a80774a911793ee2cad789e969",
+          "resolvedBuildIdentity": "8363dcd31e2d8f413f609bc59af455acee764196ec8dc444a6c533015c91fe3e",
+          "buildAttestationIdentity": "335158ce5a04a03161b27679af00998bfc7a23e936dcf031c66b4d5732cd9254",
+          "toolchainIdentity": "2E287CB92C45291D3A0F2CDE2A7DD951C69FF05C9D005091850095984FD707A7",
+          "dependencyIdentity": "BCF6C01892D9A91858261765D3E51BBC407818091194480081D6A4CC7F861845",
+          "harnessIdentity": "7940D7B0F257657FF989009F63DF91537E3F9363FF0BC1A83040586B3D68E6DA",
+          "benchmarkInputDigests": {
+            "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+            "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+            "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+            "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+            "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        }
+      ],
+      "scenarioProtocol": [
+        {
+          "scenario": "Default",
+          "slots": 26,
+          "blocks": 12,
+          "receiptCount": 48,
+          "receiptHashesMatched": 48,
+          "independentRegressed": 0,
+          "independentSetStatus": "within-noise-budget",
+          "numericReferenceMatchesProducer": true,
+          "legacyJudgeVerdictAgreement": true,
+          "legacyDisagreements": [
+            null
+          ],
+          "baselineControlCount": 12,
+          "candidateControlCount": 12,
+          "unstableControlCount": 22
+        },
+        {
+          "scenario": "MultilineGrid",
+          "slots": 26,
+          "blocks": 12,
+          "receiptCount": 48,
+          "receiptHashesMatched": 48,
+          "independentRegressed": 0,
+          "independentSetStatus": "within-noise-budget",
+          "numericReferenceMatchesProducer": true,
+          "legacyJudgeVerdictAgreement": false,
+          "legacyDisagreements": [
+            null
+          ],
+          "baselineControlCount": 12,
+          "candidateControlCount": 12,
+          "unstableControlCount": 24
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "slots": 26,
+          "blocks": 12,
+          "receiptCount": 48,
+          "receiptHashesMatched": 48,
+          "independentRegressed": 0,
+          "independentSetStatus": "within-noise-budget",
+          "numericReferenceMatchesProducer": true,
+          "legacyJudgeVerdictAgreement": false,
+          "legacyDisagreements": [
+            null
+          ],
+          "baselineControlCount": 12,
+          "candidateControlCount": 12,
+          "unstableControlCount": 23
+        }
+      ],
+      "independentAudit": {
+        "status": "independently-recomputed",
+        "auditTool": "audit-dxui-paired-reference.py",
+        "auditSha256": "7510410C34B46D7513410FA39D656349312E797DB0285AF1A31590CC2D3A50FA",
+        "numericReferenceMatchesProducer": true,
+        "allReceiptHashesMatched": true,
+        "independentRegressedMetricCount": 0,
+        "sameSideUnstableCount": 69,
+        "sameSideControlCount": 72,
+        "acceptancePolicyStatus": "policy-review-required",
+        "qualifiesStudy": false,
+        "legacyDisagreements": [
+          {
+            "scenario": "MultilineGrid",
+            "phase": "clean",
+            "metric": "prepareP95Ms",
+            "legacyVerdict": "improved",
+            "independentVerdict": "within-noise"
+          },
+          {
+            "scenario": "MultilineGridDistinct",
+            "phase": "clean",
+            "metric": "prepareP95Ms",
+            "legacyVerdict": "improved",
+            "independentVerdict": "within-noise"
+          }
+        ]
+      },
+      "metricRows": [
+        {
+          "scenario": "Default",
+          "phase": "clean",
+          "metric": "fps",
+          "direction": "higher",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 290.0405865,
+          "candidateMedian": 298.20370255,
+          "baselineMaximum": 321.2670774,
+          "candidateMaximum": 323.0294999,
+          "changePercent": 1.1059876732548268,
+          "meanWorseLogEffect": -0.010999163539334314,
+          "blockEffects": [
+            -0.02453471511035937,
+            -0.016513907732058047,
+            0.0029876153345425116,
+            -0.027932623428663667,
+            -0.0253245637075594,
+            -0.030631544309651055,
+            -0.019541075343844933,
+            0.0006422574835517492,
+            -0.035878147343850454,
+            0.051868992419891444,
+            -0.034964335466717913,
+            0.027832084732707353
+          ],
+          "pValue": 0.189453125,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "Default",
+          "phase": "clean",
+          "metric": "frameP50Ms",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 3.43215,
+          "candidateMedian": 3.3471,
+          "baselineMaximum": 3.785,
+          "candidateMaximum": 3.6961,
+          "changePercent": -0.8696902980949939,
+          "meanWorseLogEffect": -0.008734941748579068,
+          "blockEffects": [
+            -0.027200458608182116,
+            -0.0037902761737809137,
+            -0.0005205170586854036,
+            -0.036323267651606664,
+            -0.005649283581392573,
+            -0.00644700832645098,
+            -0.017185155123878103,
+            -0.01491501111375113,
+            -0.05564161762674192,
+            0.08434242470321981,
+            -0.0415177825124531,
+            0.020028652090754256
+          ],
+          "pValue": 0.42626953125,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "Default",
+          "phase": "clean",
+          "metric": "frameP95Ms",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 3.6883,
+          "candidateMedian": 3.66235,
+          "baselineMaximum": 5.0172,
+          "candidateMaximum": 5.3691,
+          "changePercent": -1.5654552231476382,
+          "meanWorseLogEffect": -0.01577837873330354,
+          "blockEffects": [
+            0.025581801979539406,
+            -0.008404620572720426,
+            0.004824040326234745,
+            -0.027217676897019295,
+            -0.01078101182634819,
+            -0.011210122288477746,
+            -0.03745572030641816,
+            -0.006502947857868629,
+            -0.0431255386618771,
+            0.005595782975749175,
+            -0.1139487882219134,
+            0.03330425655147716
+          ],
+          "pValue": 0.17919921875,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "Default",
+          "phase": "clean",
+          "metric": "prepareP95Ms",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 0.0008,
+          "candidateMedian": 0.0008,
+          "baselineMaximum": 0.0011,
+          "candidateMaximum": 0.0012,
+          "changePercent": -2.4698588772415486,
+          "meanWorseLogEffect": -0.025008716037528158,
+          "blockEffects": [
+            -0.1823215567939546,
+            -0.060624621816434854,
+            -0.05715841383994852,
+            0.11778303565638346,
+            0.0,
+            -0.05715841383994852,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            -0.060624621816434854,
+            0.0
+          ],
+          "pValue": 0.34375,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "Default",
+          "phase": "clean",
+          "metric": "composeCpuP95Ms",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 0.0214,
+          "candidateMedian": 0.0207,
+          "baselineMaximum": 0.0307,
+          "candidateMaximum": 0.0282,
+          "changePercent": -3.4108378949468388,
+          "meanWorseLogEffect": -0.03470364459325422,
+          "blockEffects": [
+            -0.05023887451362976,
+            -0.07323223867100957,
+            0.0,
+            0.014252022707201413,
+            -0.03738753207162022,
+            0.009345862418237599,
+            -0.06216039873260381,
+            -0.05343896215556043,
+            -0.07429157630369136,
+            0.002472189145389073,
+            -0.08926109672364514,
+            -0.002503130218118477
+          ],
+          "pValue": 0.013671875,
+          "adjustedPValue": 0.35546875,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "Default",
+          "phase": "clean",
+          "metric": "privateBytes",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.02,
+          "baselineMedian": 23484416.0,
+          "candidateMedian": 23476224.0,
+          "baselineMaximum": 23728128.0,
+          "candidateMaximum": 23736320.0,
+          "changePercent": 0.018646281223300143,
+          "meanWorseLogEffect": 0.00018644543020354285,
+          "blockEffects": [
+            -0.002524484474556555,
+            -0.00043563494481147684,
+            0.0015749412652603246,
+            -0.009188426054406255,
+            0.001747488430714463,
+            -0.00761391679819978,
+            -0.006109287634811526,
+            -0.0007840746143729517,
+            0.006123182182569153,
+            0.004629435703937783,
+            0.01011960131956522,
+            0.004698520781554114
+          ],
+          "pValue": 0.9140625,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "Default",
+          "phase": "clean",
+          "metric": "privatePeakBytes",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.02,
+          "baselineMedian": 23484416.0,
+          "candidateMedian": 23523328.0,
+          "baselineMaximum": 24301568.0,
+          "candidateMaximum": 24371200.0,
+          "changePercent": 0.050503776314814175,
+          "meanWorseLogEffect": 0.0005049102744995423,
+          "blockEffects": [
+            -0.00278527467032323,
+            0.0010447502256227285,
+            0.0022741197590464,
+            -0.009188426054406255,
+            0.0010481265698812376,
+            -0.007613250511579389,
+            -0.0054073042968587415,
+            -0.0007840746143729517,
+            0.005509174005741825,
+            0.007066550671202153,
+            0.009418400484453505,
+            0.005476131725587225
+          ],
+          "pValue": 0.767578125,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "Default",
+          "phase": "clean",
+          "metric": "workingSetBytes",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.02,
+          "baselineMedian": 37191680.0,
+          "candidateMedian": 37220352.0,
+          "baselineMaximum": 38625280.0,
+          "candidateMaximum": 38072320.0,
+          "changePercent": 0.03701810970966335,
+          "meanWorseLogEffect": 0.00037011259697885857,
+          "blockEffects": [
+            -0.004016069654889943,
+            0.0017582422111963444,
+            -0.00022044640486081836,
+            -0.0020930880679273394,
+            0.0005501760702160027,
+            -0.0012671828918041856,
+            -0.004622504378867133,
+            0.0029179418947447044,
+            0.0031917262402443424,
+            -0.0003302873529970235,
+            0.005602871015284233,
+            0.0029699724834071194
+          ],
+          "pValue": 0.68408203125,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "Default",
+          "phase": "clean",
+          "metric": "workingSetPeakBytes",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.02,
+          "baselineMedian": 37216256.0,
+          "candidateMedian": 37244928.0,
+          "baselineMaximum": 39116800.0,
+          "candidateMaximum": 38682624.0,
+          "changePercent": 0.03930719983411546,
+          "meanWorseLogEffect": 0.0003929947657811312,
+          "blockEffects": [
+            -0.004122151522309095,
+            0.0017022215350387159,
+            -0.0002753834732243793,
+            -0.0021465731885005573,
+            0.0007148159653336887,
+            -0.0010460539946887818,
+            -0.004509714512073885,
+            0.002916496770832527,
+            0.0032447027119711764,
+            -0.00033008747617756224,
+            0.00554443821452483,
+            0.0030232261586468972
+          ],
+          "pValue": 0.6630859375,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "Default",
+          "phase": "clean",
+          "metric": "surfaceBytes",
+          "direction": "lower",
+          "exact": true,
+          "band": 0.0,
+          "baselineMedian": 3686400.0,
+          "candidateMedian": 3686400.0,
+          "baselineMaximum": 3686400.0,
+          "candidateMaximum": 3686400.0,
+          "changePercent": 0.0,
+          "meanWorseLogEffect": 0.0,
+          "blockEffects": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pValue": 1.0,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "within-budget",
+          "peakBudgetVerdict": "within-budget",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "Default",
+          "phase": "clean",
+          "metric": "replacementPeakBytes",
+          "direction": "lower",
+          "exact": true,
+          "band": 0.0,
+          "baselineMedian": 3686400.0,
+          "candidateMedian": 3686400.0,
+          "baselineMaximum": 3686400.0,
+          "candidateMaximum": 3686400.0,
+          "changePercent": 0.0,
+          "meanWorseLogEffect": 0.0,
+          "blockEffects": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pValue": 1.0,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "within-budget",
+          "peakBudgetVerdict": "within-budget",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "Default",
+          "phase": "clean",
+          "metric": "cppAllocations",
+          "direction": "lower",
+          "exact": true,
+          "band": 0.0,
+          "baselineMedian": 0.0,
+          "candidateMedian": 0.0,
+          "baselineMaximum": 0.0,
+          "candidateMaximum": 0.0,
+          "changePercent": 0.0,
+          "meanWorseLogEffect": 0.0,
+          "blockEffects": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pValue": 1.0,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "within-budget",
+          "peakBudgetVerdict": "within-budget",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "Default",
+          "phase": "clean",
+          "metric": "composeAllocations",
+          "direction": "lower",
+          "exact": true,
+          "band": 0.0,
+          "baselineMedian": 0.0,
+          "candidateMedian": 0.0,
+          "baselineMaximum": 0.0,
+          "candidateMaximum": 0.0,
+          "changePercent": 0.0,
+          "meanWorseLogEffect": 0.0,
+          "blockEffects": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pValue": 1.0,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "within-budget",
+          "peakBudgetVerdict": "within-budget",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "Default",
+          "phase": "dirty",
+          "metric": "fps",
+          "direction": "higher",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 161.5488108,
+          "candidateMedian": 162.57465235,
+          "baselineMaximum": 178.9400931,
+          "candidateMaximum": 178.1547532,
+          "changePercent": 0.703039546427231,
+          "meanWorseLogEffect": -0.007005797455939084,
+          "blockEffects": [
+            -0.06946194287842136,
+            -0.01686421156576556,
+            0.06307444708741032,
+            -0.008203138882310477,
+            -0.030953059599438715,
+            -0.0399081246793431,
+            -0.0050702131811093945,
+            -0.0006193277393995524,
+            -0.03745407720103059,
+            0.0036345302402906814,
+            0.038415073253203,
+            0.01934047567464574
+          ],
+          "pValue": 0.51318359375,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "Default",
+          "phase": "dirty",
+          "metric": "frameP50Ms",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 6.0547,
+          "candidateMedian": 5.99805,
+          "baselineMaximum": 7.6507,
+          "candidateMaximum": 7.0264,
+          "changePercent": -0.4226765285759271,
+          "meanWorseLogEffect": -0.004235723309369747,
+          "blockEffects": [
+            -0.02995189705940703,
+            -0.018866819343796082,
+            0.020160930987981763,
+            -0.016778724485118288,
+            -0.01997332284124181,
+            -0.03918916200960659,
+            0.01770682788598176,
+            0.016066593869907123,
+            -0.07020528383488907,
+            0.07629448409067925,
+            0.0080011994793411,
+            0.005906493547730907
+          ],
+          "pValue": 0.69677734375,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "Default",
+          "phase": "dirty",
+          "metric": "frameP95Ms",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 6.650399999999999,
+          "candidateMedian": 6.70765,
+          "baselineMaximum": 8.7404,
+          "candidateMaximum": 8.833,
+          "changePercent": 0.42164602594907397,
+          "meanWorseLogEffect": 0.004207595899675807,
+          "blockEffects": [
+            0.032314224238989595,
+            -0.14906560693267426,
+            0.06186146633873258,
+            0.06153616110113263,
+            -0.059700076879483026,
+            0.004293333923484905,
+            -0.0886409477001852,
+            0.07432960504581933,
+            -0.062306606183683645,
+            0.04549934253958209,
+            0.031038079337535118,
+            0.09933217596685956
+          ],
+          "pValue": 0.84765625,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "Default",
+          "phase": "dirty",
+          "metric": "prepareP95Ms",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 1.89435,
+          "candidateMedian": 1.89365,
+          "baselineMaximum": 2.632,
+          "candidateMaximum": 2.5786,
+          "changePercent": -0.2640239577359482,
+          "meanWorseLogEffect": -0.0026437311569642726,
+          "blockEffects": [
+            0.009883650962060871,
+            -0.020332907174483623,
+            0.0016502734554325427,
+            0.07754260556077787,
+            -0.07808781615831678,
+            -0.04945924533374585,
+            0.0023394932908947703,
+            0.00302603663892793,
+            -0.05704495771671343,
+            0.035288011744985325,
+            0.04587936179979163,
+            -0.0024092809531825236
+          ],
+          "pValue": 0.83740234375,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "Default",
+          "phase": "dirty",
+          "metric": "composeCpuP95Ms",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 0.01545,
+          "candidateMedian": 0.0152,
+          "baselineMaximum": 0.021,
+          "candidateMaximum": 0.0392,
+          "changePercent": -1.1732512120312233,
+          "meanWorseLogEffect": -0.011801881156509838,
+          "blockEffects": [
+            -0.03184982588709916,
+            -0.034324742541074725,
+            0.03443219642148422,
+            -0.08757618920458847,
+            -0.01605170901050779,
+            -0.006472514505617479,
+            0.01680711831638119,
+            -0.02631730831737353,
+            -0.04269942567382971,
+            0.055660847105553815,
+            -0.0032310205814464203,
+            0.0
+          ],
+          "pValue": 0.3056640625,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "Default",
+          "phase": "dirty",
+          "metric": "privateBytes",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.02,
+          "baselineMedian": 23801856.0,
+          "candidateMedian": 23836672.0,
+          "baselineMaximum": 24256512.0,
+          "candidateMaximum": 24346624.0,
+          "changePercent": -0.19595790905428956,
+          "meanWorseLogEffect": -0.001961501577569706,
+          "blockEffects": [
+            -0.005496878910091869,
+            0.0018854993587330711,
+            0.009642778118086486,
+            -0.012117164009164258,
+            0.013861011381705679,
+            -0.011674798580177934,
+            -0.011255864851882435,
+            -0.008352558574001023,
+            -0.006103608030908814,
+            0.005647315427984214,
+            -0.0002579203040563429,
+            0.0006841700429367501
+          ],
+          "pValue": 0.4365234375,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "Default",
+          "phase": "dirty",
+          "metric": "privatePeakBytes",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.02,
+          "baselineMedian": 23928832.0,
+          "candidateMedian": 23939072.0,
+          "baselineMaximum": 24330240.0,
+          "candidateMaximum": 24350720.0,
+          "changePercent": -0.16209746765641908,
+          "meanWorseLogEffect": -0.0016222898774789528,
+          "blockEffects": [
+            0.0005133909584824356,
+            0.0058124789680935665,
+            0.006356863602188363,
+            -0.010798774542950775,
+            0.006338893934060342,
+            -0.020925212518672947,
+            -0.008750163061222898,
+            -0.007574181990609164,
+            -0.0014503265776465246,
+            0.010494529148341364,
+            0.0004295717236040167,
+            8.54518265847863E-05
+          ],
+          "pValue": 0.55908203125,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "Default",
+          "phase": "dirty",
+          "metric": "workingSetBytes",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.02,
+          "baselineMedian": 37521408.0,
+          "candidateMedian": 37560320.0,
+          "baselineMaximum": 39104512.0,
+          "candidateMaximum": 38567936.0,
+          "changePercent": -0.05241592134075379,
+          "meanWorseLogEffect": -0.000524296632869873,
+          "blockEffects": [
+            -0.006666332950537154,
+            0.0013027196110382221,
+            0.0012576210750701348,
+            -0.0034970802264553697,
+            0.00551748142498695,
+            -0.0004927591876103595,
+            -0.006380041817642311,
+            0.0,
+            -0.0008718396367411225,
+            -0.0007630675685026116,
+            -0.0005983626800228998,
+            0.0049001023619780456
+          ],
+          "pValue": 0.625,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "Default",
+          "phase": "dirty",
+          "metric": "workingSetPeakBytes",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.02,
+          "baselineMedian": 37533696.0,
+          "candidateMedian": 37572608.0,
+          "baselineMaximum": 39108608.0,
+          "candidateMaximum": 38592512.0,
+          "changePercent": -0.055131486702586496,
+          "meanWorseLogEffect": -0.000551466896947347,
+          "blockEffects": [
+            -0.006718468742323228,
+            0.0013024368259990948,
+            0.0012576210750701348,
+            -0.0033328811072883885,
+            0.005243621365764602,
+            -0.0009852756831874802,
+            -0.006378998268572146,
+            0.0,
+            -0.0009800185898978398,
+            -0.00016342984810164727,
+            -0.0005983301328927023,
+            0.004736120342061436
+          ],
+          "pValue": 0.6015625,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "Default",
+          "phase": "dirty",
+          "metric": "surfaceBytes",
+          "direction": "lower",
+          "exact": true,
+          "band": 0.0,
+          "baselineMedian": 3686400.0,
+          "candidateMedian": 3686400.0,
+          "baselineMaximum": 3686400.0,
+          "candidateMaximum": 3686400.0,
+          "changePercent": 0.0,
+          "meanWorseLogEffect": 0.0,
+          "blockEffects": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pValue": 1.0,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "within-budget",
+          "peakBudgetVerdict": "within-budget",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "Default",
+          "phase": "dirty",
+          "metric": "replacementPeakBytes",
+          "direction": "lower",
+          "exact": true,
+          "band": 0.0,
+          "baselineMedian": 3686400.0,
+          "candidateMedian": 3686400.0,
+          "baselineMaximum": 3686400.0,
+          "candidateMaximum": 3686400.0,
+          "changePercent": 0.0,
+          "meanWorseLogEffect": 0.0,
+          "blockEffects": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pValue": 1.0,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "within-budget",
+          "peakBudgetVerdict": "within-budget",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "Default",
+          "phase": "dirty",
+          "metric": "cppAllocations",
+          "direction": "lower",
+          "exact": true,
+          "band": 0.0,
+          "baselineMedian": 2160.0,
+          "candidateMedian": 2160.0,
+          "baselineMaximum": 2160.0,
+          "candidateMaximum": 2160.0,
+          "changePercent": 0.0,
+          "meanWorseLogEffect": 0.0,
+          "blockEffects": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pValue": 1.0,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "within-budget",
+          "peakBudgetVerdict": "within-budget",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "Default",
+          "phase": "dirty",
+          "metric": "composeAllocations",
+          "direction": "lower",
+          "exact": true,
+          "band": 0.0,
+          "baselineMedian": 0.0,
+          "candidateMedian": 0.0,
+          "baselineMaximum": 0.0,
+          "candidateMaximum": 0.0,
+          "changePercent": 0.0,
+          "meanWorseLogEffect": 0.0,
+          "blockEffects": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pValue": 1.0,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "within-budget",
+          "peakBudgetVerdict": "within-budget",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGrid",
+          "phase": "clean",
+          "metric": "fps",
+          "direction": "higher",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 302.37392585,
+          "candidateMedian": 299.23778245,
+          "baselineMaximum": 322.6253964,
+          "candidateMaximum": 324.5696815,
+          "changePercent": -1.5312775692501557,
+          "meanWorseLogEffect": 0.015431227010273116,
+          "blockEffects": [
+            0.055195899488413976,
+            0.030965079363815373,
+            0.012415133092610777,
+            -0.00015830827251790051,
+            0.08492540479435008,
+            0.09836736959380407,
+            0.024120704244678715,
+            -0.00815751906335337,
+            -0.04508024239922222,
+            -0.027066772494878315,
+            -0.03932018013865536,
+            -0.0010318440857684387
+          ],
+          "pValue": 0.26904296875,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGrid",
+          "phase": "clean",
+          "metric": "frameP50Ms",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 3.16275,
+          "candidateMedian": 3.16705,
+          "baselineMaximum": 4.0169,
+          "candidateMaximum": 4.1208,
+          "changePercent": 1.660367489240433,
+          "meanWorseLogEffect": 0.016467340909439566,
+          "blockEffects": [
+            0.05477020785032734,
+            0.015304474829933969,
+            0.030665105274683205,
+            -0.017751348622753953,
+            0.0965597304175091,
+            0.09061427111763366,
+            0.004600051087766507,
+            -0.010494151280017872,
+            -0.003498807876964918,
+            -0.008694595112735517,
+            -0.05262088825937969,
+            -0.001845958512727053
+          ],
+          "pValue": 0.2294921875,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGrid",
+          "phase": "clean",
+          "metric": "frameP95Ms",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 3.5915,
+          "candidateMedian": 3.59155,
+          "baselineMaximum": 4.8908,
+          "candidateMaximum": 6.6845,
+          "changePercent": 2.140234879411107,
+          "meanWorseLogEffect": 0.02117653481179663,
+          "blockEffects": [
+            0.052334226822004,
+            -0.011833315109117554,
+            -0.034217828329018395,
+            0.05246847271557863,
+            0.136117676987321,
+            0.19479188244886902,
+            -0.018261315093155917,
+            -0.00011368642454224646,
+            -0.07966274963854139,
+            -0.011047931181565343,
+            -0.044140381593695516,
+            0.0176833661374233
+          ],
+          "pValue": 0.3916015625,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGrid",
+          "phase": "clean",
+          "metric": "prepareP95Ms",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 0.0009,
+          "candidateMedian": 0.0008,
+          "baselineMaximum": 0.0011,
+          "candidateMaximum": 0.0011,
+          "changePercent": -3.877797618573764,
+          "meanWorseLogEffect": -0.03954986255016832,
+          "blockEffects": [
+            0.0,
+            -0.060624621816434854,
+            -0.11778303565638339,
+            0.0,
+            0.0,
+            0.0,
+            -0.060624621816434854,
+            0.0,
+            -0.05715841383994852,
+            0.0,
+            -0.11778303565638339,
+            -0.060624621816434854
+          ],
+          "pValue": 0.03125,
+          "adjustedPValue": 0.75,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGrid",
+          "phase": "clean",
+          "metric": "composeCpuP95Ms",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 0.0208,
+          "candidateMedian": 0.0208,
+          "baselineMaximum": 0.033,
+          "candidateMaximum": 0.0311,
+          "changePercent": 1.731964519569651,
+          "meanWorseLogEffect": 0.01717136974454253,
+          "blockEffects": [
+            0.10020016509851651,
+            0.034317092924129156,
+            -0.06222102299720856,
+            0.009070356969964279,
+            0.17482497404340214,
+            0.0830352286099905,
+            -0.01701134582653645,
+            -0.002418380864281527,
+            -0.06765864847381493,
+            -0.029057734479542782,
+            -0.026733062197068867,
+            0.009708814126960903
+          ],
+          "pValue": 0.43701171875,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGrid",
+          "phase": "clean",
+          "metric": "privateBytes",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.02,
+          "baselineMedian": 28784640.0,
+          "candidateMedian": 28796928.0,
+          "baselineMaximum": 29724672.0,
+          "candidateMaximum": 29097984.0,
+          "changePercent": -0.039325118277178106,
+          "meanWorseLogEffect": -0.00039332852629577045,
+          "blockEffects": [
+            -0.02075806886069804,
+            -0.004895883763833896,
+            0.004982571344463873,
+            -0.000500160776387166,
+            0.005632211088659742,
+            0.0029199180379751713,
+            -0.0022827802750911173,
+            0.0026199342300703447,
+            -0.006893883242612074,
+            0.010611501489389366,
+            -0.00014220705370951187,
+            0.0039869054662240635
+          ],
+          "pValue": 0.88525390625,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGrid",
+          "phase": "clean",
+          "metric": "privatePeakBytes",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.02,
+          "baselineMedian": 28835840.0,
+          "candidateMedian": 28839936.0,
+          "baselineMaximum": 32718848.0,
+          "candidateMaximum": 32161792.0,
+          "changePercent": -0.0492251805566335,
+          "meanWorseLogEffect": -0.0004923730012605821,
+          "blockEffects": [
+            -0.022072203355499146,
+            -0.005314826669458044,
+            0.005260177042100662,
+            -0.00028542885879519853,
+            0.006119273399693907,
+            0.002916594633750903,
+            -0.0031327900310452006,
+            0.0008482364260625266,
+            -0.006176145710392857,
+            0.010528659541895606,
+            0.0019157773624689737,
+            0.003484200204090882
+          ],
+          "pValue": 0.86572265625,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGrid",
+          "phase": "clean",
+          "metric": "workingSetBytes",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.02,
+          "baselineMedian": 42211328.0,
+          "candidateMedian": 42133504.0,
+          "baselineMaximum": 43814912.0,
+          "candidateMaximum": 42602496.0,
+          "changePercent": -0.1640876334996988,
+          "meanWorseLogEffect": -0.0016422240470580177,
+          "blockEffects": [
+            -0.019893981740065944,
+            -0.009459431665167786,
+            0.0051061457502972925,
+            0.003059368660367056,
+            -0.0004372009493750143,
+            -0.006744815340989683,
+            -0.005640118029148973,
+            0.00768546693230811,
+            0.0019447691854867044,
+            0.0012133273346601416,
+            -0.006579289370915613,
+            0.010039070667847495
+          ],
+          "pValue": 0.5283203125,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGrid",
+          "phase": "clean",
+          "metric": "workingSetPeakBytes",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.02,
+          "baselineMedian": 42229760.0,
+          "candidateMedian": 42151936.0,
+          "baselineMaximum": 44433408.0,
+          "candidateMaximum": 43868160.0,
+          "changePercent": -0.1691584493926146,
+          "meanWorseLogEffect": -0.0016930168384920233,
+          "blockEffects": [
+            -0.020262852967018463,
+            -0.009746240505571208,
+            0.00490899914102622,
+            0.003397566729934309,
+            -0.00019419361164047807,
+            -0.006741871055890717,
+            -0.0059286790431698315,
+            0.0073918736457601174,
+            0.002041312981013588,
+            0.0012129152688996013,
+            -0.006284768087893432,
+            0.009889735442646016
+          ],
+          "pValue": 0.52001953125,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGrid",
+          "phase": "clean",
+          "metric": "surfaceBytes",
+          "direction": "lower",
+          "exact": true,
+          "band": 0.0,
+          "baselineMedian": 3686400.0,
+          "candidateMedian": 3686400.0,
+          "baselineMaximum": 3686400.0,
+          "candidateMaximum": 3686400.0,
+          "changePercent": 0.0,
+          "meanWorseLogEffect": 0.0,
+          "blockEffects": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pValue": 1.0,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "within-budget",
+          "peakBudgetVerdict": "within-budget",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGrid",
+          "phase": "clean",
+          "metric": "replacementPeakBytes",
+          "direction": "lower",
+          "exact": true,
+          "band": 0.0,
+          "baselineMedian": 3686400.0,
+          "candidateMedian": 3686400.0,
+          "baselineMaximum": 3686400.0,
+          "candidateMaximum": 3686400.0,
+          "changePercent": 0.0,
+          "meanWorseLogEffect": 0.0,
+          "blockEffects": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pValue": 1.0,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "within-budget",
+          "peakBudgetVerdict": "within-budget",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGrid",
+          "phase": "clean",
+          "metric": "cppAllocations",
+          "direction": "lower",
+          "exact": true,
+          "band": 0.0,
+          "baselineMedian": 0.0,
+          "candidateMedian": 0.0,
+          "baselineMaximum": 0.0,
+          "candidateMaximum": 0.0,
+          "changePercent": 0.0,
+          "meanWorseLogEffect": 0.0,
+          "blockEffects": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pValue": 1.0,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "within-budget",
+          "peakBudgetVerdict": "within-budget",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGrid",
+          "phase": "clean",
+          "metric": "composeAllocations",
+          "direction": "lower",
+          "exact": true,
+          "band": 0.0,
+          "baselineMedian": 0.0,
+          "candidateMedian": 0.0,
+          "baselineMaximum": 0.0,
+          "candidateMaximum": 0.0,
+          "changePercent": 0.0,
+          "meanWorseLogEffect": 0.0,
+          "blockEffects": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pValue": 1.0,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "within-budget",
+          "peakBudgetVerdict": "within-budget",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGrid",
+          "phase": "dirty",
+          "metric": "fps",
+          "direction": "higher",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 68.512499085,
+          "candidateMedian": 67.875422405,
+          "baselineMaximum": 76.85105861,
+          "candidateMaximum": 75.82229756,
+          "changePercent": -2.7630055389482155,
+          "meanWorseLogEffect": 0.028018945480907873,
+          "blockEffects": [
+            0.04971029100454946,
+            0.03982965526309296,
+            0.019424652742858043,
+            0.09313113975371938,
+            0.07543449947084656,
+            0.08252143551350803,
+            0.04178980258208559,
+            -0.03968993220564658,
+            0.004107291802105534,
+            -0.042916336317499124,
+            0.0523488843179689,
+            -0.03946403815669428
+          ],
+          "pValue": 0.0693359375,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGrid",
+          "phase": "dirty",
+          "metric": "frameP50Ms",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 14.1599,
+          "candidateMedian": 14.14575,
+          "baselineMaximum": 19.524,
+          "candidateMaximum": 20.2929,
+          "changePercent": 1.2748081468462402,
+          "meanWorseLogEffect": 0.012667508720653213,
+          "blockEffects": [
+            0.03704659507616379,
+            0.026689423902313183,
+            -0.008360098144942865,
+            0.07211878870671085,
+            0.011481621177955486,
+            0.07201989732849567,
+            -0.004980959232719281,
+            -0.004933188027616617,
+            -0.053910281547689946,
+            -0.00017325705253674935,
+            0.021341939077269445,
+            -0.016330376615564392
+          ],
+          "pValue": 0.25244140625,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGrid",
+          "phase": "dirty",
+          "metric": "frameP95Ms",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 16.145699999999998,
+          "candidateMedian": 16.2772,
+          "baselineMaximum": 22.7639,
+          "candidateMaximum": 29.9087,
+          "changePercent": 4.924009407894148,
+          "meanWorseLogEffect": 0.04806618223292666,
+          "blockEffects": [
+            0.15641086897773004,
+            0.03875557400475495,
+            -0.11398078784712876,
+            0.2058434293873651,
+            0.1827535256911721,
+            0.0977478890642489,
+            0.03059014797029824,
+            -0.02678676946972253,
+            -0.02156874690747015,
+            -0.08378141322726886,
+            0.08893732422564403,
+            0.021873144925496902
+          ],
+          "pValue": 0.1298828125,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGrid",
+          "phase": "dirty",
+          "metric": "prepareP95Ms",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 11.92005,
+          "candidateMedian": 12.12865,
+          "baselineMaximum": 17.1311,
+          "candidateMaximum": 19.7344,
+          "changePercent": 5.179670677210635,
+          "meanWorseLogEffect": 0.05049985112818444,
+          "blockEffects": [
+            0.21178089399716737,
+            0.05508276964587452,
+            -0.11430592140509878,
+            0.21981984215182382,
+            0.16898980999183294,
+            0.04063352341025052,
+            0.005293337116596266,
+            0.0042363554040520165,
+            -0.059933284769490815,
+            -0.08370544529835394,
+            0.15362776723060137,
+            0.004478566062957967
+          ],
+          "pValue": 0.1484375,
+          "adjustedPValue": 1.0,
+          "rawRegressed": true,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGrid",
+          "phase": "dirty",
+          "metric": "composeCpuP95Ms",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 0.01495,
+          "candidateMedian": 0.015,
+          "baselineMaximum": 0.0515,
+          "candidateMaximum": 0.0263,
+          "changePercent": 2.1830247244207124,
+          "meanWorseLogEffect": 0.02159537939873321,
+          "blockEffects": [
+            0.023530497410194036,
+            -0.030877238564439344,
+            -1.1102230246251565E-16,
+            0.06434071676544953,
+            -0.02580788395587259,
+            0.03883983331626396,
+            0.07240002980856576,
+            0.013841051411871511,
+            0.03174869831458027,
+            0.017699577099400857,
+            0.026937655731808386,
+            0.026491615446976285
+          ],
+          "pValue": 0.0341796875,
+          "adjustedPValue": 0.7861328125,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGrid",
+          "phase": "dirty",
+          "metric": "privateBytes",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.02,
+          "baselineMedian": 29976576.0,
+          "candidateMedian": 29384704.0,
+          "baselineMaximum": 31191040.0,
+          "candidateMaximum": 31199232.0,
+          "changePercent": -1.429723627092827,
+          "meanWorseLogEffect": -0.01440042649092308,
+          "blockEffects": [
+            -0.012458234922041726,
+            -0.03727566748166094,
+            0.016664147164669133,
+            -0.033067931359560376,
+            -0.027916020759966437,
+            -0.02271695616413954,
+            -0.0011613213041371602,
+            -0.01357173580254158,
+            -0.011372426845210795,
+            -0.017136449381416105,
+            -0.014511857107323065,
+            0.0017193360722516236
+          ],
+          "pValue": 0.01220703125,
+          "adjustedPValue": 0.30517578125,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGrid",
+          "phase": "dirty",
+          "metric": "privatePeakBytes",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.02,
+          "baselineMedian": 30865408.0,
+          "candidateMedian": 30941184.0,
+          "baselineMaximum": 31907840.0,
+          "candidateMaximum": 31330304.0,
+          "changePercent": -0.04069437086715588,
+          "meanWorseLogEffect": -0.0004070265327332106,
+          "blockEffects": [
+            -0.03333752509530216,
+            0.009033485097667826,
+            -0.007099993330542809,
+            0.001270435796563784,
+            0.004699039057922386,
+            0.017625410546010314,
+            -0.012607160543507521,
+            0.01364259569915601,
+            -0.0076638852915196995,
+            -0.0028003752131851387,
+            0.013546023864636339,
+            -0.0011923689806978557
+          ],
+          "pValue": 0.92431640625,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGrid",
+          "phase": "dirty",
+          "metric": "workingSetBytes",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.02,
+          "baselineMedian": 43085824.0,
+          "candidateMedian": 42508288.0,
+          "baselineMaximum": 44900352.0,
+          "candidateMaximum": 44371968.0,
+          "changePercent": -1.1318884942111085,
+          "meanWorseLogEffect": -0.011383431042407716,
+          "blockEffects": [
+            -0.012659897397632623,
+            -0.024770548746528828,
+            0.002905148995276544,
+            -0.02374522866792437,
+            -0.01606401775846771,
+            -0.01849820302027157,
+            -0.00879378635708002,
+            -0.009579993754003537,
+            -0.01147368627413291,
+            -0.009694511130436716,
+            -0.010486773256933845,
+            0.006260324859242989
+          ],
+          "pValue": 0.00244140625,
+          "adjustedPValue": 0.0634765625,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGrid",
+          "phase": "dirty",
+          "metric": "workingSetPeakBytes",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.02,
+          "baselineMedian": 43448320.0,
+          "candidateMedian": 43431936.0,
+          "baselineMaximum": 45154304.0,
+          "candidateMaximum": 44441600.0,
+          "changePercent": -0.19051278527459914,
+          "meanWorseLogEffect": -0.0019069449170069483,
+          "blockEffects": [
+            -0.014344364631655029,
+            -0.00207557034746782,
+            9.452689297144876E-05,
+            0.000520008520948019,
+            -0.0010300108593578098,
+            -0.0008962053381622032,
+            -0.009191891063874358,
+            0.0014090463089346313,
+            -0.00296882949380188,
+            0.000989096470435242,
+            0.001558994056160197,
+            0.0030518604807861826
+          ],
+          "pValue": 0.27587890625,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGrid",
+          "phase": "dirty",
+          "metric": "surfaceBytes",
+          "direction": "lower",
+          "exact": true,
+          "band": 0.0,
+          "baselineMedian": 3686400.0,
+          "candidateMedian": 3686400.0,
+          "baselineMaximum": 3686400.0,
+          "candidateMaximum": 3686400.0,
+          "changePercent": 0.0,
+          "meanWorseLogEffect": 0.0,
+          "blockEffects": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pValue": 1.0,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "within-budget",
+          "peakBudgetVerdict": "within-budget",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGrid",
+          "phase": "dirty",
+          "metric": "replacementPeakBytes",
+          "direction": "lower",
+          "exact": true,
+          "band": 0.0,
+          "baselineMedian": 3686400.0,
+          "candidateMedian": 3686400.0,
+          "baselineMaximum": 3686400.0,
+          "candidateMaximum": 3686400.0,
+          "changePercent": 0.0,
+          "meanWorseLogEffect": 0.0,
+          "blockEffects": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pValue": 1.0,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "within-budget",
+          "peakBudgetVerdict": "within-budget",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGrid",
+          "phase": "dirty",
+          "metric": "cppAllocations",
+          "direction": "lower",
+          "exact": true,
+          "band": 0.0,
+          "baselineMedian": 1080.0,
+          "candidateMedian": 1080.0,
+          "baselineMaximum": 1080.0,
+          "candidateMaximum": 1080.0,
+          "changePercent": 0.0,
+          "meanWorseLogEffect": 0.0,
+          "blockEffects": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pValue": 1.0,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "within-budget",
+          "peakBudgetVerdict": "within-budget",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGrid",
+          "phase": "dirty",
+          "metric": "composeAllocations",
+          "direction": "lower",
+          "exact": true,
+          "band": 0.0,
+          "baselineMedian": 0.0,
+          "candidateMedian": 0.0,
+          "baselineMaximum": 0.0,
+          "candidateMaximum": 0.0,
+          "changePercent": 0.0,
+          "meanWorseLogEffect": 0.0,
+          "blockEffects": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pValue": 1.0,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "within-budget",
+          "peakBudgetVerdict": "within-budget",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "phase": "clean",
+          "metric": "fps",
+          "direction": "higher",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 290.9906838,
+          "candidateMedian": 293.08920055,
+          "baselineMaximum": 319.4946872,
+          "candidateMaximum": 321.9287395,
+          "changePercent": 0.38818221373546624,
+          "meanWorseLogEffect": -0.003874307307013547,
+          "blockEffects": [
+            -0.01609629955994469,
+            0.0334648852644276,
+            -0.009606703056893198,
+            -0.007501818454624633,
+            -0.009451871162029044,
+            -0.020919527982100058,
+            0.01281653633117434,
+            0.005072420847543268,
+            0.010241500427125174,
+            -0.03504860269451055,
+            -0.02260282517373047,
+            0.013140617529399703
+          ],
+          "pValue": 0.49658203125,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "phase": "clean",
+          "metric": "frameP50Ms",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 3.43495,
+          "candidateMedian": 3.4218,
+          "baselineMaximum": 3.6835,
+          "candidateMaximum": 3.715,
+          "changePercent": -0.03587616040772179,
+          "meanWorseLogEffect": -0.0003588259744177031,
+          "blockEffects": [
+            -0.004883903475484593,
+            0.03903858758907946,
+            0.007183709575228325,
+            -0.0065653501563676525,
+            -0.04260477235869832,
+            -0.011694854744234824,
+            0.029475631383865875,
+            0.020318057549789683,
+            -0.007686543358531749,
+            -0.008168285037001247,
+            -0.03184391287613259,
+            0.013125724215475199
+          ],
+          "pValue": 0.9619140625,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "phase": "clean",
+          "metric": "frameP95Ms",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 3.68945,
+          "candidateMedian": 3.68535,
+          "baselineMaximum": 4.8918,
+          "candidateMaximum": 5.0572,
+          "changePercent": 1.2469604916974353,
+          "meanWorseLogEffect": 0.012392499712865728,
+          "blockEffects": [
+            0.028683655545675577,
+            0.03248421936292763,
+            -0.005812350793953586,
+            -0.04234930631665218,
+            -0.0025364027894021484,
+            0.00040817993137847835,
+            0.01638222950653977,
+            0.009441252377304627,
+            -0.005323476712345432,
+            0.10438275556869392,
+            0.008336010363643322,
+            0.004613230510578758
+          ],
+          "pValue": 0.26171875,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "phase": "clean",
+          "metric": "prepareP95Ms",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 0.0009,
+          "candidateMedian": 0.0008,
+          "baselineMaximum": 0.0012,
+          "candidateMaximum": 0.001,
+          "changePercent": -4.420987381374875,
+          "meanWorseLogEffect": -0.04521692330967311,
+          "blockEffects": [
+            -0.060624621816434854,
+            0.0,
+            0.0,
+            -0.12516314295400605,
+            -0.05715841383994852,
+            0.0,
+            0.0,
+            -0.060624621816434854,
+            -0.060624621816434854,
+            -0.05715841383994852,
+            -0.060624621816434854,
+            -0.060624621816434854
+          ],
+          "pValue": 0.0078125,
+          "adjustedPValue": 0.203125,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "phase": "clean",
+          "metric": "composeCpuP95Ms",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 0.0217,
+          "candidateMedian": 0.02105,
+          "baselineMaximum": 0.0397,
+          "candidateMaximum": 0.0376,
+          "changePercent": -3.617807299507725,
+          "meanWorseLogEffect": -0.03684872445892967,
+          "blockEffects": [
+            -0.0544513196041703,
+            0.048671406375812236,
+            -0.04792846657195084,
+            -0.01927770542590319,
+            -0.08318881927198019,
+            -0.08023169000425101,
+            -0.04978403537928626,
+            -0.06317890162153168,
+            -0.027461679941388005,
+            -0.0582236602788967,
+            0.004566217979581184,
+            -0.011696039763191298
+          ],
+          "pValue": 0.00927734375,
+          "adjustedPValue": 0.23193359375,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "phase": "clean",
+          "metric": "privateBytes",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.02,
+          "baselineMedian": 25331712.0,
+          "candidateMedian": 25337856.0,
+          "baselineMaximum": 25628672.0,
+          "candidateMaximum": 25841664.0,
+          "changePercent": 0.12336107597252788,
+          "meanWorseLogEffect": 0.001232850487161396,
+          "blockEffects": [
+            0.0022637247923882184,
+            0.0032328485280605015,
+            -0.0010493603901134475,
+            0.0024291509920594373,
+            0.002181554616261178,
+            0.012378584232639753,
+            0.0012106050467661806,
+            -0.0015370305982742413,
+            -0.002108165866330431,
+            0.000807558793786695,
+            -0.0016147266547367888,
+            -0.0034005376465703033
+          ],
+          "pValue": 0.37548828125,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "phase": "clean",
+          "metric": "privatePeakBytes",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.02,
+          "baselineMedian": 25384960.0,
+          "candidateMedian": 25382912.0,
+          "baselineMaximum": 26333184.0,
+          "candidateMaximum": 26517504.0,
+          "changePercent": 0.09551128883551474,
+          "meanWorseLogEffect": 0.000954657058263453,
+          "blockEffects": [
+            0.0020166989451112327,
+            0.0030650128850317256,
+            -0.0010469940150240166,
+            0.003394765626859755,
+            0.0012087515070188417,
+            0.01419715043003395,
+            -0.00032208712735158954,
+            -0.0017750529108027466,
+            -0.0032354634711698627,
+            0.001773907899454991,
+            -0.003141490359991908,
+            -0.004679314710008936
+          ],
+          "pValue": 0.61669921875,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "phase": "clean",
+          "metric": "workingSetBytes",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.02,
+          "baselineMedian": 39014400.0,
+          "candidateMedian": 39051264.0,
+          "baselineMaximum": 39550976.0,
+          "candidateMaximum": 39444480.0,
+          "changePercent": 0.1046445015185693,
+          "meanWorseLogEffect": 0.0010458978732700872,
+          "blockEffects": [
+            -0.0015187622390938642,
+            0.002728514653203914,
+            -0.000680539222705311,
+            0.0025702235555456246,
+            0.006074589270314033,
+            0.00647657126509149,
+            0.0015207533280370278,
+            -0.0002098856131117668,
+            -0.00015771626876004018,
+            -0.0033592305366163,
+            0.0008395865529660572,
+            -0.0017333302656298193
+          ],
+          "pValue": 0.26318359375,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "phase": "clean",
+          "metric": "workingSetPeakBytes",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.02,
+          "baselineMedian": 39034880.0,
+          "candidateMedian": 39071744.0,
+          "baselineMaximum": 40185856.0,
+          "candidateMaximum": 40116224.0,
+          "changePercent": 0.10196392536594434,
+          "meanWorseLogEffect": 0.0010191197746463752,
+          "blockEffects": [
+            -0.0018319337252768718,
+            0.0029892252900578335,
+            -0.000523149371073552,
+            0.0027788718891631255,
+            0.006018912264314773,
+            0.006473190279234728,
+            0.0015723273679523711,
+            -0.0005768676248810532,
+            -0.0002626947239737489,
+            -0.0034627526730637227,
+            0.0007866376890420765,
+            -0.0017323293657394558
+          ],
+          "pValue": 0.28125,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "phase": "clean",
+          "metric": "surfaceBytes",
+          "direction": "lower",
+          "exact": true,
+          "band": 0.0,
+          "baselineMedian": 3686400.0,
+          "candidateMedian": 3686400.0,
+          "baselineMaximum": 3686400.0,
+          "candidateMaximum": 3686400.0,
+          "changePercent": 0.0,
+          "meanWorseLogEffect": 0.0,
+          "blockEffects": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pValue": 1.0,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "within-budget",
+          "peakBudgetVerdict": "within-budget",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "phase": "clean",
+          "metric": "replacementPeakBytes",
+          "direction": "lower",
+          "exact": true,
+          "band": 0.0,
+          "baselineMedian": 3686400.0,
+          "candidateMedian": 3686400.0,
+          "baselineMaximum": 3686400.0,
+          "candidateMaximum": 3686400.0,
+          "changePercent": 0.0,
+          "meanWorseLogEffect": 0.0,
+          "blockEffects": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pValue": 1.0,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "within-budget",
+          "peakBudgetVerdict": "within-budget",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "phase": "clean",
+          "metric": "cppAllocations",
+          "direction": "lower",
+          "exact": true,
+          "band": 0.0,
+          "baselineMedian": 0.0,
+          "candidateMedian": 0.0,
+          "baselineMaximum": 0.0,
+          "candidateMaximum": 0.0,
+          "changePercent": 0.0,
+          "meanWorseLogEffect": 0.0,
+          "blockEffects": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pValue": 1.0,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "within-budget",
+          "peakBudgetVerdict": "within-budget",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "phase": "clean",
+          "metric": "composeAllocations",
+          "direction": "lower",
+          "exact": true,
+          "band": 0.0,
+          "baselineMedian": 0.0,
+          "candidateMedian": 0.0,
+          "baselineMaximum": 0.0,
+          "candidateMaximum": 0.0,
+          "changePercent": 0.0,
+          "meanWorseLogEffect": 0.0,
+          "blockEffects": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pValue": 1.0,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "within-budget",
+          "peakBudgetVerdict": "within-budget",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "phase": "dirty",
+          "metric": "fps",
+          "direction": "higher",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 158.3833192,
+          "candidateMedian": 157.54083065,
+          "baselineMaximum": 172.3250309,
+          "candidateMaximum": 173.5114776,
+          "changePercent": 0.7169157109558899,
+          "meanWorseLogEffect": -0.0071435808700292145,
+          "blockEffects": [
+            -0.08243151155051442,
+            0.011640819299761258,
+            -0.0064241595347609435,
+            0.009000114779320762,
+            -0.020112017664486146,
+            0.03126933226443268,
+            0.02550954028484391,
+            -0.01992348348427656,
+            0.028653876142815622,
+            0.02588643246024421,
+            -0.026629849586798364,
+            -0.06216206385093258
+          ],
+          "pValue": 0.52099609375,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "phase": "dirty",
+          "metric": "frameP50Ms",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 6.3528,
+          "candidateMedian": 6.21225,
+          "baselineMaximum": 6.7962,
+          "candidateMaximum": 6.8167,
+          "changePercent": -0.9849047225645058,
+          "meanWorseLogEffect": -0.009897869927168047,
+          "blockEffects": [
+            -0.03155293486529407,
+            -0.0076708972870963505,
+            -0.0004438905370548929,
+            -0.0009095350208458917,
+            -0.020570987590572264,
+            -0.013643805169357757,
+            0.02048037734639882,
+            -0.014688995394976092,
+            -0.013083085619775177,
+            0.019755402909497545,
+            -0.026222426537464937,
+            -0.030223661359475497
+          ],
+          "pValue": 0.0703125,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "phase": "dirty",
+          "metric": "frameP95Ms",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 6.8275500000000005,
+          "candidateMedian": 6.84085,
+          "baselineMaximum": 9.0689,
+          "candidateMaximum": 9.2832,
+          "changePercent": -0.2830567530930028,
+          "meanWorseLogEffect": -0.0028345811628970527,
+          "blockEffects": [
+            -0.017200988762920005,
+            -0.0029011227874355893,
+            -0.04306449715191172,
+            -0.0726451606228974,
+            -0.031327315777018756,
+            0.01791672751695979,
+            0.0025025959078990682,
+            0.041666408700566725,
+            0.03173388075577283,
+            -0.03260999424971303,
+            0.022869344970725215,
+            0.04904514754520824
+          ],
+          "pValue": 0.79248046875,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "phase": "dirty",
+          "metric": "prepareP95Ms",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 2.2941000000000003,
+          "candidateMedian": 2.28295,
+          "baselineMaximum": 3.005,
+          "candidateMaximum": 3.1435,
+          "changePercent": -0.7093379003079492,
+          "meanWorseLogEffect": -0.007118656622672143,
+          "blockEffects": [
+            0.03420865546575794,
+            -0.014156936462746723,
+            -0.03639924278102479,
+            0.07726820751218803,
+            -0.012006947352367797,
+            -0.031565987279517094,
+            0.021630259308704936,
+            -0.04899247301986973,
+            -0.11142013133632193,
+            0.0027560881019797626,
+            0.02008013809380769,
+            0.013174490277344
+          ],
+          "pValue": 0.62353515625,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "phase": "dirty",
+          "metric": "composeCpuP95Ms",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.05,
+          "baselineMedian": 0.01395,
+          "candidateMedian": 0.0139,
+          "baselineMaximum": 0.0573,
+          "candidateMaximum": 0.0562,
+          "changePercent": 6.4532702594170654,
+          "meanWorseLogEffect": 0.06253592596375163,
+          "blockEffects": [
+            -0.0036697288889624017,
+            -0.04771547303966667,
+            -0.015094626222485016,
+            0.08546122941522825,
+            0.018416726786231068,
+            0.017153079226249274,
+            0.046354109371550774,
+            -0.1841249837931053,
+            -0.010733555643108777,
+            0.05754548564660076,
+            -0.024868066578013423,
+            0.811706915284501
+          ],
+          "pValue": 0.580078125,
+          "adjustedPValue": 1.0,
+          "rawRegressed": true,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "phase": "dirty",
+          "metric": "privateBytes",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.02,
+          "baselineMedian": 25649152.0,
+          "candidateMedian": 25683968.0,
+          "baselineMaximum": 27303936.0,
+          "candidateMaximum": 27537408.0,
+          "changePercent": 0.3856692740190626,
+          "meanWorseLogEffect": 0.0038492747671891032,
+          "blockEffects": [
+            0.0037535483114957235,
+            0.0010380485620905303,
+            0.0031111668029126767,
+            0.003912024469366692,
+            0.0037544478339133023,
+            0.02335838180360294,
+            -0.002313430890982295,
+            -0.0058091119473777176,
+            -0.002555707804305644,
+            0.0006378568227747048,
+            -0.00279631069439896,
+            0.020100383937177283
+          ],
+          "pValue": 0.2021484375,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "phase": "dirty",
+          "metric": "privatePeakBytes",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.02,
+          "baselineMedian": 25702400.0,
+          "candidateMedian": 25747456.0,
+          "baselineMaximum": 27303936.0,
+          "candidateMaximum": 27889664.0,
+          "changePercent": 0.36937973661459456,
+          "meanWorseLogEffect": 0.003686992049812821,
+          "blockEffects": [
+            0.0031915769531534036,
+            0.0007977662967977106,
+            0.004934351436294413,
+            0.00842277526131819,
+            0.006221107956933725,
+            0.02126153915096155,
+            -0.010148346828418519,
+            -0.007146858022831797,
+            0.0018289536329677582,
+            0.0013544199975150653,
+            -0.005408858239141548,
+            0.018935477002203903
+          ],
+          "pValue": 0.212890625,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "phase": "dirty",
+          "metric": "workingSetBytes",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.02,
+          "baselineMedian": 39600128.0,
+          "candidateMedian": 39651328.0,
+          "baselineMaximum": 40550400.0,
+          "candidateMaximum": 41521152.0,
+          "changePercent": 0.31596545327843284,
+          "meanWorseLogEffect": 0.0031546733142627944,
+          "blockEffects": [
+            0.0007740138160878063,
+            -0.0003620283973237507,
+            0.0004129032316726419,
+            0.006249536132091386,
+            0.004703458729159448,
+            0.012800994052953974,
+            -0.0008788936845966376,
+            -0.0026311052916932545,
+            0.0032587640373769365,
+            -0.0016031860284797075,
+            0.000880578130507242,
+            0.014251045043397447
+          ],
+          "pValue": 0.0654296875,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "phase": "dirty",
+          "metric": "workingSetPeakBytes",
+          "direction": "lower",
+          "exact": false,
+          "band": 0.02,
+          "baselineMedian": 39600128.0,
+          "candidateMedian": 39663616.0,
+          "baselineMaximum": 40550400.0,
+          "candidateMaximum": 41521152.0,
+          "changePercent": 0.31973957038098355,
+          "meanWorseLogEffect": 0.003192294904124281,
+          "blockEffects": [
+            0.0005675515463338831,
+            -0.00020685732090100725,
+            0.0011866375699149424,
+            0.006352506837016915,
+            0.004340419153341883,
+            0.012178424067644869,
+            -0.0008269589059238524,
+            -0.002423493593412235,
+            0.003155147831709847,
+            -0.0016031860284797075,
+            0.0011394241961981493,
+            0.014447923496047687
+          ],
+          "pValue": 0.05419921875,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "not-applicable",
+          "peakBudgetVerdict": "not-applicable",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "phase": "dirty",
+          "metric": "surfaceBytes",
+          "direction": "lower",
+          "exact": true,
+          "band": 0.0,
+          "baselineMedian": 3686400.0,
+          "candidateMedian": 3686400.0,
+          "baselineMaximum": 3686400.0,
+          "candidateMaximum": 3686400.0,
+          "changePercent": 0.0,
+          "meanWorseLogEffect": 0.0,
+          "blockEffects": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pValue": 1.0,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "within-budget",
+          "peakBudgetVerdict": "within-budget",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "phase": "dirty",
+          "metric": "replacementPeakBytes",
+          "direction": "lower",
+          "exact": true,
+          "band": 0.0,
+          "baselineMedian": 3686400.0,
+          "candidateMedian": 3686400.0,
+          "baselineMaximum": 3686400.0,
+          "candidateMaximum": 3686400.0,
+          "changePercent": 0.0,
+          "meanWorseLogEffect": 0.0,
+          "blockEffects": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pValue": 1.0,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "within-budget",
+          "peakBudgetVerdict": "within-budget",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "phase": "dirty",
+          "metric": "cppAllocations",
+          "direction": "lower",
+          "exact": true,
+          "band": 0.0,
+          "baselineMedian": 1080.0,
+          "candidateMedian": 1080.0,
+          "baselineMaximum": 1080.0,
+          "candidateMaximum": 1080.0,
+          "changePercent": 0.0,
+          "meanWorseLogEffect": 0.0,
+          "blockEffects": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pValue": 1.0,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "within-budget",
+          "peakBudgetVerdict": "within-budget",
+          "verdict": "within-noise"
+        },
+        {
+          "scenario": "MultilineGridDistinct",
+          "phase": "dirty",
+          "metric": "composeAllocations",
+          "direction": "lower",
+          "exact": true,
+          "band": 0.0,
+          "baselineMedian": 0.0,
+          "candidateMedian": 0.0,
+          "baselineMaximum": 0.0,
+          "candidateMaximum": 0.0,
+          "changePercent": 0.0,
+          "meanWorseLogEffect": 0.0,
+          "blockEffects": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "pValue": 1.0,
+          "adjustedPValue": 1.0,
+          "rawRegressed": false,
+          "rawImproved": false,
+          "deterministicRise": false,
+          "medianBudgetVerdict": "within-budget",
+          "peakBudgetVerdict": "within-budget",
+          "verdict": "within-noise"
+        }
+      ],
+      "observer": {
+        "samples": 5438,
+        "requestedIntervalSeconds": 1,
+        "stopReason": "stop-requested",
+        "error": null,
+        "independentCoverageGapAudit": "completed-with-sample-cadence-breaches",
+        "coverageClaimed": false,
+        "audit": {
+          "sha256": "159E863EB573B991219799A95330F7FAACA78DEF1540C621A587E9B5DB6AD83A",
+          "traceSha256": "57b9adfd3500495b2095e306e8def0981b791ffa175b571eedcb8dbb6b10c804",
+          "consistencyLimits": {
+            "maxFreeQpcGapMilliseconds": 10000,
+            "maxSampleStartPeriodMilliseconds": 2500,
+            "status": "consistency limits only; not benchmark acceptance thresholds"
+          },
+          "observedCounters": {
+            "samples": 5438,
+            "requestedIntervalMilliseconds": 1000,
+            "reason": "stop-requested",
+            "error": "",
+            "traceSha256": "57b9adfd3500495b2095e306e8def0981b791ffa175b571eedcb8dbb6b10c804",
+            "maxFreeQpcGapMilliseconds": 8903.403,
+            "maxQpcSampleStartPeriodMilliseconds": 9994.82,
+            "maxUtcSampleStartPeriodMilliseconds": 8914.16,
+            "maxQpcUtcContinuityResidual100ns": "74990418.000000",
+            "captureCostMean100ns": "145011.638286",
+            "captureCostMax100ns": "75019185.000000",
+            "captureCostTotal100ns": "788573289.000000",
+            "processSnapshotCount": 751784,
+            "observedSnapshots": 746335,
+            "inaccessibleOrExitedSnapshots": 5438,
+            "exitedSnapshots": 11,
+            "processNamesPidsAndMemoryExcluded": true
+          },
+          "coverage": {
+            "pairedJobStepStartedAt": "2026-10-25T08:48:00Z",
+            "pairedJobStepCompletedAt": "2026-10-25T10:21:32Z",
+            "stepTimestampResolutionMilliseconds": 1000,
+            "observerStartedUtc": "2026-10-25T08:48:04.5407931Z",
+            "observerCompletedUtc": "2026-10-25T10:21:32.7106829Z",
+            "firstSampleUtc": "2026-10-25T08:48:04.585973Z",
+            "lastSampleUtc": "2026-10-25T10:21:32.7043681Z",
+            "all144ReceiptCompletionTimestampsInsideSampleSpan": true,
+            "firstReceiptCompletedUtc": "2026-10-25T09:16:16.089585Z",
+            "firstReceiptCompletedUtcTicks100ns": 17929197760895850,
+            "firstReceiptName": "Default-A01.json",
+            "lastReceiptCompletedUtc": "2026-10-25T10:21:12.9984122Z",
+            "lastReceiptCompletedUtcTicks100ns": 17929236729984122,
+            "lastReceiptName": "MultilineGridDistinct-A24.json",
+            "summaryCompletedUtcInsideSampleSpan": true,
+            "sampledCounterSpanPercentOfPairedStep": 99.918283,
+            "observerFirstSampleOffsetFromStepStartMs": 4585.973,
+            "observerLastSampleOffsetFromStepEndMs": 704.368,
+            "thresholdsMs": {
+              "freeQpcGap": 10000,
+              "qpcSampleStartPeriod": 2500,
+              "utcSampleStartPeriod": 2500
+            },
+            "thresholdBreachCounts": {
+              "freeQpcGap": 0,
+              "qpcSampleStartPeriod": 28,
+              "utcSampleStartPeriod": 29
+            },
+            "freeQpcGapBreachEvents": [],
+            "qpcSampleStartPeriodBreachEvents": [
+              {
+                "sequence": 1191,
+                "periodMilliseconds": 7943.769
+              },
+              {
+                "sequence": 1207,
+                "periodMilliseconds": 8502.0
+              },
+              {
+                "sequence": 1215,
+                "periodMilliseconds": 5967.055
+              },
+              {
+                "sequence": 1301,
+                "periodMilliseconds": 3528.646
+              },
+              {
+                "sequence": 1302,
+                "periodMilliseconds": 3005.791
+              },
+              {
+                "sequence": 1303,
+                "periodMilliseconds": 4526.825
+              },
+              {
+                "sequence": 1308,
+                "periodMilliseconds": 9994.82
+              },
+              {
+                "sequence": 1316,
+                "periodMilliseconds": 2559.487
+              },
+              {
+                "sequence": 1318,
+                "periodMilliseconds": 5195.221
+              },
+              {
+                "sequence": 1323,
+                "periodMilliseconds": 4039.176
+              },
+              {
+                "sequence": 1325,
+                "periodMilliseconds": 3788.454
+              },
+              {
+                "sequence": 1327,
+                "periodMilliseconds": 3013.908
+              },
+              {
+                "sequence": 1329,
+                "periodMilliseconds": 3697.188
+              },
+              {
+                "sequence": 1330,
+                "periodMilliseconds": 3720.448
+              },
+              {
+                "sequence": 1435,
+                "periodMilliseconds": 4585.445
+              },
+              {
+                "sequence": 1438,
+                "periodMilliseconds": 3715.251
+              },
+              {
+                "sequence": 1439,
+                "periodMilliseconds": 3771.424
+              },
+              {
+                "sequence": 1444,
+                "periodMilliseconds": 3977.081
+              },
+              {
+                "sequence": 1445,
+                "periodMilliseconds": 2846.661
+              },
+              {
+                "sequence": 1447,
+                "periodMilliseconds": 3994.625
+              },
+              {
+                "sequence": 1450,
+                "periodMilliseconds": 4547.656
+              },
+              {
+                "sequence": 1453,
+                "periodMilliseconds": 2647.999
+              },
+              {
+                "sequence": 1455,
+                "periodMilliseconds": 7711.543
+              },
+              {
+                "sequence": 1462,
+                "periodMilliseconds": 4374.564
+              },
+              {
+                "sequence": 1464,
+                "periodMilliseconds": 2618.356
+              },
+              {
+                "sequence": 1472,
+                "periodMilliseconds": 5303.711
+              },
+              {
+                "sequence": 1473,
+                "periodMilliseconds": 2960.759
+              },
+              {
+                "sequence": 1474,
+                "periodMilliseconds": 4165.927
+              }
+            ],
+            "utcSampleStartPeriodBreachEvents": [
+              {
+                "sequence": 1191,
+                "periodMilliseconds": 7952.248
+              },
+              {
+                "sequence": 1206,
+                "periodMilliseconds": 8734.605
+              },
+              {
+                "sequence": 1214,
+                "periodMilliseconds": 5976.914
+              },
+              {
+                "sequence": 1300,
+                "periodMilliseconds": 2819.325
+              },
+              {
+                "sequence": 1301,
+                "periodMilliseconds": 3665.961
+              },
+              {
+                "sequence": 1302,
+                "periodMilliseconds": 3644.245
+              },
+              {
+                "sequence": 1308,
+                "periodMilliseconds": 8914.16
+              },
+              {
+                "sequence": 1316,
+                "periodMilliseconds": 3953.394
+              },
+              {
+                "sequence": 1318,
+                "periodMilliseconds": 4730.72
+              },
+              {
+                "sequence": 1319,
+                "periodMilliseconds": 2858.557
+              },
+              {
+                "sequence": 1323,
+                "periodMilliseconds": 4042.839
+              },
+              {
+                "sequence": 1325,
+                "periodMilliseconds": 3793.938
+              },
+              {
+                "sequence": 1326,
+                "periodMilliseconds": 3046.32
+              },
+              {
+                "sequence": 1328,
+                "periodMilliseconds": 3807.188
+              },
+              {
+                "sequence": 1434,
+                "periodMilliseconds": 3296.424
+              },
+              {
+                "sequence": 1435,
+                "periodMilliseconds": 3280.736
+              },
+              {
+                "sequence": 1437,
+                "periodMilliseconds": 2790.851
+              },
+              {
+                "sequence": 1438,
+                "periodMilliseconds": 2561.151
+              },
+              {
+                "sequence": 1439,
+                "periodMilliseconds": 3486.133
+              },
+              {
+                "sequence": 1443,
+                "periodMilliseconds": 3915.225
+              },
+              {
+                "sequence": 1447,
+                "periodMilliseconds": 3970.639
+              },
+              {
+                "sequence": 1450,
+                "periodMilliseconds": 4496.642
+              },
+              {
+                "sequence": 1452,
+                "periodMilliseconds": 3196.133
+              },
+              {
+                "sequence": 1455,
+                "periodMilliseconds": 7083.279
+              },
+              {
+                "sequence": 1462,
+                "periodMilliseconds": 4374.048
+              },
+              {
+                "sequence": 1464,
+                "periodMilliseconds": 3697.473
+              },
+              {
+                "sequence": 1471,
+                "periodMilliseconds": 4908.177
+              },
+              {
+                "sequence": 1472,
+                "periodMilliseconds": 3718.522
+              },
+              {
+                "sequence": 1473,
+                "periodMilliseconds": 4150.632
+              }
+            ]
+          },
+          "systemCpu": {
+            "weightedPercent": "36.559796",
+            "unweightedIntervalMeanPercent": "35.117739",
+            "scope": "whole machine during the sample span, including build/attestation and unrelated runner activity; not native-only CPU"
+          },
+          "limitations": [
+            "The existing 2.5 s sample-start consistency bound is exceeded; all sequence indexes/durations are retained. This is a coverage diagnostic, not an automatic failed benchmark threshold.",
+            "No process start-time identity is recorded, so process lifetime/ownership cannot be verified from names or PIDs. Those details are excluded from this report.",
+            "QPC capture cost omits JSON serialization/write, sleeping, and final trace hash; it does not measure total observer CPU or overhead.",
+            "Whole-machine CPU is not proof of a quiet host. These observations do not measure scheduler/GPU duration or establish causal attribution.",
+            "No performance acceptance claim is made."
+          ]
+        }
+      },
+      "controlSummary": {
+        "unstable": 69,
+        "total": 72,
+        "byScenario": {
+          "Default": "22/24",
+          "MultilineGrid": "24/24",
+          "MultilineGridDistinct": "23/24"
+        }
+      },
+      "acceptancePolicy": {
+        "trusted": false,
+        "status": "policy-review-required",
+        "reason": "Policy review required: The base policy is not independently qualified; its verdict cannot establish a candidate pass.",
+        "policySha256": null,
+        "strictControls": false,
+        "libraryUnchanged": false
+      },
+      "evidenceDigests": {
+        "providerArtifactId": 12594829994,
+        "providerArtifactName": "paired-benchmark-x64-Release",
+        "providerZipSha256": "97AFC56FC4254CC308803D6AC3AF35AFBE33820C1B44CE3AC0ABDCDE36D8FB69",
+        "providerSizeBytes": 169690223,
+        "summarySha256": "2378F39C5D111F2252AF566C3B9908F4386C5C1506CCF2F28E68C96475DA831A",
+        "buildPreflightSha256": "853F071628D1D2879E83352E9784C477218B7D4811A25E4CBEE3438DB9C3B793",
+        "comparisonFileCount": 144,
+        "independentNumericAuditSha256": "7510410C34B46D7513410FA39D656349312E797DB0285AF1A31590CC2D3A50FA",
+        "summaryReportSha256": "2378F39C5D111F2252AF566C3B9908F4386C5C1506CCF2F28E68C96475DA831A",
+        "independentRowsReportSha256": "7510410C34B46D7513410FA39D656349312E797DB0285AF1A31590CC2D3A50FA"
+      },
+      "workflow": {
+        "runId": 40177964080,
+        "head": "594d67fb0fcc3829541211a7c8f100df046c87e3",
+        "actualBase": "b06f534b36ffc2c0c9671a142d1e51545480be22",
+        "compiledMerge": "8c78b5adf821daa216bee53572b3f9aae7d40ef7",
+        "conclusion": "failure",
+        "failedStep": "Publish-BenchmarkVerdict.ps1 -Gate",
+        "pairedStudyStep": "success",
+        "nativeFullProfiles": "six separate profile jobs succeeded"
+      },
+      "sourceDirtyEvidence": {
+        "baselineRunReceipts": 72,
+        "baselineDirtyTrue": 72,
+        "candidateRunReceipts": 72,
+        "candidateDirtyFalse": 72,
+        "source": "producer summary.json per-run sourceDirty fields"
+      },
+      "retainedBuildOutputs": {
+        "auditPath": ".build/audit-20261024/hosted-594d67fb/paired-retention-audit-v2.json",
+        "auditSha256": "975E48952466ABE9493F8774A019BC4D3BC0091D7F91679F8E0F787B99B25A54",
+        "totalAcrossRoles": 24,
+        "executables": 10,
+        "pdbFiles": 12,
+        "libraries": 2,
+        "sourceFilesRetained": 0,
+        "objectFilesRetained": 0,
+        "compilerOrLinkerBinariesRetained": 0,
+        "baselineRunExecutableMatch": "baseline/.build/x64/Release/DxUi.EmbeddedTests.exe",
+        "candidateRunExecutableMatch": "x64/Release/DxUi.EmbeddedTests.exe",
+        "baselineRunExecutableSha256": "CB5529BCA86898D7E7D9EF04FCE3B8CA3D08D3875D73B83B9785E30B6A89A3CF",
+        "candidateRunExecutableSha256": "C5916C9BD2BC2A0F19B710F8FE6B94203B7ED2B5A7E2D0C86DCC20F6C080C85A",
+        "otherRetainedOutputFilesLinkedPerFileToRunReceipt": false
+      }
+    }
+  ],
+  "compilerAndHarnessIdentity": {
+    "toolchainIdentity": "2E287CB92C45291D3A0F2CDE2A7DD951C69FF05C9D005091850095984FD707A7",
+    "dependencyIdentity": "BCF6C01892D9A91858261765D3E51BBC407818091194480081D6A4CC7F861845",
+    "harnessIdentity": "7940D7B0F257657FF989009F63DF91537E3F9363FF0BC1A83040586B3D68E6DA",
+    "buildIdentityScope": "full",
+    "compilerAndLinkerVersionTextRetainedSeparately": false,
+    "providerArtifactSha256": "97AFC56FC4254CC308803D6AC3AF35AFBE33820C1B44CE3AC0ABDCDE36D8FB69"
+  },
+  "privacyAndLimits": [
+    "No raw hostnames, user paths, process receipts, or machine identifiers are included.",
+    "The source fingerprint binds the measured library tree, while toolchain, dependency, harness, environment and build identity values are retained as opaque hashes.",
+    "Baseline sourceDirty=true; the reported clean-base fingerprint is retained, and the harness lists replaced PairedRun.psm1, PerformanceAcceptancePolicy.v1.json and ScopedTesting.psm1. A complete dirty-path inventory is unavailable.",
+    "The candidate executable is from compiled merge 8c78b5adf821daa216bee53572b3f9aae7d40ef7, whose tree matches measured PR head 594d67fb0fcc3829541211a7c8f100df046c87e3; later documentation changes are not part of this measured binary.",
+    "Observer timing was independently audited with retained consistency limits; cadence breaches, whole-machine load and incomplete overhead accounting prevent a continuous or quiet-host qualification claim.",
+    "No fresh AA calibration is implied; prior cfe875fd calibration is separate.",
+    "The paired artifact retains five x64 Release test executables per role, six PDBs per role, and one DxUi.lib per role. The reported run executable SHA-256 matches the retained DxUi.EmbeddedTests.exe for both roles. Other retained executable/PDB/library files are present in the paired build-output directories, but their exact per-file relationship to the run is not asserted beyond the output directory and build identity receipts.",
+    "No source (.cpp/.h), object (.obj), compiler or linker binaries are present in the paired artifact. Build logs, preflight identities, and the per-role performance-build receipt identity/digest are retained; these do not provide source or tool binaries for complete independent rebuild replay.",
+    "The prior draft contained an overbroad statement that executable, PDB, and library bytes were absent. It is preserved as a pre-correction snapshot (SHA-256 DFFFC0967C9A22DA85B1816BA5E605238084B6AD712E1F7363F4F307ADCF2473 for JSON; 969383EBA0BB70532F739E593462033A8A94A66AB8E2AB33470654537D802316 for README); this v2 replaces that statement with the paired-artifact inventory and exact EmbeddedTests.exe matches."
+  ],
+  "leadVerification": {
+    "independentNumericReplaySha256": "6E51B427CA023ECD5F7FC37ADEF6FB7612B546C22BBBEFB9DD2F49D9466C6A0A",
+    "projectionAndRetentionReplaySha256": "EA4DC8AAD15E237F5861E998044DD89315BB5A0DFA7B239BD4EDD789EBD57CDD",
+    "metricRows": 78,
+    "receiptHashes": 144,
+    "blockEffects": 936,
+    "retainedArtifacts": 24,
+    "exactMeasuredExecutables": 2,
+    "acceptanceClaimed": false
+  }
+}

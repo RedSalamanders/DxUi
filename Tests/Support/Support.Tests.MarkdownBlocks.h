@@ -2,6 +2,7 @@
 #include "../../src/Controls/DxUi.NativeFlowchart.h"
 #include "Support.Tests.NativeFlowchartCorpus.h"
 #include <DxUi/MarkdownSyntax.h>
+#include <iostream>
 namespace MarkdownBlockTests
 {
 using namespace DxUi::RichText;
@@ -292,6 +293,9 @@ inline constexpr Scenario scenarios[] = {
     {L"graph TD;1A", FlowchartOutcome::Malformed, FlowchartIssue::InvalidIdentifier},
     {L"%% comment only\n", FlowchartOutcome::Malformed, FlowchartIssue::MissingHeader},
     {L"graph TD;A((circle)", FlowchartOutcome::Malformed, FlowchartIssue::MissingLabelClose},
+    {L"flowchart TD;A & --> B", FlowchartOutcome::Malformed, FlowchartIssue::UnexpectedToken},
+    {L"flowchart TD;A --> & B", FlowchartOutcome::Malformed, FlowchartIssue::UnexpectedToken},
+    {L"flowchart TD;A & B & --> C", FlowchartOutcome::Malformed, FlowchartIssue::UnexpectedToken},
 };
 inline std::shared_ptr<const FlowchartModel> Complete(NativeFlowchartParser& parser, std::size_t budget = 1u)
 {
@@ -358,6 +362,8 @@ template <typename Check> inline void CheckFencedSource(const MarkdownSyntax& sy
     parser.Begin(body.substr(0u, scenario.source.size()), syntax.Revision());
     CheckModel(*Complete(parser), scenario, check);
 }
+template <typename Check> inline void CheckFamilyGrammar(Check&& check);
+template <typename Check> inline void CheckFanout(Check&& check);
 template <typename Check> inline void CheckOriginalCorpus(Check&& check)
 {
     NativeFlowchartParser parser;
@@ -366,6 +372,11 @@ template <typename Check> inline void CheckOriginalCorpus(Check&& check)
     {
         parser.Begin(example.source, example.number);
         const auto result = Complete(parser, 1u);
+        if (result->outcome != example.outcome || result->nodes.size() != example.nodes || result->edges.size() != example.edges ||
+            (example.outcome == FlowchartOutcome::Prepared && result->direction != example.direction))
+            std::wcerr << L"Mermaid original example " << example.number << L" mismatch: outcome=" << static_cast<unsigned>(result->outcome) << L" issue="
+                       << static_cast<unsigned>(result->diagnostic.issue) << L" nodes=" << result->nodes.size() << L" edges=" << result->edges.size()
+                       << L" direction=" << static_cast<unsigned>(result->direction) << L'\n';
         check(result->source == example.source && result->outcome == example.outcome && result->nodes.size() == example.nodes &&
                   result->edges.size() == example.edges,
               "all original Mermaid flowchart examples match independent subset status and graph counts");
@@ -383,18 +394,275 @@ template <typename Check> inline void CheckOriginalCorpus(Check&& check)
             ++unsupported;
         }
     }
-    for (const auto& family : NativeFlowchartCorpus::unsupportedFamilies)
+    for (const auto& family : NativeFlowchartCorpus::familyExamples)
     {
         parser.Begin(family.source, 1u);
         const auto result = Complete(parser, 1u);
-        if (family.document == L"stateDiagram.md")
-            check(result->outcome == FlowchartOutcome::Prepared && result->source == family.source && result->nodes.size() == 5u && result->edges.size() == 6u,
-                  "the original state-diagram example has independently specified nodes and transitions");
+        check(result->outcome == family.outcome && result->source == family.source && result->nodes.size() == family.nodes &&
+                  result->edges.size() == family.edges && family.reason.size() > 0u,
+              "every original diagram family has an independently reviewed first-example outcome and reason");
+        if (family.outcome == FlowchartOutcome::Prepared)
+            check(result->direction == family.direction && result->diagnostic.issue == FlowchartIssue::None,
+                  "prepared original family example matches its independent direction and has no diagnostic");
         else
-            check(result->outcome == FlowchartOutcome::Unsupported && result->source == family.source && result->nodes.empty() && result->edges.empty(),
-                  "the other original family examples retain explicit unsupported source fallback");
+            check(result->diagnostic.issue == family.issue && result->nodes.empty() && result->edges.empty() &&
+                      result->diagnostic.source.first < result->diagnostic.source.last && result->diagnostic.source.last <= result->source.size(),
+                  "unsupported original family examples retain their independently classified diagnostic and exact source fallback");
     }
-    check(prepared == 13u && unsupported == 92u && std::size(NativeFlowchartCorpus::unsupportedFamilies) == 20u,
+    check(prepared == 16u && unsupported == 89u && std::size(NativeFlowchartCorpus::familyExamples) == 20u,
           "Mermaid corpus has no omitted examples/families and separates graph preparation from rejection");
+    CheckFamilyGrammar(check);
+    CheckFanout(check);
+}
+
+inline wchar_t FamilyCode(NativeDiagramFamily family) noexcept
+{
+    switch (family)
+    {
+        case NativeDiagramFamily::Flowchart: return L'F';
+        case NativeDiagramFamily::State: return L'S';
+        case NativeDiagramFamily::Class: return L'C';
+    }
+    return L'?';
+}
+inline wchar_t DirectionCode(FlowchartDirection direction) noexcept
+{
+    switch (direction)
+    {
+        case FlowchartDirection::TopBottom: return L'T';
+        case FlowchartDirection::BottomTop: return L'B';
+        case FlowchartDirection::LeftRight: return L'L';
+        case FlowchartDirection::RightLeft: return L'R';
+    }
+    return L'?';
+}
+inline wchar_t ShapeCode(FlowchartShape shape) noexcept
+{
+    switch (shape)
+    {
+        case FlowchartShape::Rectangle: return L'R';
+        case FlowchartShape::Rounded: return L'O';
+        case FlowchartShape::Circle: return L'C';
+        case FlowchartShape::Diamond: return L'D';
+        case FlowchartShape::Stadium: return L'S';
+    }
+    return L'?';
+}
+inline std::wstring ModelSignature(const FlowchartModel& model)
+{
+    std::wstring result{FamilyCode(model.family), L'|', DirectionCode(model.direction), L'|'};
+    for (const auto& node : model.nodes)
+    {
+        result.append(node.key).append(L"=").append(node.label).push_back(L':');
+        result.push_back(ShapeCode(node.shape));
+        result.push_back(L';');
+    }
+    result.push_back(L'|');
+    for (const auto& edge : model.edges)
+    {
+        result.append(std::to_wstring(edge.from)).push_back(L'>');
+        result.append(std::to_wstring(edge.to)).push_back(L':');
+        result.push_back(edge.relation == FlowchartRelation::Inheritance ? L'I' : (edge.arrow ? L'A' : L'L'));
+        result.push_back(L':');
+        result.append(edge.label).push_back(L';');
+    }
+    return result;
+}
+struct FamilyGrammarExpectation
+{
+    std::wstring_view source;
+    FlowchartOutcome outcome{};
+    FlowchartIssue issue{};
+    std::wstring_view signature;
+};
+inline constexpr FamilyGrammarExpectation familyGrammarExpectations[] = {
+    {L"stateDiagram-v2\nstate \"Ready\" as S\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"S|T|S=Ready:O;|"},
+    {L"stateDiagram-v2\nstate\t  \"Ready\" as S\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"S|T|S=Ready:O;|"},
+    {L"stateDiagram-v2\nstate \"ready \\\"now\\\"\" as S\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"S|T|S=ready \"now\":O;|"},
+    {L"stateDiagram-v2\nS : Ready\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"S|T|S=Ready:O;|"},
+    {L"stateDiagram-v2\nS : Ready\nS : Running\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"S|T|S=Ready\nRunning:O;|"},
+    {L"stateDiagram-v2\nstate \"Ready\" as S\nS : Running\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"S|T|S=Ready\nRunning:O;|"},
+    {L"stateDiagram-v2\nS : Ready\nstate \"Running\" as S\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"S|T|S=Ready\nRunning:O;|"},
+    {L"stateDiagram-v2\nS : S\nS : Running\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"S|T|S=S\nRunning:O;|"},
+    {L"stateDiagram-v2\nstate \"\" as S\nS : \n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"S|T|S=S:O;|"},
+    {L"classDiagram\nS : Ready\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"C|T|S=S\nReady:R;|"},
+    {L"stateDiagram-v2\nA --> B : go\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"S|T|A=A:O;B=B:O;|0>1:A:go;"},
+    {L"stateDiagram-v2\ndirection   LR\nA --> B\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"S|L|A=A:O;B=B:O;|0>1:A:;"},
+    {L"classDiagram\nAnimal <|-- Duck\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"C|T|Animal=Animal:R;Duck=Duck:R;|1>0:I:;"},
+    {L"classDiagram\nBase --|> Derived\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"C|T|Base=Base:R;Derived=Derived:R;|0>1:I:;"},
+    {L"flowchart LR\nid1([This is the text in the box])\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"F|L|id1=This is the text in the box:S;|"},
+    {L"flowchart TD\nA(-x-)\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedShape, {}},
+    {L"flowchart TD\nA[|field:value|text]\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedShape, {}},
+    {L"flowchart TD\nA(\"-x-\")\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"F|T|A=-x-:O;|"},
+    {L"flowchart TD\nA[\"|field:value|text\"]\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"F|T|A=|field:value|text:R;|"},
+    {L"stateDiagram-v2\nStill{x} --> Moving\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedShape, {}},
+    {L"stateDiagram-v2\nA -->|go| B\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedEdge, {}},
+    {L"classDiagram\nAnimal[Creature]\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedShape, {}},
+    {L"classDiagram\nAnimal -->|uses| Pond\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedEdge, {}},
+    {L"stateDiagram-v2\nstate \"<b>Ready</b>\" as S\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedLabelMarkup, {}},
+    {L"stateDiagram-v2\nS : <b>Ready</b>\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedLabelMarkup, {}},
+    {L"stateDiagram-v2\nA --> B : go &amp; stop\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedLabelMarkup, {}},
+    {L"classDiagram\nStack : +push(T~int~ item)\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedLabelMarkup, {}},
+    {L"classDiagram\nCar --* Wheel\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedEdge, {}},
+    {L"classDiagram\nnote \"From Duck till Zebra\"\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement, {}},
+};
+template <typename Check> inline void CheckFamilyGrammar(Check&& check)
+{
+    NativeFlowchartParser parser;
+    for (const auto& expected : familyGrammarExpectations)
+    {
+        parser.Begin(expected.source, 1u);
+        const auto model = Complete(parser);
+        check(model->source == expected.source && model->outcome == expected.outcome && model->diagnostic.issue == expected.issue,
+              "state/class grammar has independent family, outcome and diagnostic expectations");
+        if (expected.outcome == FlowchartOutcome::Prepared)
+        {
+            check(ModelSignature(*model) == expected.signature, "state/class accepted model matches its complete normalized golden");
+        }
+        else
+        {
+            check(model->nodes.empty() && model->edges.empty() && model->diagnostic.source.first < model->diagnostic.source.last &&
+                      model->diagnostic.source.last <= model->source.size(),
+                  "state/class rejection retains exact source, a bounded diagnostic and no partial graph");
+        }
+    }
+    for (const auto source : {L"stateDiagram-v2\nA & B --> C\n", L"classDiagram\nA & B --> C\n"})
+    {
+        parser.Begin(source, 1u);
+        const auto isolated = Complete(parser);
+        check(isolated->outcome == FlowchartOutcome::Unsupported && isolated->diagnostic.issue == FlowchartIssue::UnsupportedEdge && isolated->nodes.empty() &&
+                  isolated->edges.empty(),
+              "fan-out separators remain unsupported in state and class grammar");
+    }
+    std::wstring oversizedAlias = L"stateDiagram-v2\nstate \"";
+    oversizedAlias.append(NativeFlowchartParser::MaximumLabelUnits + 1u, L'x');
+    oversizedAlias += L"\" as TooLong\n";
+    parser.Begin(oversizedAlias, 2u);
+    const auto capacity = Complete(parser);
+    check(capacity->outcome == FlowchartOutcome::Capacity && capacity->diagnostic.issue == FlowchartIssue::LabelCapacity && capacity->nodes.empty() &&
+              capacity->edges.empty() && capacity->diagnostic.source.last <= capacity->source.size(),
+          "oversized state alias is reported as label capacity and publishes no partial graph");
+    std::wstring boundedDescription = L"stateDiagram-v2\nS : ";
+    boundedDescription.append(NativeFlowchartParser::MaximumLabelUnits, L'x');
+    parser.Begin(boundedDescription, 3u);
+    const auto atLimit = Complete(parser);
+    check(atLimit->outcome == FlowchartOutcome::Prepared && atLimit->nodes.size() == 1u &&
+              atLimit->nodes.front().label == std::wstring(NativeFlowchartParser::MaximumLabelUnits, L'x'),
+          "first state description uses the full label allowance without the fallback ID");
+    boundedDescription.append(L"\nS : y\n");
+    parser.Begin(boundedDescription, 4u);
+    const auto appendCapacity = Complete(parser);
+    check(appendCapacity->outcome == FlowchartOutcome::Capacity && appendCapacity->diagnostic.issue == FlowchartIssue::LabelCapacity &&
+              appendCapacity->nodes.empty() && appendCapacity->edges.empty(),
+          "later state descriptions check the combined label and newline before appending");
+}
+struct FanoutExpectation
+{
+    std::wstring_view source;
+    std::wstring_view signature;
+};
+inline constexpr FanoutExpectation fanoutExpectations[] = {
+    {L"flowchart LR;A[Alpha & beta] & B --> C & D --> E", L"F|L|A=Alpha & beta:R;B=B:R;C=C:R;D=D:R;E=E:R;|0>2:A:;0>3:A:;1>2:A:;1>3:A:;2>4:A:;3>4:A:;"},
+    {L"graph TD;A & B-->|yes & no|C & D", L"F|T|A=A:R;B=B:R;C=C:R;D=D:R;|0>2:A:yes & no;0>3:A:yes & no;1>2:A:yes & no;1>3:A:yes & no;"},
+};
+template <typename Check> inline void CheckFanout(Check&& check)
+{
+    NativeFlowchartParser parser;
+    struct OriginalFanoutModel
+    {
+        std::size_t number;
+        std::wstring_view signature;
+    };
+    constexpr OriginalFanoutModel originalFanoutModels[] = {
+        {80u, L"F|L|a=a:R;b=b:R;c=c:R;d=d:R;|0>1:A:;0>2:A:;1>3:A:;2>3:A:;"},
+        {81u, L"F|T|A=A:R;B=B:R;C=C:R;D=D:R;|0>2:A:;0>3:A:;1>2:A:;1>3:A:;"},
+    };
+    for (const auto& expected : originalFanoutModels)
+    {
+        const auto& example = NativeFlowchartCorpus::flowcharts[expected.number - 1u];
+        parser.Begin(example.source, expected.number);
+        const auto model = Complete(parser);
+        check(model->outcome == FlowchartOutcome::Prepared && ModelSignature(*model) == expected.signature,
+              "original Mermaid fan-out examples match independent normalized endpoint order and edge-kind goldens");
+    }
+    for (const auto& expected : fanoutExpectations)
+    {
+        parser.Begin(expected.source, 1u);
+        const auto model = Complete(parser);
+        check(model->outcome == FlowchartOutcome::Prepared && model->diagnostic.issue == FlowchartIssue::None && ModelSignature(*model) == expected.signature,
+              "grouped endpoints expand to the independent stable ID, label, direction and edge-kind golden");
+        const auto firstOperator = expected.source.find(L"-->");
+        const auto nextOperator  = expected.source.find(L"-->", firstOperator + 3u);
+        if (nextOperator != std::wstring_view::npos)
+        {
+            for (std::size_t index = 0u; index < 4u; ++index)
+                check(model->edges[index].source.first == firstOperator && model->edges[index].source.last == nextOperator,
+                      "each expanded edge retains the exact operator-to-endpoint-group source range");
+        }
+        else
+        {
+            for (const auto& edge : model->edges)
+                check(edge.source.first == firstOperator && edge.source.last == expected.source.size(),
+                      "labeled fan-out edges retain the complete exact source range");
+        }
+    }
+    for (const auto source : {L"flowchart TD;A & --> B", L"flowchart TD;A --> & B", L"flowchart TD;A & B & --> C"})
+    {
+        parser.Begin(source, 2u);
+        const auto malformed = Complete(parser);
+        check(malformed->outcome == FlowchartOutcome::Malformed && malformed->diagnostic.issue == FlowchartIssue::UnexpectedToken && malformed->nodes.empty() &&
+                  malformed->edges.empty(),
+              "empty endpoint groups reject atomically with a bounded syntax diagnostic");
+    }
+    std::wstring oversized = L"flowchart TD;";
+    for (std::size_t index = 0u; index < 24u; ++index)
+    {
+        if (index)
+            oversized += L" & ";
+        oversized += L"A" + std::to_wstring(index);
+    }
+    oversized += L" --> ";
+    for (std::size_t index = 0u; index < 23u; ++index)
+    {
+        if (index)
+            oversized += L" & ";
+        oversized += L"B" + std::to_wstring(index);
+    }
+    parser.Begin(oversized, 3u);
+    const auto edgeCapacity = Complete(parser);
+    check(edgeCapacity->outcome == FlowchartOutcome::Capacity && edgeCapacity->diagnostic.issue == FlowchartIssue::EdgeCapacity &&
+              edgeCapacity->nodes.empty() && edgeCapacity->edges.empty(),
+          "oversized endpoint cross-product is rejected atomically before publishing any graph");
+    std::wstring maximumEdges = L"flowchart TD;";
+    for (std::size_t index = 0u; index < 16u; ++index)
+    {
+        if (index)
+            maximumEdges += L" & ";
+        maximumEdges += L"L" + std::to_wstring(index);
+    }
+    maximumEdges += L" --> ";
+    for (std::size_t index = 0u; index < 32u; ++index)
+    {
+        if (index)
+            maximumEdges += L" & ";
+        maximumEdges += L"R" + std::to_wstring(index);
+    }
+    parser.Begin(maximumEdges, 4u);
+    const auto admittedMaximum = Complete(parser);
+    check(admittedMaximum->outcome == FlowchartOutcome::Prepared && admittedMaximum->nodes.size() == 48u &&
+              admittedMaximum->edges.size() == NativeFlowchartParser::MaximumEdges,
+          "the exact 512-edge cross-product remains within the documented edge admission bound");
+    std::wstring tooManyNodes = L"flowchart TD;";
+    for (std::size_t index = 0u; index <= NativeFlowchartParser::MaximumNodes; ++index)
+    {
+        if (index)
+            tooManyNodes += L" & ";
+        tooManyNodes += L"N" + std::to_wstring(index);
+    }
+    parser.Begin(tooManyNodes, 5u);
+    const auto nodeCapacity = Complete(parser);
+    check(nodeCapacity->outcome == FlowchartOutcome::Capacity && nodeCapacity->diagnostic.issue == FlowchartIssue::NodeCapacity &&
+              nodeCapacity->nodes.empty() && nodeCapacity->edges.empty(),
+          "node-group admission respects the existing finite node cap atomically");
 }
 } // namespace NativeFlowchartTests

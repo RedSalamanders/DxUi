@@ -382,7 +382,7 @@ static void TestRichImageRasterFailureAndBudgets()
     begin(1u);
     Check(! geometry.Pending() && calls.uploads == 2u, "identical image/target/epoch preparation coalesces without uploads");
     std::uint64_t epoch = 1u;
-    for (const auto failure : {E_OUTOFMEMORY, DXGI_ERROR_DEVICE_REMOVED})
+    for (const auto failure : {E_OUTOFMEMORY, DXGI_ERROR_DEVICE_REMOVED, D2DERR_RECREATE_TARGET})
         for (const auto failureIndex : {0u, 1u})
         {
             const auto generation = geometry.Generation();

@@ -517,6 +517,7 @@ struct AccessibilityTreeItemSnapshotRecord
     size_t visibleIndex = 0u;
     uint64_t itemId     = 0u;
     std::wstring text;
+    std::wstring badgeText;
     size_t depth     = 0u;
     bool hasChildren = false;
     bool expanded    = false;
@@ -933,7 +934,8 @@ struct AccessibilityPendingProperty final
 {
     ControlPath path{};
     uint64_t controlIdentity = 0;
-    PROPERTYID propertyId    = 0;
+    std::optional<uint64_t> treeItemId;
+    PROPERTYID propertyId = 0;
     std::shared_ptr<AccessibilityPropertyRegistration> registration;
     wil::unique_variant previous;
     wil::unique_variant current;
@@ -2414,6 +2416,7 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
                         record.treeItems.push_back(AccessibilityTreeItemSnapshotRecord{.visibleIndex = visibleIndex,
                                                                                        .itemId       = item.id,
                                                                                        .text         = item.text,
+                                                                                       .badgeText    = item.badgeText,
                                                                                        .depth        = item.depth,
                                                                                        .hasChildren  = item.hasChildren,
                                                                                        .expanded     = item.expanded});
@@ -3043,9 +3046,14 @@ std::optional<TreeAccessibilityItemView> FindSnapshotTreeItemRecordByVisibleInde
         return item && item->visibleIndex == treeVisibleIndex ? item : std::nullopt;
     }
     const AccessibilityTreeItemSnapshotRecord& item = record.treeItems[treeVisibleIndex];
-    return item.visibleIndex == treeVisibleIndex
-               ? std::optional<TreeAccessibilityItemView>{{item.visibleIndex, item.itemId, item.text, item.depth, item.hasChildren, item.expanded}}
-               : std::nullopt;
+    return item.visibleIndex == treeVisibleIndex ? std::optional<TreeAccessibilityItemView>{{item.visibleIndex,
+                                                                                             item.itemId,
+                                                                                             item.text,
+                                                                                             item.depth,
+                                                                                             item.hasChildren,
+                                                                                             item.expanded,
+                                                                                             item.badgeText}}
+                                                 : std::nullopt;
 }
 
 std::optional<TreeAccessibilityItemView> FindSnapshotTreeItemRecord(const AccessibilityControlNavigationSnapshot& record, uint64_t itemId) noexcept
@@ -8456,6 +8464,7 @@ HRESULT AccessibilityProvider::GetPropertyValue(PROPERTYID propertyId, VARIANT* 
         {
             case UIA_ControlTypePropertyId: *outValue = VariantFromInt(UIA_TreeItemControlTypeId); return S_OK;
             case UIA_NamePropertyId: return SetVariantFromString(outValue, item->text);
+            case UIA_ItemStatusPropertyId: return SetVariantFromString(outValue, item->badgeText);
             case UIA_IsControlElementPropertyId:
             case UIA_IsContentElementPropertyId:
             case UIA_IsKeyboardFocusablePropertyId: *outValue = VariantFromBool(true); return S_OK;
@@ -12633,6 +12642,14 @@ void RaiseTreeItemExpansionChange(
     NotifyPropertyEventRaisedForTest(UIA_ExpandCollapseExpandCollapseStatePropertyId);
 }
 
+void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
+                                 const AccessibilityControlNavigationSnapshot& record,
+                                 IRawElementProviderSimple* provider,
+                                 PROPERTYID id,
+                                 const VARIANT& previous,
+                                 const VARIANT& current,
+                                 std::optional<uint64_t> treeItemId = std::nullopt) noexcept;
+
 // The ExpandCollapse state changes of a tree's items between two publishes, each from the item's own element. An expansion
 // or a collapse inserts or removes one block of rows, so an item is matched at its own index or at the index the block
 // shifted it to; an item matched at neither raises nothing (the structure change the new rows raise covers it). False once
@@ -12667,6 +12684,60 @@ template <typename Connected>
         RaiseTreeItemExpansionChange(target, record, item.itemId, was->expanded, item.expanded);
     }
     return true;
+}
+
+// A legacy Tree row's badge text is an item status, not part of its identity or name. Publish a property event only when
+// the ordered item identities are unchanged; structural changes already invalidate the child list and are handled above.
+template <typename Connected>
+[[nodiscard]] bool RaiseTreeItemStatusChanges(WindowHostAccessibilityTarget& target,
+                                              const AccessibilityControlNavigationSnapshot& before,
+                                              const AccessibilityControlNavigationSnapshot& record,
+                                              const Connected& connected) noexcept
+{
+    if (before.treeItems.size() != record.treeItems.size() ||
+        ! std::ranges::equal(
+            before.treeItems, record.treeItems, {}, &AccessibilityTreeItemSnapshotRecord::itemId, &AccessibilityTreeItemSnapshotRecord::itemId))
+        return true;
+
+    for (size_t index = 0u; index < record.treeItems.size(); ++index)
+    {
+        const AccessibilityTreeItemSnapshotRecord& previousItem = before.treeItems[index];
+        const AccessibilityTreeItemSnapshotRecord& currentItem  = record.treeItems[index];
+        if (previousItem.badgeText == currentItem.badgeText)
+            continue;
+        if (! connected())
+            return false;
+        if (record.controlLifetime.expired())
+            return true;
+
+        static_cast<void>(target.AddRef());
+        AccessibilityProvider* const raw =
+            new (std::nothrow) AccessibilityProvider(&target, target.hwnd, record.path, currentItem.itemId, AccessibilityProvider::TreeItemTag{});
+        if (! raw)
+        {
+            static_cast<void>(target.Release());
+            continue;
+        }
+        wil::com_ptr_nothrow<IRawElementProviderSimple> provider;
+        provider.attach(static_cast<IRawElementProviderSimple*>(raw));
+        wil::unique_bstr previousText(SysAllocStringLen(previousItem.badgeText.data(), static_cast<UINT>(previousItem.badgeText.size())));
+        wil::unique_bstr currentText(SysAllocStringLen(currentItem.badgeText.data(), static_cast<UINT>(currentItem.badgeText.size())));
+        if ((! previousText && ! previousItem.badgeText.empty()) || (! currentText && ! currentItem.badgeText.empty()))
+            continue;
+        VARIANT oldValue{}, newValue{};
+        oldValue.vt = newValue.vt = VT_BSTR;
+        oldValue.bstrVal          = previousText.get();
+        newValue.bstrVal          = currentText.get();
+        if (connected() && ! record.controlLifetime.expired())
+        {
+            if (target.embedded)
+                QueueEmbeddedPropertyChange(target, record, provider.get(), UIA_ItemStatusPropertyId, oldValue, newValue, currentItem.itemId);
+            else
+                static_cast<void>(UiaRaiseAutomationPropertyChangedEvent(provider.get(), UIA_ItemStatusPropertyId, oldValue, newValue));
+            NotifyPropertyEventRaisedForTest(UIA_ItemStatusPropertyId);
+        }
+    }
+    return connected();
 }
 
 // The same changes for a tree whose rows come from a prepared source, which is never traversed: the items an expansion
@@ -12914,7 +12985,7 @@ void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexce
     // Windows' first focus event calls GetFocus on a worker. Only actual focus transitions publish synchronously.
     Control* focused = host->GetFocusControl();
     ControlPath path{};
-    if (focused && ! FindAccessibilityPathForTarget(host->GetRoot(), ControlPath{}, focused, path))
+    if (focused && ! FindWindowHostControlPath(before.get(), host->GetRoot(), focused, path))
         focused = nullptr;
     bool focusChanged = focused != nullptr;
     if (before && before->alive)
@@ -13303,13 +13374,15 @@ void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
                                  IRawElementProviderSimple* provider,
                                  PROPERTYID id,
                                  const VARIANT& previous,
-                                 const VARIANT& current) noexcept
+                                 const VARIANT& current,
+                                 std::optional<uint64_t> treeItemId) noexcept
 {
     try
     {
         AccessibilityPendingProperty property;
         property.path            = record.path;
         property.controlIdentity = record.controlIdentity;
+        property.treeItemId      = treeItemId;
         property.propertyId      = id;
         if (FAILED(CaptureAccessibilityPropertyValue(previous, property.previous, property.previousInterface)) ||
             FAILED(CaptureAccessibilityPropertyValue(current, property.current, property.currentInterface)))
@@ -13321,7 +13394,8 @@ void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
             const std::scoped_lock lock(target.structureNotificationMutex);
             for (auto& pending : target.pendingProperties)
             {
-                if (pending.controlIdentity == property.controlIdentity && pending.propertyId == id && AreControlPathsEqual(pending.path, property.path))
+                if (pending.controlIdentity == property.controlIdentity && pending.treeItemId == property.treeItemId && pending.propertyId == id &&
+                    AreControlPathsEqual(pending.path, property.path))
                 {
                     // Preserve the oldest undelivered value and replace only the latest. The retired value
                     // and GIT registration move into the local property, released after this lock unwinds.
@@ -13376,7 +13450,8 @@ void PruneEmbeddedPropertyChanges(WindowHostAccessibilityTarget& target, const A
         {
             const auto& pending = target.pendingProperties[index - 1u];
             const auto* record  = FindControlNavigationRecord(current, pending.path);
-            if (! record || record->controlIdentity != pending.controlIdentity)
+            if (! record || record->controlIdentity != pending.controlIdentity ||
+                (pending.treeItemId && (! record->isTree || ! FindSnapshotTreeItemRecord(*record, pending.treeItemId.value()))))
             {
                 retired.push_back(std::move(target.pendingProperties[index - 1u]));
                 target.pendingProperties.erase(target.pendingProperties.begin() + static_cast<ptrdiff_t>(index - 1u));
@@ -13467,6 +13542,8 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
                     before->treeItems, record.treeItems, {}, &AccessibilityTreeItemSnapshotRecord::itemId, &AccessibilityTreeItemSnapshotRecord::itemId))
                 structureChanged = true;
             if (! RaiseTreeExpansionChanges(target, *before, record, connected))
+                return;
+            if (! RaiseTreeItemStatusChanges(target, *before, record, connected))
                 return;
         }
         if (before->RichSemantic() != record.RichSemantic() || before->RichSemanticRevision() != record.RichSemanticRevision())

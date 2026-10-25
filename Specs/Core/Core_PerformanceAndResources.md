@@ -151,6 +151,33 @@ Among correct designs, minimize steady-state CPU/GPU time, private/resident memo
 synchronization, thread/handle count, wake-ups and graphics submissions. Preserve correctness, accessibility,
 security and visual quality; do not trade them away for an unmeasured optimization. All consumers share this policy.
 
+At the native host message-entry pruning seam, a completed stale-interaction pass may be reused only while the
+root identity and lifetime, all retained observer identities, and each observer lifetime
+remain unchanged. For each nonnull observer, the full resolver captures a bounded reverse path of logical-child
+indices during its existing traversal; a cache hit checks the observer's weak token before walking that path from
+the currently owned root, requires every path node to remain visible and enabled, and verifies the final identity.
+This membership proof detects a live control moved out through mutable `Panel::GetChildren()` even when its address,
+lifetime and host interaction revision are unchanged. An over-depth or over-index path is not cached and uses the
+full pruning pass on each message until it fits. Cache-path validation uses the host's effective-interactivity rule
+for every retained observer; it is distinct from UIA's visible-only control-path semantics.
+An ordinary cache hit compares observer identities and checks weak-token expiry without dereferencing a stale control.
+Invalidate the published snapshot before invoking cancellation or pruning callbacks; reentrant message handling
+must validate independently, and an outer pass may publish only if it was not superseded and its entry state still
+matches. Acquire observer lifetime tokens only after the resolver proves effective interactivity. A missing root,
+observer identity change, expired token or invalid live path requires the full cleanup pass, including native
+text-input deactivation. An unrelated completed presentation mutation may advance the interaction revision without
+invalidating these live paths: the full prune classifies membership and effective visibility/enabled state, not
+bounds or text. After validating the paths, recheck the entry root/lifetime, revision, pass serial and all observer
+keys; a change during validation requires the full pass. In-progress full-pass publication still requires the
+unchanged entry revision and latest pass serial. Logical-child queries obey the stable read-only traversal contract
+in `UI_ControlsAndLayout.md`; a final state check is not support for destructive getter reentry.
+Do not extend this optimization to other prune call sites. Deterministic host tests must show zero additional full
+resolver visits for stable messages and unrelated presentation mutations, plus fresh cleanup for invalid paths,
+state/lifetime changes, same-message reentry and injected observer changes during path validation.
+The diagnostic pass count also distinguishes an uncached cleanup of an empty observer set from a cache hit;
+an empty set can require a new pass while visiting no resolver nodes. Cached path walks are separate from full
+recursive resolver visits and must not be reported as zero total tree-node work.
+
 Prepared text rendering may retain at most one device-independent DirectWrite layout per eligible IconOnly base
 Button. Create or replace it only in the separate owner visual-preparation pass, never during composition. A warm
 paint draws it with the current origin and brush and performs no layout creation. Text/format/extent/flow changes,
@@ -285,6 +312,10 @@ query flushes that revision synchronously; worker queries read the last complete
 publish synchronously so the system's first worker focus query can report the new control. Event comparison has a separate
 baseline: a fresh owner query does not consume the queued notifications. Embedded views continue to publish explicitly
 after application preparation, with no snapshot work in composition.
+
+Interested native mutations resolve unchanged focus through the published address/path index first. Validate
+that path against the live tree, visibility and semantic control type on every use; a stale or absent path
+falls back to the canonical live-tree search. Do not retain a second focus cache or skip focus-transition publication.
 
 When neither a provider has been requested nor a UIA listener is present, a native mutation still marks the
 revision dirty but does not load the published snapshot, search the focused-control path or post a new flush.
@@ -754,8 +785,10 @@ Renamed benchmark headers MUST also overlay any existing legacy include paths in
 current payload. Those aliases exist only in the temporary overlay and are restored with it; recorded current inputs
 and the older entrypoint must reach the same fixture bytes. Every overlaid path MUST match its retained SHA-256
 after copying, before build/reuse, and before and after every measurement.
-Overlay rollback MUST retain and verify the original hash, refuse changed backups, attempt the remaining restorations,
-and report failure when a completed study cannot restore a named tree. A failed or mismatched overlay supplies no
+Overlay rollback MUST retain and verify the original hash, refuse changed backups, preserve and report later edits
+to either replaced or overlay-created paths, and attempt the remaining restorations. It records the actual installed
+bytes immediately after copying so an owned partial copy can still be rolled back without treating later edits as its own,
+and MUST report failure when a completed study cannot restore a named tree. A failed or mismatched overlay supplies no
 performance qualification; preserve its original records for diagnosis before starting a fresh study.
 
 Application-specific adoption reports, configurations, endpoint workloads and budgets belong in that application's

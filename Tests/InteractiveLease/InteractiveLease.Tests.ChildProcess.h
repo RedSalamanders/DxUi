@@ -6,6 +6,7 @@
 #include <chrono>
 #include <format>
 #include <functional>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -22,9 +23,115 @@ inline void PumpMessages() noexcept
     }
 }
 
+// Only the lease's self-test substitutes these OS job boundaries. Ordinary
+// launches use the same suspended-process/job setup below without a global hook.
+struct ChildJobOperations
+{
+    void* context{};
+    HANDLE (*create)(void*) noexcept = [](void*) noexcept { return CreateJobObjectW(nullptr, nullptr); };
+    BOOL (*configure)(void*, HANDLE, JOBOBJECT_EXTENDED_LIMIT_INFORMATION&) noexcept =
+        [](void*,
+           HANDLE job,
+           JOBOBJECT_EXTENDED_LIMIT_INFORMATION&
+               limits) noexcept { return SetInformationJobObject(job, JobObjectExtendedLimitInformation, &limits, sizeof(limits)); };
+    BOOL (*assign)(void*, HANDLE, HANDLE) noexcept = [](void*, HANDLE job, HANDLE process) noexcept { return AssignProcessToJobObject(job, process); };
+    DWORD (*resume)(void*, HANDLE) noexcept        = [](void*, HANDLE thread) noexcept { return ResumeThread(thread); };
+};
+
+// The interactive lease owns the complete job, unlike general tooling helpers
+// that own only one process. End the job and wait its captured, verified members
+// before restoring the desktop. Membership can change during capture: the job
+// still contains/terminates those later members, but this is not an atomic
+// whole-process-tree join. Capture/wait failures are reported, never success.
+[[nodiscard]] inline DWORD EndContainedChildJob(HANDLE job, UINT exitCode) noexcept
+{
+    bool terminationRequested     = false;
+    const auto terminateOnFailure = wil::scope_exit([&]() noexcept
+    {
+        if (! terminationRequested)
+            TerminateJobObject(job, exitCode);
+    });
+    const auto started            = GetTickCount64();
+    const auto remaining          = [&]() noexcept -> DWORD
+    {
+        const auto elapsed = GetTickCount64() - started;
+        return elapsed < 5000u ? static_cast<DWORD>(5000u - elapsed) : 0u;
+    };
+    try
+    {
+        // Job accounting can reach zero before a terminated process becomes
+        // signaled. Retain verified members BEFORE terminating the job, while
+        // they can still be enumerated, and join their actual process objects.
+        // A PID from this snapshot is never sufficient ownership evidence.
+        std::vector<ULONG_PTR> storage(33u);
+        std::vector<wil::unique_handle> members(0u);
+        JOBOBJECT_BASIC_PROCESS_ID_LIST* ids{};
+        for (;;)
+        {
+            ids                = reinterpret_cast<JOBOBJECT_BASIC_PROCESS_ID_LIST*>(storage.data());
+            const auto bytes   = static_cast<DWORD>(storage.size() * sizeof(ULONG_PTR));
+            const BOOL queried = QueryInformationJobObject(job, JobObjectBasicProcessIdList, ids, bytes, nullptr);
+            if (queried != FALSE && ids->NumberOfProcessIdsInList == ids->NumberOfAssignedProcesses)
+                break;
+            const DWORD error = GetLastError();
+            if (queried == FALSE && error != ERROR_MORE_DATA)
+                return error;
+            if (remaining() == 0u)
+                return ERROR_TIMEOUT;
+            if (storage.size() > (std::numeric_limits<DWORD>::max)() / (2u * sizeof(ULONG_PTR)))
+                return ERROR_NOT_ENOUGH_MEMORY;
+            storage.resize(storage.size() * 2u);
+        }
+        members.reserve(ids->NumberOfProcessIdsInList);
+        for (DWORD index = 0u; index < ids->NumberOfProcessIdsInList; ++index)
+        {
+            wil::unique_handle member(OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, static_cast<DWORD>(ids->ProcessIdList[index])));
+            if (! member)
+            {
+                const DWORD error = GetLastError();
+                if (error == ERROR_INVALID_PARAMETER)
+                    continue; // The enumerated member has already exited.
+                return error;
+            }
+            BOOL contained = FALSE;
+            if (IsProcessInJob(member.get(), job, &contained) == FALSE)
+                return GetLastError();
+            if (contained != FALSE)
+                members.push_back(std::move(member));
+        }
+        if (TerminateJobObject(job, exitCode) == FALSE)
+            return GetLastError();
+        terminationRequested = true;
+        for (const auto& member : members)
+        {
+            const DWORD wait = WaitForSingleObject(member.get(), remaining());
+            if (wait != WAIT_OBJECT_0)
+                return wait == WAIT_FAILED ? GetLastError() : ERROR_TIMEOUT;
+        }
+        JOBOBJECT_BASIC_ACCOUNTING_INFORMATION accounting{};
+        for (;;)
+        {
+            if (QueryInformationJobObject(job, JobObjectBasicAccountingInformation, &accounting, sizeof(accounting), nullptr) == FALSE)
+                return GetLastError();
+            if (accounting.ActiveProcesses == 0u)
+                return ERROR_SUCCESS;
+            if (remaining() == 0u)
+                return ERROR_TIMEOUT;
+            Sleep(10u);
+        }
+    }
+    catch (const std::bad_alloc&)
+    {
+        // Scope-guard ABI: failure to retain wait handles must still end the
+        // owned job, and report incomplete verification to the caller.
+        return ERROR_NOT_ENOUGH_MEMORY;
+    }
+}
+
 // Runs one child of a plan: its standard output and error go to its log, it is bound to a job that dies with the lease (so a lease
 // that is killed leaves no test process running on the person's desktop), and it is granted the foreground, which it can then take
-// for its own windows. Only this one process is ever granted anything, and only this one is ever ended: never another process by name.
+// for its own windows. Only this direct process is granted the foreground. Teardown ends only it and descendants contained
+// by its owned job; no process is selected by name. Failed job setup refuses the still-suspended child.
 //
 // The wait pumps messages, ends when the child exits, when `interruptEvent` is set (the person pressed Ctrl+C: the child is ended)
 // or when `timeoutSeconds` pass (the child is ended and reported with the watchdog's exit code, 124). The runner's own watchdog
@@ -32,8 +139,12 @@ inline void PumpMessages() noexcept
 //
 // Only a process that holds the foreground can grant it, and the child before this one may have left the person's window there when
 // its own windows closed: `holdForeground` takes it back when the grant is refused for that reason, and again until it is granted.
-[[nodiscard]] inline TestSupport::ChildResult RunChildProcess(
-    const TestSupport::ChildRun& run, unsigned timeoutSeconds, HANDLE interruptEvent, bool grantForeground, const std::function<void()>& holdForeground = {})
+[[nodiscard]] inline TestSupport::ChildResult RunChildProcess(const TestSupport::ChildRun& run,
+                                                              unsigned timeoutSeconds,
+                                                              HANDLE interruptEvent,
+                                                              bool grantForeground,
+                                                              const std::function<void()>& holdForeground = {},
+                                                              const ChildJobOperations& jobOperations     = {})
 {
     TestSupport::ChildResult result{};
 
@@ -105,16 +216,39 @@ inline void PumpMessages() noexcept
         }
     });
 
-    wil::unique_handle job(CreateJobObjectW(nullptr, nullptr));
+    wil::unique_handle job(jobOperations.create(jobOperations.context));
+    if (! job)
+    {
+        const DWORD error = GetLastError();
+        result.launched   = false;
+        result.error      = std::format("cannot create the child job (error {})", error);
+        return result;
+    }
     JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};
     limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-    const bool jobbed                       = job && SetInformationJobObject(job.get(), JobObjectExtendedLimitInformation, &limits, sizeof(limits)) != FALSE &&
-                                              AssignProcessToJobObject(job.get(), process.hProcess) != FALSE;
-    if (! jobbed)
-        job.reset(); // A lease that cannot job its child still ends exactly that process, with TerminateProcess.
+    if (jobOperations.configure(jobOperations.context, job.get(), limits) == FALSE)
+    {
+        const DWORD error = GetLastError();
+        result.launched   = false;
+        result.error      = std::format("cannot configure the child job (error {})", error);
+        return result;
+    }
+    if (jobOperations.assign(jobOperations.context, job.get(), process.hProcess) == FALSE)
+    {
+        const DWORD error = GetLastError();
+        result.launched   = false;
+        result.error      = std::format("cannot assign the child job (error {})", error);
+        return result;
+    }
+    bool teardownAttempted = false;
+    const auto endJob      = wil::scope_exit([&]() noexcept
+    {
+        if (! teardownAttempted && EndContainedChildJob(job.get(), 1u) != ERROR_SUCCESS)
+            OutputDebugStringW(L"DxUi interactive lease: owned job teardown did not complete within its bound.\n");
+    });
 
     const auto started = std::chrono::steady_clock::now();
-    if (ResumeThread(process.hThread) == static_cast<DWORD>(-1))
+    if (jobOperations.resume(jobOperations.context, process.hThread) == static_cast<DWORD>(-1))
     {
         result.launched = false;
         result.error    = std::format("cannot resume the child (error {})", GetLastError());
@@ -192,20 +326,20 @@ inline void PumpMessages() noexcept
         break;
     }
 
-    if (result.timedOut || result.interrupted || ! result.error.empty())
-    {
-        const UINT code = result.timedOut ? TestSupport::kTestTimeoutExitCode : 130u;
-        if (job)
-            TerminateJobObject(job.get(), code);
-        else
-            TerminateProcess(process.hProcess, code);
-        WaitForSingleObject(process.hProcess, 10000u);
-    }
     DWORD exitCode = 0u;
-    if (GetExitCodeProcess(process.hProcess, &exitCode) == FALSE || exitCode == STILL_ACTIVE)
+    if (result.timedOut || result.interrupted || ! result.error.empty())
+        exitCode = result.timedOut ? TestSupport::kTestTimeoutExitCode : 130u;
+    else if (GetExitCodeProcess(process.hProcess, &exitCode) == FALSE || exitCode == STILL_ACTIVE)
         exitCode = result.timedOut ? TestSupport::kTestTimeoutExitCode : 1u;
-    result.exitCode = exitCode;
-    result.seconds  = std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
+    result.exitCode   = exitCode;
+    teardownAttempted = true;
+    if (const DWORD error = EndContainedChildJob(job.get(), exitCode); error != ERROR_SUCCESS)
+    {
+        result.error = std::format("cannot finish the child job (error {})", error);
+        if (result.exitCode == 0u)
+            result.exitCode = 1u;
+    }
+    result.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
     return result;
 }
 } // namespace DxUi::InteractiveLease

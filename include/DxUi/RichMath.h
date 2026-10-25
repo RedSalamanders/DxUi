@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace DxUi::RichText
@@ -20,7 +21,25 @@ enum class MathKind
     Accent,
     Style,
     Space,
-    Delimited
+    Delimited,
+    Delimiter
+};
+enum class MathAtomClass
+{
+    Ordinary,
+    Operator,
+    Binary,
+    Relation,
+    Opening,
+    Closing,
+    Punctuation,
+    Inner
+};
+enum class MathLimits
+{
+    Automatic,
+    AboveBelow,
+    Side
 };
 struct MathNode
 {
@@ -34,10 +53,41 @@ struct MathNode
     }
     MathNode(const MathNode&)            = default;
     MathNode& operator=(const MathNode&) = default;
-    MathKind kind                        = MathKind::Row;
+    // Empty-size construction is deliberately fallible in MSVC Debug, whose
+    // containers may allocate iterator proxies. Transfer storage only afterward.
+    MathNode(MathNode&& other) : MathNode()
+    {
+        Swap(other);
+    }
+    MathNode& operator=(MathNode&& other)
+    {
+        Swap(other);
+        return *this;
+    }
+    MathKind kind = MathKind::Row;
     std::wstring text;
     std::vector<MathNode> children;
     unsigned columns{};
+    unsigned delimiterSize{}; // 1..4 for big/Big/bigg/Bigg; zero otherwise.
+    MathAtomClass atomClass = MathAtomClass::Ordinary;
+    MathLimits limits       = MathLimits::Automatic;
+    bool italic{}, displayLimits{}, largeOperator{};
+
+private:
+    void Swap(MathNode& other) noexcept
+    {
+        using std::swap;
+        swap(kind, other.kind);
+        text.swap(other.text);
+        children.swap(other.children);
+        swap(columns, other.columns);
+        swap(delimiterSize, other.delimiterSize);
+        swap(atomClass, other.atomClass);
+        swap(limits, other.limits);
+        swap(italic, other.italic);
+        swap(displayLimits, other.displayLimits);
+        swap(largeOperator, other.largeOperator);
+    }
 };
 struct MathExpression
 {
@@ -47,8 +97,22 @@ struct MathExpression
     MathExpression(const MathNode& value, const std::wstring& issue) : root(value), diagnostic(issue)
     {
     }
+    MathExpression(MathNode&& value, std::wstring&& issue) : root(std::move(value)), diagnostic(0u, L' ')
+    {
+        diagnostic.swap(issue);
+    }
     MathExpression(const MathExpression&)            = default;
     MathExpression& operator=(const MathExpression&) = default;
+    MathExpression(MathExpression&& other) : root(std::move(other.root)), diagnostic(0u, L' ')
+    {
+        diagnostic.swap(other.diagnostic);
+    }
+    MathExpression& operator=(MathExpression&& other)
+    {
+        root = std::move(other.root);
+        diagnostic.swap(other.diagnostic);
+        return *this;
+    }
     MathNode root;
     std::wstring diagnostic;
     explicit operator bool() const noexcept
@@ -56,7 +120,8 @@ struct MathExpression
         return diagnostic.empty();
     }
 };
-// Limits: 4096 source units, 512 syntax nodes, 24 nesting levels, 16x16 cells.
+// Limits: 4096 source units, 512 syntax nodes, 24 nesting levels, at most
+// 16 rows/columns and 128 total matrix cells. Styles/limits are data, not TeX execution.
 // Unsupported/malformed input is all-or-nothing; no partially rendered formula.
 [[nodiscard]] MathExpression ParseMath(std::wstring_view source);
 } // namespace DxUi::RichText

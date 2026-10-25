@@ -233,6 +233,9 @@ inline void Exact(std::wstring_view source,
     const auto revision = document.Revision();
     const auto syntax   = Parse(document, profile);
     const auto plan     = BuildMarkdownCommand(snapshot, revision, syntax, before, request);
+    if (! plan.IsApplicable())
+        std::wcerr << L"unavailable Exact command=" << static_cast<unsigned>(request.command) << L" style=" << static_cast<unsigned>(request.style)
+                   << L" source=[" << source << L"] selection={" << before.anchor << L',' << before.caret << L"}\n";
     Check(plan.IsApplicable(), "structural command admitted");
     Check(document.Snapshot().IsSameRevision(snapshot) && document.GetSelection() == before && ! document.CanUndo(), "planning is read-only");
     const auto changed = ApplyMarkdownCommand(document, plan);
@@ -256,6 +259,17 @@ inline void Exact(std::wstring_view source,
     }
     else
         Check(! document.CanUndo(), "selection-only or identical command does not add history");
+}
+inline void Unavailable(std::wstring_view source, Selection selection, MarkdownCommandRequest request, MarkdownProfile profile = MarkdownProfile::Gfm029)
+{
+    Document document(source);
+    document.SetSelection(selection);
+    const auto snapshot = document.Snapshot();
+    const auto syntax   = Parse(document, profile);
+    const auto plan     = BuildMarkdownCommand(snapshot, document.Revision(), syntax, selection, request);
+    Check(! plan.IsApplicable(), "unsafe structural command is unavailable");
+    Check(document.Snapshot().IsSameRevision(snapshot) && document.GetSelection() == selection && ! document.CanUndo(),
+          "unavailable structural command leaves exact source and selection unchanged");
 }
 inline void ListsAndHeadings()
 {
@@ -302,6 +316,34 @@ inline void ListsAndHeadings()
         request.headingLevel = 0u;
         Exact(L"  ## title ###  \n", {7u, 7u}, request, L"  title   \n", std::nullopt, profile);
     }
+
+    request          = {};
+    request.command  = MarkdownCommand::SetList;
+    request.listKind = MarkdownListKind::None;
+    Exact(L"- # Title\n", {4u, 9u}, request, L"# Title\n", Selection{2u, 7u});
+    request.command = MarkdownCommand::OutdentList;
+    Exact(L"- > quote\n", {4u, 9u}, request, L"> quote\n", Selection{2u, 7u});
+    Exact(L"- - inner\n", {4u, 9u}, request, L"- inner\n", Selection{2u, 7u});
+    request.command = MarkdownCommand::ToggleTask;
+    Unavailable(L"- # Title\n", {4u, 9u}, request);
+
+    request         = {};
+    request.command = MarkdownCommand::OutdentList;
+    Exact(L"- a\n    - b\n", {10u, 10u}, request, L"- a\n- b\n", Selection{6u, 6u});
+    request.command = MarkdownCommand::IndentList;
+    Exact(L"- a\n- b\n\n  tail\n- c\n", {6u, 6u}, request, L"- a\n  - b\n\n    tail\n- c\n", Selection{8u, 8u});
+    Exact(L"- parent\n  - x\n  - a\n\n    tail\n", {19u, 19u}, request, L"- parent\n  - x\n    - a\n\n      tail\n", Selection{21u, 21u});
+    request.command = MarkdownCommand::OutdentList;
+    Exact(L"- parent\n  - x\n  - a\n\n    tail\n", {19u, 19u}, request, L"- parent\n  - x\n- a\n\n  tail\n", Selection{17u, 17u});
+    request.command  = MarkdownCommand::SetList;
+    request.listKind = MarkdownListKind::None;
+    Exact(L"- parent\n  - x\n  - a\n\n    tail\n", {19u, 19u}, request, L"- parent\n  - x\n  a\n\n  tail\n", Selection{17u, 17u});
+
+    request           = {};
+    request.command   = MarkdownCommand::SetList;
+    request.listKind  = MarkdownListKind::Ordered;
+    request.listStart = 999999999u;
+    Unavailable(L"alpha\nbeta\n", {0u, 11u}, request);
 }
 inline void InlineTasksLinks()
 {
@@ -318,6 +360,7 @@ inline void InlineTasksLinks()
     }
     request.style = MarkdownTextStyle::Code;
     Exact(L"&copy; **bold**", {0u, 15u}, request, L"`\u00a9 bold`", Selection{1u, 7u});
+    Exact(L"**left &amp; right**", {7u, 12u}, request, L"**left `&` right**", Selection{8u, 9u});
     Exact(L"`*foo* &copy;`", {2u, 2u}, request, L"\\*foo\\* \\&copy\\;");
     Exact(L"\\`", {0u, 2u}, request, L"`` ` ``", Selection{3u, 4u});
     request.command     = MarkdownCommand::SetLink;
@@ -337,9 +380,40 @@ inline void InlineTasksLinks()
     Exact(L"- [x] a\n- [ ] b\n", {0u, 16u}, request, L"- [ ] a\n- [x] b\n");
     request.command = MarkdownCommand::InsertParagraph;
     Exact(L"> 9) [x] alpha\r\n", {14u, 14u}, request, L"> 9) [x] alpha\r\n> 10) [ ] \r\n");
+    Exact(L"> ***", {5u, 5u}, request, L"> ***\r\n", Selection{7u, 7u});
     request.command  = MarkdownCommand::SetList;
     request.listKind = MarkdownListKind::Unordered;
     Exact(L"- [x] **word**\n", {8u, 8u}, request, L"- **word**\n");
+
+    request         = {};
+    request.command = MarkdownCommand::ToggleStyle;
+    request.style   = MarkdownTextStyle::Strong;
+    Unavailable(L"**ab**c", {3u, 7u}, request);
+    request.command     = MarkdownCommand::SetLink;
+    request.destination = L"https://example.invalid/";
+    Unavailable(L"**ab**c", {3u, 7u}, request);
+
+    request         = {};
+    request.command = MarkdownCommand::InsertParagraph;
+    Unavailable(L"- > quote", {9u, 9u}, request);
+
+    request         = {};
+    request.command = MarkdownCommand::ToggleStyle;
+    request.style   = MarkdownTextStyle::Code;
+    Unavailable(L"see $E=mc^2$ here", {0u, 17u}, request, MarkdownProfile::RichMarkdown);
+    Unavailable(L"note[^1] end", {0u, 12u}, request, MarkdownProfile::RichMarkdown);
+    Unavailable(L"[label](https://example.invalid/)", {0u, 33u}, request);
+
+    request         = {};
+    request.command = MarkdownCommand::ToggleStyle;
+    request.style   = MarkdownTextStyle::Strong;
+    Exact(L"**Hello, world! (see e.g. foo)**", {3u, 3u}, request, L"Hello, world! (see e.g. foo)");
+    Exact(L"Hello, world! (see e.g. foo)", {0u, 28u}, request, L"**Hello, world! (see e.g. foo)**");
+
+    request             = {};
+    request.command     = MarkdownCommand::SetLink;
+    request.destination = L"next";
+    Exact(L"<a href='old' title='tip'>word</a>", {28u, 28u}, request, L"<a href='next'>word</a>", Selection{17u, 17u});
 }
 inline void Tables()
 {
@@ -373,6 +447,19 @@ inline void Tables()
     Exact(L"a | b\n- | -\nx | y", {16u, 16u}, request, L"a | b\n- | -\nx | y\n| | |", Selection{20u, 20u});
     request.command = MarkdownCommand::PreviousTableCell;
     Exact(L"a | b\n- | -\nx | y", {16u, 16u}, request, L"a | b\n- | -\nx | y", Selection{12u, 12u});
+
+    request         = {};
+    request.command = MarkdownCommand::DeleteTableColumn;
+    Exact(L"| a | b |\n| - | -: |\n| x |\n", {2u, 2u}, request, L"| b |\n| -: |\n| |\n", Selection{2u, 2u});
+
+    request         = {};
+    request.command = MarkdownCommand::InsertTableColumn;
+    Exact(L"a | b\n- | -\nx | y\n", {0u, 0u}, request, L"| | a | b\n| --- | - | -\n| | x | y\n", Selection{2u, 2u});
+
+    request         = {};
+    request.command = MarkdownCommand::DeleteTableRow;
+    Exact(L"| a |\n| - |\n| x |", {2u, 2u}, request, L"| x |\n| - |\n");
+    Exact(L"| a | b |\n| - | - |\n|😀|x|\n", {2u, 2u}, request, L"|😀|x|\n| - | - |\n", Selection{1u, 1u});
 }
 inline void GuardsAndDeletion()
 {

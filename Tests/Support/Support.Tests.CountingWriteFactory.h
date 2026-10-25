@@ -1,6 +1,7 @@
 #pragma once
 #include <dwrite.h>
 #include <limits>
+#include <string_view>
 #include <wil/com.h>
 #include <wrl/implements.h>
 namespace NativeTextTests
@@ -14,8 +15,10 @@ public:
     {
     }
     wil::com_ptr<IDWriteFactory> real;
-    std::size_t layouts{}, formats{}, failLayoutAt{std::numeric_limits<std::size_t>::max()};
+    std::size_t layouts{}, formats{}, matchingLayouts{}, failedLayouts{}, failLayoutAt{std::numeric_limits<std::size_t>::max()}, failMatchingLayoutCount{};
     HRESULT formatFailure{S_OK};
+    HRESULT layoutFailure{E_OUTOFMEMORY};
+    const wchar_t* failLayoutText{};
     HRESULT STDMETHODCALLTYPE GetSystemFontCollection(IDWriteFontCollection** fontCollection, BOOL checkForUpdates) noexcept override
     {
         return real->GetSystemFontCollection(fontCollection, checkForUpdates);
@@ -113,12 +116,17 @@ public:
                                                FLOAT maxHeight,
                                                IDWriteTextLayout** textLayout) noexcept override
     {
-        const auto call = layouts++;
-        if (call == failLayoutAt)
+        const auto call         = layouts++;
+        const bool matchingText = failLayoutText && string && std::wstring_view(string, stringLength) == failLayoutText;
+        matchingLayouts += matchingText;
+        if (call == failLayoutAt || (matchingText && failMatchingLayoutCount != 0u))
         {
+            if (matchingText && failMatchingLayoutCount != 0u)
+                --failMatchingLayoutCount;
+            ++failedLayouts;
             if (textLayout)
                 *textLayout = nullptr;
-            return E_OUTOFMEMORY;
+            return layoutFailure;
         }
         return real->CreateTextLayout(string, stringLength, textFormat, maxWidth, maxHeight, textLayout);
     }

@@ -1324,7 +1324,9 @@ this preview does not close metadata, math, diagrams or performance acceptance.
 
 RichMarkdown recognizes `$...$`, `$$...$$`, `\(...\)` and `\[...\]` inside ordinary
 inline leaves. Single-dollar math is single-line and requires nonspace content edges;
-a closing dollar followed by a digit is currency text. Escaped delimiters, code spans,
+a closing dollar followed by a digit is currency text. Explicit `\(...\)` delimiters
+permit edge whitespace and a following digit, while retaining the physical-line bound.
+Escaped delimiters, code spans,
 fenced/indented code and CommonMark/GFM profiles retain their existing grammar.
 Display delimiters may span logical lines of one Markdown paragraph. Blank paragraphs
 and GFM table boundaries still delimit leaves. Original source, delimiters, CRLF,
@@ -1340,6 +1342,17 @@ consistent columns. User macros, packages, file input, evaluation and full LaTeX
 compatibility are unsupported. Rejection retains the complete literal equation with
 a source-ranged diagnostic, rather than drawing a misleading partial expression.
 
+The bounded native profile records atom classes, font styles, script style and
+operator limit policy in its typed model. Variables are italic by default; numbers,
+text groups and named operators are upright. Binary atoms at unary positions use
+ordinary spacing. Explicit math atom wrappers, display/text/script declarations,
+`limits`/`nolimits`, starred `operatorname`, sized `big`/`Big`/`bigg`/`Bigg` delimiters,
+and `tilde`/`widetilde` are admitted. Text groups collapse source whitespace and
+remove grouping braces while retaining escaped literal braces. Matrix rows may
+have a trailing separator; gathered rows have one column and cases at most two.
+Unsupported commands remain local exact source. This is a named native profile,
+not a claim of all KaTeX functions or identical TeX font metrics and glyph assemblies.
+
 Limits are 4,096 source units, 512 syntax nodes, nesting 24, 16 rows/columns and 128
 cells per formula, 4,096 total mathematical records and 128 combined native objects.
 Preparation shapes at most one mathematical leaf per SDK-layout event. Cached
@@ -1347,17 +1360,34 @@ DirectWrite glyphs and line geometry draw in the owner's target with caller brus
 no filesystem, worker, font downloads or allocation occurs in drawing. Reflow and
 device replacement regenerate prepared geometry without changing source.
 
+Every rejected formula has its own Math element, accessible explanation and exact
+source diagnostic; rejection cannot overwrite its enclosing link's title or destination.
+A persistent native geometry-capacity failure falls back only the affected formula
+or complete Mermaid fence, including its original container prefixes and EOLs.
+Other semantic content stays rich. The presentation rejection key includes immutable
+syntax, width, direction, host typography/resource generation, binding and local
+appearance geometry revision. Repeated idle preparation does not retry the same
+rejection; changing a key retries it. Allocation exhaustion and transient SDK/device
+errors are separate failures and cannot become permanent syntax rejections.
+
 The native Mermaid engine additionally accepts a bounded `stateDiagram` /
 `stateDiagram-v2` profile: direction, simple declarations/quoted aliases,
 `[*]` initial/final states, transitions with colon labels and state descriptions.
+The first nonempty state description replaces the implicit ID label. Later quoted
+or colon descriptions append in source order; empty descriptions keep the current label.
 The bounded `classDiagram` profile accepts direction, simple class declarations,
 colon members, directed/undirected associations and inheritance (`<|--`, `--|>`).
 State/class layouts use the deterministic native graph router; members are plain
-multiline node labels. Inheritance uses the native triangle arrow. This is not
+multiline node labels. Inheritance uses a hollow triangle without a line through its
+interior. Flowchart stadiums use capsule outlines and shape-aware connection ports;
+grouped/chained endpoints expand into bounded Cartesian edge products in source order.
+This is not
 Mermaid coordinate compatibility. Composite states, class namespaces/generics,
 block member declarations, relationship multiplicities, stereotypes, styling,
 interaction directives and other diagram families remain exact fenced source.
-The existing flowchart grammar and source-provenance rules remain unchanged.
+Unsupported shape productions retain the complete fence instead of becoming plain
+rectangle or rounded labels. Source-provenance rules remain unchanged.
+
 Aligned rows alternate right-aligned left operands and left-aligned right operands at each ampersand pair. Cases use left-aligned expression/condition columns (at most two); ordinary matrices center their columns. Gathered rows have one column. Geometry tests compare the actual cached glyph positions consumed by drawing.
 
 Over-capacity notation conservatively retains the remaining physical inline line (display notation: logical leaf) as literal source with a diagnostic. This prevents nested Markdown interpretation and bounds repeated failed delimiter scans. The consumer inspector uses MathMaximumSourceUnits and clears rather than accepting an oversized value.

@@ -74,7 +74,7 @@ struct SemanticBuilder::Preparation
             Publish
         } phase{};
     };
-    explicit Preparation(std::shared_ptr<const MarkdownSyntax> syntax, std::size_t sourceBlock)
+    explicit Preparation(std::shared_ptr<const MarkdownSyntax> syntax, std::size_t sourceBlock, std::span<const MarkdownRange> sourceObjects)
         : document(new SemanticDocument(std::move(syntax))),
           output(document->runs_),
           visits(0u),
@@ -84,7 +84,9 @@ struct SemanticBuilder::Preparation
           footerOrder(0u)
     {
         document->sourceBlock_ = sourceBlock;
-        const auto notes       = document->syntax_->Footnotes();
+        if (! sourceObjects.empty())
+            Extensions().sourceObjects.assign(sourceObjects.begin(), sourceObjects.end());
+        const auto notes = document->syntax_->Footnotes();
         if (std::ranges::any_of(notes, [](const auto& note) { return note.ordinal != 0u; }))
         {
             footerByNode.assign(document->syntax_->Nodes().size(), MarkdownNoNode);
@@ -100,6 +102,11 @@ struct SemanticBuilder::Preparation
             footerOrder.resize(count);
         }
         visits.push_back({});
+    }
+    bool NativeSourceFallback(MarkdownRange source) const noexcept
+    {
+        const auto objects = Detail::SemanticExtensionAccess::SourceObjects(*document);
+        return std::ranges::find(objects, source) != objects.end();
     }
     std::shared_ptr<SemanticDocument> document;
     Detail::SemanticOutput output;
@@ -316,33 +323,39 @@ struct SemanticBuilder::Preparation
         auto parent      = visit.parent;
         if (node.kind == MarkdownInlineKind::Math)
         {
-            auto expression  = std::make_shared<MathExpression>(ParseMath(node.value));
-            auto& extensions = Extensions();
-            const auto count = [](auto&& self, const MathNode& value) -> std::size_t
+            const auto element        = Element(SemanticRole::Math, node.source, parent);
+            const bool sourceFallback = NativeSourceFallback(node.source);
+            auto expression           = sourceFallback ? std::shared_ptr<MathExpression>{} : std::make_shared<MathExpression>(ParseMath(node.value));
+            auto& extensions          = Extensions();
+            const auto count          = [](auto&& self, const MathNode& value) -> std::size_t
             {
                 std::size_t result = 1;
                 for (const auto& child : value.children)
                     result += self(self, child);
                 return result;
             };
-            const auto records = count(count, expression->root);
-            if (*expression && records <= 4096u - extensions.mathRecords &&
+            const auto records = expression ? count(count, expression->root) : 0u;
+            if (expression && *expression && records <= 4096u - extensions.mathRecords &&
                 extensions.maths.size() + extensions.diagrams.size() + extensions.images.size() < Detail::SemanticExtensions::MaximumObjects)
             {
-                const auto element = Element(SemanticRole::Math, node.source, parent);
                 output.Emit(L"\ufffc", node.source, DisplaySpanKind::Object, flags, visit.heading);
                 auto& formula        = document->elements_[element];
                 formula.display.last = output.text.size();
                 formula.name         = node.value;
                 formula.title        = L"Mathematical expression. Exact TeX source is available as document text.";
-                extensions.maths.push_back({element, std::move(expression)});
+                const auto raw       = document->syntax_->Slice(node.source);
+                extensions.maths.push_back({element, std::move(expression), raw.starts_with(L"$$") || raw.starts_with(L"\\[")});
                 extensions.mathRecords += records;
             }
             else
             {
-                extensions.diagnostics.push_back({SemanticDiagnosticKind::UnsupportedMath, node.source, visit.parent});
-                document->elements_[visit.parent].title = L"Unsupported or oversized native equation. Exact source is preserved.";
+                extensions.diagnostics.push_back({SemanticDiagnosticKind::UnsupportedMath, node.source, element});
+                auto& formula = document->elements_[element];
+                formula.name  = node.value;
+                formula.title = sourceFallback ? L"Equation cannot be prepared natively for this view. Exact source is preserved."
+                                               : L"Unsupported or oversized native equation. Exact source is preserved.";
                 output.Emit(document->syntax_->Slice(node.source), node.source, DisplaySpanKind::Source, flags | Code, visit.heading);
+                formula.display.last = output.text.size();
             }
             return;
         }
@@ -368,7 +381,7 @@ struct SemanticBuilder::Preparation
                 image.display.last = output.text.size();
                 image.name         = alternative;
                 auto& extensions   = Extensions();
-                if (extensions.images.size() < Detail::SemanticExtensions::MaximumObjects)
+                if (extensions.images.size() + extensions.maths.size() + extensions.diagrams.size() < Detail::SemanticExtensions::MaximumObjects)
                     extensions.images.push_back(element);
                 return;
             }
@@ -680,7 +693,14 @@ struct SemanticBuilder::Preparation
                 return;
             }
             const auto& edge = graph.edges[work.cursor++];
-            if (edge.label.empty())
+            if (edge.relation == Detail::FlowchartRelation::Inheritance)
+            {
+                if (edge.label.empty())
+                    DiagramAlternative({id(edge.from), L" inherits ", id(edge.to), L"; "});
+                else
+                    DiagramAlternative({id(edge.from), L" (", edge.label, L") inherits ", id(edge.to), L"; "});
+            }
+            else if (edge.label.empty())
                 DiagramAlternative({id(edge.from), edge.arrow ? L" \u2192 " : L" \u2014 ", id(edge.to), L"; "});
             else
                 DiagramAlternative({id(edge.from), L" (", edge.label, edge.arrow ? L") \u2192 " : L") \u2014 ", id(edge.to), L"; "});
@@ -750,6 +770,19 @@ struct SemanticBuilder::Preparation
             element.title   = L"Editing exact block source.";
             html.Reset();
             close = BeginLeafParagraph(visit, true);
+            output.Emit(syntax.Slice(node.block.source), node.block.source, DisplaySpanKind::Source, Code, 0u);
+            visits.push_back(close);
+            return;
+        }
+        if (NativeSourceFallback(node.block.source))
+        {
+            DiagramDiagnostic(visit,
+                              SemanticDiagnosticKind::DiagramCapacity,
+                              node.block.source,
+                              L"Diagram exceeds native geometry capacity for this view. Exact source is preserved.");
+            visit.flags   = Code;
+            visit.heading = 0u;
+            close         = BeginLeafParagraph(visit, true);
             output.Emit(syntax.Slice(node.block.source), node.block.source, DisplaySpanKind::Source, Code, 0u);
             visits.push_back(close);
             return;
@@ -1065,6 +1098,12 @@ void SemanticBuilder::Begin(std::shared_ptr<const MarkdownSyntax> syntax)
 }
 void SemanticBuilder::Begin(std::shared_ptr<const MarkdownSyntax> syntax, std::size_t sourceBlock)
 {
+    BeginWithNativeFallbacks(std::move(syntax), sourceBlock, {});
+}
+void SemanticBuilder::BeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyntax> syntax,
+                                               std::size_t sourceBlock,
+                                               std::span<const MarkdownRange> sourceObjects)
+{
     if (! syntax)
         throw std::invalid_argument("Semantic preparation requires syntax");
     if (syntax->SourceRegionNode() != MarkdownNoNode && sourceBlock != syntax->SourceRegionNode())
@@ -1074,6 +1113,26 @@ void SemanticBuilder::Begin(std::shared_ptr<const MarkdownSyntax> syntax, std::s
     if (syntax->Source().size() > Document::MaximumUnits || syntax->Nodes().size() > SemanticDocument::MaximumElements ||
         syntax->Inlines().size() > SemanticDocument::MaximumElements - syntax->Nodes().size())
         throw std::length_error("Semantic source/node admission exceeded");
+    if (sourceObjects.size() > Detail::SemanticExtensions::MaximumObjects)
+        throw std::length_error("Native source fallback capacity exceeded");
+    std::size_t previousEnd{};
+    for (const auto range : sourceObjects)
+    {
+        if (range.first >= range.last || range.last > syntax->Source().size() || range.first < previousEnd)
+            throw std::invalid_argument("Native source fallbacks must be disjoint source-ordered objects");
+        const bool math =
+            std::ranges::any_of(syntax->Inlines(), [&](const auto& node) { return node.kind == MarkdownInlineKind::Math && node.source == range; });
+        const bool diagram = ! math && std::ranges::any_of(syntax->Nodes(),
+                                                           [&](const auto& node)
+        {
+            const auto info = syntax->Slice(node.block.info);
+            return node.block.kind == MarkdownBlockKind::FencedCode && node.block.source == range && info.starts_with(L"mermaid") &&
+                   (info.size() == 7u || info[7u] == L' ' || info[7u] == L'\t');
+        });
+        if (syntax->Profile() != MarkdownProfile::RichMarkdown || (! math && ! diagram))
+            throw std::invalid_argument("Native source fallback requires an exact native syntax owner");
+        previousEnd = range.last;
+    }
     if (sourceBlock != MarkdownNoNode)
     {
         if (sourceBlock >= syntax->Nodes().size())
@@ -1095,14 +1154,16 @@ void SemanticBuilder::Begin(std::shared_ptr<const MarkdownSyntax> syntax, std::s
                     throw std::invalid_argument("Source target is inside a literal footnote declaration");
             }
     }
-    if (next_ && next_->document->syntax_ == syntax && next_->document->sourceBlock_ == sourceBlock)
+    const auto sameFallbacks = [&](const SemanticDocument& document)
+    { return std::ranges::equal(Detail::SemanticExtensionAccess::SourceObjects(document), sourceObjects); };
+    if (next_ && next_->document->syntax_ == syntax && next_->document->sourceBlock_ == sourceBlock && sameFallbacks(*next_->document))
         return;
-    if (published_ && published_->syntax_ == syntax && published_->sourceBlock_ == sourceBlock)
+    if (published_ && published_->syntax_ == syntax && published_->sourceBlock_ == sourceBlock && sameFallbacks(*published_))
     {
         next_.reset();
         return;
     }
-    auto next = std::make_unique<Preparation>(std::move(syntax), sourceBlock);
+    auto next = std::make_unique<Preparation>(std::move(syntax), sourceBlock, sourceObjects);
     next_.swap(next);
 }
 MarkdownAdvance SemanticBuilder::Advance(std::size_t maximumEvents)

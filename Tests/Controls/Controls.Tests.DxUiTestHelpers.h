@@ -990,7 +990,9 @@ public:
     AttachedHostWindow(AttachedHostWindow&&)                 = delete;
     AttachedHostWindow& operator=(AttachedHostWindow&&)      = delete;
 
-    explicit AttachedHostWindow(DxUi::WindowHost::PresentationMode presentationMode = DxUi::WindowHost::PresentationMode::HwndSwapChain, bool forceWarp = false)
+    explicit AttachedHostWindow(DxUi::WindowHost::PresentationMode presentationMode = DxUi::WindowHost::PresentationMode::HwndSwapChain,
+                                bool forceWarp                                      = false,
+                                bool batchInitialRootChildren                       = false)
     {
         EnableMotionForTest(_host);
         const ATOM windowClass = EnsureWindowClass();
@@ -1010,7 +1012,9 @@ public:
         }
         Require(hwnd != nullptr, "attached host window created");
         _hwnd.reset(hwnd);
-        Require(_host.Attach(_hwnd.get(), DxUi::WindowHost::AttachOptions{.presentationMode = presentationMode, .forceWarp = forceWarp}),
+        Require(_host.Attach(_hwnd.get(),
+                             DxUi::WindowHost::AttachOptions{
+                                 .presentationMode = presentationMode, .forceWarp = forceWarp, .batchInitialRootChildren = batchInitialRootChildren}),
                 "attached host window host attached");
     }
 

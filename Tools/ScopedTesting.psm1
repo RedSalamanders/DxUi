@@ -22,9 +22,21 @@ function Invoke-ScopedGit {
     } finally { $process.Dispose() }
 }
 
+function Get-ScopedOrdinalUniquePaths {
+    param([AllowEmptyCollection()][string[]] $Paths)
+    # Git path identity is ordinal and case-sensitive, even when the host filesystem is not.
+    # SortedSet also provides deterministic ordering without PowerShell's culture/case-insensitive -Unique behavior.
+    $unique = [Collections.Generic.SortedSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($path in $Paths) {
+        if (-not [string]::IsNullOrEmpty($path)) { [void]$unique.Add($path) }
+    }
+    return @($unique)
+}
+
 function Get-ScopedTrackedPaths {
     param([string] $Root)
-    return @((Invoke-ScopedGit $Root @('ls-files','--cached','--others','--exclude-standard','-z')) -split '\x00' | Where-Object { $_ } | Sort-Object -Unique)
+    $paths = (Invoke-ScopedGit $Root @('ls-files','--cached','--others','--exclude-standard','-z')) -split '\x00'
+    return @(Get-ScopedOrdinalUniquePaths $paths)
 }
 
 function Get-ScopedChangedPaths {
@@ -34,7 +46,8 @@ function Get-ScopedChangedPaths {
     $staged = Invoke-ScopedGit $Root @('diff','--cached','--name-only','--no-renames','-z','--')
     $working = Invoke-ScopedGit $Root @('diff','--name-only','--no-renames','-z','--')
     $untracked = Invoke-ScopedGit $Root @('ls-files','--others','--exclude-standard','-z')
-    return @(($committed + $staged + $working + $untracked) -split '\x00' | Where-Object { $_ } | Sort-Object -Unique)
+    $paths = ($committed + $staged + $working + $untracked) -split '\x00'
+    return @(Get-ScopedOrdinalUniquePaths $paths)
 }
 
 function Test-ScopedPattern {

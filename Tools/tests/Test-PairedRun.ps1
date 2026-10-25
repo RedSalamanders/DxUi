@@ -164,6 +164,32 @@ Invoke-FixtureCase 'a restore keeps a directory that gained other files' {
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $target 'Tools/Compare-Performance.ps1'))) 'the overlay file is gone'
 }
 
+Invoke-FixtureCase 'overlay rollback preserves later edits to created and replaced paths while restoring unaffected files' {
+    param($root)
+    $source = Join-Path $root 'harness'
+    $target = Join-Path $root 'tree'
+    $backup = Join-Path $root 'backup'
+    foreach ($path in @('created.ps1','replaced.ps1','other.ps1','temporary.ps1')) {
+        Set-FixtureFile $source $path "harness $path`n"
+    }
+    Set-FixtureFile $target 'replaced.ps1' "original replaced`n"
+    Set-FixtureFile $target 'other.ps1' "original other`n"
+    $records = @(Copy-HarnessOverlay -Source $source -Target $target -Paths @('created.ps1','replaced.ps1','other.ps1','temporary.ps1') -BackupDirectory $backup)
+    Set-FixtureFile $target 'created.ps1' "later created edit`n"
+    Set-FixtureFile $target 'replaced.ps1' "later replaced edit`n"
+    $message = ''
+    try { Restore-HarnessOverlay -Target $target -Records $records -BackupDirectory $backup }
+    catch { $message = $_.Exception.Message }
+    $created = Join-Path $target 'created.ps1'
+    Assert-True (Test-Path -LiteralPath $created -PathType Leaf) 'a later edit at an originally absent path is retained'
+    Assert-Equal "later created edit`n" ([IO.File]::ReadAllText($created)) 'created-path edit bytes survive rollback'
+    Assert-Equal "later replaced edit`n" ([IO.File]::ReadAllText((Join-Path $target 'replaced.ps1'))) 'replacement-path edit bytes survive rollback'
+    Assert-Equal "original replaced`n" ([IO.File]::ReadAllText((Join-Path $backup 'replaced.ps1'))) 'the original backup remains recoverable'
+    Assert-Equal "original other`n" ([IO.File]::ReadAllText((Join-Path $target 'other.ps1'))) 'unaffected originals still return'
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $target 'temporary.ps1'))) 'unmodified temporary files are removed'
+    Assert-True ($message.Contains('created.ps1') -and $message.Contains('replaced.ps1')) 'both refused restorations are reported'
+}
+
 Invoke-FixtureCase 'a tree that is the harness source is never rewritten' {
     param($root)
     $source = Join-Path $root 'harness'

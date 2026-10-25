@@ -8,12 +8,15 @@
 #include <stdexcept>
 #include <tuple>
 #include <wil/resource.h>
+#include <wil/result.h>
 #include <wrl/implements.h>
 
 namespace DxUi::RichText::Detail
 {
 #if DXUI_ENABLE_DIAGNOSTICS
 thread_local const RichImageRasterCalls* testRichImageRasterCalls{};
+thread_local IDWriteFactory* testRichSemanticWriteFactory{};
+thread_local HRESULT testRichMathLineMetricsFailure{S_OK};
 #endif
 namespace
 {
@@ -144,7 +147,19 @@ struct NativeImageGeometry
             auto& placement   = placements[resources.placements.size() + index];
             placement.element = maths[index].element;
             placement.display = document.Elements()[placement.element].display;
-            placement.math    = std::make_unique<PreparedMath>(write, maths[index].expression, font * 1.15f);
+            // PreparedMath construction validates bounded AST storage and reads
+            // optional MATH constants without HRESULT propagation. Font-local
+            // SDK operations occur only in PrepareMath below, where the exact
+            // affected formula is known. Bounded AST validation can still
+            // reject this formula as a local geometry-capacity failure.
+            try
+            {
+                placement.math = std::make_unique<PreparedMath>(write, maths[index].expression, font * 1.15f, maths[index].display);
+            }
+            catch (const std::length_error&)
+            {
+                throw NativeObjectCapacity("Mathematical object exceeds its preparation capacity", placement.element);
+            }
         }
         std::ranges::sort(placements, {}, &NativeImagePlacement::element);
     }
@@ -171,7 +186,26 @@ struct NativeImageGeometry
     }
     bool PrepareMath(std::size_t index)
     {
-        return placements[index].math->Advance();
+        try
+        {
+            return placements[index].math->Advance();
+        }
+        catch (const wil::ResultException& failure)
+        {
+            // This DirectWrite result is scoped to the current formula/font:
+            // the operation is unsupported by the selected font type. Other
+            // HRESULTs, including device loss and memory exhaustion, stay
+            // retryable and retain their original error channel.
+            if (failure.GetErrorCode() == DWRITE_E_UNSUPPORTEDOPERATION)
+                throw NativeObjectUnsupported("Mathematical operation is unsupported by the selected font", placements[index].element, failure.GetErrorCode());
+            throw;
+        }
+        catch (const std::length_error&)
+        {
+            // Admission of one native formula is a local presentation failure.
+            // Driver/HRESULT and allocation failures retain their own channels.
+            throw NativeObjectCapacity("Mathematical object exceeds its font/geometry capacity", placements[index].element);
+        }
     }
     bool Placed(std::size_t element) const noexcept
     {
@@ -815,7 +849,7 @@ struct PreparedSemanticGeometry::Preparation
             {
                 const auto extent = native->paint->Geometry()->extent;
                 if (extent.width > options.widthDip)
-                    throw NativeObjectCapacity("Diagram does not fit this view width");
+                    throw NativeObjectCapacity("Diagram does not fit this view width", native->element);
                 const auto height = static_cast<float>(extent.height);
                 const auto object = Microsoft::WRL::Make<SemanticObjectPlaceholder>(
                     DWRITE_INLINE_OBJECT_METRICS{static_cast<float>(extent.width), height, std::min(options.fontSizeDip, height), FALSE});
@@ -900,7 +934,7 @@ struct PreparedSemanticGeometry::Preparation
             {
                 const auto textBounds = box->layout.HorizontalTextBounds();
                 if (textBounds.second > options.widthDip + 0.01f)
-                    throw NativeObjectCapacity("Diagram and its marker do not fit this view width");
+                    throw NativeObjectCapacity("Diagram and its marker do not fit this view width", native->element);
                 const auto rectangles = box->layout.Range(objectOffset, objectOffset + 1u);
                 if (rectangles.size() != 1u)
                     throw std::logic_error("Native diagram did not produce one atomic SDK object");
@@ -1029,7 +1063,7 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
     if (! diagrams.empty() && ! drawing)
         throw std::invalid_argument("Native semantic objects require a drawing factory");
     if (! diagrams.empty() && options.fontSizeDip > 512.0f)
-        throw NativeObjectCapacity("Native object font exceeds its supported extent");
+        throw NativeObjectCapacity("Native object font exceeds its supported extent", diagrams.front().element);
     const auto same = [&](const State& state)
     {
         return state.factory.get() == factory && state.document == document && SameOptions(state.options, options) && state.imageResources == images &&
@@ -1220,7 +1254,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 if (advance.status == LayoutPreparationStatus::Complete)
                 {
                     if (! placement.paint->Ready())
-                        throw NativeObjectCapacity("Native diagram exceeds its font/geometry capacity");
+                        throw NativeObjectCapacity("Native diagram exceeds its font/geometry capacity", placement.element);
                     ++work.nativeIndex;
                 }
                 if (! advance.blockSteps && ! advance.layoutsPrepared)

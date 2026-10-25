@@ -173,10 +173,12 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
     if (graph->direction < FlowchartDirection::TopBottom || graph->direction > FlowchartDirection::RightLeft)
         throw std::invalid_argument("Invalid native flowchart direction");
     for (const auto& node : graph->nodes)
-        if (node.label.size() > NativeFlowchartParser::MaximumLabelUnits || node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Diamond)
+        if (node.label.size() > NativeFlowchartParser::MaximumLabelUnits || node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Stadium)
             throw std::invalid_argument("Invalid flowchart node label/shape");
     for (const auto& edge : graph->edges)
-        if (edge.label.size() > NativeFlowchartParser::MaximumLabelUnits || edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size())
+        if (edge.label.size() > NativeFlowchartParser::MaximumLabelUnits || edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() ||
+            edge.relation < FlowchartRelation::Line || edge.relation > FlowchartRelation::Inheritance ||
+            edge.arrow != (edge.relation != FlowchartRelation::Line))
             throw std::invalid_argument("Invalid native flowchart edge");
     if (next_ && next_->state->Matches(write, drawing, graph, typography, resourceEpoch))
         return LayoutPreparationStatus::Pending;
@@ -354,9 +356,19 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
     {
         const auto& edge = plan.edges[index];
         for (std::size_t point = 1u; point < edge.path.size(); ++point)
-            target->DrawLine(Point(edge.path[point - 1u]), Point(edge.path[point]), stroke);
+        {
+            auto end = edge.path[point];
+            if (edge.relation == FlowchartRelation::Inheritance && state.arrowPaths[index] && point + 1u == edge.path.size())
+                end = {(edge.arrow[1u].x + edge.arrow[2u].x) / 2.0, (edge.arrow[1u].y + edge.arrow[2u].y) / 2.0};
+            target->DrawLine(Point(edge.path[point - 1u]), Point(end), stroke);
+        }
         if (state.arrowPaths[index])
-            target->FillGeometry(state.arrowPaths[index].get(), stroke);
+        {
+            if (edge.relation == FlowchartRelation::Inheritance)
+                target->DrawGeometry(state.arrowPaths[index].get(), stroke);
+            else
+                target->FillGeometry(state.arrowPaths[index].get(), stroke);
+        }
     }
     for (std::size_t index = 0u; index < plan.nodes.size(); ++index)
     {
@@ -380,6 +392,13 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
             const auto rounded = D2D1::RoundedRect(bounds, 8.0f, 8.0f);
             target->FillRoundedRectangle(rounded, fill);
             target->DrawRoundedRectangle(rounded, stroke);
+        }
+        else if (node.shape == FlowchartShape::Stadium)
+        {
+            const auto radius  = (bounds.bottom - bounds.top) / 2.0f;
+            const auto stadium = D2D1::RoundedRect(bounds, radius, radius);
+            target->FillRoundedRectangle(stadium, fill);
+            target->DrawRoundedRectangle(stadium, stroke);
         }
         else
         {

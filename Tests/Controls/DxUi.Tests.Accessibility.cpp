@@ -52,6 +52,8 @@ public:
         std::function<void()> callback = std::move(onFindVisibleItemById);
         if (callback)
             callback();
+        if (reportedVisibleIndex)
+            return reportedVisibleIndex;
         const auto it = std::ranges::find(_items, itemId, &DxUi::TreeItemData::id);
         return it == _items.end() ? std::nullopt : std::optional<size_t>(static_cast<size_t>(it - _items.begin()));
     }
@@ -60,6 +62,7 @@ public:
     mutable size_t findVisibleItemCalls = 0u;
     mutable std::function<void()> onGetVisibleItem;
     mutable std::function<void()> onFindVisibleItemById;
+    std::optional<size_t> reportedVisibleIndex;
 
 private:
     std::vector<DxUi::TreeItemData> _items;
@@ -4295,6 +4298,65 @@ void TestAccessibilitySelectorFocusPreservesMembershipAndSelectionDoesNotActivat
             Require(selected == FALSE, "membership and focused identity remain distinct after removal");
         }
     }
+}
+
+void TestAccessibilityInterestedMutationsBoundFocusedPathResolution()
+{
+    using namespace DxUi;
+    ScopedNonActivatingTestWindows nonActivating;
+    AttachedHostWindow window;
+    auto root   = std::make_unique<Panel>();
+    auto* panel = root.get();
+    auto* label = root->AddChild<Label>(L"initial status");
+    label->SetBounds(D2D1::RectF(0, 0, 200, 28));
+    for (size_t index = 0u; index < 512u; ++index)
+        root->AddChild<Label>(L"unrelated sibling")->SetBounds(D2D1::RectF(220, 0, 400, 28));
+    auto* field = root->AddChild<TextField>(L"stable logical focus");
+    field->SetAccessibleName(L"Tracked focus");
+    field->SetBounds(D2D1::RectF(0, 40, 200, 68));
+    window.Host().SetRoot(std::move(root));
+    window.Host().SetFocusControl(field, false);
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+    provider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(provider != nullptr, "create a real interested provider for the wide tree");
+    auto labelProvider = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *provider.get(), 20, 12, "find the status label in the wide tree");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> labelSimple;
+    RequireSucceeded(labelProvider.query_to(labelSimple.put()), "retain the status label provider");
+    window.PumpMessages();
+    Require(DebugSetAccessibilityMutationInterestForTest(window.Hwnd(), true), "keep this attachment interested during the bounded batch");
+    const auto clearInterest = wil::scope_exit([]() noexcept
+    { Require(DebugSetAccessibilityMutationInterestForTest(nullptr, std::nullopt), "clear the wide-tree mutation-interest override"); });
+    DebugSetAccessibilityResolutionCountingForTest(true);
+    const auto stopCounting = wil::scope_exit([]() noexcept { DebugSetAccessibilityResolutionCountingForTest(false); });
+    DebugResetAccessibilityResolutionVisitCountForTest();
+    const auto builds = DebugGetAccessibilitySnapshotBuildCountForTest();
+    for (size_t index = 0u; index < 128u; ++index)
+        label->SetText(std::to_wstring(index));
+    const auto visits = DebugGetAccessibilityResolutionVisitCountForTest();
+    std::cerr << "    [FOCUSED-PATH-BATCH] siblings=512 mutations=128 visits=" << visits << '\n';
+    Require(visits > 0u && visits <= 128u * 32u, "stable interested focus resolution is bounded by path depth instead of sibling count");
+    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == builds, "interested label changes still coalesce without synchronous rebuilds");
+    Require(ReadProviderStringProperty(*labelSimple.get(), UIA_NamePropertyId, "final wide-tree status") == L"127",
+            "the first owner query publishes the last committed status");
+    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == builds + 1u, "the first owner query performs one coherent rebuild");
+    window.PumpMessages();
+
+    auto removed = panel->TakeChild(1u);
+    Require(removed != nullptr && panel->CompactChildren() == 1u, "shift the tracked focus away from its published path");
+    DebugResetAccessibilityResolutionVisitCountForTest();
+    label->SetText(L"after sibling removal");
+    Require(DebugGetAccessibilityResolutionVisitCountForTest() > 400u, "an invalid published path falls back to live-tree resolution");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> focused;
+    RequireSucceeded(provider->GetFocus(focused.put()), "resolve the tracked focus after its path changed");
+    Require(focused != nullptr, "the changed path retains the actual focused control");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> focusedSimple;
+    RequireSucceeded(focused.query_to(focusedSimple.put()), "query the relocated focus identity");
+    Require(ReadProviderStringProperty(*focusedSimple.get(), UIA_NamePropertyId, "relocated focus name") == L"Tracked focus",
+            "stale cached paths cannot select another sibling");
+    field->SetVisible(false);
+    focused.reset();
+    RequireSucceeded(provider->GetFocus(focused.put()), "query after the focused control is hidden");
+    Require(! focused, "a hidden cached focus is not exposed as an accessible focused element");
 }
 
 void TestAccessibilityLazyPublicationCoalescesAndOwnerQueriesStayFresh()
@@ -9227,6 +9289,24 @@ void TestAccessibilityRangeValueChangesReachSubscribedClient()
     expectValue(L"Opacity", 43.0);
     progress->SetValue(64.0);
     expectValue(L"Transfer", 64.0);
+    progress->SetMinimum(10.0);
+    expectValue(L"Transfer", 10.0, UIA_RangeValueMinimumPropertyId);
+    progress->SetMaximum(120.0);
+    expectValue(L"Transfer", 120.0, UIA_RangeValueMaximumPropertyId);
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> progressRoot;
+    progressRoot.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(progressRoot != nullptr, "progress range mutation retains its root provider");
+    auto progressProvider = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *progressRoot.get(), 120, 60, "find the progress range provider");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> progressSimple;
+    RequireSucceeded(progressProvider.query_to(progressSimple.put()), "progress range exposes simple properties");
+    wil::com_ptr_nothrow<IUnknown> progressPattern;
+    RequireSucceeded(progressSimple->GetPatternProvider(UIA_RangeValuePatternId, progressPattern.put()), "progress range pattern remains available");
+    wil::com_ptr_nothrow<IRangeValueProvider> progressRange;
+    RequireSucceeded(progressPattern.query_to(progressRange.put()), "query the changed progress range");
+    double minimum{}, maximum{};
+    RequireSucceeded(progressRange->get_Minimum(&minimum), "read the changed progress minimum");
+    RequireSucceeded(progressRange->get_Maximum(&maximum), "read the changed progress maximum");
+    Require(minimum == 10.0 && maximum == 120.0, "progress provider getters reflect both changed bounds");
     splitter->SetPosition(160.0f);
     expectValue(L"Pane width", 160.0);
     slider->SetMinimum(44.0);
@@ -9737,6 +9817,99 @@ void TestTreeBesideAnotherControlItemEventsReachAClientSubscribedToTheWindow()
     ExpectClientHearsSingleSelectionTreeEvents(test.window, *test.tree, test.model);
 }
 
+// A Tree row's neutral dot is a visual badge, but its text is still the item's accessible status. A badge-only
+// update keeps the row identity, selection, focus and viewport; clients hear ItemStatus on the existing TreeItem,
+// never a new name or a structure invalidation.
+void TestTreeBadgeStatusUpdatesReachSubscribedClientWithoutStructureChange()
+{
+    using DxUi::TreeItemData;
+    ReentrantAccessibilityTreeModel staleModel({TreeItemData{.id = 42u, .text = L"Stale index target"}});
+    SingleTreeWindow test;
+    const auto rows = [](std::wstring badgeText, bool badgeIsDot)
+    {
+        std::vector<TreeItemData> items;
+        items.reserve(20u);
+        items.push_back(TreeItemData{.id = 1u, .text = L"Général", .badgeText = std::move(badgeText), .badgeIsDot = badgeIsDot});
+        for (uint64_t id = 2u; id < 21u; ++id)
+            items.push_back(TreeItemData{.id = id, .text = L"Volet " + std::to_wstring(id)});
+        return items;
+    };
+    test.model.SetVisibleItems(rows(L"Edited", true));
+    test.tree->NotifyDataChanged();
+    test.tree->SetFocusedItemId(2u);
+    Require(test.tree->GetSelectedItemId() == 2u && test.tree->GetFocusedItemId() == 2u, "the test starts with a stable selected and focused row");
+    Require(test.tree->OnMouseWheel(test.window.Host(), D2D1::Point2F(40.0f, 40.0f), -static_cast<float>(WHEEL_DELTA), 0u),
+            "the test scrolls the Tree before changing a badge");
+    const size_t firstVisibleBefore = test.tree->GetFirstVisibleItemIndex();
+    Require(firstVisibleBefore > 0u, "the test starts with a nonzero Tree viewport offset");
+
+    UiaTest::Subscription subscription;
+    subscription.properties = {UIA_ItemStatusPropertyId};
+    subscription.structure  = true;
+    SingleControlClient walk(test.window, std::move(subscription));
+    const std::vector<UiaTest::ElementId> initialItems = walk.client.Children(walk.root);
+    Require(initialItems.size() == 20u, "the client sees the original TreeItem identities");
+    const UiaTest::ElementId editedItem = initialItems.front();
+    Require(walk.Name(editedItem) == L"Général", "the dot row keeps its stable TreeItem name");
+    Require(walk.client.StringProperty(editedItem, UIA_ItemStatusPropertyId) == L"Edited",
+            "the text retained by a neutral dot is exposed as the row's ItemStatus");
+
+    const auto update = [&](std::wstring badgeText, bool badgeIsDot, std::optional<std::wstring_view> expectedEventStatus, const char* context)
+    {
+        static_cast<void>(walk.client.WaitOutTheStream());
+        const size_t mark = walk.client.Mark();
+        test.model.SetVisibleItems(rows(badgeText, badgeIsDot));
+        Require(test.tree->NotifyItemPresentationChanged(1u), "the existing visible legacy-model row accepts a badge-only notification");
+        if (expectedEventStatus)
+        {
+            const bool heard = walk.client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs,
+                                                     [&]
+            {
+                const auto events = walk.client.DistinctSince(mark);
+                return std::ranges::any_of(events,
+                                           [&](const UiaTest::HeardEvent& event)
+                {
+                    return event.kind == UiaTest::EventKind::Property && event.id == UIA_ItemStatusPropertyId &&
+                           event.controlType == UIA_TreeItemControlTypeId && event.name == L"Général" && event.value == expectedEventStatus.value();
+                });
+            });
+            walk.Expect(heard, context);
+        }
+        const UiaTest::StreamQuiescence settled = walk.client.WaitOutTheStream();
+        walk.Expect(settled.quiet, "the Tree badge notification stream settles");
+        const std::vector<UiaTest::HeardEvent> events = walk.client.DistinctSince(mark);
+        walk.Expect(! std::ranges::any_of(events, [](const UiaTest::HeardEvent& event) { return event.kind == UiaTest::EventKind::Structure; }),
+                    "a badge-only presentation update does not invalidate Tree children");
+        if (! expectedEventStatus)
+            walk.Expect(! std::ranges::any_of(events,
+                                              [](const UiaTest::HeardEvent& event)
+            { return event.kind == UiaTest::EventKind::Property && event.id == UIA_ItemStatusPropertyId; }),
+                        "changing only dot presentation does not raise an ItemStatus event");
+        walk.Expect(walk.Name(editedItem) == L"Général", "ItemStatus updates do not replace or rename the TreeItem");
+        walk.Expect(walk.client.StringProperty(editedItem, UIA_ItemStatusPropertyId) == badgeText,
+                    "the existing TreeItem exposes the current badge status after publication");
+        walk.Expect(test.tree->GetSelectedItemId() == 2u && test.tree->GetFocusedItemId() == 2u, "a badge-only update preserves selection and focus");
+        walk.Expect(test.tree->GetFirstVisibleItemIndex() == firstVisibleBefore, "a badge-only update preserves the Tree viewport");
+    };
+
+    update(L"Saved", true, std::wstring_view(L"Saved"), "a status update on a dot row raises ItemStatus on the original TreeItem");
+    update(L"Saved", false, std::nullopt, "changing only dot presentation does not change the accessible status");
+    update(L"3", false, std::wstring_view(L"3"), "a non-dot count update raises ItemStatus on the original TreeItem");
+    update(L"", false, std::wstring_view(L""), "removing a badge raises an empty ItemStatus on the original TreeItem");
+    const uint64_t invalidationsBeforeMissing = test.window.Host().DebugGetInvalidateCount();
+    Require(! test.tree->NotifyItemPresentationChanged(9999u), "a missing Tree row rejects the presentation notification");
+    Require(test.window.Host().DebugGetInvalidateCount() == invalidationsBeforeMissing,
+            "a missing Tree row does not invalidate pixels or publish an accessibility snapshot");
+
+    test.tree->SetModel(&staleModel);
+    test.tree->NotifyDataChanged();
+    staleModel.reportedVisibleIndex              = 0u;
+    const uint64_t invalidationsBeforeStaleIndex = test.window.Host().DebugGetInvalidateCount();
+    Require(! test.tree->NotifyItemPresentationChanged(1u), "a stale visible index for another ID rejects the presentation notification");
+    Require(test.window.Host().DebugGetInvalidateCount() == invalidationsBeforeStaleIndex,
+            "a stale visible index does not invalidate pixels or publish an accessibility snapshot");
+}
+
 // An item that expands or collapses says so from its own element, and the rows that appear or leave change the tree's
 // structure, so a client holding its children fetches them again. Neither was raised: a screen reader announced nothing
 // and a client kept the old rows. The application expands and collapses the item in its model, as a delegate does.
@@ -9806,7 +9979,7 @@ void TestPreparedTreeExpansionOfTheFocusedItemReachesAClient()
             if (visibleIndex >= _items.size())
                 return std::nullopt;
             const TreeItemData& item = _items[visibleIndex];
-            return DxUi::TreeAccessibilityItemView{visibleIndex, item.id, item.text, item.depth, item.hasChildren, item.expanded};
+            return DxUi::TreeAccessibilityItemView{visibleIndex, item.id, item.text, item.depth, item.hasChildren, item.expanded, item.badgeText};
         }
         [[nodiscard]] std::optional<DxUi::TreeAccessibilityItemView> FindItem(uint64_t itemId) const noexcept override
         {
@@ -9847,7 +10020,7 @@ void TestPreparedTreeExpansionOfTheFocusedItemReachesAClient()
 
     const auto rows = [](bool expanded)
     {
-        std::vector<TreeItemData> items{TreeItemData{.id = 1u, .text = L"Général", .hasChildren = true, .expanded = expanded}};
+        std::vector<TreeItemData> items{TreeItemData{.id = 1u, .text = L"Général", .badgeText = L"Prepared status", .hasChildren = true, .expanded = expanded}};
         if (expanded)
             items.push_back(TreeItemData{.id = 11u, .parentId = 1u, .text = L"Affichage", .depth = 1u});
         items.push_back(TreeItemData{.id = 2u, .text = L"Volets"});
@@ -9864,11 +10037,19 @@ void TestPreparedTreeExpansionOfTheFocusedItemReachesAClient()
     tree->SetSelectedItemId(1u);
     tree->SetFocusedItemId(1u);
     window.Host().SetRoot(std::move(control));
+    const uint64_t invalidationsBeforePreparedNotification = window.Host().DebugGetInvalidateCount();
+    Require(! tree->NotifyItemPresentationChanged(1u), "an immutable prepared-row source rejects the legacy badge-only notification");
+    Require(window.Host().DebugGetInvalidateCount() == invalidationsBeforePreparedNotification,
+            "a prepared-row source does not invalidate pixels or publish through the legacy notification");
 
     UiaTest::Subscription subscription;
-    subscription.properties = {UIA_ExpandCollapseExpandCollapseStatePropertyId};
+    subscription.properties = {UIA_ExpandCollapseExpandCollapseStatePropertyId, UIA_ItemStatusPropertyId};
     subscription.structure  = true;
     SingleControlClient walk(window, std::move(subscription));
+    const std::vector<UiaTest::ElementId> preparedItems = walk.client.Children(walk.root);
+    Require(preparedItems.size() == 2u && walk.client.StringProperty(preparedItems[0], UIA_ItemStatusPropertyId) == L"Prepared status" &&
+                walk.client.StringProperty(preparedItems[1], UIA_ItemStatusPropertyId).empty(),
+            "prepared TreeItem status is borrowed from the retained source, with an empty default when omitted");
     const auto hear = [&](bool expanded)
     {
         static_cast<void>(walk.client.WaitOutTheStream());
@@ -11075,6 +11256,7 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestSingleMaskedFieldWindowElementIsTheParentOfItsRevealButton);
     DXUI_RUN_TEST(TestSingleTreeWindowItemEventsReachAClientSubscribedToTheWindow);
     DXUI_RUN_TEST(TestTreeBesideAnotherControlItemEventsReachAClientSubscribedToTheWindow);
+    DXUI_RUN_TEST(TestTreeBadgeStatusUpdatesReachSubscribedClientWithoutStructureChange);
     DXUI_RUN_TEST(TestTreeExpansionReachesAClientSubscribedToTheWindow);
     DXUI_RUN_TEST(TestPreparedTreeExpansionOfTheFocusedItemReachesAClient);
     DXUI_RUN_TEST(TestAccessibilityRadioButtonsAreSelectionItems);
@@ -11174,6 +11356,7 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestAccessibilityGridCellFocusChoosesTheInspectedColumn);
     DXUI_RUN_TEST(TestAccessibilityPublicationMutationBatchRetainsFinalStateAndReportsCost);
     DXUI_RUN_TEST(TestAccessibilityLazyPublicationCoalescesAndOwnerQueriesStayFresh);
+    DXUI_RUN_TEST(TestAccessibilityInterestedMutationsBoundFocusedPathResolution);
     DXUI_RUN_TEST(TestAccessibilityGetFocusDoesNotBindCapturedSnapshotToReplacementAtSamePath);
     DXUI_RUN_TEST(TestAccessibilitySnapshotDerivedPeerFactoriesRejectSamePathReplacement);
     DXUI_RUN_TEST(TestAccessibilityCaptionReentrancyCannotPublishARetiredRoot);

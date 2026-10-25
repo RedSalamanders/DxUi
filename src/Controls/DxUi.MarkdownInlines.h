@@ -1212,7 +1212,7 @@ class MarkdownInlines
             const bool display = width == 2u && (dollars || text_[first + 1u] == L'[');
             const auto closer  = dollars ? (width == 1u ? L"$" : L"$$") : text_[first + 1u] == L'(' ? L"\\)" : L"\\]";
             const auto content = first + width;
-            if (content < text_.size() && (display || ! SourceSpace(text_[content])))
+            if (content < text_.size() && (! dollars || display || ! SourceSpace(text_[content])))
             {
                 bool endedLine = false;
                 for (auto end = content; end < std::min(text_.size(), content + MathMaximumSourceUnits + 1u); ++end)
@@ -1228,7 +1228,7 @@ class MarkdownInlines
                     for (auto index = end; index > content && text_[index - 1u] == L'\\'; --index)
                         ++slashes;
                     if (slashes % 2u || end == content ||
-                        (! display && (SourceSpace(text_[end - 1u]) || (end + width < text_.size() && Digit(text_[end + width])))))
+                        (dollars && ! display && (SourceSpace(text_[end - 1u]) || (end + width < text_.size() && Digit(text_[end + width])))))
                         continue;
                     cursor_ = end + width;
                     Append(Kind::Math, first, cursor_, std::wstring_view(text_).substr(content, end - content));

@@ -106,6 +106,51 @@
   ],
   "rules": [
     {
+      "pattern": "src/Controls/DxUi.NativeFlowchart*",
+      "scopes": ["EditorControls", "Embedded", "Accessibility"],
+      "reason": "owned native diagram grammar, CPU geometry and semantic alternatives"
+    },
+    {
+      "pattern": "src/Controls/DxUi.NativeMath.cpp",
+      "scopes": ["EditorControls", "Embedded", "Accessibility"],
+      "reason": "owned native math grammar and semantic source fallback"
+    },
+    {
+      "pattern": "src/Controls/DxUi.PreparedFlowchart*",
+      "scopes": ["EditorControls", "Embedded", "Accessibility"],
+      "reason": "native retained diagram geometry, raster resources and source bounds"
+    },
+    {
+      "pattern": "src/Controls/DxUi.PreparedMath.h",
+      "scopes": ["EditorControls", "Embedded", "Accessibility"],
+      "reason": "native retained equation geometry and source bounds"
+    },
+    {
+      "pattern": "src/Controls/DxUi.SemanticExtensions.h",
+      "scopes": ["EditorControls", "Embedded", "Accessibility"],
+      "reason": "source-owned native object metadata and local fallback identity"
+    },
+    {
+      "pattern": "Tests/Support/Support.Tests.Rich*",
+      "scopes": ["EditorControls", "Embedded", "Accessibility"],
+      "reason": "shared rich document, native/embedded editor and accessibility fixtures"
+    },
+    {
+      "pattern": "Tests/Support/Support.Tests.Markdown*",
+      "scopes": ["EditorControls", "Embedded", "Accessibility"],
+      "reason": "shared lossless syntax and native presentation corpus fixtures"
+    },
+    {
+      "pattern": "Tests/Support/Support.Tests.MathCorpus.h",
+      "scopes": ["EditorControls", "Embedded", "Accessibility"],
+      "reason": "independent bounded native math syntax and geometry compatibility fixtures"
+    },
+    {
+      "pattern": "Tests/Support/Support.Tests.*Flowchart*",
+      "scopes": ["EditorControls", "Embedded", "Accessibility"],
+      "reason": "shared native/embedded diagram grammar, layout and raster fixtures"
+    },
+    {
       "pattern": "src/Controls/DxUi.Markdown*",
       "scopes": [
         "EditorControls",
@@ -178,7 +223,8 @@
       "pattern": "include/DxUi/Rich*",
       "scopes": [
         "EditorControls",
-        "Embedded"
+        "Embedded",
+        "Accessibility"
       ],
       "reason": "additive Unicode document, Markdown projection and borrowed layout core"
     },
@@ -186,7 +232,8 @@
       "pattern": "src/Controls/DxUi.Rich*",
       "scopes": [
         "EditorControls",
-        "Embedded"
+        "Embedded",
+        "Accessibility"
       ],
       "reason": "owned rich-text preparation core; shared archive and supplied target behavior"
     },
@@ -721,5 +768,5 @@
     "Tools/tests/Test-RunEvidence.ps1"
   ],
   "prNativeScopeModule": "Tools/NativeScope.psm1",
-  "prWorkflowDigest": "380a6872d4531fcd5cea47327f7087755d6aa1dc55db7b1d16aba74d8cce6096"
+  "prWorkflowDigest": "eebdecc1c81c807cbdae98a50c80b7a0f339f80cff805cd249029c88e122ea79"
 }

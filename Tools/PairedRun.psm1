@@ -156,8 +156,16 @@ function Copy-HarnessOverlay {
                 foreach ($directory in $missing) { $created.Add($directory) }
                 New-Item -ItemType Directory -Path (Split-Path $to) -Force | Out-Null
                 # Track this file before writing: a failed or incomplete copy also needs rollback.
-                $records.Add([ordered]@{ path = $path; action = $action; createdDirectories = @($created); sha256 = $expectedSha256; originalSha256 = $originalSha256 })
-                Copy-Item -LiteralPath $from -Destination $to -Force
+                $record = [ordered]@{ path = $path; action = $action; createdDirectories = @($created); sha256 = $expectedSha256; originalSha256 = $originalSha256; installedSha256 = $null }
+                $records.Add($record)
+                try { Copy-Item -LiteralPath $from -Destination $to -Force }
+                finally {
+                    # Bind rollback to what this copy actually installed, even when a
+                    # failed/partial copy differs from the required measurement bytes.
+                    if (Test-Path -LiteralPath $to -PathType Leaf) {
+                        $record['installedSha256'] = (Get-FileHash -LiteralPath $to -Algorithm SHA256).Hash
+                    }
+                }
                 [IO.File]::SetLastWriteTimeUtc($to, [DateTime]::UtcNow)
             } else {
                 $records.Add([ordered]@{ path = $path; action = $action; createdDirectories = @($created); sha256 = $expectedSha256; originalSha256 = $originalSha256 })
@@ -186,13 +194,20 @@ function Assert-HarnessOverlay {
 
 function Restore-HarnessOverlay {
     <# Undoes Copy-HarnessOverlay: replaced files return from the backup, created files and the directories made for them
-       are removed. Restored files are stamped with the current time so the tree's next build sees them change. #>
+       are removed. Later edits at either kind of path are preserved and reported. Restored files are stamped with
+       the current time so the tree's next build sees them change. #>
     param([Parameter(Mandatory)][string] $Target, [Parameter(Mandatory)][object[]] $Records, [Parameter(Mandatory)][string] $BackupDirectory)
     $directories = [Collections.Generic.List[string]]::new()
     $failures = [Collections.Generic.List[string]]::new()
     foreach ($record in $Records) {
         try {
             $to = Join-Path $Target $record['path']
+            if ($record['action'] -cin @('replaced','created') -and (Test-Path -LiteralPath $to -PathType Leaf)) {
+                $installedSha256 = if ($record.Contains('installedSha256')) { $record['installedSha256'] } else { $record['sha256'] }
+                if (-not $installedSha256 -or (Get-FileHash -LiteralPath $to -Algorithm SHA256).Hash -cne [string]$installedSha256) {
+                    throw "Benchmark harness target changed after its overlay; preserving current bytes: $($record['path'])"
+                }
+            }
             if ($record['action'] -ceq 'replaced') {
                 $backup = Join-Path $BackupDirectory $record['path']
                 if ((Get-FileHash -LiteralPath $backup -Algorithm SHA256).Hash -cne [string]$record['originalSha256']) {

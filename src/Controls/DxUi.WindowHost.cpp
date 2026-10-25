@@ -1090,8 +1090,20 @@ struct ControlInteractionState
 [[nodiscard]] ControlInteractionState ResolveControlInteractionState(const Control* root,
                                                                      const Control* target,
                                                                      bool ancestorsVisible = true,
-                                                                     bool ancestorsEnabled = true) noexcept
+                                                                     bool ancestorsEnabled = true
+#if DXUI_ENABLE_DIAGNOSTICS
+                                                                     ,
+                                                                     uint64_t* nodeVisits = nullptr
+#endif
+                                                                     ,
+                                                                     std::span<uint16_t> reverseChildIndices = {},
+                                                                     size_t* pathDepth                       = nullptr,
+                                                                     bool* pathFits                          = nullptr) noexcept
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+    if (nodeVisits)
+        ++*nodeVisits;
+#endif
     if (! root || ! target)
     {
         return {};
@@ -1108,16 +1120,54 @@ struct ControlInteractionState
     {
         if (const Control* const child = root->GetLogicalChild(childIndex))
         {
-            const ControlInteractionState childState = ResolveControlInteractionState(child, target, visible, enabled);
+            const size_t previousPathDepth           = pathDepth ? *pathDepth : 0u;
+            const bool previousPathFits              = pathFits ? *pathFits : true;
+            const ControlInteractionState childState = ResolveControlInteractionState(child,
+                                                                                      target,
+                                                                                      visible,
+                                                                                      enabled
+#if DXUI_ENABLE_DIAGNOSTICS
+                                                                                      ,
+                                                                                      nodeVisits
+#endif
+                                                                                      ,
+                                                                                      reverseChildIndices,
+                                                                                      pathDepth,
+                                                                                      pathFits);
             if (childState.inTree)
             {
+                if (pathDepth && pathFits)
+                {
+                    if (! *pathFits || childIndex > static_cast<size_t>(std::numeric_limits<uint16_t>::max()) || *pathDepth >= reverseChildIndices.size())
+                    {
+                        *pathFits = false;
+                    }
+                    else
+                    {
+                        reverseChildIndices[*pathDepth] = static_cast<uint16_t>(childIndex);
+                        ++*pathDepth;
+                    }
+                }
                 return childState;
             }
+            if (pathDepth)
+                *pathDepth = previousPathDepth;
+            if (pathFits)
+                *pathFits = previousPathFits;
         }
     }
 
     return {};
 }
+
+enum class MessagePruneObserverIndex : size_t
+{
+    Capture = 0u,
+    Hover,
+    Focus,
+    NativeTextInput,
+    PointerDoubleClick,
+};
 
 [[nodiscard]] Control* RevalidateInteractiveDispatchedControl(const std::weak_ptr<int>& lifetime, const Control* root, Control* control) noexcept
 {
@@ -1328,7 +1378,7 @@ bool ControlHost::Attach(HWND hwnd, const AttachOptions& options) noexcept
     }
     if (_hwnd)
     {
-        if (_hwnd == hwnd && _presentationMode == options.presentationMode)
+        if (_hwnd == hwnd && _presentationMode == options.presentationMode && _batchInitialRootChildren == options.batchInitialRootChildren)
         {
             if (! options.forceWarp)
                 return true;
@@ -1357,8 +1407,9 @@ bool ControlHost::Attach(HWND hwnd, const AttachOptions& options) noexcept
     }
     _attachmentOwnerThreadId = windowThreadId;
 
-    _hwnd             = hwnd;
-    _presentationMode = options.presentationMode;
+    _hwnd                     = hwnd;
+    _presentationMode         = options.presentationMode;
+    _batchInitialRootChildren = options.batchInitialRootChildren;
     if (! InitPostedPayloadWindow(_hwnd))
     {
         Debug::Error(L"DxUi::ControlHost: bounded posted-payload window registry is exhausted ({})", GetLastError());
@@ -2719,6 +2770,21 @@ uint64_t ControlHost::DebugGetPartialPresentAttemptCount() const noexcept
     return _debugPartialPresentAttemptCount;
 }
 
+uint64_t ControlHost::DebugGetInitialRootChildBatchFlushCount() const noexcept
+{
+    return _debugInitialRootChildBatchFlushCount;
+}
+
+void ControlHost::DebugSetNextInitialRootChildBatchFlushResultForTest(const HRESULT result) noexcept
+{
+    _debugNextInitialRootChildBatchFlushResult = FAILED(result) ? result : S_OK;
+}
+
+void ControlHost::DebugSetNextInitialRootChildBatchEndDrawResultForTest(const HRESULT result) noexcept
+{
+    _debugNextInitialRootChildBatchEndDrawResult = FAILED(result) ? result : S_OK;
+}
+
 HRESULT ControlHost::DebugGetLastPresentResult() const noexcept
 {
     return _debugLastPresentResult;
@@ -2817,6 +2883,37 @@ bool ControlHost::DebugCaptureBitmap(WindowHostBitmapCapture& out) noexcept
     return out.widthPx > 0u && out.heightPx > 0u && ! out.bgraPixels.empty();
 }
 #endif
+
+bool ControlHost::IsInitialRootChildBatchActive(const Panel& root) const noexcept
+{
+    const InitialRootChildBatchFrame* const frame = _initialRootChildBatchFrame;
+    return frame && _batchInitialRootChildren && ! _embedded && _swapChain && _d2dContext && frame->root == &root && frame->flushesRemaining != 0u &&
+           SUCCEEDED(frame->firstFlushFailure) && _root.get() == &root && _interactionRevision == frame->interactionRevision;
+}
+
+void ControlHost::FlushInitialRootChildBatch(const Panel& root) noexcept
+{
+    if (! IsInitialRootChildBatchActive(root))
+        return;
+    InitialRootChildBatchFrame* const frame = _initialRootChildBatchFrame;
+
+    --frame->flushesRemaining;
+    const HRESULT actualResult = _d2dContext->Flush();
+#if DXUI_ENABLE_DIAGNOSTICS
+    ++_debugInitialRootChildBatchFlushCount;
+    const HRESULT injectedResult = std::exchange(_debugNextInitialRootChildBatchFlushResult, S_OK);
+    const HRESULT result         = FAILED(actualResult) ? actualResult : (FAILED(injectedResult) ? injectedResult : actualResult);
+#else
+    const HRESULT result = actualResult;
+#endif
+    if (FAILED(result))
+        frame->firstFlushFailure = result;
+}
+
+void ControlHost::NotifyRetainedTreeMutation() noexcept
+{
+    ++_interactionRevision;
+}
 
 void ControlHost::OnDpiChanged(HWND hwnd, UINT newDpi, const RECT* suggestedRect) noexcept
 {
@@ -2967,8 +3064,30 @@ try
         return 0;
     }
 
-    CancelStaleCapture();
-    PruneStaleInteractionState();
+    MessagePruneSnapshot const messagePruneSnapshot = CaptureMessagePruneSnapshot();
+    if (! CanReuseMessagePruneSnapshot(messagePruneSnapshot))
+    {
+        MessagePrunePass pass{};
+        pass.entry                  = messagePruneSnapshot;
+        pass.serial                 = ++_messagePrunePassSerial;
+        _messagePruneSnapshot.valid = false;
+        CancelStaleCapture(&pass);
+        PruneStaleInteractionState(&pass);
+#if DXUI_ENABLE_DIAGNOSTICS
+        _debugMessagePruneResolverNodeVisitCount += pass.resolverNodeVisits;
+#endif
+        if (CanPublishMessagePrunePass(pass))
+        {
+            MessagePruneSnapshot completed = pass.entry;
+            for (size_t index = 0u; index < completed.observers.size(); ++index)
+            {
+                completed.observers[index].lifetime = pass.validatedObserverLifetimes[index];
+                completed.observers[index].path     = pass.validatedObserverPaths[index];
+            }
+            completed.valid       = true;
+            _messagePruneSnapshot = std::move(completed);
+        }
+    }
     if (msg >= WM_MOUSEFIRST && msg <= WM_MOUSELAST)
     {
         // A touch or pen contact promoted to this mouse message says so in the extra information of the message being
@@ -4054,6 +4173,7 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
         // FLIP_SEQUENTIAL buffers have no valid retained contents on creation. The first present
         // must therefore draw and present the complete target, even when WM_PAINT is partial.
         _forceFullPresentAfterBufferReset = true;
+        _initialRootChildBatchPending     = true;
     }
 
     const UINT desiredWidthPx  = std::max<UINT>(1u, _widthPx);
@@ -4114,6 +4234,7 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
         _swapChainHeightPx = desiredHeightPx;
         // ResizeBuffers discards the previous back-buffer contents; repopulate them before dirty presents.
         _forceFullPresentAfterBufferReset = true;
+        _initialRootChildBatchPending     = true;
 #if DXUI_ENABLE_DIAGNOSTICS
         ++_debugResizeCount;
 #endif
@@ -4228,6 +4349,15 @@ try
 #if DXUI_ENABLE_DIAGNOSTICS
     Render(dirtyRectPx, nullptr, allowHidden);
 #else
+    if (_initialRootChildBatchFrame)
+    {
+        // A nested render cannot safely begin another D2D frame while the opted-in root batch is active.
+        InitialRootChildBatchFrame* const frame = _initialRootChildBatchFrame;
+        if (SUCCEEDED(frame->firstFlushFailure))
+            frame->firstFlushFailure = E_ABORT;
+        frame->flushesRemaining = 0u;
+        return;
+    }
     TrimCaches();
     FrameClock frameClock;
     FrameStage frameStage       = FrameStage::Idle;
@@ -4282,7 +4412,8 @@ try
                               PixelsToDip(static_cast<float>(dirtyRectPx->bottom)));
     }
 
-    HRESULT hrDraw = S_OK;
+    HRESULT hrDraw       = S_OK;
+    HRESULT hrBatchFlush = S_OK;
     {
         FrameStageScope renderScope(frameStage, FrameStage::Render);
         const auto renderStartedAt = frameClock.Now();
@@ -4309,10 +4440,30 @@ try
         const uint64_t interactionRevision = _interactionRevision;
         const auto treeStillCurrent        = [&]() noexcept
         { return (! paintRoot || ! rootLifetime.expired()) && _root.get() == paintRoot && _interactionRevision == interactionRevision; };
+        InitialRootChildBatchFrame initialBatchFrame{};
+        const bool batchInitialFrame =
+            _initialRootChildBatchPending && ! isPartialDirty && _batchInitialRootChildren && ! _embedded && _swapChain && dynamic_cast<Panel*>(paintRoot);
+        if (batchInitialFrame)
+        {
+            initialBatchFrame.root                = static_cast<Panel*>(paintRoot);
+            initialBatchFrame.interactionRevision = interactionRevision;
+            initialBatchFrame.flushesRemaining    = 8u;
+            _initialRootChildBatchFrame           = &initialBatchFrame;
+        }
+        auto batchFrameGuard = wil::scope_exit([&]
+        {
+            if (_initialRootChildBatchFrame == &initialBatchFrame)
+                _initialRootChildBatchFrame = nullptr;
+        });
         _d2dContext->Clear(_presentationMode == PresentationMode::CompositionSwapChain ? D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f) : _palette.windowBackground);
         if (_root)
         {
             _root->Paint(*this);
+        }
+        if (_initialRootChildBatchFrame == &initialBatchFrame)
+        {
+            hrBatchFlush                = initialBatchFrame.firstFlushFailure;
+            _initialRootChildBatchFrame = nullptr;
         }
         if (! treeStillCurrent())
         {
@@ -4347,15 +4498,26 @@ try
         }
 
         endDrawGuard.release();
-        hrDraw   = _d2dContext->EndDraw();
+        const HRESULT actualEndDrawResult = _d2dContext->EndDraw();
+        hrDraw                            = actualEndDrawResult;
+#if DXUI_ENABLE_DIAGNOSTICS
+        if (const HRESULT injectedEndDrawResult = std::exchange(_debugNextInitialRootChildBatchEndDrawResult, S_OK);
+            SUCCEEDED(actualEndDrawResult) && FAILED(injectedEndDrawResult))
+            hrDraw = injectedEndDrawResult;
+#endif
         renderUs = frameClock.ElapsedUs(renderStartedAt, frameClock.Now());
     }
+
+    // An occluded Present still follows a completed D2D draw. Do not repeat the
+    // initial submission boundaries on hidden warm frames while full presentation remains pending.
+    if (hrBatchFlush == S_OK && hrDraw == S_OK)
+        _initialRootChildBatchPending = false;
 
     HRESULT hrPresent = S_OK;
     {
         FrameStageScope presentScope(frameStage, FrameStage::Present);
         const auto presentStartedAt = frameClock.Now();
-        if (SUCCEEDED(hrDraw))
+        if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush))
         {
             if (isPartialDirty)
             {
@@ -4377,7 +4539,7 @@ try
             }
         }
 #if DXUI_ENABLE_DIAGNOSTICS
-        if (SUCCEEDED(hrDraw))
+        if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush))
         {
             _debugLastPresentResult = hrPresent;
         }
@@ -4385,9 +4547,9 @@ try
         presentUs = frameClock.ElapsedUs(presentStartedAt, frameClock.Now());
     }
 
-    if (IsDeviceLossHResult(hrDraw) || IsDeviceLossHResult(hrPresent))
+    if (IsDeviceLossHResult(hrBatchFlush) || IsDeviceLossHResult(hrDraw) || IsDeviceLossHResult(hrPresent))
     {
-        const HRESULT renderHr = FAILED(hrDraw) ? hrDraw : hrPresent;
+        const HRESULT renderHr = FAILED(hrBatchFlush) ? hrBatchFlush : (FAILED(hrDraw) ? hrDraw : hrPresent);
         paintPerf.SetHr(renderHr);
         EmitPendingNativeTextInputPaintMetric(renderHr);
         DiscardSizeDependentResources(L"render-device-lost");
@@ -4397,16 +4559,20 @@ try
         Invalidate();
         return;
     }
-    if (forceFullPresentAfterBufferReset && hrDraw == S_OK && hrPresent == S_OK)
+    if (forceFullPresentAfterBufferReset && hrBatchFlush == S_OK && hrDraw == S_OK && hrPresent == S_OK)
     {
         _forceFullPresentAfterBufferReset = false;
     }
-    const HRESULT renderHr = FAILED(hrDraw) ? hrDraw : hrPresent;
+    const HRESULT renderHr = FAILED(hrBatchFlush) ? hrBatchFlush : (FAILED(hrDraw) ? hrDraw : hrPresent);
     paintPerf.SetHr(renderHr);
     EmitPendingNativeTextInputPaintMetric(renderHr);
     if (FAILED(hrDraw))
     {
         Debug::Error(L"DxUi::ControlHost: EndDraw failed: 0x{:08X}", hrDraw);
+    }
+    if (FAILED(hrBatchFlush))
+    {
+        Debug::Error(L"DxUi::ControlHost: initial root-child D2D flush failed: 0x{:08X}", hrBatchFlush);
     }
     if (FAILED(hrPresent))
     {
@@ -4415,7 +4581,7 @@ try
 #endif
         Debug::Error(L"DxUi::ControlHost: Present failed: 0x{:08X}", hrPresent);
     }
-    if (SUCCEEDED(hrDraw) && SUCCEEDED(hrPresent))
+    if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush) && SUCCEEDED(hrPresent))
         PublishPreparedContent();
 #endif
 }
@@ -4477,6 +4643,15 @@ bool ControlHost::CaptureCurrentBackBuffer(WindowHostBitmapCapture& out) noexcep
 void ControlHost::Render(const RECT* dirtyRectPx, WindowHostBitmapCapture* capture, bool allowHidden) noexcept
 try
 {
+    if (_initialRootChildBatchFrame)
+    {
+        // A nested render cannot safely begin another D2D frame while the opted-in root batch is active.
+        InitialRootChildBatchFrame* const frame = _initialRootChildBatchFrame;
+        if (SUCCEEDED(frame->firstFlushFailure))
+            frame->firstFlushFailure = E_ABORT;
+        frame->flushesRemaining = 0u;
+        return;
+    }
     // Trim over-bound caches before any brush or format is borrowed for this paint.
     TrimCaches();
     FrameClock frameClock;
@@ -4540,8 +4715,9 @@ try
                               PixelsToDip(static_cast<float>(dirtyRectPx->bottom)));
     }
 
-    HRESULT hrDraw    = S_OK;
-    HRESULT hrCapture = S_OK;
+    HRESULT hrDraw       = S_OK;
+    HRESULT hrCapture    = S_OK;
+    HRESULT hrBatchFlush = S_OK;
     {
         FrameStageScope renderScope(frameStage, FrameStage::Render);
         const auto renderStartedAt = frameClock.Now();
@@ -4568,10 +4744,30 @@ try
         const uint64_t interactionRevision = _interactionRevision;
         const auto treeStillCurrent        = [&]() noexcept
         { return (! paintRoot || ! rootLifetime.expired()) && _root.get() == paintRoot && _interactionRevision == interactionRevision; };
+        InitialRootChildBatchFrame initialBatchFrame{};
+        const bool batchInitialFrame =
+            _initialRootChildBatchPending && ! isPartialDirty && _batchInitialRootChildren && ! _embedded && _swapChain && dynamic_cast<Panel*>(paintRoot);
+        if (batchInitialFrame)
+        {
+            initialBatchFrame.root                = static_cast<Panel*>(paintRoot);
+            initialBatchFrame.interactionRevision = interactionRevision;
+            initialBatchFrame.flushesRemaining    = 8u;
+            _initialRootChildBatchFrame           = &initialBatchFrame;
+        }
+        auto batchFrameGuard = wil::scope_exit([&]
+        {
+            if (_initialRootChildBatchFrame == &initialBatchFrame)
+                _initialRootChildBatchFrame = nullptr;
+        });
         _d2dContext->Clear(_presentationMode == PresentationMode::CompositionSwapChain ? D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f) : _palette.windowBackground);
         if (_root)
         {
             _root->Paint(*this);
+        }
+        if (_initialRootChildBatchFrame == &initialBatchFrame)
+        {
+            hrBatchFlush                = initialBatchFrame.firstFlushFailure;
+            _initialRootChildBatchFrame = nullptr;
         }
         if (! treeStillCurrent())
         {
@@ -4606,9 +4802,19 @@ try
         }
 
         endDrawGuard.release();
-        hrDraw = _d2dContext->EndDraw();
+        const HRESULT actualEndDrawResult = _d2dContext->EndDraw();
+        hrDraw                            = actualEndDrawResult;
+#if DXUI_ENABLE_DIAGNOSTICS
+        if (const HRESULT injectedEndDrawResult = std::exchange(_debugNextInitialRootChildBatchEndDrawResult, S_OK);
+            SUCCEEDED(actualEndDrawResult) && FAILED(injectedEndDrawResult))
+            hrDraw = injectedEndDrawResult;
+#endif
 
-        if (capture)
+        if (capture && FAILED(hrBatchFlush))
+        {
+            hrCapture = hrBatchFlush;
+        }
+        else if (capture && SUCCEEDED(hrDraw))
         {
             if (! CaptureCurrentBackBuffer(*capture))
             {
@@ -4618,11 +4824,16 @@ try
         renderUs = frameClock.ElapsedUs(renderStartedAt, frameClock.Now());
     }
 
+    // An occluded Present still follows a completed D2D draw. Do not repeat the
+    // initial submission boundaries on hidden warm frames while full presentation remains pending.
+    if (hrBatchFlush == S_OK && hrDraw == S_OK)
+        _initialRootChildBatchPending = false;
+
     HRESULT hrPresent = S_OK;
     {
         FrameStageScope presentScope(frameStage, FrameStage::Present);
         const auto presentStartedAt = frameClock.Now();
-        if (SUCCEEDED(hrDraw))
+        if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush))
         {
             if (isPartialDirty)
             {
@@ -4646,7 +4857,7 @@ try
             }
         }
 #if DXUI_ENABLE_DIAGNOSTICS
-        if (SUCCEEDED(hrDraw))
+        if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush))
         {
             _debugLastPresentResult = hrPresent;
         }
@@ -4654,9 +4865,9 @@ try
         presentUs = frameClock.ElapsedUs(presentStartedAt, frameClock.Now());
     }
 
-    if (IsDeviceLossHResult(hrDraw) || IsDeviceLossHResult(hrPresent))
+    if (IsDeviceLossHResult(hrBatchFlush) || IsDeviceLossHResult(hrDraw) || IsDeviceLossHResult(hrPresent))
     {
-        const HRESULT renderHr = FAILED(hrDraw) ? hrDraw : hrPresent;
+        const HRESULT renderHr = FAILED(hrBatchFlush) ? hrBatchFlush : (FAILED(hrDraw) ? hrDraw : hrPresent);
         paintPerf.SetHr(renderHr);
         EmitPendingNativeTextInputPaintMetric(renderHr);
         DiscardSizeDependentResources(L"render-device-lost");
@@ -4666,16 +4877,20 @@ try
         Invalidate();
         return;
     }
-    if (forceFullPresentAfterBufferReset && hrDraw == S_OK && hrPresent == S_OK)
+    if (forceFullPresentAfterBufferReset && hrBatchFlush == S_OK && hrDraw == S_OK && hrPresent == S_OK)
     {
         _forceFullPresentAfterBufferReset = false;
     }
-    const HRESULT renderHr = FAILED(hrDraw) ? hrDraw : (FAILED(hrCapture) ? hrCapture : hrPresent);
+    const HRESULT renderHr = FAILED(hrBatchFlush) ? hrBatchFlush : (FAILED(hrDraw) ? hrDraw : (FAILED(hrCapture) ? hrCapture : hrPresent));
     paintPerf.SetHr(renderHr);
     EmitPendingNativeTextInputPaintMetric(renderHr);
     if (FAILED(hrDraw))
     {
         Debug::Error(L"DxUi::ControlHost: EndDraw failed: 0x{:08X}", hrDraw);
+    }
+    if (FAILED(hrBatchFlush))
+    {
+        Debug::Error(L"DxUi::ControlHost: initial root-child D2D flush failed: 0x{:08X}", hrBatchFlush);
     }
     if (FAILED(hrCapture))
     {
@@ -4688,7 +4903,7 @@ try
 #endif
         Debug::Error(L"DxUi::ControlHost: Present failed: 0x{:08X}", hrPresent);
     }
-    if (SUCCEEDED(hrDraw) && SUCCEEDED(hrPresent))
+    if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush) && SUCCEEDED(hrPresent))
         PublishPreparedContent();
 }
 catch (const std::exception&)
@@ -4886,7 +5101,93 @@ void ControlHost::OnKillFocus(bool clearRetainedFocus) noexcept
     Invalidate();
 }
 
-void ControlHost::CancelStaleCapture() noexcept
+ControlHost::MessagePruneSnapshot ControlHost::CaptureMessagePruneSnapshot() const noexcept
+{
+    MessagePruneSnapshot snapshot{};
+    snapshot.root                = _root.get();
+    snapshot.interactionRevision = _interactionRevision;
+    if (snapshot.root)
+        snapshot.rootLifetime = snapshot.root->GetLifetimeToken();
+    snapshot.observers[static_cast<size_t>(MessagePruneObserverIndex::Capture)].control            = _capturedControl;
+    snapshot.observers[static_cast<size_t>(MessagePruneObserverIndex::Hover)].control              = _hoveredControl;
+    snapshot.observers[static_cast<size_t>(MessagePruneObserverIndex::Focus)].control              = _focusedControl;
+    snapshot.observers[static_cast<size_t>(MessagePruneObserverIndex::NativeTextInput)].control    = _nativeTextInputControl;
+    snapshot.observers[static_cast<size_t>(MessagePruneObserverIndex::PointerDoubleClick)].control = _pendingPointerDoubleClick.target;
+    return snapshot;
+}
+
+bool ControlHost::CanReuseMessagePruneSnapshot(const MessagePruneSnapshot& current) const noexcept
+{
+    const MessagePruneSnapshot& cached = _messagePruneSnapshot;
+    const uint64_t validationSerial    = _messagePrunePassSerial;
+    if (! current.root || ! cached.valid || cached.root != current.root || (cached.root && cached.rootLifetime.expired()))
+        return false;
+
+    for (size_t index = 0u; index < cached.observers.size(); ++index)
+    {
+        if (cached.observers[index].control != current.observers[index].control ||
+            (cached.observers[index].control && cached.observers[index].lifetime.expired()))
+            return false;
+    }
+
+    for (const MessagePruneObserverSnapshot& observer : cached.observers)
+    {
+        if (! observer.control)
+            continue;
+
+        const MessagePruneObserverSnapshot::LogicalPath& path = observer.path;
+        if (! path.valid || path.depth > path.reverseChildIndices.size())
+            return false;
+
+        const Control* currentControl = current.root;
+        for (size_t remaining = path.depth; remaining > 0u; --remaining)
+        {
+            if (! currentControl->IsVisible() || ! currentControl->IsEnabled())
+                return false;
+
+            const size_t childIndex = path.reverseChildIndices[remaining - 1u];
+            if (childIndex >= currentControl->GetLogicalChildCount())
+                return false;
+            currentControl = currentControl->GetLogicalChild(childIndex);
+            if (! currentControl)
+                return false;
+        }
+        if (currentControl != observer.control || ! currentControl->IsVisible() || ! currentControl->IsEnabled())
+            return false;
+    }
+
+    // The live paths prove membership and effective interactivity even after unrelated mutations.
+    // Still reject a change during validation; an in-progress pass has a stricter publication contract.
+    if (_root.get() != current.root || current.rootLifetime.expired() || cached.rootLifetime.expired() || ! cached.valid ||
+        _interactionRevision != current.interactionRevision || _messagePrunePassSerial != validationSerial)
+        return false;
+    const MessagePruneSnapshot validated = CaptureMessagePruneSnapshot();
+    for (size_t index = 0u; index < cached.observers.size(); ++index)
+    {
+        if (validated.observers[index].control != current.observers[index].control || cached.observers[index].control != current.observers[index].control ||
+            (cached.observers[index].control && cached.observers[index].lifetime.expired()))
+            return false;
+    }
+    return true;
+}
+
+bool ControlHost::CanPublishMessagePrunePass(const MessagePrunePass& pass) const noexcept
+{
+    if (! pass.entry.root || pass.serial != _messagePrunePassSerial || pass.entry.root != _root.get() ||
+        pass.entry.interactionRevision != _interactionRevision || (pass.entry.root && pass.entry.rootLifetime.expired()))
+        return false;
+
+    const MessagePruneSnapshot current = CaptureMessagePruneSnapshot();
+    for (size_t index = 0u; index < pass.entry.observers.size(); ++index)
+    {
+        if (current.observers[index].control != pass.entry.observers[index].control ||
+            (current.observers[index].control && (pass.validatedObserverLifetimes[index].expired() || ! pass.validatedObserverPaths[index].valid)))
+            return false;
+    }
+    return true;
+}
+
+void ControlHost::CancelStaleCapture([[maybe_unused]] MessagePrunePass* pass) noexcept
 {
     // PruneStaleInteractionState drops such a capture silently, which would leave a disabled or hidden slider,
     // splitter, picker or tree mid-drag. A removed control is left to that prune and never dereferenced here.
@@ -4895,7 +5196,15 @@ void ControlHost::CancelStaleCapture() noexcept
     {
         return;
     }
-    const ControlInteractionState state = ResolveControlInteractionState(_root.get(), captured);
+    const ControlInteractionState state = ResolveControlInteractionState(_root.get(),
+                                                                         captured
+#if DXUI_ENABLE_DIAGNOSTICS
+                                                                         ,
+                                                                         true,
+                                                                         true,
+                                                                         pass ? &pass->resolverNodeVisits : nullptr
+#endif
+    );
     if (! state.inTree || state.effectivelyInteractive)
     {
         return;
@@ -4931,15 +5240,39 @@ void ControlHost::CancelCapturedControlInteraction() noexcept
     }
 }
 
-void ControlHost::PruneStaleInteractionState() noexcept
+void ControlHost::PruneStaleInteractionState(MessagePrunePass* pass) noexcept
 {
-    const auto classifyInteractionState = [this](const Control* control) noexcept
+    const auto classifyInteractionState = [this, pass](const Control* control, MessagePruneObserverIndex observer) noexcept
     {
         if (! control || ! _root)
         {
             return ControlInteractionState{};
         }
-        return ResolveControlInteractionState(_root.get(), control);
+        MessagePruneObserverSnapshot::LogicalPath* const path = pass ? &pass->validatedObserverPaths[static_cast<size_t>(observer)] : nullptr;
+        size_t pathDepth                                      = 0u;
+        bool pathFits                                         = true;
+        std::span<uint16_t> reverseChildIndices{};
+        if (path)
+            reverseChildIndices = path->reverseChildIndices;
+        const ControlInteractionState state = ResolveControlInteractionState(_root.get(),
+                                                                             control,
+                                                                             true,
+                                                                             true
+#if DXUI_ENABLE_DIAGNOSTICS
+                                                                             ,
+                                                                             pass ? &pass->resolverNodeVisits : nullptr
+#endif
+                                                                             ,
+                                                                             reverseChildIndices,
+                                                                             path ? &pathDepth : nullptr,
+                                                                             path ? &pathFits : nullptr);
+        if (pass && state.effectivelyInteractive)
+        {
+            pass->validatedObserverLifetimes[static_cast<size_t>(observer)] = control->GetLifetimeToken();
+            path->depth                                                     = pathDepth;
+            path->valid                                                     = pathFits;
+        }
+        return state;
     };
 
     bool prunedCapture         = false;
@@ -4947,7 +5280,7 @@ void ControlHost::PruneStaleInteractionState() noexcept
     bool prunedFocus           = false;
     bool prunedNativeTextInput = false;
 
-    if (_capturedControl && ! classifyInteractionState(_capturedControl).effectivelyInteractive)
+    if (_capturedControl && ! classifyInteractionState(_capturedControl, MessagePruneObserverIndex::Capture).effectivelyInteractive)
     {
         _capturedControl = nullptr;
         prunedCapture    = true;
@@ -4957,7 +5290,7 @@ void ControlHost::PruneStaleInteractionState() noexcept
         }
     }
 
-    const ControlInteractionState hoveredState = classifyInteractionState(_hoveredControl);
+    const ControlInteractionState hoveredState = classifyInteractionState(_hoveredControl, MessagePruneObserverIndex::Hover);
     if (_hoveredControl && ! hoveredState.effectivelyInteractive)
     {
         Control* const oldHover = _hoveredControl;
@@ -4975,7 +5308,7 @@ void ControlHost::PruneStaleInteractionState() noexcept
         ClearTooltip();
     }
 
-    const ControlInteractionState focusedState = classifyInteractionState(_focusedControl);
+    const ControlInteractionState focusedState = classifyInteractionState(_focusedControl, MessagePruneObserverIndex::Focus);
     if (_focusedControl && ! focusedState.effectivelyInteractive)
     {
         ++_keyboardOwnerEpoch;
@@ -4988,13 +5321,14 @@ void ControlHost::PruneStaleInteractionState() noexcept
         prunedFocus = true;
     }
 
-    if (_nativeTextInputControl && ! classifyInteractionState(_nativeTextInputControl).effectivelyInteractive)
+    if (_nativeTextInputControl && ! classifyInteractionState(_nativeTextInputControl, MessagePruneObserverIndex::NativeTextInput).effectivelyInteractive)
     {
         DeactivateNativeTextInputSession();
         prunedNativeTextInput = true;
     }
 
-    if (_pendingPointerDoubleClick.target && ! classifyInteractionState(_pendingPointerDoubleClick.target).effectivelyInteractive)
+    if (_pendingPointerDoubleClick.target &&
+        ! classifyInteractionState(_pendingPointerDoubleClick.target, MessagePruneObserverIndex::PointerDoubleClick).effectivelyInteractive)
     {
         ClearPendingPointerDoubleClick();
     }

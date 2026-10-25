@@ -284,11 +284,17 @@ template <typename Prepare, typename Check> inline void Editor(RichTextEditor& e
           "retained native diagram geometry is acknowledged in both hosts");
     editor.SetSelection({1u, 2u});
     prepare(50u);
-    check(editor.GetMarkdownRenderingStatus() == MarkdownRenderingStatus::SourceFallback && editor.GetText() == source &&
-              editor.GetSelection() == Selection{1u, 2u} && ! editor.CanUndo(),
-          "view-capacity fallback preserves exact source selection and history");
-    check(editor.TryGetTextInputCaretRect(host, 1u).has_value() && ! editor.GetAcknowledgedSemanticDocument(host),
-          "source fallback has usable caret geometry and no stale semantic children");
+    const auto localFallback = [&]()
+    {
+        const auto doc = editor.GetAcknowledgedSemanticDocument(host);
+        return editor.GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic && doc && doc->Map().Source() == source &&
+               SemanticExtensionAccess::Diagrams(*doc).empty() && doc->Diagnostics().size() == 1u &&
+               doc->Diagnostics()[0u].kind == SemanticDiagnosticKind::DiagramCapacity && doc->Diagnostics()[0u].element < doc->Elements().size() &&
+               doc->Elements()[doc->Diagnostics()[0u].element].role == SemanticRole::Code && doc->Map().Display() == source;
+    };
+    check(localFallback() && editor.GetText() == source && editor.GetSelection() == Selection{1u, 2u} && ! editor.CanUndo(),
+          "view-capacity fallback is local to its exact diagram source and preserves selection and history");
+    check(editor.TryGetTextInputCaretRect(host, 1u).has_value(), "local source fallback has usable raw-source caret geometry");
     const auto idle = editor.DebugGetState();
     for (unsigned turn = 0u; turn < 16u; ++turn)
         prepare(50u);
@@ -306,8 +312,7 @@ template <typename Prepare, typename Check> inline void Editor(RichTextEditor& e
               "source fallback Delete/Backspace/selection deletion removes only the visible raw source instead of the complete native object");
         check(editor.Undo() && editor.GetText() == source, "fallback deletion is one reversible exact-source edit");
         prepare(50u);
-        check(editor.GetMarkdownRenderingStatus() == MarkdownRenderingStatus::SourceFallback,
-              "undo retries exact-view capacity without losing source fallback");
+        check(localFallback(), "undo retries exact-view capacity without losing local source fallback");
     }
     prepare(480u);
     check(editor.GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic && editor.GetText() == source,

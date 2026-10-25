@@ -23,7 +23,9 @@ focused Debug checks; metadata validity and remaining extensions are in progress
 the rich-text engine records one memory-safety defect, contract violations in failure containment, admission,
 math ownership, input and host paste, stale capability status, a non-incremental semantic pipeline, and the
 Markdown, math and Mermaid completeness gaps. Waves 0 to 5, a test track and owner-scoped completion tracks
-sequence the work; no library code has changed. The parent rich-text plan keeps its own gates.
+sequence the work; no library code has changed. A dated 24 October continuation revalidates current-source
+math/Mermaid defects and coordinates the RedTilde completion request without duplicating W/T/C ownership.
+The parent rich-text plan keeps its own gates.
 
 - **ACTIVE**: [Menu fixture popup readiness](PopupReadiness_2026-10-17.md). Registered hover input now precedes pending popup paint; a deterministic paint-stream case fails against the old library and passes with the priority fix. PR #85's post-merge run completes 110/110 Menu cases and both hover regressions in all six native profiles, with zero skips. Original untraced Debug/ARM64 failures remain unattributed; ARM64 focus restoration and shared qualification remain open in the qualification ledger.
 

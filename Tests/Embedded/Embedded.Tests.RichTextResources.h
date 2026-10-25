@@ -852,7 +852,10 @@ static void TestNativeFlowchartAllocationFailureAtomicity(bool trace = false)
     const std::wstring sources[] = {L"graph LR;A[\"Unicode \u03b2 \U0001f600\"]-->|yes|B((Second));B-->A;A-->A",
                                     L"graph TD;A[staged];B[another];A-->B;style A fill:red",
                                     L"graph TD;A[staged];B[another];A-->|\"incomplete label",
-                                    L"graph TD;A[\"" + std::wstring(NativeFlowchartParser::MaximumLabelUnits + 1u, L'x') + L"\"]"};
+                                    L"graph TD;A[\"" + std::wstring(NativeFlowchartParser::MaximumLabelUnits + 1u, L'x') + L"\"]",
+                                    L"flowchart LR;A & B-->|group|C & D-->E",
+                                    L"stateDiagram-v2;state \"Ready\" as S;S : Running;S-->T : go",
+                                    L"classDiagram;Base <|-- Derived;Derived : member"};
     std::size_t total{};
     for (const auto& source : sources)
     {
@@ -911,7 +914,7 @@ static void TestNativeFlowchartAllocationFailureAtomicity(bool trace = false)
         }
         total += requests;
     }
-    std::cout << "native flowchart allocation scenarios=4 sweptRequests=" << total << " sourcePreserved=1 retry=1\n";
+    std::cout << "native flowchart allocation scenarios=" << std::size(sources) << " sweptRequests=" << total << " sourcePreserved=1 retry=1\n";
 }
 
 static void TestRichFrontMatterAllocationFailureAtomicity(bool trace = false)

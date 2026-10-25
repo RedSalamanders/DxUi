@@ -1,14 +1,69 @@
 #pragma once
+#include "../../src/Controls/DxUi.PreparedMath.h"
+#include "../../src/Controls/DxUi.RichSemanticGeometry.h"
+#include "Support.Tests.CountingWriteFactory.h"
 #include "Support.Tests.RichSemantic.h"
 #include <DxUi/DxUi.h>
 #include <cmath>
 #include <limits>
+#include <new>
+#include <wil/resource.h>
+#include <wil/result.h>
 
 namespace RichSemanticEditorTests
 {
 using namespace DxUi;
 using namespace DxUi::RichText;
 using RichSemanticTests::Check;
+class DirectPrepareRichTextEditor final : public RichTextEditor
+{
+public:
+    using RichTextEditor::RichTextEditor;
+    HRESULT PrepareOnce(ControlHost& host) noexcept
+    {
+        return PrepareContent(host);
+    }
+};
+inline HRESULT PrepareUntilSettled(DirectPrepareRichTextEditor& editor, ControlHost& host)
+{
+    for (std::size_t turn = 0u; turn < 1024u; ++turn)
+    {
+        const auto result = editor.PrepareOnce(host);
+        if (result != S_FALSE)
+            return result;
+    }
+    return HRESULT_FROM_WIN32(ERROR_TIMEOUT);
+}
+#if DXUI_ENABLE_DIAGNOSTICS
+class SemanticWriteFactoryOverride final
+{
+public:
+    explicit SemanticWriteFactoryOverride(ControlHost& host) : previous_(RichText::Detail::testRichSemanticWriteFactory)
+    {
+        const auto wrapped = Microsoft::WRL::Make<NativeTextTests::CountingWriteFactory>(host.GetWriteFactory());
+        if (! wrapped)
+            throw std::bad_alloc();
+        wrapped_                                       = wrapped.Get();
+        RichText::Detail::testRichSemanticWriteFactory = wrapped_.get();
+    }
+    SemanticWriteFactoryOverride(const SemanticWriteFactoryOverride&)            = delete;
+    SemanticWriteFactoryOverride& operator=(const SemanticWriteFactoryOverride&) = delete;
+    SemanticWriteFactoryOverride(SemanticWriteFactoryOverride&&)                 = delete;
+    SemanticWriteFactoryOverride& operator=(SemanticWriteFactoryOverride&&)      = delete;
+    ~SemanticWriteFactoryOverride()
+    {
+        RichText::Detail::testRichSemanticWriteFactory = previous_;
+    }
+    NativeTextTests::CountingWriteFactory* Get() const noexcept
+    {
+        return wrapped_.get();
+    }
+
+private:
+    wil::com_ptr<NativeTextTests::CountingWriteFactory> wrapped_;
+    IDWriteFactory* previous_{};
+};
+#endif
 struct RetiringTabEditor final : RichTextEditor
 {
     explicit RetiringTabEditor(Button*& successor) : RichTextEditor(L"retiring"), successor_(&successor)
@@ -104,21 +159,43 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     host.SetFocusControl(editor, false);
     std::size_t notifications = 0u;
     editor->SetOnTextChanged([&] { ++notifications; });
-    const auto exact = [&](std::wstring_view source, Selection selection, MarkdownCommandRequest request, std::wstring_view expected)
+    const auto exact = [&](std::wstring_view source,
+                           Selection selection,
+                           MarkdownCommandRequest request,
+                           std::wstring_view expected,
+                           std::optional<Selection> after = std::nullopt)
     {
         editor->SetText(std::wstring(source));
         prepare();
         editor->SetSelection(selection);
-        const auto old   = editor->Snapshot();
-        const auto count = notifications;
-        Check(editor->ExecuteMarkdownCommand(request) == MarkdownCommandStatus::Changed && editor->GetText() == expected && notifications == count + 1u,
+        const auto old    = editor->Snapshot();
+        const auto count  = notifications;
+        const auto status = editor->ExecuteMarkdownCommand(request);
+        if (status != MarkdownCommandStatus::Changed)
+            std::wcerr << L"unexpected retained command status=" << static_cast<unsigned>(status) << L" command=" << static_cast<unsigned>(request.command)
+                       << L" style=" << static_cast<unsigned>(request.style) << L" source=[" << source << L"] selection={" << selection.anchor << L','
+                       << selection.caret << L"}\n";
+        Check(status == MarkdownCommandStatus::Changed && editor->GetText() == expected && (! after || editor->GetSelection() == *after) &&
+                  notifications == count + 1u,
               "retained command publishes complete source once in both hosts");
         Check(editor->Undo() && editor->Snapshot().IsSameRevision(old) && editor->GetSelection() == selection && ! editor->CanUndo(),
               "retained command one exact undo");
-        Check(editor->Redo() && editor->GetText() == expected && ! editor->CanRedo(), "retained command one redo");
+        Check(editor->Redo() && editor->GetText() == expected && (! after || editor->GetSelection() == *after) && ! editor->CanRedo(),
+              "retained command one redo");
         prepare();
         Check(editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic && editor->GetSemanticDocument()->Map().Source() == expected,
               "retained command re-prepares through owner scheduling");
+    };
+    const auto unavailable = [&](std::wstring_view source, Selection selection, MarkdownCommandRequest request)
+    {
+        editor->SetText(std::wstring(source));
+        prepare();
+        editor->SetSelection(selection);
+        const auto snapshot = editor->Snapshot();
+        const auto count    = notifications;
+        Check(editor->ExecuteMarkdownCommand(request) == MarkdownCommandStatus::Unavailable && editor->Snapshot().IsSameRevision(snapshot) &&
+                  editor->GetSelection() == selection && notifications == count && ! editor->CanUndo(),
+              "retained editor rejects unsafe structural command without source or history changes");
     };
     MarkdownCommandRequest request;
     request.command = MarkdownCommand::SetList;
@@ -136,6 +213,59 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     request.command = MarkdownCommand::SetTableCell;
     request.text    = L"new";
     exact(L"a | b\n- | -\nx | y", {16u, 16u}, request, L"a | b\n- | -\nx | new");
+    request         = {};
+    request.command = MarkdownCommand::DeleteTableColumn;
+    exact(L"| a | b |\n| - | -: |\n| x |\n", {2u, 2u}, request, L"| b |\n| -: |\n| |\n", Selection{2u, 2u});
+    request.command = MarkdownCommand::InsertTableColumn;
+    exact(L"a | b\n- | -\nx | y\n", {0u, 0u}, request, L"| | a | b\n| --- | - | -\n| | x | y\n", Selection{2u, 2u});
+    request.command = MarkdownCommand::DeleteTableRow;
+    exact(L"| a |\n| - |\n| x |", {2u, 2u}, request, L"| x |\n| - |\n", Selection{2u, 2u});
+    exact(L"| a | b |\n| - | - |\n|😀|x|\n", {2u, 2u}, request, L"|😀|x|\n| - | - |\n", Selection{1u, 1u});
+    request         = {};
+    request.command = MarkdownCommand::OutdentList;
+    exact(L"- a\n    - b\n", {10u, 10u}, request, L"- a\n- b\n");
+    exact(L"- - inner\n", {4u, 9u}, request, L"- inner\n", Selection{2u, 7u});
+    request.command = MarkdownCommand::IndentList;
+    exact(L"- a\n- b\n\n  tail\n- c\n", {6u, 6u}, request, L"- a\n  - b\n\n    tail\n- c\n");
+    exact(L"- parent\n  - x\n  - a\n\n    tail\n", {19u, 19u}, request, L"- parent\n  - x\n    - a\n\n      tail\n");
+    request.command = MarkdownCommand::OutdentList;
+    exact(L"- parent\n  - x\n  - a\n\n    tail\n", {19u, 19u}, request, L"- parent\n  - x\n- a\n\n  tail\n");
+    request.command  = MarkdownCommand::SetList;
+    request.listKind = MarkdownListKind::None;
+    exact(L"- parent\n  - x\n  - a\n\n    tail\n", {19u, 19u}, request, L"- parent\n  - x\n  a\n\n  tail\n");
+    request         = {};
+    request.command = MarkdownCommand::ToggleStyle;
+    request.style   = MarkdownTextStyle::Strong;
+    exact(L"**Hello, world! (see e.g. foo)**", {3u, 3u}, request, L"Hello, world! (see e.g. foo)");
+    request.style = MarkdownTextStyle::Code;
+    exact(L"**left &amp; right**", {7u, 12u}, request, L"**left `&` right**", Selection{8u, 9u});
+    request.command     = MarkdownCommand::SetLink;
+    request.destination = L"next";
+    exact(L"<a href='old' title='tip'>word</a>", {28u, 28u}, request, L"<a href='next'>word</a>", Selection{17u, 17u});
+    request         = {};
+    request.command = MarkdownCommand::InsertParagraph;
+    exact(L"> ***", {5u, 5u}, request, L"> ***\r\n", Selection{7u, 7u});
+
+    request          = {};
+    request.command  = MarkdownCommand::SetList;
+    request.listKind = MarkdownListKind::None;
+    exact(L"- # Title\n", {4u, 9u}, request, L"# Title\n");
+    request.command = MarkdownCommand::OutdentList;
+    exact(L"- > quote\n", {4u, 9u}, request, L"> quote\n");
+    request         = {};
+    request.command = MarkdownCommand::ToggleStyle;
+    request.style   = MarkdownTextStyle::Strong;
+    unavailable(L"**ab**c", {3u, 7u}, request);
+    request.command     = MarkdownCommand::SetLink;
+    request.destination = L"https://example.invalid/";
+    unavailable(L"**ab**c", {3u, 7u}, request);
+    request         = {};
+    request.command = MarkdownCommand::InsertParagraph;
+    unavailable(L"- > quote", {9u, 9u}, request);
+    request         = {};
+    request.command = MarkdownCommand::ToggleStyle;
+    request.style   = MarkdownTextStyle::Code;
+    unavailable(L"**ab**c", {3u, 7u}, request);
     editor->SetText(L"- item\n");
     prepare();
     editor->SetSelection({6u, 6u});
@@ -851,6 +981,228 @@ template <typename Prepare> void RenderingAdmissionFallback(ControlHost& host, P
     prepare();
     Check(editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic, "new source retries marker/body admission normally");
 }
+inline void NativeMathHRESULTFailureContainment(ControlHost& host);
+template <typename Prepare> void NativeObjectFailureContainment(ControlHost& host, Prepare&& prepare)
+{
+    const std::wstring source = L"# Heading\n\n$y$ and [before $\\unknown{x}$ after](https://example.test \"original title\")\n\n$$\\text{" +
+                                std::wstring(1400u, L'm') + L"}$$\n\n**after**\n";
+    auto root                 = std::make_unique<RichTextEditor>(source);
+    auto* editor              = root.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    auto appearance            = editor->GetAppearance();
+    appearance.bodyFontSizeDip = 96.f;
+    editor->SetAppearance(appearance);
+    editor->SetSelection({3u, 3u});
+    host.SetRoot(std::move(root));
+    prepare();
+    const auto rejected = editor->GetAcknowledgedSemanticDocument(host);
+    Check(rejected && editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic && rejected->Diagnostics().size() == 2u &&
+              rejected->Map().Display().starts_with(L"Heading\n") && rejected->Map().Display().ends_with(L"after\n"),
+          "malformed and over-wide formulas fall back locally while headings and emphasis stay semantic");
+    const auto large = std::ranges::find_if(rejected->Elements(),
+                                            [](const auto& element) { return element.role == SemanticRole::Math && element.name.starts_with(L"\\text{"); });
+    Check(large != rejected->Elements().end() && large->display.last > large->display.first + 1u &&
+              rejected->Map().Display().substr(large->display.first, large->display.last - large->display.first).starts_with(L"$$\\text{"),
+          "geometry rejection preserves the complete exact equation envelope as visible source");
+    const auto heldDisplay = std::wstring(rejected->Map().Display());
+    const auto before      = editor->DebugGetState();
+    prepare();
+    const auto idle = editor->DebugGetState();
+    Check(idle.preparationAdvances == before.preparationAdvances && idle.semanticPreparationAdvances == before.semanticPreparationAdvances &&
+              editor->GetText() == source && editor->GetSelection() == Selection{3u, 3u} && ! editor->CanUndo(),
+          "local rejection neither retries while idle nor changes source, selection or history");
+    appearance.bodyFontSizeDip = 12.f;
+    editor->SetAppearance(appearance);
+    prepare();
+    const auto retried = editor->GetAcknowledgedSemanticDocument(host);
+    Check(retried && retried != rejected && retried->Diagnostics().size() == 1u && rejected->Map().Display() == heldDisplay &&
+              std::ranges::count_if(retried->Elements(),
+                                    [](const auto& element)
+    { return element.role == SemanticRole::Math && element.display.last == element.display.first + 1u; }) == 2u,
+          "font changes retry geometry failures while held publications and syntax rejection stay stable");
+
+    const std::wstring diagramSource = L"# Heading\n\n```mermaid\ngraph LR;A[alpha]-->B[beta]\n```\n\n**after**\n";
+    editor->SetText(diagramSource);
+    appearance.maximumTextWidthDip = 80.f;
+    editor->SetAppearance(appearance);
+    prepare();
+    const auto narrow = editor->GetAcknowledgedSemanticDocument(host);
+    Check(narrow && narrow->Diagnostics().size() == 1u && narrow->Map().Display() == L"Heading\n```mermaid\ngraph LR;A[alpha]-->B[beta]\n```\nafter\n",
+          "a diagram width failure keeps the whole fence visible and leaves adjacent rich blocks intact");
+    const auto narrowAdvances = editor->DebugGetState().preparationAdvances;
+    prepare();
+    Check(editor->DebugGetState().preparationAdvances == narrowAdvances, "an unchanged narrow diagram has no geometry retry loop");
+    appearance.maximumTextWidthDip = 640.f;
+    editor->SetAppearance(appearance);
+    prepare();
+    const auto wide = editor->GetAcknowledgedSemanticDocument(host);
+    Check(wide && wide->Diagnostics().empty() && std::ranges::count(wide->Elements(), SemanticRole::Diagram, &SemanticElement::role) == 1u &&
+              editor->GetText() == diagramSource && ! editor->CanUndo(),
+          "a wider view retries the original diagram without source edits or hidden stale state");
+
+    for (const std::wstring fence :
+         {L"> ```mermaid\r\n> graph LR;A[alpha]-->B[beta]\r\n> ```\r\n", L"- ```mermaid\r\n  graph LR;A[alpha]-->B[beta]\r\n  ```\r\n"})
+    {
+        const auto prefixedSource = L"# Before\r\n\r\n" + fence + L"\r\n**After**\r\n";
+        editor->SetText(prefixedSource);
+        appearance.maximumTextWidthDip = 80.f;
+        editor->SetAppearance(appearance);
+        prepare();
+        const auto fallback = editor->GetAcknowledgedSemanticDocument(host);
+        Check(fallback && fallback->Diagnostics().size() == 1u, "a prefixed CRLF fence has one local geometry diagnostic");
+        const auto& diagnostic = fallback->Diagnostics()[0u];
+        Check(diagnostic.element < fallback->Elements().size(), "local fence diagnostic retains a live source owner");
+        const auto& owner = fallback->Elements()[diagnostic.element];
+        Check(owner.role == SemanticRole::Code && diagnostic.source == owner.source &&
+                  prefixedSource.substr(owner.source.first, owner.source.last - owner.source.first) == fence &&
+                  fallback->Map().Display().substr(owner.display.first, owner.display.last - owner.display.first) == fence &&
+                  fallback->Map().Display().ends_with(L"After\n") && editor->GetText() == prefixedSource && ! editor->CanUndo(),
+              "local fallback preserves every raw quote/list prefix and CRLF while adjacent emphasis remains rich");
+        Check(fallback->Map().ToSource(owner.display.first, MappingAffinity::Leading) == owner.source.first &&
+                  fallback->Map().ToDisplay(owner.source.first, MappingAffinity::Leading) == owner.display.first,
+              "literal fence geometry and source mapping share the exact opening ACP");
+        const auto settled = editor->DebugGetState();
+        prepare();
+        Check(editor->DebugGetState().semanticPreparationAdvances == settled.semanticPreparationAdvances &&
+                  editor->DebugGetState().preparationAdvances == settled.preparationAdvances,
+              "prefixed fence rejection remains idle without rebuilding its semantic publication");
+    }
+    NativeMathHRESULTFailureContainment(host);
+}
+
+inline void NativeMathHRESULTFailureContainment(ControlHost& host)
+{
+#if DXUI_ENABLE_DIAGNOSTICS
+    const auto install = [&](std::wstring source)
+    {
+        auto root    = std::make_unique<DirectPrepareRichTextEditor>(std::move(source));
+        auto* editor = root.get();
+        editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        host.SetRoot(std::move(root));
+        return editor;
+    };
+
+    {
+        const std::wstring source = L"# Heading\n\n[before $x$ after](https://example.test \"original title\") and $y$ **bold suffix**\n";
+        auto* editor              = install(source);
+        const auto caret          = source.find(L"$x$") + 1u;
+        editor->SetSelection({caret, caret});
+        SemanticWriteFactoryOverride override(host);
+        auto* calls                    = override.Get();
+        calls->failLayoutText          = L"x";
+        calls->layoutFailure           = DWRITE_E_UNSUPPORTEDOPERATION;
+        calls->failMatchingLayoutCount = 1u;
+        Check(PrepareUntilSettled(*editor, host) == S_OK, "font-local unsupported math operation reaches complete source fallback");
+        const auto fallback = editor->GetAcknowledgedSemanticDocument(host);
+        const SemanticElement* failedMath{};
+        const SemanticElement* heading{};
+        const SemanticElement* link{};
+        std::size_t supportedMathCount{};
+        if (fallback)
+            for (const auto& element : fallback->Elements())
+            {
+                if (element.role == SemanticRole::Math && element.name == L"x")
+                    failedMath = &element;
+                if (element.role == SemanticRole::Math && element.display.last == element.display.first + 1u)
+                    ++supportedMathCount;
+                if (element.role == SemanticRole::Heading && element.heading == 1u)
+                    heading = &element;
+                if (element.role == SemanticRole::Link)
+                    link = &element;
+            }
+        Check(fallback && fallback->Diagnostics().size() == 1u && failedMath && fallback->Syntax()->Slice(failedMath->source) == L"$x$" &&
+                  failedMath->title == L"Equation cannot be prepared natively for this view. Exact source is preserved." && supportedMathCount == 1 &&
+                  fallback->Map().Display().find(L"$x$") != std::wstring::npos && fallback->Map().Display().find(L"\ufffc") != std::wstring::npos &&
+                  fallback->Map().Display().find(L"Heading") != std::wstring::npos && fallback->Map().Display().find(L"# Heading") == std::wstring::npos &&
+                  fallback->Map().Display().find(L"bold suffix") != std::wstring::npos &&
+                  fallback->Map().Display().find(L"**bold suffix**") == std::wstring::npos && heading && link &&
+                  failedMath->parent == static_cast<std::size_t>(link - fallback->Elements().data()) && link->title == L"original title" &&
+                  link->destination == L"https://example.test" && editor->GetText() == source && editor->GetSelection() == Selection{caret, caret} &&
+                  ! editor->CanUndo(),
+              "font-local rejection preserves the exact formula source, its title, supported math, and neighboring rich semantic structure");
+        const auto attempts = calls->matchingLayouts;
+        Check(PrepareUntilSettled(*editor, host) == S_OK && calls->matchingLayouts == attempts,
+              "the same unsupported math/key is not retried during idle preparation");
+
+        auto appearance            = editor->GetAppearance();
+        appearance.bodyFontSizeDip = 13.f;
+        editor->SetAppearance(appearance);
+        Check(PrepareUntilSettled(*editor, host) == S_OK, "a changed math geometry key is eligible for native retry");
+        const auto recovered                = editor->GetAcknowledgedSemanticDocument(host);
+        const auto recoveredObjectMathCount = recovered ? std::ranges::count_if(recovered->Elements(),
+                                                                                [](const auto& element)
+        { return element.role == SemanticRole::Math && element.display.last == element.display.first + 1u; })
+                                                        : 0;
+        Check(recovered && recovered->Diagnostics().empty() && recoveredObjectMathCount == 2 && calls->matchingLayouts > attempts &&
+                  editor->GetText() == source && editor->GetSelection() == Selection{caret, caret} && ! editor->CanUndo(),
+              "changed-key native math succeeds without editing source or adding undo history");
+    }
+
+    {
+        constexpr std::wstring_view source = L"$x$\n";
+        auto* editor                       = install(std::wstring(source));
+        editor->SetSelection({1u, 1u});
+        SemanticWriteFactoryOverride override(host);
+        auto* calls                    = override.Get();
+        calls->failLayoutText          = L"x";
+        calls->layoutFailure           = DWRITE_E_UNEXPECTED;
+        calls->failMatchingLayoutCount = 1u;
+        const auto failed              = PrepareUntilSettled(*editor, host);
+        Check(failed == DWRITE_E_UNEXPECTED && calls->failedLayouts == 1u, "retryable DirectWrite failure preserves its HRESULT at the editor boundary");
+        Check(PrepareUntilSettled(*editor, host) == S_OK, "the unchanged math key retries after a transient DirectWrite failure");
+        const auto recovered = editor->GetAcknowledgedSemanticDocument(host);
+        Check(recovered && recovered->Diagnostics().empty() && calls->matchingLayouts >= 2u && editor->GetText() == source &&
+                  editor->GetSelection() == Selection{1u, 1u} && ! editor->CanUndo(),
+              "transient DirectWrite failure is not latched as formula source fallback");
+    }
+
+    {
+        constexpr std::wstring_view source = L"$x$\n";
+        auto* editor                       = install(std::wstring(source));
+        editor->SetSelection({1u, 1u});
+        SemanticWriteFactoryOverride override(host);
+        auto* calls                    = override.Get();
+        calls->failLayoutText          = L"x";
+        calls->layoutFailure           = E_OUTOFMEMORY;
+        calls->failMatchingLayoutCount = 1u;
+        const auto failed              = PrepareUntilSettled(*editor, host);
+        Check(failed == E_OUTOFMEMORY && calls->failedLayouts == 1u,
+              "DirectWrite allocation HRESULT remains E_OUTOFMEMORY instead of becoming capacity fallback");
+        Check(PrepareUntilSettled(*editor, host) == S_OK, "same-key formula preparation can retry after DirectWrite allocation failure");
+        const auto recovered = editor->GetAcknowledgedSemanticDocument(host);
+        Check(recovered && recovered->Diagnostics().empty() && editor->GetText() == source && editor->GetSelection() == Selection{1u, 1u} &&
+                  ! editor->CanUndo(),
+              "allocation failure never publishes a permanent formula rejection");
+    }
+
+    {
+        constexpr std::wstring_view source = L"$x$\n";
+        auto* editor                       = install(std::wstring(source));
+        editor->SetSelection({1u, 1u});
+        SemanticWriteFactoryOverride override(host);
+        auto* calls                           = override.Get();
+        calls->failLayoutText                 = L"x";
+        const auto previousLineMetricsFailure = RichText::Detail::testRichMathLineMetricsFailure;
+        const auto restoreLineMetricsFailure =
+            wil::scope_exit([previousLineMetricsFailure]() noexcept { RichText::Detail::testRichMathLineMetricsFailure = previousLineMetricsFailure; });
+        RichText::Detail::testRichMathLineMetricsFailure = E_OUTOFMEMORY;
+        const auto failed                                = PrepareUntilSettled(*editor, host);
+        Check(failed == E_OUTOFMEMORY && calls->failedLayouts == 0u,
+              "line-metrics allocation HRESULT is not converted into a permanent one-line capacity rejection");
+        Check(PrepareUntilSettled(*editor, host) == S_OK, "line-metrics allocation failure remains retryable for the unchanged key");
+        const auto recovered = editor->GetAcknowledgedSemanticDocument(host);
+        Check(recovered && recovered->Diagnostics().empty() && editor->GetText() == source && editor->GetSelection() == Selection{1u, 1u} &&
+                  ! editor->CanUndo(),
+              "line-metrics retry publishes native math rather than source fallback");
+        RichText::Detail::testRichMathLineMetricsFailure = S_OK;
+    }
+#else
+    static_cast<void>(host);
+#endif
+}
+
 template <typename Prepare> void Transactions(ControlHost& host, Prepare&& prepare)
 {
     const std::wstring original = L"- [ ] one\r\n- [x] two\n";

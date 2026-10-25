@@ -3504,6 +3504,10 @@ and the 20 other families in the 22-document inventory. Its eight offline
 reproducibility/mutation obligations pass. The native test inventory is 124 files.
 KaTeX 0.16.11 command documentation is reference data only; the named math target
 corpus/limits/envelopes are retained without claiming an implemented math engine.
+This paragraph records that historical iteration. It is superseded by the 24 October bounded native math parser/layout
+and its 30-positive/20-negative/27-symbol corpus, plus the current 16-admitted/89-unsupported flowchart matrix.
+See the [current-profile continuation](RichTextAudit_2026-10-21/RedTildeCompletion_2026-10-24.md); full KaTeX/Mermaid,
+M5f and D4c qualification remain open.
 
 Iteration1 compiled and five focused checks passed (86 observed allocation failure
 points), but final build attestation correctly rejected generator/reference input

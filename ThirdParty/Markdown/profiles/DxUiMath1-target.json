@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "profile": "DxUiMath1",
-  "status": "Target corpus only; parser and native rendering are not implemented or qualified",
+  "status": "Target command/envelope inventory with a partially implemented bounded native profile; this file is not a claim of full KaTeX support or completed qualification",
   "reference": "KaTeX v0.16.11 command documentation plus OpenType MATH 1.9; no helper is deployed",
   "requiredCategories": [
     "identifiers-numbers-operators",
@@ -43,7 +43,24 @@
     "mathbf",
     "mathit",
     "displaystyle",
-    "textstyle"
+    "textstyle",
+    "operatorname",
+    "mathbb",
+    "mathcal",
+    "scriptstyle",
+    "scriptscriptstyle",
+    "mathord",
+    "mathop",
+    "mathbin",
+    "mathrel",
+    "mathopen",
+    "mathclose",
+    "mathpunct",
+    "mathinner",
+    "big",
+    "Big",
+    "bigg",
+    "Bigg"
   ],
   "functionCommands": [
     "sin",
@@ -186,19 +203,21 @@
     "vmatrix",
     "Vmatrix",
     "cases",
-    "aligned"
+    "aligned",
+    "smallmatrix",
+    "gathered"
   ],
   "unsupportedPolicy": "Unknown commands/environments, macros, packages, file input and program execution preserve the whole exact formula as editable source with an Unsupported diagnostic; never count that result as rendered",
   "admission": {
-    "maximumSourceUnitsPerObject": 16384,
-    "maximumNodesPerObject": 4096,
-    "maximumGroupDepth": 64,
-    "maximumRows": 64,
-    "maximumColumns": 64,
-    "maximumMatrixCells": 1024,
+    "maximumSourceUnitsPerObject": 4096,
+    "maximumNodesPerObject": 512,
+    "maximumGroupDepth": 24,
+    "maximumRows": 16,
+    "maximumColumns": 16,
+    "maximumMatrixCells": 128,
     "maximumPreparedObjectsPerDocument": 128,
-    "maximumPreparedObjectNodesPerDocument": 32768,
-    "capacityPolicy": "Check generated row/cell expansion before allocation; retain an exact visible source fallback with a Capacity diagnostic"
+    "maximumPreparedObjectNodesPerDocument": 4096,
+    "capacityPolicy": "Reject before unbounded expansion; preserve the complete exact formula as visible editable source. Native geometry rejection is local to its object and layout key."
   },
   "cases": [
     {
@@ -434,5 +453,24 @@
     "fenced": "Exact first info word math or latex, case-sensitive; code fence source owner retained",
     "precedence": "Code spans, fenced non-math code, opaque HTML and link destinations do not acquire math; escaped dollar remains literal",
     "source": "Whole raw envelope owns one source-bearing object; exact UTF-16, untouched trivia and EOLs survive edits; diagnostics never reserialize TeX"
+  },
+  "implementationProfile": "DxUiNativeMath1",
+  "originalTargetAdmission": {
+    "maximumSourceUnitsPerObject": 16384,
+    "maximumNodesPerObject": 4096,
+    "maximumGroupDepth": 64,
+    "maximumRows": 64,
+    "maximumColumns": 64,
+    "maximumMatrixCells": 1024,
+    "maximumPreparedObjectsPerDocument": 128,
+    "maximumPreparedObjectNodesPerDocument": 32768,
+    "capacityPolicy": "Check generated row/cell expansion before allocation; retain an exact visible source fallback with a Capacity diagnostic"
+  },
+  "currentImplementation": {
+    "profile": "DxUiNativeMath1",
+    "coverage": "Owned fixtures in Tests/Support/Support.Tests.MathCorpus.h and Controls.Tests.RichSemanticDocument.cpp cover the implemented parser, atom/style layout and local fallback. Target command/envelope lists and desired per-case diagnostics remain distinct from current support.",
+    "envelopes": "Inline dollar and explicit slash math, plus inline-scanned double-dollar/bracket display forms; fenced math/latex and strict own-line/unclosed-display policies are target work, not implemented claims.",
+    "layout": "Selected OpenType MATH constants with bounded native layout, shaped text overhang and stroke delimiter/accent fallbacks. Complete font glyph variants/assemblies, MathKern and mathematical-font fallback qualification remain open.",
+    "qualification": "See current-source build/test and paired performance receipts; fixture authorship and target data alone are not passing evidence."
   }
 }

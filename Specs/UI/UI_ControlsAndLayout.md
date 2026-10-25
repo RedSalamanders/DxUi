@@ -34,15 +34,22 @@ the caret remains independent and high contrast always forces the focus indicato
 
 Tree row painting, hit testing, tooltip and accessibility geometry use one canonical row calculation, including
 hidden/reserved expanders. Neutral decorations opt into subdued unselected icons and count badges; a dot badge
-retains its textual accessible description. Subtle Splitters paint a thin idle seam while preserving the full resize
-hit target and keyboard/drag behavior; hover, dragging, keyboard focus and high contrast retain the normal handle.
+retains its textual accessible description as the TreeItem's UI Automation `ItemStatus`; `Name` remains the row text.
+For a legacy mutable model, `NotifyItemPresentationChanged(itemId)` publishes a badge text/tone/dot-only update for
+an existing visible row after the caller updates its data. IDs, order, row text, depth, child/expanded state and visible
+membership must stay unchanged. The notification invalidates badge/tooltip text measurements, paint and accessibility
+status without reconciling selection, focus, reorder state or scroll. It returns false without publication for a missing
+or nonvisible row and for models that supply prepared accessibility rows. A prepared source publishes status through
+its immutable row view and the normal prepared-source update path. Subtle Splitters paint a thin idle seam while
+preserving the full resize hit target and keyboard/drag behavior; hover, dragging, keyboard focus and high contrast
+retain the normal handle.
 
 `RichText::SemanticSpacing` optionally supplies per-level heading margins and container indentation to semantic
 document layout. All values are finite: margins 0..256 DIP, indentation 0..64 DIP. Heading margins are minima and
 credit real source blank-line caret boxes; no source site is dropped, compressed or fabricated. An absent option
 preserves existing geometry. The option participates in complete geometry reuse/retirement and is validated before
 replacing a published layout. Ordinary source-view text geometry stays governed by its existing source policy.
-Last reviewed: 2026-10-23
+Last reviewed: 2026-10-25
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -338,7 +345,9 @@ physical application DPI presentation and real assistive-technology journeys req
   PageHost's current page. Membership (`IsControlInTree`), Tab order, native text input and its text store, the
   ComboBox scroll-container lookup and the UI Automation tree all use that one walk, so the content of a page takes
   focus by Tab, receives IME and TSF input and has UI Automation elements exactly as the same content in a Panel does.
-  Element paths index logical children.
+  Element paths index logical children. Logical-child accessors are stable, read-only traversal queries on the
+  owning UI thread: they must not mutate the tree, invoke application callbacks or pump messages. Returned child
+  pointers are borrowed until the next supported tree mutation; traversals do not support destructive getter reentry.
 
 The consumer chooses information hierarchy and whether repeated text is useful. Shared controls
 must support a single semantic heading with associated labelled values and complete exact-value
@@ -369,7 +378,7 @@ not allocate new formats per frame. A changed override invalidates intrinsic mea
 paint, and a synchronous embedded preparation callback may measure the new state or retire its control; the
 setter MUST stop touching a retired control. Native glyph capture, wrapped intrinsic metrics, cache stability,
 resource-generation replacement and embedded callback tests cover the opt-in behavior.
-`Label` typography/font-role and `Separator` orientation setters follow this callback boundary as well. In an embedded
+`Label` text, multiline, typography/font-role and `Separator` orientation setters follow this callback boundary as well. In an embedded
 view, measurement invalidation may synchronously reach the consumer's preparation-scheduling callback; the consumer
 may retire or replace controls through a `ControlHost` reference borrowed before that callback. The callback must not
 re-enter `EmbeddedHost` preparation, composition, input, device or lifecycle methods. A setter continuing after the
@@ -454,6 +463,8 @@ ticks, and each tick advances the sweep by the elapsed time and invalidates the 
 remainder of a loop. A tick time earlier than the previous one re-seeds the timing without moving the segment. Under
 reduced motion the segment rests centered, from 30% to 70% of the track: the bar requests no ticks, `Tick` reports
 false and every paint is identical. Restoring motion resumes the sweep at the next paint.
+Value, minimum and maximum changes also mark native accessibility publication dirty, so subscribed range
+properties and the next owner query reflect the current bounds without another unrelated mutation.
 
 ### Slider
 
@@ -1579,23 +1590,26 @@ or tab. Ordinary `%%` comments outside labels run to the line end. Diagram-local
 YAML, `%%{...}%%` configuration, directives and other families are unsupported.
 
 An identifier is `[A-Za-z_][A-Za-z0-9_]*` with exact case-sensitive identity.
-`end`, `subgraph`, `direction`, `style`, `class`, `classDef`, `click` and
-`linkStyle` are reserved. A node is an identifier alone or followed by `[label]`
-(rectangle), `(label)` (rounded), `((label))` (circle) or `{label}` (diamond).
-Expanded shape syntax is unsupported. An explicit declaration replaces the
+`end`, `subgraph`, `direction`, `style`, `class`, `classDef`, `click`,
+`linkStyle` and `note` are reserved. A node is an identifier alone or followed by `[label]`
+(rectangle), `(label)` (rounded), `((label))` (circle), `([label])` (stadium
+capsule) or `{label}` (diamond). Other expanded shape syntax is unsupported. An explicit declaration replaces the
 node's previous label/shape; a bare endpoint preserves it. Node order is first
 appearance order and edge order is source order, including cycles/self-loops.
 
-An edge chain is `node (edge node)*`, where edge is `-->` or `---` optionally
-followed by `|label|`. Expanded, dotted, thick, multi-target, reversed and named
+An edge chain is `endpoint-group (edge endpoint-group)*`, where an
+`endpoint-group` is one node or nodes joined by `&`, and edge is `-->` or `---`
+optionally followed by `|label|`. Each edge expands the Cartesian product of its
+left and right endpoint groups in stable source order; a chain continues from
+the preceding right-hand group. Expanded, dotted, thick, reversed and named
 edge syntax is unsupported. In particular `A---oB`/`A---xB` MUST NOT be silently
 treated as edges to IDs `oB`/`xB`; use whitespace before such IDs for a plain line.
 Quoted labels allow Unicode scalar text and `\"`, `\\`, `\n` escapes. Unquoted
 labels trim surrounding horizontal whitespace and must quote delimiter/semicolon
-text. HTML, Markdown labels, entity escapes, icon syntax and inline math labels
+text. Literal ampersands are label text; HTML, Markdown labels, entity escapes, icon syntax and inline math labels
 are unsupported; they MUST NOT silently acquire a different label meaning.
 
-Admission limits are 16,384 source UTF-16 units, 256 nodes, 512 edges, 1,024
+Admission limits are 16,384 source UTF-16 units, 256 nodes, 512 expanded edges, 1,024
 nonempty statements including the header, 1,024 decoded label units and 128 ID
 units. Check each bound before adding generated data. Capacity, unsupported and
 malformed outcomes retain the complete body with a source-ranged diagnostic and
@@ -1614,7 +1628,9 @@ published geometry, or allocate while advancing. Stable first-seen DFS removes
 gray back edges and self-loops from ranking; stable Kahn traversal assigns
 longest-path ranks to the remaining DAG. Nodes retain first-seen order in each
 rank. Rectangles/rounded rectangles pad labels, circles contain the padded label
-diagonal, and diamonds contain twice the padded width/height. Direction changes
+diagonal, diamonds contain twice the padded width/height, and stadium capsules
+keep the complete measured label inside their straight middle band. Their centerline
+ports lie on the capsule boundary in all four flow directions. Direction changes
 flow without rotating text. Every edge gets a distinct exterior lane; endpoint
 corridors remain outside full rank rows, including for skipped-rank edges,
 cycles, self-loops and parallel edges. Crossings are permitted; optimal routing
@@ -1656,10 +1672,16 @@ survive replacement borrowed devices with the same factory. Final process/GPU
 resource, device-loss and host object qualification remain separate requirements.
 
 The pinned Mermaid 11.4.1 inventory and all 105 original flowchart examples MUST
-remain accounted for. Independent subset expectations distinguish 13 admitted
-graphs from 92 unsupported definitions; the state example now has five nodes and
-six transitions, while the other 19 original family examples remain unsupported. Rejection
-is compatibility accounting, never rendered conformance. Original reference
+remain accounted for. Independent subset expectations distinguish 16 admitted
+graphs from 89 unsupported definitions, including the documented stadium and
+the original endpoint-group fan-out examples.
+The family matrix separately identifies the limited flowchart, state and class
+profiles, the example collection, and 18 unsupported diagram families. Generated
+first-example fixtures specify the exact expected outcome and diagnostic for all
+20 diagram-family documents: the state example prepares five nodes and six
+transitions; the class example falls back on its unsupported `note` directive;
+the remaining 18 examples are unsupported-family fallbacks. These cases measure
+local subset coverage, not complete Mermaid family conformance. Original reference
 bytes and MIT notice remain under `ThirdParty/Markdown/mermaid-11.4.1`.
 
 ### Source-backed native diagram objects
@@ -1898,7 +1920,9 @@ action and do not invalidate an otherwise supported HTML anchor.
 
 RichMarkdown recognizes `$...$`, `$$...$$`, `\(...\)` and `\[...\]` inside ordinary
 inline leaves. Single-dollar math is single-line and requires nonspace content edges;
-a closing dollar followed by a digit is currency text. Escaped delimiters, code spans,
+a closing dollar followed by a digit is currency text. Explicit `\(...\)` delimiters
+permit edge whitespace and a following digit, while retaining the physical-line bound.
+Escaped delimiters, code spans,
 fenced/indented code and CommonMark/GFM profiles retain their existing grammar.
 Display delimiters may span logical lines of one Markdown paragraph. Blank paragraphs
 and GFM table boundaries still delimit leaves. Original source, delimiters, CRLF,
@@ -1914,6 +1938,17 @@ consistent columns. User macros, packages, file input, evaluation and full LaTeX
 compatibility are unsupported. Rejection retains the complete literal equation with
 a source-ranged diagnostic, rather than drawing a misleading partial expression.
 
+The bounded native profile records atom classes, font styles, script style and
+operator limit policy in its typed model. Variables are italic by default; numbers,
+text groups and named operators are upright. Binary atoms at unary positions use
+ordinary spacing. Explicit math atom wrappers, display/text/script declarations,
+`limits`/`nolimits`, starred `operatorname`, sized `big`/`Big`/`bigg`/`Bigg` delimiters,
+and `tilde`/`widetilde` are admitted. Text groups collapse source whitespace and
+remove grouping braces while retaining escaped literal braces. Matrix rows may
+have a trailing separator; gathered rows have one column and cases at most two.
+Unsupported commands remain local exact source. This is a named native profile,
+not a claim of all KaTeX functions or identical TeX font metrics and glyph assemblies.
+
 Limits are 4,096 source units, 512 syntax nodes, nesting 24, 16 rows/columns and 128
 cells per formula, 4,096 total mathematical records and 128 combined native objects.
 Preparation shapes at most one mathematical leaf per SDK-layout event. Cached
@@ -1921,9 +1956,32 @@ DirectWrite glyphs and line geometry draw in the owner's target with caller brus
 no filesystem, worker, font downloads or allocation occurs in drawing. Reflow and
 device replacement regenerate prepared geometry without changing source.
 
+Every rejected formula has its own Math element, accessible explanation and exact
+source diagnostic; rejection cannot overwrite its enclosing link's title or destination.
+A persistent native geometry-capacity failure falls back only the affected formula
+or complete Mermaid fence, including its original container prefixes and EOLs.
+For an individual math formula, DirectWrite `DWRITE_E_UNSUPPORTEDOPERATION` during
+leaf preparation is also a persistent object-local rejection: the operation is not
+supported by the selected font type. The formula's accessible explanation uses
+cause-neutral wording because the same source-preserving view fallback also covers
+capacity and font-operation failures. Other semantic content stays rich. The
+presentation rejection key includes immutable syntax, width, direction, host
+typography/resource generation, binding and local appearance geometry revision.
+Repeated idle preparation does not retry the same rejection; changing a key retries
+it. DirectWrite `GetLineMetrics` reports a one-line-capacity rejection only when it
+returns `E_NOT_SUFFICIENT_BUFFER` and reports more than one required line. Other
+failed HRESULTs from leaf layout/metrics and image upload preserve their original
+error channel and leave the request retryable. In particular, `E_OUTOFMEMORY`,
+`DWRITE_E_UNEXPECTED`, `D2DERR_RECREATE_TARGET` and DXGI device-loss results must not
+be converted into permanent source rejection; they remain eligible for explicit
+preparation retry or resource-generation recovery.
+
 The native Mermaid engine additionally accepts a bounded `stateDiagram` /
 `stateDiagram-v2` profile: direction, simple declarations/quoted aliases,
 `[*]` initial/final states, transitions with colon labels and state descriptions.
+The first nonempty quoted or colon state description replaces the fallback ID;
+later descriptions append in declaration order, within the shared label limit.
+An explicit description equal to the ID still counts as the first description.
 The bounded `classDiagram` profile accepts direction, simple class declarations,
 colon members, directed/undirected associations and inheritance (`<|--`, `--|>`).
 State/class layouts use the deterministic native graph router; members are plain
