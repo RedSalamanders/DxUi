@@ -352,7 +352,7 @@ struct SemanticBuilder::Preparation
                 extensions.diagnostics.push_back({SemanticDiagnosticKind::UnsupportedMath, node.source, element});
                 auto& formula = document->elements_[element];
                 formula.name  = node.value;
-                formula.title = sourceFallback ? L"Equation exceeds native geometry capacity for this view. Exact source is preserved."
+                formula.title = sourceFallback ? L"Equation cannot be prepared natively for this view. Exact source is preserved."
                                                : L"Unsupported or oversized native equation. Exact source is preserved.";
                 output.Emit(document->syntax_->Slice(node.source), node.source, DisplaySpanKind::Source, flags | Code, visit.heading);
                 formula.display.last = output.text.size();

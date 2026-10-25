@@ -12,9 +12,10 @@ namespace DxUi
 // GetItem/FindItem are bounded, allocation-free reads and never touch the live model or controls. The consumer
 // admits preparation and arranges final source destruction on its appropriate lane, including foreign readers.
 // Source identity is a semantic epoch: retain the same owner for unchanged rows and publish a new owner whenever
-// row sequence, IDs, text, depth, child presence or expansion change. Selection is independent. Snapshot diffs invalidate Tree children on
-// an epoch change, including replacements with the same count and IDs; they do not traverse the source to diff it, and
-// read only the focused item (FindItem) from both sources to report its expansion change.
+// row sequence, IDs, text, depth, child presence, expansion or badge status change. Selection is independent.
+// Snapshot diffs invalidate Tree children on an epoch change, including replacements with the same count and IDs;
+// they do not traverse the source to diff it, and read only the focused item (FindItem) from both sources to report
+// its expansion change.
 struct TreeAccessibilityItemView
 {
     std::size_t visibleIndex = 0u;
@@ -23,6 +24,8 @@ struct TreeAccessibilityItemView
     std::size_t depth = 0u;
     bool hasChildren  = false;
     bool expanded     = false;
+    // Optional borrowed status exposed as UIA ItemStatus. Its storage follows the same retained source lifetime as text.
+    std::wstring_view badgeText;
 };
 
 class IPreparedTreeAccessibilityRows

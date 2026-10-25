@@ -1016,6 +1016,12 @@ void TestLabelAndSeparatorTypographySurviveEmbeddedMeasureAndRetirementCallbacks
     runRetiringSetter("Label font role", [](FlexPanel& root) -> Control* { return root.AddChild<Label>(L"Section heading"); }, [](Control* control) {
         static_cast<Label*>(control)->SetFontRole(FontRole::Title);
     });
+    runRetiringSetter("Label text", [](FlexPanel& root) -> Control* { return root.AddChild<Label>(L"Section heading"); }, [](Control* control) {
+        static_cast<Label*>(control)->SetText(L"Updated section heading");
+    });
+    runRetiringSetter("Label multiline", [](FlexPanel& root) -> Control* { return root.AddChild<Label>(L"Section heading"); }, [](Control* control) {
+        static_cast<Label*>(control)->SetMultiline(true);
+    });
     runRetiringSetter("Label typography override",
                       [](FlexPanel& root) -> Control* { return root.AddChild<Label>(L"Section heading"); },
                       [](Control* control)

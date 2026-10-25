@@ -1,5 +1,8 @@
 # Independent DxUi measurements
 
+- [SDK cfe875fd paired studies, 2026-10-24](RedTildeCompletion_2026-10-24/sdk-cfe875fd/README.md): two separate DxUi benchmark studies, local same-build AA and hosted actual-base comparison, with all 156 metric rows and independent numeric audits. Both remain review-required and unqualified; AA side controls are unstable 24/24 per scenario and do not qualify a noise floor, while hosted controls are unstable 23/24, 23/24, and 22/24. The hosted baseline sourceDirty limitation is explicit.
+
+
 - [Host/control review integration, 2026-10-24](HostControlReviewReconciliation/2026-10-24/README.md):
   six builds, 57 ordinary and 12 authorized foreground zero-skip x64 suite executions, two ASan probes,
   three exact-pin consumers and six reviewed harness captures. Performance, native-platform/manual/product,

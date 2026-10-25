@@ -1,4 +1,5 @@
 #pragma once
+#include <DxUi/Configuration.h>
 #include <DxUi/RichDocument.h>
 #include <DxUi/RichMath.h>
 #include <DxUi/RichTextLayout.h>
@@ -15,6 +16,10 @@
 
 namespace DxUi::RichText::Detail
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+// Private test seam for preserving HRESULT classification from GetLineMetrics.
+extern thread_local HRESULT testRichMathLineMetricsFailure;
+#endif
 // PreparedMath owns all shaping and geometry. The syntax tree is admitted and
 // indexed once; Advance shapes one text leaf per call and finalizes from cached
 // child boxes. Draw is read-only and performs no layout or allocation.
@@ -1066,8 +1071,25 @@ public:
             THROW_IF_FAILED(layout->GetMetrics(&metrics));
             DWRITE_LINE_METRICS line{};
             UINT32 lineCount{};
-            const auto hr = layout->GetLineMetrics(&line, 1u, &lineCount);
-            if (FAILED(hr) || lineCount != 1u)
+            HRESULT hr{};
+#if DXUI_ENABLE_DIAGNOSTICS
+            if (FAILED(testRichMathLineMetricsFailure))
+            {
+                hr                             = testRichMathLineMetricsFailure;
+                testRichMathLineMetricsFailure = S_OK;
+            }
+            else
+#endif
+            {
+                hr = layout->GetLineMetrics(&line, 1u, &lineCount);
+            }
+            // DirectWrite reports a too-small line array with this HRESULT
+            // while still returning the required line count. That is the
+            // expected local capacity signal for our one-line leaf.
+            if (hr == E_NOT_SUFFICIENT_BUFFER && lineCount > 1u)
+                throw std::length_error("Mathematical text leaf must occupy one line");
+            THROW_IF_FAILED(hr);
+            if (lineCount != 1u)
                 throw std::length_error("Mathematical text leaf must occupy one line");
             const float layoutWidth  = std::min(65536.f, metrics.widthIncludingTrailingWhitespace + leaf.font);
             const float layoutHeight = std::min(65536.f, metrics.height + leaf.font);

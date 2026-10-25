@@ -6,19 +6,83 @@
 - [x] Independently re-read the source locations admitted below; distinguish current defects from old findings.
 - [x] Route library work to existing W/T/C rows and consumer execution to one coordinator.
 - [ ] W0.3: revalidate every remaining historical finding and completeness row against the implementation revision.
-- [ ] W1.1: reproduce and fix the current table-column memory-safety defect before larger changes.
+- [x] W1.1 bounded defect: reproduce and fix table-column memory safety and retained source/selection/history regressions; frozen `cfe875fd` profiles pass.
 - [ ] W1.2/W1.5: implement local object fallback, failure-key memoization and correct semantic/UIA ownership.
 - [ ] W1.6/W1.12/C4/C5/T1: correct accepted math behavior, implement TeX layout fundamentals and broaden conformance tests.
 - [ ] W1.7/C6/C7/C8/T2: correct Mermaid semantics, expand native profiles and qualify model/layout/render/source behavior.
 - [ ] W1.11/T3/T4: reconcile status data, tests/scopes and cross-host/fault/resource coverage.
 - [ ] W3: measure and qualify semantic reuse; keep W4/W5 consolidation conditional on evidence.
 - [ ] Close library gates and exact consumer handoff with current-source evidence; do not close parent HOLDs by inference.
+- [x] Late focused checks: pass both Tree status/prepared-row Debug cases, the injected math Debug case and full Embedded suite, and the Label retirement case under x64 ASan Debug; final matrix and counterfactuals remain open.
 
 Status: **IMPLEMENTING; final profile and performance qualification remain open**. This appendix updates evidence
 and sequencing for the [existing audit](../RichTextAudit_2026-10-21.md); its implementation work-item IDs remain
 authoritative. The separate RedTilde repository's `Specs/Plans/WIP/RedesignCompletionAndRendering_2026-10-24.md`
 contains the cross-repository sequence, compatibility test matrices, reviewed commands and closeout conditions.
 This appendix adds no second defect backlog or independent acceptance policy.
+
+### Frozen-source checkpoint — 25 October
+
+DxUi `cfe875fd815b0a39336100df9bde8f29ea2f0aa0` and RedTilde `fd24623a9f27d04b85deb27a43a9af724dc030ca`
+each pass six local builds. SDK x64 Debug, Release and ASan Debug pass all 19 ordinary suites with zero skips,
+including a real ASan detection probe. The app's corresponding profiles pass 54 cases and 23 captures, plus their
+recovery/crash probes. The owner-started app keyboard and four SDK foreground suites pass with desktop restoration.
+SDK hosted workflow `40135398414` passes all six Full native profiles, relocated consumers and galleries, with
+optional per-profile skips recorded separately. Its paired collection completes but the verdict is inconclusive:
+the measured-base policy lacks independent qualification, so the overall workflow fails. RedTilde's hosted
+workflow never started because of the account payment/spending restriction. The owner explicitly chose to keep
+its native ARM64 gate open. A cross-build is not native execution.
+
+The fresh app comparison retains 384 native runs and 16,003 independent checks. The original-UI cohort has five
+regression flags: Compose command +12.54% and private memory +2.013%; Split command +14.58%, owner CPU +13.44%
+and working set +2.61%. Only the flagged Split working-set control is stable. Against the actual starting redesign,
+all twelve A/B slots have zero regression findings, including three improvements. Host observations are complete
+but loaded, not verified quiet. The sixteen-process subphase diagnostic and 24-process hardware/WARP resource
+study remain separate descriptive evidence; neither accepts the cost or attributes a retained allocation.
+
+The current bounded math and flowchart/state/class profiles are implemented and exercised on those named frozen
+profiles. Full TeX font assemblies, additional diagram families and MM-36's disclosed marker-geometry limit retain
+their existing owners. A later review is correcting Tree badge ItemStatus publication and the consumer's Files
+dirty transition, and is completing native-object HRESULT fault classification/coverage. Those edits require
+new red/green runs and source-bound qualification. The same review also found Label text/multiline setters
+continuing after synchronous embedded preparation can retire their root; weak-lifetime guards and extensions to
+the existing retirement case are patched but await separate sanitizer diagnostics and final-source evidence.
+The same-executable SDK A/A calibration completed at `cfe875fd` in one separate physical worktree, retaining
+144 receipts and 7,158 observer samples. Its independent audit recomputes all 78 slots and the observer passes
+coverage/continuity checks under about 25% system CPU load. All 24 within-side control comparisons are unstable
+in each A/A scenario; the completed collection does not qualify a noise floor. The retained hosted actual-base comparison also
+recomputes all 78 slots/144 receipts with no resolved regression and predominantly unstable controls. The dirty
+baseline's library fingerprint exactly matches the clean actual PR base under Windows checkout attributes;
+three tooling overlays are recorded outside that scope, but no complete dirty-path listing is retained.
+The AA legacy/migrated disagreement is
+improved versus within-noise, with zero regressions in both judges. Policy remains unqualified and no result
+may be relabeled as execution of later source. All six hosted Full payload inventories are independently
+byte-replayed; the two intentional ASan detection probes are validated separately from ordinary suite exits.
+The [canonical frozen SDK packet](../../../../Measurements/RedTildeCompletion_2026-10-24/sdk-cfe875fd/README.md)
+retains all 156 metric rows, role/build/harness digests, control instability and independent-audit bindings.
+
+### Late-source focused checks — 25 October
+
+Both Tree client cases start and finish in Debug run
+`20261025T021304993Z-27628-17cf022cb9d24837bad2d536b899bb18`, with zero skips. The preceding original-source
+counterfactual reproduces missing dot-badge ItemStatus. A first fixed-source attempt failed because its style-only
+test incorrectly expected an empty getter value when no event was expected; that test-authoring failure is retained.
+The corrected test keeps the current badge value and expected event separate.
+
+The injected native math containment case passes in Debug run
+`20261025T015619165Z-47744-17c82175da7846ef9b9048f8a2372f5b`; the unfiltered Embedded suite passes 455,561 checks
+in `20261025T015815367Z-45528-48a04e2b701849a08533f314b035b44d`. The Label text/multiline retirement regression
+passes with zero skips under x64 ASan Debug in
+`20261025T022224940Z-19880-ef222af848c049d0a63c5171d80a5a17`. Canonical build/executable and official run/payload
+bindings are retained beside the private diagnostic attempts. The independent late-focused audit verifies the
+Debug receipts and both Tree case completions; it does not claim the separate sanitizer run.
+
+These are focused late-source results. Remaining math and Label counterfactuals, the final source matrix,
+fresh foreground runs, current-source performance comparisons and external ARM64 gates remain open. No later
+source inherits the frozen `cfe875fd` performance result or qualified policy.
+
+The earlier checkpoints below remain revision-bound history. Do not promote their passes to the later changes,
+erase their failures, qualify candidate policy from itself, or close the parent HOLDs by inference.
 
 ### Execution evidence — 24 October
 

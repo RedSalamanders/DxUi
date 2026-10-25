@@ -2697,11 +2697,17 @@ void Label::SetText(std::wstring text)
 {
     if (_text != text)
     {
-        _text = std::move(text);
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
+        _text                             = std::move(text);
         InvalidateMeasure();
+        // Embedded preparation can synchronously retire the owning root.
+        if (lifetime.expired())
+            return;
         if (ControlHost* const host = GetHost())
         {
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+            if (lifetime.expired())
+                return;
         }
         RequestInvalidate();
     }
@@ -2740,8 +2746,12 @@ void Label::SetMultiline(bool multiline) noexcept
 {
     if (_multiline == multiline)
         return;
-    _multiline = multiline;
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    _multiline                        = multiline;
     InvalidateMeasure();
+    // Embedded preparation can synchronously retire the owning root.
+    if (lifetime.expired())
+        return;
     RequestInvalidate();
 }
 

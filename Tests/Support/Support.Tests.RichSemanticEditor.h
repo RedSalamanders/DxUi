@@ -1,14 +1,69 @@
 #pragma once
+#include "../../src/Controls/DxUi.PreparedMath.h"
+#include "../../src/Controls/DxUi.RichSemanticGeometry.h"
+#include "Support.Tests.CountingWriteFactory.h"
 #include "Support.Tests.RichSemantic.h"
 #include <DxUi/DxUi.h>
 #include <cmath>
 #include <limits>
+#include <new>
+#include <wil/resource.h>
+#include <wil/result.h>
 
 namespace RichSemanticEditorTests
 {
 using namespace DxUi;
 using namespace DxUi::RichText;
 using RichSemanticTests::Check;
+class DirectPrepareRichTextEditor final : public RichTextEditor
+{
+public:
+    using RichTextEditor::RichTextEditor;
+    HRESULT PrepareOnce(ControlHost& host) noexcept
+    {
+        return PrepareContent(host);
+    }
+};
+inline HRESULT PrepareUntilSettled(DirectPrepareRichTextEditor& editor, ControlHost& host)
+{
+    for (std::size_t turn = 0u; turn < 1024u; ++turn)
+    {
+        const auto result = editor.PrepareOnce(host);
+        if (result != S_FALSE)
+            return result;
+    }
+    return HRESULT_FROM_WIN32(ERROR_TIMEOUT);
+}
+#if DXUI_ENABLE_DIAGNOSTICS
+class SemanticWriteFactoryOverride final
+{
+public:
+    explicit SemanticWriteFactoryOverride(ControlHost& host) : previous_(RichText::Detail::testRichSemanticWriteFactory)
+    {
+        const auto wrapped = Microsoft::WRL::Make<NativeTextTests::CountingWriteFactory>(host.GetWriteFactory());
+        if (! wrapped)
+            throw std::bad_alloc();
+        wrapped_                                       = wrapped.Get();
+        RichText::Detail::testRichSemanticWriteFactory = wrapped_.get();
+    }
+    SemanticWriteFactoryOverride(const SemanticWriteFactoryOverride&)            = delete;
+    SemanticWriteFactoryOverride& operator=(const SemanticWriteFactoryOverride&) = delete;
+    SemanticWriteFactoryOverride(SemanticWriteFactoryOverride&&)                 = delete;
+    SemanticWriteFactoryOverride& operator=(SemanticWriteFactoryOverride&&)      = delete;
+    ~SemanticWriteFactoryOverride()
+    {
+        RichText::Detail::testRichSemanticWriteFactory = previous_;
+    }
+    NativeTextTests::CountingWriteFactory* Get() const noexcept
+    {
+        return wrapped_.get();
+    }
+
+private:
+    wil::com_ptr<NativeTextTests::CountingWriteFactory> wrapped_;
+    IDWriteFactory* previous_{};
+};
+#endif
 struct RetiringTabEditor final : RichTextEditor
 {
     explicit RetiringTabEditor(Button*& successor) : RichTextEditor(L"retiring"), successor_(&successor)
@@ -926,6 +981,7 @@ template <typename Prepare> void RenderingAdmissionFallback(ControlHost& host, P
     prepare();
     Check(editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic, "new source retries marker/body admission normally");
 }
+inline void NativeMathHRESULTFailureContainment(ControlHost& host);
 template <typename Prepare> void NativeObjectFailureContainment(ControlHost& host, Prepare&& prepare)
 {
     const std::wstring source = L"# Heading\n\n$y$ and [before $\\unknown{x}$ after](https://example.test \"original title\")\n\n$$\\text{" +
@@ -1012,6 +1068,139 @@ template <typename Prepare> void NativeObjectFailureContainment(ControlHost& hos
                   editor->DebugGetState().preparationAdvances == settled.preparationAdvances,
               "prefixed fence rejection remains idle without rebuilding its semantic publication");
     }
+    NativeMathHRESULTFailureContainment(host);
+}
+
+inline void NativeMathHRESULTFailureContainment(ControlHost& host)
+{
+#if DXUI_ENABLE_DIAGNOSTICS
+    const auto install = [&](std::wstring source)
+    {
+        auto root    = std::make_unique<DirectPrepareRichTextEditor>(std::move(source));
+        auto* editor = root.get();
+        editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        host.SetRoot(std::move(root));
+        return editor;
+    };
+
+    {
+        const std::wstring source = L"# Heading\n\n[before $x$ after](https://example.test \"original title\") and $y$ **bold suffix**\n";
+        auto* editor              = install(source);
+        const auto caret          = source.find(L"$x$") + 1u;
+        editor->SetSelection({caret, caret});
+        SemanticWriteFactoryOverride override(host);
+        auto* calls                    = override.Get();
+        calls->failLayoutText          = L"x";
+        calls->layoutFailure           = DWRITE_E_UNSUPPORTEDOPERATION;
+        calls->failMatchingLayoutCount = 1u;
+        Check(PrepareUntilSettled(*editor, host) == S_OK, "font-local unsupported math operation reaches complete source fallback");
+        const auto fallback = editor->GetAcknowledgedSemanticDocument(host);
+        const SemanticElement* failedMath{};
+        const SemanticElement* heading{};
+        const SemanticElement* link{};
+        std::size_t supportedMathCount{};
+        if (fallback)
+            for (const auto& element : fallback->Elements())
+            {
+                if (element.role == SemanticRole::Math && element.name == L"x")
+                    failedMath = &element;
+                if (element.role == SemanticRole::Math && element.display.last == element.display.first + 1u)
+                    ++supportedMathCount;
+                if (element.role == SemanticRole::Heading && element.heading == 1u)
+                    heading = &element;
+                if (element.role == SemanticRole::Link)
+                    link = &element;
+            }
+        Check(fallback && fallback->Diagnostics().size() == 1u && failedMath && fallback->Syntax()->Slice(failedMath->source) == L"$x$" &&
+                  failedMath->title == L"Equation cannot be prepared natively for this view. Exact source is preserved." && supportedMathCount == 1 &&
+                  fallback->Map().Display().find(L"$x$") != std::wstring::npos && fallback->Map().Display().find(L"\ufffc") != std::wstring::npos &&
+                  fallback->Map().Display().find(L"Heading") != std::wstring::npos && fallback->Map().Display().find(L"# Heading") == std::wstring::npos &&
+                  fallback->Map().Display().find(L"bold suffix") != std::wstring::npos &&
+                  fallback->Map().Display().find(L"**bold suffix**") == std::wstring::npos && heading && link &&
+                  failedMath->parent == static_cast<std::size_t>(link - fallback->Elements().data()) && link->title == L"original title" &&
+                  link->destination == L"https://example.test" && editor->GetText() == source && editor->GetSelection() == Selection{caret, caret} &&
+                  ! editor->CanUndo(),
+              "font-local rejection preserves the exact formula source, its title, supported math, and neighboring rich semantic structure");
+        const auto attempts = calls->matchingLayouts;
+        Check(PrepareUntilSettled(*editor, host) == S_OK && calls->matchingLayouts == attempts,
+              "the same unsupported math/key is not retried during idle preparation");
+
+        auto appearance            = editor->GetAppearance();
+        appearance.bodyFontSizeDip = 13.f;
+        editor->SetAppearance(appearance);
+        Check(PrepareUntilSettled(*editor, host) == S_OK, "a changed math geometry key is eligible for native retry");
+        const auto recovered                = editor->GetAcknowledgedSemanticDocument(host);
+        const auto recoveredObjectMathCount = recovered ? std::ranges::count_if(recovered->Elements(),
+                                                                                [](const auto& element)
+        { return element.role == SemanticRole::Math && element.display.last == element.display.first + 1u; })
+                                                        : 0;
+        Check(recovered && recovered->Diagnostics().empty() && recoveredObjectMathCount == 2 && calls->matchingLayouts > attempts &&
+                  editor->GetText() == source && editor->GetSelection() == Selection{caret, caret} && ! editor->CanUndo(),
+              "changed-key native math succeeds without editing source or adding undo history");
+    }
+
+    {
+        constexpr std::wstring_view source = L"$x$\n";
+        auto* editor                       = install(std::wstring(source));
+        editor->SetSelection({1u, 1u});
+        SemanticWriteFactoryOverride override(host);
+        auto* calls                    = override.Get();
+        calls->failLayoutText          = L"x";
+        calls->layoutFailure           = DWRITE_E_UNEXPECTED;
+        calls->failMatchingLayoutCount = 1u;
+        const auto failed              = PrepareUntilSettled(*editor, host);
+        Check(failed == DWRITE_E_UNEXPECTED && calls->failedLayouts == 1u, "retryable DirectWrite failure preserves its HRESULT at the editor boundary");
+        Check(PrepareUntilSettled(*editor, host) == S_OK, "the unchanged math key retries after a transient DirectWrite failure");
+        const auto recovered = editor->GetAcknowledgedSemanticDocument(host);
+        Check(recovered && recovered->Diagnostics().empty() && calls->matchingLayouts >= 2u && editor->GetText() == source &&
+                  editor->GetSelection() == Selection{1u, 1u} && ! editor->CanUndo(),
+              "transient DirectWrite failure is not latched as formula source fallback");
+    }
+
+    {
+        constexpr std::wstring_view source = L"$x$\n";
+        auto* editor                       = install(std::wstring(source));
+        editor->SetSelection({1u, 1u});
+        SemanticWriteFactoryOverride override(host);
+        auto* calls                    = override.Get();
+        calls->failLayoutText          = L"x";
+        calls->layoutFailure           = E_OUTOFMEMORY;
+        calls->failMatchingLayoutCount = 1u;
+        const auto failed              = PrepareUntilSettled(*editor, host);
+        Check(failed == E_OUTOFMEMORY && calls->failedLayouts == 1u,
+              "DirectWrite allocation HRESULT remains E_OUTOFMEMORY instead of becoming capacity fallback");
+        Check(PrepareUntilSettled(*editor, host) == S_OK, "same-key formula preparation can retry after DirectWrite allocation failure");
+        const auto recovered = editor->GetAcknowledgedSemanticDocument(host);
+        Check(recovered && recovered->Diagnostics().empty() && editor->GetText() == source && editor->GetSelection() == Selection{1u, 1u} &&
+                  ! editor->CanUndo(),
+              "allocation failure never publishes a permanent formula rejection");
+    }
+
+    {
+        constexpr std::wstring_view source = L"$x$\n";
+        auto* editor                       = install(std::wstring(source));
+        editor->SetSelection({1u, 1u});
+        SemanticWriteFactoryOverride override(host);
+        auto* calls                           = override.Get();
+        calls->failLayoutText                 = L"x";
+        const auto previousLineMetricsFailure = RichText::Detail::testRichMathLineMetricsFailure;
+        const auto restoreLineMetricsFailure =
+            wil::scope_exit([previousLineMetricsFailure]() noexcept { RichText::Detail::testRichMathLineMetricsFailure = previousLineMetricsFailure; });
+        RichText::Detail::testRichMathLineMetricsFailure = E_OUTOFMEMORY;
+        const auto failed                                = PrepareUntilSettled(*editor, host);
+        Check(failed == E_OUTOFMEMORY && calls->failedLayouts == 0u,
+              "line-metrics allocation HRESULT is not converted into a permanent one-line capacity rejection");
+        Check(PrepareUntilSettled(*editor, host) == S_OK, "line-metrics allocation failure remains retryable for the unchanged key");
+        const auto recovered = editor->GetAcknowledgedSemanticDocument(host);
+        Check(recovered && recovered->Diagnostics().empty() && editor->GetText() == source && editor->GetSelection() == Selection{1u, 1u} &&
+                  ! editor->CanUndo(),
+              "line-metrics retry publishes native math rather than source fallback");
+        RichText::Detail::testRichMathLineMetricsFailure = S_OK;
+    }
+#else
+    static_cast<void>(host);
+#endif
 }
 
 template <typename Prepare> void Transactions(ControlHost& host, Prepare&& prepare)

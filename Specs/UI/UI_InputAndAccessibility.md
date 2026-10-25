@@ -82,7 +82,7 @@ HelpText. An existing diagnostic explanation takes priority; finishing an
 incomplete metadata fence removes that explanation and restores action help.
 
 Status: normative intended contract
-Last reviewed: 2026-10-18
+Last reviewed: 2026-10-25
 
 RichTextEditor v0 is a bounded retained preview using ControlHost's shared native
 TSF/IMM and application-bridged embedded text services. SupportsTextInput is true;
@@ -883,16 +883,19 @@ visible-row semantics, including offscreen rows. The default implementation retu
 row-by-row capture through `GetVisibleItemCount()` and `GetVisibleItem()`. The source count must equal the model's
 visible item count or it is discarded in favor of that same fallback. `GetItem(visibleIndex)` and
 `FindItem(itemId)` are bounded, allocation-free reads returning an empty optional for a missing row. A row view
-contains visible index, ID, borrowed text, depth, `hasChildren`, and `expanded`.
+contains visible index, ID, borrowed text, depth, `hasChildren`, `expanded`, and optional borrowed `badgeText`.
+DxUi exposes `badgeText` as that TreeItem's UI Automation `ItemStatus`; an omitted or empty value is the empty
+status and does not change the stable row `Name`. Badge text storage follows the same retained source lifetime as
+row text.
 
 The source's shared identity is the semantic epoch used by accessibility snapshot comparison. Preserve identity only
-while the ordered visible-row sequence and each row's ID, text, depth, child presence, and expanded state are all
-unchanged. Any change to those fields, including reordering or replacement with the same count and IDs, requires a
-new shared identity. Selection is independent of row semantics and does not require replacing the source. On an
-identity change, the snapshot treats the Tree children as changed; it does not walk the source to diff rows.
+while the ordered visible-row sequence and each row's ID, text, depth, child presence, expanded state, and badge
+status are all unchanged. Any change to those fields, including reordering or replacement with the same count and IDs,
+requires a new shared identity. Selection is independent of row semantics and does not require replacing the source.
+On an identity change, the snapshot treats the Tree children as changed; it does not walk the source to diff rows.
 
-Text storage is borrowed from the source and must stay valid through every read for as long as a shared source
-reference remains readable. Consumers own bounded, allocation-free source queries and capture, preparation and
+Text and badge-status storage are borrowed from the source and must stay valid through every read for as long as a
+shared source reference remains readable. Consumers own bounded, allocation-free source queries and capture, preparation and
 admission, and arranging final source destruction on the appropriate lane, including releases by foreign retained
 readers. Capture only retains an already prepared source; it does not construct, copy, or traverse rows. DxUi does
 not create a row-preparation worker or define the consumer's preparation lane. These requirements define source ownership and

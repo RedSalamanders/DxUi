@@ -34,15 +34,22 @@ the caret remains independent and high contrast always forces the focus indicato
 
 Tree row painting, hit testing, tooltip and accessibility geometry use one canonical row calculation, including
 hidden/reserved expanders. Neutral decorations opt into subdued unselected icons and count badges; a dot badge
-retains its textual accessible description. Subtle Splitters paint a thin idle seam while preserving the full resize
-hit target and keyboard/drag behavior; hover, dragging, keyboard focus and high contrast retain the normal handle.
+retains its textual accessible description as the TreeItem's UI Automation `ItemStatus`; `Name` remains the row text.
+For a legacy mutable model, `NotifyItemPresentationChanged(itemId)` publishes a badge text/tone/dot-only update for
+an existing visible row after the caller updates its data. IDs, order, row text, depth, child/expanded state and visible
+membership must stay unchanged. The notification invalidates badge/tooltip text measurements, paint and accessibility
+status without reconciling selection, focus, reorder state or scroll. It returns false without publication for a missing
+or nonvisible row and for models that supply prepared accessibility rows. A prepared source publishes status through
+its immutable row view and the normal prepared-source update path. Subtle Splitters paint a thin idle seam while
+preserving the full resize hit target and keyboard/drag behavior; hover, dragging, keyboard focus and high contrast
+retain the normal handle.
 
 `RichText::SemanticSpacing` optionally supplies per-level heading margins and container indentation to semantic
 document layout. All values are finite: margins 0..256 DIP, indentation 0..64 DIP. Heading margins are minima and
 credit real source blank-line caret boxes; no source site is dropped, compressed or fabricated. An absent option
 preserves existing geometry. The option participates in complete geometry reuse/retirement and is validated before
 replacing a published layout. Ordinary source-view text geometry stays governed by its existing source policy.
-Last reviewed: 2026-10-23
+Last reviewed: 2026-10-25
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -371,7 +378,7 @@ not allocate new formats per frame. A changed override invalidates intrinsic mea
 paint, and a synchronous embedded preparation callback may measure the new state or retire its control; the
 setter MUST stop touching a retired control. Native glyph capture, wrapped intrinsic metrics, cache stability,
 resource-generation replacement and embedded callback tests cover the opt-in behavior.
-`Label` typography/font-role and `Separator` orientation setters follow this callback boundary as well. In an embedded
+`Label` text, multiline, typography/font-role and `Separator` orientation setters follow this callback boundary as well. In an embedded
 view, measurement invalidation may synchronously reach the consumer's preparation-scheduling callback; the consumer
 may retire or replace controls through a `ControlHost` reference borrowed before that callback. The callback must not
 re-enter `EmbeddedHost` preparation, composition, input, device or lifecycle methods. A setter continuing after the
@@ -1953,11 +1960,21 @@ Every rejected formula has its own Math element, accessible explanation and exac
 source diagnostic; rejection cannot overwrite its enclosing link's title or destination.
 A persistent native geometry-capacity failure falls back only the affected formula
 or complete Mermaid fence, including its original container prefixes and EOLs.
-Other semantic content stays rich. The presentation rejection key includes immutable
-syntax, width, direction, host typography/resource generation, binding and local
-appearance geometry revision. Repeated idle preparation does not retry the same
-rejection; changing a key retries it. Allocation exhaustion and transient SDK/device
-errors are separate failures and cannot become permanent syntax rejections.
+For an individual math formula, DirectWrite `DWRITE_E_UNSUPPORTEDOPERATION` during
+leaf preparation is also a persistent object-local rejection: the operation is not
+supported by the selected font type. The formula's accessible explanation uses
+cause-neutral wording because the same source-preserving view fallback also covers
+capacity and font-operation failures. Other semantic content stays rich. The
+presentation rejection key includes immutable syntax, width, direction, host
+typography/resource generation, binding and local appearance geometry revision.
+Repeated idle preparation does not retry the same rejection; changing a key retries
+it. DirectWrite `GetLineMetrics` reports a one-line-capacity rejection only when it
+returns `E_NOT_SUFFICIENT_BUFFER` and reports more than one required line. Other
+failed HRESULTs from leaf layout/metrics and image upload preserve their original
+error channel and leave the request retryable. In particular, `E_OUTOFMEMORY`,
+`DWRITE_E_UNEXPECTED`, `D2DERR_RECREATE_TARGET` and DXGI device-loss results must not
+be converted into permanent source rejection; they remain eligible for explicit
+preparation retry or resource-generation recovery.
 
 The native Mermaid engine additionally accepts a bounded `stateDiagram` /
 `stateDiagram-v2` profile: direction, simple declarations/quoted aliases,

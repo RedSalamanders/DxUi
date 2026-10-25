@@ -1693,7 +1693,7 @@ void SemanticMathLiteralFallback(bool embedded)
     auto appearance                       = fixture.editor->GetAppearance();
     appearance.bodyFontSizeDip            = 96.f;
     fixture.editor->SetAppearance(appearance);
-    verify(capacitySource, capacityExpression, L"Equation exceeds native geometry capacity for this view. Exact source is preserved.", L"capacity title");
+    verify(capacitySource, capacityExpression, L"Equation cannot be prepared natively for this view. Exact source is preserved.", L"capacity title");
 }
 void SemanticDecodedImages(bool embedded)
 {

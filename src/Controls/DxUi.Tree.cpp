@@ -763,6 +763,41 @@ void Tree::NotifyDataChanged()
     }
 }
 
+bool Tree::NotifyItemPresentationChanged(uint64_t itemId) noexcept
+{
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
+    if (! model)
+        return false;
+
+    // Prepared accessibility rows are immutable semantic epochs. This targeted legacy notification cannot publish a
+    // replacement source without also changing that source's structural identity, so the caller must use NotifyDataChanged.
+    if (model->CapturePreparedAccessibilityRows() || ! guard.IsCurrent())
+        return false;
+    const std::optional<size_t> visibleIndex = model->FindVisibleItemById(itemId);
+    if (! visibleIndex || ! guard.IsCurrent())
+        return false;
+    const size_t visibleItemCount = model->GetVisibleItemCount();
+    if (! guard.IsCurrent() || visibleIndex.value() >= visibleItemCount)
+        return false;
+    TreeItemData item;
+    if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex.value(), item); }) || ! guard.IsCurrent() || item.id != itemId)
+        return false;
+
+    // Tree rows have fixed height; badge text changes only the retained row metrics and badge/tooltip text measurements.
+    // Do not advance the host interaction revision or run the model-reconciliation path: row geometry for hit testing,
+    // selection, focus, drag state and scroll remain valid.
+    InvalidateTreeTextMeasurementCaches();
+    RequestInvalidate();
+    // Invalidation is observable. If its host callback retired/rebound this control, count the request as accepted but
+    // do not publish through a stale binding.
+    if (! guard.IsCurrent())
+        return true;
+    RefreshAccessibilitySnapshot();
+    // Refresh may publish UI Automation events which dispatch owner messages and retire this Tree. No member access follows.
+    return true;
+}
+
 void Tree::SetMultiSelectEnabled(bool enabled) noexcept
 {
     if (_multiSelect == enabled)

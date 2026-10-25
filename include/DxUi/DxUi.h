@@ -4336,6 +4336,12 @@ public:
     void SetRowHeightDip(float rowHeightDip) noexcept;
     void SetIndentDip(float indentDip) noexcept;
     void NotifyDataChanged();
+    // Publishes a badge-only change for a currently visible row of a legacy mutable model. IDs, order, text, depth,
+    // child/expanded state and visible membership must be unchanged. It invalidates the row's retained badge metrics,
+    // paint and accessibility status without reconciling selection, focus, reorder state or scroll. Returns false without
+    // publication when the row is absent or the model supplies a prepared accessibility-row source; prepared sources
+    // publish immutable row status with NotifyDataChanged instead.
+    [[nodiscard]] bool NotifyItemPresentationChanged(uint64_t itemId) noexcept;
     [[nodiscard]] ITreeModel* GetModel() const noexcept
     {
         return _model;

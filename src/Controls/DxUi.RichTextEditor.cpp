@@ -4,6 +4,7 @@
 #include "DxUi.RichEditorLayout.h"
 #include "DxUi.RichImagePaths.h"
 #include "DxUi.RichImageResources.h"
+#include "DxUi.RichSemanticGeometry.h"
 #include "DxUi.RichSourceInk.h"
 #include "DxUi.SemanticExtensions.h"
 #include "DxUi.TextElements.h"
@@ -11,6 +12,7 @@
 #include <DxUi/RichTextLayout.h>
 #include <cmath>
 #include <stdexcept>
+#include <wil/result.h>
 
 namespace DxUi
 {
@@ -1131,6 +1133,65 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
     state.lastAdvanceLayouts = state.lastAdvanceBlockSteps = 0u;
     state.lastAdvanceMarkdownWork                          = 0u;
     state.lastAdvanceSemanticWork                          = 0u;
+    const auto rejectNativeObject                          = [&](std::size_t element) -> HRESULT
+    {
+        const auto value = GetSemanticDocument();
+        if (value && state.markdownRendering && state.mode == RichText::ViewMode::Rich)
+        {
+            if (element < value->Elements().size() &&
+                (value->Elements()[element].role == RichText::SemanticRole::Math || value->Elements()[element].role == RichText::SemanticRole::Diagram))
+            {
+                try
+                {
+                    if (! state.nativeObjectRejections)
+                    {
+                        auto& rejected      = state.nativeObjectRejections.emplace();
+                        rejected.syntax     = value->Syntax();
+                        rejected.width      = std::max(1.0f, TextViewport().right - TextViewport().left);
+                        rejected.typography = host.GetTypographyRevision();
+                        rejected.resources  = host.GetResourceGeneration();
+                        rejected.binding    = state.bindingRevision;
+                        rejected.appearance = state.appearanceRevision;
+                        rejected.rtl        = IsRightToLeft();
+                    }
+                    auto& objects     = state.nativeObjectRejections->objects;
+                    const auto source = value->Elements()[element].source;
+                    if (objects.size() < RichText::Detail::SemanticExtensions::MaximumObjects && std::ranges::find(objects, source) == objects.end())
+                    {
+                        objects.push_back(source);
+                        std::ranges::sort(objects, {}, &RichText::MarkdownRange::first);
+                        RetireSemanticAccessibility();
+                        state.semantic.Clear();
+                        state.layout.Invalidate();
+                        state.requestActive = false;
+                        return S_FALSE;
+                    }
+                }
+                catch (const std::bad_alloc&)
+                {
+                    // This noexcept preparation boundary reports resource
+                    // exhaustion without publishing a partial rejection set.
+                    state.nativeObjectRejections.reset();
+                    state.layout.Invalidate();
+                    state.requestActive = false;
+                    return E_OUTOFMEMORY;
+                }
+            }
+            state.nativeGeometryRejected.emplace(value,
+                                                 std::max(1.0f, TextViewport().right - TextViewport().left),
+                                                 host.GetTypographyRevision(),
+                                                 host.GetResourceGeneration(),
+                                                 state.bindingRevision,
+                                                 IsRightToLeft());
+            RetireSemanticAccessibility();
+            state.layout.Invalidate();
+            state.requestActive = false;
+            return S_FALSE;
+        }
+        state.layout.Invalidate();
+        state.requestActive = false;
+        return E_FAIL;
+    };
     try
     {
         const auto viewport = TextViewport();
@@ -1239,6 +1300,10 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             }
         }
         auto* factory = host.GetWriteFactory();
+#if DXUI_ENABLE_DIAGNOSTICS
+        if (RichText::Detail::testRichSemanticWriteFactory)
+            factory = RichText::Detail::testRichSemanticWriteFactory;
+#endif
         if (semanticDocument && state.RejectsNativeGeometry(semanticDocument, width, IsRightToLeft(), typography, resources))
             semanticDocument.reset();
         if (semanticDocument)
@@ -1350,66 +1415,17 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         UpdateCaretLinkDisplayRange();
         return PrepareSourceInk() ? S_OK : S_FALSE;
     }
+    catch (const RichText::Detail::NativeObjectUnsupported& failure)
+    {
+        if (failure.Error() != DWRITE_E_UNSUPPORTEDOPERATION)
+            return failure.Error();
+        return rejectNativeObject(failure.Element());
+    }
     catch (const RichText::Detail::NativeObjectCapacity& failure)
     {
-        // Native font/width rejection belongs to this layout key. A wider view,
-        // changed font/resource epoch or new binding must be able to retry;
-        // syntax-only rejection would permanently strand a valid graph.
-        const auto value = GetSemanticDocument();
-        if (value && state.markdownRendering && state.mode == RichText::ViewMode::Rich)
-        {
-            const auto viewport = TextViewport();
-            const auto width    = std::max(1.0f, viewport.right - viewport.left);
-            const auto element  = failure.Element();
-            if (element < value->Elements().size() &&
-                (value->Elements()[element].role == RichText::SemanticRole::Math || value->Elements()[element].role == RichText::SemanticRole::Diagram))
-            {
-                try
-                {
-                    if (! state.nativeObjectRejections)
-                    {
-                        auto& rejected      = state.nativeObjectRejections.emplace();
-                        rejected.syntax     = value->Syntax();
-                        rejected.width      = width;
-                        rejected.typography = host.GetTypographyRevision();
-                        rejected.resources  = host.GetResourceGeneration();
-                        rejected.binding    = state.bindingRevision;
-                        rejected.appearance = state.appearanceRevision;
-                        rejected.rtl        = IsRightToLeft();
-                    }
-                    auto& objects     = state.nativeObjectRejections->objects;
-                    const auto source = value->Elements()[element].source;
-                    if (objects.size() < RichText::Detail::SemanticExtensions::MaximumObjects && std::ranges::find(objects, source) == objects.end())
-                    {
-                        objects.push_back(source);
-                        std::ranges::sort(objects, {}, &RichText::MarkdownRange::first);
-                        RetireSemanticAccessibility();
-                        state.semantic.Clear();
-                        state.layout.Invalidate();
-                        state.requestActive = false;
-                        return S_FALSE;
-                    }
-                }
-                catch (const std::bad_alloc&)
-                {
-                    // This noexcept preparation boundary reports resource
-                    // exhaustion without publishing a partial rejection set.
-                    state.nativeObjectRejections.reset();
-                    state.layout.Invalidate();
-                    state.requestActive = false;
-                    return E_OUTOFMEMORY;
-                }
-            }
-            state.nativeGeometryRejected.emplace(
-                value, width, host.GetTypographyRevision(), host.GetResourceGeneration(), state.bindingRevision, IsRightToLeft());
-            RetireSemanticAccessibility();
-            state.layout.Invalidate();
-            state.requestActive = false;
-            return S_FALSE;
-        }
-        state.layout.Invalidate();
-        state.requestActive = false;
-        return E_FAIL;
+        // Bounded geometry capacity and the explicitly classified font-local
+        // unsupported operation both reject only the owning object/key.
+        return rejectNativeObject(failure.Element());
     }
     catch (const std::length_error&)
     {
@@ -1435,6 +1451,19 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         state.markdownRequestActive = false;
         state.requestActive         = false;
         return E_OUTOFMEMORY;
+    }
+    catch (const wil::ResultException& failure)
+    {
+        // Preserve native HRESULTs across this noexcept preparation boundary.
+        // In particular, target loss remains visible to the host and memory
+        // exhaustion never becomes an object-capacity rejection.
+        state.images.Cancel();
+        state.layout.Invalidate();
+        state.markdown.Cancel();
+        state.semantic.Cancel();
+        state.markdownRequestActive = false;
+        state.requestActive         = false;
+        return failure.GetErrorCode();
     }
     catch (const std::exception&)
     {

@@ -75,10 +75,19 @@ Set bounds, visibility, enabled state and content before preparation. Mutate con
 For large Tree models, optionally return already prepared immutable rows from
 `ITreeModel::CapturePreparedAccessibilityRows()`. This keeps complete offscreen names available while a changed
 accessibility snapshot retains one source instead of copying every label. The default null result preserves the
-existing model path. Keep the source's ordered IDs, text, depth, child presence and expansion state coherent;
+existing model path. Keep the source's ordered IDs, text, depth, child presence, expansion state and badge status coherent;
 publish a new shared source when any of those change. Selection does not require a new source. Its borrowed text
-must remain valid through retained foreign readers, and the consumer owns preparation, admission and final
-destruction. See the [Tree usage and lifetime contract](../Specs/DesignSystem/components/Tree/README.md#optional-prepared-accessibility-rows)
+and optional borrowed badge status must remain valid through retained foreign readers, and the consumer owns
+preparation, admission and final destruction. Badge status is exposed as the TreeItem `ItemStatus`; row `Name`
+remains its text. Prepared sources publish a changed status by publishing their normal new immutable source and
+calling `NotifyDataChanged`.
+
+For a legacy mutable model, update a visible row's badge text/tone/dot and call
+`NotifyItemPresentationChanged(itemId)`. This narrow path refreshes badge/tooltip measurements, paint and UIA
+`ItemStatus` without reconciling selection, focus, order or scroll. Keep IDs, order, row text, depth, child/expanded
+state and visible membership unchanged. The call returns false without publication for a missing/nonvisible row or
+a model supplying prepared rows; use `NotifyDataChanged` when row semantics or topology change. See the
+[Tree usage and lifetime contract](../Specs/DesignSystem/components/Tree/README.md#optional-prepared-accessibility-rows)
 and [library qualification](../Measurements/PreparedTreeAccessibility/2026-10-06/README.md).
 
 Use `SetAccessibleInvokeResult` for an accessible action that can fail, returning its HRESULT to UI Automation.

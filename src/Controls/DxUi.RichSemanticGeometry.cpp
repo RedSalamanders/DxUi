@@ -8,12 +8,15 @@
 #include <stdexcept>
 #include <tuple>
 #include <wil/resource.h>
+#include <wil/result.h>
 #include <wrl/implements.h>
 
 namespace DxUi::RichText::Detail
 {
 #if DXUI_ENABLE_DIAGNOSTICS
 thread_local const RichImageRasterCalls* testRichImageRasterCalls{};
+thread_local IDWriteFactory* testRichSemanticWriteFactory{};
+thread_local HRESULT testRichMathLineMetricsFailure{S_OK};
 #endif
 namespace
 {
@@ -144,6 +147,11 @@ struct NativeImageGeometry
             auto& placement   = placements[resources.placements.size() + index];
             placement.element = maths[index].element;
             placement.display = document.Elements()[placement.element].display;
+            // PreparedMath construction validates bounded AST storage and reads
+            // optional MATH constants without HRESULT propagation. Font-local
+            // SDK operations occur only in PrepareMath below, where the exact
+            // affected formula is known. Bounded AST validation can still
+            // reject this formula as a local geometry-capacity failure.
             try
             {
                 placement.math = std::make_unique<PreparedMath>(write, maths[index].expression, font * 1.15f, maths[index].display);
@@ -181,6 +189,16 @@ struct NativeImageGeometry
         try
         {
             return placements[index].math->Advance();
+        }
+        catch (const wil::ResultException& failure)
+        {
+            // This DirectWrite result is scoped to the current formula/font:
+            // the operation is unsupported by the selected font type. Other
+            // HRESULTs, including device loss and memory exhaustion, stay
+            // retryable and retain their original error channel.
+            if (failure.GetErrorCode() == DWRITE_E_UNSUPPORTEDOPERATION)
+                throw NativeObjectUnsupported("Mathematical operation is unsupported by the selected font", placements[index].element, failure.GetErrorCode());
+            throw;
         }
         catch (const std::length_error&)
         {
