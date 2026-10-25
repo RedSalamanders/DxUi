@@ -480,6 +480,18 @@ __declspec(noinline) static void TestEmbeddedTreeBadgeStatusNotificationsArePerI
                 "embedded badge-only publication does not raise a Tree structure event");
     const size_t mark = walk.client.Mark();
 
+    model.SetItems(rows(L"A-first", L"B-first", L"C0"));
+    PublishEmbeddedView(test, bridge, "publish the first distinct per-row statuses before holding delivery");
+    walk.Expect(walk.client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs,
+                                      [&]
+    {
+        return walk.client.Count([&](const UiaTest::HeardEvent& event) { return matchesStatus(event, L"Alpha", L"A-first"); }) != 0u &&
+               walk.client.Count([&](const UiaTest::HeardEvent& event) { return matchesStatus(event, L"Beta", L"B-first"); }) != 0u;
+    }),
+                "both distinct first statuses arrive within the ordinary notification deadline");
+    static_cast<void>(walk.client.WaitOutTheStream());
+    const size_t heldMark = walk.client.Mark();
+
     wil::unique_event entered(CreateEventW(nullptr, TRUE, FALSE, nullptr));
     wil::unique_event release(CreateEventW(nullptr, TRUE, FALSE, nullptr));
     Check(entered && release, "embedded badge-status delivery gate events exist");
@@ -490,9 +502,11 @@ __declspec(noinline) static void TestEmbeddedTreeBadgeStatusNotificationsArePerI
         DxUi::DebugSetAccessibilityPropertyDeliveryGateForTest(nullptr, nullptr, nullptr);
     });
 
-    model.SetItems(rows(L"A-first", L"B-first", L"C0"));
-    PublishEmbeddedView(test, bridge, "queue the first per-row status batch");
-    Check(WaitForSingleObject(entered.get(), 10000u) == WAIT_OBJECT_0, "the first embedded property batch reaches the delivery gate");
+    // Rows are queued separately, so a worker may extract the first row before the next one is enqueued.
+    // Hold one unrelated active event; the two rows under test then remain pending together until release.
+    model.SetItems(rows(L"A-first", L"B-first", L"C-inflight"));
+    PublishEmbeddedView(test, bridge, "hold a single unrelated status batch before queuing the coalescing cases");
+    Check(WaitForSingleObject(entered.get(), 10000u) == WAIT_OBJECT_0, "the unrelated embedded property batch reaches the delivery gate");
 
     model.SetItems(rows(L"A-middle", L"B-middle", L"C-stale"));
     PublishEmbeddedView(test, bridge, "queue same-row status updates and a soon-to-be-removed row");
@@ -502,7 +516,7 @@ __declspec(noinline) static void TestEmbeddedTreeBadgeStatusNotificationsArePerI
                     TreeItemData{.id = 2u, .text = L"Beta", .badgeText = L"B-final"},
                     TreeItemData{.id = 30u, .text = L"Gamma", .badgeText = L"Replacement"}});
     PublishEmbeddedView(test, bridge, "remove the queued Gamma ID and add a different ID at that visible slot");
-    const auto heldEvents = walk.client.DistinctSince(mark);
+    const auto heldEvents = walk.client.DistinctSince(heldMark);
     walk.Expect(std::ranges::none_of(heldEvents,
                                      [](const UiaTest::HeardEvent& event)
     { return event.kind == UiaTest::EventKind::Property && event.id == UIA_ItemStatusPropertyId; }),
@@ -512,20 +526,18 @@ __declspec(noinline) static void TestEmbeddedTreeBadgeStatusNotificationsArePerI
     DxUi::DebugSetAccessibilityPropertyDeliveryGateForTest(nullptr, nullptr, nullptr);
     clearGate.release();
     // The artificial gate holds several publications; sanitized runners may need the client request allowance to drain them.
-    // The ordinary status-only notification above retains its shorter deadline.
+    // The ordinary status-only and first-status notifications above retain their shorter deadline.
     const ULONGLONG batchStarted = GetTickCount64();
     const bool batchArrived      = walk.client.WaitUntil(UiaTest::Client::kRequestAllowanceMs,
                                                          [&]
     {
-        return walk.client.Count([&](const UiaTest::HeardEvent& event) { return matchesStatus(event, L"Alpha", L"A-first"); }) != 0u &&
-               walk.client.Count([&](const UiaTest::HeardEvent& event) { return matchesStatus(event, L"Beta", L"B-first"); }) != 0u &&
-               walk.client.Count([&](const UiaTest::HeardEvent& event) { return matchesStatus(event, L"Alpha", L"A-final"); }) != 0u &&
+        return walk.client.Count([&](const UiaTest::HeardEvent& event) { return matchesStatus(event, L"Alpha", L"A-final"); }) != 0u &&
                walk.client.Count([&](const UiaTest::HeardEvent& event) { return matchesStatus(event, L"Beta", L"B-final"); }) != 0u;
     });
     const ULONGLONG batchWaited  = GetTickCount64() - batchStarted;
     if (! batchArrived || batchWaited >= UiaTest::Client::kSlowArrivalMs)
         std::cerr << "    [UIA] held TreeItem status batch " << (batchArrived ? "arrived" : "timed out") << " after " << batchWaited << " ms\n";
-    walk.Expect(batchArrived, "the client receives each distinct first status and both coalesced final statuses within the held-batch allowance");
+    walk.Expect(batchArrived, "the client receives both coalesced final statuses within the held-batch allowance");
     static_cast<void>(walk.client.WaitOutTheStream());
     const auto events      = walk.client.DistinctSince(mark);
     const auto countStatus = [&](std::wstring_view name, std::wstring_view value)
@@ -537,6 +549,7 @@ __declspec(noinline) static void TestEmbeddedTreeBadgeStatusNotificationsArePerI
     walk.Expect(countStatus(L"Alpha", L"A-middle") == 0 && countStatus(L"Beta", L"B-middle") == 0, "superseded same-item statuses are not delivered");
     walk.Expect(countStatus(L"Gamma", L"C-stale") == 0 && countStatus(L"Gamma", L"Replacement") == 0,
                 "the removed item's queued status does not leak to the different ID at the same visible slot");
+    // C-inflight was extracted before the gate and is outside pending-queue pruning; its eventual delivery is not asserted.
     const auto replacementItems = walk.client.Children(treeElement.value());
     walk.Expect(replacementItems.size() == 3u && walk.client.StringProperty(replacementItems.back(), UIA_ItemStatusPropertyId) == L"Replacement",
                 "the replacement TreeItem exposes its own current status after the stale event is pruned");

@@ -18,7 +18,9 @@
 - [x] baff43d8 ARM64 cross-builds: Debug, Release and ASan Debug build successfully; this is not native ARM64 execution.
 - [x] baff43d8 late counterfactuals and Tree regressions: six source-bound counterfactual variants and the late Tree cases complete; their evidence remains distinct from whole-source acceptance.
 - [x] baff43d8 hosted paired evidence: publish all 78 independently replayed rows and source bindings; zero regressions do not qualify the unqualified base policy or unstable controls.
-- [ ] baff43d8 hosted ASan Embedded gate: two gated batches hit the 3-second ItemStatus notification timeout, with no sanitizer memory report. The bounded test-only wait adjustment to the existing 20-second request allowance is patched; fresh local and hosted validation remain pending.
+- [x] Diagnose the remaining be1ad177 Embedded ASan failure: the first publication's rows are independently enqueued, so the worker can gate Alpha alone and leave Beta's first value pending for coalescing. A longer wait does not make that batch atomic.
+- [ ] Validate the deterministic Tree fixture: deliver both first values before gating one unrelated event; preserve ordinary deadlines, held silence, per-ID coalescing, pruning and exact counts. Fresh local and hosted validation remain pending.
+- [ ] Close current-source native/build/input and performance gates; retain the failed be1ad177 ASan attempt and all earlier evidence.
 
 Status: **IMPLEMENTING; final profile and performance qualification remain open**. This appendix updates evidence
 and sequencing for the [existing audit](../RichTextAudit_2026-10-21.md); its implementation work-item IDs remain
@@ -26,11 +28,28 @@ authoritative. The separate RedTilde repository's `Specs/Plans/WIP/RedesignCompl
 contains the cross-repository sequence, compatibility test matrices, reviewed commands and closeout conditions.
 This appendix adds no second defect backlog or independent acceptance policy.
 
+### Deterministic held-batch correction — 25 October
+
+The `be1ad177` local continuation builds all six profiles and passes the x64 Debug and Release Embedded suites.
+Its ASan Debug Embedded run `20261025T081258851Z-668-07d2fc3321c5433aa631f233e811e215` fails after the full
+20-second gated allowance. The frozen client trace contains Alpha's first and final values and Beta's final value,
+but no Beta first value; there is no sanitizer memory report. The queue moves currently pending properties to a
+worker-owned batch before the diagnostic gate. Because rows enqueue separately, Alpha can be extracted while Beta
+remains pending and is legitimately coalesced to its final value. This is a fixture-ordering defect, not evidence
+that the library must deliver every intermediate status or that another timeout increase is appropriate.
+
+The corrected fixture first receives both distinct first values under the unchanged 3-second ordinary deadline,
+then holds one unrelated Gamma event before queuing the middle/final updates and removing Gamma's ID. A separate
+held-event mark preserves the silence check; all original exact first/final, superseded-value, stale-ID and
+replacement getter assertions remain. Gamma's already extracted event is outside pending pruning and is not an
+asserted outcome. The existing 20-second gated allowance is unchanged. No runtime code, public hook or dependency
+is added. These changes require new source-bound local and hosted validation; the failed attempts remain retained.
+
 ### Late SDK checkpoint — baff43d8 (25 October)
 
 The final local SDK x64 matrix at `baff43d8` passes all 19 ordinary suites with zero skips in Debug, Release and ASan Debug; the real ASan detection probe passes. ARM64 Debug, Release and ASan Debug cross-builds pass, but do not establish native ARM64 execution. Six source-bound late counterfactual variants and the late Tree regression cases are complete; those focused results do not replace whole-source qualification.
 
-Hosted workflow `40154492633` binds PR #100 head `baff43d8` and actual base `b06f534b`. Four ordinary native jobs pass. Two ASan Embedded gated batches time out on the existing 3-second ItemStatus notification wait; no sanitizer memory report was produced. A bounded test-only correction now uses the existing 20-second request allowance for the gated notification batch and preserves the normal 3-second wait and semantics. Fresh local execution and a new hosted run are pending, so the hosted gate remains open. The corrected Embedded test will have a distinct future executable; it does not change the measured production source.
+Hosted workflow `40154492633` binds PR #100 head `baff43d8` and actual base `b06f534b`. Four ordinary native jobs pass. Two ASan Embedded gated batches time out on the existing 3-second ItemStatus notification wait; no sanitizer memory report was produced. The later `be1ad177` test-only correction uses the existing 20-second request allowance, but its local ASan attempt still fails with a missing Beta first value, as recorded above. The deterministic fixture correction and new hosted validation remain open. Corrected test executables are distinct artifacts; the test edits do not change the measured production source.
 
 The hosted benchmark still binds production source fingerprint `F423000D1AD799EDBAA3EE17B121480C5AE567CC75E2BCE2AF0D783AC7AB26F1` and the same six workload inputs. The canonical [SDK baff43d8 hosted packet](../../../../Measurements/RedTildeCompletion_2026-10-24/sdk-baff43d8/README.md) retains all 78 paired rows and independent numeric/integrity replays. It reports zero regressions, but 71/72 same-side controls are unstable and the base policy is unqualified; no performance acceptance is claimed. The baseline has a clean fingerprint match from prior verification but is marked dirty with three known harness overlays and no complete dirty-path inventory.
 

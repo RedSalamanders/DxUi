@@ -62,11 +62,17 @@ retains the original empty-event assertion, and freezes failure snapshots before
 messages. A passing rerun alone does not attribute or erase an earlier intermittent failure.
 
 The embedded Tree badge regression deliberately holds property delivery across several publications to test
-per-item coalescing and removed-ID pruning. After releasing that artificial gate, its four expected first/final
-notifications use the existing 20-second UIA client request allowance. Log elapsed time on slow arrival or timeout;
-retain every identity, coalescing, superseded-value and stale-ID assertion and the runner watchdog. The preceding
-ordinary status-only wait retains its 3-second notification deadline. This bounded held-batch test budget changes
-no product notification SLA, focus-event deadline or performance acceptance rule. Preserve earlier failed runs.
+per-item coalescing and removed-ID pruning. First deliver both distinct rows' first statuses within the ordinary
+3-second notification deadline and finish the bounded quiet wait. Then hold one unrelated row's active event at
+the delivery gate before queuing both tested rows' middle/final statuses and removing the unrelated row. Individual
+rows enqueue separately: the worker can extract the first row before the next enqueue, so a gate must not assume
+one publication's row events form an atomic batch. Assert held silence from a separate event mark. After releasing
+the gate, both coalesced final notifications use the existing 20-second UIA client request allowance. Log elapsed
+time on slow arrival or timeout; retain exact first/final counts, superseded-value and stale-ID assertions, the
+replacement getter and the runner watchdog. The unrelated event extracted before the gate is outside pending-queue
+pruning and has no delivery assertion. The preceding ordinary status-only wait also retains its 3-second deadline.
+These fixture boundaries change no product notification SLA, focus-event deadline or performance acceptance rule.
+Preserve earlier failed runs, including a longer timeout that cannot repair the batch-ordering assumption.
 
 The native IME undo-grouping fixture MUST restore its initial text and undo history after successful attempt
 admission and before `SetFocusControl`. A direct edit can survive foreground loss; focusing the same editor does
