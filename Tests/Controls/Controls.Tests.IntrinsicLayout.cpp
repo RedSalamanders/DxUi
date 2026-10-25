@@ -3,8 +3,12 @@
 #include "../../Samples/EmbeddedControls/GraphicsFixture.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 
+#include <DxUi/Typography.h>
+#include <dwrite_1.h>
+#include <exception>
 #include <iostream>
 #include <limits>
+#include <new>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -248,6 +252,124 @@ void TestLabelTypographyCharacterSpacingUsesRequestedTotal()
     tracked.characterSpacingDip = 1.5001f;
     Require(spaced.SetTypographyOverride(tracked) == S_FALSE && spaced.GetTypographyOverride() == normalized,
             "spacing values within one 1/64-DIP bucket publish idempotently");
+}
+
+void TestLabelZeroSpacingOverrideMatchesDefaultLayout()
+{
+    std::exception_ptr fixtureFailure;
+    std::jthread fixture([&]
+    {
+        // Runner assertions cross this thread-entry boundary; relay named failures after joining.
+        try
+        {
+            const auto apartment = wil::CoInitializeEx(COINIT_APARTMENTTHREADED);
+            DxUi::TestSupport::ScopedWindowActivationBlocker blocker;
+            Require(blocker.Start(), "the Label WARP fixture cannot activate or focus desktop windows");
+            AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, true);
+            auto& host             = window.Host();
+            auto theme             = host.GetTheme();
+            theme.reducedMotion    = true;
+            theme.text             = D2D1::ColorF(D2D1::ColorF::Black);
+            theme.windowBackground = D2D1::ColorF(D2D1::ColorF::White);
+            host.SetTheme(theme);
+            const Typography::Spec body = Typography::GetSpec(FontRole::Body);
+            const LabelTypography exactDefault{body.sizeDip, body.weight, 0.0f};
+            auto* format = host.GetTextFormat(
+                FontRole::Body, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, DWRITE_READING_DIRECTION_LEFT_TO_RIGHT);
+            Require(format != nullptr && host.GetWriteFactory() != nullptr, "default Body format and DirectWrite factory are available");
+            constexpr std::wstring_view oracleText = L"Default spacing";
+            wil::com_ptr<IDWriteTextLayout> oracle;
+            RequireSucceeded(
+                host.GetWriteFactory()->CreateTextLayout(oracleText.data(), static_cast<UINT32>(oracleText.size()), format, 240.0f, 64.0f, oracle.put()),
+                "create a layout without applying character spacing");
+            wil::com_ptr<IDWriteTextLayout1> oracle1;
+            RequireSucceeded(oracle->QueryInterface(IID_PPV_ARGS(oracle1.put())), "default text layout exposes spacing inspection");
+            const auto requireDefaultSpacingAt = [&](UINT32 position)
+            {
+                float leading = -1.0f, trailing = -1.0f, minimumAdvance = -1.0f;
+                DWRITE_TEXT_RANGE spacingRange{};
+                RequireSucceeded(oracle1->GetCharacterSpacing(position, &leading, &trailing, &minimumAdvance, &spacingRange),
+                                 "query DirectWrite default character spacing");
+                Require(leading == 0.0f && trailing == 0.0f && minimumAdvance == 0.0f, "a new layout reports zero spacing");
+                Require(spacingRange.startPosition <= position && position - spacingRange.startPosition < spacingRange.length,
+                        "the returned formatting range covers the queried source position");
+            };
+            requireDefaultSpacingAt(0u);
+            requireDefaultSpacingAt(static_cast<UINT32>(oracleText.size() - 1u));
+
+            Label measuredDefault{std::wstring(oracleText)};
+            Label measuredOverride{std::wstring(oracleText)};
+            measuredDefault.SetMultiline(true);
+            measuredOverride.SetMultiline(true);
+            measuredDefault.SetFlowDirection(FlowDirection::RightToLeft);
+            measuredOverride.SetFlowDirection(FlowDirection::RightToLeft);
+            Require(measuredOverride.SetTypographyOverride(exactDefault) == S_OK, "exact default typography override is accepted");
+            DesiredSize defaultSize, overrideSize;
+            const LayoutConstraints measureBounds{.maximumWidthDip = 110.0f};
+            RequireSucceeded(measuredDefault.Measure({host}, measureBounds, defaultSize), "measure the default-role RTL caption");
+            RequireSucceeded(measuredOverride.Measure({host}, measureBounds, overrideSize), "measure the exact-default RTL override");
+            Require(Close(defaultSize.sizeDip.width, overrideSize.sizeDip.width) && Close(defaultSize.sizeDip.height, overrideSize.sizeDip.height),
+                    "skipping an explicit zero-spacing mutation preserves default wrapped RTL metrics");
+
+            auto root   = std::make_unique<Panel>();
+            auto* label = root->AddChild<Label>();
+            label->SetBounds(D2D1::RectF(24.0f, 20.0f, 284.0f, 132.0f));
+            host.SetRoot(std::move(root));
+            ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+            const auto capture = [&]
+            {
+                host.Invalidate();
+                WindowHostBitmapCapture pixels;
+                Require(host.DebugCaptureBitmap(pixels), "capture the Label without desktop activation");
+                return pixels;
+            };
+            const auto requireSamePixels = [](const WindowHostBitmapCapture& left, const WindowHostBitmapCapture& right, const char* reason)
+            {
+                Require(left.widthPx == right.widthPx && left.heightPx == right.heightPx && left.bgraPixels.size() == right.bgraPixels.size() &&
+                            std::equal(left.bgraPixels.begin(), left.bgraPixels.end(), right.bgraPixels.begin()),
+                        reason);
+            };
+            const auto requireDefaultParity = [&](std::wstring text, bool multiline, FlowDirection direction, wchar_t mnemonic)
+            {
+                label->SetText(std::move(text));
+                label->SetMultiline(multiline);
+                label->SetFlowDirection(direction);
+                label->SetMnemonic(mnemonic);
+                Require(label->SetTypographyOverride(exactDefault) == S_OK, "zero-spacing exact-default override is applied");
+                const auto overridden = capture();
+                Require(label->SetTypographyOverride(std::nullopt) == S_OK, "restore the plain role-default rendering path");
+                const auto roleDefault = capture();
+                requireSamePixels(overridden, roleDefault, "exact-default zero-spacing override is byte-identical to the role-default pixels");
+                return overridden;
+            };
+
+            static_cast<void>(requireDefaultParity(L"Default caption 123", false, FlowDirection::LeftToRight, L'\0'));
+            static_cast<void>(requireDefaultParity(L"RTL wrapped caption with synthetic text שלום", true, FlowDirection::RightToLeft, L'\0'));
+            const auto zeroMnemonic = requireDefaultParity(L"Save &As", false, FlowDirection::LeftToRight, L'A');
+            label->SetMnemonic(L'\0');
+            Require(label->SetTypographyOverride(exactDefault) == S_OK, "zero-spacing baseline is restored");
+            const auto zeroSpacing      = capture();
+            auto tracked                = exactDefault;
+            tracked.characterSpacingDip = 1.5f;
+            Require(label->SetTypographyOverride(tracked) == S_OK, "nonzero tracking override is accepted");
+            const auto trackedPixels = capture();
+            Require(zeroMnemonic.bgraPixels != trackedPixels.bgraPixels && zeroSpacing.bgraPixels != trackedPixels.bgraPixels,
+                    "nonzero tracking remains visible and does not take the zero-spacing case");
+        }
+        catch (const std::bad_alloc&)
+        {
+            std::terminate();
+        }
+        catch (const std::exception&)
+        {
+            fixtureFailure = std::current_exception();
+        }
+    });
+    const DWORD completion = WaitForDxUiEventWithSentMessagesUntil(fixture.native_handle(), GetTickCount64() + 30000u);
+    fixture.join();
+    if (fixtureFailure)
+        std::rethrow_exception(fixtureFailure);
+    Require(completion == WAIT_OBJECT_0, "the isolated Label fixture finishes with STA COM and HWND cleanup");
 }
 
 void TestButtonContentFontSizeDefaultsValidationAndNormalization()
@@ -1916,6 +2038,7 @@ void RunIntrinsicLayoutTests()
     DXUI_RUN_TEST(TestIntrinsicMeasurementContainsFailuresAndPreservesOutputs);
     DXUI_RUN_TEST(TestIntrinsicLeavesShapeUnicodeAndKeepEditorsStable);
     DXUI_RUN_TEST(TestLabelTypographyCharacterSpacingUsesRequestedTotal);
+    DXUI_RUN_TEST(TestLabelZeroSpacingOverrideMatchesDefaultLayout);
     DXUI_RUN_TEST(TestButtonContentFontSizeDefaultsValidationAndNormalization);
     DXUI_RUN_TEST(TestButtonContentFontSizeShapesIntrinsicVariants);
     DXUI_RUN_TEST(TestButtonContentFontSizeNativeGlyphPaintCacheAndGeneration);

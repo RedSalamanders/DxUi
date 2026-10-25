@@ -9,6 +9,7 @@
 
 #include <array>
 #include <atomic>
+#include <cmath>
 #include <concepts>
 #include <cstdint>
 #include <fstream>
@@ -6312,9 +6313,138 @@ void TestWindowHostWorksWithoutOptionalSdkDebugLayer()
     Require(host.GetTextFormat(DxUi::FontRole::Body) != nullptr, "native graphics and text initialize with or without the optional D3D SDK debug layer");
 }
 
+void TestWindowHostConfiguredTextFormatsAliasExactRoleDefaults()
+{
+    using namespace DxUi;
+    constexpr FontRole role         = FontRole::Body;
+    const Typography::Spec spec     = Typography::GetSpec(role);
+    const float normalizedAliasSize = spec.sizeDip + (1.0f / 256.0f);
+    Require(static_cast<float>(std::lround(normalizedAliasSize * 64.0f)) / 64.0f == spec.sizeDip,
+            "the explicit alias size normalizes to the exact typography role size");
+    constexpr DWRITE_TEXT_ALIGNMENT alignment      = DWRITE_TEXT_ALIGNMENT_LEADING;
+    constexpr DWRITE_PARAGRAPH_ALIGNMENT paragraph = DWRITE_PARAGRAPH_ALIGNMENT_NEAR;
+    constexpr DWRITE_READING_DIRECTION reading     = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
+    constexpr bool wrap                            = true;
+    const auto requireProperties                   = [](IDWriteTextFormat* format,
+                                                        float size,
+                                                        DWRITE_FONT_WEIGHT weight,
+                                                        DWRITE_TEXT_ALIGNMENT textAlignment,
+                                                        DWRITE_PARAGRAPH_ALIGNMENT paragraphAlignment,
+                                                        bool wordWrap,
+                                                        DWRITE_READING_DIRECTION readingDirection)
+    {
+        Require(format != nullptr, "configured format exists");
+        Require(format->GetFontSize() == size && format->GetFontWeight() == weight, "configured format keeps normalized size and requested weight");
+        Require(format->GetTextAlignment() == textAlignment && format->GetParagraphAlignment() == paragraphAlignment,
+                "configured format keeps text and paragraph alignment");
+        Require(format->GetWordWrapping() == (wordWrap ? DWRITE_WORD_WRAPPING_WRAP : DWRITE_WORD_WRAPPING_NO_WRAP) &&
+                    format->GetReadingDirection() == readingDirection,
+                "configured format keeps wrapping and reading direction");
+    };
+
+    // Default-style-first and a size that normalizes to the role's exact default must share one cached COM object.
+    {
+        AttachedHostWindow window;
+        auto& host                               = window.Host();
+        IDWriteTextFormat* const roleDefault     = host.GetTextFormat(role, alignment, paragraph, wrap, reading);
+        IDWriteTextFormat* const explicitDefault = host.GetTextFormat(role, normalizedAliasSize, spec.weight, alignment, paragraph, wrap, reading);
+        Require(roleDefault && roleDefault == explicitDefault, "default-first and normalized explicit-default requests share one cache entry");
+        requireProperties(roleDefault, spec.sizeDip, spec.weight, alignment, paragraph, wrap, reading);
+
+        // Style remains part of the key even when the typography is canonicalized.
+        IDWriteTextFormat* const alternateStyle = host.GetTextFormat(
+            role, spec.sizeDip, spec.weight, DWRITE_TEXT_ALIGNMENT_TRAILING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT);
+        Require(alternateStyle && alternateStyle != roleDefault, "alignment, paragraph, wrap and reading style remain independently keyed");
+        IDWriteTextFormat* const alternateStyleDefault =
+            host.GetTextFormat(role, DWRITE_TEXT_ALIGNMENT_TRAILING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT);
+        Require(alternateStyle == alternateStyleDefault, "alternate style aliases only its matching configured default");
+        requireProperties(alternateStyle,
+                          spec.sizeDip,
+                          spec.weight,
+                          DWRITE_TEXT_ALIGNMENT_TRAILING,
+                          DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                          false,
+                          DWRITE_READING_DIRECTION_RIGHT_TO_LEFT);
+
+        const DWRITE_FONT_WEIGHT otherWeight = spec.weight == DWRITE_FONT_WEIGHT_BOLD ? DWRITE_FONT_WEIGHT_NORMAL : DWRITE_FONT_WEIGHT_BOLD;
+        IDWriteTextFormat* const larger      = host.GetTextFormat(role, spec.sizeDip + 2.0f, spec.weight, alignment, paragraph, wrap, reading);
+        IDWriteTextFormat* const heavier     = host.GetTextFormat(role, spec.sizeDip, otherWeight, alignment, paragraph, wrap, reading);
+        Require(larger && heavier && larger != roleDefault && heavier != roleDefault && larger != heavier,
+                "nondefault size and nondefault weight keep independent cache entries");
+        requireProperties(larger, spec.sizeDip + 2.0f, spec.weight, alignment, paragraph, wrap, reading);
+        requireProperties(heavier, spec.sizeDip, otherWeight, alignment, paragraph, wrap, reading);
+    }
+
+    // Explicit-first must insert the same effective key that the configured default overload later finds.
+    {
+        AttachedHostWindow window;
+        auto& host                               = window.Host();
+        IDWriteTextFormat* const explicitDefault = host.GetTextFormat(role,
+                                                                      normalizedAliasSize,
+                                                                      spec.weight,
+                                                                      DWRITE_TEXT_ALIGNMENT_CENTER,
+                                                                      DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                                                                      false,
+                                                                      DWRITE_READING_DIRECTION_RIGHT_TO_LEFT);
+        IDWriteTextFormat* const roleDefault =
+            host.GetTextFormat(role, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT);
+        Require(explicitDefault && explicitDefault == roleDefault, "explicit-first and default requests share one cache entry");
+        requireProperties(roleDefault,
+                          spec.sizeDip,
+                          spec.weight,
+                          DWRITE_TEXT_ALIGNMENT_CENTER,
+                          DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                          false,
+                          DWRITE_READING_DIRECTION_RIGHT_TO_LEFT);
+    }
+
+    // Do not merge an icon override with the Small fallback when the optional Fluent icon family is absent.
+    {
+        AttachedHostWindow window;
+        auto& host = window.Host();
+        if (host.HasFluentIconFont())
+        {
+            const Typography::Spec iconSpec       = Typography::GetSpec(FontRole::Icon);
+            IDWriteTextFormat* const iconDefault  = host.GetTextFormat(FontRole::Icon, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false);
+            IDWriteTextFormat* const iconExplicit = host.GetTextFormat(FontRole::Icon,
+                                                                       iconSpec.sizeDip,
+                                                                       iconSpec.weight,
+                                                                       DWRITE_TEXT_ALIGNMENT_CENTER,
+                                                                       DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                                                                       false,
+                                                                       DWRITE_READING_DIRECTION_LEFT_TO_RIGHT);
+            Require(iconDefault && iconDefault == iconExplicit, "available Fluent icon defaults share the configured role entry");
+            requireProperties(iconDefault,
+                              iconSpec.sizeDip,
+                              iconSpec.weight,
+                              DWRITE_TEXT_ALIGNMENT_CENTER,
+                              DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                              false,
+                              DWRITE_READING_DIRECTION_LEFT_TO_RIGHT);
+        }
+        else
+        {
+            IDWriteTextFormat* const smallDefault = host.GetTextFormat(FontRole::Small, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false);
+            IDWriteTextFormat* const iconDefault  = host.GetTextFormat(FontRole::Icon, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false);
+            Require(smallDefault && iconDefault == smallDefault, "missing Fluent icon font keeps the configured Small fallback");
+            IDWriteTextFormat* const explicitIcon = host.GetTextFormat(FontRole::Icon,
+                                                                       Typography::GetSpec(FontRole::Icon).sizeDip,
+                                                                       Typography::GetSpec(FontRole::Icon).weight,
+                                                                       DWRITE_TEXT_ALIGNMENT_CENTER,
+                                                                       DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                                                                       false,
+                                                                       DWRITE_READING_DIRECTION_LEFT_TO_RIGHT);
+            Require(explicitIcon != nullptr &&
+                        host.GetTextFormat(FontRole::Icon, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false) == smallDefault,
+                    "an explicit icon request does not replace or poison the missing-font default fallback");
+        }
+    }
+}
+
 // Windows marks a mouse message it promoted from a touch or pen contact in the thread's extra message information, and the
 // host reads it for each mouse message it handles: a slider that such a message drags shows its touch halo, and the next
 // message from the mouse says the mouse again. SetMessageExtraInfo stands in for the input system, so no input is injected.
+
 void TestWindowHostReadsThePointerDeviceOfEachMouseMessage()
 {
     using namespace DxUi;
@@ -6677,6 +6807,7 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestWindowHostPromotionStopsWhenAnInheritanceCallbackReplacesTheRoot);
     DXUI_RUN_TEST(TestWindowHostPointerFocusCallbackCanDestroyTheClickedControl);
     DXUI_RUN_TEST(TestWindowHostWorksWithoutOptionalSdkDebugLayer);
+    DXUI_RUN_TEST(TestWindowHostConfiguredTextFormatsAliasExactRoleDefaults);
     DXUI_RUN_TEST(TestWindowHostExplicitWarpPolicyRejectsConflictsAndSurvivesDeviceLoss);
     DXUI_RUN_TEST(TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies);
     DXUI_RUN_TEST(TestWindowHostKeyboardInputMarksFocusVisible);

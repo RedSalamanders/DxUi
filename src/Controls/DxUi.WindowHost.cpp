@@ -2582,17 +2582,34 @@ IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role,
 {
     if (! std::isfinite(fontSizeDip) || fontSizeDip < 6.0f || fontSizeDip > 96.0f || fontWeight < 100 || fontWeight > 900)
         return GetTextFormat(role, alignment, paragraphAlignment, wrap, readingDirection);
-    const uint64_t sizeKey = static_cast<uint64_t>(std::lround(fontSizeDip * 64.0f));
-    const uint64_t key =
+    const uint64_t sizeKey          = static_cast<uint64_t>(std::lround(fontSizeDip * 64.0f));
+    const Typography::Spec roleSpec = Typography::GetSpec(role);
+    // The cache key and the created format use the same 1/64-DIP normalized size.
+    const float normalizedSize = static_cast<float>(sizeKey) / 64.0f;
+    const uint64_t customKey =
         PackTextFormatKey(role, alignment, paragraphAlignment, wrap, readingDirection) | (sizeKey << 40u) | (static_cast<uint64_t>(fontWeight) << 53u);
+    const bool isIconRole         = role == FontRole::Icon || role == FontRole::HeroIcon || role == FontRole::IconLarge;
+    const bool matchesRoleDefault = normalizedSize == roleSpec.sizeDip && fontWeight == roleSpec.weight;
+    bool useRoleDefaultKey        = matchesRoleDefault && ! isIconRole;
+    if (matchesRoleDefault && isIconRole)
+    {
+        // Preserve existing custom-key hits before checking optional font availability.
+        if (const auto it = _configuredTextFormats.find(customKey); it != _configuredTextFormats.end())
+            return it->second.get();
+        if (! _dwriteFactory && ! EnsureDeviceIndependentResources())
+            return GetTextFormat(role, alignment, paragraphAlignment, wrap, readingDirection);
+        // Only canonicalize icon defaults when the configured icon family exists. Otherwise the default path
+        // falls back to Small, while this explicit request keeps its existing custom creation and retry path.
+        useRoleDefaultKey = HasFluentIconFont();
+    }
+    const uint64_t key = useRoleDefaultKey ? PackTextFormatKey(role, alignment, paragraphAlignment, wrap, readingDirection) : customKey;
     if (const auto it = _configuredTextFormats.find(key); it != _configuredTextFormats.end())
         return it->second.get();
     if (! _dwriteFactory && ! EnsureDeviceIndependentResources())
         return GetTextFormat(role, alignment, paragraphAlignment, wrap, readingDirection);
-    Typography::Spec spec = Typography::GetSpec(role);
-    // The cache key and the created format use the same 1/64-DIP normalized size.
-    spec.sizeDip = static_cast<float>(sizeKey) / 64.0f;
-    spec.weight  = fontWeight;
+    Typography::Spec spec = roleSpec;
+    spec.sizeDip          = normalizedSize;
+    spec.weight           = fontWeight;
     wil::com_ptr<IDWriteTextFormat> format;
     const HRESULT hr = Typography::CreateTextFormat(_dwriteFactory.get(), spec, format.addressof());
     if (FAILED(hr) || ! format)

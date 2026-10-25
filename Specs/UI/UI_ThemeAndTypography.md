@@ -35,6 +35,17 @@ selection changes, never per frame. This refreshes availability without changing
 automatically; the host recreates affected formats through its existing font-change path.
 Retain Segoe UI typography and Fluent/MDL2/Unicode icon fallback where supported. `FontRole::Icon` is 12 DIP,
 `FontRole::IconLarge` is 32 DIP, and `FontRole::HeroIcon` is 64 DIP, all on Segoe Fluent Icons with MDL2 fallback.
+Configured `ControlHost::GetTextFormat(role, size, weight, alignment, paragraph, wrap, reading)` requests share the
+configured role-format cache key when the size, after 1/64-DIP normalization, and weight equal `Typography::GetSpec(role)`.
+Alignment, paragraph alignment, wrapping and reading direction remain in the key. Other normalized sizes and weights
+remain separate. Icon, HeroIcon and IconLarge use the role-default key only when the Fluent icon family is available;
+without it, the default Small fallback and explicit custom-format creation/retry paths remain intact. This alias does not
+change the bounded cache capacity or its owner-paint/preparation eviction timing.
+For `Label` typography overrides, `characterSpacingDip == 0` uses DirectWrite's default zero character spacing.
+Measurement and painting leave a new or retained text layout at that default instead of querying
+`IDWriteTextLayout1` and applying an explicit zero mutation. Nonzero spacing keeps the existing query, mutation and
+failure handling. This does not replace or invalidate retained layouts, and zero spacing does not alter layout-cache
+identity.
 Do not add a dependency on either
 application's theme record or icon assets. Preserve the original notice for any later imported assets.
 

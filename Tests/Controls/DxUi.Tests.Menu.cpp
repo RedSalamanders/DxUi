@@ -3204,7 +3204,7 @@ void RunMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar(bool keepPaintP
     using namespace DxUi;
 
     // Allocate bounded diagnostic storage once, before opening the menu. Only print phase data on failure.
-    const auto trace = std::make_unique<MenuHoverTraceForTest>();
+    const auto trace = std::make_unique<MenuHoverTraceForTest>(true);
     AttachedHostWindow ownerWindow;
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 420, 260, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
@@ -3383,7 +3383,13 @@ void RunMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar(bool keepPaintP
         trace->Driver("pointer.armed");
         if (keepPaintPending)
             pendingPaint.armed.store(true, std::memory_order_release);
-        PostMessageW(viewPopupHwnd, WM_MOUSEMOVE, 0, MAKELPARAM(popupItemScreenPoint.x - popupWindowRect.left, popupItemScreenPoint.y - popupWindowRect.top));
+        if (PostMessageW(
+                viewPopupHwnd, WM_MOUSEMOVE, 0, MAKELPARAM(popupItemScreenPoint.x - popupWindowRect.left, popupItemScreenPoint.y - popupWindowRect.top)) ==
+            FALSE)
+        {
+            driverFailure = "posting the pointer-only probe to the frontmost popup succeeds";
+            return;
+        }
 
         trace->Driver("pointer-only.guard.begin");
         const HWND pluginsPopupHwnd =
