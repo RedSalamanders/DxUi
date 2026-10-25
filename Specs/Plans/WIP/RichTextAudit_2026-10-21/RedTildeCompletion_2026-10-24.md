@@ -2,6 +2,9 @@
 
 ## Progress checklist
 
+- [x] P10 integration follow-up: push and merge PR #101 as `4faf16ed`, whose tree exactly matches reviewed head `29ff0fd4`. Integration leaves performance and product acceptance open.
+- [x] P10 cache counterfactual: preserve all 74 qualified SDK native artifacts across six profiles, then add the common default-format alias regression on unchanged `4faf16ed` production. The Release build passes and the focused run fails at the expected default-first pointer-identity assertion (`20261025T154703108Z-43392-a3537c62112942ac825031f0a32759ca`). No whole-feature gain is inferred.
+- [ ] P10 cache repair: validate canonical default-format reuse in both request orders, normalized sizes, distinct style/size/weight and the optional icon fallback; complete the source-bound matrix and measure the consumer effect before claiming a performance improvement. The missing-font case runs conditionally on actual availability; no forced-font seam is claimed.
 - [x] P10 integration: push and merge PR #100 as `dc67aed6` at the owner's explicit request; its tree exactly matches qualified documentation head `9a642c52`. This is implementation integration, not performance-policy or product acceptance.
 - [x] P10 CI checkpoint: workflow `40187599911` passes static/tooling checks and x64 Debug/Release; at 11:46 UTC, remaining native profiles and paired collection are still pending. Earlier six-profile runtime evidence remains tied to `594d67fb` / compiled merge `8c78b5ad`.
 - [x] P10 later native checkpoint: the same workflow subsequently passes all six native jobs, including ARM64 and ASan. Paired collection is still running at 12:31 UTC; this checkpoint covers merged implementation `9a642c52`, not the new timer diagnostic.
@@ -395,3 +398,7 @@ resource assumptions, incompatible baselines or repeat verification failure. Do 
 finish. Complete work-item code, regression evidence, normative docs, capability status and the required folded
 changelog together. The parent audit, rich-editor M5/M6/D4c and shared qualification close only under their own
 criteria; app publication is not library acceptance.
+
+### Configured text-format cache alias — 25 October
+
+The test-only counterfactual on source `4faf16ed647df71cd7d5623c1682738592771c3e` reproduces the duplicate role-default format: x64 Release builds, then the focused WindowHost case fails at the expected pointer-identity assertion (`20261025T154703108Z-43392-a3537c62112942ac825031f0a32759ca`). After the cache-key alias implementation, the x64 Release rebuild passes and the same focused case passes (`20261025T160700740Z-7252-f60c20a641c04905ad6fae5ca3418aed`). This run also emits an unpaired offscreen performance receipt; it is not paired optimization evidence. The six-profile build matrix, x64 Full ordinary suites, paired performance validation, and interactive/platform obligations remain open.
