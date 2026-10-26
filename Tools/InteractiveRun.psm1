@@ -565,8 +565,17 @@ function Invoke-DxUiLeaseExecutable {
     # command whose output it reads when Ctrl+C stops the pipeline, which would end the lease before it restores the desktop.
     # Started apart, the lease takes the same Ctrl+C itself, and this waits until it has restored the desktop and exited.
     [CmdletBinding()] param([Parameter(Mandatory)][string] $Executable, [Parameter(Mandatory)][AllowEmptyCollection()][string[]] $Arguments)
+    $location = Get-Location
+    if ($location.Provider.Name -cne 'FileSystem' -or [string]::IsNullOrWhiteSpace([string]$location.ProviderPath)) {
+        throw 'The native desktop lease requires a current filesystem location.'
+    }
+    $workingDirectory = [IO.Path]::GetFullPath($location.ProviderPath)
+    if (-not [IO.Directory]::Exists($workingDirectory)) {
+        throw 'The native desktop lease requires an existing current filesystem directory.'
+    }
     $start = [Diagnostics.ProcessStartInfo]::new($Executable)
     $start.UseShellExecute = $false
+    $start.WorkingDirectory = $workingDirectory
     foreach ($argument in $Arguments) { $start.ArgumentList.Add($argument) }
     $process = [Diagnostics.Process]::Start($start)
     try {
