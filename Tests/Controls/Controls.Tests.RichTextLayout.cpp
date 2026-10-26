@@ -1,12 +1,14 @@
 #include "Controls.Tests.RichTextLayout.h"
 #include "../../Samples/EmbeddedControls/GraphicsFixture.h"
 #include "../../src/Controls/DxUi.RichSourceInk.h"
+#include "../../src/Controls/DxUi.RichTextSourceInkRenderer.h"
 #include "../Support/Support.Tests.PreparedFlowchart.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include <DxUi/RichTextLayout.h>
 #include <cmath>
 #include <limits>
 #include <wil/result.h>
+#include <wrl/implements.h>
 namespace
 {
 using namespace DxUi::RichText;
@@ -23,6 +25,36 @@ template <typename F> void Reject(F&& operation, const char* description)
     }
     Require(rejected, description);
 }
+
+class SourceInkTestPositioning final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDWriteInlineObject>
+{
+public:
+    HRESULT STDMETHODCALLTYPE Draw(void*, IDWriteTextRenderer*, FLOAT, FLOAT, BOOL, BOOL, IUnknown*) noexcept override
+    {
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE GetMetrics(DWRITE_INLINE_OBJECT_METRICS* metrics) noexcept override
+    {
+        if (! metrics)
+            return E_POINTER;
+        *metrics = {0.0f, 20.0f, 10.0f, FALSE};
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE GetOverhangMetrics(DWRITE_OVERHANG_METRICS* metrics) noexcept override
+    {
+        if (! metrics)
+            return E_POINTER;
+        *metrics = {};
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE GetBreakConditions(DWRITE_BREAK_CONDITION* before, DWRITE_BREAK_CONDITION* after) noexcept override
+    {
+        if (! before || ! after)
+            return E_POINTER;
+        *before = *after = DWRITE_BREAK_CONDITION_NEUTRAL;
+        return S_OK;
+    }
+};
 
 void TestRichTextLayoutPrototypeContracts()
 {
@@ -194,6 +226,358 @@ void TestRichTextLayoutBorrowedWarpTargetsAndDeviceReplacement()
                 "target replacement does not recreate layout or modify document");
     }
     Require(document.Undo() && document.Redo() && document.Text() == source, "history survives caller device retirement");
+}
+
+void TestRichTextSourceInkRendererMatchesCanonicalRaster()
+{
+    const auto factory = CreateRichTextTestFactory();
+    Document document(L"alpha **beta** omega");
+    const auto projection = Project(document.Snapshot(), document.Revision(), ViewMode::Source);
+    PreparedLayout layout;
+    LayoutOptions options;
+    options.widthDip       = 420.0f;
+    options.fontSizeDip    = 20.0f;
+    options.fontFamily     = L"Consolas";
+    options.codeFontFamily = L"Consolas";
+    layout.Prepare(factory.get(), projection, options);
+    PreparedLayout shared(layout);
+
+    GraphicsFixture graphics;
+    THROW_IF_FAILED(graphics.Create());
+    wil::com_ptr<ID2D1Factory1> d2dFactory;
+    THROW_IF_FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, IID_PPV_ARGS(d2dFactory.put())));
+    wil::com_ptr<IDXGIDevice> dxgiDevice;
+    THROW_IF_FAILED(graphics.device.query_to(dxgiDevice.put()));
+    wil::com_ptr<ID2D1Device> device;
+    THROW_IF_FAILED(d2dFactory->CreateDevice(dxgiDevice.get(), device.put()));
+    wil::com_ptr<ID2D1DeviceContext> context;
+    THROW_IF_FAILED(device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, context.put()));
+    wil::com_ptr<IDXGISurface> surface;
+    THROW_IF_FAILED(graphics.target.query_to(surface.put()));
+    const auto properties = D2D1::BitmapProperties1(D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+                                                    D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+    wil::com_ptr<ID2D1Bitmap1> bitmap;
+    THROW_IF_FAILED(context->CreateBitmapFromDxgiSurface(surface.get(), &properties, bitmap.put()));
+    context->SetTarget(bitmap.get());
+    wil::com_ptr<ID2D1SolidColorBrush> white, red, green;
+    THROW_IF_FAILED(context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), white.put()));
+    THROW_IF_FAILED(context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Red), red.put()));
+    THROW_IF_FAILED(context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Green), green.put()));
+
+    const std::array ink{TextInkRange{{0u, 5u}, TextInkRole::Accent}, TextInkRange{{6u, 14u}, TextInkRole::Link}};
+    LinkDrawing drawing;
+    drawing.brush                                                = red.get(); // RTE supplies its accent brush even when Source has no link runs.
+    drawing.inkRanges                                            = ink;
+    drawing.inkBrushes[static_cast<size_t>(TextInkRole::Accent)] = red.get();
+    drawing.inkBrushes[static_cast<size_t>(TextInkRole::Link)]   = green.get();
+    LinkDrawing legacy                                           = drawing;
+    // A present, empty emphasis interval is inert in the legacy path and
+    // deliberately opts out of the narrow source-only renderer.
+    legacy.emphasis   = MarkdownRange{0u, 0u};
+    const auto render = [&](const PreparedLayout& value, const LinkDrawing& presentation, D2D1_POINT_2F origin)
+    {
+        context->BeginDraw();
+        context->Clear(D2D1::ColorF(0u, 0.0f));
+        value.Draw(context.get(), white.get(), origin, &presentation);
+        THROW_IF_FAILED(context->EndDraw());
+        std::vector<uint8_t> pixels;
+        THROW_IF_FAILED(graphics.Read(pixels));
+        return pixels;
+    };
+
+    // Exercise the exact renderer helper used by PreparedLayout::Draw so the
+    // oracle proves admission, fallback, and colored output rather than merely
+    // comparing two paths that might both have fallen back.
+    Document bidiDocument(L"alpha \u05d0\u05d1\u05d2 **beta** omega");
+    const auto bidiProjection = Project(bidiDocument.Snapshot(), bidiDocument.Revision(), ViewMode::Source);
+    auto positioned           = Microsoft::WRL::Make<SourceInkTestPositioning>();
+    Require(positioned.Get() != nullptr, "test positioning object is allocated");
+    const auto makeTestLayout = [&](const Projection& value, const LayoutOptions& layoutOptions, bool withPositioning)
+    {
+        wil::com_ptr<IDWriteTextFormat> format;
+        THROW_IF_FAILED(factory->CreateTextFormat(layoutOptions.fontFamily.c_str(),
+                                                  nullptr,
+                                                  DWRITE_FONT_WEIGHT_NORMAL,
+                                                  DWRITE_FONT_STYLE_NORMAL,
+                                                  DWRITE_FONT_STRETCH_NORMAL,
+                                                  layoutOptions.fontSizeDip,
+                                                  L"en-us",
+                                                  format.put()));
+        THROW_IF_FAILED(format->SetReadingDirection(layoutOptions.readingDirection));
+        THROW_IF_FAILED(format->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING));
+        THROW_IF_FAILED(format->SetWordWrapping(DWRITE_WORD_WRAPPING_WRAP));
+        std::wstring layoutText;
+        if (withPositioning)
+            layoutText.assign(L"\ufffc\n");
+        layoutText.append(value.text);
+        wil::com_ptr<IDWriteTextLayout> result;
+        THROW_IF_FAILED(
+            factory->CreateTextLayout(layoutText.data(), static_cast<UINT32>(layoutText.size()), format.get(), layoutOptions.widthDip, 10000.0f, result.put()));
+        if (withPositioning)
+        {
+            THROW_IF_FAILED(result->SetFontSize(0.01f, {0u, 2u}));
+            THROW_IF_FAILED(result->SetInlineObject(positioned.Get(), {0u, 1u}));
+        }
+        return result;
+    };
+    auto directOptions             = options;
+    directOptions.fontFamily       = L"Consolas";
+    directOptions.fontSizeDip      = 20.0f;
+    directOptions.readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
+    auto directDrawing             = drawing;
+    directDrawing.displayOrigin    = 7u;
+    const auto betaStart           = bidiProjection.text.find(L"**beta**");
+    Require(betaStart != std::wstring::npos, "bidi source fixture includes the second colored segment");
+    const auto tailStart = bidiProjection.text.size() - 2u;
+    const std::array directInk{TextInkRange{{7u, 12u}, TextInkRole::Accent},
+                               TextInkRange{{7u + betaStart, 7u + betaStart + 8u}, TextInkRole::Link},
+                               TextInkRange{{7u + tailStart, 7u + bidiProjection.text.size() + 4u}, TextInkRole::Accent}};
+    directDrawing.inkRanges                                            = directInk;
+    directDrawing.inkBrushes[static_cast<size_t>(TextInkRole::Accent)] = red.get();
+    directDrawing.inkBrushes[static_cast<size_t>(TextInkRole::Link)]   = green.get();
+    directDrawing.brush                                                = red.get();
+    auto directLayout                                                  = makeTestLayout(bidiProjection, directOptions, true);
+    context->SetDpi(120.0f, 120.0f);
+    context->SetTransform(D2D1::Matrix3x2F(1.25f, 0.0f, 0.0f, 1.25f, 0.37f, 0.63f));
+    const auto directOrigin = D2D1::Point2F(8.375f, 8.625f);
+    context->BeginDraw();
+    context->Clear(D2D1::ColorF(0u, 0.0f));
+    const auto directResult =
+        Detail::DrawSourceInkIfSupported(context.get(), white.get(), directLayout.get(), positioned.Get(), 2u, bidiProjection, directDrawing, directOrigin);
+    Require(directResult == Detail::SourceInkDrawResult::Drawn, "supported positioned Hebrew mixed-bidi source actually takes the direct renderer pass");
+    THROW_IF_FAILED(context->EndDraw());
+    std::vector<uint8_t> directPixels;
+    THROW_IF_FAILED(graphics.Read(directPixels));
+    std::size_t coloredPixels = 0u;
+    for (std::size_t index = 0u; index + 3u < directPixels.size(); index += 4u)
+        coloredPixels += directPixels[index + 3u] != 0u &&
+                         (directPixels[index + 2u] > directPixels[index + 1u] + 30u || directPixels[index + 1u] > directPixels[index + 2u] + 30u);
+    Require(coloredPixels != 0u, "direct source pass paints visible role-colored glyph pixels");
+
+    auto canonicalLayout = makeTestLayout(bidiProjection, directOptions, true);
+    const auto betaLocal = betaStart + 2u;
+    THROW_IF_FAILED(canonicalLayout->SetDrawingEffect(red.get(), {2u, 5u}));
+    THROW_IF_FAILED(canonicalLayout->SetDrawingEffect(green.get(), {static_cast<UINT32>(betaLocal), 8u}));
+    THROW_IF_FAILED(canonicalLayout->SetDrawingEffect(red.get(), {static_cast<UINT32>(tailStart + 2u), 2u}));
+    context->BeginDraw();
+    context->Clear(D2D1::ColorF(0u, 0.0f));
+    context->DrawTextLayout(directOrigin, canonicalLayout.get(), white.get(), D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+    THROW_IF_FAILED(context->EndDraw());
+    std::vector<uint8_t> canonicalPixels;
+    THROW_IF_FAILED(graphics.Read(canonicalPixels));
+    Require(directPixels == canonicalPixels, "direct subruns match canonical DirectWrite colored glyph pixels with prefix and nonzero display origin");
+
+    const auto requirePreflightRejectsWithoutPainting = [&](const Projection& candidateProjection,
+                                                            const LinkDrawing& candidateDrawing,
+                                                            IDWriteTextLayout* candidateLayout,
+                                                            IDWriteInlineObject* candidatePositioning,
+                                                            UINT32 candidateTextOffset,
+                                                            Detail::SourceInkDrawResult expected,
+                                                            const char* message)
+    {
+        context->SetDpi(120.0f, 120.0f);
+        context->SetTransform(D2D1::Matrix3x2F::Identity());
+        context->BeginDraw();
+        context->Clear(D2D1::ColorF(0u, 0.0f));
+        const auto result = Detail::DrawSourceInkIfSupported(context.get(),
+                                                             white.get(),
+                                                             candidateLayout,
+                                                             candidatePositioning,
+                                                             candidateTextOffset,
+                                                             candidateProjection,
+                                                             candidateDrawing,
+                                                             D2D1::Point2F(8.0f, 8.0f));
+        Require(result == expected, message);
+        THROW_IF_FAILED(context->EndDraw());
+        std::vector<uint8_t> pixels;
+        THROW_IF_FAILED(graphics.Read(pixels));
+        bool empty = true;
+        for (std::size_t index = 3u; index < pixels.size(); index += 4u)
+            empty = empty && pixels[index] == 0u;
+        Require(empty, "unsupported source renderer conditions reject before painting any glyphs");
+    };
+
+    Document boundaryDocument(L"a\u0301 fi");
+    const auto boundaryProjection = Project(boundaryDocument.Snapshot(), boundaryDocument.Revision(), ViewMode::Source);
+    const std::array boundaryInk{TextInkRange{{0u, 1u}, TextInkRole::Accent}};
+    LinkDrawing boundaryDrawing;
+    boundaryDrawing.inkRanges                                            = boundaryInk;
+    boundaryDrawing.inkBrushes[static_cast<size_t>(TextInkRole::Accent)] = red.get();
+    auto boundaryLayout                                                  = makeTestLayout(boundaryProjection, directOptions, false);
+    requirePreflightRejectsWithoutPainting(boundaryProjection,
+                                           boundaryDrawing,
+                                           boundaryLayout.get(),
+                                           nullptr,
+                                           0u,
+                                           Detail::SourceInkDrawResult::Rejected,
+                                           "combining-cluster range boundary rejects before painting");
+
+    Document tooManySpansDocument(L"0123456789abcdefgh");
+    const auto tooManySpansProjection = Project(tooManySpansDocument.Snapshot(), tooManySpansDocument.Revision(), ViewMode::Source);
+    std::array<TextInkRange, 9> tooManyInk{};
+    for (std::size_t index = 0u; index < tooManyInk.size(); ++index)
+        tooManyInk[index] = {{index * 2u, index * 2u + 1u}, index % 2u ? TextInkRole::Link : TextInkRole::Accent};
+    Require(tooManyInk.back().display.first < tooManySpansProjection.text.size() && tooManyInk.back().display.last <= tooManySpansProjection.text.size(),
+            "all nine clipped ink spans intersect the admitted text");
+    LinkDrawing tooManyDrawing;
+    tooManyDrawing.inkRanges                                            = tooManyInk;
+    tooManyDrawing.inkBrushes[static_cast<size_t>(TextInkRole::Accent)] = red.get();
+    tooManyDrawing.inkBrushes[static_cast<size_t>(TextInkRole::Link)]   = green.get();
+    auto tooManyLayout                                                  = makeTestLayout(tooManySpansProjection, directOptions, false);
+    requirePreflightRejectsWithoutPainting(tooManySpansProjection,
+                                           tooManyDrawing,
+                                           tooManyLayout.get(),
+                                           nullptr,
+                                           0u,
+                                           Detail::SourceInkDrawResult::Rejected,
+                                           "more than eight clipped ink spans reject before painting");
+
+    auto selectionDrawing         = directDrawing;
+    selectionDrawing.inkExclusion = MarkdownRange{8u, 12u};
+    requirePreflightRejectsWithoutPainting(bidiProjection,
+                                           selectionDrawing,
+                                           directLayout.get(),
+                                           positioned.Get(),
+                                           2u,
+                                           Detail::SourceInkDrawResult::NotApplicable,
+                                           "selected source ink stays on the canonical renderer");
+
+    Document colorDocument(L"plain \U0001f600 text");
+    const auto colorProjection = Project(colorDocument.Snapshot(), colorDocument.Revision(), ViewMode::Source);
+    const std::array colorInk{TextInkRange{{0u, 5u}, TextInkRole::Accent}};
+    LinkDrawing colorDrawing;
+    colorDrawing.inkRanges                                            = colorInk;
+    colorDrawing.inkBrushes[static_cast<size_t>(TextInkRole::Accent)] = red.get();
+    auto colorLayout                                                  = makeTestLayout(colorProjection, directOptions, false);
+    requirePreflightRejectsWithoutPainting(
+        colorProjection, colorDrawing, colorLayout.get(), nullptr, 0u, Detail::SourceInkDrawResult::Rejected, "color-font source falls back before painting");
+
+    auto proportionalOptions       = directOptions;
+    proportionalOptions.fontFamily = L"Segoe UI";
+    Document proportionalDocument(L"plain proportional source");
+    const auto proportionalProjection = Project(proportionalDocument.Snapshot(), proportionalDocument.Revision(), ViewMode::Source);
+    auto proportionalLayout           = makeTestLayout(proportionalProjection, proportionalOptions, false);
+    requirePreflightRejectsWithoutPainting(proportionalProjection,
+                                           colorDrawing,
+                                           proportionalLayout.get(),
+                                           nullptr,
+                                           0u,
+                                           Detail::SourceInkDrawResult::Rejected,
+                                           "proportional source font rejects before painting");
+
+    Document overflowDocument(std::wstring(300u, L'a'));
+    const auto overflowProjection = Project(overflowDocument.Snapshot(), overflowDocument.Revision(), ViewMode::Source);
+    auto overflowOptions          = directOptions;
+    overflowOptions.widthDip      = 10000.0f;
+    auto overflowLayout           = makeTestLayout(overflowProjection, overflowOptions, false);
+    const std::array overflowInk{TextInkRange{{0u, 4u}, TextInkRole::Accent}};
+    LinkDrawing overflowDrawing;
+    overflowDrawing.inkRanges                                            = overflowInk;
+    overflowDrawing.inkBrushes[static_cast<size_t>(TextInkRole::Accent)] = red.get();
+    requirePreflightRejectsWithoutPainting(overflowProjection,
+                                           overflowDrawing,
+                                           overflowLayout.get(),
+                                           nullptr,
+                                           0u,
+                                           Detail::SourceInkDrawResult::Rejected,
+                                           "more than 256 glyphs reject before painting");
+
+    context->SetDpi(120.0f, 144.0f);
+    context->BeginDraw();
+    context->Clear(D2D1::ColorF(0u, 0.0f));
+    const auto asymmetricDpiResult =
+        Detail::DrawSourceInkIfSupported(context.get(), white.get(), directLayout.get(), positioned.Get(), 2u, bidiProjection, directDrawing, directOrigin);
+    Require(asymmetricDpiResult == Detail::SourceInkDrawResult::Rejected, "nonuniform DPI rejects before fast drawing");
+    THROW_IF_FAILED(context->EndDraw());
+    std::vector<uint8_t> asymmetricDpiPixels;
+    THROW_IF_FAILED(graphics.Read(asymmetricDpiPixels));
+    bool asymmetricEmpty = true;
+    for (std::size_t index = 3u; index < asymmetricDpiPixels.size(); index += 4u)
+        asymmetricEmpty = asymmetricEmpty && asymmetricDpiPixels[index] == 0u;
+    Require(asymmetricEmpty, "nonuniform DPI fallback leaves the fast renderer target untouched");
+
+    for (const auto family : {L"Consolas", L"Cascadia Mono"})
+    {
+        options.fontFamily     = family;
+        options.codeFontFamily = family;
+        for (const auto direction : {DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT})
+        {
+            options.readingDirection = direction;
+            layout.Prepare(factory.get(), projection, options);
+            shared = layout;
+            for (const FLOAT dpi : {96.0f, 120.0f, 144.0f, 192.0f})
+            {
+                context->SetDpi(dpi, dpi);
+                for (const auto transform : {D2D1::Matrix3x2F::Identity(), D2D1::Matrix3x2F(1.25f, 0.0f, 0.0f, 1.25f, 0.37f, 0.63f)})
+                {
+                    context->SetTransform(transform);
+                    const auto fastPixels   = render(layout, drawing, D2D1::Point2F(8.375f, 8.625f));
+                    const auto legacyPixels = render(layout, legacy, D2D1::Point2F(8.375f, 8.625f));
+                    Require(fastPixels == legacyPixels,
+                            "source glyph splitting matches canonical DirectWrite pixels across font, direction, DPI, transform and fractional origin");
+                    Require(render(shared, drawing, D2D1::Point2F(8.375f, 8.625f)) == fastPixels,
+                            "copied prepared layouts draw the same source ink without retained brushes or altered canonical pixels");
+                }
+            }
+        }
+    }
+
+    const auto requireLegacyPixels = [&](Document& candidateDocument, LayoutOptions candidateOptions, MarkdownRange inkRange, bool selected)
+    {
+        auto candidateProjection = Project(candidateDocument.Snapshot(), candidateDocument.Revision(), ViewMode::Source);
+        layout.Prepare(factory.get(), candidateProjection, candidateOptions);
+        const std::array candidateInk{TextInkRange{inkRange, TextInkRole::Accent}};
+        LinkDrawing candidateDrawing;
+        candidateDrawing.inkRanges                                            = candidateInk;
+        candidateDrawing.inkBrushes[static_cast<size_t>(TextInkRole::Accent)] = red.get();
+        if (selected)
+            candidateDrawing.inkExclusion = inkRange;
+        auto canonicalDrawing     = candidateDrawing;
+        canonicalDrawing.emphasis = MarkdownRange{0u, 0u};
+        Require(render(layout, candidateDrawing, D2D1::Point2F(8.375f, 8.625f)) == render(layout, canonicalDrawing, D2D1::Point2F(8.375f, 8.625f)),
+                "unsupported source ink shape preserves the whole-layout canonical DirectWrite raster");
+    };
+    Document combining(L"a\u0301 fi alpha");
+    requireLegacyPixels(combining, options, {0u, 1u}, false); // The ink boundary cuts one DirectWrite cluster.
+    Document ligature(L"office fi");
+    auto ligatureOptions       = options;
+    ligatureOptions.fontFamily = L"Cascadia Code";
+    requireLegacyPixels(ligature, ligatureOptions, {3u, 4u}, false);
+    Document colorGlyph(L"plain \U0001f600 text");
+    requireLegacyPixels(colorGlyph, options, {0u, 5u}, false);
+    Document selectedSource(L"plain **selected** text");
+    requireLegacyPixels(selectedSource, options, {6u, 14u}, true);
+    auto proportional       = options;
+    proportional.fontFamily = L"Segoe UI";
+    Document proportionalSource(L"plain source text");
+    requireLegacyPixels(proportionalSource, proportional, {0u, 5u}, false);
+    Document overflow(std::wstring(300u, L'a'));
+    auto wide     = options;
+    wide.widthDip = 10000.0f;
+    requireLegacyPixels(overflow, wide, {0u, 4u}, false);
+    Document styledSource(L"plain styled source");
+    auto styledProjection = Project(styledSource.Snapshot(), styledSource.Revision(), ViewMode::Source);
+    styledProjection.runs.push_back({0u, 5u, Bold, 0u});
+    layout.Prepare(factory.get(), styledProjection, options);
+    const std::array styledInk{TextInkRange{{0u, 5u}, TextInkRole::Accent}};
+    LinkDrawing styledDrawing;
+    styledDrawing.inkRanges                                            = styledInk;
+    styledDrawing.inkBrushes[static_cast<size_t>(TextInkRole::Accent)] = red.get();
+    auto styledRawLayout                                               = makeTestLayout(styledProjection, options, false);
+    requirePreflightRejectsWithoutPainting(styledProjection,
+                                           styledDrawing,
+                                           styledRawLayout.get(),
+                                           nullptr,
+                                           0u,
+                                           Detail::SourceInkDrawResult::NotApplicable,
+                                           "styled Source projection is not admitted to the direct renderer");
+    auto styledLegacy     = styledDrawing;
+    styledLegacy.emphasis = MarkdownRange{0u, 0u};
+    Require(render(layout, styledDrawing, D2D1::Point2F(8.375f, 8.625f)) == render(layout, styledLegacy, D2D1::Point2F(8.375f, 8.625f)),
+            "styled Source projections retain their canonical fallback raster");
+    PreparedLayout styledCopy(layout);
+    Require(render(styledCopy, styledLegacy, D2D1::Point2F(8.375f, 8.625f)) == render(layout, styledLegacy, D2D1::Point2F(8.375f, 8.625f)),
+            "style changes keep shared copies on the canonical fallback raster");
 }
 } // namespace
 
@@ -643,6 +1027,7 @@ void RunRichTextLayoutTests()
     DXUI_RUN_TEST(TestRichTextLayoutPrototypeContracts);
     DXUI_RUN_TEST(TestRichTextLayoutOptionsFailureAtomicityAndRetirement);
     DXUI_RUN_TEST(TestRichTextLayoutBorrowedWarpTargetsAndDeviceReplacement);
+    DXUI_RUN_TEST(TestRichTextSourceInkRendererMatchesCanonicalRaster);
     DXUI_RUN_TEST(TestRichTextLayoutHostLocaleAndReadingDirection);
     DXUI_RUN_TEST(TestRichTextLayoutUnicode17NavigationAndHitStops);
     DXUI_RUN_TEST(TestRichTextLayoutDeletionRangesAndRetirement);
