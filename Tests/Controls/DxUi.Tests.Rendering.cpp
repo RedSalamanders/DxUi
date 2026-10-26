@@ -2,10 +2,84 @@
 #include "Controls.Tests.GridMultilineFixtures.h"
 #include "Controls.Tests.HostControlRegressions.h"
 
+#include <DxUi/FrameRuntime.h>
+#include <array>
+
 namespace
 {
 
 using DxUi::WindowHostBitmapCapture;
+
+struct CapturedFrameMetrics final
+{
+    uint64_t updateUs  = 0u;
+    uint64_t renderUs  = 0u;
+    uint64_t presentUs = 0u;
+};
+
+struct FrameMetricsCapture final
+{
+    std::array<CapturedFrameMetrics, 4u> frames{};
+    size_t completedFrames = 0u;
+};
+
+void CaptureWindowHostFrameMetric(void* context, std::wstring_view metric, uint64_t value) noexcept
+{
+    auto& capture = *static_cast<FrameMetricsCapture*>(context);
+    if (capture.completedFrames >= capture.frames.size())
+        return;
+
+    CapturedFrameMetrics& current = capture.frames[capture.completedFrames];
+    if (metric == L"dxui.frame.update_us")
+        current.updateUs = value;
+    else if (metric == L"dxui.frame.render_us")
+        current.renderUs = value;
+    else if (metric == L"dxui.frame.present_us")
+    {
+        current.presentUs = value;
+        ++capture.completedFrames;
+    }
+}
+
+class PendingPreparationProbe final : public DxUi::Control
+{
+public:
+    PendingPreparationProbe()
+    {
+        EnableContentPreparation();
+    }
+
+    void ArmPendingCycle() noexcept
+    {
+        _pendingCycle    = true;
+        _returnedPending = false;
+        RequestContentPreparation(false);
+    }
+
+    [[nodiscard]] HRESULT PrepareContent(DxUi::ControlHost&) noexcept override
+    {
+        if (! _pendingCycle)
+            return S_OK;
+
+        Sleep(1u);
+        if (! _returnedPending)
+        {
+            _returnedPending = true;
+            return S_FALSE;
+        }
+
+        _pendingCycle = false;
+        return S_OK;
+    }
+
+    void Paint(DxUi::WindowHost&) const override
+    {
+    }
+
+private:
+    bool _pendingCycle    = false;
+    bool _returnedPending = false;
+};
 
 class TransientSurfaceProbe final : public DxUi::Control
 {
@@ -2590,6 +2664,60 @@ void TestAttachedHostSameSizeRepaintDoesNotResizeSwapChain()
 #endif
 }
 
+void TestAttachedHostUpdateMetricsIncludePendingPreparation()
+{
+    using namespace DxUi;
+
+    const auto exercise = [](bool capturePath)
+    {
+        AttachedHostWindow window;
+        auto root                      = std::make_unique<Panel>();
+        PendingPreparationProbe* probe = root->AddChild<PendingPreparationProbe>();
+        probe->SetBounds(D2D1::RectF(0.0f, 0.0f, 160.0f, 32.0f));
+        window.Host().SetRoot(std::move(root));
+
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        RedrawWindow(window.Hwnd(), nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+        window.PumpMessages();
+
+        FrameMetricsCapture metrics;
+        SetFrameMetricSink(&CaptureWindowHostFrameMetric, &metrics);
+        const auto resetMetricSink = wil::scope_exit([]() noexcept { SetFrameMetricSink(nullptr, nullptr); });
+
+        probe->ArmPendingCycle();
+        if (capturePath)
+        {
+            WindowHostBitmapCapture pendingCapture;
+            Require(! window.Host().DebugCaptureBitmap(pendingCapture), "a frame that leaves content preparation pending does not publish a bitmap capture");
+        }
+        else
+        {
+            window.Host().DebugRenderDirtyRectForTest(RECT{0, 0, 160, 32});
+        }
+
+        Require(metrics.completedFrames == 1u, "the incomplete update emits one frame metric set");
+        Require(metrics.frames[0u].updateUs > 0u, "the incomplete frame reports elapsed update time");
+        Require(metrics.frames[0u].renderUs == 0u && metrics.frames[0u].presentUs == 0u,
+                "the incomplete preparation frame does not report render or present work");
+
+        if (capturePath)
+        {
+            WindowHostBitmapCapture completedCapture;
+            Require(window.Host().DebugCaptureBitmap(completedCapture), "the next bitmap capture completes after pending preparation");
+        }
+        else
+        {
+            window.Host().DebugRenderDirtyRectForTest(RECT{0, 0, 160, 32});
+        }
+
+        Require(metrics.completedFrames == 2u, "the completed update emits a second frame metric set");
+        Require(metrics.frames[1u].updateUs > 0u, "the completed frame reports elapsed update time");
+    };
+
+    exercise(false);
+    exercise(true);
+}
+
 void TestAttachedHostFirstPartialPaintPresentsFullAfterCreateAndResize()
 {
     using namespace DxUi;
@@ -3105,6 +3233,7 @@ void RunRenderingTests()
     DXUI_RUN_TEST(TestAttachedComboBoxPopupScrollingStaysStable);
     DXUI_RUN_TEST(TestAttachedComboBoxPopupLongRunScrollingStaysStable);
     DXUI_RUN_TEST(TestAttachedHostSameSizeRepaintDoesNotResizeSwapChain);
+    DXUI_RUN_TEST(TestAttachedHostUpdateMetricsIncludePendingPreparation);
     DXUI_RUN_TEST(TestAttachedHostFirstPartialPaintPresentsFullAfterCreateAndResize);
     DXUI_RUN_TEST(TestAttachedHostInitialRootChildBatchesAreBoundedAndResetScoped);
     DXUI_RUN_TEST(TestAttachedHostInitialRootChildBatchingUsesNativePaintAndExcludesNestedPanels);
