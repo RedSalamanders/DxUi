@@ -527,6 +527,28 @@ bool WaitForContextMenuPopupBitmapCapture(HWND popupHwnd,
 class ScopedMenuPointerFixture final
 {
 public:
+    struct AlignmentDiagnostics
+    {
+        bool physicalBeforeKnown = false;
+        POINT physicalBefore{};
+        DWORD physicalBeforeError = ERROR_SUCCESS;
+        bool setCursorPosAccepted = false;
+        DWORD setCursorPosError   = ERROR_SUCCESS;
+        bool helperReadbackKnown  = false;
+        POINT helperReadback{};
+        DWORD helperReadbackError = ERROR_SUCCESS;
+        bool clipRectKnown        = false;
+        RECT clipRect{};
+        DWORD clipRectError           = ERROR_SUCCESS;
+        bool windowDpiKnown           = false;
+        UINT windowDpi                = 0u;
+        DWORD windowDpiError          = ERROR_SUCCESS;
+        bool windowAwarenessKnown     = false;
+        DPI_AWARENESS windowAwareness = DPI_AWARENESS_INVALID;
+        bool threadAwarenessKnown     = false;
+        DPI_AWARENESS threadAwareness = DPI_AWARENESS_INVALID;
+    };
+
     explicit ScopedMenuPointerFixture(HWND popup) noexcept : _popup(popup), _previousDpi(SetThreadDpiAwarenessContext(GetWindowDpiAwarenessContext(popup)))
     {
     }
@@ -571,15 +593,93 @@ public:
         } while (std::chrono::steady_clock::now() < deadline);
         return false;
     }
-    [[nodiscard]] bool AlignCursor(POINT point) noexcept
+    [[nodiscard]] bool AlignCursor(POINT point, HWND diagnosticWindow = nullptr) noexcept
     {
         // Keep the established popup-context alignment; record its actual physical
         // result so restoration does not round-trip through virtualized coordinates.
-        if ((! _cursorAligned && GetPhysicalCursorPos(&_originalCursor) == FALSE) || SetCursorPos(point.x, point.y) == FALSE ||
-            GetPhysicalCursorPos(&_alignedCursor) == FALSE)
+        _alignmentDiagnostics = {};
+
+        const HWND window                          = diagnosticWindow != nullptr ? diagnosticWindow : _popup;
+        const DPI_AWARENESS windowAwareness        = GetAwarenessFromDpiAwarenessContext(GetWindowDpiAwarenessContext(window));
+        _alignmentDiagnostics.windowAwareness      = windowAwareness;
+        _alignmentDiagnostics.windowAwarenessKnown = windowAwareness != DPI_AWARENESS_INVALID;
+
+        const DPI_AWARENESS threadAwareness        = GetAwarenessFromDpiAwarenessContext(GetThreadDpiAwarenessContext());
+        _alignmentDiagnostics.threadAwareness      = threadAwareness;
+        _alignmentDiagnostics.threadAwarenessKnown = threadAwareness != DPI_AWARENESS_INVALID;
+
+        SetLastError(ERROR_SUCCESS);
+        _alignmentDiagnostics.windowDpi      = GetDpiForWindow(window);
+        _alignmentDiagnostics.windowDpiKnown = _alignmentDiagnostics.windowDpi != 0u;
+        _alignmentDiagnostics.windowDpiError = _alignmentDiagnostics.windowDpiKnown ? ERROR_SUCCESS : GetLastError();
+
+        SetLastError(ERROR_SUCCESS);
+        _alignmentDiagnostics.clipRectKnown = GetClipCursor(&_alignmentDiagnostics.clipRect) != FALSE;
+        _alignmentDiagnostics.clipRectError = _alignmentDiagnostics.clipRectKnown ? ERROR_SUCCESS : GetLastError();
+
+        SetLastError(ERROR_SUCCESS);
+        _alignmentDiagnostics.physicalBeforeKnown = GetPhysicalCursorPos(&_alignmentDiagnostics.physicalBefore) != FALSE;
+        _alignmentDiagnostics.physicalBeforeError = _alignmentDiagnostics.physicalBeforeKnown ? ERROR_SUCCESS : GetLastError();
+        if (! _alignmentDiagnostics.physicalBeforeKnown && ! _cursorAligned)
             return false;
+
+        if (! _cursorAligned)
+            _originalCursor = _alignmentDiagnostics.physicalBefore;
+
+        SetLastError(ERROR_SUCCESS);
+        _alignmentDiagnostics.setCursorPosAccepted = SetCursorPos(point.x, point.y) != FALSE;
+        _alignmentDiagnostics.setCursorPosError    = GetLastError(); // Observation only; SetCursorPos documents errors only on failure.
+        if (! _alignmentDiagnostics.setCursorPosAccepted)
+            return false;
+
+        SetLastError(ERROR_SUCCESS);
+        _alignmentDiagnostics.helperReadbackKnown = GetPhysicalCursorPos(&_alignmentDiagnostics.helperReadback) != FALSE;
+        _alignmentDiagnostics.helperReadbackError = _alignmentDiagnostics.helperReadbackKnown ? ERROR_SUCCESS : GetLastError();
+        if (! _alignmentDiagnostics.helperReadbackKnown)
+            return false;
+
+        _alignedCursor = _alignmentDiagnostics.helperReadback;
         _cursorAligned = true;
         return true;
+    }
+
+    void PrintAlignmentFailure(const char* context, POINT expected, bool callerReadKnown, POINT callerRead) const noexcept
+    {
+        const AlignmentDiagnostics& d = _alignmentDiagnostics;
+        std::printf("Menu pointer alignment: context=%s expected=(%ld,%ld) beforeKnown=%d before=(%ld,%ld) beforeError=%lu "
+                    "setAccepted=%d setError=%lu helperReadKnown=%d helperRead=(%ld,%ld) helperReadError=%lu "
+                    "callerReadKnown=%d callerRead=(%ld,%ld) clipKnown=%d clip=(%ld,%ld,%ld,%ld) clipError=%lu "
+                    "windowDpiKnown=%d windowDpi=%u windowDpiError=%lu windowAwarenessKnown=%d windowAwareness=%d "
+                    "threadAwarenessKnown=%d threadAwareness=%d\n",
+                    context,
+                    static_cast<long>(expected.x),
+                    static_cast<long>(expected.y),
+                    static_cast<int>(d.physicalBeforeKnown),
+                    static_cast<long>(d.physicalBefore.x),
+                    static_cast<long>(d.physicalBefore.y),
+                    static_cast<unsigned long>(d.physicalBeforeError),
+                    static_cast<int>(d.setCursorPosAccepted),
+                    static_cast<unsigned long>(d.setCursorPosError),
+                    static_cast<int>(d.helperReadbackKnown),
+                    static_cast<long>(d.helperReadback.x),
+                    static_cast<long>(d.helperReadback.y),
+                    static_cast<unsigned long>(d.helperReadbackError),
+                    static_cast<int>(callerReadKnown),
+                    static_cast<long>(callerRead.x),
+                    static_cast<long>(callerRead.y),
+                    static_cast<int>(d.clipRectKnown),
+                    static_cast<long>(d.clipRect.left),
+                    static_cast<long>(d.clipRect.top),
+                    static_cast<long>(d.clipRect.right),
+                    static_cast<long>(d.clipRect.bottom),
+                    static_cast<unsigned long>(d.clipRectError),
+                    static_cast<int>(d.windowDpiKnown),
+                    static_cast<unsigned int>(d.windowDpi),
+                    static_cast<unsigned long>(d.windowDpiError),
+                    static_cast<int>(d.windowAwarenessKnown),
+                    static_cast<int>(d.windowAwareness),
+                    static_cast<int>(d.threadAwarenessKnown),
+                    static_cast<int>(d.threadAwareness));
     }
 
 private:
@@ -588,6 +688,7 @@ private:
     POINT _originalCursor{};
     POINT _alignedCursor{};
     bool _cursorAligned = false;
+    AlignmentDiagnostics _alignmentDiagnostics{};
 };
 
 [[nodiscard]] LRESULT SendCapturedMouseMessageForMenuSuite(HWND hwnd, UINT message, WPARAM wParam, POINT screenPoint) noexcept
@@ -4210,9 +4311,18 @@ void TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay()
             // otherwise the physical point can differ from the synthetic lParam.
             [[maybe_unused]] const ScopedMenuPointerFixture popupDpiContext(rootPopupHwnd);
             POINT screenPoint{x, y};
-            if (! ClientToScreen(rootPopupHwnd, &screenPoint) || ! pointerFixture.AlignCursor(screenPoint))
+            if (! ClientToScreen(rootPopupHwnd, &screenPoint))
             {
-                driverFailure = std::format("{} physical cursor alignment failed at client=({},{}): clientToScreen or SetCursorPos failed", context, x, y);
+                driverFailure = std::format("{} physical cursor alignment failed at client=({},{}): ClientToScreen failed", context, x, y);
+                return false;
+            }
+
+            if (! pointerFixture.AlignCursor(screenPoint, rootPopupHwnd))
+            {
+                POINT actualScreenPoint{};
+                const bool cursorReadable = GetPhysicalCursorPos(&actualScreenPoint) != FALSE;
+                pointerFixture.PrintAlignmentFailure(context, screenPoint, cursorReadable, actualScreenPoint);
+                driverFailure = std::format("{} physical cursor alignment failed at client=({},{}): SetCursorPos or helper readback failed", context, x, y);
                 return false;
             }
 
@@ -4220,6 +4330,7 @@ void TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay()
             const bool cursorReadable = GetPhysicalCursorPos(&actualScreenPoint) != FALSE;
             if (! cursorReadable || actualScreenPoint.x != screenPoint.x || actualScreenPoint.y != screenPoint.y)
             {
+                pointerFixture.PrintAlignmentFailure(context, screenPoint, cursorReadable, actualScreenPoint);
                 driverFailure = std::format("{} physical cursor verification failed: expected=({},{}), actual=({},{}), readable={}",
                                             context,
                                             screenPoint.x,

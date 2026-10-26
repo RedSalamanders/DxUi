@@ -283,3 +283,16 @@ with only its X coordinate incremented. All four other new cursor failure cases 
 retained binary. Fresh full InteractiveLease and governed foreground execution remain required. The earlier
 `c724122b` compile failure (test defined before its fixture) is retained separately; its unchanged body was moved
 after the fixture. Neither fixture correction changes production restoration or its exact-readback criterion.
+
+At `8ac9ff63`, the complete local Debug InteractiveLease suite passes. NativeTextInput and both menu-resource
+fixtures also pass under the authorized automatic-start lease, with foreground, focus and pointer restored.
+Menu stops before dispatching B2: requested screen point `244,229`, physical readback `244,199` (the prior B1
+row). The source uses `SetCursorPos` for this fixture and `GetPhysicalCursorPos` for verification; the separate
+lease restoration uses `SetPhysicalCursorPos`. The failed receipt does not record clipping or the helper's first
+readback, so neither clipping, coordinate virtualization nor intervening input is attributed.
+
+The next diagnostic records fixed-size before/set/first-read/caller-read, clip rectangle and live-popup/thread
+DPI facts on failure. The calibration popup can have been destroyed, so the diagnostic explicitly targets the
+live popup. The setter, exact predicate, timeouts and restoration remain unchanged. The synthetic mouse helper
+ends in synchronous `SendMessageW(WM_MOUSEMOVE)` and runs after alignment; it schedules no cursor movement.
+Hosted x64 Debug, Release and ASan pass at `8ac9ff63`; matching ARM64 and paired results remain separate.
