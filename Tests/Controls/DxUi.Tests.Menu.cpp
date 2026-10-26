@@ -4254,6 +4254,15 @@ void TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay()
         }
         trace.Driver("b11-opened", 1u, 0u);
 
+        // Submenu capture can synthesize a move for the real pointer. Keep this
+        // fixture's physical point on B2 so that move cannot undo its close input.
+        [[maybe_unused]] const ScopedMenuPointerFixture popupDpiContext(rootPopupHwnd);
+        POINT b2ScreenPoint{b2X, b2Y};
+        if (! ClientToScreen(rootPopupHwnd, &b2ScreenPoint) || ! pointerFixture.AlignCursor(b2ScreenPoint))
+        {
+            driverFailure = "the owned pointer aligns to B2 before delayed submenu close";
+            return;
+        }
         if (! SendSettledClientMouseMoveForMenuSuite(rootPopupHwnd, b2X, b2Y) ||
             ! WaitForContextMenuPopupState(rootPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
             return state.hoveredIndex.has_value() && state.hoveredIndex.value() == 1u;

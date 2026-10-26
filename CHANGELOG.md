@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Keep the owned pointer aligned with the delayed-close fixture's B2 target so a synthesized capture move cannot restore its earlier B1 hover. Preserve the existing submenu-open/close assertions and deadlines; production menu behavior is unchanged.
 - Stabilize the delayed submenu hover test by placing the owned pointer over B1 when the popup opens, then requiring a real B2-to-B1 transition before asserting the existing submenu delay; focused interactive validation remains pending.
 - Reasserting an adopted Markdown snapshot now cancels superseded pending parsing while retaining the same immutable publication. A retained native probe demonstrates the prior failure; the parser regression checks cancellation and wrapper identity together. Final qualification remains tracked separately.
 - Add optional exact parsed-snapshot reuse for read-only Source editors. Mirrors retain their own revision/document identity while sharing completed immutable syntax; source, selection, history, scroll and literal glyph geometry stay unchanged. Independent parsing remains the fallback. API revision stays 4 under the source-coordinated additive policy; consumers must rebuild with matching headers/library because MarkdownSyntax layout changes. Native, allocation-failure, consumer and performance qualification remains tracked in the active plan.
