@@ -2,6 +2,8 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
+- **ACTIVE**: [Complete Update-stage metric accounting](FrameUpdateAccounting_2026-10-26.md). Both native render paths now measure pending preparation on stage exit; regression and native/platform/performance qualification remain pending. Earlier SDK407 consumer diagnostics retain their incomplete Update-field boundary.
+
 - **ACTIVE**: [Read-only Source snapshot synchronization](ReadOnlySourceSnapshot_2026-10-26.md). The additive API is merged with source/undo/selection and callback regressions, six local builds, six hosted native profiles, four local foreground suites and exact-pin RedTilde execution. Evidence publication is in progress. Paired performance remains inconclusive (unqualified base policy and 71/72 unstable controls); parent consumer/platform and physical input gates remain explicit. No performance gain is claimed.
 
 - **SPEC READY**: [RichTextEditor file drag-and-drop](RichTextFileDrop_2026-10-20.md).

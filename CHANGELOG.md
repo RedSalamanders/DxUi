@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Record WindowHost Update-stage elapsed time on every exit, including deferred preparation and resource failure, and add native coverage for pending and completed preparation through both render entry points; native execution remains pending.
 - Preserve bounded cursor-set, readback, clip-rectangle and desktop-name observations when the interactive lease cannot verify exact pointer restoration; malformed diagnostics fail receipt validation, while restoration still depends on exact physical readback.
 - Align and verify the owned physical pointer for each delayed-submenu hover-test leg, with separate dispatch, hover and timer diagnostics. Keep submenu assertions and deadlines unchanged; preserve the hosted x64 Debug failure and separate ARM64 desktop-restoration failure until the revised fixture is qualified.
 - Keep the owned pointer aligned with the delayed-close fixture's B2 target so a synthesized capture move cannot restore its earlier B1 hover. Preserve the existing submenu-open/close assertions and deadlines; production menu behavior is unchanged.

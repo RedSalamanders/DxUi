@@ -4392,10 +4392,10 @@ try
 
     {
         FrameStageScope updateScope(frameStage, FrameStage::Update);
-        const auto updateStartedAt = frameClock.Now();
+        const auto updateStartedAt  = frameClock.Now();
+        const auto recordUpdateTime = wil::scope_exit([&]() noexcept { updateUs = frameClock.ElapsedUs(updateStartedAt, frameClock.Now()); });
         if (! EnsureSizeDependentResources(allowHidden))
         {
-            updateUs = frameClock.ElapsedUs(updateStartedAt, frameClock.Now());
             paintPerf.SetHr(E_FAIL);
             EmitPendingNativeTextInputPaintMetric(E_FAIL);
             return;
@@ -4413,7 +4413,6 @@ try
             EmitPendingNativeTextInputPaintMetric(E_ABORT);
             return;
         }
-        updateUs = frameClock.ElapsedUs(updateStartedAt, frameClock.Now());
     }
 
     const bool forceFullPresentAfterBufferReset = _forceFullPresentAfterBufferReset;
@@ -4687,10 +4686,10 @@ try
 
     {
         FrameStageScope updateScope(frameStage, FrameStage::Update);
-        const auto updateStartedAt = frameClock.Now();
+        const auto updateStartedAt  = frameClock.Now();
+        const auto recordUpdateTime = wil::scope_exit([&]() noexcept { updateUs = frameClock.ElapsedUs(updateStartedAt, frameClock.Now()); });
         if (! EnsureSizeDependentResources(allowHidden))
         {
-            updateUs = frameClock.ElapsedUs(updateStartedAt, frameClock.Now());
             paintPerf.SetHr(E_FAIL);
             EmitPendingNativeTextInputPaintMetric(E_FAIL);
             return;
@@ -4708,7 +4707,6 @@ try
             EmitPendingNativeTextInputPaintMetric(E_ABORT);
             return;
         }
-        updateUs = frameClock.ElapsedUs(updateStartedAt, frameClock.Now());
     }
 
 #if DXUI_ENABLE_DIAGNOSTICS
