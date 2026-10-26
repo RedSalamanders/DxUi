@@ -569,24 +569,6 @@ void TestDesktopLeaseReportsUnreadablePreSetCursorWithoutInventingPosition()
             "the completed lease result distinguishes the failed read from unattempted set/readback fields without coordinates");
 }
 
-void TestDesktopLeaseReportsUnreadablePostSetCursorWithoutInventingReadback()
-{
-    Lease lease;
-    lease.desktop.cursorUnreadableAfterSet = true;
-    const LeaseOutcome outcome             = RunLease(lease.services, RequestFor({L"Menu"}));
-    Require(outcome.state == "completed" && outcome.exitCode == LeaseExit::kNotRestored && outcome.restoration.has_value(),
-            "the native lease keeps a suite result completed while a failed restoration determines the exit status");
-    Require(outcome.restoration->saved.cursorKnown && outcome.restoration->cursor == Restoration::Failed && outcome.restoration->cursorDiagnostics.has_value(),
-            "a readback failure remains a failed pointer restoration");
-    const RestoreReport::CursorDiagnostics& diagnostics = outcome.restoration->cursorDiagnostics.value();
-    Require(diagnostics.readBeforeKnown && diagnostics.setCalled && diagnostics.setAccepted && ! diagnostics.readbackKnown &&
-                diagnostics.readbackError == ERROR_INVALID_DATA,
-            "the accepted set is followed by a failed readback, not an invented position");
-    const std::string result = FormatLeaseResult(outcome);
-    Require(result.find("state: completed\n") != std::string::npos && result.find("readback=unknown;readbackError=13;") != std::string::npos,
-            "serialized lease state remains completed and preserves the unreadable readback");
-}
-
 void TestDesktopLeaseReportsCursorClipChangeWithoutForgivingReadback()
 {
     Events events;
@@ -1007,6 +989,24 @@ struct Lease
     FakeServices services{events, desktop};
     Person person;
 };
+
+void TestDesktopLeaseReportsUnreadablePostSetCursorWithoutInventingReadback()
+{
+    Lease lease;
+    lease.desktop.cursorUnreadableAfterSet = true;
+    const LeaseOutcome outcome             = RunLease(lease.services, RequestFor({L"Menu"}));
+    Require(outcome.state == "completed" && outcome.exitCode == LeaseExit::kNotRestored && outcome.restoration.has_value(),
+            "the native lease keeps a suite result completed while a failed restoration determines the exit status");
+    Require(outcome.restoration->saved.cursorKnown && outcome.restoration->cursor == Restoration::Failed && outcome.restoration->cursorDiagnostics.has_value(),
+            "a readback failure remains a failed pointer restoration");
+    const RestoreReport::CursorDiagnostics& diagnostics = outcome.restoration->cursorDiagnostics.value();
+    Require(diagnostics.readBeforeKnown && diagnostics.setCalled && diagnostics.setAccepted && ! diagnostics.readbackKnown &&
+                diagnostics.readbackError == ERROR_INVALID_DATA,
+            "the accepted set is followed by a failed readback, not an invented position");
+    const std::string result = FormatLeaseResult(outcome);
+    Require(result.find("state: completed\n") != std::string::npos && result.find("readback=unknown;readbackError=13;") != std::string::npos,
+            "serialized lease state remains completed and preserves the unreadable readback");
+}
 
 void TestLeaseRefusesWhenThereIsNoDesktopAndTouchesNothing()
 {
