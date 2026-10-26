@@ -2,7 +2,7 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
-- **ACTIVE**: [Read-only Source snapshot synchronization](ReadOnlySourceSnapshot_2026-10-26.md). An additive owner-thread API shares immutable source storage while preserving target-local revision/history, independent parsing and reset/selection semantics. Native/embedded, callback, source-ink parity, final-profile and exact-pin consumer qualification remain open; no performance gain is claimed.
+- **ACTIVE**: [Read-only Source snapshot synchronization](ReadOnlySourceSnapshot_2026-10-26.md). The additive API is merged with source/undo/selection and callback regressions, six local builds, six hosted native profiles, four local foreground suites and exact-pin RedTilde execution. Evidence publication is in progress. Paired performance remains inconclusive (unqualified base policy and 71/72 unstable controls); parent consumer/platform and physical input gates remain explicit. No performance gain is claimed.
 
 - **SPEC READY**: [RichTextEditor file drag-and-drop](RichTextFileDrop_2026-10-20.md).
 Displayed image references and relative links for other files reuse the paste

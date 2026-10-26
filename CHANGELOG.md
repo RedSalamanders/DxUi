@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Publish source-bound six-profile native and four-suite foreground evidence for the merged read-only snapshot API, plus the independently replayed 144-report paired study. Native and input checks pass; performance remains inconclusive because the base policy is unqualified and 71/72 controls are unstable. Keep ARM64 initial-focus, physical IME/AT and consumer acceptance limits explicit.
 - Add owner-thread read-only Source snapshot synchronization with immutable storage sharing, target-local history/revisions, independent parsing and the ordinary reset/selection path. Native/embedded source, Unicode, accessibility, glyph parity and retirement regressions accompany the API; final platform and consumer performance qualification remain open.
 - Publish the merged acrylic menu fixture's local Release and six-profile hosted qualification; all 123 individual Menu cases per profile complete, including Light/Dark hover and pointer-parking checks. Retain the earlier ambiguous failure and separate ARM64 keyboard-focus/performance limits; move the completed fixture plan to Done.
 - Separate Acrylic menu visual-capture readiness into modal capture, visible geometry, row hover, and shadow-margin hover clearing; add physical-pointer coverage for light and dark Acrylic while preserving the unhovered capture requirement.

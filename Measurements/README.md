@@ -1,11 +1,16 @@
 # Independent DxUi measurements
 
-- [Current local qualification, 2fed8246](RedTildeCompletion_2026-10-24/sdk-2fed8246-local/README.md):
+- [Current source snapshot qualification, 47a9d259](RedesignCompletion_2026-10-26/README.md): six hosted native
+  profiles, 126 scope reports, 496 manifest payload streams and four zero-skip local foreground suites.
+  PR #105 merges with the exact reviewed tree. Its paired study retains 144 reports and 78 independently
+  replayed metrics, with 71/72 unstable controls and an inconclusive policy verdict. Performance stays open.
+
+- [Earlier local qualification, 2fed8246](RedTildeCompletion_2026-10-24/sdk-2fed8246-local/README.md):
   six builds, 57 ordinary x64 suite outcomes, real ASan detection, 74 retained artifacts and 317 payload streams.
   The separate [foreground run](RedTildeCompletion_2026-10-24/sdk-2fed8246-foreground/README.md) passes all four
   authorized menu/input suites with desktop restoration. Local ARM64 rows are cross-builds only.
 
-- [Current hosted PR native qualification](RedTildeCompletion_2026-10-24/hosted-2fed-pr102-native/README.md)
+- [Earlier hosted PR native qualification](RedTildeCompletion_2026-10-24/hosted-2fed-pr102-native/README.md)
   and [exact-head manual qualification](RedTildeCompletion_2026-10-24/hosted-2fed-manual-native/README.md):
   each passes all six native x64/ARM64 profiles. The compiled source identities and archives stay separate;
   the PR's paired benchmark was still running at capture.
