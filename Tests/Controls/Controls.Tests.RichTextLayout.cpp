@@ -454,9 +454,9 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
     // Exercise the exact renderer helper used by PreparedLayout::Draw so the
     // oracle proves admission, fallback, and colored output rather than merely
     // comparing two paths that might both have fallen back.
-    Document bidiDocument(L"alpha \u05d0\u05d1\u05d2 **beta** omega");
-    const auto bidiProjection = Project(bidiDocument.Snapshot(), bidiDocument.Revision(), ViewMode::Source);
-    auto positioned           = Microsoft::WRL::Make<SourceInkTestPositioning>();
+    Document directDocument(L"alpha **beta** omega");
+    const auto directProjection = Project(directDocument.Snapshot(), directDocument.Revision(), ViewMode::Source);
+    auto positioned             = Microsoft::WRL::Make<SourceInkTestPositioning>();
     Require(positioned.Get() != nullptr, "test positioning object is allocated");
     const auto makeTestLayout = [&](const Projection& value, const LayoutOptions& layoutOptions, bool withPositioning)
     {
@@ -492,27 +492,27 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
     directOptions.readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
     auto directDrawing             = drawing;
     directDrawing.displayOrigin    = 7u;
-    const auto betaStart           = bidiProjection.text.find(L"**beta**");
-    Require(betaStart != std::wstring::npos, "bidi source fixture includes the second colored segment");
-    const auto tailStart = bidiProjection.text.size() - 2u;
+    const auto betaStart           = directProjection.text.find(L"**beta**");
+    Require(betaStart != std::wstring::npos, "monospaced source fixture includes the second colored segment");
+    const auto tailStart = directProjection.text.size() - 2u;
     const std::array directInk{TextInkRange{{7u, 12u}, TextInkRole::Accent},
                                TextInkRange{{7u + betaStart, 7u + betaStart + 8u}, TextInkRole::Link},
-                               TextInkRange{{7u + tailStart, 7u + bidiProjection.text.size() + 4u}, TextInkRole::Accent}};
+                               TextInkRange{{7u + tailStart, 7u + directProjection.text.size() + 4u}, TextInkRole::Accent}};
     directDrawing.inkRanges                                            = directInk;
     directDrawing.inkBrushes[static_cast<size_t>(TextInkRole::Accent)] = red.get();
     directDrawing.inkBrushes[static_cast<size_t>(TextInkRole::Link)]   = green.get();
     directDrawing.brush                                                = red.get();
-    auto directLayout                                                  = makeTestLayout(bidiProjection, directOptions, true);
+    auto directLayout                                                  = makeTestLayout(directProjection, directOptions, true);
     context->SetDpi(120.0f, 120.0f);
     context->SetTransform(D2D1::Matrix3x2F(1.25f, 0.0f, 0.0f, 1.25f, 0.37f, 0.63f));
     const auto directOrigin = D2D1::Point2F(8.375f, 8.625f);
     context->BeginDraw();
     context->Clear(D2D1::ColorF(0u, 0.0f));
     const auto directResult =
-        Detail::DrawSourceInkIfSupported(context.get(), white.get(), directLayout.get(), positioned.Get(), 2u, bidiProjection, directDrawing, directOrigin);
+        Detail::DrawSourceInkIfSupported(context.get(), white.get(), directLayout.get(), positioned.Get(), 2u, directProjection, directDrawing, directOrigin);
     if (directResult != Detail::SourceInkDrawResult::Drawn)
     {
-        auto diagnostic = Microsoft::WRL::Make<SourceInkDiagnosticRenderer>(context.get(), bidiProjection.text, &directDrawing, positioned.Get(), 2u);
+        auto diagnostic = Microsoft::WRL::Make<SourceInkDiagnosticRenderer>(context.get(), directProjection.text, &directDrawing, positioned.Get(), 2u);
         Require(diagnostic.Get() != nullptr, "diagnostic renderer is allocated after direct-path rejection");
         const HRESULT diagnosticResult = directLayout->Draw(nullptr, diagnostic.Get(), directOrigin.x, directOrigin.y);
         std::cerr << std::format("[SOURCE INK DIAGNOSTIC] helperResult={} layoutResult=0x{:08X} runs={} inlineIdentity={} underlines={} strikes={}\n",
@@ -523,7 +523,7 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
                                  diagnostic->Underlines(),
                                  diagnostic->Strikes());
         std::cerr << std::format("[SOURCE INK INPUT] textLength={} textOffset={} displayOrigin={} inkRanges={} positioningPresent={}\n",
-                                 bidiProjection.text.size(),
+                                 directProjection.text.size(),
                                  2u,
                                  directDrawing.displayOrigin,
                                  directDrawing.inkRanges.size(),
@@ -549,7 +549,7 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
                 run.sideways,
                 run.clusterMap);
     }
-    Require(directResult == Detail::SourceInkDrawResult::Drawn, "supported positioned Hebrew mixed-bidi source actually takes the direct renderer pass");
+    Require(directResult == Detail::SourceInkDrawResult::Drawn, "supported positioned monospaced source actually takes the direct renderer pass");
     THROW_IF_FAILED(context->EndDraw());
     std::vector<uint8_t> directPixels;
     THROW_IF_FAILED(graphics.Read(directPixels));
@@ -559,7 +559,7 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
                          (directPixels[index + 2u] > directPixels[index + 1u] + 30u || directPixels[index + 1u] > directPixels[index + 2u] + 30u);
     Require(coloredPixels != 0u, "direct source pass paints visible role-colored glyph pixels");
 
-    auto canonicalLayout = makeTestLayout(bidiProjection, directOptions, true);
+    auto canonicalLayout = makeTestLayout(directProjection, directOptions, true);
     const auto betaLocal = betaStart + 2u;
     THROW_IF_FAILED(canonicalLayout->SetDrawingEffect(red.get(), {2u, 5u}));
     THROW_IF_FAILED(canonicalLayout->SetDrawingEffect(green.get(), {static_cast<UINT32>(betaLocal), 8u}));
@@ -602,6 +602,42 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
         Require(empty, "unsupported source renderer conditions reject before painting any glyphs");
     };
 
+    Document mixedBidiDocument(L"alpha \u05d0\u05d1\u05d2 beta");
+    const auto mixedBidiProjection = Project(mixedBidiDocument.Snapshot(), mixedBidiDocument.Revision(), ViewMode::Source);
+    const auto mixedBetaStart      = mixedBidiProjection.text.find(L"beta");
+    Require(mixedBetaStart != std::wstring::npos, "mixed-bidi source fixture includes trailing Latin text");
+    const std::array mixedBidiInk{TextInkRange{{0u, 5u}, TextInkRole::Accent}, TextInkRange{{mixedBetaStart, mixedBetaStart + 4u}, TextInkRole::Link}};
+    LinkDrawing mixedBidiDrawing;
+    mixedBidiDrawing.brush                                                = red.get();
+    mixedBidiDrawing.inkRanges                                            = mixedBidiInk;
+    mixedBidiDrawing.inkBrushes[static_cast<size_t>(TextInkRole::Accent)] = red.get();
+    mixedBidiDrawing.inkBrushes[static_cast<size_t>(TextInkRole::Link)]   = green.get();
+    auto mixedBidiLayout                                                  = makeTestLayout(mixedBidiProjection, directOptions, true);
+    auto mixedDiagnostic = Microsoft::WRL::Make<SourceInkDiagnosticRenderer>(context.get(), mixedBidiProjection.text, &mixedBidiDrawing, positioned.Get(), 2u);
+    Require(mixedDiagnostic.Get() != nullptr, "mixed-bidi diagnostic renderer is allocated");
+    context->BeginDraw();
+    context->Clear(D2D1::ColorF(0u, 0.0f));
+    const HRESULT mixedDiagnosticResult = mixedBidiLayout->Draw(nullptr, mixedDiagnostic.Get(), directOrigin.x, directOrigin.y);
+    THROW_IF_FAILED(context->EndDraw());
+    Require(SUCCEEDED(mixedDiagnosticResult) &&
+                std::ranges::any_of(mixedDiagnostic->Runs(), [](const SourceInkRunDiagnostic& run) { return (run.bidiLevel & 1u) != 0u; }),
+            "actual Hebrew text produces an observed odd-bidi glyph run");
+    requirePreflightRejectsWithoutPainting(mixedBidiProjection,
+                                           mixedBidiDrawing,
+                                           mixedBidiLayout.get(),
+                                           positioned.Get(),
+                                           2u,
+                                           Detail::SourceInkDrawResult::Rejected,
+                                           "mixed Hebrew source stays on the whole-layout canonical renderer");
+    PreparedLayout mixedBidiPrepared;
+    mixedBidiPrepared.Prepare(factory.get(), mixedBidiProjection, directOptions);
+    auto mixedBidiCanonical     = mixedBidiDrawing;
+    mixedBidiCanonical.emphasis = MarkdownRange{0u, 0u};
+    const auto mixedBidiPixels  = render(mixedBidiPrepared, mixedBidiDrawing, directOrigin);
+    Require(mixedBidiPixels == render(mixedBidiPrepared, mixedBidiCanonical, directOrigin),
+            "odd-bidi source uses the pixel-identical whole-layout canonical fallback");
+    Require(std::ranges::any_of(mixedBidiPixels, [](uint8_t value) { return value != 0u; }), "mixed-bidi canonical fallback paints source pixels");
+
     Document boundaryDocument(L"a\u0301 fi");
     const auto boundaryProjection = Project(boundaryDocument.Snapshot(), boundaryDocument.Revision(), ViewMode::Source);
     const std::array boundaryInk{TextInkRange{{0u, 1u}, TextInkRole::Accent}};
@@ -639,7 +675,7 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
 
     auto selectionDrawing         = directDrawing;
     selectionDrawing.inkExclusion = MarkdownRange{8u, 12u};
-    requirePreflightRejectsWithoutPainting(bidiProjection,
+    requirePreflightRejectsWithoutPainting(directProjection,
                                            selectionDrawing,
                                            directLayout.get(),
                                            positioned.Get(),
@@ -691,7 +727,7 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
     context->BeginDraw();
     context->Clear(D2D1::ColorF(0u, 0.0f));
     const auto asymmetricDpiResult =
-        Detail::DrawSourceInkIfSupported(context.get(), white.get(), directLayout.get(), positioned.Get(), 2u, bidiProjection, directDrawing, directOrigin);
+        Detail::DrawSourceInkIfSupported(context.get(), white.get(), directLayout.get(), positioned.Get(), 2u, directProjection, directDrawing, directOrigin);
     Require(asymmetricDpiResult == Detail::SourceInkDrawResult::Rejected, "nonuniform DPI rejects before fast drawing");
     THROW_IF_FAILED(context->EndDraw());
     std::vector<uint8_t> asymmetricDpiPixels;

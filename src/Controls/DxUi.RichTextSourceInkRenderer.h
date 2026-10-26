@@ -107,6 +107,8 @@ public:
                                            const DWRITE_GLYPH_RUN_DESCRIPTION* description,
                                            IUnknown* effect) noexcept override
     {
+        if (IsPositioningPrefixLineFeed(run, description, effect))
+            return S_OK;
         if (effect || ! Eligible(run, description))
             return Reject();
         if (! painting_)
@@ -117,9 +119,8 @@ public:
             return Reject();
         const auto* ink = run;
 
-        UINT32 first          = 0;
-        FLOAT partX           = x;
-        const FLOAT direction = (run->bidiLevel & 1u) ? -1.0f : 1.0f;
+        UINT32 first = 0;
+        FLOAT partX  = x;
         while (first < run->glyphCount)
         {
             const int role        = glyphRoles[first];
@@ -134,7 +135,7 @@ public:
             part.glyphOffsets     = ink->glyphOffsets ? ink->glyphOffsets + first : nullptr;
             target_->DrawGlyphRun({partX, y}, &part, drawBrush, measuringMode);
             for (UINT32 index = first; index < last; ++index)
-                partX += direction * ink->glyphAdvances[index];
+                partX += ink->glyphAdvances[index];
             first = last;
         }
         return S_OK;
@@ -171,6 +172,11 @@ private:
     {
         accepted_ = false;
         return E_NOTIMPL;
+    }
+    bool IsPositioningPrefixLineFeed(const DWRITE_GLYPH_RUN* run, const DWRITE_GLYPH_RUN_DESCRIPTION* description, IUnknown* effect) const noexcept
+    {
+        return positioning_ && textOffset_ == 2u && run && ! run->glyphCount && ! run->isSideways && ! effect && description && description->string &&
+               description->textPosition == 1u && description->stringLength == 1u && description->string[0] == L'\n';
     }
     void BuildInkSpans() noexcept
     {
@@ -214,9 +220,9 @@ private:
     }
     bool Eligible(const DWRITE_GLYPH_RUN* run, const DWRITE_GLYPH_RUN_DESCRIPTION* description) noexcept
     {
-        if (! run || ! description || ! run->fontFace || run->isSideways || ! run->glyphCount || run->glyphCount > 256u || ! run->glyphIndices ||
-            ! run->glyphAdvances || ! description->string || ! description->stringLength || description->stringLength > 512u || ! description->clusterMap ||
-            description->textPosition < textOffset_ ||
+        if (! run || ! description || ! run->fontFace || run->isSideways || (run->bidiLevel & 1u) || ! run->glyphCount || run->glyphCount > 256u ||
+            ! run->glyphIndices || ! run->glyphAdvances || ! description->string || ! description->stringLength || description->stringLength > 512u ||
+            ! description->clusterMap || description->textPosition < textOffset_ ||
             static_cast<std::size_t>(description->textPosition - textOffset_) + description->stringLength > layoutText_.size())
             return false;
         const auto textOffset = static_cast<std::size_t>(description->textPosition - textOffset_);
