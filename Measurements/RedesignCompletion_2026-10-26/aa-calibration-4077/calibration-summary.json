@@ -1,0 +1,129 @@
+{
+  "schema": "dxui-current-source-aa-calibration-archive-v1",
+  "classification": "same-binary-calibration-archive",
+  "source": {
+    "repository": "DxUi",
+    "commit": "4077f57df8207eac6c39c43437feb45b19d23cf8",
+    "tree": "18be66885916f67cafd8aeb761207bf15fbd9120",
+    "baselineEqualsCandidate": true,
+    "platform": "x64",
+    "configuration": "Release",
+    "seed": 20261027,
+    "blocks": 12,
+    "scenarios": [
+      "Default",
+      "MultilineGrid",
+      "MultilineGridDistinct"
+    ]
+  },
+  "policy": {
+    "qualified": false,
+    "acceptance": "none",
+    "status": "policy-review-required",
+    "calibrationOnly": true
+  },
+  "summarySha256": "FA4AD8238DA1C806C5785B6285B1153922E6AAEF76B8DEAA258D3DED7DAE3C63",
+  "provenance": {
+    "outputSha256": "EB35465E6C8D836F993F7C9A2DF58C4A95E26BAB1F16282DFF596112974A8DC8",
+    "rawReceiptCount": 144,
+    "harnessPathsVerified": 20,
+    "samePhysicalTree": true,
+    "bothJudgesAndConsumedSetAgree": true,
+    "scenarioJudgeAgreement": [
+      {
+        "scenario": "Default",
+        "fullJudgeDecisionsMatch": true,
+        "consumedSetMatches": true,
+        "verdictsAgree": true
+      },
+      {
+        "scenario": "MultilineGrid",
+        "fullJudgeDecisionsMatch": true,
+        "consumedSetMatches": true,
+        "verdictsAgree": true
+      },
+      {
+        "scenario": "MultilineGridDistinct",
+        "fullJudgeDecisionsMatch": true,
+        "consumedSetMatches": true,
+        "verdictsAgree": true
+      }
+    ],
+    "currentAuditorSourceSha256": "0AB6AB3A1C3CE19A39637D093A80DC8888690CBE2C33D1688F485D9517CAB170",
+    "reviewedAuditorSourceSha256": "68C5AB729023399BAADFBB60F74730B56D902EA25EEAF392486A56559B26CA65",
+    "reviewDocumentSha256": "D1DCBDA4F2EB35831AD45610EC397719454968BA453BD207CA933AC6750A24CC",
+    "dictionaryFixReview": {
+      "reviewDocumentSha256": "954A0B69F508A46E8B90A0C26E6914A5E3B95B257EFF43524555A68101DBFD80",
+      "reviewedSourceFromSha256": "68C5AB729023399BAADFBB60F74730B56D902EA25EEAF392486A56559B26CA65",
+      "reviewedSourceToSha256": "0AB6AB3A1C3CE19A39637D093A80DC8888690CBE2C33D1688F485D9517CAB170",
+      "scope": "Full source diff review: ordered-dictionary value projections and one 25th sum self-test fixture only; no data, judge, qualification-rule or policy change.",
+      "boundReplaySelfTests": 25,
+      "boundSummarySha256": "FA4AD8238DA1C806C5785B6285B1153922E6AAEF76B8DEAA258D3DED7DAE3C63",
+      "earlierReviewStillSeparate": true
+    }
+  },
+  "numericalAudit": {
+    "outputSha256": "D1B1CFBC7D548FC35AFED9976DA538F6CE4ABB4862B7E6D1DA86FAD5159EEF7E",
+    "rowsSha256": "FB05E5F407B4F983B0522F4C2352AF55BD6D3BBD5CB477F7F58C4A5C47B283B3",
+    "rowCount": 78,
+    "reportCount": 144,
+    "controlComparisons": 72,
+    "controlMetricObservations": 1872,
+    "unstableControls": 72.0,
+    "driftedMetricSlots": 51,
+    "driftedObservations": 631,
+    "exactBudgetRows": 24,
+    "exactBudgetRegressions": 0,
+    "exactBudgetRowsWithinBudget": 24,
+    "sceneResults": [
+      {
+        "scenario": "Default",
+        "rows": 26,
+        "status": "within-noise-budget",
+        "regressedRows": 0,
+        "exactBudgetRows": 8,
+        "controlComparisons": 24,
+        "driftedMetricSlots": 16,
+        "driftedObservations": 187
+      },
+      {
+        "scenario": "MultilineGrid",
+        "rows": 26,
+        "status": "within-noise-budget",
+        "regressedRows": 0,
+        "exactBudgetRows": 8,
+        "controlComparisons": 24,
+        "driftedMetricSlots": 17,
+        "driftedObservations": 218
+      },
+      {
+        "scenario": "MultilineGridDistinct",
+        "rows": 26,
+        "status": "within-noise-budget",
+        "regressedRows": 0,
+        "exactBudgetRows": 8,
+        "controlComparisons": 24,
+        "driftedMetricSlots": 18,
+        "driftedObservations": 226
+      }
+    ],
+    "auditorSourceSha256": "738BF63555821A1C18A995BC7A024DD168180FCF7AAADCF37D16D92BD8E39725",
+    "reviewDocumentSha256": "EDDA5EC15EE25EC0BCDE9335325AD64C3FF03C03145A77714BBB2818E6BF5784"
+  },
+  "observer": {
+    "claim": "Context only; not a quiet-host or scheduler-delay qualification.",
+    "nativeAcceptance": false,
+    "dedicatedHostHardwareConsumerAndArm64Qualification": false
+  },
+  "status": {
+    "collectorPassed": true,
+    "completed": true,
+    "policyQualified": false,
+    "nativeAcceptance": false
+  },
+  "sourceEvidence": {
+    "provenanceOutputSha256": "EB35465E6C8D836F993F7C9A2DF58C4A95E26BAB1F16282DFF596112974A8DC8",
+    "numericalOutputSha256": "D1B1CFBC7D548FC35AFED9976DA538F6CE4ABB4862B7E6D1DA86FAD5159EEF7E",
+    "collectorStatusSha256": "8DE77E12C9EC2A3B12A7647BB993A05AD0B3FE9308A01537815FD9C45DB5C640"
+  }
+}

@@ -266,6 +266,9 @@ qualification replays them exactly. Repetitions inside a block are not treated a
   It builds one explicit revision once and measures that same executable under both randomized role labels, with
   distinct raw receipts for every invocation. Separate builds can encode different PDB paths or link timestamps;
   matching source revisions therefore do not satisfy A/A executable identity.
+  The [26 October current-source A/A archive](../../Measurements/RedesignCompletion_2026-10-26/aa-calibration-4077/README.md)
+  illustrates this boundary: no regression rows coexisted with 72/72 unstable controls, so the result does not
+  establish runner noise or approve the policy.
 - Fresh measurements require a `performance-build-v2` attestation before and after build and execution. Each side's
   expanded projects and resolved compile/shader inventory belong to its build-input identity. The comparison profile
   separately binds actual MSBuild, compiler/backend, shader compiler, linker/librarian and SDK bytes plus effective

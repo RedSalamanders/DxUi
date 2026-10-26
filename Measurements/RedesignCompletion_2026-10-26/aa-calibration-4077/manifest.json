@@ -1,0 +1,27 @@
+{
+  "schema": "dxui-current-source-aa-archive-manifest-v1",
+  "classification": "archival-calibration-evidence",
+  "sourceCommit": "4077f57df8207eac6c39c43437feb45b19d23cf8",
+  "files": [
+    {
+      "name": "README.md",
+      "sha256": "EDF8639F9EFFFE5B01A45F920E97F274C7BB00464314F31EC133089F10437689",
+      "bytes": 2800
+    },
+    {
+      "name": "calibration-summary.json",
+      "sha256": "A876D07B7D3264E253254B0BC4F2306D6EBB6259C2A33090AA4D0F723D984BCB",
+      "bytes": 4676
+    },
+    {
+      "name": "metric-rows.json",
+      "sha256": "FB05E5F407B4F983B0522F4C2352AF55BD6D3BBD5CB477F7F58C4A5C47B283B3",
+      "bytes": 48058
+    },
+    {
+      "name": ".gitattributes",
+      "sha256": "705FD4D6451A31D36B3DF7DE96F83F30AC976C9B4A6D1E51671D8E2F33E2D0DA",
+      "bytes": 8
+    }
+  ]
+}
