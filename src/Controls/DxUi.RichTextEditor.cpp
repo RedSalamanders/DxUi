@@ -192,6 +192,40 @@ bool RichTextEditor::SynchronizeReadOnlySourceSnapshot(const RichText::SourceSna
     SelectionChanged();
     return true;
 }
+HRESULT RichTextEditor::TryAdoptReadOnlyMarkdownSyntax(const RichText::SourceSnapshot& source,
+                                                       const std::shared_ptr<const RichText::MarkdownSyntax>& syntax) noexcept
+{
+    if (! IsReadOnly() || GetViewMode() != RichText::ViewMode::Source || ! _state->markdownProfile || ! Snapshot().IsSameRevision(source))
+        return S_FALSE;
+
+    const auto previous = _state->markdown.Published();
+    try
+    {
+        if (! _state->markdown.TryAdoptParsedSnapshot(source, Revision(), syntax, *_state->markdownProfile))
+            return S_FALSE;
+    }
+    catch (const std::bad_alloc&)
+    {
+        // Resource exhaustion crosses this noexcept preparation boundary as an
+        // HRESULT. The parser stages its allocation before changing state.
+        return E_OUTOFMEMORY;
+    }
+    if (_state->markdown.Published() == previous)
+        return S_OK;
+
+    // Source geometry depends on the unchanged snapshot, not the parse owner.
+    // Rebuild only its colored ink; preserve selection, scroll and caret state.
+    _state->sourceInk.Clear();
+    _state->markdownRequestActive = false;
+    _state->markdownCapacityRejected.reset();
+    _state->semantic.Clear();
+    _state->semanticRejected.reset();
+    _state->nativeGeometryRejected.reset();
+    _state->nativeObjectRejections.reset();
+    // Scheduling may re-enter or retire the owner. No member access follows.
+    RequestContentPreparation();
+    return S_OK;
+}
 void RichTextEditor::SetDocumentFilePath(std::wstring path)
 {
     auto normalized = RichText::Detail::NormalizeDocumentFilePath(path);

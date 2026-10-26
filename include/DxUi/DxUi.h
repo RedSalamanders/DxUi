@@ -3045,6 +3045,14 @@ public:
     // New snapshots advance the target's local revision and clear its history; syntax remains independently prepared.
     // Same-snapshot selection changes follow SetSelection. False leaves the target unchanged for ordinary SetText fallback.
     [[nodiscard]] bool SynchronizeReadOnlySourceSnapshot(const RichText::SourceSnapshot& source, RichText::Selection selection);
+    // Optional owner-thread reuse of a completed canonical parse. The target
+    // must already hold this exact snapshot as read-only Source with the same
+    // analysis profile. Shares immutable syntax storage at a target-local
+    // revision/document identity; source, selection, history and literal glyph
+    // geometry are unchanged. S_FALSE refuses atomically; ordinary parsing
+    // remains the fallback. E_OUTOFMEMORY preserves the previous publication.
+    [[nodiscard]] HRESULT TryAdoptReadOnlyMarkdownSyntax(const RichText::SourceSnapshot& source,
+                                                         const std::shared_ptr<const RichText::MarkdownSyntax>& syntax) noexcept;
     // Absolute Unicode file location used only as explicit resource/paste base.
     // Empty denotes an unsaved document. No filesystem access or source/history
     // rewrite occurs; no process working directory is used for relative links.

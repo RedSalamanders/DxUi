@@ -10,10 +10,12 @@
 #include "Controls.Tests.MarkdownCorpus.h"
 #include <DxUi/MarkdownSyntax.h>
 #include <DxUi/RichMarkdown.h>
+#include <algorithm>
 #include <iostream>
 #include <set>
 #include <span>
 #include <type_traits>
+#include <utility>
 namespace
 {
 using namespace DxUi::RichText;
@@ -1099,6 +1101,113 @@ void TestLosslessMarkdownSchedulingCancellationAndIdentity()
     moved.Clear();
     Require(! moved.Published() && moved.Advance().status == MarkdownPreparationStatus::Idle, "clear returns parser to idle");
 }
+
+void TestMarkdownParserAdoptsExactParsedSnapshot()
+{
+    using namespace DxUi::RichText;
+    const std::wstring text = L"# Heading\r\n\r\nA **strong** [link](https://example.test) &amp; text\n\n"
+                              L"| A | B |\n| --- | --- |\n| x | y |\n\n"
+                              L"- [x] task\n\n<div>raw HTML</div>\n\n[^note]: footnote\n\nref [^note]\n";
+    Document sourceDocument(text);
+    const auto source = sourceDocument.Snapshot();
+    MarkdownParser ownerParser;
+    ownerParser.Begin(source, 11u, MarkdownProfile::RichMarkdown);
+    auto original = CompleteMarkdown(ownerParser, 3u);
+    Require(original && original->Revision() == 11u && original->Profile() == MarkdownProfile::RichMarkdown,
+            "source parser publishes the expected exact profile");
+    Require(std::ranges::any_of(original->Lexemes(), [](const auto& value) { return value.kind == MarkdownLexemeKind::CharacterReference; }) &&
+                std::ranges::any_of(original->Blocks(), [](const auto& value) { return value.kind == MarkdownBlockKind::Table; }) &&
+                std::ranges::any_of(original->Blocks(), [](const auto& value) { return value.kind == MarkdownBlockKind::HtmlBlock; }) &&
+                std::ranges::any_of(original->Nodes(), [](const auto& value) { return value.task == MarkdownTask::Checked; }) &&
+                ! original->Footnotes().empty(),
+            "fixture exercises character references, GFM tables/tasks, raw HTML and footnotes");
+
+    MarkdownParser target;
+    target.Begin(L"pending target request", 1u);
+    target.Advance(1u);
+    Require(target.HasPendingPreparation(), "target starts with an independent staged request");
+    Require(! target.TryAdoptParsedSnapshot(source, 77u, original, MarkdownProfile::Gfm029) && target.HasPendingPreparation(),
+            "profile mismatch refuses without replacing the target request");
+    auto otherText = text;
+    otherText.replace(otherText.find(L"[^note]"), 7u, L"[^notf]");
+    Document otherDocument(otherText);
+    Require(! target.TryAdoptParsedSnapshot(otherDocument.Snapshot(), 77u, original, MarkdownProfile::RichMarkdown),
+            "same-length but different source refuses adoption");
+    Require(! target.TryAdoptParsedSnapshot(source, 77u, original, MarkdownProfile::RichMarkdown, MarkdownExtensions::None),
+            "extension mismatch refuses adoption");
+    Require(target.HasPendingPreparation(), "all refused adoptions preserve pending work");
+
+    MarkdownParser regionParser;
+    regionParser.BeginSourceRegion(source, 19u, MarkdownSourceRegion{{0u, text.size()}, 91u}, MarkdownProfile::RichMarkdown);
+    auto regionSyntax = CompleteMarkdown(regionParser, 3u);
+    Require(regionSyntax && ! target.TryAdoptParsedSnapshot(source, 77u, regionSyntax, MarkdownProfile::RichMarkdown),
+            "a source-region parse is not canonical even when its current resolved region is absent");
+
+    Require(target.TryAdoptParsedSnapshot(source, 77u, original, MarkdownProfile::RichMarkdown), "exact complete parse is adopted");
+    const auto adopted = target.Published();
+    Require(adopted && adopted != original && ! target.HasPendingPreparation(), "adoption publishes a local wrapper and retires staged target work");
+    Require(adopted->Revision() == 77u &&
+                std::pair{adopted->DocumentIdentity(), adopted->Nodes().front().identity} !=
+                    std::pair{original->DocumentIdentity(), original->Nodes().front().identity} &&
+                adopted->Source() == original->Source() && adopted->Profile() == original->Profile() && adopted->Extensions() == original->Extensions() &&
+                ! adopted->SourceRegion() && adopted->SourceRegionNode() == MarkdownNoNode,
+            "wrapper binds the target revision and a distinct document identity without changing the parse contract");
+    Require(&adopted->Blocks() == &original->Blocks() && &adopted->Nodes() == &original->Nodes() && &adopted->Lexemes() == &original->Lexemes() &&
+                &adopted->Inlines() == &original->Inlines() && adopted->EmptyLines().data() == original->EmptyLines().data() &&
+                adopted->Diagnostics().data() == original->Diagnostics().data() && adopted->Footnotes().data() == original->Footnotes().data() &&
+                adopted->FootnoteReferences().data() == original->FootnoteReferences().data() &&
+                adopted->BlockStatistics().prefixInspectionUnits == original->BlockStatistics().prefixInspectionUnits,
+            "all immutable parse collections and statistics directly reuse canonical storage");
+    Require(adopted->Slice({0u, 9u}) == original->Slice({0u, 9u}) && adopted->LexemeValue(0u) == original->LexemeValue(0u) &&
+                adopted->LexemeSourceAnchor(0u, 0u) == original->LexemeSourceAnchor(0u, 0u) && ! original->FootnoteReferences().empty() &&
+                adopted->FootnoteReferenceFor(original->FootnoteReferences().front().inlineNode) ==
+                    original->FootnoteReferenceFor(original->FootnoteReferences().front().inlineNode),
+            "source-backed helper accessors preserve exact behavior and owner pointers");
+    const auto publication = adopted;
+    Require(target.TryAdoptParsedSnapshot(source, 77u, original, MarkdownProfile::RichMarkdown) && target.Published() == publication,
+            "repeated identical adoption keeps the same wrapper publication");
+    target.Begin(L"superseded pending request", 78u, MarkdownProfile::RichMarkdown);
+    target.Advance(1u);
+    Require(target.HasPendingPreparation(), "a different request can be staged behind the adopted publication");
+    Require(target.TryAdoptParsedSnapshot(source, 77u, original, MarkdownProfile::RichMarkdown) && target.Published() == publication &&
+                ! target.HasPendingPreparation(),
+            "reasserting the current adopted snapshot discards superseded pending work without replacing publication");
+    ownerParser.Clear();
+    original.reset();
+    Require(target.Published()->Source() == text && target.Published()->Nodes().size() > 1u,
+            "the wrapper retains its single parsed-data owner after the source parser retires");
+
+    MarkdownParser secondTarget;
+    Require(secondTarget.TryAdoptParsedSnapshot(source, 88u, adopted, MarkdownProfile::RichMarkdown) && &secondTarget.Published()->Nodes() == &adopted->Nodes(),
+            "adopting an existing wrapper keeps one direct canonical storage owner rather than building an owner chain");
+
+    target.Begin(L"cancelled post-adoption request", 78u);
+    target.Advance(1u);
+    target.Cancel();
+    MarkdownParser movedTarget(std::move(target));
+    movedTarget.Begin(L"next independent parse", 79u);
+    auto next = CompleteMarkdown(movedTarget, 1u);
+    Require(next && std::pair{next->DocumentIdentity(), next->Nodes().front().identity} !=
+                        std::pair{adopted->DocumentIdentity(), adopted->Nodes().front().identity},
+            "first ordinary parse after adoption starts a fresh document/node identity pair");
+    movedTarget.Begin(L"next independent edit", 80u);
+    auto later = CompleteMarkdown(movedTarget, 1u);
+    Require(later->DocumentIdentity() == next->DocumentIdentity(), "subsequent ordinary revisions retain the new parser identity");
+
+    Document emptyDocument;
+    MarkdownParser emptyOwner, emptyTarget;
+    emptyOwner.Begin(emptyDocument.Snapshot(), 1u);
+    auto emptySyntax = CompleteMarkdown(emptyOwner);
+    Require(emptyTarget.TryAdoptParsedSnapshot(emptyDocument.Snapshot(), 2u, emptySyntax, MarkdownProfile::CommonMark0312) &&
+                emptyTarget.Published()->Source().empty() && &emptyTarget.Published()->Nodes() == &emptySyntax->Nodes(),
+            "valid empty snapshots adopt a completed canonical empty parse");
+    const std::weak_ptr<const MarkdownSyntax> weakOwner = emptySyntax;
+    emptyOwner.Clear();
+    emptySyntax.reset();
+    Require(! weakOwner.expired(), "adopted wrapper retains its original empty parse");
+    emptyTarget.Clear();
+    Require(weakOwner.expired() && ! emptyTarget.Published(), "clearing the final wrapper releases canonical parsed storage");
+}
 void TestLosslessMarkdownGlobalNodeAdmissionAndCooperativePadding()
 {
     MarkdownCapacityTests::ParserBounds(Require);
@@ -1133,6 +1242,7 @@ void RunRichMarkdownTests()
     DXUI_RUN_TEST(TestLosslessMarkdownFencedCodeBoundaries);
     DXUI_RUN_TEST(TestLosslessMarkdownLexicalValuesAndAffinity);
     DXUI_RUN_TEST(TestLosslessMarkdownSchedulingCancellationAndIdentity);
+    DXUI_RUN_TEST(TestMarkdownParserAdoptsExactParsedSnapshot);
     DXUI_RUN_TEST(TestLosslessMarkdownFrontMatterFencesAndProfileIsolation);
     DXUI_RUN_TEST(TestNativeFlowchartGrammarAndGraphValues);
     DXUI_RUN_TEST(TestNativeFlowchartDeterministicGeometry);

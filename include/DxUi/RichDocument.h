@@ -55,6 +55,9 @@ public:
     SourceSnapshot();
     std::wstring Text() const;
     std::size_t Length() const noexcept;
+    // Compare against caller-owned text without flattening this immutable tree.
+    // Used for exact admission of an already parsed result; does not allocate.
+    bool MatchesText(std::wstring_view text) const noexcept;
     // Exact immutable revision identity, stronger than equal spelling/revision
     // counters from different documents. Does not walk or materialize source.
     bool IsSameRevision(const SourceSnapshot& other) const noexcept

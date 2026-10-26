@@ -1479,6 +1479,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichImageRasterFailureAndBudgets();
     TestRichDocumentSameContentAllocationBudget();
     TestRichDocumentAllocationFailureAtomicity();
+    TestReadOnlyParsedSnapshotAllocationFailures();
     TestRichSourceChangeAllocationBudget();
     TestRichSourceChangeTransientStorageBudget();
     TestRichSourceChangeRolloverFailureAtomicity();

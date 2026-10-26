@@ -279,6 +279,11 @@ private:
                             MarkdownProfile profile,
                             MarkdownExtensions extensions,
                             std::optional<MarkdownSourceRegion> sourceRegion);
+    explicit MarkdownSyntax(std::shared_ptr<const MarkdownSyntax> parsedDataOwner,
+                            std::uint64_t revision,
+                            MarkdownProfile profile,
+                            MarkdownExtensions extensions,
+                            std::uint64_t documentIdentity);
     std::wstring source_;
     std::uint64_t revision_{};
     MarkdownProfile profile_{};
@@ -294,6 +299,11 @@ private:
     std::uint64_t documentIdentity_{};
     MarkdownBlockStatistics blockStatistics_;
     std::optional<MarkdownSourceRegion> sourceRegionRequest_;
+    // A borrowed parse wrapper owns no AST/string data. Its sole owner is an
+    // original parsed result, never another wrapper; revision and document
+    // identity remain local to the adopting parser.
+    std::shared_ptr<const MarkdownSyntax> parsedDataOwner_;
+    [[nodiscard]] const MarkdownSyntax& ParsedData() const noexcept;
     std::size_t sourceRegionNode_ = MarkdownNoNode;
     friend class MarkdownParser;
 };
@@ -355,6 +365,14 @@ public:
     MarkdownAdvance Advance(std::size_t maximumWorkUnits = 4096);
     bool HasPendingPreparation() const noexcept;
     std::shared_ptr<const MarkdownSyntax> Published() const noexcept;
+    // Adopt a completed immutable parse for an exact source/profile match.
+    // The published wrapper receives this parser's local revision and fresh
+    // document identity while sharing only the original parsed storage.
+    [[nodiscard]] bool TryAdoptParsedSnapshot(const SourceSnapshot& source,
+                                              std::uint64_t revision,
+                                              const std::shared_ptr<const MarkdownSyntax>& syntax,
+                                              MarkdownProfile profile,
+                                              std::optional<MarkdownExtensions> extensions = std::nullopt);
     void Cancel() noexcept;
     void Clear() noexcept;
 
