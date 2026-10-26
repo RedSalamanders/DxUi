@@ -8,12 +8,14 @@ Both the provenance audit and independent numerical replay completed successfull
 
 The study recorded 72/72 unstable controls, 51 of 78 scenario/phase/metric slots with at least one drift, and 631 of 1,872 control observations beyond their bands. These controls do not establish a usable noise floor; they limit interpretation of the no-regression result. The overall policy remains `policy-review-required`, `qualified=false`. This same-source calibration is not a pull request, product, or CI performance acceptance result.
 
+The packet carries the 20 relative-path SHA-256 harness entries copied directly from the canonical measured SDK summary (`FA4AD8238DA1C806C5785B6285B1153922E6AAEF76B8DEAA258D3DED7DAE3C63`). Its archive-group fixture is `dxui-complex-ui-aa-calibration-v1`; `nativeFixtures` maps Default, MultilineGrid, and MultilineGridDistinct to their original fixture labels. This source metadata does not retag native execution, claim the complete compiler/SDK input closure, or qualify performance policy.
+
 The host observer is contextual only. It does not establish a quiet host or scheduler-delay qualification. No dedicated-host, hardware, consumer, ARM64, or new performance-measurement qualification is claimed.
 
 ## Files and digests
 
 - `calibration-summary.json` records source identity, judge agreement, policy state, control counts, scenario outcomes, and auditor/output digests.
-- `metric-rows.json` contains all 78 independently reconstructed numerical rows.
+- `metric-rows.json` wraps all 78 independently reconstructed rows with the library owner, archive fixture group, all 20 canonical harness path/hash pairs, and the three measured scenario fixture labels.
 - `.gitattributes` disables text conversion for packet files. `manifest.json` binds the README, summary, rows and attributes file by SHA-256.
 
 The summary digest is `FA4AD8238DA1C806C5785B6285B1153922E6AAEF76B8DEAA258D3DED7DAE3C63`. The executing provenance auditor source digest is `0AB6AB3A1C3CE19A39637D093A80DC8888690CBE2C33D1688F485D9517CAB170`; the numerical auditor source digest is `738BF63555821A1C18A995BC7A024DD168180FCF7AAADCF37D16D92BD8E39725`. The exact provenance and numerical result-file digests are in `calibration-summary.json`.

@@ -5,23 +5,61 @@
   "files": [
     {
       "name": "README.md",
-      "sha256": "EDF8639F9EFFFE5B01A45F920E97F274C7BB00464314F31EC133089F10437689",
-      "bytes": 2800
+      "sha256": "B84A3E3C3DF72C21AAFBDA46CD65FC4589AA927556803A7B32E6980A292E536A",
+      "bytes": 3418
     },
     {
       "name": "calibration-summary.json",
-      "sha256": "A876D07B7D3264E253254B0BC4F2306D6EBB6259C2A33090AA4D0F723D984BCB",
-      "bytes": 4676
+      "sha256": "0C85CFC7B6AAFBB73B085EDE071821D9DECAAF9EF00E6ED1183717FD7AAAC3DA",
+      "bytes": 7764
     },
     {
       "name": "metric-rows.json",
-      "sha256": "FB05E5F407B4F983B0522F4C2352AF55BD6D3BBD5CB477F7F58C4A5C47B283B3",
-      "bytes": 48058
+      "sha256": "846D3A52B293F4D6972C71003C6421540787B11FB21732782D37AD0138600CC2",
+      "bytes": 54502
     },
     {
       "name": ".gitattributes",
       "sha256": "705FD4D6451A31D36B3DF7DE96F83F30AC976C9B4A6D1E51671D8E2F33E2D0DA",
       "bytes": 8
     }
-  ]
+  ],
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-complex-ui-aa-calibration-v1",
+  "benchmarkInputs": {
+    "performance.ps1": "52C863186486B235914D5558A982DDBE9C1D72EFB29D41C68A474E604B19AB0F",
+    "performance-paired.ps1": "AE1694EC9DE45E1BDB3CA6AF9F6F6132CAFB93593B9BA2287903B0DE22324224",
+    "Tools/Compare-Performance.ps1": "A00BCEEF3722DEB15ACABC1F5FB2598DFA1CE662934BAADB16EEB3E741A07178",
+    "Tools/PerformanceComparison.psm1": "FD701DF248BC621D9942F47DF12EF02FE0D929D07290B18128EA644C848A8CAE",
+    "Tools/PairedRun.psm1": "B72612A3D39717A40D64D6FB5A7EDB3B3B6768D768179B8EF44DB41476B7834F",
+    "Tools/PerformancePolicy.psm1": "A0C774FFBF8422307D3D0138A33CBC08B958428186DE846B87EACCBCDE7F0E01",
+    "Tools/PerformanceAcceptancePolicy.v1.json": "A80D2BCE198E4EEC3405024C2959BD13058605921EE9E0B935A5D3350E77E8D2",
+    "Tools/BenchmarkGate.psm1": "3FB19284BC1CD7F84BDD27368F58748007DCFE6FD04CE1A8A2DC49925DD8F915",
+    "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+    "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+    "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
+    "build.ps1": "357DCCEFD0839BAC6ACFC8833A2C80B0493577AB599D673B1320FB773EB0F2A5",
+    "Tools/ScopedTesting.psm1": "BD8BDAE656BF08317AA6D40EEFCC7B8F921E72217F77CCAC5532DA73EA7D805E",
+    "Tools/Validation.psm1": "15C7EF95430C293400859446CD51E2202BBE5D0AB1AC506B8539CE1DE983E756",
+    "Tools/Changelog.psm1": "05E987CF29BFB8AEDBDA5F77FEBA56D0145F733CCC8C577F0FCC96E1E877DCC3",
+    "Tools/Modules/Documentation/Changelog.psm1": "3E90FEC9835C8DF3669DA0395A76065CC933F4DBD1910C5BFB05B9700390DF1D",
+    "Tests/Embedded/DxUi.EmbeddedTests.vcxproj": "FBBCBA65D43AB27CB63DD762223355D2B335C314922846FDC3F6BA0E9E1F4927"
+  },
+  "fixtureMetadataProvenance": {
+    "sourceCommit": "4077f57df8207eac6c39c43437feb45b19d23cf8",
+    "sourceTree": "18be66885916f67cafd8aeb761207bf15fbd9120",
+    "harnessMapSummarySha256": "FA4AD8238DA1C806C5785B6285B1153922E6AAEF76B8DEAA258D3DED7DAE3C63",
+    "harnessPaths": 20,
+    "nativeExecutionRetagged": false,
+    "scope": "The 20 relative-path SHA-256 entries are copied directly from the canonical measured SDK summary. Fixture labels retain the three measured scenarios. This does not retag native execution, claim the complete compiler/SDK input closure, or qualify performance policy."
+  },
+  "policyQualified": false,
+  "nativeFixtures": {
+    "Default": "dxui-complex-ui-v2",
+    "MultilineGrid": "dxui-complex-ui-multiline-grid-v1",
+    "MultilineGridDistinct": "dxui-complex-ui-multiline-grid-distinct-v1"
+  }
 }
