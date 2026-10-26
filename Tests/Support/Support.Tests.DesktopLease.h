@@ -12,8 +12,10 @@
 #include <cstdint>
 #include <filesystem>
 #include <format>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #pragma comment(lib, "wtsapi32.lib")
 
@@ -54,6 +56,29 @@ struct FocusQuery
     DWORD error    = ERROR_SUCCESS; // Captured immediately on query failure; zero for success.
 };
 
+struct CursorEnvironmentState
+{
+    bool clipRectKnown = false;
+    RECT clipRect{};
+    DWORD clipRectError = ERROR_SUCCESS;
+    std::string inputDesktop;
+    DWORD inputDesktopError = ERROR_SUCCESS;
+    std::string threadDesktop;
+    DWORD threadDesktopError = ERROR_SUCCESS;
+};
+
+struct CursorReadResult
+{
+    bool succeeded = false;
+    DWORD error    = ERROR_SUCCESS; // Immediately observed on failure; APIs do not document an error contract.
+};
+
+struct CursorSetResult
+{
+    bool accepted = false;
+    DWORD error   = ERROR_SUCCESS; // Immediately observed after SetPhysicalCursorPos; retained as an observation only.
+};
+
 // What a person has on the desktop at one moment: the foreground window, the keyboard focus inside the thread that owns it, and
 // the physical pointer position. An interactive test run takes all three, so a run that ends, fails or is ended must hand all
 // three back. `DesktopLease` records them before the run and restores them after it.
@@ -66,6 +91,7 @@ struct DesktopState
     DWORD focusQueryError                 = ERROR_SUCCESS; // Meaningful only for QueryFailed; never a stale last-error on success/skip.
     POINT cursor{};
     bool cursorKnown = false;
+    CursorEnvironmentState cursorEnvironment;
 };
 
 [[nodiscard]] constexpr bool SamePoint(const POINT& left, const POINT& right) noexcept
@@ -105,6 +131,20 @@ struct RestoreReport
     Restoration cursor     = Restoration::NotRecorded;
     DesktopState saved;  // What the person had.
     DesktopState atExit; // What the run left, read before the lease acted: it says what the lease had to restore.
+    struct CursorDiagnostics
+    {
+        bool readBeforeKnown = false;
+        POINT readBefore{};
+        DWORD readBeforeError = ERROR_SUCCESS;
+        bool setCalled        = false;
+        bool setAccepted      = false;
+        DWORD setError        = ERROR_SUCCESS;
+        bool readbackKnown    = false;
+        POINT readback{};
+        DWORD readbackError = ERROR_SUCCESS;
+        CursorEnvironmentState environmentAfter;
+    };
+    std::optional<CursorDiagnostics> cursorDiagnostics;
 
     // The desktop is as the person had it, or could not be given back because the window is gone.
     [[nodiscard]] bool Succeeded() const noexcept
@@ -142,9 +182,21 @@ public:
     [[nodiscard]] virtual FocusQuery ThreadFocus(DWORD thread) = 0; // One query of the thread's input state, including failure.
     [[nodiscard]] virtual bool Cursor(POINT& position)         = 0; // Physical coordinates.
     virtual bool SetCursor(POINT position)                     = 0; // Whether the call was accepted.
-    virtual bool BringToForeground(HWND window)                = 0; // Whether the call was accepted; the change itself is asynchronous.
-    virtual bool FocusWindow(HWND window, DWORD thread)        = 0; // Whether the call was accepted.
-    virtual void Wait(std::chrono::milliseconds duration)      = 0; // Lets an asynchronous change settle.
+    [[nodiscard]] virtual CursorReadResult ReadCursor(POINT& position)
+    {
+        return {Cursor(position), ERROR_SUCCESS};
+    }
+    [[nodiscard]] virtual CursorSetResult SetCursorForRestore(POINT position)
+    {
+        return {SetCursor(position), ERROR_SUCCESS};
+    }
+    [[nodiscard]] virtual CursorEnvironmentState CursorEnvironment()
+    {
+        return {};
+    }
+    virtual bool BringToForeground(HWND window)           = 0; // Whether the call was accepted; the change itself is asynchronous.
+    virtual bool FocusWindow(HWND window, DWORD thread)   = 0; // Whether the call was accepted.
+    virtual void Wait(std::chrono::milliseconds duration) = 0; // Lets an asynchronous change settle.
     // For messages: the class and process of a window; empty where a backend has nothing to say.
     [[nodiscard]] virtual std::string Describe(HWND /*window*/)
     {
@@ -200,7 +252,7 @@ public:
 
         report.foreground = RestoreForeground(report.atExit);
         report.focus      = RestoreFocus(report.foreground);
-        report.cursor     = RestoreCursor();
+        report.cursor     = RestoreCursor(report);
         return report;
     }
 
@@ -232,7 +284,8 @@ private:
                 state.focusCaptureReason = query.window != nullptr ? FocusCaptureReason::Recorded : FocusCaptureReason::QueryReturnedNull;
             }
         }
-        state.cursorKnown = _desktop.Cursor(state.cursor);
+        state.cursorKnown       = _desktop.Cursor(state.cursor);
+        state.cursorEnvironment = _desktop.CursorEnvironment();
         return state;
     }
 
@@ -285,19 +338,39 @@ private:
         return Settles(hasSavedFocus) ? Restoration::Restored : Restoration::Failed;
     }
 
-    [[nodiscard]] Restoration RestoreCursor() const
+    [[nodiscard]] Restoration RestoreCursor(RestoreReport& report) const
     {
         if (! _saved.cursorKnown)
             return Restoration::NotRecorded;
         // Read again, after the foreground and focus steps: they may have moved the pointer (a dialog's snap to its default button).
+        RestoreReport::CursorDiagnostics diagnostics{};
         POINT now{};
-        if (! _desktop.Cursor(now))
+        const CursorReadResult beforeSet = _desktop.ReadCursor(now);
+        diagnostics.readBeforeKnown      = beforeSet.succeeded;
+        diagnostics.readBefore           = now;
+        diagnostics.readBeforeError      = beforeSet.error;
+        if (! beforeSet.succeeded)
+        {
+            diagnostics.environmentAfter = _desktop.CursorEnvironment();
+            report.cursorDiagnostics     = std::move(diagnostics);
             return Restoration::Failed;
+        }
         if (SamePoint(now, _saved.cursor))
             return Restoration::Unchanged;
-        static_cast<void>(_desktop.SetCursor(_saved.cursor));
+        diagnostics.setCalled     = true;
+        const CursorSetResult set = _desktop.SetCursorForRestore(_saved.cursor);
+        diagnostics.setAccepted   = set.accepted;
+        diagnostics.setError      = set.error;
         POINT verified{};
-        return _desktop.Cursor(verified) && SamePoint(verified, _saved.cursor) ? Restoration::Restored : Restoration::Failed;
+        const CursorReadResult readback = _desktop.ReadCursor(verified);
+        diagnostics.readbackKnown       = readback.succeeded;
+        diagnostics.readback            = verified;
+        diagnostics.readbackError       = readback.error;
+        diagnostics.environmentAfter    = _desktop.CursorEnvironment();
+        if (readback.succeeded && SamePoint(verified, _saved.cursor))
+            return Restoration::Restored;
+        report.cursorDiagnostics = std::move(diagnostics);
+        return Restoration::Failed;
     }
 
     DesktopBackend& _desktop;
@@ -384,6 +457,41 @@ public:
     bool SetCursor(POINT position) override
     {
         return SetPhysicalCursorPos(position.x, position.y) != FALSE;
+    }
+
+    [[nodiscard]] CursorReadResult ReadCursor(POINT& position) override
+    {
+        SetLastError(ERROR_SUCCESS);
+        const bool succeeded = GetPhysicalCursorPos(&position) != FALSE;
+        return {succeeded, succeeded ? ERROR_SUCCESS : GetLastError()};
+    }
+
+    [[nodiscard]] CursorSetResult SetCursorForRestore(POINT position) override
+    {
+        SetLastError(ERROR_SUCCESS);
+        const bool accepted = SetPhysicalCursorPos(position.x, position.y) != FALSE;
+        return {accepted, accepted ? ERROR_SUCCESS : GetLastError()};
+    }
+
+    [[nodiscard]] CursorEnvironmentState CursorEnvironment() override
+    {
+        CursorEnvironmentState state{};
+        SetLastError(ERROR_SUCCESS);
+        state.clipRectKnown = GetClipCursor(&state.clipRect) != FALSE;
+        state.clipRectError = state.clipRectKnown ? ERROR_SUCCESS : GetLastError();
+
+        SetLastError(ERROR_SUCCESS);
+        const wil::unique_hdesk input(OpenInputDesktop(0, FALSE, DESKTOP_READOBJECTS));
+        state.inputDesktopError = input ? ERROR_SUCCESS : GetLastError();
+        if (input)
+            state.inputDesktop = SafeDesktopName(input.get());
+
+        SetLastError(ERROR_SUCCESS);
+        const HDESK thread       = GetThreadDesktop(GetCurrentThreadId()); // Borrowed; do not close the current thread's desktop.
+        state.threadDesktopError = thread != nullptr ? ERROR_SUCCESS : GetLastError();
+        if (thread != nullptr)
+            state.threadDesktop = SafeDesktopName(thread);
+        return state;
     }
 
     // Makes the anchor the foreground window; false when the system refused.
@@ -520,6 +628,24 @@ public:
     }
 
 private:
+    [[nodiscard]] static std::string SafeDesktopName(HDESK desktop)
+    {
+        wchar_t name[128]{};
+        DWORD needed = 0u;
+        if (desktop == nullptr || GetUserObjectInformationW(desktop, UOI_NAME, name, sizeof(name), &needed) == FALSE)
+            return {};
+        std::string safe;
+        for (const wchar_t ch : std::wstring_view(name, std::size(name)))
+        {
+            if (ch == L'\0' || safe.size() == 64u)
+                break;
+            const bool safeCharacter =
+                (ch >= L'a' && ch <= L'z') || (ch >= L'A' && ch <= L'Z') || (ch >= L'0' && ch <= L'9') || ch == L'.' || ch == L'_' || ch == L'-';
+            safe.push_back(safeCharacter ? static_cast<char>(ch) : '?');
+        }
+        return safe;
+    }
+
     // Message text only: ASCII stays, anything else becomes '?'.
     [[nodiscard]] static std::string Narrow(std::wstring_view text)
     {

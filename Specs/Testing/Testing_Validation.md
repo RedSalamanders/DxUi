@@ -772,6 +772,13 @@ interactive desktop lease: `DxUi.InteractiveLease.exe` (`Tests/InteractiveLease`
   desktop was unchanged, because failed/skipped/unrecorded parts can also produce it. Human summaries MUST derive their
   restoration claim from all three statuses, retain failed or unverified outcomes, and avoid inferring which action
   moved the pointer from these positions alone. Exit code 0 without a result supplies no verified restoration evidence.
+  A failed pointer restoration MAY include one bounded `cursor.restore.diagnostics` line with the immediate pre-set
+  read, `SetPhysicalCursorPos` acceptance and immediately observed error, exact post-set readback, and clip/input/thread
+  desktop observations at capture, suite exit and after restoration. The setter's `GetLastError` value is diagnostic
+  context only; it does not have a documented error contract. Exact physical readback remains the restoration criterion:
+  clip or desktop observations neither excuse a mismatch nor identify its cause. The parser MUST reject repeated,
+  missing, unknown or malformed fields in this optional line. Older receipts without it remain readable and do not gain
+  inferred diagnostics.
 - **Passing.** Every suite exits 0, none records a capability skip (an interactive run exists to run what other runs skip, so a skip
   means the desktop did not provide it) and no part is `failed`. Logs and receipts carry the suffix `.interactive`
   (`.interactive.filtered` with `-Tests`), so they never replace those of the run that records the suite's skips; a receipt records the

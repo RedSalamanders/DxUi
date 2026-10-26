@@ -142,6 +142,109 @@ function New-DxUiLeasePlanText {
     return ($lines -join "`n") + "`n"
 }
 
+function ConvertFrom-DxUiCursorRestoreDiagnostics {
+    [CmdletBinding()] param([Parameter(Mandatory)][AllowEmptyString()][string] $Text)
+    $problems = [Collections.Generic.List[string]]::new()
+    $fields = [Collections.Generic.Dictionary[string,string]]::new([StringComparer]::Ordinal)
+    $expected = @(
+        'readBefore','readBeforeError','setCalled','setAccepted','setError','readback','readbackError',
+        'clipCapture','clipCaptureError','clipAtExit','clipAtExitError','clipAfter','clipAfterError',
+        'inputCapture','inputCaptureError','inputAtExit','inputAtExitError','inputAfter','inputAfterError',
+        'threadCapture','threadCaptureError','threadAtExit','threadAtExitError','threadAfter','threadAfterError')
+    foreach ($part in $Text -split ';') {
+        if ($part -cnotmatch '^(?<name>[A-Za-z][A-Za-z0-9]*)=(?<value>[^;]*)$') {
+            $problems.Add('malformed cursor restore diagnostic')
+            continue
+        }
+        $name = $Matches['name']
+        if (-not $expected.Contains($name)) {
+            $problems.Add("unknown cursor restore diagnostic $name")
+            continue
+        }
+        if ($fields.ContainsKey($name)) {
+            $problems.Add("repeated cursor restore diagnostic $name")
+            continue
+        }
+        $fields.Add($name, $Matches['value'])
+    }
+    foreach ($name in $expected) {
+        if (-not $fields.ContainsKey($name)) { $problems.Add("missing cursor restore diagnostic $name") }
+    }
+    if ($fields.Count -ne $expected.Count) { $problems.Add('cursor restore diagnostic field count differs') }
+    $boolNames = @('setCalled','setAccepted')
+    foreach ($name in $boolNames) {
+        if ($fields.ContainsKey($name) -and $fields[$name] -cnotin @('0','1')) { $problems.Add("invalid cursor restore diagnostic $name") }
+    }
+    $errorNames = @('readBeforeError','setError','readbackError','clipCaptureError','clipAtExitError','clipAfterError',
+        'inputCaptureError','inputAtExitError','inputAfterError','threadCaptureError','threadAtExitError','threadAfterError')
+    foreach ($name in $errorNames) {
+        [uint32]$errorCode = 0
+        if ($fields.ContainsKey($name) -and ($fields[$name] -cnotmatch '^[0-9]{1,10}$' -or
+                -not [uint32]::TryParse($fields[$name], [Globalization.NumberStyles]::None, [Globalization.CultureInfo]::InvariantCulture, [ref]$errorCode))) {
+            $problems.Add("invalid cursor restore diagnostic $name")
+        }
+    }
+    foreach ($name in @('readBefore','readback')) {
+        $coordinateText = if ($fields.ContainsKey($name)) { $fields[$name] } else { '' }
+        if ($coordinateText -cne 'unknown') {
+            $parts = $coordinateText -split ','
+            [int]$x = 0; [int]$y = 0
+            if ($coordinateText -cnotmatch '^-?[0-9]{1,10},-?[0-9]{1,10}$' -or $parts.Count -ne 2 -or
+                -not [int]::TryParse($parts[0], [Globalization.NumberStyles]::AllowLeadingSign, [Globalization.CultureInfo]::InvariantCulture, [ref]$x) -or
+                -not [int]::TryParse($parts[1], [Globalization.NumberStyles]::AllowLeadingSign, [Globalization.CultureInfo]::InvariantCulture, [ref]$y)) {
+                $problems.Add("invalid cursor restore diagnostic $name")
+            }
+        }
+    }
+    foreach ($name in @('clipCapture','clipAtExit','clipAfter')) {
+        $rectangleText = if ($fields.ContainsKey($name)) { $fields[$name] } else { '' }
+        if ($rectangleText -cne 'unknown') {
+            $parts = $rectangleText -split ','
+            [int]$left = 0; [int]$top = 0; [int]$right = 0; [int]$bottom = 0
+            if ($rectangleText -cnotmatch '^-?[0-9]{1,10},-?[0-9]{1,10},-?[0-9]{1,10},-?[0-9]{1,10}$' -or $parts.Count -ne 4 -or
+                -not [int]::TryParse($parts[0], [Globalization.NumberStyles]::AllowLeadingSign, [Globalization.CultureInfo]::InvariantCulture, [ref]$left) -or
+                -not [int]::TryParse($parts[1], [Globalization.NumberStyles]::AllowLeadingSign, [Globalization.CultureInfo]::InvariantCulture, [ref]$top) -or
+                -not [int]::TryParse($parts[2], [Globalization.NumberStyles]::AllowLeadingSign, [Globalization.CultureInfo]::InvariantCulture, [ref]$right) -or
+                -not [int]::TryParse($parts[3], [Globalization.NumberStyles]::AllowLeadingSign, [Globalization.CultureInfo]::InvariantCulture, [ref]$bottom)) {
+                $problems.Add("invalid cursor restore diagnostic $name")
+            }
+        }
+    }
+    foreach ($name in @('inputCapture','inputAtExit','inputAfter','threadCapture','threadAtExit','threadAfter')) {
+        if ($fields.ContainsKey($name) -and $fields[$name] -cnotmatch '^(?:unknown|[A-Za-z0-9_.?-]{1,64})$') {
+            $problems.Add("invalid cursor restore diagnostic $name")
+        }
+    }
+    if ($fields.ContainsKey('setCalled') -and $fields.ContainsKey('setAccepted') -and
+        $fields.ContainsKey('readBefore') -and $fields.ContainsKey('readback') -and
+        $fields.ContainsKey('setError') -and $fields.ContainsKey('readbackError')) {
+        if ($fields['setCalled'] -ceq '0' -and
+            ($fields['setAccepted'] -cne '0' -or $fields['readBefore'] -cne 'unknown' -or $fields['readback'] -cne 'unknown' -or
+                $fields['setError'] -cne '0' -or $fields['readbackError'] -cne '0')) {
+            $problems.Add('cursor restore diagnostics contradict an unattempted set/readback')
+        } elseif ($fields['setCalled'] -ceq '1' -and $fields['readBefore'] -ceq 'unknown') {
+            $problems.Add('cursor restore diagnostics attempted a set without a known pre-set position')
+        }
+    }
+    if ($problems.Count) { return [pscustomobject]@{ Value = $null; Problems = $problems.ToArray() } }
+
+    $value = [pscustomobject]@{
+        ReadBefore = $fields['readBefore']; ReadBeforeError = [uint32]::Parse($fields['readBeforeError'], [Globalization.NumberStyles]::None, [Globalization.CultureInfo]::InvariantCulture)
+        SetCalled = $fields['setCalled'] -ceq '1'; SetAccepted = $fields['setAccepted'] -ceq '1'; SetError = [uint32]::Parse($fields['setError'], [Globalization.NumberStyles]::None, [Globalization.CultureInfo]::InvariantCulture)
+        Readback = $fields['readback']; ReadbackError = [uint32]::Parse($fields['readbackError'], [Globalization.NumberStyles]::None, [Globalization.CultureInfo]::InvariantCulture)
+        ClipCapture = $fields['clipCapture']; ClipCaptureError = [uint32]::Parse($fields['clipCaptureError'], [Globalization.NumberStyles]::None, [Globalization.CultureInfo]::InvariantCulture)
+        ClipAtExit = $fields['clipAtExit']; ClipAtExitError = [uint32]::Parse($fields['clipAtExitError'], [Globalization.NumberStyles]::None, [Globalization.CultureInfo]::InvariantCulture)
+        ClipAfter = $fields['clipAfter']; ClipAfterError = [uint32]::Parse($fields['clipAfterError'], [Globalization.NumberStyles]::None, [Globalization.CultureInfo]::InvariantCulture)
+        InputDesktopCapture = $fields['inputCapture']; InputDesktopCaptureError = [uint32]::Parse($fields['inputCaptureError'], [Globalization.NumberStyles]::None, [Globalization.CultureInfo]::InvariantCulture)
+        InputDesktopAtExit = $fields['inputAtExit']; InputDesktopAtExitError = [uint32]::Parse($fields['inputAtExitError'], [Globalization.NumberStyles]::None, [Globalization.CultureInfo]::InvariantCulture)
+        InputDesktopAfter = $fields['inputAfter']; InputDesktopAfterError = [uint32]::Parse($fields['inputAfterError'], [Globalization.NumberStyles]::None, [Globalization.CultureInfo]::InvariantCulture)
+        ThreadDesktopCapture = $fields['threadCapture']; ThreadDesktopCaptureError = [uint32]::Parse($fields['threadCaptureError'], [Globalization.NumberStyles]::None, [Globalization.CultureInfo]::InvariantCulture)
+        ThreadDesktopAtExit = $fields['threadAtExit']; ThreadDesktopAtExitError = [uint32]::Parse($fields['threadAtExitError'], [Globalization.NumberStyles]::None, [Globalization.CultureInfo]::InvariantCulture)
+        ThreadDesktopAfter = $fields['threadAfter']; ThreadDesktopAfterError = [uint32]::Parse($fields['threadAfterError'], [Globalization.NumberStyles]::None, [Globalization.CultureInfo]::InvariantCulture)
+    }
+    return [pscustomobject]@{ Value = $value; Problems = @() }
+}
+
 function Read-DxUiLeaseResult {
     # Historical/failed results remain readable for presentation. ReceiptProblems records malformed or incomplete
     # current protocol facts; reading a completed state alone never establishes a successful run.
@@ -154,7 +257,7 @@ function Read-DxUiLeaseResult {
     $receiptProblems = [Collections.Generic.List[string]]::new()
     $keys = @('state','exit','reason','confirmation','confirmation.autoStart','confirmation.seconds','foreground.saved',
         'focus.capture.reason','focus.capture.error','restoration.foreground','restoration.focus','restoration.cursor',
-        'cursor.saved','cursor.atExit','restoration.runMovedSomething')
+        'cursor.saved','cursor.atExit','cursor.restore.diagnostics','restoration.runMovedSomething')
     $childNames = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     foreach ($line in $Text -split '\r?\n') {
         if ($line -eq '') { continue }
@@ -240,6 +343,15 @@ function Read-DxUiLeaseResult {
     if ($facts.Contains('restoration.runMovedSomething') -and $facts['restoration.runMovedSomething'] -cnotin @('0','1')) {
         $receiptProblems.Add('invalid moved flag')
     }
+    $cursorDiagnostics = $null
+    if ($facts.Contains('cursor.restore.diagnostics')) {
+        $parsedDiagnostics = ConvertFrom-DxUiCursorRestoreDiagnostics -Text $facts['cursor.restore.diagnostics']
+        foreach ($problem in $parsedDiagnostics.Problems) { $receiptProblems.Add($problem) }
+        if ($facts['state'] -cne 'completed' -or $facts['restoration.cursor'] -cne 'failed') {
+            $receiptProblems.Add('cursor restore diagnostics require a completed lease with failed pointer restoration')
+        }
+        $cursorDiagnostics = $parsedDiagnostics.Value
+    }
     $capture = $null
     if ($facts.Contains('focus.capture.reason') -or $facts.Contains('focus.capture.error')) {
         $captureReason = & $part 'focus.capture.reason'
@@ -274,6 +386,7 @@ function Read-DxUiLeaseResult {
         Cursor = & $part 'restoration.cursor'
         CursorSaved = & $part 'cursor.saved'
         CursorAtExit = & $part 'cursor.atExit'
+        CursorDiagnostics = $cursorDiagnostics
         RunMovedSomething = $facts.Contains('restoration.runMovedSomething') -and $facts['restoration.runMovedSomething'] -eq '1'
         Children = $children.ToArray()
         ReceiptProblems = $receiptProblems.ToArray()

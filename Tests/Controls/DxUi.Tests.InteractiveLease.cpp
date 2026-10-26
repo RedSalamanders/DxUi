@@ -8,6 +8,7 @@
 
 #include "../Support/Support.Tests.InteractiveLease.h"
 
+#include <algorithm>
 #include <map>
 #include <optional>
 #include <set>
@@ -134,8 +135,44 @@ public:
     bool SetCursor(POINT position) override
     {
         _events.push_back(std::format("cursor:{},{}", position.x, position.y));
-        cursor = cursorLandsOneToTheRight ? POINT{position.x + 1, position.y} : position;
+        if (cursorClipKnown)
+        {
+            cursor = {std::clamp(position.x, cursorClip.left, cursorClip.right - 1), std::clamp(position.y, cursorClip.top, cursorClip.bottom - 1)};
+        }
+        else
+        {
+            cursor = cursorLandsOneToTheRight ? POINT{position.x + 1, position.y} : position;
+        }
         return true;
+    }
+
+    [[nodiscard]] CursorReadResult ReadCursor(POINT& position) override
+    {
+        const bool succeeded = Cursor(position);
+        return {succeeded, succeeded ? ERROR_SUCCESS : cursorReadError};
+    }
+
+    [[nodiscard]] CursorSetResult SetCursorForRestore(POINT position) override
+    {
+        if (! cursorSetterAccepted)
+        {
+            _events.push_back(std::format("cursor-rejected:{},{}", position.x, position.y));
+            return {false, cursorSetterError};
+        }
+        const bool accepted = SetCursor(position);
+        if (accepted && cursorUnreadableAfterSet)
+            cursorReadable = false;
+        return {accepted, cursorSetterError};
+    }
+
+    [[nodiscard]] CursorEnvironmentState CursorEnvironment() override
+    {
+        CursorEnvironmentState state{};
+        state.clipRectKnown = cursorClipKnown;
+        state.clipRect      = cursorClip;
+        state.inputDesktop  = inputDesktop;
+        state.threadDesktop = threadDesktop;
+        return state;
     }
 
     bool BringToForeground(HWND window) override
@@ -179,8 +216,16 @@ public:
     }
 
     POINT cursor{400, 300};
-    bool cursorReadable                          = true;
-    bool cursorLandsOneToTheRight                = false;
+    bool cursorReadable           = true;
+    bool cursorLandsOneToTheRight = false;
+    bool cursorSetterAccepted     = true;
+    DWORD cursorSetterError       = ERROR_SUCCESS;
+    DWORD cursorReadError         = ERROR_INVALID_DATA;
+    bool cursorUnreadableAfterSet = false;
+    bool cursorClipKnown          = false;
+    RECT cursorClip{0, 0, 1920, 1080};
+    std::string inputDesktop                     = "Default";
+    std::string threadDesktop                    = "Default";
     int refusedForegroundCalls                   = 0;
     bool foregroundNeverSticks                   = false;
     bool activationResetsFocus                   = false;
@@ -457,6 +502,114 @@ void TestDesktopLeaseReportsAPointerItCannotRestore()
     const RestoreReport report = lease.Restore();
     Require(report.cursor == Restoration::Failed, "a pointer that lands a pixel off is failed, not rounded to a pass");
     Require(! report.Succeeded(), "and the run is not a success");
+    Require(report.cursorDiagnostics.has_value(), "a failed pointer readback retains bounded restoration diagnostics");
+    const RestoreReport::CursorDiagnostics& diagnostics = report.cursorDiagnostics.value();
+    Require(diagnostics.readBeforeKnown && SamePoint(diagnostics.readBefore, POINT{900, 700}), "the report records the pointer immediately before restoration");
+    Require(diagnostics.setCalled && diagnostics.setAccepted && diagnostics.setError == ERROR_SUCCESS,
+            "the report distinguishes a successful cursor-set request");
+    Require(diagnostics.readbackKnown && SamePoint(diagnostics.readback, POINT{401, 301}), "the report preserves the exact off-by-one readback");
+    LeaseOutcome outcome{};
+    outcome.state            = "completed";
+    outcome.exitCode         = LeaseExit::kNotRestored;
+    outcome.restoration      = report;
+    const std::string result = FormatLeaseResult(outcome);
+    Require(result.find("cursor.restore.diagnostics:") != std::string::npos && result.find("readback=401,301") != std::string::npos,
+            "the lease result serializes the failure diagnostics without changing the restoration result");
+    const size_t diagnosticsLineStart = result.find("cursor.restore.diagnostics:");
+    const size_t diagnosticsLineEnd   = result.find('\n', diagnosticsLineStart);
+    Require(diagnosticsLineEnd - diagnosticsLineStart < 700u, "the optional diagnostics line remains bounded");
+}
+
+void TestDesktopLeaseRetainsRejectedPointerSetDiagnostics()
+{
+    Events events;
+    FakeDesktop desktop(events);
+    desktop.cursorSetterAccepted = false;
+    desktop.cursorSetterError    = ERROR_ACCESS_DENIED;
+    const Person person;
+    SeatThePerson(desktop, person);
+    DesktopLease lease(desktop);
+    lease.Capture();
+    TakeOver(desktop, person);
+
+    const RestoreReport report = lease.Restore();
+    Require(report.cursor == Restoration::Failed && report.cursorDiagnostics.has_value(), "a rejected pointer set remains a failed restoration");
+    const RestoreReport::CursorDiagnostics& diagnostics = report.cursorDiagnostics.value();
+    Require(diagnostics.setCalled && ! diagnostics.setAccepted && diagnostics.setError == ERROR_ACCESS_DENIED,
+            "the report preserves a setter rejection and its immediate error observation");
+    Require(diagnostics.readbackKnown && SamePoint(diagnostics.readback, POINT{900, 700}), "a rejected request is followed by the exact, unchanged readback");
+}
+
+void TestDesktopLeaseReportsUnreadablePreSetCursorWithoutInventingPosition()
+{
+    Events events;
+    FakeDesktop desktop(events);
+    const Person person;
+    SeatThePerson(desktop, person);
+    DesktopLease lease(desktop);
+    lease.Capture();
+    TakeOver(desktop, person);
+    desktop.cursorReadable = false;
+
+    const RestoreReport report = lease.Restore();
+    Require(report.saved.cursorKnown && report.cursor == Restoration::Failed && report.cursorDiagnostics.has_value(),
+            "a pointer recorded at capture but unreadable before restoration remains a failure");
+    const RestoreReport::CursorDiagnostics& diagnostics = report.cursorDiagnostics.value();
+    Require(! diagnostics.readBeforeKnown && diagnostics.readBeforeError == ERROR_INVALID_DATA,
+            "the immediate failed pre-set read retains its error observation");
+    Require(! diagnostics.setCalled && ! diagnostics.setAccepted && ! diagnostics.readbackKnown,
+            "the lease does not set or invent a pointer position after a failed pre-set read");
+    LeaseOutcome outcome{};
+    outcome.state            = "completed";
+    outcome.exitCode         = LeaseExit::kNotRestored;
+    outcome.restoration      = report;
+    const std::string result = FormatLeaseResult(outcome);
+    Require(result.find("state: completed\n") != std::string::npos && result.find("readBefore=unknown;readBeforeError=13;") != std::string::npos &&
+                result.find("setCalled=0;setAccepted=0;") != std::string::npos && result.find("readback=unknown;readbackError=0;") != std::string::npos,
+            "the completed lease result distinguishes the failed read from unattempted set/readback fields without coordinates");
+}
+
+void TestDesktopLeaseReportsUnreadablePostSetCursorWithoutInventingReadback()
+{
+    Lease lease;
+    lease.desktop.cursorUnreadableAfterSet = true;
+    const LeaseOutcome outcome             = RunLease(lease.services, RequestFor({L"Menu"}));
+    Require(outcome.state == "completed" && outcome.exitCode == LeaseExit::kNotRestored && outcome.restoration.has_value(),
+            "the native lease keeps a suite result completed while a failed restoration determines the exit status");
+    Require(outcome.restoration->saved.cursorKnown && outcome.restoration->cursor == Restoration::Failed && outcome.restoration->cursorDiagnostics.has_value(),
+            "a readback failure remains a failed pointer restoration");
+    const RestoreReport::CursorDiagnostics& diagnostics = outcome.restoration->cursorDiagnostics.value();
+    Require(diagnostics.readBeforeKnown && diagnostics.setCalled && diagnostics.setAccepted && ! diagnostics.readbackKnown &&
+                diagnostics.readbackError == ERROR_INVALID_DATA,
+            "the accepted set is followed by a failed readback, not an invented position");
+    const std::string result = FormatLeaseResult(outcome);
+    Require(result.find("state: completed\n") != std::string::npos && result.find("readback=unknown;readbackError=13;") != std::string::npos,
+            "serialized lease state remains completed and preserves the unreadable readback");
+}
+
+void TestDesktopLeaseReportsCursorClipChangeWithoutForgivingReadback()
+{
+    Events events;
+    FakeDesktop desktop(events);
+    desktop.cursorClipKnown = true;
+    desktop.cursorClip      = RECT{0, 0, 500, 500};
+    const Person person;
+    SeatThePerson(desktop, person);
+    DesktopLease lease(desktop);
+    lease.Capture();
+    TakeOver(desktop, person);
+    desktop.cursorClip = RECT{0, 0, 100, 100}; // Model a changed desktop clip; the fake setter clamps as Windows would.
+
+    const RestoreReport report = lease.Restore();
+    Require(report.cursor == Restoration::Failed && report.cursorDiagnostics.has_value(), "a clipped pointer readback remains a failure");
+    const RestoreReport::CursorDiagnostics& diagnostics = report.cursorDiagnostics.value();
+    Require(diagnostics.setAccepted && diagnostics.readbackKnown && SamePoint(diagnostics.readback, POINT{99, 99}),
+            "the fake exposes the actual clipped readback rather than treating setter acceptance as restoration");
+    Require(report.saved.cursorEnvironment.clipRectKnown && report.saved.cursorEnvironment.clipRect.right == 500 &&
+                report.atExit.cursorEnvironment.clipRect.right == 100 && diagnostics.environmentAfter.clipRect.right == 100,
+            "the report distinguishes the original, at-exit and post-set clip rectangles");
+    Require(diagnostics.environmentAfter.inputDesktop == "Default" && diagnostics.environmentAfter.threadDesktop == "Default",
+            "the bounded report includes desktop identity only as diagnostic context");
 }
 
 void TestDesktopLeaseWithAnUnreadablePointer()
@@ -1277,6 +1430,10 @@ void RunInteractiveLeaseTests()
     DXUI_RUN_TEST(TestDesktopLeaseDoesNotTrustACallThatReportsSuccess);
     DXUI_RUN_TEST(TestDesktopLeaseDoesNotActivateAWindowThatIsGone);
     DXUI_RUN_TEST(TestDesktopLeaseReportsAPointerItCannotRestore);
+    DXUI_RUN_TEST(TestDesktopLeaseRetainsRejectedPointerSetDiagnostics);
+    DXUI_RUN_TEST(TestDesktopLeaseReportsUnreadablePreSetCursorWithoutInventingPosition);
+    DXUI_RUN_TEST(TestDesktopLeaseReportsUnreadablePostSetCursorWithoutInventingReadback);
+    DXUI_RUN_TEST(TestDesktopLeaseReportsCursorClipChangeWithoutForgivingReadback);
     DXUI_RUN_TEST(TestDesktopLeaseWithAnUnreadablePointer);
     DXUI_RUN_TEST(TestDesktopLeaseRecordsNothingWhenThereIsNoForegroundWindow);
     DXUI_RUN_TEST(TestDesktopLeaseRestoreIsRepeatableAndNeedsACapture);

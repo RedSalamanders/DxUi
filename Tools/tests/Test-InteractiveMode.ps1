@@ -231,6 +231,47 @@ Invoke-TestCase 'the result is read back as the lease writes it' {
     Assert-Equal (-1073741819) $result.Children[1].ExitCode 'a crash code reads as $LASTEXITCODE shows it'
     Assert-True ($result.Children[1].Launched -and -not $result.Children[1].TimedOut -and -not $result.Children[1].Interrupted) 'and its flags'
 }
+Invoke-TestCase 'cursor restore failure diagnostics are bounded, typed observations and remain optional for historical receipts' {
+    $cursorDiagnostics = 'readBefore=900,700;readBeforeError=0;setCalled=1;setAccepted=0;setError=5;readback=900,700;readbackError=0;' +
+        'clipCapture=0,0,1920,1080;clipCaptureError=0;clipAtExit=0,0,1920,1080;clipAtExitError=0;clipAfter=0,0,1920,1080;clipAfterError=0;' +
+        'inputCapture=Default;inputCaptureError=0;inputAtExit=Default;inputAtExitError=0;inputAfter=Default;inputAfterError=0;' +
+        'threadCapture=Default;threadCaptureError=0;threadAtExit=Default;threadAtExitError=0;threadAfter=Default;threadAfterError=0'
+    $failureText = $successful.Replace('exit: 0', 'exit: 25').Replace('restoration.cursor: restored', 'restoration.cursor: failed') +
+        "`ncursor.restore.diagnostics: $cursorDiagnostics"
+    $result = Read-DxUiLeaseResult -Text $failureText
+    Assert-Equal 0 @($result.ReceiptProblems).Count 'the full failure diagnostic validates without turning it into a pass'
+    Assert-Equal '900,700' $result.CursorDiagnostics.ReadBefore 'the immediate pre-set readback is retained'
+    Assert-Equal ([uint32]5) $result.CursorDiagnostics.SetError 'the setter error observation is retained'
+    Assert-True (-not $result.CursorDiagnostics.SetAccepted) 'setter rejection is distinct from readback'
+    Assert-Equal '0,0,1920,1080' $result.CursorDiagnostics.ClipAfter 'the final clip rectangle is retained'
+    Assert-Equal 'Default' $result.CursorDiagnostics.InputDesktopAfter 'the bounded desktop name is retained'
+    Assert-Equal $null (Read-DxUiLeaseResult -Text $successful).CursorDiagnostics 'old results remain readable without invented diagnostics'
+    $contradictory = Read-DxUiLeaseResult -Text ($successful + "`ncursor.restore.diagnostics: $cursorDiagnostics")
+    Assert-True (@($contradictory.ReceiptProblems).Count -gt 0) 'diagnostics cannot accompany a successful pointer restoration'
+    $preReadFailure = $cursorDiagnostics.Replace('readBefore=900,700', 'readBefore=unknown').Replace('readBeforeError=0', 'readBeforeError=13').
+        Replace('setCalled=1', 'setCalled=0').Replace('setError=5', 'setError=0').Replace('readback=900,700', 'readback=unknown')
+    $preReadResult = Read-DxUiLeaseResult -Text ($successful.Replace('exit: 0', 'exit: 25').Replace('restoration.cursor: restored', 'restoration.cursor: failed') +
+        "`ncursor.restore.diagnostics: $preReadFailure")
+    Assert-Equal 0 @($preReadResult.ReceiptProblems).Count 'a failed pre-set read is distinct from an unattempted set/readback'
+
+    foreach ($mutation in @(
+        @('threadAfterError=0', ''),
+        @('setAccepted=0', 'setAccepted=true'),
+        @('setError=5', 'setError=4294967296'),
+        @('readback=900,700', 'readback=2147483648,0'),
+        @('clipAfter=0,0,1920,1080', 'clipAfter=0,0,broken,1080'),
+        @('inputAfter=Default', 'inputAfter=desktop with spaces'),
+        @('threadAfterError=0', 'extra=0'),
+        @('setAccepted=0', 'setAccepted=0;setAccepted=1'),
+        @('setCalled=1;setAccepted=0', 'setCalled=0;setAccepted=1')
+    )) {
+        $changedDiagnostics = $cursorDiagnostics.Replace($mutation[0], $mutation[1])
+        $changedText = $successful.Replace('exit: 0', 'exit: 25').Replace('restoration.cursor: restored', 'restoration.cursor: failed') +
+            "`ncursor.restore.diagnostics: $changedDiagnostics"
+        $parsed = Read-DxUiLeaseResult -Text $changedText
+        Assert-True (@($parsed.ReceiptProblems).Count -gt 0) "malformed cursor restoration observations fail receipt validation: $($mutation -join ' -> ')"
+    }
+}
 Invoke-TestCase 'a result that is missing, empty or not the lease''s is no result' {
     Assert-Equal $null (Read-DxUiLeaseResult -Text $null) 'no text'
     Assert-Equal $null (Read-DxUiLeaseResult -Text '') 'empty text'
@@ -326,9 +367,27 @@ Invoke-FixtureCase 'both child receipts copy one original capture diagnostic and
     Assert-Equal ($copies[0].focusCapture | ConvertTo-Json -Compress) ($copies[1].focusCapture | ConvertTo-Json -Compress) 'the same diagnostic is copied, not recaptured per child'
     Assert-Equal 'foreground-minimized' $copies[0].focusCapture.Reason 'the original reason survives JSON'
     Assert-True ($copies[0].focusCapture.QueryError -eq 0) 'with no fabricated query error'
+    Assert-Equal $null $copies[0].cursorDiagnostics 'legacy results preserve absence rather than inventing cursor diagnostics'
     Assert-Equal 43.3 $copies[0].seconds 'Menu duration remains its own'
     Assert-Equal 1.2 $copies[1].seconds 'NativeTextInput duration remains its own'
     Assert-Equal 'QueryError,Reason' (($copies[0].focusCapture.PSObject.Properties.Name | Sort-Object) -join ',') 'diagnostics expose no raw window, process or thread identities'
+    $cursorDiagnostic = 'readBefore=900,700;readBeforeError=0;setCalled=1;setAccepted=0;setError=5;readback=900,700;readbackError=0;' +
+        'clipCapture=unknown;clipCaptureError=0;clipAtExit=unknown;clipAtExitError=0;clipAfter=unknown;clipAfterError=0;' +
+        'inputCapture=Default;inputCaptureError=0;inputAtExit=Default;inputAtExitError=0;inputAfter=Default;inputAfterError=0;' +
+        'threadCapture=Default;threadCaptureError=0;threadAtExit=Default;threadAtExitError=0;threadAfter=Default;threadAfterError=0'
+    $leaseResult = Read-DxUiLeaseResult -Text ($successful.Replace('exit: 0', 'exit: 25').Replace('restoration.cursor: restored', 'restoration.cursor: failed') +
+        "`ncursor.restore.diagnostics: $cursorDiagnostic")
+    $lease.ExitCode = 25
+    $diagnosticCopies = foreach ($child in $leaseResult.Children) {
+        $receipt = [ordered]@{}
+        . $writeLease
+        ($receipt | ConvertTo-Json -Depth 8 | ConvertFrom-Json).lease
+    }
+    Assert-Equal 2 @($diagnosticCopies).Count 'cursor failure diagnostics are carried to each child receipt'
+    Assert-Equal ($diagnosticCopies[0].cursorDiagnostics | ConvertTo-Json -Compress) ($diagnosticCopies[1].cursorDiagnostics | ConvertTo-Json -Compress) 'both children retain the same native lease snapshot'
+    Assert-Equal '5' ([string]$diagnosticCopies[0].cursorDiagnostics.SetError) 'the exact setter observation survives receipt JSON'
+    Assert-True (-not $diagnosticCopies[0].cursorDiagnostics.SetAccepted) 'a rejected setter remains a failure in child evidence'
+    $lease.ExitCode = 0
     $missing = @($testAst.FindAll({ param($node)
         $node -is [Management.Automation.Language.AssignmentStatementAst] -and $node.Left.Extent.Text -ceq '$leaseResult' -and
         $node.Right.Extent.Text.Contains('the native lease wrote no result')
@@ -341,6 +400,7 @@ Invoke-FixtureCase 'both child receipts copy one original capture diagnostic and
     . $writeLease
     Assert-Equal 'missing' $receipt.lease.state 'a missing result still writes its failed receipt under strict mode'
     Assert-Equal $null $receipt.lease.focusCapture 'the fallback invents no capture reason'
+    Assert-Equal $null $receipt.lease.cursorDiagnostics 'the fallback invents no pointer restoration evidence'
     Assert-Equal 0 @($receipt.lease.focusCaptureProblems).Count 'absence of a result is distinct from malformed metadata'
     Assert-True (@(Get-DxUiLeaseProblems -Result $leaseResult -ExitCode 24) -match 'native lease wrote no result') 'the missing result remains a failure'
 }

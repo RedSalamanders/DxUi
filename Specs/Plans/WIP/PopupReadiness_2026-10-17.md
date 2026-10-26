@@ -252,3 +252,26 @@ switch during the guard, but does not attribute it to the synthetic posted move 
 The focused follow-up enables the trace's existing bounded pointer capture and checks that the probe message was
 posted. It changes no production path, hover contract, guard duration or performance threshold. Fresh native
 execution and source-specific attribution remain pending; do not treat the 5/6 result as a green matrix.
+
+### Physical hover admission and restoration diagnostics (26 October 2026)
+
+- [x] Align and verify the physical pointer with every synthetic B2/B1 transition in the sibling-hover fixture;
+  retain per-leg dispatch, hover and timer observations without changing production Menu behavior or deadlines.
+- [x] Verify the source-specific fixture locally in x64 Debug and retain the earlier controlled failing case.
+- [x] Observe all 124 Menu cases passing, with zero skips, in all six profiles of
+  [PR #108 run 40320360351](https://github.com/RedSalamanders/DxUi/actions/runs/40320360351).
+- [ ] Resolve the separate ARM64 ASan Debug desktop-lease failure: the suites complete, but exact cursor
+  restoration fails with exit 25. Five other profiles pass. Neither a completed Menu suite nor a passing repeat
+  closes the restoration gate.
+- [x] Add bounded, optional setter/readback, clip-rectangle and desktop-name observations and fake regressions for
+  rejected sets, clipped or off-by-one positions, and unreadable pre-set/post-set coordinates. Preserve unknown
+  readings as unknown and reject malformed/contradictory receipt metadata.
+- [ ] Build and execute the diagnostics revision locally, then retain matching native CI diagnostics if the
+  restoration failure recurs. Do not add cursor retries, change the clip rectangle or weaken exact readback.
+
+The hosted test tree is `93cf3ecd82d0265e4c2818ca17f447e57c45f6de` at merge revision
+`02b0d93ec778faa16810d3bee72bf8b7fd73c739` (head `fcd1454286ad438c9e3db102434f2532534f3cce`).
+The failed lease records `state: completed`, saved cursor `512,384`, at-exit cursor `859,82`, foreground restored
+and no initially recorded focus. The original receipt lacks setter/readback and clipping details, so the cause
+remains unknown. A previous ARM64 Release restoration failure is retained separately. This test infrastructure
+change affects no public API, production pixels or performance policy; no gallery regeneration is needed.
