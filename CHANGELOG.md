@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- The submenu hover-retention fixture now verifies a physical B2 starting hover and aligns the physical cursor with each delivered root, submenu, and return-to-parent point. Existing hover/timer assertions remain unchanged; hosted ARM64 ASan counterfactual execution and cause confirmation remain pending.
 - The delayed submenu replacement test aligns and exactly verifies the physical cursor before each synthetic sibling hover, and retains bounded pointer and hover-state diagnostics on failure. This is test-only; the hosted ARM64 Debug case still needs a fresh run, and no product behavior or qualification status changes.
 - Preserve bounded physical-pointer, setter, clipping and live-popup DPI observations when Menu hover admission cannot verify its requested point; keep the exact input predicate, timing guards and restoration behavior unchanged.
 - Recorded exact-source API-4 local qualification for `4077f57d` in the active WIP plan and published the hosted native evidence for PR #107. Six local builds, all three x64 Full profiles and four authorized foreground suites pass; six hosted native profiles pass on merge tree `18be6688`. The paired gate remains inconclusive because its base policy is unqualified and 62/72 controls are unstable; PR #108 Menu and lease-restoration failures remain separate, with no performance acceptance claimed. See [the hosted CI evidence packet](Measurements/RedesignCompletion_2026-10-26/ci-4077f57d/native-and-paired/README.md).

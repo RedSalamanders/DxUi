@@ -320,6 +320,9 @@ Interactive menu drivers wait for the popup's modal capture after visibility and
 asserting a retained painted hover, their physical cursor agrees with the delivered point so OS-generated moves
 cannot undo the fixture's input. Restore that cursor only while it still has the test's position; do not overwrite
 human movement. Failed hover assertions must report a failure, including outside-dismiss tests.
+For a multi-step submenu-retention assertion, establish and verify an opposite sibling as the physical starting
+hover before the first asserted sibling transition; align each later root, child and parent point before delivering
+its matching synthetic move. Preserve the existing hover and timer predicates and deadlines.
 Visual-baseline captures that require an unhovered menu MUST establish modal capture and visible geometry as
 separate predicates, then physically park the cursor in the popup shadow margin outside every item row under the
 popup DPI context. Deliver the matching move and verify hover cleared before requesting the bitmap. A synthetic

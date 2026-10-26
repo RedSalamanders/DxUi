@@ -4821,11 +4821,13 @@ void TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay()
         {.text = L"B2", .commandId = 3702},
     };
 
+    MenuHoverTraceForTest trace(true);
+    ScopedMenuPointerFixture pointerFixture(ownerWindow.Hwnd());
     std::string driverFailure;
     std::thread driver([&]
     {
         const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
-        const HWND rootPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B1");
+        const HWND rootPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B1", std::chrono::milliseconds(5000), &trace);
         if (! rootPopupHwnd)
         {
             driverFailure = "menu popup window appears for submenu hover-retention validation";
@@ -4853,14 +4855,41 @@ void TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay()
         const LONG b2X        = static_cast<LONG>(std::lround(((secondItemRectDip.left + secondItemRectDip.right) * 0.5f) * rootScale));
         const LONG b2Y        = static_cast<LONG>(std::lround(((secondItemRectDip.top + secondItemRectDip.bottom) * 0.5f) * rootScale));
 
+        // Establish an opposite-item starting point so the first asserted B1 hover
+        // is a real B2-to-B1 transition, with physical and delivered points aligned.
+        if (! AlignOwnedPointerToClientPointForMenuSuite(pointerFixture, rootPopupHwnd, b2X, b2Y, "initial B2", driverFailure))
+        {
+            trace.Driver("initial-b2-physical-alignment-failed", static_cast<uint64_t>(b2X), static_cast<uint64_t>(b2Y));
+            return;
+        }
+        trace.Driver("initial-b2-physical-aligned", static_cast<uint64_t>(b2X), static_cast<uint64_t>(b2Y));
+        if (! SendSettledClientMouseMoveForMenuSuite(rootPopupHwnd, b2X, b2Y) ||
+            ! WaitForContextMenuPopupState(rootPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+            return state.hoveredIndex.has_value() && state.hoveredIndex.value() == 1u;
+        }, rootState))
+        {
+            driverFailure = "placing the owned pointer on B2 establishes the starting hover before submenu retention";
+            trace.Driver("initial-b2-hover-failed", 0u, 0u);
+            return;
+        }
+        trace.Driver("initial-b2-hover-established", 1u, 0u);
+
+        if (! AlignOwnedPointerToClientPointForMenuSuite(pointerFixture, rootPopupHwnd, b1X, b1Y, "B1 before submenu open", driverFailure))
+        {
+            trace.Driver("initial-b1-physical-alignment-failed", static_cast<uint64_t>(b1X), static_cast<uint64_t>(b1Y));
+            return;
+        }
+        trace.Driver("initial-b1-physical-aligned", static_cast<uint64_t>(b1X), static_cast<uint64_t>(b1Y));
         if (! SendSettledClientMouseMoveForMenuSuite(rootPopupHwnd, b1X, b1Y) ||
             ! WaitForContextMenuPopupState(rootPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
             return state.hoveredIndex.has_value() && state.hoveredIndex.value() == 0u;
         }, rootState))
         {
             driverFailure = "hovering B1 updates the root-popup hover target before hover-retention validation";
+            trace.Driver("initial-b1-hover-failed", 0u, 0u);
             return;
         }
+        trace.Driver("initial-b1-hover-established", 1u, 0u);
 
         HWND submenuHwnd = nullptr;
         if (! WaitForSubmenuOpenAfterHoverForMenuSuite(ownerWindow.Hwnd(), rootPopupHwnd, 0u, L"B11", submenuHwnd, rootState))
@@ -4869,14 +4898,22 @@ void TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay()
             return;
         }
 
+        if (! AlignOwnedPointerToClientPointForMenuSuite(pointerFixture, rootPopupHwnd, b2X, b2Y, "B2 before delayed close", driverFailure))
+        {
+            trace.Driver("b2-physical-alignment-failed", static_cast<uint64_t>(b2X), static_cast<uint64_t>(b2Y));
+            return;
+        }
+        trace.Driver("b2-physical-aligned", static_cast<uint64_t>(b2X), static_cast<uint64_t>(b2Y));
         if (! SendSettledClientMouseMoveForMenuSuite(rootPopupHwnd, b2X, b2Y) ||
             ! WaitForContextMenuPopupState(rootPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
             return state.hoveredIndex.has_value() && state.hoveredIndex.value() == 1u;
         }, rootState))
         {
             driverFailure = "hovering B2 starts the delayed close path before entering the submenu";
+            trace.Driver("b2-hover-failed", 0u, 0u);
             return;
         }
+        trace.Driver("b2-hover-established", 1u, 0u);
         if (! WaitForPendingSubmenuCloseTimerForMenuSuite(rootPopupHwnd, rootState))
         {
             driverFailure = "hovering B2 schedules the parent delayed-close timer before entering the submenu";
@@ -4898,14 +4935,22 @@ void TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay()
         const float submenuScale = static_cast<float>(submenuState.dpi) / 96.0f;
         const LONG submenuX      = static_cast<LONG>(std::lround(((submenuItemRectDip.left + submenuItemRectDip.right) * 0.5f) * submenuScale));
         const LONG submenuY      = static_cast<LONG>(std::lround(((submenuItemRectDip.top + submenuItemRectDip.bottom) * 0.5f) * submenuScale));
+        if (! AlignOwnedPointerToClientPointForMenuSuite(pointerFixture, submenuHwnd, submenuX, submenuY, "submenu B11", driverFailure))
+        {
+            trace.Driver("submenu-physical-alignment-failed", static_cast<uint64_t>(submenuX), static_cast<uint64_t>(submenuY));
+            return;
+        }
+        trace.Driver("submenu-physical-aligned", static_cast<uint64_t>(submenuX), static_cast<uint64_t>(submenuY));
         if (! SendSettledClientMouseMoveForMenuSuite(submenuHwnd, submenuX, submenuY) ||
             ! WaitForContextMenuPopupState(submenuHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
             return state.hoveredIndex.has_value() && state.hoveredIndex.value() == 0u;
         }, submenuState))
         {
             driverFailure = "moving into an open submenu updates the submenu hover target";
+            trace.Driver("submenu-hover-failed", 0u, 0u);
             return;
         }
+        trace.Driver("submenu-hover-established", 1u, 0u);
 
         if (! WaitForNoSubmenuHoverTimerForMenuSuite(rootPopupHwnd, rootState) || IsWindow(submenuHwnd) == FALSE)
         {
@@ -4913,14 +4958,22 @@ void TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay()
             return;
         }
 
+        if (! AlignOwnedPointerToClientPointForMenuSuite(pointerFixture, rootPopupHwnd, b1X, b1Y, "return B1", driverFailure))
+        {
+            trace.Driver("return-b1-physical-alignment-failed", static_cast<uint64_t>(b1X), static_cast<uint64_t>(b1Y));
+            return;
+        }
+        trace.Driver("return-b1-physical-aligned", static_cast<uint64_t>(b1X), static_cast<uint64_t>(b1Y));
         if (! SendSettledClientMouseMoveForMenuSuite(rootPopupHwnd, b1X, b1Y) ||
             ! WaitForContextMenuPopupState(rootPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
             return state.hoveredIndex.has_value() && state.hoveredIndex.value() == 0u;
         }, rootState))
         {
             driverFailure = "moving from an open submenu back to its parent menu item updates root hover";
+            trace.Driver("return-b1-hover-failed", 0u, 0u);
             return;
         }
+        trace.Driver("return-b1-hover-established", 1u, 0u);
         if (! WaitForNoSubmenuHoverTimerForMenuSuite(rootPopupHwnd, rootState) || IsWindow(submenuHwnd) == FALSE)
         {
             driverFailure = "moving from an open submenu back to its parent menu item keeps the submenu open";
@@ -4932,6 +4985,8 @@ void TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay()
     const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
     driver.join();
 
+    if (! driverFailure.empty())
+        trace.Dump(true);
     Require(driverFailure.empty(), driverFailure.c_str());
     Require(! result.has_value(), "closing the submenu hover-retention validation popup with Escape returns no invoked command");
 }
