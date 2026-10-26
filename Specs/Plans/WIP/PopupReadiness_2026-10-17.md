@@ -296,3 +296,10 @@ DPI facts on failure. The calibration popup can have been destroyed, so the diag
 live popup. The setter, exact predicate, timeouts and restoration remain unchanged. The synthetic mouse helper
 ends in synchronous `SendMessageW(WM_MOUSEMOVE)` and runs after alignment; it schedules no cursor movement.
 Hosted x64 Debug, Release and ASan pass at `8ac9ff63`; matching ARM64 and paired results remain separate.
+
+The hosted ARM64 Debug failure at `8ac9ff63` is in the separate replacement case,
+`TestMenuHoveringSiblingWithChildrenReplacesOpenSubmenuAfterDelay`: it fails the B2 root-hover assertion after
+synthetic B1/B2 moves that did not first align the physical cursor. Update that fixture to require exact physical
+readback at both points and retain bounded pointer/UI/driver diagnostics on failure. This tests the fixture's input
+precondition; it does not establish the hosted failure's cause or change product behavior. The same hosted
+ARM64 Debug case remains to be rerun with the diagnostics revision.
