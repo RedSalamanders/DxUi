@@ -6101,6 +6101,7 @@ void TestMenuRainbowHoverUsesSeededHighlightContrast()
 
     Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
 
+    ScopedMenuPointerFixture pointerFixture(ownerWindow.Hwnd());
     ContextMenuPopupDebugState popupState{};
     ContextMenuPopupItemPaintDebugState paintState{};
     D2D1_RECT_F firstRowRectDip = D2D1::RectF();
@@ -6123,14 +6124,18 @@ void TestMenuRainbowHoverUsesSeededHighlightContrast()
             }
         });
 
-        if (! WaitForContextMenuPopupItemRect(popupHwnd, 0u, firstRowRectDip))
+        if (! WaitForContextMenuPopupItemRect(popupHwnd, 0u, firstRowRectDip) || ! DebugGetContextMenuPopupState(popupHwnd, popupState) || popupState.dpi == 0u)
         {
-            driverFailure = "menu popup exposes row bounds for rainbow hover highlight validation";
+            driverFailure = "menu popup exposes row bounds and DPI for rainbow hover highlight validation";
             return;
         }
 
-        const LONG hoverX = static_cast<LONG>(std::lround((firstRowRectDip.left + firstRowRectDip.right) * 0.5f));
-        const LONG hoverY = static_cast<LONG>(std::lround((firstRowRectDip.top + firstRowRectDip.bottom) * 0.5f));
+        const LONG hoverX = static_cast<LONG>(DipToPixelForPopup((firstRowRectDip.left + firstRowRectDip.right) * 0.5f, popupState.dpi));
+        const LONG hoverY = static_cast<LONG>(DipToPixelForPopup((firstRowRectDip.top + firstRowRectDip.bottom) * 0.5f, popupState.dpi));
+        if (! AlignOwnedPointerToClientPointForMenuSuite(pointerFixture, popupHwnd, hoverX, hoverY, "rainbow hover row", driverFailure))
+        {
+            return;
+        }
         if (! SendSettledClientMouseMoveForMenuSuite(popupHwnd, hoverX, hoverY))
         {
             driverFailure = "moving the pointer onto the rainbow row succeeds";
@@ -6193,6 +6198,7 @@ void TestMenuHoverContrastAppliesToGlyphsAcrossThemes()
 
     Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
 
+    ScopedMenuPointerFixture pointerFixture(ownerWindow.Hwnd());
     ContextMenuPopupDebugState popupState{};
     ContextMenuPopupItemPaintDebugState paintState{};
     D2D1_RECT_F firstRowRectDip = D2D1::RectF();
@@ -6215,14 +6221,18 @@ void TestMenuHoverContrastAppliesToGlyphsAcrossThemes()
             }
         });
 
-        if (! WaitForContextMenuPopupItemRect(popupHwnd, 0u, firstRowRectDip))
+        if (! WaitForContextMenuPopupItemRect(popupHwnd, 0u, firstRowRectDip) || ! DebugGetContextMenuPopupState(popupHwnd, popupState) || popupState.dpi == 0u)
         {
-            driverFailure = "menu popup exposes row bounds for hover foreground contrast validation";
+            driverFailure = "menu popup exposes row bounds and DPI for hover foreground contrast validation";
             return;
         }
 
-        const LONG hoverX = static_cast<LONG>(std::lround((firstRowRectDip.left + firstRowRectDip.right) * 0.5f));
-        const LONG hoverY = static_cast<LONG>(std::lround((firstRowRectDip.top + firstRowRectDip.bottom) * 0.5f));
+        const LONG hoverX = static_cast<LONG>(DipToPixelForPopup((firstRowRectDip.left + firstRowRectDip.right) * 0.5f, popupState.dpi));
+        const LONG hoverY = static_cast<LONG>(DipToPixelForPopup((firstRowRectDip.top + firstRowRectDip.bottom) * 0.5f, popupState.dpi));
+        if (! AlignOwnedPointerToClientPointForMenuSuite(pointerFixture, popupHwnd, hoverX, hoverY, "hover contrast row", driverFailure))
+        {
+            return;
+        }
         if (! SendSettledClientMouseMoveForMenuSuite(popupHwnd, hoverX, hoverY))
         {
             driverFailure = "moving the pointer onto the contrast row succeeds";
@@ -6367,6 +6377,7 @@ void TestMenuCheckedRowsDoNotPaintSecondFullRowSelection()
 
     const auto captureTrailingPixel = [&](const std::vector<MenuFlyoutItem>& items, uint32_t& trailingPixel, std::string& failure) noexcept
     {
+        ScopedMenuPointerFixture pointerFixture(ownerWindow.Hwnd());
         WindowHostBitmapCapture capture{};
         D2D1_RECT_F firstRowRectDip = D2D1::RectF();
         D2D1_RECT_F hoverRowRectDip = D2D1::RectF();
@@ -6389,14 +6400,19 @@ void TestMenuCheckedRowsDoNotPaintSecondFullRowSelection()
                 }
             });
 
-            if (! WaitForContextMenuPopupItemRect(popupHwnd, 0u, firstRowRectDip) || ! WaitForContextMenuPopupItemRect(popupHwnd, 1u, hoverRowRectDip))
+            if (! WaitForContextMenuPopupItemRect(popupHwnd, 0u, firstRowRectDip) || ! WaitForContextMenuPopupItemRect(popupHwnd, 1u, hoverRowRectDip) ||
+                ! DebugGetContextMenuPopupState(popupHwnd, popupState) || popupState.dpi == 0u)
             {
-                failure = "menu popup exposes row bounds for checked-row selection validation";
+                failure = "menu popup exposes row bounds and DPI for checked-row selection validation";
                 return;
             }
 
-            const LONG hoverX = static_cast<LONG>(std::lround((hoverRowRectDip.left + hoverRowRectDip.right) * 0.5f));
-            const LONG hoverY = static_cast<LONG>(std::lround((hoverRowRectDip.top + hoverRowRectDip.bottom) * 0.5f));
+            const LONG hoverX = static_cast<LONG>(DipToPixelForPopup((hoverRowRectDip.left + hoverRowRectDip.right) * 0.5f, popupState.dpi));
+            const LONG hoverY = static_cast<LONG>(DipToPixelForPopup((hoverRowRectDip.top + hoverRowRectDip.bottom) * 0.5f, popupState.dpi));
+            if (! AlignOwnedPointerToClientPointForMenuSuite(pointerFixture, popupHwnd, hoverX, hoverY, "checked-row plain hover", failure))
+            {
+                return;
+            }
             if (! SendSettledClientMouseMoveForMenuSuite(popupHwnd, hoverX, hoverY))
             {
                 failure = "moving the pointer to a plain row before checked-row selection capture succeeds";
@@ -6473,6 +6489,7 @@ void TestMenuCheckedRowsDoNotPaintLeadingCheckedBox()
 
     const auto captureLeadingPixel = [&](const std::vector<MenuFlyoutItem>& items, uint32_t& leadingPixel, std::string& failure) noexcept
     {
+        ScopedMenuPointerFixture pointerFixture(ownerWindow.Hwnd());
         WindowHostBitmapCapture capture{};
         ContextMenuPopupItemLayoutDebugState firstLayout{};
         D2D1_RECT_F hoverRowRectDip = D2D1::RectF();
@@ -6495,14 +6512,19 @@ void TestMenuCheckedRowsDoNotPaintLeadingCheckedBox()
                 }
             });
 
-            if (! WaitForContextMenuPopupItemLayout(popupHwnd, 0u, firstLayout) || ! WaitForContextMenuPopupItemRect(popupHwnd, 1u, hoverRowRectDip))
+            if (! WaitForContextMenuPopupItemLayout(popupHwnd, 0u, firstLayout) || ! WaitForContextMenuPopupItemRect(popupHwnd, 1u, hoverRowRectDip) ||
+                ! DebugGetContextMenuPopupState(popupHwnd, popupState) || popupState.dpi == 0u)
             {
-                failure = "menu popup exposes leading indicator geometry for checked-indicator box validation";
+                failure = "menu popup exposes leading indicator geometry and DPI for checked-indicator box validation";
                 return;
             }
 
-            const LONG hoverX = static_cast<LONG>(std::lround((hoverRowRectDip.left + hoverRowRectDip.right) * 0.5f));
-            const LONG hoverY = static_cast<LONG>(std::lround((hoverRowRectDip.top + hoverRowRectDip.bottom) * 0.5f));
+            const LONG hoverX = static_cast<LONG>(DipToPixelForPopup((hoverRowRectDip.left + hoverRowRectDip.right) * 0.5f, popupState.dpi));
+            const LONG hoverY = static_cast<LONG>(DipToPixelForPopup((hoverRowRectDip.top + hoverRowRectDip.bottom) * 0.5f, popupState.dpi));
+            if (! AlignOwnedPointerToClientPointForMenuSuite(pointerFixture, popupHwnd, hoverX, hoverY, "checked-indicator plain hover", failure))
+            {
+                return;
+            }
             if (! SendSettledClientMouseMoveForMenuSuite(popupHwnd, hoverX, hoverY))
             {
                 failure = "moving the pointer away from the checked row before checked-indicator capture succeeds";

@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Four modal painted-hover Menu cases now align the physical pointer to their delivered hover point using the existing scoped fixture. Their hover, color and bitmap assertions remain unchanged; focused runtime validation is pending.
 - The submenu hover-retention fixture now verifies a physical B2 starting hover and aligns the physical cursor with each delivered root, submenu, and return-to-parent point. Existing hover/timer assertions remain unchanged; hosted ARM64 ASan counterfactual execution and cause confirmation remain pending.
 - The delayed submenu replacement test aligns and exactly verifies the physical cursor before each synthetic sibling hover, and retains bounded pointer and hover-state diagnostics on failure. This is test-only; the hosted ARM64 Debug case still needs a fresh run, and no product behavior or qualification status changes.
 - Preserve bounded physical-pointer, setter, clipping and live-popup DPI observations when Menu hover admission cannot verify its requested point; keep the exact input predicate, timing guards and restoration behavior unchanged.

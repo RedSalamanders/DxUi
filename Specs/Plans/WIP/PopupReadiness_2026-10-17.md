@@ -26,9 +26,9 @@ assertions retain their existing limits. This does not change performance thresh
   lease; retain the failed full Debug run separately from the standalone diagnostic and other profile results.
 - [ ] Resolve the separately observed full-run Debug healthy-state-probe failure from bounded dispatch/lifecycle
   evidence, retaining the failure and without widening deadlines or treating a repeat as causal proof.
-- [ ] Execute the proposed test-only correction for the d849 submenu-retention retry failure below; keep the original
-  native pass and hosted attempt-2 failure separate, retain exact hover/timer predicates, and do not infer causation
-  from an unexecuted fixture change or a passing repeat.
+- [ ] Execute the implemented test-only correction for the d849 submenu-retention retry failure below; keep the
+  original native pass and hosted attempt-2 failure separate, retain exact hover/timer predicates, and do not infer
+  causation from an unexecuted fixture or a passing repeat.
 - [x] Establish modal dispatch readiness in both timeout fixtures within the remainder of their existing discovery
   budget, and retain initial healthy-probe answer/elapsed/lifecycle diagnostics on failure.
 - [x] Verify the visible-initialization regression with and without the acknowledgement wait, then rerun affected checks.
@@ -318,8 +318,24 @@ the cause of this distinct hover failure.
 The test sent synthetic client-space moves for B1, B2, submenu B11 and return-to-parent B1 without using the existing
 physical-alignment fixture. The current source route consumes the popup-delivered point from each synthetic message;
 the missing physical alignment is therefore a candidate fixture inconsistency, not a demonstrated production defect.
-The proposed test-only correction establishes and verifies physical B2 hover before the first B1 assertion, aligns
+The implemented test-only fixture correction establishes and verifies physical B2 hover before the first B1 assertion, aligns
 the cursor under each live popup's DPI context before the four corresponding synthetic moves, and retains the
 existing hover/timer predicates and deadlines. Bounded route/driver diagnostics are collected only on failure. This
-correction has not been executed; retain both original results and require a focused run before claiming the fixture
-or cause is confirmed.
+correction has not been runtime-executed; retain both original results and require a focused run before claiming the
+fixture or cause is confirmed.
+
+### Modal painted-hover callsite closure (26 October 2026)
+
+A read-only review of all 28 `SendSettledClientMouseMoveForMenuSuite` call sites found the two delayed-submenu
+fixtures and the submenu-retention fixture aligned to their required physical points. Four other modal painted-hover
+cases were missing the same precondition: `TestMenuRainbowHoverUsesSeededHighlightContrast`,
+`TestMenuHoverContrastAppliesToGlyphsAcrossThemes`, `TestMenuCheckedRowsDoNotPaintSecondFullRowSelection`, and
+`TestMenuCheckedRowsDoNotPaintLeadingCheckedBox`. Each now owns a `ScopedMenuPointerFixture` for its live owner and
+converts its DIP center to client pixels using the live popup DPI and existing `DipToPixelForPopup` helper before
+the existing popup-DPI alignment helper and retained-hover move; failed or zero-DPI discovery is setup failure.
+The checked-row capture helpers own one fixture per modal run. Existing hover, color, bitmap and timer assertions
+are unchanged. Async synthetic/UIA, click-only and deliberate unhovered-capture cases were not changed.
+
+- [ ] Run the four newly aligned modal painted-hover cases and the submenu-retention correction after the frozen
+  pipeline releases its lane. Source formatting and runtime behavior remain subject to review; this fixture-only
+  update establishes no cause for the existing hosted failure or new pass.
