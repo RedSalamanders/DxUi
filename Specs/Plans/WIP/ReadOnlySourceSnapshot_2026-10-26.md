@@ -1,6 +1,7 @@
 # Read-only Source snapshot synchronization
 
 ## Checklist
+- [x] P18 review correction: the retained native parser probe at `282da2b1` returns exit 1: reasserting the current adopted snapshot leaves a superseded request pending. The repair cancels that staging without allocating or replacing the immutable wrapper; a regression now asserts both conditions. This was outside the ordinary mirror path. The earlier Release/input results remain named `282da2b1` checkpoints; final qualification must use the repaired revision.
 - [ ] P18 preserve the source47a9 qualification and merge receipts; the new parsed-data extension needs its own evidence.
 - [ ] P18 settle API revision and standalone comparison admission for the changed public MarkdownSyntax layout and exact header closure. Do not claim binary interoperability from class-size or compiler probes.
 - [x] P18 implement allocation-free exact SourceSnapshot text comparison and optional adoption of completed canonical syntax with a target-local revision, fresh independent document namespace and flattened immutable data owner. Ordinary parsing remains the fallback; existing snapshot synchronization behavior stays unchanged.

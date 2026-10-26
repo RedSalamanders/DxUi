@@ -1166,6 +1166,12 @@ void TestMarkdownParserAdoptsExactParsedSnapshot()
     const auto publication = adopted;
     Require(target.TryAdoptParsedSnapshot(source, 77u, original, MarkdownProfile::RichMarkdown) && target.Published() == publication,
             "repeated identical adoption keeps the same wrapper publication");
+    target.Begin(L"superseded pending request", 78u, MarkdownProfile::RichMarkdown);
+    target.Advance(1u);
+    Require(target.HasPendingPreparation(), "a different request can be staged behind the adopted publication");
+    Require(target.TryAdoptParsedSnapshot(source, 77u, original, MarkdownProfile::RichMarkdown) && target.Published() == publication &&
+                ! target.HasPendingPreparation(),
+            "reasserting the current adopted snapshot discards superseded pending work without replacing publication");
     ownerParser.Clear();
     original.reset();
     Require(target.Published()->Source() == text && target.Published()->Nodes().size() > 1u,
