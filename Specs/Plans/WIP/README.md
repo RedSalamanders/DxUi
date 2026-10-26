@@ -2,6 +2,8 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
+- **ACTIVE**: [Complete Update-stage metric accounting](FrameUpdateAccounting_2026-10-26.md). Both native render paths measure pending preparation on stage exit. The focused regression and all 19 ordinary local Release scopes pass; five PR109 native profiles pass, while Release fails the older Menu fixture. Final combined-source qualification and performance acceptance remain open. Earlier SDK407 diagnostics retain their incomplete Update-field boundary.
+
 - **ACTIVE**: [Read-only Source snapshot synchronization](ReadOnlySourceSnapshot_2026-10-26.md). API revision 4 is merged as `3bcf7ed9` with tree `18be6688`; the plan records exact-source local builds/Full suites and authorized foreground results, and the public CI packet records six hosted native profiles. Paired performance remains inconclusive because the base policy is unqualified and 62/72 controls are unstable. PR #108 Menu and lease-restoration failures remain separate; consumer performance, platform and physical-input gates stay open. No performance gain is claimed.
 
 - **SPEC READY**: [RichTextEditor file drag-and-drop](RichTextFileDrop_2026-10-20.md).

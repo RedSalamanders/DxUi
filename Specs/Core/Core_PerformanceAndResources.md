@@ -611,6 +611,9 @@ checks complete finite samples and reproduces the reported FPS/percentiles with 
 Paired receipts must use the same clock metadata. Historical receipts without either diagnostic group remain
 readable under their original harness; partial new groups are invalid. A no-op preparation taking a few counter
 ticks warrants quantization analysis, not an automatic noise waiver or a silently batched replacement metric.
+WindowHost's `dxui.frame.update_us` records the complete Update-stage duration on every exit, including resource
+failure and deferred preparation; incomplete frames may report zero Render/Present duration, but must not leave
+the elapsed Update duration at its default zero.
 
 In historical complex-UI receipts, `composeCpuP95Ms` is the elapsed steady-clock/QPC duration around Composite,
 not thread CPU time; preserve the field name for compatibility and interpret the value as wall duration. The
