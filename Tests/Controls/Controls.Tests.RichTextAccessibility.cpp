@@ -1269,6 +1269,104 @@ void TestRichTextAccessibilityEmbeddedReadOnlySnapshotSynchronization()
 {
     EmbeddedCase([](bool embedded) { ReadOnlySourceSnapshotSynchronization(embedded); });
 }
+void ReadOnlyParsedSnapshotAdoption(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true);
+    auto* mirror      = static_cast<RichAccessibilityEditor*>(fixture.editor);
+    std::wstring text = L"# Shared source\r\n\r\n**世界 😀** [link](https://example.test) &amp; text\r\n";
+    for (unsigned line = 0u; line < 30u; ++line)
+        text += L"A **colored** source line\r\n";
+    Document primary(text);
+    const auto source = primary.Snapshot();
+    MarkdownParser parser;
+    parser.Begin(source, 900u, MarkdownProfile::CommonMark0312);
+    for (unsigned turn = 0u; parser.HasPendingPreparation() && turn < 4096u; ++turn)
+        parser.Advance(17u);
+    auto owner = parser.Published();
+    Require(owner && ! parser.HasPendingPreparation(), "source analysis finishes independently");
+    const Selection selection{text.size() - 8u, text.size() - 3u};
+    mirror->SetViewMode(ViewMode::Source);
+    mirror->SetReadOnly(true);
+    auto appearance                   = mirror->GetAppearance();
+    appearance.colorizeMarkdownSource = true;
+    mirror->SetAppearance(appearance);
+    Require(mirror->SynchronizeReadOnlySourceSnapshot(source, selection), "target holds the exact source snapshot before parse reuse");
+    fixture.Publish();
+    const auto independent = mirror->GetMarkdownSyntax();
+    const auto lines       = mirror->GetSourceVisualLineRanges(*fixture.controls);
+    const auto before      = mirror->DebugGetState();
+    Require(independent && &independent->Nodes() != &owner->Nodes() && before.scrollOffsetDip > 0.0f && before.sourceInkRangeCount > 0u,
+            "ordinary fallback independently parses and colors a scrolled source view");
+    WindowHostBitmapCapture oracle;
+    if (! embedded)
+    {
+        ShowWindow(fixture.Hwnd(), SW_SHOWNOACTIVATE);
+        fixture.Publish();
+        Require(fixture.controls->DebugCaptureBitmap(oracle), "capture independent source color oracle without activation");
+    }
+    const auto revision = mirror->Revision();
+    unsigned notifications{};
+    mirror->SetOnTextChanged([&] { ++notifications; });
+    mirror->SetOnSelectionChanged([&] { ++notifications; });
+    Document equalSpelling(text);
+    Require(mirror->TryAdoptReadOnlyMarkdownSyntax(equalSpelling.Snapshot(), owner) == S_FALSE &&
+                mirror->TryAdoptReadOnlyMarkdownSyntax(source, {}) == S_FALSE && mirror->GetMarkdownSyntax() == independent,
+            "different immutable identity and absent syntax refuse without replacing the target parse");
+    Require(mirror->TryAdoptReadOnlyMarkdownSyntax(source, owner) == S_OK, "compatible completed syntax is adopted");
+    const auto adopted = mirror->GetMarkdownSyntax();
+    const auto staged  = mirror->DebugGetState();
+    Require(adopted && adopted != owner && &adopted->Nodes() == &owner->Nodes() && adopted->Revision() == revision &&
+                adopted->DocumentIdentity() != owner->DocumentIdentity(),
+            "target shares the immutable AST with its own local revision and document namespace");
+    Require(staged.layoutReady && staged.preparationAdvances == before.preparationAdvances && staged.scrollOffsetDip == before.scrollOffsetDip &&
+                mirror->GetSourceVisualLineRanges(*fixture.controls) == lines && mirror->GetSelection() == selection &&
+                mirror->Snapshot().IsSameRevision(source) && mirror->Revision() == revision && ! mirror->CanUndo() && notifications == 0u,
+            "adoption preserves ready literal geometry, scroll, selection, source, history and notifications");
+    fixture.Publish();
+    const auto after = mirror->DebugGetState();
+    Require(after.sourceInkRangeCount == before.sourceInkRangeCount && after.markdownPreparationAdvances == before.markdownPreparationAdvances &&
+                after.preparationAdvances == before.preparationAdvances && after.scrollOffsetDip == before.scrollOffsetDip &&
+                ! after.sourceInkPreparationPending && fixture.controls->GetFocusControl() == mirror,
+            "shared syntax recolors without parser/glyph work or logical focus changes");
+    if (! embedded)
+    {
+        WindowHostBitmapCapture actual;
+        Require(fixture.controls->DebugCaptureBitmap(actual) && actual.widthPx == oracle.widthPx && actual.heightPx == oracle.heightPx &&
+                    actual.bgraPixels == oracle.bgraPixels,
+                "shared AST source ink exactly matches the independent parser pixels");
+    }
+    TextInputState exported;
+    Require(mirror->ExportTextInputState(exported) && exported.text == text && exported.readOnly && exported.caretIndex == selection.caret &&
+                exported.selectionAnchorIndex == selection.anchor && notifications == 0u,
+            "read-only text export retains exact UTF-16 source ACPs without edit notifications");
+    auto simple = fixture.Simple();
+    wil::com_ptr_nothrow<ITextProvider> provider;
+    wil::com_ptr_nothrow<ITextRangeProvider> document;
+    RequireSucceeded(simple.query_to(provider.put()), "shared syntax source TextPattern");
+    RequireSucceeded(provider->get_DocumentRange(document.put()), "shared syntax source document range");
+    Require(ReadTextRangeText(*document.get(), -1, "shared syntax exact UIA source") == text, "UIA source remains exact after syntax reuse");
+    Require(mirror->TryAdoptReadOnlyMarkdownSyntax(source, owner) == S_OK && mirror->GetMarkdownSyntax() == adopted,
+            "repeated same-owner adoption is publication-idempotent");
+    parser.Clear();
+    owner.reset();
+    Require(adopted->Source() == text && ! adopted->Nodes().empty(), "target publication outlives the primary parser");
+    mirror->SetOnTextChanged({});
+    mirror->SetOnSelectionChanged({});
+    mirror->SetText(L"**ordinary fallback**");
+    fixture.Publish();
+    Require(mirror->GetMarkdownSyntax() && &mirror->GetMarkdownSyntax()->Nodes() != &adopted->Nodes() &&
+                mirror->GetMarkdownSyntax()->DocumentIdentity() != adopted->DocumentIdentity() && mirror->DebugGetState().sourceInkRangeCount > 0u,
+            "a later unrelated source independently parses with a new identity and full source coloring");
+}
+void TestRichTextAccessibilityWindowReadOnlyParsedSnapshotAdoption()
+{
+    ReadOnlyParsedSnapshotAdoption(false);
+}
+void TestRichTextAccessibilityEmbeddedReadOnlyParsedSnapshotAdoption()
+{
+    EmbeddedCase([](bool embedded) { ReadOnlyParsedSnapshotAdoption(embedded); });
+}
 void TestRichTextAccessibilityWindowMarkdownSourceAndRanges()
 {
     SourceAndRanges(false, true);
@@ -2604,4 +2702,6 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedMarkdownSourceAndRanges);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowReadOnlySnapshotSynchronization);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedReadOnlySnapshotSynchronization);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowReadOnlyParsedSnapshotAdoption);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedReadOnlyParsedSnapshotAdoption);
 }

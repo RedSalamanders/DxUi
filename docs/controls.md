@@ -14,6 +14,10 @@ RichTextEditor supports file-reference paste and caller-serviced native images.
 Read-only Source mirrors can call `SynchronizeReadOnlySourceSnapshot(snapshot, selection)` on their owner thread
 to share immutable text storage. The mirror keeps its own revision and independent parser; incompatible targets
 or invalid source boundaries return false without changing state. Callbacks follow the ordinary selection path.
+An owner may additionally call `TryAdoptReadOnlyMarkdownSyntax(snapshot, completedSyntax)` to reuse an exact
+canonical parse. It keeps the mirror's own revision/document identity, source coloring, selection, scroll and
+history. `S_FALSE` leaves independent parsing available; `E_OUTOFMEMORY` preserves the previous publication.
+Rebuild consumers with the matching pinned headers and library, as for other source-coordinated API additions.
 Remote HTTP(S) requests require explicit `SetRemoteImagesEnabled(true)`; the
 caller owns network transport, and disabling immediately retires remote pixels
 while retaining local image work. See [image resources](rich-text.md).

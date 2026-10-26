@@ -20,6 +20,7 @@
 #include <iterator>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 #include <wrl/implements.h>
 
@@ -173,24 +174,195 @@ private:
     LONG _stripeWidthPx = 12;
 };
 
+struct ContextMenuPopupStateWaitSnapshot
+{
+    bool hasKeyboardIndex = false;
+    size_t keyboardIndex  = 0u;
+    bool hasHoveredIndex  = false;
+    size_t hoveredIndex   = 0u;
+    size_t itemCount      = 0u;
+    UINT dpi              = 0u;
+    uint64_t renderCount  = 0u;
+};
+
+struct ContextMenuPopupStateWaitDiagnostics
+{
+    size_t attempts         = 0u;
+    size_t successfulProbes = 0u;
+    bool lastProbeSucceeded = false;
+    bool hasSuccessfulState = false;
+    ContextMenuPopupStateWaitSnapshot lastSuccessfulState{};
+    int64_t elapsedMs = 0;
+};
+
+struct RealContextMenuPopupStateWaitTiming
+{
+    [[nodiscard]] std::chrono::steady_clock::time_point Now() const noexcept
+    {
+        return std::chrono::steady_clock::now();
+    }
+    void Pause(std::chrono::milliseconds duration) const
+    {
+        std::this_thread::sleep_for(duration);
+    }
+};
+
+struct FakeContextMenuPopupStateWaitTiming
+{
+    [[nodiscard]] std::chrono::steady_clock::time_point Now() const noexcept
+    {
+        return now;
+    }
+    void Pause(std::chrono::milliseconds duration) noexcept
+    {
+        now += duration;
+    }
+
+    std::chrono::steady_clock::time_point now{};
+};
+
+template <typename TPredicate, typename TProbe, typename TTiming>
+bool WaitForContextMenuPopupStateWithProbe(HWND popupHwnd,
+                                           TPredicate&& predicate,
+                                           DxUi::ContextMenuPopupDebugState& outState,
+                                           std::chrono::milliseconds timeout,
+                                           ContextMenuPopupStateWaitDiagnostics* diagnostics,
+                                           TProbe&& probe,
+                                           TTiming&& timing)
+{
+    if (diagnostics)
+        *diagnostics = {};
+    const auto deadline = timing.Now() + timeout;
+    const auto started  = timing.Now();
+    do
+    {
+        const bool probeSucceeded = probe(popupHwnd, outState);
+        if (diagnostics)
+        {
+            ++diagnostics->attempts;
+            diagnostics->lastProbeSucceeded = probeSucceeded;
+            if (probeSucceeded)
+            {
+                ++diagnostics->successfulProbes;
+                diagnostics->hasSuccessfulState  = true;
+                diagnostics->lastSuccessfulState = {
+                    .hasKeyboardIndex = outState.keyboardIndex.has_value(),
+                    .keyboardIndex    = outState.keyboardIndex.value_or(0u),
+                    .hasHoveredIndex  = outState.hoveredIndex.has_value(),
+                    .hoveredIndex     = outState.hoveredIndex.value_or(0u),
+                    .itemCount        = outState.itemTexts.size(),
+                    .dpi              = outState.dpi,
+                    .renderCount      = outState.renderCount,
+                };
+            }
+        }
+        if (probeSucceeded && predicate(outState))
+        {
+            if (diagnostics)
+                diagnostics->elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(timing.Now() - started).count();
+            return true;
+        }
+
+        timing.Pause(std::chrono::milliseconds(10));
+    } while (timing.Now() < deadline);
+
+    if (diagnostics)
+        diagnostics->elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(timing.Now() - started).count();
+    return false;
+}
+
 template <typename TPredicate>
 bool WaitForContextMenuPopupState(HWND popupHwnd,
                                   TPredicate&& predicate,
                                   DxUi::ContextMenuPopupDebugState& outState,
-                                  std::chrono::milliseconds timeout = std::chrono::milliseconds(800))
+                                  std::chrono::milliseconds timeout                 = std::chrono::milliseconds(800),
+                                  ContextMenuPopupStateWaitDiagnostics* diagnostics = nullptr)
 {
-    const auto deadline = std::chrono::steady_clock::now() + timeout;
-    do
+    return WaitForContextMenuPopupStateWithProbe(
+        popupHwnd, std::forward<TPredicate>(predicate), outState, timeout, diagnostics, [](HWND hwnd, DxUi::ContextMenuPopupDebugState& state) noexcept {
+        return DxUi::DebugGetContextMenuPopupState(hwnd, state);
+    }, RealContextMenuPopupStateWaitTiming{});
+}
+
+void TestContextMenuPopupStateWaitDiagnosticsRetainLastSuccessfulProbe()
+{
+    ContextMenuPopupStateWaitDiagnostics diagnostics{};
+    DxUi::ContextMenuPopupDebugState state{};
+    size_t probes      = 0u;
+    const bool matched = WaitForContextMenuPopupStateWithProbe(nullptr,
+                                                               [](const DxUi::ContextMenuPopupDebugState& value) noexcept
+    { return value.keyboardIndex == std::optional<size_t>{0u}; },
+                                                               state,
+                                                               std::chrono::milliseconds(25),
+                                                               &diagnostics,
+                                                               [&probes](HWND, DxUi::ContextMenuPopupDebugState& out)
     {
-        if (DxUi::DebugGetContextMenuPopupState(popupHwnd, outState) && predicate(outState))
+        ++probes;
+        if (probes == 1u)
         {
+            out.keyboardIndex = 2u;
+            out.dpi           = 144u;
+            out.renderCount   = 7u;
+            out.itemTexts.resize(3u);
             return true;
         }
+        out = {}; // Match the public debug probe's cleared output on transport failure.
+        return false;
+    },
+                                                               FakeContextMenuPopupStateWaitTiming{});
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    } while (std::chrono::steady_clock::now() < deadline);
+    Require(! matched, "a successful but mismatching state followed by probe failures does not pass the wait");
+    Require(diagnostics.attempts >= 2u && diagnostics.successfulProbes == 1u && ! diagnostics.lastProbeSucceeded,
+            "wait diagnostics distinguish the final failed probe from the earlier successful probe");
+    Require(diagnostics.hasSuccessfulState && diagnostics.lastSuccessfulState.hasKeyboardIndex && diagnostics.lastSuccessfulState.keyboardIndex == 2u &&
+                diagnostics.lastSuccessfulState.dpi == 144u && diagnostics.lastSuccessfulState.itemCount == 3u &&
+                diagnostics.lastSuccessfulState.renderCount == 7u,
+            "wait diagnostics retain the most recent successful state after a later probe failure clears its output");
 
-    return false;
+    diagnostics          = {};
+    state                = {};
+    probes               = 0u;
+    const bool recovered = WaitForContextMenuPopupStateWithProbe(nullptr,
+                                                                 [](const DxUi::ContextMenuPopupDebugState& value) noexcept
+    { return value.keyboardIndex == std::optional<size_t>{0u}; },
+                                                                 state,
+                                                                 std::chrono::milliseconds(100),
+                                                                 &diagnostics,
+                                                                 [&probes](HWND, DxUi::ContextMenuPopupDebugState& out)
+    {
+        if (++probes == 1u)
+            return false;
+        out.keyboardIndex = 0u;
+        out.itemTexts.resize(1u);
+        return true;
+    },
+                                                                 FakeContextMenuPopupStateWaitTiming{});
+
+    Require(recovered && diagnostics.attempts == 2u && diagnostics.successfulProbes == 1u && diagnostics.lastProbeSucceeded &&
+                diagnostics.lastSuccessfulState.hasKeyboardIndex && diagnostics.lastSuccessfulState.keyboardIndex == 0u,
+            "the wait succeeds after a transient probe failure and reports its matching state");
+}
+
+[[nodiscard]] std::string DescribeContextMenuPopupStateWaitFailure(HWND popupHwnd, HWND ownerHwnd, const ContextMenuPopupStateWaitDiagnostics& diagnostics)
+{
+    const auto describeIndex = [](bool hasIndex, size_t index) -> std::string { return hasIndex ? std::format("{}", index) : std::string("none"); };
+    const auto& state        = diagnostics.lastSuccessfulState;
+    return std::format("keyboard-state probe for popup {:#x}: alive={} visible={} ownerMatches={} attempts={} successful={} "
+                       "lastProbe={} elapsedMs={} lastState={} keyboard={} hovered={} items={} dpi={} renders={}",
+                       reinterpret_cast<uintptr_t>(popupHwnd),
+                       IsWindow(popupHwnd) != FALSE,
+                       IsWindowVisible(popupHwnd) != FALSE,
+                       GetWindow(popupHwnd, GW_OWNER) == ownerHwnd,
+                       diagnostics.attempts,
+                       diagnostics.successfulProbes,
+                       diagnostics.lastProbeSucceeded ? "success" : "failed",
+                       diagnostics.elapsedMs,
+                       diagnostics.hasSuccessfulState ? "available" : "never-succeeded",
+                       describeIndex(state.hasKeyboardIndex, state.keyboardIndex),
+                       describeIndex(state.hasHoveredIndex, state.hoveredIndex),
+                       state.itemCount,
+                       state.dpi,
+                       state.renderCount);
 }
 
 bool WaitForContextMenuPopupItemRect(HWND popupHwnd,
@@ -861,10 +1033,11 @@ DxUi::WindowHostBitmapCapture CropWindowHostBitmapCaptureForTest(const DxUi::Win
 class MenuHoverTraceForTest final
 {
 public:
-    explicit MenuHoverTraceForTest(bool capturePointer = false) noexcept
+    explicit MenuHoverTraceForTest(bool capturePointer = false, bool captureKeyboard = false) noexcept
         : _previousSink(DxUi::Diagnostics::sink),
           _previousTrace(_active),
-          _capturePointer(capturePointer)
+          _capturePointer(capturePointer),
+          _captureKeyboard(captureKeyboard)
     {
         _active                 = this;
         DxUi::Diagnostics::sink = [](std::wstring_view, std::wstring_view message) noexcept
@@ -881,6 +1054,15 @@ public:
                 // Publication follows routing, so a driver can wait for a posted
                 // move to be consumed without a fixed-delay assumption or an early state-probe race.
                 _active->_pointerCount.store(index + 1u, std::memory_order_release);
+            }
+            if (_active->_captureKeyboard && message.find(L"menu.keyboard") != std::wstring_view::npos)
+            {
+                const size_t index = _active->_keyboardCount.load(std::memory_order_relaxed);
+                auto& row          = _active->_keyboardRows[index % _active->_keyboardRows.size()];
+                const size_t size  = (std::min)(message.size(), row.size() - 1u);
+                std::copy_n(message.data(), size, row.data());
+                row[size] = 0;
+                _active->_keyboardCount.store(index + 1u, std::memory_order_release);
             }
             constexpr std::array phases{
                 std::pair{L"menu.popup-create-begin", "popup.create.begin"},
@@ -952,6 +1134,7 @@ public:
     void Dump(bool failed) const
     {
         std::cout << "Menu hover trace: failed=" << failed << " ui=" << _ui.count << " driver=" << _driver.count << " dropped=" << _ui.dropped + _driver.dropped
+                  << " pointer=" << PointerDispatchCount() << " keyboard=" << _keyboardCount.load(std::memory_order_acquire)
                   << " discoveryCalls=" << _discoveryCalls << " longestTextProbeMs=" << _longestTextProbeMs << '\n';
         if (! failed)
             return;
@@ -968,6 +1151,9 @@ public:
         const size_t count = PointerDispatchCount();
         for (size_t index = count > _pointerRows.size() ? count - _pointerRows.size() : 0u; index < count; ++index)
             std::wcerr << L"  [POINTER] " << _pointerRows[index % _pointerRows.size()].data() << L'\n';
+        const size_t keyboardCount = _keyboardCount.load(std::memory_order_acquire);
+        for (size_t index = keyboardCount > _keyboardRows.size() ? keyboardCount - _keyboardRows.size() : 0u; index < keyboardCount; ++index)
+            std::wcerr << L"  [KEYBOARD] " << _keyboardRows[index % _keyboardRows.size()].data() << L'\n';
     }
 
 private:
@@ -1004,8 +1190,11 @@ private:
     int64_t _longestTextProbeMs  = 0;
     unsigned _lastDiscoveryFlags = ~0u;
     bool _capturePointer         = false;
+    bool _captureKeyboard        = false;
     std::array<std::array<wchar_t, 2048>, 32> _pointerRows{};
     std::atomic<size_t> _pointerCount{0u};
+    std::array<std::array<wchar_t, 1024>, 32> _keyboardRows{};
+    std::atomic<size_t> _keyboardCount{0u};
 };
 
 HWND FindOwnedContextMenuPopupWindowByFirstItemText(HWND ownerHwnd, std::wstring_view firstItemText, MenuHoverTraceForTest* trace)
@@ -2520,7 +2709,7 @@ void TestMenuKeyboardRightArrowMatchesWindowsMenuLoop()
 {
     using namespace DxUi;
 
-    auto trace = std::make_unique<MenuHoverTraceForTest>(true);
+    auto trace = std::make_unique<MenuHoverTraceForTest>(true, true);
     AttachedHostWindow ownerWindow;
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
@@ -2604,11 +2793,13 @@ void TestMenuKeyboardRightArrowMatchesWindowsMenuLoop()
             return;
         }
 
+        ContextMenuPopupStateWaitDiagnostics bPopupStateWait{};
         if (! WaitForContextMenuPopupState(bPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
             return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
-        }, popupState))
+        }, popupState, std::chrono::milliseconds(800), &bPopupStateWait))
         {
-            driverFailure = "Right arrow on A2 focuses B1 in the next root popup";
+            driverFailure = std::format("Right arrow on A2 focuses B1 in the next root popup; {}",
+                                        DescribeContextMenuPopupStateWaitFailure(bPopupHwnd, ownerWindow.Hwnd(), bPopupStateWait));
             return;
         }
 
@@ -10865,6 +11056,7 @@ void RunMenuTests()
     runTest("TestContextMenuDebugStateProbeBoundsWedgedWindowThread", TestContextMenuDebugStateProbeBoundsWedgedWindowThread);
     runTest("TestContextMenuDebugStateProbeWaitsForModalDispatchAfterVisibleInitialization",
             TestContextMenuDebugStateProbeWaitsForModalDispatchAfterVisibleInitialization);
+    runTest("TestContextMenuPopupStateWaitDiagnosticsRetainLastSuccessfulProbe", TestContextMenuPopupStateWaitDiagnosticsRetainLastSuccessfulProbe);
     if (DXUI_RUN_TEST(TestContextMenuDebugStateProbeRestartsAfterForegroundLossDuringVisibleInitialization))
         DxUi::Ui::AnimationDispatcher::GetInstance().Shutdown();
     runTest("TestContextMenuDebugCaptureBoundsWedgedWindowThread", TestContextMenuDebugCaptureBoundsWedgedWindowThread);

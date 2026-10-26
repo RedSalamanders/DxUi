@@ -956,6 +956,21 @@ An absent snapshot, invalid scalar/CRLF boundary, exhausted target revision or i
 false without mutation. Valid empty documents are admitted. Detached and embedded setters need no private HWND.
 Callers must revalidate their owner/control/source identities after callbacks before continuing a larger update.
 
+`TryAdoptReadOnlyMarkdownSyntax(snapshot, syntax)` optionally reuses a completed canonical parse after source
+synchronization. It requires the exact current immutable snapshot, read-only Source mode and matching configured
+profile/extensions. Region-scoped syntax is refused even when its resolved region is empty. A mismatch returns
+`S_FALSE` without changing pending or published work. Allocation failure returns `E_OUTOFMEMORY` with the prior
+publication intact. Ordinary independent parsing remains available whenever reuse is unavailable.
+
+Successful adoption shares only immutable source/AST collections through one flattened canonical owner. Its
+wrapper publishes the target's revision and a fresh document identity; node identities are meaningful only with
+that document identity. It retains no publisher control, host, worker or graphics resources. Subsequent ordinary
+parsing starts a fresh identity namespace rather than reconciling foreign node IDs. Cancel retains publication;
+Clear releases it; repeated same-owner/snapshot adoption keeps the same wrapper without allocation.
+The setter changes no source, selection, history, text/selection notifications, literal glyph geometry or scroll.
+Only syntax-dependent ink/analysis is retired, and preparation is scheduled last. The caller must revalidate
+control/root/source ownership after scheduling, which may re-enter or retire its owner.
+
 RichTextEditor document-file metadata MUST be an explicit canonical absolute
 Unicode path or empty (unsaved); it MUST NOT infer a base from process CWD or
 change source/history/composition. Prepared canonical Rich-mode file-reference paste

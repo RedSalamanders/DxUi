@@ -24,12 +24,19 @@ void ValidateProfile(MarkdownProfile profile)
     if (profile != MarkdownProfile::CommonMark0312 && profile != MarkdownProfile::Gfm029 && profile != MarkdownProfile::RichMarkdown)
         throw std::invalid_argument("Unknown Markdown profile");
 }
+bool TryResolveExtensions(MarkdownProfile profile, std::optional<MarkdownExtensions> extensions, MarkdownExtensions& result) noexcept
+{
+    if (profile != MarkdownProfile::CommonMark0312 && profile != MarkdownProfile::Gfm029 && profile != MarkdownProfile::RichMarkdown)
+        return false;
+    result = extensions.value_or(profile == MarkdownProfile::CommonMark0312 ? MarkdownExtensions::None : MarkdownExtensions::All);
+    return ! (static_cast<unsigned>(result) & ~static_cast<unsigned>(MarkdownExtensions::All)) &&
+           (profile != MarkdownProfile::CommonMark0312 || result == MarkdownExtensions::None);
+}
 MarkdownExtensions ValidateExtensions(MarkdownProfile profile, std::optional<MarkdownExtensions> extensions)
 {
     ValidateProfile(profile);
-    const auto result = extensions.value_or(profile == MarkdownProfile::CommonMark0312 ? MarkdownExtensions::None : MarkdownExtensions::All);
-    if ((static_cast<unsigned>(result) & ~static_cast<unsigned>(MarkdownExtensions::All)) ||
-        (profile == MarkdownProfile::CommonMark0312 && result != MarkdownExtensions::None))
+    MarkdownExtensions result{};
+    if (! TryResolveExtensions(profile, extensions, result))
         throw std::invalid_argument("Invalid Markdown extensions for this profile");
     return result;
 }
@@ -154,9 +161,35 @@ MarkdownSyntax::MarkdownSyntax(
       sourceRegionRequest_(sourceRegion)
 {
 }
+MarkdownSyntax::MarkdownSyntax(std::shared_ptr<const MarkdownSyntax> parsedDataOwner,
+                               std::uint64_t revision,
+                               MarkdownProfile profile,
+                               MarkdownExtensions extensions,
+                               std::uint64_t documentIdentity)
+    : source_(0u, L'\0'),
+      revision_(revision),
+      profile_(profile),
+      extensions_(extensions),
+      blocks_(0u),
+      lexemes_(0u),
+      nodes_(0u),
+      emptyLines_(0u),
+      inlines_(0u),
+      diagnostics_(0u),
+      footnotes_(0u),
+      footnoteReferences_(0u),
+      documentIdentity_(documentIdentity),
+      sourceRegionRequest_(std::nullopt),
+      parsedDataOwner_(std::move(parsedDataOwner))
+{
+}
+const MarkdownSyntax& MarkdownSyntax::ParsedData() const noexcept
+{
+    return parsedDataOwner_ ? *parsedDataOwner_ : *this;
+}
 std::wstring_view MarkdownSyntax::Source() const noexcept
 {
-    return source_;
+    return ParsedData().source_;
 }
 std::optional<MarkdownSourceRegion> MarkdownSyntax::SourceRegion() const noexcept
 {
@@ -182,15 +215,15 @@ MarkdownExtensions MarkdownSyntax::Extensions() const noexcept
 }
 const std::vector<MarkdownBlock>& MarkdownSyntax::Blocks() const noexcept
 {
-    return blocks_;
+    return ParsedData().blocks_;
 }
 const std::vector<MarkdownNode>& MarkdownSyntax::Nodes() const noexcept
 {
-    return nodes_;
+    return ParsedData().nodes_;
 }
 std::span<const MarkdownEmptyLine> MarkdownSyntax::EmptyLines() const noexcept
 {
-    return emptyLines_;
+    return ParsedData().emptyLines_;
 }
 std::uint64_t MarkdownSyntax::DocumentIdentity() const noexcept
 {
@@ -198,47 +231,53 @@ std::uint64_t MarkdownSyntax::DocumentIdentity() const noexcept
 }
 MarkdownBlockStatistics MarkdownSyntax::BlockStatistics() const noexcept
 {
-    return blockStatistics_;
+    return ParsedData().blockStatistics_;
 }
 const std::vector<MarkdownLexeme>& MarkdownSyntax::Lexemes() const noexcept
 {
-    return lexemes_;
+    return ParsedData().lexemes_;
 }
 const std::vector<MarkdownInline>& MarkdownSyntax::Inlines() const noexcept
 {
-    return inlines_;
+    return ParsedData().inlines_;
 }
 std::span<const MarkdownDiagnostic> MarkdownSyntax::Diagnostics() const noexcept
 {
-    return diagnostics_;
+    return ParsedData().diagnostics_;
 }
 std::span<const MarkdownFootnote> MarkdownSyntax::Footnotes() const noexcept
 {
-    return footnotes_;
+    return ParsedData().footnotes_;
 }
 std::span<const MarkdownFootnoteReference> MarkdownSyntax::FootnoteReferences() const noexcept
 {
-    return footnoteReferences_;
+    return ParsedData().footnoteReferences_;
 }
 const MarkdownFootnoteReference* MarkdownSyntax::FootnoteReferenceFor(std::size_t inlineNode) const noexcept
 {
-    const auto found = std::lower_bound(
-        footnoteReferences_.begin(), footnoteReferences_.end(), inlineNode, [](const auto& reference, auto wanted) { return reference.inlineNode < wanted; });
-    return found != footnoteReferences_.end() && found->inlineNode == inlineNode ? &*found : nullptr;
+    const auto& references = ParsedData().footnoteReferences_;
+    const auto found =
+        std::lower_bound(references.begin(), references.end(), inlineNode, [](const auto& reference, auto wanted) { return reference.inlineNode < wanted; });
+    return found != references.end() && found->inlineNode == inlineNode ? &*found : nullptr;
 }
 std::wstring_view MarkdownSyntax::Slice(MarkdownRange range) const
 {
-    if (range.first > range.last || range.last > source_.size())
+    const auto source = Source();
+    if (range.first > range.last || range.last > source.size())
         throw std::out_of_range("Markdown source range");
-    return std::wstring_view(source_).substr(range.first, range.last - range.first);
+    return source.substr(range.first, range.last - range.first);
 }
 std::wstring_view MarkdownSyntax::LexemeValue(std::size_t index) const
 {
+    if (parsedDataOwner_)
+        return parsedDataOwner_->LexemeValue(index);
     const auto& token = lexemes_.at(index);
     return token.kind == MarkdownLexemeKind::Text ? Slice(token.source) : std::wstring_view(token.value.data(), token.valueLength);
 }
 std::size_t MarkdownSyntax::LexemeSourceAnchor(std::size_t index, std::size_t valueOffset, bool trailing) const
 {
+    if (parsedDataOwner_)
+        return parsedDataOwner_->LexemeSourceAnchor(index, valueOffset, trailing);
     const auto& token = lexemes_.at(index);
     const auto length = LexemeValue(index).size();
     if (valueOffset > length)
@@ -514,6 +553,39 @@ std::shared_ptr<const MarkdownSyntax> MarkdownParser::Published() const noexcept
 {
     return published_;
 }
+bool MarkdownParser::TryAdoptParsedSnapshot(const SourceSnapshot& source,
+                                            std::uint64_t revision,
+                                            const std::shared_ptr<const MarkdownSyntax>& syntax,
+                                            MarkdownProfile profile,
+                                            std::optional<MarkdownExtensions> extensions)
+{
+    MarkdownExtensions resolved{};
+    if (! syntax || ! TryResolveExtensions(profile, extensions, resolved) || syntax->Profile() != profile || syntax->Extensions() != resolved ||
+        syntax->sourceRegionRequest_)
+        return false;
+
+    const auto& canonical = syntax->parsedDataOwner_ ? syntax->parsedDataOwner_ : syntax;
+    if (canonical->parsedDataOwner_ || canonical->sourceRegionRequest_ || canonical->Profile() != profile || canonical->Extensions() != resolved ||
+        ! source.MatchesText(canonical->Source()))
+        return false;
+
+    if (published_ && published_->parsedDataOwner_ && published_->Revision() == revision && published_->Profile() == profile &&
+        published_->Extensions() == resolved && publishedSource_ && publishedSource_->IsSameRevision(source) && published_->parsedDataOwner_ == canonical)
+        return true;
+
+    const auto identity = nextDocumentIdentity.fetch_add(1u, std::memory_order_relaxed);
+    auto staged         = std::shared_ptr<MarkdownSyntax>(new MarkdownSyntax(canonical, revision, profile, resolved, identity));
+
+    // All potentially throwing validation/allocation completed. Commit only
+    // no-throw ownership and scalar updates so a refused/failed adoption keeps
+    // the old staged and published state intact.
+    preparation_.reset();
+    published_        = std::move(staged);
+    documentIdentity_ = identity;
+    nextNodeIdentity_ = 1u;
+    publishedSource_  = source;
+    return true;
+}
 void MarkdownParser::Cancel() noexcept
 {
     preparation_.reset();
@@ -586,12 +658,17 @@ void MarkdownParser::BeginSource(std::wstring_view source,
         Cancel();
         return;
     }
-    auto staged         = std::make_unique<Preparation>(source, revision, profile, extensions, sourceRegion);
-    staged->change      = change;
-    const auto document = documentIdentity_ ? documentIdentity_ : nextDocumentIdentity.fetch_add(1u, std::memory_order_relaxed);
-    staged->SetPrevious(published_, document, nextNodeIdentity_);
+    const auto borrowed     = published_ && published_->parsedDataOwner_;
+    const auto document     = borrowed            ? nextDocumentIdentity.fetch_add(1u, std::memory_order_relaxed)
+                              : documentIdentity_ ? documentIdentity_
+                                                  : nextDocumentIdentity.fetch_add(1u, std::memory_order_relaxed);
+    const auto nextIdentity = borrowed ? 1u : nextNodeIdentity_;
+    auto staged             = std::make_unique<Preparation>(source, revision, profile, extensions, sourceRegion);
+    staged->change          = change;
+    staged->SetPrevious(borrowed ? std::shared_ptr<const MarkdownSyntax>{} : published_, document, nextIdentity);
     preparation_      = std::move(staged);
     documentIdentity_ = document;
+    nextNodeIdentity_ = nextIdentity;
 }
 MarkdownAdvance MarkdownParser::Advance(std::size_t maximumWorkUnits)
 {

@@ -12,6 +12,136 @@
 #include "../Support/Support.Tests.SemanticSourceBlock.h"
 #include <DxUi/RichSemanticDocument.h>
 
+// The paired benchmark also compiles this common fixture against its older
+// frozen SDK. Keep the new API references dependent; ordinary qualification
+// of this revision must execute the supported branch below.
+template <typename Parser = DxUi::RichText::MarkdownParser, typename Editor = DxUi::RichTextEditor, typename Snapshot = DxUi::RichText::SourceSnapshot>
+static void TestReadOnlyParsedSnapshotAllocationFailures()
+{
+    using namespace DxUi::RichText;
+    if constexpr (requires(Parser& parser, Editor& editor, const SourceSnapshot& source, const std::shared_ptr<const MarkdownSyntax>& syntax) {
+                      parser.TryAdoptParsedSnapshot(source, 1u, syntax, MarkdownProfile::RichMarkdown);
+                      editor.TryAdoptReadOnlyMarkdownSyntax(source, syntax);
+                  })
+    {
+        const std::wstring text = L"# Shared **世界 😀**\r\n\r\n- [x] task &amp; [link](https://example.test)\r\n";
+        Document document(text);
+        const Snapshot source = document.Snapshot();
+        const auto finish     = [](Parser& parser)
+        {
+            while (parser.HasPendingPreparation())
+                parser.Advance(17u);
+        };
+        Parser ownerParser;
+        ownerParser.Begin(source, 40u, MarkdownProfile::RichMarkdown);
+        finish(ownerParser);
+        const auto owner = ownerParser.Published();
+        Parser replacementParser;
+        replacementParser.Begin(source, 41u, MarkdownProfile::RichMarkdown);
+        finish(replacementParser);
+        const auto replacement = replacementParser.Published();
+        const auto observe     = [](auto&& operation)
+        {
+            const auto oldCounting = countAllocations;
+            const auto oldCalls = allocations, oldBytes = allocationBytes;
+            const auto restore = wil::scope_exit([=] noexcept
+            {
+                countAllocations = oldCounting;
+                allocations      = oldCalls;
+                allocationBytes  = oldBytes;
+            });
+            allocations = allocationBytes = 0u;
+            countAllocations              = true;
+            operation();
+            return allocations;
+        };
+        const auto pendingParser = [&]
+        {
+            Parser parser;
+            parser.Begin(L"previous publication", 1u);
+            finish(parser);
+            parser.Begin(L"preserved pending request", 2u);
+            parser.Advance(1u);
+            return parser;
+        };
+        auto counted = pendingParser();
+        const auto parserRequests =
+            observe([&] { Check(counted.TryAdoptParsedSnapshot(source, 3u, owner, MarkdownProfile::RichMarkdown), "count parser adoption"); });
+        Check(parserRequests > 0u && parserRequests < 64u, "parsed adoption has a bounded observed allocation schedule");
+        for (size_t failure = 0u; failure < parserRequests; ++failure)
+        {
+            auto parser         = pendingParser();
+            const auto previous = parser.Published();
+            bool rejected{};
+            {
+                const auto oldFailure = failAllocationAfter;
+                const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+                failAllocationAfter   = failure;
+                try
+                {
+                    static_cast<void>(parser.TryAdoptParsedSnapshot(source, 3u, owner, MarkdownProfile::RichMarkdown));
+                }
+                catch (const std::bad_alloc&)
+                {
+                    rejected = true;
+                }
+            }
+            Check(rejected && parser.Published() == previous && parser.HasPendingPreparation(),
+                  "each failed parse adoption preserves publication and pending work");
+            finish(parser);
+            Check(parser.Published()->Source() == L"preserved pending request", "the original staged request still completes after allocation refusal");
+        }
+        const auto makeEditor = [&]
+        {
+            auto editor = std::make_unique<Editor>();
+            Check(editor->ReplaceSelection(text), "seed target undo history");
+            editor->SetSelection({text.size(), 0u});
+            editor->SetViewMode(ViewMode::Source);
+            editor->SetReadOnly(true);
+            editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+            return editor;
+        };
+        auto countedEditor = makeEditor();
+        const auto editorRequests =
+            observe([&] { Check(countedEditor->TryAdoptReadOnlyMarkdownSyntax(countedEditor->Snapshot(), owner) == S_OK, "count editor adoption"); });
+        Check(editorRequests > 0u && editorRequests < 64u, "editor reuse has a bounded observed allocation schedule");
+        for (size_t failure = 0u; failure < editorRequests; ++failure)
+        {
+            auto editor = makeEditor();
+            Check(editor->TryAdoptReadOnlyMarkdownSyntax(editor->Snapshot(), replacement) == S_OK, "seed prior completed target publication");
+            const auto previous  = editor->GetMarkdownSyntax();
+            const auto before    = editor->Snapshot();
+            const auto revision  = editor->Revision();
+            const auto selection = editor->GetSelection();
+            unsigned notifications{};
+            editor->SetOnTextChanged([&] { ++notifications; });
+            editor->SetOnSelectionChanged([&] { ++notifications; });
+            HRESULT result{};
+            {
+                const auto oldFailure = failAllocationAfter;
+                const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+                failAllocationAfter   = failure;
+                result                = editor->TryAdoptReadOnlyMarkdownSyntax(before, owner);
+            }
+            Check(result == E_OUTOFMEMORY && editor->GetMarkdownSyntax() == previous && editor->Snapshot().IsSameRevision(before) &&
+                      editor->Revision() == revision && editor->GetSelection() == selection && editor->CanUndo() && ! editor->CanRedo() && notifications == 0u,
+                  "each failed editor adoption preserves exact source, revision, selection, history and notifications");
+            Check(editor->TryAdoptReadOnlyMarkdownSyntax(before, owner) == S_OK && editor->GetMarkdownSyntax(),
+                  "explicit retry succeeds after allocation refusal");
+        }
+        Check(observe([&] { Check(source.MatchesText(text), "exact source matches without flattening"); }) == 0u,
+              "source comparison performs no C++ allocation");
+        const auto shared = countedEditor->GetMarkdownSyntax();
+        Check(observe([&] { Check(countedEditor->TryAdoptReadOnlyMarkdownSyntax(countedEditor->Snapshot(), owner) == S_OK, "repeat adoption succeeds"); }) ==
+                      0u &&
+                  countedEditor->GetMarkdownSyntax() == shared,
+              "idempotent adoption performs no C++ allocation or publication replacement");
+        std::cout << "parsed snapshot allocation-failure sweep: parser=" << parserRequests << " editor=" << editorRequests << '\n';
+    }
+    else
+        Check(false, "current ordinary qualification requires parsed snapshot reuse support");
+}
+
 static void TestRichEditorSteadyLinkHoverAllocatesNothing(GraphicsFixture& gpu)
 {
     using namespace DxUi;

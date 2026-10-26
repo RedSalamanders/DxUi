@@ -433,6 +433,22 @@ std::size_t SourceSnapshot::Length() const noexcept
     const auto* root = RootNode();
     return root ? root->length : 0u;
 }
+bool SourceSnapshot::MatchesText(std::wstring_view text) const noexcept
+{
+    if (! state_ || text.size() != Length())
+        return false;
+    std::size_t offset{};
+    return PieceTreeNode::VisitRange(RootNode(),
+                                     0u,
+                                     text.size(),
+                                     [&](std::wstring_view fragment) noexcept
+    {
+        if (text.substr(offset, fragment.size()) != fragment)
+            return false;
+        offset += fragment.size();
+        return true;
+    });
+}
 std::wstring SourceSnapshot::Text() const
 {
     return Slice(0u, Length());

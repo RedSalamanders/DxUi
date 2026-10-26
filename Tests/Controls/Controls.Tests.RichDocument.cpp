@@ -104,6 +104,23 @@ void TestRichDocumentSlicesAndJoinedBoundaries()
     Require(cr.Text() == L"A\rB" && ! cr.CanUndo(), "joined-boundary failure publishes nothing");
 }
 
+void TestRichDocumentSnapshotMatchesText()
+{
+    Document document(L"A\rB\U0001f600C\nD");
+    auto snapshot = document.Snapshot();
+    document.Replace(2u, 2u, L"\n", {3u, 3u});
+    snapshot = document.Snapshot();
+    Require(snapshot.MatchesText(L"A\r\nB\U0001f600C\nD"), "exact comparison walks fragmented UTF-16/CRLF source");
+    Require(! snapshot.MatchesText(L"A\r\nB\U0001f600C\nE") && ! snapshot.MatchesText(L"A\r\nB\U0001f600C"),
+            "comparison rejects same-length content and length mismatches");
+    document.Replace(1u, 3u, L"xy", {3u, 3u});
+    const auto edited = document.Snapshot();
+    Require(edited.MatchesText(document.Text()) && ! edited.MatchesText(L"A\r\nB\U0001f600C\nD") && snapshot.MatchesText(L"A\r\nB\U0001f600C\nD"),
+            "comparison follows current pieces while an earlier tree remains immutable");
+    Document empty;
+    Require(empty.Snapshot().MatchesText(L"") && ! SourceSnapshot{}.MatchesText(L""), "valid empty revisions match; default snapshots are not admitted");
+}
+
 void TestRichDocumentCrossPieceUnicodeOracle()
 {
     const std::array<std::wstring, 5> tokens{L"a", L"\U0001f600", L"\r\n", L"\u03b2", L"a\u0301"};
@@ -463,6 +480,7 @@ void RunRichDocumentTests()
     DXUI_RUN_TEST(TestRichDocumentLocalizedRecordedStateReplacement);
     DXUI_RUN_TEST(TestRichDocumentPrototypeContracts);
     DXUI_RUN_TEST(TestRichDocumentSlicesAndJoinedBoundaries);
+    DXUI_RUN_TEST(TestRichDocumentSnapshotMatchesText);
     DXUI_RUN_TEST(TestRichDocumentCrossPieceUnicodeOracle);
     DXUI_RUN_TEST(TestRichDocumentUnicodeCodecRejections);
     DXUI_RUN_TEST(TestRichDocumentFragmentedSnapshotOracle);

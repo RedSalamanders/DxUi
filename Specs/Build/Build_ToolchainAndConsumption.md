@@ -197,6 +197,13 @@ alias carries no `[[deprecated]]` attribute, since consumers compile with warnin
 replacement. The changelog fragment of a change that increments the revision says so and lists what each consumer must
 change.
 
+The optional read-only parsed-snapshot APIs remain in revision 4. They add methods without changing the ordinary
+source-synchronization/parser paths. `MarkdownSyntax` gains an immutable shared owner, so its C++ object layout
+changes. This is source-coordinated adoption: rebuild with the exact matching headers, library, compiler, runtime
+and configuration. API revision equality or an isolated layout probe does not permit mixing old/new objects or
+establish stable binary interoperability. Performance comparisons across these pins must admit their exact
+changed header closure and retain each side's independently rebuilt source/toolchain evidence.
+
 The consumer interface is what a consumer may call or import from its pinned checkout. `capabilities.json` lists it under
 `consumerInterface`:
 - **Scripts**, with the parameters consumers pass: `vcpkg-install.ps1`, `validate-build-matrix.ps1` and
