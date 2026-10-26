@@ -2,7 +2,7 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
-- **ACTIVE**: [Read-only Source snapshot synchronization](ReadOnlySourceSnapshot_2026-10-26.md). The additive API is merged with source/undo/selection and callback regressions, six local builds, six hosted native profiles, four local foreground suites and exact-pin RedTilde execution. Evidence publication is in progress. Paired performance remains inconclusive (unqualified base policy and 71/72 unstable controls); parent consumer/platform and physical input gates remain explicit. No performance gain is claimed.
+- **ACTIVE**: [Read-only Source snapshot synchronization](ReadOnlySourceSnapshot_2026-10-26.md). API revision 4 is merged as `3bcf7ed9` with tree `18be6688`; the plan records exact-source local builds/Full suites and authorized foreground results, and the public CI packet records six hosted native profiles. Paired performance remains inconclusive because the base policy is unqualified and 62/72 controls are unstable. PR #108 Menu and lease-restoration failures remain separate; consumer performance, platform and physical-input gates stay open. No performance gain is claimed.
 
 - **SPEC READY**: [RichTextEditor file drag-and-drop](RichTextFileDrop_2026-10-20.md).
 Displayed image references and relative links for other files reuse the paste
