@@ -6,6 +6,8 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include <DxUi/RichTextLayout.h>
 #include <cmath>
+#include <format>
+#include <iostream>
 #include <limits>
 #include <wil/result.h>
 #include <wrl/implements.h>
@@ -54,6 +56,170 @@ public:
         *before = *after = DWRITE_BREAK_CONDITION_NEUTRAL;
         return S_OK;
     }
+};
+
+struct SourceInkRunDiagnostic
+{
+    UINT32 position{}, glyphCount{}, stringLength{}, bidiLevel{};
+    bool description{}, textMatch{}, monospaced{}, colorFont{}, effect{}, sideways{}, clusterMap{};
+};
+
+class SourceInkDiagnosticRenderer final
+    : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDWriteTextRenderer>
+{
+public:
+    SourceInkDiagnosticRenderer(
+        ID2D1RenderTarget* target, std::wstring_view expectedText, const LinkDrawing* drawing, IDWriteInlineObject* positioning, UINT32 textOffset) noexcept
+        : target_(target),
+          expectedText_(expectedText),
+          drawing_(drawing),
+          positioning_(positioning),
+          textOffset_(textOffset)
+    {
+    }
+    std::span<const SourceInkRunDiagnostic> Runs() const noexcept
+    {
+        return std::span(runs_).first(runCount_);
+    }
+    bool InlineIdentity() const noexcept
+    {
+        return inlineIdentity_;
+    }
+    UINT32 Underlines() const noexcept
+    {
+        return underlines_;
+    }
+    UINT32 Strikes() const noexcept
+    {
+        return strikes_;
+    }
+    HRESULT STDMETHODCALLTYPE IsPixelSnappingDisabled(void*, BOOL* disabled) noexcept override
+    {
+        if (! disabled)
+            return E_POINTER;
+        *disabled = FALSE;
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE GetCurrentTransform(void*, DWRITE_MATRIX* transform) noexcept override
+    {
+        if (! transform)
+            return E_POINTER;
+        D2D1_MATRIX_3X2_F current{};
+        target_->GetTransform(&current);
+        *transform = {current._11, current._12, current._21, current._22, current._31, current._32};
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE GetPixelsPerDip(void*, FLOAT* pixelsPerDip) noexcept override
+    {
+        if (! pixelsPerDip)
+            return E_POINTER;
+        FLOAT x{}, y{};
+        target_->GetDpi(&x, &y);
+        if (x != y || x <= 0.0f)
+            return E_NOTIMPL;
+        *pixelsPerDip = x / 96.0f;
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE DrawGlyphRun(void*,
+                                           FLOAT,
+                                           FLOAT,
+                                           DWRITE_MEASURING_MODE,
+                                           const DWRITE_GLYPH_RUN* run,
+                                           const DWRITE_GLYPH_RUN_DESCRIPTION* description,
+                                           IUnknown* effect) noexcept override
+    {
+        if (runCount_ == runs_.size())
+            return E_BOUNDS;
+        auto& output  = runs_[runCount_++];
+        output.effect = effect != nullptr;
+        if (! run || ! description)
+            return S_OK;
+        output.description  = true;
+        output.position     = description->textPosition;
+        output.glyphCount   = run->glyphCount;
+        output.stringLength = description->stringLength;
+        output.bidiLevel    = run->bidiLevel;
+        output.sideways     = run->isSideways != FALSE;
+        if (description->string && description->textPosition >= textOffset_)
+        {
+            const auto local = static_cast<std::size_t>(description->textPosition - textOffset_);
+            output.textMatch = local <= expectedText_.size() && description->stringLength <= expectedText_.size() - local &&
+                               std::wstring_view(description->string, description->stringLength) == expectedText_.substr(local, description->stringLength);
+        }
+        if (run->fontFace)
+        {
+            wil::com_ptr<IDWriteFontFace1> face1;
+            wil::com_ptr<IDWriteFontFace2> face2;
+            output.monospaced = SUCCEEDED(run->fontFace->QueryInterface(IID_PPV_ARGS(face1.put()))) && face1->IsMonospacedFont();
+            output.colorFont  = SUCCEEDED(run->fontFace->QueryInterface(IID_PPV_ARGS(face2.put()))) && face2->IsColorFont();
+        }
+        if (! description->clusterMap || ! run->glyphCount || run->glyphCount > 256u || description->stringLength > 512u)
+            return S_OK;
+        std::array<int, 256> clusterRoles{};
+        clusterRoles.fill(-2);
+        bool valid = true;
+        for (UINT32 unit = 0; unit < description->stringLength; ++unit)
+        {
+            const auto glyph    = description->clusterMap[unit];
+            const auto position = drawing_->displayOrigin + description->textPosition + unit - textOffset_;
+            int role            = -1;
+            for (const auto& ink : drawing_->inkRanges)
+            {
+                const auto roleIndex = static_cast<size_t>(ink.role);
+                if (ink.display.first <= position && position < ink.display.last && roleIndex < drawing_->inkBrushes.size() && drawing_->inkBrushes[roleIndex])
+                    role = static_cast<int>(roleIndex);
+            }
+            if (glyph >= run->glyphCount || (clusterRoles[glyph] != -2 && clusterRoles[glyph] != role))
+            {
+                valid = false;
+                break;
+            }
+            clusterRoles[glyph] = role;
+        }
+        if (valid)
+        {
+            UINT32 glyph = 0u;
+            while (glyph < run->glyphCount)
+            {
+                if (clusterRoles[glyph] == -2)
+                {
+                    valid = false;
+                    break;
+                }
+                UINT32 next = glyph + 1u;
+                while (next < run->glyphCount && clusterRoles[next] == -2)
+                    ++next;
+                glyph = next;
+            }
+        }
+        output.clusterMap = valid;
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE DrawUnderline(void*, FLOAT, FLOAT, const DWRITE_UNDERLINE*, IUnknown*) noexcept override
+    {
+        ++underlines_;
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE DrawStrikethrough(void*, FLOAT, FLOAT, const DWRITE_STRIKETHROUGH*, IUnknown*) noexcept override
+    {
+        ++strikes_;
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE DrawInlineObject(void*, FLOAT, FLOAT, IDWriteInlineObject* object, BOOL, BOOL, IUnknown*) noexcept override
+    {
+        inlineIdentity_ = inlineIdentity_ || object == positioning_;
+        return S_OK;
+    }
+
+private:
+    ID2D1RenderTarget* target_{};
+    std::wstring_view expectedText_;
+    const LinkDrawing* drawing_{};
+    IDWriteInlineObject* positioning_{};
+    UINT32 textOffset_{};
+    std::array<SourceInkRunDiagnostic, 32> runs_{};
+    UINT32 runCount_{}, underlines_{}, strikes_{};
+    bool inlineIdentity_{};
 };
 
 void TestRichTextLayoutPrototypeContracts()
@@ -344,6 +510,45 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
     context->Clear(D2D1::ColorF(0u, 0.0f));
     const auto directResult =
         Detail::DrawSourceInkIfSupported(context.get(), white.get(), directLayout.get(), positioned.Get(), 2u, bidiProjection, directDrawing, directOrigin);
+    if (directResult != Detail::SourceInkDrawResult::Drawn)
+    {
+        auto diagnostic = Microsoft::WRL::Make<SourceInkDiagnosticRenderer>(context.get(), bidiProjection.text, &directDrawing, positioned.Get(), 2u);
+        Require(diagnostic.Get() != nullptr, "diagnostic renderer is allocated after direct-path rejection");
+        const HRESULT diagnosticResult = directLayout->Draw(nullptr, diagnostic.Get(), directOrigin.x, directOrigin.y);
+        std::cerr << std::format("[SOURCE INK DIAGNOSTIC] helperResult={} layoutResult=0x{:08X} runs={} inlineIdentity={} underlines={} strikes={}\n",
+                                 static_cast<unsigned>(directResult),
+                                 static_cast<unsigned>(diagnosticResult),
+                                 diagnostic->Runs().size(),
+                                 diagnostic->InlineIdentity(),
+                                 diagnostic->Underlines(),
+                                 diagnostic->Strikes());
+        std::cerr << std::format("[SOURCE INK INPUT] textLength={} textOffset={} displayOrigin={} inkRanges={} positioningPresent={}\n",
+                                 bidiProjection.text.size(),
+                                 2u,
+                                 directDrawing.displayOrigin,
+                                 directDrawing.inkRanges.size(),
+                                 positioned.Get() != nullptr);
+        for (const auto& inkRange : directDrawing.inkRanges)
+            std::cerr << std::format("[SOURCE INK RANGE] first={} last={} role={} brushPresent={}\n",
+                                     inkRange.display.first,
+                                     inkRange.display.last,
+                                     static_cast<unsigned>(inkRange.role),
+                                     directDrawing.inkBrushes[static_cast<size_t>(inkRange.role)] != nullptr);
+        for (const auto& run : diagnostic->Runs())
+            std::cerr << std::format(
+                "[SOURCE INK RUN] pos={} glyphs={} units={} bidi={} desc={} textMatch={} mono={} color={} effect={} sideways={} clusters={}\n",
+                run.position,
+                run.glyphCount,
+                run.stringLength,
+                run.bidiLevel,
+                run.description,
+                run.textMatch,
+                run.monospaced,
+                run.colorFont,
+                run.effect,
+                run.sideways,
+                run.clusterMap);
+    }
     Require(directResult == Detail::SourceInkDrawResult::Drawn, "supported positioned Hebrew mixed-bidi source actually takes the direct renderer pass");
     THROW_IF_FAILED(context->EndDraw());
     std::vector<uint8_t> directPixels;
