@@ -507,13 +507,15 @@ void TestDesktopLeaseReportsAPointerItCannotRestore()
     Require(diagnostics.readBeforeKnown && SamePoint(diagnostics.readBefore, POINT{900, 700}), "the report records the pointer immediately before restoration");
     Require(diagnostics.setCalled && diagnostics.setAccepted && diagnostics.setError == ERROR_SUCCESS,
             "the report distinguishes a successful cursor-set request");
-    Require(diagnostics.readbackKnown && SamePoint(diagnostics.readback, POINT{401, 301}), "the report preserves the exact off-by-one readback");
+    const POINT expectedReadback{report.saved.cursor.x + 1, report.saved.cursor.y};
+    Require(diagnostics.readbackKnown && SamePoint(diagnostics.readback, expectedReadback), "the report preserves the exact off-by-one readback");
     LeaseOutcome outcome{};
     outcome.state            = "completed";
     outcome.exitCode         = LeaseExit::kNotRestored;
     outcome.restoration      = report;
     const std::string result = FormatLeaseResult(outcome);
-    Require(result.find("cursor.restore.diagnostics:") != std::string::npos && result.find("readback=401,301") != std::string::npos,
+    Require(result.find("cursor.restore.diagnostics:") != std::string::npos &&
+                result.find(std::format("readback={},{}", expectedReadback.x, expectedReadback.y)) != std::string::npos,
             "the lease result serializes the failure diagnostics without changing the restoration result");
     const size_t diagnosticsLineStart = result.find("cursor.restore.diagnostics:");
     const size_t diagnosticsLineEnd   = result.find('\n', diagnosticsLineStart);

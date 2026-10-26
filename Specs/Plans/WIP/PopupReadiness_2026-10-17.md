@@ -275,3 +275,11 @@ The failed lease records `state: completed`, saved cursor `512,384`, at-exit cur
 and no initially recorded focus. The original receipt lacks setter/readback and clipping details, so the cause
 remains unknown. A previous ARM64 Release restoration failure is retained separately. This test infrastructure
 change affects no public API, production pixels or performance policy; no gallery regeneration is needed.
+
+The integrated `9675dcf4` Debug build succeeds. Its ordinary run passes 18 scopes and fails the new fake
+off-by-one assertion in InteractiveLease: the default saved point is `400,300`, but the assertion incorrectly
+expected `401,301`. Preserve that binary/PDB and receipt; derive the expected readback from the saved point
+with only its X coordinate incremented. All four other new cursor failure cases pass individually on the
+retained binary. Fresh full InteractiveLease and governed foreground execution remain required. The earlier
+`c724122b` compile failure (test defined before its fixture) is retained separately; its unchanged body was moved
+after the fixture. Neither fixture correction changes production restoration or its exact-readback criterion.
