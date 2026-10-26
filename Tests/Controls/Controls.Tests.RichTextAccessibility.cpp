@@ -1113,6 +1113,162 @@ void TestRichTextAccessibilityEmbeddedPendingPreparationGeometry()
 {
     EmbeddedCase([](bool embedded) { PendingPreparationGeometry(embedded); });
 }
+void ReadOnlySourceSnapshotSynchronization(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true);
+    auto* mirror = static_cast<RichAccessibilityEditor*>(fixture.editor);
+    mirror->SetText(L"old");
+    Require(mirror->ReplaceSelection(L"seed ") && mirror->CanUndo(), "seed independent target history");
+    mirror->SetViewMode(ViewMode::Source);
+    mirror->SetReadOnly(true);
+    auto appearance                   = mirror->GetAppearance();
+    appearance.colorizeMarkdownSource = true;
+    mirror->SetAppearance(appearance);
+    Document primary(L"# Snapshot\r\n\r\n**Body 世界 😀** [link](https://example.invalid/path)\r\nlast");
+    Require(primary.ReplaceSelection(L"prefix "), "seed primary history");
+    primary.SetSelection({primary.Length(), primary.Length()});
+    Require(primary.ReplaceSelection(L"\r\nfinal"), "retain primary CRLF history");
+    const auto source = primary.Snapshot();
+    const auto exact  = primary.Text();
+    const Selection selection{exact.find(L"世界"), exact.find(L"世界") + 2u};
+    primary.SetSelection(selection);
+    const auto primaryRevision = primary.Revision();
+    const auto targetBefore    = mirror->Snapshot();
+    const auto targetRevision  = mirror->Revision();
+    const auto targetSelection = mirror->GetSelection();
+    mirror->SetViewMode(ViewMode::Rich);
+    Require(! mirror->SynchronizeReadOnlySourceSnapshot(source, selection), "rich target refuses source-only adoption");
+    mirror->SetViewMode(ViewMode::Source);
+    mirror->SetReadOnly(false);
+    Require(! mirror->SynchronizeReadOnlySourceSnapshot(source, selection), "editable target refuses read-only adoption");
+    mirror->SetReadOnly(true);
+    Require(mirror->Snapshot().IsSameRevision(targetBefore) && mirror->Revision() == targetRevision && mirror->GetSelection() == targetSelection &&
+                mirror->CanUndo(),
+            "profile refusals preserve target source, selection, revision and history");
+
+    unsigned notifications = 0u;
+    bool coherent          = false;
+    mirror->SetOnSelectionChanged([&]
+    {
+        ++notifications;
+        coherent = mirror->Snapshot().IsSameRevision(source) && mirror->GetText() == exact && mirror->GetSelection() == selection;
+    });
+    Require(fixture.controls->GetFocusControl() == mirror, "logical focus is retained without desktop activation");
+    Require(mirror->SynchronizeReadOnlySourceSnapshot(source, selection), "read-only target shares immutable source");
+    Require(coherent && notifications == 1u && mirror->Snapshot().IsSameRevision(source) && mirror->GetText() == exact && mirror->GetSelection() == selection &&
+                mirror->Revision() == targetRevision + 1u && mirror->Revision() != primaryRevision && ! mirror->CanUndo() && ! mirror->CanRedo(),
+            "adoption commits exact source/selection and clears only the target history at its own revision");
+    Require(primary.Snapshot().IsSameRevision(source) && primary.Revision() == primaryRevision && primary.GetSelection() == selection && primary.CanUndo(),
+            "primary source, selection, revision and history remain independent");
+    Require(mirror->SynchronizeReadOnlySourceSnapshot(source, selection) && mirror->Revision() == targetRevision + 1u && notifications == 1u,
+            "same snapshot and selection are idempotent");
+    const Selection backward{exact.find(L"last") + 4u, exact.find(L"last")};
+    Require(mirror->SynchronizeReadOnlySourceSnapshot(source, backward) && mirror->GetSelection() == backward && mirror->Revision() == targetRevision + 1u &&
+                notifications == 2u,
+            "same snapshot follows canonical backward-selection semantics without replacing source");
+    const auto emoji = exact.find(L"😀");
+    const auto crlf  = exact.find(L"\r\n");
+    const SourceSnapshot invalid;
+    Require(! mirror->SynchronizeReadOnlySourceSnapshot(source, {emoji + 1u, emoji + 1u}) &&
+                ! mirror->SynchronizeReadOnlySourceSnapshot(source, {crlf + 1u, crlf + 1u}) &&
+                ! mirror->SynchronizeReadOnlySourceSnapshot(source, {source.Length() + 1u, source.Length() + 1u}) &&
+                ! mirror->SynchronizeReadOnlySourceSnapshot(invalid, {}),
+            "surrogate, CRLF, range and absent-snapshot refusals are atomic");
+    Require(mirror->Snapshot().IsSameRevision(source) && mirror->Revision() == targetRevision + 1u && mirror->GetSelection() == backward &&
+                notifications == 2u && ! mirror->CanUndo(),
+            "invalid requests change neither source nor notifications/history");
+    mirror->SetSelection(selection);
+    TextInputState exported;
+    Require(mirror->ExportTextInputState(exported) && exported.readOnly && exported.text == exact && exported.caretIndex == selection.caret &&
+                exported.selectionAnchorIndex == selection.anchor && fixture.controls->GetFocusControl() == mirror,
+            "focused native/embedded text export preserves exact read-only source ACPs");
+    fixture.Publish();
+    const auto syntax      = mirror->GetMarkdownSyntax();
+    const auto visualLines = mirror->GetSourceVisualLineRanges(*fixture.controls);
+    Require(syntax && syntax->Source() == exact && syntax->Revision() == mirror->Revision() && visualLines && ! visualLines.value().empty() &&
+                mirror->DebugGetState().sourceInkRangeCount > 0u && ! mirror->DebugGetState().sourceInkPreparationPending,
+            "independent syntax and source ink finish at the target's local revision");
+    auto simple = fixture.Simple();
+    wil::com_ptr_nothrow<ITextProvider> text;
+    RequireSucceeded(simple.query_to(text.put()), "adopted read-only TextPattern");
+    wil::com_ptr_nothrow<ITextRangeProvider> document;
+    RequireSucceeded(text->get_DocumentRange(document.put()), "adopted document range");
+    Require(ReadTextRangeText(*document.get(), -1, "adopted UIA source") == exact, "UIA exposes unchanged exact source");
+    wil::unique_variant attribute;
+    RequireSucceeded(document->GetAttributeValue(UIA_IsReadOnlyAttributeId, &attribute), "adopted UIA read-only attribute");
+    Require(attribute.vt == VT_BOOL && attribute.boolVal == VARIANT_TRUE, "UIA read-only attribute survives adoption");
+
+    WindowHostBitmapCapture adopted;
+    if (! embedded)
+    {
+        ShowWindow(fixture.Hwnd(), SW_SHOWNOACTIVATE);
+        fixture.Publish();
+        Require(fixture.controls->DebugCaptureBitmap(adopted), "capture adopted source ink without activation");
+    }
+    mirror->SetOnSelectionChanged({});
+    mirror->SetText(exact);
+    mirror->SetSelection(selection);
+    fixture.Publish();
+    const auto oracleSyntax = mirror->GetMarkdownSyntax();
+    Require(oracleSyntax && oracleSyntax != syntax && oracleSyntax->Revision() == mirror->Revision() && oracleSyntax->Source() == syntax->Source() &&
+                oracleSyntax->Blocks().size() == syntax->Blocks().size() && oracleSyntax->Inlines().size() == syntax->Inlines().size() &&
+                mirror->GetSourceVisualLineRanges(*fixture.controls) == visualLines,
+            "ordinary SetText oracle prepares the same source structure and visual line ranges independently");
+    for (size_t i = 0u; i < syntax->Inlines().size(); ++i)
+    {
+        const auto& actual   = syntax->Inlines()[i];
+        const auto& expected = oracleSyntax->Inlines()[i];
+        Require(actual.kind == expected.kind && actual.source == expected.source && actual.value == expected.value,
+                "snapshot adoption preserves each inline role, source range and value");
+    }
+    if (! embedded)
+    {
+        WindowHostBitmapCapture oracle, plain;
+        Require(fixture.controls->DebugCaptureBitmap(oracle) && oracle.widthPx == adopted.widthPx && oracle.heightPx == adopted.heightPx &&
+                    oracle.bgraPixels == adopted.bgraPixels,
+                "adopted source glyph ink exactly matches ordinary SetText pixels");
+        appearance.colorizeMarkdownSource = false;
+        mirror->SetAppearance(appearance);
+        fixture.Publish();
+        Require(fixture.controls->DebugCaptureBitmap(plain) && plain.bgraPixels != oracle.bgraPixels,
+                "the parity oracle contains actual syntax-colored glyphs");
+    }
+
+    RichAccessibilityEditor detached;
+    detached.SetViewMode(ViewMode::Source);
+    detached.SetReadOnly(true);
+    const auto detachedRevision = detached.Revision();
+    Require(detached.SynchronizeReadOnlySourceSnapshot(source, backward) && detached.Snapshot().IsSameRevision(source) && detached.GetSelection() == backward &&
+                detached.Revision() == detachedRevision + 1u,
+            "detached read-only setters share the same source contract without a private HWND");
+    const std::wstring retained = L"Owner released\r\n世界 😀";
+    {
+        Document temporary(retained);
+        Require(detached.SynchronizeReadOnlySourceSnapshot(temporary.Snapshot(), {retained.size(), retained.size()}),
+                "adopt a snapshot whose only source owner is about to retire");
+    }
+    Require(detached.GetText() == retained && detached.GetSelection() == Selection{retained.size(), retained.size()},
+            "the target retains immutable source storage after the source owner and temporary snapshot are released");
+    const auto lifetime = GetControlLifetimeToken(*mirror);
+    bool retired        = false;
+    mirror->SetOnSelectionChanged([&]
+    {
+        retired = true;
+        fixture.controls->SetRoot(std::make_unique<Label>(L"replacement root"));
+    });
+    Require(mirror->SynchronizeReadOnlySourceSnapshot(source, backward) && retired && lifetime.expired(),
+            "a selection callback can retire the target root without post-retirement member access");
+    fixture.editor = nullptr;
+}
+void TestRichTextAccessibilityWindowReadOnlySnapshotSynchronization()
+{
+    ReadOnlySourceSnapshotSynchronization(false);
+}
+void TestRichTextAccessibilityEmbeddedReadOnlySnapshotSynchronization()
+{
+    EmbeddedCase([](bool embedded) { ReadOnlySourceSnapshotSynchronization(embedded); });
+}
 void TestRichTextAccessibilityWindowMarkdownSourceAndRanges()
 {
     SourceAndRanges(false, true);
@@ -2446,4 +2602,6 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedPendingPreparationGeometry);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowMarkdownSourceAndRanges);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedMarkdownSourceAndRanges);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowReadOnlySnapshotSynchronization);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedReadOnlySnapshotSynchronization);
 }

@@ -570,6 +570,24 @@ Document::Document(std::wstring_view text)
 {
     Reset(text);
 }
+bool Document::AdoptReadOnlySourceSnapshot(const SourceSnapshot& source, Selection selection) noexcept
+{
+    if (! source.state_ || ! source.IsBoundary(selection.anchor) || ! source.IsBoundary(selection.caret))
+        return false;
+    if (source_.IsSameRevision(source))
+    {
+        selection_ = selection; // Same-text selection updates match SetSelection and preserve local revision/history.
+        return true;
+    }
+    if (revision_ == std::numeric_limits<std::uint64_t>::max())
+        return false;
+    source_    = source;
+    selection_ = selection;
+    undo_.clear();
+    redo_.clear();
+    ++revision_; // Local Document revisions remain independent of the source Document.
+    return true;
+}
 void Document::Reset(std::wstring_view text)
 {
     Validate(text);

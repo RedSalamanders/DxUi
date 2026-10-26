@@ -946,6 +946,16 @@ notification failures leave the committed edit intact. Read-only permits selecti
 copy while rejecting mutation; disabled controls reject input. Incomplete UTF-16
 character pairs never enter the model. AltGr Unicode entry remains accepted.
 
+`SynchronizeReadOnlySourceSnapshot(snapshot, selection)` is an owner-thread setter for a read-only Source view.
+It shares the immutable source tree without materializing a replacement string or copying source revision counters.
+Changed source advances the target's own monotonic revision, clears only its undo/redo history, and retires the same
+highlights, image/source-edit state, accessibility and prepared geometry as `SetText`; ordinary selection/text-service
+publication runs last. The parser remains independent and publishes at the target revision. Same-snapshot selection
+changes follow `SetSelection`, including clearing visual caret affinity; identical snapshot/selection is idempotent.
+An absent snapshot, invalid scalar/CRLF boundary, exhausted target revision or incompatible target profile returns
+false without mutation. Valid empty documents are admitted. Detached and embedded setters need no private HWND.
+Callers must revalidate their owner/control/source identities after callbacks before continuing a larger update.
+
 RichTextEditor document-file metadata MUST be an explicit canonical absolute
 Unicode path or empty (unsaved); it MUST NOT infer a base from process CWD or
 change source/history/composition. Prepared canonical Rich-mode file-reference paste
