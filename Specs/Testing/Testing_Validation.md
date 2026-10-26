@@ -320,6 +320,12 @@ Interactive menu drivers wait for the popup's modal capture after visibility and
 asserting a retained painted hover, their physical cursor agrees with the delivered point so OS-generated moves
 cannot undo the fixture's input. Restore that cursor only while it still has the test's position; do not overwrite
 human movement. Failed hover assertions must report a failure, including outside-dismiss tests.
+Visual-baseline captures that require an unhovered menu MUST establish modal capture and visible geometry as
+separate predicates, then physically park the cursor in the popup shadow margin outside every item row under the
+popup DPI context. Deliver the matching move and verify hover cleared before requesting the bitmap. A synthetic
+move alone does not establish the physical pointer state. Pointer-driven coverage MUST also prove that moving the
+physical cursor onto an item produces hover before parking clears it; diagnostics report capture, geometry, hover,
+the final physical point and the bounded moves sent separately.
 Cursor fixtures retain the original and actual aligned positions in physical coordinates,
 and restore only while the cursor still has that aligned position. Popup-context alignment
 must not apply a second DPI conversion. An outer harness verifies restoration and must not

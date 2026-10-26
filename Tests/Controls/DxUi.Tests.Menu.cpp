@@ -403,7 +403,8 @@ public:
     {
         // Keep the established popup-context alignment; record its actual physical
         // result so restoration does not round-trip through virtualized coordinates.
-        if (GetPhysicalCursorPos(&_originalCursor) == FALSE || SetCursorPos(point.x, point.y) == FALSE || GetPhysicalCursorPos(&_alignedCursor) == FALSE)
+        if ((! _cursorAligned && GetPhysicalCursorPos(&_originalCursor) == FALSE) || SetCursorPos(point.x, point.y) == FALSE ||
+            GetPhysicalCursorPos(&_alignedCursor) == FALSE)
             return false;
         _cursorAligned = true;
         return true;
@@ -468,6 +469,100 @@ void DrainPendingMouseMessagesForMenuSuite() noexcept
     while (PeekMessageW(&msg, nullptr, WM_MOUSEFIRST, WM_MOUSELAST, PM_REMOVE) != FALSE)
     {
     }
+}
+
+[[nodiscard]] bool PrepareAcrylicPopupForUnhoveredCapture(
+    HWND popupHwnd, ScopedMenuPointerFixture& pointerFixture, const char* context, DxUi::ContextMenuPopupDebugState& popupState, std::string& failure)
+{
+    const bool captureReady  = pointerFixture.WaitForCapture();
+    const bool geometryReady = WaitForContextMenuPopupState(popupHwnd, [](const DxUi::ContextMenuPopupDebugState& state) noexcept {
+        return state.visibleWidthDip > 0.0f && state.visibleHeightDip > 0.0f;
+    }, popupState);
+    if (! captureReady || ! geometryReady || popupState.dpi == 0u)
+    {
+        POINT cursor{};
+        const bool cursorReadable = GetPhysicalCursorPos(&cursor) != FALSE;
+        failure                   = std::format("{} readiness failed captureReady={} geometryReady={} dpi={} visibleDip={}x{} hovered={} "
+                                                "cursorReadable={} cursor=({},{}); pointerMessages=0",
+                                                context,
+                                                captureReady,
+                                                geometryReady,
+                                                popupState.dpi,
+                                                popupState.visibleWidthDip,
+                                                popupState.visibleHeightDip,
+                                                popupState.hoveredIndex.has_value() ? static_cast<int>(popupState.hoveredIndex.value()) : -1,
+                                                cursorReadable,
+                                                cursor.x,
+                                                cursor.y);
+        return false;
+    }
+
+    D2D1_RECT_F firstRowDip{};
+    if (! WaitForContextMenuPopupItemRect(popupHwnd, 0u, firstRowDip))
+    {
+        failure = std::format("{} geometryReady=1 captureReady=1 firstRowReady=0 dpi={} hovered={} pointerMessages=0",
+                              context,
+                              popupState.dpi,
+                              popupState.hoveredIndex.has_value() ? static_cast<int>(popupState.hoveredIndex.value()) : -1);
+        return false;
+    }
+
+    // The debug row rectangle is in DIPs; convert with the popup's DPI while the
+    // caller-owned pointer fixture keeps this driver thread in that popup context.
+    POINT rowCenter{
+        static_cast<LONG>(DipToPixelForPopup((firstRowDip.left + firstRowDip.right) * 0.5f, popupState.dpi)),
+        static_cast<LONG>(DipToPixelForPopup((firstRowDip.top + firstRowDip.bottom) * 0.5f, popupState.dpi)),
+    };
+    if (ClientToScreen(popupHwnd, &rowCenter) == FALSE || ! pointerFixture.AlignCursor(rowCenter))
+    {
+        failure = std::format("{} captureReady=1 geometryReady=1 rowPointerAligned=0 dpi={} pointerMessages=0", context, popupState.dpi);
+        return false;
+    }
+    static_cast<void>(SendCapturedMouseMessageForMenuSuite(popupHwnd, WM_MOUSEMOVE, 0, rowCenter));
+    if (! WaitForContextMenuPopupState(
+            popupHwnd, [](const DxUi::ContextMenuPopupDebugState& state) noexcept { return state.hoveredIndex == std::optional<size_t>{0u}; }, popupState))
+    {
+        POINT cursor{};
+        const bool cursorReadable = GetPhysicalCursorPos(&cursor) != FALSE;
+        failure                   = std::format("{} rowHoverObserved=0 captureReady=1 geometryReady=1 dpi={} hovered={} cursorReadable={} "
+                                                "cursor=({},{}); pointerMessages=1 last=WM_MOUSEMOVE rowCenter=({}, {})",
+                                                context,
+                                                popupState.dpi,
+                                                popupState.hoveredIndex.has_value() ? static_cast<int>(popupState.hoveredIndex.value()) : -1,
+                                                cursorReadable,
+                                                cursor.x,
+                                                cursor.y,
+                                                rowCenter.x,
+                                                rowCenter.y);
+        return false;
+    }
+
+    POINT shadowMargin{2, 2};
+    if (ClientToScreen(popupHwnd, &shadowMargin) == FALSE || ! pointerFixture.AlignCursor(shadowMargin))
+    {
+        failure = std::format("{} rowHoverObserved=1 shadowMarginAligned=0 captureReady=1 geometryReady=1 dpi={} pointerMessages=1", context, popupState.dpi);
+        return false;
+    }
+    static_cast<void>(SendCapturedMouseMessageForMenuSuite(popupHwnd, WM_MOUSEMOVE, 0, shadowMargin));
+    if (! WaitForContextMenuPopupState(
+            popupHwnd, [](const DxUi::ContextMenuPopupDebugState& state) noexcept { return ! state.hoveredIndex.has_value(); }, popupState))
+    {
+        POINT cursor{};
+        const bool cursorReadable = GetPhysicalCursorPos(&cursor) != FALSE;
+        failure                   = std::format("{} hoverCleared=0 rowHoverObserved=1 captureReady=1 geometryReady=1 dpi={} hovered={} "
+                                                "cursorReadable={} cursor=({},{}); pointerMessages=2 last=WM_MOUSEMOVE shadowMargin=({}, {})",
+                                                context,
+                                                popupState.dpi,
+                                                popupState.hoveredIndex.has_value() ? static_cast<int>(popupState.hoveredIndex.value()) : -1,
+                                                cursorReadable,
+                                                cursor.x,
+                                                cursor.y,
+                                                shadowMargin.x,
+                                                shadowMargin.y);
+        return false;
+    }
+
+    return true;
 }
 
 // White-box view of the bounded posted-payload registry that carries queued UIA menu actions.
@@ -6082,11 +6177,9 @@ void TestMenuPopupAcrylicLightVisualBaseline()
         });
 
         ContextMenuPopupDebugState popupState{};
-        if (! WaitForContextMenuPopupState(popupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
-            return state.visibleWidthDip > 0.0f && state.visibleHeightDip > 0.0f && ! state.hoveredIndex.has_value();
-        }, popupState))
+        ScopedMenuPointerFixture pointerFixture(popupHwnd);
+        if (! PrepareAcrylicPopupForUnhoveredCapture(popupHwnd, pointerFixture, "light acrylic", popupState, driverFailure))
         {
-            driverFailure = "menu popup exposes unhovered acrylic geometry for visual-baseline capture";
             return;
         }
 
@@ -6124,6 +6217,54 @@ void TestMenuPopupAcrylicLightVisualBaseline()
     Require(driverFailure.empty(), driverFailure.c_str());
     Require(! result.has_value(), "closing the acrylic visual-baseline menu with Escape returns no invoked command");
     VerifyOrUpdateBaselineForTest("acrylic light menu popup baseline matches", L"menu_popup_acrylic_light.png", capture, 0.06, 10u);
+}
+
+void TestMenuPopupAcrylicDarkPointerParkingClearsHover()
+{
+    using namespace DxUi;
+
+    ThemePalette theme                      = MakeAnimatedTestThemePalette(true);
+    theme.overlayMaterial                   = OverlayMaterial::Acrylic;
+    const std::vector<MenuFlyoutItem> items = {
+        {.text = L"Open", .commandId = 4201},
+        {.text = L"Copy", .commandId = 4202},
+    };
+
+    AttachedHostWindow ownerWindow;
+    SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 320, 220, SWP_NOZORDER | SWP_NOACTIVATE);
+    ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
+    ownerWindow.PumpMessages();
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "dark acrylic menu owner activates before its popup opens");
+    const POINT menuPoint = ClientScreenPointForTest(ownerWindow.Hwnd(), 72, 48, "dark acrylic popup anchor maps to screen coordinates");
+
+    std::string driverFailure;
+    std::thread driver([&]
+    {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
+        const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
+        if (! popupHwnd)
+        {
+            driverFailure = "dark acrylic popup appears for pointer parking coverage";
+            return;
+        }
+        const auto dismissPopup = wil::scope_exit([&]() noexcept
+        {
+            if (IsWindow(popupHwnd) != FALSE)
+                PostMessageW(popupHwnd, WM_KEYDOWN, VK_ESCAPE, 0);
+        });
+
+        ScopedMenuPointerFixture pointerFixture(popupHwnd);
+        ContextMenuPopupDebugState state{};
+        if (! PrepareAcrylicPopupForUnhoveredCapture(popupHwnd, pointerFixture, "dark acrylic", state, driverFailure))
+        {
+            return;
+        }
+    });
+
+    const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), menuPoint, items, theme);
+    driver.join();
+    Require(driverFailure.empty(), driverFailure.c_str());
+    Require(! result.has_value(), "closing the dark acrylic pointer-parking menu with Escape returns no invoked command");
 }
 
 void TestMenuPopupKeepsSystemBackdropDisabledForAppRenderedMaterials()
@@ -10790,6 +10931,7 @@ void RunMenuTests()
     runTest("TestMenuPopupWindowClassDoesNotUseNativeDropShadow", TestMenuPopupWindowClassDoesNotUseNativeDropShadow);
     runTest("TestMenuPopupSubmenuFlipsLeftNearRightEdge", TestMenuPopupSubmenuFlipsLeftNearRightEdge);
     runTest("TestMenuPopupAcrylicLightVisualBaseline", TestMenuPopupAcrylicLightVisualBaseline);
+    runTest("TestMenuPopupAcrylicDarkPointerParkingClearsHover", TestMenuPopupAcrylicDarkPointerParkingClearsHover);
     runTest("TestMenuPopupKeepsSystemBackdropDisabledForAppRenderedMaterials", TestMenuPopupKeepsSystemBackdropDisabledForAppRenderedMaterials);
     runTest("TestMenuAcrylicBackdropScenarioEmitsMetrics", TestMenuAcrylicBackdropScenarioEmitsMetrics);
     runTest("TestSplitButtonContextMenuSentMouseMessagesHoverAndOutsideDismiss", TestSplitButtonContextMenuSentMouseMessagesHoverAndOutsideDismiss);
