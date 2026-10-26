@@ -1,0 +1,215 @@
+{
+  "schema": "dxui-native-input-evidence-v1",
+  "evidenceStatus": "passed for the stated hosted native profiles and local input suites; not a performance qualification",
+  "source": {
+    "prHead": "47a9d25995f8dc84b5ca71a2ab75ba405ed8d74a",
+    "measuredMerge": "c4b0731d3cef3d95eb607bc531bb0bfb8b3e9581",
+    "integrationCommit": "6c3205cf34e2af9b248c5d507caba4db14bab6c4",
+    "tree": "3ee2e12647ca2e05113823eb172bb0facf879021",
+    "sourceFingerprint": "08974569F59F2A6CB7041C6A764746940C90AF48077DA123B79D3630B3915C58",
+    "clean": true
+  },
+  "hostedNative": {
+    "workflowRunId": 40253024676,
+    "providerEvidenceSha256": "91946553E990104DECDC7DED8F8CD5BA084C92490D1860F19BC99B155E0D61EC",
+    "archiveVerificationSha256": "91946553E990104DECDC7DED8F8CD5BA084C92490D1860F19BC99B155E0D61EC",
+    "independentReplaySha256": "C6A65AB17C781AE48E01C27ABEE5FDF941216C0694FB2B565276A27895A697E4",
+    "archiveCount": 6,
+    "profileCount": 6,
+    "canonicalCompletedManifestPayloadStreams": 496,
+    "fullScopeReports": 126,
+    "scopesPerProfile": 21,
+    "menuCases": 738,
+    "menuFailures": 0,
+    "snapshotApiCases": 12,
+    "expectedAsanTrapDetections": 2,
+    "peDllPdbRetained": false,
+    "profiles": [
+      {
+        "profile": "ARM64-ASan-Debug",
+        "artifactId": 12623397783,
+        "zipSha256": "84A5D3C406F36AF100C565F1AFCD69D6FF1FE4393F760A57865D9117EB5623F4",
+        "executedBinarySha256": "BFD5123140B489B965D25DACE31DC3FB3DB1781D50A6B5DD28FAD8CB69745635",
+        "menuCases": 123,
+        "asanExpectedTrapDetected": true,
+        "focusCapture": "not-recorded",
+        "cursor": "restored",
+        "canonicalManifestPayloadStreams": 84,
+        "providerArchiveBytes": 2953619
+      },
+      {
+        "profile": "ARM64-Release",
+        "artifactId": 12622578604,
+        "zipSha256": "4C10578FC9393947C8B62CE058D2F81FFD8DBA46C6CAC7466BCB694AC36765CB",
+        "executedBinarySha256": "8644FAFE8A79B71BEE98E3B6335ACC01DABC5DEF0E4BBE50EAE777D1155B9B0C",
+        "menuCases": 123,
+        "asanExpectedTrapDetected": null,
+        "focusCapture": "not-recorded",
+        "cursor": "restored",
+        "canonicalManifestPayloadStreams": 82,
+        "providerArchiveBytes": 2932467
+      },
+      {
+        "profile": "x64-ASan-Debug",
+        "artifactId": 12622502069,
+        "zipSha256": "993ED0142E0F2E1583952F3ACF3CBB0939E531315A913E8300690066EDB37BBA",
+        "executedBinarySha256": "96E830511003463C88A52340D2EAA503C0CAC896CB60E821346A68A38451498D",
+        "menuCases": 123,
+        "asanExpectedTrapDetected": true,
+        "focusCapture": "unchanged",
+        "cursor": "unchanged",
+        "canonicalManifestPayloadStreams": 84,
+        "providerArchiveBytes": 2947593
+      },
+      {
+        "profile": "x64-Debug",
+        "artifactId": 12622381297,
+        "zipSha256": "23A60D8F4765F4CD9446C55154EE1A9F2D1DB00AEF64DB39752745AF70CD2EF5",
+        "executedBinarySha256": "E724C233953CF02A1DAB07EA2EEBA07BD85ECBEDE3075AF972A146AB255E4BD9",
+        "menuCases": 123,
+        "asanExpectedTrapDetected": null,
+        "focusCapture": "unchanged",
+        "cursor": "unchanged",
+        "canonicalManifestPayloadStreams": 82,
+        "providerArchiveBytes": 2933511
+      },
+      {
+        "profile": "ARM64-Debug",
+        "artifactId": 12622308980,
+        "zipSha256": "CEEA4CC907D516893FEE35FD891C9A9899AD832B4134A0CA0235B890C7A2137C",
+        "executedBinarySha256": "3319EB1EF9BDA4694E78AB23A0B2A38CEA5E4B8FE6165E63641AAFC00812D5F7",
+        "menuCases": 123,
+        "asanExpectedTrapDetected": null,
+        "focusCapture": "not-recorded",
+        "cursor": "restored",
+        "canonicalManifestPayloadStreams": 82,
+        "providerArchiveBytes": 2928222
+      },
+      {
+        "profile": "x64-Release",
+        "artifactId": 12622257827,
+        "zipSha256": "E6B8A6F916D813BD9357D60DBABFA4080D3DE402EB8E442D14CB21511C553331",
+        "executedBinarySha256": "ECB4180674D435ACE0C9E5A4EFED3F393698887454FDA54F47491A322EAF03B7",
+        "menuCases": 123,
+        "asanExpectedTrapDetected": null,
+        "focusCapture": "unchanged",
+        "cursor": "unchanged",
+        "canonicalManifestPayloadStreams": 82,
+        "providerArchiveBytes": 3067617
+      }
+    ],
+    "performanceQualification": false,
+    "overallWorkflowOutcome": "failure: paired verdict publication requires an independently qualified base policy",
+    "performanceAcceptance": "inconclusive"
+  },
+  "localInteractive": {
+    "completedUtc": "2026-10-26T03:56:10.9364726Z",
+    "completedManifestSha256": "383407DC4871C8994E6E014D17C347CCB1DC4C251669A56394B7EDF2A5B9BC83",
+    "outcome": "passed",
+    "manifestEntries": 21,
+    "payloadStreams": 17,
+    "retainedPriorReceipts": 4,
+    "currentRunStreams": 13,
+    "suites": [
+      {
+        "suite": "Menu",
+        "exitCode": 0,
+        "skips": 0,
+        "namedTestsStarted": 123,
+        "namedTestsDone": 123,
+        "individuallyEnumerated": true,
+        "receiptSha256": "D292D9DD0CF1A2CF9DF68DB06586364A0A745CDF0BE8FCB2192DFCB3E56D7D11",
+        "executableSha256": "FC6CA0D0020D0308962ED649C8CF837C8119DDD531D73E777983C4498F8A095E"
+      },
+      {
+        "suite": "MenuResources",
+        "exitCode": 0,
+        "skips": 0,
+        "namedTestsStarted": 0,
+        "namedTestsDone": 0,
+        "individuallyEnumerated": false,
+        "receiptSha256": "E12642AD5BC05306F7FF8CB6677F3141FE39E1EC5F38363F2D2FEF5955FB5BF3",
+        "executableSha256": "FC6CA0D0020D0308962ED649C8CF837C8119DDD531D73E777983C4498F8A095E"
+      },
+      {
+        "suite": "MenuResourceScaling",
+        "exitCode": 0,
+        "skips": 0,
+        "namedTestsStarted": 0,
+        "namedTestsDone": 0,
+        "individuallyEnumerated": false,
+        "receiptSha256": "79A2FF617462F37EF7715BFC9F226435E3670C2D5168D7C6A738381B92D9CFCB",
+        "executableSha256": "FC6CA0D0020D0308962ED649C8CF837C8119DDD531D73E777983C4498F8A095E"
+      },
+      {
+        "suite": "NativeTextInput",
+        "exitCode": 0,
+        "skips": 0,
+        "namedTestsStarted": 172,
+        "namedTestsDone": 172,
+        "individuallyEnumerated": true,
+        "receiptSha256": "18B0068A0FB5D9F1B412A97FF522D5B3633129D920A1220070BCA73B95824AA4",
+        "executableSha256": "FC6CA0D0020D0308962ED649C8CF837C8119DDD531D73E777983C4498F8A095E"
+      }
+    ],
+    "newMenuCases": [
+      "TestMenuPopupAcrylicLightVisualBaseline",
+      "TestMenuPopupAcrylicDarkPointerParkingClearsHover"
+    ],
+    "interactiveLease": {
+      "mode": "local-approved-auto-start",
+      "durationSeconds": 30,
+      "state": "completed",
+      "foreground": "unchanged",
+      "focus": "unchanged",
+      "cursor": "unchanged",
+      "leaseExecutableSha256": "53C01BAEB071796AC084F12290600F23A6A1EAF969051617E74ED637239D069C",
+      "planSha256": "64568FC79C97A9E552C2941C1084178706036F6003A3D2B785C7A25FBD514BAF",
+      "resultSha256": "06169357D609CCBF84E5EF370FAFECB17036E2372172EFD9D749711BC98EC908"
+    },
+    "localControlExecutableSha256": "FC6CA0D0020D0308962ED649C8CF837C8119DDD531D73E777983C4498F8A095E",
+    "embeddedExecutableSha256": "B14C6797566F6A1DD34AAE4AEC0D30E97FF23E5A120B6A254E09ACB471480AD1",
+    "performanceRunUnpaired": true,
+    "physicalImeEvidence": false,
+    "publicRunLabel": "local-x64-release-interactive-2026-10-26"
+  },
+  "buildAdmission": {
+    "attestationOutcome": "PASSED",
+    "attestationIdentity": "e4bb51aa4a7d6390330871b033e13aa7d22843a43e73a46d6e943fa6e4f25be2",
+    "attestationDigest": "dc6c683a22997b285367d1d69d39c50061d47a27e50e3f07c673f29d92474404",
+    "buildJsonSha256": "01D8DCF8017890D54E7B3D0397BD1233517705A1053F6DD22A2B0328E9EF1F68",
+    "buildSkipped": true,
+    "readOnlyAdmissionCheck": "Assert-PerformanceBuildAttestation passed",
+    "gateSourceHashes": {
+      "testPs1": "D02B57752BE28864BD9F0F4ED4235EC86DD74B2EA65AAC76E74CCF2AED867A9E",
+      "performancePolicy": "A0C774FFBF8422307D3D0138A33CBC08B958428186DE846B87EACCBCDE7F0E01",
+      "scopedTesting": "BD8BDAE656BF08317AA6D40EEFCC7B8F921E72217F77CCAC5532DA73EA7D805E",
+      "testRunEvidence": "BC0A6C2B4563AE60AEAF28FB5B4493283361973E7A7306D115F3D64242119B63",
+      "menuTestSource": "0DACA1D8A4048B5D5A25D86804E25A0957DD3F3A3BBDAB0895183F3946AF257F",
+      "nativeTextInputTestSource": "B8627471D45871793DF0438A962BDD0CAF59FE51AB2F35EBA9658AF1AF0F8D6F"
+    }
+  },
+  "limitations": [
+    "Hosted ARM profiles did not provide a verified focus capture; cursor restoration is separately recorded.",
+    "The local lease reports unchanged foreground, focus, and cursor on exit.",
+    "NativeTextInput self-tests are not evidence of physical IME behavior.",
+    "The embedded local performance report is unpaired and does not establish performance qualification.",
+    "Provider archives and local evidence bodies are not included; hashes are references only."
+  ],
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-complex-ui-v2",
+  "benchmarkInputs": {
+    "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+    "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+    "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+  },
+  "fixtureMetadataProvenance": {
+    "sourceCommit": "47a9d25995f8dc84b5ca71a2ab75ba405ed8d74a",
+    "currentSourceFilesIndependentlyHashed": 6,
+    "nativeExecutionRetagged": false,
+    "scope": "Shared mandatory Complex UI preflight metadata only; this is not the input closure of all native/menu/input suites or a quiet-host/performance acceptance claim."
+  }
+}

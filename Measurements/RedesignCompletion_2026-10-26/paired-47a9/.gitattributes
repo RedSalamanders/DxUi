@@ -1,0 +1,6 @@
+# Preserve reviewed public projection and CSV bytes on publication.
+public-projection.comparison.json -text -whitespace
+metric-rows.csv -text -whitespace
+receipt-index.csv -text -whitespace
+observer-summary.json -text -whitespace
+root-independent-replay.json -text -whitespace
