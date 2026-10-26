@@ -1,0 +1,60 @@
+{
+  "files": [
+    {
+      "file": "asan-and-consumer-summary.json",
+      "bytes": 5215,
+      "sha256": "f540551c47cbaa96ff8bed298a29e3c634cd3009cc1c7bd30b4818baed811b64"
+    },
+    {
+      "file": "input-hash-index.json",
+      "bytes": 2349,
+      "sha256": "c79829b37e691148f54d0536098f3dc8b7a43d472c5825f90917c08bae4e9c40"
+    },
+    {
+      "file": "native-and-paired-summary.json",
+      "bytes": 20040,
+      "sha256": "f5f693f945f624da431fe6ee85d1285bd6903e891ed5548df87e2b56298f055e"
+    },
+    {
+      "file": "native-profiles-and-scopes.json",
+      "bytes": 5784,
+      "sha256": "f729efb10bda81bbde8fbeae73b317eadb49bda4eacaeb3a788a1eac5a0d7a0d"
+    },
+    {
+      "file": "paired-study-and-observer.json",
+      "bytes": 3085,
+      "sha256": "4ce9de74e5fb981d420c7bdc1a900bdd1e7890370ccb2e86fa2e9b633b1948d1"
+    },
+    {
+      "file": "provider-and-payload-binding.json",
+      "bytes": 4172,
+      "sha256": "e5b123f815f5bcca550b1b42a863bc6170df0e06b44e625e4316432c89b23ffa"
+    },
+    {
+      "file": "README.md",
+      "bytes": 3961,
+      "sha256": "a88d83e520a66ca5f13ada5598a8720fede858b9d36f367445d720311a23c781"
+    },
+    {
+      "file": "source-tree-binding.json",
+      "bytes": 2209,
+      "sha256": "4186dfe171d589dc135b52100f65f9bf962f93fcc0bd7d6ead2aed5819b497e1"
+    }
+  ],
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-complex-ui-v2",
+  "benchmarkInputs": {
+    "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+    "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+    "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+  },
+  "fixtureMetadataProvenance": {
+    "sourceCommit": "3bcf7ed9d0aaa6afb14495f0e0a03232b6d3bfea",
+    "currentSourceFilesIndependentlyHashed": 6,
+    "nativeExecutionRetagged": false,
+    "scope": "Shared mandatory Complex UI preflight metadata only; this is not the input closure of all native, menu, or input suites, nor a quiet-host or performance acceptance claim."
+  }
+}

@@ -1,0 +1,121 @@
+{
+  "asan": {
+    "profiles": [
+      "native-x64-ASan Debug",
+      "native-ARM64-ASan Debug"
+    ],
+    "profileOutcome": "passed",
+    "dedicatedPositiveControlReports": [
+      {
+        "profile": "native-ARM64-ASan Debug",
+        "report": "AddressSanitizer-ARM64.json",
+        "detected": true,
+        "exitCode": 1,
+        "sha256": "A3D10D07331D61A408E0A8DDD59FFBDFE9BA93C39AB81B942076EA802EDEA32B"
+      },
+      {
+        "profile": "native-x64-ASan Debug",
+        "report": "AddressSanitizer-x64.json",
+        "detected": true,
+        "exitCode": 1,
+        "sha256": "F754E8B8AEC1C037FA5AA6B18A6F86790C93048B020ABAFA071C13F19A64E989"
+      }
+    ],
+    "interpretation": "The isolated ASan child is deliberately defective and must be diagnosed; detected=true with exitCode 1 is the expected positive control, while the enclosing native profiles passed."
+  },
+  "consumers": {
+    "reportCount": 8,
+    "allExitCodesZero": true,
+    "reports": [
+      {
+        "profile": "native-ARM64-ASan Debug",
+        "report": "ExternalConsumer-ARM64-ASan Debug-annotationsDisabledfalse.json",
+        "annotationsDisabled": false,
+        "exitCode": 0,
+        "nativeModuleChecks": 12,
+        "negativeChecks": 10,
+        "sha256": "D0751F922FDB941D952B596D558004E2F153E64411F368E178234C1E3A9A5143"
+      },
+      {
+        "profile": "native-ARM64-ASan Debug",
+        "report": "ExternalConsumer-ARM64-ASan Debug-annotationsDisabledtrue.json",
+        "annotationsDisabled": true,
+        "exitCode": 0,
+        "nativeModuleChecks": 12,
+        "negativeChecks": 10,
+        "sha256": "67589EE586D5667698E15AA3044B14C028CBD63E77497DF7DBBB2C13760C7E29"
+      },
+      {
+        "profile": "native-ARM64-Debug",
+        "report": "ExternalConsumer-ARM64-Debug-annotationsDisabledfalse.json",
+        "annotationsDisabled": false,
+        "exitCode": 0,
+        "nativeModuleChecks": 12,
+        "negativeChecks": 10,
+        "sha256": "79EC5BED6ADC51430BB4B0CA1BA6C0E1DC534B8FB590DC6ACF22403B188EA87A"
+      },
+      {
+        "profile": "native-ARM64-Release",
+        "report": "ExternalConsumer-ARM64-Release-annotationsDisabledfalse.json",
+        "annotationsDisabled": false,
+        "exitCode": 0,
+        "nativeModuleChecks": 12,
+        "negativeChecks": 10,
+        "sha256": "EB4C9DA0429CD319AABB22A86C3F07E50B5F68FB973511D825601EC606703E67"
+      },
+      {
+        "profile": "native-x64-ASan Debug",
+        "report": "ExternalConsumer-x64-ASan Debug-annotationsDisabledfalse.json",
+        "annotationsDisabled": false,
+        "exitCode": 0,
+        "nativeModuleChecks": 12,
+        "negativeChecks": 10,
+        "sha256": "D1670B2EA53865EF91D24D182FFD356A61E8EB4CECF370095E1837840C4D1249"
+      },
+      {
+        "profile": "native-x64-ASan Debug",
+        "report": "ExternalConsumer-x64-ASan Debug-annotationsDisabledtrue.json",
+        "annotationsDisabled": true,
+        "exitCode": 0,
+        "nativeModuleChecks": 12,
+        "negativeChecks": 10,
+        "sha256": "F6B40C02F50DE8AC3C50F41D4D1CA6159661441ABCD61CD369856D5CFFA65352"
+      },
+      {
+        "profile": "native-x64-Debug",
+        "report": "ExternalConsumer-x64-Debug-annotationsDisabledfalse.json",
+        "annotationsDisabled": false,
+        "exitCode": 0,
+        "nativeModuleChecks": 12,
+        "negativeChecks": 10,
+        "sha256": "57F6D4C7F5100466B357F5C0B7C8116F293D68D8436CC82F63EB6FF9F50B314E"
+      },
+      {
+        "profile": "native-x64-Release",
+        "report": "ExternalConsumer-x64-Release-annotationsDisabledfalse.json",
+        "annotationsDisabled": false,
+        "exitCode": 0,
+        "nativeModuleChecks": 12,
+        "negativeChecks": 10,
+        "sha256": "6770885FE7A7896D7CF05E7837B363547DBE986E2D964206B39FD6D98F5E6C15"
+      }
+    ],
+    "limit": "These reports are specific CI consumer checks, not blanket downstream-consumer or release qualification."
+  },
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-complex-ui-v2",
+  "benchmarkInputs": {
+    "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+    "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+    "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+  },
+  "fixtureMetadataProvenance": {
+    "sourceCommit": "3bcf7ed9d0aaa6afb14495f0e0a03232b6d3bfea",
+    "currentSourceFilesIndependentlyHashed": 6,
+    "nativeExecutionRetagged": false,
+    "scope": "Shared mandatory Complex UI preflight metadata only; this is not the input closure of all native, menu, or input suites, nor a quiet-host or performance acceptance claim."
+  }
+}

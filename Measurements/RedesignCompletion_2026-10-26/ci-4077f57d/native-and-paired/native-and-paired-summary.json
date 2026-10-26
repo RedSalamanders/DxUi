@@ -1,0 +1,483 @@
+{
+  "schema": "dxui-ci-native-and-paired-public-evidence-v1",
+  "source": {
+    "workflowHead": "4077f57df8207eac6c39c43437feb45b19d23cf8",
+    "workflowHeadTree": "18be66885916f67cafd8aeb761207bf15fbd9120",
+    "measuredBase": "5a6ea951527ed29c696a0be3ab7ea4171f2c153e",
+    "measuredCandidate": "646b257a4bbf6fdcf252d137d121e2d3ac246d07",
+    "measuredCandidateTree": "18be66885916f67cafd8aeb761207bf15fbd9120",
+    "treesIdentical": true,
+    "mergeParents": [
+      "5a6ea951527ed29c696a0be3ab7ea4171f2c153e",
+      "4077f57df8207eac6c39c43437feb45b19d23cf8"
+    ],
+    "baselineFingerprint": "08974569F59F2A6CB7041C6A764746940C90AF48077DA123B79D3630B3915C58",
+    "candidateFingerprint": "55F2CEC7CB78321A3F857FF401442C5530B06BA491D18FDBFCC6BB96B507B90A",
+    "sourceProofHashes": {
+      "headApiResponseSha256": "64E2339013620AF555A715134C7367330D8E57E6781763064051390BFB2FEB81",
+      "mergeApiResponseSha256": "18D3DDDD46A242067DC5F0412D14E35CB07158A286C6D2851AF5B695AC24BF2C",
+      "workflowApiResponseSha256": "96ED9CAE914233F11EF54C95576A7DDD04786B1134C78A4E8A379BE2F38CDA9E"
+    }
+  },
+  "workflow": {
+    "runConclusion": "failure",
+    "jobs": {
+      "windowsTooling": "success",
+      "format": "success",
+      "nativeScope": "success",
+      "validation": "success",
+      "nativeProfileJobs": {
+        "count": 6,
+        "successful": true
+      },
+      "pairedBenchmark": "failure",
+      "ciGate": "failure"
+    },
+    "gateCause": "The paired job failed because baseline policy was not independently qualified; ci-gate then failed as a consequence."
+  },
+  "native": {
+    "uniqueProfiles": 6,
+    "performanceReports": 7,
+    "allProfilesPassed": true,
+    "allReportsBoundToMerge": true,
+    "profiles": [
+      {
+        "profile": "native-ARM64-ASan Debug",
+        "testLogCount": 22,
+        "casesStarted": 1894,
+        "casesCompleted": 1894,
+        "failOrErrorMarkers": 0
+      },
+      {
+        "profile": "native-ARM64-Debug",
+        "testLogCount": 21,
+        "casesStarted": 1894,
+        "casesCompleted": 1894,
+        "failOrErrorMarkers": 0
+      },
+      {
+        "profile": "native-ARM64-Release",
+        "testLogCount": 21,
+        "casesStarted": 1894,
+        "casesCompleted": 1894,
+        "failOrErrorMarkers": 0
+      },
+      {
+        "profile": "native-x64-ASan Debug",
+        "testLogCount": 22,
+        "casesStarted": 1894,
+        "casesCompleted": 1894,
+        "failOrErrorMarkers": 0
+      },
+      {
+        "profile": "native-x64-Debug",
+        "testLogCount": 21,
+        "casesStarted": 1894,
+        "casesCompleted": 1894,
+        "failOrErrorMarkers": 0
+      },
+      {
+        "profile": "native-x64-Release",
+        "testLogCount": 23,
+        "casesStarted": 1894,
+        "casesCompleted": 1894,
+        "failOrErrorMarkers": 0
+      }
+    ],
+    "performanceReportReceipts": [
+      {
+        "profile": "native-ARM64-ASan Debug",
+        "reportSha256": "E76BD996F6EB7036BE123B5E00921B17A2D4607AB75ACC7E656676390430BE2C",
+        "sourceCommit": "646b257a4bbf6fdcf252d137d121e2d3ac246d07",
+        "sourceFingerprint": "55F2CEC7CB78321A3F857FF401442C5530B06BA491D18FDBFCC6BB96B507B90A",
+        "configuration": "ASan Debug",
+        "platform": "ARM64",
+        "nativeArchitecture": "Arm64",
+        "identityStatus": "verifiable",
+        "identityScope": "full"
+      },
+      {
+        "profile": "native-ARM64-Debug",
+        "reportSha256": "92F4A3D95F78E441DCC05E19DC87BA88F678D5D7EB12317A0C1D7E670E2A0862",
+        "sourceCommit": "646b257a4bbf6fdcf252d137d121e2d3ac246d07",
+        "sourceFingerprint": "55F2CEC7CB78321A3F857FF401442C5530B06BA491D18FDBFCC6BB96B507B90A",
+        "configuration": "Debug",
+        "platform": "ARM64",
+        "nativeArchitecture": "Arm64",
+        "identityStatus": "verifiable",
+        "identityScope": "full"
+      },
+      {
+        "profile": "native-ARM64-Release",
+        "reportSha256": "C4EEA7276578496A1C9254CF5E2582C34DAA30DA702828229EB909CD5FAB3E0B",
+        "sourceCommit": "646b257a4bbf6fdcf252d137d121e2d3ac246d07",
+        "sourceFingerprint": "55F2CEC7CB78321A3F857FF401442C5530B06BA491D18FDBFCC6BB96B507B90A",
+        "configuration": "Release",
+        "platform": "ARM64",
+        "nativeArchitecture": "Arm64",
+        "identityStatus": "verifiable",
+        "identityScope": "full"
+      },
+      {
+        "profile": "native-x64-ASan Debug",
+        "reportSha256": "4A7487239CCF09F64812D3CEC2934CBDA45209408EB39B65EBB0E84E8EA63E58",
+        "sourceCommit": "646b257a4bbf6fdcf252d137d121e2d3ac246d07",
+        "sourceFingerprint": "55F2CEC7CB78321A3F857FF401442C5530B06BA491D18FDBFCC6BB96B507B90A",
+        "configuration": "ASan Debug",
+        "platform": "x64",
+        "nativeArchitecture": "X64",
+        "identityStatus": "verifiable",
+        "identityScope": "full"
+      },
+      {
+        "profile": "native-x64-Debug",
+        "reportSha256": "BA4214F0B4213ACBBC9715CE3652AC386D1F171955BA6B4B6E9F1CF948C19377",
+        "sourceCommit": "646b257a4bbf6fdcf252d137d121e2d3ac246d07",
+        "sourceFingerprint": "55F2CEC7CB78321A3F857FF401442C5530B06BA491D18FDBFCC6BB96B507B90A",
+        "configuration": "Debug",
+        "platform": "x64",
+        "nativeArchitecture": "X64",
+        "identityStatus": "verifiable",
+        "identityScope": "full"
+      },
+      {
+        "profile": "native-x64-Release",
+        "reportSha256": "93D86C5ED0ADAE4541C1E49C30897618751061961929C23BBA38B52EBA535A1A",
+        "sourceCommit": "646b257a4bbf6fdcf252d137d121e2d3ac246d07",
+        "sourceFingerprint": "55F2CEC7CB78321A3F857FF401442C5530B06BA491D18FDBFCC6BB96B507B90A",
+        "configuration": "Release",
+        "platform": "x64",
+        "nativeArchitecture": "X64",
+        "identityStatus": "verifiable",
+        "identityScope": "full"
+      },
+      {
+        "profile": "native-x64-Release",
+        "reportSha256": "4176C881F915CFD71B0C06AB33325D355AC36AF1E24D21825E1CD4535B7EFB1D",
+        "sourceCommit": "646b257a4bbf6fdcf252d137d121e2d3ac246d07",
+        "sourceFingerprint": "55F2CEC7CB78321A3F857FF401442C5530B06BA491D18FDBFCC6BB96B507B90A",
+        "configuration": "Release",
+        "platform": "x64",
+        "nativeArchitecture": "X64",
+        "identityStatus": "verifiable",
+        "identityScope": "full"
+      }
+    ]
+  },
+  "asan": {
+    "profiles": [
+      "native-x64-ASan Debug",
+      "native-ARM64-ASan Debug"
+    ],
+    "profileOutcome": "passed",
+    "dedicatedPositiveControlReports": [
+      {
+        "profile": "native-ARM64-ASan Debug",
+        "report": "AddressSanitizer-ARM64.json",
+        "detected": true,
+        "exitCode": 1,
+        "sha256": "A3D10D07331D61A408E0A8DDD59FFBDFE9BA93C39AB81B942076EA802EDEA32B"
+      },
+      {
+        "profile": "native-x64-ASan Debug",
+        "report": "AddressSanitizer-x64.json",
+        "detected": true,
+        "exitCode": 1,
+        "sha256": "F754E8B8AEC1C037FA5AA6B18A6F86790C93048B020ABAFA071C13F19A64E989"
+      }
+    ],
+    "interpretation": "The isolated ASan child is deliberately defective and must be diagnosed; detected=true with exitCode 1 is the expected positive control, while the enclosing native profiles passed."
+  },
+  "consumers": {
+    "reportCount": 8,
+    "allExitCodesZero": true,
+    "reports": [
+      {
+        "profile": "native-ARM64-ASan Debug",
+        "report": "ExternalConsumer-ARM64-ASan Debug-annotationsDisabledfalse.json",
+        "annotationsDisabled": false,
+        "exitCode": 0,
+        "nativeModuleChecks": 12,
+        "negativeChecks": 10,
+        "sha256": "D0751F922FDB941D952B596D558004E2F153E64411F368E178234C1E3A9A5143"
+      },
+      {
+        "profile": "native-ARM64-ASan Debug",
+        "report": "ExternalConsumer-ARM64-ASan Debug-annotationsDisabledtrue.json",
+        "annotationsDisabled": true,
+        "exitCode": 0,
+        "nativeModuleChecks": 12,
+        "negativeChecks": 10,
+        "sha256": "67589EE586D5667698E15AA3044B14C028CBD63E77497DF7DBBB2C13760C7E29"
+      },
+      {
+        "profile": "native-ARM64-Debug",
+        "report": "ExternalConsumer-ARM64-Debug-annotationsDisabledfalse.json",
+        "annotationsDisabled": false,
+        "exitCode": 0,
+        "nativeModuleChecks": 12,
+        "negativeChecks": 10,
+        "sha256": "79EC5BED6ADC51430BB4B0CA1BA6C0E1DC534B8FB590DC6ACF22403B188EA87A"
+      },
+      {
+        "profile": "native-ARM64-Release",
+        "report": "ExternalConsumer-ARM64-Release-annotationsDisabledfalse.json",
+        "annotationsDisabled": false,
+        "exitCode": 0,
+        "nativeModuleChecks": 12,
+        "negativeChecks": 10,
+        "sha256": "EB4C9DA0429CD319AABB22A86C3F07E50B5F68FB973511D825601EC606703E67"
+      },
+      {
+        "profile": "native-x64-ASan Debug",
+        "report": "ExternalConsumer-x64-ASan Debug-annotationsDisabledfalse.json",
+        "annotationsDisabled": false,
+        "exitCode": 0,
+        "nativeModuleChecks": 12,
+        "negativeChecks": 10,
+        "sha256": "D1670B2EA53865EF91D24D182FFD356A61E8EB4CECF370095E1837840C4D1249"
+      },
+      {
+        "profile": "native-x64-ASan Debug",
+        "report": "ExternalConsumer-x64-ASan Debug-annotationsDisabledtrue.json",
+        "annotationsDisabled": true,
+        "exitCode": 0,
+        "nativeModuleChecks": 12,
+        "negativeChecks": 10,
+        "sha256": "F6B40C02F50DE8AC3C50F41D4D1CA6159661441ABCD61CD369856D5CFFA65352"
+      },
+      {
+        "profile": "native-x64-Debug",
+        "report": "ExternalConsumer-x64-Debug-annotationsDisabledfalse.json",
+        "annotationsDisabled": false,
+        "exitCode": 0,
+        "nativeModuleChecks": 12,
+        "negativeChecks": 10,
+        "sha256": "57F6D4C7F5100466B357F5C0B7C8116F293D68D8436CC82F63EB6FF9F50B314E"
+      },
+      {
+        "profile": "native-x64-Release",
+        "report": "ExternalConsumer-x64-Release-annotationsDisabledfalse.json",
+        "annotationsDisabled": false,
+        "exitCode": 0,
+        "nativeModuleChecks": 12,
+        "negativeChecks": 10,
+        "sha256": "6770885FE7A7896D7CF05E7837B363547DBE986E2D964206B39FD6D98F5E6C15"
+      }
+    ],
+    "limit": "These reports are specific CI consumer checks, not blanket downstream-consumer or release qualification."
+  },
+  "pairedStudy": {
+    "baseline": "5a6ea951527ed29c696a0be3ab7ea4171f2c153e",
+    "candidate": "646b257a4bbf6fdcf252d137d121e2d3ac246d07",
+    "configuration": "Release",
+    "platform": "x64",
+    "blocks": 12,
+    "seed": 935113775,
+    "verdict": "inconclusive",
+    "policyTrusted": false,
+    "policyStatus": "policy-review-required",
+    "policyReason": "The base policy is not independently qualified; its verdict cannot establish a candidate pass.",
+    "strictControls": false,
+    "metricRows": 78,
+    "scenarios": [
+      {
+        "scenario": "Default",
+        "metricRows": 26,
+        "regressed": 0,
+        "improved": 0
+      },
+      {
+        "scenario": "MultilineGrid",
+        "metricRows": 26,
+        "regressed": 0,
+        "improved": 0
+      },
+      {
+        "scenario": "MultilineGridDistinct",
+        "metricRows": 26,
+        "regressed": 0,
+        "improved": 0
+      }
+    ],
+    "controls": {
+      "comparisons": 72,
+      "adviceRequired": 62,
+      "withinNoiseBudget": 10,
+      "metricObservations": 1872,
+      "outsideBandObservations": 163
+    },
+    "metricsCsvSha256": "F08501DCA593AB4FE7C73916236511E093C1AE221697B7D3CB61512F67B9DE0F"
+  },
+  "observer": {
+    "sampleCount": 6425,
+    "rawStreamSha256": "4BB6A42610291FB5DA897614DACB569D9BB9AE75B61DD5185CE511C792AF1315",
+    "startedUtc": "2026-10-26T07:36:05.1262107Z",
+    "completedUtc": "2026-10-26T09:26:11.3259542Z",
+    "completionReason": "stop-requested",
+    "medianGapSeconds": 1.0036373,
+    "p95GapSeconds": 1.0296191,
+    "maxGapSeconds": 9.7578385,
+    "gapsOver2Seconds": 46,
+    "weightedWholeHostBusyPct": 35.79228704218357,
+    "scope": "Aggregate whole-host counters include benchmark, observer and other processes; no causal attribution.",
+    "qualification": "Not a quiet-host qualification."
+  },
+  "scopeLogReplay": {
+    "nativeScopeSelection": "17 changed paths; 12 non-documentation paths",
+    "profiles": [
+      {
+        "profile": "native-ARM64-ASan Debug",
+        "testLogCount": 22,
+        "casesStarted": 1894,
+        "casesCompleted": 1894,
+        "failOrErrorMarkers": 0
+      },
+      {
+        "profile": "native-ARM64-Debug",
+        "testLogCount": 21,
+        "casesStarted": 1894,
+        "casesCompleted": 1894,
+        "failOrErrorMarkers": 0
+      },
+      {
+        "profile": "native-ARM64-Release",
+        "testLogCount": 21,
+        "casesStarted": 1894,
+        "casesCompleted": 1894,
+        "failOrErrorMarkers": 0
+      },
+      {
+        "profile": "native-x64-ASan Debug",
+        "testLogCount": 22,
+        "casesStarted": 1894,
+        "casesCompleted": 1894,
+        "failOrErrorMarkers": 0
+      },
+      {
+        "profile": "native-x64-Debug",
+        "testLogCount": 21,
+        "casesStarted": 1894,
+        "casesCompleted": 1894,
+        "failOrErrorMarkers": 0
+      },
+      {
+        "profile": "native-x64-Release",
+        "testLogCount": 23,
+        "casesStarted": 1894,
+        "casesCompleted": 1894,
+        "failOrErrorMarkers": 0
+      }
+    ],
+    "testLogCount": 130,
+    "testLogAggregateSha256": "ACC1E5BB38794419AA7FBC49288C3545C17B6F2FF02D3DE2967BC00B9E6B6CBB",
+    "recipe": "UTF-8 SHA-256 of sorted profile|suiteLog|bytes|sha256 lines, newline-terminated."
+  },
+  "payload": {
+    "pairedZipSha256": "C6DBAD4F66AF9B1FF7C8879996DDBFA8365845F3523C000B2D7AFE9B5EF47CF4",
+    "pairedZipBytes": 171782569,
+    "pairedZipEntries": 471,
+    "entryInventorySha256": "A6EDF25C868E1C0F62124A038E9EAB9147CA8E0DC3821687F71CC4AF1F79A842",
+    "scenarioReceiptRows": 144,
+    "scenarioReceiptsRehashed": 144,
+    "scenarioReceiptManifestSha256": "A522B80D978F43225A8BAFBB5E6C5DD0A7F41DDDE6C7CCCFA2A5D0B7234C592C",
+    "extractedPayloadRows": 444,
+    "extractedPayloadRehashed": 444,
+    "extractedManifestSha256": "7D27F2482CC91D33C303514F32719E15DBE01B9BB4A521CB14286CFC870C9380",
+    "providerZipDigests": [
+      {
+        "name": "native-ARM64-ASan Debug",
+        "bytes": 2955930,
+        "sha256": "33B31B926F78EA923D945072D87AD8FEE6BF274D67887FB663158FFD65BFB084",
+        "providerDigest": "sha256:33b31b926f78ea923d945072d87ad8fee6bf274d67887fb663158ffd65bfb084",
+        "verified": true
+      },
+      {
+        "name": "native-ARM64-Release",
+        "bytes": 2924096,
+        "sha256": "0967920877CEFA17B3A2FFC26FE83CBCDB25393FB1A5C04EE42150A2834BF07A",
+        "providerDigest": "sha256:0967920877cefa17b3a2ffc26fe83cbcdb25393fb1a5c04ee42150a2834bf07a",
+        "verified": true
+      },
+      {
+        "name": "native-x64-ASan Debug",
+        "bytes": 2947602,
+        "sha256": "3F61FAA3B7498D8588A09B3DDAFC779E3AD238E35A84240867BABCE8B8C71CAC",
+        "providerDigest": "sha256:3f61faa3b7498d8588a09b3ddafc779e3ad238e35a84240867babce8b8c71cac",
+        "verified": true
+      },
+      {
+        "name": "native-x64-Release",
+        "bytes": 3049690,
+        "sha256": "6B4006E077BA05A718899A21995E45DA9D662290B677DC5595074B1E19C621CA",
+        "providerDigest": "sha256:6b4006e077ba05a718899a21995e45da9d662290b677dc5595074b1e19c621ca",
+        "verified": true
+      },
+      {
+        "name": "native-x64-Debug",
+        "bytes": 2928210,
+        "sha256": "22ECB7EBE5C4C8D4CF5A39A679FC4774E9A41EF4BCCEC4F9F85248535827A1AE",
+        "providerDigest": "sha256:22ecb7ebe5c4c8d4cf5a39a679fc4774e9a41ef4bccec4f9f85248535827a1ae",
+        "verified": true
+      },
+      {
+        "name": "native-ARM64-Debug",
+        "bytes": 2931592,
+        "sha256": "D9A376129ADB79014D8AD683C34D6309EA9AA2BC2E672C70D406F11CC563CF72",
+        "providerDigest": "sha256:d9a376129adb79014d8ad683c34d6309ea9aa2bc2e672c70d406f11cc563cf72",
+        "verified": true
+      },
+      {
+        "name": "docs-gallery-x64-Release",
+        "bytes": 2492354,
+        "sha256": "5D5DBA16656814A10868F2C015C167285C64206DB46CDD3BF9A43BCCB6B405BF",
+        "providerDigest": "sha256:5d5dba16656814a10868f2c015c167285c64206db46cdd3bf9a43bccb6b405bf",
+        "verified": true
+      },
+      {
+        "name": "paired-benchmark-x64-Release",
+        "bytes": 171782569,
+        "sha256": "C6DBAD4F66AF9B1FF7C8879996DDBFA8365845F3523C000B2D7AFE9B5EF47CF4",
+        "providerDigest": "sha256:c6dbad4f66af9b1ff7c8879996ddbfa8365845f3523c000b2d7afe9b5ef47cf4",
+        "verified": true
+      }
+    ],
+    "noPEPDBorRawArchiveCopied": true
+  },
+  "inputHashes": {
+    "source-binding-final.json": "73D1A299CEC8FCAEBB5D839DF0BF9565AFC203811B4F68757CCF33897DBEF019",
+    "capture-summary-final.json": "23F3DF95F8F9EE91121AAE82FE8FC86482C25F7EEB4DBAB1707537FA3484BA08",
+    "provider-zip-hashes-final.json": "2B5CA816F0C71EEB493CB3B8E7DFAB6D8C6A820CC1F161EA7944BC60C2F953AF",
+    "paired-zip-entry-inventory.json": "A6EDF25C868E1C0F62124A038E9EAB9147CA8E0DC3821687F71CC4AF1F79A842",
+    "scenario-metrics-final.csv": "F08501DCA593AB4FE7C73916236511E093C1AE221697B7D3CB61512F67B9DE0F",
+    "receipt-sha256-final.json": "A522B80D978F43225A8BAFBB5E6C5DD0A7F41DDDE6C7CCCFA2A5D0B7234C592C",
+    "extracted-sha256-final.json": "7D27F2482CC91D33C303514F32719E15DBE01B9BB4A521CB14286CFC870C9380",
+    "jobs-final.json": "CA96978961725A2520EABC790FA8ADCD20EB72088EEFE7F008780855ABE18848",
+    "run-view-final.json": "E76FC7DB7A9DB5810D6B98D727538427298F54A56959265A3055192A207E38BA",
+    "paired-job-final.log": "20885899566D8DCD82BFC35C9DEF70F9FD7FE3BB1347800E4A5AF0D2EB0D34B5",
+    "ci-gate-job-final.log": "EBB2F4ECB5F4D7E032F3E23F98309CBB631F7A8A691FFA06DC1D513951E891DA"
+  },
+  "limits": [
+    "Workflow head 4077f57df8207eac6c39c43437feb45b19d23cf8, measured candidate 646b257a4bbf6fdcf252d137d121e2d3ac246d07 and baseline 5a6ea951527ed29c696a0be3ab7ea4171f2c153e are distinct roles.",
+    "Measured candidate and workflow head share tree 18be66885916f67cafd8aeb761207bf15fbd9120.",
+    "StrictControls=false is a recorded setting, not another failure cause. 62/72 unstable controls and 163/1872 outside-band observations are limitations, not candidate regressions.",
+    "No quiet-host, full focus/input, or physical native IME qualification is claimed.",
+    "Raw paths, machine names, process IDs, PE/PDBs and large ZIP payloads are omitted; original input and payload hashes are retained."
+  ],
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-complex-ui-v2",
+  "benchmarkInputs": {
+    "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+    "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+    "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+  },
+  "fixtureMetadataProvenance": {
+    "sourceCommit": "3bcf7ed9d0aaa6afb14495f0e0a03232b6d3bfea",
+    "currentSourceFilesIndependentlyHashed": 6,
+    "nativeExecutionRetagged": false,
+    "scope": "Shared mandatory Complex UI preflight metadata only; this is not the input closure of all native, menu, or input suites, nor a quiet-host or performance acceptance claim."
+  }
+}
