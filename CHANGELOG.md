@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- In the unpublished source-ink experiment, accept exact source CR/LF callbacks with zero glyphs without painting; preserve conservative refusal for other empty callbacks. The expanded focused Release raster test passes LF/CRLF and 26/32/33-span cases after reproducing the original LF rejection. Actual app admission, full qualification and performance benefit remain unproven.
 - Experimental branch only: expand the bounded source-ink span capacity to 32 and add full-pixel 26/32-range admission and 33-range rejection checks, with wider typography and target-replacement coverage. Native execution, actual consumer eligibility and any performance benefit remain unverified; no consumer adopts this prototype.
 - Record WindowHost Update-stage elapsed time on every exit, including deferred preparation and resource failure, and add native coverage for pending and completed preparation through both render entry points; native execution remains pending.
 - Reasserting an adopted Markdown snapshot now cancels superseded pending parsing while retaining the same immutable publication. A retained native probe demonstrates the prior failure; the parser regression checks cancellation and wrapper identity together. Final qualification remains tracked separately.

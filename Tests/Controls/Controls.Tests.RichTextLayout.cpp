@@ -523,6 +523,34 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
         context->Clear(D2D1::ColorF(0u, 0.0f));
         const auto result =
             Detail::DrawSourceInkIfSupported(context.get(), white.get(), fastLayout.get(), positioning, textOffset, value, presentation, origin);
+        if (result != Detail::SourceInkDrawResult::Drawn)
+        {
+            auto diagnostic = Microsoft::WRL::Make<SourceInkDiagnosticRenderer>(context.get(), value.text, &presentation, positioning, textOffset);
+            Require(diagnostic.Get() != nullptr, "diagnostic renderer is allocated after bounded fixture rejection");
+            const auto diagnosticResult = fastLayout->Draw(nullptr, diagnostic.Get(), origin.x, origin.y);
+            std::cerr << std::format("[SOURCE INK FIXTURE] result={} diagnosticHr=0x{:08X} units={} ranges={} fontSize={} lineHeight={} offset={} runs={}\n",
+                                     static_cast<unsigned>(result),
+                                     static_cast<unsigned>(diagnosticResult),
+                                     value.text.size(),
+                                     presentation.inkRanges.size(),
+                                     layoutOptions.fontSizeDip,
+                                     layoutOptions.lineHeightMultiplier,
+                                     textOffset,
+                                     diagnostic->Runs().size());
+            for (const auto& run : diagnostic->Runs())
+                std::cerr << std::format(
+                    "[SOURCE INK FIXTURE RUN] pos={} glyphs={} units={} bidi={} textMatch={} mono={} color={} effect={} sideways={} clusters={}\n",
+                    run.position,
+                    run.glyphCount,
+                    run.stringLength,
+                    run.bidiLevel,
+                    run.textMatch,
+                    run.monospaced,
+                    run.colorFont,
+                    run.effect,
+                    run.sideways,
+                    run.clusterMap);
+        }
         Require(result == Detail::SourceInkDrawResult::Drawn, "eligible typography and ink input is admitted to the direct renderer");
         THROW_IF_FAILED(context->EndDraw());
         std::vector<uint8_t> fastPixels;
@@ -795,7 +823,7 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
                                            Detail::SourceInkDrawResult::Rejected,
                                            "combining-cluster range boundary rejects before painting");
 
-    const auto requireBoundedSpanAdmission = [&](std::size_t rangeCount, Detail::SourceInkDrawResult expected, bool expectPaint)
+    const auto requireBoundedSpanAdmission = [&](std::size_t rangeCount, std::wstring_view lineBreak, Detail::SourceInkDrawResult expected, bool expectPaint)
     {
         FLOAT priorDpiX{}, priorDpiY{};
         context->GetDpi(&priorDpiX, &priorDpiY);
@@ -814,7 +842,7 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
         for (std::size_t index = 0u; index < rangeCount; ++index)
         {
             if (index != 0u)
-                manyLines.text.push_back(L'\n');
+                manyLines.text.append(lineBreak);
             const auto first = manyLines.text.size();
             manyLines.text.push_back(L'x');
             manyInk.push_back({{first, first + 1u}, index % 2u ? TextInkRole::Link : TextInkRole::Accent});
@@ -828,7 +856,7 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
         constexpr FLOAT testDpi                                          = 120.0f;
         context->SetDpi(testDpi, testDpi);
         context->SetTransform(D2D1::Matrix3x2F::Identity());
-        constexpr auto origin = D2D1::Point2F(8.0f, 8.0f);
+        const auto origin = D2D1::Point2F(8.0f, 8.0f);
         DWRITE_TEXT_METRICS metrics{};
         THROW_IF_FAILED(manyLayout->GetMetrics(&metrics));
         const FLOAT pixelsPerDip    = testDpi / 96.0f;
@@ -851,9 +879,39 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
             Require(! expectPaint, "range overflow is expected to leave the target unpainted");
         }
     };
-    requireBoundedSpanAdmission(26u, Detail::SourceInkDrawResult::Drawn, true);
-    requireBoundedSpanAdmission(32u, Detail::SourceInkDrawResult::Drawn, true);
-    requireBoundedSpanAdmission(33u, Detail::SourceInkDrawResult::Rejected, false);
+    requireBoundedSpanAdmission(26u, L"\n", Detail::SourceInkDrawResult::Drawn, true);
+    requireBoundedSpanAdmission(32u, L"\n", Detail::SourceInkDrawResult::Drawn, true);
+    requireBoundedSpanAdmission(26u, L"\r\n", Detail::SourceInkDrawResult::Drawn, true);
+    requireBoundedSpanAdmission(33u, L"\n", Detail::SourceInkDrawResult::Rejected, false);
+
+    const auto requireEmptyRunPolicy =
+        [&](std::wstring_view source, std::wstring_view callbackText, UINT32 position, bool sideways, UINT32 bidi, bool withEffect, bool accepted)
+    {
+        LinkDrawing emptyDrawing;
+        const std::array emptyInk{TextInkRange{{0u, 1u}, TextInkRole::Accent}};
+        emptyDrawing.inkRanges                                            = emptyInk;
+        emptyDrawing.inkBrushes[static_cast<size_t>(TextInkRole::Accent)] = red.get();
+        Detail::SourceInkRenderer renderer(context.get(), white.get(), &emptyDrawing, nullptr, 0u, source);
+        DWRITE_GLYPH_RUN run{};
+        run.isSideways = sideways;
+        run.bidiLevel  = bidi;
+        DWRITE_GLYPH_RUN_DESCRIPTION description{};
+        description.string       = callbackText.data();
+        description.stringLength = static_cast<UINT32>(callbackText.size());
+        description.textPosition = position;
+        const auto result = renderer.DrawGlyphRun(nullptr, 0.0f, 0.0f, DWRITE_MEASURING_MODE_NATURAL, &run, &description, withEffect ? red.get() : nullptr);
+        Require((result == S_OK) == accepted && renderer.Accepted() == accepted,
+                "only exact source CR/LF callbacks without ink, effects, sideways or odd-bidi state are accepted");
+    };
+    requireEmptyRunPolicy(L"\n", L"\n", 0u, false, 0u, false, true);
+    requireEmptyRunPolicy(L"\r", L"\r", 0u, false, 0u, false, true);
+    requireEmptyRunPolicy(L"\r\n", L"\r\n", 0u, false, 0u, false, true);
+    requireEmptyRunPolicy(L"a", L"\n", 0u, false, 0u, false, false);
+    requireEmptyRunPolicy(L"\t", L"\t", 0u, false, 0u, false, false);
+    requireEmptyRunPolicy(L"\n", L"\n", 1u, false, 0u, false, false);
+    requireEmptyRunPolicy(L"\n", L"\n", 0u, true, 0u, false, false);
+    requireEmptyRunPolicy(L"\n", L"\n", 0u, false, 1u, false, false);
+    requireEmptyRunPolicy(L"\n", L"\n", 0u, false, 0u, true, false);
 
     auto selectionDrawing         = directDrawing;
     selectionDrawing.inkExclusion = MarkdownRange{8u, 12u};

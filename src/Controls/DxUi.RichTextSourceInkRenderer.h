@@ -107,7 +107,7 @@ public:
                                            const DWRITE_GLYPH_RUN_DESCRIPTION* description,
                                            IUnknown* effect) noexcept override
     {
-        if (IsPositioningPrefixLineFeed(run, description, effect))
+        if (IsPositioningPrefixLineFeed(run, description, effect) || IsNonpaintingSourceLineBreak(run, description, effect))
             return S_OK;
         if (effect || ! Eligible(run, description))
             return Reject();
@@ -177,6 +177,21 @@ private:
     {
         return positioning_ && textOffset_ == 2u && run && ! run->glyphCount && ! run->isSideways && ! effect && description && description->string &&
                description->textPosition == 1u && description->stringLength == 1u && description->string[0] == L'\n';
+    }
+    bool IsNonpaintingSourceLineBreak(const DWRITE_GLYPH_RUN* run, const DWRITE_GLYPH_RUN_DESCRIPTION* description, IUnknown* effect) const noexcept
+    {
+        // DirectWrite emits source CR/LF callbacks without glyphs or a cluster
+        // map. They advance no ink; verify the exact source interval before
+        // accepting them so other empty or malformed runs still fall back.
+        if (! run || run->glyphCount || run->isSideways || (run->bidiLevel & 1u) || effect || ! description || ! description->string ||
+            description->textPosition < textOffset_)
+            return false;
+        const auto first  = static_cast<std::size_t>(description->textPosition - textOffset_);
+        const auto length = static_cast<std::size_t>(description->stringLength);
+        if (first > layoutText_.size() || length > layoutText_.size() - first)
+            return false;
+        const std::wstring_view text(description->string, length);
+        return (text == L"\n" || text == L"\r" || text == L"\r\n") && text == layoutText_.substr(first, length);
     }
     void BuildInkSpans() noexcept
     {
