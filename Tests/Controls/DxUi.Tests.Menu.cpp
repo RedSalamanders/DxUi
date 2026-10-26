@@ -4093,6 +4093,74 @@ void TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay()
         {.text = L"B2", .commandId = 3682},
     };
 
+    MenuHoverTraceForTest trace(true);
+    ScopedMenuPointerFixture pointerFixture(ownerWindow.Hwnd());
+    POINT originalCursor{};
+    Require(GetPhysicalCursorPos(&originalCursor) != FALSE && pointerFixture.AlignCursor(originalCursor),
+            "the pointer fixture records its original position before the calibration Show");
+    POINT cursorAtB1{};
+    bool cursorAtB1Ready = false;
+    std::string calibrationFailure;
+    std::thread calibrationDriver([&]
+    {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), calibrationFailure);
+        const HWND popupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B1");
+        if (! popupHwnd)
+        {
+            calibrationFailure = "calibration popup appears before cursor alignment";
+            return;
+        }
+        const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
+
+        ContextMenuPopupDebugState popupState{};
+        D2D1_RECT_F firstItemRectDip = D2D1::RectF();
+        if (! WaitForContextMenuPopupState(popupHwnd,
+                                           [](const ContextMenuPopupDebugState& state) noexcept
+        { return state.visibleWidthDip > 0.0f && state.visibleHeightDip > 0.0f; },
+                                           popupState) ||
+            ! WaitForContextMenuPopupItemRect(popupHwnd, 0u, firstItemRectDip))
+        {
+            calibrationFailure = "calibration popup exposes B1 geometry";
+            return;
+        }
+
+        const float scale = static_cast<float>(popupState.dpi) / 96.0f;
+        cursorAtB1        = {
+            static_cast<LONG>(std::lround(((firstItemRectDip.left + firstItemRectDip.right) * 0.5f) * scale)),
+            static_cast<LONG>(std::lround(((firstItemRectDip.top + firstItemRectDip.bottom) * 0.5f) * scale)),
+        };
+        [[maybe_unused]] const ScopedMenuPointerFixture popupDpiContext(popupHwnd);
+        if (! ClientToScreen(popupHwnd, &cursorAtB1))
+        {
+            calibrationFailure = "calibration converts B1 center to screen coordinates";
+            return;
+        }
+        cursorAtB1Ready = true;
+        trace.Driver("calibration-b1-position-ready", 1u, 0u);
+        DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd());
+        if (! WaitForWindowDestroyed(popupHwnd, std::chrono::milliseconds(1200)))
+        {
+            calibrationFailure = "calibration popup closes before the repeated Show";
+        }
+    });
+
+    const ThemePalette theme                   = MakeAnimatedTestThemePalette(true);
+    const std::optional<int> calibrationResult = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
+    calibrationDriver.join();
+    if (! calibrationFailure.empty() || calibrationResult.has_value() || ! cursorAtB1Ready)
+    {
+        trace.Dump(true);
+        Require(false, calibrationFailure.empty() ? "calibration Show closes without invoking a command and records B1 position" : calibrationFailure.c_str());
+        return;
+    }
+    if (! pointerFixture.AlignCursor(cursorAtB1))
+    {
+        trace.Dump(true);
+        Require(false, "the owned cursor parks at B1 before the repeated Show");
+        return;
+    }
+    DrainPendingMouseMessagesForMenuSuite();
+
     std::string driverFailure;
     std::thread driver([&]
     {
@@ -4119,27 +4187,72 @@ void TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay()
             return;
         }
 
+        if (! DebugGetContextMenuPopupState(rootPopupHwnd, popupState) || popupState.hoveredIndex != std::optional<size_t>{0u})
+        {
+            driverFailure = std::format("reopened popup is initialized on B1: hovered={} timerActive={} pendingOpen={}",
+                                        popupState.hoveredIndex.has_value() ? static_cast<int>(popupState.hoveredIndex.value()) : -1,
+                                        popupState.hoverTimerActive,
+                                        popupState.hoverTimerPendingOpen);
+            trace.Driver("cursor-at-open-state-failed", popupState.hoverTimerActive ? 1u : 0u, popupState.hoverTimerPendingOpen ? 1u : 0u);
+            return;
+        }
+        trace.Driver("cursor-at-open-b1", popupState.hoverTimerActive ? 1u : 0u, popupState.hoverTimerPendingOpen ? 1u : 0u);
+
         const float scale = static_cast<float>(popupState.dpi) / 96.0f;
         const LONG b1X    = static_cast<LONG>(std::lround(((firstItemRectDip.left + firstItemRectDip.right) * 0.5f) * scale));
         const LONG b1Y    = static_cast<LONG>(std::lround(((firstItemRectDip.top + firstItemRectDip.bottom) * 0.5f) * scale));
         const LONG b2X    = static_cast<LONG>(std::lround(((secondItemRectDip.left + secondItemRectDip.right) * 0.5f) * scale));
         const LONG b2Y    = static_cast<LONG>(std::lround(((secondItemRectDip.top + secondItemRectDip.bottom) * 0.5f) * scale));
 
+        const size_t pointerBefore = trace.PointerDispatchCount();
         if (! SendSettledClientMouseMoveForMenuSuite(rootPopupHwnd, b1X, b1Y) ||
-            ! WaitForContextMenuPopupState(rootPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
-            return state.hoveredIndex.has_value() && state.hoveredIndex.value() == 0u;
-        }, popupState))
+            ! WaitForContextMenuPopupState(
+                rootPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept { return state.hoveredIndex == std::optional<size_t>{0u}; }, popupState) ||
+            trace.PointerDispatchCount() <= pointerBefore || ! DebugGetContextMenuPopupState(rootPopupHwnd, popupState))
         {
-            driverFailure = "hovering B1 updates the root-popup hover target before delayed submenu close";
+            driverFailure = std::format("stationary B1 move is routed: hovered={} timerActive={} pointerEvents={}",
+                                        popupState.hoveredIndex.has_value() ? static_cast<int>(popupState.hoveredIndex.value()) : -1,
+                                        popupState.hoverTimerActive,
+                                        trace.PointerDispatchCount() - pointerBefore);
+            trace.Driver("stationary-b1-state-failed", trace.PointerDispatchCount() - pointerBefore, popupState.hoverTimerActive ? 1u : 0u);
             return;
         }
+        const HWND initialSubmenu = FindOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B11");
+        trace.Driver("stationary-b1-routed", trace.PointerDispatchCount() - pointerBefore, initialSubmenu ? 1u : 0u);
+        trace.Driver("stationary-b1-timer-state", popupState.hoverTimerActive ? 1u : 0u, popupState.hoverTimerPendingOpen ? 1u : 0u);
+
+        // The cursor is already over B1 at popup creation. Move to B2 and back so
+        // the original submenu-open assertion observes a real B1 hover transition.
+        if (! SendSettledClientMouseMoveForMenuSuite(rootPopupHwnd, b2X, b2Y) ||
+            ! WaitForContextMenuPopupState(
+                rootPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept { return state.hoveredIndex == std::optional<size_t>{1u}; }, popupState) ||
+            ! SendSettledClientMouseMoveForMenuSuite(rootPopupHwnd, b1X, b1Y) ||
+            ! WaitForContextMenuPopupState(
+                rootPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept { return state.hoveredIndex == std::optional<size_t>{0u}; }, popupState))
+        {
+            driverFailure = std::format("B2-to-B1 transition restores B1 hover: hovered={} timerActive={} pendingOpen={} timerItem={}",
+                                        popupState.hoveredIndex.has_value() ? static_cast<int>(popupState.hoveredIndex.value()) : -1,
+                                        popupState.hoverTimerActive,
+                                        popupState.hoverTimerPendingOpen,
+                                        popupState.hoverTimerItemIndex.has_value() ? static_cast<int>(popupState.hoverTimerItemIndex.value()) : -1);
+            trace.Driver("b2-b1-transition-failed", popupState.hoverTimerActive ? 1u : 0u, popupState.hoverTimerPendingOpen ? 1u : 0u);
+            return;
+        }
+        const HWND submenuAfterTransition = FindOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B11");
+        trace.Driver("b2-b1-transition", popupState.hoverTimerActive ? 1u : 0u, submenuAfterTransition ? 1u : 0u);
 
         HWND submenuHwnd = nullptr;
         if (! WaitForSubmenuOpenAfterHoverForMenuSuite(ownerWindow.Hwnd(), rootPopupHwnd, 0u, L"B11", submenuHwnd, popupState))
         {
-            driverFailure = "hovering B1 long enough opens its submenu before delayed close validation";
+            driverFailure = std::format("B11 opens after a B1 hover admission: hovered={} timerActive={} pendingOpen={} timerItem={}",
+                                        popupState.hoveredIndex.has_value() ? static_cast<int>(popupState.hoveredIndex.value()) : -1,
+                                        popupState.hoverTimerActive,
+                                        popupState.hoverTimerPendingOpen,
+                                        popupState.hoverTimerItemIndex.has_value() ? static_cast<int>(popupState.hoverTimerItemIndex.value()) : -1);
+            trace.Driver("b11-open-failed", popupState.hoverTimerActive ? 1u : 0u, popupState.hoverTimerPendingOpen ? 1u : 0u);
             return;
         }
+        trace.Driver("b11-opened", 1u, 0u);
 
         if (! SendSettledClientMouseMoveForMenuSuite(rootPopupHwnd, b2X, b2Y) ||
             ! WaitForContextMenuPopupState(rootPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
@@ -4156,10 +4269,10 @@ void TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay()
         }
     });
 
-    const ThemePalette theme        = MakeAnimatedTestThemePalette(true);
     const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
     driver.join();
 
+    trace.Dump(! driverFailure.empty());
     Require(driverFailure.empty(), driverFailure.c_str());
     Require(! result.has_value(), "closing the delayed submenu-close validation popup with Escape returns no invoked command");
 }
