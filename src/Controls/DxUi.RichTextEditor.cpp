@@ -163,6 +163,35 @@ RichText::SourceSnapshot RichTextEditor::Snapshot() const noexcept
 {
     return _state->document.Snapshot();
 }
+bool RichTextEditor::SynchronizeReadOnlySourceSnapshot(const RichText::SourceSnapshot& source, RichText::Selection selection)
+{
+    if (! IsReadOnly() || GetViewMode() != RichText::ViewMode::Source)
+        return false;
+
+    const bool sourceChanged     = ! Snapshot().IsSameRevision(source);
+    const auto previousSelection = GetSelection();
+    if (! _state->document.AdoptReadOnlySourceSnapshot(source, selection))
+        return false;
+    if (! sourceChanged && previousSelection == selection)
+        return true;
+
+    if (sourceChanged)
+    {
+        _state->highlights.clear();
+        _state->images.Cancel();
+        _state->sourceEditing.reset();
+        _state->markdownCapacityRejected.reset();
+        _state->nativeGeometryRejected.reset();
+        RetireSemanticAccessibility();
+        _state->scrollDip = 0.0f;
+        RetireLayout();
+    }
+    _state->sourceCaretSite = RichText::MarkdownNoNode;
+    // Match SetText/SetSelection notification ordering, including TSF synchronization and UIA publication.
+    // Keep this as the final operation because owner callbacks may re-enter or retire the control.
+    SelectionChanged();
+    return true;
+}
 void RichTextEditor::SetDocumentFilePath(std::wstring path)
 {
     auto normalized = RichText::Detail::NormalizeDocumentFilePath(path);

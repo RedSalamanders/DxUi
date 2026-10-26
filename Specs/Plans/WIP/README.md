@@ -2,6 +2,8 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
+- **ACTIVE**: [Read-only Source snapshot synchronization](ReadOnlySourceSnapshot_2026-10-26.md). An additive owner-thread API shares immutable source storage while preserving target-local revision/history, independent parsing and reset/selection semantics. Native/embedded, callback, source-ink parity, final-profile and exact-pin consumer qualification remain open; no performance gain is claimed.
+
 - **SPEC READY**: [RichTextEditor file drag-and-drop](RichTextFileDrop_2026-10-20.md).
 Displayed image references and relative links for other files reuse the paste
 policy. Unicode OLE ownership, guarded caret insertion and native/embedded tests
@@ -28,8 +30,6 @@ math/Mermaid defects and coordinates the RedTilde completion request without dup
 The parent rich-text plan keeps its own gates.
 
 - **ACTIVE**: [Menu fixture popup readiness](PopupReadiness_2026-10-17.md). Registered hover input now precedes pending popup paint; a deterministic paint-stream case fails against the old library and passes with the priority fix. PR #85's post-merge run completes 110/110 Menu cases and both hover regressions in all six native profiles, with zero skips. A 25 October merged-main run passes five native profiles but again fails ARM64 Debug in the overlapping-popup root-switch guard; the pointer callback accepts a root switch, while the captured event source/HWND/point are unavailable. A focused test-only trace now captures pointer routes and checks probe posting; native execution and attribution remain pending. Original untraced failures, ARM64 focus restoration and shared qualification remain open in the qualification ledger.
-
-- **ACTIVE**: [Acrylic menu visual-capture pointer fixture](MenuAcrylicVisualCapturePointer_2026-10-25.md). The ARM64 Release visual-baseline failure only recorded a combined geometry-and-hover timeout, so its exact failed predicate is unknown. The light baseline now waits for modal capture and geometry separately, proves physical row hover then shadow-margin clearing, and captures only after unhovered state; dark Acrylic has matching pointer coverage. No product cause is established. Root review and native Menu validation remain pending.
 
 - **ACTIVE**: [Production review and remediation](ProductionReview_2026-10-05.md). Requested ten-day review covers #28-#68, with the earlier #21-#65 review retained for context. The approved automatic-Start candidate has six builds and 69 passing x64 suite executions: 57 noninteractive and all four focus suites in Debug, Release and ASan Debug, with zero native skips and verified restoration. Earlier failures, refusals and cancellations remain separately retained; fresh passes do not prove their causes. The repaired v2 A/A repeat has all 72 controls unstable; policy/required-CI acceptance, native ARM64, physical-input and consumer qualification remain open.
 

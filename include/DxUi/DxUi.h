@@ -3041,6 +3041,10 @@ public:
     void SetText(std::wstring text);
     [[nodiscard]] std::wstring GetText() const;
     [[nodiscard]] RichText::SourceSnapshot Snapshot() const noexcept;
+    // Like SetText, call on the control's owner thread. A read-only Source view shares immutable source storage.
+    // New snapshots advance the target's local revision and clear its history; syntax remains independently prepared.
+    // Same-snapshot selection changes follow SetSelection. False leaves the target unchanged for ordinary SetText fallback.
+    [[nodiscard]] bool SynchronizeReadOnlySourceSnapshot(const RichText::SourceSnapshot& source, RichText::Selection selection);
     // Absolute Unicode file location used only as explicit resource/paste base.
     // Empty denotes an unsaved document. No filesystem access or source/history
     // rewrite occurs; no process working directory is used for relative links.
