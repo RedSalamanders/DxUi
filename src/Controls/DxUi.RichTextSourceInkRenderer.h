@@ -295,7 +295,7 @@ private:
     IDWriteInlineObject* positioning_{};
     UINT32 textOffset_{};
     std::wstring_view layoutText_;
-    std::array<InkSpan, 8> inkSpans_{};
+    std::array<InkSpan, 32> inkSpans_{};
     std::size_t inkSpanCount_{};
     ULONG references_{1u};
     bool painting_{};

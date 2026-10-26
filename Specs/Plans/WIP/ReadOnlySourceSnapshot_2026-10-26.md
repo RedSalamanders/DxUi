@@ -92,3 +92,8 @@ fault instrument; its execution and all final native/input/consumer/performance 
 The private compact-icon v4 probe compares 64 cases at four DPIs, LTR/RTL and actual Fluent glyphs. Its clipped
 layout A/A is exact, but all three replacement paths (including the same retained layout without CLIP) differ
 in eight cases, each at 64 edge pixels by one channel level. No production icon/cache/clipping change is adopted.
+### Private 32-span renderer experiment (26 October 2026)
+
+- [ ] Execute the expanded raster test and 26/32/33-span boundary cases. Only the global span capacity changes from8 to32; per-run glyph/segment, font/color/bidi, clipping and preflight guards remain unchanged. The fixed array adds24 span entries; no performance benefit is established.
+- [ ] Verify the actual S5 consumer callbacks and font eligibility before any new A/B. Passing synthetic helper cases does not prove the measured consumer takes this route.
+- [ ] Require exact canonical/legacy pixels, fallback before painting, lifetime/device replacement checks and current-source functional/performance qualification before any adoption. This local experiment is unpublished; current consumers retain their separate pins.
