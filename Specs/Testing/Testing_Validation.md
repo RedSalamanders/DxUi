@@ -108,6 +108,13 @@ as a successful alignment; restore only when the current point still matches a p
 Retain bounded initial/final readback, poll-count and elapsed-time diagnostics. This synchronization does not
 identify which host or desktop action delayed or changed a cursor position.
 
+Native-menu dismissal fixtures verify actual focus on the menu-bar host after `FocusFirstItem()` and before
+starting a popup-discovery driver. The driver uses one 5 s deadline for visible-popup discovery and the existing
+modal-dispatch readiness signal, and posts the dismissal key only after both are ready. Keep the existing 800 ms
+focus and popup-destruction checks; the 900 ms and 180 ms hover guards are separate. Record bounded foreground,
+active-window, focus, capture, popup-discovery and menu-stage flags through the existing trace, without logging
+window handles. A trace distinguishes observed stages but does not identify an external input writer.
+
 `performance-forms.ps1` runs the fixed `dxui-form-layout-cost-v1` synthetic fixture. Before timing it requires identical
 manual/form leaf state, geometry and captured pixels across five states in two profiles. It reports raw frame and
 allocation samples for four interleaved runs per block and lifecycle/recovery observations. The wrapper binds v2
