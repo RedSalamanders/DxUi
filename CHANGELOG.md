@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Wait for the hosted Visual Studio GUI bootstrapper and use its own exit code before verifying MSVC 14.52; retain installer diagnostics and cover delayed completion, paths with spaces, failure and no-install controls with a fake GUI installer. Actual hosted provisioning and native qualification remain separate gates.
 - Integrate the sealed renderer qualification archive with current main while preserving incoming compiler, Grid and ProgressBar work. Keep the six native profiles tied to their original SDK702 source and retain separate consumer, performance-policy and platform holds.
 - Archive the merged source-ink and Menu fixture qualification: six native x64/ARM64 profiles, exact-head local Menu restoration and an independently replayed actual-base paired study; preserve the unqualified performance policy, unstable controls and separate consumer/platform holds.
 - Reconcile MSVC 14.52 Release optimization and ProgressBar pause support with current main, preserving newer Grid callback lifetime guards, accessibility contracts, CI credential hardening and all tooling checks. Existing platform, interactive and performance gates remain explicit.

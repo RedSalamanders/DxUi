@@ -109,6 +109,8 @@ $fixture=Join-Path $scratch 'ci-provisioning-refusal'
 $fixtureScript=Join-Path $fixture '.github/actions/setup-msvc/Setup.ps1'
 [void][IO.Directory]::CreateDirectory((Split-Path $fixtureScript))
 Copy-Item -LiteralPath $ciSetup -Destination $fixtureScript
+[void][IO.Directory]::CreateDirectory((Join-Path $fixture 'Tools'))
+Copy-Item -LiteralPath (Join-Path $Root 'Tools/VisualStudio.psm1') -Destination (Join-Path $fixture 'Tools/VisualStudio.psm1')
 [IO.File]::WriteAllText((Join-Path $fixture 'Directory.Build.props'),'<Project><PropertyGroup><RequiredMsvcToolsVersion>14.99</RequiredMsvcToolsVersion></PropertyGroup></Project>')
 foreach($readOnly in @($true,$false)){
     $start=[Diagnostics.ProcessStartInfo]::new('pwsh')

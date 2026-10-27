@@ -1,7 +1,20 @@
 # MSVC 14.52 and Release optimization
 
-Status: ACTIVE qualification; implementation complete
+Status: ACTIVE qualification; hosted compiler setup repair awaiting CI
 Date: 2026-10-23
+
+## Hosted setup repair checkpoint (2026-10-27)
+
+Main `9291e259331c1dd376c028dcda8e70798765139f`, run [40472278769](https://github.com/RedSalamanders/DxUi/actions/runs/40472278769), failed compiler preparation in all six native profiles. The x64 Debug [job 122082077031](https://github.com/RedSalamanders/DxUi/actions/runs/40472278769/job/122082077031) reports at 08:16:22 UTC: `The variable '$LASTEXITCODE' cannot be retrieved because it has not been set.` GUI bootstrapper extraction continues after that exception. The script's call operator returned before GUI completion, and its strict-mode ambient exit-code read failed; this is setup evidence, not a compiler/native test failure. Raw logs and every fixture attempt remain privately under `.build/msvc-setup-20261027/` and `.build/msvc-setup-fixtures/` in the isolated repair checkout.
+
+- [x] Replace asynchronous GUI invocation with explicit hidden wait and the owned process's exit code; quote the install path, retain output, and use canonical downstream Visual Studio discovery after completion.
+- [x] Add deterministic delayed GUI/provider coverage for unset/stale ambient exit state, success/reboot/failure, spaces, required tools and no-install refusal paths; no actual local installation.
+- [ ] Complete full validators, focused tooling controls and formatting; publish the focused repair PR for independent review.
+- [ ] Review real hosted provisioning and subsequent six-profile receipts. Preserve channel/component or default-selection failures if the actual installer reveals them; never downgrade the compiler or treat fixtures as native qualification.
+
+Docs/gallery review: CI setup changes no public control behavior or pixels; no gallery regeneration is needed. Existing local, performance, interactive and native ARM64 acceptance boundaries below remain in force.
+
+Local repair evidence: `fixture-diagnostics.log` passes 12/12 delayed-GUI/provider cases, including retained stdout/stderr and detailed installer logs. Restoring the old asynchronous call in `Setup-no-wait.control.ps1` reproduces the hosted unset-exit-code exception and fails eight cases (`no-wait-negative.log`), while the four no-install controls still pass. Real local `-VerifyOnly` passes default 14.52.37025; pinned clang-format 22.1.3 `-Check` passes. These focused controls and read-only compiler discovery do not establish native runtime or hosted provisioning success.
 
 ## Checklist
 
