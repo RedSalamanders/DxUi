@@ -352,4 +352,26 @@ Invoke-TestCase 'the scope scripts parse and are strict' {
     }
 }
 
+function Assert-WindowsToolingBudget([string]$Job) {
+    Assert-True ($Job-cmatch '(?m)^    timeout-minutes: 20\r?$') 'Windows tooling retains its measured bounded allowance'
+    foreach($required in @('uses: ./.github/actions/setup-msvc','run: ./validate.ps1','run: ./Tools/tests/Test-AsanRuntime.ps1')) {
+        Assert-Equal 1 ([regex]::Matches($Job,[regex]::Escape($required))).Count 'compiler preparation, complete tooling and ASan runtime checks remain exactly once'
+    }
+    Assert-True (-not ($Job-cmatch '(?m)^        (if|continue-on-error):')) 'tooling failures cannot bypass required checks'
+}
+Invoke-TestCase 'only Windows tooling gains the measured real-project metadata allowance' {
+    $job=Get-WorkflowJob 'windows-tooling'
+    Assert-WindowsToolingBudget $job
+    foreach($minutes in @('','0','15','19','21')) {
+        $changed=$job.Replace('timeout-minutes: 20',"timeout-minutes: $minutes")
+        Assert-True ($changed-cne $job) 'each mutation changes the job ceiling'
+        Assert-Throws {Assert-WindowsToolingBudget $changed} 'missing, old or widened ceilings fail the reviewed contract'
+    }
+    foreach($required in @('uses: ./.github/actions/setup-msvc','run: ./validate.ps1','run: ./Tools/tests/Test-AsanRuntime.ps1')) {
+        Assert-Throws {Assert-WindowsToolingBudget ($job.Replace($required,''))} 'a larger window cannot remove required validation'
+    }
+    Assert-True ((Get-WorkflowJob 'format')-cmatch '(?m)^    timeout-minutes: 15\r?$') 'format retains fifteen minutes'
+    Assert-True ((Get-WorkflowJob 'validation')-cmatch '(?m)^    timeout-minutes: 20\r?$') 'Ubuntu validation retains twenty minutes'
+}
+
 Complete-TestRun 'NativeScope'

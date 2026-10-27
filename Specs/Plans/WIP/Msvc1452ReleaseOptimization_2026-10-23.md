@@ -1,9 +1,43 @@
 # MSVC 14.52 and Release optimization
 
-Status: ACTIVE qualification; hosted compiler setup repair awaiting CI
+Status: ACTIVE qualification; hosted provisioning/consumers repaired, native Menu and paired preflight followups open
 Date: 2026-10-23
 
 ## Hosted setup repair checkpoint (2026-10-27)
+
+### Attempt 631: preserved failures and strict paired setup repair
+
+Run [40485094386](https://github.com/RedSalamanders/DxUi/actions/runs/40485094386) binds head
+`631d8a95cf59c520bed1cc98c21cefc2f612586b`, merge `0f942cc859821fadada1e1da560a6e71b0a2c9f1` and base
+`9291e259331c1dd376c028dcda8e70798765139f`. All six builds and all eight final relocated-consumer receipts passed.
+ARM64 Release completed its ten negatives and twelve module checks in approximately 15m44s, validating the narrow
+20-minute operational window. All x64 native jobs and ARM64 ASan passed. ARM64 Debug and Release Full failed in
+different Menu cases; downstream consumer success does not establish Full success. Those desktop assertions remain
+unchanged and their failures remain open. The overall workflow and aggregate gate failed.
+
+Paired job 122124779896 refused `toolchainIdentity` compatibility before consuming measurement slots. Both per-side
+attestations passed; retained hosted digests are opaque and do not expose which profile input differed. A controlled
+local metadata-only experiment with identical source bytes reproduced an omission: existing benchmark-only timestamp
+staging equalized the benchmark profile while library `MSBuildAllProjects` selected a project on one side and an
+import on the other. Staging both attested projects made both complete normalized profiles exactly equal. Every
+original timestamp was restored exactly. This local counterfactual establishes the setup defect; it does not decode
+the historical hosted digests or establish a performance verdict.
+
+The bounded repair shares one canonical library/benchmark project catalog between attestation evaluation and fresh-build
+timestamp staging. It retains every evaluated property and strict cross-side equality. Real installed-MSBuild coverage
+retains opposing-timestamp metadata, reproduces the old omission, checks complete-profile equality, and proves a changed
+compiler option still fails admission. Reused builds retain their attested context. No statistical performance band or resource budget changes.
+The Windows tooling job alone moves from 15 to 20 minutes: attempt 631 already consumed 14m29s before the new
+approximately two-minute real-MSBuild regression. Compiler setup and every tooling/ASan check remain required;
+Ubuntu, format, native and consumer ceilings remain unchanged. Mutation tests reject missing, old or widened allowances.
+
+Private preservation under `.build/msvc-setup-20261027/attempt-631/sealed-failure-02` binds all six native and paired original
+provider ZIP digests/lengths, raw job status/logs and 505 replayed completion-manifest streams. The failed ARM Full outcomes,
+expected ASan detections, complete consumers and ARM initial-focus-unavailable limits remain distinct. Archive seal SHA-256:
+`0CEDF462E67817756298E035030B41DE595E1CCADDB275565099F314C4E7C17B`.
+
+- [ ] Review complete-catalog staging and real-MSBuild/negative regressions independently before publishing the next repair head.
+- [ ] Bind the next hosted run to its own head/merge and replay actual native/consumer/paired outcomes; no unchanged rerun or retagging.
 
 ### Subsequent consumer timeout (new operational repair)
 

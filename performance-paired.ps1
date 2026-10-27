@@ -19,6 +19,8 @@ base judge remains policy-review-required;
 historic reports remain readable but cannot pass migrated qualification. A candidate cannot establish its own trusted
 policy: until a qualified versioned policy exists in the measured base, the report is policy-review-required and cannot
 pass the migrated gate. Every receipt and comparison is retained under the run's reports directory.
+Fresh builds stage and restore the timestamps of every attested project from the canonical performance project catalog;
+the staging manifest records each original timestamp. Exact evaluated profiles remain required, including MSBuildAllProjects.
 Revisions are refused when both name one commit. A pair with a named tree is refused when the two trees have identical
 library sources (nothing to compare), which is how uncommitted work on a revision's own commit is measured against it.
 .PARAMETER BaselineRevision Commit, branch or tag measured as A in a detached worktree. Give this or BaselinePath.
@@ -72,16 +74,18 @@ function Get-PairedBuildChanges([object[]] $Records) {
 function Set-PairedProjectStamps([string[]] $Roots, [DateTime] $StampUtc=[DateTime]::UtcNow) {
     # MSBuildAllProjects begins with the newest project/import. A copy preserving
     # an old timestamp can select Directory.Build.props on only one side. Stage
-    # the common benchmark project after restore, record/restore its timestamps,
-    # and still require exact evaluated profiles; never filter that property out.
+    # every attested project after restore, record/restore its timestamps, and
+    # still require exact evaluated profiles; never filter that property out.
     $records=[Collections.Generic.List[object]]::new()
     try {
         foreach ($root in $Roots) {
-            $path=Join-Path $root 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj'
-            if (-not [IO.File]::Exists($path)) { throw "Missing common benchmark project: $path" }
-            $record=[ordered]@{path=$path;originalUtc=[IO.File]::GetLastWriteTimeUtc($path);stagedUtc=$StampUtc.ToUniversalTime()}
-            $records.Add($record)
-            [IO.File]::SetLastWriteTimeUtc($path,$record.stagedUtc)
+            foreach ($project in Get-PerformanceProjectCatalog) {
+                $path=Join-Path $root $project.path
+                if (-not [IO.File]::Exists($path)) { throw "Missing attested $($project.role) project: $path" }
+                $record=[ordered]@{role=$project.role;path=$path;originalUtc=[IO.File]::GetLastWriteTimeUtc($path);stagedUtc=$StampUtc.ToUniversalTime()}
+                $records.Add($record)
+                [IO.File]::SetLastWriteTimeUtc($path,$record.stagedUtc)
+            }
         }
         return $records.ToArray()
     } catch {
@@ -90,7 +94,7 @@ function Set-PairedProjectStamps([string[]] $Roots, [DateTime] $StampUtc=[DateTi
             try { [IO.File]::SetLastWriteTimeUtc($record.path,$record.originalUtc) }
             catch { $restoreErrors.Add($_.Exception.Message) }
         }
-        if ($restoreErrors.Count) { throw "Benchmark timestamp staging failed: $failure; rollback failed: $($restoreErrors -join '; ')" }
+        if ($restoreErrors.Count) { throw "Attested-project timestamp staging failed: $failure; rollback failed: $($restoreErrors -join '; ')" }
         throw $failure
     }
 }
@@ -105,7 +109,7 @@ function Restore-PairedProjectStamps([object[]] $Records) {
         try { [IO.File]::SetLastWriteTimeUtc($record.path,$record.originalUtc) }
         catch { $failures.Add($_.Exception.Message) }
     }
-    if ($failures.Count) { throw "Benchmark timestamp restoration failed: $($failures -join '; ')" }
+    if ($failures.Count) { throw "Attested-project timestamp restoration failed: $($failures -join '; ')" }
 }
 
 function Assert-PairedBuildCompatibility([Collections.IDictionary] $Baseline, [Collections.IDictionary] $Candidate) {

@@ -146,7 +146,14 @@ payloads or delivery success, and partial callback completion MUST NOT be report
 The paired setup regression tests MUST cover common benchmark-project options,
 changed-project SkipBuild refusal, timestamp byte preservation/restoration/partial
 failure, new versus reused roots, complete cross-side identities and preflight
-ordering before measurements. Relocated public-consumer qualification MUST copy
+ordering before measurements. On Windows, metadata-only installed-MSBuild regression
+coverage MUST evaluate both real catalog projects from identical synthetic layouts with
+opposing project/import timestamps. Benchmark-only staging MUST expose the library
+profile mismatch; complete catalog staging MUST yield exact full-profile equality.
+A changed effective compiler option with fixed timestamps MUST still fail strict
+preflight. Retain the evaluated inputs, staging manifest and exact byte/timestamp
+restoration results; no native compilation or desktop input is required.
+Relocated public-consumer qualification MUST copy
 the image-loader sample header, compile all eight rich-text public headers as
 first/only includes, and render the rich sample with explicit document metadata.
 Missing headers and absent rich capture files fail qualification.
@@ -270,6 +277,11 @@ and its build-identity negatives another 17 seconds (x64 Release's whole tail to
 ordinary ARM tail projects about 16 minutes 14 seconds; that projection is not a completed Release receipt.
 The narrow 20-minute window preserves every check and keeps the enclosing sum consistent; it does not change
 statistical performance bands, native watchdogs or acceptance requirements.
+The independent Windows tooling job has a 20-minute ceiling. Its actual run 40485094386 took 14m29s
+(6m04s compiler preparation and 7m58s validation) before the metadata-only paired-project regression was added;
+that regression adds approximately two minutes of real installed-MSBuild evaluation. The bounded extension avoids
+duplicating compiler provisioning in another job. Compiler setup, all tooling and the ASan runtime check remain
+required. Ubuntu validation retains 20 minutes, format retains 15, and all native/consumer windows above are unchanged.
 
 `test-consumer.ps1` writes a unique `ConsumerProgress-*.json` under `.build/reports` before cold work. Each negative
 case and the restored clean pin record a start, outcome and monotonic duration. External termination leaves
@@ -630,6 +642,12 @@ state, item rectangles, paint, text and layout, its backdrop, and a bitmap captu
 - **Diagnosis.** On a timeout, the capture readiness wait also prints its longest probe. About 3,000 ms means the popup thread
   stopped answering. A failed initial healthy-state assertion also reports the answer flag, elapsed time, item count,
   window validity/visibility and owner match, without publishing raw desktop identities.
+  The state-probe fixture separately records first-peek entry, popup visibility, discovery acknowledgement and
+  the sent-message wait result; its failure trace retains UI, discovery and cleanup ordering. The submenu-retention
+  trace also records pointer-alignment entry, cleanup, observed owner foreground loss and cancellation context.
+  Cancellation context contains only flags for foreground existence/owner/process and capture owner/popup,
+  plus `InSendMessageEx` flags. These observations do not attribute an untraced cancellation or authorize retrying
+  a held behavioral failure. The same readiness, hover, timer and elapsed assertions and deadlines still apply.
 
 The native disclosure automation client subscribes from its own MTA thread while the owner thread pumps.
 Cold client setup (COM, `ElementFromHandle` and property-event subscription) has a separate 20-second

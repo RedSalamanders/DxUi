@@ -48,7 +48,8 @@ jobs:
   # Windows discovery/path/process branches need their own host qualification, once rather than once per native profile.
   windows-tooling:
     runs-on: windows-2025-vs2026
-    timeout-minutes: 15
+    # Prior actual setup+tooling took 14m29; real paired project-profile metadata coverage adds about two minutes.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
