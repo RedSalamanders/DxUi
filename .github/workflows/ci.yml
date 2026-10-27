@@ -39,6 +39,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       # The hosted Ubuntu image ships PowerShell 7; every repository tool is a PowerShell script. One entry point runs the
       # five validators and the tooling tests and reports every failure before it fails.
       - shell: pwsh
@@ -49,6 +51,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - name: Prepare required MSVC 14.52 tools
         uses: ./.github/actions/setup-msvc
         with:
@@ -80,6 +84,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          persist-credentials: false
           # The merge ref and its parents: the first is the base the merge ref was made on.
           fetch-depth: 2
       - id: scope
@@ -120,6 +125,8 @@ jobs:
     timeout-minutes: ${{ matrix.jobTimeoutMinutes }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - name: Prepare required MSVC 14.52 tools
         uses: ./.github/actions/setup-msvc
         with:
@@ -201,6 +208,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          persist-credentials: false
           fetch-depth: 0
       # Whether this pull request changes anything the benchmark measures, and the two commits to compare. A step that cannot
       # decide fails the job, so nothing passes unmeasured because its scope could not be read.
@@ -310,6 +318,8 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - shell: pwsh
         env:
           EVENT_NAME: ${{ github.event_name }}

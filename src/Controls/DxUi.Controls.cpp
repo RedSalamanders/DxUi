@@ -63,10 +63,16 @@ template <typename TCallback> [[nodiscard]] Control* FindPanelChildHit(Panel& pa
     return nullptr;
 }
 
-template <typename TPanel, typename TCallback>
-void ForEachPanelChildCallback(TPanel& panel,
-                               const std::weak_ptr<int>& ownerLifetime,
-                               TCallback&& callback) noexcept(noexcept(std::declval<TCallback&>()(std::declval<Control&>())))
+struct NoopPanelChildCallback final
+{
+    void operator()(Control&) const noexcept
+    {
+    }
+};
+
+template <typename TPanel, typename TCallback, typename TAfterCallback = NoopPanelChildCallback>
+void ForEachPanelChildCallback(TPanel& panel, const std::weak_ptr<int>& ownerLifetime, TCallback&& callback, TAfterCallback afterCallback = {}) noexcept(
+    noexcept(std::declval<TCallback&>()(std::declval<Control&>())) && noexcept(std::declval<TAfterCallback&>()(std::declval<Control&>())))
 {
     const size_t visitBudget = panel.GetLogicalChildCount();
     size_t index             = 0u;
@@ -103,6 +109,7 @@ void ForEachPanelChildCallback(TPanel& panel,
         children = panel.GetChildren();
         if (! childLifetime.expired() && index < children.size() && children[index].get() == child)
         {
+            afterCallback(*child);
             ++index;
         }
         else if (! childLifetime.expired())
@@ -330,35 +337,9 @@ constexpr float kSliderTouchHaloRingWidthDip = 2.0f;
     return static_cast<wchar_t>(std::towupper(static_cast<wint_t>(ch)));
 }
 
-[[nodiscard]] bool ControlBelongsToBranch(const Control* root, const Control* target) noexcept
-{
-    if (! root || ! target)
-    {
-        return false;
-    }
-
-    if (root == target)
-    {
-        return true;
-    }
-
-    for (size_t childIndex = 0u; childIndex < root->GetLogicalChildCount(); ++childIndex)
-    {
-        if (const Control* const child = root->GetLogicalChild(childIndex))
-        {
-            if (ControlBelongsToBranch(child, target))
-            {
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
-
 [[nodiscard]] Control* RevalidateScrollPanelChild(const std::weak_ptr<int>& lifetime, const Control* root, Control* child) noexcept
 {
-    if (! child || lifetime.expired() || ! ControlBelongsToBranch(root, child))
+    if (! child || lifetime.expired() || ! IsControlInTree(root, child))
     {
         return nullptr;
     }
@@ -1288,6 +1269,24 @@ void Panel::DetachChildPreservingInheritance(Control& child) noexcept
     child.PropagateHost(nullptr);
 }
 
+void Panel::OnDescendantDetaching(Control& /*subtree*/) noexcept
+{
+}
+
+void Panel::NotifyContainersOfDetaching(Control& subtree) noexcept
+{
+    const std::weak_ptr<int> subtreeLifetime = subtree.GetLifetimeToken();
+    for (Control* ancestor = this; ancestor && ! subtreeLifetime.expired();)
+    {
+        const std::weak_ptr<int> ancestorLifetime = ancestor->GetLifetimeToken();
+        if (auto* const container = dynamic_cast<Panel*>(ancestor))
+            container->OnDescendantDetaching(subtree);
+        if (ancestorLifetime.expired() || subtreeLifetime.expired() || subtree._parent != this)
+            return;
+        ancestor = ancestor->_parent;
+    }
+}
+
 std::unique_ptr<Control> Panel::TakeChild(size_t index) noexcept
 {
     if (index >= _children.size() || ! _children[index])
@@ -1296,7 +1295,12 @@ std::unique_ptr<Control> Panel::TakeChild(size_t index) noexcept
     const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
     Control* const requested               = _children[index].get();
     const std::weak_ptr<int> childLifetime = requested->GetLifetimeToken();
-    ControlHost* const host                = GetHost();
+    // Every enclosing container ends its own observers inside the subtree (inner hover, inner capture) while the child is
+    // still attached.
+    NotifyContainersOfDetaching(*requested);
+    if (ownerLifetime.expired() || childLifetime.expired())
+        return {};
+    ControlHost* const host = GetHost();
     if (host)
     {
         const uint64_t focusBeforeCancellation = host->_focusRequestRevision;
@@ -1344,6 +1348,28 @@ std::unique_ptr<Control> Panel::TakeChild(size_t index) noexcept
         return child;
     }
     return {};
+}
+
+void Panel::NotifyChildTreeChanged() noexcept
+{
+    if (ControlHost* const host = GetHost())
+        host->NotifyRetainedTreeMutation();
+}
+
+size_t Panel::CompactChildren() noexcept
+{
+    const size_t removed = std::erase_if(_children, [](const std::unique_ptr<Control>& child) noexcept { return ! child; });
+    if (removed == 0u)
+        return 0u;
+    NotifyChildTreeChanged();
+    // The children's indices, and the accessibility paths built from them, changed.
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    InvalidateMeasure();
+    if (ControlHost* const host = GetHost())
+        host->RefreshAccessibilitySnapshot();
+    if (! lifetime.expired())
+        RequestInvalidate();
+    return removed;
 }
 
 void Panel::ClearChildren() noexcept
@@ -1457,14 +1483,26 @@ void Panel::OnHostDpiChanged(ControlHost& host) noexcept
 
 void Panel::Paint(ControlHost& host) const
 {
-    ForEachPanelChildCallback(*this,
-                              GetLifetimeToken(),
-                              [&host](const Control& child)
+    const auto paintChild = [&host](const Control& child)
     {
         if (child.IsVisible())
         {
             child.Paint(host);
         }
+    };
+    if (! host.IsInitialRootChildBatchActive(*this))
+    {
+        ForEachPanelChildCallback(*this, GetLifetimeToken(), paintChild);
+        return;
+    }
+
+    ForEachPanelChildCallback(*this,
+                              GetLifetimeToken(),
+                              paintChild,
+                              [this, &host](Control& child)
+    {
+        if (child.IsVisible())
+            host.FlushInitialRootChildBatch(*this);
     });
 }
 
@@ -1658,9 +1696,7 @@ void PageHost::SetPage(std::unique_ptr<Control> page, std::wstring connectedAnim
     _outgoingPage                     = std::move(_currentPage);
     _currentPage                      = std::move(page);
     _transition.active                = true;
-    _transition.clockAnchored         = ! host->_embedded;
-    _transition.startTickMs           = _transition.clockAnchored ? GetTickCount64() : 0u;
-    _transition.lastTickMs            = _transition.startTickMs;
+    _transition.startTickMs           = host->GetAnimationTickMs();
     _transition.linearProgress        = 0.0f;
     _transition.hasConnectedAnimation = false;
     _transition.sourceRectDip         = D2D1::RectF();
@@ -1773,6 +1809,15 @@ void PageHost::Paint(ControlHost& host) const
     {
         current->Paint(host);
         return;
+    }
+    // A transition that began or lapsed while the page host was hidden received no ticks (a panel ticks only visible
+    // children): it resumes when it paints again, instead of holding the incoming page at progress 0 and refusing
+    // input until some other animation runs.
+#if DXUI_ENABLE_DIAGNOSTICS
+    if (! _transition.debugFrozen)
+#endif
+    {
+        host.RequestAnimation();
     }
 
     Debug::Perf::Scope transitionPaintPerf(L"dxui.animation.page_transition.paint");
@@ -1947,13 +1992,7 @@ bool PageHost::Tick(ControlHost& host, uint64_t nowTickMs)
     }
 #endif
 
-    if (! _transition.clockAnchored)
-    {
-        _transition.startTickMs   = nowTickMs;
-        _transition.clockAnchored = true;
-    }
-    _transition.lastTickMs     = nowTickMs;
-    const uint64_t elapsedMs   = nowTickMs >= _transition.startTickMs ? nowTickMs - _transition.startTickMs : 0u;
+    const uint64_t elapsedMs   = ElapsedTickMs(_transition.startTickMs, nowTickMs);
     _transition.linearProgress = ClampUnit(static_cast<float>(elapsedMs) / static_cast<float>(kPageTransitionDurationMs));
     if (_transition.linearProgress >= 1.0f)
     {
@@ -2031,7 +2070,7 @@ Control* PageHost::HitTest(D2D1_POINT_2F point)
         {
             return _transition.active ? nullptr : this;
         }
-        if (hit && ControlBelongsToBranch(page, hit) && IsControlEffectivelyInteractive(page, hit))
+        if (hit && IsControlInTree(page, hit) && IsControlEffectivelyInteractive(page, hit))
         {
             return hit;
         }
@@ -2064,7 +2103,7 @@ const Control* PageHost::HitTest(D2D1_POINT_2F point) const
         {
             return _transition.active ? nullptr : this;
         }
-        if (hit && ControlBelongsToBranch(page, hit) && IsControlEffectivelyInteractive(page, hit))
+        if (hit && IsControlInTree(page, hit) && IsControlEffectivelyInteractive(page, hit))
         {
             return hit;
         }
@@ -2084,7 +2123,7 @@ Control* PageHost::HitTestOverlay(D2D1_POINT_2F point)
     Control* const page                    = _currentPage.get();
     const std::weak_ptr<int> pageLifetime  = GetControlLifetimeToken(*page);
     Control* const hit                     = page->HitTestOverlay(point);
-    if (ownerLifetime.expired() || pageLifetime.expired() || _currentPage.get() != page || ! hit || ! ControlBelongsToBranch(page, hit) ||
+    if (ownerLifetime.expired() || pageLifetime.expired() || _currentPage.get() != page || ! hit || ! IsControlInTree(page, hit) ||
         ! IsControlEffectivelyInteractive(page, hit))
     {
         return nullptr;
@@ -2103,7 +2142,7 @@ const Control* PageHost::HitTestOverlay(D2D1_POINT_2F point) const
     const Control* const page              = _currentPage.get();
     const std::weak_ptr<int> pageLifetime  = GetControlLifetimeToken(*page);
     const Control* const hit               = page->HitTestOverlay(point);
-    if (ownerLifetime.expired() || pageLifetime.expired() || _currentPage.get() != page || ! hit || ! ControlBelongsToBranch(page, hit) ||
+    if (ownerLifetime.expired() || pageLifetime.expired() || _currentPage.get() != page || ! hit || ! IsControlInTree(page, hit) ||
         ! IsControlEffectivelyInteractive(page, hit))
     {
         return nullptr;
@@ -2312,8 +2351,16 @@ bool ControlHost::PreparePendingPageLayout() noexcept
             }
             if (FAILED(hr))
             {
-                control._intrinsicLayoutPending = true;
-                complete                        = false;
+                // Layout fails before it commits geometry: the control keeps what it last arranged, this frame paints
+                // that, and the control is laid out again once its content, constraints or bounds change. Content the
+                // layout cannot take (an oversized paste, an unsupported child) never blanks the window.
+                ++_intrinsicLayoutFailureCount;
+                if (_reportedLayoutFailureControl != &control || _reportedLayoutFailure != hr)
+                {
+                    _reportedLayoutFailureControl = &control;
+                    _reportedLayoutFailure        = hr;
+                    Debug::Warning(L"DxUi: intrinsic layout failed ({:08X}); the previous geometry is kept", static_cast<uint32_t>(hr));
+                }
             }
         }
         if (auto* const page = dynamic_cast<PageHost*>(&control); page && page->_childBoundsPending)
@@ -2434,6 +2481,8 @@ bool ControlHost::PreparePendingPageLayout() noexcept
         _preparedVisualResources   = GetResourceGeneration();
         _preparedVisualTypography  = GetTypographyRevision();
     }
+    if (layoutComplete && preparedIntrinsic)
+        _contentGeometryChanged = true; // Publish deferred geometry only after the frame completes.
     return layoutComplete && ! _pendingContentPreparation;
 }
 
@@ -2554,7 +2603,6 @@ bool PageHost::FinishTransition() noexcept
     _transition.hasConnectedAnimation      = false;
     _transition.linearProgress             = 1.0f;
     _transition.startTickMs                = 0u;
-    _transition.lastTickMs                 = 0u;
     _transition.sourceRectDip              = D2D1::RectF();
     _transition.targetRectDip              = D2D1::RectF();
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -2649,11 +2697,17 @@ void Label::SetText(std::wstring text)
 {
     if (_text != text)
     {
-        _text = std::move(text);
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
+        _text                             = std::move(text);
         InvalidateMeasure();
+        // Embedded preparation can synchronously retire the owning root.
+        if (lifetime.expired())
+            return;
         if (ControlHost* const host = GetHost())
         {
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host, AccessibilityMutationKind::ContentOnly);
+            if (lifetime.expired())
+                return;
         }
         RequestInvalidate();
     }
@@ -2692,8 +2746,12 @@ void Label::SetMultiline(bool multiline) noexcept
 {
     if (_multiline == multiline)
         return;
-    _multiline = multiline;
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    _multiline                        = multiline;
     InvalidateMeasure();
+    // Embedded preparation can synchronously retire the owning root.
+    if (lifetime.expired())
+        return;
     RequestInvalidate();
 }
 
@@ -2777,9 +2835,14 @@ void Label::Paint(ControlHost& host) const
                 {
                     const DWRITE_TEXT_RANGE range{0u, static_cast<UINT32>(_text.size())};
                     const float spacing = _typographyOverride->characterSpacingDip * 0.5f;
-                    wil::com_ptr<IDWriteTextLayout1> layout1;
-                    if (SUCCEEDED(layout->QueryInterface(IID_PPV_ARGS(layout1.put()))) &&
-                        SUCCEEDED(layout1->SetCharacterSpacing(spacing, spacing, 0.0f, range)))
+                    bool spacingApplied = spacing == 0.0f;
+                    if (! spacingApplied)
+                    {
+                        wil::com_ptr<IDWriteTextLayout1> layout1;
+                        spacingApplied = SUCCEEDED(layout->QueryInterface(IID_PPV_ARGS(layout1.put()))) &&
+                                         SUCCEEDED(layout1->SetCharacterSpacing(spacing, spacing, 0.0f, range));
+                    }
+                    if (spacingApplied)
                     {
                         if (const auto mnemonicIndex = FindMnemonicTextIndex(_text, GetMnemonic()); mnemonicIndex)
                             static_cast<void>(layout->SetUnderline(TRUE, DWRITE_TEXT_RANGE{static_cast<UINT32>(*mnemonicIndex), 1u}));
@@ -2817,7 +2880,7 @@ const Control* Label::HitTest(D2D1_POINT_2F /*point*/) const
 
 bool Label::OnMnemonic(ControlHost& host)
 {
-    if (_mnemonicTarget && ControlBelongsToBranch(host.GetRoot(), _mnemonicTarget))
+    if (_mnemonicTarget && IsControlInTree(host.GetRoot(), _mnemonicTarget))
     {
         return _mnemonicTarget->OnMnemonic(host);
     }
@@ -3138,7 +3201,7 @@ void Button::SetText(std::wstring text)
             return;
         if (ControlHost* const host = GetHost())
         {
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host, AccessibilityMutationKind::ContentOnly);
             if (lifetime.expired())
                 return;
         }
@@ -3187,7 +3250,7 @@ void Button::SetToggleState(std::optional<bool> checked) noexcept
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     if (ControlHost* const host = GetHost())
     {
-        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host, AccessibilityMutationKind::ContentOnly);
     }
     if (lifetime.expired())
         return;
@@ -4035,8 +4098,9 @@ void Button::UpdateInteractionTransition(ControlHost& host, InteractionTransitio
         return;
     }
 
-    // Seed from "now" so a previously idle host does not fast-forward a fresh transition on its first dispatcher tick.
-    transition.lastTickMs = ::GetTickCount64();
+    // Seed from the host's animation clock, which its ticks follow, so a fresh transition neither fast-forwards on its first
+    // tick nor waits for the clock to catch up.
+    transition.lastTickMs = host.GetAnimationTickMs();
     transition.anchored   = true;
     transition.active     = true;
     host.RequestAnimation();
@@ -4057,7 +4121,7 @@ bool Button::AdvanceInteractionTransition(const ControlHost& host, InteractionTr
         return true;
     }
 
-    const uint64_t elapsedMs = nowTickMs > transition.lastTickMs ? (nowTickMs - transition.lastTickMs) : 0u;
+    const uint64_t elapsedMs = ElapsedTickMs(transition.lastTickMs, nowTickMs);
     transition.lastTickMs    = nowTickMs;
     if (elapsedMs == 0u)
     {
@@ -4147,12 +4211,16 @@ void Toggle::SetChecked(bool checked) noexcept
 {
     if (_checked != checked)
     {
-        _checked = checked;
+        _checked                          = checked;
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
         if (ControlHost* const host = GetHost())
         {
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
         }
-        RequestInvalidate();
+        if (! lifetime.expired())
+        {
+            RequestInvalidate();
+        }
     }
 }
 
@@ -4163,6 +4231,9 @@ bool Toggle::IsChecked() const noexcept
 
 void Toggle::SetStateLabels(std::wstring uncheckedText, std::wstring checkedText)
 {
+    // Unchanged labels (an application that sets them on every refresh) relay out nothing.
+    if (_uncheckedText == uncheckedText && _checkedText == checkedText)
+        return;
     _uncheckedText = std::move(uncheckedText);
     _checkedText   = std::move(checkedText);
     InvalidateMeasure();
@@ -4364,8 +4435,22 @@ bool Checkbox::OnMnemonic(ControlHost& host)
 
 void Checkbox::SetIndeterminate(bool indeterminate) noexcept
 {
+    if (_indeterminate == indeterminate)
+    {
+        return;
+    }
     _indeterminate = indeterminate;
-    RequestInvalidate();
+    // UI Automation reads the third toggle state, as SetChecked publishes the other two. Publication can deliver events
+    // that run application code, so the checkbox may be gone afterwards.
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    if (ControlHost* const host = GetHost())
+    {
+        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+    }
+    if (! lifetime.expired())
+    {
+        RequestInvalidate();
+    }
 }
 
 bool Checkbox::IsIndeterminate() const noexcept
@@ -4439,10 +4524,27 @@ RadioButton::RadioButton(std::wstring text) : Button(std::move(text))
 {
 }
 
-void RadioButton::SetChecked(bool checked) noexcept
+bool RadioButton::AssignChecked(bool checked) noexcept
 {
+    if (_checked == checked)
+    {
+        return false;
+    }
     _checked = checked;
     RequestInvalidate();
+    return true;
+}
+
+void RadioButton::SetChecked(bool checked) noexcept
+{
+    // Published as a toggle's state is, so UI Automation reports the choice whoever made it.
+    if (AssignChecked(checked))
+    {
+        if (ControlHost* const host = GetHost())
+        {
+            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+        }
+    }
 }
 
 bool RadioButton::IsChecked() const noexcept
@@ -4575,7 +4677,11 @@ void RadioButton::SelectSelf(ControlHost& host)
         {
             _group = nullptr;
             _groupLifetime.reset();
-            _checked = true;
+            SetChecked(true);
+            if (selfLifetime.expired())
+            {
+                return;
+            }
             Invalidate(host);
         }
         if (selfLifetime.expired())
@@ -4602,27 +4708,44 @@ void RadioButtons::SetSelectedIndex(int index) noexcept
 {
     const auto children = GetChildren();
     const int count     = static_cast<int>(children.size());
-    if (index < 0 || index >= count)
-    {
-        _selectedIndex = -1;
-        for (auto& child : children)
-        {
-            if (auto* rb = dynamic_cast<RadioButton*>(child.get()))
-            {
-                rb->SetChecked(false);
-            }
-        }
-        return;
-    }
-
-    _selectedIndex = index;
+    _selectedIndex      = index >= 0 && index < count ? index : -1;
+    // Every item's state first and one publication after: publishing can run application code, which must not meet the
+    // group half changed nor change its children under this loop.
+    bool changed = false;
     for (int i = 0; i < count; ++i)
     {
         if (auto* rb = dynamic_cast<RadioButton*>(children[static_cast<size_t>(i)].get()))
         {
-            rb->SetChecked(i == index);
+            changed = rb->AssignChecked(i == _selectedIndex) || changed;
         }
     }
+    if (ControlHost* const host = changed ? GetHost() : nullptr)
+    {
+        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+    }
+}
+
+size_t RadioButtons::CompactChildren() noexcept
+{
+    const auto before = GetChildren();
+    const Control* const was =
+        _selectedIndex >= 0 && static_cast<size_t>(_selectedIndex) < before.size() ? before[static_cast<size_t>(_selectedIndex)].get() : nullptr;
+    const bool hadSelection           = _selectedIndex >= 0;
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    const size_t removed              = Panel::CompactChildren();
+    if (removed == 0u || lifetime.expired() || ! hadSelection)
+        return removed;
+    _selectedIndex   = -1;
+    const auto after = GetChildren();
+    for (size_t index = 0u; was && index < after.size(); ++index)
+    {
+        if (after[index].get() == was)
+        {
+            _selectedIndex = static_cast<int>(index);
+            break;
+        }
+    }
+    return removed;
 }
 
 int RadioButtons::GetSelectedIndex() const noexcept
@@ -4645,21 +4768,28 @@ void RadioButtons::SelectItem(RadioButton* item)
 {
     const auto children = GetChildren();
     const int count     = static_cast<int>(children.size());
+    bool changed        = false;
     for (int i = 0; i < count; ++i)
     {
-        auto* rb = dynamic_cast<RadioButton*>(children[static_cast<size_t>(i)].get());
-        if (rb)
-        {
-            rb->SetChecked(rb == item);
-        }
-    }
-    for (int i = 0; i < count; ++i)
-    {
-        if (children[static_cast<size_t>(i)].get() == item)
+        Control* const child = children[static_cast<size_t>(i)].get();
+        if (child == item)
         {
             _selectedIndex = i;
-            break;
         }
+        if (auto* rb = dynamic_cast<RadioButton*>(child))
+        {
+            changed = rb->AssignChecked(rb == item) || changed;
+        }
+    }
+    // One publication for the whole change, before the application hears of it.
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    if (ControlHost* const host = changed ? GetHost() : nullptr)
+    {
+        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+    }
+    if (lifetime.expired())
+    {
+        return;
     }
     const auto onSelectionChanged = _onSelectionChanged;
     if (onSelectionChanged)
@@ -4742,6 +4872,8 @@ void ProgressBar::SetMinimum(double minimum) noexcept
         return;
     _minimum = minimum;
     RequestInvalidate();
+    if (ControlHost* const host = GetHost())
+        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
 }
 
 double ProgressBar::GetMinimum() const noexcept
@@ -4755,6 +4887,8 @@ void ProgressBar::SetMaximum(double maximum) noexcept
         return;
     _maximum = maximum;
     RequestInvalidate();
+    if (ControlHost* const host = GetHost())
+        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
 }
 
 double ProgressBar::GetMaximum() const noexcept
@@ -5002,7 +5136,7 @@ void PageIndicator::SetPageCount(uint32_t count) noexcept
         _selectedIndex = _pageCount - 1;
     }
     SetFocusable(_pageCount >= 2);
-    RefreshAccessibleName();
+    PublishAccessibility();
     RequestInvalidate();
 }
 
@@ -5023,7 +5157,7 @@ void PageIndicator::SetSelectedIndex(uint32_t index) noexcept
         return;
     }
     _selectedIndex = next;
-    RefreshAccessibleName();
+    PublishAccessibility();
     RequestInvalidate();
 }
 
@@ -5180,7 +5314,7 @@ void PageIndicator::SelectIndex(ControlHost& host, uint32_t index)
     }
     _selectedIndex                    = index;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
-    RefreshAccessibleName();
+    PublishAccessibility();
     if (lifetime.expired())
     {
         return;
@@ -5193,19 +5327,13 @@ void PageIndicator::SelectIndex(ControlHost& host, uint32_t index)
     }
 }
 
-void PageIndicator::RefreshAccessibleName() noexcept
+void PageIndicator::PublishAccessibility() const noexcept
 {
-    if (_pageCount < 2)
+    // The page is a slider's value, which needs no text: the accessible name stays the application's, where an English
+    // "Page 2 of 5" used to replace it (and, the indicator being no element then, never reached a client).
+    if (ControlHost* const host = GetHost())
     {
-        SetAccessibleName({});
-        return;
-    }
-    try
-    {
-        SetAccessibleName(L"Page " + std::to_wstring(_selectedIndex + 1) + L" of " + std::to_wstring(_pageCount));
-    }
-    catch (...)
-    {
+        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
     }
 }
 
@@ -6066,12 +6194,11 @@ double Slider::GetDisplayedNormalizedValue() const noexcept
 
 void Slider::SnapDisplayedValue() noexcept
 {
-    _displayedValue              = _value;
-    _valueAnimationStart         = _value;
-    _valueAnimationTarget        = _value;
-    _valueAnimationStartTickMs   = 0u;
-    _valueAnimationClockAnchored = false;
-    _valueAnimationActive        = false;
+    _displayedValue            = _value;
+    _valueAnimationStart       = _value;
+    _valueAnimationTarget      = _value;
+    _valueAnimationStartTickMs = 0u;
+    _valueAnimationActive      = false;
 }
 
 void Slider::BeginValueAnimation(ControlHost& host, double fromValue, double toValue) noexcept
@@ -6083,12 +6210,11 @@ void Slider::BeginValueAnimation(ControlHost& host, double fromValue, double toV
         return;
     }
 
-    _displayedValue              = fromValue;
-    _valueAnimationStart         = fromValue;
-    _valueAnimationTarget        = toValue;
-    _valueAnimationClockAnchored = ! host._embedded;
-    _valueAnimationStartTickMs   = _valueAnimationClockAnchored ? ::GetTickCount64() : 0u;
-    _valueAnimationActive        = true;
+    _displayedValue            = fromValue;
+    _valueAnimationStart       = fromValue;
+    _valueAnimationTarget      = toValue;
+    _valueAnimationStartTickMs = host.GetAnimationTickMs();
+    _valueAnimationActive      = true;
     host.RequestAnimation();
     Invalidate(host);
 }
@@ -6106,12 +6232,7 @@ bool Slider::AdvanceValueAnimation(ControlHost& host, uint64_t nowTickMs) noexce
         return false;
     }
 
-    if (! _valueAnimationClockAnchored)
-    {
-        _valueAnimationStartTickMs   = nowTickMs;
-        _valueAnimationClockAnchored = true;
-    }
-    const uint64_t elapsedMs   = nowTickMs > _valueAnimationStartTickMs ? nowTickMs - _valueAnimationStartTickMs : 0u;
+    const uint64_t elapsedMs   = ElapsedTickMs(_valueAnimationStartTickMs, nowTickMs);
     const float linearProgress = std::clamp(static_cast<float>(elapsedMs) / static_cast<float>(_valueAnimationDurationMs), 0.0f, 1.0f);
     const float easedProgress  = EvaluateEasing(EasingCurve::PointToPoint, linearProgress);
     const double previous      = _displayedValue;
@@ -6144,8 +6265,7 @@ void Slider::BeginVisualTransition(ControlHost& host, VisualTransitionState& tra
 
     transition.startProgress = transition.progress;
     transition.target        = clampedTarget;
-    transition.clockAnchored = ! host._embedded;
-    transition.startTickMs   = transition.clockAnchored ? ::GetTickCount64() : 0u;
+    transition.startTickMs   = host.GetAnimationTickMs();
     transition.active        = true;
     host.RequestAnimation();
     Invalidate(host);
@@ -6158,12 +6278,7 @@ bool Slider::AdvanceVisualTransition(VisualTransitionState& transition, uint64_t
         return false;
     }
 
-    if (! transition.clockAnchored)
-    {
-        transition.startTickMs   = nowTickMs;
-        transition.clockAnchored = true;
-    }
-    const uint64_t elapsedMs   = nowTickMs > transition.startTickMs ? nowTickMs - transition.startTickMs : 0u;
+    const uint64_t elapsedMs   = ElapsedTickMs(transition.startTickMs, nowTickMs);
     const float linearProgress = std::clamp(static_cast<float>(elapsedMs) / static_cast<float>(_interactionAnimationDurationMs), 0.0f, 1.0f);
     const float easedProgress  = EvaluateEasing(curve, linearProgress);
     const float previous       = transition.progress;
@@ -7067,6 +7182,25 @@ void TagPicker::Paint(ControlHost& host) const
     }
 
     Panel::Paint(host);
+}
+
+std::unique_ptr<Control> TagPicker::TakeChild(size_t index) noexcept
+{
+    // The input box is used for the picker's whole life; taking it out would leave its pointer dangling.
+    if (const auto children = GetChildren(); index < children.size() && children[index].get() == _combo)
+        return {};
+    return Panel::TakeChild(index);
+}
+
+void TagPicker::ClearChildren() noexcept
+{
+    // Children a derived picker added go; the input box stays. Each removal can run callbacks, so slots are re-read.
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    for (size_t index = GetChildren().size(); index-- > 0u && ! lifetime.expired();)
+    {
+        if (const auto children = GetChildren(); index < children.size() && children[index] && children[index].get() != _combo)
+            static_cast<void>(Panel::TakeChild(index));
+    }
 }
 
 bool TagPicker::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
@@ -8169,40 +8303,56 @@ bool TabControl::RemoveTabByIdentity(Control* page, const std::weak_ptr<int>& pa
     {
         return false;
     }
+    // Enclosing containers end their own observers inside the page (inner hover, inner capture) while it is attached.
+    NotifyContainersOfDetaching(*page);
+    if (controlLifetime.expired())
+        return false;
+    currentIndex = FindTabIndex(page, pageLifetime);
+    if (! currentIndex)
+        return false;
 
     if (ControlHost* host = GetHost())
     {
-        if (Control* captured = host->GetCapturedControl(); captured && ControlBelongsToBranch(page, captured))
+        if (Control* captured = host->GetCapturedControl(); captured && IsControlInTree(page, captured))
         {
             const uint64_t focusBeforeCancellation = host->_focusRequestRevision;
             host->CancelCapturedControlInteraction();
             if (controlLifetime.expired() || pageLifetime.expired() || GetHost() != host)
                 return false;
-            if (Control* focused = host->GetFocusControl();
-                host->_focusRequestRevision != focusBeforeCancellation && focused && ControlBelongsToBranch(page, focused))
+            if (Control* focused = host->GetFocusControl(); host->_focusRequestRevision != focusBeforeCancellation && focused && IsControlInTree(page, focused))
                 return false;
-            if (Control* restoredCapture = host->GetCapturedControl(); restoredCapture && ControlBelongsToBranch(page, restoredCapture))
+            if (Control* restoredCapture = host->GetCapturedControl(); restoredCapture && IsControlInTree(page, restoredCapture))
                 return false;
             currentIndex = FindTabIndex(page, pageLifetime);
             if (! currentIndex)
                 return false;
         }
-        if (Control* focused = host->GetFocusControl(); focused && ControlBelongsToBranch(page, focused))
+        if (Control* focused = host->GetFocusControl(); focused && IsControlInTree(page, focused))
         {
             // A focus callback may destroy the TabControl, remove the requested page, or shift it among its siblings.
+            const uint64_t focusBeforeTransfer = host->_focusRequestRevision;
             if (! FocusControlAndSurvive(*host, *this) || controlLifetime.expired() || pageLifetime.expired() || GetHost() != host)
             {
                 return false;
             }
+            // A TabControl that cannot take focus (not focusable, disabled or hidden) refused it without a request, leaving
+            // it in the page: clear it, as Panel::TakeChild does, unless a focus callback made a newer request.
+            if (Control* stillFocused = host->GetFocusControl();
+                stillFocused && IsControlInTree(page, stillFocused) && host->_focusRequestRevision == focusBeforeTransfer)
+            {
+                host->SetFocusControl(nullptr);
+                if (controlLifetime.expired() || pageLifetime.expired() || GetHost() != host)
+                    return false;
+            }
             currentIndex = FindTabIndex(page, pageLifetime);
             if (! currentIndex)
             {
                 return false;
             }
         }
-        if (Control* focused = host->GetFocusControl(); focused && ControlBelongsToBranch(page, focused))
+        if (Control* focused = host->GetFocusControl(); focused && IsControlInTree(page, focused))
             return false;
-        if (Control* captured = host->GetCapturedControl(); captured && ControlBelongsToBranch(page, captured))
+        if (Control* captured = host->GetCapturedControl(); captured && IsControlInTree(page, captured))
             return false;
     }
 
@@ -8902,6 +9052,12 @@ bool TabControl::SyncLayout() noexcept
         return false;
     }
     RequestInvalidate();
+    // Its tabs, their titles and the selected one are what UI Automation reads of a tab control, and every change of them
+    // comes through here. Publishing marks the view and runs no application code unless the focus moved unpublished.
+    if (ControlHost* const host = GetHost())
+    {
+        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+    }
     return ! ownerLifetime.expired();
 }
 
@@ -8955,7 +9111,8 @@ bool TabControl::SelectTab(ControlHost& host, size_t index, bool focusSelf) noex
     }
     if (const auto onSelectionChanged = _onSelectionChanged; onSelectionChanged)
     {
-        (*onSelectionChanged)(currentIndex.value());
+        // Contained: this path is noexcept, and the selection has already changed.
+        static_cast<void>(TryControlCallback([&] { (*onSelectionChanged)(currentIndex.value()); }));
     }
     return ! controlLifetime.expired();
 }
@@ -8974,7 +9131,9 @@ void TabControl::CloseTab(ControlHost& host, size_t index) noexcept
     const auto onTabCloseRequested         = _onTabCloseRequested;
     if (onTabCloseRequested)
     {
-        const bool closeCanceled = (*onTabCloseRequested)(index);
+        // A handler that fails has not agreed to the close: the tab stays.
+        bool closeCanceled = true;
+        static_cast<void>(TryControlCallback([&] { closeCanceled = (*onTabCloseRequested)(index); }));
         if (closeLifetime.expired())
         {
             return;
@@ -8999,7 +9158,7 @@ void TabControl::CloseTab(ControlHost& host, size_t index) noexcept
     const auto onTabClosed = _onTabClosed;
     if (onTabClosed)
     {
-        (*onTabClosed)(closedIndex);
+        static_cast<void>(TryControlCallback([&] { (*onTabClosed)(closedIndex); }));
         if (closeLifetime.expired())
         {
             return;
@@ -9022,6 +9181,7 @@ void TabControl::ReorderTab(size_t fromIndex, size_t toIndex) noexcept
     children.erase(children.begin() + static_cast<ptrdiff_t>(fromIndex));
     _tabs.insert(_tabs.begin() + static_cast<ptrdiff_t>(toIndex), std::move(movedTab));
     children.insert(children.begin() + static_cast<ptrdiff_t>(toIndex), std::move(movedChild));
+    NotifyChildTreeChanged();
 
     if (_selectedIndex.has_value())
     {
@@ -9049,50 +9209,82 @@ void TabControl::UpdateDragReorder(ControlHost& host, D2D1_POINT_2F point) noexc
     }
 
     const size_t dragIndex = _draggingTabIndex.value();
-    for (size_t index = 0u; index < _tabs.size(); ++index)
+    if (dragIndex >= _tabs.size())
     {
-        if (index == dragIndex || ! _tabs[index].visible)
-        {
-            continue;
-        }
-
-        const D2D1_RECT_F tabRect = GetTabRect(index);
+        return;
+    }
+    // The dragged tab passes a visible neighbor once the pointer crosses that neighbor's midpoint, toward the neighbor;
+    // a fast drag passes several. Only a crossing moves it, so it neither swaps the moment the drag starts nor flips back
+    // and forth, and passing the last tab's midpoint reaches the last slot.
+    const bool rtl    = IsRightToLeft();
+    const auto passed = [&](size_t neighbor, bool later) noexcept
+    {
+        const D2D1_RECT_F tabRect = GetTabRect(neighbor);
         const float midpoint      = (tabRect.left + tabRect.right) * 0.5f;
-        if ((IsRightToLeft() && point.x > midpoint) || (! IsRightToLeft() && point.x < midpoint))
+        return (later != rtl) ? point.x > midpoint : point.x < midpoint;
+    };
+    std::optional<size_t> target;
+    for (size_t neighbor = dragIndex + 1u; neighbor < _tabs.size(); ++neighbor)
+    {
+        if (! _tabs[neighbor].visible)
+            continue;
+        if (! passed(neighbor, true))
+            break;
+        target = neighbor;
+    }
+    for (size_t neighbor = dragIndex; ! target.has_value() && neighbor-- > 0u;)
+    {
+        if (! _tabs[neighbor].visible)
+            continue;
+        if (! passed(neighbor, false))
+            break;
+        // Keep walking toward the start: a fast drag may pass more than one earlier tab.
+        target = neighbor;
+        while (neighbor-- > 0u)
         {
-            const auto& children = AccessChildren();
-            if (dragIndex >= children.size() || ! children[dragIndex])
-            {
-                return;
-            }
-            Control* const movedPage                   = children[dragIndex].get();
-            const std::weak_ptr<int> movedPageLifetime = GetControlLifetimeToken(*movedPage);
-            const std::weak_ptr<int> ownerLifetime     = GetLifetimeToken();
-            ReorderTab(dragIndex, index);
-            _draggingTabIndex = index;
-            if (! SyncLayout() || ownerLifetime.expired())
-            {
-                return;
-            }
-            const std::optional<size_t> currentIndex = FindTabIndex(movedPage, movedPageLifetime);
-            if (! currentIndex)
-            {
-                _draggingTabIndex.reset();
-                return;
-            }
-            _draggingTabIndex = currentIndex;
-            Invalidate(host);
-            if (ownerLifetime.expired())
-            {
-                return;
-            }
-            const auto onTabReordered = _onTabReordered;
-            if (onTabReordered)
-            {
-                (*onTabReordered)(dragIndex, currentIndex.value());
-            }
-            return;
+            if (! _tabs[neighbor].visible)
+                continue;
+            if (! passed(neighbor, false))
+                break;
+            target = neighbor;
         }
+    }
+    if (! target)
+    {
+        return;
+    }
+
+    const auto& children = AccessChildren();
+    if (dragIndex >= children.size() || ! children[dragIndex])
+    {
+        return;
+    }
+    Control* const movedPage                   = children[dragIndex].get();
+    const std::weak_ptr<int> movedPageLifetime = GetControlLifetimeToken(*movedPage);
+    const std::weak_ptr<int> ownerLifetime     = GetLifetimeToken();
+    ReorderTab(dragIndex, target.value());
+    _draggingTabIndex = target;
+    if (! SyncLayout() || ownerLifetime.expired())
+    {
+        return;
+    }
+    const std::optional<size_t> currentIndex = FindTabIndex(movedPage, movedPageLifetime);
+    if (! currentIndex)
+    {
+        _draggingTabIndex.reset();
+        return;
+    }
+    _draggingTabIndex = currentIndex;
+    Invalidate(host);
+    if (ownerLifetime.expired())
+    {
+        return;
+    }
+    const auto onTabReordered = _onTabReordered;
+    if (onTabReordered)
+    {
+        // Application code inside this noexcept drag step: a throwing callback leaves the committed order as it is.
+        static_cast<void>(TryControlCallback([&] { (*onTabReordered)(dragIndex, currentIndex.value()); }));
     }
 }
 
@@ -10026,20 +10218,38 @@ void StackPanel::SetPadding(float left, float top, float right, float bottom) no
 
 void StackPanel::SetChildExtent(const Control* child, float extentDip)
 {
+    // Destroyed children's entries go first, which keeps the list as long as the live children's.
+    std::erase_if(_childExtents, [](const ChildExtent& entry) noexcept { return entry.lifetime.expired(); });
+    if (! child)
+    {
+        return;
+    }
     for (auto& entry : _childExtents)
     {
-        if (entry.first == child)
+        if (entry.child == child)
         {
-            if (entry.second != extentDip)
+            if (entry.extentDip != extentDip)
             {
-                entry.second = extentDip;
+                entry.extentDip = extentDip;
                 ++_layoutRevision;
             }
             return;
         }
     }
-    _childExtents.emplace_back(child, extentDip);
+    _childExtents.push_back(ChildExtent{.child = child, .lifetime = GetControlLifetimeToken(*child), .extentDip = extentDip});
     ++_layoutRevision;
+}
+
+float StackPanel::FindChildExtent(const Control& child) const noexcept
+{
+    for (const auto& entry : _childExtents)
+    {
+        if (entry.child == &child && ! entry.lifetime.expired())
+        {
+            return entry.extentDip;
+        }
+    }
+    return 0.0f;
 }
 
 float StackPanel::GetContentExtent() const noexcept
@@ -10058,15 +10268,7 @@ float StackPanel::GetContentExtent() const noexcept
             continue;
         }
 
-        float childExtent = 0.0f;
-        for (const auto& entry : _childExtents)
-        {
-            if (entry.first == child.get())
-            {
-                childExtent = entry.second;
-                break;
-            }
-        }
+        const float childExtent = FindChildExtent(*child);
 
         if (! first)
         {
@@ -10136,15 +10338,7 @@ void StackPanel::ApplyLayout()
             return;
         }
 
-        float childExtent = 0.0f;
-        for (const auto& entry : _childExtents)
-        {
-            if (entry.first == &child)
-            {
-                childExtent = entry.second;
-                break;
-            }
-        }
+        const float childExtent = FindChildExtent(child);
 
         if (! first)
         {
@@ -10264,10 +10458,85 @@ HRESULT ArrangeMeasuredActions(std::span<const D2D1_SIZE_F> sizes,
 
 // --- ScrollPanel ---
 
+void ScrollPanel::SetInnerHovered(Control* child) noexcept
+{
+    _innerHoveredChild    = child;
+    _innerHoveredLifetime = child ? child->GetLifetimeToken() : std::weak_ptr<int>{};
+}
+
+void ScrollPanel::SetInnerCaptured(Control* child, bool rightButton) noexcept
+{
+    _innerCapturedChild      = child;
+    _innerCapturedLifetime   = child ? child->GetLifetimeToken() : std::weak_ptr<int>{};
+    _innerCaptureRightButton = child && rightButton;
+}
+
+Control* ScrollPanel::LiveInnerHovered() noexcept
+{
+    // The lifetime is checked first, so a child that is gone is never dereferenced; one that left this panel is forgotten.
+    if (_innerHoveredChild && (_innerHoveredLifetime.expired() || ! IsControlInTree(this, _innerHoveredChild)))
+        SetInnerHovered(nullptr);
+    return _innerHoveredChild;
+}
+
+Control* ScrollPanel::LiveInnerCaptured() const noexcept
+{
+    // The gesture record itself stays until the release or a capture loss ends it: a pressed child that left the panel
+    // still owns the rest of its gesture, so its moves and its release reach no other child.
+    if (! _innerCapturedChild || _innerCapturedLifetime.expired() || ! IsControlInTree(this, _innerCapturedChild))
+        return nullptr;
+    return _innerCapturedChild;
+}
+
+bool ScrollPanel::HostCaptureCarriesGesture(const ControlHost& host) const noexcept
+{
+    const Control* const captured = host.GetCapturedControl();
+    for (const Control* control = this; control; control = control->_parent)
+    {
+        if (control == captured)
+            return true;
+    }
+    return false;
+}
+
+void ScrollPanel::OnDescendantDetaching(Control& subtree) noexcept
+{
+    ControlHost* const host                  = GetHost();
+    const std::weak_ptr<int> selfLifetime    = GetLifetimeToken();
+    const std::weak_ptr<int> subtreeLifetime = subtree.GetLifetimeToken();
+    if (Control* const captured = LiveInnerCaptured(); captured && IsControlInTree(&subtree, captured))
+    {
+        SetInnerCaptured(nullptr);
+        if (host)
+        {
+            static_cast<void>(TryControlCallback([&] { captured->OnCaptureLost(*host); }));
+            if (selfLifetime.expired())
+                return;
+            if (! _dragThumb && host->GetCapturedControl() == this)
+                host->ReleaseMouseCapture();
+        }
+    }
+    // The capture callback may have retired the subtree itself (and with it the inner hover inside it): membership is
+    // only asked of a live subtree.
+    if (selfLifetime.expired() || subtreeLifetime.expired())
+        return;
+    if (Control* const hovered = LiveInnerHovered(); hovered && IsControlInTree(&subtree, hovered))
+    {
+        SetInnerHovered(nullptr);
+        if (host)
+        {
+            const std::weak_ptr<int> hoveredLifetime = hovered->GetLifetimeToken();
+            static_cast<void>(TryControlCallback([&] { hovered->OnHoverChanged(*host, false); }));
+            if (! selfLifetime.expired() && ! hoveredLifetime.expired())
+                static_cast<void>(TryControlCallback([&] { hovered->OnMouseLeave(*host); }));
+        }
+    }
+}
+
 void ScrollPanel::ClearChildren() noexcept
 {
-    _innerHoveredChild  = nullptr;
-    _innerCapturedChild = nullptr;
+    SetInnerHovered(nullptr);
+    SetInnerCaptured(nullptr);
     _scrollbarHotPart   = HotPart::None;
     _dragThumb          = false;
     _dragThumbOffsetDip = 0.0f;
@@ -10502,30 +10771,28 @@ void ScrollPanel::UpdateInnerHover(ControlHost& host, D2D1_POINT_2F viewportPoin
         }
     }
 
-    if (_innerHoveredChild != newHovered)
+    if (LiveInnerHovered() != newHovered)
     {
-        if (_innerHoveredChild)
+        if (Control* const oldHovered = LiveInnerHovered())
         {
-            Control* const oldHovered                   = _innerHoveredChild;
-            const std::weak_ptr<int> oldHoveredLifetime = oldHovered->GetLifetimeToken();
+            const std::weak_ptr<int> oldHoveredLifetime = _innerHoveredLifetime;
             oldHovered->OnHoverChanged(host, false);
             if (selfLifetime.expired())
             {
                 return;
             }
-            _innerHoveredChild = RevalidateScrollPanelChild(oldHoveredLifetime, this, oldHovered);
+            SetInnerHovered(RevalidateScrollPanelChild(oldHoveredLifetime, this, oldHovered));
         }
-        _innerHoveredChild = RevalidateScrollPanelChild(newHoveredLifetime, this, newHovered);
-        if (_innerHoveredChild)
+        SetInnerHovered(RevalidateScrollPanelChild(newHoveredLifetime, this, newHovered));
+        if (Control* const entered = LiveInnerHovered())
         {
-            Control* const entered                   = _innerHoveredChild;
-            const std::weak_ptr<int> enteredLifetime = entered->GetLifetimeToken();
+            const std::weak_ptr<int> enteredLifetime = _innerHoveredLifetime;
             entered->OnHoverChanged(host, true);
             if (selfLifetime.expired())
             {
                 return;
             }
-            _innerHoveredChild = RevalidateScrollPanelChild(enteredLifetime, this, entered);
+            SetInnerHovered(RevalidateScrollPanelChild(enteredLifetime, this, entered));
         }
     }
 }
@@ -10649,6 +10916,46 @@ bool ScrollPanel::DismissOverlayOnPointerDown(ControlHost& host, D2D1_POINT_2F p
 
 bool ScrollPanel::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
+    return DispatchPress(host, point, rightButton, modifiers, false);
+}
+
+bool ScrollPanel::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
+{
+    // The second press of a double-click reaches the child under the pointer as that child's double-click (a control
+    // without one treats it as a press, so a second right-click opens its menu again), and the scrollbar as a press: a
+    // second click on the track pages again and a second press on the thumb drags it, as on a native scrollbar.
+    return DispatchPress(host, point, rightButton, modifiers, true);
+}
+
+bool ScrollPanel::DispatchPress(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers, bool doubleClick)
+{
+    const auto forward = [&](Control& child, D2D1_POINT_2F contentPoint)
+    {
+        return doubleClick ? child.OnMouseDoubleClick(host, contentPoint, rightButton, modifiers)
+                           : child.OnMouseDown(host, contentPoint, rightButton, modifiers);
+    };
+    if ((_innerCapturedChild || _dragThumb) && ! HostCaptureCarriesGesture(host))
+    {
+        // The capture went away without a capture-loss callback: that gesture ended, and this press begins another.
+        const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
+        OnCaptureLost(host);
+        if (selfLifetime.expired())
+            return true;
+    }
+    if (_dragThumb)
+    {
+        // A second button pressed while the thumb is held belongs to that drag, which ignores it.
+        return false;
+    }
+    if (_innerCapturedChild)
+    {
+        // A second button pressed during a forwarded gesture reaches the child that owns the gesture, as the host's
+        // capture sends it to an unscrolled control, and the gesture stays that child's until its own button is up.
+        // Hit-testing it instead handed the gesture to another child, and the first never saw its release.
+        Control* const capturedChild = LiveInnerCaptured();
+        return capturedChild && forward(*capturedChild, ToContentSpace(point));
+    }
+
     const D2D1_POINT_2F contentPoint       = ToContentSpace(point);
     const std::weak_ptr<int> queryLifetime = GetLifetimeToken();
     Control* overlayChild                  = FindOverlayChildAtContent(contentPoint);
@@ -10660,16 +10967,16 @@ bool ScrollPanel::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool right
     {
         const std::weak_ptr<int> selfLifetime  = GetLifetimeToken();
         const std::weak_ptr<int> childLifetime = overlayChild->GetLifetimeToken();
-        const bool childHandled                = overlayChild->OnMouseDown(host, contentPoint, rightButton, modifiers);
+        const bool childHandled                = forward(*overlayChild, contentPoint);
         if (selfLifetime.expired())
         {
             return childHandled;
         }
         if (childHandled)
         {
-            if (Control* const liveChild = RevalidateScrollPanelChild(childLifetime, this, overlayChild))
+            if (Control* const liveChild = RevalidateScrollPanelChild(childLifetime, this, overlayChild); liveChild && PressStillOwnsPointer(host, rightButton))
             {
-                _innerCapturedChild = liveChild;
+                SetInnerCaptured(liveChild, rightButton);
                 host.CaptureMouse(this);
             }
             return true;
@@ -10723,16 +11030,16 @@ bool ScrollPanel::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool right
         {
             const std::weak_ptr<int> selfLifetime  = GetLifetimeToken();
             const std::weak_ptr<int> childLifetime = child->GetLifetimeToken();
-            const bool childHandled                = child->OnMouseDown(host, contentPoint, rightButton, modifiers);
+            const bool childHandled                = forward(*child, contentPoint);
             if (selfLifetime.expired())
             {
                 return childHandled;
             }
             if (childHandled)
             {
-                if (Control* const liveChild = RevalidateScrollPanelChild(childLifetime, this, child))
+                if (Control* const liveChild = RevalidateScrollPanelChild(childLifetime, this, child); liveChild && PressStillOwnsPointer(host, rightButton))
                 {
-                    _innerCapturedChild = liveChild;
+                    SetInnerCaptured(liveChild, rightButton);
                     host.CaptureMouse(this);
                 }
                 return true;
@@ -10743,54 +11050,21 @@ bool ScrollPanel::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool right
     return false;
 }
 
-bool ScrollPanel::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
-{
-    if (rightButton)
-    {
-        return false;
-    }
-
-    const D2D1_RECT_F viewport = GetViewportRect();
-    if (PointInRect(viewport, point))
-    {
-        const D2D1_POINT_2F contentPoint      = ToContentSpace(point);
-        const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
-        Control* overlayChild                 = FindOverlayChildAtContent(contentPoint);
-        if (selfLifetime.expired())
-        {
-            return false;
-        }
-        if (overlayChild)
-        {
-            return overlayChild->OnMouseDoubleClick(host, contentPoint, rightButton, modifiers);
-        }
-        Control* child = FindChildAtContent(contentPoint);
-        if (selfLifetime.expired())
-        {
-            return false;
-        }
-        if (child)
-        {
-            return child->OnMouseDoubleClick(host, contentPoint, rightButton, modifiers);
-        }
-    }
-
-    return false;
-}
-
 bool ScrollPanel::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT modifiers)
 {
+    if ((_innerCapturedChild || _dragThumb) && ! HostCaptureCarriesGesture(host))
+    {
+        // The capture went away without a capture-loss callback: the gesture ended, and this move is ordinary hover.
+        const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
+        OnCaptureLost(host);
+        if (selfLifetime.expired())
+            return true;
+    }
     if (_innerCapturedChild)
     {
-        Control* const capturedChild           = _innerCapturedChild;
-        const std::weak_ptr<int> selfLifetime  = GetLifetimeToken();
-        const std::weak_ptr<int> childLifetime = capturedChild->GetLifetimeToken();
-        capturedChild->OnMouseMove(host, ToContentSpace(point), modifiers);
-        if (selfLifetime.expired())
-        {
-            return true;
-        }
-        _innerCapturedChild = RevalidateScrollPanelChild(childLifetime, this, capturedChild);
+        // The gesture continues to its release even when the pressed child has left the panel meanwhile.
+        if (Control* const capturedChild = LiveInnerCaptured())
+            capturedChild->OnMouseMove(host, ToContentSpace(point), modifiers);
         return true;
     }
 
@@ -10826,32 +11100,30 @@ bool ScrollPanel::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT modif
     {
         const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
         std::weak_ptr<int> overlayLifetime    = overlayChild->GetLifetimeToken();
-        if (_innerHoveredChild != overlayChild)
+        if (LiveInnerHovered() != overlayChild)
         {
-            if (_innerHoveredChild)
+            if (Control* const oldHovered = LiveInnerHovered())
             {
-                Control* const oldHovered                   = _innerHoveredChild;
-                const std::weak_ptr<int> oldHoveredLifetime = oldHovered->GetLifetimeToken();
+                const std::weak_ptr<int> oldHoveredLifetime = _innerHoveredLifetime;
                 oldHovered->OnHoverChanged(host, false);
                 if (selfLifetime.expired())
                 {
                     return true;
                 }
-                _innerHoveredChild = RevalidateScrollPanelChild(oldHoveredLifetime, this, oldHovered);
+                SetInnerHovered(RevalidateScrollPanelChild(oldHoveredLifetime, this, oldHovered));
             }
-            overlayChild       = RevalidateScrollPanelChild(overlayLifetime, this, overlayChild);
-            _innerHoveredChild = overlayChild;
-            if (_innerHoveredChild)
+            overlayChild = RevalidateScrollPanelChild(overlayLifetime, this, overlayChild);
+            SetInnerHovered(overlayChild);
+            if (Control* const entered = LiveInnerHovered())
             {
-                Control* const entered                   = _innerHoveredChild;
-                const std::weak_ptr<int> enteredLifetime = entered->GetLifetimeToken();
+                const std::weak_ptr<int> enteredLifetime = _innerHoveredLifetime;
                 entered->OnHoverChanged(host, true);
                 if (selfLifetime.expired())
                 {
                     return true;
                 }
-                _innerHoveredChild = RevalidateScrollPanelChild(enteredLifetime, this, entered);
-                overlayChild       = _innerHoveredChild;
+                SetInnerHovered(RevalidateScrollPanelChild(enteredLifetime, this, entered));
+                overlayChild = LiveInnerHovered();
             }
         }
         if (overlayChild)
@@ -10862,7 +11134,7 @@ bool ScrollPanel::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT modif
             {
                 return true;
             }
-            _innerHoveredChild = RevalidateScrollPanelChild(overlayLifetime, this, overlayChild);
+            SetInnerHovered(RevalidateScrollPanelChild(overlayLifetime, this, overlayChild));
         }
         return true;
     }
@@ -10893,16 +11165,15 @@ bool ScrollPanel::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT modif
     }
 
     // Dispatch move to inner hovered child
-    if (_innerHoveredChild)
+    if (Control* const hoveredChild = LiveInnerHovered())
     {
-        Control* const hoveredChild            = _innerHoveredChild;
-        const std::weak_ptr<int> childLifetime = hoveredChild->GetLifetimeToken();
+        const std::weak_ptr<int> childLifetime = _innerHoveredLifetime;
         hoveredChild->OnMouseMove(host, contentPoint, modifiers);
         if (selfLifetime.expired())
         {
             return true;
         }
-        _innerHoveredChild = RevalidateScrollPanelChild(childLifetime, this, hoveredChild);
+        SetInnerHovered(RevalidateScrollPanelChild(childLifetime, this, hoveredChild));
     }
 
     return true;
@@ -10912,11 +11183,17 @@ bool ScrollPanel::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightBu
 {
     if (_innerCapturedChild)
     {
-        Control* const capturedChild          = _innerCapturedChild;
+        // A pressed child that left the panel during its gesture still ends it here: the release reaches no other child.
+        // The release of a second button pressed during the gesture reaches the same child and leaves the gesture open.
+        Control* const capturedChild          = LiveInnerCaptured();
         const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
-        _innerCapturedChild                   = nullptr;
-        const bool handled                    = capturedChild->OnMouseUp(host, ToContentSpace(point), rightButton, modifiers);
-        if (selfLifetime.expired())
+        const bool gestureEnds                = rightButton == _innerCaptureRightButton;
+        if (gestureEnds)
+        {
+            SetInnerCaptured(nullptr);
+        }
+        const bool handled = capturedChild ? capturedChild->OnMouseUp(host, ToContentSpace(point), rightButton, modifiers) : true;
+        if (selfLifetime.expired() || ! gestureEnds)
         {
             return handled;
         }
@@ -10926,6 +11203,11 @@ bool ScrollPanel::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightBu
 
     if (_dragThumb)
     {
+        if (rightButton)
+        {
+            // The thumb drag began with the primary button and ends only with its release.
+            return false;
+        }
         _dragThumb = false;
         host.ReleaseMouseCapture();
 
@@ -11041,21 +11323,27 @@ bool ScrollPanel::OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float whe
 
 bool ScrollPanel::OnMouseLeave(ControlHost& host)
 {
+    if ((_innerCapturedChild || _dragThumb) && ! HostCaptureCarriesGesture(host))
+    {
+        const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
+        OnCaptureLost(host);
+        if (selfLifetime.expired())
+            return true;
+    }
     if (_innerCapturedChild)
     {
         return true;
     }
 
-    if (_innerHoveredChild)
+    if (Control* const hoveredChild = LiveInnerHovered())
     {
-        Control* const hoveredChild           = _innerHoveredChild;
         const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
         hoveredChild->OnHoverChanged(host, false);
         if (selfLifetime.expired())
         {
             return true;
         }
-        _innerHoveredChild = nullptr;
+        SetInnerHovered(nullptr);
     }
     if (_scrollbarHotPart != HotPart::None)
     {
@@ -11067,11 +11355,11 @@ bool ScrollPanel::OnMouseLeave(ControlHost& host)
 
 void ScrollPanel::OnCaptureLost(ControlHost& host)
 {
-    const bool hadDrag = _dragThumb || _innerCapturedChild != nullptr;
-    if (_innerCapturedChild)
+    const bool hadDrag           = _dragThumb || _innerCapturedChild != nullptr;
+    Control* const capturedChild = LiveInnerCaptured();
+    SetInnerCaptured(nullptr);
+    if (capturedChild)
     {
-        Control* const capturedChild          = _innerCapturedChild;
-        _innerCapturedChild                   = nullptr;
         const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
         capturedChild->OnCaptureLost(host);
         if (selfLifetime.expired())
@@ -11294,7 +11582,7 @@ bool TooltipLayer::BeginHideDelay(uint64_t nowTickMs, uint64_t delayMs) noexcept
         return false;
     }
 
-    const uint64_t nextHideTickMs = nowTickMs + delayMs;
+    const uint64_t nextHideTickMs = delayMs > (std::numeric_limits<uint64_t>::max)() - nowTickMs ? (std::numeric_limits<uint64_t>::max)() : nowTickMs + delayMs;
     if (_hideScheduled && _hideTickMs == nextHideTickMs)
     {
         return false;

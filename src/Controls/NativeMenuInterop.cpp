@@ -165,7 +165,9 @@ void TrimNativeMenuFlyoutSeparators(std::vector<MenuFlyoutItem>& items) noexcept
             continue;
         }
 
-        item.text            = StripNativeMenuMnemonicMarkers(text);
+        // The popup decodes the label as it decodes any menu text: `&x` names the mnemonic and `&&` shows one ampersand,
+        // so an explicit mnemonic wins over an inferred one (Q8) and `Save && Close` keeps its ampersand.
+        item.text            = std::move(text);
         item.acceleratorText = options.includeAcceleratorText ? shortcut : std::wstring{};
         item.commandId       = static_cast<int>(itemInfo.wID);
         item.enabled         = (itemInfo.fState & MFS_GRAYED) == 0;

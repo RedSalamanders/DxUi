@@ -31,31 +31,6 @@ struct NativeTextInputThreadManagerState final
     bool comInitialized = false;
 };
 
-[[nodiscard]] bool NativeTextInputControlBelongsToTree(const Control* root, const Control* target) noexcept
-{
-    if (! root || ! target)
-    {
-        return false;
-    }
-    if (root == target)
-    {
-        return true;
-    }
-    const auto* panel = dynamic_cast<const Panel*>(root);
-    if (! panel)
-    {
-        return false;
-    }
-    for (const auto& child : panel->GetChildren())
-    {
-        if (child && NativeTextInputControlBelongsToTree(child.get(), target))
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
 using Internal::ClearThreadManagerFocusIfOwnedBy;
 using Internal::RestoreThreadManagerFocusAssociation;
 
@@ -582,7 +557,7 @@ void ControlHost::ActivateNativeTextInputSession(Control* control, bool transfer
     const auto requestIsCurrent                = [this, control, &controlLifetime, &requestedFocusId, requestedSessionRevision]() noexcept
     {
         return ! controlLifetime.expired() && control == _focusedControl && control == _nativeTextInputControl && requestedFocusId == _nativeTextInputFocusId &&
-               requestedSessionRevision == _nativeTextInputSessionRevision && NativeTextInputControlBelongsToTree(_root.get(), control);
+               requestedSessionRevision == _nativeTextInputSessionRevision && IsControlInTree(_root.get(), control);
     };
     if (! control->SupportsTextInput() || (_hwnd && (! IsWindowVisible(_hwnd) || _widthPx == 0u || _heightPx == 0u)))
     {
@@ -605,8 +580,8 @@ void ControlHost::ActivateNativeTextInputSession(Control* control, bool transfer
         return;
     }
     if (controlLifetime.expired() || requestedSessionRevision != _nativeTextInputSessionRevision ||
-        requestedTransitionRevision != _nativeTextInputTsfTransitionRevision || control != _focusedControl ||
-        ! NativeTextInputControlBelongsToTree(_root.get(), control) || (control == _nativeTextInputControl && ! requestIsCurrent()))
+        requestedTransitionRevision != _nativeTextInputTsfTransitionRevision || control != _focusedControl || ! IsControlInTree(_root.get(), control) ||
+        (control == _nativeTextInputControl && ! requestIsCurrent()))
     {
         return;
     }
@@ -623,7 +598,7 @@ void ControlHost::ActivateNativeTextInputSession(Control* control, bool transfer
         CancelNativeTextInputImeComposition();
         if (controlLifetime.expired() || requestedSessionRevision != _nativeTextInputSessionRevision ||
             requestedTransitionRevision != _nativeTextInputTsfTransitionRevision || control != _nativeTextInputControl ||
-            ! NativeTextInputControlBelongsToTree(_root.get(), control))
+            ! IsControlInTree(_root.get(), control))
             return;
         try
         {
@@ -662,7 +637,7 @@ void ControlHost::ActivateNativeTextInputSession(Control* control, bool transfer
     // host's accessibility publication can replace the control tree before it returns.
     if (controlLifetime.expired() || requestedSessionRevision != _nativeTextInputSessionRevision ||
         requestedTransitionRevision != _nativeTextInputTsfTransitionRevision || control != _focusedControl || control != _nativeTextInputControl ||
-        ! NativeTextInputControlBelongsToTree(_root.get(), control))
+        ! IsControlInTree(_root.get(), control))
     {
         if (_nativeTextInputControl == control && _nativeTextInputSessionRevision == requestedSessionRevision && _nativeTextInputFocusId == requestedFocusId &&
             _nativeTextInputTsfTransitionRevision == requestedTransitionRevision)
@@ -681,7 +656,7 @@ void ControlHost::ActivateNativeTextInputSession(Control* control, bool transfer
             ++expectedTransition;
         DeactivateNativeTextInputTsf();
         if (_nativeTextInputSessionRevision != requestedSessionRevision || _nativeTextInputTsfTransitionRevision != expectedTransition ||
-            controlLifetime.expired() || control != _nativeTextInputControl || ! NativeTextInputControlBelongsToTree(_root.get(), control))
+            controlLifetime.expired() || control != _nativeTextInputControl || ! IsControlInTree(_root.get(), control))
             return;
         ClearNativeTextInputCompositionState();
         UpdateNativeTextInputCaret();
@@ -696,7 +671,7 @@ void ControlHost::ActivateNativeTextInputSession(Control* control, bool transfer
             ++expectedTransition;
         DeactivateNativeTextInputTsf();
         if (_nativeTextInputSessionRevision != requestedSessionRevision || _nativeTextInputTsfTransitionRevision != expectedTransition ||
-            controlLifetime.expired() || control != _nativeTextInputControl || ! NativeTextInputControlBelongsToTree(_root.get(), control))
+            controlLifetime.expired() || control != _nativeTextInputControl || ! IsControlInTree(_root.get(), control))
             return;
         UpdateNativeTextInputCaret();
         return;
@@ -794,7 +769,7 @@ bool ControlHost::ActivateNativeTextInputTsf(Control* control) noexcept
     {
         if (_detachInProgress.load(std::memory_order_acquire) || controlLifetime.expired() || control != _focusedControl ||
             control != _nativeTextInputControl || requestedFocusId != _nativeTextInputFocusId || activationRevision != _nativeTextInputTsfTransitionRevision ||
-            ! NativeTextInputControlBelongsToTree(_root.get(), control) || ! IsControlEffectivelyInteractive(_root.get(), control) ||
+            ! IsControlInTree(_root.get(), control) || ! IsControlEffectivelyInteractive(_root.get(), control) ||
             _textInputBackend != TextInputBackend::Native ||
             (_hwnd && (! IsWindow(_hwnd) || ! IsWindowVisible(_hwnd) || _widthPx == 0u || _heightPx == 0u || GetFocus() != _hwnd)))
         {
@@ -952,9 +927,9 @@ void ControlHost::DeactivateNativeTextInputTsf() noexcept
         ++_nativeTextInputTsfTransitionRevision;
     const uint64_t transitionRevision = _nativeTextInputTsfTransitionRevision;
     InvalidateNativeTextStoreDeferredWork();
-    const bool wasActive     = _nativeTextInputTsfActive;
-    const bool controlIsLive = _nativeTextInputTsfControl && ! _nativeTextInputTsfControlLifetime.expired() &&
-                               NativeTextInputControlBelongsToTree(_root.get(), _nativeTextInputTsfControl);
+    const bool wasActive = _nativeTextInputTsfActive;
+    const bool controlIsLive =
+        _nativeTextInputTsfControl && ! _nativeTextInputTsfControlLifetime.expired() && IsControlInTree(_root.get(), _nativeTextInputTsfControl);
 
     // Retire this session before any TSF call: SetFocus and Pop synchronously invoke
     // installed sinks, which may activate a replacement session on this host.
@@ -1032,7 +1007,7 @@ void ControlHost::SyncNativeTextInputSession(Control* control) noexcept
     const auto isCurrent                     = [this, control, &controlLifetime, sessionRevision]() noexcept
     {
         return ! controlLifetime.expired() && sessionRevision == _nativeTextInputSessionRevision && control == _nativeTextInputControl &&
-               NativeTextInputControlBelongsToTree(_root.get(), control);
+               IsControlInTree(_root.get(), control);
     };
 
     TextInputState controlState;
@@ -1117,8 +1092,7 @@ void ControlHost::SyncNativeTextInputSession(Control* control) noexcept
 bool ControlHost::ScheduleNativeTextStoreDeferredWork(Control* control, UINT_PTR sessionCookie) noexcept
 {
     if (sessionCookie != _nativeTextStoreDispatchCookie || ! control || control != _nativeTextInputControl || _nativeTextInputControlLifetime.expired() ||
-        ! NativeTextInputControlBelongsToTree(_root.get(), control) || ! _hwnd || ! IsWindow(_hwnd) || ! _nativeTextInputTsfActive ||
-        ! _nativeTextInputTsfTextStore)
+        ! IsControlInTree(_root.get(), control) || ! _hwnd || ! IsWindow(_hwnd) || ! _nativeTextInputTsfActive || ! _nativeTextInputTsfTextStore)
         return false;
     if (_nativeTextStoreNotificationPosted)
         return true;
@@ -1160,7 +1134,7 @@ void ControlHost::RaiseNativeTextInputAccessibilityEvents(const NativeTextInputS
     Control* const control            = _nativeTextInputControl;
     const std::weak_ptr<int> lifetime = _nativeTextInputControlLifetime;
     const auto isCurrent              = [this, control, &lifetime]() noexcept
-    { return control && ! lifetime.expired() && control == _nativeTextInputControl && NativeTextInputControlBelongsToTree(_root.get(), control); };
+    { return control && ! lifetime.expired() && control == _nativeTextInputControl && IsControlInTree(_root.get(), control); };
     if (! _nativeTextInputStateCacheValid || ! isCurrent())
     {
         return;
@@ -1255,8 +1229,8 @@ bool ControlHost::SetNativeTextInputCompositionRange(Control* control,
                                                      std::optional<size_t> end,
                                                      std::optional<size_t> cursor) noexcept
 {
-    if (! control || control != _nativeTextInputControl || _nativeTextInputControlLifetime.expired() ||
-        ! NativeTextInputControlBelongsToTree(_root.get(), control) || ! _nativeTextInputStateCacheValid)
+    if (! control || control != _nativeTextInputControl || _nativeTextInputControlLifetime.expired() || ! IsControlInTree(_root.get(), control) ||
+        ! _nativeTextInputStateCacheValid)
     {
         return false;
     }
@@ -1281,12 +1255,12 @@ bool ControlHost::SetNativeTextInputCompositionRange(Control* control,
     ApplyNativeTextInputCompositionStateToCache();
     RaiseNativeTextInputAccessibilityEvents(previousState);
 
-    if (_nativeTextInputControlLifetime.expired() || control != _nativeTextInputControl || ! NativeTextInputControlBelongsToTree(_root.get(), control))
+    if (_nativeTextInputControlLifetime.expired() || control != _nativeTextInputControl || ! IsControlInTree(_root.get(), control))
     {
         return false;
     }
     UpdateNativeTextInputCaret();
-    return ! _nativeTextInputControlLifetime.expired() && control == _nativeTextInputControl && NativeTextInputControlBelongsToTree(_root.get(), control);
+    return ! _nativeTextInputControlLifetime.expired() && control == _nativeTextInputControl && IsControlInTree(_root.get(), control);
 }
 
 void ControlHost::CancelNativeTextInputImeComposition() noexcept
@@ -1295,8 +1269,7 @@ void ControlHost::CancelNativeTextInputImeComposition() noexcept
     _nativeTextInputImeCancelledUntilStart = true;
     Control* const control                 = _nativeTextInputControl;
     const auto lifetime                    = _nativeTextInputControlLifetime;
-    if (! _nativeTextInputImeBaseState || ! _nativeTextInputImePreviewText || ! control || lifetime.expired() ||
-        ! NativeTextInputControlBelongsToTree(_root.get(), control))
+    if (! _nativeTextInputImeBaseState || ! _nativeTextInputImePreviewText || ! control || lifetime.expired() || ! IsControlInTree(_root.get(), control))
     {
         ClearNativeTextInputCompositionState();
         return;
@@ -1309,7 +1282,7 @@ void ControlHost::CancelNativeTextInputImeComposition() noexcept
     const auto cancellationIsCurrent       = [this, control, &lifetime, sessionRevision, cancellationImeRevision]() noexcept
     {
         return ! lifetime.expired() && control == _nativeTextInputControl && sessionRevision == _nativeTextInputSessionRevision &&
-               cancellationImeRevision == _nativeTextInputImeRevision && NativeTextInputControlBelongsToTree(_root.get(), control);
+               cancellationImeRevision == _nativeTextInputImeRevision && IsControlInTree(_root.get(), control);
     };
     const auto clearCacheIfCancellationStillOwnsPreview = [this, &cancellationIsCurrent, &preview]() noexcept
     {
@@ -1494,7 +1467,7 @@ try
             return false;
         }
 
-        if (! editTargetLifetime.expired() && editTarget == _focusedControl && NativeTextInputControlBelongsToTree(_root.get(), editTarget))
+        if (! editTargetLifetime.expired() && editTarget == _focusedControl && IsControlInTree(_root.get(), editTarget))
         {
             SyncNativeTextInputSession(editTarget);
         }
@@ -1613,7 +1586,7 @@ try
         default: return false;
     }
 
-    if (controlHandled && ! editTargetLifetime.expired() && editTarget == _focusedControl && NativeTextInputControlBelongsToTree(_root.get(), editTarget))
+    if (controlHandled && ! editTargetLifetime.expired() && editTarget == _focusedControl && IsControlInTree(_root.get(), editTarget))
     {
         SyncNativeTextInputSession(editTarget);
         RecordNativeTextInputKeyToStateMetric(inputStartedAt, L"native-edit-message", static_cast<uint64_t>(msg), 0u, msg != WM_COPY);
@@ -1651,7 +1624,7 @@ bool ControlHost::HandleNativeTextInputImeMessage(UINT msg, WPARAM wp, LPARAM lp
     const auto editTargetSurvived      = [this, editTarget, &editTargetLifetime, editSessionRevision]() noexcept
     {
         return ! editTargetLifetime.expired() && editSessionRevision == _nativeTextInputSessionRevision && editTarget == _focusedControl &&
-               editTarget == _nativeTextInputControl && NativeTextInputControlBelongsToTree(_root.get(), editTarget);
+               editTarget == _nativeTextInputControl && IsControlInTree(_root.get(), editTarget);
     };
     if (! editTargetSurvived())
     {

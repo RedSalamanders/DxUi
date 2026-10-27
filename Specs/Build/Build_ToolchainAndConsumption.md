@@ -223,6 +223,13 @@ alias carries no `[[deprecated]]` attribute, since consumers compile with warnin
 replacement. The changelog fragment of a change that increments the revision says so and lists what each consumer must
 change.
 
+The optional read-only parsed-snapshot APIs remain in revision 4. They add methods without changing the ordinary
+source-synchronization/parser paths. `MarkdownSyntax` gains an immutable shared owner, so its C++ object layout
+changes. This is source-coordinated adoption: rebuild with the exact matching headers, library, compiler, runtime
+and configuration. API revision equality or an isolated layout probe does not permit mixing old/new objects or
+establish stable binary interoperability. Performance comparisons across these pins must admit their exact
+changed header closure and retain each side's independently rebuilt source/toolchain evidence.
+
 The consumer interface is what a consumer may call or import from its pinned checkout. `capabilities.json` lists it under
 `consumerInterface`:
 - **Scripts**, with the parameters consumers pass: `vcpkg-install.ps1`, `validate-build-matrix.ps1` and
@@ -250,7 +257,26 @@ Revision 3 covers changes made at revision 2:
 - The Python tools were removed; `validate-build-matrix.ps1` replaces the Python build-matrix validator.
 - Private window messages are registered by name, and menu-bar hover is posted through `ContextMenu::PostMenuBarHover`.
 
-Revision 4 advances because Grid selection behavior and tab extraction semantics changed in ways an existing consumer could observe. It includes the compatible migration APIs `Panel::TakeChild`, `TabControl::TakeTab`/`TakeChild`, independent Grid focus accessors and `RequestFocusRow`, Tree focused-item accessors and `RequestFocusVisibleItem`, focus notifications, and the `GridSelectionModel` anchor setter; it also records quoted TSV output behavior. Those additions alone would not require a revision bump. The frozen [`Revision4.cpp`](../../Tools/ConsumerApi/Revision4.cpp) consumer fixture compiles with every consumer profile; review it alongside public headers whenever the revision changes.
+Revision 4 advances because Grid selection behavior and tab extraction semantics changed in ways an existing consumer could observe. It includes the compatible migration APIs `Panel::TakeChild`, `TabControl::TakeTab`/`TakeChild`, independent Grid focus accessors and `RequestFocusRow`, Tree focused-item accessors and `RequestFocusVisibleItem`, focus notifications, and the `GridSelectionModel` anchor setter; it also records quoted TSV output behavior. Those additions alone would not require a revision bump. The frozen [`Revision4.cpp`](../../Tools/ConsumerApi/ConsumerApi.Tests.Revision4.cpp) consumer fixture compiles with every consumer profile; review it alongside public headers whenever the revision changes.
+
+A consumer moving its pin to revision 4 sets `apiRevision` to 4 and reviews these changes:
+
+- `Panel::AddChild` and `TabControl::AddTab` return null when a callback retires the panel or the new child while it
+  is inserted; check the result before using it.
+- `Panel::TakeChild(index)` leaves an empty slot, while `TabControl::TakeChild` and `TakeTab` remove the tab. Either
+  returns empty when a focus or capture callback keeps the child in place: check it before giving it to `SetRoot` or
+  `PageHost::SetPage`, since `SetRoot` with an empty pointer destroys the tree that still holds the child.
+  `RemoveTab` keeps the tab in that case too.
+- `ITreeDelegate::OnTreeSelectionChanged` reports a membership change to a nonempty selection, with its primary member;
+  a move of the focus alone reports `OnTreeFocusedItemChanged`. Grid reports its focused row through
+  `OnGridFocusedRowChanged`, apart from `OnGridSelectionChanged`.
+- A described menu entry's UI Automation name is its label or `accessibleName`, and its secondary text is its
+  HelpText: an `accessibleName` that repeated the secondary text now speaks it twice.
+- `ContextMenuSessionCallbacks::flowDirection` sits between `rootVerticalPlacement` and `minRootWidthDip`; initialize
+  the aggregate by member name.
+
+The fixture also derives a consumer's Grid and Tree models and delegates, so a later pure virtual or a changed
+signature of an overridden virtual stops it compiling.
 
 `capabilities.json` declares the supported PowerShell versions for each consumer script and module. The published restore entry point `vcpkg-install.ps1` remains compatible with Windows PowerShell 5.1 and PowerShell 7. The consumer-facing `validate-build-matrix.ps1 -Root` runs under PowerShell 7 and resolves a relative root against the caller's working directory. `Tools/validate_consumer.ps1` and the shared `ConsumerBuild`, `ConsumerUpdate`, `VisualStudio` and `VcpkgTriplet` modules remain compatible with 5.1 and 7. Repository validation and scoped-iteration tools require PowerShell 7. The dependency validator parses each declared entry, rejects newly mandatory parameters unless declared, and rejects missing or unsupported PowerShell version promises.
 
@@ -262,9 +288,12 @@ the exact main commit whose latest push run of `ci.yml` completed successfully. 
 quiet; pending/failed/unavailable validation keeps the pin selected; divergent/ahead pins require review.
 The notice includes the comparison URL and lock to update. It is plain build output, never an MSBuild
 warning, automatic edit, PR comment, push, or scheduling service. Private read access uses existing
-GH_TOKEN/GITHUB_TOKEN or a bounded local gh credential lookup. Each of at most three API requests has
-a two-second timeout; credential lookup has a two-second timeout. Lookup failures are explicitly
-unavailable and cannot fail an otherwise valid fixed-pin build. Authentication details are never logged.
+GH_TOKEN/GITHUB_TOKEN or a bounded local gh credential lookup. The gh child has a two-second run
+deadline; on timeout only that owned child is terminated and its exit is confirmed within one additional
+second. Standard output and error drain concurrently and have a bounded drain wait; only a zero-exit,
+fully drained result can supply the token. Each of at most three API requests has a two-second timeout.
+Lookup failures are explicitly unavailable and cannot fail an otherwise valid fixed-pin build.
+Authentication details are never logged.
 The consumer still validates/restores its exact source pin independently and fails on a real pin error.
 
 ### CI toolchain preparation and audit evidence

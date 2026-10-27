@@ -13,6 +13,12 @@
 
 namespace DxUi
 {
+// The animation clock's milliseconds from a stamp to a tick; zero when the tick is not after the stamp.
+[[nodiscard]] constexpr uint64_t ElapsedTickMs(uint64_t startTickMs, uint64_t nowTickMs) noexcept
+{
+    return nowTickMs > startTickMs ? nowTickMs - startTickMs : 0u;
+}
+
 inline constexpr float kToggleTrackWidthDip           = 34.0f;
 inline constexpr float kToggleTrackHeightDip          = 20.0f;
 inline constexpr float kToggleKnobDiameterDip         = 16.0f;
@@ -36,6 +42,58 @@ struct ControlModelQueryAccess
             if (! lifetime.expired())
                 owner.RequestInvalidate();
         });
+    }
+    // The logical parent, a PageHost or TabControl included, which GetParent (Panels only, and protected) is not.
+    [[nodiscard]] static const Control* LogicalParent(const Control& control) noexcept
+    {
+        return control._parent;
+    }
+    // Every intrinsic layout of a subtree runs again at the next preparation, as after a DPI change: what it measured
+    // through a replaced text factory counts no longer (its records key on the typography revision).
+    static void RequestIntrinsicLayoutOfTree(Control& control) noexcept
+    {
+        control.RequestIntrinsicLayout();
+        for (size_t index = 0u; index < control.GetLogicalChildCount(); ++index)
+        {
+            if (Control* const child = control.GetLogicalChild(index))
+                RequestIntrinsicLayoutOfTree(*child);
+        }
+    }
+    // A TabControl's tabs for UI Automation: each tab's title and identity, the part of its header the strip shows, and the
+    // gesture that selects one (with its callback, as a click does).
+    [[nodiscard]] static std::span<const TabControl::TabItem> Tabs(const TabControl& tabs) noexcept
+    {
+        return tabs._tabs;
+    }
+    // Clipped to the strip's scrolled viewport between the overflow buttons; empty for a header scrolled out of it.
+    [[nodiscard]] static D2D1_RECT_F TabHeaderVisibleRect(const TabControl& tabs, size_t index) noexcept
+    {
+        D2D1_RECT_F rect = tabs.GetTabRect(index);
+        rect.left        = (std::max)(rect.left, tabs.GetHeaderViewportLeft());
+        rect.right       = (std::min)(rect.right, tabs.GetHeaderViewportRight());
+        return rect.right > rect.left && rect.bottom > rect.top ? rect : D2D1::RectF();
+    }
+    [[nodiscard]] static bool SelectTab(TabControl& tabs, ControlHost& host, size_t index, bool focusSelf) noexcept
+    {
+        return tabs.SelectTab(host, index, focusSelf);
+    }
+    // A page indicator's page chosen as a click or an arrow key chooses it, with its selection callback.
+    static void SelectPage(PageIndicator& indicator, ControlHost& host, uint32_t index)
+    {
+        indicator.SelectIndex(host, index);
+    }
+    // The model column at each display position, every column included; empty without a model. Reads the model.
+    [[nodiscard]] static std::vector<size_t> GridColumnDisplayOrder(const Grid& grid)
+    {
+        grid.EnsureColumnWidths();
+        return grid._columnDisplayOrder;
+    }
+    // Scrolls the grid until the row, and the column when given, is in its viewport. Runs the model's getters.
+    static void RevealGridItem(Grid& grid, size_t rowIndex, std::optional<size_t> columnIndex)
+    {
+        grid.EnsureRowVisible(rowIndex);
+        if (columnIndex)
+            static_cast<void>(grid.RevealColumn(*columnIndex));
     }
     [[nodiscard]] static uint64_t Revision(const Tree& owner) noexcept
     {
@@ -88,6 +146,19 @@ public:
     [[nodiscard]] bool IsBindingCurrent() const noexcept
     {
         return ! _lifetime.expired() && _owner->GetModel() == _model && ControlModelQueryAccess::BindingRevision(*_owner) == _bindingRevision;
+    }
+
+    // After a delegate callback, which is application code: the operation goes on while the control lives in the same
+    // host with the same model and delegate. A data refresh or a layout change the callback made (its own or any other
+    // control's) becomes the new baseline. The caller re-resolves rows by stable id and recomputes geometry before
+    // using them again. Strict IsCurrent() stays the rule after model getters and for values derived before a callback.
+    [[nodiscard]] bool ResumeAfterCallback() noexcept
+    {
+        if (! IsBindingCurrent() || ControlModelQueryAccess::Host(*_owner) != _host)
+            return false;
+        _revision         = ControlModelQueryAccess::Revision(*_owner);
+        _geometryRevision = ControlModelQueryAccess::GeometryRevision(*_owner);
+        return true;
     }
 
 private:
@@ -303,6 +374,15 @@ using unique_safearray = std::unique_ptr<SAFEARRAY, safearray_deleter>;
 [[nodiscard]] D2D1_COLOR_F ResolveInactiveSelectionTextColor(const ThemePalette& theme,
                                                              const D2D1_COLOR_F& preferredText,
                                                              const D2D1_COLOR_F& paintedGround) noexcept;
+// A list row's focus ring (Tree, Grid). The current row owns it, selected or not: shown while keyboard focus is visible, and
+// always in high contrast while the control has focus, in a color that contrasts with the row's painted fill.
+struct RowFocusVisuals final
+{
+    D2D1_COLOR_F color{};
+    bool shown = false;
+};
+[[nodiscard]] RowFocusVisuals ResolveRowFocusVisuals(
+    const ThemePalette& theme, const D2D1_COLOR_F& fill, bool selected, bool current, bool focused, bool keyboardFocused) noexcept;
 [[nodiscard]] std::wstring_view GetCheckboxCheckGlyph(const ControlHost& host) noexcept;
 [[nodiscard]] FontRole GetCheckboxCheckFontRole(const ControlHost& host) noexcept;
 [[nodiscard]] DWRITE_READING_DIRECTION ResolveReadingDirection(FlowDirection flowDirection) noexcept;
@@ -490,6 +570,11 @@ void DrawTextWithMnemonic(ControlHost& host,
 [[nodiscard]] bool IconTextUsesIconFont(std::wstring_view iconText) noexcept;
 [[nodiscard]] FontRole ResolveIconTextFontRole(std::wstring_view iconText) noexcept;
 [[nodiscard]] bool IsControlEffectivelyInteractive(const Control* root, const Control* target) noexcept;
+// After a press handler returned: whether its gesture still owns the pointer. False when the handler's own nested work
+// already ended a secondary press (a blocking menu loop consumed the release) or gave the pointer to another window (a
+// popup that took capture): capturing then would strand a gesture with no button down, or close the popup. Window-less
+// and embedded hosts, whose input the application delivers, keep capturing.
+[[nodiscard]] bool PressStillOwnsPointer(const ControlHost& host, bool rightButton) noexcept;
 
 inline constexpr PCWSTR kNativeAccessibilityTargetProperty = L"DxUi.ControlHost";
 // Exact attached HWND lookup for library-owned modal loops; never routes child/foreign window input.
@@ -497,12 +582,19 @@ inline constexpr PCWSTR kNativeAccessibilityTargetProperty = L"DxUi.ControlHost"
 void RegisterWindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexcept;
 void UnregisterWindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexcept;
 void NotifyWindowHostAccessibilityDestroyed(HWND hwnd) noexcept;
-// Republishes a window host's snapshot and raises what changed for clients: StructureChanged when semantic controls
-// were added, removed or replaced, and the focus change when another element took focus inside a window that holds
-// the foreground's keyboard focus. While the window itself gains focus, the system's focus event reports it; a move
-// later in the turn of the gain is left to that event only in a window whose fragment-root GetFocus no call has ever
-// begun on, because the first such call reports the moved-to element (see ReporterOfFocusMove).
-void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexcept;
+// Marks a window host's snapshot stale and posts one coalesced flush, which republishes it and raises what changed for
+// clients: StructureChanged when semantic controls were added, removed or replaced, and the focus change when another
+// element took focus inside a window that holds the foreground's keyboard focus. Without a client it only marks the
+// snapshot; with one, a focus change republishes at once. While the window itself gains focus, the system's focus event
+// reports it; a move later in the turn of the gain is left to that event only in a window whose fragment-root GetFocus
+// no call has ever begun on, because the first such call reports the moved-to element (see ReporterOfFocusMove).
+enum class AccessibilityMutationKind : unsigned
+{
+    General,
+    // Only content changes that cannot alter focus, visibility, enabled state or logical structure.
+    ContentOnly
+};
+void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host, AccessibilityMutationKind mutation = AccessibilityMutationKind::General) noexcept;
 // A window host begins to gain focus, before it publishes anything: records how many fragment-root GetFocus calls had
 // begun, which says whether UI Automation will ask for what the gain focuses or restores (none had) or answer without
 // asking (see EndWindowHostFocusGainTurn), and starts the gain with no announcement made.

@@ -5,7 +5,8 @@ expanders while retaining its hierarchical model, keyboard expansion and UIA sem
 the expander lane for leaves to align their icons. High contrast always retains its system surface and perimeter.
 
 `neutralDecorations` uses subdued file/folder ink and quiet count badges. `TreeItemData::badgeIsDot` renders a
-small state dot while retaining `badgeText` for accessibility. Paint and exposed row metrics share one calculation.
+small state dot while retaining `badgeText` as the TreeItem UI Automation `ItemStatus`; `Name` remains the row text.
+Paint and exposed row metrics share one calculation.
 
 Inactive selected rows prefer `selectionText` on `selectionInactiveFill`; the
 shared contrast resolver replaces an unreadable preferred token. High contrast
@@ -15,6 +16,7 @@ follow the resolved row text color.
 Hierarchical list over a borrowed model with expand/collapse, badges and optional multi-select.
 
 - **Consumer supplies**: a borrowed `ITreeModel`, optional `ITreeDelegate`, stable IDs for selection/expansion; `NotifyDataChanged` when data changes. Read selection membership from `GetSelectedItemIds` (visible order) and `OnTreeSelectionSetChanged`; `GetFocusedItemId` and `OnTreeFocusedItemChanged` report independent keyboard focus.
+- **Badge-only updates**: a legacy mutable model may call `NotifyItemPresentationChanged(itemId)` after changing only badge text/tone/dot on a visible row. The row IDs, order, text, depth, child/expanded state and visible membership must remain unchanged. The call refreshes badge/tooltip measurement, paint and `ItemStatus` without reconciling selection, focus, order or scroll; it returns false without publication for missing/nonvisible rows and prepared-row sources. Use `NotifyDataChanged` for other model changes.
 - **Metrics**: row 28, indent 16; badges min 28×16, max height 18, padding 16. Expander 240 ms, expansion 320 ms.
 - **Colors**: selected rows `selectionFill`/`selectionText`, unfocused `selectionInactiveFill`, hover `hoverFill`; rainbow mode tints rows by a stable hash. Inactive text keeps `text` when it reaches 4.5:1 against the composited row fill, otherwise uses the more contrasting pure black or white. High contrast keeps the supplied `selectionText` exactly.
 - **Selection and focus**: a tree that never enables multi-select remains single-select. Focus-only movement preserves selection in either mode; removing the selected row leaves an empty single selection while retaining focus. Adding a different item to an occupied single selection is refused, and adding the same item is idempotent. Selection callbacks report membership changes; the focused-item callback reports focus changes. In multi-select, every selected row takes the selection colors, and only the focused row draws a 1 DIP ring inset 1.5 DIP, even when it is not selected. The ring keeps `focusStroke` when it contrasts with the resolved painted fill, falling back to the more contrasting pure black or white; high contrast uses `selectionText` on selected rows. Click selects one row and sets the anchor, Ctrl+click toggles and moves the anchor, Shift+click (or Shift with a movement key) selects the visible range from the anchor, Ctrl with a movement key moves focus alone, Ctrl+Space toggles the focused row and Ctrl+A selects every row. A right-click on a selected row keeps the selection. A reorder drag still names one row, and a press with Ctrl or Shift never starts it.
@@ -39,19 +41,22 @@ Return an empty pointer to use the existing row-by-row capture through `GetVisib
 `GetVisibleItem()`. The source's `GetCount()` must match the model's visible item count; a mismatched source is
 discarded and the existing capture path is used. `GetItem(visibleIndex)` and `FindItem(itemId)` return an
 `std::optional<TreeAccessibilityItemView>`; missing indexes or IDs return an empty optional. Each view reports its
-visible index, stable item ID, text, depth, child presence, and expanded state.
+visible index, stable item ID, text, depth, child presence, expanded state, and optional borrowed `badgeText`, which
+DxUi exposes as `ItemStatus` (empty when omitted). `Name` remains the row text.
 
 Treat shared source identity as a semantic epoch. Keep the same source while the ordered visible rows and each row's
-ID, text, depth, `hasChildren`, and `expanded` values are unchanged. Publish a new source identity when any changes,
-including a sequence reorder or a same-count replacement. Selection is independent and does not require a new source.
-The identity lets accessibility snapshots invalidate old Tree children without traversing rows to compare them.
+ID, text, depth, `hasChildren`, `expanded`, and badge status values are unchanged. Publish a new source identity
+when any changes, including a sequence reorder or a same-count replacement. Selection is independent and does not require a new source.
+The identity lets accessibility snapshots invalidate old Tree children without traversing rows to compare them. The
+focused item, read from the old and the new source with `FindItem`, also reports its own expansion change.
 
-Text is borrowed from the source. Keep its backing storage valid for every read while any shared reference to the
+Text and badge status are borrowed from the source. Keep their backing storage valid for every read while any shared reference to the
 source can be read; storing row strings in the immutable shared snapshot is a straightforward way to provide this
 lifetime. The consumer owns bounded, allocation-free query/capture behavior, source preparation and admission, and
 the lane on which final source destruction occurs. Account for retained references released by foreign readers.
 DxUi does not start a row-preparation worker or choose a preparation lane. The default null source preserves the existing behavior.
 The [current library evidence](../../../../Measurements/PreparedTreeAccessibility/2026-10-10/README.md) covers the source API and
-notification/lifetime behavior; the consumer's admission, retirement and latency qualification remains separate.
+notification/lifetime behavior before badge-status publication; validation of badge-status UIA events remains pending.
+The consumer's admission, retirement and latency qualification remains separate.
 
 The preview shows the default palette's resolved contrast colors. Custom fills, alpha and rainbow tints are resolved by the native control. This is a static HTML rendition styled by `bundle.css`; the gallery captures under Assets › Gallery are the authoritative rendering.

@@ -179,6 +179,9 @@ template <typename Clock, typename Count, typename Pump>
         case UIA_EditControlTypeId: return L"Edit";
         case UIA_HeaderItemControlTypeId: return L"HeaderItem";
         case UIA_PaneControlTypeId: return L"Pane";
+        case UIA_RadioButtonControlTypeId: return L"RadioButton";
+        case UIA_TabControlTypeId: return L"Tab";
+        case UIA_TabItemControlTypeId: return L"TabItem";
         case UIA_TableControlTypeId: return L"Table";
         case UIA_TextControlTypeId: return L"Text";
         case UIA_TreeControlTypeId: return L"Tree";

@@ -16,6 +16,26 @@ passes resume on later advances; no partial range set is visible before completi
 List-item accent ink MUST use the exact marker range retained by block parsing,
 including nested, ordered, quoted, tab-indented and task-list items.
 
+The source-ink paint route is source-only and must preserve canonical DirectWrite
+shaping, glyph advances/offsets, source/display mapping and selection geometry. It
+may paint at most 32 clipped ink spans in one direct-draw/prepared-layout call
+and considers at most 256 glyphs or 512 UTF-16 units in one glyph run.
+Monospaced monochrome runs may use the existing brush-segmented route. A
+proportional monochrome or color-font run may be drawn only as its original
+intact shaped run when every covered glyph uses one identical borrowed
+`ID2D1Brush` pointer. Color-font drawing additionally requires a successful
+runtime query for `ID2D1DeviceContext7` and uses
+`ID2D1DeviceContext7::DrawGlyphRunWithColorSupport`. Complete run, description,
+cluster, effect, inline-object, source text and brush checks must finish before
+any source-ink paint begins. A preflight refusal uses the canonical layout
+renderer and preserves every syntax color. No target, brush or device-context
+capability may be retained by a layout or cross a target/device replacement. A
+retained prepared-layout copy and replacement target must match independent
+canonical full-layout pixels. These paint limits are separate from the 65,536
+source preparation-event bound above. Selection and text geometry remain
+unchanged. Errors after painting starts follow the host/device error path and
+must not cause a second canonical paint.
+
 Status: normative intended contract
 
 Button presentation is opt-in and independent of `ButtonVariant` and command/TogglePattern semantics.
@@ -34,15 +54,22 @@ the caret remains independent and high contrast always forces the focus indicato
 
 Tree row painting, hit testing, tooltip and accessibility geometry use one canonical row calculation, including
 hidden/reserved expanders. Neutral decorations opt into subdued unselected icons and count badges; a dot badge
-retains its textual accessible description. Subtle Splitters paint a thin idle seam while preserving the full resize
-hit target and keyboard/drag behavior; hover, dragging, keyboard focus and high contrast retain the normal handle.
+retains its textual accessible description as the TreeItem's UI Automation `ItemStatus`; `Name` remains the row text.
+For a legacy mutable model, `NotifyItemPresentationChanged(itemId)` publishes a badge text/tone/dot-only update for
+an existing visible row after the caller updates its data. IDs, order, row text, depth, child/expanded state and visible
+membership must stay unchanged. The notification invalidates badge/tooltip text measurements, paint and accessibility
+status without reconciling selection, focus, reorder state or scroll. It returns false without publication for a missing
+or nonvisible row and for models that supply prepared accessibility rows. A prepared source publishes status through
+its immutable row view and the normal prepared-source update path. Subtle Splitters paint a thin idle seam while
+preserving the full resize hit target and keyboard/drag behavior; hover, dragging, keyboard focus and high contrast
+retain the normal handle.
 
 `RichText::SemanticSpacing` optionally supplies per-level heading margins and container indentation to semantic
 document layout. All values are finite: margins 0..256 DIP, indentation 0..64 DIP. Heading margins are minima and
 credit real source blank-line caret boxes; no source site is dropped, compressed or fabricated. An absent option
 preserves existing geometry. The option participates in complete geometry reuse/retirement and is validated before
 replacing a published layout. Ordinary source-view text geometry stays governed by its existing source policy.
-Last reviewed: 2026-10-23
+Last reviewed: 2026-10-25
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -57,6 +84,9 @@ including ancestors separated by PageHost. Tree/Grid delegate anchors use that s
 Controls retain state independently of GPU resources. Buttons, toggles, sliders, selectors and text fields are shared
 implementations, not application-local clones. An active gesture has a defined preview, commit and cancel lifecycle.
 External state acknowledgement is separate from local intent. Hidden controls leave focus and accessibility trees.
+A host owns its root's bounds: a window host sets them to its client area when it installs the root, resizes, changes
+DPI and paints, and an embedded view sets them to its prepared size at every preparation. Equal bounds change nothing;
+an application insets content inside the root, never by moving the root.
 
 If both requested and fallback solid-brush creation fail, painters omit that primitive without passing null to
 Direct2D. Other prepared content and later recovery remain usable. Overlay dismissal revalidates container lifetime
@@ -77,8 +107,9 @@ Minimum and intrinsic extents remain authoritative when the available parent ext
 reports overflow instead of silently shrinking an interactive target or truncating measured content.
 
 Label, Button, Toggle, Checkbox, TextField, ComboBox and NumericStepper measure with the current host's
-DirectWrite font roles, flow direction and density. Wrapping requires an explicit opt-in and finite width;
-single-line measurement preserves its natural text extent. Toggle reserves the larger of its two localized
+DirectWrite font roles, flow direction and density. Wrapping requires an explicit opt-in and finite width, and
+wrapped text measures without the space that ends each wrapped line, which hangs past that width; single-line
+measurement preserves its natural text extent, trailing space included. Toggle reserves the larger of its two localized
 state labels. Single-line editors measure stable font/chrome requirements and use the owning layout's minimum
 or explicit preferred width; typing, selecting an item or nudging a value does not resize the editor. A masked
 multiline field measures its displayed mask. Shaping is bounded to 65,536 UTF-16 units per measured text value and
@@ -86,15 +117,17 @@ per container pass across cache misses and nested measures. `MeasureContext::rem
 an existing pass budget; nested containers preserve it and cached results consume no units. Excess input fails
 before text-layout allocation. No character-count width approximation is a measurement fallback.
 
-`FlexPanel` owns bounded, reusable numeric measurement and arrangement records for at most 1,024 logical child
-slots. It supports horizontal or vertical order, explicit wrapping, padding, gaps, child minimum/maximum
+`FlexPanel` owns bounded, reusable numeric measurement and arrangement records for at most 1,024 live child
+controls (a slot `TakeChild` emptied does not count). It supports horizontal or vertical order, explicit wrapping, padding, gaps, child minimum/maximum
 constraints, cross-axis alignment and positive growth. A child maximum caps growth; remaining growth is
 redistributed among eligible siblings. Hidden children occupy no flow space. RTL mirrors physical rectangles
 while preserving logical ownership and focus/accessibility order. Measurement cache identity includes the
 child's measurement revision, constraints, host typography revision, DPI, flow and density. Content, font,
 wrapping, chrome, availability, ownership and inherited settings invalidate the relevant records. Color,
 checked state, hover and position-only changes reuse shape results. Containers retain no DirectWrite layout
-per leaf, and hidden containers retire their numeric entries for one fresh preparation when shown again.
+per leaf, and hidden containers retire their numeric entries for one fresh preparation when shown again. Showing a
+control asks the host for that preparation even when no layout owner sits on its own ancestor chain, so an owner
+below a plain container that was hidden (an unselected tab page) is laid out when the container is shown.
 
 `TextField::SetFontRole` selects one valid shared `FontRole` for its text and placeholder, with `Body` as the
 default. The role is used consistently for intrinsic measurement, single- and multiline shaping/paint, selection,
@@ -104,8 +137,15 @@ single- and multiline shaped-layout caches and intrinsic measurement revision, t
 accessibility geometry. It preserves the draft, selection, undo/redo history and active text composition.
 
 Intrinsic owners request work through the shared pending-layout traversal used by native painting and embedded
-`Prepare`. Layout, shaping and allocation remain outside embedded `Composite`. A failed or superseded layout
-prevents the host from publishing that preparation. The layout owner stages all numeric geometry before the first
+`Prepare`. Layout, shaping and allocation remain outside embedded `Composite`. A superseded layout (a callback
+that changed the tree mid-pass) prevents the host from publishing that preparation and requests another one. A
+layout that fails (text beyond the shaping budget, an unsupported child without an explicit size, arithmetic
+overflow) keeps the owner's previous geometry, which the frame paints, and is reported once through the diagnostics
+sink; the owner is laid out again when its content, constraints or bounds change. A failure never blanks the
+window. Measure invalidation moves no geometry until that preparation, so it leaves the interaction revision alone:
+pending layout neither drops input nor cancels a press. After a successful deferred pass the native host
+republishes the UI Automation snapshot, whose bounds an earlier publication may have read before the pass. The
+layout owner stages all numeric geometry before the first
 extensible bounds callback and leaves child bounds unchanged on validation, allocation, measurement or arithmetic
 failure. After custom measurement or bounds callbacks it rechecks lifetime, ownership, host, geometry and input
 revisions. A callback that retires, reparents or replaces the owner/child, changes sibling geometry, or starts a
@@ -115,7 +155,9 @@ callbacks are not rolled back, and the incomplete outer pass does not publish it
 Flex arrangement stages absolute endpoints in logical line order. Positive intrinsic extents, gaps and padding that collapse at a
 finite origin fail with arithmetic overflow before any bounds callback. An inward-rounded endpoint advances
 outward, with following anchors consuming that corrected edge; represented minima, gaps, order and applicable
-growth maxima remain authoritative. Optional Grow/Stretch additions can round inward while preserving the
+growth maxima remain authoritative. A fixed extent (minimum equal to maximum) whose span no float endpoint represents
+exactly takes the nearest endpoint, at most one representable step past the maximum, while that step is under
+1/1024 of the extent; coordinates too coarse for the extent still fail. Optional Grow/Stretch additions can round inward while preserving the
 intrinsic minimum; an uncapped minimum-size overflow remains valid when no smaller endpoint preserves that minimum.
 Bounded trailing insets are checked against the represented parent far edge;
 End alignment uses the represented line endpoint. `Measure` returns the preferred extent; successful `ApplyLayout`
@@ -133,7 +175,7 @@ usable. Description and error text wrap in the editor lane. Flow direction mirro
 logical ownership, tab order, editor identity, selection, draft or composition. Footer actions remain separate
 siblings arranged by their owner, using the existing measured-action helper when required.
 
-A form supports at most 256 logical field slots. `AddField` requires a nonempty, unique identity and bounds its
+A form supports at most 256 live fields (a removed field frees its place). `AddField` requires a nonempty, unique identity and bounds its
 identity/initial label to 65,536 UTF-16 units. Arbitrary visible non-field children fail form layout rather than
 being silently ignored. A field owns one editor and three text parts; a custom editor returning `E_NOTIMPL`
 uses the explicitly supplied preferred editor size, whose default is 180 by 32 DIP. Preferred width is at least
@@ -313,10 +355,19 @@ physical application DPI presentation and real assistive-technology journeys req
   torn down hear nothing. So a control that keeps an arrangement for them (steppers, the color picker, tab headers,
   stack layouts, tree and grid row metrics) is current in its new place, and one that keys its layout on them (the
   menu bar) was never stale. A child leaves a panel by moving its owning pointer out of `Panel::GetChildren()` (while
-  the panel and the child's host still exist); the empty slot is skipped by every panel operation.
+  the panel and the child's host still exist); the empty slot is skipped by every panel operation, and
+  `CompactChildren()` removes the empty slots in order: indices after a removed slot shift, a flex child keeps its
+  options and a radio group its choice.
   PageHost participates in the same inheritance chain as Panel; its pages resolve through the PageHost rather than
   directly through the host. Root replacement snapshots the incoming control's previous inherited values before
   interaction-reset callbacks can retire its old parent, then reparents without dereferencing that old chain.
+- Tree walks go through logical children (`Control::GetLogicalChildCount`/`GetLogicalChild`): a Panel's children and a
+  PageHost's current page. Membership (`IsControlInTree`), Tab order, native text input and its text store, the
+  ComboBox scroll-container lookup and the UI Automation tree all use that one walk, so the content of a page takes
+  focus by Tab, receives IME and TSF input and has UI Automation elements exactly as the same content in a Panel does.
+  Element paths index logical children. Logical-child accessors are stable, read-only traversal queries on the
+  owning UI thread: they must not mutate the tree, invoke application callbacks or pump messages. Returned child
+  pointers are borrowed until the next supported tree mutation; traversals do not support destructive getter reentry.
 
 The consumer chooses information hierarchy and whether repeated text is useful. Shared controls
 must support a single semantic heading with associated labelled values and complete exact-value
@@ -347,7 +398,7 @@ not allocate new formats per frame. A changed override invalidates intrinsic mea
 paint, and a synchronous embedded preparation callback may measure the new state or retire its control; the
 setter MUST stop touching a retired control. Native glyph capture, wrapped intrinsic metrics, cache stability,
 resource-generation replacement and embedded callback tests cover the opt-in behavior.
-`Label` typography/font-role and `Separator` orientation setters follow this callback boundary as well. In an embedded
+`Label` text, multiline, typography/font-role and `Separator` orientation setters follow this callback boundary as well. In an embedded
 view, measurement invalidation may synchronously reach the consumer's preparation-scheduling callback; the consumer
 may retire or replace controls through a `ControlHost` reference borrowed before that callback. The callback must not
 re-enter `EmbeddedHost` preparation, composition, input, device or lifecycle methods. A setter continuing after the
@@ -433,6 +484,8 @@ remainder of a loop. A tick time earlier than the previous one re-seeds the timi
 reduced motion the segment rests centered, from 30% to 70% of the track: the bar requests no ticks, `Tick` reports
 false and every paint is identical. Restoring motion resumes the sweep at the next paint when animation is unpaused.
 `SetAnimationPaused(true)` freezes the current indeterminate phase and requests no further animation ticks from the bar. `Tick` returns false while paused. Pause preserves the value, enabled state and indeterminate semantics. `SetAnimationPaused(false)` wakes an attached, enabled, visible indeterminate bar when motion is allowed; its first tick re-seeds the clock without adding the interval spent paused. Reduced motion retains its centered resting segment. Animation is unpaused by default. Consumers retain ownership of paused-status captions and scheduling of unrelated controls.
+Value, minimum and maximum changes also mark native accessibility publication dirty, so subscribed range
+properties and the next owner query reflect the current bounds without another unrelated mutation.
 
 ### Slider
 
@@ -619,7 +672,7 @@ listed visible row is the primary, focus and anchor) and `SetFocusedItemId` move
 
 A first key on a tree with no focused item starts from the first row, which only takes the focus, so that
 Ctrl+Space selects it and Shift+Down selects it and the next. Grid's current row is also independent of its selected set.
-Ctrl+Up and Ctrl+Down move Grid focus without changing membership, Ctrl+Space toggles the focused row, and Space
+Ctrl with any movement key moves Grid focus without changing membership, Ctrl+Space toggles the focused row, and Space
 toggles a checkbox in the active row. Shift movement extends selection from the anchor. In both controls Ctrl
 toggles the touched row and makes it the new range anchor. A tree has no checkboxes and a focused item apart from its
 selection, so it follows the list-view convention in which Ctrl with a movement key moves the focus and Ctrl+Space
@@ -679,25 +732,42 @@ items, and is where the invalidation is raised (see the collapsed semantic root 
 
 ### Grid focus, selection and inspection
 
-Grid focus is a stable row identity independent of selected membership. `RequestFocusRow`, Ctrl+Up/Down and UIA
-`SetFocus` move focus without selecting a row or changing the range anchor. `RequestFocusCell(row, column)` also makes
-that column active and reveals it horizontally; it does not alter selection or anchor. `GetFocusedRowId` names the
-focused row. A normal row gesture replaces membership and moves the anchor to that row; Shift extends from the anchor;
+Grid focus is a stable row identity independent of selected membership. The focused row draws a focus ring of its own,
+selected or not, while keyboard focus is visible (always in high contrast while the grid has focus), with Tree's ring
+metrics and contrast rule. `RequestFocusRow`, Ctrl with any movement key (Up, Down, Home, End, Page Up, Page Down) and
+UIA `SetFocus` move focus without selecting a row or changing the range anchor. `RequestFocusCell(row, column)` also makes
+that column current and reveals it horizontally; Ctrl+Left and Ctrl+Right choose the current column in display order,
+mirrored in RTL (a one-column grid leaves both keys unhandled), and once the keyboard chose a column the focused row
+also outlines its cell until the next click or a new model. None
+of these alters selection or anchor. `GetFocusedRowId` names the focused row. A selection the application publishes
+(`GetSelectionModel()` then `NotifyDataChanged`) leaves the focus as it is, so a focus the application cleared stays
+cleared and publication raises no focused-row callback; `SetSelectedRowIds` silently selects the listed visible rows and
+makes the last one the focused row and the anchor. The keys start from the focused row, else from the last selected row,
+else from the first row. A normal row gesture replaces membership and moves the anchor to that row; Shift extends from the anchor;
 Ctrl toggles the touched row and moves the anchor there, even when it toggles the row off. Ctrl+Space toggles the focused
 row. Ctrl+A selects all visible rows and focuses the final row in visible order. A single-selection Grid permits an
 empty selection through Ctrl+Space or UIA removal. UIA AddToSelection is idempotent for an already selected row and
 preserves the current anchor; in single-selection mode it refuses to add another row while one is selected.
 
 Selection callbacks report membership changes and focused-row callbacks report focus changes. State is committed before
-callbacks; callers stop if callback reentrancy retires the Grid. Model reconciliation drops rows that are no longer
-visible and clears an anchor whose row left the visible model. UIA focus and selection operations do not activate rows.
+callbacks; callers stop if callback reentrancy retires the Grid or replaces its model or delegate. A callback that
+refreshes the model or changes any control's layout does not end the gesture: its remaining reports, reveal, context
+menu, checkbox toggle, group restoration and UIA result follow, with rows re-resolved by stable id (see
+[the architecture contract](../Core/Core_Architecture.md)). The same holds for Tree. Model reconciliation drops rows that
+are no longer visible and clears an anchor whose row left the visible model. UIA focus and selection operations do not
+activate rows.
 
 Ctrl+C copies the selected rows in visible selection order and columns in displayed order. Fields containing quotes,
-tabs or line breaks use quoted TSV syntax and embedded quotes are doubled; all other Unicode values are preserved. F1
-inspects the full value in the focused row and active column. Touch double-tap on a cell opens the same persistent,
-scrollable inspection surface. After a selection callback, inspection and activation resolve the touched stable row
-again; inspection also resolves a nonempty column ID again and reads the current cell. Removing that row or column,
-or replacing the model, cancels the action. Unnamed columns retain their ordinal contract. Group collapse reports
+tabs or line breaks use quoted TSV syntax and embedded quotes are doubled; all other Unicode values are preserved. With
+nothing selected Ctrl+C is left unhandled and the clipboard keeps what it holds. The grid binds no key to full-value
+inspection, since F1 is the application's Help: `InspectFocusedCell` reveals the focused row's cell in the current
+column and opens the persistent, scrollable inspection surface on its full value, and returns false when nothing is
+inspected (no focused visible row, no column, an empty value, or a grid outside a host). `IsFocusedCellClipped` reports
+whether that cell draws less than its whole value, so that an application offers an Inspect command (typically in its
+context menu, which a touch press-and-hold also opens) only when it helps. A touch double-tap activates its row, as a
+double-click does. After a selection callback, activation resolves the touched stable row again, and a checkbox double-
+click resolves a nonempty column ID again. Removing that row or column, or replacing the model, cancels the action.
+Unnamed columns retain their ordinal contract. Group collapse reports
 any replacement focus through the focused-row callback and stops when that callback retires the Grid.
 RTL mirrors column geometry, adornments, keyboard left/right behavior and horizontal
 scrollbar direction; offscreen cell focus reveals the cell using the same logical scroll offset.
@@ -896,6 +966,31 @@ callback may resume an old mutation after owner retirement/rebinding. Standard
 notification failures leave the committed edit intact. Read-only permits selection/
 copy while rejecting mutation; disabled controls reject input. Incomplete UTF-16
 character pairs never enter the model. AltGr Unicode entry remains accepted.
+
+`SynchronizeReadOnlySourceSnapshot(snapshot, selection)` is an owner-thread setter for a read-only Source view.
+It shares the immutable source tree without materializing a replacement string or copying source revision counters.
+Changed source advances the target's own monotonic revision, clears only its undo/redo history, and retires the same
+highlights, image/source-edit state, accessibility and prepared geometry as `SetText`; ordinary selection/text-service
+publication runs last. The parser remains independent and publishes at the target revision. Same-snapshot selection
+changes follow `SetSelection`, including clearing visual caret affinity; identical snapshot/selection is idempotent.
+An absent snapshot, invalid scalar/CRLF boundary, exhausted target revision or incompatible target profile returns
+false without mutation. Valid empty documents are admitted. Detached and embedded setters need no private HWND.
+Callers must revalidate their owner/control/source identities after callbacks before continuing a larger update.
+
+`TryAdoptReadOnlyMarkdownSyntax(snapshot, syntax)` optionally reuses a completed canonical parse after source
+synchronization. It requires the exact current immutable snapshot, read-only Source mode and matching configured
+profile/extensions. Region-scoped syntax is refused even when its resolved region is empty. A mismatch returns
+`S_FALSE` without changing pending or published work. Allocation failure returns `E_OUTOFMEMORY` with the prior
+publication intact. Ordinary independent parsing remains available whenever reuse is unavailable.
+
+Successful adoption shares only immutable source/AST collections through one flattened canonical owner. Its
+wrapper publishes the target's revision and a fresh document identity; node identities are meaningful only with
+that document identity. It retains no publisher control, host, worker or graphics resources. Subsequent ordinary
+parsing starts a fresh identity namespace rather than reconciling foreign node IDs. Cancel retains publication;
+Clear releases it; repeated same-owner/snapshot adoption keeps the same wrapper without allocation.
+The setter changes no source, selection, history, text/selection notifications, literal glyph geometry or scroll.
+Only syntax-dependent ink/analysis is retired, and preparation is scheduled last. The caller must revalidate
+control/root/source ownership after scheduling, which may re-enter or retire its owner.
 
 RichTextEditor document-file metadata MUST be an explicit canonical absolute
 Unicode path or empty (unsaved); it MUST NOT infer a base from process CWD or
@@ -1541,23 +1636,26 @@ or tab. Ordinary `%%` comments outside labels run to the line end. Diagram-local
 YAML, `%%{...}%%` configuration, directives and other families are unsupported.
 
 An identifier is `[A-Za-z_][A-Za-z0-9_]*` with exact case-sensitive identity.
-`end`, `subgraph`, `direction`, `style`, `class`, `classDef`, `click` and
-`linkStyle` are reserved. A node is an identifier alone or followed by `[label]`
-(rectangle), `(label)` (rounded), `((label))` (circle) or `{label}` (diamond).
-Expanded shape syntax is unsupported. An explicit declaration replaces the
+`end`, `subgraph`, `direction`, `style`, `class`, `classDef`, `click`,
+`linkStyle` and `note` are reserved. A node is an identifier alone or followed by `[label]`
+(rectangle), `(label)` (rounded), `((label))` (circle), `([label])` (stadium
+capsule) or `{label}` (diamond). Other expanded shape syntax is unsupported. An explicit declaration replaces the
 node's previous label/shape; a bare endpoint preserves it. Node order is first
 appearance order and edge order is source order, including cycles/self-loops.
 
-An edge chain is `node (edge node)*`, where edge is `-->` or `---` optionally
-followed by `|label|`. Expanded, dotted, thick, multi-target, reversed and named
+An edge chain is `endpoint-group (edge endpoint-group)*`, where an
+`endpoint-group` is one node or nodes joined by `&`, and edge is `-->` or `---`
+optionally followed by `|label|`. Each edge expands the Cartesian product of its
+left and right endpoint groups in stable source order; a chain continues from
+the preceding right-hand group. Expanded, dotted, thick, reversed and named
 edge syntax is unsupported. In particular `A---oB`/`A---xB` MUST NOT be silently
 treated as edges to IDs `oB`/`xB`; use whitespace before such IDs for a plain line.
 Quoted labels allow Unicode scalar text and `\"`, `\\`, `\n` escapes. Unquoted
 labels trim surrounding horizontal whitespace and must quote delimiter/semicolon
-text. HTML, Markdown labels, entity escapes, icon syntax and inline math labels
+text. Literal ampersands are label text; HTML, Markdown labels, entity escapes, icon syntax and inline math labels
 are unsupported; they MUST NOT silently acquire a different label meaning.
 
-Admission limits are 16,384 source UTF-16 units, 256 nodes, 512 edges, 1,024
+Admission limits are 16,384 source UTF-16 units, 256 nodes, 512 expanded edges, 1,024
 nonempty statements including the header, 1,024 decoded label units and 128 ID
 units. Check each bound before adding generated data. Capacity, unsupported and
 malformed outcomes retain the complete body with a source-ranged diagnostic and
@@ -1576,7 +1674,9 @@ published geometry, or allocate while advancing. Stable first-seen DFS removes
 gray back edges and self-loops from ranking; stable Kahn traversal assigns
 longest-path ranks to the remaining DAG. Nodes retain first-seen order in each
 rank. Rectangles/rounded rectangles pad labels, circles contain the padded label
-diagonal, and diamonds contain twice the padded width/height. Direction changes
+diagonal, diamonds contain twice the padded width/height, and stadium capsules
+keep the complete measured label inside their straight middle band. Their centerline
+ports lie on the capsule boundary in all four flow directions. Direction changes
 flow without rotating text. Every edge gets a distinct exterior lane; endpoint
 corridors remain outside full rank rows, including for skipped-rank edges,
 cycles, self-loops and parallel edges. Crossings are permitted; optimal routing
@@ -1618,10 +1718,16 @@ survive replacement borrowed devices with the same factory. Final process/GPU
 resource, device-loss and host object qualification remain separate requirements.
 
 The pinned Mermaid 11.4.1 inventory and all 105 original flowchart examples MUST
-remain accounted for. Independent subset expectations distinguish 13 admitted
-graphs from 92 unsupported definitions; the state example now has five nodes and
-six transitions, while the other 19 original family examples remain unsupported. Rejection
-is compatibility accounting, never rendered conformance. Original reference
+remain accounted for. Independent subset expectations distinguish 16 admitted
+graphs from 89 unsupported definitions, including the documented stadium and
+the original endpoint-group fan-out examples.
+The family matrix separately identifies the limited flowchart, state and class
+profiles, the example collection, and 18 unsupported diagram families. Generated
+first-example fixtures specify the exact expected outcome and diagnostic for all
+20 diagram-family documents: the state example prepares five nodes and six
+transitions; the class example falls back on its unsupported `note` directive;
+the remaining 18 examples are unsupported-family fallbacks. These cases measure
+local subset coverage, not complete Mermaid family conformance. Original reference
 bytes and MIT notice remain under `ThirdParty/Markdown/mermaid-11.4.1`.
 
 ### Source-backed native diagram objects
@@ -1860,7 +1966,9 @@ action and do not invalidate an otherwise supported HTML anchor.
 
 RichMarkdown recognizes `$...$`, `$$...$$`, `\(...\)` and `\[...\]` inside ordinary
 inline leaves. Single-dollar math is single-line and requires nonspace content edges;
-a closing dollar followed by a digit is currency text. Escaped delimiters, code spans,
+a closing dollar followed by a digit is currency text. Explicit `\(...\)` delimiters
+permit edge whitespace and a following digit, while retaining the physical-line bound.
+Escaped delimiters, code spans,
 fenced/indented code and CommonMark/GFM profiles retain their existing grammar.
 Display delimiters may span logical lines of one Markdown paragraph. Blank paragraphs
 and GFM table boundaries still delimit leaves. Original source, delimiters, CRLF,
@@ -1876,6 +1984,17 @@ consistent columns. User macros, packages, file input, evaluation and full LaTeX
 compatibility are unsupported. Rejection retains the complete literal equation with
 a source-ranged diagnostic, rather than drawing a misleading partial expression.
 
+The bounded native profile records atom classes, font styles, script style and
+operator limit policy in its typed model. Variables are italic by default; numbers,
+text groups and named operators are upright. Binary atoms at unary positions use
+ordinary spacing. Explicit math atom wrappers, display/text/script declarations,
+`limits`/`nolimits`, starred `operatorname`, sized `big`/`Big`/`bigg`/`Bigg` delimiters,
+and `tilde`/`widetilde` are admitted. Text groups collapse source whitespace and
+remove grouping braces while retaining escaped literal braces. Matrix rows may
+have a trailing separator; gathered rows have one column and cases at most two.
+Unsupported commands remain local exact source. This is a named native profile,
+not a claim of all KaTeX functions or identical TeX font metrics and glyph assemblies.
+
 Limits are 4,096 source units, 512 syntax nodes, nesting 24, 16 rows/columns and 128
 cells per formula, 4,096 total mathematical records and 128 combined native objects.
 Preparation shapes at most one mathematical leaf per SDK-layout event. Cached
@@ -1883,9 +2002,32 @@ DirectWrite glyphs and line geometry draw in the owner's target with caller brus
 no filesystem, worker, font downloads or allocation occurs in drawing. Reflow and
 device replacement regenerate prepared geometry without changing source.
 
+Every rejected formula has its own Math element, accessible explanation and exact
+source diagnostic; rejection cannot overwrite its enclosing link's title or destination.
+A persistent native geometry-capacity failure falls back only the affected formula
+or complete Mermaid fence, including its original container prefixes and EOLs.
+For an individual math formula, DirectWrite `DWRITE_E_UNSUPPORTEDOPERATION` during
+leaf preparation is also a persistent object-local rejection: the operation is not
+supported by the selected font type. The formula's accessible explanation uses
+cause-neutral wording because the same source-preserving view fallback also covers
+capacity and font-operation failures. Other semantic content stays rich. The
+presentation rejection key includes immutable syntax, width, direction, host
+typography/resource generation, binding and local appearance geometry revision.
+Repeated idle preparation does not retry the same rejection; changing a key retries
+it. DirectWrite `GetLineMetrics` reports a one-line-capacity rejection only when it
+returns `E_NOT_SUFFICIENT_BUFFER` and reports more than one required line. Other
+failed HRESULTs from leaf layout/metrics and image upload preserve their original
+error channel and leave the request retryable. In particular, `E_OUTOFMEMORY`,
+`DWRITE_E_UNEXPECTED`, `D2DERR_RECREATE_TARGET` and DXGI device-loss results must not
+be converted into permanent source rejection; they remain eligible for explicit
+preparation retry or resource-generation recovery.
+
 The native Mermaid engine additionally accepts a bounded `stateDiagram` /
 `stateDiagram-v2` profile: direction, simple declarations/quoted aliases,
 `[*]` initial/final states, transitions with colon labels and state descriptions.
+The first nonempty quoted or colon state description replaces the fallback ID;
+later descriptions append in declaration order, within the shared label limit.
+An explicit description equal to the ID still counts as the first description.
 The bounded `classDiagram` profile accepts direction, simple class declarations,
 colon members, directed/undirected associations and inheritance (`<|--`, `--|>`).
 State/class layouts use the deterministic native graph router; members are plain

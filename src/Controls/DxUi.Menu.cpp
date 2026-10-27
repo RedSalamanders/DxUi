@@ -1648,7 +1648,7 @@ void SetSliderAnimationTarget(MenuPopup& popup, float targetPosition) noexcept
 
     popup.sliderAnimationStartPosition  = popup.sliderAnimatedPosition;
     popup.sliderAnimationTargetPosition = clampedTarget;
-    popup.sliderAnimationStartTickMs    = GetTickCount64();
+    popup.sliderAnimationStartTickMs    = popup.host.GetAnimationTickMs();
     popup.sliderAnimationActive         = ! popup.host.GetTheme().reducedMotion;
     if (! popup.sliderAnimationActive)
     {
@@ -1675,7 +1675,7 @@ void SetSliderAnimationTarget(MenuPopup& popup, float targetPosition) noexcept
         return false;
     }
 
-    const uint64_t elapsedMs     = nowTickMs > popup.sliderAnimationStartTickMs ? nowTickMs - popup.sliderAnimationStartTickMs : 0u;
+    const uint64_t elapsedMs     = ElapsedTickMs(popup.sliderAnimationStartTickMs, nowTickMs);
     const float progress         = std::clamp(static_cast<float>(elapsedMs) / static_cast<float>(kSliderAnimationDurationMs), 0.0f, 1.0f);
     const float inverse          = 1.0f - progress;
     const float eased            = 1.0f - (inverse * inverse * inverse);
@@ -2331,6 +2331,11 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             const bool dismissForCancel     = msg == WM_CANCELMODE;
             if (dismissForActivation || dismissForCancel)
             {
+                DXUI_MENU_DIAGNOSTICS_TRACE(dismissForActivation ? L"menu.dismiss-cause-activation" : L"menu.dismiss-cause-cancel",
+                                            L"msg={} msgId={:#x} hwnd={:#x}",
+                                            TraceMenuMessageName(msg),
+                                            static_cast<unsigned int>(msg),
+                                            TraceHwndValue(hwnd));
                 controller->Dismiss();
                 if (controller->asyncSession && controller->asyncInteractionActive)
                     FinalizeAsyncMenuController(*controller);
@@ -2341,6 +2346,11 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 msg == WM_CAPTURECHANGED && (! controller->GetRootPopup() || reinterpret_cast<HWND>(lp) != controller->GetRootPopup()->hwnd);
             if (controller->asyncSession && controller->asyncInteractionActive && dismissForCaptureLoss)
             {
+                DXUI_MENU_DIAGNOSTICS_TRACE(L"menu.dismiss-cause-capture-loss",
+                                            L"msg={} msgId={:#x} hwnd={:#x}",
+                                            TraceMenuMessageName(msg),
+                                            static_cast<unsigned int>(msg),
+                                            TraceHwndValue(hwnd));
                 controller->Dismiss();
                 FinalizeAsyncMenuController(*controller);
                 return 0;
@@ -5199,6 +5209,13 @@ void TraceMenuPointerRoute(MenuController& controller,
         {
             if (event.mayDismiss)
             {
+                DXUI_MENU_DIAGNOSTICS_TRACE(L"menu.dismiss-cause-pointer-outside",
+                                            L"source={} kind={} hwnd={:#x} screen=({}, {})",
+                                            TraceInputSourceName(event.source),
+                                            TracePointerKindName(event.kind),
+                                            TraceHwndValue(event.hwnd),
+                                            event.screenPoint.x,
+                                            event.screenPoint.y);
                 controller.Dismiss();
                 return finish(MenuInputDisposition::Dismissed);
             }
@@ -5360,6 +5377,13 @@ void TraceMenuPointerRoute(MenuController& controller,
         }
         else if (! targetPopup && event.mayDismiss)
         {
+            DXUI_MENU_DIAGNOSTICS_TRACE(L"menu.dismiss-cause-pointer-outside",
+                                        L"source={} kind={} hwnd={:#x} screen=({}, {})",
+                                        TraceInputSourceName(event.source),
+                                        TracePointerKindName(event.kind),
+                                        TraceHwndValue(event.hwnd),
+                                        event.screenPoint.x,
+                                        event.screenPoint.y);
             controller.Dismiss();
             return finish(MenuInputDisposition::Dismissed);
         }
@@ -5535,11 +5559,27 @@ void TraceMenuPointerRoute(MenuController& controller,
                 controller.CloseTopmostSubmenu();
                 return MenuInputDisposition::Consumed;
             }
+            DXUI_MENU_DIAGNOSTICS_TRACE(
+                L"menu.dismiss-cause-key-escape", L"source={} hwnd={:#x}", TraceInputSourceName(event.source), TraceHwndValue(event.hwnd));
+            controller.Dismiss();
+            return MenuInputDisposition::Dismissed;
+        case MenuKeyboardKind::Alt:
+            // AltGr arrives as a right Alt with Ctrl down: it types characters, mnemonics included, and keeps the menu open.
+            if ((HIWORD(static_cast<DWORD>(event.lParam)) & KF_EXTENDED) != 0u && GetKeyState(VK_CONTROL) < 0)
+            {
+                return MenuInputDisposition::Consumed;
+            }
+            DXUI_MENU_DIAGNOSTICS_TRACE(L"menu.dismiss-cause-key-alt", L"source={} hwnd={:#x}", TraceInputSourceName(event.source), TraceHwndValue(event.hwnd));
             controller.Dismiss();
             return MenuInputDisposition::Dismissed;
         case MenuKeyboardKind::Tab:
+            DXUI_MENU_DIAGNOSTICS_TRACE(L"menu.dismiss-cause-key-tab", L"source={} hwnd={:#x}", TraceInputSourceName(event.source), TraceHwndValue(event.hwnd));
+            controller.Dismiss();
+            return MenuInputDisposition::Dismissed;
         case MenuKeyboardKind::F10:
-        case MenuKeyboardKind::Alt: controller.Dismiss(); return MenuInputDisposition::Dismissed;
+            DXUI_MENU_DIAGNOSTICS_TRACE(L"menu.dismiss-cause-key-f10", L"source={} hwnd={:#x}", TraceInputSourceName(event.source), TraceHwndValue(event.hwnd));
+            controller.Dismiss();
+            return MenuInputDisposition::Dismissed;
         case MenuKeyboardKind::Right:
         {
             const bool rightToLeft = topmost->flowDirection == FlowDirection::RightToLeft;
@@ -5555,9 +5595,11 @@ void TraceMenuPointerRoute(MenuController& controller,
                 return MenuInputDisposition::Consumed;
             }
 
+            // In right-to-left, Right goes back: it closes the submenu and does nothing more, as Left does left-to-right.
             if (rightToLeft && controller.popups.size() > 1)
             {
                 controller.CloseTopmostSubmenu();
+                return MenuInputDisposition::Consumed;
             }
             if (controller.sessionCallbacks.switchRootFromDirection)
             {
@@ -5585,8 +5627,10 @@ void TraceMenuPointerRoute(MenuController& controller,
             {
                 OpenSubmenu(controller, *topmost, idx.value(), true);
             }
-            else if (controller.popups.size() > 1)
+            else if (! rightToLeft && controller.popups.size() > 1)
             {
+                // Left-to-right, Left goes back and closes the submenu. Right-to-left it goes forward: from a row without a
+                // submenu it moves to the next root, as Right does left-to-right.
                 controller.CloseTopmostSubmenu();
             }
             else if (controller.sessionCallbacks.switchRootFromDirection)
@@ -5617,6 +5661,16 @@ void TraceMenuPointerRoute(MenuController& controller,
                     return MenuInputDisposition::Consumed;
                 }
                 const auto& item = topmost->items[match.value()];
+                // A slider row's mnemonic goes to the slider, where the arrows choose a stop and Enter commits it; the row's own
+                // command id names nothing.
+                if (item.kind == MenuItemKind::Slider)
+                {
+                    topmost->keyboardIndex = match;
+                    topmost->hoveredIndex.reset();
+                    topmost->EnsureItemVisible(match.value());
+                    InvalidatePopup(*topmost);
+                    return MenuInputDisposition::Consumed;
+                }
                 if (! item.children.empty() && item.enabled)
                 {
                     topmost->keyboardIndex = match;
@@ -5972,6 +6026,11 @@ void RunMenuModalLoop(MenuController& controller)
     {
         if (! PeekMenuModalLoopPriorityMessage(controller, msg) && PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE) == FALSE)
         {
+            // A message another thread sent runs inside the peek and may have dismissed the menu: then nothing waits for input.
+            if (! controller.running)
+            {
+                break;
+            }
             MenuPopup* currentRoot = controller.GetRootPopup();
             if (! currentRoot || ! currentRoot->hwnd || IsWindow(currentRoot->hwnd) == FALSE)
             {

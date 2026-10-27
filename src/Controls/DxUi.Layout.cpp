@@ -1,5 +1,6 @@
 #include "DxUi.Internal.h"
 
+#include <algorithm>
 #include <cmath>
 #include <dwrite_1.h>
 #include <exception>
@@ -97,9 +98,11 @@ void ApplyMinimum(const LayoutConstraints& constraints, DesiredSize& result) noe
     hr = layout->GetLineMetrics(lines.data(), lineCount, &lineCount);
     if (FAILED(hr))
         return hr;
-    result.sizeDip =
-        D2D1::SizeF((empty ? 0.0f : metrics.widthIncludingTrailingWhitespace) + horizontalChrome, (std::max)(minimumHeight, metrics.height + verticalChrome));
-    result.baselineDip = baselineInset + lines.front().baseline;
+    // A wrapped line's trailing space hangs past the width it wrapped to, so wrapped text is as wide as its ink; one line
+    // keeps its trailing space, which separates it from what follows.
+    const float textWidth = wrap ? metrics.width : metrics.widthIncludingTrailingWhitespace;
+    result.sizeDip        = D2D1::SizeF((empty ? 0.0f : textWidth) + horizontalChrome, (std::max)(minimumHeight, metrics.height + verticalChrome));
+    result.baselineDip    = baselineInset + lines.front().baseline;
     ApplyMinimum(constraints, result);
     return S_OK;
 }
@@ -149,10 +152,17 @@ HRESULT AdvanceLayoutEdge(float anchor,
             span   = inwardSpan;
         }
     }
-    // An intrinsic extent may already exceed a maximum. A maximum that actually caps this extent cannot
-    // be exceeded merely to repair endpoint rounding.
-    if (! std::isfinite(staged) || ! std::isfinite(span) || span < required || span > (std::numeric_limits<float>::max)() ||
-        (maximum && *maximum >= extent && span > *maximum))
+    // An intrinsic extent may already exceed a maximum. A maximum that actually caps this extent cannot be exceeded
+    // to repair endpoint rounding by more than one representable step of the endpoint: a fixed extent (its minimum
+    // equal to its maximum) at an inexact anchor has no endpoint exactly at its span. That step is accepted only while
+    // it is far below the extent, so coordinates too coarse for the extent still fail.
+    bool exceedsMaximum = maximum && *maximum >= extent && span > *maximum;
+    if (exceedsMaximum && std::isfinite(staged))
+    {
+        const double step = std::abs(static_cast<double>(staged) - std::nextafter(staged, anchor));
+        exceedsMaximum    = span - *maximum > step || step > static_cast<double>(extent) / 1024.0;
+    }
+    if (! std::isfinite(staged) || ! std::isfinite(span) || span < required || span > (std::numeric_limits<float>::max)() || exceedsMaximum)
         return HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW);
     edge = staged;
     return S_OK;
@@ -253,14 +263,17 @@ HRESULT Label::MeasureOverride(const MeasureContext& context, const LayoutConstr
         if (FAILED(hr) || ! layout)
             return FAILED(hr) ? hr : E_FAIL;
         const DWRITE_TEXT_RANGE range{0u, static_cast<UINT32>(text.size())};
-        wil::com_ptr<IDWriteTextLayout1> layout1;
-        hr = layout->QueryInterface(IID_PPV_ARGS(layout1.put()));
-        if (FAILED(hr))
-            return hr;
         const float halfSpacing = _typographyOverride->characterSpacingDip * 0.5f;
-        hr                      = layout1->SetCharacterSpacing(halfSpacing, halfSpacing, 0.0f, range);
-        if (FAILED(hr))
-            return hr;
+        if (halfSpacing != 0.0f)
+        {
+            wil::com_ptr<IDWriteTextLayout1> layout1;
+            hr = layout->QueryInterface(IID_PPV_ARGS(layout1.put()));
+            if (FAILED(hr))
+                return hr;
+            hr = layout1->SetCharacterSpacing(halfSpacing, halfSpacing, 0.0f, range);
+            if (FAILED(hr))
+                return hr;
+        }
         DWRITE_TEXT_METRICS metrics{};
         hr = layout->GetMetrics(&metrics);
         if (FAILED(hr))
@@ -360,6 +373,12 @@ HRESULT Toggle::MeasureOverride(const MeasureContext& context, const LayoutConst
 HRESULT Checkbox::MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const
 {
     return MeasureText(context, constraints, GetText(), FontRole::Body, GetFlowDirection(), IsMultiline(), 36.0f, 6.0f, 3.0f, InteractiveHeight(*this), result);
+}
+
+HRESULT RadioButton::MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const
+{
+    // Paint draws the label from 35 DIP after the leading edge (inset, circle and gap) to 5 DIP before the trailing one.
+    return MeasureText(context, constraints, GetText(), FontRole::Body, GetFlowDirection(), false, 40.0f, 6.0f, 3.0f, InteractiveHeight(*this), result);
 }
 
 HRESULT TextField::MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const
@@ -499,7 +518,8 @@ bool FlexPanel::IsWrapping() const noexcept
 HRESULT FlexPanel::SynchronizeRecords() const noexcept
 {
     const auto children = GetChildren();
-    if (children.size() > kMaxLayoutChildren)
+    // The cap counts live children: a slot TakeChild emptied holds nothing to lay out.
+    if (static_cast<size_t>(std::ranges::count_if(children, [](const auto& child) noexcept { return child != nullptr; })) > kMaxLayoutChildren)
         return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
     // Even a pure nested measure replaces these reusable arrangement records. Retire any caller's scratch
     // before resizing/resetting it, including synchronization for an unsuccessful option lookup.
@@ -526,6 +546,37 @@ HRESULT FlexPanel::SynchronizeRecords() const noexcept
         }
     }
     return S_OK;
+}
+
+size_t FlexPanel::CompactChildren() noexcept
+{
+    // A child's options live in the record at its index, which SynchronizeRecords matches by index: move each live child's
+    // record to the child's new index before the slots close, so no option moves to another child or resets.
+    const auto children = GetChildren();
+    size_t kept         = 0u;
+    for (size_t index = 0u; index < children.size(); ++index)
+    {
+        const Control* const child = children[index].get();
+        if (! child)
+            continue;
+        if (kept < _records.size())
+        {
+            if (index < _records.size() && _records[index].child == child)
+            {
+                if (kept != index)
+                    _records[kept] = std::move(_records[index]);
+            }
+            else
+            {
+                _records[kept] = {};
+            }
+        }
+        ++kept;
+    }
+    if (kept < _records.size())
+        _records.erase(_records.begin() + static_cast<std::ptrdiff_t>(kept), _records.end());
+    ++_scratchRevision;
+    return Panel::CompactChildren();
 }
 
 HRESULT FlexPanel::SetChildOptions(const Control* child, const FlexChildOptions& options) noexcept

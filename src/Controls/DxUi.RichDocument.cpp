@@ -433,6 +433,22 @@ std::size_t SourceSnapshot::Length() const noexcept
     const auto* root = RootNode();
     return root ? root->length : 0u;
 }
+bool SourceSnapshot::MatchesText(std::wstring_view text) const noexcept
+{
+    if (! state_ || text.size() != Length())
+        return false;
+    std::size_t offset{};
+    return PieceTreeNode::VisitRange(RootNode(),
+                                     0u,
+                                     text.size(),
+                                     [&](std::wstring_view fragment) noexcept
+    {
+        if (text.substr(offset, fragment.size()) != fragment)
+            return false;
+        offset += fragment.size();
+        return true;
+    });
+}
 std::wstring SourceSnapshot::Text() const
 {
     return Slice(0u, Length());
@@ -569,6 +585,24 @@ SourceChangeRange SourceSnapshot::ChangedRangeFrom(const SourceSnapshot& previou
 Document::Document(std::wstring_view text)
 {
     Reset(text);
+}
+bool Document::AdoptReadOnlySourceSnapshot(const SourceSnapshot& source, Selection selection) noexcept
+{
+    if (! source.state_ || ! source.IsBoundary(selection.anchor) || ! source.IsBoundary(selection.caret))
+        return false;
+    if (source_.IsSameRevision(source))
+    {
+        selection_ = selection; // Same-text selection updates match SetSelection and preserve local revision/history.
+        return true;
+    }
+    if (revision_ == std::numeric_limits<std::uint64_t>::max())
+        return false;
+    source_    = source;
+    selection_ = selection;
+    undo_.clear();
+    redo_.clear();
+    ++revision_; // Local Document revisions remain independent of the source Document.
+    return true;
 }
 void Document::Reset(std::wstring_view text)
 {

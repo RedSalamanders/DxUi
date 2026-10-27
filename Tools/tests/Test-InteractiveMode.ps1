@@ -231,6 +231,47 @@ Invoke-TestCase 'the result is read back as the lease writes it' {
     Assert-Equal (-1073741819) $result.Children[1].ExitCode 'a crash code reads as $LASTEXITCODE shows it'
     Assert-True ($result.Children[1].Launched -and -not $result.Children[1].TimedOut -and -not $result.Children[1].Interrupted) 'and its flags'
 }
+Invoke-TestCase 'cursor restore failure diagnostics are bounded, typed observations and remain optional for historical receipts' {
+    $cursorDiagnostics = 'readBefore=900,700;readBeforeError=0;setCalled=1;setAccepted=0;setError=5;readback=900,700;readbackError=0;' +
+        'clipCapture=0,0,1920,1080;clipCaptureError=0;clipAtExit=0,0,1920,1080;clipAtExitError=0;clipAfter=0,0,1920,1080;clipAfterError=0;' +
+        'inputCapture=Default;inputCaptureError=0;inputAtExit=Default;inputAtExitError=0;inputAfter=Default;inputAfterError=0;' +
+        'threadCapture=Default;threadCaptureError=0;threadAtExit=Default;threadAtExitError=0;threadAfter=Default;threadAfterError=0'
+    $failureText = $successful.Replace('exit: 0', 'exit: 25').Replace('restoration.cursor: restored', 'restoration.cursor: failed') +
+        "`ncursor.restore.diagnostics: $cursorDiagnostics"
+    $result = Read-DxUiLeaseResult -Text $failureText
+    Assert-Equal 0 @($result.ReceiptProblems).Count 'the full failure diagnostic validates without turning it into a pass'
+    Assert-Equal '900,700' $result.CursorDiagnostics.ReadBefore 'the immediate pre-set readback is retained'
+    Assert-Equal ([uint32]5) $result.CursorDiagnostics.SetError 'the setter error observation is retained'
+    Assert-True (-not $result.CursorDiagnostics.SetAccepted) 'setter rejection is distinct from readback'
+    Assert-Equal '0,0,1920,1080' $result.CursorDiagnostics.ClipAfter 'the final clip rectangle is retained'
+    Assert-Equal 'Default' $result.CursorDiagnostics.InputDesktopAfter 'the bounded desktop name is retained'
+    Assert-Equal $null (Read-DxUiLeaseResult -Text $successful).CursorDiagnostics 'old results remain readable without invented diagnostics'
+    $contradictory = Read-DxUiLeaseResult -Text ($successful + "`ncursor.restore.diagnostics: $cursorDiagnostics")
+    Assert-True (@($contradictory.ReceiptProblems).Count -gt 0) 'diagnostics cannot accompany a successful pointer restoration'
+    $preReadFailure = $cursorDiagnostics.Replace('readBefore=900,700', 'readBefore=unknown').Replace('readBeforeError=0', 'readBeforeError=13').
+        Replace('setCalled=1', 'setCalled=0').Replace('setError=5', 'setError=0').Replace('readback=900,700', 'readback=unknown')
+    $preReadResult = Read-DxUiLeaseResult -Text ($successful.Replace('exit: 0', 'exit: 25').Replace('restoration.cursor: restored', 'restoration.cursor: failed') +
+        "`ncursor.restore.diagnostics: $preReadFailure")
+    Assert-Equal 0 @($preReadResult.ReceiptProblems).Count 'a failed pre-set read is distinct from an unattempted set/readback'
+
+    foreach ($mutation in @(
+        @('threadAfterError=0', ''),
+        @('setAccepted=0', 'setAccepted=true'),
+        @('setError=5', 'setError=4294967296'),
+        @('readback=900,700', 'readback=2147483648,0'),
+        @('clipAfter=0,0,1920,1080', 'clipAfter=0,0,broken,1080'),
+        @('inputAfter=Default', 'inputAfter=desktop with spaces'),
+        @('threadAfterError=0', 'extra=0'),
+        @('setAccepted=0', 'setAccepted=0;setAccepted=1'),
+        @('setCalled=1;setAccepted=0', 'setCalled=0;setAccepted=1')
+    )) {
+        $changedDiagnostics = $cursorDiagnostics.Replace($mutation[0], $mutation[1])
+        $changedText = $successful.Replace('exit: 0', 'exit: 25').Replace('restoration.cursor: restored', 'restoration.cursor: failed') +
+            "`ncursor.restore.diagnostics: $changedDiagnostics"
+        $parsed = Read-DxUiLeaseResult -Text $changedText
+        Assert-True (@($parsed.ReceiptProblems).Count -gt 0) "malformed cursor restoration observations fail receipt validation: $($mutation -join ' -> ')"
+    }
+}
 Invoke-TestCase 'a result that is missing, empty or not the lease''s is no result' {
     Assert-Equal $null (Read-DxUiLeaseResult -Text $null) 'no text'
     Assert-Equal $null (Read-DxUiLeaseResult -Text '') 'empty text'
@@ -326,9 +367,27 @@ Invoke-FixtureCase 'both child receipts copy one original capture diagnostic and
     Assert-Equal ($copies[0].focusCapture | ConvertTo-Json -Compress) ($copies[1].focusCapture | ConvertTo-Json -Compress) 'the same diagnostic is copied, not recaptured per child'
     Assert-Equal 'foreground-minimized' $copies[0].focusCapture.Reason 'the original reason survives JSON'
     Assert-True ($copies[0].focusCapture.QueryError -eq 0) 'with no fabricated query error'
+    Assert-Equal $null $copies[0].cursorDiagnostics 'legacy results preserve absence rather than inventing cursor diagnostics'
     Assert-Equal 43.3 $copies[0].seconds 'Menu duration remains its own'
     Assert-Equal 1.2 $copies[1].seconds 'NativeTextInput duration remains its own'
     Assert-Equal 'QueryError,Reason' (($copies[0].focusCapture.PSObject.Properties.Name | Sort-Object) -join ',') 'diagnostics expose no raw window, process or thread identities'
+    $cursorDiagnostic = 'readBefore=900,700;readBeforeError=0;setCalled=1;setAccepted=0;setError=5;readback=900,700;readbackError=0;' +
+        'clipCapture=unknown;clipCaptureError=0;clipAtExit=unknown;clipAtExitError=0;clipAfter=unknown;clipAfterError=0;' +
+        'inputCapture=Default;inputCaptureError=0;inputAtExit=Default;inputAtExitError=0;inputAfter=Default;inputAfterError=0;' +
+        'threadCapture=Default;threadCaptureError=0;threadAtExit=Default;threadAtExitError=0;threadAfter=Default;threadAfterError=0'
+    $leaseResult = Read-DxUiLeaseResult -Text ($successful.Replace('exit: 0', 'exit: 25').Replace('restoration.cursor: restored', 'restoration.cursor: failed') +
+        "`ncursor.restore.diagnostics: $cursorDiagnostic")
+    $lease.ExitCode = 25
+    $diagnosticCopies = foreach ($child in $leaseResult.Children) {
+        $receipt = [ordered]@{}
+        . $writeLease
+        ($receipt | ConvertTo-Json -Depth 8 | ConvertFrom-Json).lease
+    }
+    Assert-Equal 2 @($diagnosticCopies).Count 'cursor failure diagnostics are carried to each child receipt'
+    Assert-Equal ($diagnosticCopies[0].cursorDiagnostics | ConvertTo-Json -Compress) ($diagnosticCopies[1].cursorDiagnostics | ConvertTo-Json -Compress) 'both children retain the same native lease snapshot'
+    Assert-Equal '5' ([string]$diagnosticCopies[0].cursorDiagnostics.SetError) 'the exact setter observation survives receipt JSON'
+    Assert-True (-not $diagnosticCopies[0].cursorDiagnostics.SetAccepted) 'a rejected setter remains a failure in child evidence'
+    $lease.ExitCode = 0
     $missing = @($testAst.FindAll({ param($node)
         $node -is [Management.Automation.Language.AssignmentStatementAst] -and $node.Left.Extent.Text -ceq '$leaseResult' -and
         $node.Right.Extent.Text.Contains('the native lease wrote no result')
@@ -341,6 +400,7 @@ Invoke-FixtureCase 'both child receipts copy one original capture diagnostic and
     . $writeLease
     Assert-Equal 'missing' $receipt.lease.state 'a missing result still writes its failed receipt under strict mode'
     Assert-Equal $null $receipt.lease.focusCapture 'the fallback invents no capture reason'
+    Assert-Equal $null $receipt.lease.cursorDiagnostics 'the fallback invents no pointer restoration evidence'
     Assert-Equal 0 @($receipt.lease.focusCaptureProblems).Count 'absence of a result is distinct from malformed metadata'
     Assert-True (@(Get-DxUiLeaseProblems -Result $leaseResult -ExitCode 24) -match 'native lease wrote no result') 'the missing result remains a failure'
 }
@@ -749,6 +809,65 @@ Invoke-FixtureCase 'an approved automatic request still refuses a CI desktop bef
     Assert-True ((Get-FlatText $run.Output).Contains('Interactive tests need an interactive desktop, and there is none')) 'automatic mode keeps the existing desktop refusal'
     Assert-Equal ((ConvertTo-OrdinalOrder $before) -join "`n") ((ConvertTo-OrdinalOrder (Get-OutputFiles $fixture)) -join "`n") 'no test or build output was written'
 }
+Invoke-FixtureCase 'a native lease inherits the orchestrator filesystem location while staying attached to the console' {
+    param($fixture)
+    # CR-31 of the 10 October review: the lease was piped through Out-Host, and PowerShell kills a native command whose output
+    # it reads when Ctrl+C stops the pipeline, before the lease restores the desktop.
+    $pwsh = (Get-Process -Id $PID).Path
+    $deepLocation = Join-Path $fixture 'unrelated/deep/lease/orchestrator/location'
+    [void](New-Item -ItemType Directory -Path $deepLocation -Force)
+    $currentDirectory = [Environment]::CurrentDirectory
+    Push-Location -LiteralPath $deepLocation
+    try {
+        $expectedWorkingDirectory = (Get-Location).ProviderPath
+        $ambientBeforeLaunch = [Environment]::CurrentDirectory
+        $childDirectoryPath = Join-Path $fixture 'child-current-directory.txt'
+        $quotedChildDirectoryPath = $childDirectoryPath.Replace("'", "''")
+        $childCommand = "[Console]::Out.WriteLine('[LEASE] native progress'); [IO.File]::WriteAllText('$quotedChildDirectoryPath', [Environment]::CurrentDirectory); exit 7"
+        $answer = @(Invoke-DxUiLeaseExecutable -Executable $pwsh -Arguments @('-NoProfile', '-NonInteractive', '-Command', $childCommand))
+        $childWorkingDirectory = [IO.File]::ReadAllText($childDirectoryPath)
+        $ambientAfterLaunch = [Environment]::CurrentDirectory
+    } finally { Pop-Location }
+    $ambientAfterFixture = [Environment]::CurrentDirectory
+    Assert-Equal 1 $answer.Count 'only its exit code is returned: the lease writes its progress to the console itself'
+    Assert-Equal 7 $answer[0] 'the exit code is the lease''s'
+    Assert-Equal $expectedWorkingDirectory $childWorkingDirectory 'the native lease uses the orchestrator''s current filesystem location'
+    Assert-Equal $currentDirectory $ambientBeforeLaunch 'changing the PowerShell location does not change the parent process directory'
+    Assert-Equal $currentDirectory $ambientAfterLaunch 'starting the native lease does not change the parent process directory'
+    Assert-Equal $currentDirectory $ambientAfterFixture 'the test restores the original PowerShell location without changing the parent process directory'
+    $module = [IO.File]::ReadAllText((Join-Path $PSScriptRoot '../InteractiveRun.psm1'))
+    Assert-True $module.Contains('Invoke-DxUiLeaseExecutable -Executable $Executable -Arguments $arguments') 'the lease core starts a native lease that way'
+}
+Invoke-FixtureCase 'a native lease refuses a non-filesystem location without launching or changing the process directory' {
+    param($fixture)
+    $pwsh = (Get-Process -Id $PID).Path
+    $launchMarker = Join-Path $fixture 'child-launched.txt'
+    $quotedLaunchMarker = $launchMarker.Replace("'", "''")
+    $childCommand = "[IO.File]::WriteAllText('$quotedLaunchMarker', 'launched')"
+    $ambientBefore = [Environment]::CurrentDirectory
+    Push-Location -LiteralPath 'Variable:\'
+    try {
+        $location = Get-Location
+        $ambientDuring = [Environment]::CurrentDirectory
+        $refused = $false
+        $refusal = ''
+        try {
+            [void](Invoke-DxUiLeaseExecutable -Executable $pwsh -Arguments @('-NoProfile', '-NonInteractive', '-Command', $childCommand))
+        } catch {
+            $refused = $true
+            $refusal = $_.Exception.Message
+        }
+        $ambientAfterAttempt = [Environment]::CurrentDirectory
+    } finally { Pop-Location }
+    $ambientAfterFixture = [Environment]::CurrentDirectory
+    Assert-Equal 'Variable' $location.Provider.Name 'the fixture exercises a non-filesystem PowerShell provider'
+    Assert-True $refused 'the lease launcher rejects a non-filesystem location'
+    Assert-True $refusal.Contains('current filesystem location') 'the refusal explains the required location'
+    Assert-True (-not (Test-Path -LiteralPath $launchMarker)) 'a refused lease never launches its child'
+    Assert-Equal $ambientBefore $ambientDuring 'the non-filesystem location does not change the parent process directory'
+    Assert-Equal $ambientBefore $ambientAfterAttempt 'refusal leaves the parent process directory unchanged'
+    Assert-Equal $ambientBefore $ambientAfterFixture 'restoring the PowerShell location leaves the process directory unchanged'
+}
 Invoke-FixtureCase 'lease console output cannot replace the result object or hide a failed child' { param($fixture)
     $fake = Join-Path $fixture 'lease.ps1'
     @'
@@ -779,30 +898,37 @@ $resultPath = ($Arguments | Where-Object { $_ -like '--result=*' }) -replace '^-
 $global:LASTEXITCODE = 0
 '@ | Set-Content -LiteralPath $fake
     $names = @('CI', 'GITHUB_ACTIONS', 'RUNNER_ENVIRONMENT', 'RUNNER_OS')
-    $saved = @{}
-    foreach ($name in $names) { $saved[$name] = [Environment]::GetEnvironmentVariable($name); [Environment]::SetEnvironmentVariable($name, $null) }
+    $original = @{}
+    foreach ($name in $names) { $original[$name] = [Environment]::GetEnvironmentVariable($name) }
     $oldMarker = [Environment]::GetEnvironmentVariable('DXUI_HOSTED_LEASE_MARKER')
-    [Environment]::SetEnvironmentVariable('DXUI_HOSTED_LEASE_MARKER', $marker)
     try {
-        $thrown = $false
-        try { [void](Invoke-DxUiHostedForegroundLease -Executable $fake -Runs @([pscustomobject]@{ Name='Menu'; Log='m.log'; CommandLine='unused.exe' }) -Label 'Menu' -EstimateSeconds 1 -WorkDirectory $fixture) } catch { $thrown = $_.Exception.Message.Contains('verified GitHub-hosted') }
-        Assert-True $thrown 'an unverified direct call is refused by the PowerShell wrapper'
-        Assert-True (-not (Test-Path -LiteralPath $marker) -and -not (Test-Path -LiteralPath (Join-Path $fixture 'interactive-plan.txt'))) 'refusal happens before plan creation or native launch'
+        foreach ($name in $names) { Restore-TestEnvironmentVariable $name $null }
+        Restore-TestEnvironmentVariable 'DXUI_HOSTED_LEASE_MARKER' $marker
+        try {
+            $thrown = $false
+            try { [void](Invoke-DxUiHostedForegroundLease -Executable $fake -Runs @([pscustomobject]@{ Name='Menu'; Log='m.log'; CommandLine='unused.exe' }) -Label 'Menu' -EstimateSeconds 1 -WorkDirectory $fixture) } catch { $thrown = $_.Exception.Message.Contains('verified GitHub-hosted') }
+            Assert-True $thrown 'an unverified direct call is refused by the PowerShell wrapper'
+            Assert-True (-not (Test-Path -LiteralPath $marker) -and -not (Test-Path -LiteralPath (Join-Path $fixture 'interactive-plan.txt'))) 'refusal happens before plan creation or native launch'
 
-        $local = Invoke-DxUiInteractiveLease -Executable $fake -Runs @([pscustomobject]@{ Name='Menu'; Log='m.log'; CommandLine='unused.exe' }) -Label 'Menu' -EstimateSeconds 1 -WorkDirectory $fixture
-        Assert-True ([IO.File]::ReadAllText($marker).StartsWith("--run`n")) 'the local wrapper retains its distinct native mode'
-        $localPresentation = Get-RunnerLeasePresentation $local.Result
-        foreach ($pair in @{ CI='true'; GITHUB_ACTIONS='true'; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Windows' }.GetEnumerator()) { [Environment]::SetEnvironmentVariable($pair.Key, $pair.Value) }
-        Set-Content -LiteralPath (Join-Path $fixture 'interactive-result.txt') 'stale result'
-        $answer = Invoke-DxUiHostedForegroundLease -Executable $fake -Runs @([pscustomobject]@{ Name='Menu'; Log='m.log'; CommandLine='unused.exe' }) -Label 'Menu' -EstimateSeconds 1 -WorkDirectory $fixture
-        Assert-True ([IO.File]::ReadAllText($marker).StartsWith('--run-hosted')) 'the verified wrapper selects the hosted native mode'
-        Assert-Equal 'completed' $answer.Result.State 'the hosted wrapper returns the shared structured result'
-        Assert-Equal 1 @($answer.Result.Children).Count 'the hosted child result survives console streaming'
-        Assert-Equal $localPresentation (Get-RunnerLeasePresentation $answer.Result) 'local and hosted restoration facts have the same neutral presentation'
-        Assert-True ($localPresentation.Contains('The desktop states were restored or unchanged.')) 'the recorded restored pointer overrides the false moved flag in both modes'
+            $local = Invoke-DxUiInteractiveLease -Executable $fake -Runs @([pscustomobject]@{ Name='Menu'; Log='m.log'; CommandLine='unused.exe' }) -Label 'Menu' -EstimateSeconds 1 -WorkDirectory $fixture
+            Assert-True ([IO.File]::ReadAllText($marker).StartsWith("--run`n")) 'the local wrapper retains its distinct native mode'
+            $localPresentation = Get-RunnerLeasePresentation $local.Result
+            foreach ($pair in @{ CI='true'; GITHUB_ACTIONS='true'; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Windows' }.GetEnumerator()) { Restore-TestEnvironmentVariable $pair.Key $pair.Value }
+            Set-Content -LiteralPath (Join-Path $fixture 'interactive-result.txt') 'stale result'
+            $answer = Invoke-DxUiHostedForegroundLease -Executable $fake -Runs @([pscustomobject]@{ Name='Menu'; Log='m.log'; CommandLine='unused.exe' }) -Label 'Menu' -EstimateSeconds 1 -WorkDirectory $fixture
+            Assert-True ([IO.File]::ReadAllText($marker).StartsWith('--run-hosted')) 'the verified wrapper selects the hosted native mode'
+            Assert-Equal 'completed' $answer.Result.State 'the hosted wrapper returns the shared structured result'
+            Assert-Equal 1 @($answer.Result.Children).Count 'the hosted child result survives console streaming'
+            Assert-Equal $localPresentation (Get-RunnerLeasePresentation $answer.Result) 'local and hosted restoration facts have the same neutral presentation'
+            Assert-True ($localPresentation.Contains('The desktop states were restored or unchanged.')) 'the recorded restored pointer overrides the false moved flag in both modes'
+        } finally {
+            foreach ($name in $names) { Restore-TestEnvironmentVariable $name $null }
+            Restore-TestEnvironmentVariable 'DXUI_HOSTED_LEASE_MARKER' $oldMarker
+        }
+        Assert-True (-not (Test-Path -LiteralPath 'Env:GITHUB_ACTIONS')) 'the hosted-lease fixture restores the forced absent marker as absent'
     } finally {
-        foreach ($name in $names) { [Environment]::SetEnvironmentVariable($name, $saved[$name]) }
-        [Environment]::SetEnvironmentVariable('DXUI_HOSTED_LEASE_MARKER', $oldMarker)
+        foreach ($name in $names) { Restore-TestEnvironmentVariable $name $original[$name] }
+        Restore-TestEnvironmentVariable 'DXUI_HOSTED_LEASE_MARKER' $oldMarker
     }
 
     $staleProbe = Join-Path $fixture 'stale-probe.ps1'
@@ -892,19 +1018,51 @@ if ($IsWindows) {
 Invoke-TestCase 'hosted ARM desktop preparation refuses incomplete runner authorization before Windows changes' {
     $preparation = Join-Path $repository 'Tools/Prepare-HostedArmDesktop.ps1'
     $valid = @{ CI='true'; GITHUB_ACTIONS='true'; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Windows'; RUNNER_ARCH='ARM64' }
+    $previousRunnerArch = [Environment]::GetEnvironmentVariable('RUNNER_ARCH')
     $original = @{}
     foreach ($name in $valid.Keys) { $original[$name] = [Environment]::GetEnvironmentVariable($name) }
     try {
-        foreach ($name in $valid.Keys) { [Environment]::SetEnvironmentVariable($name, $valid[$name]) }
-        foreach ($name in $valid.Keys) {
-            [Environment]::SetEnvironmentVariable($name, 'invalid')
-            $refused = $false
-            try { & $preparation } catch { $refused = $_.Exception.Message -like 'Hosted ARM64 desktop preparation requires*' }
-            Assert-True $refused "an invalid $name refuses before registry or desktop access"
-            [Environment]::SetEnvironmentVariable($name, $valid[$name])
+        Restore-TestEnvironmentVariable 'RUNNER_ARCH' $null
+        $original['RUNNER_ARCH'] = $null
+        try {
+            foreach ($name in $valid.Keys) { Restore-TestEnvironmentVariable $name $valid[$name] }
+            foreach ($name in $valid.Keys) {
+                Restore-TestEnvironmentVariable $name 'invalid'
+                $refused = $false
+                try { & $preparation } catch { $refused = $_.Exception.Message -like 'Hosted ARM64 desktop preparation requires*' }
+                Assert-True $refused "an invalid $name refuses before registry or desktop access"
+                Restore-TestEnvironmentVariable $name $valid[$name]
+            }
+        } finally {
+            foreach ($name in $valid.Keys) { Restore-TestEnvironmentVariable $name $original[$name] }
         }
-    } finally {
-        foreach ($name in $valid.Keys) { [Environment]::SetEnvironmentVariable($name, $original[$name]) }
+        Assert-True (-not (Test-Path -LiteralPath 'Env:RUNNER_ARCH')) 'the hosted-ARM fixture restores the forced absent architecture as absent'
+    } finally { Restore-TestEnvironmentVariable 'RUNNER_ARCH' $previousRunnerArch }
+    # Off ARM64 the system architecture alone refuses above, so the script must take its whole decision from the one guard that
+    # the next case checks condition by condition, before it loads Win32 or writes the registry.
+    $script = [Management.Automation.Language.Parser]::ParseFile($preparation, [ref]$null, [ref]$null)
+    $guard = @($script.FindAll({ param($node) $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -ceq 'Test-DxUiHostedArmDesktopRunner' }, $true))
+    $firstChange = @($script.FindAll({ param($node) $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -in @('Add-Type', 'New-Item', 'New-ItemProperty') }, $true) |
+        ForEach-Object { $_.Extent.StartOffset } | Sort-Object)[0]
+    Assert-True ($guard.Count -eq 1 -and $guard[0].CommandElements.Count -eq 1) 'the preparation asks the shared guard once, about this process and this machine'
+    Assert-True ($guard[0].Extent.StartOffset -lt $firstChange) 'and before it loads Win32 or writes the registry'
+    Assert-True (-not ((Get-Content -Raw -LiteralPath $preparation) -match 'RUNNER_ARCH|OSArchitecture')) 'no second runner condition lives in the script itself'
+}
+Invoke-TestCase 'hosted ARM desktop preparation requires every hosted marker, an ARM64 runner and a native ARM64 system' {
+    $valid = @{ CI='true'; GITHUB_ACTIONS='true'; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Windows'; RUNNER_ARCH='ARM64' }
+    Assert-True (Test-DxUiHostedArmDesktopRunner -Environment $valid -OSArchitecture Arm64) 'a verified hosted ARM64 job on a native ARM64 system qualifies'
+    foreach ($architecture in @('X64', 'X86', 'Arm')) {
+        Assert-True (-not (Test-DxUiHostedArmDesktopRunner -Environment $valid -OSArchitecture $architecture)) "a $architecture system never qualifies"
     }
+    foreach ($name in $valid.Keys) {
+        $mutation = $valid.Clone()
+        $mutation[$name] = 'invalid'
+        Assert-True (-not (Test-DxUiHostedArmDesktopRunner -Environment $mutation -OSArchitecture Arm64)) "an invalid $name never qualifies"
+        $mutation.Remove($name)
+        Assert-True (-not (Test-DxUiHostedArmDesktopRunner -Environment $mutation -OSArchitecture Arm64)) "a missing $name never qualifies"
+    }
+    $lowercase = $valid.Clone()
+    $lowercase['RUNNER_ARCH'] = 'arm64'
+    Assert-True (-not (Test-DxUiHostedArmDesktopRunner -Environment $lowercase -OSArchitecture Arm64)) 'RUNNER_ARCH is matched exactly as GitHub sets it'
 }
 Complete-TestRun 'Interactive mode'

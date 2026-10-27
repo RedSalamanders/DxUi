@@ -1,7 +1,7 @@
 # Validation and evidence
 
 Status: normative intended contract
-Last reviewed: 2026-10-18
+Last reviewed: 2026-10-25
 
 Native staged-TSF reconciliation tests count the current generation-tagged production dispatch separately from
 the rest of the HWND queue. A general pump can also deliver an independent geometry change, whose layout
@@ -21,6 +21,11 @@ capture cancellation/continuation, unavailable/full-failure transitions, cross-t
 geometry publication. It preserves every preceding assertion; consumer pin adoption requires actual host tests.
 
 Every supported capability has executable evidence and a truthful status in `capabilities.json`.
+
+Documentation gallery fixtures install synthetic tooltip content after queued window messages and cooperative
+preparation have settled, then verify the exact visible tooltip text immediately before synchronous capture.
+The owned-window leave interleaving must clear the preceding tooltip without activating or moving the desktop.
+This verifies fixture ordering; it does not attribute an earlier untraced capture or qualify physical hover input.
 
 M3 Markdown analysis checks every original expected HTML vector: 652 CommonMark
 0.31.2 and 672 GFM 0.29-gfm examples, without exclusions. Preserve each GFM
@@ -56,6 +61,19 @@ deduplication. The Grid unchanged-selection regression records both provider emi
 retains the original empty-event assertion, and freezes failure snapshots before diagnostic tree queries pump more
 messages. A passing rerun alone does not attribute or erase an earlier intermittent failure.
 
+The embedded Tree badge regression deliberately holds property delivery across several publications to test
+per-item coalescing and removed-ID pruning. First deliver both distinct rows' first statuses within the ordinary
+3-second notification deadline and finish the bounded quiet wait. Then hold one unrelated row's active event at
+the delivery gate before queuing both tested rows' middle/final statuses and removing the unrelated row. Individual
+rows enqueue separately: the worker can extract the first row before the next enqueue, so a gate must not assume
+one publication's row events form an atomic batch. Assert held silence from a separate event mark. After releasing
+the gate, both coalesced final notifications use the existing 20-second UIA client request allowance. Log elapsed
+time on slow arrival or timeout; retain exact first/final counts, superseded-value and stale-ID assertions, the
+replacement getter and the runner watchdog. The unrelated event extracted before the gate is outside pending-queue
+pruning and has no delivery assertion. The preceding ordinary status-only wait also retains its 3-second deadline.
+These fixture boundaries change no product notification SLA, focus-event deadline or performance acceptance rule.
+Preserve earlier failed runs, including a longer timeout that cannot repair the batch-ordering assumption.
+
 The native IME undo-grouping fixture MUST restore its initial text and undo history after successful attempt
 admission and before `SetFocusControl`. A direct edit can survive foreground loss; focusing the same editor does
 not initialize it again. Each admitted attempt clears the field with `SetText(L"")` before creating its one earlier
@@ -76,6 +94,27 @@ inside the same 900 ms guard. Its unchanged-library counterfactual must retain t
 hover, active paint backlog and absence of callback entry. Bounded UI/driver trace storage uses the synchronous
 borrowed diagnostic sink; records retain phase names, relative times and query outcomes rather than desktop
 identities. Capturing a possible failure path does not attribute an earlier untraced occurrence.
+Dismissal records distinguish popup activation/cancellation, asynchronous capture loss, outside pointer input,
+and Escape/Alt/Tab/F10. Preserve those cause tags in the same bounded test trace without changing either guard.
+Interactive Menu fixtures that align the physical pointer call `SetCursorPos` once and fail immediately if it is
+refused or the immediate `GetPhysicalCursorPos` read fails. A readable but stale position may converge through
+read-only `GetPhysicalCursorPos` polls at 5 ms intervals. Readiness requires two consecutive exact observations,
+separated by one poll; any mismatch resets the streak. No poll may begin at or after the observed 100 ms deadline
+or after 20 polls; never repeat the warp or accept a nearby point. The observed deadline does not bound time spent
+inside an OS call or scheduler delay, and an exact set/read completing at or after it is refused. Require both the
+helper's timely two-sample exact physical target and the existing independent caller readback. Preserve
+the last confirmed position separately from an accepted pending target so restoration never treats a stale read
+as a successful alignment; restore only when the current point still matches a position owned by the fixture.
+Retain bounded initial/final readback, poll-count and elapsed-time diagnostics. This synchronization does not
+identify which host or desktop action delayed or changed a cursor position.
+
+Native-menu dismissal fixtures verify actual focus on the menu-bar host after `FocusFirstItem()` and before
+starting a popup-discovery driver. The driver uses one 5 s deadline for visible-popup discovery and the existing
+modal-dispatch readiness signal, and requires the dismissal-key post itself to succeed after both are ready. Keep
+the existing 800 ms
+focus and popup-destruction checks; the 900 ms and 180 ms hover guards are separate. Record bounded foreground,
+active-window, focus, capture, popup-discovery and menu-stage flags through the existing trace, without logging
+window handles. A trace distinguishes observed stages but does not identify an external input writer.
 
 `performance-forms.ps1` runs the fixed `dxui-form-layout-cost-v1` synthetic fixture. Before timing it requires identical
 manual/form leaf state, geometry and captured pixels across five states in two profiles. It reports raw frame and
@@ -161,6 +200,12 @@ menu resource measurements. This opt-in diagnostic remains nonactivating and its
 Release CI run retains the common benchmark receipt.
 `test.ps1` builds the selected configuration, runs Foundation, Embedded and all inherited control suites and records a JSON receipt with
 architecture, configuration, time and executable path under `.build/reports`. Failures propagate as nonzero exits.
+Callers MUST judge a PowerShell runner through a fresh process's exit code or invocation success (`$?`)
+captured immediately after the script call. Ambient `$LASTEXITCODE` can retain an intentional native ASan
+probe's nonzero result after a successful in-process script; it is not that script's completion status.
+Preserve wrapper failures separately from sealed native outcomes. A reporting-error disposition requires
+independent source/invocation proof and exact owner, source, artifact and sealed-payload binding; it MUST
+NOT rewrite failed records, hide a real suite/lease failure or claim aggregate wrapper success.
 Every invocation also runs the populated complex-UI benchmark through `performance.ps1` and includes FPS/memory
 scenarios and the performance receipt path in each suite receipt. `-PerformanceBaseline` requires a matched
 comparison and fails for a suspected regression or invalid evidence; no baseline is explicitly `unpaired`.
@@ -294,6 +339,15 @@ Interactive menu drivers wait for the popup's modal capture after visibility and
 asserting a retained painted hover, their physical cursor agrees with the delivered point so OS-generated moves
 cannot undo the fixture's input. Restore that cursor only while it still has the test's position; do not overwrite
 human movement. Failed hover assertions must report a failure, including outside-dismiss tests.
+For a multi-step submenu-retention assertion, establish and verify an opposite sibling as the physical starting
+hover before the first asserted sibling transition; align each later root, child and parent point before delivering
+its matching synthetic move. Preserve the existing hover and timer predicates and deadlines.
+Visual-baseline captures that require an unhovered menu MUST establish modal capture and visible geometry as
+separate predicates, then physically park the cursor in the popup shadow margin outside every item row under the
+popup DPI context. Deliver the matching move and verify hover cleared before requesting the bitmap. A synthetic
+move alone does not establish the physical pointer state. Pointer-driven coverage MUST also prove that moving the
+physical cursor onto an item produces hover before parking clears it; diagnostics report capture, geometry, hover,
+the final physical point and the bounded moves sent separately.
 Cursor fixtures retain the original and actual aligned positions in physical coordinates,
 and restore only while the cursor still has that aligned position. Popup-context alignment
 must not apply a second DPI conversion. An outer harness verifies restoration and must not
@@ -366,7 +420,7 @@ Physical touch, a human IME session and screen-reader interaction are manual ado
 messages or a green foundation suite.
 
 Menu fixture discovery shares the process/owner/visibility rule in
-`Tests/Controls/Scope.Tests.MenuPopupReadiness.h`: the hidden measurement HWND is not a ready popup.
+`Tests/Controls/Controls.Tests.MenuPopupReadiness.h`: the hidden measurement HWND is not a ready popup.
 `Control` exercises hidden initialization, reveal, wrong owner/class and hidden-again/never-ready states on a
 private desktop that is never made the input desktop. This deterministic regression requires no foreground lease;
 the actual Menu fixtures still require their existing lease and retain their render/scroll assertions and cleanup.
@@ -712,15 +766,30 @@ interactive desktop lease: `DxUi.InteractiveLease.exe` (`Tests/InteractiveLease`
   running and to keep hands off the keyboard and mouse; it also holds the foreground that the child is granted. The session-wide lease
   `Local\DxUi.InteractiveTestRun.v1` makes a second run refuse (exit code 22) instead of queueing behind the first, and the system and
   the display stay awake. Each suite is a child of its own, in a kill-on-close job, with its output in its log. The foreground is
-  granted to that child alone and never to any process, and the lease ends only a process it started: a child that outlives its bound
+  granted to that child alone and never to any process. Failed creation, configuration or assignment of the owned job refuses
+  the still-suspended child before its entrypoint can execute. Teardown terminates only this job and its contained descendants,
+  never a process chosen by name. Before job termination it captures and verifies current member handles and waits for those
+  handles within one bounded teardown deadline. Job accounting reaching zero does not prove that a process handle is signaled;
+  capture or wait failure fails the child result. Membership can change during capture, so this is not an atomic whole-tree
+  completion barrier; kill-on-close containment also covers members created during that interval. A child that outlives its bound
   (15 minutes, or three times `-TestTimeout` when that is longer; none with `-TestTimeout 0`) ends with the watchdog's exit code, 124.
+  The native self-test verifies both normal-exit and timeout descendant completion against the fixture's PID and
+  creation time. Its single defensive descendant cleanup is allowed only after that identity check; source guards
+  retain the direct-created-handle restriction elsewhere and the ban on process-name discovery. These source guards
+  supplement the required successful behavioral self-test rather than proving process ownership by themselves.
 - **Restoring.** The foreground window, then its keyboard focus, then the pointer in physical coordinates, last because activating a
   window can move it. Each is verified by reading the desktop again, never by trusting a call's result (the foreground is asked for
   three times and read back for up to a second each time), and the pointer must land exactly. This happens on every exit path: passing
   suites, a failing suite, the watchdog's 124, a hung child, a child that cannot start, a cancelled or unanswered confirmation, a
   warning that cannot be shown, and Ctrl+C or a closing console. It cannot happen if the lease process itself is killed; its job then
-  ends the child. Windows may refuse to restore a window of a process with higher integrity than the lease (an elevated terminal
+  ends the child. So `test.ps1` starts the lease attached to its console and never reads its output through a pipeline, which
+  PowerShell would end with the lease when Ctrl+C stops the run: the lease takes the same Ctrl+C and restores the desktop while
+  `test.ps1` waits for it. Windows may refuse to restore a window of a process with higher integrity than the lease (an elevated terminal
   while the lease is not elevated); the report then says `failed`, and the person's window stays where Windows left it.
+- The PowerShell launcher MUST start the lease with its current FileSystem provider directory as the child working directory, and MUST
+  refuse when the current location is not an existing FileSystem directory. It MUST NOT change the parent process current directory.
+  This keeps repository-relative baselines and test artifacts bound to the selected checkout even when the caller's process directory
+  differs from its PowerShell location.
 - **Reporting.** The line `Restoration: foreground=... focus=... cursor=...` names what became of each part: `unchanged` (the run
   was unchanged when checked), `restored`, `gone` (the window closed during the run), `failed`, `skipped` (the focus of a window
   that could not be made the foreground) or `none` (nothing was recorded). The result also keeps the pointer positions, the one the
@@ -729,6 +798,13 @@ interactive desktop lease: `DxUi.InteractiveLease.exe` (`Tests/InteractiveLease`
   desktop was unchanged, because failed/skipped/unrecorded parts can also produce it. Human summaries MUST derive their
   restoration claim from all three statuses, retain failed or unverified outcomes, and avoid inferring which action
   moved the pointer from these positions alone. Exit code 0 without a result supplies no verified restoration evidence.
+  A failed pointer restoration MAY include one bounded `cursor.restore.diagnostics` line with the immediate pre-set
+  read, `SetPhysicalCursorPos` acceptance and immediately observed error, exact post-set readback, and clip/input/thread
+  desktop observations at capture, suite exit and after restoration. The setter's `GetLastError` value is diagnostic
+  context only; it does not have a documented error contract. Exact physical readback remains the restoration criterion:
+  clip or desktop observations neither excuse a mismatch nor identify its cause. The parser MUST reject repeated,
+  missing, unknown or malformed fields in this optional line. Older receipts without it remain readable and do not gain
+  inferred diagnostics.
 - **Passing.** Every suite exits 0, none records a capability skip (an interactive run exists to run what other runs skip, so a skip
   means the desktop did not provide it) and no part is `failed`. Logs and receipts carry the suffix `.interactive`
   (`.interactive.filtered` with `-Tests`), so they never replace those of the run that records the suite's skips; a receipt records the
@@ -916,11 +992,14 @@ and sink callbacks releasing the final caller reference. The initial optional sa
 
 ## Scoped iteration and PR coverage
 
-Active native test sources, helpers, fixtures and seams MUST use `Scope.Tests.Something.h/.cpp`. `Tests/native-test-files.json` owns active membership. Historical archived harnesses and sealed reproduction inputs keep their original identity; they do not define new source naming. Rename project entries, includes, current inventories and callers together. DxUi historical source/test origins retain their original identities and map to current paths separately.
+Active native test sources, helpers, fixtures and seams MUST use `<Component>.Tests.Something.h/.cpp`, with the actual component context (`Controls`, `Support`, `Embedded`, etc.). Literal `Scope` is a rejected placeholder. `Tests/native-test-files.json` owns active membership. Historical archived harnesses and sealed reproduction inputs keep their original identity; they do not define new source naming. Rename project entries, includes, current inventories and callers together. DxUi historical source/test origins retain their original identities and map to current paths separately.
+
+Git path discovery and changed-path aggregation MUST preserve exact path identity with ordinal, case-sensitive deduplication and ordering, regardless of the host filesystem's case behavior. Scope-pattern matching remains intentionally case-insensitive.
 
 `Test-Changes.ps1` is the ordinary iteration entrypoint. Its default is affected coverage, including committed changes since a local merge base and independent staged, unstaged, deletion, rename-side and untracked discovery. No ref is fetched. Unknown executable inputs widen coverage; prose alone does not require native tests. Explanations name paths, consumers and fallback reasons. Explicit selectors reject unknown scopes. Affected, filtered and environment-reduced coverage MUST NOT be reported as a full repository pass.
 
 Successful whole-scope results are reused only for equal repository content, installed dependency inputs, complete executable/static-library/DLL/PDB output closure, architecture, configuration, scope, runner and environment. Native build and run identities hash the selected platform's installed vcpkg triplet files plus its status, package inventory and ABI metadata; missing dependency metadata fails closed. Build attestation binds compiled source and installed dependencies to those artifacts before `SkipBuild`. Invalid, missing, failed, interrupted or concurrently mutated evidence is never reusable. Force bypasses test-result reuse. Independent tooling receipts are shared across profiles because their execution has no profile argument. Receipt identity is content-based; staging/committing the same source tree does not itself invalidate it.
+PowerShell tooling fixtures that mutate process environment variables MUST restore whether each value was unset, empty or nonempty. A test-generated empty value is a distinct identity input and MUST NOT leak into a later build or SkipBuild gate.
 
 Scoped reuse qualifies the existing attested artifact bytes in the recorded environment. Its environment identity
 includes Visual Studio installation metadata, the default toolset file and graphics-runtime bytes; it does not hash
@@ -931,7 +1010,7 @@ specified by the performance contract.
 
 `-Mode Full` selects the full local noninteractive obligation. `Test-PrePush.ps1 -Explain` is the six-profile accounting entry point; after reviewing it, `Test-PrePush.ps1` runs each x64/ARM64 Debug/Release/ASan Debug profile. Identical independent tooling evidence is reused across the six invocations and executes once. ARM64 runtime work must run on a native ARM64 host or remain explicitly pending in the verified PR gate; a cross-build does not satisfy it. Use `Test-Changes.ps1 -Mode PrePush -Platform <x64|ARM64> -Configuration <Debug|Release|ASan Debug>` for one profile.
 
-Delegation requires a clean committed, attached non-default branch on the canonical remote; an open pull request whose head SHA is exactly the candidate; the active workflow with bytes matching the reviewed manifest digest; an available local ref for the pull request's actual base; and a matching native profile. This supports stacked pull requests without treating `origin/main` as their base. Staged, unstaged and untracked inputs retain obligations locally; a dirty tree, detached/default branch, foreign remote or changed HEAD during the coverage lookup rejects delegation. Nightly and weekly jobs are not PR coverage. Workflow/API uncertainty keeps obligations local. A delegated run reports `CI_PENDING`, never repository `PASSED`; the PR must pass `ci-gate`. Main/release acceptance remains separate because its merge tree, configuration matrix or requirements can differ.
+Delegation requires a clean committed, attached non-default branch on the canonical remote; an open pull request whose head SHA is exactly the candidate; the active workflow; the bytes of the workflow and of every script and module that decides its coverage (`prContractFiles` in `Tests/test-scopes.json`: the runners, the native-scope classifier and the modules they import), with the coverage the manifest claims, matching the reviewed digest `prWorkflowDigest` (a CI-only change to a runner therefore keeps every obligation local until the digest is reviewed again); an available local ref for the pull request's actual base; and a matching native profile. This supports stacked pull requests without treating `origin/main` as their base. Staged, unstaged and untracked inputs retain obligations locally; a dirty tree, detached/default branch, foreign remote or changed HEAD during the coverage lookup rejects delegation. Nightly and weekly jobs are not PR coverage. Workflow/API uncertainty keeps obligations local. A delegated run reports `CI_PENDING`, never repository `PASSED`; the PR must pass `ci-gate`. Main/release acceptance remains separate because its merge tree, configuration matrix or requirements can differ.
 
 On 11 October 2026 the developer requested merging the completed S0-S2 library implementation while retaining
 S3-S7 and unfinished qualification in indexed WIP. This implementation-only decision permits normal PR integration
@@ -947,6 +1026,12 @@ Ordinary qualification and main/release acceptance requirements remain unchanged
 RedSalamander defers only entries whose complete portable entry contracts equal the PR plan, retaining writers, in-product cases and extra scenarios locally. Its `-NonInteractive` option omits focus-taking entries and records incomplete coverage; it cannot alter an exact Resume. DxUi foreground suites remain explicit `test.ps1 -Interactive` work after agreement to the time. Noninteractive iteration and CI do not claim those manual gates. No screenshot or desktop automation is introduced.
 
 `Tests/test-scopes.json` owns the standalone scope and verified PR-profile mapping; RedSalamander's `Tools/validation-impact.json` and canonical plan continue to own its affected execution. Specific standalone test-source rules use their semantic entry tags, while common support and unknown paths retain conservative fan-out. New source/build/runtime/runner dependencies must extend the relevant manifest and focused regression coverage.
+
+Rich Markdown math, diagram, semantic-document and retained editor implementation changes select `EditorControls`,
+`Embedded` and `Accessibility` together. Their focused support headers and generators retain the same integration
+consumers; public rich-text header changes also select accessibility. `Tools/tests/Test-ScopedTesting.ps1` independently
+checks the affected path mapping, including the owned math compatibility corpus, without widening those known
+paths to every suite. This selection remains affected evidence rather than whole-repository qualification.
 
 CI invokes explicit full gates rather than the affected default. The forthcoming PR executes its candidate workflow; a reviewed local workflow digest and the enabled GitHub workflow gate delegation. Workflow edits invalidate that digest until the scope contract is reviewed and updated. RedXe's independent Windows tooling/skill tests execute once in its tooling job. DxUi's tooling has one Windows host qualification and one Linux portability qualification; its MSBuild-only staging fixture executes once on Windows; native runner/watchdog checks stay profile-specific. RedSalamander schedules skip unchanged commits only after successful matching workflow history; manual dispatch and unreadable/failed history execute. Hosted timing investigations still use paired, fixture-matched resource evidence; cached historical observations are not new measurements.
 

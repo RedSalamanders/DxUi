@@ -2,7 +2,7 @@
 [CmdletBinding()]
 param(
     [string] $InputDirectory=(Join-Path $PSScriptRoot '../ThirdParty/Markdown/mermaid-11.4.1'),
-    [string] $OutputPath=(Join-Path $PSScriptRoot '../Tests/Support/Scope.Tests.NativeFlowchartCorpus.h'),
+    [string] $OutputPath=(Join-Path $PSScriptRoot '../Tests/Support/Support.Tests.NativeFlowchartCorpus.h'),
     [switch] $Check
 )
 Set-StrictMode -Version Latest
@@ -10,8 +10,8 @@ $ErrorActionPreference='Stop'
 $pins=@{
     'collection.json'='157DEAF02EC36597EB5012AF8CE1EDF3CA710281CFC6E3E65493BD74A540799A'
     'syntax-inventory.json'='5CBAD5692330F513128C4D6CAF59A6ACE18A530073DEC9098208FC559FE48231'
-    'dxui-flowchart-expectations.json'='EE44C515E59CB370150572A0B2871CE1DB3D7A7655A6A1E7A563FAAE60FB48CC'
-    'dxui-family-matrix.json'='E4483443141EE85EDFD0FB9CEF1F6D9513D9A275FF1E15BB99FC3B7F6C470153'
+    'dxui-flowchart-expectations.json'='2BB253E39A1F4EE201A04D95BB02971A1D3DD4226AEFB076ACB522AA651FFE85'
+    'dxui-family-matrix.json'='5A49B46D69193C2D0D911DEC1A0BC79210164F4F75C175E9F89589823475C3B5'
 }
 foreach($name in $pins.Keys){
     if((Get-FileHash -LiteralPath (Join-Path $InputDirectory $name)).Hash -cne $pins[$name]){throw "Pinned native flowchart input differs: $name"}
@@ -26,6 +26,25 @@ $examples=[regex]::Matches([IO.File]::ReadAllText((Join-Path $InputDirectory 'fl
 $expectations=@(Get-Content -LiteralPath (Join-Path $InputDirectory 'dxui-flowchart-expectations.json') -Raw | ConvertFrom-Json)
 $families=@(Get-Content -LiteralPath (Join-Path $InputDirectory 'dxui-family-matrix.json') -Raw | ConvertFrom-Json)
 if($collection.Count -ne 24 -or $examples.Count -ne 105 -or $expectations.Count -ne 105 -or $families.Count -ne 22){throw 'Incomplete native Mermaid corpus inventory'}
+$familyExamples=@($families | Where-Object { $_.support -in @('unsupported-family','limited-state','limited-class') })
+if($familyExamples.Count -ne 20 -or @($families | Where-Object support -eq 'unsupported-family').Count -ne 18 -or
+   @($families | Where-Object support -eq 'limited-state').Count -ne 1 -or @($families | Where-Object support -eq 'limited-class').Count -ne 1){
+    throw 'Invalid native Mermaid family support matrix'
+}
+foreach($family in $families){
+    if($family.support -notin @('unsupported-family','limited-flowchart','limited-state','limited-class','example-collection')){throw "Unknown Mermaid support value: $($family.support)"}
+    if($family.support -in @('unsupported-family','limited-state','limited-class')){
+        $expected=$family.firstExample
+        if(!$expected -or $expected.outcome -notin @('Prepared','Unsupported') -or
+           $expected.issue -notin @('None','UnsupportedFamily','UnsupportedStatement','UnsupportedEdge') -or
+           $expected.direction -notin @('TopBottom','BottomTop','LeftRight','RightLeft') -or
+           !$expected.reason -or $expected.nodes -lt 0 -or $expected.edges -lt 0 -or
+           ($expected.outcome -eq 'Prepared' -and $expected.issue -cne 'None') -or
+           ($expected.outcome -eq 'Unsupported' -and ($expected.nodes -ne 0 -or $expected.edges -ne 0))){throw "Invalid independent first-example expectation: $($family.document)"}
+    }elseif($family.PSObject.Properties.Name -contains 'firstExample'){
+        throw "Unexpected first-example expectation for non-family document: $($family.document)"
+    }
+}
 function Literal([string]$Text){
     $value=[Text.StringBuilder]::new()
     foreach($unit in $Text.ToCharArray()){[void]$value.Append(('\x{0:X4}' -f [int]$unit))}
@@ -52,10 +71,9 @@ for($i=0;$i -lt $examples.Count;$i++){
     [void]$output.AppendLine(('    {{{0}u, {1}, FlowchartOutcome::{2}, {3}u, {4}u, FlowchartDirection::{5}}},' -f $expected.id,(Literal $source),$expected.outcome,$expected.nodes,$expected.edges,$expected.direction))
 }
 [void]$output.AppendLine('};')
-[void]$output.AppendLine('struct Family { std::wstring_view document, source; };')
-[void]$output.AppendLine('inline constexpr Family unsupportedFamilies[] = {')
-foreach($family in $families){
-    if($family.support -cne 'unsupported-family'){continue}
+[void]$output.AppendLine('struct Family { std::wstring_view document, source; FlowchartOutcome outcome; FlowchartIssue issue; std::size_t nodes, edges; FlowchartDirection direction; std::wstring_view reason; };')
+[void]$output.AppendLine('inline constexpr Family familyExamples[] = {')
+foreach($family in $familyExamples){
     $text=[IO.File]::ReadAllText((Join-Path $InputDirectory $family.file))
     $fences=[regex]::Matches($text,$pattern)
     if(!$fences.Count){throw "Declared diagram family has no original example: $($family.document)"}
@@ -63,7 +81,9 @@ foreach($family in $families){
     # Family dispatch is tested after an original diagram-local YAML header,
     # where present. All 105 flowchart vectors above retain that header intact.
     $source=[regex]::Replace($source,'(?ms)\A---\n.*?^---[ \t]*\n','')
-    [void]$output.AppendLine(('    {{{0}, {1}}},' -f (Literal $family.document),(Literal $source)))
+    $expected=$family.firstExample
+    [void]$output.AppendLine(('    {{{0}, {1}, FlowchartOutcome::{2}, FlowchartIssue::{3}, {4}u, {5}u, FlowchartDirection::{6}, {7}}},' -f `
+        (Literal $family.document),(Literal $source),$expected.outcome,$expected.issue,$expected.nodes,$expected.edges,$expected.direction,(Literal $expected.reason)))
 }
 [void]$output.AppendLine(@'
 };
@@ -74,4 +94,4 @@ $expected=$output.ToString().Replace("`r`n","`n").Replace("`n","`r`n")
 if($Check){
     if(-not(Test-Path -LiteralPath $OutputPath) -or [IO.File]::ReadAllText($OutputPath) -cne $expected){throw 'Native flowchart corpus output is missing or stale'}
 }else{[IO.File]::WriteAllText($OutputPath,$expected,[Text.UTF8Encoding]::new($false))}
-Write-Host 'Native flowchart vectors: 105 original examples, 13 admitted graphs, 92 unsupported, 20 other diagram families.'
+Write-Host 'Native flowchart vectors: 105 original examples, 16 admitted graphs, 89 unsupported; 20 original family examples (2 limited profiles, 18 unsupported families).'

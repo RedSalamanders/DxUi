@@ -72,3 +72,7 @@ The canonical ProgressBar now has explicit animation pause state, independent of
 - [ ] Pass paused-progress regressions and all 23 suites in each x64 profile, plus all six builds.
 - [ ] Adopt the exact additive API-4 backport only in RedSalamander and close its unknown-paused cadence failure.
 - [ ] Refresh final measurements and the five-repository report; retain all original failures and separate external gates.
+
+## Main integration - 2026-10-27
+
+The approved integration combines current main with the retained MSVC 14.52 work, preserving newer callback guards and the pause API. Qualification of this combined source is recorded separately from earlier branch receipts. Historical passes and remaining native, interactive, performance and release gates are retained; the merge does not close them automatically.

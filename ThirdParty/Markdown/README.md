@@ -8,17 +8,28 @@ URLs, repository paths, Git blob IDs and SHA-256 hashes for all 24 files;
 These are reference/corpus inputs, never a compiled or deployed Mermaid runtime.
 Original Markdown and grammar files use `.txt` suffixes so their upstream-relative
 links remain unmodified data rather than becoming repository documentation links.
-The owned C++ limited flowchart profile remains M5 work; reference availability
-does not establish grammar or rendering compatibility. Unsupported families and
-constructs must remain exact editable source with explicit diagnostics.
+The owned C++ flowchart, state and class profiles each implement a limited local
+subset; reference availability does not establish full grammar, coordinate or
+rendering compatibility. Unsupported families and constructs remain exact
+editable source with explicit diagnostics.
 
 `dxui-flowchart-expectations.json` independently classifies all 105 original
-flowchart fences: 13 admitted graphs and 92 unsupported definitions.
-`dxui-family-matrix.json` accounts for the 22 syntax documents, including the
-flowchart profile, example collection and 20 unsupported diagram families.
+flowchart fences: 16 admitted graphs and 89 unsupported definitions, including
+the supported legacy stadium form. The local flowchart subset also expands
+bounded `&` endpoint groups as a stable Cartesian product, including chained
+groups; class and state grammar remain isolated. `dxui-family-matrix.json` accounts for the 22
+syntax documents: the limited flowchart, state and class profiles, the example
+collection, and 18 unsupported diagram families. It also records an independent
+first-example outcome, diagnostic classification, graph counts, direction and
+reason for each of the 20 diagram-family documents. The original state example
+prepares five nodes and six transitions. The class profile is limited, but its
+first original example falls back because it starts with a `note` directive;
+the remaining 18 family examples fall back as unsupported families.
 `Tools/Generate-NativeFlowchartTestData.ps1` checks every original file hash,
 the MIT notice, inventory and expectation pins before generating native vectors.
 Original snippets use LF in test vectors; original file bytes remain unchanged.
+The generated tests verify every family fixture's exact expected outcome and
+diagnostic instead of treating the whole state/class family as unsupported.
 Neither accepted CPU graphs nor unsupported results establish native rendering.
 
 `katex-0.16.11` retains only original command documentation and the MIT notice

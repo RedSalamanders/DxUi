@@ -1,0 +1,293 @@
+{
+  "schema": "dxui-menu-pointer-fixture-public-summary-v1",
+  "intendedPublicationPath": "Measurements/MenuPointerFixture_2026-10-26",
+  "purpose": "Menu capture fixture validation evidence; not performance acceptance",
+  "source": {
+    "prNumber": 104,
+    "prState": "MERGED",
+    "prHead": "30fccffe13b2b07a5369f384943a35c23d836761",
+    "prBase": "b606088101e4700023d633906979e525128a2f64",
+    "mergeCommit": "619dc88b776f6e545542e0242e5943bbdddc5b3c",
+    "tree": "68399a81486f69cb42c396cb2f0e2a2e44d1b112"
+  },
+  "hosted": {
+    "runId": 40242796721,
+    "conclusion": "success",
+    "allSixNativeArchiveDigestsAndSizesVerified": true,
+    "allSixNativeProfilesPassed": true,
+    "profiles": [
+      {
+        "profile": "ARM64-ASan Debug",
+        "artifactId": 12619024280,
+        "providerDigest": "sha256:8b39f8154830f1e085e6f5d7994b02ff5bad629cd03fbf470e3530c01ec7a294",
+        "archiveBytes": 2950257,
+        "archiveSha256": "8B39F8154830F1E085E6F5D7994B02FF5BAD629CD03FBF470E3530C01EC7A294",
+        "archiveMatchesProvider": true,
+        "fullSuiteCount": 21,
+        "fullSuiteReportsMatched": true,
+        "allFullSuiteReportsPassed": true,
+        "menuCasesStarted": 123,
+        "menuCasesCompleted": 123,
+        "menuFailures": 0,
+        "menuExitCode": 0,
+        "menuAcrylicCases": [
+          "TestMenuPopupAcrylicLightVisualBaseline",
+          "TestMenuPopupAcrylicDarkPointerParkingClearsHover"
+        ],
+        "controlTestsExeSha256": "20243464995E9CE9191D68FFDB06F5663437568258321A938F48767BCD0868EC",
+        "asanProbeDetected": true,
+        "asanProbeExitCode": 1,
+        "menuLeaseFocus": "none",
+        "menuLeaseForeground": "restored",
+        "menuLeaseCursor": "restored",
+        "menuFocusCaptureReason": "foreground-minimized",
+        "menuSuiteBannerStartEvents": 1,
+        "menuSuiteBannerDoneEvents": 1
+      },
+      {
+        "profile": "ARM64-Debug",
+        "artifactId": 12619027758,
+        "providerDigest": "sha256:2c58d1d0f6cff9b0dd3913b71775844f8628b4a15dbfe85cd32b7388323e5cb8",
+        "archiveBytes": 2936334,
+        "archiveSha256": "2C58D1D0F6CFF9B0DD3913B71775844F8628B4A15DBFE85CD32B7388323E5CB8",
+        "archiveMatchesProvider": true,
+        "fullSuiteCount": 21,
+        "fullSuiteReportsMatched": true,
+        "allFullSuiteReportsPassed": true,
+        "menuCasesStarted": 123,
+        "menuCasesCompleted": 123,
+        "menuFailures": 0,
+        "menuExitCode": 0,
+        "menuAcrylicCases": [
+          "TestMenuPopupAcrylicLightVisualBaseline",
+          "TestMenuPopupAcrylicDarkPointerParkingClearsHover"
+        ],
+        "controlTestsExeSha256": "8967AA64BF1C07A22D3486BE220773C8B41ED3D2E28E7187BCFD65E496614B64",
+        "asanProbeDetected": null,
+        "asanProbeExitCode": null,
+        "menuLeaseFocus": "none",
+        "menuLeaseForeground": "restored",
+        "menuLeaseCursor": "restored",
+        "menuFocusCaptureReason": "foreground-minimized",
+        "menuSuiteBannerStartEvents": 1,
+        "menuSuiteBannerDoneEvents": 1
+      },
+      {
+        "profile": "ARM64-Release",
+        "artifactId": 12618978446,
+        "providerDigest": "sha256:9195852891d4a6afcb170525db29f52e923dcbb24e9bcae4e5927dc9c93dae2c",
+        "archiveBytes": 2928750,
+        "archiveSha256": "9195852891D4A6AFCB170525DB29F52E923DCBB24E9BCAE4E5927DC9C93DAE2C",
+        "archiveMatchesProvider": true,
+        "fullSuiteCount": 21,
+        "fullSuiteReportsMatched": true,
+        "allFullSuiteReportsPassed": true,
+        "menuCasesStarted": 123,
+        "menuCasesCompleted": 123,
+        "menuFailures": 0,
+        "menuExitCode": 0,
+        "menuAcrylicCases": [
+          "TestMenuPopupAcrylicLightVisualBaseline",
+          "TestMenuPopupAcrylicDarkPointerParkingClearsHover"
+        ],
+        "controlTestsExeSha256": "8E4C30E04F025187D25C0350D822B13671E6581971EE374869B70BE4AF99171C",
+        "asanProbeDetected": null,
+        "asanProbeExitCode": null,
+        "menuLeaseFocus": "none",
+        "menuLeaseForeground": "restored",
+        "menuLeaseCursor": "restored",
+        "menuFocusCaptureReason": "foreground-minimized",
+        "menuSuiteBannerStartEvents": 1,
+        "menuSuiteBannerDoneEvents": 1
+      },
+      {
+        "profile": "x64-ASan Debug",
+        "artifactId": 12618023872,
+        "providerDigest": "sha256:c426e9683ad80f3dece04cfd41e4bbda50e5b19de4b5e9024b72ce374c7fefd2",
+        "archiveBytes": 2949619,
+        "archiveSha256": "C426E9683AD80F3DECE04CFD41E4BBDA50E5B19DE4B5E9024B72CE374C7FEFD2",
+        "archiveMatchesProvider": true,
+        "fullSuiteCount": 21,
+        "fullSuiteReportsMatched": true,
+        "allFullSuiteReportsPassed": true,
+        "menuCasesStarted": 123,
+        "menuCasesCompleted": 123,
+        "menuFailures": 0,
+        "menuExitCode": 0,
+        "menuAcrylicCases": [
+          "TestMenuPopupAcrylicLightVisualBaseline",
+          "TestMenuPopupAcrylicDarkPointerParkingClearsHover"
+        ],
+        "controlTestsExeSha256": "B1947DFB5601873961C53FFA3C81EE4CEE501AB5782F8FDD917B680E8617B1B5",
+        "asanProbeDetected": true,
+        "asanProbeExitCode": 1,
+        "menuLeaseFocus": "unchanged",
+        "menuLeaseForeground": "unchanged",
+        "menuLeaseCursor": "unchanged",
+        "menuFocusCaptureReason": "recorded",
+        "menuSuiteBannerStartEvents": 1,
+        "menuSuiteBannerDoneEvents": 1
+      },
+      {
+        "profile": "x64-Debug",
+        "artifactId": 12617544913,
+        "providerDigest": "sha256:b8cd0502038568b74c95d1983486d8bb59fc699df154bf6340e0ec7d4ba3f336",
+        "archiveBytes": 2928075,
+        "archiveSha256": "B8CD0502038568B74C95D1983486D8BB59FC699DF154BF6340E0EC7D4BA3F336",
+        "archiveMatchesProvider": true,
+        "fullSuiteCount": 21,
+        "fullSuiteReportsMatched": true,
+        "allFullSuiteReportsPassed": true,
+        "menuCasesStarted": 123,
+        "menuCasesCompleted": 123,
+        "menuFailures": 0,
+        "menuExitCode": 0,
+        "menuAcrylicCases": [
+          "TestMenuPopupAcrylicLightVisualBaseline",
+          "TestMenuPopupAcrylicDarkPointerParkingClearsHover"
+        ],
+        "controlTestsExeSha256": "A5ED38712920CF6AE69A8F943F2742D28D35FA4BE498141232D7766E90591C38",
+        "asanProbeDetected": null,
+        "asanProbeExitCode": null,
+        "menuLeaseFocus": "unchanged",
+        "menuLeaseForeground": "restored",
+        "menuLeaseCursor": "unchanged",
+        "menuFocusCaptureReason": "recorded",
+        "menuSuiteBannerStartEvents": 1,
+        "menuSuiteBannerDoneEvents": 1
+      },
+      {
+        "profile": "x64-Release",
+        "artifactId": 12617603070,
+        "providerDigest": "sha256:bcfca47060de37b717bef29f86f3a03dc2f0725905995e96d70998ed89bd7b48",
+        "archiveBytes": 3063263,
+        "archiveSha256": "BCFCA47060DE37B717BEF29F86F3A03DC2F0725905995E96D70998ED89BD7B48",
+        "archiveMatchesProvider": true,
+        "fullSuiteCount": 21,
+        "fullSuiteReportsMatched": true,
+        "allFullSuiteReportsPassed": true,
+        "menuCasesStarted": 123,
+        "menuCasesCompleted": 123,
+        "menuFailures": 0,
+        "menuExitCode": 0,
+        "menuAcrylicCases": [
+          "TestMenuPopupAcrylicLightVisualBaseline",
+          "TestMenuPopupAcrylicDarkPointerParkingClearsHover"
+        ],
+        "controlTestsExeSha256": "087EC6DEBBB3886F120D85379FE0513D3FF3C6F7743B7E40E5AB252B0CF3B0C7",
+        "asanProbeDetected": null,
+        "asanProbeExitCode": null,
+        "menuLeaseFocus": "unchanged",
+        "menuLeaseForeground": "unchanged",
+        "menuLeaseCursor": "unchanged",
+        "menuFocusCaptureReason": "recorded",
+        "menuSuiteBannerStartEvents": 1,
+        "menuSuiteBannerDoneEvents": 1
+      }
+    ],
+    "pairedBenchmarkQualification": "not run: dependency install, paired measurement, and verdict steps were skipped",
+    "menuResourceScalingStep": "succeeded only for x64 Release; skipped for the other five native profiles",
+    "nativeBinariesRetained": false,
+    "menuTestCasesPerProfile": 123,
+    "menuSuiteBannerEventsPerProfile": {
+      "started": 1,
+      "completed": 1
+    }
+  },
+  "localX64Release": {
+    "sourceCommit": "30fccffe13b2b07a5369f384943a35c23d836761",
+    "sourceTree": "68399a81486f69cb42c396cb2f0e2a2e44d1b112",
+    "trackedHeaderFileCount": 204,
+    "trackedHeaderInventorySha256": "5CF60CBF96909FF9B7C340DB3FD30369FCDC421836F27314E1600F10BAA07499",
+    "configuration": "Release",
+    "platform": "x64",
+    "buildArtifactIdentity": "31e409563d0dffce4175aa5b14d621c293563abfe15ee542839b510442b2208a",
+    "buildReceiptSha256": "F2454910291807D90F3EB91468633CF1476D1819F2A9CC1F9CAA9FB773215F0B",
+    "full": {
+      "suiteReceiptCount": 19,
+      "allReceiptsPassed": true,
+      "capabilitySkips": 0,
+      "payloadFilesVerified": 95,
+      "payloadMismatches": 0,
+      "completedManifestSha256": "F240A3B44FE8157F37F8FC2E5D5A94F133D1567332E8CCC49482D38B9B2450EC",
+      "independentReplaySha256": "7E7A1D28EC7CD5878355F65EF56815A27B87E8220D4D8FBB27926E21158F494C"
+    },
+    "menu": {
+      "outcome": "passed",
+      "exitCode": 0,
+      "capabilitySkips": 0,
+      "payloadFilesVerified": 8,
+      "payloadMismatches": 0,
+      "completedManifestSha256": "EE03A9200C04108F76F9F3757B03CC5CC01FB7C0CA559242D38DEB2A184D5617",
+      "interactive": true,
+      "leaseState": "completed",
+      "leaseExitCode": 0,
+      "autoStarted": true,
+      "foreground": "unchanged",
+      "focus": "unchanged",
+      "cursor": "unchanged",
+      "cursorRestoredExact": true
+    },
+    "earlierFullAdmission": {
+      "phase": "SkipBuildGate",
+      "outcome": "failed",
+      "cause": "unknown; underlying error record was not retained",
+      "freshShellReadOnlyAdmission": "passed",
+      "buildReceiptBeforeAfterProbe": "unchanged"
+    },
+    "executables": [
+      {
+        "name": "DxUi.FoundationTests.exe",
+        "sha256": "BC0EBEF89218A208BA5392294553B905A739A70D05F425EAD60A64E586B4CB0F",
+        "matchesReceipt": true
+      },
+      {
+        "name": "DxUi.EmbeddedTests.exe",
+        "sha256": "9AC9610F2CC71EA12B86124865B1E2F0237B7D9368952182703349122DDBC6D2",
+        "matchesReceipt": true
+      },
+      {
+        "name": "DxUi.ControlTests.exe",
+        "sha256": "3D62AA80906997C990BBFF4B2B8183BFCF5F2165D0AE7E81CF925BDA934F3F56",
+        "matchesReceipt": true
+      },
+      {
+        "name": "DxUi.InteractiveLease.exe",
+        "sha256": "56359726963A2CE02F416AEFF9552F8C794C80BB8A670E4AA6010A9AC5CF735E",
+        "matchesReceipt": true
+      }
+    ]
+  },
+  "historicalFailure": {
+    "profile": "ARM64 Release",
+    "case": "TestMenuPopupAcrylicLightVisualBaseline",
+    "reportedPredicate": "combined unhovered-geometry assertion; the failed report did not isolate whether geometry or hover failed",
+    "rootCause": "unknown, not established",
+    "priorArchiveRetained": true
+  },
+  "evidenceBoundary": [
+    "Hosted evidence covers the six native profiles and this menu fixture only.",
+    "Local Release Full and interactive Menu runs are separately bound receipts and are not merged into hosted profile evidence.",
+    "No paired performance acceptance is present. The unpaired workload timing in the local Full run is not performance qualification.",
+    "This does not close shared API or policy review, repository-wide performance qualification, or RedTilde ARM64 runtime qualification.",
+    "Hosted archives do not retain executable binaries; their reports retain executable SHA-256 bindings.",
+    "Raw receipts, per-process observations, private filesystem paths, process identifiers, and runner host details are excluded."
+  ],
+  "focusRestorationBoundary": "ARM64 ASan Menu reports focus none and focus-capture reason foreground-minimized; its initial keyboard focus was not verified. Keep hosted ARM64 focus-restoration qualification open.",
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-menu-pointer-fixture-v1",
+  "benchmarkInputs": {
+    "Tests/Controls/DxUi.Tests.Menu.cpp": "0DACA1D8A4048B5D5A25D86804E25A0957DD3F3A3BBDAB0895183F3946AF257F",
+    "Tests/Controls/Controls.Tests.DxUiTestHelpers.h": "9493F733B4A079D0A7ED278FFBBA3C4C2AF62759F1ABD4A31DA16E6D8BE163A1",
+    "Tests/Controls/Controls.Tests.MenuPopupReadiness.h": "86413CC4AD57CB5E363E93BA449A2FDD170BCE38D3F732339BC13DD994A09260",
+    "Tests/Controls/Controls.Tests.MenuPopupReadiness.cpp": "4AB8AD203C162808716480093E241899C111BB1E78E6AA790F8F0CFADFD5C027",
+    "Tests/Controls/Baselines/menu_popup_acrylic_light.png": "A8C5B6A8477B88D071FCB79228DBBBBD05499C13D634E84FA1C88A17AE8CC798",
+    "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+    "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+    "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+  },
+  "fixtureInputNote": "Fixture and auxiliary unpaired benchmark inputs are unchanged from tested head 30fccffe; these hashes supply native evidence provenance, not paired performance acceptance."
+}

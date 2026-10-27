@@ -156,8 +156,16 @@ function Copy-HarnessOverlay {
                 foreach ($directory in $missing) { $created.Add($directory) }
                 New-Item -ItemType Directory -Path (Split-Path $to) -Force | Out-Null
                 # Track this file before writing: a failed or incomplete copy also needs rollback.
-                $records.Add([ordered]@{ path = $path; action = $action; createdDirectories = @($created); sha256 = $expectedSha256; originalSha256 = $originalSha256 })
-                Copy-Item -LiteralPath $from -Destination $to -Force
+                $record = [ordered]@{ path = $path; action = $action; createdDirectories = @($created); sha256 = $expectedSha256; originalSha256 = $originalSha256; installedSha256 = $null }
+                $records.Add($record)
+                try { Copy-Item -LiteralPath $from -Destination $to -Force }
+                finally {
+                    # Bind rollback to what this copy actually installed, even when a
+                    # failed/partial copy differs from the required measurement bytes.
+                    if (Test-Path -LiteralPath $to -PathType Leaf) {
+                        $record['installedSha256'] = (Get-FileHash -LiteralPath $to -Algorithm SHA256).Hash
+                    }
+                }
                 [IO.File]::SetLastWriteTimeUtc($to, [DateTime]::UtcNow)
             } else {
                 $records.Add([ordered]@{ path = $path; action = $action; createdDirectories = @($created); sha256 = $expectedSha256; originalSha256 = $originalSha256 })
@@ -186,13 +194,20 @@ function Assert-HarnessOverlay {
 
 function Restore-HarnessOverlay {
     <# Undoes Copy-HarnessOverlay: replaced files return from the backup, created files and the directories made for them
-       are removed. Restored files are stamped with the current time so the tree's next build sees them change. #>
+       are removed. Later edits at either kind of path are preserved and reported. Restored files are stamped with
+       the current time so the tree's next build sees them change. #>
     param([Parameter(Mandatory)][string] $Target, [Parameter(Mandatory)][object[]] $Records, [Parameter(Mandatory)][string] $BackupDirectory)
     $directories = [Collections.Generic.List[string]]::new()
     $failures = [Collections.Generic.List[string]]::new()
     foreach ($record in $Records) {
         try {
             $to = Join-Path $Target $record['path']
+            if ($record['action'] -cin @('replaced','created') -and (Test-Path -LiteralPath $to -PathType Leaf)) {
+                $installedSha256 = if ($record.Contains('installedSha256')) { $record['installedSha256'] } else { $record['sha256'] }
+                if (-not $installedSha256 -or (Get-FileHash -LiteralPath $to -Algorithm SHA256).Hash -cne [string]$installedSha256) {
+                    throw "Benchmark harness target changed after its overlay; preserving current bytes: $($record['path'])"
+                }
+            }
             if ($record['action'] -ceq 'replaced') {
                 $backup = Join-Path $BackupDirectory $record['path']
                 if ((Get-FileHash -LiteralPath $backup -Algorithm SHA256).Hash -cne [string]$record['originalSha256']) {
@@ -270,11 +285,12 @@ function Get-VersionedPerformanceJudge {
     $hash = { param([string] $Text) $sha=[Security.Cryptography.SHA256]::Create(); try { [Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes(($Text -replace "`r`n","`n")))) } finally { $sha.Dispose() } }
     $candidateSource = [IO.File]::ReadAllText([IO.Path]::GetFullPath($CandidateModulePath)) -replace "`r`n", "`n"
     $candidateHash = & $hash $candidateSource
-    $lines = @(& git -C $RepositoryRoot show "${BaselineCommit}:Tools/PerformanceComparison.psm1" 2>$null)
-    if ($LASTEXITCODE -ne 0 -or $lines.Count -eq 0) {
+    # The committed judge's exact text: its hash is the one its policy approved, whatever its bytes or final newline.
+    $source = Get-GitBlobText -Root $RepositoryRoot -Commit $BaselineCommit -Path 'Tools/PerformanceComparison.psm1'
+    if ([string]::IsNullOrEmpty($source)) {
         return [ordered]@{ module=$null; status='policy-review-required'; reason='The measured base does not contain a readable immutable performance judge.'; baselineCommit=$BaselineCommit; baseJudgeSha256=$null; candidateJudgeSha256=$candidateHash; baseJudgeVersion=$null; candidateJudgeVersion=$null }
     }
-    $source = ($lines -join "`n") + "`n"
+    $source = $source -replace "`r`n", "`n"
     $baseHash = & $hash $source
     try {
         $candidateModule = New-Module -Name "DxUiCandidatePerformanceJudge_$([guid]::NewGuid().ToString('N'))" -ScriptBlock ([scriptblock]::Create($candidateSource))

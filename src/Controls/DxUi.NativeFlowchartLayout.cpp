@@ -153,6 +153,10 @@ struct NativeFlowchartLayout::Preparation
             width *= 2.0;
             height *= 2.0;
         }
+        else if (shape == FlowchartShape::Stadium)
+            // Keep the entire centered label rectangle inside the capsule's
+            // straight middle band, independent of its measured text height.
+            width = std::max(width, nodeLabels[index].width + height + 8.0);
         if (width > MaximumExtent || height > MaximumExtent)
         {
             Fail(FlowchartLayoutIssue::NodeExtent);
@@ -358,6 +362,7 @@ struct NativeFlowchartLayout::Preparation
                                 : bandLeft + bandWidth + Margin + static_cast<double>(lane[index]) * laneWidth;
         const auto fromX = from.bounds.x + from.bounds.width / 2.0, toX = to.bounds.x + to.bounds.width / 2.0;
         placed.path     = {{{fromX, start}, {fromX, first}, {cross, first}, {cross, last}, {toX, last}, {toX, end}}};
+        placed.relation = edge.relation;
         placed.hasArrow = edge.arrow;
         const auto base = end + (back ? Margin : -Margin);
         placed.arrow    = {{{toX, end}, {toX - 4.0, base}, {toX + 4.0, base}}};
@@ -463,10 +468,11 @@ void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
     if (graph->direction < FlowchartDirection::TopBottom || graph->direction > FlowchartDirection::RightLeft)
         throw std::invalid_argument("Invalid flowchart layout direction");
     for (const auto& node : graph->nodes)
-        if (node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Diamond)
+        if (node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Stadium)
             throw std::invalid_argument("Invalid flowchart layout shape");
     for (const auto& edge : graph->edges)
-        if (edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size())
+        if (edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() || edge.relation < FlowchartRelation::Line ||
+            edge.relation > FlowchartRelation::Inheritance || edge.arrow != (edge.relation != FlowchartRelation::Line))
             throw std::invalid_argument("Invalid flowchart layout edge");
     for (const auto value : nodeLabels)
         if (! Valid(value))

@@ -123,6 +123,13 @@ observations record native cumulative CPU counters, process CPU/memory, sample
 gaps and collection intervals; a failed observer cannot admit a completed study.
 Inspect observer cost and missing/inaccessible processes explicitly. These
 observations are neither a quiet-host guarantee nor a scheduler/GPU trace.
+When an observer reports weighted whole-host busy time from `GetSystemTimes`,
+that aggregate includes the benchmark, the observer, and other processes on the covered processors.
+The API covers all processors on systems with at most 64 processors; above that it covers the calling thread's
+primary processor group, so the field name alone does not prove whole-host coverage. Retain that
+[documented coverage limit](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getsystemtimes).
+It does not isolate external contention or establish that preemption caused a
+timing change; report it as shared-host context only.
 Analysis MUST retain the original ISO-8601 UTC timestamp precision and parse it
 independently of the machine's locale. Implicit JSON date conversion followed by
 culture-sensitive string conversion cannot establish process-lifetime bounds.
@@ -150,6 +157,33 @@ Speed and low memory consumption are primary library requirements for every desi
 Among correct designs, minimize steady-state CPU/GPU time, private/resident memory, allocations and copies,
 synchronization, thread/handle count, wake-ups and graphics submissions. Preserve correctness, accessibility,
 security and visual quality; do not trade them away for an unmeasured optimization. All consumers share this policy.
+
+At the native host message-entry pruning seam, a completed stale-interaction pass may be reused only while the
+root identity and lifetime, all retained observer identities, and each observer lifetime
+remain unchanged. For each nonnull observer, the full resolver captures a bounded reverse path of logical-child
+indices during its existing traversal; a cache hit checks the observer's weak token before walking that path from
+the currently owned root, requires every path node to remain visible and enabled, and verifies the final identity.
+This membership proof detects a live control moved out through mutable `Panel::GetChildren()` even when its address,
+lifetime and host interaction revision are unchanged. An over-depth or over-index path is not cached and uses the
+full pruning pass on each message until it fits. Cache-path validation uses the host's effective-interactivity rule
+for every retained observer; it is distinct from UIA's visible-only control-path semantics.
+An ordinary cache hit compares observer identities and checks weak-token expiry without dereferencing a stale control.
+Invalidate the published snapshot before invoking cancellation or pruning callbacks; reentrant message handling
+must validate independently, and an outer pass may publish only if it was not superseded and its entry state still
+matches. Acquire observer lifetime tokens only after the resolver proves effective interactivity. A missing root,
+observer identity change, expired token or invalid live path requires the full cleanup pass, including native
+text-input deactivation. An unrelated completed presentation mutation may advance the interaction revision without
+invalidating these live paths: the full prune classifies membership and effective visibility/enabled state, not
+bounds or text. After validating the paths, recheck the entry root/lifetime, revision, pass serial and all observer
+keys; a change during validation requires the full pass. In-progress full-pass publication still requires the
+unchanged entry revision and latest pass serial. Logical-child queries obey the stable read-only traversal contract
+in `UI_ControlsAndLayout.md`; a final state check is not support for destructive getter reentry.
+Do not extend this optimization to other prune call sites. Deterministic host tests must show zero additional full
+resolver visits for stable messages and unrelated presentation mutations, plus fresh cleanup for invalid paths,
+state/lifetime changes, same-message reentry and injected observer changes during path validation.
+The diagnostic pass count also distinguishes an uncached cleanup of an empty observer set from a cache hit;
+an empty set can require a new pass while visiting no resolver nodes. Cached path walks are separate from full
+recursive resolver visits and must not be reported as zero total tree-node work.
 
 Prepared text rendering may retain at most one device-independent DirectWrite layout per eligible IconOnly base
 Button. Create or replace it only in the separate owner visual-preparation pass, never during composition. A warm
@@ -232,6 +266,9 @@ qualification replays them exactly. Repetitions inside a block are not treated a
   It builds one explicit revision once and measures that same executable under both randomized role labels, with
   distinct raw receipts for every invocation. Separate builds can encode different PDB paths or link timestamps;
   matching source revisions therefore do not satisfy A/A executable identity.
+  The [26 October current-source A/A archive](../../Measurements/RedesignCompletion_2026-10-26/aa-calibration-4077/README.md)
+  illustrates this boundary: no regression rows coexisted with 72/72 unstable controls, so the result does not
+  establish runner noise or approve the policy.
 - Fresh measurements require a `performance-build-v2` attestation before and after build and execution. Each side's
   expanded projects and resolved compile/shader inventory belong to its build-input identity. The comparison profile
   separately binds actual MSBuild, compiler/backend, shader compiler, linker/librarian and SDK bytes plus effective
@@ -286,6 +323,14 @@ publish synchronously so the system's first worker focus query can report the ne
 baseline: a fresh owner query does not consume the queued notifications. Embedded views continue to publish explicitly
 after application preparation, with no snapshot work in composition.
 
+Interested native mutations resolve unchanged focus through the published address/path index first. Validate
+that path against the live tree, visibility and semantic control type on every use; a stale or absent path
+falls back to the canonical live-tree search. Do not retain a second focus cache or skip focus-transition publication.
+Label text, button text and button toggle changes may reuse an already-posted publication without repeating
+interest/focus checks. They still mark the exact attachment revision dirty. This content-only path is forbidden
+for focus, focusability, enabled state, visibility or logical-structure changes. General mutations must reconcile
+focus even while publication is pending; provider queries must still return all latest text and toggle state.
+
 When neither a provider has been requested nor a UIA listener is present, a native mutation still marks the
 revision dirty but does not load the published snapshot, search the focused-control path or post a new flush.
 The next owner-thread provider query resolves the latest dirty revision. A flush already posted before interest
@@ -337,7 +382,8 @@ candidate-only policy is explicitly untrusted. `Tools/tests/Test-BenchmarkGate.p
 - **When.** For every pull request to `main` that changes something the benchmark measures: the library inputs a receipt's
   `sourceFingerprint` covers (`src`, `include`, `Build`, the build props and vcpkg manifests), the harness and its
   benchmark inputs, the sources of the benchmark executable (`Tests/Embedded`, `Tests/Support`) and the fixtures and samples
-  compiled into it (`Samples`), the build and restore scripts, the paired measurement and gate tooling and the workflow.
+  compiled into it (`Samples`), the build and restore scripts, the paired measurement and gate tooling and the workflow. A
+  measured path matches in any case, as the Windows runner builds `Src/x.cpp` like `src/x.cpp`.
   Markdown never counts, and neither do the control and foundation tests, the validators, the gallery and the formatter. The
   job always starts for a pull request to `main`: its first step matches the changed paths against those rules and names
   the files that decided, and the steps after it run only when one matched, so a pull request that changes none of them
@@ -355,6 +401,9 @@ candidate-only policy is explicitly untrusted. `Tools/tests/Test-BenchmarkGate.p
   `performance-paired.ps1` with the merge ref's harness in `Default`, `MultilineGrid` and `MultilineGridDistinct`, twelve
   independently drawn ABBA/BAAB blocks each: 24 runs per side per scenario. The assignment protocol and schedule seed/order are retained. The
   gate keeps no baseline receipt, so it measures the base afresh.
+  The allocation counters live in `Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h`, a benchmark input like the
+  fixture, so a receipt's `benchmarkSha256` covers them and both trees count with the merge ref's instrument once the base
+  has the header as well.
 - **What is published.** The job summary lists each scenario's set verdict and, for every metric, its medians, change,
   p-value, band, same-binary controls and outcome, with the flagged metrics first, and the artifact
   `paired-benchmark-x64-Release` keeps every receipt, comparison, `summary.json` and the conclusion as `verdict.json`.
@@ -363,7 +412,23 @@ candidate-only policy is explicitly untrusted. `Tools/tests/Test-BenchmarkGate.p
   contains the trusted qualified policy. Missing/mismatched toolchain, executable, dependency or harness identity and any
   unqualified/changed policy produce `inconclusive` and fail the pull-request check. Source fingerprints alone cannot
   label an observed timing shift as noise. The report keeps the old judge and new judge decisions over identical receipt
-  hashes so reviewers can assess the migration; neither decision can self-approve the candidate's policy.
+  hashes so reviewers can assess the migration; neither decision can self-approve the candidate's policy. The two must
+  agree on every metric but one expected difference: the paired-block judge bounds every round of an exact budget, so a
+  rise of its raw-round maximum alone regresses there and not in the median-based judge, and reaches the verdict table.
+  Any other disagreement keeps the run inconclusive and names the metrics that differ.
+- **Trust anchor and current workflow boundary.** The required contract binds a pull-request measurement to
+  the event's named base and merge commits, loads the qualified policy and approved judge from that base, and
+  rejects mismatches between the event pair, measured summary, verdict and aggregate check. The scope, verdict
+  and aggregate tools accept `-ExpectedBaseSha` and `-ExpectedCandidateSha` and enforce equality when supplied.
+  In the current `.github/workflows/ci.yml`, these expected IDs are not supplied from the event: scope derives
+  the candidate from checkout `HEAD` and the base from its first parent, and verdict and aggregate receive no
+  expected-pair values. All three still execute from the merge-ref checkout. Hosted CI therefore uses a
+  merge-ref-derived pair and does not independently bind it to the event or provide a trusted-base execution
+  boundary. CR-29/Q12 retains the follow-up: propagate the event IDs through every step, run scope/verdict/aggregate
+  from the trusted base, and add workflow-level negative coverage proving missing or mismatched IDs fail closed.
+  The base policy must still be independently qualified and match its approved judge hash; a candidate's policy
+  or judge cannot qualify itself. `.github/CODEOWNERS` names the owner of `.github`, `Tools`, performance scripts
+  and agent instructions; requiring a code owner's review remains a maintainer ruleset decision.
 - **Controls of the metric in question.** A shared hosted runner drifts beyond some band in nearly every control, in a few
   metrics (mostly the p95 of frame, preparation and composition times, and the working set), so the check judges the
   controls of the metric a set flagged, not of all twenty-six together. The
@@ -375,9 +440,14 @@ candidate-only policy is explicitly untrusted. `Tools/tests/Test-BenchmarkGate.p
   need a re-run. The strict reading,
   any unstable control making its scenario inconclusive, is the `-StrictControls` switch of
   `Tools/Publish-BenchmarkVerdict.ps1`; it is off because it would have made every hosted run inconclusive.
+  An unstable control means at least one metric in that control crossed its band. Report this control count
+  separately from the number of metric observations that crossed bands, with both denominators and per-key counts;
+  an unstable-control total does not mean every metric drifted.
 - **Identical library inputs.** Matching source or executable hashes are provenance only. Timing/memory flags remain
   unresolved unless a trusted policy and its independent block/A/A evidence support the inference. Exact deterministic
-  budgets retain the run-median check and add a separately reported no-tolerance comparison of raw-round maxima.
+  budgets retain the run-median check and add a separately reported no-tolerance comparison of raw-round maxima. The
+  job summary gives an exact budget's change as that of its medians (from zero when the baseline is zero), since the
+  paired-block judge gives it no block effect.
 - **No verdict.** Invalid evidence, missing provenance, an unqualified policy, a missing/unreadable summary, a summary that
   lists no scenario or uses only an older six-run judge, and a run that did not finish fail with the reason in the job
   summary. A pull request that changes the harness and library interfaces together, whose base cannot be
@@ -541,6 +611,15 @@ checks complete finite samples and reproduces the reported FPS/percentiles with 
 Paired receipts must use the same clock metadata. Historical receipts without either diagnostic group remain
 readable under their original harness; partial new groups are invalid. A no-op preparation taking a few counter
 ticks warrants quantization analysis, not an automatic noise waiver or a silently batched replacement metric.
+WindowHost's `dxui.frame.update_us` records the complete Update-stage duration on every exit, including resource
+failure and deferred preparation; incomplete frames may report zero Render/Present duration, but must not leave
+the elapsed Update duration at its default zero.
+
+In historical complex-UI receipts, `composeCpuP95Ms` is the elapsed steady-clock/QPC duration around Composite,
+not thread CPU time; preserve the field name for compatibility and interpret the value as wall duration. The
+whole-frame/FPS bracket also includes dirty Update and the blocking one-pixel WARP readback. Report QPC frequency
+and counter-tick duration with few-tick no-op preparation tails; those observations are floor-sensitive and do
+not justify changing the metric, band, or sampling protocol.
 
 Benchmark receipts also record process-memory phases at entry, device creation, scene
 creation, warm-up, screenshot encoding and the hidden state. These untimed samples help
@@ -712,6 +791,20 @@ unpaced and must not replace ordinary unpaced performance/resource acceptance. D
 includes sampling overhead. [The grid investigation](../../Measurements/GridTextOverflow/2026-09-21/heap-attribution/README.md)
 records the implemented opt-in diagnostics and their unresolved conclusions.
 
+The opt-in `--benchmark-clean-prepare-floor <fresh-report.json> <seed>` diagnostic is dispatched outside the
+canonical six-input complex-UI benchmark. It measures the already prepared default scene on WARP with one QPC
+bracket per batch of 1, 8, 64 or 512 no-op Prepare calls. Retain the seeded size ordering, balanced group positions,
+alternating preparation/reference order, all raw ticks, frequency, call counts and normalization. An empty-loop
+reference is a separate observation; never subtract it from canonical metrics or change their investigation bands.
+Verify unchanged preparation/composition counters, resource statistics and the sampled model/slider/progress/Grid
+selection state. These consistency fingerprints do not establish every control's state or visual equivalence.
+The native `--test-clean-prepare-timer-oracle` checks the call/tick normalization and real prepared-scene invariants;
+unknown argument counts fail before functional suites, and reports refuse to overwrite existing evidence. A
+batched diagnostic does not replace the canonical clean preparation p95, same-side controls or policy review.
+The bracket includes HRESULT and loop bookkeeping; normalized values are bracket averages, not isolated method
+latency. The [control investigation](../../Measurements/RedTildeCompletion_2026-10-24/controls-investigation-20261025/README.md)
+retains aggregate replay and diagnostic limits. Internal assertions cover more state than the serialized subset.
+
 Steady-state hot paths use bounded reusable storage; cache derived state and batch compatible work. Never allocate,
 shape text, create targets, traverse layout, do I/O, block or read back in clean composition. Coalesce dirty state and
 prepare only changed visible content. Hidden, minimized, occluded, suspended, display-off and idle work is event-blocked,
@@ -732,8 +825,10 @@ Renamed benchmark headers MUST also overlay any existing legacy include paths in
 current payload. Those aliases exist only in the temporary overlay and are restored with it; recorded current inputs
 and the older entrypoint must reach the same fixture bytes. Every overlaid path MUST match its retained SHA-256
 after copying, before build/reuse, and before and after every measurement.
-Overlay rollback MUST retain and verify the original hash, refuse changed backups, attempt the remaining restorations,
-and report failure when a completed study cannot restore a named tree. A failed or mismatched overlay supplies no
+Overlay rollback MUST retain and verify the original hash, refuse changed backups, preserve and report later edits
+to either replaced or overlay-created paths, and attempt the remaining restorations. It records the actual installed
+bytes immediately after copying so an owned partial copy can still be rolled back without treating later edits as its own,
+and MUST report failure when a completed study cannot restore a named tree. A failed or mismatched overlay supplies no
 performance qualification; preserve its original records for diagnosis before starting a fresh study.
 
 Application-specific adoption reports, configurations, endpoint workloads and budgets belong in that application's

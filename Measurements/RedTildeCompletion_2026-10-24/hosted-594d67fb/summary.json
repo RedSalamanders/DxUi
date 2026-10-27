@@ -1,0 +1,424 @@
+{
+  "schemaVersion": 1,
+  "packetId": "hosted-594d67fb",
+  "scope": "Six hosted Full native profile payloads; paired performance qualification is reported separately.",
+  "status": "native-payloads-verified; hosted workflow status is the native-audit snapshot",
+  "acceptance": {
+    "performancePolicyReviewRequired": true,
+    "acceptanceClaimed": false,
+    "quietHostClaimed": false,
+    "causalAttributionClaimed": false,
+    "fullWorkflowClaimedComplete": false
+  },
+  "source": {
+    "pullRequestHead": "594d67fb0fcc3829541211a7c8f100df046c87e3",
+    "actualBase": "b06f534b36ffc2c0c9671a142d1e51545480be22",
+    "compiledMergeRef": "8c78b5adf821daa216bee53572b3f9aae7d40ef7",
+    "mergeParents": [
+      "b06f534b36ffc2c0c9671a142d1e51545480be22",
+      "594d67fb0fcc3829541211a7c8f100df046c87e3"
+    ],
+    "compiledTree": "fa4193a259c9e2b087a21399ec13cde387202002",
+    "candidateTree": "fa4193a259c9e2b087a21399ec13cde387202002",
+    "treeMatches": true
+  },
+  "hostedWorkflow": {
+    "runId": 40177964080,
+    "status": "in_progress",
+    "conclusion": "",
+    "pairedBenchmark": {
+      "status": "in_progress",
+      "artifactAvailable": false,
+      "metricsPublished": false
+    },
+    "qualificationAndToolingJobs": [
+      {
+        "job": "native-scope",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "job": "format",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "job": "validation",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "job": "windows-tooling",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ],
+    "nativeProfiles": [
+      {
+        "platform": "x64",
+        "configuration": "Debug",
+        "nativeArchitecture": "X64",
+        "fullNativeOutcome": "passed",
+        "capabilitySkips": 0,
+        "verifiedPayloadFiles": 82,
+        "verifiedPayloadBytes": 1489911,
+        "providerArtifactSha256": "44cad4ee192969141ede1518973d96bd97c148f322ef676ee18e31a1af4effd8",
+        "completionReceiptSha256": "baa0beeab4d937b197da201d5d30a6e23a4673b33a2403ff9ab3c7a47c1cdb5f",
+        "allSuiteReportsExitZero": true,
+        "suiteCatalog": [
+          "Accessibility",
+          "Animation",
+          "ComboBox",
+          "Control",
+          "EditorControls",
+          "Embedded",
+          "Foundation",
+          "Grid",
+          "InteractiveLease",
+          "Menu",
+          "MenuExitLifetime",
+          "MultilineText",
+          "NativeTextInput",
+          "NewControls",
+          "ReadOnly",
+          "Rendering",
+          "TextField",
+          "Theme",
+          "Tooltip",
+          "Tree",
+          "WindowHost"
+        ],
+        "asanDetectionProbe": null,
+        "optionalExternalConsumer": null,
+        "optionalSeparateRuns": null,
+        "reportedBinaryHashKinds": [
+          "testExecutable",
+          "performanceExecutable",
+          "externalConsumerExecutable",
+          "externalConsumerLibrary",
+          "compiler",
+          "linker",
+          "msbuild"
+        ],
+        "noMatchingBuildBinariesRetained": true,
+        "fullNativeSuitesPassed": 21
+      },
+      {
+        "platform": "x64",
+        "configuration": "Release",
+        "nativeArchitecture": "X64",
+        "fullNativeOutcome": "passed",
+        "capabilitySkips": 0,
+        "verifiedPayloadFiles": 82,
+        "verifiedPayloadBytes": 1492307,
+        "providerArtifactSha256": "97da3d0696a8b3160605d31ed29a15412aa24f4db293544a6df47c6bb8b1b9fb",
+        "completionReceiptSha256": "5f06db23ee9f79f6a2b8e30959345d6bc1e0dd53833791e613247cdff66d8b57",
+        "allSuiteReportsExitZero": true,
+        "suiteCatalog": [
+          "Accessibility",
+          "Animation",
+          "ComboBox",
+          "Control",
+          "EditorControls",
+          "Embedded",
+          "Foundation",
+          "Grid",
+          "InteractiveLease",
+          "Menu",
+          "MenuExitLifetime",
+          "MultilineText",
+          "NativeTextInput",
+          "NewControls",
+          "ReadOnly",
+          "Rendering",
+          "TextField",
+          "Theme",
+          "Tooltip",
+          "Tree",
+          "WindowHost"
+        ],
+        "asanDetectionProbe": null,
+        "optionalExternalConsumer": null,
+        "optionalSeparateRuns": {
+          "outcome": "passed",
+          "suites": [
+            "MenuResourceScaling",
+            "MenuTextLayoutResources"
+          ],
+          "exitCodes": [
+            0,
+            0
+          ]
+        },
+        "reportedBinaryHashKinds": [
+          "testExecutable",
+          "performanceExecutable",
+          "externalConsumerExecutable",
+          "externalConsumerLibrary",
+          "compiler",
+          "linker",
+          "msbuild"
+        ],
+        "noMatchingBuildBinariesRetained": true,
+        "fullNativeSuitesPassed": 21
+      },
+      {
+        "platform": "x64",
+        "configuration": "ASan Debug",
+        "nativeArchitecture": "X64",
+        "fullNativeOutcome": "passed",
+        "capabilitySkips": 0,
+        "verifiedPayloadFiles": 84,
+        "verifiedPayloadBytes": 1505659,
+        "providerArtifactSha256": "ccd6ef1bf41bfdf3b443c01b3d75bc4d7afa005dd50c376f8545d7ce865ea20f",
+        "completionReceiptSha256": "1c5ccac482f5077ffb33a114d2ebdabfe542eb991308e32eada1dc3d0729e15c",
+        "allSuiteReportsExitZero": true,
+        "suiteCatalog": [
+          "Accessibility",
+          "Animation",
+          "ComboBox",
+          "Control",
+          "EditorControls",
+          "Embedded",
+          "Foundation",
+          "Grid",
+          "InteractiveLease",
+          "Menu",
+          "MenuExitLifetime",
+          "MultilineText",
+          "NativeTextInput",
+          "NewControls",
+          "ReadOnly",
+          "Rendering",
+          "TextField",
+          "Theme",
+          "Tooltip",
+          "Tree",
+          "WindowHost"
+        ],
+        "asanDetectionProbe": {
+          "detected": true,
+          "expectedExitCode": 1,
+          "separateFromOrdinarySuites": true,
+          "probeLogShowsExpectedHeapUseAfterFree": true
+        },
+        "optionalExternalConsumer": {
+          "exitCode": 0,
+          "disableStlAnnotations": true
+        },
+        "optionalSeparateRuns": null,
+        "reportedBinaryHashKinds": [
+          "testExecutable",
+          "performanceExecutable",
+          "externalConsumerExecutable",
+          "externalConsumerLibrary",
+          "compiler",
+          "linker",
+          "msbuild"
+        ],
+        "noMatchingBuildBinariesRetained": true,
+        "fullNativeSuitesPassed": 21
+      },
+      {
+        "platform": "ARM64",
+        "configuration": "Debug",
+        "nativeArchitecture": "Arm64",
+        "fullNativeOutcome": "passed",
+        "capabilitySkips": 0,
+        "verifiedPayloadFiles": 82,
+        "verifiedPayloadBytes": 1489744,
+        "providerArtifactSha256": "a7422939e9ecb51a7bdaf40c4e8c625f5a31cd1b028e343e7a89ae569a2daad9",
+        "completionReceiptSha256": "6d62bc77250f5a14cdce5ade0a152e100c7caf6911ac35b8bf9eb96846bf0947",
+        "allSuiteReportsExitZero": true,
+        "suiteCatalog": [
+          "Accessibility",
+          "Animation",
+          "ComboBox",
+          "Control",
+          "EditorControls",
+          "Embedded",
+          "Foundation",
+          "Grid",
+          "InteractiveLease",
+          "Menu",
+          "MenuExitLifetime",
+          "MultilineText",
+          "NativeTextInput",
+          "NewControls",
+          "ReadOnly",
+          "Rendering",
+          "TextField",
+          "Theme",
+          "Tooltip",
+          "Tree",
+          "WindowHost"
+        ],
+        "asanDetectionProbe": null,
+        "optionalExternalConsumer": null,
+        "optionalSeparateRuns": null,
+        "reportedBinaryHashKinds": [
+          "testExecutable",
+          "performanceExecutable",
+          "externalConsumerExecutable",
+          "externalConsumerLibrary",
+          "compiler",
+          "linker",
+          "msbuild"
+        ],
+        "noMatchingBuildBinariesRetained": true,
+        "fullNativeSuitesPassed": 21
+      },
+      {
+        "platform": "ARM64",
+        "configuration": "Release",
+        "nativeArchitecture": "Arm64",
+        "fullNativeOutcome": "passed",
+        "capabilitySkips": 0,
+        "verifiedPayloadFiles": 82,
+        "verifiedPayloadBytes": 1488473,
+        "providerArtifactSha256": "30b926891ef12cd105842c580fe89e4c1f4a57cf854fd49a7bfaacdb45f255d6",
+        "completionReceiptSha256": "12c3a75a033388d8e150f5958a1bb69187a8811a1f05965696cc92e08180e654",
+        "allSuiteReportsExitZero": true,
+        "suiteCatalog": [
+          "Accessibility",
+          "Animation",
+          "ComboBox",
+          "Control",
+          "EditorControls",
+          "Embedded",
+          "Foundation",
+          "Grid",
+          "InteractiveLease",
+          "Menu",
+          "MenuExitLifetime",
+          "MultilineText",
+          "NativeTextInput",
+          "NewControls",
+          "ReadOnly",
+          "Rendering",
+          "TextField",
+          "Theme",
+          "Tooltip",
+          "Tree",
+          "WindowHost"
+        ],
+        "asanDetectionProbe": null,
+        "optionalExternalConsumer": null,
+        "optionalSeparateRuns": null,
+        "reportedBinaryHashKinds": [
+          "testExecutable",
+          "performanceExecutable",
+          "externalConsumerExecutable",
+          "externalConsumerLibrary",
+          "compiler",
+          "linker",
+          "msbuild"
+        ],
+        "noMatchingBuildBinariesRetained": true,
+        "fullNativeSuitesPassed": 21
+      },
+      {
+        "platform": "ARM64",
+        "configuration": "ASan Debug",
+        "nativeArchitecture": "Arm64",
+        "fullNativeOutcome": "passed",
+        "capabilitySkips": 0,
+        "verifiedPayloadFiles": 84,
+        "verifiedPayloadBytes": 1503711,
+        "providerArtifactSha256": "15f5cfa3644aa8fe20a8a9f1121f8fdecac918be59b13365a1ba1c3c5ab64ad2",
+        "completionReceiptSha256": "8fd43968163ddab53309c887a2cca19ed9848030d139fa85ce47b3d5f78dedfc",
+        "allSuiteReportsExitZero": true,
+        "suiteCatalog": [
+          "Accessibility",
+          "Animation",
+          "ComboBox",
+          "Control",
+          "EditorControls",
+          "Embedded",
+          "Foundation",
+          "Grid",
+          "InteractiveLease",
+          "Menu",
+          "MenuExitLifetime",
+          "MultilineText",
+          "NativeTextInput",
+          "NewControls",
+          "ReadOnly",
+          "Rendering",
+          "TextField",
+          "Theme",
+          "Tooltip",
+          "Tree",
+          "WindowHost"
+        ],
+        "asanDetectionProbe": {
+          "detected": true,
+          "expectedExitCode": 1,
+          "separateFromOrdinarySuites": true,
+          "probeLogShowsExpectedHeapUseAfterFree": true
+        },
+        "optionalExternalConsumer": {
+          "exitCode": 0,
+          "disableStlAnnotations": true
+        },
+        "optionalSeparateRuns": null,
+        "reportedBinaryHashKinds": [
+          "testExecutable",
+          "performanceExecutable",
+          "externalConsumerExecutable",
+          "externalConsumerLibrary",
+          "compiler",
+          "linker",
+          "msbuild"
+        ],
+        "noMatchingBuildBinariesRetained": true,
+        "fullNativeSuitesPassed": 21
+      }
+    ],
+    "observedAtUtc": "2026-10-25T10:04:13.0816963Z"
+  },
+  "optionalCoverage": {
+    "relocatedExternalConsumer": "Passed in all six profiles.",
+    "stlAnnotationsDisabled": "Passed in x64 and ARM64 ASan Debug only; skipped in the four other profiles.",
+    "menuResourceScaling": "Passed as a separate x64 Release run; skipped in other profiles.",
+    "gallery": "Gallery step succeeded in all six native jobs; x64 Release additionally published a gallery artifact."
+  },
+  "payloadIntegrity": {
+    "independentVerifierAttempt": "20261025T100127715Z-e86947c896714aeba755d06acdc932e8",
+    "providerZipDigestsMatched": true,
+    "allSixFullPayloadInventoriesMatchedZipAndExpandedBytes": true,
+    "optionalPayloadInventoriesReplayed": false,
+    "limitation": "Test/performance/external-consumer/compiler/linker/MSBuild digests appear in receipts, but matching executables, compiler tools, source, objects, libraries, and PDBs were not retained in these ZIPs; these hashes are not independent binary-byte verification.",
+    "independentAudit": {
+      "fileName": "hosted-native-payload-audit.json",
+      "sha256": "D845B72EDF9FD674DBAD461F7A386A5C2F4EA1E4DBB3FB02E2D0E85E6264F9F6"
+    },
+    "leadReplay": {
+      "fileName": "hosted-payload-verification-20261025T100747854Z-f0f729950e624b03997205f2ea64a0cd.json",
+      "sha256": "52795F1C3CE39FAEB5B57B69429853BCE577683C55D9191331EEDC3FC16683F5",
+      "status": "passed"
+    }
+  },
+  "interpretation": [
+    "Each native profile passes its 21-suite Full catalogue with zero capability skips, including hosted Menu and NativeTextInput. The local noninteractive matrix has 19 suites per profile and remains separate. Both ASan profiles also include an isolated intentional use-after-free detection probe with detected=true and expected exit code 1.",
+    "At the retained native-audit snapshot, the paired benchmark was still running. This native packet records no paired metrics, verdict or performance acceptance.",
+    "Optional consumer, menu scaling, and gallery results are separated from the Full native suite outcomes."
+  ],
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-complex-ui-v2",
+  "benchmarkInputs": {
+    "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+    "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+    "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+  },
+  "fixtureMetadataProvenance": {
+    "sourceCommit": "594d67fb0fcc3829541211a7c8f100df046c87e3",
+    "reportSha256": "25EF1E2D49AA7646C0B3FEB9D3DF7B358217C8404D9BCD127277736A3EB7681D",
+    "currentSourceFilesIndependentlyHashed": 6,
+    "nativeExecutionRetagged": false,
+    "scope": "Shared Complex UI preflight fixture metadata from the matching SDK source revision; not the full native suite input closure."
+  }
+}

@@ -14,6 +14,7 @@
 #include <memory>
 #include <mutex>
 #include <new>
+#include <random>
 #include <ranges>
 #include <string>
 #include <unordered_map>
@@ -861,6 +862,42 @@ void ReleaseSharedWindowHostAttachment(ControlHost* host, DWORD ownerThreadId) n
     return Typography::IsFontFamilyAvailable(factory, familyName);
 }
 
+// Whether the key produces a printable character in the thread's keyboard layout (dead keys carry the top bit). Enter,
+// Backspace, Escape and Tab map to control characters and stay keys of their own.
+[[nodiscard]] bool KeyProducesPrintableCharacter(UINT virtualKey) noexcept
+{
+    const UINT mapped = MapVirtualKeyW(virtualKey, MAPVK_VK_TO_CHAR) & 0x7FFF'FFFFu;
+    return mapped >= 0x20u && mapped != 0x7Fu;
+}
+
+// The process-exit detach request carries a value only this process knows: another process that sends the well-known
+// registered message can neither detach (and blank) a host nor dismiss its menus.
+[[nodiscard]] WPARAM ProcessExitDetachNonce() noexcept
+{
+    static const WPARAM nonce = []() noexcept -> WPARAM
+    {
+        uint64_t value = 0u;
+        try
+        {
+            // MSVC draws random_device from the operating system's cryptographic generator.
+            std::random_device device;
+            value = (static_cast<uint64_t>(device()) << 32u) | device();
+        }
+        catch (const std::exception&)
+        {
+            value = 0u;
+        }
+        if (value == 0u)
+        {
+            LARGE_INTEGER counter{};
+            static_cast<void>(QueryPerformanceCounter(&counter));
+            value = static_cast<uint64_t>(counter.QuadPart) ^ (static_cast<uint64_t>(GetCurrentProcessId()) << 32u);
+        }
+        return static_cast<WPARAM>(value | 1u);
+    }();
+    return nonce;
+}
+
 [[nodiscard]] bool NativeImeCompositionOwnsKey(UINT virtualKey, UINT modifiers) noexcept
 {
     if (ModifiersContainCtrl(modifiers) || ModifiersContainShift(modifiers) || ModifiersContainAlt(modifiers))
@@ -1027,32 +1064,9 @@ struct FocusAdvanceResult
     return nullptr;
 }
 
-[[nodiscard]] bool ControlBelongsToTree(const Control* root, const Control* target) noexcept
-{
-    if (! root || ! target)
-    {
-        return false;
-    }
-    if (root == target)
-    {
-        return true;
-    }
-    for (size_t childIndex = 0u; childIndex < root->GetLogicalChildCount(); ++childIndex)
-    {
-        if (const Control* const child = root->GetLogicalChild(childIndex))
-        {
-            if (ControlBelongsToTree(child, target))
-            {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
 [[nodiscard]] Control* RevalidateDispatchedControl(const std::weak_ptr<int>& lifetime, const Control* root, Control* control) noexcept
 {
-    if (! control || lifetime.expired() || ! ControlBelongsToTree(root, control))
+    if (! control || lifetime.expired() || ! IsControlInTree(root, control))
     {
         return nullptr;
     }
@@ -1076,8 +1090,20 @@ struct ControlInteractionState
 [[nodiscard]] ControlInteractionState ResolveControlInteractionState(const Control* root,
                                                                      const Control* target,
                                                                      bool ancestorsVisible = true,
-                                                                     bool ancestorsEnabled = true) noexcept
+                                                                     bool ancestorsEnabled = true
+#if DXUI_ENABLE_DIAGNOSTICS
+                                                                     ,
+                                                                     uint64_t* nodeVisits = nullptr
+#endif
+                                                                     ,
+                                                                     std::span<uint16_t> reverseChildIndices = {},
+                                                                     size_t* pathDepth                       = nullptr,
+                                                                     bool* pathFits                          = nullptr) noexcept
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+    if (nodeVisits)
+        ++*nodeVisits;
+#endif
     if (! root || ! target)
     {
         return {};
@@ -1094,16 +1120,54 @@ struct ControlInteractionState
     {
         if (const Control* const child = root->GetLogicalChild(childIndex))
         {
-            const ControlInteractionState childState = ResolveControlInteractionState(child, target, visible, enabled);
+            const size_t previousPathDepth           = pathDepth ? *pathDepth : 0u;
+            const bool previousPathFits              = pathFits ? *pathFits : true;
+            const ControlInteractionState childState = ResolveControlInteractionState(child,
+                                                                                      target,
+                                                                                      visible,
+                                                                                      enabled
+#if DXUI_ENABLE_DIAGNOSTICS
+                                                                                      ,
+                                                                                      nodeVisits
+#endif
+                                                                                      ,
+                                                                                      reverseChildIndices,
+                                                                                      pathDepth,
+                                                                                      pathFits);
             if (childState.inTree)
             {
+                if (pathDepth && pathFits)
+                {
+                    if (! *pathFits || childIndex > static_cast<size_t>(std::numeric_limits<uint16_t>::max()) || *pathDepth >= reverseChildIndices.size())
+                    {
+                        *pathFits = false;
+                    }
+                    else
+                    {
+                        reverseChildIndices[*pathDepth] = static_cast<uint16_t>(childIndex);
+                        ++*pathDepth;
+                    }
+                }
                 return childState;
             }
+            if (pathDepth)
+                *pathDepth = previousPathDepth;
+            if (pathFits)
+                *pathFits = previousPathFits;
         }
     }
 
     return {};
 }
+
+enum class MessagePruneObserverIndex : size_t
+{
+    Capture = 0u,
+    Hover,
+    Focus,
+    NativeTextInput,
+    PointerDoubleClick,
+};
 
 [[nodiscard]] Control* RevalidateInteractiveDispatchedControl(const std::weak_ptr<int>& lifetime, const Control* root, Control* control) noexcept
 {
@@ -1123,7 +1187,7 @@ struct ControlInteractionState
         return nullptr;
     }
 
-    return root && ControlBelongsToTree(root.get(), button) ? button : nullptr;
+    return root && IsControlInTree(root.get(), button) ? button : nullptr;
 }
 
 [[nodiscard]] Button* ResolveTreeButton(const std::unique_ptr<Control>& root, Button*& button) noexcept
@@ -1133,7 +1197,7 @@ struct ControlInteractionState
         return nullptr;
     }
 
-    if (! root || ! ControlBelongsToTree(root.get(), button))
+    if (! root || ! IsControlInTree(root.get(), button))
     {
         button = nullptr;
         return nullptr;
@@ -1144,14 +1208,46 @@ struct ControlInteractionState
 
 } // namespace
 
+// The one membership walk, through logical children (a Panel's children and a PageHost's current page). It compares
+// addresses only, so a removed or destroyed `target` is never dereferenced.
 bool IsControlInTree(const Control* root, const Control* target) noexcept
 {
-    return ControlBelongsToTree(root, target);
+    if (! root || ! target)
+    {
+        return false;
+    }
+    if (root == target)
+    {
+        return true;
+    }
+    for (size_t childIndex = 0u; childIndex < root->GetLogicalChildCount(); ++childIndex)
+    {
+        if (IsControlInTree(root->GetLogicalChild(childIndex), target))
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 bool IsControlEffectivelyInteractive(const Control* root, const Control* target) noexcept
 {
     return ResolveControlInteractionState(root, target).effectivelyInteractive;
+}
+
+bool PressStillOwnsPointer(const ControlHost& host, bool rightButton) noexcept
+{
+    const HWND hwnd = host.GetHwnd();
+    if (! hwnd || host.IsEmbedded())
+    {
+        return true;
+    }
+    if (const HWND capture = GetCapture(); capture && capture != hwnd)
+    {
+        return false;
+    }
+    // The thread's button state advances as its loops read pointer messages. Either button covers swapped buttons.
+    return ! rightButton || GetKeyState(VK_RBUTTON) < 0 || GetKeyState(VK_LBUTTON) < 0;
 }
 
 void ShutdownAllWindowHostsForProcessExit() noexcept
@@ -1202,7 +1298,7 @@ void ShutdownAllWindowHostsForProcessExit() noexcept
         }
 
         DWORD_PTR detachResult = 0u;
-        if (SendMessageTimeoutW(target.hwnd, detachMessage.value, 0u, 0, SMTO_ABORTIFHUNG | SMTO_BLOCK, 5000u, &detachResult) == 0)
+        if (SendMessageTimeoutW(target.hwnd, detachMessage.value, ProcessExitDetachNonce(), 0, SMTO_ABORTIFHUNG | SMTO_BLOCK, 5000u, &detachResult) == 0)
         {
             Debug::ErrorWithLastError(L"DxUi::ControlHost: owner-thread process-exit detach timed out for thread {}.", target.ownerThreadId);
         }
@@ -1282,7 +1378,7 @@ bool ControlHost::Attach(HWND hwnd, const AttachOptions& options) noexcept
     }
     if (_hwnd)
     {
-        if (_hwnd == hwnd && _presentationMode == options.presentationMode)
+        if (_hwnd == hwnd && _presentationMode == options.presentationMode && _batchInitialRootChildren == options.batchInitialRootChildren)
         {
             if (! options.forceWarp)
                 return true;
@@ -1311,8 +1407,9 @@ bool ControlHost::Attach(HWND hwnd, const AttachOptions& options) noexcept
     }
     _attachmentOwnerThreadId = windowThreadId;
 
-    _hwnd             = hwnd;
-    _presentationMode = options.presentationMode;
+    _hwnd                     = hwnd;
+    _presentationMode         = options.presentationMode;
+    _batchInitialRootChildren = options.batchInitialRootChildren;
     if (! InitPostedPayloadWindow(_hwnd))
     {
         Debug::Error(L"DxUi::ControlHost: bounded posted-payload window registry is exhausted ({})", GetLastError());
@@ -1503,7 +1600,7 @@ void ControlHost::SetRoot(std::unique_ptr<Control> root)
     // A reset callback may have explicitly focused another control in the old tree. Retire that choice while
     // its owner is still alive; callbacks may choose a successor from the newly installed tree instead.
     Control* const retiredFocus = _focusedControl;
-    if (retiredFocus && previousRoot && ControlBelongsToTree(previousRoot.get(), retiredFocus) && ! ControlBelongsToTree(_root.get(), retiredFocus))
+    if (retiredFocus && previousRoot && IsControlInTree(previousRoot.get(), retiredFocus) && ! IsControlInTree(_root.get(), retiredFocus))
     {
         const std::weak_ptr<int> lifetime = retiredFocus->GetLifetimeToken();
         _focusedControl                   = nullptr;
@@ -1596,11 +1693,10 @@ bool ControlHost::HandleTooltipInspectionPointer(UINT message, D2D1_POINT_2F poi
 
 bool ControlHost::SetTooltipDelayed(std::wstring text, const D2D1_POINT_2F& originDip)
 {
-    // Native hosts can be idle while the dispatcher continues ticking other hosts.
-    // Embedded deadlines retain the application's animation epoch and scheduling.
-    const uint64_t nowTickMs =
-        _embedded ? (_lastAnimationTickMs != 0u ? _lastAnimationTickMs : GetTickCount64()) : Ui::AnimationDispatcher::GetInstance().GetCurrentTickMs();
-    const bool changed = _tooltipLayer.SetTooltipDelayed(std::move(text), originDip, nowTickMs, ResolveTooltipShowDelayMs());
+    // The host's animation clock: an idle native host reads the dispatcher's current time rather than its own stale
+    // tick, and an embedded host its timeline, which its ticks advance.
+    const uint64_t nowTickMs = GetAnimationTickMs();
+    const bool changed       = _tooltipLayer.SetTooltipDelayed(std::move(text), originDip, nowTickMs, ResolveTooltipShowDelayMs());
     if (changed)
     {
         RequestAnimation();
@@ -1611,11 +1707,10 @@ bool ControlHost::SetTooltipDelayed(std::wstring text, const D2D1_POINT_2F& orig
 
 bool ControlHost::BeginTooltipHideDelay(uint64_t delayMs) noexcept
 {
-    // Native hosts can be idle while the dispatcher continues ticking other hosts.
-    // Embedded deadlines retain the application's animation epoch and scheduling.
-    const uint64_t nowTickMs =
-        _embedded ? (_lastAnimationTickMs != 0u ? _lastAnimationTickMs : GetTickCount64()) : Ui::AnimationDispatcher::GetInstance().GetCurrentTickMs();
-    const bool changed = _tooltipLayer.BeginHideDelay(nowTickMs, delayMs);
+    // The host's animation clock: an idle native host reads the dispatcher's current time rather than its own stale
+    // tick, and an embedded host its timeline, which its ticks advance.
+    const uint64_t nowTickMs = GetAnimationTickMs();
+    const bool changed       = _tooltipLayer.BeginHideDelay(nowTickMs, delayMs);
     if (changed)
     {
         RequestAnimation();
@@ -1661,11 +1756,10 @@ std::wstring_view ControlHost::DebugGetPendingTooltipText() const noexcept
 
 bool ControlHost::DebugAdvanceTooltipDelayForTest() noexcept
 {
-    // Native hosts can be idle while the dispatcher continues ticking other hosts.
-    // Embedded deadlines retain the application's animation epoch and scheduling.
-    const uint64_t nowTickMs =
-        _embedded ? (_lastAnimationTickMs != 0u ? _lastAnimationTickMs : GetTickCount64()) : Ui::AnimationDispatcher::GetInstance().GetCurrentTickMs();
-    const bool changed = _tooltipLayer.Tick(*this, nowTickMs + ResolveTooltipShowDelayMs() + 1u);
+    // The host's animation clock: an idle native host reads the dispatcher's current time rather than its own stale
+    // tick, and an embedded host its timeline, which its ticks advance.
+    const uint64_t nowTickMs = GetAnimationTickMs();
+    const bool changed       = _tooltipLayer.Tick(*this, nowTickMs + ResolveTooltipShowDelayMs() + 1u);
     if (changed)
     {
         Invalidate();
@@ -1761,6 +1855,8 @@ void ControlHost::RequestAnimation() noexcept
         if (! _embeddedAnimationRequested)
         {
             _embeddedAnimationRequested = true;
+            // Nothing ticked the view while it was idle, so the next tick starts the clock again rather than counting the gap.
+            _animationTimelineRebase = true;
             Invalidate();
         }
         return;
@@ -1771,9 +1867,22 @@ void ControlHost::RequestAnimation() noexcept
     }
 }
 
+uint64_t ControlHost::GetAnimationTickMs() const noexcept
+{
+    if (_embedded)
+    {
+        return _animationTimelineMs;
+    }
+    if (_animationClockForTest.has_value())
+    {
+        return *_animationClockForTest;
+    }
+    return Ui::AnimationDispatcher::GetInstance().GetCurrentTickMs();
+}
+
 void ControlHost::SetDefaultButton(Button* button) noexcept
 {
-    if (button && _root && ! ControlBelongsToTree(_root.get(), button))
+    if (button && _root && ! IsControlInTree(_root.get(), button))
     {
         return;
     }
@@ -1788,7 +1897,7 @@ Button* ControlHost::GetDefaultButton() const noexcept
 
 void ControlHost::SetCancelButton(Button* button) noexcept
 {
-    if (button && _root && ! ControlBelongsToTree(_root.get(), button))
+    if (button && _root && ! IsControlInTree(_root.get(), button))
     {
         return;
     }
@@ -1825,6 +1934,23 @@ void ControlHost::SetFocusControl(Control* control, bool transferNativeFocus) no
 {
     if (_detachInProgress.load(std::memory_order_acquire))
         return;
+    // A target this host would refuse (disabled, hidden, unfocusable or outside the tree) changes nothing, not even the
+    // request revision: a blur handler that asks for one must not cancel the request it runs inside, which had already
+    // cleared the old focus and would then leave nothing focused.
+    if (control)
+    {
+        const std::weak_ptr<int> lifetime = control->GetLifetimeToken();
+        Control* const live =
+            _root ? RevalidateInteractiveDispatchedControl(lifetime, _root.get(), control) : (_replacingRoot || lifetime.expired() ? nullptr : control);
+        if (! live || ! live->IsFocusable())
+        {
+            // Rejecting another unavailable target must not disturb an outer focus request. A stale current owner
+            // still needs the normal focus/native-session cleanup, without starting a new focus request.
+            if (control == _focusedControl)
+                PruneStaleInteractionState();
+            return;
+        }
+    }
     const uint64_t requestRevision = ++_focusRequestRevision;
     const auto isCurrentRequest    = [this, requestRevision]() noexcept
     { return _focusRequestRevision == requestRevision && ! _detachInProgress.load(std::memory_order_acquire); };
@@ -1891,7 +2017,7 @@ void ControlHost::SetFocusControl(Control* control, bool transferNativeFocus) no
     }
     ++_keyboardOwnerEpoch;
     _focusedControl = nullptr;
-    if (oldFocus && ! oldFocusLifetime.expired() && ControlBelongsToTree(_root.get(), oldFocus))
+    if (oldFocus && ! oldFocusLifetime.expired() && IsControlInTree(_root.get(), oldFocus))
     {
         NotifyControlFocusChanged(oldFocus, false);
         if (! isCurrentRequest())
@@ -2003,7 +2129,16 @@ bool ControlHost::HandleMnemonic(wchar_t mnemonic) noexcept
     if (Control* target = FindMnemonicControl(_root.get(), normalizedMnemonic))
     {
         SetInputModality(InputModality::Keyboard);
-        return target->OnMnemonic(*this);
+        // A mnemonic whose handler throws is taken, as a failed message is: it is not offered to another handler.
+        bool taken = true;
+        static_cast<void>(TryControlCallback([&] { taken = target->OnMnemonic(*this); }));
+        if (! taken)
+        {
+            return false;
+        }
+        // A mnemonic that toggled, selected or invoked its control changes what UI Automation reads, as a handled key does.
+        RefreshWindowHostAccessibilitySnapshot(_hwnd, this);
+        return true;
     }
 
     return false;
@@ -2048,8 +2183,10 @@ bool ControlHost::RouteFocusedCharInput(wchar_t ch, UINT modifiers, const wchar_
     Control* const charTarget                   = _focusedControl;
     const std::weak_ptr<int> charTargetLifetime = charTarget->GetLifetimeToken();
     const auto inputStartedAt                   = std::chrono::steady_clock::now();
-    const bool controlHandled                   = charTarget->OnChar(*this, ch, modifiers);
-    Control* const liveCharTarget               = RevalidateInteractiveDispatchedControl(charTargetLifetime, _root.get(), charTarget);
+    // A character whose handler throws is taken, as a failed message is: it does not reach DefWindowProc.
+    bool controlHandled = true;
+    static_cast<void>(TryControlCallback([&] { controlHandled = charTarget->OnChar(*this, ch, modifiers); }));
+    Control* const liveCharTarget = RevalidateInteractiveDispatchedControl(charTargetLifetime, _root.get(), charTarget);
     if (! liveCharTarget && charTarget == _focusedControl)
     {
         PruneStaleInteractionState();
@@ -2080,7 +2217,9 @@ bool ControlHost::HandleTabNavigation(bool reverse) noexcept
     {
         const std::weak_ptr<int> nextLifetime = next.control ? next.control->GetLifetimeToken() : std::weak_ptr<int>{};
         auto onTabBoundary                    = _onTabBoundary;
-        const bool handled                    = (*onTabBoundary)(reverse);
+        // Application code inside a noexcept path: a boundary callback that throws handles nothing, and Tab wraps.
+        bool handled = false;
+        static_cast<void>(TryControlCallback([&] { handled = (*onTabBoundary)(reverse); }));
         onTabBoundary.reset();
         if (handled)
         {
@@ -2098,7 +2237,7 @@ bool ControlHost::HandleTabNavigation(bool reverse) noexcept
 
 void ControlHost::CaptureMouse(Control* control) noexcept
 {
-    if (control && _root && ! ControlBelongsToTree(_root.get(), control))
+    if (control && _root && ! IsControlInTree(_root.get(), control))
     {
         return;
     }
@@ -2443,17 +2582,34 @@ IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role,
 {
     if (! std::isfinite(fontSizeDip) || fontSizeDip < 6.0f || fontSizeDip > 96.0f || fontWeight < 100 || fontWeight > 900)
         return GetTextFormat(role, alignment, paragraphAlignment, wrap, readingDirection);
-    const uint64_t sizeKey = static_cast<uint64_t>(std::lround(fontSizeDip * 64.0f));
-    const uint64_t key =
+    const uint64_t sizeKey          = static_cast<uint64_t>(std::lround(fontSizeDip * 64.0f));
+    const Typography::Spec roleSpec = Typography::GetSpec(role);
+    // The cache key and the created format use the same 1/64-DIP normalized size.
+    const float normalizedSize = static_cast<float>(sizeKey) / 64.0f;
+    const uint64_t customKey =
         PackTextFormatKey(role, alignment, paragraphAlignment, wrap, readingDirection) | (sizeKey << 40u) | (static_cast<uint64_t>(fontWeight) << 53u);
+    const bool isIconRole         = role == FontRole::Icon || role == FontRole::HeroIcon || role == FontRole::IconLarge;
+    const bool matchesRoleDefault = normalizedSize == roleSpec.sizeDip && fontWeight == roleSpec.weight;
+    bool useRoleDefaultKey        = matchesRoleDefault && ! isIconRole;
+    if (matchesRoleDefault && isIconRole)
+    {
+        // Preserve existing custom-key hits before checking optional font availability.
+        if (const auto it = _configuredTextFormats.find(customKey); it != _configuredTextFormats.end())
+            return it->second.get();
+        if (! _dwriteFactory && ! EnsureDeviceIndependentResources())
+            return GetTextFormat(role, alignment, paragraphAlignment, wrap, readingDirection);
+        // Only canonicalize icon defaults when the configured icon family exists. Otherwise the default path
+        // falls back to Small, while this explicit request keeps its existing custom creation and retry path.
+        useRoleDefaultKey = HasFluentIconFont();
+    }
+    const uint64_t key = useRoleDefaultKey ? PackTextFormatKey(role, alignment, paragraphAlignment, wrap, readingDirection) : customKey;
     if (const auto it = _configuredTextFormats.find(key); it != _configuredTextFormats.end())
         return it->second.get();
     if (! _dwriteFactory && ! EnsureDeviceIndependentResources())
         return GetTextFormat(role, alignment, paragraphAlignment, wrap, readingDirection);
-    Typography::Spec spec = Typography::GetSpec(role);
-    // The cache key and the created format use the same 1/64-DIP normalized size.
-    spec.sizeDip = static_cast<float>(sizeKey) / 64.0f;
-    spec.weight  = fontWeight;
+    Typography::Spec spec = roleSpec;
+    spec.sizeDip          = normalizedSize;
+    spec.weight           = fontWeight;
     wil::com_ptr<IDWriteTextFormat> format;
     const HRESULT hr = Typography::CreateTextFormat(_dwriteFactory.get(), spec, format.addressof());
     if (FAILED(hr) || ! format)
@@ -2631,6 +2787,21 @@ uint64_t ControlHost::DebugGetPartialPresentAttemptCount() const noexcept
     return _debugPartialPresentAttemptCount;
 }
 
+uint64_t ControlHost::DebugGetInitialRootChildBatchFlushCount() const noexcept
+{
+    return _debugInitialRootChildBatchFlushCount;
+}
+
+void ControlHost::DebugSetNextInitialRootChildBatchFlushResultForTest(const HRESULT result) noexcept
+{
+    _debugNextInitialRootChildBatchFlushResult = FAILED(result) ? result : S_OK;
+}
+
+void ControlHost::DebugSetNextInitialRootChildBatchEndDrawResultForTest(const HRESULT result) noexcept
+{
+    _debugNextInitialRootChildBatchEndDrawResult = FAILED(result) ? result : S_OK;
+}
+
 HRESULT ControlHost::DebugGetLastPresentResult() const noexcept
 {
     return _debugLastPresentResult;
@@ -2652,6 +2823,20 @@ bool ControlHost::DebugHasActiveAnimationSubscription() const noexcept
 bool ControlHost::DebugAnimationTickForTest(uint64_t nowTickMs) noexcept
 {
     return OnAnimationTick(nowTickMs);
+}
+
+void ControlHost::DebugSetAnimationClockForTest(std::optional<uint64_t> nowTickMs) noexcept
+{
+    if (_embedded)
+    {
+        if (nowTickMs.has_value())
+        {
+            _animationTimelineMs     = *nowTickMs;
+            _animationTimelineRebase = true;
+        }
+        return;
+    }
+    _animationClockForTest = nowTickMs;
 }
 
 IRawElementProviderFragmentRoot* ControlHost::DebugCreateAccessibilityProvider() const noexcept
@@ -2716,6 +2901,37 @@ bool ControlHost::DebugCaptureBitmap(WindowHostBitmapCapture& out) noexcept
 }
 #endif
 
+bool ControlHost::IsInitialRootChildBatchActive(const Panel& root) const noexcept
+{
+    const InitialRootChildBatchFrame* const frame = _initialRootChildBatchFrame;
+    return frame && _batchInitialRootChildren && ! _embedded && _swapChain && _d2dContext && frame->root == &root && frame->flushesRemaining != 0u &&
+           SUCCEEDED(frame->firstFlushFailure) && _root.get() == &root && _interactionRevision == frame->interactionRevision;
+}
+
+void ControlHost::FlushInitialRootChildBatch(const Panel& root) noexcept
+{
+    if (! IsInitialRootChildBatchActive(root))
+        return;
+    InitialRootChildBatchFrame* const frame = _initialRootChildBatchFrame;
+
+    --frame->flushesRemaining;
+    const HRESULT actualResult = _d2dContext->Flush();
+#if DXUI_ENABLE_DIAGNOSTICS
+    ++_debugInitialRootChildBatchFlushCount;
+    const HRESULT injectedResult = std::exchange(_debugNextInitialRootChildBatchFlushResult, S_OK);
+    const HRESULT result         = FAILED(actualResult) ? actualResult : (FAILED(injectedResult) ? injectedResult : actualResult);
+#else
+    const HRESULT result = actualResult;
+#endif
+    if (FAILED(result))
+        frame->firstFlushFailure = result;
+}
+
+void ControlHost::NotifyRetainedTreeMutation() noexcept
+{
+    ++_interactionRevision;
+}
+
 void ControlHost::OnDpiChanged(HWND hwnd, UINT newDpi, const RECT* suggestedRect) noexcept
 {
     Debug::Perf::Scope perf(L"dxui.windowhost.dpi_change_us");
@@ -2758,6 +2974,8 @@ void ControlHost::OnDpiChanged(HWND hwnd, UINT newDpi, const RECT* suggestedRect
                      SWP_NOZORDER | SWP_NOACTIVATE);
     }
 
+    // Every bounding rectangle and point hit UI Automation holds is in the old DPI's pixels.
+    RefreshWindowHostAccessibilitySnapshot(_hwnd, this);
     Invalidate();
 }
 
@@ -2778,7 +2996,7 @@ bool ControlHost::DispatchKeyboardMessage(const MSG& message) noexcept
         return false;
 
     Control* const owner                   = _focusedControl;
-    const std::weak_ptr<int> ownerLifetime = owner && ControlBelongsToTree(_root.get(), owner) ? owner->GetLifetimeToken() : std::weak_ptr<int>{};
+    const std::weak_ptr<int> ownerLifetime = owner && IsControlInTree(_root.get(), owner) ? owner->GetLifetimeToken() : std::weak_ptr<int>{};
     Control* const root                    = _root.get();
     const std::weak_ptr<int> rootLifetime  = root ? root->GetLifetimeToken() : std::weak_ptr<int>{};
     const uint64_t ownerEpoch              = _keyboardOwnerEpoch;
@@ -2825,6 +3043,11 @@ try
     if (WndMsg::WindowHostProcessExitDetach().Matches(msg))
     {
         handled = true;
+        // Only this process's own shutdown sweep carries the nonce; anyone else's message does nothing.
+        if (wp != ProcessExitDetachNonce())
+        {
+            return 0;
+        }
         DismissAsyncMenusForProcessExit();
         if (! IsAttachedWindowHostRegistered(this))
         {
@@ -2858,8 +3081,30 @@ try
         return 0;
     }
 
-    CancelStaleCapture();
-    PruneStaleInteractionState();
+    MessagePruneSnapshot const messagePruneSnapshot = CaptureMessagePruneSnapshot();
+    if (! CanReuseMessagePruneSnapshot(messagePruneSnapshot))
+    {
+        MessagePrunePass pass{};
+        pass.entry                  = messagePruneSnapshot;
+        pass.serial                 = ++_messagePrunePassSerial;
+        _messagePruneSnapshot.valid = false;
+        CancelStaleCapture(&pass);
+        PruneStaleInteractionState(&pass);
+#if DXUI_ENABLE_DIAGNOSTICS
+        _debugMessagePruneResolverNodeVisitCount += pass.resolverNodeVisits;
+#endif
+        if (CanPublishMessagePrunePass(pass))
+        {
+            MessagePruneSnapshot completed = pass.entry;
+            for (size_t index = 0u; index < completed.observers.size(); ++index)
+            {
+                completed.observers[index].lifetime = pass.validatedObserverLifetimes[index];
+                completed.observers[index].path     = pass.validatedObserverPaths[index];
+            }
+            completed.valid       = true;
+            _messagePruneSnapshot = std::move(completed);
+        }
+    }
     if (msg >= WM_MOUSEFIRST && msg <= WM_MOUSELAST)
     {
         // A touch or pen contact promoted to this mouse message says so in the extra information of the message being
@@ -2874,7 +3119,9 @@ try
         return accessibilityResult;
     }
 
-    if (ShouldTraceWindowHostMessage(msg))
+    // The trace's arguments (an extra hit test, WindowFromPoint, class names) are gathered only while a sink listens:
+    // otherwise every pointer message paid for them.
+    if (IsContextMenuDiagnosticsEnabled() && ShouldTraceWindowHostMessage(msg))
     {
         POINT cursorScreenPt{};
         const bool haveCursorScreenPt = GetCursorPos(&cursorScreenPt) != FALSE; // getcursorpos-allow: diagnostic-only
@@ -3101,6 +3348,7 @@ try
             if (HandleTooltipInspectionPointer(msg, point))
                 return 0;
             Control* target              = _capturedControl;
+            const bool pressInGesture    = target != nullptr;
             const UINT buttonDownMessage = PointerButtonDownMessageFor(msg);
             if (! target && _root)
             {
@@ -3112,7 +3360,7 @@ try
                 const POINT pointPx{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
                 if (candidate.target && candidate.downMessage == buttonDownMessage && candidate.tickMs != 0u &&
                     GetTickCount64() - candidate.tickMs <= static_cast<uint64_t>(GetDoubleClickTime()) &&
-                    IsWithinSystemDoubleClickBounds(candidate.pointPx, pointPx) && ControlBelongsToTree(_root.get(), candidate.target))
+                    IsWithinSystemDoubleClickBounds(candidate.pointPx, pointPx) && IsControlInTree(_root.get(), candidate.target))
                 {
                     target = candidate.target;
                 }
@@ -3127,6 +3375,7 @@ try
             // same control-level double-click path.
             const bool doubleClick                  = IsPointerDoubleClickMessage(msg) || ShouldTreatButtonDownAsDoubleClick(target, buttonDownMessage, lp);
             const std::weak_ptr<int> targetLifetime = target ? target->GetLifetimeToken() : std::weak_ptr<int>{};
+            const uint64_t focusBeforeDispatch      = _focusRequestRevision;
             const bool controlHandled               = target && (doubleClick ? target->OnMouseDoubleClick(*this, point, rightButton, static_cast<UINT>(wp))
                                                                              : target->OnMouseDown(*this, point, rightButton, static_cast<UINT>(wp)));
             Control* liveControl                    = RevalidateInteractiveDispatchedControl(targetLifetime, _root.get(), target);
@@ -3193,7 +3442,10 @@ try
                     ClearPendingPointerDoubleClick();
                     return 0;
                 }
-                CaptureMouse(liveControl);
+                if (PressStillOwnsPointer(*this, rightButton))
+                {
+                    CaptureMouse(liveControl);
+                }
                 if (doubleClick)
                 {
                     ClearPendingPointerDoubleClick();
@@ -3207,7 +3459,10 @@ try
             {
                 ClearPendingPointerDoubleClick();
             }
-            else if (_focusedControl && liveControl != _focusedControl)
+            // An unhandled press elsewhere clears the focus, unless it continued a captured gesture or its target moved
+            // the focus itself: a container that forwards presses (a ScrollPanel) is the target of a press its child
+            // declined after focusing itself, and blurring the child again would churn focus and text input.
+            else if (_focusedControl && liveControl != _focusedControl && ! pressInGesture && _focusRequestRevision == focusBeforeDispatch)
             {
                 SetFocusControl(nullptr);
                 ClearPendingPointerDoubleClick();
@@ -3273,7 +3528,12 @@ try
                                            DescribeWindowHostTraceControl(_hoveredControl),
                                            DescribeWindowHostTraceControl(_capturedControl));
             }
-            ReleaseMouseCapture();
+            // A gesture lasts until its last routed button is up: releasing a second button pressed during a drag (a
+            // right press while a slider's thumb is held) leaves the capture, and the drag's own release, to the drag.
+            if ((static_cast<UINT>(wp) & (rightButton ? MK_LBUTTON : MK_RBUTTON)) == 0u)
+            {
+                ReleaseMouseCapture();
+            }
             return 0;
         }
         case WM_MOUSEWHEEL:
@@ -3294,6 +3554,9 @@ try
             if (target)
             {
                 handled = target->OnMouseWheel(*this, point, static_cast<float>(GET_WHEEL_DELTA_WPARAM(wp)), ComputeModifierMask());
+                // A scroll moves what the window shows: bounds, offscreen state and point hits are published again.
+                if (handled)
+                    RefreshWindowHostAccessibilitySnapshot(_hwnd, this);
                 return 0;
             }
             handled = false;
@@ -3347,6 +3610,10 @@ try
                         SyncNativeTextInputSession(liveKeyTarget);
                         RecordNativeTextInputKeyToStateMetric(inputStartedAt, L"native-keydown", static_cast<uint64_t>(wp), modifiers);
                     }
+                    if (liveKeyTarget)
+                    {
+                        RefreshWindowHostAccessibilitySnapshot(_hwnd, this);
+                    }
                     return 0;
                 }
                 if (keyTarget && (keyTargetLifetime.expired() || liveKeyTarget != keyTarget || _focusedControl != keyTarget))
@@ -3392,6 +3659,13 @@ try
                         SyncNativeTextInputSession(liveKeyTarget);
                         RecordNativeTextInputKeyToStateMetric(inputStartedAt, L"native-keydown", static_cast<uint64_t>(wp), modifiers);
                     }
+                    // As after a handled pointer release: a key the control handled may have changed what it exposes to
+                    // UI Automation (a toggle state, a value, a selected tab), so the window publishes again. With no
+                    // client listening this only marks the snapshot dirty.
+                    if (liveKeyTarget)
+                    {
+                        RefreshWindowHostAccessibilitySnapshot(_hwnd, this);
+                    }
                     return 0;
                 }
                 if (msg == WM_KEYDOWN && ! ModifiersContainAlt(modifiers) && ! ModifiersContainCtrl(modifiers))
@@ -3419,6 +3693,13 @@ try
                     if (Control* const characterOwner = RevalidateInteractiveDispatchedControl(keyTargetLifetime, _root.get(), keyTarget);
                         characterOwner && characterOwner == _focusedControl && characterOwner->SupportsTextInput())
                         AllowTranslatedCharacter();
+                // A focused editor takes the character a printable key produces (its WM_CHAR follows), so the key-down
+                // is not the application's as well. Preserve the guarded Space character permission before this return.
+                if (msg == WM_KEYDOWN && ! ModifiersContainAlt(modifiers) && ! ModifiersContainCtrl(modifiers) && _focusedControl &&
+                    _focusedControl->SupportsTextInput() && KeyProducesPrintableCharacter(static_cast<UINT>(wp)))
+                {
+                    return 0;
+                }
             }
             handled = false;
             return 0;
@@ -3498,11 +3779,8 @@ try
             {
                 return 0;
             }
-            if (_textInputBackend == TextInputBackend::Native && _focusedControl && _focusedControl->SupportsTextInput() &&
-                RouteFocusedCharInput(static_cast<wchar_t>(wp), GetModifierState() | kModifierAlt, L"native-syschar"))
-            {
-                return 0;
-            }
+            // Alt with a character that names no mnemonic is the system's, as over a Win32 edit control: Alt+Space opens
+            // the window menu and a menu bar takes its access keys. An editor never types it (AltGr arrives as WM_CHAR).
             handled = false;
             return 0;
         case WM_CAPTURECHANGED:
@@ -3516,15 +3794,20 @@ try
                 return 0;
             }
             CancelCapturedControlInteraction();
+            // The capture-lost callback runs application code, which may remove or replace the hovered control. Resolve
+            // the hover observer through the live tree before touching it; a removed control is never dereferenced.
             if (_hoveredControl)
             {
-                Control* const oldHover                   = _hoveredControl;
-                const std::weak_ptr<int> oldHoverLifetime = oldHover->GetLifetimeToken();
-                _hoveredControl                           = nullptr;
-                oldHover->OnHoverChanged(*this, false);
-                if (Control* const liveOldHover = RevalidateDispatchedControl(oldHoverLifetime, _root.get(), oldHover))
+                Control* const oldHover = IsControlInTree(_root.get(), _hoveredControl) ? _hoveredControl : nullptr;
+                _hoveredControl         = nullptr;
+                if (oldHover)
                 {
-                    liveOldHover->OnMouseLeave(*this);
+                    const std::weak_ptr<int> oldHoverLifetime = oldHover->GetLifetimeToken();
+                    static_cast<void>(TryControlCallback([&] { oldHover->OnHoverChanged(*this, false); }));
+                    if (Control* const liveOldHover = RevalidateDispatchedControl(oldHoverLifetime, _root.get(), oldHover))
+                    {
+                        static_cast<void>(TryControlCallback([&] { liveOldHover->OnMouseLeave(*this); }));
+                    }
                 }
             }
             // This is internal cleanup caused by capture changing; it must not invalidate an
@@ -3907,6 +4190,7 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
         // FLIP_SEQUENTIAL buffers have no valid retained contents on creation. The first present
         // must therefore draw and present the complete target, even when WM_PAINT is partial.
         _forceFullPresentAfterBufferReset = true;
+        _initialRootChildBatchPending     = true;
     }
 
     const UINT desiredWidthPx  = std::max<UINT>(1u, _widthPx);
@@ -3967,6 +4251,7 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
         _swapChainHeightPx = desiredHeightPx;
         // ResizeBuffers discards the previous back-buffer contents; repopulate them before dirty presents.
         _forceFullPresentAfterBufferReset = true;
+        _initialRootChildBatchPending     = true;
 #if DXUI_ENABLE_DIAGNOSTICS
         ++_debugResizeCount;
 #endif
@@ -4081,6 +4366,15 @@ try
 #if DXUI_ENABLE_DIAGNOSTICS
     Render(dirtyRectPx, nullptr, allowHidden);
 #else
+    if (_initialRootChildBatchFrame)
+    {
+        // A nested render cannot safely begin another D2D frame while the opted-in root batch is active.
+        InitialRootChildBatchFrame* const frame = _initialRootChildBatchFrame;
+        if (SUCCEEDED(frame->firstFlushFailure))
+            frame->firstFlushFailure = E_ABORT;
+        frame->flushesRemaining = 0u;
+        return;
+    }
     TrimCaches();
     FrameClock frameClock;
     FrameStage frameStage       = FrameStage::Idle;
@@ -4098,10 +4392,10 @@ try
 
     {
         FrameStageScope updateScope(frameStage, FrameStage::Update);
-        const auto updateStartedAt = frameClock.Now();
+        const auto updateStartedAt  = frameClock.Now();
+        const auto recordUpdateTime = wil::scope_exit([&]() noexcept { updateUs = frameClock.ElapsedUs(updateStartedAt, frameClock.Now()); });
         if (! EnsureSizeDependentResources(allowHidden))
         {
-            updateUs = frameClock.ElapsedUs(updateStartedAt, frameClock.Now());
             paintPerf.SetHr(E_FAIL);
             EmitPendingNativeTextInputPaintMetric(E_FAIL);
             return;
@@ -4119,7 +4413,6 @@ try
             EmitPendingNativeTextInputPaintMetric(E_ABORT);
             return;
         }
-        updateUs = frameClock.ElapsedUs(updateStartedAt, frameClock.Now());
     }
 
     const bool forceFullPresentAfterBufferReset = _forceFullPresentAfterBufferReset;
@@ -4135,7 +4428,8 @@ try
                               PixelsToDip(static_cast<float>(dirtyRectPx->bottom)));
     }
 
-    HRESULT hrDraw = S_OK;
+    HRESULT hrDraw       = S_OK;
+    HRESULT hrBatchFlush = S_OK;
     {
         FrameStageScope renderScope(frameStage, FrameStage::Render);
         const auto renderStartedAt = frameClock.Now();
@@ -4162,10 +4456,30 @@ try
         const uint64_t interactionRevision = _interactionRevision;
         const auto treeStillCurrent        = [&]() noexcept
         { return (! paintRoot || ! rootLifetime.expired()) && _root.get() == paintRoot && _interactionRevision == interactionRevision; };
+        InitialRootChildBatchFrame initialBatchFrame{};
+        const bool batchInitialFrame =
+            _initialRootChildBatchPending && ! isPartialDirty && _batchInitialRootChildren && ! _embedded && _swapChain && dynamic_cast<Panel*>(paintRoot);
+        if (batchInitialFrame)
+        {
+            initialBatchFrame.root                = static_cast<Panel*>(paintRoot);
+            initialBatchFrame.interactionRevision = interactionRevision;
+            initialBatchFrame.flushesRemaining    = 8u;
+            _initialRootChildBatchFrame           = &initialBatchFrame;
+        }
+        auto batchFrameGuard = wil::scope_exit([&]
+        {
+            if (_initialRootChildBatchFrame == &initialBatchFrame)
+                _initialRootChildBatchFrame = nullptr;
+        });
         _d2dContext->Clear(_presentationMode == PresentationMode::CompositionSwapChain ? D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f) : _palette.windowBackground);
         if (_root)
         {
             _root->Paint(*this);
+        }
+        if (_initialRootChildBatchFrame == &initialBatchFrame)
+        {
+            hrBatchFlush                = initialBatchFrame.firstFlushFailure;
+            _initialRootChildBatchFrame = nullptr;
         }
         if (! treeStillCurrent())
         {
@@ -4200,15 +4514,26 @@ try
         }
 
         endDrawGuard.release();
-        hrDraw   = _d2dContext->EndDraw();
+        const HRESULT actualEndDrawResult = _d2dContext->EndDraw();
+        hrDraw                            = actualEndDrawResult;
+#if DXUI_ENABLE_DIAGNOSTICS
+        if (const HRESULT injectedEndDrawResult = std::exchange(_debugNextInitialRootChildBatchEndDrawResult, S_OK);
+            SUCCEEDED(actualEndDrawResult) && FAILED(injectedEndDrawResult))
+            hrDraw = injectedEndDrawResult;
+#endif
         renderUs = frameClock.ElapsedUs(renderStartedAt, frameClock.Now());
     }
+
+    // An occluded Present still follows a completed D2D draw. Do not repeat the
+    // initial submission boundaries on hidden warm frames while full presentation remains pending.
+    if (hrBatchFlush == S_OK && hrDraw == S_OK)
+        _initialRootChildBatchPending = false;
 
     HRESULT hrPresent = S_OK;
     {
         FrameStageScope presentScope(frameStage, FrameStage::Present);
         const auto presentStartedAt = frameClock.Now();
-        if (SUCCEEDED(hrDraw))
+        if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush))
         {
             if (isPartialDirty)
             {
@@ -4230,7 +4555,7 @@ try
             }
         }
 #if DXUI_ENABLE_DIAGNOSTICS
-        if (SUCCEEDED(hrDraw))
+        if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush))
         {
             _debugLastPresentResult = hrPresent;
         }
@@ -4238,9 +4563,9 @@ try
         presentUs = frameClock.ElapsedUs(presentStartedAt, frameClock.Now());
     }
 
-    if (IsDeviceLossHResult(hrDraw) || IsDeviceLossHResult(hrPresent))
+    if (IsDeviceLossHResult(hrBatchFlush) || IsDeviceLossHResult(hrDraw) || IsDeviceLossHResult(hrPresent))
     {
-        const HRESULT renderHr = FAILED(hrDraw) ? hrDraw : hrPresent;
+        const HRESULT renderHr = FAILED(hrBatchFlush) ? hrBatchFlush : (FAILED(hrDraw) ? hrDraw : hrPresent);
         paintPerf.SetHr(renderHr);
         EmitPendingNativeTextInputPaintMetric(renderHr);
         DiscardSizeDependentResources(L"render-device-lost");
@@ -4250,16 +4575,20 @@ try
         Invalidate();
         return;
     }
-    if (forceFullPresentAfterBufferReset && hrDraw == S_OK && hrPresent == S_OK)
+    if (forceFullPresentAfterBufferReset && hrBatchFlush == S_OK && hrDraw == S_OK && hrPresent == S_OK)
     {
         _forceFullPresentAfterBufferReset = false;
     }
-    const HRESULT renderHr = FAILED(hrDraw) ? hrDraw : hrPresent;
+    const HRESULT renderHr = FAILED(hrBatchFlush) ? hrBatchFlush : (FAILED(hrDraw) ? hrDraw : hrPresent);
     paintPerf.SetHr(renderHr);
     EmitPendingNativeTextInputPaintMetric(renderHr);
     if (FAILED(hrDraw))
     {
         Debug::Error(L"DxUi::ControlHost: EndDraw failed: 0x{:08X}", hrDraw);
+    }
+    if (FAILED(hrBatchFlush))
+    {
+        Debug::Error(L"DxUi::ControlHost: initial root-child D2D flush failed: 0x{:08X}", hrBatchFlush);
     }
     if (FAILED(hrPresent))
     {
@@ -4268,7 +4597,7 @@ try
 #endif
         Debug::Error(L"DxUi::ControlHost: Present failed: 0x{:08X}", hrPresent);
     }
-    if (SUCCEEDED(hrDraw) && SUCCEEDED(hrPresent))
+    if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush) && SUCCEEDED(hrPresent))
         PublishPreparedContent();
 #endif
 }
@@ -4330,6 +4659,15 @@ bool ControlHost::CaptureCurrentBackBuffer(WindowHostBitmapCapture& out) noexcep
 void ControlHost::Render(const RECT* dirtyRectPx, WindowHostBitmapCapture* capture, bool allowHidden) noexcept
 try
 {
+    if (_initialRootChildBatchFrame)
+    {
+        // A nested render cannot safely begin another D2D frame while the opted-in root batch is active.
+        InitialRootChildBatchFrame* const frame = _initialRootChildBatchFrame;
+        if (SUCCEEDED(frame->firstFlushFailure))
+            frame->firstFlushFailure = E_ABORT;
+        frame->flushesRemaining = 0u;
+        return;
+    }
     // Trim over-bound caches before any brush or format is borrowed for this paint.
     TrimCaches();
     FrameClock frameClock;
@@ -4348,10 +4686,10 @@ try
 
     {
         FrameStageScope updateScope(frameStage, FrameStage::Update);
-        const auto updateStartedAt = frameClock.Now();
+        const auto updateStartedAt  = frameClock.Now();
+        const auto recordUpdateTime = wil::scope_exit([&]() noexcept { updateUs = frameClock.ElapsedUs(updateStartedAt, frameClock.Now()); });
         if (! EnsureSizeDependentResources(allowHidden))
         {
-            updateUs = frameClock.ElapsedUs(updateStartedAt, frameClock.Now());
             paintPerf.SetHr(E_FAIL);
             EmitPendingNativeTextInputPaintMetric(E_FAIL);
             return;
@@ -4369,7 +4707,6 @@ try
             EmitPendingNativeTextInputPaintMetric(E_ABORT);
             return;
         }
-        updateUs = frameClock.ElapsedUs(updateStartedAt, frameClock.Now());
     }
 
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -4393,8 +4730,9 @@ try
                               PixelsToDip(static_cast<float>(dirtyRectPx->bottom)));
     }
 
-    HRESULT hrDraw    = S_OK;
-    HRESULT hrCapture = S_OK;
+    HRESULT hrDraw       = S_OK;
+    HRESULT hrCapture    = S_OK;
+    HRESULT hrBatchFlush = S_OK;
     {
         FrameStageScope renderScope(frameStage, FrameStage::Render);
         const auto renderStartedAt = frameClock.Now();
@@ -4421,10 +4759,30 @@ try
         const uint64_t interactionRevision = _interactionRevision;
         const auto treeStillCurrent        = [&]() noexcept
         { return (! paintRoot || ! rootLifetime.expired()) && _root.get() == paintRoot && _interactionRevision == interactionRevision; };
+        InitialRootChildBatchFrame initialBatchFrame{};
+        const bool batchInitialFrame =
+            _initialRootChildBatchPending && ! isPartialDirty && _batchInitialRootChildren && ! _embedded && _swapChain && dynamic_cast<Panel*>(paintRoot);
+        if (batchInitialFrame)
+        {
+            initialBatchFrame.root                = static_cast<Panel*>(paintRoot);
+            initialBatchFrame.interactionRevision = interactionRevision;
+            initialBatchFrame.flushesRemaining    = 8u;
+            _initialRootChildBatchFrame           = &initialBatchFrame;
+        }
+        auto batchFrameGuard = wil::scope_exit([&]
+        {
+            if (_initialRootChildBatchFrame == &initialBatchFrame)
+                _initialRootChildBatchFrame = nullptr;
+        });
         _d2dContext->Clear(_presentationMode == PresentationMode::CompositionSwapChain ? D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f) : _palette.windowBackground);
         if (_root)
         {
             _root->Paint(*this);
+        }
+        if (_initialRootChildBatchFrame == &initialBatchFrame)
+        {
+            hrBatchFlush                = initialBatchFrame.firstFlushFailure;
+            _initialRootChildBatchFrame = nullptr;
         }
         if (! treeStillCurrent())
         {
@@ -4459,9 +4817,19 @@ try
         }
 
         endDrawGuard.release();
-        hrDraw = _d2dContext->EndDraw();
+        const HRESULT actualEndDrawResult = _d2dContext->EndDraw();
+        hrDraw                            = actualEndDrawResult;
+#if DXUI_ENABLE_DIAGNOSTICS
+        if (const HRESULT injectedEndDrawResult = std::exchange(_debugNextInitialRootChildBatchEndDrawResult, S_OK);
+            SUCCEEDED(actualEndDrawResult) && FAILED(injectedEndDrawResult))
+            hrDraw = injectedEndDrawResult;
+#endif
 
-        if (capture)
+        if (capture && FAILED(hrBatchFlush))
+        {
+            hrCapture = hrBatchFlush;
+        }
+        else if (capture && SUCCEEDED(hrDraw))
         {
             if (! CaptureCurrentBackBuffer(*capture))
             {
@@ -4471,11 +4839,16 @@ try
         renderUs = frameClock.ElapsedUs(renderStartedAt, frameClock.Now());
     }
 
+    // An occluded Present still follows a completed D2D draw. Do not repeat the
+    // initial submission boundaries on hidden warm frames while full presentation remains pending.
+    if (hrBatchFlush == S_OK && hrDraw == S_OK)
+        _initialRootChildBatchPending = false;
+
     HRESULT hrPresent = S_OK;
     {
         FrameStageScope presentScope(frameStage, FrameStage::Present);
         const auto presentStartedAt = frameClock.Now();
-        if (SUCCEEDED(hrDraw))
+        if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush))
         {
             if (isPartialDirty)
             {
@@ -4499,7 +4872,7 @@ try
             }
         }
 #if DXUI_ENABLE_DIAGNOSTICS
-        if (SUCCEEDED(hrDraw))
+        if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush))
         {
             _debugLastPresentResult = hrPresent;
         }
@@ -4507,9 +4880,9 @@ try
         presentUs = frameClock.ElapsedUs(presentStartedAt, frameClock.Now());
     }
 
-    if (IsDeviceLossHResult(hrDraw) || IsDeviceLossHResult(hrPresent))
+    if (IsDeviceLossHResult(hrBatchFlush) || IsDeviceLossHResult(hrDraw) || IsDeviceLossHResult(hrPresent))
     {
-        const HRESULT renderHr = FAILED(hrDraw) ? hrDraw : hrPresent;
+        const HRESULT renderHr = FAILED(hrBatchFlush) ? hrBatchFlush : (FAILED(hrDraw) ? hrDraw : hrPresent);
         paintPerf.SetHr(renderHr);
         EmitPendingNativeTextInputPaintMetric(renderHr);
         DiscardSizeDependentResources(L"render-device-lost");
@@ -4519,16 +4892,20 @@ try
         Invalidate();
         return;
     }
-    if (forceFullPresentAfterBufferReset && hrDraw == S_OK && hrPresent == S_OK)
+    if (forceFullPresentAfterBufferReset && hrBatchFlush == S_OK && hrDraw == S_OK && hrPresent == S_OK)
     {
         _forceFullPresentAfterBufferReset = false;
     }
-    const HRESULT renderHr = FAILED(hrDraw) ? hrDraw : (FAILED(hrCapture) ? hrCapture : hrPresent);
+    const HRESULT renderHr = FAILED(hrBatchFlush) ? hrBatchFlush : (FAILED(hrDraw) ? hrDraw : (FAILED(hrCapture) ? hrCapture : hrPresent));
     paintPerf.SetHr(renderHr);
     EmitPendingNativeTextInputPaintMetric(renderHr);
     if (FAILED(hrDraw))
     {
         Debug::Error(L"DxUi::ControlHost: EndDraw failed: 0x{:08X}", hrDraw);
+    }
+    if (FAILED(hrBatchFlush))
+    {
+        Debug::Error(L"DxUi::ControlHost: initial root-child D2D flush failed: 0x{:08X}", hrBatchFlush);
     }
     if (FAILED(hrCapture))
     {
@@ -4541,7 +4918,7 @@ try
 #endif
         Debug::Error(L"DxUi::ControlHost: Present failed: 0x{:08X}", hrPresent);
     }
-    if (SUCCEEDED(hrDraw) && SUCCEEDED(hrPresent))
+    if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush) && SUCCEEDED(hrPresent))
         PublishPreparedContent();
 }
 catch (const std::exception&)
@@ -4566,6 +4943,8 @@ void ControlHost::OnSize(UINT widthPx, UINT heightPx) noexcept
     {
         _root->SetBounds(D2D1::RectF(0.0f, 0.0f, PixelsToDip(static_cast<float>(_widthPx)), PixelsToDip(static_cast<float>(_heightPx))));
         RefreshWindowHostAccessibilitySnapshot(_hwnd, this);
+        // Adaptive layout and publication run callbacks that can remove the focused control before it is used below.
+        PruneStaleInteractionState();
     }
     if (_widthPx == 0u || _heightPx == 0u)
     {
@@ -4705,7 +5084,7 @@ void ControlHost::OnKillFocus(bool clearRetainedFocus) noexcept
     if (requestRevision != _focusRequestRevision)
         return;
     _modifierState = 0u;
-    if (_focusedControl && ControlBelongsToTree(_root.get(), _focusedControl))
+    if (_focusedControl && IsControlInTree(_root.get(), _focusedControl))
     {
         Control* const oldFocus                   = _focusedControl;
         const std::weak_ptr<int> oldFocusLifetime = oldFocus->GetLifetimeToken();
@@ -4737,7 +5116,93 @@ void ControlHost::OnKillFocus(bool clearRetainedFocus) noexcept
     Invalidate();
 }
 
-void ControlHost::CancelStaleCapture() noexcept
+ControlHost::MessagePruneSnapshot ControlHost::CaptureMessagePruneSnapshot() const noexcept
+{
+    MessagePruneSnapshot snapshot{};
+    snapshot.root                = _root.get();
+    snapshot.interactionRevision = _interactionRevision;
+    if (snapshot.root)
+        snapshot.rootLifetime = snapshot.root->GetLifetimeToken();
+    snapshot.observers[static_cast<size_t>(MessagePruneObserverIndex::Capture)].control            = _capturedControl;
+    snapshot.observers[static_cast<size_t>(MessagePruneObserverIndex::Hover)].control              = _hoveredControl;
+    snapshot.observers[static_cast<size_t>(MessagePruneObserverIndex::Focus)].control              = _focusedControl;
+    snapshot.observers[static_cast<size_t>(MessagePruneObserverIndex::NativeTextInput)].control    = _nativeTextInputControl;
+    snapshot.observers[static_cast<size_t>(MessagePruneObserverIndex::PointerDoubleClick)].control = _pendingPointerDoubleClick.target;
+    return snapshot;
+}
+
+bool ControlHost::CanReuseMessagePruneSnapshot(const MessagePruneSnapshot& current) const noexcept
+{
+    const MessagePruneSnapshot& cached = _messagePruneSnapshot;
+    const uint64_t validationSerial    = _messagePrunePassSerial;
+    if (! current.root || ! cached.valid || cached.root != current.root || (cached.root && cached.rootLifetime.expired()))
+        return false;
+
+    for (size_t index = 0u; index < cached.observers.size(); ++index)
+    {
+        if (cached.observers[index].control != current.observers[index].control ||
+            (cached.observers[index].control && cached.observers[index].lifetime.expired()))
+            return false;
+    }
+
+    for (const MessagePruneObserverSnapshot& observer : cached.observers)
+    {
+        if (! observer.control)
+            continue;
+
+        const MessagePruneObserverSnapshot::LogicalPath& path = observer.path;
+        if (! path.valid || path.depth > path.reverseChildIndices.size())
+            return false;
+
+        const Control* currentControl = current.root;
+        for (size_t remaining = path.depth; remaining > 0u; --remaining)
+        {
+            if (! currentControl->IsVisible() || ! currentControl->IsEnabled())
+                return false;
+
+            const size_t childIndex = path.reverseChildIndices[remaining - 1u];
+            if (childIndex >= currentControl->GetLogicalChildCount())
+                return false;
+            currentControl = currentControl->GetLogicalChild(childIndex);
+            if (! currentControl)
+                return false;
+        }
+        if (currentControl != observer.control || ! currentControl->IsVisible() || ! currentControl->IsEnabled())
+            return false;
+    }
+
+    // The live paths prove membership and effective interactivity even after unrelated mutations.
+    // Still reject a change during validation; an in-progress pass has a stricter publication contract.
+    if (_root.get() != current.root || current.rootLifetime.expired() || cached.rootLifetime.expired() || ! cached.valid ||
+        _interactionRevision != current.interactionRevision || _messagePrunePassSerial != validationSerial)
+        return false;
+    const MessagePruneSnapshot validated = CaptureMessagePruneSnapshot();
+    for (size_t index = 0u; index < cached.observers.size(); ++index)
+    {
+        if (validated.observers[index].control != current.observers[index].control || cached.observers[index].control != current.observers[index].control ||
+            (cached.observers[index].control && cached.observers[index].lifetime.expired()))
+            return false;
+    }
+    return true;
+}
+
+bool ControlHost::CanPublishMessagePrunePass(const MessagePrunePass& pass) const noexcept
+{
+    if (! pass.entry.root || pass.serial != _messagePrunePassSerial || pass.entry.root != _root.get() ||
+        pass.entry.interactionRevision != _interactionRevision || (pass.entry.root && pass.entry.rootLifetime.expired()))
+        return false;
+
+    const MessagePruneSnapshot current = CaptureMessagePruneSnapshot();
+    for (size_t index = 0u; index < pass.entry.observers.size(); ++index)
+    {
+        if (current.observers[index].control != pass.entry.observers[index].control ||
+            (current.observers[index].control && (pass.validatedObserverLifetimes[index].expired() || ! pass.validatedObserverPaths[index].valid)))
+            return false;
+    }
+    return true;
+}
+
+void ControlHost::CancelStaleCapture([[maybe_unused]] MessagePrunePass* pass) noexcept
 {
     // PruneStaleInteractionState drops such a capture silently, which would leave a disabled or hidden slider,
     // splitter, picker or tree mid-drag. A removed control is left to that prune and never dereferenced here.
@@ -4746,7 +5211,15 @@ void ControlHost::CancelStaleCapture() noexcept
     {
         return;
     }
-    const ControlInteractionState state = ResolveControlInteractionState(_root.get(), captured);
+    const ControlInteractionState state = ResolveControlInteractionState(_root.get(),
+                                                                         captured
+#if DXUI_ENABLE_DIAGNOSTICS
+                                                                         ,
+                                                                         true,
+                                                                         true,
+                                                                         pass ? &pass->resolverNodeVisits : nullptr
+#endif
+    );
     if (! state.inTree || state.effectivelyInteractive)
     {
         return;
@@ -4782,15 +5255,39 @@ void ControlHost::CancelCapturedControlInteraction() noexcept
     }
 }
 
-void ControlHost::PruneStaleInteractionState() noexcept
+void ControlHost::PruneStaleInteractionState(MessagePrunePass* pass) noexcept
 {
-    const auto classifyInteractionState = [this](const Control* control) noexcept
+    const auto classifyInteractionState = [this, pass](const Control* control, MessagePruneObserverIndex observer) noexcept
     {
         if (! control || ! _root)
         {
             return ControlInteractionState{};
         }
-        return ResolveControlInteractionState(_root.get(), control);
+        MessagePruneObserverSnapshot::LogicalPath* const path = pass ? &pass->validatedObserverPaths[static_cast<size_t>(observer)] : nullptr;
+        size_t pathDepth                                      = 0u;
+        bool pathFits                                         = true;
+        std::span<uint16_t> reverseChildIndices{};
+        if (path)
+            reverseChildIndices = path->reverseChildIndices;
+        const ControlInteractionState state = ResolveControlInteractionState(_root.get(),
+                                                                             control,
+                                                                             true,
+                                                                             true
+#if DXUI_ENABLE_DIAGNOSTICS
+                                                                             ,
+                                                                             pass ? &pass->resolverNodeVisits : nullptr
+#endif
+                                                                             ,
+                                                                             reverseChildIndices,
+                                                                             path ? &pathDepth : nullptr,
+                                                                             path ? &pathFits : nullptr);
+        if (pass && state.effectivelyInteractive)
+        {
+            pass->validatedObserverLifetimes[static_cast<size_t>(observer)] = control->GetLifetimeToken();
+            path->depth                                                     = pathDepth;
+            path->valid                                                     = pathFits;
+        }
+        return state;
     };
 
     bool prunedCapture         = false;
@@ -4798,7 +5295,7 @@ void ControlHost::PruneStaleInteractionState() noexcept
     bool prunedFocus           = false;
     bool prunedNativeTextInput = false;
 
-    if (_capturedControl && ! classifyInteractionState(_capturedControl).effectivelyInteractive)
+    if (_capturedControl && ! classifyInteractionState(_capturedControl, MessagePruneObserverIndex::Capture).effectivelyInteractive)
     {
         _capturedControl = nullptr;
         prunedCapture    = true;
@@ -4808,7 +5305,7 @@ void ControlHost::PruneStaleInteractionState() noexcept
         }
     }
 
-    const ControlInteractionState hoveredState = classifyInteractionState(_hoveredControl);
+    const ControlInteractionState hoveredState = classifyInteractionState(_hoveredControl, MessagePruneObserverIndex::Hover);
     if (_hoveredControl && ! hoveredState.effectivelyInteractive)
     {
         Control* const oldHover = _hoveredControl;
@@ -4826,7 +5323,7 @@ void ControlHost::PruneStaleInteractionState() noexcept
         ClearTooltip();
     }
 
-    const ControlInteractionState focusedState = classifyInteractionState(_focusedControl);
+    const ControlInteractionState focusedState = classifyInteractionState(_focusedControl, MessagePruneObserverIndex::Focus);
     if (_focusedControl && ! focusedState.effectivelyInteractive)
     {
         ++_keyboardOwnerEpoch;
@@ -4839,13 +5336,14 @@ void ControlHost::PruneStaleInteractionState() noexcept
         prunedFocus = true;
     }
 
-    if (_nativeTextInputControl && ! classifyInteractionState(_nativeTextInputControl).effectivelyInteractive)
+    if (_nativeTextInputControl && ! classifyInteractionState(_nativeTextInputControl, MessagePruneObserverIndex::NativeTextInput).effectivelyInteractive)
     {
         DeactivateNativeTextInputSession();
         prunedNativeTextInput = true;
     }
 
-    if (_pendingPointerDoubleClick.target && ! classifyInteractionState(_pendingPointerDoubleClick.target).effectivelyInteractive)
+    if (_pendingPointerDoubleClick.target &&
+        ! classifyInteractionState(_pendingPointerDoubleClick.target, MessagePruneObserverIndex::PointerDoubleClick).effectivelyInteractive)
     {
         ClearPendingPointerDoubleClick();
     }
@@ -4877,9 +5375,9 @@ void ControlHost::ResetRootInteractionState() noexcept
     ++_focusRequestRevision;
     const bool wasResetting                   = std::exchange(_resettingInteractionState, true);
     const auto endResetting                   = wil::scope_exit([this, wasResetting]() noexcept { _resettingInteractionState = wasResetting; });
-    Control* const captured                   = ControlBelongsToTree(_root.get(), _capturedControl) ? _capturedControl : nullptr;
-    Control* const hovered                    = ControlBelongsToTree(_root.get(), _hoveredControl) ? _hoveredControl : nullptr;
-    Control* const focused                    = ControlBelongsToTree(_root.get(), _focusedControl) ? _focusedControl : nullptr;
+    Control* const captured                   = IsControlInTree(_root.get(), _capturedControl) ? _capturedControl : nullptr;
+    Control* const hovered                    = IsControlInTree(_root.get(), _hoveredControl) ? _hoveredControl : nullptr;
+    Control* const focused                    = IsControlInTree(_root.get(), _focusedControl) ? _focusedControl : nullptr;
     const std::weak_ptr<int> capturedLifetime = captured ? captured->GetLifetimeToken() : std::weak_ptr<int>{};
     const std::weak_ptr<int> hoveredLifetime  = hovered ? hovered->GetLifetimeToken() : std::weak_ptr<int>{};
     const std::weak_ptr<int> focusedLifetime  = focused ? focused->GetLifetimeToken() : std::weak_ptr<int>{};
@@ -4990,12 +5488,12 @@ void ControlHost::UpdateHover(D2D1_POINT_2F pointDip, UINT modifiers) noexcept
         {
             Control* const oldHover                   = _hoveredControl;
             const std::weak_ptr<int> oldHoverLifetime = oldHover->GetLifetimeToken();
-            oldHover->OnHoverChanged(*this, false);
+            static_cast<void>(TryControlCallback([&] { oldHover->OnHoverChanged(*this, false); }));
             if (_interactionRevision != interactionRevision)
                 return;
             if (Control* const liveOldHover = RevalidateDispatchedControl(oldHoverLifetime, _root.get(), oldHover))
             {
-                liveOldHover->OnMouseLeave(*this);
+                static_cast<void>(TryControlCallback([&] { liveOldHover->OnMouseLeave(*this); }));
                 if (_interactionRevision != interactionRevision)
                     return;
             }
@@ -5005,7 +5503,7 @@ void ControlHost::UpdateHover(D2D1_POINT_2F pointDip, UINT modifiers) noexcept
         {
             Control* const newHover                   = _hoveredControl;
             const std::weak_ptr<int> newHoverLifetime = newHover->GetLifetimeToken();
-            newHover->OnHoverChanged(*this, true);
+            static_cast<void>(TryControlCallback([&] { newHover->OnHoverChanged(*this, true); }));
             _hoveredControl = RevalidateInteractiveDispatchedControl(newHoverLifetime, _root.get(), newHover);
             if (_interactionRevision != interactionRevision)
                 return;
@@ -5016,7 +5514,7 @@ void ControlHost::UpdateHover(D2D1_POINT_2F pointDip, UINT modifiers) noexcept
     {
         Control* const moveTarget                   = _hoveredControl;
         const std::weak_ptr<int> moveTargetLifetime = moveTarget->GetLifetimeToken();
-        moveTarget->OnMouseMove(*this, pointDip, modifiers);
+        static_cast<void>(TryControlCallback([&] { moveTarget->OnMouseMove(*this, pointDip, modifiers); }));
         _hoveredControl = RevalidateInteractiveDispatchedControl(moveTargetLifetime, _root.get(), moveTarget);
         if (_interactionRevision != interactionRevision)
             return;
@@ -5030,8 +5528,11 @@ void ControlHost::UpdateHover(D2D1_POINT_2F pointDip, UINT modifiers) noexcept
 
 void ControlHost::UpdateSupplementalTooltipTarget(D2D1_POINT_2F pointDip) noexcept
 {
-    Control* const target            = FindSupplementalTooltipTarget(_root.get(), pointDip);
-    const std::wstring targetText    = target ? std::wstring(target->GetTooltipText()) : std::wstring{};
+    Control* const target = FindSupplementalTooltipTarget(_root.get(), pointDip);
+    // A copy that cannot be made (out of memory) shows no supplemental tooltip rather than leaving this noexcept path.
+    std::wstring targetText;
+    if (target && ! TryControlCallback([&] { targetText = std::wstring(target->GetTooltipText()); }))
+        targetText.clear();
     const bool targetLifetimeExpired = _supplementalTooltipControl && _supplementalTooltipLifetime.expired();
     const bool targetChanged         = target != _supplementalTooltipControl || targetLifetimeExpired || targetText != _supplementalTooltipText;
     _supplementalTooltipPointDip     = pointDip;
@@ -5127,7 +5628,6 @@ bool ControlHost::AnimationTickThunk(void* context, uint64_t nowTickMs) noexcept
 
 bool ControlHost::OnAnimationTick(uint64_t nowTickMs) noexcept
 {
-    _lastAnimationTickMs = nowTickMs;
     if (_hwnd && ! IsHostWindowEffectivelyVisible(_hwnd))
     {
         _animationSuspendedWhileHidden = true;
@@ -5148,7 +5648,9 @@ bool ControlHost::OnAnimationTick(uint64_t nowTickMs) noexcept
         return true;
     }
 
-    const bool rootTicking    = _root->Tick(*this, nowTickMs);
+    // A tree whose Tick throws stops ticking until a control asks for animation again, rather than failing every frame.
+    bool rootTicking = false;
+    static_cast<void>(TryControlCallback([&] { rootTicking = _root->Tick(*this, nowTickMs); }));
     const bool tooltipTicking = _tooltipLayer.Tick(*this, nowTickMs);
     const bool keepTicking    = rootTicking || tooltipTicking;
     if (! keepTicking)

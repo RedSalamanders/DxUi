@@ -2,7 +2,7 @@
 [CmdletBinding()]
 param(
     [string] $InputDirectory=(Join-Path $PSScriptRoot '../ThirdParty/Markdown'),
-    [string] $OutputPath=(Join-Path $PSScriptRoot '../Tests/Controls/Scope.Tests.MarkdownCorpus.h'),
+    [string] $OutputPath=(Join-Path $PSScriptRoot '../Tests/Controls/Controls.Tests.MarkdownCorpus.h'),
     [switch] $Check
 )
 Set-StrictMode -Version Latest

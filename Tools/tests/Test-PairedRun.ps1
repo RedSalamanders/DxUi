@@ -164,6 +164,32 @@ Invoke-FixtureCase 'a restore keeps a directory that gained other files' {
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $target 'Tools/Compare-Performance.ps1'))) 'the overlay file is gone'
 }
 
+Invoke-FixtureCase 'overlay rollback preserves later edits to created and replaced paths while restoring unaffected files' {
+    param($root)
+    $source = Join-Path $root 'harness'
+    $target = Join-Path $root 'tree'
+    $backup = Join-Path $root 'backup'
+    foreach ($path in @('created.ps1','replaced.ps1','other.ps1','temporary.ps1')) {
+        Set-FixtureFile $source $path "harness $path`n"
+    }
+    Set-FixtureFile $target 'replaced.ps1' "original replaced`n"
+    Set-FixtureFile $target 'other.ps1' "original other`n"
+    $records = @(Copy-HarnessOverlay -Source $source -Target $target -Paths @('created.ps1','replaced.ps1','other.ps1','temporary.ps1') -BackupDirectory $backup)
+    Set-FixtureFile $target 'created.ps1' "later created edit`n"
+    Set-FixtureFile $target 'replaced.ps1' "later replaced edit`n"
+    $message = ''
+    try { Restore-HarnessOverlay -Target $target -Records $records -BackupDirectory $backup }
+    catch { $message = $_.Exception.Message }
+    $created = Join-Path $target 'created.ps1'
+    Assert-True (Test-Path -LiteralPath $created -PathType Leaf) 'a later edit at an originally absent path is retained'
+    Assert-Equal "later created edit`n" ([IO.File]::ReadAllText($created)) 'created-path edit bytes survive rollback'
+    Assert-Equal "later replaced edit`n" ([IO.File]::ReadAllText((Join-Path $target 'replaced.ps1'))) 'replacement-path edit bytes survive rollback'
+    Assert-Equal "original replaced`n" ([IO.File]::ReadAllText((Join-Path $backup 'replaced.ps1'))) 'the original backup remains recoverable'
+    Assert-Equal "original other`n" ([IO.File]::ReadAllText((Join-Path $target 'other.ps1'))) 'unaffected originals still return'
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $target 'temporary.ps1'))) 'unmodified temporary files are removed'
+    Assert-True ($message.Contains('created.ps1') -and $message.Contains('replaced.ps1')) 'both refused restorations are reported'
+}
+
 Invoke-FixtureCase 'a tree that is the harness source is never rewritten' {
     param($root)
     $source = Join-Path $root 'harness'
@@ -593,6 +619,52 @@ Invoke-FixtureCase 'the source fingerprint is the one receipts have always recor
     Assert-True ((Get-SourceFingerprint -Root $second) -ceq $fingerprint) 'the other tree is unaffected'
     Set-FixtureFile $second 'src/Controls/Control.cpp' "edited`n"
     Assert-True ((Get-SourceFingerprint -Root $second) -cne $fingerprint) 'an edit changes it'
+}
+
+Invoke-FixtureCase 'the source fingerprint reads a non-ASCII name as git stores it, whatever the console code page' {
+    param($root)
+    # CR-30 of the 10 October review: the names came through the console's code page, and git quoted a non-ASCII one, so
+    # hashing the file under src/Gr<o-umlaut><sharp-s>e.cpp threw.
+    & git -C $root init --quiet
+    $tracked = "src/Controls/Gr$([char]0x00F6)$([char]0x00DF)e.cpp"
+    $untracked = "include/DxUi/$([char]0x00C9)t$([char]0x00E9).h"
+    Set-FixtureFile $root $tracked "int size;`n"
+    Set-FixtureFile $root 'src/Controls/Plain.cpp' "int plain;`n"
+    & git -C $root -c core.autocrlf=false add -A
+    Set-FixtureFile $root $untracked "int ete;`n"
+    $previous = [Console]::OutputEncoding
+    $switched = $false
+    try {
+        try { [Console]::OutputEncoding = [Text.Encoding]::ASCII; $switched = $true } catch [System.IO.IOException] { }
+        $fingerprint = Get-SourceFingerprint -Root $root
+    } finally { if ($switched) { [Console]::OutputEncoding = $previous } }
+    $lines = foreach ($source in (@($tracked, 'src/Controls/Plain.cpp', $untracked) | Sort-Object -Unique)) {
+        "$source $((Get-FileHash -LiteralPath (Join-Path $root $source) -Algorithm SHA256).Hash)"
+    }
+    $expected = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes(($lines -join "`n"))))
+    Assert-Equal $expected $fingerprint 'the fingerprint hashes every library input under its own name'
+}
+
+Invoke-FixtureCase 'the measured base judge is hashed by its committed bytes, non-ASCII text and a missing final newline included' {
+    param($root)
+    # CR-30 of the 10 October review: the committed judge was read through the console's code page and split into lines.
+    & git -C $root -c user.name=fixture -c user.email=fixture@example.invalid init -q -b main
+    $baseSource = "# Gr$([char]0x00F6)$([char]0x00DF)e $([char]0x2264) bound`nfunction Compare-PerformanceSet { 'base-judge' }`nExport-ModuleMember -Function Compare-PerformanceSet"
+    Set-FixtureFile $root 'Tools/PerformanceComparison.psm1' $baseSource
+    & git -C $root -c core.autocrlf=false -c user.name=fixture -c user.email=fixture@example.invalid -c commit.gpgsign=false add -A
+    & git -C $root -c user.name=fixture -c user.email=fixture@example.invalid -c commit.gpgsign=false commit -q -m 'base judge'
+    $commit = (& git -C $root rev-parse HEAD).Trim()
+    $candidatePath = Join-Path $root 'candidate/PerformanceComparison.psm1'
+    Set-FixtureFile $root 'candidate/PerformanceComparison.psm1' "function Compare-PairedBlockSet { 'candidate-judge' }`nfunction Get-PairedPerformanceJudgeVersion { 'dxui-fixture-v1' }`nExport-ModuleMember -Function Compare-PairedBlockSet, Get-PairedPerformanceJudgeVersion`n"
+    $previous = [Console]::OutputEncoding
+    $switched = $false
+    try {
+        try { [Console]::OutputEncoding = [Text.Encoding]::ASCII; $switched = $true } catch [System.IO.IOException] { }
+        $loaded = Get-VersionedPerformanceJudge -RepositoryRoot $root -BaselineCommit $commit -CandidateModulePath $candidatePath
+    } finally { if ($switched) { [Console]::OutputEncoding = $previous } }
+    Assert-Equal 'available' $loaded.status 'the measured base source loads'
+    $expected = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($baseSource)))
+    Assert-Equal $expected $loaded.baseJudgeSha256 'its hash is that of the bytes it was committed with'
 }
 
 Invoke-TestCase 'the measurement scripts parse' {

@@ -10,12 +10,16 @@ scope cannot be decided throws, which fails the job.
 .PARAMETER BaseRef The pull request's base branch; defaults to GITHUB_BASE_REF.
 .PARAMETER Repository The checkout; defaults to the current directory.
 .PARAMETER Candidate The commit measured; defaults to HEAD.
+.PARAMETER ExpectedBaseSha The pull request's base commit as the workflow names it; the merge commit's first parent must be it.
+.PARAMETER ExpectedCandidateSha The pull request's merge commit as the workflow names it; the checkout must be it.
 #>
 [CmdletBinding()]
 param(
     [string] $BaseRef = $env:GITHUB_BASE_REF,
     [string] $Repository = '.',
-    [string] $Candidate = 'HEAD'
+    [string] $Candidate = 'HEAD',
+    [string] $ExpectedBaseSha = '',
+    [string] $ExpectedCandidateSha = ''
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -23,6 +27,7 @@ Import-Module (Join-Path $PSScriptRoot 'BenchmarkGate.psm1') -Force
 if (-not $BaseRef) { throw 'Name the pull request''s base branch with -BaseRef (the runner sets GITHUB_BASE_REF).' }
 
 $pair = Resolve-PullRequestPair -Repository $Repository -Candidate $Candidate -BaseRef $BaseRef
+Assert-ExpectedPullRequestPair -Pair $pair -ExpectedBaseSha $ExpectedBaseSha -ExpectedCandidateSha $ExpectedCandidateSha
 $paths = @(Get-PullRequestChangedPaths -Repository $Repository -Baseline $pair.Baseline -Candidate $pair.Candidate)
 $scope = Get-BenchmarkScope -ChangedPaths $paths
 

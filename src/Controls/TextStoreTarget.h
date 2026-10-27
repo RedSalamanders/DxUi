@@ -3,6 +3,7 @@
 #include <DxUi/DxUi.h>
 #include <DxUi/TextInputServices.h>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <msctf.h>
 #include <textstor.h>
@@ -31,6 +32,11 @@ public:
     virtual HRESULT GetAcpFromScreenPoint(const POINT* point, LONG* acp) const noexcept                = 0;
     virtual HRESULT GetRangeScreenRect(LONG start, LONG end, RECT* rect, BOOL* clipped) const noexcept = 0;
     virtual HRESULT GetScreenRect(RECT* rect) const noexcept                                           = 0;
+    // Native controls enforce their own document limits; application snapshots may impose a smaller ceiling.
+    [[nodiscard]] virtual size_t GetMaximumDocumentTextUnits() const noexcept
+    {
+        return (std::numeric_limits<size_t>::max)();
+    }
     virtual bool ScheduleLock() noexcept
     {
         return false;

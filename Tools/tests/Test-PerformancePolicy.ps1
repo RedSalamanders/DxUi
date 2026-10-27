@@ -4,6 +4,21 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'TestSupport.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../PerformancePolicy.psm1') -Force
 
+Invoke-TestCase 'process environment restoration distinguishes unset from empty' {
+    $name = 'DXUI_TEST_PROCESS_ENV_RESTORE'
+    $previous = [Environment]::GetEnvironmentVariable($name)
+    try {
+        Restore-TestEnvironmentVariable $name $null
+        Assert-True ($null -eq [Environment]::GetEnvironmentVariable($name)) 'an absent variable is absent after restoration'
+        Restore-TestEnvironmentVariable $name ''
+        $empty = [Environment]::GetEnvironmentVariable($name)
+        Assert-True ($null -ne $empty -and $empty.Length -eq 0) 'an explicitly empty variable remains present and empty'
+        Restore-TestEnvironmentVariable $name $null
+        Assert-True ($null -eq [Environment]::GetEnvironmentVariable($name)) 'restoring absent removes a previously empty variable'
+        Restore-TestEnvironmentVariable $name 'value'
+        Assert-Equal 'value' ([Environment]::GetEnvironmentVariable($name)) 'restoring a nonempty variable preserves its value'
+    } finally { Restore-TestEnvironmentVariable $name $previous }
+}
 function Invoke-FixtureGit([string] $Root, [string[]] $Arguments) {
     & git -C $Root -c user.name=fixture -c user.email=fixture@example.invalid -c commit.gpgsign=false @Arguments 2>&1 | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "git $($Arguments -join ' ') failed" }
@@ -178,6 +193,31 @@ Invoke-FixtureCase 'only an independently qualified policy present in the measur
     $changed = Get-TrustedPerformancePolicy -BaselineCommit $commit -RepositoryRoot $root -CandidatePolicyPath $path
     Assert-True (-not $changed.trusted) 'candidate policy mutation cannot inherit trust'
     Assert-Equal 'policy-review-required' $changed.status 'mutated policy status'
+}
+
+Invoke-FixtureCase 'a qualified base is trusted by the bytes of its sources, non-ASCII text and a missing final newline included' {
+    param($root)
+    # CR-30 of the 10 October review: the committed sources were read through the console's code page and split into lines,
+    # so a non-ASCII byte or a missing final newline made the base differ from the files it was committed from.
+    Invoke-FixtureGit $root @('init','-q','-b','main')
+    $judge = "# Gr$([char]0x00F6)$([char]0x00DF)e $([char]0x2264) bound`nfunction Get-PairedPerformanceJudgeVersion { 'dxui-fixture-v1' }`nfunction Get-PairedAssignmentProtocol { 'fixture-independent-v1' }`nExport-ModuleMember -Function Get-PairedPerformanceJudgeVersion, Get-PairedAssignmentProtocol"
+    $assignment = "# assignment fixture $([char]0x00E9)t$([char]0x00E9)"
+    Set-FixtureFile $root 'Tools/PerformanceComparison.psm1' $judge
+    Set-FixtureFile $root 'Tools/PairedRun.psm1' $assignment
+    $hash = { param([string] $Text) [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($Text))) }
+    $policy = [ordered]@{ schemaVersion=1; qualificationStatus='qualified'; qualified=$true; policyId='fixture-v1'; judgeVersion='dxui-fixture-v1'; approvedJudgeSha256=(& $hash $judge);
+        assignmentProtocol='fixture-independent-v1'; approvedAssignmentSha256=(& $hash $assignment) }
+    $path = Join-Path $root 'Tools/PerformanceAcceptancePolicy.v1.json'
+    [IO.File]::WriteAllText($path, (ConvertTo-Json -InputObject $policy -Depth 4), [Text.UTF8Encoding]::new($false))
+    Invoke-FixtureGit $root @('-c','core.autocrlf=false','add','-A'); Invoke-FixtureGit $root @('commit','-q','-m','non-ASCII sources without a final newline')
+    $commit = (& git -C $root rev-parse HEAD).Trim()
+    $previous = [Console]::OutputEncoding
+    $switched = $false
+    try {
+        try { [Console]::OutputEncoding = [Text.Encoding]::ASCII; $switched = $true } catch [System.IO.IOException] { }
+        $trusted = Get-TrustedPerformancePolicy -BaselineCommit $commit -RepositoryRoot $root -CandidatePolicyPath $path
+    } finally { if ($switched) { [Console]::OutputEncoding = $previous } }
+    Assert-True $trusted.trusted "the committed sources hash as the files they were committed from: $($trusted.reason)"
 }
 
 Invoke-FixtureCase 'a missing or unqualified base policy cannot be bootstrapped by the candidate' {
@@ -765,7 +805,10 @@ Invoke-FixtureCase 'resolved native inputs require owned bytes and reject ignore
     try {
         [Environment]::SetEnvironmentVariable('CL','@C:/implicit.rsp')
         Assert-Throws { Get-FixtureNativeClosure $fixture } 'an implicit CL response path was accepted'
-    } finally { [Environment]::SetEnvironmentVariable('CL',$old) }
+    } finally { Restore-TestEnvironmentVariable 'CL' $old }
+    $restoredCL = [Environment]::GetEnvironmentVariable('CL')
+    Assert-True (($null -eq $old) -eq ($null -eq $restoredCL)) 'native-closure fixture restores whether CL was unset'
+    if ($null -ne $old) { Assert-Equal $old $restoredCL 'native-closure fixture restores the exact CL value' }
     Set-FixtureFile $root 'include/ignored.h' 'ignored header'
     Assert-Throws { Get-FixtureNativeClosure $fixture } 'ignored bytes under an active include root were accepted'
     Remove-Item -LiteralPath (Join-Path $root 'include/ignored.h')
@@ -1353,7 +1396,10 @@ Invoke-FixtureCase 'changed implicit compiler options invalidate a reused or ong
             [Environment]::SetEnvironmentVariable('CL', '/DPERFORMANCE_BUILD_FIXTURE=3')
             Assert-Throws { Complete-PerformanceBuildAttestation -Root $fixture -Platform x64 -Configuration Release -Before $before } 'mid-build CL changes published an attestation'
             Assert-Throws { Assert-PerformanceBuildAttestation -Root $fixture -Platform x64 -Configuration Release } 'failed implicit compiler identity left a passing receipt'
-        } finally { [Environment]::SetEnvironmentVariable('CL', $priorOptions) }
+        } finally { Restore-TestEnvironmentVariable 'CL' $priorOptions }
+        $restoredOptions = [Environment]::GetEnvironmentVariable('CL')
+        Assert-True (($null -eq $priorOptions) -eq ($null -eq $restoredOptions)) 'build fixture restores whether CL was unset'
+        if ($null -ne $priorOptions) { Assert-Equal $priorOptions $restoredOptions 'build fixture restores the exact CL value' }
     }
 }
 

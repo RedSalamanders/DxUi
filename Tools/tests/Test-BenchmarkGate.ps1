@@ -9,7 +9,6 @@ Import-Module (Join-Path $PSScriptRoot '../PerformanceComparison.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../PairedRun.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../PerformancePolicy.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../BenchmarkGate.psm1') -Force
-Add-Type -AssemblyName System.IO.Compression.FileSystem
 $repository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 
 function Invoke-FixtureGit([string] $Root, [string[]] $Arguments) {
@@ -80,8 +79,12 @@ Invoke-TestCase 'one measured path among documentation is enough, and the paths 
     Assert-Equal 3 $scope.Ignored 'the others'
     Assert-True (-not (Get-BenchmarkScope -ChangedPaths @()).Relevant) 'an empty change measures nothing'
     Assert-True (-not (Get-BenchmarkScope -ChangedPaths @('', $null)).Relevant) 'blank names measure nothing'
-    # git is case-sensitive, so a directory that merely looks like a measured one is not one.
-    Assert-True (-not (Get-BenchmarkScope -ChangedPaths @('Src/Other.cpp', 'srcs/Other.cpp', 'src-notes/Other.cpp')).Relevant) 'a near miss is not a library path'
+    # The Windows runner builds a measured path in any case, so a case variant is measured (CR-30 of the 10 October review);
+    # a directory that merely starts like a measured one is not.
+    foreach ($variant in @('Src/Other.cpp', 'SRC/Controls/x.cpp', 'performance-PAIRED.ps1', 'tools/benchmarkgate.psm1', '.GITHUB/workflows/CI.yml')) {
+        Assert-True (Get-BenchmarkScope -ChangedPaths @($variant)).Relevant "the case variant $variant is measured"
+    }
+    Assert-True (-not (Get-BenchmarkScope -ChangedPaths @('srcs/Other.cpp', 'src-notes/Other.cpp', 'Tools/BenchmarkGateNotes.txt')).Relevant) 'a near miss is not a library path'
 }
 
 Invoke-TestCase 'the rules cover what a receipt hashes: the library inputs and the harness' {
@@ -216,6 +219,23 @@ Invoke-FixtureCase 'a path with a space is named as it is' {
     Assert-True (Get-BenchmarkScope -ChangedPaths $paths).Relevant 'a library file with a space is a library file'
 }
 
+Invoke-FixtureCase 'a non-ASCII path is named as git stores it, whatever the console code page' {
+    param($root)
+    Invoke-FixtureGit $root @('init', '-q', '-b', 'main')
+    $base = Add-FixtureCommit $root 'initial' @{ 'README.md' = "one`n" }
+    $name = "src/Controls/Gr$([char]0x00F6)$([char]0x00DF)e.cpp"
+    [void](Add-FixtureCommit $root 'a non-ASCII name' @{ $name = "int a;`n" })
+    $previous = [Console]::OutputEncoding
+    $switched = $false
+    try {
+        # A console encoding that cannot decode UTF-8 names, as a runner's may be; a host without a console keeps its own.
+        try { [Console]::OutputEncoding = [Text.Encoding]::ASCII; $switched = $true } catch [System.IO.IOException] { }
+        $paths = @(Get-PullRequestChangedPaths -Repository $root -Baseline $base -Candidate (Get-FixtureHead $root))
+    } finally { if ($switched) { [Console]::OutputEncoding = $previous } }
+    Assert-Equal $name ($paths -join ' ') 'the library file keeps its name'
+    Assert-True (Get-BenchmarkScope -ChangedPaths $paths).Relevant 'and is a library file'
+}
+
 # --- Verdicts and controls --------------------------------------------------------------------------------------------------
 
 function New-SetMetric {
@@ -268,14 +288,16 @@ function New-GateRunSummaries([System.Collections.IDictionary] $ReceiptsByRun) {
 }
 
 function Get-QualifiedFixtureConclusion([System.Collections.IDictionary] $Summary, [string] $Directory, [string] $JudgeHash, [string] $JudgeVersion,
-    [switch] $Strict, [switch] $ChangeControlsAfterReplay) {
+    [switch] $Strict, [switch] $ChangeControlsAfterReplay, [string] $ExpectedBase = '', [string] $ExpectedCandidate = '') {
     # Scope only the policy lookup to a fixture trust anchor. The production source hashes, schedule, raw receipt
     # inventory and both real judge replays remain active, and no policy file is modified or qualified by this test.
     $gateModule = Get-Module BenchmarkGate
     return & $gateModule {
-        param($Report,$ReportsDirectory,$FixtureJudgeHash,$FixtureJudgeVersion,$FixtureStrict,$FixtureChangeControlsAfterReplay)
+        param($Report,$ReportsDirectory,$FixtureJudgeHash,$FixtureJudgeVersion,$FixtureStrict,$FixtureChangeControlsAfterReplay,$FixtureExpectedBase,$FixtureExpectedCandidate)
         function Get-TrustedPerformancePolicy {
             param($BaselineCommit,$RepositoryRoot,$CandidatePolicyPath)
+            # The commit the trust anchor was read from, for a case to check.
+            $global:FixturePolicyBaseline = $BaselineCommit
             return [ordered]@{trusted=$true;status='trusted';policySha256='fixture-policy';
                 policy=[ordered]@{approvedJudgeSha256=$FixtureJudgeHash;judgeVersion=$FixtureJudgeVersion}}
         }
@@ -284,7 +306,7 @@ function Get-QualifiedFixtureConclusion([System.Collections.IDictionary] $Summar
             # consume its validated raw-receipt drift maps rather than read these later file contents.
             $actualReplay = (Get-Command Test-DualJudgeReceiptEvidence).ScriptBlock
             function Test-DualJudgeReceiptEvidence {
-                param($Summary,$ReportsDirectory,$ApprovedJudgeSha256,$ApprovedJudgeVersion)
+                param($Summary,$ReportsDirectory,$ApprovedJudgeSha256,$ApprovedJudgeVersion,$RepositoryRoot,$CandidateRoot,$ExpectedBaseSha)
                 $verified = & $actualReplay @PSBoundParameters
                 foreach ($scenario in $Summary.scenarios) {
                     foreach ($control in $scenario.comparisons) {
@@ -294,8 +316,9 @@ function Get-QualifiedFixtureConclusion([System.Collections.IDictionary] $Summar
                 return $verified
             }
         }
-        Get-BenchmarkConclusion -Summary $Report -ReportsDirectory $ReportsDirectory -RequireQualifiedPolicy -StrictControls:$FixtureStrict
-    } $Summary $Directory $JudgeHash $JudgeVersion ([bool]$Strict) ([bool]$ChangeControlsAfterReplay)
+        Get-BenchmarkConclusion -Summary $Report -ReportsDirectory $ReportsDirectory -RequireQualifiedPolicy -StrictControls:$FixtureStrict `
+            -ExpectedBaseSha $FixtureExpectedBase -ExpectedCandidateSha $FixtureExpectedCandidate
+    } $Summary $Directory $JudgeHash $JudgeVersion ([bool]$Strict) ([bool]$ChangeControlsAfterReplay) $ExpectedBase $ExpectedCandidate
 }
 
 function New-ScheduledGateControls([string] $Root, [string] $Name, [object[]] $Blocks, [System.Collections.IDictionary] $ReceiptsByRun) {
@@ -315,7 +338,7 @@ function New-ScheduledGateControls([string] $Root, [string] $Name, [object[]] $B
 }
 
 function New-ReceiptBoundGateStudy([string] $Root, [switch] $NoisyControl, [string] $ControlMetric = 'prepareP95Ms',
-    [double] $ControlBefore = 100.0, [double] $ControlAfter = 130.0, [string] $ControlPhase = 'clean') {
+    [double] $ControlBefore = 100.0, [double] $ControlAfter = 130.0, [string] $ControlPhase = 'clean', [switch] $PeakOnlyRise) {
     $baseCommit = (& git -C $repository rev-parse HEAD).Trim()
     $judges = Get-VersionedPerformanceJudge -RepositoryRoot $repository -BaselineCommit $baseCommit -CandidateModulePath (Join-Path $repository 'Tools/PerformanceComparison.psm1')
     Assert-Equal 'available' $judges.status 'the fixture uses the real immutable base and candidate judges'
@@ -329,6 +352,10 @@ function New-ReceiptBoundGateStudy([string] $Root, [switch] $NoisyControl, [stri
                 if ($step.Name -ceq $schedule.Blocks[0].BaselineRuns[0]) { foreach ($round in $phase.rounds) { $round[$ControlMetric] = $ControlBefore } }
                 if ($step.Name -ceq $schedule.Blocks[0].BaselineRuns[1]) { foreach ($round in $phase.rounds) { $round[$ControlMetric] = $ControlAfter } }
             }
+            if ($PeakOnlyRise -and $name -ceq 'Default' -and $step.Name -ceq $schedule.Blocks[0].CandidateRuns[0]) {
+                # One dirty round of one candidate run allocates once more: the run's median, and so every median, stays.
+                @($receipt.scenarios | Where-Object { $_.name -ceq 'dirty' })[0].rounds[0].cppAllocations += 1
+            }
             Set-FixtureJson $Root "$name-$($step.Name).json" $receipt
             $byRun[$step.Name] = $receipt
             $hashes += [ordered]@{run=$step.Name;sha256=(Get-FileHash -LiteralPath (Join-Path $Root "$name-$($step.Name).json") -Algorithm SHA256).Hash}
@@ -338,8 +365,10 @@ function New-ReceiptBoundGateStudy([string] $Root, [switch] $NoisyControl, [stri
         } })
         $legacy = & $judges.module { param($Blocks) Compare-PerformanceSet -Baseline @($Blocks | ForEach-Object {$_.Baseline}) -Candidate @($Blocks | ForEach-Object {$_.Candidate}) } $blocks
         $migrated = & $judges.candidateModule { param($Blocks,$Protocol) Compare-PairedBlockSet -Blocks $Blocks -MinimumBlocks 12 -AssignmentProtocol $Protocol } $blocks $schedule.Allocation
+        # The run records the agreement it computes, as performance-paired.ps1 does.
+        $agreement = & (Get-Module BenchmarkGate) { param($Legacy, $Migrated) Test-EquivalentPerformanceVerdicts -Legacy $Legacy -Migrated $Migrated } $legacy $migrated
         [ordered]@{scenario=$name;runs=(New-GateRunSummaries $byRun);comparisons=(New-ScheduledGateControls $Root $name $schedule.Blocks $byRun);set=(Copy-JsonValue $migrated);
-            judgeComparison=[ordered]@{baseJudgeCommit=$baseCommit;baseJudgeSha256=$judges.baseJudgeSha256;candidateJudgeSha256=$judges.candidateJudgeSha256;reportBytesStable=$true;verdictAgreement=$true;
+            judgeComparison=[ordered]@{baseJudgeCommit=$baseCommit;baseJudgeSha256=$judges.baseJudgeSha256;candidateJudgeSha256=$judges.candidateJudgeSha256;reportBytesStable=$true;verdictAgreement=[bool]$agreement;
                 sameReceiptsSha256=$hashes;legacyJudge=(Copy-JsonValue $legacy);migratedJudge=(Copy-JsonValue $migrated)}}
     })
     return [ordered]@{studyVersion=3;studyPurpose='regression-qualification';blocks=12;seed=$schedule.Seed;allocation=$schedule.Allocation;order=$schedule.Order;
@@ -528,6 +557,51 @@ Invoke-FixtureCase 'controls that cannot be read confirm nothing' {
     $broken = New-Scenario -Directory $root -Controls @() -Metrics $flagged
     $broken['comparisons'] = @([ordered]@{ name = 'Default-C1-control'; status = 'stable-control'; file = 'Default-C1-control.comparison.json'; drift = @() })
     Assert-Equal 'inconclusive' (Get-Conclusion (New-Summary @($broken)) $root).Conclusion 'a control file that is not JSON is unreadable'
+}
+
+Invoke-FixtureCase 'a rise of an exact budget''s peak alone reaches the verdict table instead of a judge disagreement' {
+    param($root)
+    # CR-30 of the 10 October review: the paired-block judge regresses an exact budget whose raw-round maximum rose, the
+    # median-based judge it migrates from does not, and the disagreement made the run inconclusive with no table.
+    $study = New-ReceiptBoundGateStudy $root -PeakOnlyRise
+    $default = @($study.scenarios | Where-Object { $_.scenario -ceq 'Default' })[0]
+    $legacyMetric = @($default.judgeComparison.legacyJudge.metrics | Where-Object { $_.phase -ceq 'dirty' -and $_.metric -ceq 'cppAllocations' })[0]
+    $migratedMetric = @($default.judgeComparison.migratedJudge.metrics | Where-Object { $_.phase -ceq 'dirty' -and $_.metric -ceq 'cppAllocations' })[0]
+    Assert-Equal 'within-noise' $legacyMetric.verdict 'the median-based judge sees no rise'
+    Assert-Equal 'regressed' $migratedMetric.verdict 'the paired-block judge regresses the peak'
+    Assert-True $default.judgeComparison.verdictAgreement 'which the run records as the expected difference'
+    $verdict = Get-QualifiedFixtureConclusion $study $root $study.judgeProvenance.candidateJudgeSha256 $study.judgeProvenance.candidateJudgeVersion
+    Assert-True ($verdict.Conclusion -cin @('degraded', 'inconclusive')) "the peak fails the gate: $($verdict.Conclusion) $($verdict.Notes -join ' ')"
+    Assert-Equal 3 @($verdict.Scenarios).Count 'with every scenario judged'
+    $row = @(@($verdict.Scenarios | Where-Object { $_.Scenario -ceq 'Default' })[0].Metrics | Where-Object { $_.Phase -ceq 'dirty' -and $_.Metric -ceq 'cppAllocations' })[0]
+    Assert-Equal 'regressed' $row.Verdict 'and the flagged row in its table'
+    Assert-Equal 2161.0 ([double]$row.CandidateMaximum) 'showing the peak'
+    $other = Copy-JsonValue $study
+    $otherDefault = @($other.scenarios | Where-Object { $_.scenario -ceq 'Default' })[0]
+    @($otherDefault.judgeComparison.migratedJudge.metrics | Where-Object { $_.phase -ceq 'clean' -and $_.metric -ceq 'fps' })[0].verdict = 'regressed'
+    $evidence = Test-DualJudgeReceiptEvidence -Summary $other -ReportsDirectory $root -ApprovedJudgeSha256 $study.judgeProvenance.candidateJudgeSha256 -ApprovedJudgeVersion $study.judgeProvenance.candidateJudgeVersion
+    Assert-True (-not $evidence.valid) 'any other disagreement still fails'
+    Assert-True $evidence.reason.Contains('clean/fps (within-noise -> regressed)') "and names the metric: $($evidence.reason)"
+}
+
+Invoke-FixtureCase 'an exact budget reports the change of its medians, which the paired-block judge leaves at zero' {
+    param($root)
+    # CR-30 of the 10 October review: the migrated judge sets an exact budget's block effects, and so its change, to zero.
+    $risen = New-SetMetric 'dirty' 'surfaceBytes' 'regressed' -Exact -Before 2160 -After 2200
+    $risen.changePercent = 0.0; $risen.Remove('noisePercent'); $risen.band = 0.0
+    $fromZero = New-SetMetric 'clean' 'cppAllocations' 'regressed' -Exact -Before 0 -After 64
+    $fromZero.changePercent = 0.0; $fromZero.Remove('noisePercent'); $fromZero.band = 0.0
+    $summary = New-Summary @((New-Scenario -Directory $root -Controls @((Get-HeldControl)) -Metrics @($risen, $fromZero)))
+    $conclusion = Get-Conclusion $summary $root
+    $metrics = @($conclusion.Scenarios[0].Metrics)
+    $surface = @($metrics | Where-Object { $_.Metric -ceq 'surfaceBytes' })[0]
+    Assert-True $surface.Exact 'the budget is exact'
+    Assert-True ([Math]::Abs([double]$surface.ChangePercent - (2200.0 / 2160.0 - 1.0) * 100.0) -lt 1e-9) 'its change is that of its medians'
+    $allocations = @($metrics | Where-Object { $_.Metric -ceq 'cppAllocations' })[0]
+    Assert-True ($null -eq $allocations.ChangePercent) 'a rise from zero has no percentage'
+    $markdown = ConvertTo-BenchmarkMarkdown -Conclusion $conclusion -Summary $summary -Gate
+    Assert-True $markdown.Contains('+1.85%') 'the job summary shows the rise'
+    Assert-True $markdown.Contains('from zero') 'and calls a rise from zero one'
 }
 
 Invoke-FixtureCase 'identical library inputs alone never classify timing flags as chance; exact budgets still gate' {
@@ -1072,23 +1146,16 @@ Invoke-FixtureCase 'the conclusion reads the summaries performance-paired.ps1 re
     Assert-Equal 'inconclusive' (Get-Conclusion $summary $reports -Strict).Conclusion 'under the strict reading that laptop''s set proves nothing'
 }
 
-function Expand-RetainedPacket([string] $Directory, [string] $Into) {
-    # A retained packet is one archive of the files a run wrote, with its hash in SHA256SUMS. Returns the directory it extracts to.
-    $sums = @([IO.File]::ReadAllLines((Join-Path $Directory 'SHA256SUMS')) | Where-Object { $_ })
-    Assert-Equal 1 $sums.Count 'SHA256SUMS has one line, the archive''s'
-    $hash, $name = $sums[0] -split '  ', 2
-    Assert-Equal 'reports.zip' $name 'it names the archive'
-    $archive = Join-Path $Directory $name
-    Assert-Equal $hash (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant() 'the archive is the one SHA256SUMS names'
-    [IO.Compression.ZipFile]::ExtractToDirectory($archive, $Into)
-    Assert-Equal 109 @(Get-ChildItem -LiteralPath $Into -File).Count 'the run''s 36 receipts and their comparator outputs, 36 comparisons, 4 passes of controls and the summary'
-    Assert-True (Test-Path -LiteralPath (Join-Path $Into 'summary.receipt.txt') -PathType Leaf) 'with the summary'
-    return $Into
+function Get-HostedAaFixture([string] $Name) {
+    # A retained hosted A/A run: its summary and the 18 control comparisons its scenarios name, copied from the run's archive
+    # (fixtures/HostedPairedGate-2026-10-01/README.md says which). Returns its directory.
+    $directory = Join-Path $PSScriptRoot "fixtures/HostedPairedGate-2026-10-01/$Name"
+    Assert-Equal 19 @(Get-ChildItem -LiteralPath $directory -File).Count "the $Name fixture holds the summary and its 18 controls"
+    return $directory
 }
 
-Invoke-FixtureCase 'the retained hosted A/A set passes: identical library, nothing flagged, every control drifting, every exact budget held' {
-    param($root)
-    $reports = Expand-RetainedPacket (Join-Path $repository 'Measurements/HostedPairedGate/2026-10-01') (Join-Path $root 'reports')
+Invoke-TestCase 'the retained hosted A/A set passes: identical library, nothing flagged, every control drifting, every exact budget held' {
+    $reports = Get-HostedAaFixture 'aa-1'
     $summary = Read-GateJson (Join-Path $reports 'summary.receipt.txt')
     $conclusion = Get-Conclusion $summary $reports
     Assert-Equal 'pass' $conclusion.Conclusion 'the same code measured twice'
@@ -1106,9 +1173,8 @@ Invoke-FixtureCase 'the retained hosted A/A set passes: identical library, nothi
     Assert-Equal 'inconclusive' (Get-Conclusion $summary $reports -Strict).Conclusion 'a gate that needed stable controls overall would never pass a hosted run'
 }
 
-Invoke-FixtureCase 'the second retained hosted A/A set: five flags remain inconclusive without policy-qualified calibration' {
-    param($root)
-    $reports = Expand-RetainedPacket (Join-Path $repository 'Measurements/HostedPairedGate/2026-10-01/aa-2') (Join-Path $root 'reports')
+Invoke-TestCase 'the second retained hosted A/A set: five flags remain inconclusive without policy-qualified calibration' {
+    $reports = Get-HostedAaFixture 'aa-2'
     $summary = Read-GateJson (Join-Path $reports 'summary.receipt.txt')
     $conclusion = Get-Conclusion $summary $reports
     Assert-Equal 'inconclusive' $conclusion.Conclusion 'identical inputs are not calibration evidence'
@@ -1319,16 +1385,16 @@ function Invoke-GateScript([string] $Script, [hashtable] $Arguments, [string] $D
     foreach ($name in $names) { $previous[$name] = [Environment]::GetEnvironmentVariable($name) }
     try {
         New-Item -ItemType Directory -Path $Directory -Force | Out-Null
-        [Environment]::SetEnvironmentVariable('GITHUB_OUTPUT', (Join-Path $Directory 'step-output.txt'))
-        [Environment]::SetEnvironmentVariable('GITHUB_STEP_SUMMARY', (Join-Path $Directory 'step-summary.md'))
-        [Environment]::SetEnvironmentVariable('GITHUB_EVENT_NAME', 'pull_request')
-        [Environment]::SetEnvironmentVariable('GITHUB_REF', 'refs/pull/46/merge')
-        [Environment]::SetEnvironmentVariable('GITHUB_ACTIONS', $(if ($Actions) { 'true' } else { $null }))
-        [Environment]::SetEnvironmentVariable('BENCHMARK_PAIR', '(first parent of the merge commit)')
+        Restore-TestEnvironmentVariable 'GITHUB_OUTPUT' (Join-Path $Directory 'step-output.txt')
+        Restore-TestEnvironmentVariable 'GITHUB_STEP_SUMMARY' (Join-Path $Directory 'step-summary.md')
+        Restore-TestEnvironmentVariable 'GITHUB_EVENT_NAME' 'pull_request'
+        Restore-TestEnvironmentVariable 'GITHUB_REF' 'refs/pull/46/merge'
+        Restore-TestEnvironmentVariable 'GITHUB_ACTIONS' $(if ($Actions) { 'true' } else { $null })
+        Restore-TestEnvironmentVariable 'BENCHMARK_PAIR' '(first parent of the merge commit)'
         $global:LASTEXITCODE = -1
         $output = & (Join-Path $repository $Script) @Arguments 6>&1 2>&1
         $code = $LASTEXITCODE
-    } finally { foreach ($name in $names) { [Environment]::SetEnvironmentVariable($name, $previous[$name]) } }
+    } finally { foreach ($name in $names) { Restore-TestEnvironmentVariable $name $previous[$name] } }
     $files = foreach ($name in @('step-output.txt', 'step-summary.md')) { $path = Join-Path $Directory $name; if (Test-Path -LiteralPath $path) { [IO.File]::ReadAllText($path) } else { '' } }
     return [pscustomobject]@{ Code = $code; Output = (@($output | ForEach-Object { "$_" }) -join "`n"); StepOutput = $files[0]; StepSummary = $files[1] }
 }
@@ -1344,7 +1410,12 @@ Invoke-FixtureCase 'the verdict step fails a pull request on a degradation or an
     Assert-True $result.StepSummary.Contains('Historic reports are retained for reading') 'explains migration status'
     Assert-True $result.StepSummary.Contains('a shared hosted VM, not a controlled quiet desktop') 'which says what a runner is worth'
     Assert-True ($result.Output -cmatch 'Job summary: \d+ bytes in the step summary file') 'and the log says how much the summary file holds'
-    Assert-True (-not (Invoke-GateScript 'Tools/Publish-BenchmarkVerdict.ps1' @{ Reports = $reports; Gate = $true } (Join-Path $root 'local-out') $false).StepSummary.Contains('hosted VM')) 'and not on a developer machine'
+    $previousActions = [Environment]::GetEnvironmentVariable('GITHUB_ACTIONS')
+    try {
+        Restore-TestEnvironmentVariable 'GITHUB_ACTIONS' $null
+        Assert-True (-not (Invoke-GateScript 'Tools/Publish-BenchmarkVerdict.ps1' @{ Reports = $reports; Gate = $true } (Join-Path $root 'local-out') $false).StepSummary.Contains('hosted VM')) 'and not on a developer machine'
+        Assert-True (-not (Test-Path -LiteralPath 'Env:GITHUB_ACTIONS')) 'the wrapper restores an absent hosted marker as absent'
+    } finally { Restore-TestEnvironmentVariable 'GITHUB_ACTIONS' $previousActions }
     Assert-True $result.Output.Contains('::error title=') 'prints an annotation'
     Assert-True (Test-Path -LiteralPath (Join-Path $reports 'verdict.md')) 'keeps the report with the receipts'
     $verdict = Get-FixtureJson $reports 'verdict.json'
@@ -1421,6 +1492,117 @@ Invoke-FixtureCase 'the scope step measures a library change and skips a documen
         if ($case.Relevant -eq 'true') { Assert-True $result.StepSummary.Contains('`src/Controls/Grid.cpp` | library input') 'naming the file that decided and why' }
     }
     Assert-Throws { & (Join-Path $repository 'Tools/Get-BenchmarkScope.ps1') -Repository $work -BaseRef '' 6>$null } 'a missing base branch'
+}
+
+Invoke-FixtureCase 'the workflow names the commits the verdict trusts, and a summary that records others is invalid evidence' {
+    param($root)
+    # Q12 of the 10 October review: a summary is written by the measured pull request's own code, so it cannot choose the
+    # base whose policy and judge are trusted.
+    $study = New-ReceiptBoundGateStudy $root
+    $study.baseline.kind = 'revision'
+    $study.candidate.kind = 'checkout'
+    $base = [string]$study.baseline.commit
+    $merge = [string]$study.candidate.commit
+    $judgeHash = $study.judgeProvenance.candidateJudgeSha256
+    $judgeVersion = $study.judgeProvenance.candidateJudgeVersion
+    Assert-True ($null -eq (Get-ExpectedCommitFinding -Summary $study -ExpectedBaseSha $base -ExpectedCandidateSha $merge)) 'a summary of exactly the named commits'
+    Assert-True ($null -eq (Get-ExpectedCommitFinding -Summary $study)) 'and of any commits when the workflow names none'
+    $global:FixturePolicyBaseline = $null
+    Assert-Equal 'pass' (Get-QualifiedFixtureConclusion $study $root $judgeHash $judgeVersion -ExpectedBase $base -ExpectedCandidate $merge).Conclusion 'passes with the named commits'
+    Assert-Equal $base $global:FixturePolicyBaseline 'whose base is the trust anchor'
+    $other = '3' * 40
+    foreach ($case in @(
+        @{ name = 'baseline commit'; change = { param($s) $s.baseline.commit = $other } },
+        @{ name = 'baseline kind'; change = { param($s) $s.baseline.kind = 'checkout' } },
+        @{ name = 'recorded baseline commit'; change = { param($s) $s['baselineCommit'] = $other } },
+        @{ name = 'judge provenance base'; change = { param($s) $s.judgeProvenance.baselineCommit = $other } },
+        @{ name = 'scenario judge base'; change = { param($s) $s.scenarios[1].judgeComparison.baseJudgeCommit = $other } },
+        @{ name = 'candidate commit'; change = { param($s) $s.candidate.commit = $other } },
+        @{ name = 'candidate kind'; change = { param($s) $s.candidate.kind = 'revision' } },
+        @{ name = 'harness commit'; change = { param($s) $s['harnessCommit'] = $other } }
+    )) {
+        $changed = Copy-JsonValue $study
+        & $case.change $changed
+        Assert-True ($null -ne (Get-ExpectedCommitFinding -Summary $changed -ExpectedBaseSha $base -ExpectedCandidateSha $merge)) "a forged $($case.name) is found"
+        $gate = Get-QualifiedFixtureConclusion $changed $root $judgeHash $judgeVersion -ExpectedBase $base -ExpectedCandidate $merge
+        Assert-Equal 'invalid' $gate.Conclusion "a forged $($case.name) is invalid evidence for the gate"
+        Assert-True (($gate.Notes -join ' ').Contains('Invalid evidence')) 'which says so'
+        Assert-Equal 'invalid' (Get-BenchmarkConclusion -Summary $changed -ReportsDirectory $root -ExpectedBaseSha $base -ExpectedCandidateSha $merge).Conclusion "and for a manual reading"
+    }
+    $matching = Copy-JsonValue $study
+    $matching['candidateCommit'] = $merge
+    $matching['harnessCommit'] = $merge
+    Assert-True ($null -eq (Get-ExpectedCommitFinding -Summary $matching -ExpectedBaseSha $base -ExpectedCandidateSha $merge)) 'recorded commits that agree are accepted'
+    foreach ($malformed in @('main', $base.ToUpperInvariant(), $base.Substring(0, 12))) {
+        Assert-True ($null -ne (Get-ExpectedCommitFinding -Summary $study -ExpectedBaseSha $malformed)) "an expected commit must be a full lowercase id, not '$malformed'"
+    }
+}
+
+Invoke-FixtureCase 'the candidate''s judge is hashed before it loads and runs only from the trusted tree' {
+    param($root)
+    # Q12 of the 10 October review: the candidate judge was loaded (run) before its hash was compared with the approved one.
+    $study = New-ReceiptBoundGateStudy $root
+    $judgeHash = $study.judgeProvenance.candidateJudgeSha256
+    $judgeVersion = $study.judgeProvenance.candidateJudgeVersion
+    $candidate = Join-Path $root 'candidate'
+    $marker = Join-Path $root 'judge-ran.txt'
+    $judgeText = [IO.File]::ReadAllText((Join-Path $repository 'Tools/PerformanceComparison.psm1'))
+    Set-FixtureFile $candidate 'Tools/PerformanceComparison.psm1' ("[IO.File]::WriteAllText('$($marker.Replace("'", "''"))', 'ran')`n" + $judgeText)
+    $hostile = Test-DualJudgeReceiptEvidence -Summary $study -ReportsDirectory $root -ApprovedJudgeSha256 $judgeHash -ApprovedJudgeVersion $judgeVersion -CandidateRoot $candidate
+    Assert-True (-not $hostile.valid) 'a judge the base does not approve is refused'
+    Assert-True $hostile.reason.Contains('not loaded') 'before it is loaded'
+    Assert-True (-not (Test-Path -LiteralPath $marker)) 'so none of its code ran'
+    Set-FixtureFile $candidate 'Tools/PerformanceComparison.psm1' $judgeText
+    $approved = Test-DualJudgeReceiptEvidence -Summary $study -ReportsDirectory $root -ApprovedJudgeSha256 $judgeHash -ApprovedJudgeVersion $judgeVersion -CandidateRoot $candidate
+    Assert-True $approved.valid "the approved judge in the measured tree is read as data, and the trusted tree's copy runs: $($approved.reason)"
+    $missing = Test-DualJudgeReceiptEvidence -Summary $study -ReportsDirectory $root -ApprovedJudgeSha256 $judgeHash -ApprovedJudgeVersion $judgeVersion -CandidateRoot (Join-Path $root 'no-tree')
+    Assert-True (-not $missing.valid) 'a measured tree without a judge is refused'
+}
+
+Invoke-FixtureCase 'the verdict step judges the single run of a downloaded artifact and writes its verdict where it is asked' {
+    param($root)
+    $artifact = Join-Path $root 'artifact/paired'
+    $first = Join-Path $artifact 'run-1/reports'
+    Set-FixtureJson $first 'summary.json' (New-Summary (New-ReportScenarios $first))
+    $verdicts = Join-Path $root 'verdict'
+    $result = Invoke-GateScript 'Tools/Publish-BenchmarkVerdict.ps1' @{ PairedRoot = $artifact; OutputDirectory = $verdicts } (Join-Path $root 'one')
+    Assert-Equal 0 $result.Code 'a manual reading of the artifact''s run'
+    Assert-True (Test-Path -LiteralPath (Join-Path $verdicts 'verdict.json')) 'writes verdict.json where it is asked'
+    Assert-True (Test-Path -LiteralPath (Join-Path $verdicts 'verdict.md')) 'and verdict.md'
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $first 'verdict.json'))) 'and not beside the summary'
+    Assert-True $result.StepOutput.Contains("baseline=$('1' * 40)`n") 'echoes the measured baseline'
+    Assert-True $result.StepOutput.Contains("candidate=$('2' * 40)`n") 'and candidate'
+    $second = Join-Path $artifact 'run-2/reports'
+    Set-FixtureJson $second 'summary.json' (New-Summary (New-ReportScenarios $second))
+    $two = Invoke-GateScript 'Tools/Publish-BenchmarkVerdict.ps1' @{ PairedRoot = $artifact; Gate = $true } (Join-Path $root 'two')
+    Assert-Equal 1 $two.Code 'two runs are no verdict'
+    Assert-True $two.StepOutput.Contains('conclusion=none') 'recorded'
+    Assert-True $two.StepSummary.Contains('a verdict judges exactly one') 'and explained'
+    $named = Invoke-GateScript 'Tools/Publish-BenchmarkVerdict.ps1' @{ PairedRoot = (Join-Path $root 'artifact/single'); Gate = $true } (Join-Path $root 'none')
+    Assert-Equal 1 $named.Code 'no run is no verdict'
+    $mismatch = Invoke-GateScript 'Tools/Publish-BenchmarkVerdict.ps1' @{ Reports = $first; ExpectedBaseSha = ('4' * 40) } (Join-Path $root 'mismatch')
+    Assert-Equal 1 $mismatch.Code 'a summary of other commits than the named ones fails even a manual run'
+    Assert-True $mismatch.StepOutput.Contains('conclusion=invalid') 'as invalid evidence'
+}
+
+Invoke-FixtureCase 'the scope step refuses a merge ref that is not the pull request the workflow names' {
+    param($root)
+    $work = Join-Path $root 'work'
+    New-Item -ItemType Directory -Path $work | Out-Null
+    Invoke-FixtureGit $work @('init', '-q', '-b', 'main')
+    [void](Add-FixtureCommit $work 'initial' @{ 'README.md' = "one`n"; 'src/Base.cpp' = "int base;`n" })
+    $base = Get-FixtureHead $work 'main'
+    Invoke-FixtureGit $work @('checkout', '-q', '-b', 'pr')
+    [void](Add-FixtureCommit $work 'the pull request' @{ 'src/Controls/Grid.cpp' = "changed`n" })
+    Invoke-FixtureGit $work @('checkout', '-q', '--detach', 'main')
+    Invoke-FixtureGit $work @('merge', '-q', '--no-ff', '-m', 'merge ref', 'pr')
+    $merge = Get-FixtureHead $work
+    $named = Invoke-GateScript 'Tools/Get-BenchmarkScope.ps1' @{ Repository = $work; BaseRef = 'main'; ExpectedBaseSha = $base; ExpectedCandidateSha = $merge } (Join-Path $root 'named')
+    Assert-Equal 0 $named.Code 'the named pair is scoped'
+    Assert-True $named.StepOutput.Contains("baseline=$base`n") 'with the named base'
+    foreach ($case in @(@{ Base = ('0' * 40); Merge = $merge; Why = 'another base' }, @{ Base = $base; Merge = ('0' * 40); Why = 'another merge commit' }, @{ Base = 'main'; Merge = $merge; Why = 'a branch name' })) {
+        Assert-Throws { & (Join-Path $repository 'Tools/Get-BenchmarkScope.ps1') -Repository $work -BaseRef 'main' -ExpectedBaseSha $case.Base -ExpectedCandidateSha $case.Merge 6>$null } "the scope step refuses $($case.Why)"
+    }
 }
 
 # --- The workflow --------------------------------------------------------------------------------------------------------

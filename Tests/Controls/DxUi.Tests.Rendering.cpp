@@ -1,11 +1,85 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.GridMultilineFixtures.h"
-#include "Scope.Tests.HostControlRegressions.h"
+#include "Controls.Tests.HostControlRegressions.h"
+
+#include <DxUi/FrameRuntime.h>
+#include <array>
 
 namespace
 {
 
 using DxUi::WindowHostBitmapCapture;
+
+struct CapturedFrameMetrics final
+{
+    uint64_t updateUs  = 0u;
+    uint64_t renderUs  = 0u;
+    uint64_t presentUs = 0u;
+};
+
+struct FrameMetricsCapture final
+{
+    std::array<CapturedFrameMetrics, 4u> frames{};
+    size_t completedFrames = 0u;
+};
+
+void CaptureWindowHostFrameMetric(void* context, std::wstring_view metric, uint64_t value) noexcept
+{
+    auto& capture = *static_cast<FrameMetricsCapture*>(context);
+    if (capture.completedFrames >= capture.frames.size())
+        return;
+
+    CapturedFrameMetrics& current = capture.frames[capture.completedFrames];
+    if (metric == L"dxui.frame.update_us")
+        current.updateUs = value;
+    else if (metric == L"dxui.frame.render_us")
+        current.renderUs = value;
+    else if (metric == L"dxui.frame.present_us")
+    {
+        current.presentUs = value;
+        ++capture.completedFrames;
+    }
+}
+
+class PendingPreparationProbe final : public DxUi::Control
+{
+public:
+    PendingPreparationProbe()
+    {
+        EnableContentPreparation();
+    }
+
+    void ArmPendingCycle() noexcept
+    {
+        _pendingCycle    = true;
+        _returnedPending = false;
+        RequestContentPreparation(false);
+    }
+
+    [[nodiscard]] HRESULT PrepareContent(DxUi::ControlHost&) noexcept override
+    {
+        if (! _pendingCycle)
+            return S_OK;
+
+        Sleep(1u);
+        if (! _returnedPending)
+        {
+            _returnedPending = true;
+            return S_FALSE;
+        }
+
+        _pendingCycle = false;
+        return S_OK;
+    }
+
+    void Paint(DxUi::WindowHost&) const override
+    {
+    }
+
+private:
+    bool _pendingCycle    = false;
+    bool _returnedPending = false;
+};
 
 class TransientSurfaceProbe final : public DxUi::Control
 {
@@ -2590,6 +2664,60 @@ void TestAttachedHostSameSizeRepaintDoesNotResizeSwapChain()
 #endif
 }
 
+void TestAttachedHostUpdateMetricsIncludePendingPreparation()
+{
+    using namespace DxUi;
+
+    const auto exercise = [](bool capturePath)
+    {
+        AttachedHostWindow window;
+        auto root                      = std::make_unique<Panel>();
+        PendingPreparationProbe* probe = root->AddChild<PendingPreparationProbe>();
+        probe->SetBounds(D2D1::RectF(0.0f, 0.0f, 160.0f, 32.0f));
+        window.Host().SetRoot(std::move(root));
+
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        RedrawWindow(window.Hwnd(), nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+        window.PumpMessages();
+
+        FrameMetricsCapture metrics;
+        SetFrameMetricSink(&CaptureWindowHostFrameMetric, &metrics);
+        const auto resetMetricSink = wil::scope_exit([]() noexcept { SetFrameMetricSink(nullptr, nullptr); });
+
+        probe->ArmPendingCycle();
+        if (capturePath)
+        {
+            WindowHostBitmapCapture pendingCapture;
+            Require(! window.Host().DebugCaptureBitmap(pendingCapture), "a frame that leaves content preparation pending does not publish a bitmap capture");
+        }
+        else
+        {
+            window.Host().DebugRenderDirtyRectForTest(RECT{0, 0, 160, 32});
+        }
+
+        Require(metrics.completedFrames == 1u, "the incomplete update emits one frame metric set");
+        Require(metrics.frames[0u].updateUs > 0u, "the incomplete frame reports elapsed update time");
+        Require(metrics.frames[0u].renderUs == 0u && metrics.frames[0u].presentUs == 0u,
+                "the incomplete preparation frame does not report render or present work");
+
+        if (capturePath)
+        {
+            WindowHostBitmapCapture completedCapture;
+            Require(window.Host().DebugCaptureBitmap(completedCapture), "the next bitmap capture completes after pending preparation");
+        }
+        else
+        {
+            window.Host().DebugRenderDirtyRectForTest(RECT{0, 0, 160, 32});
+        }
+
+        Require(metrics.completedFrames == 2u, "the completed update emits a second frame metric set");
+        Require(metrics.frames[1u].updateUs > 0u, "the completed frame reports elapsed update time");
+    };
+
+    exercise(false);
+    exercise(true);
+}
+
 void TestAttachedHostFirstPartialPaintPresentsFullAfterCreateAndResize()
 {
     using namespace DxUi;
@@ -2661,6 +2789,285 @@ void TestAttachedHostFirstPartialPaintPresentsFullAfterCreateAndResize()
         }
 #endif
     }
+}
+
+void TestAttachedHostInitialRootChildBatchesAreBoundedAndResetScoped()
+{
+    using namespace DxUi;
+
+    class BatchPaintControl final : public Control
+    {
+    public:
+        explicit BatchPaintControl(D2D1_COLOR_F color, bool overlay = false) noexcept : _color(color), _overlay(overlay)
+        {
+        }
+
+        void Paint(ControlHost& host) const override
+        {
+            if (auto* const context = host.GetDeviceContext())
+            {
+                if (auto* const brush = host.GetSolidBrush(_color))
+                    context->FillRectangle(GetBounds(), brush);
+            }
+        }
+
+        void PaintOverlay(ControlHost& host) const override
+        {
+            if (_overlay)
+            {
+                if (auto* const context = host.GetDeviceContext())
+                {
+                    if (auto* const brush = host.GetSolidBrush(D2D1::ColorF(0.96f, 0.78f, 0.08f, 1.0f)))
+                        context->FillRectangle(D2D1::RectF(18.0f, 18.0f, 74.0f, 58.0f), brush);
+                }
+            }
+        }
+
+    private:
+        D2D1_COLOR_F _color{};
+        bool _overlay = false;
+    };
+
+    const auto addSampleTree = [](Panel& root)
+    {
+        const std::array colors{D2D1::ColorF(0.86f, 0.08f, 0.06f, 1.0f),
+                                D2D1::ColorF(0.04f, 0.76f, 0.20f, 1.0f),
+                                D2D1::ColorF(0.05f, 0.28f, 0.92f, 1.0f),
+                                D2D1::ColorF(0.84f, 0.26f, 0.12f, 1.0f),
+                                D2D1::ColorF(0.48f, 0.10f, 0.72f, 1.0f),
+                                D2D1::ColorF(0.02f, 0.62f, 0.70f, 1.0f),
+                                D2D1::ColorF(0.75f, 0.52f, 0.12f, 1.0f),
+                                D2D1::ColorF(0.34f, 0.52f, 0.08f, 1.0f),
+                                D2D1::ColorF(0.90f, 0.18f, 0.48f, 1.0f),
+                                D2D1::ColorF(0.12f, 0.42f, 0.70f, 1.0f),
+                                D2D1::ColorF(0.54f, 0.24f, 0.08f, 1.0f),
+                                D2D1::ColorF(0.24f, 0.24f, 0.24f, 1.0f)};
+        for (size_t index = 0u; index < colors.size(); ++index)
+        {
+            auto* const child = root.AddChild<BatchPaintControl>(colors[index], index == 3u);
+            child->SetBounds(D2D1::RectF(0.0f, 0.0f, 190.0f, 120.0f));
+        }
+    };
+
+    for (const WindowHost::PresentationMode mode : {WindowHost::PresentationMode::HwndSwapChain, WindowHost::PresentationMode::CompositionSwapChain})
+    {
+        AttachedHostWindow batched(mode, false, true);
+        AttachedHostWindow ordinary(mode);
+        auto batchedRoot  = std::make_unique<Panel>();
+        auto ordinaryRoot = std::make_unique<Panel>();
+        addSampleTree(*batchedRoot);
+        addSampleTree(*ordinaryRoot);
+        batched.Host().SetRoot(std::move(batchedRoot));
+        ordinary.Host().SetRoot(std::move(ordinaryRoot));
+        batched.Host().SetSmokeOverlayVisible(true);
+        ordinary.Host().SetSmokeOverlayVisible(true);
+        ShowWindow(batched.Hwnd(), SW_SHOWNOACTIVATE);
+        ShowWindow(ordinary.Hwnd(), SW_SHOWNOACTIVATE);
+
+        WindowHostBitmapCapture batchedFrame;
+        WindowHostBitmapCapture ordinaryFrame;
+        Require(batched.Host().DebugCaptureBitmap(batchedFrame), "opt-in initial full frame captures after bounded root-child batches");
+        Require(ordinary.Host().DebugCaptureBitmap(ordinaryFrame), "default-off initial full frame captures without batching");
+        Require(batched.Host().DebugGetInitialRootChildBatchFlushCount() == 8u,
+                "native initial full frame submits no more than eight visible direct-root-child batches");
+        Require(ordinary.Host().DebugGetInitialRootChildBatchFlushCount() == 0u, "default attachment never submits root-child batches");
+        const auto pixelParity = CompareWindowHostBitmapCapturesForTest(batchedFrame, ordinaryFrame, 0u);
+        Require(pixelParity.totalPixels > 0u && pixelParity.differingPixels == 0u,
+                "batch boundaries preserve exact overlapping-child order and overlay pixels");
+
+        WindowHostBitmapCapture warmFrame;
+        Require(batched.Host().DebugCaptureBitmap(warmFrame), "warm native frame captures after the initial batch frame");
+        Require(batched.Host().DebugGetInitialRootChildBatchFlushCount() == 8u, "warm repaint adds no batch flushes");
+
+        const RECT dirty{4, 4, 28, 28};
+        const auto partialPresentsBefore = batched.Host().DebugGetPartialPresentAttemptCount();
+        const auto fullPresentsBefore    = batched.Host().DebugGetFullPresentAttemptCount();
+        const auto previousPresentResult = batched.Host().DebugGetLastPresentResult();
+        batched.Host().DebugRenderDirtyRectForTest(dirty);
+        Require(batched.Host().DebugGetInitialRootChildBatchFlushCount() == 8u,
+                "a subsequent dirty frame never repeats successful initial-draw batch submissions");
+        if (previousPresentResult == S_OK)
+        {
+            Require(batched.Host().DebugGetPartialPresentAttemptCount() == partialPresentsBefore + 1u,
+                    "a genuine partial frame after initial presentation success uses partial presentation");
+        }
+        else
+        {
+            Require(previousPresentResult == DXGI_STATUS_OCCLUDED && batched.Host().DebugGetFullPresentAttemptCount() == fullPresentsBefore + 1u,
+                    "an occluded first presentation retains full presentation without repeating initial-draw batches");
+        }
+
+        SetWindowPos(batched.Hwnd(), nullptr, 0, 0, 420, 240, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+        batched.Host().DebugRenderDirtyRectForTest(dirty);
+        Require(batched.Host().DebugGetInitialRootChildBatchFlushCount() == 16u,
+                "the first full frame after swap-chain resize receives a fresh bounded batch quota");
+
+        batched.Host().DebugSimulateDeviceLoss();
+        WindowHostBitmapCapture recoveryFrame;
+        Require(batched.Host().DebugCaptureBitmap(recoveryFrame), "native capture succeeds after simulated device-loss recovery");
+        Require(batched.Host().DebugGetInitialRootChildBatchFlushCount() == 24u, "device-loss recovery re-arms one bounded full-frame batch sequence");
+    }
+}
+
+void TestAttachedHostInitialRootChildBatchingUsesNativePaintAndExcludesNestedPanels()
+{
+    using namespace DxUi;
+    AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, false, true);
+    auto root    = std::make_unique<Panel>();
+    auto* nested = root->AddChild<Panel>();
+    nested->SetBounds(D2D1::RectF(0.0f, 0.0f, 260.0f, 180.0f));
+    for (size_t index = 0u; index < 10u; ++index)
+    {
+        auto* const label = nested->AddChild<Label>(L"nested panels do not submit batches");
+        label->SetBounds(D2D1::RectF(0.0f, static_cast<float>(index * 18u), 250.0f, static_cast<float>(index * 18u + 16u)));
+    }
+    window.Host().SetRoot(std::move(root));
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    RedrawWindow(window.Hwnd(), nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+    Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == 1u,
+            "native WM_PAINT submits once for the visible direct root child and never batches nested children");
+    WindowHostBitmapCapture warmFrame;
+    Require(window.Host().DebugCaptureBitmap(warmFrame), "a follow-up capture completes after the native first paint");
+    Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == 1u, "capture after native first paint adds no warm-frame batches");
+
+    const auto repaint = [&window]
+    {
+        Require(RedrawWindow(window.Hwnd(), nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW) != FALSE,
+                "owned non-activating repaint is dispatched synchronously");
+    };
+    window.Host().DebugSimulateDeviceLoss();
+    const uint64_t beforeFlushFailure        = window.Host().DebugGetInitialRootChildBatchFlushCount();
+    const uint64_t beforeFlushFailurePresent = window.Host().DebugGetFullPresentAttemptCount();
+    window.Host().DebugSetNextInitialRootChildBatchFlushResultForTest(E_FAIL);
+    repaint();
+    Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == beforeFlushFailure + 1u,
+            "native WM_PAINT stops after its first failed root-child Flush");
+    Require(window.Host().DebugGetFullPresentAttemptCount() == beforeFlushFailurePresent,
+            "native WM_PAINT does not present a frame after a failed root-child Flush");
+    repaint();
+    Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == beforeFlushFailure + 2u,
+            "the next native invalidation retries the pending reset-frame Flush once");
+    Require(window.Host().DebugGetFullPresentAttemptCount() == beforeFlushFailurePresent + 1u,
+            "the next native invalidation presents the successfully retried full frame");
+
+    window.Host().DebugSimulateDeviceLoss();
+    const uint64_t beforeEndDrawFailure        = window.Host().DebugGetInitialRootChildBatchFlushCount();
+    const uint64_t beforeEndDrawFailurePresent = window.Host().DebugGetFullPresentAttemptCount();
+    window.Host().DebugSetNextInitialRootChildBatchEndDrawResultForTest(E_FAIL);
+    repaint();
+    Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == beforeEndDrawFailure + 1u,
+            "native WM_PAINT flushes its root child before observing the injected EndDraw failure");
+    Require(window.Host().DebugGetFullPresentAttemptCount() == beforeEndDrawFailurePresent, "native WM_PAINT does not present a frame after EndDraw fails");
+    repaint();
+    Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == beforeEndDrawFailure + 2u,
+            "the next native invalidation retries batching after EndDraw failure");
+    Require(window.Host().DebugGetFullPresentAttemptCount() == beforeEndDrawFailurePresent + 1u,
+            "the next native invalidation presents the recovered full frame");
+}
+
+void TestAttachedHostInitialRootChildBatchFlushFailuresRecover()
+{
+    using namespace DxUi;
+    AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, false, true);
+    auto root = std::make_unique<Panel>();
+    for (size_t index = 0u; index < 10u; ++index)
+    {
+        auto* const label = root->AddChild<Label>(L"batch failure recovery");
+        label->SetBounds(D2D1::RectF(0.0f, static_cast<float>(index * 20u), 220.0f, static_cast<float>(index * 20u + 18u)));
+    }
+    window.Host().SetRoot(std::move(root));
+
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    const uint64_t beforeOrdinaryFailurePresents = window.Host().DebugGetFullPresentAttemptCount();
+    window.Host().DebugSetNextInitialRootChildBatchFlushResultForTest(E_FAIL);
+    WindowHostBitmapCapture failedFlushFrame;
+    Require(! window.Host().DebugCaptureBitmap(failedFlushFrame), "an ordinary failed batch flush rejects capture despite successful EndDraw");
+    Require(failedFlushFrame.widthPx == 0u && failedFlushFrame.bgraPixels.empty(), "failed batch flush publishes no partial bitmap");
+    Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == 1u, "the first failed batch flush stops later submissions");
+    Require(window.Host().DebugGetFullPresentAttemptCount() == beforeOrdinaryFailurePresents, "a frame with a failed batch flush is never presented");
+
+    WindowHostBitmapCapture recoveredFrame;
+    Require(window.Host().DebugCaptureBitmap(recoveredFrame), "a later full capture recovers after an ordinary flush failure");
+    Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == 9u, "recovery resubmits at most eight batches from the beginning");
+
+    window.Host().DebugSimulateDeviceLoss();
+    window.Host().DebugSetNextInitialRootChildBatchFlushResultForTest(D2DERR_RECREATE_TARGET);
+    WindowHostBitmapCapture lostFrame;
+    Require(! window.Host().DebugCaptureBitmap(lostFrame), "a device-loss HRESULT from Flush rejects the capture");
+    WindowHostBitmapCapture afterLoss;
+    Require(window.Host().DebugCaptureBitmap(afterLoss), "the next full frame recreates device resources and recovers");
+    Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == 18u,
+            "device-loss Flush failure stops the current batch sequence and recovery receives a fresh quota");
+
+    window.Host().DebugSimulateDeviceLoss();
+    window.Host().DebugSetNextInitialRootChildBatchEndDrawResultForTest(E_FAIL);
+    WindowHostBitmapCapture failedEndDrawFrame;
+    Require(! window.Host().DebugCaptureBitmap(failedEndDrawFrame), "an EndDraw failure after successful batches rejects capture");
+    WindowHostBitmapCapture afterEndDrawFailure;
+    Require(window.Host().DebugCaptureBitmap(afterEndDrawFailure), "a later full frame recovers after EndDraw failure");
+    Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == 34u,
+            "EndDraw failure preserves the successful flush sequence and recovery receives a fresh quota");
+}
+
+void TestAttachedHostNestedCaptureAbortsTheActiveInitialBatch()
+{
+    using namespace DxUi;
+    struct PaintState final
+    {
+        bool nestedAttempted = false;
+        bool nestedCaptured  = false;
+    };
+    class ReentrantCaptureControl final : public Control
+    {
+    public:
+        explicit ReentrantCaptureControl(PaintState& state) noexcept : _state(&state)
+        {
+        }
+
+        void Paint(ControlHost& host) const override
+        {
+            if (! _state->nestedAttempted)
+            {
+                _state->nestedAttempted = true;
+                WindowHostBitmapCapture nested;
+                _state->nestedCaptured = host.DebugCaptureBitmap(nested);
+            }
+            if (auto* const context = host.GetDeviceContext())
+            {
+                if (auto* const brush = host.GetSolidBrush(D2D1::ColorF(0.24f, 0.52f, 0.80f, 1.0f)))
+                    context->FillRectangle(GetBounds(), brush);
+            }
+        }
+
+    private:
+        PaintState* _state;
+    };
+
+    AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, false, true);
+    PaintState state;
+    auto root             = std::make_unique<Panel>();
+    auto* const reentrant = root->AddChild<ReentrantCaptureControl>(state);
+    reentrant->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 30.0f));
+    for (size_t index = 0u; index < 10u; ++index)
+    {
+        auto* const label = root->AddChild<Label>(L"reentrant frame must not submit a batch");
+        label->SetBounds(D2D1::RectF(0.0f, static_cast<float>((index + 1u) * 28u), 240.0f, static_cast<float>((index + 1u) * 28u + 24u)));
+    }
+    window.Host().SetRoot(std::move(root));
+
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    const uint64_t presentsBefore = window.Host().DebugGetFullPresentAttemptCount();
+    WindowHostBitmapCapture outer;
+    Require(! window.Host().DebugCaptureBitmap(outer), "a nested capture attempt rejects the outer initial batch frame");
+    Require(state.nestedAttempted && ! state.nestedCaptured, "the reentrant capture is rejected before opening a nested D2D frame");
+    Require(outer.widthPx == 0u && outer.bgraPixels.empty(), "the reentrant outer frame publishes no mixed bitmap");
+    Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == 0u, "reentry prevents every remaining batch submission");
+    Require(window.Host().DebugGetFullPresentAttemptCount() == presentsBefore, "a reentered initial frame is not presented");
+
+    WindowHostBitmapCapture recovered;
+    Require(window.Host().DebugCaptureBitmap(recovered), "the following non-reentrant full frame recovers normally");
+    Require(recovered.widthPx > 0u && ! recovered.bgraPixels.empty(), "recovery publishes a complete bitmap");
+    Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == 8u, "recovery starts a new bounded batch sequence");
 }
 
 void TestAttachedHostResizeDoesNotFlushD2DInWrongState()
@@ -2826,7 +3233,12 @@ void RunRenderingTests()
     DXUI_RUN_TEST(TestAttachedComboBoxPopupScrollingStaysStable);
     DXUI_RUN_TEST(TestAttachedComboBoxPopupLongRunScrollingStaysStable);
     DXUI_RUN_TEST(TestAttachedHostSameSizeRepaintDoesNotResizeSwapChain);
+    DXUI_RUN_TEST(TestAttachedHostUpdateMetricsIncludePendingPreparation);
     DXUI_RUN_TEST(TestAttachedHostFirstPartialPaintPresentsFullAfterCreateAndResize);
+    DXUI_RUN_TEST(TestAttachedHostInitialRootChildBatchesAreBoundedAndResetScoped);
+    DXUI_RUN_TEST(TestAttachedHostInitialRootChildBatchingUsesNativePaintAndExcludesNestedPanels);
+    DXUI_RUN_TEST(TestAttachedHostInitialRootChildBatchFlushFailuresRecover);
+    DXUI_RUN_TEST(TestAttachedHostNestedCaptureAbortsTheActiveInitialBatch);
     DXUI_RUN_TEST(TestAttachedHostResizeDoesNotFlushD2DInWrongState);
     DXUI_RUN_TEST(TestAttachedHostRecoversAfterSimulatedDeviceLoss);
 }

@@ -14,7 +14,16 @@ An empty plan reports `NO_WORK; repository NOT_EVALUATED`; a fully delegated pla
 Capability skips are reported explicitly and prevent native-suite receipt reuse. `FULL_SCOPES_PASSED` covers the scope
 manifest, while foreground, consumer, gallery and native-platform qualification remain separate obligations.
 
-Native test files use `Scope.Tests.Something.h/.cpp`; register new active files in `native-test-files.json`. `test-scopes.json` owns standalone scope/PR metadata. Shared-library or runtime byte changes conservatively invalidate local standalone reuse. No consumer dependency pin changes are part of this workflow.
+Native test files use `<Component>.Tests.Something.h/.cpp`, with a real component such as `Controls`, `Support` or `Embedded`; literal `Scope` is rejected. Register new active files in `native-test-files.json`. `test-scopes.json` owns standalone scope/PR metadata. Shared-library or runtime byte changes conservatively invalidate local standalone reuse. No consumer dependency pin changes are part of this workflow.
+
+`Embedded` also checks the prepared-state and normalization oracle for the clean
+Prepare timer diagnostic. Its isolated `--test-clean-prepare-timer-oracle` entry
+point runs the same assertions. The opt-in command
+`DxUi.EmbeddedTests.exe --benchmark-clean-prepare-floor <fresh-report.json> <unsigned-seed>`
+retains raw QPC ticks for 1, 8, 64 and 512 clean calls per bracket, with a separate
+empty-loop reference. It refuses an existing report path. These observations
+characterize timer resolution; they do not replace canonical benchmark metrics
+or qualify the performance policy.
 
 `EditorControls` runs `TestUnicode17DefaultGraphemeCorpus`: all 766 pinned original
 vectors, every UTF-16 offset, next/previous movement, nearest snapping and counts.

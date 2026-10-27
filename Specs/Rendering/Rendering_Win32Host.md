@@ -84,8 +84,22 @@ and require the host to initialize with or without that SDK component.
 
 For a native flip-model swap chain, the first back-buffer contents are undefined. WindowHost creates or resizes the
 chain with a pending full-frame presentation, so an initial partial WM_PAINT is rendered and presented as a full frame.
-The pending state clears only when both EndDraw and Present return S_OK; an occluded status or any failure keeps the
-next render full. EmbeddedHost does not own or present a swap chain and is unaffected by this rule.
+The pending state clears only when every enabled initial root-child Flush, EndDraw, and Present return S_OK; an
+occluded status or any failure keeps the next render full. EmbeddedHost does not own or present a swap chain and
+is unaffected by this rule.
+`AttachOptions::batchInitialRootChildren` is an opt-in native swap-chain rendering policy, defaulting to false. While
+the initial draw remains pending after swap-chain creation or resize, a full frame may flush after each visible
+direct child of a root `Panel`, with at most eight intermediate Flush boundaries in addition to the final EndDraw
+submission. Remaining children,
+overlays, and tooltips keep their existing order. Nested panels do not submit.
+Successful Flush and EndDraw consume this initial-draw policy even when Present reports occlusion, so hidden warm
+frames never repeat the intermediate submissions while full presentation remains pending. Partial frames do not
+submit. The option does not apply to embedded hosts. A failed Flush stops further submissions, still pairs BeginDraw
+with EndDraw, suppresses capture and presentation, and leaves the initial draw and full-frame state pending; a
+device-loss result follows the existing resource reset and recovery path. An EndDraw failure also keeps the initial
+draw pending.
+Root replacement, supported retained-tree/interaction mutation, and reentrant rendering end the current batch sequence.
+The default-off behavior remains the ordinary single EndDraw path.
 
 The native menu modal loop processes pointer/keyboard input and pending paints for its own popup windows before
 ordinary posted owner-window traffic. Input feedback cannot depend on the entire owner queue becoming empty.
@@ -113,6 +127,8 @@ dismissed session fails without showing or activating the popup. For the root cr
 that call reports failure and never fires its callback; a dismissed submenu or root switch finalizes
 through the posted request or the modal loop.
 
-Native tooltip show/hide deadlines use the current UI-thread dispatcher clock, not the last tick of an idle
-individual host. A resumed host must not show or hide a newly scheduled tooltip immediately because its
-previous tick is stale. Embedded tooltip scheduling retains the application-provided animation epoch.
+A native host's animation clock, `GetAnimationTickMs`, is the current UI-thread dispatcher timeline, not the last tick
+of an idle individual host. Transitions and tooltip show/hide deadlines stamp it, so a resumed host neither shows nor
+hides a newly scheduled tooltip at once because its previous tick is stale, nor holds a transition still because the
+dispatcher lost a stall beyond its hitch clamp. An embedded host's clock is its own timeline
+([embedded D3D11](Rendering_EmbeddedD3D11.md)).

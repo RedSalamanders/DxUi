@@ -30,7 +30,14 @@ enum class FlowchartShape
     Rectangle,
     Rounded,
     Circle,
-    Diamond
+    Diamond,
+    Stadium
+};
+enum class FlowchartRelation
+{
+    Line,
+    Arrow,
+    Inheritance
 };
 enum class FlowchartIssue
 {
@@ -82,6 +89,7 @@ struct FlowchartEdge
     std::size_t from{}, to{};
     MarkdownRange source;
     std::wstring label;
+    FlowchartRelation relation{};
     bool arrow{};
 };
 struct FlowchartModel

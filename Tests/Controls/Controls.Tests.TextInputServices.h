@@ -1114,16 +1114,84 @@ void TestApplicationTextStoreInsertionAndLayout()
     client->snapshot.state.caretIndex = 65536;
     client->snapshot.state.selectionAnchorIndex.reset();
     ++client->snapshot.revision;
+    const std::wstring oversizedEdit(65537u, L'x');
     sink.onLockGranted = [&](DWORD) noexcept
     {
         LONG first = 99, last = 99;
+        Require(store->QueryInsert(65536, 65536, 1u, &first, &last) == HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW) && first == 0 && last == 0,
+                "QueryInsert rejects growth beyond the application snapshot ceiling and clears its outputs");
         Require(store->InsertTextAtSelection(TS_IAS_QUERYONLY, L"x", 1, &first, &last, nullptr) == HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW) && first == 0 &&
                     last == 0,
-                "query-only obeys the same bound as insertion");
+                "query-only rejects growth beyond the application snapshot ceiling");
+        TS_TEXTCHANGE change{99, 99, 99};
+        Require(store->InsertTextAtSelection(0, L"x", 1, &first, &last, &change) == HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW) && first == 0 && last == 0 &&
+                    change.acpStart == 0 && change.acpOldEnd == 0 && change.acpNewEnd == 0,
+                "insertion rejects the same full-document growth without a partial edit description");
+        change = {99, 99, 99};
+        Require(store->SetText(0, 65536, 65536, L"x", 1u, &change) == HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW) && change.acpStart == 0 &&
+                    change.acpOldEnd == 0 && change.acpNewEnd == 0,
+                "SetText enforces the same application document ceiling before mutation");
+        Require(store->InsertTextAtSelection(TS_IAS_QUERYONLY, oversizedEdit.data(), static_cast<ULONG>(oversizedEdit.size()), &first, &last, nullptr) ==
+                        HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW) &&
+                    first == 0 && last == 0,
+                "query-only rejects an edit larger than the per-edit bound");
+        Require(store->InsertTextAtSelection(0, oversizedEdit.data(), static_cast<ULONG>(oversizedEdit.size()), &first, &last, &change) ==
+                        HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW) &&
+                    first == 0 && last == 0,
+                "insertion rejects the same oversized edit");
+        Require(store->SetText(0, 0, 65536, oversizedEdit.data(), static_cast<ULONG>(oversizedEdit.size()), &change) ==
+                    HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW),
+                "SetText cannot exceed the per-edit bound even when replacing the entire application document");
         return S_OK;
     };
     RequireSucceeded(store->RequestLock(TS_LF_READWRITE, &session), "capacity-query lock granted");
-    RequireSucceeded(session, "capacity rejection leaves document unchanged");
+    RequireSucceeded(session, "capacity refusals complete without failing the lock transaction");
+    Require(client->snapshot.state.text == std::wstring(65536u, L'x') && client->snapshot.state.caretIndex == 65536u && client->commits == 1,
+            "all capacity refusals leave source, caret and commit count unchanged");
+    sink.onLockGranted = [&](DWORD) noexcept
+    {
+        LONG first = 99, last = 99;
+        RETURN_IF_FAILED(store->QueryInsert(65535, 65536, 1u, &first, &last));
+        Require(first == 65535 && last == 65536, "QueryInsert permits a same-length replacement at the snapshot ceiling");
+        TS_SELECTION_ACP selection{};
+        selection.acpStart  = 65535;
+        selection.acpEnd    = 65536;
+        selection.style.ase = TS_AE_END;
+        RETURN_IF_FAILED(store->SetSelection(1u, &selection));
+        RETURN_IF_FAILED(store->InsertTextAtSelection(TS_IAS_QUERYONLY, L"y", 1u, &first, &last, nullptr));
+        Require(first == 65535 && last == 65536, "query-only predicts bounded replacement ACPs at full capacity");
+        TS_TEXTCHANGE change{};
+        RETURN_IF_FAILED(store->InsertTextAtSelection(0, L"y", 1u, &first, &last, &change));
+        Require(first == 65535 && last == 65536 && change.acpStart == 65535 && change.acpOldEnd == 65536 && change.acpNewEnd == 65536,
+                "bounded insertion replaces selected text without increasing document length");
+        RETURN_IF_FAILED(store->SetText(0, 0, 1, L"z", 1u, &change));
+        Require(change.acpStart == 0 && change.acpOldEnd == 1 && change.acpNewEnd == 1, "SetText also permits a same-length full-capacity replacement");
+        return S_OK;
+    };
+    RequireSucceeded(store->RequestLock(TS_LF_READWRITE, &session), "full-capacity replacement lock granted");
+    RequireSucceeded(session, "full-capacity replacements complete");
+    Require(client->snapshot.state.text == std::wstring(L"z") + std::wstring(65534u, L'x') + L"y" && client->commits == 2,
+            "same-length replacements preserve full-capacity content and commit once per lock");
+    client->snapshot.state.text.assign(65535u, L'x');
+    client->snapshot.state.caretIndex = 65535u;
+    ++client->snapshot.revision;
+    sink.onLockGranted = [&](DWORD) noexcept
+    {
+        LONG first = 99, last = 99;
+        RETURN_IF_FAILED(store->QueryInsert(65535, 65535, 1u, &first, &last));
+        Require(first == 65535 && last == 65536, "QueryInsert predicts an insertion exactly to the snapshot ceiling");
+        RETURN_IF_FAILED(store->InsertTextAtSelection(TS_IAS_QUERYONLY, L"q", 1u, &first, &last, nullptr));
+        Require(first == 65535 && last == 65536 && client->snapshot.state.text.size() == 65535u, "query-only leaves the below-capacity source unchanged");
+        TS_TEXTCHANGE change{};
+        RETURN_IF_FAILED(store->InsertTextAtSelection(0, L"q", 1u, &first, &last, &change));
+        Require(first == 65535 && last == 65536 && change.acpStart == 65535 && change.acpOldEnd == 65535 && change.acpNewEnd == 65536,
+                "bounded insertion returns exact ACPs when reaching the application ceiling");
+        return S_OK;
+    };
+    RequireSucceeded(store->RequestLock(TS_LF_READWRITE, &session), "below-capacity insertion lock granted");
+    RequireSucceeded(session, "bounded insertion to the application ceiling completes");
+    Require(client->snapshot.state.text == std::wstring(65535u, L'x') + L"q" && client->commits == 3,
+            "insertion exactly to capacity commits once without truncation");
     client->snapshot.state.text       = L"External update";
     client->snapshot.state.caretIndex = 0;
     ++client->snapshot.revision;

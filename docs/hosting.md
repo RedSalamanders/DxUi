@@ -10,9 +10,13 @@ PageHost's current page participates in Tab traversal and UI Automation, includi
 point hits. Outgoing transition pages are visual-only. Unhandled native keys continue to the application's window
 procedure; host animation ticks request further scheduling independently of repainting changed control pixels.
 
-Call `EmbeddedHost::AdvanceAnimation` with consistent monotonic milliseconds while `NeedsAnimation()` is true.
-Slider/PageHost transitions anchor on their first supplied tick, including zero; this correction does not qualify
-every legacy control's clock path (see the [remaining audit](../Specs/Plans/WIP/ConsumerUiQualification_2026-10-11.md#remaining-legacy-clock-audit)).
+Call `EmbeddedHost::AdvanceAnimation` with your application's milliseconds, from any epoch, while `NeedsAnimation()` is
+true. The view's animation clock, `ControlHost::GetAnimationTickMs()`, advances by the difference between consecutive
+ticks and stands still while the view is idle, hidden or zero-sized: the first tick after such a pause, or after a new
+attachment, only sets the baseline. Every control stamps its transitions with that clock and `Tick` receives it, so no
+application epoch, zero or near the top of the range, changes what a transition shows. Natively the clock is the UI
+thread's animation dispatcher timeline. A custom control stamps its own transitions with `host.GetAnimationTickMs()`;
+input timing such as double clicks uses real time, never this clock.
 Device replacement and detach release owned graphics without clearing or flushing the application's immediate
 context; composition retains its documented pipeline-binding behavior.
 
@@ -29,11 +33,8 @@ device; the application owns immediate-context scheduling and presentation.
 2. Model, input, theme or geometry changes mark the view dirty. A borrowed `requestPreparation` callback requests
    host work; it is synchronous, coalesced, must not re-enter the view, and its context must outlive attachment.
 3. Before scene drawing, call `view.Prepare(widthPixels, heightPixels, dpi)`. It performs changed layout and raster
-   work. `S_FALSE` means already clean, hidden, zero-sized, or that cooperative content preparation remains pending.
-   When `NeedsPreparation()` is true, honor the next owner-turn request and call `Prepare` again; do not spin.
-   A failed HRESULT suppresses input/composition until preparation succeeds.
-   Optional control visual preparation is separate from content preparation: it may retain bounded visual resources,
-   but it does not mark content geometry changed, publish text-input/UIA geometry, or hold input readiness pending.
+   work. S_FALSE means already clean, hidden, zero-sized, or that cooperative content preparation remains pending. When NeedsPreparation() is true, honor the next owner-turn request and call Prepare again; do not spin. A failed HRESULT suppresses input/composition until preparation succeeds; handle the failure instead of repeatedly retrying in a tight loop. E_ABORT is the exception: a callback superseded the frame (it replaced the root or changed the tree mid-pass), and the view has already requested another preparation, so skip this frame composition and prepare again on that request.
+   Optional control visual preparation is separate from content preparation: it may retain bounded visual resources, but it does not mark content geometry changed, publish text-input/UIA geometry, or hold input readiness pending.
 4. Bind the application's render target, then call `view.Composite(context, viewport)`. It binds its required
    pipeline state and draws the prepared texture. It changes D3D state: rebind your state for subsequent drawing.
 5. Present through the application. DxUi embedded mode owns no HWND, swap chain, timer, worker or presentation loop.
@@ -52,7 +53,9 @@ and the appropriate modifiers. Set `device` to the contact's device so a touch d
 halo): for a mouse message your window received, `PointerDeviceFromMessageExtraInfo(GetMessageExtraInfo())` while you
 handle it. An event that names no device is the mouse. A paint-dirty view still accepts hit-tested pointer gestures while its geometry is
 coherent; Prepare before composition, and after bounds, tree, visibility or enabled changes that bump the interaction
-revision. A host that arranges all live bounds itself can instead call
+revision. Pending intrinsic layout does not bump it. Keys, characters and text-service calls go to the focused control
+between preparations too; a hidden or suspended view, one never prepared, or one a failed callback suspended until its
+next preparation refuses them. A host that arranges all live bounds itself can instead call
 `PrepareInteraction(widthPixels, heightPixels, dpi)` between gestures, at the last successfully painted extent/DPI.
 It acknowledges input geometry without painting or publishing text/UIA bounds. Pixels stay dirty for the next
 frame's full `Prepare`. Initial/failed preparation, hide/zero extent, device replacement and a changed size/DPI still
@@ -143,7 +146,10 @@ to obtain the activation ownership guarantee. DxUi's modal loop adopts it.
 
 An explicit focus request made from a control or host callback supersedes its outer request. Focus callbacks
 should complete without throwing and overrides must call their base handler; standard exceptions are contained
-with a safe base-state fallback. Reset and root replacement retire the old interaction state without taking HWND
+with a safe base-state fallback. Code that DxUi calls (overrides, callbacks, delegates and model getters) may throw only
+standard exceptions, `std::exception` or a type derived from it: the host contains them where it dispatches the message,
+input, tick or UI Automation action. Translate another type, such as C++/WinRT `hresult_error`, inside the callback; it
+can terminate the process. Reset and root replacement retire the old interaction state without taking HWND
 keyboard focus from another window, and a callback may choose a successor in the newly installed tree.
 Removing an editor from its host focus notification immediately retires its native text session and cache.
 While the window holds the foreground's keyboard focus, moving focus between its controls (or a tree's items and a
@@ -290,7 +296,8 @@ among them the selection events of a tree (one selected item or several) and of 
 raises for every change of a selection since the last update. An embedded view's root is never collapsed into its only
 control: the root element is the application element's child, and the control's element is the root's.
 
-Native consumers may include `DxUi/NativeMenuInterop.h` to adapt borrowed HMENU resources,
+Native consumers may include `DxUi/NativeMenuInterop.h` to adapt borrowed HMENU resources (a converted entry
+keeps its `&` mnemonic and `&&` for the popup to decode, as menu text does),
 `DxUi/FocusRestore.h` for owned-window focus transitions, and `DxUi/PointerInput.h` for pointer
 message decoding. `DxUi/Typography.h` and `DxUi/AccessibilityTextUnits.h` expose the shared font
 and Unicode-unit policies. Keep application resources and command policy in your adapter.

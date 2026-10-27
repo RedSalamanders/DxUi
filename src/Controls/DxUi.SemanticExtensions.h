@@ -35,7 +35,7 @@ struct SemanticDiagram
 struct SemanticExtensions
 {
     static constexpr std::size_t MaximumObjects = 128u, MaximumRecords = 32768u;
-    SemanticExtensions() : diagrams(0u), maths(0u), diagnostics(0u), images(0u)
+    SemanticExtensions() : diagrams(0u), maths(0u), diagnostics(0u), images(0u), sourceObjects(0u)
     {
     }
     std::vector<SemanticDiagram> diagrams;
@@ -43,14 +43,25 @@ struct SemanticExtensions
     {
         std::size_t element{};
         std::shared_ptr<const MathExpression> expression;
+        bool display{};
     };
     std::vector<Formula> maths;
     std::vector<SemanticDiagnostic> diagnostics;
     std::vector<std::size_t> images;
+    std::vector<MarkdownRange> sourceObjects;
     std::size_t candidates{}, records{}, mathRecords{};
 };
 struct SemanticExtensionAccess
 {
+    static std::span<const MarkdownRange> SourceObjects(const SemanticDocument& document) noexcept
+    {
+        return document.extensions_ ? std::span<const MarkdownRange>(document.extensions_->sourceObjects) : std::span<const MarkdownRange>{};
+    }
+    static void BeginWithNativeFallbacks(SemanticBuilder& builder, std::shared_ptr<const MarkdownSyntax> syntax, std::span<const MarkdownRange> sourceObjects)
+    {
+        const auto sourceBlock = syntax ? syntax->SourceRegionNode() : MarkdownNoNode;
+        builder.BeginWithNativeFallbacks(std::move(syntax), sourceBlock, sourceObjects);
+    }
     static std::span<const SemanticExtensions::Formula> Maths(const SemanticDocument& document) noexcept
     {
         return document.extensions_ ? std::span<const SemanticExtensions::Formula>(document.extensions_->maths)

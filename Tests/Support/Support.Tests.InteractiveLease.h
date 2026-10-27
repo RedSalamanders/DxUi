@@ -357,6 +357,61 @@ inline void RunWithDesktop(LeaseServices& services, const LeaseRequest& request,
     return state.cursorKnown ? std::format("{},{}", state.cursor.x, state.cursor.y) : std::string("unknown");
 }
 
+[[nodiscard]] inline std::string FormatPoint(bool known, const POINT& point)
+{
+    return known ? std::format("{},{}", point.x, point.y) : std::string("unknown");
+}
+
+[[nodiscard]] inline std::string FormatRect(bool known, const RECT& rect)
+{
+    return known ? std::format("{},{},{},{}", rect.left, rect.top, rect.right, rect.bottom) : std::string("unknown");
+}
+
+[[nodiscard]] inline std::string FormatCursorRestoreDiagnostics(const RestoreReport& report)
+{
+    if (! report.cursorDiagnostics.has_value())
+        return {};
+
+    const RestoreReport::CursorDiagnostics& diagnostics = report.cursorDiagnostics.value();
+    const auto desktopName                              = [](const CursorEnvironmentState& environment, bool input)
+    {
+        const std::string& name = input ? environment.inputDesktop : environment.threadDesktop;
+        return name.empty() ? std::string("unknown") : name;
+    };
+    const CursorEnvironmentState& captured = report.saved.cursorEnvironment;
+    const CursorEnvironmentState& atExit   = report.atExit.cursorEnvironment;
+    const CursorEnvironmentState& after    = diagnostics.environmentAfter;
+    return std::format(
+        "readBefore={};readBeforeError={};setCalled={};setAccepted={};setError={};readback={};readbackError={};clipCapture={};clipCaptureError={};"
+        "clipAtExit={};clipAtExitError={};clipAfter={};clipAfterError={};inputCapture={};inputCaptureError={};inputAtExit={};inputAtExitError={};"
+        "inputAfter={};inputAfterError={};threadCapture={};threadCaptureError={};threadAtExit={};threadAtExitError={};threadAfter={};threadAfterError={}",
+        FormatPoint(diagnostics.readBeforeKnown, diagnostics.readBefore),
+        diagnostics.readBeforeError,
+        diagnostics.setCalled ? 1 : 0,
+        diagnostics.setAccepted ? 1 : 0,
+        diagnostics.setError,
+        FormatPoint(diagnostics.readbackKnown, diagnostics.readback),
+        diagnostics.readbackError,
+        FormatRect(captured.clipRectKnown, captured.clipRect),
+        captured.clipRectError,
+        FormatRect(atExit.clipRectKnown, atExit.clipRect),
+        atExit.clipRectError,
+        FormatRect(after.clipRectKnown, after.clipRect),
+        after.clipRectError,
+        desktopName(captured, true),
+        captured.inputDesktopError,
+        desktopName(atExit, true),
+        atExit.inputDesktopError,
+        desktopName(after, true),
+        after.inputDesktopError,
+        desktopName(captured, false),
+        captured.threadDesktopError,
+        desktopName(atExit, false),
+        atExit.threadDesktopError,
+        desktopName(after, false),
+        after.threadDesktopError);
+}
+
 // The result file DxUi.InteractiveLease.exe writes and Tools/InteractiveRun.psm1 reads: `key: value` lines, one per fact, `child:`
 // once per child, in UTF-8. A reason is one line.
 [[nodiscard]] inline std::string FormatLeaseResult(const LeaseOutcome& outcome)
@@ -387,6 +442,8 @@ inline void RunWithDesktop(LeaseServices& services, const LeaseRequest& request,
                             RestorationName(report.focus),
                             RestorationName(report.cursor));
         text += std::format("cursor.saved: {}\ncursor.atExit: {}\n", FormatPoint(report.saved), FormatPoint(report.atExit));
+        if (report.cursorDiagnostics.has_value())
+            text += std::format("cursor.restore.diagnostics: {}\n", FormatCursorRestoreDiagnostics(report));
         text += std::format("restoration.runMovedSomething: {}\n", report.RunMovedSomething() ? 1 : 0);
     }
     for (const ChildOutcome& child : outcome.children)

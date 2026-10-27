@@ -18,7 +18,7 @@ $script:Metrics = [ordered]@{
 $script:Invariant = [Globalization.CultureInfo]::InvariantCulture
 # The compiled inputs performance.ps1 hashes into a receipt's benchmarkSha256, in that hash's order. A paired run copies
 # them, with the driver and this comparator, onto both trees.
-$script:BenchmarkInputs = @('Tests/Embedded/Embedded.Tests.BenchmarkMain.h', 'Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h', 'Tests/Support/Support.Tests.HeapDiagnostic.h',
+$script:BenchmarkInputs = @('Tests/Embedded/Embedded.Tests.BenchmarkMain.h', 'Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h', 'Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h', 'Tests/Support/Support.Tests.HeapDiagnostic.h',
     'Samples/ComplexUi/ComplexUiScene.h', 'Samples/EmbeddedControls/GraphicsFixture.h')
 # The library inputs a receipt's sourceFingerprint covers.
 $script:FingerprintPaths = @('src', 'include', 'Build', 'Directory.Build.props', 'Directory.Build.targets', 'vcpkg.json', 'vcpkg-tool.json')
@@ -34,13 +34,47 @@ function Get-BenchmarkInputPaths { return @($script:BenchmarkInputs) }
 
 function Get-LibraryInputPaths { return @($script:FingerprintPaths) }
 
+function Invoke-JudgeGit {
+    <# What git wrote to its output, as bytes, and its exit code: git prints path names and file contents as bytes, which the
+       console's code page would change. Self-contained, as this module is also loaded from a committed blob. #>
+    param([Parameter(Mandatory)][string] $Root, [Parameter(Mandatory)][string[]] $Arguments)
+    $start = [Diagnostics.ProcessStartInfo]::new('git')
+    $start.UseShellExecute = $false
+    $start.RedirectStandardOutput = $true
+    $start.RedirectStandardError = $true
+    foreach ($argument in @('-C', $Root) + $Arguments) { $start.ArgumentList.Add($argument) }
+    $process = [Diagnostics.Process]::Start($start)
+    try {
+        $errors = $process.StandardError.ReadToEndAsync()
+        $buffer = [IO.MemoryStream]::new()
+        $process.StandardOutput.BaseStream.CopyTo($buffer)
+        $process.WaitForExit()
+        [void]$errors.GetAwaiter().GetResult()
+        return [ordered]@{ ExitCode = $process.ExitCode; Bytes = $buffer.ToArray() }
+    } finally { $process.Dispose() }
+}
+
+function Get-GitBlobText {
+    <# A committed file's text from its exact bytes, as UTF-8 without a byte-order mark, or $null when the commit does not
+       hold it or its bytes are not UTF-8. Hashes of judge, policy and assignment sources are taken over this text, so a
+       non-ASCII byte or a missing final newline cannot make a committed source differ from the same file on disk. #>
+    param([Parameter(Mandatory)][string] $Root, [Parameter(Mandatory)][string] $Commit, [Parameter(Mandatory)][string] $Path)
+    $blob = Invoke-JudgeGit $Root @('show', "${Commit}:$Path")
+    if ($blob.ExitCode -ne 0) { return $null }
+    try { $text = [Text.UTF8Encoding]::new($false, $true).GetString($blob.Bytes) } catch [ArgumentException] { return $null }
+    if ($text.Length -gt 0 -and $text[0] -eq [char]0xFEFF) { $text = $text.Substring(1) }
+    return $text
+}
+
 function Get-SourceFingerprint {
     <# The receipt's sourceFingerprint of one tree: SHA-256 over the "path hash" lines of its tracked and unignored library
        inputs, one file hash per line. The lines are ordered by Sort-Object, as receipts have always been, so a fingerprint
-       stays comparable with every stored one. #>
+       stays comparable with every stored one. The names are git's bytes, NUL-separated and read as UTF-8, so a non-ASCII
+       name is the file's own whatever the console's code page. #>
     param([Parameter(Mandatory)][string] $Root)
-    $sources = @(& git -C $Root ls-files --cached --others --exclude-standard -- @($script:FingerprintPaths))
-    if ($LASTEXITCODE -ne 0) { throw "Cannot enumerate library inputs under $Root" }
+    $listed = Invoke-JudgeGit $Root (@('-c', 'core.quotepath=off', 'ls-files', '--cached', '--others', '--exclude-standard', '-z', '--') + @($script:FingerprintPaths))
+    if ($listed.ExitCode -ne 0) { throw "Cannot enumerate library inputs under $Root" }
+    $sources = @([Text.UTF8Encoding]::new($false, $true).GetString($listed.Bytes) -split "`0" | Where-Object { $_ })
     $hashes = foreach ($source in ($sources | Sort-Object -Unique)) { "$source $((Get-FileHash -LiteralPath (Join-Path $Root $source) -Algorithm SHA256).Hash)" }
     $sha = [Security.Cryptography.SHA256]::Create()
     try { return [Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes(($hashes -join "`n")))) }
@@ -242,11 +276,13 @@ function Get-DoubledMidranks([double[]] $Values) {
 
 function Get-SubsetSumCounts([int[]] $Values, [int] $Size) {
     # ways[s]: how many Size-element subsets of Values sum to s. Counted, not enumerated: a 0/1 knapsack over the values,
-    # taking each value once and updating larger subset sizes first so it is not counted twice.
+    # taking each value once and updating larger subset sizes first so it is not counted twice. The counts are doubles:
+    # exact below 2^53, which twelve independent blocks never reach, and beyond it rounded rather than overflowing 64-bit
+    # integers, as they would from nineteen blocks (38 runs a side) on.
     $total = 0
     foreach ($value in $Values) { $total += $value }
-    $ways = [long[][]]::new($Size + 1)
-    for ($chosen = 0; $chosen -le $Size; $chosen++) { $ways[$chosen] = [long[]]::new($total + 1) }
+    $ways = [double[][]]::new($Size + 1)
+    for ($chosen = 0; $chosen -le $Size; $chosen++) { $ways[$chosen] = [double[]]::new($total + 1) }
     $ways[0][0] = 1
     $seen = 0
     foreach ($value in $Values) {
@@ -284,8 +320,8 @@ function Get-MannWhitneyTest {
     # Twice the mean rank sum is candidateRuns * (count + 1), whatever the ties.
     $mean = $candidateRuns * ($count + 1)
     $distance = [Math]::Abs($observed - $mean)
-    $all = [long]0
-    $extreme = [long]0
+    $all = [double]0
+    $extreme = [double]0
     for ($sum = 0; $sum -lt $ways.Length; $sum++) {
         $all += $ways[$sum]
         if ([Math]::Abs($sum - $mean) -ge $distance) { $extreme += $ways[$sum] }
@@ -579,7 +615,7 @@ function Invoke-PerformanceComparison {
     return [int]($result['status'] -in @('advice-required', 'invalid-evidence'))
 }
 
-Export-ModuleMember -Function Get-PerformanceMetricNames, Get-PerformanceIdentityKeys, Get-BenchmarkInputPaths, Get-LibraryInputPaths, Get-SourceFingerprint,
+Export-ModuleMember -Function Get-PerformanceMetricNames, Get-PerformanceIdentityKeys, Get-BenchmarkInputPaths, Get-LibraryInputPaths, Get-SourceFingerprint, Get-GitBlobText,
     Read-PerformanceReceipt, Assert-PerformanceReceipt, Compare-PerformanceReceipt, ConvertTo-PerformanceComparisonJson,
     Invoke-PerformanceComparison, Get-MannWhitneyTest, Get-MinimumAttainableP, Get-MetricVerdict, Compare-PerformanceSet,
     Get-ExactSignFlipPValue, Get-HolmAdjustedPValues, Compare-PairedBlockSet, Format-PerformanceSetVerdict, Get-PairedPerformanceJudgeVersion,

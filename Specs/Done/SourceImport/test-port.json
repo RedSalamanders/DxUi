@@ -3172,8 +3172,8 @@
       "file": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
       "currentFile": "Tests/Controls/DxUi.Tests.NativeTextInput.cpp",
       "test": "TestNativeTextInputBackendSyncsPrintableSysCharIntoSessionState",
-      "status": "ported",
-      "reason": "Runtime control contract retained."
+      "status": "excluded",
+      "reason": "Contract reversed by CR-13 of the 10 October code review (Q7): a WM_SYSCHAR that names no mnemonic is the system's, as over a Win32 edit control, so it is never typed. TestNativeTextInputBackendLeavesASystemCharacterToTheSystem pins the new contract."
     },
     {
       "file": "Tests/Controls/DxUiTests.NativeTextInput.cpp",

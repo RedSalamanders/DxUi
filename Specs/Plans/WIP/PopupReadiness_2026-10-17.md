@@ -26,6 +26,9 @@ assertions retain their existing limits. This does not change performance thresh
   lease; retain the failed full Debug run separately from the standalone diagnostic and other profile results.
 - [ ] Resolve the separately observed full-run Debug healthy-state-probe failure from bounded dispatch/lifecycle
   evidence, retaining the failure and without widening deadlines or treating a repeat as causal proof.
+- [ ] Execute the implemented test-only correction for the d849 submenu-retention retry failure below; keep the
+  original native pass and hosted attempt-2 failure separate, retain exact hover/timer predicates, and do not infer
+  causation from an unexecuted fixture or a passing repeat.
 - [x] Establish modal dispatch readiness in both timeout fixtures within the remainder of their existing discovery
   budget, and retain initial healthy-probe answer/elapsed/lifecycle diagnostics on failure.
 - [x] Verify the visible-initialization regression with and without the acknowledgement wait, then rerun affected checks.
@@ -236,3 +239,103 @@ hover follow-up additionally changes modal input priority. Neither changes galle
 no gallery regeneration is needed. No baseline, policy, investigation band, exact budget or allocation ceiling is
 changed. All existing performance-policy, ARM64 opt-in resource, physical input/device-removal, real IME/AT/touch
 and consumer acceptance gates remain open. Source-specific functional repair does not close shared qualification.
+
+### Latest merged-main native observation (25 October 2026)
+
+DxUi main run [40204528951](https://github.com/RedSalamanders/DxUi/actions/runs/40204528951), built from
+`4faf16ed647df71cd7d5623c1682738592771c3e`, completed five of six native profiles successfully. ARM64 Debug
+failed `TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar`; the prior comparable ARM64 Debug run
+[40197354712](https://github.com/RedSalamanders/DxUi/actions/runs/40197354712) passed, and the menu implementation
+and test source blobs are unchanged between those main commits. The failed hosted trace records
+`pointer.callback`, `pointer.accepted`, and `root.switch.begin` before the existing 180 ms pointer-only guard fails.
+The test's `MenuHoverTraceForTest` had pointer capture disabled, so the accepted event's source, HWND and point are
+unknown. Successful `PostMessageW` had not been checked either. This evidence establishes a pointer-driven root
+switch during the guard, but does not attribute it to the synthetic posted move or the real cursor.
+
+The focused follow-up enables the trace's existing bounded pointer capture and checks that the probe message was
+posted. It changes no production path, hover contract, guard duration or performance threshold. Fresh native
+execution and source-specific attribution remain pending; do not treat the 5/6 result as a green matrix.
+
+### Physical hover admission and restoration diagnostics (26 October 2026)
+
+- [x] Align and verify the physical pointer with every synthetic B2/B1 transition in the sibling-hover fixture;
+  retain per-leg dispatch, hover and timer observations without changing production Menu behavior or deadlines.
+- [x] Verify the source-specific fixture locally in x64 Debug and retain the earlier controlled failing case.
+- [x] Observe all 124 Menu cases passing, with zero skips, in all six profiles of
+  [PR #108 run 40320360351](https://github.com/RedSalamanders/DxUi/actions/runs/40320360351).
+- [ ] Resolve the separate ARM64 ASan Debug desktop-lease failure: the suites complete, but exact cursor
+  restoration fails with exit 25. Five other profiles pass. Neither a completed Menu suite nor a passing repeat
+  closes the restoration gate.
+- [x] Add bounded, optional setter/readback, clip-rectangle and desktop-name observations and fake regressions for
+  rejected sets, clipped or off-by-one positions, and unreadable pre-set/post-set coordinates. Preserve unknown
+  readings as unknown and reject malformed/contradictory receipt metadata.
+- [ ] Build and execute the diagnostics revision locally, then retain matching native CI diagnostics if the
+  restoration failure recurs. Do not add cursor retries, change the clip rectangle or weaken exact readback.
+
+The hosted test tree is `93cf3ecd82d0265e4c2818ca17f447e57c45f6de` at merge revision
+`02b0d93ec778faa16810d3bee72bf8b7fd73c739` (head `fcd1454286ad438c9e3db102434f2532534f3cce`).
+The failed lease records `state: completed`, saved cursor `512,384`, at-exit cursor `859,82`, foreground restored
+and no initially recorded focus. The original receipt lacks setter/readback and clipping details, so the cause
+remains unknown. A previous ARM64 Release restoration failure is retained separately. This test infrastructure
+change affects no public API, production pixels or performance policy; no gallery regeneration is needed.
+
+The integrated `9675dcf4` Debug build succeeds. Its ordinary run passes 18 scopes and fails the new fake
+off-by-one assertion in InteractiveLease: the default saved point is `400,300`, but the assertion incorrectly
+expected `401,301`. Preserve that binary/PDB and receipt; derive the expected readback from the saved point
+with only its X coordinate incremented. All four other new cursor failure cases pass individually on the
+retained binary. Fresh full InteractiveLease and governed foreground execution remain required. The earlier
+`c724122b` compile failure (test defined before its fixture) is retained separately; its unchanged body was moved
+after the fixture. Neither fixture correction changes production restoration or its exact-readback criterion.
+
+At `8ac9ff63`, the complete local Debug InteractiveLease suite passes. NativeTextInput and both menu-resource
+fixtures also pass under the authorized automatic-start lease, with foreground, focus and pointer restored.
+Menu stops before dispatching B2: requested screen point `244,229`, physical readback `244,199` (the prior B1
+row). The source uses `SetCursorPos` for this fixture and `GetPhysicalCursorPos` for verification; the separate
+lease restoration uses `SetPhysicalCursorPos`. The failed receipt does not record clipping or the helper's first
+readback, so neither clipping, coordinate virtualization nor intervening input is attributed.
+
+The next diagnostic records fixed-size before/set/first-read/caller-read, clip rectangle and live-popup/thread
+DPI facts on failure. The calibration popup can have been destroyed, so the diagnostic explicitly targets the
+live popup. The setter, exact predicate, timeouts and restoration remain unchanged. The synthetic mouse helper
+ends in synchronous `SendMessageW(WM_MOUSEMOVE)` and runs after alignment; it schedules no cursor movement.
+Hosted x64 Debug, Release and ASan pass at `8ac9ff63`; matching ARM64 and paired results remain separate.
+
+The hosted ARM64 Debug failure at `8ac9ff63` is in the separate replacement case,
+`TestMenuHoveringSiblingWithChildrenReplacesOpenSubmenuAfterDelay`: it fails the B2 root-hover assertion after
+synthetic B1/B2 moves that did not first align the physical cursor. Update that fixture to require exact physical
+readback at both points and retain bounded pointer/UI/driver diagnostics on failure. This tests the fixture's input
+precondition; it does not establish the hosted failure's cause or change product behavior. The same hosted
+ARM64 Debug case remains to be rerun with the diagnostics revision.
+
+### Submenu hover-retention retry (26 October 2026)
+
+The d849 hosted run `40366949236`, attempt 2, fails ARM64 ASan Debug in
+`TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay` at its initial B1 root-hover assertion. The
+failure summary records exact cursor restoration; the retained log has no per-leg hover route facts. Keep the earlier
+d849 native pass separate from this retry failure. Neither it nor the prior cursor-restoration mismatches establish
+the cause of this distinct hover failure.
+
+The test sent synthetic client-space moves for B1, B2, submenu B11 and return-to-parent B1 without using the existing
+physical-alignment fixture. The current source route consumes the popup-delivered point from each synthetic message;
+the missing physical alignment is therefore a candidate fixture inconsistency, not a demonstrated production defect.
+The implemented test-only fixture correction establishes and verifies physical B2 hover before the first B1 assertion, aligns
+the cursor under each live popup's DPI context before the four corresponding synthetic moves, and retains the
+existing hover/timer predicates and deadlines. Bounded route/driver diagnostics are collected only on failure. This
+correction has not been runtime-executed; retain both original results and require a focused run before claiming the
+fixture or cause is confirmed.
+
+### Modal painted-hover callsite closure (26 October 2026)
+
+A read-only review of all 28 `SendSettledClientMouseMoveForMenuSuite` call sites found the two delayed-submenu
+fixtures and the submenu-retention fixture aligned to their required physical points. Four other modal painted-hover
+cases were missing the same precondition: `TestMenuRainbowHoverUsesSeededHighlightContrast`,
+`TestMenuHoverContrastAppliesToGlyphsAcrossThemes`, `TestMenuCheckedRowsDoNotPaintSecondFullRowSelection`, and
+`TestMenuCheckedRowsDoNotPaintLeadingCheckedBox`. Each now owns a `ScopedMenuPointerFixture` for its live owner and
+converts its DIP center to client pixels using the live popup DPI and existing `DipToPixelForPopup` helper before
+the existing popup-DPI alignment helper and retained-hover move; failed or zero-DPI discovery is setup failure.
+The checked-row capture helpers own one fixture per modal run. Existing hover, color, bitmap and timer assertions
+are unchanged. Async synthetic/UIA, click-only and deliberate unhovered-capture cases were not changed.
+
+- [ ] Run the four newly aligned modal painted-hover cases and the submenu-retention correction after the frozen
+  pipeline releases its lane. Source formatting and runtime behavior remain subject to review; this fixture-only
+  update establishes no cause for the existing hosted failure or new pass.

@@ -16,11 +16,43 @@ struct RichImageRasterCalls
 };
 #if DXUI_ENABLE_DIAGNOSTICS
 extern thread_local const RichImageRasterCalls* testRichImageRasterCalls;
+// Private owner-thread seams for proving that native preparation errors retain
+// their HRESULT and that the editor can substitute an instrumented factory.
+extern thread_local IDWriteFactory* testRichSemanticWriteFactory;
 #endif
 class NativeObjectCapacity final : public std::length_error
 {
 public:
     using std::length_error::length_error;
+    NativeObjectCapacity(const char* message, std::size_t element) : std::length_error(message), element_(element)
+    {
+    }
+    std::size_t Element() const noexcept
+    {
+        return element_;
+    }
+
+private:
+    std::size_t element_ = MarkdownNoNode;
+};
+class NativeObjectUnsupported final : public std::runtime_error
+{
+public:
+    NativeObjectUnsupported(const char* message, std::size_t element, HRESULT error) : std::runtime_error(message), element_(element), error_(error)
+    {
+    }
+    std::size_t Element() const noexcept
+    {
+        return element_;
+    }
+    HRESULT Error() const noexcept
+    {
+        return error_;
+    }
+
+private:
+    std::size_t element_ = MarkdownNoNode;
+    HRESULT error_{};
 };
 struct SourceCaretHit
 {

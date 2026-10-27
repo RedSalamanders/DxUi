@@ -1,0 +1,145 @@
+{
+  "uniqueProfiles": 6,
+  "performanceReports": 7,
+  "allProfilesPassed": true,
+  "allReportsBoundToMerge": true,
+  "profiles": [
+    {
+      "profile": "native-ARM64-ASan Debug",
+      "testLogCount": 22,
+      "casesStarted": 1894,
+      "casesCompleted": 1894,
+      "failOrErrorMarkers": 0
+    },
+    {
+      "profile": "native-ARM64-Debug",
+      "testLogCount": 21,
+      "casesStarted": 1894,
+      "casesCompleted": 1894,
+      "failOrErrorMarkers": 0
+    },
+    {
+      "profile": "native-ARM64-Release",
+      "testLogCount": 21,
+      "casesStarted": 1894,
+      "casesCompleted": 1894,
+      "failOrErrorMarkers": 0
+    },
+    {
+      "profile": "native-x64-ASan Debug",
+      "testLogCount": 22,
+      "casesStarted": 1894,
+      "casesCompleted": 1894,
+      "failOrErrorMarkers": 0
+    },
+    {
+      "profile": "native-x64-Debug",
+      "testLogCount": 21,
+      "casesStarted": 1894,
+      "casesCompleted": 1894,
+      "failOrErrorMarkers": 0
+    },
+    {
+      "profile": "native-x64-Release",
+      "testLogCount": 23,
+      "casesStarted": 1894,
+      "casesCompleted": 1894,
+      "failOrErrorMarkers": 0
+    }
+  ],
+  "performanceReportReceipts": [
+    {
+      "profile": "native-ARM64-ASan Debug",
+      "reportSha256": "E76BD996F6EB7036BE123B5E00921B17A2D4607AB75ACC7E656676390430BE2C",
+      "sourceCommit": "646b257a4bbf6fdcf252d137d121e2d3ac246d07",
+      "sourceFingerprint": "55F2CEC7CB78321A3F857FF401442C5530B06BA491D18FDBFCC6BB96B507B90A",
+      "configuration": "ASan Debug",
+      "platform": "ARM64",
+      "nativeArchitecture": "Arm64",
+      "identityStatus": "verifiable",
+      "identityScope": "full"
+    },
+    {
+      "profile": "native-ARM64-Debug",
+      "reportSha256": "92F4A3D95F78E441DCC05E19DC87BA88F678D5D7EB12317A0C1D7E670E2A0862",
+      "sourceCommit": "646b257a4bbf6fdcf252d137d121e2d3ac246d07",
+      "sourceFingerprint": "55F2CEC7CB78321A3F857FF401442C5530B06BA491D18FDBFCC6BB96B507B90A",
+      "configuration": "Debug",
+      "platform": "ARM64",
+      "nativeArchitecture": "Arm64",
+      "identityStatus": "verifiable",
+      "identityScope": "full"
+    },
+    {
+      "profile": "native-ARM64-Release",
+      "reportSha256": "C4EEA7276578496A1C9254CF5E2582C34DAA30DA702828229EB909CD5FAB3E0B",
+      "sourceCommit": "646b257a4bbf6fdcf252d137d121e2d3ac246d07",
+      "sourceFingerprint": "55F2CEC7CB78321A3F857FF401442C5530B06BA491D18FDBFCC6BB96B507B90A",
+      "configuration": "Release",
+      "platform": "ARM64",
+      "nativeArchitecture": "Arm64",
+      "identityStatus": "verifiable",
+      "identityScope": "full"
+    },
+    {
+      "profile": "native-x64-ASan Debug",
+      "reportSha256": "4A7487239CCF09F64812D3CEC2934CBDA45209408EB39B65EBB0E84E8EA63E58",
+      "sourceCommit": "646b257a4bbf6fdcf252d137d121e2d3ac246d07",
+      "sourceFingerprint": "55F2CEC7CB78321A3F857FF401442C5530B06BA491D18FDBFCC6BB96B507B90A",
+      "configuration": "ASan Debug",
+      "platform": "x64",
+      "nativeArchitecture": "X64",
+      "identityStatus": "verifiable",
+      "identityScope": "full"
+    },
+    {
+      "profile": "native-x64-Debug",
+      "reportSha256": "BA4214F0B4213ACBBC9715CE3652AC386D1F171955BA6B4B6E9F1CF948C19377",
+      "sourceCommit": "646b257a4bbf6fdcf252d137d121e2d3ac246d07",
+      "sourceFingerprint": "55F2CEC7CB78321A3F857FF401442C5530B06BA491D18FDBFCC6BB96B507B90A",
+      "configuration": "Debug",
+      "platform": "x64",
+      "nativeArchitecture": "X64",
+      "identityStatus": "verifiable",
+      "identityScope": "full"
+    },
+    {
+      "profile": "native-x64-Release",
+      "reportSha256": "93D86C5ED0ADAE4541C1E49C30897618751061961929C23BBA38B52EBA535A1A",
+      "sourceCommit": "646b257a4bbf6fdcf252d137d121e2d3ac246d07",
+      "sourceFingerprint": "55F2CEC7CB78321A3F857FF401442C5530B06BA491D18FDBFCC6BB96B507B90A",
+      "configuration": "Release",
+      "platform": "x64",
+      "nativeArchitecture": "X64",
+      "identityStatus": "verifiable",
+      "identityScope": "full"
+    },
+    {
+      "profile": "native-x64-Release",
+      "reportSha256": "4176C881F915CFD71B0C06AB33325D355AC36AF1E24D21825E1CD4535B7EFB1D",
+      "sourceCommit": "646b257a4bbf6fdcf252d137d121e2d3ac246d07",
+      "sourceFingerprint": "55F2CEC7CB78321A3F857FF401442C5530B06BA491D18FDBFCC6BB96B507B90A",
+      "configuration": "Release",
+      "platform": "x64",
+      "nativeArchitecture": "X64",
+      "identityStatus": "verifiable",
+      "identityScope": "full"
+    }
+  ],
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-complex-ui-v2",
+  "benchmarkInputs": {
+    "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+    "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+    "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+  },
+  "fixtureMetadataProvenance": {
+    "sourceCommit": "3bcf7ed9d0aaa6afb14495f0e0a03232b6d3bfea",
+    "currentSourceFilesIndependentlyHashed": 6,
+    "nativeExecutionRetagged": false,
+    "scope": "Shared mandatory Complex UI preflight metadata only; this is not the input closure of all native, menu, or input suites, nor a quiet-host or performance acceptance claim."
+  }
+}

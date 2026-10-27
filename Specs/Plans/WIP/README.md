@@ -4,6 +4,12 @@ One entry per plan, separated by blank lines, so that changes to different plans
 
 - **ACTIVE**: [MSVC 14.52 and Release optimization](Msvc1452ReleaseOptimization_2026-10-23.md). Five-repository compiler/linker audit, explicit Release function elimination and full LTCG, matching pinned-archive policy, and measured before/after qualification.
 
+- **ACTIVE**: [Source ink renderer qualification](SourceInkRendererQualification_2026-10-27.md). Integrated renderer candidate has focused raster evidence but no full SDK qualification or adoption; descriptive paired study is inconclusive and consumer/parent holds remain separate.
+
+- **ACTIVE**: [Complete Update-stage metric accounting](FrameUpdateAccounting_2026-10-26.md). PR #112 hosted CI passes all six native profiles at source `8199566d635751a20a6e916e73410fb6cad317cc` / merge `47fe389680a6c224ce2b76cc1e5c0af0c414a11f` (1,293 independent root checks); FrameUpdate source/tests match Main checkpoint `aebeb73cd448fbb00e1439d1a3c1baf4af1c82e9`. The earlier PR109 Release Menu-fixture failure remains historical. Final local/current-source qualification and performance acceptance remain open; earlier SDK407 diagnostics retain their incomplete Update-field boundary.
+
+- **ACTIVE**: [Read-only Source snapshot synchronization](ReadOnlySourceSnapshot_2026-10-26.md). API revision 4 is merged as `3bcf7ed9` with tree `18be6688`; the plan records exact-source local builds/Full suites and authorized foreground results, and the public CI packet records six hosted native profiles. Paired performance remains inconclusive because the base policy is unqualified and 62/72 controls are unstable. PR #108 Menu and lease-restoration failures remain separate; consumer performance, platform and physical-input gates stay open. No performance gain is claimed.
+
 - **SPEC READY**: [RichTextEditor file drag-and-drop](RichTextFileDrop_2026-10-20.md).
 Displayed image references and relative links for other files reuse the paste
 policy. Unicode OLE ownership, guarded caret insertion and native/embedded tests
@@ -25,15 +31,19 @@ focused Debug checks; metadata validity and remaining extensions are in progress
 the rich-text engine records one memory-safety defect, contract violations in failure containment, admission,
 math ownership, input and host paste, stale capability status, a non-incremental semantic pipeline, and the
 Markdown, math and Mermaid completeness gaps. Waves 0 to 5, a test track and owner-scoped completion tracks
-sequence the work; no library code has changed. The parent rich-text plan keeps its own gates.
+sequence the work; no library code has changed. A dated 24 October continuation revalidates current-source
+math/Mermaid defects and coordinates the RedTilde completion request without duplicating W/T/C ownership.
+The parent rich-text plan keeps its own gates.
 
-- **ACTIVE**: [Menu fixture popup readiness](PopupReadiness_2026-10-17.md). Registered hover input now precedes pending popup paint; a deterministic paint-stream case fails against the old library and passes with the priority fix. PR #85's post-merge run completes 110/110 Menu cases and both hover regressions in all six native profiles, with zero skips. Original untraced Debug/ARM64 failures remain unattributed; ARM64 focus restoration and shared qualification remain open in the qualification ledger.
+- **ACTIVE**: [Menu fixture popup readiness](PopupReadiness_2026-10-17.md). Registered hover input now precedes pending popup paint; a deterministic paint-stream case fails against the old library and passes with the priority fix. PR #85's post-merge run completes 110/110 Menu cases and both hover regressions in all six native profiles, with zero skips. A 25 October merged-main run passes five native profiles but again fails ARM64 Debug in the overlapping-popup root-switch guard; the pointer callback accepts a root switch, while the captured event source/HWND/point are unavailable. A focused test-only trace now captures pointer routes and checks probe posting; native execution and attribution remain pending. Original untraced failures, ARM64 focus restoration and shared qualification remain open in the qualification ledger.
 
 - **ACTIVE**: [Production review and remediation](ProductionReview_2026-10-05.md). Requested ten-day review covers #28-#68, with the earlier #21-#65 review retained for context. The approved automatic-Start candidate has six builds and 69 passing x64 suite executions: 57 noninteractive and all four focus suites in Debug, Release and ASan Debug, with zero native skips and verified restoration. Earlier failures, refusals and cancellations remain separately retained; fresh passes do not prove their causes. The repaired v2 A/A repeat has all 72 controls unstable; policy/required-CI acceptance, native ARM64, physical-input and consumer qualification remain open.
 
 - **ACTIVE**: [CI run scope](CiRunScope_2026-10-04.md). The validation workflow runs once per change (pushes validate main alone), and a documentation-only pull request skips the six native jobs; the hosted behavior remains to be observed.
 
 - **ACTIVE**: [Library qualification and consumer adoption](ConsumerUiQualification_2026-10-11.md). Single owner of shared qualification; the API-4 register owns consumer actions. PR #88's exact post-merge run passes six native profiles, eight enabled public-consumer checks and 128 zero-skip suite receipts (Menu 113/113 and NativeTextInput 169/169 per profile), with both intentional ASan probes detected. Three shared ARM64 leases again report foreground-minimized/none, leaving focus restoration unverified; approved ordinary-host/native ARM64 observations with recorded initial focus remain necessary. PR #87 evidence retains its original source identity. Green push CI does not qualify the skipped paired gate or unchanged qualified=false policy. Earlier failures, attribution gaps, timing/memory flags, MultilineGrid uncertainty and retention limits remain. All 20 qualification HOLDs, deadlines and thresholds stay unchanged.
+
+- **ACTIVE**: [Code review of the ten-day merge window](CodeReview_2026-10-10.md). [PR #96](https://github.com/RedSalamanders/DxUi/pull/96) integrates main `ceffe76a4`; frozen source `da335d36` passed six builds, 57 ordinary and 12 authorized foreground x64 suite executions with zero skips, two ASan detection probes and three exact-pin consumers. The plan links its 24 October summary with full static/CMake/format checks and six reviewed gallery captures. Native ARM64 runtime, manual/product qualification, paired performance/R10, remaining RichText visual qualification, CI event-SHA wiring and deferred administration remain open; historical and failed receipts are retained.
 
 - **ACTIVE**: [Scoped testing](ScopedTesting_2026-10-05.md). Native test naming, affected iteration, exact local reuse and local/PR coverage coordination across the library and consumers.
 

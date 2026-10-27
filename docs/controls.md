@@ -11,14 +11,25 @@ blank-source caret lines. Quiet Tree decoration includes neutral count badges an
 Splitter keeps its original resize hit geometry while painting only a thin idle seam.
 
 RichTextEditor supports file-reference paste and caller-serviced native images.
+Read-only Source mirrors can call `SynchronizeReadOnlySourceSnapshot(snapshot, selection)` on their owner thread
+to share immutable text storage. The mirror keeps its own revision and independent parser; incompatible targets
+or invalid source boundaries return false without changing state. Callbacks follow the ordinary selection path.
+An owner may additionally call `TryAdoptReadOnlyMarkdownSyntax(snapshot, completedSyntax)` to reuse an exact
+canonical parse. It keeps the mirror's own revision/document identity, source coloring, selection, scroll and
+history. `S_FALSE` leaves independent parsing available; `E_OUTOFMEMORY` preserves the previous publication.
+Rebuild consumers with the matching pinned headers and library, as for other source-coordinated API additions.
 Remote HTTP(S) requests require explicit `SetRemoteImagesEnabled(true)`; the
 caller owns network transport, and disabling immediately retires remote pixels
 while retaining local image work. See [image resources](rich-text.md).
 File drag-and-drop remains a [pending specification and native/embedded test plan](../Specs/Plans/WIP/RichTextFileDrop_2026-10-20.md).
 
 ScrollPanel forwards secondary clicks to content children at their scrolled coordinates; scrollbar interaction
-uses the primary button. Pointer and keyboard menu anchors account for nested scroll offsets, including through
-PageHost and for Tree/Grid delegates. Extracting a RadioButton with `TakeChild` removes its effective association with the
+uses the primary button. A double-click reaches the child under the pointer as that child's double-click and the
+scrollbar as a press, so a second click on the track pages again. A second button pressed during a forwarded gesture
+reaches the child that owns the gesture, and only the release of the gesture's own button ends it. Pointer and keyboard
+menu anchors account for nested scroll offsets, including through PageHost and for Tree/Grid delegates. A keyboard menu
+opens at the control's reading-order start (its right edge in a right-to-left layout), kept inside the visible scroll
+viewports when the control is scrolled out of view. Extracting a RadioButton with `TakeChild` removes its effective association with the
 former group, so it remains safely selectable if that group is retained or destroyed. Configure its new group
 after adoption when mutual exclusion is required.
 
@@ -29,24 +40,24 @@ Set bounds, visibility, enabled state and content before preparation. Mutate con
 
 | Control | Configure and use |
 | --- | --- |
-| Panel | Own children with `AddChild<T>`; set explicit child bounds. Transfer ownership with `TakeChild(index)`, which clears host/parent links and leaves an empty slot while preserving inherited settings. Check for an empty return before giving the child to `SetRoot` or `PageHost::SetPage`; interaction callbacks may cancel extraction. |
-| PageHost | Transfer a root with `SetPage(unique_ptr<Control>, connectedAnimationKey)`; the host retains transition state. Advance animation through the containing host. If a paint callback replaces the page, that frame is discarded and the next preparation applies its bounds before painting. |
+| Panel | Own children with `AddChild<T>`; set explicit child bounds. Transfer ownership with `TakeChild(index)`, which clears host/parent links and leaves an empty slot while preserving inherited settings; `CompactChildren()` removes the empty slots in order once no index is held (indices after them shift), for a panel whose children are swapped for a long session. Check for an empty return before giving the child to `SetRoot` or `PageHost::SetPage`; interaction callbacks may cancel extraction. |
+| PageHost | Transfer a root with `SetPage(unique_ptr<Control>, connectedAnimationKey)`; the host retains transition state. Advance animation through the containing host. If a paint callback replaces the page, that frame is discarded and the next preparation applies its bounds before painting. The current page is part of the window like a Panel's children: its controls take focus with Tab, receive IME and TSF text input, and have UI Automation elements. |
 | CardPanel | A Panel with themed card chrome; position child bounds in host DIPs, including the card's origin. |
 | Label | Construct with text or call `SetText`; choose a font role for headings/body text. `SetTypographyOverride` opts into size (6–96 DIP, normalized to 1/64 DIP), weight (100–900) and character spacing (−4..16 DIP); invalid values leave the prior override unchanged and `nullopt` restores the role defaults. |
 | Button | Construct with its caption; `SetOnClick` handles activation and `SetOnDropDownClick` handles split-button actions. `SetToggleState(std::optional<bool>)` opts into UI Automation TogglePattern with consumer-owned state; a checked non-primary button persistently uses selection fill/text, including IconOnly. `SetThemePreview` optionally draws three theme swatches inside a normal Button and suppresses custom swatches in high contrast. `SetPrimary` separately controls primary visuals. `ThemePalette::primaryButtonFill` and `primaryButtonText` optionally set primary-button colors in normal themes; high contrast keeps the system selection pair. |
 | Separator | Noninteractive horizontal or vertical divider; `SeparatorOrientation` selects its direction. It is catalogued and exposed to UI Automation as a separator, without focus or invoke behavior. |
 | Toggle | Set initial state with `SetChecked`; handle user intent with `SetOnToggled(bool)`. |
 | Checkbox | Uses toggle checked-state/event semantics with checkbox visuals. `SetMultiline(true)` wraps long captions; reserve 36 DIP horizontally for indicator/gaps and 6 DIP vertically around measured Body text. |
-| RadioButton | Configure selection state and `SetOnSelected`; use RadioButtons when selection is mutually exclusive. |
+| RadioButton | Configure selection state and `SetOnSelected`; use RadioButtons when selection is mutually exclusive. UI Automation exposes it as a RadioButton with SelectionItem (selected while checked) and, in a RadioButtons group, its place in the group (PositionInSet, SizeOfSet), and every change of choice, including `SetChecked` and `SetSelectedIndex`, raises its selection events. |
 | RadioButtons | Own a group of choices and handle `SetOnSelectionChanged(int)`. |
 | ProgressBar | Set minimum, maximum and value. `SetIndeterminate(true)` sweeps a segment on host ticks. `SetAnimationPaused(true)` freezes its phase while retaining unknown-progress and enabled state; resume starts from that phase. Reduced motion rests it centered without ticks. |
-| PageIndicator | Set `SetPageCount` / `SetSelectedIndex` for a bottom strip of dots. `SetOnSelected` reports user clicks and Left/Right/Home/End. Hidden and not hittable when there are fewer than two pages. Strip height is `kStripHeightDip` (20). |
+| PageIndicator | Set `SetPageCount` / `SetSelectedIndex` for a bottom strip of dots. `SetOnSelected` reports user clicks and Left/Right/Home/End. Hidden and not hittable when there are fewer than two pages. Strip height is `kStripHeightDip` (20). UI Automation exposes it as a Slider element whose RangeValue is the page, from 1 to the page count (SetValue chooses a page as the arrow keys do); give it an accessible name, such as the localized word for pages. |
 | ThroughputGraph | Feed timestamped samples through its public sample API; keep history within its configured limits. Use the rendering tests for populated series and bands. |
 | Slider | Set range/value and handle `SetOnChange(SliderChange)` for preview, commit and cancel. Painted chrome is a 6 DIP track, a 24 DIP gray disc, and an accent inner thumb (14 DIP rest, 20 hover, 16 pressed); while a touch contact drags it, a 48 DIP translucent accent halo shows around the finger (an opaque ring in high contrast), clipped to Slider bounds and active ancestor/viewport/host clips. Give the control 48 DIP of cross-axis room to reveal the full halo and keep neighboring content outside its bounds; popup/menu overlays paint above it. Embedded hosts pass the contact's `PointerEvent::device` for it. Pointer hit testing stays within the declared control bounds; its unpainted 48 DIP band is clipped when the Slider is shorter. A press within 24 DIP of the thumb center drags, otherwise the track seeks. Capture keeps dragging outside the bounds; cancellation restores the starting value. Hover, press and keyboard steps animate; `SetValue` snaps even when acknowledging the same target. Non-finite ranges, values and steps are ignored. |
 | Toolbar | Panel for command controls; populate buttons with labels, bounds and actions. |
 | Tree | `SetTypographyOverride` optionally configures row size (6–96 DIP, normalized to 1/64 DIP) and regular/current weights (100–900); the focused current row uses the configured current weight. `nullopt` preserves role-default rendering. |
 | MenuBar | Supply `MenuBarItem` records through `SetItems`; handle `SetOnOpenItem` and hover changes. Native menu operations require the HWND integration. While a bar item's menu runs in a modal `ContextMenu::Show`, a hover change calls `ContextMenu::PostMenuBarHover`, and the session's `switchRootFromMenuBarHover` returns the hovered item's menu. |
-| TabControl | Add populated tab pages with `AddTab`; handle selection, close-request, closed and reorder callbacks as needed. Extract pages with `TakeTab(index)` or virtual `TakeChild(index)` so tab metadata and selection remain coherent. Check for an empty return before adopting the page elsewhere. |
+| TabControl | Add populated tab pages with `AddTab`; handle selection, close-request, closed and reorder callbacks as needed. Extract pages with `TakeTab(index)` or virtual `TakeChild(index)` so tab metadata and selection remain coherent. Check for an empty return before adopting the page elsewhere. UI Automation exposes it as a Tab element whose children are its tabs (TabItem elements with SelectionItem and their place among the visible tabs, the selected one its required single selection), and a focused tab control's focus is its selected tab. A selection, close-request or closed callback that throws is contained; a close request that fails keeps the tab. |
 | ColorSwatch | Configure the displayed color and handle `SetOnClick` to launch your color selection flow. |
 | RichTextEditor | Bounded Unicode editor with v0 formatting by default. Use `SetText`, source `SetSelection`, `SetViewMode`, `SetReadOnly`, source transactions and undo/redo. Opt into lossless CommonMark/GFM analysis with `SetMarkdownAnalysisProfile`; add `SetMarkdownRenderingEnabled(true)` for the semantic native rendering preview. `ExecuteMarkdownCommand` / `ApplyMarkdownCommand` provide source-exact lists, headings, styles, inert links, tasks and tables with atomic history. Enter/Tab, Ctrl+B/I and task release share that API. Measured hanging marker columns, inert underlined links and the balanced native HTML subset share native geometry; unsupported markup keeps a literal leaf. Source caret sites distinguish empty/trailing/container-only lines and empty/padded cells without virtual ACPs. Semantic style/structure UIA adds typed source attributes, Format units, children, table/header patterns and task actions; the bounded M4 implementation is functionally qualified (physical/platform/performance gates remain open). Shared native/embedded source TSF/IME and Document/Text/Text2/TextEdit UIA adapters are implemented; real IME/AT qualification remains pending. Explicit document location makes pasted image and file-link destinations document-relative; mixed file lists preserve order and one undo boundary; caller-owned workers publish immutable local raster images with source/UIA alternatives and bounded native/embedded preparation. See [rich text](rich-text.md). |
 | TextField | Set text/editing options; handle `SetOnTextChanged`, `SetOnSubmitted` and `SetOnBlur`. `SetFontRole` selects a shared host typography role (Body by default) for measurement, paint, caret/hit-test geometry and text-input services; changing it preserves text, selection, history and active input composition while invalidating shaped-layout state. Full IME/native text behavior needs the appropriate host bridge. A multiline field draws its caret only inside its text viewport: on a partly visible line it is cut at the viewport's edge, and scrolled out of view it is not drawn. |
@@ -57,11 +68,11 @@ Set bounds, visibility, enabled state and content before preparation. Mutate con
 | StackPanel | Set orientation, gap and padding; call `SetChildExtent` for every child and `ApplyLayout` after content or bounds changes. |
 | FlexPanel | Opt into intrinsic row/column layout with `SetOrientation`, `SetGap`, `SetPadding`, `SetWrap` and `SetChildOptions`. Measure supported leaves or provide `explicitSizeDip` for a custom control. `ApplyLayout(host)` reports overflow without shrinking declared minima. |
 | FormPanel | Create fields with unique IDs through `AddField`; choose one/two columns and `LabelPlacement::Above`/`Beside`. Shared label widths and wrapped descriptions/errors are measured during preparation. Keep footer actions outside the form body. |
-| FormField | Own one stable editor through `AddEditor<T>`, supply a label and description, and present required/error state through `SetRequired` and `SetValidation`. `NumericStepper::Field()` receives editor UIA metadata. Product values, validation, Apply and Cancel belong to the application. |
+| FormField | Own one stable editor through `AddEditor<T>`, supply a label and description, and present required/error state through `SetRequired` and `SetValidation`. `NumericStepper::Field()` receives editor UIA metadata. Product values, validation, Apply and Cancel belong to the application. A new error is not announced on its own: raise `RaiseWindowHostAccessibilityNotification` when it should be spoken. |
 | ScrollPanel | Own a content tree, set the content extent, and handle `SetOnScrollChanged` if needed. It clips and translates pointer coordinates into content space. |
 | TooltipLayer | Usually managed through `ControlHost::SetTooltip`, `SetTooltipDelayed`, hide-delay and `ClearTooltip`; delayed behavior needs host ticks. |
-| Tree | Supply a borrowed `ITreeModel`, optional `ITreeDelegate`, then `NotifyDataChanged` when data changes. Use stable IDs for selection/expansion. `SetInvokeOnSingleClick(true)` invokes a row on a matching pointer release; the expander remains an expand/collapse action, Enter invokes the focused row, Space does not invoke in this mode, and a double-click does not invoke an already-clicked leaf twice. `iconText` in the private-use range uses the icon font; letters and symbols keep the UI font. `SetReorderEnabled` reports one `OnTreeReorder` per row drag (never into the row's own subtree); the tree does not move your model, and a keyboard reorder command is yours to provide. `SetMultiSelectEnabled(true)` (off by default, which keeps the single selection exactly as it was) selects several items: click selects one and sets the anchor, Ctrl+click toggles, Shift+click (or Shift with a movement key) selects the visible range from the anchor, Ctrl with a movement key moves the focus alone, Ctrl+Space toggles the focused item and Ctrl+A selects every visible row. `GetSelectedItemIds` lists the selection in visible order (`GetSelectedItemId` reports the primary selected member, while `GetFocusedItemId` reports the focused row), `OnTreeSelectionSetChanged` reports each change of the set once, and the selection survives `NotifyDataChanged` except for rows that are no longer visible (removed, or hidden by a collapse). A drag of a selected row reports that row alone and leaves the selection intact, so your `OnTreeReorder` may move every id in `GetSelectedItemIds` when the source is one of them. UI Automation reports `CanSelectMultiple`, and every change of the selection, single or multiple and from a gesture or your silent setters, raises its [selection events](../Specs/UI/UI_InputAndAccessibility.md#selection-events) to screen readers: `ElementSelected` for an item that became the selection, `ElementAddedToSelection`/`ElementRemovedFromSelection` otherwise, with each item's `IsSelected` change, and one `Selection_Invalidated` past 20 items or for an item that left the tree, unless one item became the whole selection, whose `ElementSelected` says the others left. |
-| Grid | Supply a borrowed `IGridModel` and optional `IGridDelegate`; configure columns, row height and selection. Call `NotifyDataChanged` after model changes. A change of the selected rows (a click, the keys, Ctrl+A, UI Automation, or `GetSelectionModel()` changes you publish with `NotifyDataChanged` or `RefreshAccessibilitySnapshot`) raises the [selection events](../Specs/UI/UI_InputAndAccessibility.md#selection-events) from the rows, as a tree's items do. UI Automation exposes GridPattern row/column counts and `GetItem` for any valid model cell. It reads an uncached offscreen row without scrolling, selecting or focusing; visible rows, up to 256 selected offscreen rows, and the 16 most recently materialized offscreen rows are available from immutable snapshots. An evicted cell provider or a removed row returns `UIA_E_ELEMENTNOTAVAILABLE`. |
+| Tree | Supply a borrowed `ITreeModel`, optional `ITreeDelegate`, then `NotifyDataChanged` when data changes. Use stable IDs for selection/expansion. ` SetInvokeOnSingleClick(true) invokes a row on a matching pointer release; the expander remains an expand/collapse action, Enter invokes the focused row, Space does not invoke in this mode, and a double-click does not invoke an already-clicked leaf twice. iconText` in the private-use range uses the icon font; letters and symbols keep the UI font. `SetReorderEnabled` reports one `OnTreeReorder` per row drag (never into the row's own subtree); the tree does not move your model, and a keyboard reorder command is yours to provide. `SetMultiSelectEnabled(true)` (off by default, which keeps the single selection exactly as it was) selects several items: click selects one and sets the anchor, Ctrl+click toggles, Shift+click (or Shift with a movement key) selects the visible range from the anchor, Ctrl with a movement key moves the focus alone, Ctrl+Space toggles the focused item and Ctrl+A selects every visible row. `GetSelectedItemIds` lists the selection in visible order (`GetSelectedItemId` reports the primary selected member, while `GetFocusedItemId` reports the focused row, which `SetFocusedItemId` moves silently and a focus-only move reports through `OnTreeFocusedItemChanged`), `OnTreeSelectionSetChanged` reports each change of the set once, and the selection survives `NotifyDataChanged` except for rows that are no longer visible (removed, or hidden by a collapse). A drag of a selected row reports that row alone and leaves the selection intact, so your `OnTreeReorder` may move every id in `GetSelectedItemIds` when the source is one of them. UI Automation reports `CanSelectMultiple`, and every change of the selection, single or multiple and from a gesture or your silent setters, raises its [selection events](../Specs/UI/UI_InputAndAccessibility.md#selection-events) to screen readers: `ElementSelected` for an item that became the selection, `ElementAddedToSelection`/`ElementRemovedFromSelection` otherwise, with each item's `IsSelected` change, and one `Selection_Invalidated` past 20 items or for an item that left the tree, unless one item became the whole selection, whose `ElementSelected` says the others left. An item that expands or collapses raises its `ExpandCollapseState` change, and the rows it shows or hides change the structure. An item that expands or collapses raises its ExpandCollapseState change, and the rows it shows or hides change the structure. |
+| Grid | Supply a borrowed `IGridModel` and optional `IGridDelegate`; configure columns, row height and selection. Call `NotifyDataChanged` after model changes. A change of the selected rows (a click, the keys, Ctrl+A, UI Automation, or `GetSelectionModel()` changes you publish with `NotifyDataChanged` or `RefreshAccessibilitySnapshot`) raises the [selection events](../Specs/UI/UI_InputAndAccessibility.md#selection-events) from the rows, as a tree's items do. A selection you publish that way leaves the focus as it is, and with no row focused the keys start from its last row; `SetSelectedRowIds` selects rows silently and focuses the last one. The focused row is separate from the selection: `GetFocusedRowId` reads it, `SetFocusedRowId` moves it silently, and `RequestFocusRow` / `RequestFocusCell` move it as a key does and report `OnGridFocusedRowChanged`, keeping the selection (`RequestFocusCell` also makes its column current). The focused row draws its own focus ring during keyboard use, Ctrl with a movement key moves only the focus, and Ctrl+Left/Right choose the current column. The grid binds no key to full-value inspection (F1 stays your Help): offer an Inspect command, for example in your `OnGridContextMenu`, that calls `InspectFocusedCell`, and show it when `IsFocusedCellClipped` is true. A touch double-tap activates a row, as a double-click does. Ctrl+C copies the selected visible rows in model order, their cells in display order, as tab-separated text with CRLF between rows; a field holding a quote, a tab or a line break is enclosed in quotes, its quotes doubled. Ctrl+C with nothing selected is left to you. UI Automation exposes GridPattern row/column counts and `GetItem` for any valid row and displayed column; column numbers, a row's cells and the column headers follow the display order after a reorder, every column has a header element, and rows and cells have ScrollItem (an action on a cell scrolls it into view first). It reads an uncached offscreen row without scrolling, selecting or focusing; visible rows, up to 256 selected offscreen rows, and the 16 most recently materialized offscreen rows are available from immutable snapshots. An evicted cell provider or a removed row returns `UIA_E_ELEMENTNOTAVAILABLE`. |
 | Splitter | Size it over both panes, choose `SetOrientation`, set the pane minimums and `SetPosition`, then place your pane controls from `GetFirstPaneBounds` / `GetSecondPaneBounds` inside `SetOnChange(SplitterChange)` (preview while dragging, commit on release or keyboard, cancel on Escape or capture loss). Only the separator plus 2 DIP is hittable; the position you persist is your state. In an EmbeddedHost apply the pane bounds on your next Prepare rather than inside the callback, or the bounds change cancels the drag on the next pointer event. |
 | NumericStepper | Set range, `SetStep` / `SetLargeStep`, `SetDecimals`, an optional `SetLabel` / `SetUnit` with widths, and handle `SetOnChange(NumericStepperChange)`: typing previews, Enter, focus loss, the buttons and Up/Down (Shift: large step) commit, Escape cancels, and an edit whose text no longer parses reverts with a cancel. `SetValue` is silent. The step buttons are named "Increase" / "Decrease" for UI Automation; supply localized names with `SetStepButtonNames`. Preferred height is `kDefaultHeightDip` (32). |
 | ColorPicker | Size it to `kDefaultWidthDip` x `kDefaultHeightDip` (316 x 236), supply captions through `SetLabels`, open it with `SetColor` and handle `SetOnChange(ColorPickerChange)`. Feed eyedropper results through `SampleColor`; OK or Enter commit, Cancel or Escape restore the current color. For translated captions set `Labels::channelLabelWidthDip`, `hexLabelWidthDip` and `swatchWidthDip` (up to 4,096 DIPs; widen the picker for wider swatches), and name the channel step buttons with `Labels::increaseRed` … `decreaseBlue` (whole phrases). |
@@ -71,10 +82,19 @@ Set bounds, visibility, enabled state and content before preparation. Mutate con
 For large Tree models, optionally return already prepared immutable rows from
 `ITreeModel::CapturePreparedAccessibilityRows()`. This keeps complete offscreen names available while a changed
 accessibility snapshot retains one source instead of copying every label. The default null result preserves the
-existing model path. Keep the source's ordered IDs, text, depth, child presence and expansion state coherent;
+existing model path. Keep the source's ordered IDs, text, depth, child presence, expansion state and badge status coherent;
 publish a new shared source when any of those change. Selection does not require a new source. Its borrowed text
-must remain valid through retained foreign readers, and the consumer owns preparation, admission and final
-destruction. See the [Tree usage and lifetime contract](../Specs/DesignSystem/components/Tree/README.md#optional-prepared-accessibility-rows)
+and optional borrowed badge status must remain valid through retained foreign readers, and the consumer owns
+preparation, admission and final destruction. Badge status is exposed as the TreeItem `ItemStatus`; row `Name`
+remains its text. Prepared sources publish a changed status by publishing their normal new immutable source and
+calling `NotifyDataChanged`.
+
+For a legacy mutable model, update a visible row's badge text/tone/dot and call
+`NotifyItemPresentationChanged(itemId)`. This narrow path refreshes badge/tooltip measurements, paint and UIA
+`ItemStatus` without reconciling selection, focus, order or scroll. Keep IDs, order, row text, depth, child/expanded
+state and visible membership unchanged. The call returns false without publication for a missing/nonvisible row or
+a model supplying prepared rows; use `NotifyDataChanged` when row semantics or topology change. See the
+[Tree usage and lifetime contract](../Specs/DesignSystem/components/Tree/README.md#optional-prepared-accessibility-rows)
 and [library qualification](../Measurements/PreparedTreeAccessibility/2026-10-06/README.md).
 
 Use `SetAccessibleInvokeResult` for an accessible action that can fail, returning its HRESULT to UI Automation.
@@ -93,8 +113,8 @@ and a constrained menu scrolls. Secondary text is literal Unicode. Primary text 
 mnemonic rules: double an ampersand to display it literally. Do not use the shortcut column for
 parent locations or other descriptive text.
 
-Supply `accessibleName` when the complete spoken identity differs from the displayed fields.
-Otherwise UIA exposes the decoded primary label, followed by its secondary text when there is one. Every entry
+UIA names an entry with its decoded primary label, or with `accessibleName` when you supply one, and exposes the
+secondary text as its HelpText; a name that repeats the secondary text is spoken twice. Every entry
 of every menu popup (root or submenu, described or not) is a UIA element: MenuItem/Invoke for commands and the
 acknowledged checked state, and a row scrolled out of view reports `IsOffscreen` until UIA focus scrolls it in.
 A menu opened by the pointer starts without a keyboard selection. Command IDs remain
@@ -116,7 +136,8 @@ the icon, label, shortcut and submenu indicator in mirrored columns, shape text 
 reversing glyph strings, open submenus to the left when space permits, and map horizontal arrow and
 slider navigation to the reading direction. Mnemonics are matched from Unicode character messages
 after the active keyboard layout translates the key; explicit ampersand markers take priority, and
-repeated matches cycle through the rows. High-contrast selected rows use the selection
+repeated matches cycle through the rows. A slider row's mnemonic selects the slider, and AltGr keeps the menu open
+so an AltGr character can be a mnemonic. High-contrast selected rows use the selection
 foreground/background pair; disabled text uses opaque system GrayText.
 
 Normal dismissal delivers the completion callback and restores the prior owner control as applicable.
@@ -133,8 +154,7 @@ soon as the menu closes; other threads' windows show the arrow.
 DxUi::MenuFlyoutItem item;
 item.kind = DxUi::MenuItemKind::Radio;
 item.text = L"Archives familiales";
-item.secondaryText = L"D:\\Photographies\\Exposition annuelle";
-item.accessibleName = L"D:\\Photographies\\Exposition annuelle\\Archives familiales";
+item.secondaryText = L"D:\\Photographies\\Exposition annuelle"; // UIA HelpText; the name stays the label
 item.commandId = 42;
 ```
 
@@ -230,6 +250,12 @@ grid row included), UI Automation or a model change (`NotifyDataChanged`, `SetMo
 checkbox toggle whose model change moves the selection), touches nothing of a control the callback destroyed.
 Grid also stops after checkbox, group and sort delegates replace its model or destroy it. Group-layout requests resolve
 each remaining group by stable ID after callbacks. Never reuse the old sender pointer after replacing its tree.
+Short of that, a callback may publish its own edit with `NotifyDataChanged` (the usual way to answer
+`OnTreeToggleExpanded`, `OnGridGroupToggled` or `OnGridCheckboxToggled`) or change other controls, such as enabling a
+toolbar command: the gesture still completes its reports, reveal, context menu, drag, toggle and animation. Only a focus
+handler that moves, scrolls or refreshes the clicked tree or grid itself, leaving another row under the pointer, makes
+that click do nothing. A right-click menu is for the pressed row wherever the selection callbacks moved it (none when they
+removed it), and a published refusal of `OnTreeToggleExpanded` makes a UI Automation Expand or Collapse fail.
 Grid keyboard ranges remember their moving endpoint independently of the ordered selection, so repeated Shift+Up
 shrinks or extends the range correctly. Switching to single selection keeps that endpoint when it is selected.
 Grid models provide row/column counts, column descriptors, cell data and stable-row lookup. Tree models provide
@@ -287,7 +313,8 @@ an empty string restores the English default. An open ComboBox popup updates its
 class LayersPanel final : public DxUi::ITreeDelegate
 {
 public:
-    // The focused row moved (a click, a key, typeahead or UI Automation). With multi-select it may be outside the selection.
+    // The selection changed to a nonempty one; `itemId` is its primary member (GetSelectedItemId). A move of the focus
+    // alone (Ctrl with a movement key) reports OnTreeFocusedItemChanged instead.
     void OnTreeSelectionChanged(uint64_t itemId) override { _activeLayer = itemId; }
     // The selection changed, once per change: `ids` are the selected rows in visible order, valid during the call.
     void OnTreeSelectionSetChanged(std::span<const uint64_t> ids) override { _selected.assign(ids.begin(), ids.end()); }
@@ -326,7 +353,13 @@ callback retires their owner or the new child. `ClearChildren` clears the childr
 remain in the live panel.
 `TakeChild`/`TakeTab` stop when focus/capture cleanup moves their live owner to another host or restores interaction
 inside the requested branch. An empty return preserves that callback's ownership, focus, capture and tab metadata.
+Before it detaches anything, `TakeChild` (and a TabControl's tab removal) calls the protected `Panel::OnDescendantDetaching` on the panel and every
+enclosing panel, across non-panel containers such as PageHost. A custom container that tracks hover or capture inside its descendants overrides it to end them, as
+`ScrollPanel` does for the control under the pointer or the one being pressed (a derived panel chains to its override). A gesture a ScrollPanel forwards also ends when the host capture goes away without a capture-loss callback, and a press whose handler already consumed its release (a blocking context menu) or gave the pointer to a popup takes no capture.
 Legacy mutable owning spans remain available for compatibility; use the extraction APIs for ownership transfers.
+Composite controls keep their own parts: `TakeChild` and `ClearChildren` on a NumericStepper or ColorPicker take nothing,
+and on a TagPicker they keep its input box. A FormField keeps its label, description and validation the same way: `TakeChild`
+refuses them and `ClearChildren` removes its editor, so the field takes a new editor with its text and state as they were.
 Explicit page overrides still take precedence. A child promoted to the host root snapshots its previous inherited
 values before reset callbacks can retire its old parent. Overlay dismissal stops traversing a retired container.
 

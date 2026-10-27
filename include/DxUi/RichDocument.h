@@ -8,6 +8,11 @@
 #include <utility>
 #include <vector>
 
+namespace DxUi
+{
+class RichTextEditor;
+}
+
 namespace DxUi::RichText
 {
 struct Selection
@@ -50,6 +55,9 @@ public:
     SourceSnapshot();
     std::wstring Text() const;
     std::size_t Length() const noexcept;
+    // Compare against caller-owned text without flattening this immutable tree.
+    // Used for exact admission of an already parsed result; does not allocate.
+    bool MatchesText(std::wstring_view text) const noexcept;
     // Exact immutable revision identity, stronger than equal spelling/revision
     // counters from different documents. Does not walk or materialize source.
     bool IsSameRevision(const SourceSnapshot& other) const noexcept
@@ -139,6 +147,8 @@ private:
     SourceSnapshot source_;
     Selection selection_{};
     std::uint64_t revision_{};
+    friend class ::DxUi::RichTextEditor;
+    [[nodiscard]] bool AdoptReadOnlySourceSnapshot(const SourceSnapshot& source, Selection selection) noexcept;
     std::vector<History> undo_, redo_;
     static void Push(std::vector<History>& history, History entry);
     bool ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view text, Selection after, bool recordHistory);
