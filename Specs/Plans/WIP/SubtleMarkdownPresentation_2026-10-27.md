@@ -1,5 +1,7 @@
 # Subtle Markdown presentation and caption input
 
+> **Resumed 28 October 2026:** the user requests remaining tests/coding, remote-main integration and obsolete branch/worktree cleanup. Earlier pause statements below describe the prior checkpoint. The live integration checklist is in RedTilde's indexed `RedesignCompletionAndRendering_2026-10-24.md`; preserve original queue/proof bytes and all open CI/performance/platform distinctions.
+
 - [x] Confirm the first supplied image as the requested Markdown style.
 - [x] Keep shared rendering in DxUi and preserve the default consumer appearance.
 - [x] Add an explicit presentation setting, cache identity and validation.
