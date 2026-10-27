@@ -1063,10 +1063,6 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
         const auto canonicalColorPixels = drawCanonicalColor(colorFallbackOrigin);
         Require(preparedFallbackPixels == canonicalColorPixels, "missing Direct2D 7 reaches PreparedLayout's pixel-identical canonical color fallback");
     }
-    context->SetDpi(144.0f, 144.0f);
-    context->SetTransform(colorFallbackTransform);
-    const auto colorFallbackReference = drawCanonicalColor(colorFallbackOrigin);
-
     const std::array splitColorInk{TextInkRange{{0u, 2u}, TextInkRole::Accent}, TextInkRange{{2u, 4u}, TextInkRole::Link}};
     auto splitColorDrawing                                               = colorDrawing;
     splitColorDrawing.inkRanges                                          = splitColorInk;
@@ -1079,6 +1075,11 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
                                            Detail::SourceInkDrawResult::Rejected,
                                            "color-font runs with heterogeneous brushes reject before painting");
 
+    // The rejection helper uses its own DPI/transform. Both color oracles below
+    // must start from the same explicitly restored drawing state.
+    context->SetDpi(144.0f, 144.0f);
+    context->SetTransform(colorFallbackTransform);
+    const auto colorFallbackReference = drawCanonicalColor(colorFallbackOrigin);
     context->BeginDraw();
     context->Clear(D2D1::ColorF(0u, 0.0f));
     const auto missingColorContextResult = Detail::DrawSourceInkIfSupported(context.get(),

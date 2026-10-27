@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- In the private source-ink pixel fixture, restore the intended DPI and transform after the rejection helper before capturing either color fallback oracle. The previous fresh run failed because it compared different drawing states; renderer production bytes are unchanged and fresh focused execution remains pending.
 - Extend the private source-ink candidate to preserve whole shaped proportional runs with a uniform brush and to admit uniform-brush color-font runs only when the target exposes `ID2D1DeviceContext7`. Earlier focused Release raster diagnostics passed; the additional positioned-color and fail-closed family fixtures await fresh execution. Full qualification, performance acceptance and consumer adoption remain pending.
 - In the unpublished source-ink experiment, accept exact source CR/LF callbacks with zero glyphs without painting; preserve conservative refusal for other empty callbacks. The expanded focused Release raster test passes LF/CRLF and 26/32/33-span cases after reproducing the original LF rejection. Actual app admission, full qualification and performance benefit remain unproven.
 - Experimental branch only: expand the bounded source-ink span capacity to 32 and add full-pixel 26/32-range admission and 33-range rejection checks, with wider typography and target-replacement coverage. Native execution, actual consumer eligibility and any performance benefit remain unverified; no consumer adopts this prototype.
