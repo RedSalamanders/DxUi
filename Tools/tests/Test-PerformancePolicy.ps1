@@ -4,6 +4,21 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'TestSupport.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../PerformancePolicy.psm1') -Force
 
+Invoke-TestCase 'process environment restoration distinguishes unset from empty' {
+    $name = 'DXUI_TEST_PROCESS_ENV_RESTORE'
+    $previous = [Environment]::GetEnvironmentVariable($name)
+    try {
+        Restore-TestEnvironmentVariable $name $null
+        Assert-True ($null -eq [Environment]::GetEnvironmentVariable($name)) 'an absent variable is absent after restoration'
+        Restore-TestEnvironmentVariable $name ''
+        $empty = [Environment]::GetEnvironmentVariable($name)
+        Assert-True ($null -ne $empty -and $empty.Length -eq 0) 'an explicitly empty variable remains present and empty'
+        Restore-TestEnvironmentVariable $name $null
+        Assert-True ($null -eq [Environment]::GetEnvironmentVariable($name)) 'restoring absent removes a previously empty variable'
+        Restore-TestEnvironmentVariable $name 'value'
+        Assert-Equal 'value' ([Environment]::GetEnvironmentVariable($name)) 'restoring a nonempty variable preserves its value'
+    } finally { Restore-TestEnvironmentVariable $name $previous }
+}
 function Invoke-FixtureGit([string] $Root, [string[]] $Arguments) {
     & git -C $Root -c user.name=fixture -c user.email=fixture@example.invalid -c commit.gpgsign=false @Arguments 2>&1 | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "git $($Arguments -join ' ') failed" }
@@ -790,7 +805,10 @@ Invoke-FixtureCase 'resolved native inputs require owned bytes and reject ignore
     try {
         [Environment]::SetEnvironmentVariable('CL','@C:/implicit.rsp')
         Assert-Throws { Get-FixtureNativeClosure $fixture } 'an implicit CL response path was accepted'
-    } finally { [Environment]::SetEnvironmentVariable('CL',$old) }
+    } finally { Restore-TestEnvironmentVariable 'CL' $old }
+    $restoredCL = [Environment]::GetEnvironmentVariable('CL')
+    Assert-True (($null -eq $old) -eq ($null -eq $restoredCL)) 'native-closure fixture restores whether CL was unset'
+    if ($null -ne $old) { Assert-Equal $old $restoredCL 'native-closure fixture restores the exact CL value' }
     Set-FixtureFile $root 'include/ignored.h' 'ignored header'
     Assert-Throws { Get-FixtureNativeClosure $fixture } 'ignored bytes under an active include root were accepted'
     Remove-Item -LiteralPath (Join-Path $root 'include/ignored.h')
@@ -1378,7 +1396,10 @@ Invoke-FixtureCase 'changed implicit compiler options invalidate a reused or ong
             [Environment]::SetEnvironmentVariable('CL', '/DPERFORMANCE_BUILD_FIXTURE=3')
             Assert-Throws { Complete-PerformanceBuildAttestation -Root $fixture -Platform x64 -Configuration Release -Before $before } 'mid-build CL changes published an attestation'
             Assert-Throws { Assert-PerformanceBuildAttestation -Root $fixture -Platform x64 -Configuration Release } 'failed implicit compiler identity left a passing receipt'
-        } finally { [Environment]::SetEnvironmentVariable('CL', $priorOptions) }
+        } finally { Restore-TestEnvironmentVariable 'CL' $priorOptions }
+        $restoredOptions = [Environment]::GetEnvironmentVariable('CL')
+        Assert-True (($null -eq $priorOptions) -eq ($null -eq $restoredOptions)) 'build fixture restores whether CL was unset'
+        if ($null -ne $priorOptions) { Assert-Equal $priorOptions $restoredOptions 'build fixture restores the exact CL value' }
     }
 }
 

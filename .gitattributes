@@ -61,3 +61,4 @@ ThirdParty/Markdown/katex-0.16.11/*.txt -whitespace
 
 # Review reproduction patches keep the exact LF bytes that git apply checks.
 Specs/Plans/WIP/CodeReview_2026-10-10/*.patch -text -whitespace
+Measurements/RedesignCompletion_2026-10-26/ci-4077f57d/native-and-paired/** -text whitespace=trailing-space,space-before-tab,cr-at-eol

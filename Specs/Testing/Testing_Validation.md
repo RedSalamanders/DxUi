@@ -320,6 +320,9 @@ Interactive menu drivers wait for the popup's modal capture after visibility and
 asserting a retained painted hover, their physical cursor agrees with the delivered point so OS-generated moves
 cannot undo the fixture's input. Restore that cursor only while it still has the test's position; do not overwrite
 human movement. Failed hover assertions must report a failure, including outside-dismiss tests.
+For a multi-step submenu-retention assertion, establish and verify an opposite sibling as the physical starting
+hover before the first asserted sibling transition; align each later root, child and parent point before delivering
+its matching synthetic move. Preserve the existing hover and timer predicates and deadlines.
 Visual-baseline captures that require an unhovered menu MUST establish modal capture and visible geometry as
 separate predicates, then physically park the cursor in the popup shadow margin outside every item row under the
 popup DPI context. Deliver the matching move and verify hover cleared before requesting the bitmap. A synthetic
@@ -764,6 +767,10 @@ interactive desktop lease: `DxUi.InteractiveLease.exe` (`Tests/InteractiveLease`
   PowerShell would end with the lease when Ctrl+C stops the run: the lease takes the same Ctrl+C and restores the desktop while
   `test.ps1` waits for it. Windows may refuse to restore a window of a process with higher integrity than the lease (an elevated terminal
   while the lease is not elevated); the report then says `failed`, and the person's window stays where Windows left it.
+- The PowerShell launcher MUST start the lease with its current FileSystem provider directory as the child working directory, and MUST
+  refuse when the current location is not an existing FileSystem directory. It MUST NOT change the parent process current directory.
+  This keeps repository-relative baselines and test artifacts bound to the selected checkout even when the caller's process directory
+  differs from its PowerShell location.
 - **Reporting.** The line `Restoration: foreground=... focus=... cursor=...` names what became of each part: `unchanged` (the run
   was unchanged when checked), `restored`, `gone` (the window closed during the run), `failed`, `skipped` (the focus of a window
   that could not be made the foreground) or `none` (nothing was recorded). The result also keeps the pointer positions, the one the
@@ -772,6 +779,13 @@ interactive desktop lease: `DxUi.InteractiveLease.exe` (`Tests/InteractiveLease`
   desktop was unchanged, because failed/skipped/unrecorded parts can also produce it. Human summaries MUST derive their
   restoration claim from all three statuses, retain failed or unverified outcomes, and avoid inferring which action
   moved the pointer from these positions alone. Exit code 0 without a result supplies no verified restoration evidence.
+  A failed pointer restoration MAY include one bounded `cursor.restore.diagnostics` line with the immediate pre-set
+  read, `SetPhysicalCursorPos` acceptance and immediately observed error, exact post-set readback, and clip/input/thread
+  desktop observations at capture, suite exit and after restoration. The setter's `GetLastError` value is diagnostic
+  context only; it does not have a documented error contract. Exact physical readback remains the restoration criterion:
+  clip or desktop observations neither excuse a mismatch nor identify its cause. The parser MUST reject repeated,
+  missing, unknown or malformed fields in this optional line. Older receipts without it remain readable and do not gain
+  inferred diagnostics.
 - **Passing.** Every suite exits 0, none records a capability skip (an interactive run exists to run what other runs skip, so a skip
   means the desktop did not provide it) and no part is `failed`. Logs and receipts carry the suffix `.interactive`
   (`.interactive.filtered` with `-Tests`), so they never replace those of the run that records the suite's skips; a receipt records the
@@ -966,6 +980,7 @@ Git path discovery and changed-path aggregation MUST preserve exact path identit
 `Test-Changes.ps1` is the ordinary iteration entrypoint. Its default is affected coverage, including committed changes since a local merge base and independent staged, unstaged, deletion, rename-side and untracked discovery. No ref is fetched. Unknown executable inputs widen coverage; prose alone does not require native tests. Explanations name paths, consumers and fallback reasons. Explicit selectors reject unknown scopes. Affected, filtered and environment-reduced coverage MUST NOT be reported as a full repository pass.
 
 Successful whole-scope results are reused only for equal repository content, installed dependency inputs, complete executable/static-library/DLL/PDB output closure, architecture, configuration, scope, runner and environment. Native build and run identities hash the selected platform's installed vcpkg triplet files plus its status, package inventory and ABI metadata; missing dependency metadata fails closed. Build attestation binds compiled source and installed dependencies to those artifacts before `SkipBuild`. Invalid, missing, failed, interrupted or concurrently mutated evidence is never reusable. Force bypasses test-result reuse. Independent tooling receipts are shared across profiles because their execution has no profile argument. Receipt identity is content-based; staging/committing the same source tree does not itself invalidate it.
+PowerShell tooling fixtures that mutate process environment variables MUST restore whether each value was unset, empty or nonempty. A test-generated empty value is a distinct identity input and MUST NOT leak into a later build or SkipBuild gate.
 
 Scoped reuse qualifies the existing attested artifact bytes in the recorded environment. Its environment identity
 includes Visual Studio installation metadata, the default toolset file and graphics-runtime bytes; it does not hash

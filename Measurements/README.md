@@ -1,5 +1,9 @@
 # Independent DxUi measurements
 
+- [Current-source A/A calibration, 4077f57d](RedesignCompletion_2026-10-26/aa-calibration-4077/README.md): the independent replay has 0/78 regression rows, but all 72 controls are unstable and 631/1,872 control observations drifted. Both judges agree; policy remains unqualified, so this is calibration evidence only.
+
+- [CI 4077 native and paired evidence, 2026-10-26](RedesignCompletion_2026-10-26/ci-4077f57d/native-and-paired/README.md) — six native profiles and eight consumer reports pass, but the paired CI gate failed because the base policy is unqualified. The measured candidate `646b257a` shares the workflow head tree; 62/72 controls are unstable.
+
 - [Current source snapshot qualification, 47a9d259](RedesignCompletion_2026-10-26/README.md): six hosted native
   profiles, 126 scope reports, 496 manifest payload streams and four zero-skip local foreground suites.
   PR #105 merges with the exact reviewed tree. Its paired study retains 144 reports and 78 independently

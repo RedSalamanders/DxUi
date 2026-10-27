@@ -91,6 +91,10 @@ Original UIA extra-event and native-input setup cause investigations remain in
 
 ## 2. Paired performance and policy acceptance
 
+### Current-source A/A calibration checkpoint (26 October 2026)
+
+- [x] Current-source A/A calibration on SDK `4077f57d`: collection and independent provenance/numerical replays are complete. The three-scenario, twelve-block study retains 144 receipts and 78 rows; both judges agree, no regression rows are reported, and all 24 deterministic exact-budget rows meet both median and peak limits. All 72 controls are unstable, with 51/78 scenario/phase/metric slots and 631/1,872 control observations drifting; see the [current-source A/A archive](../../../Measurements/RedesignCompletion_2026-10-26/aa-calibration-4077/README.md). This is same-binary calibration only. Seed-policy review, stable-control/noise-floor evidence and candidate-specific acceptance remain OPEN.
+
 ### PR #89 calibration contribution and policy-review proposal (20 October 2026)
 
 The owner requested fresh A/A evidence and a review proposal while preparing
