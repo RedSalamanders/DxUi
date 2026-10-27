@@ -7,7 +7,7 @@ Date: 2026-10-23
 
 ### Merged repair and independently replayed evidence closeout
 
-The human merged runtime PR #119 as `e3447765` on 2026-10-27T13:06:47Z with the reviewed tree unchanged. Head `767dffc5`,
+The human merged repair PR #119 as `e3447765` on 2026-10-27T13:06:47Z with the reviewed tree unchanged. Head `767dffc5`,
 Actions merge `38d9b21e` and base `9291e259` have a verified equal head/merge tree. All six native builds/Full jobs and
 eight public-consumer qualifications passed; independent replay verified 505 payload streams, 130 suite reports,
 two expected ASan detections, 124 Menu cases/profile and all ten negatives/twelve module probes per consumer.
@@ -25,7 +25,7 @@ controls, 249/1872 drifted observations and all-three-scenario dual-judge disagr
 - [x] Independently replay the exact six-profile native/provider/consumer cohort and local Menu supplement.
 - [x] Preserve/replay the final paired result; keep policy and physical-input limits separate from native passes.
 - [x] Root and an independent raw-ZIP reviewer verified native bindings before the external human merge.
-- [ ] Complete independent paired review; retain policy/noise/judge holds separately.
+- [x] Complete independent paired review of exact replay outcomes; retain policy/noise/judge holds and acceptance separately.
 - [ ] Publish this sealed summary-only packet and domain/WIP closeout in a separately reviewed docs-only PR.
 
 The separate main run 40509208565 completed with five successful native profiles; x64 Debug Full failed NativeTextInput
