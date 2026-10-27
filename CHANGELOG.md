@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Tooling environment fixtures now restore absent variables as absent, keeping the later `SkipBuild` identity stable; the focused policy suite passes 40/40 and its regression covers unset, empty and valued inputs. Native and full qualification remain separate.
 - Add coverage that the native interactive desktop lease refuses a non-filesystem PowerShell location before launching its child and leaves the parent process directory unchanged. Focused Tooling validation covers this refusal and the filesystem-location launch; native qualification remains pending.
 - Start the native interactive desktop lease in the orchestrator's current existing FileSystem directory without changing the parent process directory, so checkout-relative test inputs resolve from the selected location; add a nested-location child-process regression. Focused Tooling validation passed; native qualification remains pending.
 - Four modal painted-hover Menu cases now align the physical pointer to their delivered hover point using the existing scoped fixture. Their hover, color and bitmap assertions remain unchanged; focused runtime validation is pending.

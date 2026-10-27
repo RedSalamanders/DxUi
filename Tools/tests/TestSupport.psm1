@@ -66,6 +66,16 @@ function Remove-FixtureRoot([Parameter(Mandatory)][string] $Root) {
     if (Test-Path -LiteralPath $full) { Remove-Item -LiteralPath $full -Recurse -Force }
 }
 
+function Restore-TestEnvironmentVariable([Parameter(Mandatory)][string] $Name, [Parameter(Mandatory)][AllowNull()][object] $Value) {
+    # PowerShell/.NET binding can turn a null restore into a present empty entry. Remove only an existing entry so
+    # content-based gates do not observe test residue and unexpected provider errors remain visible.
+    if ($null -eq $Value) {
+        $path = "Env:$Name"
+        if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -ErrorAction Stop }
+    }
+    elseif ($Value -is [string]) { [Environment]::SetEnvironmentVariable($Name, $Value, [EnvironmentVariableTarget]::Process) }
+    else { throw 'Test environment values must be strings or null.' }
+}
 function Set-FixtureFile([Parameter(Mandatory)][string] $Root, [Parameter(Mandatory)][string] $Name, [AllowEmptyString()][string] $Value) {
     $path = Join-Path $Root $Name
     New-Item -ItemType Directory -Path (Split-Path $path) -Force | Out-Null
@@ -96,4 +106,4 @@ function Get-Sha256Hex([byte[]] $Bytes) {
 
 Export-ModuleMember -Function Invoke-TestCase, Invoke-FixtureCase, Complete-TestRun, Assert-True, Assert-Equal, Assert-Contains,
     Assert-Throws, New-FixtureRoot, Remove-FixtureRoot, Set-FixtureFile, Set-FixtureBytes, Set-FixtureJson, Get-FixtureJson,
-    Copy-JsonValue, Get-Sha256Hex
+    Copy-JsonValue, Get-Sha256Hex, Restore-TestEnvironmentVariable
