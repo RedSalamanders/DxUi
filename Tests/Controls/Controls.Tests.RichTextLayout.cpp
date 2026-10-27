@@ -476,6 +476,15 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
     THROW_IF_FAILED(context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), white.put()));
     THROW_IF_FAILED(context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Red), red.put()));
     THROW_IF_FAILED(context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Green), green.put()));
+    const std::array<D2D1_GRADIENT_STOP, 2> gradientStops{D2D1::GradientStop(0.0f, D2D1::ColorF(0.95f, 0.15f, 0.1f, 1.0f)),
+                                                          D2D1::GradientStop(1.0f, D2D1::ColorF(0.1f, 0.25f, 0.95f, 0.65f))};
+    wil::com_ptr<ID2D1GradientStopCollection> gradientStopCollection;
+    THROW_IF_FAILED(context->CreateGradientStopCollection(gradientStops.data(), static_cast<UINT32>(gradientStops.size()), gradientStopCollection.put()));
+    wil::com_ptr<ID2D1LinearGradientBrush> gradientInkBrush;
+    THROW_IF_FAILED(context->CreateLinearGradientBrush(
+        D2D1::LinearGradientBrushProperties(D2D1::Point2F(3.0f, 0.0f), D2D1::Point2F(42.0f, 24.0f)), gradientStopCollection.get(), gradientInkBrush.put()));
+    gradientInkBrush->SetOpacity(0.72f);
+    gradientInkBrush->SetTransform(D2D1::Matrix3x2F(1.0f, 0.03f, 0.16f, 1.0f, 1.25f, 0.75f));
 
     const std::array ink{TextInkRange{{0u, 5u}, TextInkRole::Accent}, TextInkRange{{6u, 14u}, TextInkRole::Link}};
     LinkDrawing drawing;
@@ -711,6 +720,20 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
             for (const auto origin : origins)
                 static_cast<void>(compareDirectHelperWithCanonical(directProjection, typographyOptions, typographyDrawing, nullptr, 0u, origin));
         }
+    }
+
+    // A non-axis-aligned context transform and a separately transformed,
+    // translucent gradient exercise segmented monochrome drawing with a
+    // borrowed non-solid brush and a fractional baseline.
+    const auto nonAxisTransform                                                   = D2D1::Matrix3x2F(1.0f, 0.07f, -0.05f, 1.0f, 0.37f, 0.63f);
+    auto segmentedGradientDrawing                                                 = directDrawing;
+    segmentedGradientDrawing.inkBrushes[static_cast<size_t>(TextInkRole::Accent)] = gradientInkBrush.get();
+    for (const FLOAT dpi : {96.0f, 144.0f})
+    {
+        context->SetDpi(dpi, dpi);
+        context->SetTransform(nonAxisTransform);
+        static_cast<void>(
+            compareDirectHelperWithCanonical(directProjection, directOptions, segmentedGradientDrawing, nullptr, 0u, D2D1::Point2F(8.375f, 8.625f)));
     }
 
     auto clippedInkDrawing = directDrawing;
@@ -1024,6 +1047,16 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
             }
         }
 
+        auto gradientColorDrawing                                                 = colorDrawing;
+        gradientColorDrawing.inkBrushes[static_cast<size_t>(TextInkRole::Accent)] = gradientInkBrush.get();
+        for (const FLOAT dpi : {96.0f, 144.0f})
+        {
+            context->SetDpi(dpi, dpi);
+            context->SetTransform(nonAxisTransform);
+            static_cast<void>(
+                compareDirectHelperWithCanonical(colorProjection, colorOptions, gradientColorDrawing, nullptr, 0u, D2D1::Point2F(8.375f, 8.625f)));
+        }
+
         const auto positionedColorOrigin = D2D1::Point2F(8.375f, 8.625f);
         context->SetDpi(144.0f, 144.0f);
         context->SetTransform(D2D1::Matrix3x2F(1.25f, 0.0f, 0.0f, 1.25f, 0.37f, 0.63f));
@@ -1256,6 +1289,16 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
     static_cast<void>(
         compareDirectHelperWithCanonical(proportionalProjection, proportionalOptions, proportionalUniformDrawing, nullptr, 0u, D2D1::Point2F(8.375f, 8.625f)));
 
+    auto proportionalGradientDrawing                                                 = proportionalUniformDrawing;
+    proportionalGradientDrawing.inkBrushes[static_cast<size_t>(TextInkRole::Accent)] = gradientInkBrush.get();
+    for (const FLOAT dpi : {96.0f, 144.0f})
+    {
+        context->SetDpi(dpi, dpi);
+        context->SetTransform(nonAxisTransform);
+        static_cast<void>(compareDirectHelperWithCanonical(
+            proportionalProjection, proportionalOptions, proportionalGradientDrawing, nullptr, 0u, D2D1::Point2F(8.375f, 8.625f)));
+    }
+
     Document cjkDocument(L"plain proportional \u6f22\u5b57 fallback");
     const auto cjkProjection = Project(cjkDocument.Snapshot(), cjkDocument.Revision(), ViewMode::Source);
     auto cjkLayout           = makeTestLayout(cjkProjection, proportionalOptions, false);
@@ -1281,6 +1324,16 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
             static_cast<void>(compareDirectHelperWithCanonical(cjkProjection, proportionalOptions, cjkDrawing, nullptr, 0u, D2D1::Point2F(8.375f, 8.625f)));
         }
     }
+    auto cjkGradientDrawing                                                 = cjkDrawing;
+    cjkGradientDrawing.inkBrushes[static_cast<size_t>(TextInkRole::Accent)] = gradientInkBrush.get();
+    for (const FLOAT dpi : {96.0f, 144.0f})
+    {
+        context->SetDpi(dpi, dpi);
+        context->SetTransform(nonAxisTransform);
+        static_cast<void>(compareDirectHelperWithCanonical(cjkProjection, proportionalOptions, cjkGradientDrawing, nullptr, 0u, D2D1::Point2F(8.375f, 8.625f)));
+    }
+    context->SetDpi(144.0f, 144.0f);
+    context->SetTransform(D2D1::Matrix3x2F::Identity());
 
     Document overflowDocument(std::wstring(300u, L'a'));
     const auto overflowProjection = Project(overflowDocument.Snapshot(), overflowDocument.Revision(), ViewMode::Source);

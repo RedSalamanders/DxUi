@@ -16,6 +16,26 @@ passes resume on later advances; no partial range set is visible before completi
 List-item accent ink MUST use the exact marker range retained by block parsing,
 including nested, ordered, quoted, tab-indented and task-list items.
 
+The source-ink paint route is source-only and must preserve canonical DirectWrite
+shaping, glyph advances/offsets, source/display mapping and selection geometry. It
+may paint at most 32 clipped ink spans in one direct-draw/prepared-layout call
+and considers at most 256 glyphs or 512 UTF-16 units in one glyph run.
+Monospaced monochrome runs may use the existing brush-segmented route. A
+proportional monochrome or color-font run may be drawn only as its original
+intact shaped run when every covered glyph uses one identical borrowed
+`ID2D1Brush` pointer. Color-font drawing additionally requires a successful
+runtime query for `ID2D1DeviceContext7` and uses
+`ID2D1DeviceContext7::DrawGlyphRunWithColorSupport`. Complete run, description,
+cluster, effect, inline-object, source text and brush checks must finish before
+any source-ink paint begins. A preflight refusal uses the canonical layout
+renderer and preserves every syntax color. No target, brush or device-context
+capability may be retained by a layout or cross a target/device replacement. A
+retained prepared-layout copy and replacement target must match independent
+canonical full-layout pixels. These paint limits are separate from the 65,536
+source preparation-event bound above. Selection and text geometry remain
+unchanged. Errors after painting starts follow the host/device error path and
+must not cause a second canonical paint.
+
 Status: normative intended contract
 
 Button presentation is opt-in and independent of `ButtonVariant` and command/TogglePattern semantics.
