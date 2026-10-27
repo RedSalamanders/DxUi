@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Archive the final Markdown/caption qualification: all six standalone and consumer build profiles pass, with nineteen SDK suites and 67 consumer cases plus 32 captures in each x64 configuration and real sanitizer detection. Preserve earlier failures and source identities; native ARM64, physical input and paired performance remain open, and the original CI/performance queue stays paused.
 - Record final x64 ASan 19-suite coverage and Debug/ASan build evidence for Markdown/caption changes; retain the earlier timing failure and remaining configuration, native-platform and performance holds.
 - Add explicit hidden diagnostic capture that stages the current native frame before presentation, with first-frame caption hover and repeated-readback regression checks at three DPIs.
 - Keep Markdown decoration and table staging opt-in and recover atomically from injected allocation failures, including MSVC Debug iterator-proxy construction and multiple tables. Shade quotes distinctly when theme surfaces coincide; add allocation sweeps and an independent background-pixel check. Final matrix and consumer qualification remain in WIP.

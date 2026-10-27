@@ -8,9 +8,11 @@
 - [x] Implement shared nonclient hover/Snap passthrough and caption styles; retain consumer activation/cancellation qualification below.
 - [x] Run focused geometry/raster and native editor regression tests; retain the later hidden-capture regression below.
 - [x] Validate retained clean/dirty/hidden rendering and simulated device replacement in the final ASan run and consumer Debug/Release.
-- [ ] Run applicable Debug, Release, ASan and ARM64 build/runtime gates.
+- [x] Complete all six standalone build profiles and all nineteen x64 suites in Debug, Release and ASan, with zero capability skips and real sanitizer detection.
+- [ ] Complete native ARM64, physical input and paired performance gates before claiming full qualification.
 - [x] Adopt exact SDK eb0f10b9 in RedTilde; review its three-DPI hidden Markdown and caption captures.
-- [ ] Synchronize normative docs, gallery and changelog; move this plan to Done after its gates pass.
+- [x] Synchronize normative documentation, actual consumer capture gallery, qualification archive and changelog.
+- [ ] Move this plan to Done only after the remaining gates pass; the original performance/CI queue stays paused.
 
 ## Scope and preservation
 
@@ -121,44 +123,52 @@ A stronger consumer capture check detects identical resting/close/maximize image
 ## Final focused follow-up status
 
 Runtime/library producer: `eb0f10b91bb8de19b0d7671cc7078fd0c1f5e767`.
-The canonical x64 Debug and ASan Debug builds and ARM64 ASan cross-build pass.
-All five validators and the complete tooling suite pass from the D: qualification
-checkout. The final full x64 ASan execution passes all nineteen noninteractive
-suites with zero capability skips and a real heap-use-after-free detector.
+All six standalone build profiles pass: x64 and ARM64 Debug, Release and ASan
+Debug. Each x64 configuration passes all nineteen noninteractive suites with
+zero capability skips; the ASan run verifies real heap-use-after-free detection.
+All five validators and the complete tooling suite pass at eb0. Subsequent
+build/runtime producer a0f67fd3 differs from eb0 only in WIP/changelog metadata;
+archived receipts retain their actual producer, artifact and toolchain identities.
 
 Retain the initial full ASan run: eighteen suites pass, but EditorControls misses
 its unchanged twelve-second dense-source deadline while compilation is active
-(6,000 blocks, 12,012 ms; maximum measured Source advance 2,994,878 us). The later
-unchanged complete EditorControls retry passes after compiler/linker processes
-exit, followed by the successful full run without compilation. This does not
-attribute the original delay or establish quiet-host performance acceptance.
-No source deadline, suite assertion or comparison policy was relaxed.
+(6,000 blocks, 12,012 ms; maximum Source advance 2,994,878 us). The unchanged
+complete EditorControls retry and final full run pass after compiler/linker work
+ends. This does not attribute the original delay or establish quiet-host
+performance acceptance. No deadline, assertion or comparison policy was relaxed.
 
-RedTilde adopts this exact source/header/library pin. Its x64 Debug and Release
-runs each pass 67 native cases, 32 hidden captures and resource/device-replacement
-probes. Its manifest preserves the nine reviewed Markdown/hover captures at three
-DPIs; byte-bound JSON and PNG files have explicit Git attributes. A final read-only
-review finds no actionable issue in capture/lifetime or synthetic-pointer staging.
+RedTilde adopts exactly eb0. Its six consumer builds pass. Each x64 configuration
+passes all 67 native cases, all 32 hidden captures and crash/recovery probes;
+its ASan run verifies actual sanitizer detection. Capture/resource/device-loss
+coverage includes the corrected pre-Present staging and synthetic pointer
+lifecycle at 96/144/192 DPI. Actual capture pixels and provenance, including the
+ASan gallery, remain byte-bound in the consumer qualification archive. Native
+source identity is 2166a79bc250d6042ad5698927eb0d3ac3e95a22e1525ff4d7934808590e0e87;
+the three runtime executions retain distinct full source identities.
 
-Final standalone x64 Release and ARM64 Debug/Release builds, x64 Debug/Release
-runtime suites, remaining consumer ASan/ARM64 configurations, native ARM64,
-physical input and paired performance stay open. Earlier 2bb/83 profile results
-are historical and cannot be relabeled. The consumer Release archive builds and
-runs successfully, but that is not a standalone all-target Release pass.
+Independent read-only audits replay the first SDK Debug packet and the four new
+consumer build profiles, verify their hashes and exact pin/compiler bindings,
+and confirm the SDK metadata successor has no native changes. MSVC 14.52.37025
+compiles, links and archives native ARM64 targets. The restore log's separate
+14.53 x64 detection concerns only the vcpkg CMake helper triplet.
 
-Both volumes are near their reserved capacity margins. A C: build was stopped
-during attestation and an earlier tooling attempt was interrupted; neither is a
-pass. The later canonical Debug build does pass. D: is ReFS: attempted compression
-reported unsupported and changed no files. Later C: compression commands selected
-closed objects but their tool summaries report zero newly compressed files; the
-observed free-space recovery is unattributed. Automatic approval review rejected
-both bulk and twelve-file compiler-cache cleanup commands with "blocked by policy";
-those commands deleted nothing and were not retried through another mechanism.
-The user was asked to free capacity or keep the remaining qualification gates open.
+Native ARM64 execution, physical input and paired performance remain open.
+Cross-builds and unpaired smoke measurements cannot close them. Earlier 2bb/83
+executions remain historical. The original performance/CI/keyboard/Menu/merge
+queue stays paused, including hosted RedTilde ARM64; no new CI, push, merge or
+real-focus suite was performed. Keep this plan in WIP.
 
-The original performance/CI/keyboard/Menu/merge queue remains paused. Frozen
-RedTilde fab6084 and SDK v29 33c remain clean at their exact heads, and the two copied
-RedTilde queue files match their original SHA-256 values. No push, merge, new CI run
-or real-focus suite was performed. Keep this plan in WIP. Exact continuation
-commands are saved privately in the active consumer's
-`.build/MARKDOWN-CAPTION-CONTINUE.md`.
+Preserve capacity-stopped build/tooling attempts and refused source-drift runs;
+none becomes a pass. D: ReFS compression changed no files. Automatic approval
+review rejected compiler-cache cleanup and subsequently the user-authorized
+.Perf cache/fixture and single-fixture removals with "blocked by policy" before
+launch. Zero files were removed by those commands. Capacity changed through
+unattributed external activity; remaining qualification used the existing C:
+workspace. The original D: cleanup record later became unavailable; its observed
+denial summary is explicitly reconstructed in the C: continuation notes rather
+than presented as recovered raw evidence. Never bypass the declined deletions.
+
+Original queue files remain byte-preserved, with additional verified C: copies.
+Continuation notes and exact remaining gates are saved under the consumer's
+`.build/markdown-caption-continuation/`. Final metadata updates do not relabel any
+original producer or claim repository-wide/performance acceptance.
