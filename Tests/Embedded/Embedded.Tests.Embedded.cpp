@@ -1541,6 +1541,7 @@ __declspec(noinline) static int RunFunctionalTests()
     RichSemanticTests::Run([] { TestRichSemanticGeometryFailureBudgets(); });
     RichSemanticTests::Run([] { TestRichSemanticGeometryFailureBudgets(false, true); });
     RichSemanticTests::Run([] { TestRichSemanticGeometryFailureBudgets(false, false, true); });
+    RichSemanticTests::Run([] { TestRichSemanticGeometryFailureBudgets(false, false, false, false, true); });
     TestFootnoteBlockAllocationFailures();
     RichSemanticTests::Run([&] { TestRichSemanticEditorQueryFailureBudgets(gpu); });
     {

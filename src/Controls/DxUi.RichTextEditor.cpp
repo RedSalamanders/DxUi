@@ -16,6 +16,19 @@
 
 namespace DxUi
 {
+namespace
+{
+D2D1_COLOR_F ResolveMarkdownQuoteFill(const ThemePalette& theme, const TextFieldVisualStyle& style) noexcept
+{
+    if (theme.highContrast)
+        return style.fill;
+    // Document adapters can share input/card colors. Blend neutral ink so the
+    // quote remains visible over either a light or dark document surface.
+    auto ink = style.text;
+    ink.a *= .08f;
+    return CompositeOverBackground(ink, style.fill);
+}
+} // namespace
 struct RichTextEditor::State
 {
     explicit State(std::wstring text) : document(std::move(text)), documentFilePath(0u, L' ')
@@ -1283,7 +1296,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             // Resolve additional document brushes during preparation, so a
             // quote-only first paint cannot allocate a new cache entry.
             static_cast<void>(host.GetSolidBrush(host.GetTheme().highContrast ? style.text : host.GetTheme().borderDefault));
-            static_cast<void>(host.GetSolidBrush(host.GetTheme().highContrast ? style.fill : host.GetTheme().cardBackground));
+            static_cast<void>(host.GetSolidBrush(ResolveMarkdownQuoteFill(host.GetTheme(), style)));
             auto opaque = style.fill;
             opaque.a    = 1.0f;
             static_cast<void>(host.GetSolidBrush(opaque));
@@ -1893,7 +1906,7 @@ void RichTextEditor::Paint(ControlHost& host) const
     auto* caretBrush          = host.GetSolidBrush(style.caret);
     const bool subtleMarkdown = state.mode == RichText::ViewMode::Rich && appearance.markdownPresentation == RichText::MarkdownPresentationStyle::Subtle;
     auto* semanticDecoration  = subtleMarkdown ? host.GetSolidBrush(host.GetTheme().highContrast ? style.text : host.GetTheme().borderDefault) : caretBrush;
-    auto* quoteFill           = subtleMarkdown ? host.GetSolidBrush(host.GetTheme().highContrast ? style.fill : host.GetTheme().cardBackground) : nullptr;
+    auto* quoteFill           = subtleMarkdown ? host.GetSolidBrush(ResolveMarkdownQuoteFill(host.GetTheme(), style)) : nullptr;
     ID2D1Brush* diagramFill   = nullptr;
     ID2D1Brush* selectedDiagramFill = nullptr;
     if (const auto* semantic = state.layout.SemanticGeometry(); semantic && (semantic->HasNativeObjects() || subtleMarkdown))

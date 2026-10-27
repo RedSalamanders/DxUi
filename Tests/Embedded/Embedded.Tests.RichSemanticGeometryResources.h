@@ -70,13 +70,14 @@ static void TestRichSemanticEditorQueryFailureBudgets(GraphicsFixture& gpu, bool
     }
 }
 
-static void TestRichSemanticGeometryFailureBudgets(bool trace = false, bool literalFootnotes = false, bool renderedFootnotes = false, bool spacing = false)
+static void TestRichSemanticGeometryFailureBudgets(
+    bool trace = false, bool literalFootnotes = false, bool renderedFootnotes = false, bool spacing = false, bool subtle = false)
 {
     using namespace DxUi::RichText;
     using DxUi::RichText::Detail::PreparedSemanticGeometry;
     auto factory        = RichSemanticGeometryTests::Factory();
     const auto previous = RichSemanticDocumentTests::Build(L"previous\n");
-    const auto candidate =
+    auto candidate =
         renderedFootnotes  ? RichSemanticDocumentTests::Build(
                                  L"[^unused]: literal\n[^z]: Z body\n[^a]: first\n\n    second\n\n[^empty]:\n\nmain[^a] and[^z] again[^a] empty[^empty]\n",
                                  MarkdownProfile::RichMarkdown)
@@ -86,6 +87,12 @@ static void TestRichSemanticGeometryFailureBudgets(bool trace = false, bool lite
                                  L"<b>native</b>\n10. next\n\n<p><a href='#x'>HTML</a><br/>&fjlig;</p>\n\n<p><b></b></p>\n");
     LayoutOptions options;
     options.widthDip = 240.0f;
+    if (subtle)
+    {
+        options.markdownPresentation = MarkdownPresentationStyle::Subtle;
+        candidate =
+            RichSemanticDocumentTests::Build(std::wstring(candidate->Map().Source()) + L"\n| another | wider column |\n| --- | --- |\n| second | table |\n");
+    }
     if (spacing)
     {
         // The native-height opt-in also sweeps the separately budgeted empty

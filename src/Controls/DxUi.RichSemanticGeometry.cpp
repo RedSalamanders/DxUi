@@ -252,10 +252,13 @@ struct SemanticBox
         return {after != native->rtl ? bounds.right : bounds.left, after ? bounds.bottom - caretHeight : bounds.top, caretHeight};
     }
 };
-struct PreparedTableRow
+struct MarkdownDecorations
 {
-    std::size_t table{}, row{};
-    D2D1_RECT_F bounds{};
+    // Debug iterator proxies allocate: choose fallible size constructors.
+    MarkdownDecorations() : tableRows(0u), headingRules(0u)
+    {
+    }
+    std::vector<D2D1_RECT_F> tableRows, headingRules;
 };
 bool SameOptions(const LayoutOptions& a, const LayoutOptions& b) noexcept
 {
@@ -329,6 +332,8 @@ struct PreparedSemanticGeometry::State
           bounds(document->Elements().size()),
           sourceLines(0u) // Fallible size constructor: MSVC Debug's noexcept default allocates an iterator proxy.
     {
+        if (options.markdownPresentation == MarkdownPresentationStyle::Subtle)
+            decorations = std::make_unique<MarkdownDecorations>();
         if ((imageResources && ! imageResources->placements.empty()) || ! SemanticExtensionAccess::Maths(*document).empty())
         {
             const RichImageResourceSet empty;
@@ -353,8 +358,7 @@ struct PreparedSemanticGeometry::State
     std::unique_ptr<NativeImageGeometry> images;
     std::unique_ptr<NativeDiagramGeometry> native;
     std::vector<std::unique_ptr<SemanticBox>> boxes;
-    std::vector<PreparedTableRow> tableRows;
-    std::vector<D2D1_RECT_F> headingRules;
+    std::unique_ptr<MarkdownDecorations> decorations;
     // Source caret boxes are in physical source order, while their zero-width
     // display anchors may coincide with or follow generated marker text. Keep
     // the glyph search index in display order instead of assuming both orders
@@ -476,6 +480,8 @@ struct PreparedSemanticGeometry::Preparation
           caretSites(0u),
           sourceBoxes(0u)
     {
+        if (options.markdownPresentation == MarkdownPresentationStyle::Subtle)
+            tableSizing = std::make_unique<std::vector<std::unique_ptr<TableSizing>>>(0u);
         if (options.listItemSpacingDip)
             spacingItems = std::make_unique<std::vector<std::size_t>>(state->document->Syntax()->Nodes().size(), MarkdownNoNode);
         if (options.paragraphSpacingAfterLines && options.lineHeightMultiplier > 0.0f)
@@ -509,6 +515,9 @@ struct PreparedSemanticGeometry::Preparation
     std::vector<std::size_t> sourceBoxes;
     struct TableSizing
     {
+        TableSizing() : preferred(0u), widths(0u), probeWidths(0u), probeParagraphs(0u), probes(0u)
+        {
+        }
         std::size_t table{}, columns{};
         std::size_t widthIndex{};
         float indent{}, preferredTotal{}, scale{};
@@ -517,7 +526,9 @@ struct PreparedSemanticGeometry::Preparation
         std::vector<std::size_t> probeParagraphs;
         std::vector<std::unique_ptr<SemanticBox>> probes;
     };
-    std::vector<TableSizing> tableSizing;
+    // Stable owners avoid MSVC Debug's allocating noexcept vector moves when
+    // another table grows this collection during an allocation sweep.
+    std::unique_ptr<std::vector<std::unique_ptr<TableSizing>>> tableSizing;
     // Only an opted-in list policy needs this bounded parent-first metadata.
     // A nullable owner avoids even Debug STL proxy allocation for legacy calls.
     std::unique_ptr<std::vector<std::size_t>> spacingItems;
@@ -728,13 +739,18 @@ struct PreparedSemanticGeometry::Preparation
     }
     TableSizing* FindTableSizing(std::size_t table) noexcept
     {
-        const auto found = std::ranges::find(tableSizing, table, &TableSizing::table);
-        return found == tableSizing.end() ? nullptr : &*found;
+        if (! tableSizing)
+            return nullptr;
+        const auto found = std::ranges::find_if(*tableSizing, [table](const auto& sizing) { return sizing->table == table; });
+        return found == tableSizing->end() ? nullptr : found->get();
     }
     const TableSizing* FindTableSizing(std::size_t table) const noexcept
     {
-        const auto found = std::ranges::find(tableSizing, table, &TableSizing::table);
-        return found == tableSizing.end() ? nullptr : &*found;
+        if (! tableSizing)
+            return nullptr;
+        const auto& tables = *tableSizing;
+        const auto found   = std::ranges::find_if(tables, [table](const auto& sizing) { return sizing->table == table; });
+        return found == tables.end() ? nullptr : found->get();
     }
     void MeasureTableOne(std::size_t paragraphIndex, const SemanticParagraph& content)
     {
@@ -743,8 +759,10 @@ struct PreparedSemanticGeometry::Preparation
         auto* sizing = FindTableSizing(content.table);
         if (! sizing)
         {
-            tableSizing.emplace_back();
-            sizing               = &tableSizing.back();
+            if (! tableSizing)
+                throw std::logic_error("Missing subtle table staging");
+            tableSizing->push_back(std::make_unique<TableSizing>());
+            sizing               = tableSizing->back().get();
             sizing->table        = content.table;
             sizing->columns      = content.columns;
             sizing->firstContent = content;
@@ -810,12 +828,12 @@ struct PreparedSemanticGeometry::Preparation
     }
     void AllocateTableOne()
     {
-        if (tableAllocateIndex == tableSizing.size())
+        if (! tableSizing || tableAllocateIndex == tableSizing->size())
         {
             phase = Phase::Layouts;
             return;
         }
-        auto& sizing = tableSizing[tableAllocateIndex];
+        auto& sizing = *(*tableSizing)[tableAllocateIndex];
         if (sizing.widthIndex == 0u)
         {
             const auto baseIndent = static_cast<float>(std::min(sizing.firstContent.indent, 64u)) *
@@ -832,8 +850,8 @@ struct PreparedSemanticGeometry::Preparation
         if (sizing.widthIndex == sizing.columns)
         {
             ++tableAllocateIndex;
-            if (tableAllocateIndex < tableSizing.size())
-                tableSizing[tableAllocateIndex].widthIndex = 0u;
+            if (tableAllocateIndex < tableSizing->size())
+                (*tableSizing)[tableAllocateIndex]->widthIndex = 0u;
         }
     }
     void LayoutOne()
@@ -1199,8 +1217,8 @@ struct PreparedSemanticGeometry::Preparation
         if (next.options.markdownPresentation == MarkdownPresentationStyle::Subtle && content.heading > 0u && content.heading <= 2u && ! caretOnly)
         {
             const auto lineY = bottom + 3.0f;
-            next.headingRules.push_back(D2D1::RectF(box->x, lineY, box->x + box->width, lineY + 1.0f));
-            Union(next.bounds[content.element], next.headingRules.back());
+            next.decorations->headingRules.push_back(D2D1::RectF(box->x, lineY, box->x + box->width, lineY + 1.0f));
+            Union(next.bounds[content.element], next.decorations->headingRules.back());
         }
         if (consumeParagraph)
             ++paragraph;
@@ -1238,7 +1256,7 @@ struct PreparedSemanticGeometry::Preparation
             return;
         }
         if (next.options.markdownPresentation == MarkdownPresentationStyle::Subtle && rowLeft < rowRight)
-            next.tableRows.push_back({rowTable, rowIndex, D2D1::RectF(rowLeft, y, rowRight, y + rowHeight + 12.0f)});
+            next.decorations->tableRows.push_back(D2D1::RectF(rowLeft, y, rowRight, y + rowHeight + 12.0f));
         y = AddHeight(y, rowHeight + 12.0f);
         if (HasSpacingPolicy())
         {
@@ -2090,16 +2108,16 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
             target->DrawLine(D2D1::Point2F(x, rectangle.top), D2D1::Point2F(x, rectangle.bottom), decoration, 2.0f);
         }
     }
-    if (state.options.markdownPresentation == MarkdownPresentationStyle::Subtle)
+    if (const auto* decorations = state.decorations.get())
     {
-        for (const auto& rule : state.headingRules)
+        for (const auto& rule : decorations->headingRules)
             if (rule.bottom > top && rule.top < bottom)
                 target->DrawLine(
                     D2D1::Point2F(rule.left + origin.x, rule.top + origin.y), D2D1::Point2F(rule.right + origin.x, rule.top + origin.y), decoration);
-        for (const auto& row : state.tableRows)
-            if (row.bounds.bottom > top && row.bounds.top < bottom)
-                target->DrawLine(D2D1::Point2F(row.bounds.left + origin.x, row.bounds.bottom - 1.0f + origin.y),
-                                 D2D1::Point2F(row.bounds.right + origin.x, row.bounds.bottom - 1.0f + origin.y),
+        for (const auto& row : decorations->tableRows)
+            if (row.bottom > top && row.top < bottom)
+                target->DrawLine(D2D1::Point2F(row.left + origin.x, row.bottom - 1.0f + origin.y),
+                                 D2D1::Point2F(row.right + origin.x, row.bottom - 1.0f + origin.y),
                                  decoration);
     }
     for (const auto& box : state.boxes)

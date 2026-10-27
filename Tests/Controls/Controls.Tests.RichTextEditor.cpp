@@ -565,6 +565,18 @@ void TestRichTextEditorMarkdownPresentationAppearance()
             "subtle quote presentation changes actual retained raster pixels");
     const auto semantic = editor->GetAcknowledgedSemanticDocument(window.Host());
     Require(semantic != nullptr, "standalone math fixture has acknowledged semantic content");
+    const auto quote = std::ranges::find(semantic->Elements(), RichText::SemanticRole::Quote, &RichText::SemanticElement::role);
+    Require(quote != semantic->Elements().end(), "quote shading fixture has a semantic container");
+    const auto quoteBounds = editor->GetSemanticElementBounds(window.Host(), static_cast<std::size_t>(quote - semantic->Elements().begin()));
+    Require(quoteBounds.has_value(), "quote shading has acknowledged bounds");
+    const auto sampleX = static_cast<UINT>((quoteBounds->right - 2.0f) * dpiScale);
+    const auto sampleY = static_cast<UINT>((quoteBounds->top + 2.0f) * dpiScale);
+    Require(sampleX < subtle.widthPx && sampleY < subtle.heightPx && subtle.widthPx == ordinary.widthPx, "quote sample is inside both retained captures");
+    const auto pixel = (static_cast<std::size_t>(sampleY) * subtle.widthPx + sampleX) * 4u;
+    bool shaded      = false;
+    for (std::size_t channel = 0; channel < 3; ++channel)
+        shaded |= std::abs(static_cast<int>(subtle.bgraPixels[pixel + channel]) - static_cast<int>(ordinary.bgraPixels[pixel + channel])) > 3;
+    Require(shaded, "quote background changes an unselected empty pixel independently of text, strokes and math centering");
     const auto math = std::ranges::find(semantic->Elements(), RichText::SemanticRole::Math, &RichText::SemanticElement::role);
     Require(math != semantic->Elements().end(), "standalone native math object is present");
     const auto mathBounds         = editor->GetSemanticElementBounds(window.Host(), static_cast<std::size_t>(math - semantic->Elements().begin()));

@@ -1996,8 +1996,9 @@ and display-only mathematical paragraphs center through prepared DWrite geometry
 so source hit testing and caret placement agree with drawing. Inline math retains
 the surrounding paragraph's alignment. Quotes accept a shaded background.
 
-The editor resolves neutral decoration from `borderDefault` and quote fill from
-`cardBackground` during preparation; high contrast uses resolved text/surface
+The editor resolves neutral decoration from `borderDefault` and shades quotes with
+an eight-percent blend of ordinary text ink over the document fill during preparation.
+This remains visible when input/card roles coincide. High contrast uses resolved text/surface
 colors. Caller-provided drawing brushes remain supported by prepared layouts.
 The new style's runtime and consumer qualification is tracked in the
 [active plan](../Plans/WIP/SubtleMarkdownPresentation_2026-10-27.md); this contract

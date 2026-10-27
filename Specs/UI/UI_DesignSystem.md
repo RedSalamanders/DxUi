@@ -65,7 +65,7 @@ selected text ink by default. Document-surface appearance may opt into accent li
 ink role in the default presentation; selection keeps the existing selected-text/fill roles in every theme.
 Opt-in `MarkdownPresentationStyle::Subtle` uses neutral `borderDefault` decoration,
 H1/H2 separators, content-sized horizontal-rule tables, centered standalone display
-objects and `cardBackground` quote fill. High contrast uses the resolved text/surface
+objects and a neutral eight-percent text-ink blend over the document fill for quotes. High contrast uses the resolved text/surface
 pair. The existing default gallery appearance is unchanged; consumer adoption must
 capture the opted-in document with actual source/build/DPI provenance.
 

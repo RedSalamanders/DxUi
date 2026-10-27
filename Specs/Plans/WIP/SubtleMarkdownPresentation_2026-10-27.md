@@ -82,8 +82,34 @@ suite, platform or paired-performance qualification. The first canonical run's
 performance report is explicitly unpaired.
 
 Formatting passes in both source checkouts; the SDK's five static validators pass.
-Full tooling, final committed-source suites, consumer adoption and actual app
-captures remain pending. Existing default gallery pixels are unchanged by opt-in
-styles. Source-cache compression preserved bytes, lengths and write times; its
+Full tooling, final-source suites and consumer adoption remain pending. Existing
+gallery configurations retain Default; opted-in consumer captures are reviewed separately.
+Source-cache compression preserved bytes, lengths and write times; its
 private manifests are under `.build`. The paused RedTilde `fab6084` and SDK `33c`
 checkouts remain clean at their original heads.
+
+SDK `83d6a160` builds x64 Debug/ASan Debug and ARM64 Debug. Its full x64 Debug
+run passes eighteen normal suites but Embedded aborts during injected allocation
+failure. The isolated image-resource diagnostic exits 197 with a symbolized stack
+through `PreparedSemanticGeometry::State` construction. MSVC Debug's default and
+move vector constructors allocate iterator proxies inside `noexcept`; new decoration
+and table-staging containers exposed that fault path. The repair makes decoration
+and staging ownership opt-in, uses fallible size constructors, and keeps per-table
+owners stable across collection growth. A two-table Subtle allocation sweep is
+added. Final-source rebuilding and rerunning remain required.
+
+The repair's x64 Debug build passes. The isolated image-resource failure sweep
+now passes all 218 loaded-geometry allocation points and its raster-driver cases.
+The complete Embedded executable passes **460,383 checks**, including the new
+two-table Subtle allocation sweep; 1,000 warm composites make zero C++ allocations.
+The native appearance/geometry checks also pass, including the targeted quote-fill
+pixel. These direct diagnostic executions precede final canonical suite/matrix
+closeout and do not retag `83d6a160` or establish paired performance acceptance.
+
+RedTilde's isolated consumer of `83d6a160` passes its x64 Debug Full run, including
+the caption lifecycle at all three DPIs and 32 actual hidden captures with provenance.
+The first catalog refusal and subsequent stale-receipt refusal are retained; its
+reviewed case catalog now includes the new Editor case. Those successful app runs
+do not qualify the library fault path or the upcoming repaired SDK pin. Visual
+review also found input/card theme roles could coincide; quote fill now derives
+from an eight-percent ink blend, with a targeted empty-background pixel assertion.
