@@ -809,15 +809,64 @@ Invoke-FixtureCase 'an approved automatic request still refuses a CI desktop bef
     Assert-True ((Get-FlatText $run.Output).Contains('Interactive tests need an interactive desktop, and there is none')) 'automatic mode keeps the existing desktop refusal'
     Assert-Equal ((ConvertTo-OrdinalOrder $before) -join "`n") ((ConvertTo-OrdinalOrder (Get-OutputFiles $fixture)) -join "`n") 'no test or build output was written'
 }
-Invoke-TestCase 'a native lease runs attached to the console, never piped, so Ctrl+C reaches it instead of ending it' {
+Invoke-FixtureCase 'a native lease inherits the orchestrator filesystem location while staying attached to the console' {
+    param($fixture)
     # CR-31 of the 10 October review: the lease was piped through Out-Host, and PowerShell kills a native command whose output
     # it reads when Ctrl+C stops the pipeline, before the lease restores the desktop.
     $pwsh = (Get-Process -Id $PID).Path
-    $answer = @(Invoke-DxUiLeaseExecutable -Executable $pwsh -Arguments @('-NoProfile', '-NonInteractive', '-Command', "[Console]::Out.WriteLine('[LEASE] native progress'); exit 7"))
+    $deepLocation = Join-Path $fixture 'unrelated/deep/lease/orchestrator/location'
+    [void](New-Item -ItemType Directory -Path $deepLocation -Force)
+    $currentDirectory = [Environment]::CurrentDirectory
+    Push-Location -LiteralPath $deepLocation
+    try {
+        $expectedWorkingDirectory = (Get-Location).ProviderPath
+        $ambientBeforeLaunch = [Environment]::CurrentDirectory
+        $childDirectoryPath = Join-Path $fixture 'child-current-directory.txt'
+        $quotedChildDirectoryPath = $childDirectoryPath.Replace("'", "''")
+        $childCommand = "[Console]::Out.WriteLine('[LEASE] native progress'); [IO.File]::WriteAllText('$quotedChildDirectoryPath', [Environment]::CurrentDirectory); exit 7"
+        $answer = @(Invoke-DxUiLeaseExecutable -Executable $pwsh -Arguments @('-NoProfile', '-NonInteractive', '-Command', $childCommand))
+        $childWorkingDirectory = [IO.File]::ReadAllText($childDirectoryPath)
+        $ambientAfterLaunch = [Environment]::CurrentDirectory
+    } finally { Pop-Location }
+    $ambientAfterFixture = [Environment]::CurrentDirectory
     Assert-Equal 1 $answer.Count 'only its exit code is returned: the lease writes its progress to the console itself'
     Assert-Equal 7 $answer[0] 'the exit code is the lease''s'
+    Assert-Equal $expectedWorkingDirectory $childWorkingDirectory 'the native lease uses the orchestrator''s current filesystem location'
+    Assert-Equal $currentDirectory $ambientBeforeLaunch 'changing the PowerShell location does not change the parent process directory'
+    Assert-Equal $currentDirectory $ambientAfterLaunch 'starting the native lease does not change the parent process directory'
+    Assert-Equal $currentDirectory $ambientAfterFixture 'the test restores the original PowerShell location without changing the parent process directory'
     $module = [IO.File]::ReadAllText((Join-Path $PSScriptRoot '../InteractiveRun.psm1'))
     Assert-True $module.Contains('Invoke-DxUiLeaseExecutable -Executable $Executable -Arguments $arguments') 'the lease core starts a native lease that way'
+}
+Invoke-FixtureCase 'a native lease refuses a non-filesystem location without launching or changing the process directory' {
+    param($fixture)
+    $pwsh = (Get-Process -Id $PID).Path
+    $launchMarker = Join-Path $fixture 'child-launched.txt'
+    $quotedLaunchMarker = $launchMarker.Replace("'", "''")
+    $childCommand = "[IO.File]::WriteAllText('$quotedLaunchMarker', 'launched')"
+    $ambientBefore = [Environment]::CurrentDirectory
+    Push-Location -LiteralPath 'Variable:\'
+    try {
+        $location = Get-Location
+        $ambientDuring = [Environment]::CurrentDirectory
+        $refused = $false
+        $refusal = ''
+        try {
+            [void](Invoke-DxUiLeaseExecutable -Executable $pwsh -Arguments @('-NoProfile', '-NonInteractive', '-Command', $childCommand))
+        } catch {
+            $refused = $true
+            $refusal = $_.Exception.Message
+        }
+        $ambientAfterAttempt = [Environment]::CurrentDirectory
+    } finally { Pop-Location }
+    $ambientAfterFixture = [Environment]::CurrentDirectory
+    Assert-Equal 'Variable' $location.Provider.Name 'the fixture exercises a non-filesystem PowerShell provider'
+    Assert-True $refused 'the lease launcher rejects a non-filesystem location'
+    Assert-True $refusal.Contains('current filesystem location') 'the refusal explains the required location'
+    Assert-True (-not (Test-Path -LiteralPath $launchMarker)) 'a refused lease never launches its child'
+    Assert-Equal $ambientBefore $ambientDuring 'the non-filesystem location does not change the parent process directory'
+    Assert-Equal $ambientBefore $ambientAfterAttempt 'refusal leaves the parent process directory unchanged'
+    Assert-Equal $ambientBefore $ambientAfterFixture 'restoring the PowerShell location leaves the process directory unchanged'
 }
 Invoke-FixtureCase 'lease console output cannot replace the result object or hide a failed child' { param($fixture)
     $fake = Join-Path $fixture 'lease.ps1'

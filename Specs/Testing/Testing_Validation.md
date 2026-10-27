@@ -767,6 +767,10 @@ interactive desktop lease: `DxUi.InteractiveLease.exe` (`Tests/InteractiveLease`
   PowerShell would end with the lease when Ctrl+C stops the run: the lease takes the same Ctrl+C and restores the desktop while
   `test.ps1` waits for it. Windows may refuse to restore a window of a process with higher integrity than the lease (an elevated terminal
   while the lease is not elevated); the report then says `failed`, and the person's window stays where Windows left it.
+- The PowerShell launcher MUST start the lease with its current FileSystem provider directory as the child working directory, and MUST
+  refuse when the current location is not an existing FileSystem directory. It MUST NOT change the parent process current directory.
+  This keeps repository-relative baselines and test artifacts bound to the selected checkout even when the caller's process directory
+  differs from its PowerShell location.
 - **Reporting.** The line `Restoration: foreground=... focus=... cursor=...` names what became of each part: `unchanged` (the run
   was unchanged when checked), `restored`, `gone` (the window closed during the run), `failed`, `skipped` (the focus of a window
   that could not be made the foreground) or `none` (nothing was recorded). The result also keeps the pointer positions, the one the
