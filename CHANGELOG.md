@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Record final x64 ASan 19-suite coverage and Debug/ASan build evidence for Markdown/caption changes; retain the earlier timing failure and remaining configuration, native-platform and performance holds.
 - Add explicit hidden diagnostic capture that stages the current native frame before presentation, with first-frame caption hover and repeated-readback regression checks at three DPIs.
 - Keep Markdown decoration and table staging opt-in and recover atomically from injected allocation failures, including MSVC Debug iterator-proxy construction and multiple tables. Shade quotes distinctly when theme surfaces coincide; add allocation sweeps and an independent background-pixel check. Final matrix and consumer qualification remain in WIP.
 - Add opt-in subtle Markdown presentation for heading separators, content-sized tables, centered display math/diagrams and shaded quotes, plus caption button styles and native nonclient hover routing. Source editing remains unchanged; rendering and exact consumer adoption qualification remain tracked in WIP.

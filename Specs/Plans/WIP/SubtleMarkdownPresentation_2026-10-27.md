@@ -7,9 +7,9 @@
 - [x] Independently review geometry, source affinity and bounded preparation/resource work.
 - [x] Implement shared nonclient hover/Snap passthrough and caption styles; retain consumer activation/cancellation qualification below.
 - [x] Run focused geometry/raster and native editor regression tests; retain the later hidden-capture regression below.
-- [ ] Validate retained clean/dirty/hidden rendering and device replacement.
+- [x] Validate retained clean/dirty/hidden rendering and simulated device replacement in the final ASan run and consumer Debug/Release.
 - [ ] Run applicable Debug, Release, ASan and ARM64 build/runtime gates.
-- [ ] Adopt an exact reviewed SDK commit in RedTilde; capture the example through its hidden harness.
+- [x] Adopt exact SDK eb0f10b9 in RedTilde; review its three-DPI hidden Markdown and caption captures.
 - [ ] Synchronize normative docs, gallery and changelog; move this plan to Done after its gates pass.
 
 ## Scope and preservation
@@ -117,3 +117,48 @@ from an eight-percent ink blend, with a targeted empty-background pixel assertio
 SDK 2bb1aaaf passes all nineteen normal x64 Debug and ASan Debug suites, including the real sanitizer detector. Its x64 Release and ARM64 Debug/Release builds pass; ARM64 ASan and native ARM64 remain pending. These are source-bound results, not evidence for the subsequent capture overload.
 
 A stronger consumer capture check detects identical resting/close/maximize images despite live hover state. The app read its D2D target after swap-chain Present, whereas the SDK stages capture before Present. The follow-up exposes explicit hidden capture through the canonical staging path, removes the consumer readback copy and tests first-frame and repeated hover pixels at three DPIs. Earlier standalone hover captures are rejected as visual-state evidence; lifecycle/cancel and source-preservation results retain their narrower scope. Final-source capture/matrix qualification is required.
+
+## Final focused follow-up status
+
+Runtime/library producer: `eb0f10b91bb8de19b0d7671cc7078fd0c1f5e767`.
+The canonical x64 Debug and ASan Debug builds and ARM64 ASan cross-build pass.
+All five validators and the complete tooling suite pass from the D: qualification
+checkout. The final full x64 ASan execution passes all nineteen noninteractive
+suites with zero capability skips and a real heap-use-after-free detector.
+
+Retain the initial full ASan run: eighteen suites pass, but EditorControls misses
+its unchanged twelve-second dense-source deadline while compilation is active
+(6,000 blocks, 12,012 ms; maximum measured Source advance 2,994,878 us). The later
+unchanged complete EditorControls retry passes after compiler/linker processes
+exit, followed by the successful full run without compilation. This does not
+attribute the original delay or establish quiet-host performance acceptance.
+No source deadline, suite assertion or comparison policy was relaxed.
+
+RedTilde adopts this exact source/header/library pin. Its x64 Debug and Release
+runs each pass 67 native cases, 32 hidden captures and resource/device-replacement
+probes. Its manifest preserves the nine reviewed Markdown/hover captures at three
+DPIs; byte-bound JSON and PNG files have explicit Git attributes. A final read-only
+review finds no actionable issue in capture/lifetime or synthetic-pointer staging.
+
+Final standalone x64 Release and ARM64 Debug/Release builds, x64 Debug/Release
+runtime suites, remaining consumer ASan/ARM64 configurations, native ARM64,
+physical input and paired performance stay open. Earlier 2bb/83 profile results
+are historical and cannot be relabeled. The consumer Release archive builds and
+runs successfully, but that is not a standalone all-target Release pass.
+
+Both volumes are near their reserved capacity margins. A C: build was stopped
+during attestation and an earlier tooling attempt was interrupted; neither is a
+pass. The later canonical Debug build does pass. D: is ReFS: attempted compression
+reported unsupported and changed no files. Later C: compression commands selected
+closed objects but their tool summaries report zero newly compressed files; the
+observed free-space recovery is unattributed. Automatic approval review rejected
+both bulk and twelve-file compiler-cache cleanup commands with "blocked by policy";
+those commands deleted nothing and were not retried through another mechanism.
+The user was asked to free capacity or keep the remaining qualification gates open.
+
+The original performance/CI/keyboard/Menu/merge queue remains paused. Frozen
+RedTilde fab6084 and SDK v29 33c remain clean at their exact heads, and the two copied
+RedTilde queue files match their original SHA-256 values. No push, merge, new CI run
+or real-focus suite was performed. Keep this plan in WIP. Exact continuation
+commands are saved privately in the active consumer's
+`.build/MARKDOWN-CAPTION-CONTINUE.md`.
