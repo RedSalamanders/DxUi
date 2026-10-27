@@ -6,7 +6,7 @@
 - [x] Implement heading separators, intrinsic tables, centered display objects and quote fill.
 - [x] Independently review geometry, source affinity and bounded preparation/resource work.
 - [x] Implement shared nonclient hover/Snap passthrough and caption styles; retain consumer activation/cancellation qualification below.
-- [ ] Run focused geometry/raster and native editor regression tests.
+- [x] Run focused geometry/raster and native editor regression tests; retain the later hidden-capture regression below.
 - [ ] Validate retained clean/dirty/hidden rendering and device replacement.
 - [ ] Run applicable Debug, Release, ASan and ARM64 build/runtime gates.
 - [ ] Adopt an exact reviewed SDK commit in RedTilde; capture the example through its hidden harness.
@@ -113,3 +113,7 @@ reviewed case catalog now includes the new Editor case. Those successful app run
 do not qualify the library fault path or the upcoming repaired SDK pin. Visual
 review also found input/card theme roles could coincide; quote fill now derives
 from an eight-percent ink blend, with a targeted empty-background pixel assertion.
+
+SDK 2bb1aaaf passes all nineteen normal x64 Debug and ASan Debug suites, including the real sanitizer detector. Its x64 Release and ARM64 Debug/Release builds pass; ARM64 ASan and native ARM64 remain pending. These are source-bound results, not evidence for the subsequent capture overload.
+
+A stronger consumer capture check detects identical resting/close/maximize images despite live hover state. The app read its D2D target after swap-chain Present, whereas the SDK stages capture before Present. The follow-up exposes explicit hidden capture through the canonical staging path, removes the consumer readback copy and tests first-frame and repeated hover pixels at three DPIs. Earlier standalone hover captures are rejected as visual-state evidence; lifecycle/cancel and source-preservation results retain their narrower scope. Final-source capture/matrix qualification is required.

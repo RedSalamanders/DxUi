@@ -2891,13 +2891,18 @@ WindowHostCursorKind ControlHost::DebugResolveCursorKindForPoint(D2D1_POINT_2F p
 
 bool ControlHost::DebugCaptureBitmap(WindowHostBitmapCapture& out) noexcept
 {
+    return DebugCaptureBitmap(out, false);
+}
+
+bool ControlHost::DebugCaptureBitmap(WindowHostBitmapCapture& out, bool allowHidden) noexcept
+{
     out = {};
     if (! _hwnd)
     {
         return false;
     }
 
-    Render(nullptr, &out);
+    Render(nullptr, &out, allowHidden);
     return out.widthPx > 0u && out.heightPx > 0u && ! out.bgraPixels.empty();
 }
 #endif

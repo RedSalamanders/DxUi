@@ -312,6 +312,7 @@ void TestWindowHostNonclientCaptionHoverKeepsDefaultProcessing()
         buttons[i] = root->AddChild<Button>(L"caption");
         buttons[i]->SetBounds(D2D1::RectF(static_cast<float>(i) * 46, 0, static_cast<float>(i + 1) * 46, 36));
         buttons[i]->SetFocusable(false);
+        buttons[i]->SetAppearance(i == 2 ? ButtonAppearance::CaptionClose : ButtonAppearance::Caption);
         buttons[i]->SetOnClick([&] { ++invoked; });
     }
     window.Host().SetRoot(std::move(root));
@@ -324,6 +325,17 @@ void TestWindowHostNonclientCaptionHoverKeepsDefaultProcessing()
         Require(GetWindowRect(window.Hwnd(), &suggested) != FALSE, "read owned hidden host frame");
         bool handled{};
         static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_DPICHANGED, MAKELONG(dpi, dpi), reinterpret_cast<LPARAM>(&suggested), handled));
+        WindowHostBitmapCapture idle;
+        Require(! window.Host().DebugCaptureBitmap(idle) && idle.bgraPixels.empty(), "ordinary capture still refuses an invisible native host");
+        Require(window.Host().DebugCaptureBitmap(idle, true), "explicit hidden capture stages a completed frame without showing the host");
+        const auto sample = [&](const WindowHostBitmapCapture& frame, std::size_t button)
+        {
+            const auto x = static_cast<UINT>(MulDiv(static_cast<int>(button) * 46 + 3, static_cast<int>(dpi), 96));
+            const auto y = static_cast<UINT>(MulDiv(3, static_cast<int>(dpi), 96));
+            Require(x < frame.widthPx && y < frame.heightPx, "caption background sample fits the hidden frame");
+            const auto pixel = (static_cast<std::size_t>(y) * frame.widthPx + x) * 4u;
+            return std::array<uint8_t, 3>{frame.bgraPixels[pixel], frame.bgraPixels[pixel + 1u], frame.bgraPixels[pixel + 2u]};
+        };
         for (std::size_t i = 0; i < buttons.size(); ++i)
         {
             POINT point{MulDiv(static_cast<int>(i) * 46 + 23, static_cast<int>(dpi), 96), MulDiv(18, static_cast<int>(dpi), 96)};
@@ -332,6 +344,14 @@ void TestWindowHostNonclientCaptionHoverKeepsDefaultProcessing()
             handled                = true;
             static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_NCMOUSEMOVE, hits[i], coordinates, handled));
             Require(! handled && buttons[i]->IsHovered(), "nonclient caption hover converts at each DPI and preserves default Snap processing");
+            WindowHostBitmapCapture hovered, repeated;
+            Require(window.Host().DebugCaptureBitmap(hovered, true) && window.Host().DebugCaptureBitmap(repeated, true),
+                    "consecutive hidden captures stage the current hover frame before presentation");
+            for (std::size_t button = 0; button < buttons.size(); ++button)
+            {
+                Require((sample(hovered, button) != sample(idle, button)) == (button == i), "only the hovered caption background changes in the first capture");
+                Require(sample(repeated, button) == sample(hovered, button), "repeated hidden capture has no prior-frame lag");
+            }
             static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_NCMOUSEMOVE, HTCAPTION, coordinates, handled));
             Require(! handled && ! buttons[i]->IsHovered(), "native draggable caption space clears control hover without being claimed");
             const auto cleared = window.Host().DebugGetInvalidateCount();

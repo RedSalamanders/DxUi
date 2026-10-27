@@ -5755,6 +5755,8 @@ public:
     [[nodiscard]] D2D1_RECT_F DebugGetTooltipBoundsDip() const noexcept;
     [[nodiscard]] bool DebugIsTooltipInspectionAtEnd() const noexcept;
     [[nodiscard]] bool DebugCaptureBitmap(WindowHostBitmapCapture& out) noexcept;
+    // Hidden harnesses opt in explicitly; pixels are staged before swap-chain presentation.
+    [[nodiscard]] bool DebugCaptureBitmap(WindowHostBitmapCapture& out, bool allowHidden) noexcept;
     [[nodiscard]] ITextStoreACP* DebugCreateNativeTextInputTextStoreForTest() noexcept;
     [[nodiscard]] bool DebugPostActiveNativeTextStoreWorkForTest() noexcept;
     [[nodiscard]] UINT_PTR DebugGetNativeTextStoreDispatchCookieForTest() const noexcept;

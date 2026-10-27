@@ -10,6 +10,10 @@ The WindowHost adapter owns HWND integration and its own swap-chain presentation
 It uses the same retained control implementation as embedded mode, with a separate scheduling/presentation adapter.
 Device loss, resize, zero-size suspension, DPI, focus and teardown have explicit contracts and regression tests.
 Its message/timer/animation resources stop or quiesce when hidden and are destroyed by their owning runtime.
+Diagnostic bitmap capture stages the completed frame after EndDraw and before swap-chain presentation.
+The one-argument capture keeps refusing hidden hosts; an explicit `allowHidden` overload supports owned,
+deterministic harness capture without showing, activating or reading the desktop. Consecutive captures must
+reflect current control state on their first frame, including caption hover at simulated DPI.
 Changing non-text logical focus on a hidden or zero-size host never activates its HWND; visible, positively sized
 hosts retain the requested native-transfer policy. See the [input contract](../UI/UI_InputAndAccessibility.md).
 
