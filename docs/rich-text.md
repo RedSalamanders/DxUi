@@ -89,7 +89,9 @@ Each owner preparation advance uses at most 256 work steps shared across block
 markers, inline delimiter runs, link-label children, raw destination scans,
 incremental event ordering and range publication. Long scans and bottom-up merge
 passes resume on later advances; ranges remain hidden until the complete set is
-ready.
+ready. Source ink drawing uses the caller's target and borrows brushes only for
+the draw call; a prepared layout retains no device-bound target or brush
+capability and can be drawn on a replacement target.
 
 The additive v0 API lives in `DxUi::RichText` and links through the single
 `DxUi.lib`. Include `DxUi/RichDocument.h`, `DxUi/RichMarkdown.h` and

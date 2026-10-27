@@ -1,3 +1,4 @@
+#include "DxUi.RichTextSourceInkRenderer.h"
 #include "DxUi.TextElements.h"
 #include <DxUi/RichTextLayout.h>
 #include <algorithm>
@@ -57,6 +58,7 @@ public:
 private:
     float height_{};
 };
+
 } // namespace
 struct PreparedLayout::State
 {
@@ -538,6 +540,9 @@ void PreparedLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POI
         target->DrawTextLayout(origin, state_->layout.get(), brush, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
         return;
     }
+    if (Detail::DrawSourceInkIfSupported(target, brush, state_->layout.get(), state_->positioning.get(), state_->textOffset, projection_, *links, origin) ==
+        Detail::SourceInkDrawResult::Drawn)
+        return;
     // SDK drawing attributes are borrowed for this synchronous owner-thread
     // raster call. Copies may share the layout; restore its canonical style
     // even when setting a later range fails. No brush survives this call.

@@ -1,12 +1,17 @@
 # Complete Update-stage metric accounting
 
+## Current evidence checkpoint — 27 October 2026
+
+- [x] PR #112 hosted CI passes all six native profiles at source `8199566d635751a20a6e916e73410fb6cad317cc` and merge commit `47fe389680a6c224ce2b76cc1e5c0af0c414a11f`; the independent root review completed 1,293 checks. The WindowHost FrameUpdate implementation and tests match the reviewed Main checkpoint `aebeb73cd448fbb00e1439d1a3c1baf4af1c82e9` byte-for-byte.
+- [ ] Final local/current-source qualification and performance acceptance remain open. Preserve the earlier PR109 Release Menu-fixture failure as historical evidence; the newer six-profile CI result does not establish its cause or erase it. Parent policy and consumer performance holds remain separate.
+
 ## Progress checklist
 
 - [x] Verify both WindowHost render paths return from pending preparation before assigning `updateUs`; retained SDK407 RedTilde reports have positive total duration with zero Update duration on attempts 0–15.
 - [x] Record elapsed Update duration through scope exit on success, resource failure, deferred preparation and exception unwind. Preserve preparation, scheduling and rendering behavior.
 - [x] Add a pending-then-completed native regression through ordinary dirty rendering and bitmap capture. Check incomplete Update is measured and Render/Present remain zero. Update the authoritative performance contract.
-- [ ] Run the native regression, Rendering/control/embedded coverage, all three x64 profiles with real ASan detection, and all three ARM64 builds. Native ARM64 requires hosted execution.
-- [ ] Inspect source-bound CI and paired evidence; retain the existing unqualified base-policy gate. This metric correction is not a product CPU improvement or a policy waiver.
+- [x] Run the native regression, Rendering/control/embedded coverage and all six hosted native profiles in PR #112 at source `8199566d635751a20a6e916e73410fb6cad317cc` / merge `47fe389680a6c224ce2b76cc1e5c0af0c414a11f`; all six profiles pass and the independent root review completed 1,293 checks. This includes hosted ARM64 execution.
+- [ ] Keep performance acceptance separate: the metric correction is not a product CPU improvement or policy waiver, and the paired base-policy gate remains unqualified.
 - [ ] Fold changelog, publish source/test evidence, verify the remote merge and move this plan to Done when its required gates close.
 
 ## Scope and evidence
