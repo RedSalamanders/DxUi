@@ -29,16 +29,28 @@ function Invoke-ScopeScript([hashtable] $Arguments, [string] $Directory) {
     foreach ($name in $names) { $previous[$name] = [Environment]::GetEnvironmentVariable($name) }
     try {
         New-Item -ItemType Directory -Path $Directory -Force | Out-Null
-        [Environment]::SetEnvironmentVariable('GITHUB_OUTPUT', (Join-Path $Directory 'step-output.txt'))
-        [Environment]::SetEnvironmentVariable('GITHUB_STEP_SUMMARY', (Join-Path $Directory 'step-summary.md'))
-        [Environment]::SetEnvironmentVariable('GITHUB_EVENT_NAME', $null)
-        [Environment]::SetEnvironmentVariable('GITHUB_BASE_REF', $null)
+        Restore-TestEnvironmentVariable 'GITHUB_OUTPUT' (Join-Path $Directory 'step-output.txt')
+        Restore-TestEnvironmentVariable 'GITHUB_STEP_SUMMARY' (Join-Path $Directory 'step-summary.md')
+        Restore-TestEnvironmentVariable 'GITHUB_EVENT_NAME' $null
+        Restore-TestEnvironmentVariable 'GITHUB_BASE_REF' $null
         $global:LASTEXITCODE = -1
         $output = & (Join-Path $repository 'Tools/Get-NativeScope.ps1') @Arguments 6>&1 2>&1
         $code = $LASTEXITCODE
-    } finally { foreach ($name in $names) { [Environment]::SetEnvironmentVariable($name, $previous[$name]) } }
+    } finally { foreach ($name in $names) { Restore-TestEnvironmentVariable $name $previous[$name] } }
     $files = foreach ($name in @('step-output.txt', 'step-summary.md')) { $path = Join-Path $Directory $name; if (Test-Path -LiteralPath $path) { [IO.File]::ReadAllText($path) } else { '' } }
     return [pscustomobject]@{ Code = $code; Output = (@($output | ForEach-Object { "$_" }) -join "`n"); StepOutput = $files[0]; StepSummary = $files[1] }
+}
+
+Invoke-FixtureCase 'scope invocation restores an absent GitHub event variable' {
+    param($root)
+    $name = 'GITHUB_EVENT_NAME'
+    $previous = [Environment]::GetEnvironmentVariable($name)
+    try {
+        Restore-TestEnvironmentVariable $name $null
+        $result = Invoke-ScopeScript @{ EventName = 'push'; Repository = (Join-Path $root 'no-repository') } (Join-Path $root 'run')
+        Assert-Equal 0 $result.Code 'the fixture scope decision completes'
+        Assert-True (-not (Test-Path -LiteralPath "Env:$name")) 'the wrapper restores the event variable to absent, not empty'
+    } finally { Restore-TestEnvironmentVariable $name $previous }
 }
 
 # --- Which pull requests build and test natively ---------------------------------------------------------------------------

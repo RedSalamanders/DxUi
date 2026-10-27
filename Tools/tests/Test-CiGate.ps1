@@ -11,16 +11,26 @@ function Invoke-Gate([hashtable] $Values) {
     $previous = @{}
     foreach ($name in $names) { $previous[$name] = [Environment]::GetEnvironmentVariable($name) }
     try {
-        foreach ($name in $names) { [Environment]::SetEnvironmentVariable($name, [string]$Values[$name]) }
+        foreach ($name in $names) { Restore-TestEnvironmentVariable $name $Values[$name] }
         $global:LASTEXITCODE = 0
         $output = & $scriptPath 6>&1 2>&1
         return [pscustomobject]@{ Exit = $LASTEXITCODE; Text = (@($output | ForEach-Object { "$_" }) -join "`n") }
     } catch { return [pscustomobject]@{ Exit = 1; Text = $_.Exception.Message } }
-    finally { foreach ($name in $names) { [Environment]::SetEnvironmentVariable($name, $previous[$name]) } }
+    finally { foreach ($name in $names) { Restore-TestEnvironmentVariable $name $previous[$name] } }
 }
 function New-Results([string] $Event='pull_request', [string] $NativeScope='true', [string] $Native='success', [string] $Paired='success', [string] $Relevant='true', [string] $Baseline='') {
     return @{ EVENT_NAME=$Event; VALIDATION_RESULT='success'; WINDOWS_TOOLING_RESULT='success'; FORMAT_RESULT='success';
         NATIVE_SCOPE_RESULT='success'; NATIVE_SCOPE_OUTPUT=$NativeScope; NATIVE_RESULT=$Native; PAIRED_RESULT=$Paired; PAIRED_RELEVANT=$Relevant; BENCHMARK_BASELINE=$Baseline }
+}
+
+Invoke-TestCase 'gate fixture restores an absent workflow event variable' {
+    $name = 'EVENT_NAME'
+    $previous = [Environment]::GetEnvironmentVariable($name)
+    try {
+        Restore-TestEnvironmentVariable $name $null
+        Assert-Equal 0 (Invoke-Gate (New-Results)).Exit 'the workflow fixture completes'
+        Assert-True (-not (Test-Path -LiteralPath "Env:$name")) 'the wrapper restores the variable to absent, not empty'
+    } finally { Restore-TestEnvironmentVariable $name $previous }
 }
 
 Invoke-TestCase 'aggregate accepts complete PR qualification and positively classified skips' {

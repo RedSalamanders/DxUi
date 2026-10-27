@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Test fixtures now restore process environment entries through the shared helper, preserving absent, empty and valued state across CI, native-scope, benchmark-gate and interactive-mode wrappers.
 - Tooling environment fixtures now restore absent variables as absent, keeping the later `SkipBuild` identity stable; the focused policy suite passes 40/40 and its regression covers unset, empty and valued inputs. Native and full qualification remain separate.
 - Added the SDK 4077 same-binary A/A calibration packet with source, fixture and measured-harness digests, numerical rows and provenance bindings. All 72 controls were unstable (631 of 1,872 observations out of band), so the policy remains unqualified and the archive provides no candidate or CI performance acceptance; the packet was independently audited and its focused schema and changelog checks passed.
 - Add coverage that the native interactive desktop lease refuses a non-filesystem PowerShell location before launching its child and leaves the parent process directory unchanged. Focused Tooling validation covers this refusal and the filesystem-location launch; native qualification remains pending.

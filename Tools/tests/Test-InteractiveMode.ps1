@@ -898,30 +898,37 @@ $resultPath = ($Arguments | Where-Object { $_ -like '--result=*' }) -replace '^-
 $global:LASTEXITCODE = 0
 '@ | Set-Content -LiteralPath $fake
     $names = @('CI', 'GITHUB_ACTIONS', 'RUNNER_ENVIRONMENT', 'RUNNER_OS')
-    $saved = @{}
-    foreach ($name in $names) { $saved[$name] = [Environment]::GetEnvironmentVariable($name); [Environment]::SetEnvironmentVariable($name, $null) }
+    $original = @{}
+    foreach ($name in $names) { $original[$name] = [Environment]::GetEnvironmentVariable($name) }
     $oldMarker = [Environment]::GetEnvironmentVariable('DXUI_HOSTED_LEASE_MARKER')
-    [Environment]::SetEnvironmentVariable('DXUI_HOSTED_LEASE_MARKER', $marker)
     try {
-        $thrown = $false
-        try { [void](Invoke-DxUiHostedForegroundLease -Executable $fake -Runs @([pscustomobject]@{ Name='Menu'; Log='m.log'; CommandLine='unused.exe' }) -Label 'Menu' -EstimateSeconds 1 -WorkDirectory $fixture) } catch { $thrown = $_.Exception.Message.Contains('verified GitHub-hosted') }
-        Assert-True $thrown 'an unverified direct call is refused by the PowerShell wrapper'
-        Assert-True (-not (Test-Path -LiteralPath $marker) -and -not (Test-Path -LiteralPath (Join-Path $fixture 'interactive-plan.txt'))) 'refusal happens before plan creation or native launch'
+        foreach ($name in $names) { Restore-TestEnvironmentVariable $name $null }
+        Restore-TestEnvironmentVariable 'DXUI_HOSTED_LEASE_MARKER' $marker
+        try {
+            $thrown = $false
+            try { [void](Invoke-DxUiHostedForegroundLease -Executable $fake -Runs @([pscustomobject]@{ Name='Menu'; Log='m.log'; CommandLine='unused.exe' }) -Label 'Menu' -EstimateSeconds 1 -WorkDirectory $fixture) } catch { $thrown = $_.Exception.Message.Contains('verified GitHub-hosted') }
+            Assert-True $thrown 'an unverified direct call is refused by the PowerShell wrapper'
+            Assert-True (-not (Test-Path -LiteralPath $marker) -and -not (Test-Path -LiteralPath (Join-Path $fixture 'interactive-plan.txt'))) 'refusal happens before plan creation or native launch'
 
-        $local = Invoke-DxUiInteractiveLease -Executable $fake -Runs @([pscustomobject]@{ Name='Menu'; Log='m.log'; CommandLine='unused.exe' }) -Label 'Menu' -EstimateSeconds 1 -WorkDirectory $fixture
-        Assert-True ([IO.File]::ReadAllText($marker).StartsWith("--run`n")) 'the local wrapper retains its distinct native mode'
-        $localPresentation = Get-RunnerLeasePresentation $local.Result
-        foreach ($pair in @{ CI='true'; GITHUB_ACTIONS='true'; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Windows' }.GetEnumerator()) { [Environment]::SetEnvironmentVariable($pair.Key, $pair.Value) }
-        Set-Content -LiteralPath (Join-Path $fixture 'interactive-result.txt') 'stale result'
-        $answer = Invoke-DxUiHostedForegroundLease -Executable $fake -Runs @([pscustomobject]@{ Name='Menu'; Log='m.log'; CommandLine='unused.exe' }) -Label 'Menu' -EstimateSeconds 1 -WorkDirectory $fixture
-        Assert-True ([IO.File]::ReadAllText($marker).StartsWith('--run-hosted')) 'the verified wrapper selects the hosted native mode'
-        Assert-Equal 'completed' $answer.Result.State 'the hosted wrapper returns the shared structured result'
-        Assert-Equal 1 @($answer.Result.Children).Count 'the hosted child result survives console streaming'
-        Assert-Equal $localPresentation (Get-RunnerLeasePresentation $answer.Result) 'local and hosted restoration facts have the same neutral presentation'
-        Assert-True ($localPresentation.Contains('The desktop states were restored or unchanged.')) 'the recorded restored pointer overrides the false moved flag in both modes'
+            $local = Invoke-DxUiInteractiveLease -Executable $fake -Runs @([pscustomobject]@{ Name='Menu'; Log='m.log'; CommandLine='unused.exe' }) -Label 'Menu' -EstimateSeconds 1 -WorkDirectory $fixture
+            Assert-True ([IO.File]::ReadAllText($marker).StartsWith("--run`n")) 'the local wrapper retains its distinct native mode'
+            $localPresentation = Get-RunnerLeasePresentation $local.Result
+            foreach ($pair in @{ CI='true'; GITHUB_ACTIONS='true'; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Windows' }.GetEnumerator()) { Restore-TestEnvironmentVariable $pair.Key $pair.Value }
+            Set-Content -LiteralPath (Join-Path $fixture 'interactive-result.txt') 'stale result'
+            $answer = Invoke-DxUiHostedForegroundLease -Executable $fake -Runs @([pscustomobject]@{ Name='Menu'; Log='m.log'; CommandLine='unused.exe' }) -Label 'Menu' -EstimateSeconds 1 -WorkDirectory $fixture
+            Assert-True ([IO.File]::ReadAllText($marker).StartsWith('--run-hosted')) 'the verified wrapper selects the hosted native mode'
+            Assert-Equal 'completed' $answer.Result.State 'the hosted wrapper returns the shared structured result'
+            Assert-Equal 1 @($answer.Result.Children).Count 'the hosted child result survives console streaming'
+            Assert-Equal $localPresentation (Get-RunnerLeasePresentation $answer.Result) 'local and hosted restoration facts have the same neutral presentation'
+            Assert-True ($localPresentation.Contains('The desktop states were restored or unchanged.')) 'the recorded restored pointer overrides the false moved flag in both modes'
+        } finally {
+            foreach ($name in $names) { Restore-TestEnvironmentVariable $name $null }
+            Restore-TestEnvironmentVariable 'DXUI_HOSTED_LEASE_MARKER' $oldMarker
+        }
+        Assert-True (-not (Test-Path -LiteralPath 'Env:GITHUB_ACTIONS')) 'the hosted-lease fixture restores the forced absent marker as absent'
     } finally {
-        foreach ($name in $names) { [Environment]::SetEnvironmentVariable($name, $saved[$name]) }
-        [Environment]::SetEnvironmentVariable('DXUI_HOSTED_LEASE_MARKER', $oldMarker)
+        foreach ($name in $names) { Restore-TestEnvironmentVariable $name $original[$name] }
+        Restore-TestEnvironmentVariable 'DXUI_HOSTED_LEASE_MARKER' $oldMarker
     }
 
     $staleProbe = Join-Path $fixture 'stale-probe.ps1'
@@ -1011,20 +1018,26 @@ if ($IsWindows) {
 Invoke-TestCase 'hosted ARM desktop preparation refuses incomplete runner authorization before Windows changes' {
     $preparation = Join-Path $repository 'Tools/Prepare-HostedArmDesktop.ps1'
     $valid = @{ CI='true'; GITHUB_ACTIONS='true'; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Windows'; RUNNER_ARCH='ARM64' }
+    $previousRunnerArch = [Environment]::GetEnvironmentVariable('RUNNER_ARCH')
     $original = @{}
     foreach ($name in $valid.Keys) { $original[$name] = [Environment]::GetEnvironmentVariable($name) }
     try {
-        foreach ($name in $valid.Keys) { [Environment]::SetEnvironmentVariable($name, $valid[$name]) }
-        foreach ($name in $valid.Keys) {
-            [Environment]::SetEnvironmentVariable($name, 'invalid')
-            $refused = $false
-            try { & $preparation } catch { $refused = $_.Exception.Message -like 'Hosted ARM64 desktop preparation requires*' }
-            Assert-True $refused "an invalid $name refuses before registry or desktop access"
-            [Environment]::SetEnvironmentVariable($name, $valid[$name])
+        Restore-TestEnvironmentVariable 'RUNNER_ARCH' $null
+        $original['RUNNER_ARCH'] = $null
+        try {
+            foreach ($name in $valid.Keys) { Restore-TestEnvironmentVariable $name $valid[$name] }
+            foreach ($name in $valid.Keys) {
+                Restore-TestEnvironmentVariable $name 'invalid'
+                $refused = $false
+                try { & $preparation } catch { $refused = $_.Exception.Message -like 'Hosted ARM64 desktop preparation requires*' }
+                Assert-True $refused "an invalid $name refuses before registry or desktop access"
+                Restore-TestEnvironmentVariable $name $valid[$name]
+            }
+        } finally {
+            foreach ($name in $valid.Keys) { Restore-TestEnvironmentVariable $name $original[$name] }
         }
-    } finally {
-        foreach ($name in $valid.Keys) { [Environment]::SetEnvironmentVariable($name, $original[$name]) }
-    }
+        Assert-True (-not (Test-Path -LiteralPath 'Env:RUNNER_ARCH')) 'the hosted-ARM fixture restores the forced absent architecture as absent'
+    } finally { Restore-TestEnvironmentVariable 'RUNNER_ARCH' $previousRunnerArch }
     # Off ARM64 the system architecture alone refuses above, so the script must take its whole decision from the one guard that
     # the next case checks condition by condition, before it loads Win32 or writes the registry.
     $script = [Management.Automation.Language.Parser]::ParseFile($preparation, [ref]$null, [ref]$null)
