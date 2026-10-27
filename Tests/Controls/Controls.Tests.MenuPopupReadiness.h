@@ -3,8 +3,175 @@
 #include <windows.h>
 
 #include <chrono>
+#include <cstdint>
 #include <string>
 #include <thread>
+
+namespace DxUi::Tests
+{
+
+enum class PhysicalCursorAlignmentStatus : std::uint8_t
+{
+    Exact,
+    SetFailed,
+    InitialReadFailed,
+    PollReadFailed,
+    TimedOut,
+};
+
+struct PhysicalCursorAlignmentResult
+{
+    PhysicalCursorAlignmentStatus status = PhysicalCursorAlignmentStatus::TimedOut;
+    POINT initialReadback{};
+    POINT finalReadback{};
+    bool initialReadbackKnown = false;
+    bool finalReadbackKnown   = false;
+    std::uint32_t pollCount   = 0u;
+    std::chrono::microseconds elapsed{};
+};
+
+struct PhysicalCursorOwnership final
+{
+    POINT lastConfirmed{};
+    POINT pendingTarget{};
+    bool lastConfirmedKnown = false;
+    bool pendingTargetKnown = false;
+
+    void RecordAcceptedTarget(POINT target) noexcept
+    {
+        pendingTarget      = target;
+        pendingTargetKnown = true;
+    }
+
+    void RecordExactAlignment(POINT target) noexcept
+    {
+        lastConfirmed      = target;
+        lastConfirmedKnown = true;
+        pendingTargetKnown = false;
+    }
+
+    [[nodiscard]] bool HasOwnedPoint() const noexcept
+    {
+        return lastConfirmedKnown || pendingTargetKnown;
+    }
+
+    [[nodiscard]] bool Contains(POINT point) const noexcept
+    {
+        const bool atLastConfirmed = lastConfirmedKnown && point.x == lastConfirmed.x && point.y == lastConfirmed.y;
+        const bool atPendingTarget = pendingTargetKnown && point.x == pendingTarget.x && point.y == pendingTarget.y;
+        return atLastConfirmed || atPendingTarget;
+    }
+};
+
+[[nodiscard]] inline const char* PhysicalCursorAlignmentStatusText(PhysicalCursorAlignmentStatus status) noexcept
+{
+    switch (status)
+    {
+        case PhysicalCursorAlignmentStatus::Exact: return "exact";
+        case PhysicalCursorAlignmentStatus::SetFailed: return "set-failed";
+        case PhysicalCursorAlignmentStatus::InitialReadFailed: return "initial-read-failed";
+        case PhysicalCursorAlignmentStatus::PollReadFailed: return "poll-read-failed";
+        case PhysicalCursorAlignmentStatus::TimedOut: return "timed-out";
+    }
+
+    return "unknown";
+}
+
+// The hosted desktop can expose a stale immediate physical-cursor read after
+// SetCursorPos accepts a move. Poll read-only for the one requested point while
+// the observed deadline and poll budget allow; synchronous calls or scheduling
+// can return after the deadline. Never issue another cursor move or accept a nearby point.
+template <typename TSetCursorPos, typename TReadPhysicalCursor, typename TNow, typename TSleep>
+[[nodiscard]] inline PhysicalCursorAlignmentResult SetCursorPosAndWaitForExactPhysicalPoint(
+    POINT expected, TSetCursorPos&& setCursorPos, TReadPhysicalCursor&& readPhysicalCursor, TNow&& now, TSleep&& sleep)
+{
+    using Clock = std::chrono::steady_clock;
+
+    constexpr auto timeout               = std::chrono::milliseconds{100};
+    constexpr auto pollInterval          = std::chrono::milliseconds{5};
+    constexpr std::uint32_t maximumPolls = 20u;
+
+    PhysicalCursorAlignmentResult result;
+    const auto startedAt = now();
+    const auto deadline  = startedAt + timeout;
+    const auto finish    = [&](PhysicalCursorAlignmentStatus status)
+    {
+        result.status  = status;
+        result.elapsed = std::chrono::duration_cast<std::chrono::microseconds>(now() - startedAt);
+        return result;
+    };
+    const auto isExact = [expected](POINT point) noexcept { return point.x == expected.x && point.y == expected.y; };
+
+    if (! setCursorPos(expected))
+    {
+        return finish(PhysicalCursorAlignmentStatus::SetFailed);
+    }
+
+    if (now() >= deadline)
+    {
+        return finish(PhysicalCursorAlignmentStatus::TimedOut);
+    }
+
+    POINT observed{};
+    if (! readPhysicalCursor(observed))
+    {
+        return finish(PhysicalCursorAlignmentStatus::InitialReadFailed);
+    }
+
+    result.initialReadback      = observed;
+    result.initialReadbackKnown = true;
+    result.finalReadback        = observed;
+    result.finalReadbackKnown   = true;
+    if (now() >= deadline)
+    {
+        return finish(PhysicalCursorAlignmentStatus::TimedOut);
+    }
+
+    if (isExact(observed))
+    {
+        return finish(PhysicalCursorAlignmentStatus::Exact);
+    }
+
+    while (result.pollCount < maximumPolls && now() < deadline)
+    {
+        const auto loopTime = now();
+        if (loopTime >= deadline)
+        {
+            break;
+        }
+
+        const auto remaining = deadline - loopTime;
+        const auto interval  = std::chrono::duration_cast<Clock::duration>(pollInterval);
+        sleep(remaining < interval ? remaining : interval);
+        if (now() >= deadline)
+        {
+            break;
+        }
+
+        ++result.pollCount;
+        if (! readPhysicalCursor(observed))
+        {
+            result.finalReadbackKnown = false;
+            return finish(PhysicalCursorAlignmentStatus::PollReadFailed);
+        }
+
+        result.finalReadback      = observed;
+        result.finalReadbackKnown = true;
+        if (now() >= deadline)
+        {
+            return finish(PhysicalCursorAlignmentStatus::TimedOut);
+        }
+
+        if (isExact(observed))
+        {
+            return finish(PhysicalCursorAlignmentStatus::Exact);
+        }
+    }
+
+    return finish(PhysicalCursorAlignmentStatus::TimedOut);
+}
+
+} // namespace DxUi::Tests
 
 // A popup's measurement HWND exists before resource preparation, layout and its initial frame.
 // Discovery must wait for the visible window, without probing that hidden initialization stage.
@@ -50,6 +217,7 @@
 }
 
 void TestMenuPopupDiscoveryRejectsHiddenInitializationWindows();
+void TestPhysicalCursorReadbackWaitIsBoundedAndExact();
 
 inline bool WaitForWindowDestroyed(HWND hwnd, std::chrono::milliseconds timeout = std::chrono::milliseconds(800))
 {

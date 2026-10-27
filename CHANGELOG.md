@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Add read-only exact-position polling to the interactive Menu test fixture, governed by an observed 100 ms deadline and 20-poll cap while preserving its single warp, independent caller verification, restoration and hover guards. Added deterministic headless coverage; native and tooling validation remain pending while the serialized SDK lane is reserved.
 - Tooling environment fixtures now restore absent variables as absent, keeping the later `SkipBuild` identity stable; the focused policy suite passes 40/40 and its regression covers unset, empty and valued inputs. Native and full qualification remain separate.
 - Added the SDK 4077 same-binary A/A calibration packet with source, fixture and measured-harness digests, numerical rows and provenance bindings. All 72 controls were unstable (631 of 1,872 observations out of band), so the policy remains unqualified and the archive provides no candidate or CI performance acceptance; the packet was independently audited and its focused schema and changelog checks passed.
 - Add coverage that the native interactive desktop lease refuses a non-filesystem PowerShell location before launching its child and leaves the parent process directory unchanged. Focused Tooling validation covers this refusal and the filesystem-location launch; native qualification remains pending.

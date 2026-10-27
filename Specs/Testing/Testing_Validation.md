@@ -96,6 +96,16 @@ borrowed diagnostic sink; records retain phase names, relative times and query o
 identities. Capturing a possible failure path does not attribute an earlier untraced occurrence.
 Dismissal records distinguish popup activation/cancellation, asynchronous capture loss, outside pointer input,
 and Escape/Alt/Tab/F10. Preserve those cause tags in the same bounded test trace without changing either guard.
+Interactive Menu fixtures that align the physical pointer call `SetCursorPos` once and fail immediately if it is
+refused or the immediate `GetPhysicalCursorPos` read fails. A readable but stale position may converge through
+read-only `GetPhysicalCursorPos` polls at 5 ms intervals, with no poll beginning at or after the observed 100 ms
+deadline; never repeat the warp or accept a nearby point. The observed deadline does not bound time spent inside
+an OS call or scheduler delay, and an exact set/read completing at or after it is refused. Require both the
+helper's timely exact physical target and the existing independent caller readback. Preserve
+the last confirmed position separately from an accepted pending target so restoration never treats a stale read
+as a successful alignment; restore only when the current point still matches a position owned by the fixture.
+Retain bounded initial/final readback, poll-count and elapsed-time diagnostics. This synchronization does not
+identify which host or desktop action delayed or changed a cursor position.
 
 `performance-forms.ps1` runs the fixed `dxui-form-layout-cost-v1` synthetic fixture. Before timing it requires identical
 manual/form leaf state, geometry and captured pixels across five states in two profiles. It reports raw frame and
