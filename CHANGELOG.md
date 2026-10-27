@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Integrate the PR114 source-ink renderer with PR115 environment restoration and the PR116 native Menu readiness fixes while preserving merge ancestry. Renderer `src` and `include` bytes match PR114; combined CI, current-runtime, consumer and performance qualification remain pending.
 - Test fixtures now restore process environment entries through the shared helper, preserving absent, empty and valued state across CI, native-scope, benchmark-gate and interactive-mode wrappers.
 - Tooling environment fixtures now restore absent variables as absent, keeping the later `SkipBuild` identity stable; the focused policy suite passes 40/40 and its regression covers unset, empty and valued inputs. Native and full qualification remain separate.
 - Source syntax ink can draw bounded monochrome glyph segments and whole uniform-brush proportional or color runs without changing the prepared layout. Conservative text, cluster and span guards plus runtime color-target capability checks preserve the canonical source-color fallback before painting. Broader native and consumer performance qualification remains pending.
