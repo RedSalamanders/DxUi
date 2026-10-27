@@ -75,7 +75,7 @@ void TestPhysicalCursorReadbackWaitIsBoundedAndExact()
 
     {
         Clock::duration elapsed{};
-        const std::array<POINT, 3> readbacks = {previous, previous, target};
+        const std::array<POINT, 4> readbacks = {previous, previous, target, target};
         std::size_t setCalls                 = 0u;
         std::size_t readCalls                = 0u;
         std::size_t sleepCalls               = 0u;
@@ -104,11 +104,14 @@ void TestPhysicalCursorReadbackWaitIsBoundedAndExact()
                 "the immediate stale position remains in the initial observation");
         Require(result.finalReadbackKnown && result.finalReadback.x == target.x && result.finalReadback.y == target.y,
                 "the final observed position is the exact target");
-        Require(result.pollCount == 2u && sleepCalls == 2u && result.elapsed == std::chrono::milliseconds(10), "read-only convergence uses two 5 ms polls");
-        Require(setCalls == 1u && readCalls == 3u, "convergence does not issue another cursor warp");
+        Require(result.pollCount == 3u && sleepCalls == 3u && result.elapsed == std::chrono::milliseconds(15),
+                "the first exact read is provisional until the next 5 ms sample");
+        Require(result.mismatchObserved, "the delayed convergence records the initial stale observation");
+        Require(setCalls == 1u && readCalls == 4u, "convergence does not issue another cursor warp");
     }
 
     {
+        Clock::duration elapsed{};
         std::size_t setCalls   = 0u;
         std::size_t readCalls  = 0u;
         std::size_t sleepCalls = 0u;
@@ -124,13 +127,46 @@ void TestPhysicalCursorReadbackWaitIsBoundedAndExact()
             actual = target;
             return true;
         },
-                                                                     []() noexcept { return Clock::time_point{}; },
-                                                                     [&](Clock::duration) noexcept { ++sleepCalls; });
+                                                                     [&]() noexcept { return Clock::time_point{} + elapsed; },
+                                                                     [&](Clock::duration duration) noexcept
+        {
+            ++sleepCalls;
+            elapsed += duration;
+        });
 
-        Require(result.status == PhysicalCursorAlignmentStatus::Exact, "an immediate exact read succeeds");
-        Require(result.initialReadbackKnown && result.finalReadbackKnown && result.pollCount == 0u,
-                "immediate success records the exact observation without polling");
-        Require(setCalls == 1u && readCalls == 1u && sleepCalls == 0u, "immediate success uses one cursor set, one read and no sleep");
+        Require(result.status == PhysicalCursorAlignmentStatus::Exact, "two settled exact observations succeed");
+        Require(result.initialReadbackKnown && result.finalReadbackKnown && result.pollCount == 1u, "settled success records two exact observations");
+        Require(setCalls == 1u && readCalls == 2u && sleepCalls == 1u && result.elapsed == std::chrono::milliseconds(5),
+                "settled success confirms after one 5 ms read-only poll and one cursor set");
+        Require(! result.mismatchObserved, "ordinary settled convergence does not record a mismatch");
+    }
+
+    {
+        Clock::duration elapsed{};
+        const std::array<POINT, 4> readbacks = {target, previous, target, target};
+        std::size_t readCalls                = 0u;
+        std::size_t sleepCalls               = 0u;
+        const auto result                    = SetCursorPosAndWaitForExactPhysicalPoint(target,
+                                                                                        [&](POINT) noexcept { return true; },
+                                                                                        [&](POINT& actual) noexcept
+        {
+            actual = readbacks[readCalls++];
+            return true;
+        },
+                                                                     [&]() noexcept { return Clock::time_point{} + elapsed; },
+                                                                     [&](Clock::duration duration) noexcept
+        {
+            ++sleepCalls;
+            elapsed += duration;
+        });
+
+        Require(result.status == PhysicalCursorAlignmentStatus::Exact, "a mismatch resets the exact-observation streak before recovery");
+        Require(result.initialReadback.x == target.x && result.initialReadback.y == target.y && result.mismatchObserved,
+                "the first exact observation remains recorded when the next read mismatches");
+        Require(result.finalReadbackKnown && result.finalReadback.x == target.x && result.finalReadback.y == target.y,
+                "recovery completes only after two exact observations in sequence");
+        Require(result.pollCount == 3u && readCalls == 4u && sleepCalls == 3u && result.elapsed == std::chrono::milliseconds(15),
+                "the restarted exact streak uses the same 5 ms poll cadence");
     }
 
     {
@@ -346,6 +382,48 @@ void TestPhysicalCursorReadbackWaitIsBoundedAndExact()
         Require(result.initialReadbackKnown && result.finalReadbackKnown && result.finalReadback.x == target.x && result.finalReadback.y == target.y,
                 "the late exact polling observation is retained but not qualified");
         Require(setCalls == 1u && readCalls == 2u && sleepCalls == 1u && result.pollCount == 1u, "a late polling read does not trigger another poll");
+    }
+
+    {
+        Clock::duration elapsed{};
+        std::size_t setCalls   = 0u;
+        std::size_t readCalls  = 0u;
+        std::size_t sleepCalls = 0u;
+        const auto result      = SetCursorPosAndWaitForExactPhysicalPoint(target,
+                                                                          [&](POINT) noexcept
+        {
+            ++setCalls;
+            return true;
+        },
+                                                                     [&](POINT& actual) noexcept
+        {
+            ++readCalls;
+            if (readCalls == 1u)
+            {
+                actual = previous;
+            }
+            else
+            {
+                actual = target;
+                if (readCalls == 3u)
+                {
+                    elapsed = std::chrono::milliseconds(100);
+                }
+            }
+            return true;
+        },
+                                                                     [&]() noexcept { return Clock::time_point{} + elapsed; },
+                                                                     [&](Clock::duration duration) noexcept
+        {
+            ++sleepCalls;
+            elapsed += duration;
+        });
+
+        Require(result.status == PhysicalCursorAlignmentStatus::TimedOut, "a second exact observation completing at the deadline cannot establish readiness");
+        Require(result.initialReadbackKnown && result.finalReadbackKnown && result.finalReadback.x == target.x && result.finalReadback.y == target.y,
+                "the late confirming sample remains diagnostic without qualifying");
+        Require(setCalls == 1u && readCalls == 3u && sleepCalls == 2u && result.pollCount == 2u,
+                "late confirmation remains inside the original poll budget without another warp");
     }
 
     {

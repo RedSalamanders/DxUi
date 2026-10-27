@@ -26,6 +26,7 @@ struct PhysicalCursorAlignmentResult
     POINT finalReadback{};
     bool initialReadbackKnown = false;
     bool finalReadbackKnown   = false;
+    bool mismatchObserved     = false;
     std::uint32_t pollCount   = 0u;
     std::chrono::microseconds elapsed{};
 };
@@ -77,8 +78,8 @@ struct PhysicalCursorOwnership final
     return "unknown";
 }
 
-// The hosted desktop can expose a stale immediate physical-cursor read after
-// SetCursorPos accepts a move. Poll read-only for the one requested point while
+// A physical-cursor read can transiently disagree after SetCursorPos accepts a move.
+// Require two consecutive exact observations separated by a read-only poll while
 // the observed deadline and poll budget allow; synchronous calls or scheduling
 // can return after the deadline. Never issue another cursor move or accept a nearby point.
 template <typename TSetCursorPos, typename TReadPhysicalCursor, typename TNow, typename TSleep>
@@ -127,10 +128,8 @@ template <typename TSetCursorPos, typename TReadPhysicalCursor, typename TNow, t
         return finish(PhysicalCursorAlignmentStatus::TimedOut);
     }
 
-    if (isExact(observed))
-    {
-        return finish(PhysicalCursorAlignmentStatus::Exact);
-    }
+    bool precedingObservationWasExact = isExact(observed);
+    result.mismatchObserved           = ! precedingObservationWasExact;
 
     while (result.pollCount < maximumPolls && now() < deadline)
     {
@@ -162,10 +161,17 @@ template <typename TSetCursorPos, typename TReadPhysicalCursor, typename TNow, t
             return finish(PhysicalCursorAlignmentStatus::TimedOut);
         }
 
-        if (isExact(observed))
+        const bool exact = isExact(observed);
+        if (exact && precedingObservationWasExact)
         {
             return finish(PhysicalCursorAlignmentStatus::Exact);
         }
+
+        if (! exact)
+        {
+            result.mismatchObserved = true;
+        }
+        precedingObservationWasExact = exact;
     }
 
     return finish(PhysicalCursorAlignmentStatus::TimedOut);

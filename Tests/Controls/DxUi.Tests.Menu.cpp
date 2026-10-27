@@ -686,7 +686,7 @@ public:
         const AlignmentDiagnostics& d = _alignmentDiagnostics;
         std::printf("Menu pointer alignment: context=%s expected=(%ld,%ld) beforeKnown=%d before=(%ld,%ld) beforeError=%lu "
                     "setAccepted=%d setError=%lu helperReadKnown=%d helperRead=(%ld,%ld) helperReadError=%lu "
-                    "convergence=%s finalKnown=%d final=(%ld,%ld) polls=%lu elapsedUs=%lld pollReadError=%lu "
+                    "convergence=%s finalKnown=%d final=(%ld,%ld) polls=%lu mismatchObserved=%d elapsedUs=%lld pollReadError=%lu "
                     "callerReadKnown=%d callerRead=(%ld,%ld) clipKnown=%d clip=(%ld,%ld,%ld,%ld) clipError=%lu "
                     "windowDpiKnown=%d windowDpi=%u windowDpiError=%lu windowAwarenessKnown=%d windowAwareness=%d "
                     "threadAwarenessKnown=%d threadAwareness=%d\n",
@@ -708,6 +708,7 @@ public:
                     static_cast<long>(d.convergence.finalReadback.x),
                     static_cast<long>(d.convergence.finalReadback.y),
                     static_cast<unsigned long>(d.convergence.pollCount),
+                    static_cast<int>(d.convergence.mismatchObserved),
                     static_cast<long long>(d.convergence.elapsed.count()),
                     static_cast<unsigned long>(d.pollReadbackError),
                     static_cast<int>(callerReadKnown),
@@ -730,7 +731,7 @@ public:
 
     void PrintDelayedAlignmentDiagnostics(const char* context, POINT expected, bool callerReadKnown, POINT callerRead) const noexcept
     {
-        if (_alignmentDiagnostics.convergence.pollCount != 0u)
+        if (_alignmentDiagnostics.convergence.pollCount > 1u || _alignmentDiagnostics.convergence.mismatchObserved)
         {
             PrintAlignmentDiagnostics(context, expected, callerReadKnown, callerRead);
         }

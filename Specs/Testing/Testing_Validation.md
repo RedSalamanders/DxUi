@@ -98,10 +98,11 @@ Dismissal records distinguish popup activation/cancellation, asynchronous captur
 and Escape/Alt/Tab/F10. Preserve those cause tags in the same bounded test trace without changing either guard.
 Interactive Menu fixtures that align the physical pointer call `SetCursorPos` once and fail immediately if it is
 refused or the immediate `GetPhysicalCursorPos` read fails. A readable but stale position may converge through
-read-only `GetPhysicalCursorPos` polls at 5 ms intervals, with no poll beginning at or after the observed 100 ms
-deadline; never repeat the warp or accept a nearby point. The observed deadline does not bound time spent inside
-an OS call or scheduler delay, and an exact set/read completing at or after it is refused. Require both the
-helper's timely exact physical target and the existing independent caller readback. Preserve
+read-only `GetPhysicalCursorPos` polls at 5 ms intervals. Readiness requires two consecutive exact observations,
+separated by one poll; any mismatch resets the streak. No poll may begin at or after the observed 100 ms deadline
+or after 20 polls; never repeat the warp or accept a nearby point. The observed deadline does not bound time spent
+inside an OS call or scheduler delay, and an exact set/read completing at or after it is refused. Require both the
+helper's timely two-sample exact physical target and the existing independent caller readback. Preserve
 the last confirmed position separately from an accepted pending target so restoration never treats a stale read
 as a successful alignment; restore only when the current point still matches a position owned by the fixture.
 Retain bounded initial/final readback, poll-count and elapsed-time diagnostics. This synchronization does not
