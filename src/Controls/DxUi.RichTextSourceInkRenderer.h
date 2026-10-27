@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <d2d1_3.h>
 #include <dwrite_2.h>
 #include <limits>
 #include <string_view>
@@ -18,9 +19,9 @@ enum class SourceInkDrawResult
     Drawn,
 };
 
-// A deliberately narrow renderer for source-only monochrome syntax ink. The
-// layout and brushes are borrowed for the synchronous Draw call; all run
-// scratch is fixed-size stack storage and no drawing attribute is retained.
+// A deliberately narrow renderer for source-only syntax ink. The layout,
+// Direct2D context and brushes are borrowed for the synchronous Draw call; all
+// run scratch is fixed-size stack storage and no drawing attribute is retained.
 class SourceInkRenderer final : public IDWriteTextRenderer
 {
 public:
@@ -29,13 +30,15 @@ public:
                       const LinkDrawing* drawing,
                       IDWriteInlineObject* positioning,
                       UINT32 textOffset,
-                      std::wstring_view layoutText) noexcept
+                      std::wstring_view layoutText,
+                      ID2D1DeviceContext7* colorContext = nullptr) noexcept
         : target_(target),
           baseBrush_(baseBrush),
           drawing_(drawing),
           positioning_(positioning),
           textOffset_(textOffset),
-          layoutText_(layoutText)
+          layoutText_(layoutText),
+          colorContext_(colorContext)
     {
         BuildInkSpans();
     }
@@ -109,14 +112,32 @@ public:
     {
         if (IsPositioningPrefixLineFeed(run, description, effect) || IsNonpaintingSourceLineBreak(run, description, effect))
             return S_OK;
-        if (effect || ! Eligible(run, description))
+        std::array<int, 256> glyphRoles{};
+        bool useColor{};
+        bool monospaced{};
+        if (effect || ! Eligible(run, description, glyphRoles, monospaced, useColor))
             return Reject();
         if (! painting_)
+        {
+            requiresColorContext_ = requiresColorContext_ || useColor;
             return S_OK;
+        }
 
-        std::array<int, 256> glyphRoles{};
-        if (! BuildGlyphRoles(run, description, glyphRoles))
-            return Reject();
+        if (useColor)
+        {
+            if (! colorContext_)
+                return Reject();
+            colorContext_->DrawGlyphRunWithColorSupport(
+                {x, y}, run, description, BrushForRole(glyphRoles[0]), nullptr, 0u, measuringMode, D2D1_COLOR_BITMAP_GLYPH_SNAP_OPTION_DEFAULT);
+            return S_OK;
+        }
+
+        if (! monospaced)
+        {
+            target_->DrawGlyphRun({x, y}, run, BrushForRole(glyphRoles[0]), measuringMode);
+            return S_OK;
+        }
+
         const auto* ink = run;
 
         UINT32 first = 0;
@@ -160,6 +181,14 @@ public:
     void BeginPaint() noexcept
     {
         painting_ = true;
+    }
+    bool RequiresColorContext() const noexcept
+    {
+        return requiresColorContext_;
+    }
+    void SetColorContext(ID2D1DeviceContext7* context) noexcept
+    {
+        colorContext_ = context;
     }
 
 private:
@@ -233,8 +262,14 @@ private:
         if (! inkSpanCount_)
             accepted_ = false;
     }
-    bool Eligible(const DWRITE_GLYPH_RUN* run, const DWRITE_GLYPH_RUN_DESCRIPTION* description) noexcept
+    bool Eligible(const DWRITE_GLYPH_RUN* run,
+                  const DWRITE_GLYPH_RUN_DESCRIPTION* description,
+                  std::array<int, 256>& glyphRoles,
+                  bool& monospaced,
+                  bool& useColor) noexcept
     {
+        monospaced = false;
+        useColor   = false;
         if (! run || ! description || ! run->fontFace || run->isSideways || (run->bidiLevel & 1u) || ! run->glyphCount || run->glyphCount > 256u ||
             ! run->glyphIndices || ! run->glyphAdvances || ! description->string || ! description->stringLength || description->stringLength > 512u ||
             ! description->clusterMap || description->textPosition < textOffset_ ||
@@ -245,14 +280,30 @@ private:
             return false;
         wil::com_ptr<IDWriteFontFace1> face1;
         wil::com_ptr<IDWriteFontFace2> face2;
-        if (FAILED(run->fontFace->QueryInterface(IID_PPV_ARGS(face1.put()))) || FAILED(run->fontFace->QueryInterface(IID_PPV_ARGS(face2.put()))) ||
-            ! face1->IsMonospacedFont() || face2->IsColorFont())
+        if (FAILED(run->fontFace->QueryInterface(IID_PPV_ARGS(face1.put()))) || FAILED(run->fontFace->QueryInterface(IID_PPV_ARGS(face2.put()))))
             return false;
+        monospaced = face1->IsMonospacedFont();
+        useColor   = face2->IsColorFont();
         for (UINT32 index = 0; index < run->glyphCount; ++index)
             if (! std::isfinite(run->glyphAdvances[index]) || run->glyphAdvances[index] < 0.0f)
                 return false;
-        std::array<int, 256> roles{};
-        return BuildGlyphRoles(run, description, roles);
+        if (! BuildGlyphRoles(run, description, glyphRoles))
+            return false;
+        if (monospaced && ! useColor)
+            return true;
+        return HasUniformBrush(run, glyphRoles);
+    }
+    bool HasUniformBrush(const DWRITE_GLYPH_RUN* run, const std::array<int, 256>& glyphRoles) const noexcept
+    {
+        if (! run || ! run->glyphCount)
+            return false;
+        const ID2D1Brush* const firstBrush = BrushForRole(glyphRoles[0]);
+        if (! firstBrush)
+            return false;
+        for (UINT32 index = 1; index < run->glyphCount; ++index)
+            if (BrushForRole(glyphRoles[index]) != firstBrush)
+                return false;
+        return true;
     }
     bool BuildGlyphRoles(const DWRITE_GLYPH_RUN* run, const DWRITE_GLYPH_RUN_DESCRIPTION* description, std::array<int, 256>& glyphRoles) const noexcept
     {
@@ -310,11 +361,19 @@ private:
     IDWriteInlineObject* positioning_{};
     UINT32 textOffset_{};
     std::wstring_view layoutText_;
+    ID2D1DeviceContext7* colorContext_{};
     std::array<InkSpan, 32> inkSpans_{};
     std::size_t inkSpanCount_{};
     ULONG references_{1u};
     bool painting_{};
+    bool requiresColorContext_{};
     bool accepted_{true};
+};
+
+enum class SourceInkColorContextLookup : uint8_t
+{
+    QueryTarget,
+    Unavailable,
 };
 
 inline SourceInkDrawResult DrawSourceInkIfSupported(ID2D1RenderTarget* target,
@@ -324,7 +383,8 @@ inline SourceInkDrawResult DrawSourceInkIfSupported(ID2D1RenderTarget* target,
                                                     UINT32 textOffset,
                                                     const Projection& projection,
                                                     const LinkDrawing& drawing,
-                                                    D2D1_POINT_2F origin)
+                                                    D2D1_POINT_2F origin,
+                                                    SourceInkColorContextLookup colorContextLookup = SourceInkColorContextLookup::QueryTarget)
 {
     if (! target || ! baseBrush || ! layout || projection.mode != ViewMode::Source || drawing.inkExclusion || drawing.emphasisBrush ||
         drawing.inactiveLinkBrush || drawing.emphasis || drawing.hover || drawing.caret ||
@@ -334,12 +394,21 @@ inline SourceInkDrawResult DrawSourceInkIfSupported(ID2D1RenderTarget* target,
     target->GetDpi(&dpiX, &dpiY);
     if (! std::isfinite(dpiX) || ! std::isfinite(dpiY) || dpiX <= 0.0f || dpiY <= 0.0f || dpiX != dpiY)
         return SourceInkDrawResult::Rejected;
+
     SourceInkRenderer renderer(target, baseBrush, &drawing, positioning, textOffset, projection.text);
     if (! renderer.Accepted())
         return SourceInkDrawResult::Rejected;
     const HRESULT preflight = layout->Draw(nullptr, &renderer, origin.x, origin.y);
     if (FAILED(preflight) || ! renderer.Accepted())
         return SourceInkDrawResult::Rejected;
+
+    wil::com_ptr<ID2D1DeviceContext7> colorContext;
+    if (renderer.RequiresColorContext())
+    {
+        if (colorContextLookup == SourceInkColorContextLookup::Unavailable || FAILED(target->QueryInterface(IID_PPV_ARGS(colorContext.put()))))
+            return SourceInkDrawResult::Rejected;
+    }
+    renderer.SetColorContext(colorContext.get());
     renderer.BeginPaint();
     THROW_IF_FAILED(layout->Draw(nullptr, &renderer, origin.x, origin.y));
     if (! renderer.Accepted())

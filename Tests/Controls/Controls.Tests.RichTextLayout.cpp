@@ -6,6 +6,7 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include <DxUi/RichTextLayout.h>
 #include <cmath>
+#include <dwrite_3.h>
 #include <format>
 #include <iostream>
 #include <limits>
@@ -62,20 +63,25 @@ public:
 struct SourceInkRunDiagnostic
 {
     UINT32 position{}, glyphCount{}, stringLength{}, bidiLevel{};
-    bool description{}, textMatch{}, monospaced{}, colorFont{}, effect{}, sideways{}, clusterMap{};
+    bool description{}, textMatch{}, monospaced{}, colorFont{}, effect{}, sideways{}, clusterMap{}, cjkText{}, familyKnown{}, requestedFamily{};
 };
 
 class SourceInkDiagnosticRenderer final
     : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDWriteTextRenderer>
 {
 public:
-    SourceInkDiagnosticRenderer(
-        ID2D1RenderTarget* target, std::wstring_view expectedText, const LinkDrawing* drawing, IDWriteInlineObject* positioning, UINT32 textOffset) noexcept
+    SourceInkDiagnosticRenderer(ID2D1RenderTarget* target,
+                                std::wstring_view expectedText,
+                                const LinkDrawing* drawing,
+                                IDWriteInlineObject* positioning,
+                                UINT32 textOffset,
+                                std::wstring_view requestedFamily = {}) noexcept
         : target_(target),
           expectedText_(expectedText),
           drawing_(drawing),
           positioning_(positioning),
-          textOffset_(textOffset)
+          textOffset_(textOffset),
+          requestedFamily_(requestedFamily)
     {
     }
     std::span<const SourceInkRunDiagnostic> Runs() const noexcept
@@ -146,6 +152,8 @@ public:
             const auto local = static_cast<std::size_t>(description->textPosition - textOffset_);
             output.textMatch = local <= expectedText_.size() && description->stringLength <= expectedText_.size() - local &&
                                std::wstring_view(description->string, description->stringLength) == expectedText_.substr(local, description->stringLength);
+            output.cjkText   = std::ranges::any_of(std::wstring_view(description->string, description->stringLength),
+                                                   [](wchar_t character) { return character >= 0x4e00 && character <= 0x9fff; });
         }
         if (run->fontFace)
         {
@@ -153,6 +161,42 @@ public:
             wil::com_ptr<IDWriteFontFace2> face2;
             output.monospaced = SUCCEEDED(run->fontFace->QueryInterface(IID_PPV_ARGS(face1.put()))) && face1->IsMonospacedFont();
             output.colorFont  = SUCCEEDED(run->fontFace->QueryInterface(IID_PPV_ARGS(face2.put()))) && face2->IsColorFont();
+            if (! requestedFamily_.empty())
+            {
+                wil::com_ptr<IDWriteFontFace3> face3;
+                if (SUCCEEDED(run->fontFace->QueryInterface(IID_PPV_ARGS(face3.put()))) && face3)
+                {
+                    wil::com_ptr<IDWriteLocalizedStrings> familyNames;
+                    BOOL exists{};
+                    if (SUCCEEDED(face3->GetInformationalStrings(DWRITE_INFORMATIONAL_STRING_WIN32_FAMILY_NAMES, familyNames.put(), &exists)) && exists &&
+                        familyNames && familyNames->GetCount() != 0u)
+                    {
+                        UINT32 localizedIndex{};
+                        BOOL localeExists{};
+                        if (FAILED(familyNames->FindLocaleName(L"en-us", &localizedIndex, &localeExists)) || ! localeExists)
+                            localizedIndex = 0u;
+                        UINT32 length{};
+                        if (SUCCEEDED(familyNames->GetStringLength(localizedIndex, &length)))
+                        {
+                            std::wstring family(length + 1u, L'\0');
+                            if (SUCCEEDED(familyNames->GetString(localizedIndex, family.data(), static_cast<UINT32>(family.size()))))
+                            {
+                                family.resize(length);
+                                if (! family.empty())
+                                {
+                                    const int comparison   = CompareStringOrdinal(family.data(),
+                                                                                  static_cast<int>(family.size()),
+                                                                                  requestedFamily_.data(),
+                                                                                  static_cast<int>(requestedFamily_.size()),
+                                                                                  TRUE);
+                                    output.familyKnown     = comparison != 0;
+                                    output.requestedFamily = comparison == CSTR_EQUAL;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
         if (! description->clusterMap || ! run->glyphCount || run->glyphCount > 256u || description->stringLength > 512u)
             return S_OK;
@@ -218,6 +262,7 @@ private:
     const LinkDrawing* drawing_{};
     IDWriteInlineObject* positioning_{};
     UINT32 textOffset_{};
+    std::wstring_view requestedFamily_;
     std::array<SourceInkRunDiagnostic, 32> runs_{};
     UINT32 runCount_{}, underlines_{}, strikes_{};
     bool inlineIdentity_{};
@@ -923,28 +968,318 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
                                            Detail::SourceInkDrawResult::NotApplicable,
                                            "selected source ink stays on the canonical renderer");
 
-    Document colorDocument(L"plain \U0001f600 text");
+    Document colorDocument(L"\U0001f600\U0001f601");
     const auto colorProjection = Project(colorDocument.Snapshot(), colorDocument.Revision(), ViewMode::Source);
-    const std::array colorInk{TextInkRange{{0u, 5u}, TextInkRole::Accent}};
+    const std::array colorInk{TextInkRange{{0u, colorProjection.text.size()}, TextInkRole::Accent}};
     LinkDrawing colorDrawing;
     colorDrawing.inkRanges                                            = colorInk;
     colorDrawing.inkBrushes[static_cast<size_t>(TextInkRole::Accent)] = red.get();
-    auto colorLayout                                                  = makeTestLayout(colorProjection, directOptions, false);
-    requirePreflightRejectsWithoutPainting(
-        colorProjection, colorDrawing, colorLayout.get(), nullptr, 0u, Detail::SourceInkDrawResult::Rejected, "color-font source falls back before painting");
+    auto colorOptions                                                 = directOptions;
+    colorOptions.fontFamily                                           = L"Segoe UI";
+    auto colorLayout                                                  = makeTestLayout(colorProjection, colorOptions, false);
+    auto colorDiagnostic = Microsoft::WRL::Make<SourceInkDiagnosticRenderer>(context.get(), colorProjection.text, &colorDrawing, nullptr, 0u);
+    Require(colorDiagnostic.Get() != nullptr, "color-font diagnostic renderer is allocated");
+    context->BeginDraw();
+    context->Clear(D2D1::ColorF(0u, 0.0f));
+    THROW_IF_FAILED(colorLayout->Draw(nullptr, colorDiagnostic.Get(), 8.375f, 8.625f));
+    THROW_IF_FAILED(context->EndDraw());
+    const bool observedColorFont = std::ranges::any_of(colorDiagnostic->Runs(), [](const SourceInkRunDiagnostic& run) { return run.colorFont; });
+    Require(observedColorFont, "emoji fixture is shaped by an actual DirectWrite color font");
+
+    wil::com_ptr<ID2D1DeviceContext7> colorContext;
+    const HRESULT colorContextQuery = context->QueryInterface(IID_PPV_ARGS(colorContext.put()));
+    std::cerr << std::format("[SOURCE INK COLOR FIXTURE] colorFont={} deviceContext7={}\n", observedColorFont, SUCCEEDED(colorContextQuery));
+    const auto colorFallbackOrigin    = D2D1::Point2F(8.375f, 8.625f);
+    const auto colorFallbackTransform = D2D1::Matrix3x2F(1.25f, 0.0f, 0.0f, 1.25f, 0.37f, 0.63f);
+    const auto drawCanonicalColor     = [&](D2D1_POINT_2F origin)
+    {
+        auto canonicalLayout = makeTestLayout(colorProjection, colorOptions, false);
+        for (const auto& range : colorDrawing.inkRanges)
+        {
+            const auto first = (std::max)(range.display.first, colorDrawing.displayOrigin);
+            const auto last  = (std::min)(range.display.last, colorDrawing.displayOrigin + colorProjection.text.size());
+            if (first < last)
+                THROW_IF_FAILED(
+                    canonicalLayout->SetDrawingEffect(colorDrawing.inkBrushes[static_cast<size_t>(range.role)],
+                                                      {static_cast<UINT32>(first - colorDrawing.displayOrigin), static_cast<UINT32>(last - first)}));
+        }
+        context->BeginDraw();
+        context->Clear(D2D1::ColorF(0u, 0.0f));
+        context->DrawTextLayout(origin, canonicalLayout.get(), white.get(), D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+        THROW_IF_FAILED(context->EndDraw());
+        std::vector<uint8_t> pixels;
+        THROW_IF_FAILED(graphics.Read(pixels));
+        return pixels;
+    };
+    if (SUCCEEDED(colorContextQuery))
+    {
+        for (const FLOAT dpi : {96.0f, 120.0f, 144.0f, 192.0f})
+        {
+            context->SetDpi(dpi, dpi);
+            for (const auto transform : {D2D1::Matrix3x2F::Identity(), D2D1::Matrix3x2F(1.25f, 0.0f, 0.0f, 1.25f, 0.37f, 0.63f)})
+            {
+                context->SetTransform(transform);
+                for (const auto origin : {D2D1::Point2F(8.125f, 8.375f), D2D1::Point2F(8.375f, 8.625f)})
+                    static_cast<void>(compareDirectHelperWithCanonical(colorProjection, colorOptions, colorDrawing, nullptr, 0u, origin));
+            }
+        }
+
+        const auto positionedColorOrigin = D2D1::Point2F(8.375f, 8.625f);
+        context->SetDpi(144.0f, 144.0f);
+        context->SetTransform(D2D1::Matrix3x2F(1.25f, 0.0f, 0.0f, 1.25f, 0.37f, 0.63f));
+        auto positionedColorLayout = makeTestLayout(colorProjection, colorOptions, true);
+        auto positionedColorDiagnostic =
+            Microsoft::WRL::Make<SourceInkDiagnosticRenderer>(context.get(), colorProjection.text, &colorDrawing, positioned.Get(), 2u, L"Segoe UI");
+        Require(positionedColorDiagnostic.Get() != nullptr, "positioned color-font diagnostic renderer is allocated");
+        context->BeginDraw();
+        context->Clear(D2D1::ColorF(0u, 0.0f));
+        THROW_IF_FAILED(positionedColorLayout->Draw(nullptr, positionedColorDiagnostic.Get(), positionedColorOrigin.x, positionedColorOrigin.y));
+        THROW_IF_FAILED(context->EndDraw());
+        const bool positionedColorDescription = std::ranges::any_of(positionedColorDiagnostic->Runs(), [](const SourceInkRunDiagnostic& run) {
+            return run.colorFont && run.position >= 2u && run.textMatch && run.stringLength != 0u;
+        });
+        Require(positionedColorDescription, "positioned color glyph run retains its original description after the two-unit prefix");
+        static_cast<void>(compareDirectHelperWithCanonical(colorProjection, colorOptions, colorDrawing, positioned.Get(), 2u, positionedColorOrigin));
+    }
+    else
+    {
+        requirePreflightRejectsWithoutPainting(colorProjection,
+                                               colorDrawing,
+                                               colorLayout.get(),
+                                               nullptr,
+                                               0u,
+                                               Detail::SourceInkDrawResult::Rejected,
+                                               "missing Direct2D 7 color context rejects before painting");
+        PreparedLayout colorPrepared;
+        colorPrepared.Prepare(factory.get(), colorProjection, colorOptions);
+        context->SetDpi(144.0f, 144.0f);
+        context->SetTransform(colorFallbackTransform);
+        context->BeginDraw();
+        context->Clear(D2D1::ColorF(0u, 0.0f));
+        colorPrepared.Draw(context.get(), white.get(), colorFallbackOrigin, &colorDrawing);
+        THROW_IF_FAILED(context->EndDraw());
+        std::vector<uint8_t> preparedFallbackPixels;
+        THROW_IF_FAILED(graphics.Read(preparedFallbackPixels));
+        const auto canonicalColorPixels = drawCanonicalColor(colorFallbackOrigin);
+        Require(preparedFallbackPixels == canonicalColorPixels, "missing Direct2D 7 reaches PreparedLayout's pixel-identical canonical color fallback");
+    }
+    context->SetDpi(144.0f, 144.0f);
+    context->SetTransform(colorFallbackTransform);
+    const auto colorFallbackReference = drawCanonicalColor(colorFallbackOrigin);
+
+    const std::array splitColorInk{TextInkRange{{0u, 2u}, TextInkRole::Accent}, TextInkRange{{2u, 4u}, TextInkRole::Link}};
+    auto splitColorDrawing                                               = colorDrawing;
+    splitColorDrawing.inkRanges                                          = splitColorInk;
+    splitColorDrawing.inkBrushes[static_cast<size_t>(TextInkRole::Link)] = green.get();
+    requirePreflightRejectsWithoutPainting(colorProjection,
+                                           splitColorDrawing,
+                                           colorLayout.get(),
+                                           nullptr,
+                                           0u,
+                                           Detail::SourceInkDrawResult::Rejected,
+                                           "color-font runs with heterogeneous brushes reject before painting");
+
+    context->BeginDraw();
+    context->Clear(D2D1::ColorF(0u, 0.0f));
+    const auto missingColorContextResult = Detail::DrawSourceInkIfSupported(context.get(),
+                                                                            white.get(),
+                                                                            colorLayout.get(),
+                                                                            nullptr,
+                                                                            0u,
+                                                                            colorProjection,
+                                                                            colorDrawing,
+                                                                            colorFallbackOrigin,
+                                                                            Detail::SourceInkColorContextLookup::Unavailable);
+    Require(missingColorContextResult == Detail::SourceInkDrawResult::Rejected, "explicitly missing color-context capability rejects before paint");
+    THROW_IF_FAILED(context->EndDraw());
+    std::vector<uint8_t> missingColorContextPixels;
+    THROW_IF_FAILED(graphics.Read(missingColorContextPixels));
+    bool missingColorContextEmpty = true;
+    for (std::size_t index = 3u; index < missingColorContextPixels.size(); index += 4u)
+        missingColorContextEmpty = missingColorContextEmpty && missingColorContextPixels[index] == 0u;
+    Require(missingColorContextEmpty, "forced capability-unavailable preflight leaves the target untouched before manual canonical fallback");
+
+    auto colorFallbackLayout = makeTestLayout(colorProjection, colorOptions, false);
+    THROW_IF_FAILED(colorFallbackLayout->SetDrawingEffect(red.get(), {0u, static_cast<UINT32>(colorProjection.text.size())}));
+    context->BeginDraw();
+    context->Clear(D2D1::ColorF(0u, 0.0f));
+    context->DrawTextLayout(colorFallbackOrigin, colorFallbackLayout.get(), white.get(), D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+    THROW_IF_FAILED(context->EndDraw());
+    std::vector<uint8_t> colorFallbackPixels;
+    THROW_IF_FAILED(graphics.Read(colorFallbackPixels));
+    Require(colorFallbackPixels == colorFallbackReference, "explicit capability refusal reaches pixel-identical canonical color-font drawing");
+
+    const std::wstring_view mixedMarkup = L"**Caf\u00e9 \u6f22\u5b57 \U0001f600**";
+    Document mixedFontDocument(L"// **Caf\u00e9 \u6f22\u5b57 \U0001f600**\r\nconst value = 42;\r\n");
+    const auto mixedFontProjection = Project(mixedFontDocument.Snapshot(), mixedFontDocument.Revision(), ViewMode::Source);
+    const auto mixedMarkupStart    = mixedFontProjection.text.find(mixedMarkup);
+    Require(mixedMarkupStart != std::wstring::npos, "mixed-font Source fixture retains its exact colored markup substring");
+    Require(mixedFontDocument.Text().find(L"\r\n") != std::wstring::npos, "mixed-font Source input retains its CRLF line breaks");
+    Require(mixedFontProjection.text.find(L"\n") != std::wstring::npos, "mixed-font Source projection retains its normalized line break");
+    Require(std::wstring_view(mixedFontProjection.text).substr(mixedMarkupStart, mixedMarkup.size()) == mixedMarkup,
+            "mixed-font ink coordinates are derived from the displayed Source projection");
+    const std::array mixedFontInk{TextInkRange{{mixedMarkupStart, mixedMarkupStart + mixedMarkup.size()}, TextInkRole::Accent}};
+    LinkDrawing mixedFontDrawing;
+    mixedFontDrawing.inkRanges                                            = mixedFontInk;
+    mixedFontDrawing.inkBrushes[static_cast<size_t>(TextInkRole::Accent)] = red.get();
+    auto mixedFontOptions                                                 = directOptions;
+    mixedFontOptions.fontFamily                                           = L"Consolas";
+    mixedFontOptions.fontSizeDip                                          = 16.0f;
+    auto mixedFontLayout                                                  = makeTestLayout(mixedFontProjection, mixedFontOptions, false);
+    auto mixedFontDiagnostic =
+        Microsoft::WRL::Make<SourceInkDiagnosticRenderer>(context.get(), mixedFontProjection.text, &mixedFontDrawing, nullptr, 0u, L"Consolas");
+    Require(mixedFontDiagnostic.Get() != nullptr, "mixed-font DirectWrite diagnostic renderer is allocated");
+    context->SetDpi(96.0f, 96.0f);
+    context->SetTransform(D2D1::Matrix3x2F::Identity());
+    context->BeginDraw();
+    context->Clear(D2D1::ColorF(0u, 0.0f));
+    THROW_IF_FAILED(mixedFontLayout->Draw(nullptr, mixedFontDiagnostic.Get(), 8.375f, 8.625f));
+    THROW_IF_FAILED(context->EndDraw());
+    const bool mixedObservedConsolas = std::ranges::any_of(
+        mixedFontDiagnostic->Runs(), [](const SourceInkRunDiagnostic& run) { return run.familyKnown && run.requestedFamily && ! run.cjkText; });
+    const bool mixedObservedFallback = std::ranges::any_of(
+        mixedFontDiagnostic->Runs(), [](const SourceInkRunDiagnostic& run) { return run.familyKnown && run.cjkText && ! run.requestedFamily; });
+    const bool mixedObservedColor = std::ranges::any_of(mixedFontDiagnostic->Runs(), [](const SourceInkRunDiagnostic& run) { return run.colorFont; });
+    Require(mixedObservedConsolas, "mixed-font Source fixture contains an actual Consolas run");
+    Require(mixedObservedFallback, "mixed-font Source fixture routes CJK through a fallback face");
+    Require(mixedObservedColor, "mixed-font Source fixture routes emoji through an actual color font");
+    std::cerr << std::format("[SOURCE INK MIXED FONT FIXTURE] consolas={} cjkFallback={} colorFont={} crlf=true\n",
+                             mixedObservedConsolas,
+                             mixedObservedFallback,
+                             mixedObservedColor);
+
+    const auto mixedFontOrigin = D2D1::Point2F(8.375f, 8.625f);
+    wil::com_ptr<ID2D1DeviceContext7> mixedColorContext;
+    const HRESULT mixedColorContextQuery = context->QueryInterface(IID_PPV_ARGS(mixedColorContext.put()));
+    std::vector<uint8_t> mixedColorReference;
+    if (SUCCEEDED(mixedColorContextQuery))
+    {
+        mixedColorReference = compareDirectHelperWithCanonical(mixedFontProjection, mixedFontOptions, mixedFontDrawing, nullptr, 0u, mixedFontOrigin);
+    }
+    else
+    {
+        context->BeginDraw();
+        context->Clear(D2D1::ColorF(0u, 0.0f));
+        const auto unavailableMixedResult = Detail::DrawSourceInkIfSupported(
+            context.get(), white.get(), mixedFontLayout.get(), nullptr, 0u, mixedFontProjection, mixedFontDrawing, mixedFontOrigin);
+        Require(unavailableMixedResult == Detail::SourceInkDrawResult::Rejected, "missing target Direct2D 7 rejects mixed runs before painting");
+        THROW_IF_FAILED(context->EndDraw());
+        std::vector<uint8_t> noPartialMixedPixels;
+        THROW_IF_FAILED(graphics.Read(noPartialMixedPixels));
+        bool noPartialMixedPaint = true;
+        for (std::size_t index = 3u; index < noPartialMixedPixels.size(); index += 4u)
+            noPartialMixedPaint = noPartialMixedPaint && noPartialMixedPixels[index] == 0u;
+        Require(noPartialMixedPaint, "missing Direct2D 7 leaves mixed-font Source output untouched before fallback");
+    }
+
+    context->BeginDraw();
+    context->Clear(D2D1::ColorF(0u, 0.0f));
+    const auto unavailableMixedResult = Detail::DrawSourceInkIfSupported(context.get(),
+                                                                         white.get(),
+                                                                         mixedFontLayout.get(),
+                                                                         nullptr,
+                                                                         0u,
+                                                                         mixedFontProjection,
+                                                                         mixedFontDrawing,
+                                                                         mixedFontOrigin,
+                                                                         Detail::SourceInkColorContextLookup::Unavailable);
+    Require(unavailableMixedResult == Detail::SourceInkDrawResult::Rejected, "forced Direct2D 7 miss rejects mixed fonts during shared production preflight");
+    THROW_IF_FAILED(context->EndDraw());
+    std::vector<uint8_t> noPartialMixedPixels;
+    THROW_IF_FAILED(graphics.Read(noPartialMixedPixels));
+    bool noPartialMixedPaint = true;
+    for (std::size_t index = 3u; index < noPartialMixedPixels.size(); index += 4u)
+        noPartialMixedPaint = noPartialMixedPaint && noPartialMixedPixels[index] == 0u;
+    Require(noPartialMixedPaint, "forced Direct2D 7 miss leaves no mixed-font partial pixels before canonical fallback");
+
+    auto mixedFallbackLayout = makeTestLayout(mixedFontProjection, mixedFontOptions, false);
+    THROW_IF_FAILED(mixedFallbackLayout->SetDrawingEffect(red.get(), {static_cast<UINT32>(mixedMarkupStart), static_cast<UINT32>(mixedMarkup.size())}));
+    context->BeginDraw();
+    context->Clear(D2D1::ColorF(0u, 0.0f));
+    context->DrawTextLayout(mixedFontOrigin, mixedFallbackLayout.get(), white.get(), D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+    THROW_IF_FAILED(context->EndDraw());
+    std::vector<uint8_t> mixedFallbackPixels;
+    THROW_IF_FAILED(graphics.Read(mixedFallbackPixels));
+    if (SUCCEEDED(mixedColorContextQuery))
+        Require(mixedFallbackPixels == mixedColorReference, "mixed-font QI-miss follows the exact canonical color-enabled fallback pixels");
+
+    PreparedLayout retainedMixedPrepared;
+    retainedMixedPrepared.Prepare(factory.get(), mixedFontProjection, mixedFontOptions);
+    PreparedLayout retainedMixedCopy(retainedMixedPrepared);
+    LinkDrawing replacementMixedDrawing                                          = mixedFontDrawing;
+    replacementMixedDrawing.inkBrushes[static_cast<size_t>(TextInkRole::Accent)] = replacementRed.get();
+    wil::com_ptr<ID2D1DeviceContext7> replacementColorContext;
+    const bool replacementHasColorContext7 = SUCCEEDED(replacementContext->QueryInterface(IID_PPV_ARGS(replacementColorContext.put())));
+    std::cerr << std::format("[SOURCE INK SECOND TARGET] deviceContext7={} retainedCopy=true\n", replacementHasColorContext7);
+    replacementContext->SetDpi(96.0f, 96.0f);
+    replacementContext->SetTransform(D2D1::Matrix3x2F::Identity());
+    replacementContext->BeginDraw();
+    replacementContext->Clear(D2D1::ColorF(0u, 0.0f));
+    retainedMixedCopy.Draw(replacementContext.get(), replacementWhite.get(), mixedFontOrigin, &replacementMixedDrawing);
+    THROW_IF_FAILED(replacementContext->EndDraw());
+    std::vector<uint8_t> retainedMixedPixels;
+    THROW_IF_FAILED(replacementGraphics.Read(retainedMixedPixels));
+    auto replacementMixedCanonical = makeTestLayout(mixedFontProjection, mixedFontOptions, false);
+    THROW_IF_FAILED(
+        replacementMixedCanonical->SetDrawingEffect(replacementRed.get(), {static_cast<UINT32>(mixedMarkupStart), static_cast<UINT32>(mixedMarkup.size())}));
+    replacementContext->BeginDraw();
+    replacementContext->Clear(D2D1::ColorF(0u, 0.0f));
+    replacementContext->DrawTextLayout(mixedFontOrigin, replacementMixedCanonical.get(), replacementWhite.get(), D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+    THROW_IF_FAILED(replacementContext->EndDraw());
+    std::vector<uint8_t> replacementMixedCanonicalPixels;
+    THROW_IF_FAILED(replacementGraphics.Read(replacementMixedCanonicalPixels));
+    Require(retainedMixedPixels == replacementMixedCanonicalPixels,
+            "retained mixed-font layout copy on a second target matches independent canonical color-enabled layout pixels");
 
     auto proportionalOptions       = directOptions;
     proportionalOptions.fontFamily = L"Segoe UI";
     Document proportionalDocument(L"plain proportional source");
     const auto proportionalProjection = Project(proportionalDocument.Snapshot(), proportionalDocument.Revision(), ViewMode::Source);
     auto proportionalLayout           = makeTestLayout(proportionalProjection, proportionalOptions, false);
+    const std::array proportionalMixedInk{TextInkRange{{0u, 5u}, TextInkRole::Accent},
+                                          TextInkRange{{5u, proportionalProjection.text.size()}, TextInkRole::Link}};
+    auto proportionalMixedDrawing                                               = colorDrawing;
+    proportionalMixedDrawing.inkRanges                                          = proportionalMixedInk;
+    proportionalMixedDrawing.inkBrushes[static_cast<size_t>(TextInkRole::Link)] = green.get();
     requirePreflightRejectsWithoutPainting(proportionalProjection,
-                                           colorDrawing,
+                                           proportionalMixedDrawing,
                                            proportionalLayout.get(),
                                            nullptr,
                                            0u,
                                            Detail::SourceInkDrawResult::Rejected,
                                            "proportional source font rejects before painting");
+
+    auto proportionalUniformDrawing = colorDrawing;
+    const std::array proportionalUniformInk{TextInkRange{{0u, proportionalProjection.text.size()}, TextInkRole::Accent}};
+    proportionalUniformDrawing.inkRanges = proportionalUniformInk;
+    static_cast<void>(
+        compareDirectHelperWithCanonical(proportionalProjection, proportionalOptions, proportionalUniformDrawing, nullptr, 0u, D2D1::Point2F(8.375f, 8.625f)));
+
+    Document cjkDocument(L"plain proportional \u6f22\u5b57 fallback");
+    const auto cjkProjection = Project(cjkDocument.Snapshot(), cjkDocument.Revision(), ViewMode::Source);
+    auto cjkLayout           = makeTestLayout(cjkProjection, proportionalOptions, false);
+    auto cjkDrawing          = proportionalUniformDrawing;
+    const std::array cjkInk{TextInkRange{{0u, cjkProjection.text.size()}, TextInkRole::Accent}};
+    cjkDrawing.inkRanges = cjkInk;
+    auto cjkDiagnostic   = Microsoft::WRL::Make<SourceInkDiagnosticRenderer>(context.get(), cjkProjection.text, &cjkDrawing, nullptr, 0u, L"Segoe UI");
+    Require(cjkDiagnostic.Get() != nullptr, "CJK fallback diagnostic renderer is allocated");
+    context->BeginDraw();
+    context->Clear(D2D1::ColorF(0u, 0.0f));
+    THROW_IF_FAILED(cjkLayout->Draw(nullptr, cjkDiagnostic.Get(), 8.375f, 8.625f));
+    THROW_IF_FAILED(context->EndDraw());
+    const bool observedCjkFallback =
+        std::ranges::any_of(cjkDiagnostic->Runs(), [](const SourceInkRunDiagnostic& run) { return run.familyKnown && run.cjkText && ! run.requestedFamily; });
+    Require(observedCjkFallback, "CJK fixture actually uses a fallback face instead of the requested Segoe UI face");
+    std::cerr << std::format("[SOURCE INK CJK FIXTURE] fallbackFace={} requestedFamily=Segoe UI\n", observedCjkFallback);
+    for (const FLOAT dpi : {96.0f, 144.0f})
+    {
+        context->SetDpi(dpi, dpi);
+        for (const auto transform : {D2D1::Matrix3x2F::Identity(), D2D1::Matrix3x2F(1.25f, 0.0f, 0.0f, 1.25f, 0.37f, 0.63f)})
+        {
+            context->SetTransform(transform);
+            static_cast<void>(compareDirectHelperWithCanonical(cjkProjection, proportionalOptions, cjkDrawing, nullptr, 0u, D2D1::Point2F(8.375f, 8.625f)));
+        }
+    }
 
     Document overflowDocument(std::wstring(300u, L'a'));
     const auto overflowProjection = Project(overflowDocument.Snapshot(), overflowDocument.Revision(), ViewMode::Source);
