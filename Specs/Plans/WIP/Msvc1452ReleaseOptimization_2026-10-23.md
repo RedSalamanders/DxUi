@@ -26,7 +26,7 @@ controls, 249/1872 drifted observations and all-three-scenario dual-judge disagr
 - [x] Preserve/replay the final paired result; keep policy and physical-input limits separate from native passes.
 - [x] Root and an independent raw-ZIP reviewer verified native bindings before the external human merge.
 - [x] Complete independent paired review of exact replay outcomes; retain policy/noise/judge holds and acceptance separately.
-- [ ] Publish this sealed summary-only packet and domain/WIP closeout in a separately reviewed docs-only PR.
+- [x] Publish this sealed summary-only packet and domain/WIP closeout in separately reviewed [docs PR #120](https://github.com/RedSalamanders/DxUi/pull/120); merge review and acceptance holds remain separate.
 
 The separate main run 40509208565 completed with five successful native profiles; x64 Debug Full failed NativeTextInput
 foreign-document TSF focus preservation while Menu and all eight required consumer steps passed. Cause remains unattributed. Final provider metadata records these outcomes; only the failed x64 Debug ZIP and its 82 payload streams were independently replayed for this separate main cohort.
