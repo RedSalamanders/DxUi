@@ -4,6 +4,8 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Integrate the sealed renderer qualification archive with current main while preserving incoming compiler, Grid and ProgressBar work. Keep the six native profiles tied to their original SDK702 source and retain separate consumer, performance-policy and platform holds.
+- Archive the merged source-ink and Menu fixture qualification: six native x64/ARM64 profiles, exact-head local Menu restoration and an independently replayed actual-base paired study; preserve the unqualified performance policy, unstable controls and separate consumer/platform holds.
 - Reconcile MSVC 14.52 Release optimization and ProgressBar pause support with current main, preserving newer Grid callback lifetime guards, accessibility contracts, CI credential hardening and all tooling checks. Existing platform, interactive and performance gates remain explicit.
 - Preserve the original native qualification record while declaring its library-owned fixtures and input hashes; distinguish the executed source snapshot from the newer integration tree. Retain the API 4 selection/progress backport ancestry without changing the already integrated implementation or contracts.
 - Require MSVC 14.52.x and enable explicit Release function-level linking, unused-function elimination and whole-program/full link-time optimization; forward the exact compiler and WPO policy to consumer archive builds. Qualification and measured size/runtime evidence are tracked in the active build-policy plan.

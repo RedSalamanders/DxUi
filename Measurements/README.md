@@ -1,5 +1,7 @@
 # Independent DxUi measurements
 
+- [Merged renderer and Menu qualification, 7020121d](RedesignCompletion_2026-10-27/sdk-7020121d/README.md): all six native profiles, 505 manifest data streams, two real ASan detectors and the exact-head local Menu lease pass. The paired study has zero independently recomputed regression rows, but 69/72 unstable controls and an unqualified base policy leave performance acceptance open. PR #116 preserves the tested tree and renderer98 ancestry.
+
 - [Current-source A/A calibration, 4077f57d](RedesignCompletion_2026-10-26/aa-calibration-4077/README.md): the independent replay has 0/78 regression rows, but all 72 controls are unstable and 631/1,872 control observations drifted. Both judges agree; policy remains unqualified, so this is calibration evidence only.
 
 - [CI 4077 native and paired evidence, 2026-10-26](RedesignCompletion_2026-10-26/ci-4077f57d/native-and-paired/README.md) — six native profiles and eight consumer reports pass, but the paired CI gate failed because the base policy is unqualified. The measured candidate `646b257a` shares the workflow head tree; 62/72 controls are unstable.

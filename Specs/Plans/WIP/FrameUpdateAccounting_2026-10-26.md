@@ -3,7 +3,8 @@
 ## Current evidence checkpoint — 27 October 2026
 
 - [x] PR #112 hosted CI passes all six native profiles at source `8199566d635751a20a6e916e73410fb6cad317cc` and merge commit `47fe389680a6c224ce2b76cc1e5c0af0c414a11f`; the independent root review completed 1,293 checks. The WindowHost FrameUpdate implementation and tests match the reviewed Main checkpoint `aebeb73cd448fbb00e1439d1a3c1baf4af1c82e9` byte-for-byte.
-- [ ] Final local/current-source qualification and performance acceptance remain open. Preserve the earlier PR109 Release Menu-fixture failure as historical evidence; the newer six-profile CI result does not establish its cause or erase it. Parent policy and consumer performance holds remain separate.
+- [x] Current-source native qualification also passes all six profiles at combined head `7020121d` / Actions merge `2b57c31a`, with the exact tree merged as `6382b306`. The WindowHost and Rendering-test files remain byte-identical to the AEB checkpoint. See the [source-bound SDK packet](../../../Measurements/RedesignCompletion_2026-10-27/sdk-7020121d/README.md); this is hosted execution, not a claim that every profile was rerun locally.
+- [ ] Performance acceptance remains open. Preserve the earlier PR109 Release Menu-fixture failure as historical evidence; the newer six-profile CI result does not establish its cause or erase it. Parent policy and consumer performance holds remain separate.
 
 ## Progress checklist
 

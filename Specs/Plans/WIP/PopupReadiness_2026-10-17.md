@@ -26,14 +26,18 @@ assertions retain their existing limits. This does not change performance thresh
   lease; retain the failed full Debug run separately from the standalone diagnostic and other profile results.
 - [ ] Resolve the separately observed full-run Debug healthy-state-probe failure from bounded dispatch/lifecycle
   evidence, retaining the failure and without widening deadlines or treating a repeat as causal proof.
-- [ ] Execute the implemented test-only correction for the d849 submenu-retention retry failure below; keep the
-  original native pass and hosted attempt-2 failure separate, retain exact hover/timer predicates, and do not infer
-  causation from an unexecuted fixture or a passing repeat.
+- [x] Execute the implemented test-only correction for the d849 submenu-retention retry failure below in the
+  combined `7020121d` six-profile native CI matrix. All profiles complete 124 individual Menu cases with zero
+  skips/failures. Keep the original native pass and hosted attempt-2 failure separate, retain exact hover/timer
+  predicates, and do not infer causation from a passing repeat.
 - [x] Establish modal dispatch readiness in both timeout fixtures within the remainder of their existing discovery
   budget, and retain initial healthy-probe answer/elapsed/lifecycle diagnostics on failure.
 - [x] Verify the visible-initialization regression with and without the acknowledgement wait, then rerun affected checks.
 - [x] Complete validators and format checks on the final intended snapshot.
-- [ ] Observe fresh native CI before claiming merged-source functional acceptance.
+- [x] Observe fresh native CI at `7020121d` / Actions merge `2b57c31a`, tree `f7f484f6`, merged by PR #116 as
+  `6382b306`. All six native profiles pass. The [current packet](../../../Measurements/RedesignCompletion_2026-10-27/sdk-7020121d/README.md)
+  separately records hosted ARM64 initial-focus unavailability and the exact-head local Debug restoration pass;
+  these results do not establish the historical failure's cause or performance acceptance.
 
 ## Local evidence
 
