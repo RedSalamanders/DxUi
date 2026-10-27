@@ -1,11 +1,43 @@
 # MSVC 14.52 and Release optimization
 
-Status: ACTIVE qualification; hosted provisioning/consumers repaired, native Menu and paired preflight followups open
+Status: ACTIVE qualification; hosted native cohort verified; paired, performance/manual and release holds remain
 Date: 2026-10-23
 
 ## Hosted setup repair checkpoint (2026-10-27)
 
+### Merged repair and independently replayed evidence closeout
+
+The human merged runtime PR #119 as `e3447765` on 2026-10-27T13:06:47Z with the reviewed tree unchanged. Head `767dffc5`,
+Actions merge `38d9b21e` and base `9291e259` have a verified equal head/merge tree. All six native builds/Full jobs and
+eight public-consumer qualifications passed; independent replay verified 505 payload streams, 130 suite reports,
+two expected ASan detections, 124 Menu cases/profile and all ten negatives/twelve module probes per consumer.
+The [source-bound archive](../../../Measurements/Toolchain/2026-10-27-hosted-msvc/README.md) retains ARM initial-focus
+limits, original failed attempts and a separate local x64 Release four-case/124-case Menu supplement with recorded
+initial focus and exact restoration. Old 631 ARM Menu causes remain unattributed; diagnostics changed, assertions did not.
+
+Actual Windows tooling took 15m37s and ARM64 Release's consumer 16m04s. Both narrowly reviewed 20-minute windows
+preserve every check and statistical/resource band. Complete-catalog MSBuild timestamp staging passed the real
+installed-MSBuild counterfactual and changed-option negative. Actual paired preflight matched, and both judges'
+calculations independently replayed exactly. Final publication refused the unqualified base policy; 70/72 unstable
+controls, 249/1872 drifted observations and all-three-scenario dual-judge disagreements retain performance qualification holds.
+
+- [x] Publish and validate the bounded compiler/setup, consumer-window and complete-catalog staging source on PR #119.
+- [x] Independently replay the exact six-profile native/provider/consumer cohort and local Menu supplement.
+- [x] Preserve/replay the final paired result; keep policy and physical-input limits separate from native passes.
+- [x] Root and an independent raw-ZIP reviewer verified native bindings before the external human merge.
+- [ ] Complete independent paired review; retain policy/noise/judge holds separately.
+- [ ] Publish this sealed summary-only packet and domain/WIP closeout in a separately reviewed docs-only PR.
+
+The separate main run 40509208565 is in progress at this snapshot; x64 Debug Full failed NativeTextInput
+foreign-document TSF focus preservation while Menu and consumer checks passed. Cause remains unattributed.
+Push-scoped paired skip is not new qualification.
+
+Broader five-repository performance/manual/release work below remains ACTIVE. No consumer pin changes or performance
+acceptance are implied by this SDK cohort.
+
 ### Attempt 631: preserved failures and strict paired setup repair
+
+Historical attempt; the merged repair and subsequent distinct producer evidence are recorded above.
 
 Run [40485094386](https://github.com/RedSalamanders/DxUi/actions/runs/40485094386) binds head
 `631d8a95cf59c520bed1cc98c21cefc2f612586b`, merge `0f942cc859821fadada1e1da560a6e71b0a2c9f1` and base
@@ -36,10 +68,12 @@ provider ZIP digests/lengths, raw job status/logs and 505 replayed completion-ma
 expected ASan detections, complete consumers and ARM initial-focus-unavailable limits remain distinct. Archive seal SHA-256:
 `0CEDF462E67817756298E035030B41DE595E1CCADDB275565099F314C4E7C17B`.
 
-- [ ] Review complete-catalog staging and real-MSBuild/negative regressions independently before publishing the next repair head.
-- [ ] Bind the next hosted run to its own head/merge and replay actual native/consumer/paired outcomes; no unchanged rerun or retagging.
+- [x] Review complete-catalog staging and real-MSBuild/negative regressions independently before publishing the next repair head.
+- [x] Bind the next hosted run to its own head/merge and replay actual native/consumer/paired outcomes; no unchanged rerun or retagging.
 
 ### Subsequent consumer timeout (new operational repair)
+
+Historical failed attempt; its operational repair and later actual completion evidence are recorded above.
 
 Repair head `4a562108fdf067d31aae5fee563ba90b2e603d09`, Actions merge `fcd8ac46aca6b5cc00d3387ad98bd9645f944c34`
 into base `9291e259331c1dd376c028dcda8e70798765139f`, passed actual compiler provisioning, every native build and
@@ -56,16 +90,16 @@ LTCG EXE/DLL link and all ten negatives remain necessary. The reviewed operation
 regular consumer 20 minutes and its enclosing job 155; every other window, native check and statistical band is unchanged.
 Per-case start/outcome/duration and unique incomplete progress records will expose the exact case if another attempt ends.
 
-- [ ] Validate the narrow window/progress change, push a fresh PR #119 head, and bind the new hosted result to its own head/merge.
-- [ ] Replay all final provider ZIPs, payload streams, Full/ASan and complete consumer receipts before claiming a passing matrix.
-- [ ] Prepare reviewed source-bound public evidence and WIP/build closeout in private staging; publish a docs-only followup after runtime merge.
+- [x] Validate the narrow window/progress change, push a fresh PR #119 head, and bind the new hosted result to its own head/merge.
+- [x] Replay all final provider ZIPs, payload streams, Full/ASan and complete consumer receipts before claiming a passing matrix for that producer.
+- [x] Prepare source-bound public evidence and WIP/build closeout in private staging; publication is tracked above.
 
 Main `9291e259331c1dd376c028dcda8e70798765139f`, run [40472278769](https://github.com/RedSalamanders/DxUi/actions/runs/40472278769), failed compiler preparation in all six native profiles. The x64 Debug [job 122082077031](https://github.com/RedSalamanders/DxUi/actions/runs/40472278769/job/122082077031) reports at 08:16:22 UTC: `The variable '$LASTEXITCODE' cannot be retrieved because it has not been set.` GUI bootstrapper extraction continues after that exception. The script's call operator returned before GUI completion, and its strict-mode ambient exit-code read failed; this is setup evidence, not a compiler/native test failure. Raw logs and every fixture attempt remain privately under `.build/msvc-setup-20261027/` and `.build/msvc-setup-fixtures/` in the isolated repair checkout.
 
 - [x] Replace asynchronous GUI invocation with explicit hidden wait and the owned process's exit code; quote the install path, retain output, and use canonical downstream Visual Studio discovery after completion.
 - [x] Add deterministic delayed GUI/provider coverage for unset/stale ambient exit state, success/reboot/failure, spaces, required tools and no-install refusal paths; no actual local installation.
-- [ ] Complete full validators, focused tooling controls and formatting; publish the focused repair PR for independent review.
-- [ ] Review real hosted provisioning and subsequent six-profile receipts. Preserve channel/component or default-selection failures if the actual installer reveals them; never downgrade the compiler or treat fixtures as native qualification.
+- [x] Complete full validators, focused tooling controls and formatting; publish the focused repair PR for independent review.
+- [x] Review real hosted provisioning and subsequent six-profile receipts. Preserve channel/component or default-selection failures if the actual installer reveals them; never downgrade the compiler or treat fixtures as native qualification.
 
 Docs/gallery review: CI setup changes no public control behavior or pixels; no gallery regeneration is needed. Existing local, performance, interactive and native ARM64 acceptance boundaries below remain in force.
 
