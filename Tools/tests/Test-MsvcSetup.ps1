@@ -114,7 +114,7 @@ foreach($missing in @("VC/Tools/MSVC/14.52.37025/bin/Host$(if([Runtime.InteropSe
     Invoke-TestCase "successful installer cannot admit missing $missing" {
         $result=Invoke-SetupFixture ('missing-'+[guid]::NewGuid().ToString('N')) -Missing $missing
         Assert-True ($result.Exit-ne 0 -and $result.Text-match 'Insiders did not provide') $result.Text
-    }.GetNewClosure()
+    }
 }
 Invoke-TestCase 'verified existing tools never download or install' {
     $result=Invoke-SetupFixture 'ready' -Ready -VerifyOnly
@@ -128,7 +128,7 @@ foreach($mode in @('VerifyOnly','Local','BadSignature')){
         Assert-True ($result.Exit-ne 0) $result.Text
         Assert-True (-not(Test-Path (Join-Path $result.Root 'completed.txt'))) 'installer never launched'
         if($mode-ne 'BadSignature'){Assert-True (-not(Test-Path (Join-Path $result.Root 'downloaded.txt'))) 'no download'}
-    }.GetNewClosure()
+    }
 }
 Write-Host "Retained MSVC setup fixtures: $packet"
 Complete-TestRun 'Hosted MSVC setup'

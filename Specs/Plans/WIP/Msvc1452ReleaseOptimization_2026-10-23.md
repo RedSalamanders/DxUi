@@ -16,6 +16,10 @@ Docs/gallery review: CI setup changes no public control behavior or pixels; no g
 
 Local repair evidence: `fixture-diagnostics.log` passes 12/12 delayed-GUI/provider cases, including retained stdout/stderr and detailed installer logs. Restoring the old asynchronous call in `Setup-no-wait.control.ps1` reproduces the hosted unset-exit-code exception and fails eight cases (`no-wait-negative.log`), while the four no-install controls still pass. Real local `-VerifyOnly` passes default 14.52.37025; pinned clang-format 22.1.3 `-Check` passes. These focused controls and read-only compiler discovery do not establish native runtime or hosted provisioning success.
 
+Independent review caught a fixture invocation-scope defect: unnecessary `GetNewClosure` wrappers hid the script-local helper only when another script invoked the suite. The initial full `validate.log` retained that failure; all five validators and all other tooling suites passed. Removing the synchronous-loop closures makes fresh direct and nested invocations pass 12/12 each (`fixture-direct-fixed.log`, `fixture-nested-fixed.log`); `Test-MsvcSetupEntrypoints.ps1` now requires both forms in ordinary tooling validation.
+
+Repair [PR #119](https://github.com/RedSalamanders/DxUi/pull/119), initial run [40473800871](https://github.com/RedSalamanders/DxUi/actions/runs/40473800871), has the first actual hosted setup success: Windows-tooling job 122086989170 advanced from successful compiler preparation to validation. Its subsequent native/runtime gates remain pending. The fixture correction requires a fresh PR run; neither that setup success nor local fixtures establish a complete repository pass.
+
 ## Checklist
 
 - [x] Create isolated `ej/msvc1452-release-20261023` worktrees for DxUi, RedXe, RedSalamander, RedPrism and RedTilde; preserve concurrent source work.
