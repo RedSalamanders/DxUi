@@ -35,6 +35,7 @@ struct LayoutOptions
     std::optional<float> paragraphSpacingAfterLines; // Finite 0..4 nominal body lines.
     std::optional<float> listItemSpacingDip;         // Finite 0..256 DIP between items.
     std::optional<SemanticSpacing> semanticSpacing;
+    MarkdownPresentationStyle markdownPresentation = MarkdownPresentationStyle::Default;
 };
 struct CaretGeometry
 {

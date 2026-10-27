@@ -1529,6 +1529,7 @@ __declspec(noinline) static int RunFunctionalTests()
     RichSemanticTests::Run(RichSemanticDocumentTests::FootnoteHtmlActionAdmission);
     RichSemanticTests::Run(RichSemanticDocumentTests::SchedulingAndAdmission);
     RichSemanticTests::Run(RichSemanticGeometryTests::ParagraphsTablesAndSourceRanges);
+    RichSemanticTests::Run(RichSemanticGeometryTests::MarkdownSubtlePresentation);
     RichSemanticTests::Run(RichSemanticGeometryTests::AtomicNavigationAndCancellation);
     RichSemanticTests::Run(RichSemanticGeometryTests::SourceCaretSites);
     RichSemanticTests::Run(RichSemanticGeometryTests::HangingMarkersLinksAndHtml);

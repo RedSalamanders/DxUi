@@ -527,6 +527,75 @@ void TestRichTextEditorNativeHostAndLayoutReuse()
     Require(raw->DebugGetState().layoutReady, "show prepares layout again");
 }
 
+void TestRichTextEditorMarkdownPresentationAppearance()
+{
+    AttachedHostWindow window;
+    const std::wstring source = L"> shaded quote\n\n$$x^2$$\n";
+    auto owned                = std::make_unique<RichTextEditor>(source);
+    auto* editor              = owned.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    editor->SetSelection({4u, 1u});
+    window.Host().SetRoot(std::move(owned));
+    const auto dpiScale = window.Host().GetDpi() / 96.0f;
+    Require(SetWindowPos(window.Hwnd(),
+                         nullptr,
+                         0,
+                         0,
+                         static_cast<int>(640.0f * dpiScale),
+                         static_cast<int>(320.0f * dpiScale),
+                         SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE) != FALSE,
+            "presentation fixture has a stable native viewport");
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    RenderEditor(window);
+    WindowHostBitmapCapture ordinary, subtle;
+    Require(window.Host().DebugCaptureBitmap(ordinary), "capture default Markdown presentation");
+    const auto priorRevision  = editor->Snapshot();
+    const auto priorSelection = editor->GetSelection();
+    Require(editor->Undo() == false, "presentation fixture starts with empty source history");
+    auto appearance                 = editor->GetAppearance();
+    appearance.markdownPresentation = RichText::MarkdownPresentationStyle::Subtle;
+    editor->SetAppearance(appearance);
+    Require(! editor->DebugGetState().layoutReady, "presentation style change retires geometry immediately");
+    RenderEditor(window);
+    Require(editor->DebugGetState().layoutReady && editor->DebugGetState().layoutGeneration > 0u && editor->Snapshot().IsSameRevision(priorRevision) &&
+                editor->GetSelection() == priorSelection && ! editor->CanUndo(),
+            "presentation style rebuilds geometry without changing source, selection or history");
+    Require(window.Host().DebugCaptureBitmap(subtle) && subtle.bgraPixels != ordinary.bgraPixels,
+            "subtle quote presentation changes actual retained raster pixels");
+    const auto semantic = editor->GetAcknowledgedSemanticDocument(window.Host());
+    Require(semantic != nullptr, "standalone math fixture has acknowledged semantic content");
+    const auto math = std::ranges::find(semantic->Elements(), RichText::SemanticRole::Math, &RichText::SemanticElement::role);
+    Require(math != semantic->Elements().end(), "standalone native math object is present");
+    const auto mathBounds         = editor->GetSemanticElementBounds(window.Host(), static_cast<std::size_t>(math - semantic->Elements().begin()));
+    const auto editorBounds       = editor->GetBounds();
+    const auto expectedMathCenter = (editorBounds.left + editorBounds.right) * 0.5f;
+    Require(mathBounds && std::abs((mathBounds->left + mathBounds->right) * 0.5f - expectedMathCenter) < 3.0f,
+            "standalone native math geometry is centered in the available content width");
+    const auto settled = editor->DebugGetState();
+    const auto brushes = window.Host().DebugGetBrushCacheSize();
+    RenderEditor(window);
+    Require(editor->DebugGetState().layoutGeneration == settled.layoutGeneration &&
+                editor->DebugGetState().semanticPreparationAdvances == settled.semanticPreparationAdvances && window.Host().DebugGetBrushCacheSize() == brushes,
+            "clean subtle rendering reuses geometry and brushes without another preparation pass");
+
+    editor->SetViewMode(ViewMode::Source);
+    RenderEditor(window);
+    WindowHostBitmapCapture sourceView;
+    Require(window.Host().DebugCaptureBitmap(sourceView), "capture Source view with subtle setting");
+    appearance.markdownPresentation = RichText::MarkdownPresentationStyle::Default;
+    editor->SetAppearance(appearance);
+    RenderEditor(window);
+    WindowHostBitmapCapture defaultSourceView;
+    Require(window.Host().DebugCaptureBitmap(defaultSourceView) && defaultSourceView.bgraPixels == sourceView.bgraPixels &&
+                editor->GetViewMode() == ViewMode::Source && editor->GetText() == source && editor->GetSelection() == priorSelection && ! editor->CanUndo(),
+            "Markdown presentation settings do not restyle or rewrite the literal Source view");
+    const auto beforeInvalid        = editor->GetAppearance();
+    appearance.markdownPresentation = static_cast<RichText::MarkdownPresentationStyle>(99);
+    RejectEditor([&] { editor->SetAppearance(appearance); });
+    Require(editor->GetAppearance() == beforeInvalid, "invalid presentation enum is rejected atomically");
+}
+
 void TestRichTextEditorDocumentFocusChromeDoesNotRetireTextGeometry()
 {
     AttachedHostWindow window;
@@ -1712,6 +1781,7 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorCommittedTextThenSelectionCallbacks);
     DXUI_RUN_TEST(TestRichTextEditorSelectionGestureAndTextServicePublication);
     DXUI_RUN_TEST(TestRichTextEditorNativeHostAndLayoutReuse);
+    DXUI_RUN_TEST(TestRichTextEditorMarkdownPresentationAppearance);
     DXUI_RUN_TEST(TestRichTextEditorPreparedSourceInkPreservesGeometryAndSelection);
     DXUI_RUN_TEST(TestRichTextEditorDocumentFocusChromeDoesNotRetireTextGeometry);
     DXUI_RUN_TEST(TestRichTextEditorNativeUnicodeRoutingAndNavigation);

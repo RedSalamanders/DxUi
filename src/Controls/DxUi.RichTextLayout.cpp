@@ -177,7 +177,8 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
          options.textAlignment != DWRITE_TEXT_ALIGNMENT_CENTER) ||
         ! std::isfinite(verticalOrigin) || verticalOrigin < 0.0f || ! std::ranges::all_of(options.headingFontSizeDip, validHeadingSize) ||
         ! std::ranges::all_of(options.headingLineHeightMultiplier, validHeadingHeight) || ! validSpacing(options.paragraphSpacingAfterLines, 4.0f) ||
-        ! validSpacing(options.listItemSpacingDip, 256.0f) || (options.semanticSpacing && ! options.semanticSpacing->IsValid()))
+        ! validSpacing(options.listItemSpacingDip, 256.0f) || (options.semanticSpacing && ! options.semanticSpacing->IsValid()) ||
+        (options.markdownPresentation != MarkdownPresentationStyle::Default && options.markdownPresentation != MarkdownPresentationStyle::Subtle))
         throw std::invalid_argument("Invalid rich-text layout options");
     const auto maximum = semanticDisplay ? Document::MaximumUnits * 2u : Document::MaximumUnits;
     if (projection.text.size() > maximum || ! IsValidUtf16(projection.text) || projection.source.size() > maximum || ! IsValidUtf16(projection.source) ||

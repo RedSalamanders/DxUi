@@ -3287,17 +3287,32 @@ try
             OnKillFocus(false);
             return 0;
         case WM_MOUSEACTIVATE: handled = true; return MA_ACTIVATE;
+        case WM_NCMOUSEMOVE:
         case WM_MOUSEMOVE:
         {
-            handled = true;
-            if (HandleTooltipInspectionPointer(msg, PointFromLParam(lp)))
+            const bool nonClient = msg == WM_NCMOUSEMOVE;
+            handled              = ! nonClient; // Preserve native maximize-hover/Snap processing.
+            if (nonClient && wp != HTMINBUTTON && wp != HTMAXBUTTON && wp != HTCLOSE)
+            {
+                if (_hoveredControl || _supplementalTooltipControl)
+                {
+                    bool ignored{};
+                    static_cast<void>(HandleMessage(hwnd, WM_MOUSELEAVE, 0, 0, ignored));
+                }
+                return 0;
+            }
+            POINT client{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
+            if (nonClient && ! ScreenToClient(hwnd, &client))
+                return 0;
+            const auto point = D2D1::Point2F(PixelsToDip(static_cast<float>(client.x)), PixelsToDip(static_cast<float>(client.y)));
+            if (HandleTooltipInspectionPointer(msg, point))
                 return 0;
             TRACKMOUSEEVENT tme{};
             tme.cbSize    = sizeof(tme);
-            tme.dwFlags   = TME_LEAVE;
+            tme.dwFlags   = TME_LEAVE | (nonClient ? TME_NONCLIENT : 0u);
             tme.hwndTrack = hwnd;
             TrackMouseEvent(&tme);
-            UpdateHover(PointFromLParam(lp), static_cast<UINT>(wp));
+            UpdateHover(point, nonClient ? 0u : static_cast<UINT>(wp));
             return 0;
         }
         case WM_SETCURSOR:
@@ -3315,9 +3330,10 @@ try
             handled = true;
             return TRUE;
         }
+        case WM_NCMOUSELEAVE:
         case WM_MOUSELEAVE:
         {
-            handled = true;
+            handled = msg == WM_MOUSELEAVE;
             if (HandleTooltipInspectionPointer(msg, D2D1::Point2F()))
                 return 0;
             if (_hoveredControl)

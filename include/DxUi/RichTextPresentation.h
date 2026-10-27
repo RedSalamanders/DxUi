@@ -5,6 +5,14 @@
 
 namespace DxUi::RichText
 {
+// Semantic presentation only. Source text, Markdown parsing and edit history are
+// independent of this opt-in document style; Default retains the legacy layout.
+enum class MarkdownPresentationStyle
+{
+    Default,
+    Subtle
+};
+
 // Opt-in semantic margins. Real blank-source caret lines still fill these minimum gaps.
 struct SemanticSpacing final
 {

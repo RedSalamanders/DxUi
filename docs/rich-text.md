@@ -2,6 +2,14 @@
 
 ## Editor presentation
 
+For a quieter Markdown document, set `markdownPresentation` to
+`RichText::MarkdownPresentationStyle::Subtle` on the editor appearance or layout
+options. H1/H2 gain subtle separators, tables fit their contents with horizontal
+rules, standalone display equations/diagrams center, and quotes use a shaded
+surface. `Default` preserves the existing presentation. This setting does not
+rewrite Markdown or affect Source-view styling, selection or undo history.
+Exact library/header pairing is required when adopting the new public fields.
+
 `RichTextEditor::SetAppearance` owns the editor's frame and text viewport. Keep
 the default options for the existing input frame, or set `drawBorder=false` and
 `blendWithWindowBackground=true` for a document surface. A positive

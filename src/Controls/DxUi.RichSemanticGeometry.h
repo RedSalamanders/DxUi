@@ -121,7 +121,8 @@ public:
               float bottom,
               ID2D1Brush* fill         = nullptr,
               float imageOpacity       = 1.0f,
-              const LinkDrawing* links = nullptr) const;
+              const LinkDrawing* links = nullptr,
+              ID2D1Brush* quoteFill    = nullptr) const;
 
 private:
     struct State;

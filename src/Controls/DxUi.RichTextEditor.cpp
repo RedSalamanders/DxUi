@@ -479,24 +479,27 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
         ! std::isfinite(appearance.headingScaleStep) || appearance.headingScaleStep < 0.0f || appearance.headingScaleStep > 1.0f ||
         ! validFont(appearance.bodyFontFamily) || ! validFont(appearance.codeFontFamily) || ! std::ranges::all_of(appearance.headingFontSizeDip, validSize) ||
         ! std::ranges::all_of(appearance.headingLineHeightMultiplier, validHeight) || ! validSpacing(appearance.paragraphSpacingAfterLines, 4.0f) ||
-        ! validSpacing(appearance.listItemSpacingDip, 256.0f) || (appearance.semanticSpacing && ! appearance.semanticSpacing->IsValid()))
+        ! validSpacing(appearance.listItemSpacingDip, 256.0f) || (appearance.semanticSpacing && ! appearance.semanticSpacing->IsValid()) ||
+        (appearance.markdownPresentation != RichText::MarkdownPresentationStyle::Default &&
+         appearance.markdownPresentation != RichText::MarkdownPresentationStyle::Subtle))
         throw std::invalid_argument("Invalid rich editor appearance");
     if (_state->appearance == appearance)
         return;
-    auto next                   = appearance; // Stage all owned strings before publishing any option.
-    const auto& previous        = _state->appearance;
-    const bool geometryChanged  = previous.maximumTextWidthDip != next.maximumTextWidthDip || previous.paddingDip != next.paddingDip ||
-                                  previous.bodyFontSizeDip != next.bodyFontSizeDip || previous.codeFontSizeDip != next.codeFontSizeDip ||
-                                  previous.lineHeightMultiplier != next.lineHeightMultiplier || previous.headingScaleStep != next.headingScaleStep ||
-                                  previous.bodyFontFamily != next.bodyFontFamily || previous.codeFontFamily != next.codeFontFamily ||
-                                  previous.headingFontSizeDip != next.headingFontSizeDip ||
-                                  previous.headingLineHeightMultiplier != next.headingLineHeightMultiplier ||
-                                  previous.paragraphSpacingAfterLines != next.paragraphSpacingAfterLines ||
-                                  previous.listItemSpacingDip != next.listItemSpacingDip || previous.semanticSpacing != next.semanticSpacing;
+    auto next            = appearance; // Stage all owned strings before publishing any option.
+    const auto& previous = _state->appearance;
+    const bool geometryChanged =
+        previous.maximumTextWidthDip != next.maximumTextWidthDip || previous.paddingDip != next.paddingDip ||
+        previous.bodyFontSizeDip != next.bodyFontSizeDip || previous.codeFontSizeDip != next.codeFontSizeDip ||
+        previous.lineHeightMultiplier != next.lineHeightMultiplier || previous.headingScaleStep != next.headingScaleStep ||
+        previous.bodyFontFamily != next.bodyFontFamily || previous.codeFontFamily != next.codeFontFamily ||
+        previous.headingFontSizeDip != next.headingFontSizeDip || previous.headingLineHeightMultiplier != next.headingLineHeightMultiplier ||
+        previous.paragraphSpacingAfterLines != next.paragraphSpacingAfterLines || previous.listItemSpacingDip != next.listItemSpacingDip ||
+        previous.semanticSpacing != next.semanticSpacing || previous.markdownPresentation != next.markdownPresentation;
     const bool sourceInkChanged = previous.colorizeMarkdownSource != next.colorizeMarkdownSource;
     // Staged strings publish without allocator-backed aggregate moves; Debug
     // STL proxies can allocate during those moves.
     auto& value                       = _state->appearance;
+    value.markdownPresentation        = next.markdownPresentation;
     value.drawBorder                  = next.drawBorder;
     value.drawFocusIndicator          = next.drawFocusIndicator;
     value.blendWithWindowBackground   = next.blendWithWindowBackground;
@@ -1272,6 +1275,20 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             state.requestActive         = false;
             return S_OK;
         }
+        if (state.mode == RichText::ViewMode::Rich && state.appearance.markdownPresentation == RichText::MarkdownPresentationStyle::Subtle)
+        {
+            auto style = ResolveTextFieldVisualStyle(host.GetTheme(), IsEnabled(), IsHovered(), HasFocus(), HasFocus() && host.IsKeyboardFocusVisible());
+            if (state.appearance.blendWithWindowBackground)
+                style.fill = host.GetTheme().windowBackground;
+            // Resolve additional document brushes during preparation, so a
+            // quote-only first paint cannot allocate a new cache entry.
+            static_cast<void>(host.GetSolidBrush(host.GetTheme().highContrast ? style.text : host.GetTheme().borderDefault));
+            static_cast<void>(host.GetSolidBrush(host.GetTheme().highContrast ? style.fill : host.GetTheme().cardBackground));
+            auto opaque = style.fill;
+            opaque.a    = 1.0f;
+            static_cast<void>(host.GetSolidBrush(opaque));
+            static_cast<void>(host.GetSolidBrush(CompositeOverBackground(style.selectionFill, opaque)));
+        }
         if (LayoutIsCurrent(host))
         {
             UpdateCaretScroll();
@@ -1419,6 +1436,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             options.paragraphSpacingAfterLines  = appearance.paragraphSpacingAfterLines;
             options.listItemSpacingDip          = appearance.listItemSpacingDip;
             options.semanticSpacing             = appearance.semanticSpacing;
+            options.markdownPresentation        = appearance.markdownPresentation;
             if (! appearance.bodyFontFamily.empty())
                 options.fontFamily = appearance.bodyFontFamily;
             if (! appearance.codeFontFamily.empty())
@@ -1868,14 +1886,17 @@ void RichTextEditor::Paint(ControlHost& host) const
     if (viewport.right <= viewport.left || viewport.bottom <= viewport.top)
         return;
     RequireCurrentLayout(host);
-    auto& state                     = *_state;
-    auto* textBrush                 = host.GetSolidBrush(style.text);
-    auto* selectedTextBrush         = host.GetSolidBrush(style.selectionText);
-    auto* selectionBrush            = host.GetSolidBrush(style.selectionFill);
-    auto* caretBrush                = host.GetSolidBrush(style.caret);
-    ID2D1Brush* diagramFill         = nullptr;
+    auto& state               = *_state;
+    auto* textBrush           = host.GetSolidBrush(style.text);
+    auto* selectedTextBrush   = host.GetSolidBrush(style.selectionText);
+    auto* selectionBrush      = host.GetSolidBrush(style.selectionFill);
+    auto* caretBrush          = host.GetSolidBrush(style.caret);
+    const bool subtleMarkdown = state.mode == RichText::ViewMode::Rich && appearance.markdownPresentation == RichText::MarkdownPresentationStyle::Subtle;
+    auto* semanticDecoration  = subtleMarkdown ? host.GetSolidBrush(host.GetTheme().highContrast ? style.text : host.GetTheme().borderDefault) : caretBrush;
+    auto* quoteFill           = subtleMarkdown ? host.GetSolidBrush(host.GetTheme().highContrast ? style.fill : host.GetTheme().cardBackground) : nullptr;
+    ID2D1Brush* diagramFill   = nullptr;
     ID2D1Brush* selectedDiagramFill = nullptr;
-    if (const auto* semantic = state.layout.SemanticGeometry(); semantic && semantic->HasNativeObjects())
+    if (const auto* semantic = state.layout.SemanticGeometry(); semantic && (semantic->HasNativeObjects() || subtleMarkdown))
     {
         auto opaque = style.fill;
         opaque.a    = 1.0f;
@@ -1932,13 +1953,14 @@ void RichTextEditor::Paint(ControlHost& host) const
     const bool decorated = ! links.inkRanges.empty() || dimmed || (state.mode == RichText::ViewMode::Rich && (links.brush || ! links.underline));
     state.layout.Draw(context,
                       subdued,
-                      dimmed ? subdued : caretBrush,
+                      dimmed ? subdued : semanticDecoration,
                       origin,
                       state.scrollDip,
                       state.scrollDip + viewport.bottom - viewport.top,
                       diagramFill,
                       1.0f,
-                      decorated ? &links : nullptr);
+                      decorated ? &links : nullptr,
+                      quoteFill);
     auto selectedLinks              = links;
     selectedLinks.brush             = selectedTextBrush;
     selectedLinks.emphasisBrush     = selectedTextBrush;
@@ -1960,7 +1982,8 @@ void RichTextEditor::Paint(ControlHost& host) const
                           rectangle.bottom,
                           selectedDiagramFill,
                           0.65f,
-                          decorated ? &selectedLinks : nullptr);
+                          decorated ? &selectedLinks : nullptr,
+                          subtleMarkdown ? selectedDiagramFill : nullptr);
     }
     NativeTextInputState input;
     if (host.TryReadNativeTextInputState(this, input) && projection.SourceMatches(input.text) && input.compositionStartIndex && input.compositionEndIndex)

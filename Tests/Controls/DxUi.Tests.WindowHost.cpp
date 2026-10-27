@@ -298,6 +298,56 @@ void TestWindowHostCaptionMessagesReachApplicationAndDefaultHandling()
     }
 }
 
+void TestWindowHostNonclientCaptionHoverKeepsDefaultProcessing()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"retained editor");
+    field->SetBounds(D2D1::RectF(0, 64, 220, 108));
+    std::array<Button*, 3> buttons{};
+    unsigned invoked{};
+    for (std::size_t i = 0; i < buttons.size(); ++i)
+    {
+        buttons[i] = root->AddChild<Button>(L"caption");
+        buttons[i]->SetBounds(D2D1::RectF(static_cast<float>(i) * 46, 0, static_cast<float>(i + 1) * 46, 36));
+        buttons[i]->SetFocusable(false);
+        buttons[i]->SetOnClick([&] { ++invoked; });
+    }
+    window.Host().SetRoot(std::move(root));
+    window.Host().SetFocusControl(field, false);
+    const auto foreground = GetForegroundWindow();
+    constexpr std::array<WPARAM, 3> hits{HTMINBUTTON, HTMAXBUTTON, HTCLOSE};
+    for (const UINT dpi : {96u, 144u, 192u})
+    {
+        RECT suggested{};
+        Require(GetWindowRect(window.Hwnd(), &suggested) != FALSE, "read owned hidden host frame");
+        bool handled{};
+        static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_DPICHANGED, MAKELONG(dpi, dpi), reinterpret_cast<LPARAM>(&suggested), handled));
+        for (std::size_t i = 0; i < buttons.size(); ++i)
+        {
+            POINT point{MulDiv(static_cast<int>(i) * 46 + 23, static_cast<int>(dpi), 96), MulDiv(18, static_cast<int>(dpi), 96)};
+            Require(ClientToScreen(window.Hwnd(), &point) != FALSE, "convert the owned caption point to nonclient screen coordinates");
+            const auto coordinates = MAKELPARAM(static_cast<SHORT>(point.x), static_cast<SHORT>(point.y));
+            handled                = true;
+            static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_NCMOUSEMOVE, hits[i], coordinates, handled));
+            Require(! handled && buttons[i]->IsHovered(), "nonclient caption hover converts at each DPI and preserves default Snap processing");
+            static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_NCMOUSEMOVE, HTCAPTION, coordinates, handled));
+            Require(! handled && ! buttons[i]->IsHovered(), "native draggable caption space clears control hover without being claimed");
+            const auto cleared = window.Host().DebugGetInvalidateCount();
+            for (unsigned move = 0; move < 16; ++move)
+                static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_NCMOUSEMOVE, HTCAPTION, coordinates, handled));
+            Require(window.Host().DebugGetInvalidateCount() == cleared, "steady native caption movement does not repeatedly invalidate an empty hover state");
+            static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_NCMOUSEMOVE, hits[i], coordinates, handled));
+            static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_NCMOUSELEAVE, 0, 0, handled));
+            Require(! handled && ! buttons[i]->IsHovered(), "nonclient leave clears hover and retains native default processing");
+        }
+    }
+    Require(invoked == 0 && window.Host().GetFocusControl() == field && field->GetText() == L"retained editor" && GetForegroundWindow() == foreground &&
+                ! IsWindowVisible(window.Hwnd()),
+            "caption hover never invokes commands, rewrites text, or activates its hidden host");
+}
+
 void TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies()
 {
     using namespace DxUi;
@@ -6872,6 +6922,7 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestWindowHostMessagePruneCachePathOverflowUsesFullPruneFallback);
     DXUI_RUN_TEST(TestWindowHostMessagePruneCacheDoesNotPublishAcrossReentrantPruning);
     DXUI_RUN_TEST(TestWindowHostCaptionMessagesReachApplicationAndDefaultHandling);
+    DXUI_RUN_TEST(TestWindowHostNonclientCaptionHoverKeepsDefaultProcessing);
     DXUI_RUN_TEST(TestWindowHostEscapeClosesComboPopupBeforeCancelButton);
     DXUI_RUN_TEST(TestWindowHostMenuKeyInvokesFocusedButtonContextMenu);
     DXUI_RUN_TEST(TestWindowHostShiftF10InvokesFocusedToggleContextMenu);

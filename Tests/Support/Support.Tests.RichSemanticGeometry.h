@@ -667,6 +667,131 @@ inline void ParagraphsTablesAndSourceRanges()
     Check(! geometry.Ready() && ! geometry.Pending() && geometry.Height() == 0.0f, "semantic retirement releases both staged and published SDK graphs");
     SemanticSpacingPolicy();
 }
+inline void MarkdownSubtlePresentation()
+{
+    const auto factory        = Factory();
+    const std::wstring source = L"# Main title\n\n## Section\n\n### Plain heading\n\n| tiny | a much wider second column |\n| --- | --- |\n| x | content |\n";
+    const auto document       = RichSemanticDocumentTests::Build(source);
+    const auto makeGeometry   = [&](float width, DWRITE_READING_DIRECTION direction, MarkdownPresentationStyle style)
+    {
+        auto geometry = std::make_unique<PreparedSemanticGeometry>();
+        LayoutOptions options;
+        options.widthDip             = width;
+        options.readingDirection     = direction;
+        options.markdownPresentation = style;
+        geometry->Begin(factory.get(), document, options);
+        Complete(*geometry);
+        return geometry;
+    };
+    const auto regular  = makeGeometry(520.0f, DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, MarkdownPresentationStyle::Default);
+    const auto subtle   = makeGeometry(520.0f, DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, MarkdownPresentationStyle::Subtle);
+    const auto headings = document->Paragraphs();
+    Check(headings.size() == 7u, "presentation fixture has three headings and four table-cell paragraphs");
+    for (const auto index : {0u, 1u})
+    {
+        const auto defaultBounds = regular->ElementBounds(headings[index].element);
+        const auto subtleBounds  = subtle->ElementBounds(headings[index].element);
+        Check(defaultBounds && subtleBounds && subtleBounds->bottom - subtleBounds->top > defaultBounds->bottom - defaultBounds->top + 2.0f,
+              "opt-in H1/H2 rule contributes retained geometry below the heading");
+    }
+    const auto h3Default = regular->ElementBounds(headings[2u].element);
+    const auto h3Subtle  = subtle->ElementBounds(headings[2u].element);
+    Check(h3Default && h3Subtle && std::abs((h3Default->bottom - h3Default->top) - (h3Subtle->bottom - h3Subtle->top)) < 0.1f,
+          "subtle heading rules are limited to H1 and H2");
+    const auto tableRole = std::ranges::find(document->Elements(), SemanticRole::Table, &SemanticElement::role);
+    Check(tableRole != document->Elements().end(), "presentation fixture contains a semantic table");
+    const auto tableIndex   = static_cast<std::size_t>(tableRole - document->Elements().begin());
+    const auto defaultTable = regular->ElementBounds(tableIndex);
+    const auto subtleTable  = subtle->ElementBounds(tableIndex);
+    Check(defaultTable && subtleTable && defaultTable->right - defaultTable->left > 500.0f && subtleTable->right - subtleTable->left < 520.0f,
+          "default table retains full-width grid geometry while opt-in table fits its content");
+    const auto cellIndices = [&]
+    {
+        std::vector<std::size_t> result;
+        for (std::size_t i = 0; i < document->Elements().size(); ++i)
+            if (document->Elements()[i].role == SemanticRole::Cell)
+                result.push_back(i);
+        return result;
+    }();
+    Check(cellIndices.size() == 4u, "table has two rows of two semantic cells");
+    const auto first  = subtle->ElementBounds(cellIndices[0u]);
+    const auto second = subtle->ElementBounds(cellIndices[1u]);
+    Check(first && second && second->right - second->left > first->right - first->left, "intrinsic table sizing gives unequal content-driven column widths");
+    for (const auto [width, direction] : {std::pair{520.0f, DWRITE_READING_DIRECTION_LEFT_TO_RIGHT},
+                                          std::pair{230.0f, DWRITE_READING_DIRECTION_LEFT_TO_RIGHT},
+                                          std::pair{520.0f, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT}})
+    {
+        const auto layout     = makeGeometry(width, direction, MarkdownPresentationStyle::Subtle);
+        const auto leftSource = source.find(L"tiny"), rightSource = source.find(L"a much wider");
+        const auto leftCaret = layout->SourceCaret(leftSource), rightCaret = layout->SourceCaret(rightSource);
+        Check(leftCaret.height > 0.0f && rightCaret.height > 0.0f &&
+                  layout->HitTestSource(leftCaret.x, leftCaret.y + leftCaret.height * 0.5f).position == leftSource &&
+                  layout->HitTestSource(rightCaret.x, rightCaret.y + rightCaret.height * 0.5f).position == rightSource,
+              "wide, narrow and RTL content-sized tables preserve source caret hit affinity");
+        const auto bounds = layout->ElementBounds(tableIndex);
+        Check(bounds && bounds->right - bounds->left <= width + 0.1f, "content-sized table remains within its available width after wrapping");
+    }
+
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    wil::com_ptr<IWICImagingFactory> imaging;
+    THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    wil::com_ptr<ID2D1Factory> drawing;
+    THROW_IF_FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, drawing.put()));
+    constexpr UINT rasterWidth = 520u, rasterHeight = 360u, stride = rasterWidth * 4u;
+    wil::com_ptr<IWICBitmap> bitmap;
+    THROW_IF_FAILED(imaging->CreateBitmap(rasterWidth, rasterHeight, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+    wil::com_ptr<ID2D1RenderTarget> target;
+    const auto properties = D2D1::RenderTargetProperties(
+        D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.0f, 96.0f);
+    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
+    wil::com_ptr<ID2D1SolidColorBrush> textBrush, decorationBrush, fillBrush;
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), textBrush.put()));
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(1.0f, 0.0f, 0.0f, 1.0f), decorationBrush.put()));
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fillBrush.put()));
+    const auto raster = [&](MarkdownPresentationStyle style)
+    {
+        auto geometry = makeGeometry(520.0f, DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, style);
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        geometry->Draw(
+            target.get(), textBrush.get(), decorationBrush.get(), D2D1::Point2F(0.0f, 0.0f), 0.0f, static_cast<float>(rasterHeight), fillBrush.get());
+        THROW_IF_FAILED(target->EndDraw());
+        std::vector<BYTE> pixels(stride * rasterHeight);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+        return pixels;
+    };
+    const auto ordinaryPixels = raster(MarkdownPresentationStyle::Default);
+    const auto subtlePixels   = raster(MarkdownPresentationStyle::Subtle);
+    const auto isRed          = [](const std::vector<BYTE>& pixels, UINT x, UINT y)
+    {
+        const auto offset = static_cast<std::size_t>(y) * stride + static_cast<std::size_t>(x) * 4u;
+        return pixels[offset] < 64u && pixels[offset + 1u] < 64u && pixels[offset + 2u] > 200u;
+    };
+    const auto ruleCount = [&](const std::vector<BYTE>& pixels, const D2D1_RECT_F& bounds)
+    {
+        const auto y = static_cast<UINT>(std::clamp(std::lround(bounds.bottom - 1.0f), 0l, static_cast<long>(rasterHeight - 1u)));
+        UINT count{};
+        for (UINT x = 4u; x + 4u < rasterWidth; ++x)
+            count += isRed(pixels, x, y) ? 1u : 0u;
+        return count;
+    };
+    const auto titleBounds = subtle->ElementBounds(headings[0u].element).value();
+    Check(ruleCount(subtlePixels, titleBounds) > 100u && ruleCount(ordinaryPixels, titleBounds) == 0u,
+          "subtle H1 separator raster appears only when the opt-in style is enabled");
+    const auto firstRow      = subtle->ElementBounds(cellIndices[0u]).value();
+    const auto secondRowCell = subtle->ElementBounds(cellIndices[1u]).value();
+    Check(ruleCount(subtlePixels, firstRow) > 100u, "subtle table raster draws its horizontal row separator");
+    const auto separatorX = static_cast<UINT>(std::clamp(std::lround((firstRow.right + secondRowCell.left) * 0.5f), 0l, static_cast<long>(rasterWidth - 1u)));
+    const auto verticalY  = static_cast<UINT>(std::clamp(std::lround((firstRow.top + firstRow.bottom) * 0.5f), 0l, static_cast<long>(rasterHeight - 1u)));
+    Check(! isRed(subtlePixels, separatorX, verticalY), "subtle table raster has no vertical grid line between intrinsic columns");
+}
 inline void AtomicNavigationAndCancellation()
 {
     auto factory        = Factory();

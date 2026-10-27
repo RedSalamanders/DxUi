@@ -3467,6 +3467,7 @@ void Button::Paint(ControlHost& host) const
         host.RequestAnimation();
     }
     const FlowDirection flowDirection = GetFlowDirection();
+    const bool caption                = _appearance == ButtonAppearance::Caption || _appearance == ButtonAppearance::CaptionClose;
     auto style                        = ResolveButtonVisualStyle(host.GetTheme(),
                                                                  IsEnabled(),
                                                                  IsHovered(),
@@ -3484,7 +3485,7 @@ void Button::Paint(ControlHost& host) const
                                                                            IsPressed(),
                                                                            _primary || host.GetDefaultButton() == this,
                                                                            _toggleState.value_or(false),
-                                                                           ResolveHoverAnimationProgress(host));
+                                                                           caption ? (IsHovered() ? 1.0f : 0.0f) : ResolveHoverAnimationProgress(host));
     const D2D1_COLOR_F transparent    = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
     const auto drawContent            = [&](std::wstring_view text, const D2D1_RECT_F& bounds, FontRole role, const D2D1_COLOR_F& color, bool wrap = false)
     {
@@ -3611,8 +3612,13 @@ void Button::Paint(ControlHost& host) const
         return;
     }
 
-    DrawRoundedRect(
-        host, GetBounds(), style.fill, style.showBorder ? style.border : transparent, _appearance == ButtonAppearance::Filled ? kButtonCornerRadiusDip : 6.0f);
+    DrawRoundedRect(host,
+                    GetBounds(),
+                    style.fill,
+                    style.showBorder ? style.border : transparent,
+                    caption                                   ? 0.0f
+                    : _appearance == ButtonAppearance::Filled ? kButtonCornerRadiusDip
+                                                              : 6.0f);
     if (style.showSelectionUnderline)
     {
         const auto bounds = GetBounds();
