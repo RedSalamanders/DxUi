@@ -1947,9 +1947,10 @@ void TestPostedPayloadTypeIdentitySurvivesIdenticalIcfDeleters()
         // On the old implementation, ICF can make this wrongly typed owner non-null.
         // Release it before any assertion, then restore the original allocation as A.
         void* const returnedPayload = wrongTypeTake.release();
+        const bool returnedOriginal = returnedPayload == originalTakePayload;
         std::unique_ptr<PostedPayloadIcfA> restoredOwner(originalTakePayload);
         restoredOwner.reset();
-        Require(returnedPayload == originalTakePayload, "the wrong-type take returned the original registered allocation");
+        Require(returnedOriginal, "the wrong-type take returned the original registered allocation");
     }
     else
     {
