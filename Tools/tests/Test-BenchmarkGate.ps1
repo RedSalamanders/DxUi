@@ -1385,16 +1385,16 @@ function Invoke-GateScript([string] $Script, [hashtable] $Arguments, [string] $D
     foreach ($name in $names) { $previous[$name] = [Environment]::GetEnvironmentVariable($name) }
     try {
         New-Item -ItemType Directory -Path $Directory -Force | Out-Null
-        [Environment]::SetEnvironmentVariable('GITHUB_OUTPUT', (Join-Path $Directory 'step-output.txt'))
-        [Environment]::SetEnvironmentVariable('GITHUB_STEP_SUMMARY', (Join-Path $Directory 'step-summary.md'))
-        [Environment]::SetEnvironmentVariable('GITHUB_EVENT_NAME', 'pull_request')
-        [Environment]::SetEnvironmentVariable('GITHUB_REF', 'refs/pull/46/merge')
-        [Environment]::SetEnvironmentVariable('GITHUB_ACTIONS', $(if ($Actions) { 'true' } else { $null }))
-        [Environment]::SetEnvironmentVariable('BENCHMARK_PAIR', '(first parent of the merge commit)')
+        Restore-TestEnvironmentVariable 'GITHUB_OUTPUT' (Join-Path $Directory 'step-output.txt')
+        Restore-TestEnvironmentVariable 'GITHUB_STEP_SUMMARY' (Join-Path $Directory 'step-summary.md')
+        Restore-TestEnvironmentVariable 'GITHUB_EVENT_NAME' 'pull_request'
+        Restore-TestEnvironmentVariable 'GITHUB_REF' 'refs/pull/46/merge'
+        Restore-TestEnvironmentVariable 'GITHUB_ACTIONS' $(if ($Actions) { 'true' } else { $null })
+        Restore-TestEnvironmentVariable 'BENCHMARK_PAIR' '(first parent of the merge commit)'
         $global:LASTEXITCODE = -1
         $output = & (Join-Path $repository $Script) @Arguments 6>&1 2>&1
         $code = $LASTEXITCODE
-    } finally { foreach ($name in $names) { [Environment]::SetEnvironmentVariable($name, $previous[$name]) } }
+    } finally { foreach ($name in $names) { Restore-TestEnvironmentVariable $name $previous[$name] } }
     $files = foreach ($name in @('step-output.txt', 'step-summary.md')) { $path = Join-Path $Directory $name; if (Test-Path -LiteralPath $path) { [IO.File]::ReadAllText($path) } else { '' } }
     return [pscustomobject]@{ Code = $code; Output = (@($output | ForEach-Object { "$_" }) -join "`n"); StepOutput = $files[0]; StepSummary = $files[1] }
 }
@@ -1410,7 +1410,12 @@ Invoke-FixtureCase 'the verdict step fails a pull request on a degradation or an
     Assert-True $result.StepSummary.Contains('Historic reports are retained for reading') 'explains migration status'
     Assert-True $result.StepSummary.Contains('a shared hosted VM, not a controlled quiet desktop') 'which says what a runner is worth'
     Assert-True ($result.Output -cmatch 'Job summary: \d+ bytes in the step summary file') 'and the log says how much the summary file holds'
-    Assert-True (-not (Invoke-GateScript 'Tools/Publish-BenchmarkVerdict.ps1' @{ Reports = $reports; Gate = $true } (Join-Path $root 'local-out') $false).StepSummary.Contains('hosted VM')) 'and not on a developer machine'
+    $previousActions = [Environment]::GetEnvironmentVariable('GITHUB_ACTIONS')
+    try {
+        Restore-TestEnvironmentVariable 'GITHUB_ACTIONS' $null
+        Assert-True (-not (Invoke-GateScript 'Tools/Publish-BenchmarkVerdict.ps1' @{ Reports = $reports; Gate = $true } (Join-Path $root 'local-out') $false).StepSummary.Contains('hosted VM')) 'and not on a developer machine'
+        Assert-True (-not (Test-Path -LiteralPath 'Env:GITHUB_ACTIONS')) 'the wrapper restores an absent hosted marker as absent'
+    } finally { Restore-TestEnvironmentVariable 'GITHUB_ACTIONS' $previousActions }
     Assert-True $result.Output.Contains('::error title=') 'prints an annotation'
     Assert-True (Test-Path -LiteralPath (Join-Path $reports 'verdict.md')) 'keeps the report with the receipts'
     $verdict = Get-FixtureJson $reports 'verdict.json'
