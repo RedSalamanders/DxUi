@@ -25,7 +25,7 @@
     <ProjectReference Include="$(DxUiResolvedRoot)src\DxUi.vcxproj">
       <SetPlatform>Platform=$(Platform)</SetPlatform>
       <SetConfiguration>Configuration=$(Configuration)</SetConfiguration>
-      <AdditionalProperties>DxUiOutputRoot=$(DxUiConsumerOutputRoot);Platform=$(Platform);Configuration=$(Configuration);DxUiDisableStlAnnotations=$(DxUiDisableStlAnnotations)</AdditionalProperties>
+      <AdditionalProperties>DxUiOutputRoot=$(DxUiConsumerOutputRoot);Platform=$(Platform);Configuration=$(Configuration);DxUiDisableStlAnnotations=$(DxUiDisableStlAnnotations);WholeProgramOptimization=$(WholeProgramOptimization);VCToolsVersion=$(VCToolsVersion)</AdditionalProperties>
       <Project>{F6272096-E42A-56E7-9CCB-A8E08093E2BC}</Project>
     </ProjectReference>
   </ItemGroup>

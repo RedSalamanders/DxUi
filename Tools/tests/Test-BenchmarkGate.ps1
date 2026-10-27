@@ -1637,8 +1637,8 @@ Invoke-TestCase 'the workflow runs the benchmark for measured pull requests to m
     Assert-True $job.Contains('runs-on: windows-2025-vs2026') 'on the hosted x64 runner'
     # Its steps, in order: the scope decides, and every step after it runs only for a dispatch or a measured scope.
     $blocks = @([regex]::Matches($job, '(?ms)^      - .*?(?=^      - |\z)') | ForEach-Object { $_.Value })
-    $parts = [ordered]@{ checkout = 'actions/checkout@'; scope = './Tools/Get-BenchmarkScope.ps1'; restore = './vcpkg-install.ps1'; measure = './performance-paired.ps1'; verdict = './Tools/Publish-BenchmarkVerdict.ps1'; upload = 'actions/upload-artifact@' }
-    Assert-Equal $parts.Count $blocks.Count 'checkout, scope, restore, measurement, verdict and upload'
+    $parts = [ordered]@{ checkout = 'actions/checkout@'; toolchain = './.github/actions/setup-msvc'; scope = './Tools/Get-BenchmarkScope.ps1'; restore = './vcpkg-install.ps1'; measure = './performance-paired.ps1'; verdict = './Tools/Publish-BenchmarkVerdict.ps1'; upload = 'actions/upload-artifact@' }
+    Assert-Equal $parts.Count $blocks.Count 'checkout, required MSVC setup, scope, restore, measurement, verdict and upload'
     $step = @{}
     $position = 0
     foreach ($key in $parts.Keys) {
@@ -1710,7 +1710,7 @@ Invoke-TestCase 'the workflow cancels what a push supersedes, bounds its runtime
     Assert-True (-not ($workflow -cmatch '(?m)^\s+\w+:\s*write\s*$')) 'nothing in the workflow writes: the summary and the artifacts need no permission'
     $uses = @([regex]::Matches($workflow, '(?m)^\s*-?\s*uses:\s*(\S+)'))
     Assert-True ($uses.Count -ge 6) 'the workflow uses actions'
-    foreach ($use in $uses) { Assert-True ($use.Groups[1].Value -cmatch '^[\w.-]+/[\w.-]+@[0-9a-f]{40}$') "pinned to a commit: $($use.Groups[1].Value)" }
+    foreach ($use in $uses) { Assert-True ($use.Groups[1].Value -ceq './.github/actions/setup-msvc' -or $use.Groups[1].Value -cmatch '^[\w.-]+/[\w.-]+@[0-9a-f]{40}$') "pinned remote action or reviewed repository-local toolchain setup: $($use.Groups[1].Value)" }
 }
 
 Invoke-TestCase 'the gate scripts parse and are strict' {

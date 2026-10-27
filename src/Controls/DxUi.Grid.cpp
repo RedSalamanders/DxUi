@@ -2965,7 +2965,8 @@ bool Grid::RequestAddRowSelection(size_t rowIndex)
     _currentRowId                               = rowId;
     _focusedRowIndex                            = rowIndex;
     EnsureRowVisible(rowIndex);
-    if (! guard.IsCurrent())
+    // Selection has committed. A callback may arrange sibling detail controls; only owner/model rebinding retires this action.
+    if (! guard.IsBindingCurrent())
     {
         return false;
     }

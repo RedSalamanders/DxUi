@@ -11767,11 +11767,15 @@ HRESULT AccessibilityProvider::ExecuteSelectOnWindowThread()
         lifetime = GetControlLifetimeToken(*owner);
     }
 
-    const auto survives = [&]() noexcept
+    const uint64_t gridModelGeneration = grid ? grid->GetModelAssignmentGeneration() : 0u;
+    const auto survives                = [&]() noexcept
     {
         if (lifetime.expired())
             return false;
         if (ResolveHost() != host || (tree ? ResolveMutableTreeControl() != tree : ResolveMutableGridControl() != grid))
+            return false;
+        // Snapshot publication may be deferred by a callback; the live model binding must still match.
+        if (lifetime.expired() || (grid && grid->GetModelAssignmentGeneration() != gridModelGeneration))
             return false;
         size_t currentIndex = 0u;
         return _kind == AccessibilityFragmentKind::TreeItem ? ResolveTreeVisibleIndex(currentIndex) : ResolveGridRowIndex(currentIndex);
@@ -11851,11 +11855,15 @@ HRESULT AccessibilityProvider::ExecuteAddToSelectionOnWindowThread()
     else
         return UIA_E_NOTSUPPORTED;
 
-    const auto survives = [&]() noexcept
+    const uint64_t gridModelGeneration = grid ? grid->GetModelAssignmentGeneration() : 0u;
+    const auto survives                = [&]() noexcept
     {
         if (lifetime.expired())
             return false;
         if (ResolveHost() != host || (tree ? ResolveMutableTreeControl() != tree : ResolveMutableGridControl() != grid))
+            return false;
+        // Snapshot publication may be deferred by a callback; the live model binding must still match.
+        if (lifetime.expired() || (grid && grid->GetModelAssignmentGeneration() != gridModelGeneration))
             return false;
         size_t currentIndex = 0u;
         return tree ? ResolveTreeVisibleIndex(currentIndex) : ResolveGridRowIndex(currentIndex);
@@ -11924,11 +11932,15 @@ HRESULT AccessibilityProvider::ExecuteRemoveFromSelectionOnWindowThread()
             return UIA_E_NOTSUPPORTED;
     }
 
-    const auto survives = [&]() noexcept
+    const uint64_t gridModelGeneration = grid ? grid->GetModelAssignmentGeneration() : 0u;
+    const auto survives                = [&]() noexcept
     {
         if (lifetime.expired())
             return false;
         if (ResolveHost() != host || (tree ? ResolveMutableTreeControl() != tree : ResolveMutableGridControl() != grid))
+            return false;
+        // Snapshot publication may be deferred by a callback; the live model binding must still match.
+        if (lifetime.expired() || (grid && grid->GetModelAssignmentGeneration() != gridModelGeneration))
             return false;
         size_t currentIndex = 0u;
         return tree ? ResolveTreeVisibleIndex(currentIndex) : ResolveGridRowIndex(currentIndex);

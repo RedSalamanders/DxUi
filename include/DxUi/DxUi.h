@@ -2338,6 +2338,9 @@ public:
     [[nodiscard]] double GetMaximum() const noexcept;
     void SetIndeterminate(bool indeterminate) noexcept;
     [[nodiscard]] bool IsIndeterminate() const noexcept;
+    // Freeze indeterminate motion without changing its value, enabled state or semantics.
+    void SetAnimationPaused(bool paused) noexcept;
+    [[nodiscard]] bool IsAnimationPaused() const noexcept;
     void SetTrackHeightDip(float heightDip) noexcept;
     [[nodiscard]] float GetTrackHeightDip() const noexcept;
     void SetSegmentedValues(double primaryValue, double secondaryValue, D2D1_COLOR_F secondaryColor) noexcept;
@@ -2361,6 +2364,7 @@ private:
     D2D1_COLOR_F _secondarySegmentColor = D2D1::ColorF(D2D1::ColorF::Orange);
     bool _segmented                     = false;
     bool _indeterminate                 = false;
+    bool _animationPaused               = false;
     float _trackHeightDip               = 0.0f;
     mutable float _animationPhase       = 0.0f;
     uint64_t _lastTickMs                = 0;

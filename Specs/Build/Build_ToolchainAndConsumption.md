@@ -3,6 +3,32 @@
 Status: normative intended contract
 Last reviewed: 2026-10-01
 
+## MSVC 14.52 Release policy
+
+All supported configurations require the installed default MSVC **14.52.x** family (`RequiredMsvcToolsVersion` in
+`Directory.Build.props`), still using the `v145` platform toolset. Discovery does not hard-code an installation or
+silently select a different family. Restore rejects a different default before vcpkg work; MSBuild rejects a different
+selected `VCToolsVersion` before compilation. Receipts bind the exact patch, compiler and linker hashes; `/GL` archives
+and their final links must use the same build tools, including minor updates.
+
+Release translation units explicitly enable `/Gy` and `/GL`. Final executable/DLL links explicitly enable `/OPT:REF`
+and full `/LTCG`, with ordinary incremental linking disabled. Debug and ASan Debug retain their existing diagnostic
+optimization policy. Full LTCG is selected after project-local defaults; do not assume that the WPO checkbox alone
+selects full rather than incremental LTCG. `Tools/tests/Test-ReleaseBuildPolicy.ps1` evaluates every actual native
+project in all six profiles and rejects broken compiler/linker controls.
+
+The static archive remains complete. Function elimination and cross-file optimization happen at each final EXE/DLL
+link and cannot optimize across DLL boundaries. LTO is not a guarantee of smaller or faster output; keep matched
+fixture/source/toolchain identities, frozen baseline images, actual image/section sizes, link/build duration and
+runtime/resource observations. Different compiler policies are an intentional experiment, not reusable identical-profile
+performance qualification. Report shared-host activity and retain failed/noisy attempts.
+
+Consumers must forward the evaluated `WholeProgramOptimization` and exact `VCToolsVersion` through their project
+references. A parent's locally evaluated property is not inherited by an independent archive project. The public
+consumer targets forward both. An older adopted pin may be retained with the same explicit consumer-owned MSBuild
+forwarding; include `releaseOptimizationPolicy=Gy-REF-GL-LTCG-full-v1` in that consumer's dependency identity so an
+old policy's writable archive output is never reused. API pin changes remain separate adoption work.
+
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
 
@@ -67,7 +93,7 @@ fail with actionable diagnostics. Both tracked and untracked source changes inva
 
 vcpkg builds with the Visual Studio installation and default MSVC toolset that MSBuild compiles DxUi with, not with the
 newest toolset it finds. The two differ when a newer toolset is installed beside the default and lacks a compiler for a
-target (the earlier VS 18 Insiders installation had 14.52 beside default 14.51 without its x64-hosted ARM64 compiler, so each fresh ARM64 restore
+target (in the historical 14.51-default installation, the side-by-side 14.52 preview lacked an x64-hosted ARM64 compiler, so every fresh ARM64 restore
 failed configuring `wil:arm64-windows`); for compiled vcpkg libraries a toolset newer than the one that links them is also
 a link hazard. `vcpkg-install.ps1` takes the installation from `Get-DxUiVisualStudioInstallation` (`Tools/VisualStudio.psm1`),
 the one discovery `build.ps1` also uses (`vswhere -latest -prerelease -requires Microsoft.Component.MSBuild`), and the
@@ -269,3 +295,9 @@ fully drained result can supply the token. Each of at most three API requests ha
 Lookup failures are explicitly unavailable and cannot fail an otherwise valid fixed-pin build.
 Authentication details are never logged.
 The consumer still validates/restores its exact source pin independently and fails on a real pin error.
+
+### CI toolchain preparation and audit evidence
+
+Active Windows compilation/tooling workflows use the local setup-msvc composite action. It reads RequiredMsvcToolsVersion, verifies the discovered default compiler, linker, ASan target libraries, SDK and x64 LLVM scanner tools, and provisions Visual Studio 2026 Insiders only on GitHub-hosted runners when necessary. The Microsoft-signed bootstrapper runs under RUNNER_TEMP; existing installations are retained. A channel that no longer supplies 14.52 fails rather than accepting another compiler. Local -VerifyOnly is read-only; automatic local installation is refused. Hosted provisioning remains a separate unexecuted branch until its actual CI receipt exists.
+
+[Full evaluated settings and differences](../../Measurements/Toolchain/2026-10-23-msvc1452/Settings.md) include both platform/configuration matrices and exact per-file metadata. [Microsoft installation guidance](https://learn.microsoft.com/en-us/cpp/overview/acquire-msvc) documents channel-specific acquisition. The published [runner image inventory](https://github.com/actions/runner-images/blob/main/images/windows/Windows2025-VS2026-Readme.md) does not establish that the required toolset is installed; runtime versions alone are also not compiler proof.

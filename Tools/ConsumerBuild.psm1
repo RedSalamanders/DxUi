@@ -34,6 +34,7 @@ function Get-DxUiConsumerBuildIdentity {
         vcToolsVersion=$properties.VCToolsVersion; windowsSdkVersion=$sdk; runtimeFamily='MD';
         preferredToolArchitecture=$hostArchitecture;
         disableStlAnnotations=$DisableStlAnnotations.IsPresent;
+        releaseOptimizationPolicy='Gy-REF-GL-LTCG-full-v1';
         msbuildSha256=(Get-FileHash -LiteralPath $MSBuildPath -Algorithm SHA256).Hash;
         compilerSha256=(Get-FileHash -LiteralPath $compiler -Algorithm SHA256).Hash;
         linkerSha256=(Get-FileHash -LiteralPath $linker -Algorithm SHA256).Hash;

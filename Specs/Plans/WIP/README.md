@@ -2,6 +2,8 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
+- **ACTIVE**: [MSVC 14.52 and Release optimization](Msvc1452ReleaseOptimization_2026-10-23.md). Five-repository compiler/linker audit, explicit Release function elimination and full LTCG, matching pinned-archive policy, and measured before/after qualification.
+
 - **ACTIVE**: [Source ink renderer qualification](SourceInkRendererQualification_2026-10-27.md). Renderer merged through PR #116 with all six source-bound native profiles passing. The actual-base paired study has zero regression rows but an unqualified policy and unstable controls; consumer performance, hosted RedTilde and physical/platform holds remain separate.
 
 - **ACTIVE**: [Complete Update-stage metric accounting](FrameUpdateAccounting_2026-10-26.md). PR #112 and combined SDK702 pass all six hosted native profiles; FrameUpdate source/tests remain byte-identical to the AEB checkpoint. The earlier PR109 Release Menu-fixture failure remains historical and unattributed. Performance acceptance remains open; earlier SDK407 diagnostics retain their incomplete Update-field boundary.

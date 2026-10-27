@@ -1,5 +1,6 @@
 <Project>
   <PropertyGroup>
+    <RequiredMsvcToolsVersion>14.52</RequiredMsvcToolsVersion>
     <DxUiRepositoryRoot>$(MSBuildThisFileDirectory)</DxUiRepositoryRoot>
     <DxUiOutputRoot Condition="'$(DxUiOutputRoot)'==''">$(DxUiRepositoryRoot).build\</DxUiOutputRoot>
     <OutDir>$(DxUiOutputRoot)$(Platform)\$(Configuration)\</OutDir>
@@ -9,6 +10,9 @@
     <DxUiTriplet Condition="'$(Platform)'=='x64'">x64-windows</DxUiTriplet>
     <DxUiTriplet Condition="'$(Platform)'=='ARM64'">arm64-windows</DxUiTriplet>
     <DxUiDisableStlAnnotations Condition="'$(DxUiDisableStlAnnotations)'==''">false</DxUiDisableStlAnnotations>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='ASan Debug'">
     <EnableASAN>true</EnableASAN>

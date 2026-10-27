@@ -1,0 +1,477 @@
+{
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-msvc1452-release-artifact-sizes-v1",
+  "benchmarkInputs": {
+    "baselineClosureManifest": "24D4B3384BE4B469B11F3AC6C211FB3072407C95DB9263AC28E89F7278D6B99E",
+    "candidateClosureManifest": "D470D26DA42B5643B667B7C69E4B28CEF098D002715580B784CA44B796E74716",
+    "measurementScript": "145263C2B0FB362F659FFC41D136AC787878B9AEE7788197FCF3C643A57CB830"
+  },
+  "scope": "File and PE section sizes of standalone library-owned targets. Compiler-policy experiment, not runtime performance acceptance.",
+  "artifacts": [
+    {
+      "path": "DxUi.ControlTests.exe",
+      "beforeBytes": 14021632,
+      "afterBytes": 9847296,
+      "changePercent": -29.770686,
+      "baselineSha256": "1EE5F546E6047D581CC2D2512E031395D481D537D7C44AFC7316A1D81CD26202",
+      "candidateSha256": "750DF1C5E3BD075C7253A1E4B0BD3DF2041F0CD4B7A2814A07EF484DF2DF334D",
+      "beforeSections": [
+        {
+          "name": ".text",
+          "virtualBytes": 9821348,
+          "fileBytes": 9821696
+        },
+        {
+          "name": ".rdata",
+          "virtualBytes": 3469648,
+          "fileBytes": 3469824
+        },
+        {
+          "name": ".data",
+          "virtualBytes": 334401,
+          "fileBytes": 332800
+        },
+        {
+          "name": ".pdata",
+          "virtualBytes": 254244,
+          "fileBytes": 254464
+        },
+        {
+          "name": ".idata",
+          "virtualBytes": 33897,
+          "fileBytes": 34304
+        },
+        {
+          "name": "minATL",
+          "virtualBytes": 809,
+          "fileBytes": 1024
+        },
+        {
+          "name": ".tls",
+          "virtualBytes": 1659,
+          "fileBytes": 2048
+        },
+        {
+          "name": ".00cfg",
+          "virtualBytes": 373,
+          "fileBytes": 512
+        },
+        {
+          "name": ".rsrc",
+          "virtualBytes": 1084,
+          "fileBytes": 1536
+        },
+        {
+          "name": ".reloc",
+          "virtualBytes": 102005,
+          "fileBytes": 102400
+        }
+      ],
+      "afterSections": [
+        {
+          "name": ".text",
+          "virtualBytes": 6685547,
+          "fileBytes": 6685696
+        },
+        {
+          "name": ".rdata",
+          "virtualBytes": 2682176,
+          "fileBytes": 2682368
+        },
+        {
+          "name": ".data",
+          "virtualBytes": 277848,
+          "fileBytes": 276992
+        },
+        {
+          "name": ".pdata",
+          "virtualBytes": 140292,
+          "fileBytes": 140800
+        },
+        {
+          "name": ".rsrc",
+          "virtualBytes": 480,
+          "fileBytes": 512
+        },
+        {
+          "name": ".reloc",
+          "virtualBytes": 59756,
+          "fileBytes": 59904
+        }
+      ]
+    },
+    {
+      "path": "DxUi.EmbeddedControls.exe",
+      "beforeBytes": 4328960,
+      "afterBytes": 1878528,
+      "changePercent": -56.605559,
+      "baselineSha256": "ECEBB0F9F80F88D0AB40FB4D25FFE0DD64F3CBDF254961863371DC000B23E79B",
+      "candidateSha256": "B7D766C02FA62654218E7F4496D3969E3A89169B9924E13662D01B7C29AF0EE4",
+      "beforeSections": [
+        {
+          "name": ".text",
+          "virtualBytes": 3295647,
+          "fileBytes": 3295744
+        },
+        {
+          "name": ".rdata",
+          "virtualBytes": 833691,
+          "fileBytes": 834048
+        },
+        {
+          "name": ".data",
+          "virtualBytes": 31451,
+          "fileBytes": 30208
+        },
+        {
+          "name": ".pdata",
+          "virtualBytes": 119448,
+          "fileBytes": 119808
+        },
+        {
+          "name": ".idata",
+          "virtualBytes": 20846,
+          "fileBytes": 20992
+        },
+        {
+          "name": ".tls",
+          "virtualBytes": 1514,
+          "fileBytes": 1536
+        },
+        {
+          "name": "minATL",
+          "virtualBytes": 809,
+          "fileBytes": 1024
+        },
+        {
+          "name": ".00cfg",
+          "virtualBytes": 373,
+          "fileBytes": 512
+        },
+        {
+          "name": ".rsrc",
+          "virtualBytes": 1084,
+          "fileBytes": 1536
+        },
+        {
+          "name": ".reloc",
+          "virtualBytes": 22451,
+          "fileBytes": 22528
+        }
+      ],
+      "afterSections": [
+        {
+          "name": ".text",
+          "virtualBytes": 1332795,
+          "fileBytes": 1333248
+        },
+        {
+          "name": ".rdata",
+          "virtualBytes": 478054,
+          "fileBytes": 478208
+        },
+        {
+          "name": ".data",
+          "virtualBytes": 16236,
+          "fileBytes": 15360
+        },
+        {
+          "name": ".pdata",
+          "virtualBytes": 42744,
+          "fileBytes": 43008
+        },
+        {
+          "name": ".rsrc",
+          "virtualBytes": 480,
+          "fileBytes": 512
+        },
+        {
+          "name": ".reloc",
+          "virtualBytes": 7056,
+          "fileBytes": 7168
+        }
+      ]
+    },
+    {
+      "path": "DxUi.EmbeddedTests.exe",
+      "beforeBytes": 6358016,
+      "afterBytes": 4251136,
+      "changePercent": -33.137381,
+      "baselineSha256": "C3C3375EB572A747735B1D6E3AF7D1590E5712081ABA527656812A70B1D977DF",
+      "candidateSha256": "C2D0CA09C3BBC7F34DF3561C49453B8492A3EE4BBC7E6F332963D4326481402B",
+      "beforeSections": [
+        {
+          "name": ".text",
+          "virtualBytes": 4715109,
+          "fileBytes": 4715520
+        },
+        {
+          "name": ".rdata",
+          "virtualBytes": 1352556,
+          "fileBytes": 1352704
+        },
+        {
+          "name": ".data",
+          "virtualBytes": 68609,
+          "fileBytes": 67072
+        },
+        {
+          "name": ".pdata",
+          "virtualBytes": 151656,
+          "fileBytes": 152064
+        },
+        {
+          "name": ".idata",
+          "virtualBytes": 30032,
+          "fileBytes": 30208
+        },
+        {
+          "name": "minATL",
+          "virtualBytes": 809,
+          "fileBytes": 1024
+        },
+        {
+          "name": ".tls",
+          "virtualBytes": 1652,
+          "fileBytes": 2048
+        },
+        {
+          "name": ".00cfg",
+          "virtualBytes": 373,
+          "fileBytes": 512
+        },
+        {
+          "name": ".rsrc",
+          "virtualBytes": 1084,
+          "fileBytes": 1536
+        },
+        {
+          "name": ".reloc",
+          "virtualBytes": 34302,
+          "fileBytes": 34304
+        }
+      ],
+      "afterSections": [
+        {
+          "name": ".text",
+          "virtualBytes": 3133499,
+          "fileBytes": 3133952
+        },
+        {
+          "name": ".rdata",
+          "virtualBytes": 970572,
+          "fileBytes": 970752
+        },
+        {
+          "name": ".data",
+          "virtualBytes": 52716,
+          "fileBytes": 51712
+        },
+        {
+          "name": ".pdata",
+          "virtualBytes": 77568,
+          "fileBytes": 77824
+        },
+        {
+          "name": ".rsrc",
+          "virtualBytes": 480,
+          "fileBytes": 512
+        },
+        {
+          "name": ".reloc",
+          "virtualBytes": 15096,
+          "fileBytes": 15360
+        }
+      ]
+    },
+    {
+      "path": "DxUi.FoundationTests.exe",
+      "beforeBytes": 4204032,
+      "afterBytes": 578560,
+      "changePercent": -86.237973,
+      "baselineSha256": "E82AD145E2E0151DD1EDF7936185941B7E1D0B82F7C0564E2137E45A1CA3B7E5",
+      "candidateSha256": "2CE423D93F872EF2C3AAC78F2CC20F4708194B2439CBE963FF93966A15FB359A",
+      "beforeSections": [
+        {
+          "name": ".text",
+          "virtualBytes": 3201711,
+          "fileBytes": 3202048
+        },
+        {
+          "name": ".rdata",
+          "virtualBytes": 811732,
+          "fileBytes": 812032
+        },
+        {
+          "name": ".data",
+          "virtualBytes": 29883,
+          "fileBytes": 28160
+        },
+        {
+          "name": ".pdata",
+          "virtualBytes": 115848,
+          "fileBytes": 116224
+        },
+        {
+          "name": ".idata",
+          "virtualBytes": 17571,
+          "fileBytes": 17920
+        },
+        {
+          "name": ".tls",
+          "virtualBytes": 1533,
+          "fileBytes": 1536
+        },
+        {
+          "name": "minATL",
+          "virtualBytes": 809,
+          "fileBytes": 1024
+        },
+        {
+          "name": ".00cfg",
+          "virtualBytes": 373,
+          "fileBytes": 512
+        },
+        {
+          "name": ".rsrc",
+          "virtualBytes": 1084,
+          "fileBytes": 1536
+        },
+        {
+          "name": ".reloc",
+          "virtualBytes": 21553,
+          "fileBytes": 22016
+        }
+      ],
+      "afterSections": [
+        {
+          "name": ".text",
+          "virtualBytes": 333883,
+          "fileBytes": 334336
+        },
+        {
+          "name": ".rdata",
+          "virtualBytes": 217938,
+          "fileBytes": 218112
+        },
+        {
+          "name": ".data",
+          "virtualBytes": 10044,
+          "fileBytes": 9728
+        },
+        {
+          "name": ".pdata",
+          "virtualBytes": 13428,
+          "fileBytes": 13824
+        },
+        {
+          "name": ".rsrc",
+          "virtualBytes": 480,
+          "fileBytes": 512
+        },
+        {
+          "name": ".reloc",
+          "virtualBytes": 744,
+          "fileBytes": 1024
+        }
+      ]
+    },
+    {
+      "path": "DxUi.InteractiveLease.exe",
+      "beforeBytes": 952832,
+      "afterBytes": 431104,
+      "changePercent": -54.755508,
+      "baselineSha256": "2F99136D170DFDC5369B8CE502692DF4B078420ED185066F57AEC04AEE6A7446",
+      "candidateSha256": "C451462F2B235EC10893669D62E96CA12F07EFD917ED3213C582B767E9265FA9",
+      "beforeSections": [
+        {
+          "name": ".text",
+          "virtualBytes": 631105,
+          "fileBytes": 631296
+        },
+        {
+          "name": ".rdata",
+          "virtualBytes": 266024,
+          "fileBytes": 266240
+        },
+        {
+          "name": ".data",
+          "virtualBytes": 5353,
+          "fileBytes": 4608
+        },
+        {
+          "name": ".pdata",
+          "virtualBytes": 24024,
+          "fileBytes": 24064
+        },
+        {
+          "name": ".idata",
+          "virtualBytes": 18871,
+          "fileBytes": 18944
+        },
+        {
+          "name": ".tls",
+          "virtualBytes": 777,
+          "fileBytes": 1024
+        },
+        {
+          "name": ".00cfg",
+          "virtualBytes": 373,
+          "fileBytes": 512
+        },
+        {
+          "name": ".rsrc",
+          "virtualBytes": 1392,
+          "fileBytes": 1536
+        },
+        {
+          "name": ".reloc",
+          "virtualBytes": 3300,
+          "fileBytes": 3584
+        }
+      ],
+      "afterSections": [
+        {
+          "name": ".text",
+          "virtualBytes": 213355,
+          "fileBytes": 213504
+        },
+        {
+          "name": ".rdata",
+          "virtualBytes": 202520,
+          "fileBytes": 202752
+        },
+        {
+          "name": ".data",
+          "virtualBytes": 3576,
+          "fileBytes": 3584
+        },
+        {
+          "name": ".pdata",
+          "virtualBytes": 8292,
+          "fileBytes": 8704
+        },
+        {
+          "name": ".rsrc",
+          "virtualBytes": 736,
+          "fileBytes": 1024
+        },
+        {
+          "name": ".reloc",
+          "virtualBytes": 480,
+          "fileBytes": 512
+        }
+      ]
+    },
+    {
+      "path": "DxUi.lib",
+      "beforeBytes": 55391170,
+      "afterBytes": 183461828,
+      "changePercent": 231.211325,
+      "baselineSha256": "3416A3CD7EAC19F5B574AE30F6077718BECD10A2156944735F0F5BE31E9FF563",
+      "candidateSha256": "6D4AEFD51E0200E1ACA74EE4D90303EE814E01F8D922B21AAD7D0359A42EA8FC",
+      "beforeSections": null,
+      "afterSections": null
+    }
+  ]
+}
