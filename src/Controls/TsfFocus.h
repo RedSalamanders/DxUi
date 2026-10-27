@@ -39,12 +39,12 @@ void RestoreThreadManagerFocusAssociation(
     wil::com_ptr_nothrow<ITfDocumentMgr> replacedAssociation;
     if (FAILED(threadMgr->AssociateFocus(hwnd, previousAssociation, replacedAssociation.put())) || ! preserveExternalFocus || ! isCurrent())
         return;
-    // Updating the association of the focused HWND can synchronously select that association.
+    // Updating the association of the focused HWND can synchronously select that association or clear focus.
     // Restore a different document only if no newer host transition or different document won in its callback.
     wil::com_ptr_nothrow<ITfDocumentMgr> focusAfter;
     if (FAILED(threadMgr->GetFocus(focusAfter.put())) || ! isCurrent())
         return;
-    if (previousAssociation ? HasSameComIdentity(focusAfter.get(), previousAssociation) : ! focusAfter)
+    if (! focusAfter || HasSameComIdentity(focusAfter.get(), previousAssociation))
         static_cast<void>(threadMgr->SetFocus(focusBefore.get()));
 }
 } // namespace DxUi::Internal

@@ -2039,8 +2039,9 @@ void ControlHost::SetFocusControl(Control* control, bool transferNativeFocus) no
     {
         ActivateTextInput(_focusedControl, transferNativeFocus);
     }
-    else if (transferNativeFocus && _hwnd && _focusedControl && GetFocus() != _hwnd)
+    else if (transferNativeFocus && _hwnd && _focusedControl && IsWindowVisible(_hwnd) && _widthPx != 0u && _heightPx != 0u && GetFocus() != _hwnd)
     {
+        // Hidden and suspended hosts keep logical focus without activating their HWND.
         SetFocus(_hwnd);
     }
     if (! isCurrentRequest())

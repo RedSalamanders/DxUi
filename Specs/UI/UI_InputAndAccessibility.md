@@ -252,6 +252,10 @@ visibility, disabled and read-only transitions. AltGr text remains accepted.
 
 Native focus transfer can synchronously re-enter activation through `WM_SETFOCUS`. A failed or superseded outer
 request may retire only its own session generation, including when the newer session uses the same retained editor.
+For a changed non-text logical target, native focus transfer requires a visible attached HWND and positive host
+client width and height. A hidden or zero-size host retains logical focus and its notifications without moving
+keyboard focus, foreground ownership or the active window. Explicit logical-only requests retain their existing
+behavior. This guard does not change the same-logical-target early-return path.
 Each accepted explicit logical focus request supersedes an older request. A rejected request for an unrelated
 ineligible target MUST NOT advance the focus-request revision or disturb healthy current focus; a rejected request
 for the current owner MUST still prune stale retained focus and native text-input state before returning.
@@ -745,7 +749,11 @@ is bound to the host's dispatch cookie, so callbacks from a retired same-control
 composition metadata owned by its replacement. Once activation commits, one bounded posted reconciliation reports
 text, selection and layout changes made by synchronous TSF callbacks; a combined text/layout change emits one layout
 notification. Deactivation and activation-failure cleanup clear thread-manager focus only when it still names the
-document being retired. Process-exit detach abandons borrowed observers before native teardown; a synchronous TSF
+document being retired. Restoring the HWND association may leave thread-manager focus empty even when the previous
+association is non-null. While the same transition remains current, restore the independently focused document
+retained before that operation if focus is now empty or names the restored association. Never overwrite a different
+non-null document or a newer transition, and never infer restoration after a failed focus read or association change.
+Process-exit detach abandons borrowed observers before native teardown; a synchronous TSF
 pop callback cannot restore focus or reactivate the editor, and the retained root and native text cache are cleared.
 
 Changing a field to read-only or masked cancels its pending native preview while preserving the current policy.

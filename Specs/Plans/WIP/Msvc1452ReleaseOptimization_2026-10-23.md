@@ -184,3 +184,42 @@ The canonical ProgressBar now has explicit animation pause state, independent of
 The approved integration combines current main with the retained MSVC 14.52 work, preserving newer callback guards and the pause API. Qualification of this combined source is recorded separately from earlier branch receipts. Historical passes and remaining native, interactive, performance and release gates are retained; the merge does not close them automatically.
 
 On 2026-10-27 the user explicitly authorized local validation followed by merge, deferring hosted CI and native ARM64 execution. RedPrism/RedTilde hosted jobs were refused for GitHub billing/spending restrictions; RedXe/DxUi hosted provisioning failed before qualification. Local checks do not convert these results into CI passes. Native ARM64, interactive/manual, paired-performance and release gates remain open.
+
+## Post-merge native focus lifecycle followup (2026-10-27)
+
+Main `e3447765`, run 40509208565, failed the x64 Debug Full TSF foreign-document assertion while five other native
+profiles and all eight required consumer steps passed. Its failed ZIP and 82 payload streams remain separately
+replayed. Later main `5d983536`, run 40528944780, completed successfully according to final provider metadata;
+that passing repeat does not attribute the original failure or qualify the new source below.
+
+An independent nonforeground control at private source `375b4939` exposed a real shared-helper contract gap:
+restoring a non-null previous association could leave focus empty and lose a retained independent document.
+The original negative and eight safety outcomes remain retained. Minimal source `21cda758` then passed twelve
+Foundation controls, including 64 alternating replacement/retirement cycles with balanced references, the original
+three focused NativeTextInput cases and all 172 NativeTextInput cases in x64 Debug. These are actual prior-source
+results, not qualification of this combined public source. Diagnostic public getters are excluded.
+
+Separate unchanged-runtime producers `0a9b20f2` and `cde6d909` each demonstrated four valid unexpected native-focus
+transfers: Button/Tree on hidden nonzero and visible zero-height hosts. All four visible transfer/logical-only
+controls passed. Two zero-width rows in each producer failed fixture setup (actual widths 120 and 32); no width
+before-run claim is made. Both failed runs, exact source/profile files, seven/eight completion streams and lease
+restoration were byte/hash-bound and retained privately. The second approved countdown was manually started;
+foreground/focus were unchanged and the pointer was restored. Earlier capacity-stop and compile failures remain.
+
+Two tiny hidden Win32 probes compared default sizing, minimum-track override, `SWP_NOSENDCHANGING` and scoped
+position restoration: twelve rows each, including the actual activating fixture's extended style, reached exact
+zero-width/zero-height with the no-send flag while foreground, focus and active window stayed unchanged. This
+proves fixture geometry only. The final fixture uses that flag and removes the unsuccessful hook entirely.
+
+The combined public source starts from `5d983536`, includes the bounded TSF helper repair and adds only the
+non-text native-transfer visibility/positive-size guard. Same-target handling, callback revisions, public ABI,
+physical-input assertions, deadlines and performance rules remain unchanged. Durable rules belong to the
+[input contract](../../UI/UI_InputAndAccessibility.md). No control appearance or gallery pixels change; gallery
+regeneration is unnecessary. Consumer pins remain unchanged, and policy/noise/judge/manual/platform holds remain.
+
+- [x] Preserve the original main failure and independently demonstrate the TSF helper contract gap.
+- [x] Retain exact-source local helper qualification and the two valid hidden/zero-height controlled negatives.
+- [x] Verify the final zero-size HWND fixture independently without focus requests or an SDK rebuild.
+- [ ] Qualify the combined fixed source with actual ten-row and full NativeTextInput receipts under the approved lease.
+- [ ] Pass final source validators/formatting and publish the focused source for six-profile hosted qualification.
+- [ ] Independently replay final native/provider/consumer evidence before merge; keep all other acceptance holds separate.

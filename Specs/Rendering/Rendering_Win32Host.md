@@ -10,6 +10,8 @@ The WindowHost adapter owns HWND integration and its own swap-chain presentation
 It uses the same retained control implementation as embedded mode, with a separate scheduling/presentation adapter.
 Device loss, resize, zero-size suspension, DPI, focus and teardown have explicit contracts and regression tests.
 Its message/timer/animation resources stop or quiesce when hidden and are destroyed by their owning runtime.
+Changing non-text logical focus on a hidden or zero-size host never activates its HWND; visible, positively sized
+hosts retain the requested native-transfer policy. See the [input contract](../UI/UI_InputAndAccessibility.md).
 
 A control Tick result requests continued scheduling, independently of pixel invalidation. The native animation
 dispatcher does not invalidate the window merely because a control needs another tick. Controls explicitly
