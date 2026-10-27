@@ -2,9 +2,9 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
-- **ACTIVE**: [Source ink renderer qualification](SourceInkRendererQualification_2026-10-27.md). Integrated renderer candidate has focused raster evidence but no full SDK qualification or adoption; descriptive paired study is inconclusive and consumer/parent holds remain separate.
+- **ACTIVE**: [Source ink renderer qualification](SourceInkRendererQualification_2026-10-27.md). Renderer merged through PR #116 with all six source-bound native profiles passing. The actual-base paired study has zero regression rows but an unqualified policy and unstable controls; consumer performance, hosted RedTilde and physical/platform holds remain separate.
 
-- **ACTIVE**: [Complete Update-stage metric accounting](FrameUpdateAccounting_2026-10-26.md). PR #112 hosted CI passes all six native profiles at source `8199566d635751a20a6e916e73410fb6cad317cc` / merge `47fe389680a6c224ce2b76cc1e5c0af0c414a11f` (1,293 independent root checks); FrameUpdate source/tests match Main checkpoint `aebeb73cd448fbb00e1439d1a3c1baf4af1c82e9`. The earlier PR109 Release Menu-fixture failure remains historical. Final local/current-source qualification and performance acceptance remain open; earlier SDK407 diagnostics retain their incomplete Update-field boundary.
+- **ACTIVE**: [Complete Update-stage metric accounting](FrameUpdateAccounting_2026-10-26.md). PR #112 and combined SDK702 pass all six hosted native profiles; FrameUpdate source/tests remain byte-identical to the AEB checkpoint. The earlier PR109 Release Menu-fixture failure remains historical and unattributed. Performance acceptance remains open; earlier SDK407 diagnostics retain their incomplete Update-field boundary.
 
 - **ACTIVE**: [Read-only Source snapshot synchronization](ReadOnlySourceSnapshot_2026-10-26.md). API revision 4 is merged as `3bcf7ed9` with tree `18be6688`; the plan records exact-source local builds/Full suites and authorized foreground results, and the public CI packet records six hosted native profiles. Paired performance remains inconclusive because the base policy is unqualified and 62/72 controls are unstable. PR #108 Menu and lease-restoration failures remain separate; consumer performance, platform and physical-input gates stay open. No performance gain is claimed.
 

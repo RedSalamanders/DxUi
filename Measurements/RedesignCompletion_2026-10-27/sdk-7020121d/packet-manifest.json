@@ -1,0 +1,87 @@
+{
+  "schema": "dxui-measurement-packet-manifest-v1",
+  "packet": "sdk-7020121d",
+  "classification": "reviewed-evidence-projection",
+  "createdUtc": "2026-10-27T05:58:53.888017+00:00",
+  "measuredHead": "7020121dce2fc36d6c3b1219a17ea2d20e5a6983",
+  "measuredTree": "f7f484f624550beb653d157434431ca78bee2475",
+  "mergedCommit": "6382b30646211be825c0275672b4986e65dc2ceb",
+  "mergedTreeMatchesMeasured": true,
+  "workflowRunUrl": "https://github.com/RedSalamanders/DxUi/actions/runs/40445154828",
+  "acceptanceEstablished": false,
+  "textEncoding": "UTF-8 without BOM",
+  "lineEndings": "LF",
+  "manifestSelfExcluded": true,
+  "files": [
+    {
+      "path": ".gitattributes",
+      "bytes": 8,
+      "sha256": "705fd4d6451a31d36b3df7de96f83f30ac976c9b4a6d1e51671d8e2f33e2d0da"
+    },
+    {
+      "path": "README.md",
+      "bytes": 3973,
+      "sha256": "a10feab335dc261b80f426631887071a10b67c0203a6c5e223163e1fce86ab8f"
+    },
+    {
+      "path": "evidence-summary.json",
+      "bytes": 13495,
+      "sha256": "656a4513c8f2f5ab2effb6fb445fffdb37145ed71ac08810f7b672b20911777e"
+    },
+    {
+      "path": "local-debug-menu.json",
+      "bytes": 6129,
+      "sha256": "04f2256aa984228338974685e8c27685d181dbb6f1a1f4c9f4630f7e58e2efaf"
+    },
+    {
+      "path": "metric-results.json",
+      "bytes": 87241,
+      "sha256": "763222ba91469a17e5d2124c4f5342be22e2afca89670d6ff6726f4099d863a8"
+    },
+    {
+      "path": "native-archive-index.json",
+      "bytes": 7630,
+      "sha256": "404220c823e7b6d169212758749e9c86243bed0b0fe90bc6eee9dac664d3c8fd"
+    }
+  ],
+  "stagingManifestSha256": "ff864136ebef9b7bcbc35340cf6c89c2771ddac5b35770f7bb0381d3b7f2f75c",
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-sourceink-native-paired-archive-v1",
+  "fixtureIdentityScope": "Composite archive-projection identifier; this JSON is not a new native runtime receipt. Reported benchmark fixtures are preserved separately.",
+  "benchmarkInputs": {
+    "performance.ps1": "52C863186486B235914D5558A982DDBE9C1D72EFB29D41C68A474E604B19AB0F",
+    "performance-paired.ps1": "AE1694EC9DE45E1BDB3CA6AF9F6F6132CAFB93593B9BA2287903B0DE22324224",
+    "Tools/Compare-Performance.ps1": "A00BCEEF3722DEB15ACABC1F5FB2598DFA1CE662934BAADB16EEB3E741A07178",
+    "Tools/PerformanceComparison.psm1": "FD701DF248BC621D9942F47DF12EF02FE0D929D07290B18128EA644C848A8CAE",
+    "Tools/PairedRun.psm1": "B72612A3D39717A40D64D6FB5A7EDB3B3B6768D768179B8EF44DB41476B7834F",
+    "Tools/PerformancePolicy.psm1": "A0C774FFBF8422307D3D0138A33CBC08B958428186DE846B87EACCBCDE7F0E01",
+    "Tools/PerformanceAcceptancePolicy.v1.json": "A80D2BCE198E4EEC3405024C2959BD13058605921EE9E0B935A5D3350E77E8D2",
+    "Tools/BenchmarkGate.psm1": "3FB19284BC1CD7F84BDD27368F58748007DCFE6FD04CE1A8A2DC49925DD8F915",
+    "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+    "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+    "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
+    "build.ps1": "357DCCEFD0839BAC6ACFC8833A2C80B0493577AB599D673B1320FB773EB0F2A5",
+    "Tools/ScopedTesting.psm1": "BD8BDAE656BF08317AA6D40EEFCC7B8F921E72217F77CCAC5532DA73EA7D805E",
+    "Tools/Validation.psm1": "15C7EF95430C293400859446CD51E2202BBE5D0AB1AC506B8539CE1DE983E756",
+    "Tools/Changelog.psm1": "05E987CF29BFB8AEDBDA5F77FEBA56D0145F733CCC8C577F0FCC96E1E877DCC3",
+    "Tools/Modules/Documentation/Changelog.psm1": "3E90FEC9835C8DF3669DA0395A76065CC933F4DBD1910C5BFB05B9700390DF1D",
+    "Tests/Embedded/DxUi.EmbeddedTests.vcxproj": "FBBCBA65D43AB27CB63DD762223355D2B335C314922846FDC3F6BA0E9E1F4927",
+    "source-702-git-blob/Tests/Controls/DxUi.Tests.Menu.cpp": "abc6e238b79c65fcb4f940bfbad8da6beb836d6fa5c4eee8b9af9856dd8738d2",
+    "source-702-git-blob/Tests/Controls/DxUi.Tests.Controls.cpp": "15c10ce555db15ac0e4e3b96aeb6383d201671fb4a3ddd0a99b3766102f1aed4",
+    "source-702-git-blob/Tests/Controls/Controls.Tests.MenuPopupReadiness.cpp": "39fec00ba68ea36e1ac0d7e5f63eb44a264e07ddbced84b4c2eb982bc5da7771",
+    "source-702-git-blob/Tests/Controls/Controls.Tests.MenuPopupReadiness.h": "1475abd706fad4e1e4dd7850602337ddbc86c3cfb486970ca2ac91be66d8dd4d",
+    "source-702-git-blob/Tests/Controls/DxUi.Tests.Rendering.cpp": "510a16d06d376948dc08e1fb03fadff28d7f525b09c8855197cbaae15012e9b6",
+    "source-702-git-blob/Tests/test-scopes.json": "252e98a86b582a2a6549be76b66f65fda6d240f8843e225dd3b253a34db7e845",
+    "source-702-git-blob/Tools/InteractiveRun.psm1": "55510a74158a1d6cd523bdbd66ec7df1073456e7992fbb5835a909992c00215c"
+  },
+  "inputHashScope": "Producer-recorded 20-entry paired harness map; source-702-git-blob entries additionally identify actual native/Menu source bytes at the measured head. This is not a complete compiler/dependency closure.",
+  "nativeFixtures": {
+    "Default": "dxui-complex-ui-v2",
+    "MultilineGrid": "dxui-complex-ui-multiline-grid-v1",
+    "MultilineGridDistinct": "dxui-complex-ui-multiline-grid-distinct-v1"
+  },
+  "previousPacketManifestSha256": "76ddde58fb80035ed6e3d023ab3b517836d5be8cfb142515c80527c283d5532e"
+}
