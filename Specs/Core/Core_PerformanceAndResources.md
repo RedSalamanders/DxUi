@@ -980,3 +980,5 @@ failing setter, and restore canonical state before returning or propagating the
 failure. Preserve ordered underline application and restoration for overlapping
 admitted style runs. This optimization retains no additional layout or brush;
 pixel/geometry/copy regressions and measured CPU/memory evidence remain separate.
+
+A paused ProgressBar contributes no animation continuation and keeps its current indeterminate phase. Pausing and resuming use one retained boolean and reset the tick seed; elapsed paused time is not replayed as catch-up work. A host may continue animation for other controls. Regression coverage must observe idle pause, active-to-paused phase preservation and resume without a phase jump, with enabled/indeterminate state unchanged.

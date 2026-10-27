@@ -1,0 +1,19 @@
+# DxUi local compiler-policy qualification
+
+Status: local native repair matrix passed; cross-repository closeout remains ACTIVE. MSVC 14.52.37025 is selected and Release enables /Gy /GL /OPT:REF and full /LTCG. The original optimizer-only study changed no native source; the subsequent selection repair changes Grid/accessibility code and its regression tests.
+
+All six builds passed. All 19 ordinary suites and all four foreground suites passed in x64 Debug, Release and ASan Debug. Release used the explicitly approved 30-second automatic-start countdown. Desktop restoration passed. Original failed/unstarted attempts remain preserved.
+
+Final read-only checks passed: fold-check, validate, format. Their exact commands, times and logs are retained in E:/DxUi.Perf/reports/Msvc1452ReleaseOptimization_2026-10-23/FinalChecks/. Folded changelogs remain current. Validation does not erase an earlier failed runtime receipt.
+
+The final [reviewed runtime study](runtime-20261023T195355-01ba0c3c1eae458ca8fa736046765fe8-reviewed.md) retains 50 actual native processes. Collection harness and frozen closure hashes were verified, with zero observed concurrent compiler/test-coordinator samples. Independent verification checked raw native metrics, receipts, ABBA/BAAB order, medians, paired ratios, exact sign-flip probabilities and corrected Holm adjustment. No reliable runtime improvement/regression or non-regression guarantee is established; instability and nonsignificant rows retain those interpretations.
+
+Original statistics are retained as superseded: an integer Math.Min overload rounded Holm probabilities. Only double-holm-v2 results are reviewed. The [method source package](study-method-sources.zip) includes the unchanged collection sources, corrected analyzer, exact nonzero-probability controls and independent verifier. [Build duration observations](BuildDurations.md) are descriptive and do not establish a build-speed effect.
+
+Native ARM64 execution is unavailable on this x64 host. Actual GitHub-hosted 14.52 download/install provisioning remains pending; local verification and refusal controls passed. The user explicitly limited this task to local x64 tests and ARM64 cross-builds. Native ARM64 runtime and hosted provisioning remain separate handoff gates; outstanding local repair/performance and cross-repository obligations keep the coordinating plan ACTIVE.
+
+The consolidated settings, exact binary bytes, performance rows and cross-repository status are retained externally at E:/DxUi.Perf/reports/Msvc1452ReleaseOptimization_2026-10-23/CrossRepository.md. This owner folder retains only its own application/library results. Historical build/test receipts remain evidence of executed runs; recovered intermediate caches do not provide a current SkipBuild attestation.
+
+Repaired-source evidence is retained under E:/DxUi.Perf/failure-remediation/: Debug-Full-native-result.json, Debug-Interactive-result.json, v2-matrix/build-steps.json and v2-x64-tests/test-steps.json. The failed ASan interactive disk-full attempt is preserved separately from ASanDebug-interactive-storage-retry-result.json, which passed at 2026-10-24T00:04:46Z. All 23 native suites passed in all three x64 profiles; all three ARM64 cross-builds passed. No native ARM64 runtime claim is made.
+
+The separate post-remediation frozen manifests bind the repaired native source and unchanged benchmark fixture. The embedded sample remains 1,878,528 bytes; DxUi.lib is 183,465,694 bytes versus 183,461,828 in the retained optimized candidate. Paired repair-impact performance remains pending; the historical optimizer-only study above is not relabeled as repaired-source evidence.

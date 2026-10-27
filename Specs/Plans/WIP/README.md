@@ -2,6 +2,8 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
+- **ACTIVE**: [MSVC 14.52 and Release optimization](Msvc1452ReleaseOptimization_2026-10-23.md). Five-repository compiler/linker audit, explicit Release function elimination and full LTCG, matching pinned-archive policy, and measured before/after qualification.
+
 - **ACTIVE**: [Source ink renderer qualification](SourceInkRendererQualification_2026-10-27.md). Integrated renderer candidate has focused raster evidence but no full SDK qualification or adoption; descriptive paired study is inconclusive and consumer/parent holds remain separate.
 
 - **ACTIVE**: [Complete Update-stage metric accounting](FrameUpdateAccounting_2026-10-26.md). PR #112 hosted CI passes all six native profiles at source `8199566d635751a20a6e916e73410fb6cad317cc` / merge `47fe389680a6c224ce2b76cc1e5c0af0c414a11f` (1,293 independent root checks); FrameUpdate source/tests match Main checkpoint `aebeb73cd448fbb00e1439d1a3c1baf4af1c82e9`. The earlier PR109 Release Menu-fixture failure remains historical. Final local/current-source qualification and performance acceptance remain open; earlier SDK407 diagnostics retain their incomplete Update-field boundary.

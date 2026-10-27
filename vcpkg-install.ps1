@@ -60,6 +60,11 @@ if ([string]::IsNullOrWhiteSpace($repository) -or $commit -notmatch '^[0-9a-fA-F
 # broken installation fails at once and every triplet below is pinned to what MSBuild uses.
 $installation = Get-DxUiVisualStudioInstallation
 $toolset = Get-DxUiDefaultToolset -Installation $installation
+[xml]$toolchainPolicy = Get-Content -LiteralPath (Join-Path $repoRoot 'Directory.Build.props') -Raw
+$requiredTools = $toolchainPolicy.SelectSingleNode('/Project/PropertyGroup/RequiredMsvcToolsVersion').InnerText
+if ($toolset.MajorMinor -cne $requiredTools) {
+    throw "DxUi requires MSVC $requiredTools.x; the selected Visual Studio default is $($toolset.Version). Install and select the required C++ tools before restoring dependencies."
+}
 Write-Host "Visual Studio: $installation" -ForegroundColor Cyan
 Write-Host "MSVC toolset:  $($toolset.Version), the default MSBuild compiles with; vcpkg is pinned to $($toolset.MajorMinor)" -ForegroundColor Cyan
 

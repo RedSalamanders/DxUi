@@ -478,11 +478,12 @@ the same DIP radius, selected radius and gap constants.
 
 `ProgressBar` paints a determinate fill, two segmented values or an indeterminate segment. The track is 2 DIP, or
 4 DIP while indeterminate, unless `SetTrackHeightDip` sets a height. The indeterminate segment is 40% of the track.
-With motion it sweeps from before the track to past its end every 2,000 ms. An enabled, visible bar requests host
+With motion it sweeps from before the track to past its end every 2,000 ms. An enabled, visible, unpaused bar requests host
 ticks, and each tick advances the sweep by the elapsed time and invalidates the host. A long gap advances only by its
 remainder of a loop. A tick time earlier than the previous one re-seeds the timing without moving the segment. Under
 reduced motion the segment rests centered, from 30% to 70% of the track: the bar requests no ticks, `Tick` reports
-false and every paint is identical. Restoring motion resumes the sweep at the next paint.
+false and every paint is identical. Restoring motion resumes the sweep at the next paint when animation is unpaused.
+`SetAnimationPaused(true)` freezes the current indeterminate phase and requests no further animation ticks from the bar. `Tick` returns false while paused. Pause preserves the value, enabled state and indeterminate semantics. `SetAnimationPaused(false)` wakes an attached, enabled, visible indeterminate bar when motion is allowed; its first tick re-seeds the clock without adding the interval spent paused. Reduced motion retains its centered resting segment. Animation is unpaused by default. Consumers retain ownership of paused-status captions and scheduling of unrelated controls.
 Value, minimum and maximum changes also mark native accessibility publication dirty, so subscribed range
 properties and the next owner query reflect the current bounds without another unrelated mutation.
 
