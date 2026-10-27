@@ -96,6 +96,25 @@ borrowed diagnostic sink; records retain phase names, relative times and query o
 identities. Capturing a possible failure path does not attribute an earlier untraced occurrence.
 Dismissal records distinguish popup activation/cancellation, asynchronous capture loss, outside pointer input,
 and Escape/Alt/Tab/F10. Preserve those cause tags in the same bounded test trace without changing either guard.
+Interactive Menu fixtures that align the physical pointer call `SetCursorPos` once and fail immediately if it is
+refused or the immediate `GetPhysicalCursorPos` read fails. A readable but stale position may converge through
+read-only `GetPhysicalCursorPos` polls at 5 ms intervals. Readiness requires two consecutive exact observations,
+separated by one poll; any mismatch resets the streak. No poll may begin at or after the observed 100 ms deadline
+or after 20 polls; never repeat the warp or accept a nearby point. The observed deadline does not bound time spent
+inside an OS call or scheduler delay, and an exact set/read completing at or after it is refused. Require both the
+helper's timely two-sample exact physical target and the existing independent caller readback. Preserve
+the last confirmed position separately from an accepted pending target so restoration never treats a stale read
+as a successful alignment; restore only when the current point still matches a position owned by the fixture.
+Retain bounded initial/final readback, poll-count and elapsed-time diagnostics. This synchronization does not
+identify which host or desktop action delayed or changed a cursor position.
+
+Native-menu dismissal fixtures verify actual focus on the menu-bar host after `FocusFirstItem()` and before
+starting a popup-discovery driver. The driver uses one 5 s deadline for visible-popup discovery and the existing
+modal-dispatch readiness signal, and requires the dismissal-key post itself to succeed after both are ready. Keep
+the existing 800 ms
+focus and popup-destruction checks; the 900 ms and 180 ms hover guards are separate. Record bounded foreground,
+active-window, focus, capture, popup-discovery and menu-stage flags through the existing trace, without logging
+window handles. A trace distinguishes observed stages but does not identify an external input writer.
 
 `performance-forms.ps1` runs the fixed `dxui-form-layout-cost-v1` synthetic fixture. Before timing it requires identical
 manual/form leaf state, geometry and captured pixels across five states in two profiles. It reports raw frame and
@@ -980,6 +999,7 @@ Git path discovery and changed-path aggregation MUST preserve exact path identit
 `Test-Changes.ps1` is the ordinary iteration entrypoint. Its default is affected coverage, including committed changes since a local merge base and independent staged, unstaged, deletion, rename-side and untracked discovery. No ref is fetched. Unknown executable inputs widen coverage; prose alone does not require native tests. Explanations name paths, consumers and fallback reasons. Explicit selectors reject unknown scopes. Affected, filtered and environment-reduced coverage MUST NOT be reported as a full repository pass.
 
 Successful whole-scope results are reused only for equal repository content, installed dependency inputs, complete executable/static-library/DLL/PDB output closure, architecture, configuration, scope, runner and environment. Native build and run identities hash the selected platform's installed vcpkg triplet files plus its status, package inventory and ABI metadata; missing dependency metadata fails closed. Build attestation binds compiled source and installed dependencies to those artifacts before `SkipBuild`. Invalid, missing, failed, interrupted or concurrently mutated evidence is never reusable. Force bypasses test-result reuse. Independent tooling receipts are shared across profiles because their execution has no profile argument. Receipt identity is content-based; staging/committing the same source tree does not itself invalidate it.
+PowerShell tooling fixtures that mutate process environment variables MUST restore whether each value was unset, empty or nonempty. A test-generated empty value is a distinct identity input and MUST NOT leak into a later build or SkipBuild gate.
 
 Scoped reuse qualifies the existing attested artifact bytes in the recorded environment. Its environment identity
 includes Visual Studio installation metadata, the default toolset file and graphics-runtime bytes; it does not hash

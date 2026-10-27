@@ -547,6 +547,9 @@ public:
         DPI_AWARENESS windowAwareness = DPI_AWARENESS_INVALID;
         bool threadAwarenessKnown     = false;
         DPI_AWARENESS threadAwareness = DPI_AWARENESS_INVALID;
+        DxUi::Tests::PhysicalCursorAlignmentResult convergence{};
+        DWORD immediateReadbackError = ERROR_SUCCESS;
+        DWORD pollReadbackError      = ERROR_SUCCESS;
     };
 
     explicit ScopedMenuPointerFixture(HWND popup) noexcept : _popup(popup), _previousDpi(SetThreadDpiAwarenessContext(GetWindowDpiAwarenessContext(popup)))
@@ -556,12 +559,12 @@ public:
     ScopedMenuPointerFixture& operator=(const ScopedMenuPointerFixture&) = delete;
     ~ScopedMenuPointerFixture() noexcept
     {
-        if (_cursorAligned)
+        if (_originalCursorKnown && _cursorOwnership.HasOwnedPoint())
         {
             POINT current{};
             // Preserve a person's pointer movement during this interactive test.
             const bool readable = GetPhysicalCursorPos(&current) != FALSE;
-            if (readable && current.x == _alignedCursor.x && current.y == _alignedCursor.y)
+            if (readable && _cursorOwnership.Contains(current))
             {
                 const bool restored = SetPhysicalCursorPos(_originalCursor.x, _originalCursor.y) != FALSE;
                 POINT verified{};
@@ -620,34 +623,70 @@ public:
         SetLastError(ERROR_SUCCESS);
         _alignmentDiagnostics.physicalBeforeKnown = GetPhysicalCursorPos(&_alignmentDiagnostics.physicalBefore) != FALSE;
         _alignmentDiagnostics.physicalBeforeError = _alignmentDiagnostics.physicalBeforeKnown ? ERROR_SUCCESS : GetLastError();
-        if (! _alignmentDiagnostics.physicalBeforeKnown && ! _cursorAligned)
+        if (! _alignmentDiagnostics.physicalBeforeKnown && ! _originalCursorKnown)
+        {
+            _alignmentDiagnostics.convergence.status = DxUi::Tests::PhysicalCursorAlignmentStatus::InitialReadFailed;
             return false;
+        }
 
-        if (! _cursorAligned)
-            _originalCursor = _alignmentDiagnostics.physicalBefore;
+        if (! _originalCursorKnown)
+        {
+            _originalCursor      = _alignmentDiagnostics.physicalBefore;
+            _originalCursorKnown = true;
+        }
 
-        SetLastError(ERROR_SUCCESS);
-        _alignmentDiagnostics.setCursorPosAccepted = SetCursorPos(point.x, point.y) != FALSE;
-        _alignmentDiagnostics.setCursorPosError    = GetLastError(); // Observation only; SetCursorPos documents errors only on failure.
-        if (! _alignmentDiagnostics.setCursorPosAccepted)
+        std::uint32_t readCount = 0u;
+        const auto alignment    = DxUi::Tests::SetCursorPosAndWaitForExactPhysicalPoint(point,
+                                                                                        [&](POINT target) noexcept
+        {
+            SetLastError(ERROR_SUCCESS);
+            _alignmentDiagnostics.setCursorPosAccepted = SetCursorPos(target.x, target.y) != FALSE;
+            _alignmentDiagnostics.setCursorPosError    = GetLastError(); // Observation only; SetCursorPos documents errors only on failure.
+            if (_alignmentDiagnostics.setCursorPosAccepted)
+            {
+                // Track the accepted target separately. A stale immediate readback is not a confirmed alignment.
+                _cursorOwnership.RecordAcceptedTarget(target);
+            }
+            return _alignmentDiagnostics.setCursorPosAccepted;
+        },
+                                                                                     [&](POINT& physicalPoint) noexcept
+        {
+            SetLastError(ERROR_SUCCESS);
+            const bool known  = GetPhysicalCursorPos(&physicalPoint) != FALSE;
+            const DWORD error = known ? ERROR_SUCCESS : GetLastError();
+            if (readCount++ == 0u)
+            {
+                _alignmentDiagnostics.helperReadbackKnown    = known;
+                _alignmentDiagnostics.helperReadback         = physicalPoint;
+                _alignmentDiagnostics.immediateReadbackError = error;
+            }
+            else if (! known)
+            {
+                _alignmentDiagnostics.pollReadbackError = error;
+            }
+            return known;
+        },
+                                                                                     []() noexcept { return std::chrono::steady_clock::now(); },
+                                                                                     [](std::chrono::steady_clock::duration duration) noexcept
+        { std::this_thread::sleep_for(duration); });
+
+        _alignmentDiagnostics.convergence         = alignment;
+        _alignmentDiagnostics.helperReadbackError = _alignmentDiagnostics.immediateReadbackError;
+        if (alignment.status != DxUi::Tests::PhysicalCursorAlignmentStatus::Exact)
+        {
             return false;
+        }
 
-        SetLastError(ERROR_SUCCESS);
-        _alignmentDiagnostics.helperReadbackKnown = GetPhysicalCursorPos(&_alignmentDiagnostics.helperReadback) != FALSE;
-        _alignmentDiagnostics.helperReadbackError = _alignmentDiagnostics.helperReadbackKnown ? ERROR_SUCCESS : GetLastError();
-        if (! _alignmentDiagnostics.helperReadbackKnown)
-            return false;
-
-        _alignedCursor = _alignmentDiagnostics.helperReadback;
-        _cursorAligned = true;
+        _cursorOwnership.RecordExactAlignment(point);
         return true;
     }
 
-    void PrintAlignmentFailure(const char* context, POINT expected, bool callerReadKnown, POINT callerRead) const noexcept
+    void PrintAlignmentDiagnostics(const char* context, POINT expected, bool callerReadKnown, POINT callerRead) const noexcept
     {
         const AlignmentDiagnostics& d = _alignmentDiagnostics;
         std::printf("Menu pointer alignment: context=%s expected=(%ld,%ld) beforeKnown=%d before=(%ld,%ld) beforeError=%lu "
                     "setAccepted=%d setError=%lu helperReadKnown=%d helperRead=(%ld,%ld) helperReadError=%lu "
+                    "convergence=%s finalKnown=%d final=(%ld,%ld) polls=%lu mismatchObserved=%d elapsedUs=%lld pollReadError=%lu "
                     "callerReadKnown=%d callerRead=(%ld,%ld) clipKnown=%d clip=(%ld,%ld,%ld,%ld) clipError=%lu "
                     "windowDpiKnown=%d windowDpi=%u windowDpiError=%lu windowAwarenessKnown=%d windowAwareness=%d "
                     "threadAwarenessKnown=%d threadAwareness=%d\n",
@@ -664,6 +703,14 @@ public:
                     static_cast<long>(d.helperReadback.x),
                     static_cast<long>(d.helperReadback.y),
                     static_cast<unsigned long>(d.helperReadbackError),
+                    DxUi::Tests::PhysicalCursorAlignmentStatusText(d.convergence.status),
+                    static_cast<int>(d.convergence.finalReadbackKnown),
+                    static_cast<long>(d.convergence.finalReadback.x),
+                    static_cast<long>(d.convergence.finalReadback.y),
+                    static_cast<unsigned long>(d.convergence.pollCount),
+                    static_cast<int>(d.convergence.mismatchObserved),
+                    static_cast<long long>(d.convergence.elapsed.count()),
+                    static_cast<unsigned long>(d.pollReadbackError),
                     static_cast<int>(callerReadKnown),
                     static_cast<long>(callerRead.x),
                     static_cast<long>(callerRead.y),
@@ -682,12 +729,20 @@ public:
                     static_cast<int>(d.threadAwareness));
     }
 
+    void PrintDelayedAlignmentDiagnostics(const char* context, POINT expected, bool callerReadKnown, POINT callerRead) const noexcept
+    {
+        if (_alignmentDiagnostics.convergence.pollCount > 1u || _alignmentDiagnostics.convergence.mismatchObserved)
+        {
+            PrintAlignmentDiagnostics(context, expected, callerReadKnown, callerRead);
+        }
+    }
+
 private:
     HWND _popup;
     DPI_AWARENESS_CONTEXT _previousDpi;
     POINT _originalCursor{};
-    POINT _alignedCursor{};
-    bool _cursorAligned = false;
+    bool _originalCursorKnown = false;
+    DxUi::Tests::PhysicalCursorOwnership _cursorOwnership{};
     AlignmentDiagnostics _alignmentDiagnostics{};
 };
 
@@ -707,8 +762,8 @@ private:
     {
         POINT actualScreenPoint{};
         const bool cursorReadable = GetPhysicalCursorPos(&actualScreenPoint) != FALSE;
-        pointerFixture.PrintAlignmentFailure(context, screenPoint, cursorReadable, actualScreenPoint);
-        driverFailure = std::format("{} physical cursor alignment failed at client=({},{}): SetCursorPos or helper readback failed", context, x, y);
+        pointerFixture.PrintAlignmentDiagnostics(context, screenPoint, cursorReadable, actualScreenPoint);
+        driverFailure = std::format("{} physical cursor alignment failed at client=({},{}): exact physical convergence failed", context, x, y);
         return false;
     }
 
@@ -716,7 +771,7 @@ private:
     const bool cursorReadable = GetPhysicalCursorPos(&actualScreenPoint) != FALSE;
     if (! cursorReadable || actualScreenPoint.x != screenPoint.x || actualScreenPoint.y != screenPoint.y)
     {
-        pointerFixture.PrintAlignmentFailure(context, screenPoint, cursorReadable, actualScreenPoint);
+        pointerFixture.PrintAlignmentDiagnostics(context, screenPoint, cursorReadable, actualScreenPoint);
         driverFailure = std::format("{} physical cursor verification failed: expected=({},{}), actual=({},{}), readable={}",
                                     context,
                                     screenPoint.x,
@@ -726,6 +781,7 @@ private:
                                     cursorReadable);
         return false;
     }
+    pointerFixture.PrintDelayedAlignmentDiagnostics(context, screenPoint, true, actualScreenPoint);
     return true;
 }
 
@@ -1973,38 +2029,115 @@ void RunMenuDismissalKeyScenario(UINT message, WPARAM virtualKey, const char* ap
     Require(menuBarHost.Attach(GetModuleHandleW(nullptr), ownerWindow.Hwnd(), menu.get()), "dismissal validation attaches a native menu bar host");
     ownerWindow.PumpMessages();
 
+    const auto trace            = std::make_unique<MenuHoverTraceForTest>(true);
+    const auto recordFocusState = [&](const char* phase) noexcept
+    {
+        const HWND foreground    = GetForegroundWindow();
+        const HWND active        = GetActiveWindow();
+        const HWND focused       = GetFocus();
+        const HWND captured      = GetCapture();
+        const HWND menuBarHwnd   = menuBarHost.GetHwnd();
+        const size_t windowFlags = (IsWindowVisible(ownerWindow.Hwnd()) != FALSE ? 1u : 0u) | (IsIconic(ownerWindow.Hwnd()) != FALSE ? 2u : 0u);
+        const size_t inputFlags = (foreground == ownerWindow.Hwnd() ? 1u : 0u) | (active == ownerWindow.Hwnd() ? 2u : 0u) |
+                                  (focused == focusedChild.get() ? 4u : 0u) | (focused == menuBarHwnd ? 8u : 0u) | (captured == ownerWindow.Hwnd() ? 16u : 0u) |
+                                  (captured == menuBarHwnd ? 32u : 0u);
+        trace->Ui(phase, windowFlags, inputFlags);
+    };
+
     if (! TryActivateDxUiTestWindow(ownerWindow.Hwnd()))
     {
         SkipDxUiTest("DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal");
         return;
     }
+    recordFocusState("dismiss.owner-activated");
     static_cast<void>(SetFocus(focusedChild.get()));
-    Require(WaitForFocusedWindow(focusedChild.get()), "dismissal validation starts with focus on the child control");
+    const bool childFocusReady = WaitForFocusedWindow(focusedChild.get());
+    recordFocusState("dismiss.child-focus-ready");
+    if (! childFocusReady)
+        trace->Dump(true);
+    Require(childFocusReady, "dismissal validation starts with focus on the child control");
+
+    const bool focusedFirstItem = menuBarHost.FocusFirstItem();
+    trace->Ui("dismiss.focus-first-item-returned", focusedFirstItem ? 1u : 0u);
+    recordFocusState("dismiss.focus-first-item");
+    if (! focusedFirstItem)
+        trace->Dump(true);
+    Require(focusedFirstItem, "dismissal validation enters native menu-bar mode");
+
+    const bool menuBarFocusReady = WaitForFocusedWindow(menuBarHost.GetHwnd());
+    recordFocusState("dismiss.menu-bar-focus-ready");
+    if (! menuBarFocusReady)
+        trace->Dump(true);
+    Require(menuBarFocusReady, "dismissal validation observes focus on the native menu-bar host");
+
+    MenuModalDispatchReadinessForTest dispatchReady(ownerWindow.Hwnd());
 
     std::string driverFailure;
     std::thread driver([&]
     {
         const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
-        const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
+        const auto discoveryDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(5000);
+        const auto discoveryStart    = std::chrono::steady_clock::now();
+        if (discoveryStart >= discoveryDeadline)
+        {
+            trace->Driver("dismiss.popup-discovery-deadline-expired");
+            driverFailure = appearExpectation;
+            return;
+        }
+
+        const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(discoveryDeadline - discoveryStart);
+        trace->Driver("dismiss.popup-discovery-begin");
+        const HWND popupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Open", remaining, trace.get());
+        trace->Driver("dismiss.popup-discovery-end", popupHwnd != nullptr ? 1u : 0u);
         if (! popupHwnd)
         {
             driverFailure = appearExpectation;
             return;
         }
 
-        PostMessageW(popupHwnd, message, virtualKey, 0);
+        dispatchReady.NoteDiscovery();
+        trace->Driver("dismiss.modal-dispatch-wait-begin");
+        if (! dispatchReady.WaitUntil(discoveryDeadline))
+        {
+            trace->Driver("dismiss.modal-dispatch-not-ready");
+            driverFailure = "dismissal popup modal dispatch becomes ready within the discovery deadline";
+            return;
+        }
+        trace->Driver("dismiss.modal-dispatch-ready");
+
+        const BOOL posted     = PostMessageW(popupHwnd, message, virtualKey, 0);
+        const DWORD postError = posted != FALSE ? ERROR_SUCCESS : GetLastError();
+        trace->Driver("dismiss.key-post", posted != FALSE ? 1u : 0u, static_cast<size_t>(postError));
+        if (posted == FALSE)
+        {
+            driverFailure = std::format("dismissal key post succeeds (error={})", postError);
+            return;
+        }
+
         if (! WaitForWindowDestroyed(popupHwnd))
         {
+            trace->Driver("dismiss.popup-destroy-timeout");
             driverFailure = dismissExpectation;
+            return;
         }
+        trace->Driver("dismiss.popup-destroyed");
     });
 
-    Require(menuBarHost.FocusFirstItem(), "dismissal validation enters native menu-bar mode");
+    recordFocusState("dismiss.before-down");
     static_cast<void>(SendMessageW(menuBarHost.GetHwnd(), WM_KEYDOWN, VK_DOWN, 0));
+    recordFocusState("dismiss.after-down");
     driver.join();
 
-    Require(driverFailure.empty(), driverFailure.c_str());
-    Require(WaitForFocusedWindow(focusedChild.get()), focusExpectation);
+    const bool driverPassed = driverFailure.empty();
+    if (! driverPassed)
+        trace->Dump(true);
+    Require(driverPassed, driverFailure.c_str());
+
+    const bool childFocusRestored = WaitForFocusedWindow(focusedChild.get());
+    recordFocusState("dismiss.child-focus-restored");
+    if (! childFocusRestored)
+        trace->Dump(true);
+    Require(childFocusRestored, focusExpectation);
 }
 
 void TestSplitButtonContextMenuSentMouseMessagesHoverAndOutsideDismiss()

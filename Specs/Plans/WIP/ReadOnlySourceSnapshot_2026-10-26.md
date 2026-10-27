@@ -95,3 +95,6 @@ fault instrument; its execution and all final native/input/consumer/performance 
 The private compact-icon v4 probe compares 64 cases at four DPIs, LTR/RTL and actual Fluent glyphs. Its clipped
 layout A/A is exact, but all three replacement paths (including the same retained layout without CLIP) differ
 in eight cases, each at 64 edge pixels by one channel level. No production icon/cache/clipping change is adopted.
+### Renderer qualification ownership
+
+The private source-ink renderer experiment and its qualification ledger now live in [Source ink renderer qualification](SourceInkRendererQualification_2026-10-27.md). Source snapshot sharing and parsed-data reuse remain the scope of this plan.

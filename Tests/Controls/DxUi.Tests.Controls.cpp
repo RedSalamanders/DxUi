@@ -3440,6 +3440,7 @@ void TestMutableCallbackCaptureStatePersistsForScrollPanel()
 void RunControlTests()
 {
     DXUI_RUN_TEST(TestMenuPopupDiscoveryRejectsHiddenInitializationWindows);
+    DXUI_RUN_TEST(TestPhysicalCursorReadbackWaitIsBoundedAndExact);
     DXUI_RUN_TEST(TestExtractedRadioDoesNotUseItsFormerGroup);
     RunIntrinsicLayoutTests();
     RunFormLayoutTests();
