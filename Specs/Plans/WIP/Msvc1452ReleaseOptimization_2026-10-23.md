@@ -28,8 +28,8 @@ controls, 249/1872 drifted observations and all-three-scenario dual-judge disagr
 - [ ] Complete independent paired review; retain policy/noise/judge holds separately.
 - [ ] Publish this sealed summary-only packet and domain/WIP closeout in a separately reviewed docs-only PR.
 
-The separate main run 40509208565 is in progress at this snapshot; x64 Debug Full failed NativeTextInput
-foreign-document TSF focus preservation while Menu and consumer checks passed. Cause remains unattributed.
+The separate main run 40509208565 completed with five successful native profiles; x64 Debug Full failed NativeTextInput
+foreign-document TSF focus preservation while Menu and all eight required consumer steps passed. Cause remains unattributed. Final provider metadata records these outcomes; only the failed x64 Debug ZIP and its 82 payload streams were independently replayed for this separate main cohort.
 Push-scoped paired skip is not new qualification.
 
 Broader five-repository performance/manual/release work below remains ACTIVE. No consumer pin changes or performance

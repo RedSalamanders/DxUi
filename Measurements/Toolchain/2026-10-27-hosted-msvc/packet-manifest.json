@@ -168,8 +168,8 @@
     },
     {
       "path": "evidence-summary.json",
-      "bytes": 19592,
-      "sha256": "28a9127f433187025eb65228fc8ab78ef0ce7418b2dcde8d603892926af72e13"
+      "bytes": 23605,
+      "sha256": "b53bf35ec90f92cbd2228f50cb4e624aa5d391cb297c65dfa476c22edbce0907"
     },
     {
       "path": "local-menu-supplement.json",
@@ -198,8 +198,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 5914,
-      "sha256": "45f6f0743f7f523f741f374e0ee4e0b61c5fdc73d83fadd2f496e8c03c2f1ea0"
+      "bytes": 6094,
+      "sha256": "1de47dcfd4302d3ff4879322fb8f457c46da874503d9901dc711ad65b502c71f"
     }
   ],
   "repositoryAcceptanceEstablished": false,

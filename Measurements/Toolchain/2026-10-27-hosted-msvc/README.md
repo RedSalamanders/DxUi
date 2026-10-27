@@ -39,9 +39,9 @@ The observer's 4716 hashed records do not establish a quiet or dedicated host or
 The human merged PR #119 at 2026-10-27T13:06:47Z as `e34477656eeeb679afc36638d59429d3d7be1da2`, with parents
 base `9291e259` and reviewed head `767dffc5`; its tree is exactly the original Actions producer tree above.
 The [separate main run](https://github.com/RedSalamanders/DxUi/actions/runs/40509208565) is not substituted for
-that producer. It is still in progress at this snapshot and its x64 Debug Full failed a NativeTextInput assertion:
+that producer. It completed with five successful native profiles and one x64 Debug Full NativeTextInput failure:
 retiring a host TSF document did not preserve a different document that owned thread-manager focus. That run's Menu
-and consumer checks passed; the cause is unattributed. Its push-scoped paired skip provides no new qualification.
+and all eight required consumer steps passed; the cause is unattributed. Final job/step metadata records those outcomes; only the failed x64 Debug ZIP and its 82 payload streams were independently replayed for this separate main cohort. Its push-scoped paired skip provides no new qualification.
 
 Historical 4a/fcd consumer timeout and 631/0f9 Menu/preflight failures remain separate, with original failed artifacts
 retained. The old ARM Menu causes remain unattributed; current source adds failure-only diagnostics and the passing

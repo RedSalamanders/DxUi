@@ -267,7 +267,134 @@
       "consumer": "passed",
       "cause": "unattributed"
     },
-    "overallStatus": "in_progress at this evidence snapshot",
-    "acceptanceEstablished": false
+    "overallStatus": "completed failure",
+    "acceptanceEstablished": false,
+    "observedAtUtc": "2026-10-27T14:27:58.5923430Z",
+    "metadataByteHashes": {
+      "workflow": "858296233427f5e35f9b0b011341b5a30656a2b96c4ed2dba34713c28aded21b",
+      "jobs": "fe2fab9835a072dcb15a62a49669ce6cc79aa9b75e9bce36b4899b83a796a9e1",
+      "provider": "a561f8099b7ed88254cd7c57ea637628c5fbff21ceca63868978fa5c3916f958"
+    },
+    "nativeJobs": [
+      {
+        "id": 122206453440,
+        "profile": "native (ARM64, windows-11-vs2026-arm, ASan Debug, 165)",
+        "conclusion": "success",
+        "full": [
+          "success"
+        ],
+        "consumers": [
+          {
+            "name": "Qualify the relocated public consumer",
+            "conclusion": "success"
+          },
+          {
+            "name": "Qualify the consumer with STL annotations disabled",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 122206453469,
+        "profile": "native (x64, windows-2025-vs2026, ASan Debug, 105)",
+        "conclusion": "success",
+        "full": [
+          "success"
+        ],
+        "consumers": [
+          {
+            "name": "Qualify the relocated public consumer",
+            "conclusion": "success"
+          },
+          {
+            "name": "Qualify the consumer with STL annotations disabled",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 122206453521,
+        "profile": "native (ARM64, windows-11-vs2026-arm, Debug, 150)",
+        "conclusion": "success",
+        "full": [
+          "success"
+        ],
+        "consumers": [
+          {
+            "name": "Qualify the relocated public consumer",
+            "conclusion": "success"
+          },
+          {
+            "name": "Qualify the consumer with STL annotations disabled",
+            "conclusion": "skipped"
+          }
+        ]
+      },
+      {
+        "id": 122206453564,
+        "profile": "native (ARM64, windows-11-vs2026-arm, Release, 155)",
+        "conclusion": "success",
+        "full": [
+          "success"
+        ],
+        "consumers": [
+          {
+            "name": "Qualify the relocated public consumer",
+            "conclusion": "success"
+          },
+          {
+            "name": "Qualify the consumer with STL annotations disabled",
+            "conclusion": "skipped"
+          }
+        ]
+      },
+      {
+        "id": 122206453587,
+        "profile": "native (x64, windows-2025-vs2026, Release, 90)",
+        "conclusion": "success",
+        "full": [
+          "success"
+        ],
+        "consumers": [
+          {
+            "name": "Qualify the relocated public consumer",
+            "conclusion": "success"
+          },
+          {
+            "name": "Qualify the consumer with STL annotations disabled",
+            "conclusion": "skipped"
+          }
+        ]
+      },
+      {
+        "id": 122206453918,
+        "profile": "native (x64, windows-2025-vs2026, Debug, 90)",
+        "conclusion": "failure",
+        "full": [
+          "failure"
+        ],
+        "consumers": [
+          {
+            "name": "Qualify the relocated public consumer",
+            "conclusion": "success"
+          },
+          {
+            "name": "Qualify the consumer with STL annotations disabled",
+            "conclusion": "skipped"
+          }
+        ]
+      }
+    ],
+    "contentReplayScope": "Job/step outcomes are final provider metadata; only the failed x64 Debug original ZIP and its 82 payload streams were independently replayed for this separate cohort. This is not a six-profile content seal for main.",
+    "failedArchive": {
+      "artifactId": 12737998672,
+      "bytes": 437450,
+      "sha256": "aa17e244e340c85e8f41736638ec805a83e4d473c6d4fb7bf2c140af0e19c5f9",
+      "completionSha256": "13f711e3f72f122e0c01dee8040063ab2e931cf575aee6a962b850a8429b4e9b",
+      "completionOutcome": "failed-or-interrupted",
+      "verifiedPayloadStreams": 82,
+      "failedCase": "TestNativeTextInputTsfWholeQueueCounterfactualIncludesSeparateLayout",
+      "includedInOriginalPrFileInventory": false
+    }
   }
 }
