@@ -2105,8 +2105,15 @@ void RunMenuDismissalKeyScenario(UINT message, WPARAM virtualKey, const char* ap
         }
         trace->Driver("dismiss.modal-dispatch-ready");
 
-        const BOOL posted = PostMessageW(popupHwnd, message, virtualKey, 0);
-        trace->Driver("dismiss.key-posted", posted != FALSE ? 1u : 0u);
+        const BOOL posted     = PostMessageW(popupHwnd, message, virtualKey, 0);
+        const DWORD postError = posted != FALSE ? ERROR_SUCCESS : GetLastError();
+        trace->Driver("dismiss.key-post", posted != FALSE ? 1u : 0u, static_cast<size_t>(postError));
+        if (posted == FALSE)
+        {
+            driverFailure = std::format("dismissal key post succeeds (error={})", postError);
+            return;
+        }
+
         if (! WaitForWindowDestroyed(popupHwnd))
         {
             trace->Driver("dismiss.popup-destroy-timeout");

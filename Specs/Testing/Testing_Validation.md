@@ -110,7 +110,8 @@ identify which host or desktop action delayed or changed a cursor position.
 
 Native-menu dismissal fixtures verify actual focus on the menu-bar host after `FocusFirstItem()` and before
 starting a popup-discovery driver. The driver uses one 5 s deadline for visible-popup discovery and the existing
-modal-dispatch readiness signal, and posts the dismissal key only after both are ready. Keep the existing 800 ms
+modal-dispatch readiness signal, and requires the dismissal-key post itself to succeed after both are ready. Keep
+the existing 800 ms
 focus and popup-destruction checks; the 900 ms and 180 ms hover guards are separate. Record bounded foreground,
 active-window, focus, capture, popup-discovery and menu-stage flags through the existing trace, without logging
 window handles. A trace distinguishes observed stages but does not identify an external input writer.
