@@ -757,6 +757,7 @@
     "vcpkg-install.ps1",
     "Tools/BenchmarkGate.psm1",
     "Tools/CapabilitySkipPolicy.psm1",
+    "Tools/ConsumerQualification.psm1",
     "Tools/Get-NativeScope.ps1",
     "Tools/InteractiveRun.psm1",
     "Tools/NativeScope.psm1",
@@ -764,9 +765,10 @@
     "Tools/SuiteFailure.psm1",
     "Tools/TestRunEvidence.psm1",
     "Tools/tests/Test-CiGate.ps1",
+    "Tools/tests/Test-ConsumerQualification.ps1",
     "Tools/tests/Test-NativeScope.ps1",
     "Tools/tests/Test-RunEvidence.ps1"
   ],
   "prNativeScopeModule": "Tools/NativeScope.psm1",
-  "prWorkflowDigest": "e9894d20ecb1af77e781195c3ed337f48cb10543263c6af2fbe973acca7dd567"
+  "prWorkflowDigest": "2e9978835b2bbe8454e8647e2144d581483bbba75b00b9c8b26986995a799d1a"
 }

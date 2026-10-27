@@ -214,10 +214,15 @@ function Assert-NativeWorkflowBudgets([string] $Native, [object[]] $Profiles) {
             Assert-True (-not ($selected[0].Groups['body'].Value -cmatch '(?m)^        (if|continue-on-error):')) 'build and Full retain default success dependency and failure accounting'
             $stageLimits[$stage.Name] = @{ x64 = 35; ARM64 = 65 }
         } else {
-            $budget = [regex]::Match($selected[0].Groups['body'].Value, '(?m)^        timeout-minutes: (?<minutes>[1-9]\d*)\r?$')
-            Assert-True $budget.Success "the $($stage.Name) stage retains a bounded watchdog"
-            $stageLimits[$stage.Name] = [int]$budget.Groups['minutes'].Value
-            Assert-Equal $stage.Minutes $stageLimits[$stage.Name] "the $($stage.Name) stage watchdog is unchanged"
+            if($stage.Name-ceq 'Consumer'){
+                Assert-True ($selected[0].Groups['body'].Value.Contains("timeout-minutes: `${{ matrix.platform == 'ARM64' && matrix.configuration == 'Release' && 20 || 15 }}")) 'only ARM64 Release has the measured 20-minute cold-consumer window'
+                $stageLimits[$stage.Name]=15
+            }else{
+                $budget = [regex]::Match($selected[0].Groups['body'].Value, '(?m)^        timeout-minutes: (?<minutes>[1-9]\d*)\r?$')
+                Assert-True $budget.Success "the $($stage.Name) stage retains a bounded watchdog"
+                $stageLimits[$stage.Name] = [int]$budget.Groups['minutes'].Value
+                Assert-Equal $stage.Minutes $stageLimits[$stage.Name] "the $($stage.Name) stage watchdog is unchanged"
+            }
             $condition = if ($stage.Name -ceq 'Consumer') { '        if: ${{ !cancelled() }}' }
                 else { '        if: ${{ !cancelled() && matrix.configuration == ''ASan Debug'' }}' }
             Assert-True ($selected[0].Groups['body'].Value.Contains($condition)) 'consumer failure accounting remains independent of the build/Full verdict'
@@ -232,6 +237,7 @@ function Assert-NativeWorkflowBudgets([string] $Native, [object[]] $Profiles) {
     foreach ($key in $expected) {
         $parts = $key -split '\|', 2
         $stages = $stageLimits.Build[$parts[0]] + $stageLimits.Native[$parts[0]] + $stageLimits.Consumer
+        if($key-ceq 'ARM64|Release'){$stages+=5}
         if ($parts[1] -ceq 'ASan Debug') { $stages += $stageLimits.DisabledAnnotations }
         Assert-True ($limits[$key] -ge $stages + 5) "the $key job fits every explicit qualification window and five minutes for setup and artifacts"
         Assert-Equal ($stages + 5) $limits[$key] "the $key job retains its reviewed bounded allowance"
@@ -319,13 +325,20 @@ Invoke-TestCase 'Full cannot bypass the official build dependency or its early r
         Assert-Throws { Assert-NativeWorkflowBudgets $changed $profiles } 'missing/duplicate/reordered builds, rebuilding Full, or failure bypass cannot satisfy the contract'
     }
 }
-Invoke-TestCase 'consumer qualification windows remain bounded and unchanged' {
+Invoke-TestCase 'consumer windows retain only the measured ARM64 Release exception' {
     $profiles = @(([IO.File]::ReadAllText((Join-Path $repository 'Tests/test-scopes.json')) | ConvertFrom-Json).prCoverage)
     $native = Get-WorkflowJob 'native'
     foreach ($limit in @('', '0', '20')) {
         $changed = $native.Replace('timeout-minutes: 15', "timeout-minutes: $limit")
         Assert-True ($native -cne $changed) 'the falsification alters the consumer limits'
         Assert-Throws { Assert-NativeWorkflowBudgets $changed $profiles } 'missing, unbounded or widened consumers do not satisfy the finite contract'
+    }
+    $consumerWindow="timeout-minutes: `${{ matrix.platform == 'ARM64' && matrix.configuration == 'Release' && 20 || 15 }}"
+    foreach($changed in @($native.Replace($consumerWindow,'timeout-minutes: 15'),
+        $native.Replace($consumerWindow,$consumerWindow.Replace('&& 20','&& 25')),
+        $native.Replace($consumerWindow,"timeout-minutes: `${{ matrix.platform == 'ARM64' && 20 || 15 }}"))){
+        Assert-True ($changed-cne $native) 'each mutation changes the measured exception'
+        Assert-Throws {Assert-NativeWorkflowBudgets $changed $profiles} 'unmeasured narrowing, widening or extra profiles cannot replace the reviewed finite exception'
     }
 }
 

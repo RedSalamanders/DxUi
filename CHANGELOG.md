@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Keep every consumer conformance check while giving only cold ARM64 Release consumer qualification 20 minutes and its enclosing CI job 155 minutes; retain per-case timing and explicitly incomplete progress after a timeout. Native watchdogs and statistical performance bands remain unchanged.
 - Wait for the hosted Visual Studio GUI bootstrapper and use its own exit code before verifying MSVC 14.52; retain installer diagnostics and cover delayed completion, paths with spaces, failure and no-install controls with a fake GUI installer. Actual hosted provisioning and native qualification remain separate gates.
 - Integrate the sealed renderer qualification archive with current main while preserving incoming compiler, Grid and ProgressBar work. Keep the six native profiles tied to their original SDK702 source and retain separate consumer, performance-policy and platform holds.
 - Archive the merged source-ink and Menu fixture qualification: six native x64/ARM64 profiles, exact-head local Menu restoration and an independently replayed actual-base paired study; preserve the unqualified performance policy, unstable controls and separate consumer/platform holds.

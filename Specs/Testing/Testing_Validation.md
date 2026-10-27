@@ -255,12 +255,30 @@ how close any of their tests comes. Native CI runs the official `build.ps1` firs
 resolved toolchain and final artifacts before any native desktop probe, filter/watchdog self-check or suite;
 a missing, old or stale receipt refuses instead of rebuilding or executing native work. Full still performs its
 existing before/after measurement and native checks. Each clean-pin consumer qualification retains its 15-minute
-limit, including hangs that the native per-test watchdog cannot reach (Foundation, Embedded, the consumer).
-The enclosing ceilings are 90 minutes for x64 Debug/Release, 105 for x64 ASan Debug, 150 for ARM64 Debug/Release
+limit except the regular ARM64 Release consumer, which has 20 minutes for cold full-LTCG work and its complete
+conformance tail. The annotations-disabled consumers retain 15 minutes. These finite limits include hangs that the
+native per-test watchdog cannot reach (Foundation, Embedded, the consumer).
+The enclosing ceilings are 90 minutes for x64 Debug/Release, 105 for x64 ASan Debug, 150 for ARM64 Debug, 155 for ARM64 Release
 and 165 for ARM64 ASan Debug: both build/Full windows, regular consumer, the separate annotations-disabled consumer
 when ASan, and five minutes for setup, resource/gallery work and artifact collection. These are reviewed finite
 ceilings, not measured normal durations or performance acceptance. Native watchdogs, all assertions, six standard
 consumer qualifications, both annotations-disabled ASan qualifications and failure accounting remain required.
+Run 40474717807 / job 122090646802 exhausted the former ARM64 Release 15-minute consumer window after four
+distinct full-LTCG links and all twelve EXE/two-DLL module probes. The probes completed at 13 minutes 31 seconds,
+leaving 90 seconds. The same source's successful ARM64 Debug post-probe pin-validation phase took 146 seconds
+and its build-identity negatives another 17 seconds (x64 Release's whole tail took 8.2 seconds). A comparable
+ordinary ARM tail projects about 16 minutes 14 seconds; that projection is not a completed Release receipt.
+The narrow 20-minute window preserves every check and keeps the enclosing sum consistent; it does not change
+statistical performance bands, native watchdogs or acceptance requirements.
+
+`test-consumer.ps1` writes a unique `ConsumerProgress-*.json` under `.build/reports` before cold work. Each negative
+case and the restored clean pin record a start, outcome and monotonic duration. External termination leaves
+`status=incomplete` and the active case intact; no later final receipt is inferred. Ten distinct successful negative
+cases are required before publishing `ExternalConsumer-*.json`; progress becomes completed only after that matching
+final receipt exists. Progress is never counted as a final consumer result. The workflow's existing reports upload
+retains both incomplete progress and completed receipts after failure. `Tools/ConsumerQualification.psm1` owns this
+test-case journal separately from fixed build-stage timing, and its fixtures cover interruption, failure, duplicate
+cases, missing checks and wrong-source final receipts.
 PR #99's retained x64 Release Full step exhausted its combined 35-minute window after 16 ordinary suite receipts;
 Accessibility was still in progress and had emitted no native timeout or failure. The observed 18-minute gap
 before the MSBuild banner has no measured subphase attribution. Bounded top-level build/gate BEGIN/END/FAIL records

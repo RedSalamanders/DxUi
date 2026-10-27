@@ -5,6 +5,27 @@ Date: 2026-10-23
 
 ## Hosted setup repair checkpoint (2026-10-27)
 
+### Subsequent consumer timeout (new operational repair)
+
+Repair head `4a562108fdf067d31aae5fee563ba90b2e603d09`, Actions merge `fcd8ac46aca6b5cc00d3387ad98bd9645f944c34`
+into base `9291e259331c1dd376c028dcda8e70798765139f`, passed actual compiler provisioning, every native build and
+every Full native suite in run 40474717807. Five profile jobs completed successfully. ARM64 Release job 122090646802
+then exhausted its separate 15-minute relocated-consumer window, after all twelve module probes passed, before
+publishing the final consumer receipt; its gallery did not run. The overall workflow failed and is not SDK-wide green.
+Its failed provider ZIP 12723278191 is retained with verified digest
+`3d7e2911b115214b92744b97bdce53d86c33fd4f0e85a70330e9a266da5eb7db`, separately from any later attempt.
+
+The successful ARM64 Debug tail took 146 seconds for pin-negative/clean checks and 17 seconds for build-identity
+negatives, compared with 8.2 seconds on x64 Release. Failed ARM64 Release reached module-probe success at 13m31s,
+leaving only 90 seconds; a comparable ordinary tail projects 16m14s, not a completed receipt. Every distinct cold
+LTCG EXE/DLL link and all ten negatives remain necessary. The reviewed operational change grants only ARM64 Release's
+regular consumer 20 minutes and its enclosing job 155; every other window, native check and statistical band is unchanged.
+Per-case start/outcome/duration and unique incomplete progress records will expose the exact case if another attempt ends.
+
+- [ ] Validate the narrow window/progress change, push a fresh PR #119 head, and bind the new hosted result to its own head/merge.
+- [ ] Replay all final provider ZIPs, payload streams, Full/ASan and complete consumer receipts before claiming a passing matrix.
+- [ ] Prepare reviewed source-bound public evidence and WIP/build closeout in private staging; publish a docs-only followup after runtime merge.
+
 Main `9291e259331c1dd376c028dcda8e70798765139f`, run [40472278769](https://github.com/RedSalamanders/DxUi/actions/runs/40472278769), failed compiler preparation in all six native profiles. The x64 Debug [job 122082077031](https://github.com/RedSalamanders/DxUi/actions/runs/40472278769/job/122082077031) reports at 08:16:22 UTC: `The variable '$LASTEXITCODE' cannot be retrieved because it has not been set.` GUI bootstrapper extraction continues after that exception. The script's call operator returned before GUI completion, and its strict-mode ambient exit-code read failed; this is setup evidence, not a compiler/native test failure. Raw logs and every fixture attempt remain privately under `.build/msvc-setup-20261027/` and `.build/msvc-setup-fixtures/` in the isolated repair checkout.
 
 - [x] Replace asynchronous GUI invocation with explicit hidden wait and the owned process's exit code; quote the install path, retain output, and use canonical downstream Visual Studio discovery after completion.

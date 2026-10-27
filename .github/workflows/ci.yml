@@ -112,7 +112,7 @@ jobs:
           - platform: ARM64
             runner: windows-11-vs2026-arm
             configuration: Release
-            jobTimeoutMinutes: 150
+            jobTimeoutMinutes: 155
           - platform: x64
             runner: windows-2025-vs2026
             configuration: ASan Debug
@@ -150,7 +150,8 @@ jobs:
       - name: Qualify the relocated public consumer
         if: ${{ !cancelled() }}
         shell: pwsh
-        timeout-minutes: 15
+        # ARM64 Release cold LTCG plus the measured conformance tail exceeds 15 minutes.
+        timeout-minutes: ${{ matrix.platform == 'ARM64' && matrix.configuration == 'Release' && 20 || 15 }}
         run: ./test-consumer.ps1 -Configuration "${{ matrix.configuration }}" -Platform ${{ matrix.platform }}
       - name: Qualify the consumer with STL annotations disabled
         if: ${{ !cancelled() && matrix.configuration == 'ASan Debug' }}
