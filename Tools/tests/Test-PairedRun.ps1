@@ -6,6 +6,7 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'TestSupport.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../PerformanceComparison.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../PairedRun.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot '../PerformancePolicy.psm1') -Force
 $repository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 
 function Get-ErrorMessage([scriptblock] $Body) {
@@ -507,28 +508,39 @@ Invoke-TestCase 'a changed benchmark project refuses SkipBuild just like a chang
     Assert-Contains $actual 'Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h' 'compiled source still invalidates reuse'
     Assert-Equal 0 @(& $changes -Records @(@{path='Tests/Embedded/DxUi.EmbeddedTests.vcxproj';action='unchanged'})).Count 'unchanged project can reuse its attested build'
 }
-Invoke-FixtureCase 'common benchmark timestamp staging preserves bytes and restores every original stamp' {
+Invoke-FixtureCase 'every attested project timestamp is staged without changing bytes and every original stamp returns' {
     param($root)
     $stage=Get-PairedBuildPreflightForTest -Name 'Set-PairedProjectStamps'
     $restore=Get-PairedBuildPreflightForTest -Name 'Restore-PairedProjectStamps'
     $left=Join-Path $root 'A'; $right=Join-Path $root 'B'
-    $relative='Tests/Embedded/DxUi.EmbeddedTests.vcxproj'
-    foreach($side in @($left,$right)){Set-FixtureFile $side $relative '<Project />'}
+    $projects=@(Get-PerformanceProjectCatalog)
+    Assert-Equal 'library,benchmark' ($projects.role -join ',') 'the library and benchmark share one attestation/staging catalog'
+    foreach($side in @($left,$right)){foreach($project in $projects){Set-FixtureFile $side $project.path '<Project />'}}
     $first=[DateTime]::UtcNow.AddDays(-2); $second=[DateTime]::UtcNow.AddDays(-1)
-    [IO.File]::SetLastWriteTimeUtc((Join-Path $left $relative),$first)
-    [IO.File]::SetLastWriteTimeUtc((Join-Path $right $relative),$second)
+    foreach($project in $projects){
+        [IO.File]::SetLastWriteTimeUtc((Join-Path $left $project.path),$first)
+        [IO.File]::SetLastWriteTimeUtc((Join-Path $right $project.path),$second)
+    }
     $common=[DateTime]::UtcNow
     $records=@(& $stage -Roots @($left,$right) -StampUtc $common)
-    Assert-Equal 2 $records.Count 'both physical roots are recorded'
-    foreach($side in @($left,$right)){
-        Assert-True (Test-SameStamp $common (Join-Path $side $relative)) 'staged project timestamps match'
-        Assert-Equal '<Project />' ([IO.File]::ReadAllText((Join-Path $side $relative))) 'project bytes are unchanged'
-    }
+    Assert-Equal 4 $records.Count 'both projects in both physical roots are recorded'
+    foreach($side in @($left,$right)){foreach($project in $projects){
+        Assert-True (Test-SameStamp $common (Join-Path $side $project.path)) 'staged project timestamps match'
+        Assert-Equal '<Project />' ([IO.File]::ReadAllText((Join-Path $side $project.path))) 'project bytes are unchanged'
+    }}
     & $restore -Records $records
-    Assert-True (Test-SameStamp $first (Join-Path $left $relative)) 'first original timestamp returns'
-    Assert-True (Test-SameStamp $second (Join-Path $right $relative)) 'second original timestamp returns'
+    foreach($project in $projects){
+        Assert-True (Test-SameStamp $first (Join-Path $left $project.path)) 'first original timestamp returns'
+        Assert-True (Test-SameStamp $second (Join-Path $right $project.path)) 'second original timestamp returns'
+    }
+    # A missing second catalog project must restore the first project in that same root too.
+    $partial=Join-Path $root 'partial'
+    Set-FixtureFile $partial $projects[0].path '<Project />'
+    [IO.File]::SetLastWriteTimeUtc((Join-Path $partial $projects[0].path),$first)
+    [void](Get-ErrorMessage { & $stage -Roots @($partial) -StampUtc $common })
+    Assert-True (Test-SameStamp $first (Join-Path $partial $projects[0].path)) 'within-root partial admission rolls back'
     [void](Get-ErrorMessage { & $stage -Roots @($left,(Join-Path $root 'missing')) -StampUtc $common })
-    Assert-True (Test-SameStamp $first (Join-Path $left $relative)) 'partial admission failure rolls back the first timestamp'
+    foreach($project in $projects){Assert-True (Test-SameStamp $first (Join-Path $left $project.path)) 'cross-root partial admission rolls back both timestamps'}
 }
 Invoke-TestCase 'SkipBuild stages new roots but never changes an existing attested comparison context' {
     $select=Get-PairedBuildPreflightForTest -Name 'Get-PairedProjectStampRoots'

@@ -110,12 +110,17 @@ targets are acceptance contracts, not claims of current support.
 
 Paired setup MUST share the benchmark project and its effective compiler options,
 including per-item flags, while retaining each side's own library project/source.
-Fresh builds stage the common benchmark project's timestamp after restore and
-record/restore original timestamps so MSBuild's newest-import selection is
+Fresh builds stage every project in the canonical performance attestation catalog
+(`Get-PerformanceProjectCatalog`: library and benchmark) after restore and
+record/restore every original timestamp so MSBuild's newest-import selection is
 comparable. Reused builds retain their attested context. Before any measured
 process, both v2 full build states MUST match fixture, harness, compiler,
 dependency and environment identities. A mismatch consumes no measurement slots;
 retain the refused states. No property, flag or threshold is ignored to get a match.
+`MSBuildAllProjects` remains part of the complete profile: staging only the benchmark
+can leave the library's newest-project/import selection different for identical bytes.
+The staging manifest records the role, physical path, original UTC stamp and staged UTC
+stamp for every selected root/project. Partial staging failure restores all acquired stamps.
 
 Hosted paired runs retain original measured executables, libraries, symbols and
 build attestations as CI artifacts alongside every report. Continuous host

@@ -9,6 +9,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Cannot read the DxUi revision.' }
 if (& git -C $PSScriptRoot status --porcelain --untracked-files=normal) { throw 'Commit the library changes before validating a release consumer pin.' }
 if (-not $FixtureRoot) { $FixtureRoot=Join-Path $PSScriptRoot '.build/consumers' }
 $root=Join-Path ([IO.Path]::GetFullPath($FixtureRoot)) ([guid]::NewGuid().ToString('N').Substring(0,12))
+Import-Module (Join-Path $PSScriptRoot 'Tools/ConsumerQualification.psm1') -Force
+$progress=New-ConsumerQualificationProgress -Path (Join-Path $PSScriptRoot ".build/reports/ConsumerProgress-$Platform-$Configuration-$([IO.Path]::GetFileName($root)).json") -Context @{commit=$revision;platform=$Platform;configuration=$Configuration;annotationsDisabled=[bool]$DisableStlAnnotations}
 $checkout=Join-Path $root 'relocated DxUi'
 $consumer=Join-Path $root 'app space'
 $output=(Join-Path $consumer 'deps')+[IO.Path]::DirectorySeparatorChar
@@ -115,8 +117,10 @@ if ($LASTEXITCODE -ne 0) { throw 'Native DxUi dispatch or animation crossed stat
 if (-not (Test-Path (Join-Path $output "$Platform/$Configuration/DxUi.lib")) -or (Test-Path (Join-Path $checkout ".build/$Platform/$Configuration/DxUi.lib"))) { throw 'Consumer outputs are not isolated.' }
 $validator=Join-Path $checkout 'Tools/validate_consumer.ps1'
 function Require-Rejection([string] $scenario) {
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $validator -DxUiRoot $checkout -LockFile $lock *> (Join-Path $consumer "$scenario.log")
-    if ($LASTEXITCODE -eq 0) { throw "Consumer validator accepted $scenario." }
+    Invoke-ConsumerQualificationPhase -Progress $progress -Name "Pin-$scenario" -NegativeCheck -Body {
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $validator -DxUiRoot $checkout -LockFile $lock *> (Join-Path $consumer "$scenario.log")
+        if ($LASTEXITCODE -eq 0) { throw "Consumer validator accepted $scenario." }
+    }
 }
 $pin.commit='0'*40;Write-Lock;Require-Rejection 'wrong-revision'
 $pin.commit=$revision;$pin.apiRevision=$apiRevision-1;Write-Lock;Require-Rejection 'wrong-api'
@@ -126,13 +130,18 @@ $header=Join-Path $checkout 'include/DxUi/FrameRuntime.h';$original=[IO.File]::R
 try { Add-Content -LiteralPath $header -Value '// test fixture change';Require-Rejection 'tracked-dirty' } finally { [IO.File]::WriteAllBytes($header,$original) }
 $untracked=Join-Path $checkout 'consumer-dirty.cpp'
 try { Set-Content -LiteralPath $untracked -Value '// test fixture';Require-Rejection 'untracked-dirty' } finally { Remove-Item -LiteralPath $untracked }
-& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $validator -DxUiRoot $checkout -LockFile $lock
-if ($LASTEXITCODE -ne 0) { throw 'Restored clean consumer pin was rejected.' }
+Invoke-ConsumerQualificationPhase -Progress $progress -Name 'CleanPin' -Body {
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $validator -DxUiRoot $checkout -LockFile $lock
+    if ($LASTEXITCODE -ne 0) { throw 'Restored clean consumer pin was rejected.' }
+}
 foreach ($mismatch in @('DxUiConsumerToolset=invalid','DxUiConsumerVCToolsVersion=0.0','DxUiConsumerSdkVersion=0.0','DxUiConsumerPreferredToolArchitecture=invalid','DxUiDisableStlAnnotations=invalid')) {
-    & $msbuild $projectPath /nologo /verbosity:quiet /t:ValidateDxUiConsumerPin "/p:Configuration=$Configuration" "/p:Platform=$Platform" "/p:$mismatch" *> (Join-Path $consumer ($mismatch.Split('=')[0]+'.log'))
-    if ($LASTEXITCODE -eq 0) { throw "Consumer accepted incompatible build identity: $mismatch" }
+    Invoke-ConsumerQualificationPhase -Progress $progress -Name $mismatch.Split('=')[0] -NegativeCheck -Body {
+        & $msbuild $projectPath /nologo /verbosity:quiet /t:ValidateDxUiConsumerPin "/p:Configuration=$Configuration" "/p:Platform=$Platform" "/p:$mismatch" *> (Join-Path $consumer ($mismatch.Split('=')[0]+'.log'))
+        if ($LASTEXITCODE -eq 0) { throw "Consumer accepted incompatible build identity: $mismatch" }
+    }
 }
 $reports=Join-Path $PSScriptRoot '.build/reports';New-Item -ItemType Directory -Path $reports -Force | Out-Null
+Assert-ConsumerQualificationChecks -Progress $progress
 @{suite='ExternalConsumer';commit=$revision;configuration=$Configuration;platform=$Platform;
     nativeArchitecture=[System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString();
     disableStlAnnotations=$DisableStlAnnotations.IsPresent;buildIdentity=$buildIdentity;exitCode=0;fixture=$root;negativeChecks=10;
@@ -140,6 +149,7 @@ $reports=Join-Path $PSScriptRoot '.build/reports';New-Item -ItemType Directory -
     richTextCaptureSha256=(Get-FileHash (Join-Path $consumer 'rich-text-consumer.png')).Hash;
     librarySha256=(Get-FileHash (Join-Path $output "$Platform/$Configuration/DxUi.lib")).Hash;
     completedUtc=[DateTime]::UtcNow.ToString('o')} | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $reports "ExternalConsumer-$Platform-$Configuration-annotationsDisabled$annotationsXml.json") -Encoding utf8
+Complete-ConsumerQualificationProgress -Progress $progress -FinalReceipt (Join-Path $reports "ExternalConsumer-$Platform-$Configuration-annotationsDisabled$annotationsXml.json")
 Write-Host "PASS relocated exact-pin consumer, rendering and 10 rejected pin/build mismatches: $root"
 # The final native invocation deliberately failed; report this test's actual outcome
 # to callers (including the GitHub Actions pwsh wrapper).

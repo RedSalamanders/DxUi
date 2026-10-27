@@ -1228,11 +1228,12 @@ DxUi::WindowHostBitmapCapture CropWindowHostBitmapCaptureForTest(const DxUi::Win
 class MenuHoverTraceForTest final
 {
 public:
-    explicit MenuHoverTraceForTest(bool capturePointer = false, bool captureKeyboard = false) noexcept
+    explicit MenuHoverTraceForTest(bool capturePointer = false, bool captureKeyboard = false, HWND owner = nullptr) noexcept
         : _previousSink(DxUi::Diagnostics::sink),
           _previousTrace(_active),
           _capturePointer(capturePointer),
-          _captureKeyboard(captureKeyboard)
+          _captureKeyboard(captureKeyboard),
+          _owner(owner)
     {
         _active                 = this;
         DxUi::Diagnostics::sink = [](std::wstring_view, std::wstring_view message) noexcept
@@ -1286,6 +1287,21 @@ public:
                 if (message.find(marker) != std::wstring_view::npos)
                 {
                     _active->Ui(phase);
+                    if (std::wstring_view(marker) == L"menu.dismiss-cause-cancel" && _active->_owner)
+                    {
+                        // Observe before Dismiss changes the chain. Bits describe the
+                        // current test owner, never publish native window/process IDs:
+                        // foreground exists/owner/same process; capture owner/popup.
+                        const HWND foreground = GetForegroundWindow();
+                        DWORD foregroundProcess{};
+                        if (foreground)
+                            static_cast<void>(GetWindowThreadProcessId(foreground, &foregroundProcess));
+                        const HWND capture = GetCapture();
+                        const size_t flags = (foreground ? 1u : 0u) | (foreground == _active->_owner ? 2u : 0u) |
+                                             (foregroundProcess == GetCurrentProcessId() ? 4u : 0u) | (capture == _active->_owner ? 8u : 0u) |
+                                             (capture && GetWindow(capture, GW_OWNER) == _active->_owner ? 16u : 0u);
+                        _active->Ui("dismiss.cancel-context", flags, InSendMessageEx(nullptr));
+                    }
                     break;
                 }
             }
@@ -1386,6 +1402,7 @@ private:
     unsigned _lastDiscoveryFlags = ~0u;
     bool _capturePointer         = false;
     bool _captureKeyboard        = false;
+    HWND _owner                  = nullptr; // Borrowed test owner; trace ends before its destruction.
     std::array<std::array<wchar_t, 2048>, 32> _pointerRows{};
     std::atomic<size_t> _pointerCount{0u};
     std::array<std::array<wchar_t, 1024>, 32> _keyboardRows{};
@@ -1453,26 +1470,32 @@ bool WaitForFocusedWindow(HWND hwnd, std::chrono::milliseconds timeout = std::ch
 class MenuModalDispatchReadinessForTest final
 {
 public:
-    explicit MenuModalDispatchReadinessForTest(HWND owner, bool holdVisibleInitialization = false)
+    explicit MenuModalDispatchReadinessForTest(HWND owner, bool holdVisibleInitialization = false, MenuHoverTraceForTest* trace = nullptr)
         : _owner(owner),
-          _holdVisibleInitialization(holdVisibleInitialization)
+          _holdVisibleInitialization(holdVisibleInitialization),
+          _trace(trace)
     {
         _ready.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
         _discovered.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
         Require(_ready && _discovered, "menu dispatch readiness creates its events");
         DxUi::DebugSetContextMenuModalLoopPeekHookForTest(
-            [](void* context, HWND popup, UINT) noexcept
+            [](void* context, HWND popup, UINT message) noexcept
         {
             auto* self = static_cast<MenuModalDispatchReadinessForTest*>(context);
             if (! self || self->_notified || GetWindow(popup, GW_OWNER) != self->_owner)
                 return;
             self->_notified = true;
+            if (self->_trace)
+                self->_trace->Ui("readiness.peek-entered", IsWindowVisible(popup) != FALSE, message);
             if (self->_holdVisibleInitialization)
             {
                 // The existing reentrant peek hook models initialization/sent callbacks before
                 // the first queued dispatch. Sent text queries work; posted state probes cannot.
-                self->_heldVisible       = IsWindowVisible(popup) != FALSE;
-                self->_discoveryObserved = PumpSentUntil(self->_discovered.get(), GetTickCount64() + 3000u);
+                self->_heldVisible         = IsWindowVisible(popup) != FALSE;
+                self->_discoveryWaitResult = WaitForDxUiEventWithSentMessagesUntil(self->_discovered.get(), GetTickCount64() + 3000u);
+                self->_discoveryObserved   = self->_discoveryWaitResult == WAIT_OBJECT_0;
+                if (self->_trace)
+                    self->_trace->Ui("readiness.discovery-wait-ended", self->_discoveryObserved, self->_discoveryWaitResult);
                 if (self->_syntheticThiefThread != 0u && self->_discoveryObserved)
                 {
                     // Reproduce activation loss after discovery, while sent queries still
@@ -1485,6 +1508,8 @@ public:
                 static_cast<void>(PumpSentUntil(nullptr, GetTickCount64() + 1200u));
             }
             static_cast<void>(SetEvent(self->_ready.get()));
+            if (self->_trace)
+                self->_trace->Ui("readiness.dispatch-released");
         },
             this);
     }
@@ -1517,6 +1542,23 @@ public:
         return _heldVisible && _discoveryObserved;
     }
 
+    [[nodiscard]] bool PeekObserved() const noexcept
+    {
+        return _notified;
+    }
+    [[nodiscard]] bool PopupWasVisible() const noexcept
+    {
+        return _heldVisible;
+    }
+    [[nodiscard]] bool DiscoveryObserved() const noexcept
+    {
+        return _discoveryObserved;
+    }
+    [[nodiscard]] DWORD DiscoveryWaitResult() const noexcept
+    {
+        return _discoveryWaitResult;
+    }
+
     void SimulateForegroundLossFromThread(DWORD thread) noexcept
     {
         _syntheticThiefThread = thread;
@@ -1535,12 +1577,14 @@ private:
 
     HWND _owner;
     bool _holdVisibleInitialization;
+    MenuHoverTraceForTest* _trace; // Same UI thread; optional test-owned trace outlives this hook.
     wil::unique_event_nothrow _ready;
     wil::unique_event_nothrow _discovered;
     // Only the menu's UI thread reads/writes these, including the final assertions after Show returns.
     bool _notified                = false;
     bool _heldVisible             = false;
     bool _discoveryObserved       = false;
+    DWORD _discoveryWaitResult    = WAIT_FAILED;
     DWORD _syntheticThiefThread   = 0u;
     bool _simulatedForegroundLoss = false;
 };
@@ -1577,25 +1621,35 @@ void RunContextMenuDebugStateProbeBoundsWedgedWindowThread(bool holdVisibleIniti
         wil::unique_event_nothrow releaseHandler;
         releaseHandler.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
         Require(releaseHandler != nullptr, "menu debug-state timeout test creates the release event");
-        MenuModalDispatchReadinessForTest dispatchReady(ownerWindow.Hwnd(), holdVisibleInitialization);
+        MenuHoverTraceForTest trace(true, false, ownerWindow.Hwnd());
+        MenuModalDispatchReadinessForTest dispatchReady(ownerWindow.Hwnd(), holdVisibleInitialization, &trace);
         std::thread releaser;
         std::thread driver([&]
         {
             const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
-            const auto dismissPopup      = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
+            const auto dismissPopup      = wil::scope_exit([&]() noexcept
+            {
+                trace.Driver("probe.cleanup", ! driverFailure.empty());
+                DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd());
+            });
             const auto discoveryDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(5000);
-            const HWND popupHwnd         = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"State probe");
+            const HWND popupHwnd =
+                WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"State probe", std::chrono::milliseconds(5000), &trace);
             if (! popupHwnd)
             {
                 driverFailure = "menu debug-state timeout popup appears";
+                trace.Driver("probe.discovery-failed");
                 return;
             }
+            trace.Driver("probe.discovery-complete");
             dispatchReady.NoteDiscovery();
             if (! dispatchReady.WaitUntil(discoveryDeadline))
             {
                 driverFailure = "visible menu and modal dispatch become ready within the existing discovery deadline";
+                trace.Driver("probe.dispatch-readiness-failed");
                 return;
             }
+            trace.Driver("probe.dispatch-readiness-complete");
 
             ContextMenuPopupDebugState state{};
             const auto healthyStarted = std::chrono::steady_clock::now();
@@ -1644,7 +1698,12 @@ void RunContextMenuDebugStateProbeBoundsWedgedWindowThread(bool holdVisibleIniti
         const bool lost = ownerWindow.ForegroundLossCount() != lossesBefore;
         // Keep a discarded attempt's failure visible without attributing an older untraced CI failure.
         std::cout << "    [MENU PROBE] foregroundLost=" << lost << " heldVisible=" << heldVisibleObserved << " healthy=" << unwedgedStateObserved
-                  << " failure=" << driverFailure << '\n';
+                  << " peekObserved=" << dispatchReady.PeekObserved() << " popupWasVisible=" << dispatchReady.PopupWasVisible()
+                  << " discoveryObserved=" << dispatchReady.DiscoveryObserved()
+                  << " discoveryWaitAttempted=" << (holdVisibleInitialization && dispatchReady.PeekObserved())
+                  << " discoveryWait=" << dispatchReady.DiscoveryWaitResult() << " failure=" << driverFailure << '\n';
+        if (! driverFailure.empty() || (holdVisibleInitialization && ! heldVisibleObserved))
+            trace.Dump(true);
         return ForegroundAttempt{lost, ownerWindow.LastForegroundThiefThreadId()};
     });
     if (! ForegroundHeldOrSkip(run, "menu debug-state timeout probe"))
@@ -4942,6 +5001,7 @@ void TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay()
     ownerWindow.PumpMessages();
 
     Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
+    const uint32_t foregroundLossesBefore = ownerWindow.ForegroundLossCount();
     DrainPendingMouseMessagesForMenuSuite();
     const std::vector<MenuFlyoutItem> items = {
         {.text      = L"B1",
@@ -4954,7 +5014,7 @@ void TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay()
         {.text = L"B2", .commandId = 3702},
     };
 
-    MenuHoverTraceForTest trace(true);
+    MenuHoverTraceForTest trace(true, false, ownerWindow.Hwnd());
     ScopedMenuPointerFixture pointerFixture(ownerWindow.Hwnd());
     std::string driverFailure;
     std::thread driver([&]
@@ -4967,7 +5027,11 @@ void TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay()
             return;
         }
 
-        const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
+        const auto dismissPopup = wil::scope_exit([&]() noexcept
+        {
+            trace.Driver("hover.cleanup", ! driverFailure.empty());
+            DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd());
+        });
 
         D2D1_RECT_F firstItemRectDip  = D2D1::RectF();
         D2D1_RECT_F secondItemRectDip = D2D1::RectF();
@@ -5031,6 +5095,7 @@ void TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay()
             return;
         }
 
+        trace.Driver("b2-physical-alignment-begin", static_cast<uint64_t>(b2X), static_cast<uint64_t>(b2Y));
         if (! AlignOwnedPointerToClientPointForMenuSuite(pointerFixture, rootPopupHwnd, b2X, b2Y, "B2 before delayed close", driverFailure))
         {
             trace.Driver("b2-physical-alignment-failed", static_cast<uint64_t>(b2X), static_cast<uint64_t>(b2Y));
@@ -5119,7 +5184,10 @@ void TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay()
     driver.join();
 
     if (! driverFailure.empty())
+    {
+        std::cout << "    [HOVER OWNER] foregroundLost=" << (ownerWindow.ForegroundLossCount() != foregroundLossesBefore) << '\n';
         trace.Dump(true);
+    }
     Require(driverFailure.empty(), driverFailure.c_str());
     Require(! result.has_value(), "closing the submenu hover-retention validation popup with Escape returns no invoked command");
 }

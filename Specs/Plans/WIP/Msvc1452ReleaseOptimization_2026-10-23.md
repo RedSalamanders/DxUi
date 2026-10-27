@@ -1,7 +1,79 @@
 # MSVC 14.52 and Release optimization
 
-Status: ACTIVE qualification; implementation complete
+Status: ACTIVE qualification; hosted provisioning/consumers repaired, native Menu and paired preflight followups open
 Date: 2026-10-23
+
+## Hosted setup repair checkpoint (2026-10-27)
+
+### Attempt 631: preserved failures and strict paired setup repair
+
+Run [40485094386](https://github.com/RedSalamanders/DxUi/actions/runs/40485094386) binds head
+`631d8a95cf59c520bed1cc98c21cefc2f612586b`, merge `0f942cc859821fadada1e1da560a6e71b0a2c9f1` and base
+`9291e259331c1dd376c028dcda8e70798765139f`. All six builds and all eight final relocated-consumer receipts passed.
+ARM64 Release completed its ten negatives and twelve module checks in approximately 15m44s, validating the narrow
+20-minute operational window. All x64 native jobs and ARM64 ASan passed. ARM64 Debug and Release Full failed in
+different Menu cases; downstream consumer success does not establish Full success. Those desktop assertions remain
+unchanged and their failures remain open. The overall workflow and aggregate gate failed.
+
+Paired job 122124779896 refused `toolchainIdentity` compatibility before consuming measurement slots. Both per-side
+attestations passed; retained hosted digests are opaque and do not expose which profile input differed. A controlled
+local metadata-only experiment with identical source bytes reproduced an omission: existing benchmark-only timestamp
+staging equalized the benchmark profile while library `MSBuildAllProjects` selected a project on one side and an
+import on the other. Staging both attested projects made both complete normalized profiles exactly equal. Every
+original timestamp was restored exactly. This local counterfactual establishes the setup defect; it does not decode
+the historical hosted digests or establish a performance verdict.
+
+The bounded repair shares one canonical library/benchmark project catalog between attestation evaluation and fresh-build
+timestamp staging. It retains every evaluated property and strict cross-side equality. Real installed-MSBuild coverage
+retains opposing-timestamp metadata, reproduces the old omission, checks complete-profile equality, and proves a changed
+compiler option still fails admission. Reused builds retain their attested context. No statistical performance band or resource budget changes.
+The Windows tooling job alone moves from 15 to 20 minutes: attempt 631 already consumed 14m29s before the new
+approximately two-minute real-MSBuild regression. Compiler setup and every tooling/ASan check remain required;
+Ubuntu, format, native and consumer ceilings remain unchanged. Mutation tests reject missing, old or widened allowances.
+
+Private preservation under `.build/msvc-setup-20261027/attempt-631/sealed-failure-02` binds all six native and paired original
+provider ZIP digests/lengths, raw job status/logs and 505 replayed completion-manifest streams. The failed ARM Full outcomes,
+expected ASan detections, complete consumers and ARM initial-focus-unavailable limits remain distinct. Archive seal SHA-256:
+`0CEDF462E67817756298E035030B41DE595E1CCADDB275565099F314C4E7C17B`.
+
+- [ ] Review complete-catalog staging and real-MSBuild/negative regressions independently before publishing the next repair head.
+- [ ] Bind the next hosted run to its own head/merge and replay actual native/consumer/paired outcomes; no unchanged rerun or retagging.
+
+### Subsequent consumer timeout (new operational repair)
+
+Repair head `4a562108fdf067d31aae5fee563ba90b2e603d09`, Actions merge `fcd8ac46aca6b5cc00d3387ad98bd9645f944c34`
+into base `9291e259331c1dd376c028dcda8e70798765139f`, passed actual compiler provisioning, every native build and
+every Full native suite in run 40474717807. Five profile jobs completed successfully. ARM64 Release job 122090646802
+then exhausted its separate 15-minute relocated-consumer window, after all twelve module probes passed, before
+publishing the final consumer receipt; its gallery did not run. The overall workflow failed and is not SDK-wide green.
+Its failed provider ZIP 12723278191 is retained with verified digest
+`3d7e2911b115214b92744b97bdce53d86c33fd4f0e85a70330e9a266da5eb7db`, separately from any later attempt.
+
+The successful ARM64 Debug tail took 146 seconds for pin-negative/clean checks and 17 seconds for build-identity
+negatives, compared with 8.2 seconds on x64 Release. Failed ARM64 Release reached module-probe success at 13m31s,
+leaving only 90 seconds; a comparable ordinary tail projects 16m14s, not a completed receipt. Every distinct cold
+LTCG EXE/DLL link and all ten negatives remain necessary. The reviewed operational change grants only ARM64 Release's
+regular consumer 20 minutes and its enclosing job 155; every other window, native check and statistical band is unchanged.
+Per-case start/outcome/duration and unique incomplete progress records will expose the exact case if another attempt ends.
+
+- [ ] Validate the narrow window/progress change, push a fresh PR #119 head, and bind the new hosted result to its own head/merge.
+- [ ] Replay all final provider ZIPs, payload streams, Full/ASan and complete consumer receipts before claiming a passing matrix.
+- [ ] Prepare reviewed source-bound public evidence and WIP/build closeout in private staging; publish a docs-only followup after runtime merge.
+
+Main `9291e259331c1dd376c028dcda8e70798765139f`, run [40472278769](https://github.com/RedSalamanders/DxUi/actions/runs/40472278769), failed compiler preparation in all six native profiles. The x64 Debug [job 122082077031](https://github.com/RedSalamanders/DxUi/actions/runs/40472278769/job/122082077031) reports at 08:16:22 UTC: `The variable '$LASTEXITCODE' cannot be retrieved because it has not been set.` GUI bootstrapper extraction continues after that exception. The script's call operator returned before GUI completion, and its strict-mode ambient exit-code read failed; this is setup evidence, not a compiler/native test failure. Raw logs and every fixture attempt remain privately under `.build/msvc-setup-20261027/` and `.build/msvc-setup-fixtures/` in the isolated repair checkout.
+
+- [x] Replace asynchronous GUI invocation with explicit hidden wait and the owned process's exit code; quote the install path, retain output, and use canonical downstream Visual Studio discovery after completion.
+- [x] Add deterministic delayed GUI/provider coverage for unset/stale ambient exit state, success/reboot/failure, spaces, required tools and no-install refusal paths; no actual local installation.
+- [ ] Complete full validators, focused tooling controls and formatting; publish the focused repair PR for independent review.
+- [ ] Review real hosted provisioning and subsequent six-profile receipts. Preserve channel/component or default-selection failures if the actual installer reveals them; never downgrade the compiler or treat fixtures as native qualification.
+
+Docs/gallery review: CI setup changes no public control behavior or pixels; no gallery regeneration is needed. Existing local, performance, interactive and native ARM64 acceptance boundaries below remain in force.
+
+Local repair evidence: `fixture-diagnostics.log` passes 12/12 delayed-GUI/provider cases, including retained stdout/stderr and detailed installer logs. Restoring the old asynchronous call in `Setup-no-wait.control.ps1` reproduces the hosted unset-exit-code exception and fails eight cases (`no-wait-negative.log`), while the four no-install controls still pass. Real local `-VerifyOnly` passes default 14.52.37025; pinned clang-format 22.1.3 `-Check` passes. These focused controls and read-only compiler discovery do not establish native runtime or hosted provisioning success.
+
+Independent review caught a fixture invocation-scope defect: unnecessary `GetNewClosure` wrappers hid the script-local helper only when another script invoked the suite. The initial full `validate.log` retained that failure; all five validators and all other tooling suites passed. Removing the synchronous-loop closures makes fresh direct and nested invocations pass 12/12 each (`fixture-direct-fixed.log`, `fixture-nested-fixed.log`); `Test-MsvcSetupEntrypoints.ps1` now requires both forms in ordinary tooling validation.
+
+Repair [PR #119](https://github.com/RedSalamanders/DxUi/pull/119), initial run [40473800871](https://github.com/RedSalamanders/DxUi/actions/runs/40473800871), has the first actual hosted setup success: Windows-tooling job 122086989170 advanced from successful compiler preparation to validation. Its subsequent native/runtime gates remain pending. The fixture correction requires a fresh PR run; neither that setup success nor local fixtures establish a complete repository pass.
 
 ## Checklist
 

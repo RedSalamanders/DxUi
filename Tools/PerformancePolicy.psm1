@@ -133,6 +133,13 @@ function Normalize-PerformanceBuildPath([string] $Value, [string] $Root) {
     return $Value
 }
 
+function Get-PerformanceProjectCatalog {
+    # The projects whose complete evaluated profiles and native inputs bind the paired build.
+    # Fresh-build timestamp staging consumes this same catalog; neither side substitutes library bytes.
+    return @([ordered]@{ role='library'; path='src/DxUi.vcxproj' },
+        [ordered]@{ role='benchmark'; path='Tests/Embedded/DxUi.EmbeddedTests.vcxproj' })
+}
+
 function Get-PreprocessedProjectIdentity {
     [CmdletBinding()]
     param([Parameter(Mandatory)][AllowEmptyString()][string] $Text, [Parameter(Mandatory)][string] $Root)
@@ -236,7 +243,7 @@ function Get-PerformanceSolutionGlobals {
     $content = Get-PerformanceSolutionConfiguration $MSBuildPath $solutionPath $Configuration $Platform
     [xml]$xml = $content
     if ($xml.DocumentElement.LocalName -cne 'SolutionConfiguration') { throw 'MSBuild returned an invalid solution configuration.' }
-    foreach ($relative in @('src/DxUi.vcxproj','Tests/Embedded/DxUi.EmbeddedTests.vcxproj')) {
+    foreach ($relative in @((Get-PerformanceProjectCatalog).path)) {
         $path = [IO.Path]::GetFullPath((Join-Path $Root $relative))
         $nodes = @($xml.DocumentElement.SelectNodes('ProjectConfiguration') | Where-Object { $_.GetAttribute('AbsolutePath') -ieq $path })
         if ($nodes.Count -ne 1 -or $nodes[0].GetAttribute('BuildProjectInSolution') -cne 'True' -or
@@ -422,6 +429,16 @@ function Assert-PerformanceProbeItems {
 
 function Get-PerformanceProjectEvaluationCore {
     param([string] $MSBuildPath, [string] $ProjectPath, [string] $Configuration, [string] $Platform, [string] $OutputRoot, [string] $Root, [string] $Role)
+    $metadata = Get-PerformanceProjectMetadataCore @PSBoundParameters
+    $inputs = Get-PerformanceNativeInputClosure -Root $Root -Role $Role -Platform $Platform -Configuration $Configuration -Properties $metadata.properties -Items $metadata.items
+    return [ordered]@{ properties=$metadata.properties; profile=$metadata.profile; inputs=$inputs;
+        solutionIdentity=$metadata.solutionIdentity; projectSha256=$metadata.projectSha256 }
+}
+
+function Get-PerformanceProjectMetadataCore {
+    # Evaluation only: no targets, compiler, native-input hashing or build attestation. Kept separate so the
+    # installed-MSBuild regression can inspect the exact same complete profile as the production evaluator.
+    param([string] $MSBuildPath, [string] $ProjectPath, [string] $Configuration, [string] $Platform, [string] $OutputRoot, [string] $Root, [string] $Role)
     $solution = Get-PerformanceSolutionGlobals $MSBuildPath $Root $Configuration $Platform
     $expanded = Get-PreprocessedProjectFileIdentity -MSBuildPath $MSBuildPath -ProjectPath $ProjectPath -Configuration $Configuration -Platform $Platform -OutputRoot $OutputRoot -Root $Root -SolutionProperties $solution.properties -PassThru
     [xml]$project = $expanded['text']
@@ -455,8 +472,8 @@ function Get-PerformanceProjectEvaluationCore {
         $items = ($json -join "`n" | ConvertFrom-Json -AsHashtable)['Items']
         Assert-PerformanceProbeItems -Original $originalItems -Probed $items -Kinds $originalKinds -Root $Root
         $profile = Get-PerformanceProjectProfile -Root $Root -Role $Role -ExpandedText $expanded['text'] -Properties $properties -Items $items
-        $inputs = Get-PerformanceNativeInputClosure -Root $Root -Role $Role -Platform $Platform -Configuration $Configuration -Properties $properties -Items $items
-        return [ordered]@{ properties=$properties; profile=$profile; inputs=$inputs; solutionIdentity=$solution.identity; projectSha256=(Get-FileHash -LiteralPath $ProjectPath -Algorithm SHA256).Hash }
+        return [ordered]@{ properties=$properties; profile=$profile; items=$items; expandedText=$expanded['text'];
+            solutionIdentity=$solution.identity; projectSha256=(Get-FileHash -LiteralPath $ProjectPath -Algorithm SHA256).Hash }
     } finally {
         if (Test-Path -LiteralPath $probePath -PathType Leaf) { Remove-Item -LiteralPath $probePath -Force }
     }
@@ -755,14 +772,14 @@ function Get-PerformanceToolIdentities {
             "ToolsetSelection=$((Get-FileHash -LiteralPath $toolsetProps -Algorithm SHA256).Hash)")
         $resolvedProjects = [ordered]@{}
         $closureCache = @{}
-        foreach ($entry in @(@('library','src/DxUi.vcxproj'), @('benchmark','Tests/Embedded/DxUi.EmbeddedTests.vcxproj'))) {
-            $role = $entry[0]
-            $evaluation = Get-PerformanceProjectEvaluation -MSBuildPath $msbuildPath -ProjectPath (Join-Path $rootPath $entry[1]) -Configuration $Configuration -Platform $Platform -OutputRoot $buildOutputRoot -Root $rootPath -Role $role
+        foreach ($entry in Get-PerformanceProjectCatalog) {
+            $role = $entry.role
+            $evaluation = Get-PerformanceProjectEvaluation -MSBuildPath $msbuildPath -ProjectPath (Join-Path $rootPath $entry.path) -Configuration $Configuration -Platform $Platform -OutputRoot $buildOutputRoot -Root $rootPath -Role $role
             $properties = $evaluation['properties']
             $profile = $evaluation['profile']
             if ([string]::IsNullOrWhiteSpace([string]$evaluation['solutionIdentity'])) { throw 'The resolved solution configuration identity is missing.' }
             if (-not $evaluation.Contains('inputs') -or [string]::IsNullOrWhiteSpace([string]$evaluation['inputs']['identity'])) { throw 'The resolved native source byte identity is missing.' }
-            $resolvedProjects[$role] = [ordered]@{ path=$entry[1]; projectSha256=$evaluation['projectSha256']; solutionIdentity=$evaluation['solutionIdentity']; expandedProjectIdentity=$profile['expandedProjectIdentity']; resolvedItemsIdentity=$profile['resolvedItemsIdentity']; nativeInputIdentity=$evaluation['inputs']['identity'] }
+            $resolvedProjects[$role] = [ordered]@{ path=$entry.path; projectSha256=$evaluation['projectSha256']; solutionIdentity=$evaluation['solutionIdentity']; expandedProjectIdentity=$profile['expandedProjectIdentity']; resolvedItemsIdentity=$profile['resolvedItemsIdentity']; nativeInputIdentity=$evaluation['inputs']['identity'] }
             $toolchainLines += "$role.Profile=$($profile['profileIdentity'])"
             $toolPaths = Get-PerformanceResolvedToolPaths -Properties $properties -Platform $Platform
             foreach ($name in $toolPaths.Keys) { $toolchainLines += "$role.$name=$((Get-FileHash -LiteralPath $toolPaths[$name] -Algorithm SHA256).Hash)" }
@@ -1057,5 +1074,5 @@ function Test-PerformanceReceiptIdentity {
 }
 
 Export-ModuleMember -Function Invoke-DxUiBuildPhase, Get-TrustedPerformancePolicy, Test-PerformanceReceiptIdentity, Get-PerformanceToolIdentities, Get-ResolvedCompileItemsIdentity, Get-PreprocessedProjectIdentity,
-    Get-PerformanceProjectProfile, Get-PerformanceResolvedToolPaths, Get-PerformanceBuildAttestationIdentity,
+    Get-PerformanceProjectCatalog, Get-PerformanceProjectProfile, Get-PerformanceResolvedToolPaths, Get-PerformanceBuildAttestationIdentity,
     Start-PerformanceBuildAttestation, Complete-PerformanceBuildAttestation, Assert-PerformanceBuildAttestation, Get-PerformanceMeasurementState, Assert-PerformanceMeasurementState
