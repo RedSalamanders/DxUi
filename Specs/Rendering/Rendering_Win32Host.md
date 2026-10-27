@@ -70,6 +70,10 @@ DxUi neither consumes nor acts on them.
 
 Private heap payloads use the existing bounded registry. A receiver must match the token, destination HWND,
 message protocol and payload type before taking ownership; mismatches leave the genuine request available.
+Payload type identity is the address of private writable per-type storage, independent of the deleter function address:
+link-time identical-code folding may give distinct deleter instantiations the same executable address. The deleter
+remains solely for destruction. These tokens and type identities are private to one linked DxUi module and do not
+establish ownership or type identity across independently linked DLL boundaries.
 Registry exhaustion is a reported failure and freeing an entry permits a retry. Accessibility menu Invoke
 returns the failed post's HRESULT instead of claiming that an unqueued action succeeded. A dispatch timeout
 cancels work that is still pending; an action already taken by the owner can finish after the caller times out.

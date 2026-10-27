@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Keep private posted-payload type identity in writable per-type storage so identical-code folding cannot make distinct deleter addresses authorize a wrong Take or Reclaim; retain the deleter only for destruction and preserve single-module ownership scope. The focused WindowHost regression proves Release ControlTests folds the deleters, rejects wrong types, preserves correct ownership, and destroys taken, reclaimed, and drained payloads once; build and runtime qualification remain pending.
 - Archive the final Markdown/caption qualification: all six standalone and consumer build profiles pass, with nineteen SDK suites and 67 consumer cases plus 32 captures in each x64 configuration and real sanitizer detection. Preserve earlier failures and source identities; native ARM64, physical input and paired performance remain open, and the original CI/performance queue stays paused.
 - Record final x64 ASan 19-suite coverage and Debug/ASan build evidence for Markdown/caption changes; retain the earlier timing failure and remaining configuration, native-platform and performance holds.
 - Add explicit hidden diagnostic capture that stages the current native frame before presentation, with first-frame caption hover and repeated-readback regression checks at three DPIs.

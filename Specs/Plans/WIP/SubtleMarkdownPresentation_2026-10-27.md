@@ -16,6 +16,19 @@
 - [x] Synchronize normative documentation, actual consumer capture gallery, qualification archive and changelog.
 - [ ] Move this plan to Done only after the remaining gates pass; the original performance/CI queue stays paused.
 
+## Payload type-safety follow-up — 28 October 2026
+
+- [x] Reproduce actual Release /OPT:ICF folding: distinct payload types share a deleter address and the old helper accepts wrong Take/Reclaim; preserve the negative and the private tagged positive control, with exactly-once disposal.
+- [x] Implement private writable type identity and a permanent WindowHost regression; only Release ControlTests enables/mandates actual ICF. Root review corrects non-Release unused diagnostics and keeps link-incremental policy in its property group.
+- [ ] Qualify the final fix in all six SDK build profiles and all x64 normal/foreground suites, including real ASan detection; earlier eb0 results remain historical.
+- [ ] Explicitly adopt the new exact source pin in RedTilde and qualify affected consumer builds/runtimes before merge.
+- [ ] Complete current-source CI and performance review; native/hosted consumer ARM64 and independent performance-policy holds remain explicit.
+
+The private registry gains one pointer per bounded entry (about one KiB at 128
+entries on supported 64-bit targets). Public headers/API and shipped linker
+policy are unchanged. This fixes ownership correctness under ICF; no speed or
+memory improvement is claimed. The earlier final status below describes eb0,
+which precedes this newly reproduced defect and correction.
 ## Scope and preservation
 
 The user selected the first screenshot's Markdown styling: subtle H1/H2 rules,
