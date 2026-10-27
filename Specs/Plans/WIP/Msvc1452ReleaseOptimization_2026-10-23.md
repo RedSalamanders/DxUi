@@ -76,3 +76,5 @@ The canonical ProgressBar now has explicit animation pause state, independent of
 ## Main integration - 2026-10-27
 
 The approved integration combines current main with the retained MSVC 14.52 work, preserving newer callback guards and the pause API. Qualification of this combined source is recorded separately from earlier branch receipts. Historical passes and remaining native, interactive, performance and release gates are retained; the merge does not close them automatically.
+
+On 2026-10-27 the user explicitly authorized local validation followed by merge, deferring hosted CI and native ARM64 execution. RedPrism/RedTilde hosted jobs were refused for GitHub billing/spending restrictions; RedXe/DxUi hosted provisioning failed before qualification. Local checks do not convert these results into CI passes. Native ARM64, interactive/manual, paired-performance and release gates remain open.
