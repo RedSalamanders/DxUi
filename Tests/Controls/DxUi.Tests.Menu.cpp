@@ -6266,77 +6266,153 @@ void TestNativeMenuBarNestedPopupCanDestroyHostSafely()
 void TestMenuInfoRowsDoNotDismissOnClick()
 {
     using namespace DxUi;
+    std::string failure;
+    bool infoRowStayedOpenAt80Ms      = false;
+    bool postClickStateProbeSucceeded = false;
+    bool commandReturned              = false;
 
-    AttachedHostWindow ownerWindow;
-    SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 320, 220, SWP_NOZORDER | SWP_NOACTIVATE);
-    ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
-    ownerWindow.PumpMessages();
-
-    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
-
-    const std::vector<MenuFlyoutItem> items = {
-        {.kind = MenuItemKind::Info, .text = L"Volume Label:", .acceleratorText = L"Home"},
-        {.kind = MenuItemKind::Standard, .text = L"Disk Properties...", .commandId = 3001},
-    };
-
-    std::string driverFailure;
-    std::thread driver([&]
+    const ForegroundRunResult run = RunUntilForegroundHeld([&]() -> ForegroundAttempt
     {
-        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
-        const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
-        if (! popupHwnd)
-        {
-            driverFailure = "menu popup window appears for info-row click validation";
-            return;
-        }
+        failure.clear();
+        infoRowStayedOpenAt80Ms      = false;
+        postClickStateProbeSucceeded = false;
+        commandReturned              = false;
 
-        const auto dismissPopup = wil::scope_exit([&]() noexcept
+        AttachedHostWindow ownerWindow;
+        SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 320, 220, SWP_NOZORDER | SWP_NOACTIVATE);
+        ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
+        ownerWindow.PumpMessages();
+
+        ScopedMenuPointerFixture pointerFixture(ownerWindow.Hwnd());
+        const RECT virtualScreen = GetVirtualScreenBounds();
+        if (! pointerFixture.AlignCursor(POINT{virtualScreen.left + 4, virtualScreen.top + 4}))
         {
-            if (IsWindow(popupHwnd) != FALSE)
+            failure = "the owned pointer fixture parks outside the info-row popup";
+            return ForegroundAttempt{.activationEstablished = true};
+        }
+        DrainPendingMouseMessagesForMenuSuite();
+        if (! TryActivateDxUiTestWindow(ownerWindow.Hwnd()))
+            return ForegroundAttempt{.activationEstablished = false};
+        DrainPendingMouseMessagesForMenuSuite();
+        const uint32_t lossesBefore = ownerWindow.ForegroundLossCount();
+
+        const std::vector<MenuFlyoutItem> items = {
+            {.kind = MenuItemKind::Info, .text = L"Volume Label:", .acceleratorText = L"Home"},
+            {.kind = MenuItemKind::Standard, .text = L"Disk Properties...", .commandId = 3001},
+        };
+        const ThemePalette theme = MakeAnimatedTestThemePalette(true);
+        MenuHoverTraceForTest trace(true, false, ownerWindow.Hwnd());
+        const auto discoveryDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(5000);
+        MenuModalDispatchReadinessForTest dispatchReady(ownerWindow.Hwnd(), false, &trace);
+
+        std::string driverFailure;
+        std::thread driver([&]
+        {
+            const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
+            const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
+            if (! popupHwnd)
             {
-                PostMessageW(popupHwnd, WM_KEYDOWN, VK_ESCAPE, 0);
+                driverFailure = "menu popup is discovered for info-row click validation";
+                trace.Driver("info.discovery-failed");
+                return;
             }
+            trace.Driver("info.discovery-complete");
+            const auto dismissPopup = wil::scope_exit([&]() noexcept
+            {
+                if (IsWindow(popupHwnd) != FALSE)
+                    DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd());
+            });
+
+            dispatchReady.NoteDiscovery();
+            if (! dispatchReady.WaitUntil(discoveryDeadline))
+            {
+                driverFailure = "info popup modal dispatch becomes ready inside the existing discovery budget";
+                trace.Driver("info.dispatch-readiness-failed");
+                return;
+            }
+            trace.Driver("info.dispatch-ready");
+
+            D2D1_RECT_F infoRectDip{};
+            ContextMenuPopupDebugState popupState{};
+            if (! WaitForContextMenuPopupState(popupHwnd,
+                                               [](const ContextMenuPopupDebugState& state) noexcept
+            { return state.visibleWidthDip > 0.0f && state.visibleHeightDip > 0.0f; },
+                                               popupState) ||
+                ! WaitForContextMenuPopupItemRect(popupHwnd, 0u, infoRectDip))
+            {
+                driverFailure = "info-row popup exposes geometry after modal dispatch readiness";
+                trace.Driver("info.geometry-failed");
+                return;
+            }
+
+            const float scale  = static_cast<float>(popupState.dpi) / 96.0f;
+            const LONG clientX = static_cast<LONG>(std::lround(((infoRectDip.left + infoRectDip.right) * 0.5f) * scale));
+            const LONG clientY = static_cast<LONG>(std::lround(((infoRectDip.top + infoRectDip.bottom) * 0.5f) * scale));
+            POINT infoRowScreen{clientX, clientY};
+            [[maybe_unused]] const ScopedMenuPointerFixture popupDpiContext(popupHwnd);
+            if (! ClientToScreen(popupHwnd, &infoRowScreen))
+            {
+                driverFailure = "info-row geometry converts to physical screen coordinates";
+                trace.Driver("info.screen-coordinate-failed");
+                return;
+            }
+            if (! pointerFixture.AlignCursor(infoRowScreen, popupHwnd))
+            {
+                driverFailure = "the owned physical cursor aligns to the info-row center";
+                trace.Driver("info.physical-alignment-failed", static_cast<size_t>(clientX), static_cast<size_t>(clientY));
+                return;
+            }
+            trace.Driver("info.physical-aligned", static_cast<size_t>(clientX), static_cast<size_t>(clientY));
+            if (! SendSettledClientMouseMoveForMenuSuite(popupHwnd, clientX, clientY))
+            {
+                driverFailure = "the info-row hover message is delivered before clicking";
+                trace.Driver("info.move-send-failed");
+                return;
+            }
+            trace.Driver("info.move-sent", trace.PointerDispatchCount(), 0u);
+
+            const LPARAM clickPoint = MousePointLParamForMenuSuite(clientX, clientY);
+            const bool downPosted   = PostMessageW(popupHwnd, WM_LBUTTONDOWN, MK_LBUTTON, clickPoint) != FALSE;
+            const bool upPosted     = PostMessageW(popupHwnd, WM_LBUTTONUP, 0, clickPoint) != FALSE;
+            trace.Driver("info.click-posted", downPosted ? 1u : 0u, upPosted ? 1u : 0u);
+            if (! downPosted || ! upPosted)
+            {
+                driverFailure = "both info-row button messages are posted";
+                return;
+            }
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(80));
+            infoRowStayedOpenAt80Ms = IsWindow(popupHwnd) != FALSE;
+            trace.Driver("info.alive-at-80ms", infoRowStayedOpenAt80Ms ? 1u : 0u, trace.PointerDispatchCount());
+            if (! infoRowStayedOpenAt80Ms)
+            {
+                driverFailure = "clicking an info row does not dismiss the popup";
+                return;
+            }
+
+            // A cross-thread state probe is posted only after both button posts. The modal loop
+            // prioritizes queued client mouse input before its posted debug-state probe.
+            ContextMenuPopupDebugState afterClickState{};
+            postClickStateProbeSucceeded = DebugGetContextMenuPopupState(popupHwnd, afterClickState) && afterClickState.itemCount == items.size();
+            trace.Driver("info.post-click-state", postClickStateProbeSucceeded ? 1u : 0u, afterClickState.renderCount);
+            if (! postClickStateProbeSucceeded)
+                driverFailure = "the info popup answers a valid state probe after posted button input";
         });
 
-        D2D1_RECT_F infoRectDip = D2D1::RectF();
-        ContextMenuPopupDebugState popupState{};
-        if (! WaitForContextMenuPopupState(popupHwnd,
-                                           [](const ContextMenuPopupDebugState& state) noexcept
-        { return state.visibleWidthDip > 0.0f && state.visibleHeightDip > 0.0f; },
-                                           popupState) ||
-            ! WaitForContextMenuPopupItemRect(popupHwnd, 0u, infoRectDip))
-        {
-            driverFailure = "info-row popup exposes geometry and debug state";
-            return;
-        }
-
-        const float scale       = static_cast<float>(popupState.dpi) / 96.0f;
-        const LONG clientX      = static_cast<LONG>(std::lround(((infoRectDip.left + infoRectDip.right) * 0.5f) * scale));
-        const LONG clientY      = static_cast<LONG>(std::lround(((infoRectDip.top + infoRectDip.bottom) * 0.5f) * scale));
-        const LPARAM clickPoint = MAKELPARAM(clientX, clientY);
-
-        if (! SendSettledClientMouseMoveForMenuSuite(popupHwnd, clientX, clientY))
-        {
-            driverFailure = "moving the pointer to the info row before clicking succeeds";
-            return;
-        }
-        PostMessageW(popupHwnd, WM_LBUTTONDOWN, MK_LBUTTON, clickPoint);
-        PostMessageW(popupHwnd, WM_LBUTTONUP, 0, clickPoint);
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(80));
-        if (IsWindow(popupHwnd) == FALSE)
-        {
-            driverFailure = "clicking an info row does not dismiss the popup";
-            return;
-        }
+        const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
+        driver.join();
+        commandReturned = result.has_value();
+        if (failure.empty() && ! driverFailure.empty())
+            failure = driverFailure;
+        trace.Dump(! failure.empty() || commandReturned);
+        return ForegroundAttempt{ownerWindow.ForegroundLossCount() != lossesBefore, ownerWindow.LastForegroundThiefThreadId(), true};
     });
 
-    const ThemePalette theme        = MakeAnimatedTestThemePalette(true);
-    const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
-    driver.join();
-
-    Require(driverFailure.empty(), driverFailure.c_str());
-    Require(! result.has_value(), "clicking an info row does not invoke a command");
+    Require(run.held, "info-row click validation completes in an attempt that retains the foreground");
+    Require(failure.empty(), failure.c_str());
+    Require(infoRowStayedOpenAt80Ms, "clicking an info row keeps the popup open after 80 ms");
+    Require(postClickStateProbeSucceeded, "the popup answers a valid state probe after the posted click messages");
+    Require(! commandReturned, "clicking an info row does not invoke a command");
 }
 
 void TestMenuPopupPositionClampsAcrossDpiMatrix()

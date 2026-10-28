@@ -5437,6 +5437,15 @@ void TraceMenuPointerRoute(MenuController& controller,
         return MenuInputDisposition::Ignored;
     }
 
+    // AltGr is text input and does not take over the menu's pointer navigation.
+    if (event.kind == MenuKeyboardKind::Alt && (HIWORD(static_cast<DWORD>(event.lParam)) & KF_EXTENDED) != 0u && GetKeyState(VK_CONTROL) < 0)
+        return MenuInputDisposition::Consumed;
+
+    // A pending ancestor timer must not replace or close a keyboard-focused child.
+    // Clearing the timer state also makes an already queued WM_TIMER harmless.
+    for (const auto& popup : controller.popups)
+        CancelSubmenuHoverTimer(*popup);
+
     const auto focusedIndex = [&]() noexcept -> std::optional<size_t>
     {
         auto idx = topmost->keyboardIndex.has_value() ? topmost->keyboardIndex : topmost->hoveredIndex;
@@ -5584,11 +5593,6 @@ void TraceMenuPointerRoute(MenuController& controller,
             controller.Dismiss();
             return MenuInputDisposition::Dismissed;
         case MenuKeyboardKind::Alt:
-            // AltGr arrives as a right Alt with Ctrl down: it types characters, mnemonics included, and keeps the menu open.
-            if ((HIWORD(static_cast<DWORD>(event.lParam)) & KF_EXTENDED) != 0u && GetKeyState(VK_CONTROL) < 0)
-            {
-                return MenuInputDisposition::Consumed;
-            }
             DXUI_MENU_DIAGNOSTICS_TRACE(L"menu.dismiss-cause-key-alt", L"source={} hwnd={:#x}", TraceInputSourceName(event.source), TraceHwndValue(event.hwnd));
             controller.Dismiss();
             return MenuInputDisposition::Dismissed;
