@@ -57,22 +57,29 @@ $p=New-ConsumerQualificationProgress $Output @{commit='e'*40}
 Invoke-ConsumerQualificationPhase $p 'DelayedNegative' {[Threading.Thread]::Sleep(60000)} -NegativeCheck
 '@)
     $path=Join-Path $fixture 'progress.json'
-    $start=[Diagnostics.ProcessStartInfo]::new('pwsh')
+    $start=[Diagnostics.ProcessStartInfo]::new((Join-Path $PSHOME $(if($IsWindows){'pwsh.exe'}else{'pwsh'})))
     $start.UseShellExecute=$false;$start.CreateNoWindow=$true
+    $start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
     foreach($arg in @('-NoProfile','-File',$childScript,'-Module',(Join-Path $PSScriptRoot '../ConsumerQualification.psm1'),'-Output',$path)){$start.ArgumentList.Add($arg)}
     $child=[Diagnostics.Process]::Start($start)
+    $stdout=$child.StandardOutput.ReadToEndAsync();$stderr=$child.StandardError.ReadToEndAsync()
     try{
         $deadline=[DateTime]::UtcNow.AddSeconds(10);$ready=$false
         while([DateTime]::UtcNow-lt $deadline -and -not $child.HasExited){
             if(Test-Path $path){$r=Get-Content $path -Raw|ConvertFrom-Json;if($r.activePhase-eq 'DelayedNegative'){$ready=$true;break}}
             Start-Sleep -Milliseconds 25
         }
-        Assert-True $ready 'owned helper published its active phase before interruption'
+        Assert-True $ready 'owned helper published its active phase before interruption; child streams are retained in the fixture'
         $child.Kill();Assert-True ($child.WaitForExit(3000)) 'owned helper exited'
         $r=Get-Content $path -Raw|ConvertFrom-Json
         Assert-Equal 'incomplete' $r.status 'watchdog termination is never completion'
         Assert-Equal 'DelayedNegative' $r.activePhase 'the exact unfinished case remains visible'
         Assert-Equal 0 ([int]$r.negativeChecks) 'unfinished negative case is not counted'
-    }finally{if(-not $child.HasExited){$child.Kill();[void]$child.WaitForExit(3000)};$child.Dispose()}
+    }finally{
+        if(-not $child.HasExited){$child.Kill();[void]$child.WaitForExit(3000)}
+        if($stdout.IsCompletedSuccessfully){[IO.File]::WriteAllText((Join-Path $fixture 'child.stdout.log'),$stdout.Result)}
+        if($stderr.IsCompletedSuccessfully){[IO.File]::WriteAllText((Join-Path $fixture 'child.stderr.log'),$stderr.Result)}
+        $child.Dispose()
+    }
 }
 Complete-TestRun 'Consumer qualification progress'

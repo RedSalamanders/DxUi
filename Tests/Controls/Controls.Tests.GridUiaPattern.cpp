@@ -11,6 +11,10 @@
 namespace
 {
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class GridUiaPatternModel final : public DxUi::IGridModel
 {
 public:
@@ -215,6 +219,7 @@ private:
     bool _throwOnRead{};
     bool _throwBadAlloc{};
 };
+#pragma warning(pop)
 
 void AttachGrid(AttachedHostWindow& window, GridUiaPatternModel& model, DxUi::Grid*& outGrid)
 {

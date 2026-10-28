@@ -1,9 +1,9 @@
-#include "../Support/Diagnostics.h"
-#include "../Support/LiveResourceCount.h"
-#include "../Support/WindowMessages.h"
 #include "DxUi.AccessibilityTextUnits.h"
 #include "DxUi.Internal.h"
 #include "DxUi.RichAccessibilityEpoch.h"
+#include "Support/Diagnostics.h"
+#include "Support/LiveResourceCount.h"
+#include "Support/WindowMessages.h"
 #include <DxUi/Embedded.h>
 
 #include <algorithm>
@@ -824,6 +824,10 @@ struct AccessibilityControlAddress
     uint32_t ordinal  = 0u;
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626)
 struct AccessibilitySnapshot
 {
     HWND hwnd     = nullptr;
@@ -851,6 +855,7 @@ struct AccessibilitySnapshot
     // What DebugGetContextMenuResources reports for a snapshot of a menu popup while anything still holds it.
     Detail::LiveResourceCount liveMenuRecords;
 };
+#pragma warning(pop)
 
 [[nodiscard]] bool IsSemanticAccessibilityControl(const Control* control) noexcept;
 [[nodiscard]] bool TryResolveSingleSemanticRootControlPath(const Control* root, ControlPath& outPath) noexcept;
@@ -930,6 +935,10 @@ struct AccessibilityPropertyRegistration final
     }
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626)
 struct AccessibilityPendingProperty final
 {
     ControlPath path{};
@@ -942,6 +951,7 @@ struct AccessibilityPendingProperty final
     std::shared_ptr<AccessibilityPropertyRegistration> previousInterface;
     std::shared_ptr<AccessibilityPropertyRegistration> currentInterface;
 };
+#pragma warning(pop)
 
 // Relationship values are COM providers too. Capture them on the owning apartment without putting a raw
 // interface pointer in the cross-apartment batch; delivery resolves its own proxy before handing it to UIA.
@@ -1106,6 +1116,10 @@ struct WindowHostAccessibilityTarget final
 };
 
 // A model getter is application code. Never finish or publish the partially built tree after it changes an owner.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4623 4626 5027)
 struct AccessibilitySnapshotBuild
 {
     WindowHostAccessibilityTarget& target;
@@ -1125,6 +1139,7 @@ struct AccessibilitySnapshotBuild
         return ! lifetime.expired() && IsCurrent() && ResolveControlAtPath(const_cast<Control*>(root), path) == control;
     }
 };
+#pragma warning(pop)
 
 [[nodiscard]] std::recursive_mutex& AccessibilitySnapshotMutex(WindowHostAccessibilityTarget* target) noexcept
 {
@@ -2704,19 +2719,6 @@ bool SnapshotHasCollapsedSemanticRoot(const AccessibilitySnapshot& snapshot) noe
 bool SnapshotPathIsCollapsedSemanticRoot(const AccessibilitySnapshot& snapshot, const ControlPath& path) noexcept
 {
     return SnapshotHasCollapsedSemanticRoot(snapshot) && AreControlPathsEqual(snapshot.semanticControlOrder.front(), path);
-}
-
-std::optional<size_t> FindSizeValueIndex(std::span<const size_t> values, size_t value) noexcept
-{
-    for (size_t index = 0u; index < values.size(); ++index)
-    {
-        if (values[index] == value)
-        {
-            return index;
-        }
-    }
-
-    return std::nullopt;
 }
 
 std::optional<size_t> FindU64ValueIndex(std::span<const uint64_t> values, uint64_t value) noexcept
@@ -7454,7 +7456,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteScrollIntoViewOnWindowThread(bool
     const bool scrolled = editor->ScrollSourceRangeIntoView(*host, range.start, range.end, alignToTop);
     if (lifetime.expired() || ! _target || _target->ResolveHost() != host || ResolveMutableControl() != control)
         return UIA_E_ELEMENTNOTAVAILABLE;
-    return scrolled ? S_OK : UIA_E_INVALIDOPERATION;
+    return scrolled ? S_OK : static_cast<HRESULT>(UIA_E_INVALIDOPERATION);
 }
 
 HRESULT AccessibilityTextRangeProvider::GetChildren(SAFEARRAY** outChildren) noexcept
@@ -7495,7 +7497,7 @@ HRESULT AccessibilityTextRangeProvider::GetChildren(SAFEARRAY** outChildren) noe
         {
             auto peer = RichSemanticElementProvider::Create(_target, _hwnd, *record, child);
             if (! peer)
-                return record->HasCurrentRichSemantic() ? E_OUTOFMEMORY : UIA_E_ELEMENTNOTAVAILABLE;
+                return record->HasCurrentRichSemantic() ? E_OUTOFMEMORY : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
             raw.push_back(peer.get());
             owners.push_back(std::move(peer));
         }
@@ -8016,6 +8018,7 @@ AccessibilityPatternQueryResult AccessibilityProvider::QueryPattern(Accessibilit
             case AccessibilityPatternKind::TableItem:
                 return (cell->controlRecord && cell->controlRecord->gridColumnCount > 0u) ? makeResult(static_cast<ITableItemProvider*>(this))
                                                                                           : AccessibilityPatternQueryResult{};
+            case AccessibilityPatternKind::Text2: break;
         }
         return {};
     }
@@ -8781,7 +8784,7 @@ HRESULT AccessibilityProvider::Navigate(NavigateDirection direction, IRawElement
         if (! IsCurrentThreadWindowThread())
             return RPC_E_WRONG_THREAD;
         const auto site = _target->site;
-        return site ? site->Navigate(direction, outProvider) : UIA_E_ELEMENTNOTAVAILABLE;
+        return site ? site->Navigate(direction, outProvider) : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
     }
 
     if (_kind == AccessibilityFragmentKind::TreeItem)
@@ -9073,11 +9076,11 @@ HRESULT AccessibilityProvider::get_FragmentRoot(IRawElementProviderFragmentRoot*
         if (! IsCurrentThreadWindowThread())
             return RPC_E_WRONG_THREAD;
         const auto site = _target->site;
-        return site ? site->FragmentRoot(outRoot) : UIA_E_ELEMENTNOTAVAILABLE;
+        return site ? site->FragmentRoot(outRoot) : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
     }
     const auto snapshot = CaptureSnapshot();
     *outRoot            = snapshot ? CreateRootProvider(RootIdentityForSnapshot(*snapshot)) : nullptr;
-    return *outRoot ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
+    return *outRoot ? S_OK : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
 }
 
 HRESULT AccessibilityProvider::ElementProviderFromPoint(double x, double y, IRawElementProviderFragment** outProvider) noexcept
@@ -9638,7 +9641,7 @@ HRESULT AccessibilityProvider::RangeFromAnnotation(IRawElementProviderSimple*, I
     if (! range)
         return E_POINTER;
     *range = nullptr;
-    return CaptureSnapshot() ? UIA_E_NOTSUPPORTED : UIA_E_ELEMENTNOTAVAILABLE;
+    return CaptureSnapshot() ? static_cast<HRESULT>(UIA_E_NOTSUPPORTED) : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
 }
 
 HRESULT AccessibilityProvider::SetValue(LPCWSTR value) noexcept
@@ -10369,7 +10372,7 @@ HRESULT AccessibilityProvider::get_SelectionContainer(IRawElementProviderSimple*
         // A radio button's group draws its header but is no element of its own, so there is no container to name.
         const AccessibilityControlNavigationSnapshot* const control =
             (snapshot && snapshot->alive && snapshot->hasRetainedRoot) ? ResolveSnapshotControlRecord(*snapshot, _kind, _path) : nullptr;
-        return control && control->controlSupportsSelectionItem ? S_OK : UIA_E_NOTSUPPORTED;
+        return control && control->controlSupportsSelectionItem ? S_OK : static_cast<HRESULT>(UIA_E_NOTSUPPORTED);
     }
     const AccessibilityControlNavigationSnapshot* record =
         (snapshot && snapshot->alive && snapshot->hasRetainedRoot) ? FindControlNavigationRecord(*snapshot, _path) : nullptr;
@@ -10699,11 +10702,12 @@ HRESULT AccessibilityProvider::RevealGridItemOnWindowThread(bool includeColumn)
     const std::weak_ptr<int> lifetime = GetControlLifetimeToken(*grid);
     // A row inside a collapsed group has no place to scroll to.
     if (! grid->FindVisibleRowOrdinal(rowIndex))
-        return lifetime.expired() || ResolveMutableGridControl() != grid ? UIA_E_ELEMENTNOTAVAILABLE : UIA_E_INVALIDOPERATION;
+        return lifetime.expired() || ResolveMutableGridControl() != grid ? static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE)
+                                                                         : static_cast<HRESULT>(UIA_E_INVALIDOPERATION);
     if (lifetime.expired() || ResolveMutableGridControl() != grid)
         return UIA_E_ELEMENTNOTAVAILABLE;
     ControlModelQueryAccess::RevealGridItem(*grid, rowIndex, includeColumn ? std::optional<size_t>{_gridColumnIndex} : std::nullopt);
-    return lifetime.expired() || ResolveMutableGridControl() != grid ? UIA_E_ELEMENTNOTAVAILABLE : S_OK;
+    return lifetime.expired() || ResolveMutableGridControl() != grid ? static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE) : S_OK;
 }
 
 HRESULT AccessibilityProvider::ExecuteScrollIntoViewOnWindowThread()
@@ -11293,7 +11297,7 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread()
         // whole menu, as for its rows below.
         if (! _target->embedded && ! IsNativeMenuPopupWindow(_hwnd))
             ::SetFocus(_hwnd);
-        return survived() ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
+        return survived() ? S_OK : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
     }
 
     if (_kind == AccessibilityFragmentKind::TreeItem)
@@ -11322,7 +11326,7 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread()
         if (! survived())
             return UIA_E_ELEMENTNOTAVAILABLE;
         host->Invalidate();
-        return survived() ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
+        return survived() ? S_OK : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
     }
 
     if (_kind == AccessibilityFragmentKind::GridHeader)
@@ -11342,7 +11346,7 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread()
                 return UIA_E_ELEMENTNOTAVAILABLE;
             host->Invalidate();
         }
-        return survived() ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
+        return survived() ? S_OK : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
     }
 
     if (_kind == AccessibilityFragmentKind::GridRow)
@@ -11366,7 +11370,7 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread()
                 return UIA_E_ELEMENTNOTAVAILABLE;
             host->Invalidate();
         }
-        return survived() ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
+        return survived() ? S_OK : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
     }
 
     if (_kind == AccessibilityFragmentKind::GridCell)
@@ -11391,7 +11395,7 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread()
                 return UIA_E_ELEMENTNOTAVAILABLE;
             host->Invalidate();
         }
-        return survived() ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
+        return survived() ? S_OK : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
     }
 
     if (_kind == AccessibilityFragmentKind::TextFieldPasswordRevealButton)
@@ -11408,7 +11412,7 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread()
                 return UIA_E_ELEMENTNOTAVAILABLE;
             host->Invalidate();
         }
-        return survived() ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
+        return survived() ? S_OK : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
     }
 
     Control* control = ResolveMutableControl();
@@ -11427,7 +11431,7 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread()
         if (! survived())
             return UIA_E_ELEMENTNOTAVAILABLE;
     }
-    return survived() ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
+    return survived() ? S_OK : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
 }
 
 HRESULT AccessibilityProvider::ExecuteInvokeOnWindowThread()
@@ -11492,7 +11496,7 @@ HRESULT AccessibilityProvider::ExecuteInvokeOnWindowThread()
         const bool invoked = revealTextField->InvokePasswordRevealButton(*host);
         if (! survived())
             return UIA_E_ELEMENTNOTAVAILABLE;
-        return invoked ? S_OK : UIA_E_NOTSUPPORTED;
+        return invoked ? S_OK : static_cast<HRESULT>(UIA_E_NOTSUPPORTED);
     }
 
     if (accessibleControl && accessibleControl->SupportsAccessibleInvoke())
@@ -11508,7 +11512,7 @@ HRESULT AccessibilityProvider::ExecuteInvokeOnWindowThread()
     const bool invoked = button->Invoke(*host, true);
     if (! survived())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    return invoked ? S_OK : UIA_E_NOTSUPPORTED;
+    return invoked ? S_OK : static_cast<HRESULT>(UIA_E_NOTSUPPORTED);
 }
 
 HRESULT AccessibilityProvider::ExecuteToggleOnWindowThread()
@@ -11752,14 +11756,14 @@ HRESULT AccessibilityProvider::ExecuteSelectOnWindowThread()
         {
             tree = ResolveMutableTreeControl();
             if (! tree || ! tree->IsEnabled() || ! ResolveTreeVisibleIndex(index))
-                return tree && ! tree->IsEnabled() ? UIA_E_ELEMENTNOTENABLED : UIA_E_ELEMENTNOTAVAILABLE;
+                return tree && ! tree->IsEnabled() ? static_cast<HRESULT>(UIA_E_ELEMENTNOTENABLED) : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
             owner = tree;
         }
         else if (_kind == AccessibilityFragmentKind::GridRow)
         {
             grid = ResolveMutableGridControl();
             if (! grid || ! grid->IsEnabled() || ! ResolveGridRowIndex(index))
-                return grid && ! grid->IsEnabled() ? UIA_E_ELEMENTNOTENABLED : UIA_E_ELEMENTNOTAVAILABLE;
+                return grid && ! grid->IsEnabled() ? static_cast<HRESULT>(UIA_E_ELEMENTNOTENABLED) : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
             owner = grid;
         }
         else
@@ -11785,7 +11789,7 @@ HRESULT AccessibilityProvider::ExecuteSelectOnWindowThread()
     if (! survives())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! accepted)
-        return tree ? UIA_E_ELEMENTNOTAVAILABLE : UIA_E_NOTSUPPORTED;
+        return tree ? static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE) : static_cast<HRESULT>(UIA_E_NOTSUPPORTED);
     RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
     if (! survives())
         return UIA_E_ELEMENTNOTAVAILABLE;
@@ -12002,7 +12006,7 @@ HRESULT AccessibilityProvider::ExecuteTabSelectionOnWindowThread(AccessibilityUi
     const size_t index  = static_cast<size_t>(tab - items.begin());
     const bool selected = tabs->GetSelectedIndex() == index;
     if (kind == AccessibilityUiActionKind::RemoveFromSelection)
-        return selected ? UIA_E_INVALIDOPERATION : S_OK;
+        return selected ? static_cast<HRESULT>(UIA_E_INVALIDOPERATION) : S_OK;
     if (selected)
         return S_OK;
     if (kind == AccessibilityUiActionKind::AddToSelection)
@@ -12032,7 +12036,7 @@ HRESULT AccessibilityProvider::ExecuteRadioSelectionOnWindowThread(Accessibility
     if (! radio->IsEnabled())
         return UIA_E_ELEMENTNOTENABLED;
     if (radio->IsChecked())
-        return kind == AccessibilityUiActionKind::RemoveFromSelection ? UIA_E_INVALIDOPERATION : S_OK;
+        return kind == AccessibilityUiActionKind::RemoveFromSelection ? static_cast<HRESULT>(UIA_E_INVALIDOPERATION) : S_OK;
     if (kind == AccessibilityUiActionKind::RemoveFromSelection)
         return S_OK;
     if (kind == AccessibilityUiActionKind::AddToSelection)
@@ -12105,7 +12109,7 @@ HRESULT AccessibilityProvider::ExecuteExpandOnWindowThread(bool expanded)
             if (ResolveHost() != host || ResolveMutableControl() != button)
                 return UIA_E_ELEMENTNOTAVAILABLE;
         }
-        return invoked ? S_OK : UIA_E_NOTSUPPORTED;
+        return invoked ? S_OK : static_cast<HRESULT>(UIA_E_NOTSUPPORTED);
     }
     ControlHost* host = nullptr;
     Tree* tree        = nullptr;
@@ -12531,6 +12535,11 @@ bool AnnounceWindowHostFocus(HWND hwnd) noexcept
                 raw = new (std::nothrow)
                     AccessibilityProvider(target.get(), hwnd, fragment->path, fragment->gridRowId, AccessibilityFragmentKind::TabItem, uint64_t{0u});
                 break;
+            case ::DxUi::AccessibilityFragmentKind::Control:
+            case ::DxUi::AccessibilityFragmentKind::GridCell:
+            case ::DxUi::AccessibilityFragmentKind::GridHeader:
+            case ::DxUi::AccessibilityFragmentKind::Root:
+            case ::DxUi::AccessibilityFragmentKind::TextFieldPasswordRevealButton:
             default: raw = new (std::nothrow) AccessibilityProvider(target.get(), hwnd, fragment->path); break;
         }
         if (! raw)
@@ -13212,7 +13221,7 @@ bool TryHandleWindowHostAccessibilityMessage(HWND hwnd, UINT msg, WPARAM wp, LPA
     {
         request.result = request.kind == AccessibilityUiActionKind::Toggle   ? request.semanticProvider->Toggle()
                          : request.kind == AccessibilityUiActionKind::Invoke ? request.semanticProvider->Invoke()
-                                                                             : UIA_E_NOTSUPPORTED;
+                                                                             : static_cast<HRESULT>(UIA_E_NOTSUPPORTED);
         return true;
     }
     if (request.provider)
@@ -13732,7 +13741,7 @@ HRESULT FlushNativeAccessibilitySnapshot(WindowHostAccessibilityTarget& target) 
         OutputDebugStringW(L"DxUi: accessibility model callback failed; coherent prior snapshot retained.\n");
         return E_FAIL;
     }
-    return target.publishedRevision == target.dirtyRevision ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
+    return target.publishedRevision == target.dirtyRevision ? S_OK : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
 }
 
 void DrainNativeAccessibilityPublication(WindowHostAccessibilityTarget& target) noexcept

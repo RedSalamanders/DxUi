@@ -1,6 +1,6 @@
 #pragma once
-#include "../../Samples/ComplexUi/ComplexUiScene.h"
-#include "../Support/Support.Tests.HeapDiagnostic.h"
+#include "ComplexUiScene.h"
+#include "Support.Tests.HeapDiagnostic.h"
 #include <algorithm>
 #include <array>
 #include <fstream>

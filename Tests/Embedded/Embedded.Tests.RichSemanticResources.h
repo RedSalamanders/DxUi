@@ -1,5 +1,5 @@
 #pragma once
-#include "../Support/Support.Tests.RichSemantic.h"
+#include "Support.Tests.RichSemantic.h"
 #include <thread>
 
 // Included after this process's isolated allocation counters. Do not instrument

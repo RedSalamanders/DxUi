@@ -1,8 +1,8 @@
 #include "Controls.Tests.AnimationClock.h"
 
-#include "../../Samples/EmbeddedControls/GraphicsFixture.h"
-#include "../../src/Support/AnimationDispatcher.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "GraphicsFixture.h"
+#include "Support/AnimationDispatcher.h"
 
 #include <algorithm>
 #include <array>

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../Support/Support.Tests.PreparedTreeSemanticFixture.h"
+#include "Support.Tests.PreparedTreeSemanticFixture.h"
 
 static std::wstring ReadPreparedTreeName(const wil::com_ptr_nothrow<IRawElementProviderFragment>& provider, const char* context)
 {

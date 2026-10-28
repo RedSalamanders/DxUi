@@ -1,5 +1,5 @@
 #pragma once
-#include "../../src/Controls/DxUi.NativeFlowchart.h"
+#include "Controls/DxUi.NativeFlowchart.h"
 #include "Support.Tests.NativeFlowchartCorpus.h"
 #include <DxUi/MarkdownSyntax.h>
 #include <iostream>
@@ -39,6 +39,14 @@ inline std::wstring BlockSignature(const MarkdownSyntax& syntax)
             case MarkdownBlockKind::FencedCode:
             case MarkdownBlockKind::IndentedCode: tag = L"pre"; break;
             case MarkdownBlockKind::HtmlBlock: tag = L"htmlblock"; break;
+            case ::DxUi::RichText::MarkdownBlockKind::BlankLine:
+            case ::DxUi::RichText::MarkdownBlockKind::Document:
+            case ::DxUi::RichText::MarkdownBlockKind::FrontMatter:
+            case ::DxUi::RichText::MarkdownBlockKind::ReferenceDefinition:
+            case ::DxUi::RichText::MarkdownBlockKind::SourceEditor:
+            case ::DxUi::RichText::MarkdownBlockKind::Table:
+            case ::DxUi::RichText::MarkdownBlockKind::TableCell:
+            case ::DxUi::RichText::MarkdownBlockKind::TableRow:
             default: break;
         }
         if (! tag.empty())

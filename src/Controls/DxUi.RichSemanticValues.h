@@ -1,5 +1,6 @@
 #pragma once
 #include <DxUi/RichSemanticDocument.h>
+#include <span>
 #include <stdexcept>
 
 namespace DxUi::RichText::Detail
@@ -156,7 +157,7 @@ inline void ResolveSemanticValue(const MarkdownSyntax& syntax, const SemanticVal
         // spaces the same enclosing raw range as a following delimiter. Only
         // that verified all-generated prefix may exclude a raw suffix.
         if (! node.value.empty() && literal.text.starts_with(node.value) && literal.units.size() >= node.value.size() &&
-            std::all_of(literal.units.begin(), literal.units.begin() + node.value.size(), [](const auto& unit) { return unit.generated; }))
+            std::ranges::all_of(std::span(literal.units).first(node.value.size()), [](const auto& unit) { return unit.generated; }))
         {
             for (std::size_t i = 0u; i < node.value.size(); ++i)
                 result.Append(literal.text[i], literal.units[i].source, true);
@@ -167,6 +168,10 @@ inline void ResolveSemanticValue(const MarkdownSyntax& syntax, const SemanticVal
     throw std::logic_error("Resolved Markdown value does not match its source tokens");
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4626 5027)
 class SemanticOutput
 {
 public:
@@ -226,4 +231,5 @@ public:
 private:
     std::vector<StyleRun>& runs_;
 };
+#pragma warning(pop)
 } // namespace DxUi::RichText::Detail

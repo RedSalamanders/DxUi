@@ -15,6 +15,10 @@ struct PayloadEntry
     void (*destroy)(void*) noexcept = nullptr;
     const void* typeTag             = nullptr;
 };
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626)
 struct PayloadRegistry
 {
     std::mutex mutex;
@@ -28,6 +32,7 @@ struct PayloadRegistry
                 e.destroy(e.value);
     }
 };
+#pragma warning(pop)
 inline PayloadRegistry& Payloads()
 {
     static PayloadRegistry registry;

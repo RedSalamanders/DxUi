@@ -1,4 +1,4 @@
-#include "../../src/Controls/TsfFocus.h"
+#include "Controls/TsfFocus.h"
 
 #include <atomic>
 #include <cstdio>
@@ -7,6 +7,10 @@ namespace
 {
 // Stack-owned COM doubles: Release balances the helper's temporary references but never
 // deletes the fixture. No COM activation, HWND operation or desktop interaction occurs.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class FocusDocument final : public ITfDocumentMgr
 {
 public:
@@ -56,7 +60,12 @@ public:
 
     std::atomic<ULONG> references{1u};
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class FocusManager final : public ITfThreadMgr
 {
 public:
@@ -157,7 +166,12 @@ public:
     bool* current              = nullptr;
     std::atomic<ULONG> references{1u};
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 struct FocusFixture final
 {
     FocusDocument retiring;
@@ -180,6 +194,7 @@ struct FocusFixture final
         DxUi::Internal::RestoreThreadManagerFocusAssociation(&manager, sentinel, &retiring, previousAssociation, [this]() noexcept { return current; });
     }
 };
+#pragma warning(pop)
 } // namespace
 
 bool TestTsfFocusAssociationRestorationControls()

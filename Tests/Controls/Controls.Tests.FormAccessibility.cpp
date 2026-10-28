@@ -1,9 +1,9 @@
 #include "Controls.Tests.FormAccessibility.h"
 
-#include "../../Samples/EmbeddedControls/GraphicsFixture.h"
-#include "../Embedded/Embedded.Tests.EmbeddedUiaBridge.h"
-#include "../Support/Support.Tests.UiaTestClient.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Embedded.Tests.EmbeddedUiaBridge.h"
+#include "GraphicsFixture.h"
+#include "Support.Tests.UiaTestClient.h"
 
 #include <array>
 #include <thread>

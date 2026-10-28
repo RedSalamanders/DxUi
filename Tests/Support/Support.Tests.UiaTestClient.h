@@ -17,7 +17,12 @@
 #include <UIAutomation.h>
 #include <wil/com.h>
 #include <wil/resource.h>
+// Windows SDK WRL owns its interlocked/volatile implementation and target semantics.
+// Scope is this system header only. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4746)
 #include <wrl/implements.h>
+#pragma warning(pop)
 
 #include <algorithm>
 #include <array>
@@ -202,6 +207,10 @@ template <typename Clock, typename Count, typename Pump>
     return text;
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class Recorder final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
                                                            IUIAutomationEventHandler,
                                                            IUIAutomationPropertyChangedEventHandler,
@@ -285,6 +294,10 @@ public:
     }
 
 private:
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     struct Timeline
     {
         std::array<EventArrival, kEventTimelineCapacity> arrivals{};
@@ -293,6 +306,7 @@ private:
         size_t stored   = 0u;
         size_t overflow = 0u;
     };
+#pragma warning(pop)
 
     [[nodiscard]] static std::wstring Render(const VARIANT& variant)
     {
@@ -352,6 +366,7 @@ private:
     std::vector<HeardEvent> _events;
     std::unique_ptr<Timeline> _timeline;
 };
+#pragma warning(pop)
 
 // What the client subscribes to, at the window's element and its whole subtree.
 struct Subscription

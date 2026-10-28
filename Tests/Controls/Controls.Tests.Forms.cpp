@@ -1,7 +1,7 @@
 #include "Controls.Tests.Forms.h"
 
-#include "../../Samples/EmbeddedControls/GraphicsFixture.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "GraphicsFixture.h"
 #include <DxUi/ControlCatalog.h>
 
 #include <limits>
@@ -26,6 +26,10 @@ bool FiniteRect(const D2D1_RECT_F& rect) noexcept
 }
 
 // Extensible editor whose callbacks exercise the same public boundary as an application custom control.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class FormProbe final : public Control
 {
 public:
@@ -53,8 +57,13 @@ protected:
             callback();
     }
 };
+#pragma warning(pop)
 
 // A custom editor declares a real intrinsic width, and can fail a later measurement without mutating its owner.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class FormMinimumProbe final : public Control
 {
 public:
@@ -85,7 +94,12 @@ protected:
 private:
     float _widthDip;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class FormWrappedLaneProbe final : public Panel
 {
 public:
@@ -113,7 +127,12 @@ protected:
         text->SetBounds(GetBounds());
     }
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class FormDetachProbe final : public Control
 {
 public:
@@ -134,7 +153,12 @@ protected:
         // No sender access follows the callback or the retained callable's final release.
     }
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class NestedFormEditor final : public Panel
 {
 public:
@@ -157,6 +181,7 @@ protected:
             nestedResult = flex->ApplyLayout(*GetHost());
     }
 };
+#pragma warning(pop)
 
 void TestFormsMeasureIsPureAndSharedLabelCacheIsStable()
 {

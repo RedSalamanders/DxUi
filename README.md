@@ -83,3 +83,9 @@ Affected iteration, full local coverage, exact reuse and pending PR obligations 
 ## Recording changes
 
 Follow the [Changes workflow](Changes/README.md): validate while editing, then fold before PrePush/final handoff and immediately after integration, even for one fragment.
+
+Native builds use the [shared build policy](Specs/Build/Build_ConsoleAndPaths.md):
+/Wall without /WX, zero-warning validation, Debug /ZI and ASan /Zi, and
+Release-only /OPT:ICF. A passing build prints a green result with artifact/log
+links and a quoted launch command. OSC 8 capable terminals can open the local
+file links. Cross-built ARM64 applications still need ARM64 Windows to run.

@@ -219,7 +219,7 @@ without a change of its own:
 
 Additions do not increment it. Instead of incrementing, a change may keep the old form working for one revision: an alias for
 a renamed declaration, or a script or function that forwards to its replacement. The next increment removes it. Such an
-alias carries no `[[deprecated]]` attribute, since consumers compile with warnings as errors; the changelog names it and its
+alias carries no `[[deprecated]]` attribute, since consumers require zero-warning builds; the changelog names it and its
 replacement. The changelog fragment of a change that increments the revision says so and lists what each consumer must
 change.
 
@@ -312,3 +312,5 @@ qualifications passed, with independently replayed original ZIPs and completion 
 initial-focus limitations and a separate local x64 Release Menu supplement. It does not establish blanket physical-input
 or performance acceptance. Strict paired preflight matched after complete-catalog project staging. All original calculations replayed, but final publication refused the unqualified base policy; unstable controls and dual-judge disagreements also remain open. The external main merge has the same reviewed tree. A separate main x64 Debug NativeTextInput failure remains unattributed; this record does not replace or retag either cohort.
 Provider runner-file hashes and exact source Git-blob hashes have explicitly different representation labels.
+
+The [native policy, console and dependency-path contract](Build_ConsoleAndPaths.md) owns /Wall without /WX, zero-warning acceptance, Debug/ASan symbols, Release-only ICF, common terminal results and verified short dependency folders.

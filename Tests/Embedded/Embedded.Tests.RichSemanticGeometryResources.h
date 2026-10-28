@@ -1,5 +1,5 @@
 #pragma once
-#include "../Support/Support.Tests.RichSemanticGeometry.h"
+#include "Support.Tests.RichSemanticGeometry.h"
 
 static void TestRichSemanticEditorQueryFailureBudgets(GraphicsFixture& gpu, bool trace = false)
 {

@@ -289,6 +289,10 @@ std::size_t MarkdownSyntax::LexemeSourceAnchor(std::size_t index, std::size_t va
     return valueOffset == length || trailing ? token.source.last : token.source.first;
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4626 5027)
 struct MarkdownParser::Preparation
 {
     explicit Preparation(std::wstring_view source,
@@ -520,6 +524,7 @@ struct MarkdownParser::Preparation
         literalFirst = lexicalCursor;
     }
 };
+#pragma warning(pop)
 
 MarkdownParser::MarkdownParser() noexcept  = default;
 MarkdownParser::~MarkdownParser() noexcept = default;

@@ -133,7 +133,7 @@ HRESULT ComposeGifCanvas(IWICImagingFactory* factory,
         if (background >= count)
             return WINCODEC_ERR_BADIMAGE;
         const auto color = colors[background];
-        fill             = {std::byte(color & 255u), std::byte((color >> 8u) & 255u), std::byte((color >> 16u) & 255u), std::byte(255u)};
+        fill             = {{std::byte(color & 255u), std::byte((color >> 8u) & 255u), std::byte((color >> 16u) & 255u), std::byte(255u)}};
     }
     std::vector<std::byte> canvas(static_cast<std::size_t>(canvasWidth) * canvasHeight * 4u);
     for (std::size_t at = 0u; at < canvas.size(); at += 4u)

@@ -41,7 +41,7 @@ function Read-ActualProfile([string]$Root,[Collections.IDictionary]$Project,[str
 Invoke-TestCase 'real library and benchmark profiles expose the benchmark-only omission and match after complete catalog staging' {
     $projects=@(Get-PerformanceProjectCatalog)
     $roots=@((Join-Path $scratch 'candidate'),(Join-Path $scratch 'nested/baseline'))
-    $files=@('DxUi.sln','Directory.Build.props','Directory.Build.targets','Build/DxUi.AddressSanitizer.targets')+@($projects.path)
+    $files=@('DxUi.sln','Directory.Build.props','Directory.Build.targets','Build/DxUi.AddressSanitizer.targets','Build/NativeBuildPolicy.targets')+@($projects.path)
     $stamp=[DateTime]::UtcNow.AddDays(2)
     foreach($root in $roots){foreach($relative in $files){
         $destination=Join-Path $root $relative

@@ -24,8 +24,10 @@ namespace DxUi::TestSupport
 class ForegroundThief final
 {
 public:
-    ForegroundThief(DWORD minDelayMs, DWORD maxDelayMs) : _minDelayMs(minDelayMs), _maxDelayMs(maxDelayMs), _thread([this](std::stop_token stop) { Run(stop); })
+    ForegroundThief(DWORD minDelayMs, DWORD maxDelayMs) : _minDelayMs(minDelayMs), _maxDelayMs(maxDelayMs)
     {
+        // Start only after every member that Run observes has been initialized.
+        _thread = std::jthread([this](std::stop_token stop) { Run(stop); });
     }
 
     ForegroundThief(const ForegroundThief&)            = delete;

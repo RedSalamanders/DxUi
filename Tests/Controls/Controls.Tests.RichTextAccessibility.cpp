@@ -1,9 +1,9 @@
 #include "Controls.Tests.RichTextAccessibility.h"
-#include "../../Samples/EmbeddedControls/GraphicsFixture.h"
-#include "../Embedded/Embedded.Tests.EmbeddedUiaBridge.h"
-#include "../Support/Support.Tests.RichImageResources.h"
-#include "../Support/Support.Tests.UiaTestClient.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Embedded.Tests.EmbeddedUiaBridge.h"
+#include "GraphicsFixture.h"
+#include "Support.Tests.RichImageResources.h"
+#include "Support.Tests.UiaTestClient.h"
 #include <cmath>
 #include <limits>
 #include <thread>
@@ -12,6 +12,10 @@ namespace
 {
 using namespace DxUi;
 constexpr std::wstring_view EditorId = L"rich.source";
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class RichAccessibilityEditor final : public RichTextEditor
 {
 public:
@@ -28,7 +32,12 @@ public:
         PropagateHost(host);
     }
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626)
 struct RichAccessibilityFixture
 {
     explicit RichAccessibilityFixture(bool embedded, bool markdownAnalysis = false, bool semanticRendering = false) : embedded(embedded)
@@ -142,6 +151,7 @@ struct RichAccessibilityFixture
     RichTextEditor* editor = nullptr;
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
 };
+#pragma warning(pop)
 
 void SourceAndRanges(bool embedded, bool markdownAnalysis = false)
 {
@@ -976,7 +986,7 @@ void InteriorAcpDeletion(bool embedded)
             fixture.Publish();
             Require(fixture.editor->GetSelection() == RichText::Selection{interior, interior},
                     "explicit source ACP remains unsnapped before keyboard deletion");
-            Require(fixture.editor->OnKeyDown(*fixture.controls, key, 0), "rich keyboard handles interior ACP deletion");
+            Require(fixture.editor->OnKeyDown(*fixture.controls, static_cast<UINT>(key), 0), "rich keyboard handles interior ACP deletion");
             std::cout << "rich interior embedded=" << embedded << " key=" << key << " resultUnits=" << fixture.editor->GetText().size() << '\n';
             Require(fixture.editor->GetText() == L"AB" && fixture.editor->GetSelection() == RichText::Selection{1u, 1u},
                     "collapsed rich deletion removes the complete containing grapheme");
@@ -2183,7 +2193,7 @@ void SemanticFootnoteNavigation(bool embedded)
         fixture.Publish();
         auto sourceText  = TextProvider(fixture);
         const auto label = nested.find(L"[^n]");
-        auto hidden      = AsciiRange(*sourceText.get(), static_cast<int>(label), static_cast<int>(label + 1u));
+        auto hidden      = AsciiRange(*sourceText.get(), label, label + 1u);
         wil::com_ptr_nothrow<IRawElementProviderSimple> owner;
         RequireSucceeded(hidden->GetEnclosingElement(owner.put()), "moved definition hidden-label source owner");
         bool inFooter{};
@@ -2206,7 +2216,7 @@ void SemanticFootnoteNavigation(bool embedded)
         if (outer != std::wstring_view::npos)
         {
             const auto note = nested.find(L"note");
-            auto mixed      = AsciiRange(*sourceText.get(), static_cast<int>(outer), static_cast<int>(note + 1u));
+            auto mixed      = AsciiRange(*sourceText.get(), outer, note + 1u);
             owner.reset();
             RequireSucceeded(mixed->GetEnclosingElement(owner.put()), "source selection spanning retained list and moved footer");
             Require(ReadProviderLongProperty(*owner.get(), UIA_ControlTypePropertyId, "mixed source common ancestor") == UIA_DocumentControlTypeId,

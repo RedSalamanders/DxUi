@@ -1,11 +1,11 @@
-#include "../../src/Controls/DxUi.Internal.h"
-#include "../../src/Controls/DxUi.PointerInput.h"
-#include "../../src/Controls/DxUiNativeMenuInterop.h"
-#include "../../src/Support/AnimationDispatcher.h"
-#include "../../src/Support/PostedPayload.h"
 #include "Controls.Tests.DxUiFocusEventClient.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.MenuPopupReadiness.h"
+#include "Controls/DxUi.Internal.h"
+#include "Controls/DxUi.PointerInput.h"
+#include "Controls/DxUiNativeMenuInterop.h"
+#include "Support/AnimationDispatcher.h"
+#include "Support/PostedPayload.h"
 #include <DxUi/Diagnostics.h>
 #include <cstdio>
 
@@ -22,7 +22,12 @@
 #include <thread>
 #include <utility>
 #include <vector>
+// Windows SDK WRL owns its interlocked/volatile implementation and target semantics.
+// Scope is this system header only. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4746)
 #include <wrl/implements.h>
+#pragma warning(pop)
 
 // The resource probe is included after the owned menu fixture helpers below.
 
@@ -139,6 +144,10 @@ void TestPointerInputEventWheelUsesDeliveredScreenPoint()
             "wheel event derives client point from delivered screen point");
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class StripedBackdropControl final : public DxUi::Control
 {
 public:
@@ -173,6 +182,7 @@ public:
 private:
     LONG _stripeWidthPx = 12;
 };
+#pragma warning(pop)
 
 struct ContextMenuPopupStateWaitSnapshot
 {
@@ -3894,6 +3904,10 @@ void RunMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar(bool keepPaintP
         return buildRequest(activeRootIndex);
     };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     struct PendingPaint
     {
         HWND owner                   = nullptr;
@@ -3903,6 +3917,7 @@ void RunMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar(bool keepPaintP
         size_t injections = 0u;
         bool stopped      = false;
     } pendingPaint;
+#pragma warning(pop)
     pendingPaint.owner = ownerWindow.Hwnd();
     pendingPaint.trace = trace.get();
     if (keepPaintPending)
@@ -4843,6 +4858,10 @@ void TestMenuModalLoopPeeksOnlyLivePopupsWhenAPeekClosesASubmenu()
 {
     using namespace DxUi;
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     struct PeekProbe
     {
         std::atomic<HWND> submenu{nullptr};
@@ -4854,6 +4873,7 @@ void TestMenuModalLoopPeeksOnlyLivePopupsWhenAPeekClosesASubmenu()
         std::mutex mutex;
         std::vector<std::pair<HWND, bool>> peekedAfterClose; // Each window peeked after the close, and whether it was a window.
     } probe;
+#pragma warning(pop)
     probe.peekedAfterClose.reserve(4096u);
 
     const ContextMenuModalLoopPeekHook hook = [](void* context, HWND popupHwnd, UINT message) noexcept
@@ -9527,6 +9547,10 @@ void TestDescribedSubmenuSliderFocusKeepsSessionFocus()
     Require(failure.empty(), failure.c_str());
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class MenuRowFocusObserver final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
                                                                        IUIAutomationFocusChangedEventHandler,
                                                                        Microsoft::WRL::FtmBase>
@@ -9548,6 +9572,7 @@ public:
         return S_OK;
     }
 };
+#pragma warning(pop)
 
 // Live bytes in every process heap: what the process still holds, independent of how much the heaps keep committed.
 [[nodiscard, maybe_unused]] uint64_t MeasureLiveHeapBytesForMenuSuite()
@@ -9829,7 +9854,8 @@ void TestWindowHostTabRaisesAutomationFocusChanges()
         expect(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Second bouton") >= 1u; }),
                "a UIA client receives a focus change for the control Tab reached");
         expect(window.Host().DebugGetFocusAnnouncementCount() == announcedBefore + 1u, "the host announces a focus move inside its focused window once");
-        std::cout << "Window-host Tab focus change reached the UIA client (" << client.Count(L"Second bouton") << " event(s))\n";
+        const auto secondFocusEvents = client.Count(L"Second bouton");
+        std::cout << "Window-host Tab focus change reached the UIA client (" << secondFocusEvents << " event(s))\n";
 
         // With no control focused the window itself has focus, as GetFocus reports it, and a client hears the window by
         // its title. (The test window's class skips DefWindowProc at creation, so the title is set here.)
@@ -10045,6 +10071,10 @@ void TestWindowHostElementSetFocusAnnouncesOnlyThatElement()
 // RunUntilForegroundHeld, with windows of its own: another application that takes the foreground from one of them
 // explains any failure, so its expectations record the first that fails instead of ending the test, and the attempt that
 // kept the foreground decides it (FinishActivatingClickTest).
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class ActivatingClickScenario final
 {
 public:
@@ -10152,6 +10182,7 @@ private:
     std::string _failure;
     std::vector<const AttachedHostWindow*> _watched;
 };
+#pragma warning(pop)
 
 // Plays a test of the click that activates a window as attempts of RunUntilForegroundHeld. `play(scenario, desktop)` plays
 // one attempt on a new scenario, clears `desktop` when no window could be activated at all, and returns

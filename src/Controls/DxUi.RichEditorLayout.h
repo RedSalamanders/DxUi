@@ -6,6 +6,10 @@ namespace DxUi::RichText::Detail
 // The retained control keeps its v0 behavior until semantic rendering is
 // explicitly enabled. Each target stages its complete graph before switching;
 // a new source request cannot mix one map with the other engine's geometry.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class RichEditorLayout
 {
 public:
@@ -224,4 +228,5 @@ private:
     std::uint64_t generation_{}, targetGeneration_{};
     bool activeSemantic_{}, requestedSemantic_{}, hasPublication_{};
 };
+#pragma warning(pop)
 } // namespace DxUi::RichText::Detail

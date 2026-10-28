@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../../Samples/EmbeddedControls/EmbeddedScene.h"
-#include "../../Samples/EmbeddedControls/GraphicsFixture.h"
+#include "EmbeddedScene.h"
+#include "GraphicsFixture.h"
 #include <cmath>
 #include <cstdio>
 #include <thread>
@@ -27,6 +27,10 @@ public:
     }
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class InteractionLayoutCaptureProbe final : public DxUi::Control
 {
 public:
@@ -49,6 +53,7 @@ public:
 private:
     DxUi::Control* _sibling;
 };
+#pragma warning(pop)
 
 static void CheckInteractionLayoutIndexed(bool value, const char* assertion, size_t index)
 {

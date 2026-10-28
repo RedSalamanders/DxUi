@@ -1,5 +1,5 @@
 #pragma once
-#include "../../src/Controls/DxUi.RichSemanticGeometry.h"
+#include "Controls/DxUi.RichSemanticGeometry.h"
 #include "Support.Tests.RichSemanticDocument.h"
 #include <cmath>
 #include <iostream>

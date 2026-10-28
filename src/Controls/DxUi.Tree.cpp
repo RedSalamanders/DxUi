@@ -8,7 +8,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include "../Support/Diagnostics.h"
+#include "Support/Diagnostics.h"
 
 namespace DxUi
 {

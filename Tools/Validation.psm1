@@ -492,10 +492,21 @@ function Test-DxUiDependencies([Parameter(Mandatory)][string] $Root) {
                 $opener = $include.Groups[1].Value
                 $name = $include.Groups[2].Value
                 if ($opener -eq '"') {
-                    $candidates = @((Get-FullPath (Join-DataPath ([IO.Path]::GetDirectoryName($path)) $name)), (Get-FullPath (Join-DataPath (Join-Path $Root 'include') $name)))
+                    # Mirror the owned targets' canonical include roots. Public headers
+                    # remain independently consumable; shipping sources do not borrow test headers.
+                    $includeRoots = @([IO.Path]::GetDirectoryName($path), (Join-Path $Root 'include'))
+                    if ($folder -cne 'include') { $includeRoots += Join-Path $Root 'src' }
+                    if ($folder -cin @('Tests','Samples')) {
+                        $includeRoots += @('Tests/Support','Tests/Embedded','Samples/EmbeddedControls','Samples/ComplexUi' |
+                            ForEach-Object { Join-Path $Root $_ })
+                    }
+                    $candidates = @($includeRoots | ForEach-Object { Get-FullPath (Join-DataPath $_ $name) })
                     $resolved = $candidates | Where-Object { [IO.File]::Exists($_) } | Select-Object -First 1
                     if ($null -eq $resolved) { [void]$missing.Add($name) }
                     elseif (-not (Test-UnderPath $resolved $Root)) { $failures.Add("Include escapes this repository: ${relative}: $name") }
+                    elseif ($folder -ceq 'include' -and -not (Test-UnderPath $resolved (Join-Path $Root 'include'))) {
+                        $failures.Add("Public include escapes the supported header root: ${relative}: $name")
+                    }
                 }
                 $lower = $name.ToLowerInvariant()
                 if ($name -ceq 'Helpers.h' -or @('upstream', 'redsalamander', 'redxe', 'pluginterfaces/viewer' | Where-Object { $lower.Contains($_) }).Count) {

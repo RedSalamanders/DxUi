@@ -134,6 +134,10 @@ struct PreparedFlowchart::State
         output.layout = std::move(layout);
     }
 };
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 struct PreparedFlowchart::Preparation
 {
     enum class Stage
@@ -156,6 +160,7 @@ struct PreparedFlowchart::Preparation
     Stage stage{};
     std::size_t cursor{};
 };
+#pragma warning(pop)
 PreparedFlowchart::PreparedFlowchart() noexcept  = default;
 PreparedFlowchart::~PreparedFlowchart() noexcept = default;
 LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,

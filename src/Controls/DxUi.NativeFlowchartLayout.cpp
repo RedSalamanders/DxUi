@@ -108,6 +108,7 @@ struct NativeFlowchartLayout::Preparation
             case FlowchartDirection::BottomTop: return {p.x, -p.y};
             case FlowchartDirection::LeftRight: return {p.y, p.x};
             case FlowchartDirection::RightLeft: return {-p.y, p.x};
+            case ::DxUi::RichText::Detail::FlowchartDirection::TopBottom:
             default: return p;
         }
     }

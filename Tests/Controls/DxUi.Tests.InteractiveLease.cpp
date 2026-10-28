@@ -6,7 +6,7 @@
 
 #include "Controls.Tests.DxUiTestHelpers.h"
 
-#include "../Support/Support.Tests.InteractiveLease.h"
+#include "Support.Tests.InteractiveLease.h"
 
 #include <algorithm>
 #include <map>
@@ -48,6 +48,10 @@ using Events = std::vector<std::string>;
 
 // A desktop made of fake windows. It records what the lease asks of it, in order, and behaves as the knobs say: a foreground the system
 // refuses to hand over, one that never sticks, an activation that snaps the pointer to a default button or resets the focus.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class FakeDesktop final : public DesktopBackend
 {
 public:
@@ -244,6 +248,7 @@ private:
     std::map<DWORD, HWND> _focus;
     std::set<HWND> _minimized;
 };
+#pragma warning(pop)
 
 // The person's desktop: their editor in front, the caret in a child window of it, the pointer somewhere over it.
 constexpr DWORD kPersonThread = 100u;
@@ -355,6 +360,8 @@ void TestDesktopLeaseCaptureDistinguishesEveryNullFocusPath()
             case FocusCaptureReason::ForegroundMinimized: desktop.SetMinimized(person.editor, true); break;
             case FocusCaptureReason::QueryFailed: desktop.focusQueryError = ERROR_ACCESS_DENIED; break;
             case FocusCaptureReason::QueryReturnedNull: desktop.SetFocusOf(kPersonThread, nullptr); break;
+            case ::DxUi::TestSupport::FocusCaptureReason::NotCaptured:
+            case ::DxUi::TestSupport::FocusCaptureReason::Recorded:
             default: break;
         }
         DesktopLease lease(desktop);
@@ -684,6 +691,10 @@ void TestDesktopLeaseReportsAFocusItCannotRestore()
 
 // ---- Is there a desktop to take? ------------------------------------------------------------------------------------------------
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class FakeProbe final : public DesktopProbe
 {
 public:
@@ -730,6 +741,7 @@ public:
     bool screenSaver         = false;
     bool cursorReadable      = true;
 };
+#pragma warning(pop)
 
 [[nodiscard]] bool Mentions(const Availability& availability, std::string_view text)
 {
@@ -866,6 +878,10 @@ void TestWin32BackendReadsTheDesktopWithoutChangingIt()
 
 // ---- The lease as a whole -------------------------------------------------------------------------------------------------------
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class FakeServices final : public LeaseServices
 {
 public:
@@ -953,6 +969,7 @@ private:
     Events& _events;
     FakeDesktop& _desktop;
 };
+#pragma warning(pop)
 
 [[nodiscard]] LeaseRequest RequestFor(std::initializer_list<const wchar_t*> suites)
 {
@@ -974,6 +991,10 @@ private:
 }
 
 // A whole lease on a person's fake desktop, in which the tests take the desktop over while the first child runs.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 struct Lease
 {
     Lease()
@@ -991,6 +1012,7 @@ struct Lease
     FakeServices services{events, desktop};
     Person person;
 };
+#pragma warning(pop)
 
 void TestDesktopLeaseReportsUnreadablePostSetCursorWithoutInventingReadback()
 {

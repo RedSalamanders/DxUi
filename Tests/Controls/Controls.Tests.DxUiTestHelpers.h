@@ -1,13 +1,13 @@
-#include "../../src/Controls/TextClipboard.h"
+#include "Controls/TextClipboard.h"
 #pragma once
 
-#include "../../src/Controls/DxUi.Internal.h"
-#include "../../src/Controls/DxUi.h"
-#include "../../src/Support/Diagnostics.h"
-#include "../../src/Support/WindowMessages.h"
-#include "../Support/Support.Tests.DesktopLease.h"
-#include "../Support/Support.Tests.TestWatchdog.h"
-#include "../Support/Support.Tests.TestWindowActivationGuard.h"
+#include "Controls/DxUi.Internal.h"
+#include "Controls/DxUi.h"
+#include "Support.Tests.DesktopLease.h"
+#include "Support.Tests.TestWatchdog.h"
+#include "Support.Tests.TestWindowActivationGuard.h"
+#include "Support/Diagnostics.h"
+#include "Support/WindowMessages.h"
 
 #include <UIAutomation.h>
 #include <imm.h>
@@ -1345,6 +1345,10 @@ private:
     DxUi::WindowHost _host;
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class ExposedTextField final : public DxUi::TextField
 {
 public:
@@ -1352,7 +1356,12 @@ public:
     using DxUi::TextField::ImportTextInputState;
     using DxUi::TextField::TextField;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class ExposedButton final : public DxUi::Button
 {
 public:
@@ -1364,6 +1373,7 @@ public:
     using DxUi::Button::SetPressed;
     using DxUi::Button::Tick;
 };
+#pragma warning(pop)
 
 struct RecordingContextMenuInvocation
 {
@@ -2480,6 +2490,10 @@ inline void RequireTreeIds(const TreeIds& actual, const TreeIds& expected, const
     return items;
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class PaintTraceControl final : public DxUi::Control
 {
 public:
@@ -2508,7 +2522,12 @@ private:
     std::string _paintTag;
     std::string _overlayTag;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class PaintTraceComboBox final : public DxUi::ComboBox
 {
 public:
@@ -2532,6 +2551,7 @@ public:
 private:
     std::vector<std::string>* _events = nullptr;
 };
+#pragma warning(pop)
 
 class EmptyGridModel final : public DxUi::IGridModel
 {
@@ -2581,6 +2601,10 @@ struct TrackingControlState
     size_t mouseWheelCount = 0u;
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class TrackingControl final : public DxUi::Control
 {
 public:
@@ -2653,6 +2677,7 @@ protected:
 private:
     TrackingControlState* _state = nullptr;
 };
+#pragma warning(pop)
 
 // A control that focuses itself in an input handler leaves itself alone once the focus callbacks destroyed it. `make`
 // adds the control under a root panel beside a focused button and returns it; the host's focus-changed callback replaces

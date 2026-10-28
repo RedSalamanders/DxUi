@@ -60,8 +60,8 @@ static void TestMultilineCaretViewport(GraphicsFixture& gpu)
                         const size_t offset = (static_cast<size_t>(y) * gpu.width + x) * 4;
                         if (pixels[offset] > pixels[offset + 1] + 40 && pixels[offset + 2] > pixels[offset + 1] + 40)
                         {
-                            const bool inViewport =
-                                x >= snap(viewport.left) && x < snap(viewport.right) && y >= snap(viewport.top) && y < snap(viewport.bottom);
+                            const bool inViewport = static_cast<float>(x) >= snap(viewport.left) && static_cast<float>(x) < snap(viewport.right) &&
+                                                    static_cast<float>(y) >= snap(viewport.top) && static_cast<float>(y) < snap(viewport.bottom);
                             if (inViewport)
                                 ++inside;
                             else
@@ -101,6 +101,10 @@ static void TestEmbeddedTextInput(GraphicsFixture& gpu)
     std::shared_ptr<DxUi::GraphicsDevice> pool;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "text pool");
     Hr(view.Attach(pool), "text attach");
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     struct TextPanel final : DxUi::Panel
     {
         void OnBoundsChanged() noexcept override
@@ -111,6 +115,7 @@ static void TestEmbeddedTextInput(GraphicsFixture& gpu)
                 GetLogicalChild(0)->SetBounds(D2D1::RectF(bounds.left + 8, bounds.top + 40, bounds.right - 8, bounds.top + 88));
         }
     };
+#pragma warning(pop)
     auto panel  = std::make_unique<TextPanel>();
     auto* field = panel->AddChild<DxUi::TextField>();
     field->SetText(L"Original");
@@ -575,6 +580,10 @@ static void TestEmbeddedTranslatedCharacterOwnership(GraphicsFixture& gpu)
     // Nested dispatch has its own translated-character permission and cannot leak it to an outer handled command.
     {
         auto view = makeView();
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
         struct NestedField final : DxUi::TextField
         {
             explicit NestedField(DxUi::EmbeddedHost& embedded) : embedded(embedded)
@@ -593,6 +602,7 @@ static void TestEmbeddedTranslatedCharacterOwnership(GraphicsFixture& gpu)
             }
             DxUi::EmbeddedHost& embedded;
         };
+#pragma warning(pop)
         auto root   = std::make_unique<DxUi::Panel>();
         auto* field = root->AddChild<NestedField>(*view);
         view->Controls().SetRoot(std::move(root));
@@ -606,6 +616,10 @@ static void TestEmbeddedTranslatedCharacterOwnership(GraphicsFixture& gpu)
     // Reusing the same receipt object for overlapping calls fails closed even if the nested call receives permission.
     {
         auto view = makeView();
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
         struct ReusingReceiptField final : DxUi::TextField
         {
             ReusingReceiptField(DxUi::EmbeddedHost& embedded, DxUi::EmbeddedKeyDispatchReceipt& receipt, bool outerReturn, bool throwAfterNested)
@@ -646,6 +660,7 @@ static void TestEmbeddedTranslatedCharacterOwnership(GraphicsFixture& gpu)
             bool throwAfterNested = false;
             bool nested           = false;
         };
+#pragma warning(pop)
 
         for (const auto [outerReturn, throwAfterNested] : {std::pair{true, false}, std::pair{false, false}, std::pair{false, true}})
         {
@@ -669,6 +684,10 @@ static void TestEmbeddedTranslatedCharacterOwnership(GraphicsFixture& gpu)
     // Distinct receipt objects preserve nested event associations independently.
     {
         auto view = makeView();
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
         struct SeparateReceiptField final : DxUi::TextField
         {
             SeparateReceiptField(DxUi::EmbeddedHost& embedded, DxUi::EmbeddedKeyDispatchReceipt& nestedReceipt)
@@ -694,6 +713,7 @@ static void TestEmbeddedTranslatedCharacterOwnership(GraphicsFixture& gpu)
             DxUi::EmbeddedKeyDispatchReceipt& nestedReceipt;
             bool nesting = false;
         };
+#pragma warning(pop)
         DxUi::EmbeddedKeyDispatchReceipt outerReceipt;
         DxUi::EmbeddedKeyDispatchReceipt nestedReceipt;
         auto root   = std::make_unique<DxUi::Panel>();
@@ -717,6 +737,10 @@ static void TestEmbeddedTranslatedCharacterOwnership(GraphicsFixture& gpu)
         auto outerView = makeView();
         auto innerView = makeView();
         DxUi::EmbeddedKeyDispatchReceipt sharedReceipt;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
         struct CrossViewField final : DxUi::TextField
         {
             CrossViewField(DxUi::EmbeddedHost& other, DxUi::EmbeddedKeyDispatchReceipt& receipt) : other(other), receipt(receipt)
@@ -737,6 +761,7 @@ static void TestEmbeddedTranslatedCharacterOwnership(GraphicsFixture& gpu)
             DxUi::EmbeddedHost& other;
             DxUi::EmbeddedKeyDispatchReceipt& receipt;
         };
+#pragma warning(pop)
         auto outerRoot   = std::make_unique<DxUi::Panel>();
         auto* outerField = outerRoot->AddChild<CrossViewField>(*innerView, sharedReceipt);
         outerView->Controls().SetRoot(std::move(outerRoot));

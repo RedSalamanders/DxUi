@@ -41,6 +41,10 @@ void CaptureWindowHostFrameMetric(void* context, std::wstring_view metric, uint6
     }
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class PendingPreparationProbe final : public DxUi::Control
 {
 public:
@@ -80,7 +84,12 @@ private:
     bool _pendingCycle    = false;
     bool _returnedPending = false;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class TransientSurfaceProbe final : public DxUi::Control
 {
 public:
@@ -118,6 +127,7 @@ private:
     bool _pressed = false;
     mutable DxUi::TransientSurfaceBackdrop _backdrop;
 };
+#pragma warning(pop)
 
 [[nodiscard]] uint8_t CaptureAlpha(const WindowHostBitmapCapture& capture, UINT x, UINT y) noexcept
 {
@@ -732,6 +742,10 @@ void RequireNoRetainedGridLayouts(const GridLayoutStatistics& statistics, const 
 
 // Removes its subtree from the host without destroying it, which is what ClearChildren, SetRoot and PageHost do on their
 // way to destroying it: the grids in it then stop painting while they are still alive.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class HostDetachingPanel final : public DxUi::Panel
 {
 public:
@@ -745,6 +759,7 @@ public:
         PropagateHost(&host);
     }
 };
+#pragma warning(pop)
 
 // A grid that stops painting keeps no layouts: hidden itself, under a hidden panel or page host, removed from its host or
 // given another model, it returns its layouts, their string storage and its tables at once, since no later paint will
@@ -2795,6 +2810,10 @@ void TestAttachedHostInitialRootChildBatchesAreBoundedAndResetScoped()
 {
     using namespace DxUi;
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class BatchPaintControl final : public Control
     {
     public:
@@ -2827,6 +2846,7 @@ void TestAttachedHostInitialRootChildBatchesAreBoundedAndResetScoped()
         D2D1_COLOR_F _color{};
         bool _overlay = false;
     };
+#pragma warning(pop)
 
     const auto addSampleTree = [](Panel& root)
     {
@@ -3017,6 +3037,10 @@ void TestAttachedHostNestedCaptureAbortsTheActiveInitialBatch()
         bool nestedAttempted = false;
         bool nestedCaptured  = false;
     };
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class ReentrantCaptureControl final : public Control
     {
     public:
@@ -3042,6 +3066,7 @@ void TestAttachedHostNestedCaptureAbortsTheActiveInitialBatch()
     private:
         PaintState* _state;
     };
+#pragma warning(pop)
 
     AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, false, true);
     PaintState state;

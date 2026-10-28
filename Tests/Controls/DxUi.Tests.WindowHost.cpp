@@ -1,11 +1,11 @@
-#include "../../src/Controls/DxUi.Typography.h"
-#include "../../src/Support/PostedPayload.h"
-#include "../../src/Support/WindowMessages.h"
-#include "../Support/Support.Tests.PerformanceCapture.h"
 #include "Controls.Tests.DxUiFocusEventClient.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.HostControlRegressions.h"
 #include "Controls.Tests.NativeDevicePolicy.h"
+#include "Controls/DxUi.Typography.h"
+#include "Support.Tests.PerformanceCapture.h"
+#include "Support/PostedPayload.h"
+#include "Support/WindowMessages.h"
 #include <DxUi/NativeMenuInterop.h>
 
 #include <array>
@@ -325,7 +325,8 @@ void TestWindowHostNonclientCaptionHoverKeepsDefaultProcessing()
         RECT suggested{};
         Require(GetWindowRect(window.Hwnd(), &suggested) != FALSE, "read owned hidden host frame");
         bool handled{};
-        static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_DPICHANGED, MAKELONG(dpi, dpi), reinterpret_cast<LPARAM>(&suggested), handled));
+        static_cast<void>(
+            window.Host().HandleMessage(window.Hwnd(), WM_DPICHANGED, static_cast<WPARAM>(MAKELONG(dpi, dpi)), reinterpret_cast<LPARAM>(&suggested), handled));
         WindowHostBitmapCapture idle;
         Require(! window.Host().DebugCaptureBitmap(idle) && idle.bgraPixels.empty(), "ordinary capture still refuses an invisible native host");
         Require(window.Host().DebugCaptureBitmap(idle, true), "explicit hidden capture stages a completed frame without showing the host");
@@ -523,6 +524,10 @@ struct ReentrantKeyboardMutationState
     size_t charCount    = 0u;
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class ReentrantKeyboardMutationControl final : public DxUi::Control
 {
 public:
@@ -552,7 +557,12 @@ public:
 private:
     ReentrantKeyboardMutationState* _state = nullptr;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class FocusLossMutatesNextFocusControl final : public DxUi::Control
 {
 public:
@@ -578,6 +588,7 @@ protected:
 private:
     DxUi::Control** _controlToDisable = nullptr;
 };
+#pragma warning(pop)
 
 struct PostedPayloadDrainStressWindowState final
 {
@@ -718,6 +729,10 @@ LRESULT CALLBACK PostedPayloadDrainStressWndProc(HWND hwnd, UINT message, WPARAM
     return wil::unique_hwnd(CreateWindowExW(0, kClassName, L"", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, instance, &state));
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class OverlayZOrderControl final : public DxUi::Control
 {
 public:
@@ -749,7 +764,12 @@ public:
         }
     }
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class AnimationTickTraceControl final : public DxUi::Control
 {
 public:
@@ -767,7 +787,12 @@ public:
     uint64_t tickCount  = 0u;
     uint64_t lastTickMs = 0u;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class OverlayHitRecordingControl final : public DxUi::Control
 {
 public:
@@ -799,6 +824,7 @@ protected:
 private:
     TrackingControlState* _state = nullptr;
 };
+#pragma warning(pop)
 
 struct RootRetiringOverlayHitState
 {
@@ -808,9 +834,15 @@ struct RootRetiringOverlayHitState
     size_t mouseDownCount  = 0u;
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class RootRetiringOverlayHitControl final : public DxUi::Control
 {
 public:
+    using DxUi::Control::HitTest;
+    using DxUi::Control::HitTestOverlay;
     RootRetiringOverlayHitControl(DxUi::WindowHost& host, RootRetiringOverlayHitState& state) noexcept : _host(&host), _state(&state)
     {
     }
@@ -849,12 +881,17 @@ private:
     DxUi::WindowHost* _host             = nullptr;
     RootRetiringOverlayHitState* _state = nullptr;
 };
+#pragma warning(pop)
 
 struct ThrowOnceOnMouseDownState
 {
     size_t mouseDownCount = 0u;
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class ThrowOnceOnMouseDownControl final : public DxUi::Control
 {
 public:
@@ -878,12 +915,17 @@ public:
 private:
     ThrowOnceOnMouseDownState* _state = nullptr;
 };
+#pragma warning(pop)
 
 struct WindowHostPaintFailureState
 {
     size_t paintCount = 0u;
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class ThrowOnceDuringWindowHostPaintControl final : public DxUi::Control
 {
 public:
@@ -911,6 +953,7 @@ public:
 private:
     WindowHostPaintFailureState* _state = nullptr;
 };
+#pragma warning(pop)
 
 struct WindowHostRootReplacementPaintState
 {
@@ -918,6 +961,10 @@ struct WindowHostRootReplacementPaintState
     std::function<void(DxUi::WindowHost&)> firstPaintCallback;
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class WindowHostSolidColorPaintControl final : public DxUi::Control
 {
 public:
@@ -940,7 +987,12 @@ public:
 private:
     D2D1_COLOR_F _color{};
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class ReplaceRootDuringWindowHostPaintControl final : public DxUi::Control
 {
 public:
@@ -962,6 +1014,7 @@ public:
 private:
     WindowHostRootReplacementPaintState* _state = nullptr;
 };
+#pragma warning(pop)
 
 struct SelfCapturingControlState
 {
@@ -971,6 +1024,10 @@ struct SelfCapturingControlState
     bool dragging                  = false;
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class SelfCapturingControl final : public DxUi::Control
 {
 public:
@@ -1019,6 +1076,7 @@ public:
 private:
     SelfCapturingControlState* _state = nullptr;
 };
+#pragma warning(pop)
 
 struct RootReplacingPointerControlState
 {
@@ -1026,6 +1084,10 @@ struct RootReplacingPointerControlState
     size_t mouseUpCount   = 0u;
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class RootReplacingPointerControl final : public DxUi::Control
 {
 public:
@@ -1065,6 +1127,7 @@ public:
 private:
     RootReplacingPointerControlState* _state = nullptr;
 };
+#pragma warning(pop)
 
 struct RootReplacingHoverControlState
 {
@@ -1072,6 +1135,10 @@ struct RootReplacingHoverControlState
     size_t mouseMoveCount  = 0u;
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class RootReplacingHoverControl final : public DxUi::Control
 {
 public:
@@ -1104,6 +1171,7 @@ protected:
 private:
     RootReplacingHoverControlState* _state = nullptr;
 };
+#pragma warning(pop)
 
 class DetachOrderProbeControl final : public DxUi::Control
 {
@@ -1137,6 +1205,10 @@ private:
     bool& _sawAttachmentAlive;
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class RenderLayoutMutationProbeControl final : public DxUi::Control
 {
 public:
@@ -1154,6 +1226,7 @@ public:
 private:
     mutable bool _attemptedMutation = false;
 };
+#pragma warning(pop)
 
 void TestWindowHostKeyboardInputMarksFocusVisible()
 {
@@ -1216,6 +1289,10 @@ void TestProcessExitShutdownMarshalsForeignWindowHostDetachToOwnerThread()
 {
     using namespace DxUi;
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626)
     class ThreadRecordingLabel final : public Label
     {
     public:
@@ -1231,6 +1308,7 @@ void TestProcessExitShutdownMarshalsForeignWindowHostDetachToOwnerThread()
     private:
         std::atomic<DWORD>* _destroyedThreadId = nullptr;
     };
+#pragma warning(pop)
 
     Require(DebugGetAttachedWindowHostCount() == 0u, "owner-thread shutdown marshal test starts at the host-registry quiet point");
     std::atomic<DWORD> workerThreadId{0u};
@@ -1321,6 +1399,10 @@ void TestWindowHostFocusLossCannotReattachDuringDetach()
     bool callbackRan         = false;
     bool attachmentSucceeded = true;
     DWORD attachmentError    = ERROR_SUCCESS;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class ReattachingControl final : public Control
     {
     public:
@@ -1341,6 +1423,7 @@ void TestWindowHostFocusLossCannotReattachDuringDetach()
     private:
         std::function<void(WindowHost&)> _callback;
     };
+#pragma warning(pop)
     AttachedHostWindow window;
     auto control           = std::make_unique<ReattachingControl>([&](WindowHost& host)
     {
@@ -1509,6 +1592,10 @@ void TestWindowHostCaptureDiscardsFrameWhenPaintMutatesTheChildTree()
         size_t callbackCount = 0u;
         std::function<void()> onNextPaint;
     };
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class ChildPainter final : public Control
     {
     public:
@@ -1535,6 +1622,7 @@ void TestWindowHostCaptureDiscardsFrameWhenPaintMutatesTheChildTree()
         PaintState* _state;
         bool _first;
     };
+#pragma warning(pop)
     for (const unsigned mutation : {0u, 1u, 2u, 3u, 4u, 5u})
     {
         PaintState state;
@@ -1599,6 +1687,10 @@ void TestWindowHostBatchingStopsAfterCompactionAndTabReorder()
     {
         std::function<void()> onPaint;
     };
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class MutationPainter final : public Control
     {
     public:
@@ -1620,6 +1712,7 @@ void TestWindowHostBatchingStopsAfterCompactionAndTabReorder()
     private:
         PaintState* _state;
     };
+#pragma warning(pop)
 
     {
         PaintState state;
@@ -1746,6 +1839,7 @@ void TestWindowHostGridFocusMutationCannotRetargetTheCurrentClick()
     class Delegate final : public IGridDelegate
     {
     public:
+        using IGridDelegate::OnGridCheckboxToggled;
         explicit Delegate(State& state) noexcept : _state(&state)
         {
         }
@@ -1906,12 +2000,18 @@ void TestPostedPayloadTakeRequiresTheMatchingWindowMessageAndType()
     Require(destroyedCount.load(std::memory_order_acquire) == 1u, "the correctly consumed payload is destroyed exactly once");
 }
 
+// This test deliberately forces an observable access (ICF/timing or the isolated ASan defect).
+// No volatile access provides synchronization. MSVC codegen needs the scope before the function.
+// Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4746)
 void TestPostedPayloadTypeIdentitySurvivesIdenticalIcfDeleters()
 {
     using PayloadDeleter             = void (*)(void*) noexcept;
     PayloadDeleter volatile deleterA = &DxUi::Detail::DestroyPayload<PostedPayloadIcfA>;
     PayloadDeleter volatile deleterB = &DxUi::Detail::DestroyPayload<PostedPayloadIcfB>;
     const bool deletersFolded        = deleterA == deleterB;
+
     static_cast<void>(deletersFolded);
 #if defined(DXUI_POSTED_PAYLOAD_ICF_REQUIRED)
     Require(deletersFolded, "Release ControlTests must link this regression with /OPT:ICF and fold the identical payload deleters");
@@ -1997,6 +2097,7 @@ void TestPostedPayloadTypeIdentitySurvivesIdenticalIcfDeleters()
     Require(! DxUi::TakeMessagePayload<PostedPayloadIcfA>(hwnd.get(), kPayloadMessage, drainedToken) && drainedDestroyedCount == 1u,
             "the drained token is stale and cannot destroy the payload again");
 }
+#pragma warning(pop)
 
 void TestPostedPayloadCapacityFailureDestroysAndAllowsRetry()
 {
@@ -2845,6 +2946,10 @@ void TestWindowHostKeyboardMessageIsolatesPreviewAndReentrantCharacters()
     SendMessageW(window.Hwnd(), WM_KEYUP, VK_CONTROL, 0);
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class ThrowingCharacterPermission final : public DxUi::Control
 {
 public:
@@ -2867,6 +2972,7 @@ protected:
         return true;
     }
 };
+#pragma warning(pop)
 
 void TestWindowHostKeyboardMessageRejectsRetiredForeignAndFailedOwners()
 {
@@ -3233,6 +3339,10 @@ void TestWindowHostMessagePruneCacheRejectsChangesDuringPathValidation()
     using namespace DxUi;
     // Fault injection at a normally read-only query exercises the final state guard.
     // This does not model or permit destructive getter reentry.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class QueryProbePanel final : public Panel
     {
     public:
@@ -3269,6 +3379,7 @@ void TestWindowHostMessagePruneCacheRejectsChangesDuringPathValidation()
         mutable bool _armed           = false;
         mutable size_t _mutationCount = 0u;
     };
+#pragma warning(pop)
 
     for (const bool changeCapture : {false, true})
     {
@@ -3437,6 +3548,10 @@ void TestWindowHostMessagePruneCacheDoesNotPublishAcrossReentrantPruning()
             uint64_t nestedVisitCount = 0u;
             Control* disableOnLeave   = nullptr;
         } state;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
         class ReentrantHover final : public Control
         {
         public:
@@ -3464,6 +3579,7 @@ void TestWindowHostMessagePruneCacheDoesNotPublishAcrossReentrantPruning()
         private:
             ReentryState* _state = nullptr;
         };
+#pragma warning(pop)
 
         WindowHost host;
         auto root   = std::make_unique<Panel>();
@@ -4124,6 +4240,10 @@ void TestWindowHostSetRootClearsDestroyedTreeInteractionState()
 void TestWindowHostPromotesAChildBeforeDestroyingItsOldParent()
 {
     using namespace DxUi;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class Probe final : public Control
     {
     public:
@@ -4133,6 +4253,7 @@ void TestWindowHostPromotesAChildBeforeDestroyingItsOldParent()
         {
         }
     };
+#pragma warning(pop)
     WindowHost host;
     auto parent = std::make_unique<Panel>();
     parent->SetFlowDirection(FlowDirection::RightToLeft);
@@ -4151,6 +4272,10 @@ void TestWindowHostPromotesAChildBeforeDestroyingItsOldParent()
 void TestWindowHostPromotionSurvivesResetCallbacksRetiringTheParent()
 {
     using namespace DxUi;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class Probe final : public Control
     {
     public:
@@ -4160,6 +4285,11 @@ void TestWindowHostPromotionSurvivesResetCallbacksRetiringTheParent()
         {
         }
     };
+#pragma warning(pop)
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class FocusProbe final : public Control
     {
     public:
@@ -4191,6 +4321,7 @@ void TestWindowHostPromotionSurvivesResetCallbacksRetiringTheParent()
         size_t& _losses;
         bool _detach;
     };
+#pragma warning(pop)
     for (const bool detach : std::array{false, true})
     {
         WindowHost host;
@@ -4217,6 +4348,10 @@ void TestWindowHostPromotionSurvivesResetCallbacksRetiringTheParent()
 void TestWindowHostPromotionStopsWhenAnInheritanceCallbackReplacesTheRoot()
 {
     using namespace DxUi;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class Probe final : public Control
     {
     public:
@@ -4246,6 +4381,7 @@ void TestWindowHostPromotionStopsWhenAnInheritanceCallbackReplacesTheRoot()
         bool& _armed;
         size_t& _densityChanges;
     };
+#pragma warning(pop)
     WindowHost host;
     bool armed            = false;
     size_t densityChanges = 0u;
@@ -4265,6 +4401,10 @@ void TestWindowHostPromotionStopsWhenAnInheritanceCallbackReplacesTheRoot()
 void TestWindowHostPointerFocusCallbackCanDestroyTheClickedControl()
 {
     using namespace DxUi;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class ClickControl final : public Control
     {
     public:
@@ -4280,6 +4420,7 @@ void TestWindowHostPointerFocusCallbackCanDestroyTheClickedControl()
             return true;
         }
     };
+#pragma warning(pop)
     WindowHost host;
     auto root     = std::make_unique<Panel>();
     auto* clicked = root->AddChild<ClickControl>();
@@ -4304,6 +4445,10 @@ void TestWindowHostPointerFocusCallbackCanDestroyTheClickedControl()
 void TestWindowHostTakesTheRequestedLifetimeBeforePruningFocus()
 {
     using namespace DxUi;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class RebuildingBlurControl final : public Control
     {
     public:
@@ -4329,6 +4474,7 @@ void TestWindowHostTakesTheRequestedLifetimeBeforePruningFocus()
     private:
         bool& _armed;
     };
+#pragma warning(pop)
     WindowHost host;
     bool armed      = false;
     auto root       = std::make_unique<Panel>();
@@ -4345,6 +4491,10 @@ void TestWindowHostTakesTheRequestedLifetimeBeforePruningFocus()
 void TestWindowHostNewerCallbackFocusRequestWins()
 {
     using namespace DxUi;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class FocusCallbackControl final : public Control
     {
     public:
@@ -4363,6 +4513,7 @@ void TestWindowHostNewerCallbackFocusRequestWins()
                 callback(host, focused);
         }
     };
+#pragma warning(pop)
     for (unsigned phase = 0u; phase < 3u; ++phase)
     {
         WindowHost host;
@@ -4407,6 +4558,10 @@ void TestWindowHostNewerCallbackFocusRequestWins()
 void TestWindowHostFailedBlurBeforeBasePreservesOnlyTheNewFocus()
 {
     using namespace DxUi;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class BlurBeforeBaseControl final : public Control
     {
     public:
@@ -4425,6 +4580,7 @@ void TestWindowHostFailedBlurBeforeBasePreservesOnlyTheNewFocus()
             Control::OnFocusChanged(host, focused);
         }
     };
+#pragma warning(pop)
     for (bool refocusSame : {false, true})
     {
         WindowHost host;
@@ -4451,6 +4607,10 @@ void TestWindowHostFailedBlurBeforeBasePreservesOnlyTheNewFocus()
 void TestWindowHostResetPreservesExplicitFocusAndRootReplacementRetiresOldChoice()
 {
     using namespace DxUi;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626)
     class CallbackControl final : public Control
     {
     public:
@@ -4475,6 +4635,7 @@ void TestWindowHostResetPreservesExplicitFocusAndRootReplacementRetiresOldChoice
                 onBlur(host);
         }
     };
+#pragma warning(pop)
     WindowHost host;
     auto root       = std::make_unique<Panel>();
     auto* previous  = root->AddChild<CallbackControl>();
@@ -4503,6 +4664,10 @@ void TestWindowHostResetPreservesExplicitFocusAndRootReplacementRetiresOldChoice
 void TestWindowHostThrowingFocusCallbacksAcknowledgeTransitionsAndRetirement()
 {
     using namespace DxUi;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class ThrowingFocusControl final : public Control
     {
     public:
@@ -4520,6 +4685,7 @@ void TestWindowHostThrowingFocusCallbacksAcknowledgeTransitionsAndRetirement()
             throw std::runtime_error("focus override failed before base acknowledgement");
         }
     };
+#pragma warning(pop)
     WindowHost host;
     auto root     = std::make_unique<Panel>();
     auto* control = root->AddChild<ThrowingFocusControl>();
@@ -4543,6 +4709,10 @@ void TestWindowHostDetachDeactivatesSecureTextInputBeforeDestroyingRoot()
 {
     using namespace DxUi;
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626)
     class DestructionTrackedTextField final : public TextField
     {
     public:
@@ -4558,6 +4728,7 @@ void TestWindowHostDetachDeactivatesSecureTextInputBeforeDestroyingRoot()
     private:
         size_t* _destroyedCount = nullptr;
     };
+#pragma warning(pop)
 
     WindowHost host;
     size_t destroyedCount = 0u;
@@ -4596,6 +4767,10 @@ void TestWindowHostProcessExitDetachAbandonsRetainedControlObserversBeforeNative
         size_t focusLossCount = 0u;
     };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626)
     class ProcessExitTextField final : public TextField
     {
     public:
@@ -4622,6 +4797,7 @@ void TestWindowHostProcessExitDetachAbandonsRetainedControlObserversBeforeNative
     private:
         ProcessExitTextFieldState* _state = nullptr;
     };
+#pragma warning(pop)
 
     const DWORD ownerThreadId                   = GetCurrentThreadId();
     const size_t baselineAttachedHostCount      = DebugGetAttachedWindowHostCount();
@@ -6016,6 +6192,10 @@ void TestWindowHostFocusGainTurnEndsWithItsMessageOrTheLossOfFocusOrItsLimit()
 // A window with two buttons that never holds the foreground (a gain is played by sending it WM_SETFOCUS), the fragment
 // root UI Automation calls GetFocus on, and a UI Automation client that listens, since the host compares its snapshots
 // only while one does.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 struct FocusGainTestWindow final
 {
     FocusGainTestWindow()
@@ -6039,6 +6219,7 @@ struct FocusGainTestWindow final
     DxUi::Button* first  = nullptr;
     DxUi::Button* second = nullptr;
 };
+#pragma warning(pop)
 
 // UI Automation answers the system's focus event for a window it has never asked about with a call of the fragment root's
 // GetFocus, on whatever thread, which reads the published snapshot when it runs. A click that activates such a window
@@ -6759,6 +6940,10 @@ void TestWindowHostPageHostContentTakesTextInputAndTab()
 void TestWindowHostRefusedFocusRequestInABlurHandlerKeepsTheOuterRequest()
 {
     using namespace DxUi;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class BlurRequestsFocus final : public Control
     {
     public:
@@ -6781,6 +6966,7 @@ void TestWindowHostRefusedFocusRequestInABlurHandlerKeepsTheOuterRequest()
     private:
         Control** _target = nullptr;
     };
+#pragma warning(pop)
 
     WindowHost host;
     auto root         = std::make_unique<Panel>();
@@ -6806,6 +6992,10 @@ void TestWindowHostRefusedFocusRequestInABlurHandlerKeepsTheOuterRequest()
 void TestWindowHostContainsThrowingCallbacksOnNoexceptPaths()
 {
     using namespace DxUi;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class ThrowingHoverControl final : public Control
     {
     public:
@@ -6826,6 +7016,11 @@ void TestWindowHostContainsThrowingCallbacksOnNoexceptPaths()
             throw std::runtime_error("hover failure");
         }
     };
+#pragma warning(pop)
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class ThrowingKeyboardControl final : public Control
     {
     public:
@@ -6856,6 +7051,7 @@ void TestWindowHostContainsThrowingCallbacksOnNoexceptPaths()
         size_t mnemonics  = 0u;
         size_t ticks      = 0u;
     };
+#pragma warning(pop)
 
     WindowHost host;
     auto root        = std::make_unique<Panel>();

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../Support/Support.Tests.PreparedTreeSemanticFixture.h"
+#include "Support.Tests.PreparedTreeSemanticFixture.h"
 
 struct PreparedTreeRootLifetimeAccessibilitySite final : DxUi::EmbeddedAccessibilitySite
 {

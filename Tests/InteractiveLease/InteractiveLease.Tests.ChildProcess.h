@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../Support/Support.Tests.InteractiveLease.h"
-#include "../Support/Support.Tests.TestWatchdog.h"
+#include "Support.Tests.InteractiveLease.h"
+#include "Support.Tests.TestWatchdog.h"
 
 #include <chrono>
 #include <format>

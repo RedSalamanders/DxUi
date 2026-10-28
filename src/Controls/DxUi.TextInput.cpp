@@ -6,7 +6,7 @@
 #include <cwctype>
 #include <limits>
 
-#include "../Support/Diagnostics.h"
+#include "Support/Diagnostics.h"
 
 namespace DxUi
 {

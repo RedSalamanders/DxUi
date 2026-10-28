@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../Support/Support.Tests.HeapDiagnostic.h"
+#include "Support.Tests.HeapDiagnostic.h"
 #include <psapi.h>
 #pragma comment(lib, "psapi.lib")
 

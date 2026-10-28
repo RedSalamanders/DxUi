@@ -9,7 +9,12 @@
 #include <tuple>
 #include <wil/resource.h>
 #include <wil/result.h>
+// Windows SDK WRL owns its interlocked/volatile implementation and target semantics.
+// Scope is this system header only. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4746)
 #include <wrl/implements.h>
+#pragma warning(pop)
 
 namespace DxUi::RichText::Detail
 {
@@ -31,6 +36,10 @@ HRESULT UploadImageBitmap(
 }
 // DirectWrite reserves and hit-tests one atomic graphic. Graphics are painted
 // later on the known owner target; the opaque drawingContext is never cast.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class SemanticObjectPlaceholder final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDWriteInlineObject>
 {
 public:
@@ -66,6 +75,11 @@ public:
 private:
     DWRITE_INLINE_OBJECT_METRICS metrics_;
 };
+#pragma warning(pop)
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626)
 struct NativeDiagramPlacement
 {
     std::size_t element{}, display{};
@@ -74,6 +88,7 @@ struct NativeDiagramPlacement
     float caretHeight{};
     bool rtl{};
 };
+#pragma warning(pop)
 struct NativeDiagramGeometry
 {
     NativeDiagramGeometry(std::size_t count, ID2D1Factory* factory, FlowchartResourceEpoch inputEpochs)
@@ -92,6 +107,10 @@ struct NativeDiagramGeometry
     }
 };
 struct SemanticBox;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626)
 struct NativeImagePlacement
 {
     std::size_t element{};
@@ -111,6 +130,7 @@ struct NativeImagePlacement
     const SemanticBox* owner{};
     float caretHeight{};
 };
+#pragma warning(pop)
 struct NativeImageGeometry
 {
     NativeImageGeometry(const RichImageResourceSet& resources, const SemanticDocument& document, ID2D1RenderTarget* target, IDWriteFactory* write, float font)
@@ -281,6 +301,10 @@ void Union(std::optional<D2D1_RECT_F>& bounds, const D2D1_RECT_F& rectangle) noe
         bounds->bottom = std::max(bounds->bottom, rectangle.bottom);
     }
 }
+// Stack-only rounding/observation barrier; no inter-thread synchronization or memory-mapped I/O.
+// Both target volatile models preserve these accesses. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4746)
 float AddHeight(float y, float height)
 {
     volatile float next = y + height;
@@ -288,6 +312,7 @@ float AddHeight(float y, float height)
         throw std::overflow_error("Nonfinite semantic geometry extent");
     return next;
 }
+#pragma warning(pop)
 void IdentityProjection(const SemanticDocument& document, MarkdownRange range, Projection& projection)
 {
     const auto text     = document.Map().Display().substr(range.first, range.last - range.first);
@@ -312,6 +337,10 @@ void IdentityProjection(const SemanticDocument& document, MarkdownRange range, P
     }
 }
 } // namespace
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626)
 struct PreparedSemanticGeometry::State
 {
     State(std::shared_ptr<const SemanticDocument> input,
@@ -440,6 +469,11 @@ struct PreparedSemanticGeometry::State
         return {document->Map().ToSource(display, affinity), index};
     }
 };
+#pragma warning(pop)
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626)
 struct PreparedSemanticGeometry::Preparation
 {
     enum class Phase
@@ -1268,6 +1302,7 @@ struct PreparedSemanticGeometry::Preparation
         phase     = Phase::Layouts;
     }
 };
+#pragma warning(pop)
 PreparedSemanticGeometry::PreparedSemanticGeometry() noexcept  = default;
 PreparedSemanticGeometry::~PreparedSemanticGeometry() noexcept = default;
 LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,

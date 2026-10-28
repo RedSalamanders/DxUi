@@ -13,6 +13,10 @@ namespace DxUi::RichText::Detail
 {
 // Owned Unicode inline recognizer. The block pass must finish before global
 // references are collected. No decoding is applied inside code or raw HTML.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4626 5027)
 class MarkdownInlines
 {
     using Kind             = MarkdownInlineKind;
@@ -1592,4 +1596,5 @@ public:
         return false;
     }
 };
+#pragma warning(pop)
 } // namespace DxUi::RichText::Detail
