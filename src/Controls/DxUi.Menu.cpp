@@ -3979,6 +3979,10 @@ void RelayoutMenuPopupForDpi(MenuPopup& popup, UINT dpi, const RECT* suggestedWi
 
 static constexpr UINT_PTR kSubmenuHoverTimerId = 1;
 
+[[nodiscard]] std::optional<size_t> FindPopupIndex(const MenuController& controller, const MenuPopup& popup) noexcept;
+[[nodiscard]] bool PopupOwnsOpenChildFromItem(const MenuController& controller, size_t popupIndex, size_t itemIndex) noexcept;
+void ScheduleSubmenuOpenTimer(MenuPopup& popup, size_t itemIndex) noexcept;
+
 bool CreateMenuPopupWindow(MenuController& controller,
                            const MenuFlyoutItem* items,
                            size_t itemCount,
@@ -4188,6 +4192,22 @@ bool CreateMenuPopupWindow(MenuController& controller,
     [[maybe_unused]] const bool initialFrameReady =
         forceInitialRender ? registeredPopup->host.RenderInitialFrameForShow() : registeredPopup->host.PrimeForShow();
     ShowWindow(hwnd, SW_SHOWNOACTIVATE);
+
+    // CreatePopup seeded hover from the stationary cursor before ShowWindow. If
+    // that eligible pointer row did not already acquire a timer during reentrant
+    // window messages, begin the ordinary cascade delay now that it is visible.
+    MenuPopup* const livePopup = controller.FindPopupForHwnd(hwnd);
+    if (controller.running && livePopup == registeredPopup && ! livePopup->keyboardIndex.has_value() && livePopup->hoveredIndex.has_value())
+    {
+        const size_t hoverIndex = livePopup->hoveredIndex.value();
+        if (hoverIndex < livePopup->itemCount && livePopup->items[hoverIndex].enabled && ! livePopup->items[hoverIndex].children.empty() &&
+            livePopup->hoverTimerId == 0 && livePopup->hoverTimerKind == MenuPopup::SubmenuHoverTimerKind::None)
+        {
+            const std::optional<size_t> popupIndex = FindPopupIndex(controller, *livePopup);
+            if (popupIndex.has_value() && ! PopupOwnsOpenChildFromItem(controller, popupIndex.value(), hoverIndex))
+                ScheduleSubmenuOpenTimer(*livePopup, hoverIndex);
+        }
+    }
 
     InvalidateRect(hwnd, nullptr, FALSE);
 

@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Start the existing submenu delay when a popup appears beneath a stationary pointer over an enabled submenu row. Preserve keyboard selection, disabled/leaf rows, existing child ownership and timer behavior. Add a parked-pointer regression that fails against the unchanged implementation; final native and performance qualification remain pending.
 - Add a foreground-gated Menu regression for stationary-pointer initialization of delayed submenu hover, plus disabled-submenu and leaf-row timer negatives. The original ASan failure remains retained; no build or runtime qualification has run for this test-only change, and the production patch is pending review.
 - Separate profiling fixture parent setup from observed pipe-drain time. Retain the 0.2-second drain budget and three-second drain observation bound, require the exact inherited-pipe holder to remain alive at return and acknowledge release, and preserve identity-checked bounded cleanup. Controlled startup and EOF-wait negatives expose the earlier fixture boundary; complete final-source qualification separately from performance acceptance.
 - Wait for modal posted-dispatch readiness before probing acrylic-metric popup geometry within the existing setup budget, preserve probe diagnostics and visual thresholds, and refresh the reviewed runner/CI contract after the qualification changes.
