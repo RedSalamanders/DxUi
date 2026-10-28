@@ -1,5 +1,6 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.LocalizedLayoutFixture.h"
+#include "Controls.Tests.MenuPopupReadiness.h"
 #include "Scope.Tests.Forms.h"
 #include "Scope.Tests.IntrinsicLayout.h"
 
@@ -2915,6 +2916,7 @@ void TestMutableCallbackCaptureStatePersistsForScrollPanel()
 
 void RunControlTests()
 {
+    DXUI_RUN_TEST(TestMenuPopupDiscoveryRejectsHiddenInitializationWindows);
     RunIntrinsicLayoutTests();
     RunFormLayoutTests();
     DXUI_RUN_TEST(TestLocalizedActionLayout);

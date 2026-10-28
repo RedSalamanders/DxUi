@@ -1701,13 +1701,51 @@ void TestNativeTextInputBackendReadOnlySuppressesImeComposition()
     }
 }
 
-void TestNativeTextInputImePreviewCancelsWhenFieldBecomesIneligible()
+enum class EligibilityPreviewLoss
+{
+    None,
+    BeforePreview,
+    AfterPreview,
+};
+
+bool VerifyNativeImeEligibilityTransition(bool masked, EligibilityPreviewLoss simulatedLoss = EligibilityPreviewLoss::None)
 {
     using namespace DxUi;
 
-    const ScopedActivatingTestWindows activatingWindows;
-    const auto verifyTransition = [](bool masked)
+    struct Observation
     {
+        bool foreground        = false;
+        bool focus             = false;
+        bool logical           = false;
+        bool native            = false;
+        size_t textLength      = 0u;
+        bool base              = false;
+        bool preview           = false;
+        unsigned notifications = 0u;
+        uint32_t losses        = 0u;
+    };
+    struct Attempt
+    {
+        const char* terminalStage = "not-attempted";
+        bool activated            = false;
+        bool focused              = false;
+        std::array<Observation, 4> stages{};
+        size_t observedStages   = 0u;
+        bool cancelled          = false;
+        bool quiet              = false;
+        bool stateReadable      = false;
+        bool policy             = false;
+        bool compositionCleared = false;
+        bool tsfDisconnected    = false;
+    };
+    constexpr int maximumRuns = 5;
+    std::array<Attempt, maximumRuns> attempts{};
+    size_t attemptCount = 0u;
+    const auto run      = RunUntilForegroundHeld(
+        [&]
+    {
+        Attempt& attempt = attempts[attemptCount++];
+        // A discarded attempt must not leave the next one read-only/masked or carrying old composition/history.
         AttachedHostWindow window;
         static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
@@ -1718,27 +1756,50 @@ void TestNativeTextInputImePreviewCancelsWhenFieldBecomesIneligible()
         field->SetOnTextChanged([&](std::wstring_view) { ++notifications; });
         window.Host().SetRoot(std::move(root));
 
-        bool focused                = false;
-        const auto activateAndFocus = [&]
+        const uint32_t lossesBefore = window.ForegroundLossCount();
+        attempt.activated           = simulatedLoss != EligibilityPreviewLoss::None || TryActivateDxUiTestWindow(window.Hwnd(), 800u, &attempt.terminalStage);
+        if (simulatedLoss != EligibilityPreviewLoss::None)
+            attempt.terminalStage = "simulated-nonactivating";
+        const auto observe = [&](size_t stage)
         {
-            if (! TryActivateDxUiTestWindow(window.Hwnd()))
-                return;
-            window.Host().SetFocusControl(field);
-            window.PumpMessages();
-            focused = GetFocus() == window.Hwnd() && window.Host().DebugHasActiveNativeTextInputSession();
+            attempt.observedStages = stage + 1u;
+            attempt.stages[stage]  = {GetForegroundWindow() == window.Hwnd(),
+                                      GetFocus() == window.Hwnd(),
+                                      window.Host().GetFocusControl() == field,
+                                      window.Host().DebugHasActiveNativeTextInputSession(),
+                                      field->GetText().size(),
+                                      field->GetText() == L"alpha",
+                                      field->GetText() == L"alphadraft",
+                                      notifications,
+                                      window.ForegroundLossCount()};
         };
-        if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, activateAndFocus), "native text input eligibility transition"))
-            return true;
-        Require(focused, "eligibility transition fixture owns actual keyboard focus and an active native session");
+        if (! attempt.activated)
+        {
+            observe(0u);
+            return ForegroundAttempt{window.ForegroundLossCount() != lossesBefore, window.LastForegroundThiefThreadId(), false};
+        }
+        window.Host().SetFocusControl(field);
+        window.PumpMessages();
+        attempt.focused = GetFocus() == window.Hwnd() && window.Host().DebugHasActiveNativeTextInputSession();
+        observe(0u);
 
         static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
+        observe(1u);
+        const auto loseForeground = [&]
+        {
+            SimulateForegroundTheftForTest(window.Hwnd(), GetCurrentThreadId());
+            static_cast<void>(SetFocus(nullptr)); // The real input state must also reject the late payload.
+        };
+        if (attemptCount == 1u && simulatedLoss == EligibilityPreviewLoss::BeforePreview)
+            loseForeground();
         NativeTextInputImePayload preview{};
         preview.hasCompositionString = true;
         preview.compositionString    = L"draft";
         window.Host().DebugSetNativeTextInputImePayloadForTest(std::move(preview));
         static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_COMPSTR));
-        Require(field->GetText() == L"alphadraft", "native IMM transition fixture exposes only its active preview");
-        Require(notifications == 0u, "native IMM transition preview does not notify the model");
+        observe(2u);
+        if (attemptCount == 1u && simulatedLoss == EligibilityPreviewLoss::AfterPreview)
+            loseForeground();
 
         if (masked)
             field->SetMasked(true);
@@ -1746,19 +1807,79 @@ void TestNativeTextInputImePreviewCancelsWhenFieldBecomesIneligible()
             field->SetReadOnly(true);
 
         NativeTextInputState state{};
-        Require(field->GetText() == L"alpha", "becoming read-only or masked cancels the IMM preview to its pre-composition text");
-        Require(notifications == 0u, "eligibility transition cancellation does not commit the preview");
-        Require(window.Host().TryReadNativeTextInputState(field, state), "native IMM transition leaves a readable field state");
-        Require(state.readOnly == ! masked && state.masked == masked, "native IMM transition preserves the new field policy");
-        Require(! state.compositionStartIndex && ! state.compositionEndIndex && ! state.compositionCursorIndex,
-                "eligibility transition clears native composition and caret metadata");
-        if (masked)
-            Require(! window.Host().DebugHasActiveNativeTextInputTsfDocument(), "masking during IMM preview disconnects the TSF document");
-        return true;
-    };
+        attempt.cancelled          = field->GetText() == L"alpha";
+        attempt.quiet              = notifications == 0u;
+        attempt.stateReadable      = window.Host().TryReadNativeTextInputState(field, state);
+        attempt.policy             = state.readOnly == ! masked && state.masked == masked;
+        attempt.compositionCleared = ! state.compositionStartIndex && ! state.compositionEndIndex && ! state.compositionCursorIndex;
+        attempt.tsfDisconnected    = ! window.Host().DebugHasActiveNativeTextInputTsfDocument();
+        observe(3u);
+        return ForegroundAttempt{window.ForegroundLossCount() != lossesBefore, window.LastForegroundThiefThreadId(), true};
+    },
+        maximumRuns);
+    for (size_t index = 0u; index < attemptCount; ++index)
+    {
+        const Attempt& attempt = attempts[index];
+        for (size_t stage = 0u; stage < attempt.observedStages; ++stage)
+        {
+            const Observation& observation = attempt.stages[stage];
+            std::cerr << std::format("    [IMM-ELIGIBILITY] masked={} attempt={} activated={} terminal={} stage={} foreground={} focus={} logical={} "
+                                     "native={} textLength={} base={} preview={} notifications={} losses={}\n",
+                                     masked,
+                                     index + 1u,
+                                     attempt.activated,
+                                     attempt.terminalStage,
+                                     stage,
+                                     observation.foreground,
+                                     observation.focus,
+                                     observation.logical,
+                                     observation.native,
+                                     observation.textLength,
+                                     observation.base,
+                                     observation.preview,
+                                     observation.notifications,
+                                     observation.losses);
+        }
+    }
+    if (! ForegroundHeldOrSkip(run, "native text input eligibility transition"))
+        return false;
+    if (simulatedLoss != EligibilityPreviewLoss::None)
+    {
+        Require(run.runs == 2 && attemptCount == 2u, "a foreground loss during the IMM sequence discards exactly one whole attempt");
+        Require(attempts[0].stages[3].losses != 0u && attempts[1].stages[0].base,
+                "the discarded sequence observes the loss and the fresh attempt starts with editable base text");
+        if (simulatedLoss == EligibilityPreviewLoss::BeforePreview)
+            Require(! attempts[0].stages[2].preview, "a loss before payload delivery reproduces the missing-preview predicate");
+        else
+            Require(attempts[0].stages[2].preview, "a loss after preview does not invalidate the earlier successful preview observation");
+    }
+    const Attempt& accepted = attempts[attemptCount - 1u];
+    Require(accepted.focused, "eligibility transition fixture owns actual keyboard focus and an active native session");
+    Require(accepted.stages[2].preview, "native IMM transition fixture exposes only its active preview");
+    Require(accepted.stages[2].notifications == 0u, "native IMM transition preview does not notify the model");
+    Require(accepted.cancelled, "becoming read-only or masked cancels the IMM preview to its pre-composition text");
+    Require(accepted.quiet, "eligibility transition cancellation does not commit the preview");
+    Require(accepted.stateReadable, "native IMM transition leaves a readable field state");
+    Require(accepted.policy, "native IMM transition preserves the new field policy");
+    Require(accepted.compositionCleared, "eligibility transition clears native composition and caret metadata");
+    if (masked)
+        Require(accepted.tsfDisconnected, "masking during IMM preview disconnects the TSF document");
+    return true;
+}
 
-    Require(verifyTransition(false), "native IMM preview cancels on a read-only transition");
-    Require(verifyTransition(true), "native IMM preview cancels on a masked transition");
+void TestNativeTextInputImePreviewCancelsWhenFieldBecomesIneligible()
+{
+    const ScopedActivatingTestWindows activatingWindows;
+    static_cast<void>(VerifyNativeImeEligibilityTransition(false));
+    static_cast<void>(VerifyNativeImeEligibilityTransition(true));
+}
+
+void TestNativeTextInputEligibilitySequenceDiscardsLossBeforeAndAfterPreview()
+{
+    const ScopedNonActivatingTestWindows nonActivatingWindows;
+    for (const bool masked : {false, true})
+        for (const EligibilityPreviewLoss loss : {EligibilityPreviewLoss::BeforePreview, EligibilityPreviewLoss::AfterPreview})
+            Require(VerifyNativeImeEligibilityTransition(masked, loss), "the controlled IMM loss retains the original preview and cancellation assertions");
 }
 
 void TestNativeTextInputZeroSizeCancelsImeAndResumesOnlyWithRetainedFocus()
@@ -2872,11 +2993,12 @@ void TestNativeTextInputBackendImeResultPayloadCommitsSelectionReplacement()
     Require(state.text == field->GetText(), "native ime end after result commit keeps native state synchronized with retained text");
 }
 
-bool VerifyNativeImeUndoGrouping(bool simulateFirstLoss)
+bool VerifyNativeImeUndoGrouping(bool simulateFirstLoss, bool simulateFirstRefusal = false)
 {
     using namespace DxUi;
 
-    Require(! simulateFirstLoss || ! DxUiTestWindowsCanActivateFlag(), "the forced IME setup loss uses an explicitly nonactivating window fixture");
+    Require((! simulateFirstLoss && ! simulateFirstRefusal) || ! DxUiTestWindowsCanActivateFlag(),
+            "the forced IME setup disturbance uses an explicitly nonactivating window fixture");
 
     {
         AttachedHostWindow window;
@@ -2891,6 +3013,7 @@ bool VerifyNativeImeUndoGrouping(bool simulateFirstLoss)
 
         struct SetupAttempt
         {
+            DxUiActivationObservation activation{};
             const char* terminalStage = "not-attempted";
             bool activated            = false;
             bool onChar               = false;
@@ -2914,13 +3037,19 @@ bool VerifyNativeImeUndoGrouping(bool simulateFirstLoss)
         bool discardedTextSurvived = false;
         const auto focusAndType    = [&]
         {
-            SetupAttempt& attempt = attempts[attemptCount++];
-            attempt.beforeLength  = field->GetText().size();
-            attempt.beforeOneA    = field->GetText() == L"a";
-            setup                 = false;
-            notifications         = 0u;
-            attempt.activated     = simulateFirstLoss || TryActivateDxUiTestWindow(window.Hwnd(), 800u, &attempt.terminalStage);
-            if (simulateFirstLoss)
+            const uint32_t lossesBefore = window.ForegroundLossCount();
+            SetupAttempt& attempt       = attempts[attemptCount++];
+            attempt.beforeLength        = field->GetText().size();
+            attempt.beforeOneA          = field->GetText() == L"a";
+            setup                       = false;
+            notifications               = 0u;
+            attempt.activated           = (simulateFirstRefusal && attemptCount == 1u)
+                                              ? false
+                                              : (simulateFirstLoss || simulateFirstRefusal ||
+                                                 TryActivateDxUiTestWindow(window.Hwnd(), 800u, &attempt.terminalStage, &attempt.activation));
+            if (simulateFirstRefusal && attemptCount == 1u)
+                attempt.terminalStage = "simulated-initial-refusal";
+            else if (simulateFirstLoss || simulateFirstRefusal)
                 attempt.terminalStage = "simulated-nonactivating";
             const auto observe = [&]
             {
@@ -2934,7 +3063,7 @@ bool VerifyNativeImeUndoGrouping(bool simulateFirstLoss)
             if (! attempt.activated)
             {
                 observe();
-                return;
+                return ForegroundAttempt{window.ForegroundLossCount() != lossesBefore, window.LastForegroundThiefThreadId(), false};
             }
             field->SetText(L"");
             window.Host().SetFocusControl(field);
@@ -2951,11 +3080,13 @@ bool VerifyNativeImeUndoGrouping(bool simulateFirstLoss)
             attempt.pumpedLength = field->GetText().size();
             attempt.pumpedOneA   = field->GetText() == L"a";
             observe();
+            return ForegroundAttempt{window.ForegroundLossCount() != lossesBefore, window.LastForegroundThiefThreadId(), true};
         };
-        const auto run = RunWhileForegroundHeld(window, focusAndType, maximumRuns);
+        const auto run = RunUntilForegroundHeld(focusAndType, maximumRuns);
         for (size_t index = 0u; index < attemptCount; ++index)
         {
             const auto& attempt = attempts[index];
+            PrintDxUiActivationObservation(attempt.activation, "ime-undo", index + 1u);
             std::cerr << std::format("    [IME-UNDO-SETUP] attempt={} activated={} terminal={} onChar={} textLengths={}/{}/{} oneA={}/{} "
                                      "foreground={:x} foregroundProcess={} focus={:x} target={:x} logicalTarget={} nativeSession={} losses={} sequenceHeld={} "
                                      "finalNotifications={}\n",
@@ -2984,6 +3115,12 @@ bool VerifyNativeImeUndoGrouping(bool simulateFirstLoss)
         {
             Require(run.runs == 2 && attemptCount == 2u, "the forced first IME setup loss retries exactly once");
             Require(discardedTextSurvived && attempts[1].beforeOneA, "the discarded direct edit survives foreground loss until the next setup resets it");
+        }
+        if (simulateFirstRefusal)
+        {
+            Require(run.runs == 2 && attemptCount == 2u && ! attempts[0].activated && ! attempts[0].onChar && attempts[0].foregroundLosses == 0u &&
+                        attempts[0].typedLength == 0u && attempts[1].activated,
+                    "initial refusal without a loss event retries once before the original edit and undo assertions");
         }
         Require(setup && field->GetText() == L"a", "undo fixture creates one earlier independent typed edit");
         Require(GetFocus() == window.Hwnd() && window.Host().DebugHasActiveNativeTextInputSession(),
@@ -3031,6 +3168,12 @@ void TestNativeImeUndoGroupingResetsDiscardedForegroundAttempt()
 {
     const ScopedNonActivatingTestWindows nonActivatingWindows;
     Require(VerifyNativeImeUndoGrouping(true), "the forced first IME setup loss completes the original composition and two-undo assertions");
+}
+
+void TestNativeImeUndoGroupingRetriesInitialActivationRefusal()
+{
+    const ScopedNonActivatingTestWindows nonActivatingWindows;
+    Require(VerifyNativeImeUndoGrouping(false, true), "an initial activation refusal preserves the original composition and two-undo assertions");
 }
 
 void TestNativeImeCommitOwnsOneUndoUnitAndLateResultPreservesApplicationText()
@@ -8999,6 +9142,7 @@ void RunNativeTextInputTests()
     DXUI_RUN_TEST(TestNativeTextInputBackendImeStartEndUpdatesCompositionState);
     DXUI_RUN_TEST(TestNativeTextInputBackendReadOnlySuppressesImeComposition);
     DXUI_RUN_TEST(TestNativeTextInputImePreviewCancelsWhenFieldBecomesIneligible);
+    DXUI_RUN_TEST(TestNativeTextInputEligibilitySequenceDiscardsLossBeforeAndAfterPreview);
     DXUI_RUN_TEST(TestNativeTextInputZeroSizeCancelsImeAndResumesOnlyWithRetainedFocus);
     DXUI_RUN_TEST(TestNativeTextInputHiddenHostRejectsLateImeAndDoesNotStealFocusOnShow);
     DXUI_RUN_TEST(TestNativeTextInputNewerApplicationTextWinsImmCancellation);
@@ -9020,6 +9164,7 @@ void RunNativeTextInputTests()
     DXUI_RUN_TEST(TestNativeTextInputBackendImeResultPayloadCommitsSelectionReplacement);
     DXUI_RUN_TEST(TestNativeImeCommitOwnsOneUndoUnitAndLateResultPreservesApplicationText);
     DXUI_RUN_TEST(TestNativeImeUndoGroupingResetsDiscardedForegroundAttempt);
+    DXUI_RUN_TEST(TestNativeImeUndoGroupingRetriesInitialActivationRefusal);
     DXUI_RUN_TEST(TestNativeImeResultCallbacksPreserveNewerTextAndComposition);
     DXUI_RUN_TEST(TestNativeImeCancellationCallbacksPreserveNewerState);
     DXUI_RUN_TEST(TestNativeTextInputProviderExposesImeTextEditRanges);

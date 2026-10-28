@@ -38,6 +38,8 @@
   "Tests/Controls/Scope.Tests.Forms.h",
   "Tests/Controls/Scope.Tests.GridUiaPattern.cpp",
   "Tests/Controls/Scope.Tests.GridUiaPattern.h",
+  "Tests/Controls/Controls.Tests.MenuPopupReadiness.cpp",
+  "Tests/Controls/Controls.Tests.MenuPopupReadiness.h",
   "Tests/Controls/Scope.Tests.IntrinsicLayout.cpp",
   "Tests/Controls/Scope.Tests.IntrinsicLayout.h",
   "Tests/Controls/Scope.Tests.PreparedTreeAccessibilityEvents.h",

@@ -24,6 +24,238 @@
 namespace
 {
 
+void TestFocusAutomationCacheRequestInitializesOnItsClientThread()
+{
+    wil::unique_event ready(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(static_cast<bool>(ready), "create cold UIA cache setup event");
+    std::atomic<HRESULT> outcome{E_PENDING};
+    std::atomic<const char*> stage{"not-started"};
+    std::jthread client([&]() noexcept
+    {
+        const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        const auto uninitialize   = wil::scope_exit([&]() noexcept
+        {
+            if (SUCCEEDED(initialized))
+                CoUninitialize();
+        });
+        wil::com_ptr_nothrow<IUIAutomation> automation;
+        wil::com_ptr_nothrow<IUIAutomationCacheRequest> cache;
+        HRESULT hr = initialized;
+        if (SUCCEEDED(hr))
+            hr = CreateFocusAutomationClient(automation.put(), &stage);
+        if (SUCCEEDED(hr))
+        {
+            stage.store("create-cache");
+            hr = automation->CreateCacheRequest(cache.put());
+        }
+        if (SUCCEEDED(hr))
+        {
+            stage.store("cache-name");
+            hr = cache->AddProperty(UIA_NamePropertyId);
+        }
+        if (SUCCEEDED(hr))
+        {
+            stage.store("cache-process");
+            hr = cache->AddProperty(UIA_ProcessIdPropertyId);
+        }
+        outcome.store(hr);
+        static_cast<void>(SetEvent(ready.get()));
+    });
+    const DWORD waited = WaitForDxUiEventWithSentMessagesUntil(ready.get(), GetTickCount64() + FocusEventClient::kSetupAllowanceMs);
+    Require(waited == WAIT_OBJECT_0, "cold UIA cache setup publishes within the unchanged setup allowance");
+    const HRESULT hr = outcome.load();
+    std::cerr << std::format("    [UIA-CACHE-SETUP] stage={} hr=0x{:08x}\n", stage.load(), static_cast<uint32_t>(hr));
+    Require(WaitForDxUiEventWithSentMessagesUntil(client.native_handle(), GetTickCount64() + FocusEventClient::kSetupAllowanceMs) == WAIT_OBJECT_0,
+            "cold UIA cache worker finishes COM cleanup");
+    client.join();
+    Require(SUCCEEDED(hr), "cold focus client creates the name/process cache without a prior view or element lookup");
+}
+
+void TestThreadExitWaitServicesLateTeardownCallbacks()
+{
+    AttachedHostWindow window;
+    wil::unique_event workFinished(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(static_cast<bool>(workFinished), "create worker body completion event");
+    constexpr UINT sent = WM_APP + 0x6d3u;
+    window.SetApplicationMessageHandler([](UINT message, WPARAM, LPARAM, LRESULT& result)
+    {
+        if (message != sent)
+            return false;
+        result = 17;
+        return true;
+    });
+    std::atomic<bool> acknowledged{false};
+    std::jthread worker([&]() noexcept
+    {
+        static_cast<void>(SetEvent(workFinished.get()));
+        acknowledged.store(SendMessageW(window.Hwnd(), sent, 0u, 0) == 17);
+    });
+    Require(WaitForSingleObject(workFinished.get(), 5000u) == WAIT_OBJECT_0 && WaitForSingleObject(worker.native_handle(), 0u) == WAIT_TIMEOUT,
+            "publishing completed work does not establish actual thread exit");
+    Require(WaitForDxUiEventWithSentMessagesUntil(worker.native_handle(), GetTickCount64() + 5000u) == WAIT_OBJECT_0,
+            "waiting for actual thread termination still services its final synchronous callback");
+    worker.join();
+    Require(acknowledged.load(), "late teardown callback completed before joining the worker");
+}
+
+void TestSentMessageSetupWaitServicesCallbacksAndPreservesQueuedInput()
+{
+    AttachedHostWindow window;
+    constexpr UINT sent   = WM_APP + 0x6d0u;
+    constexpr UINT posted = WM_APP + 0x6d1u;
+    window.SetApplicationMessageHandler([](UINT message, WPARAM, LPARAM, LRESULT& result)
+    {
+        if (message != sent)
+            return false;
+        result = 17;
+        return true;
+    });
+    Require(PostMessageW(window.Hwnd(), posted, 0u, 0) != FALSE && PostMessageW(window.Hwnd(), WM_CHAR, L'Q', 0) != FALSE,
+            "queue owned posted and character messages before setup");
+    const auto removeOwnedMessages = wil::scope_exit([&]() noexcept
+    {
+        MSG message{};
+        static_cast<void>(PeekMessageW(&message, window.Hwnd(), posted, posted, PM_REMOVE));
+        static_cast<void>(PeekMessageW(&message, window.Hwnd(), WM_CHAR, WM_CHAR, PM_REMOVE));
+    });
+    const auto callbackCompletes   = [&](bool serviceSent)
+    {
+        wil::unique_event ready(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+        Require(static_cast<bool>(ready), "create setup callback completion event");
+        std::atomic<bool> acknowledged{false};
+        std::jthread worker([&]() noexcept
+        {
+            DWORD_PTR result = 0u;
+            acknowledged.store(SendMessageTimeoutW(window.Hwnd(), sent, 0u, 0, SMTO_ABORTIFHUNG, 1000u, &result) != 0 && result == 17u);
+            static_cast<void>(SetEvent(ready.get()));
+        });
+        const DWORD waited =
+            serviceSent ? WaitForDxUiEventWithSentMessagesUntil(ready.get(), GetTickCount64() + 5000u) : WaitForSingleObject(ready.get(), 5000u);
+        Require(waited == WAIT_OBJECT_0, "setup callback publishes its outcome within the original readiness bound");
+        worker.join();
+        return acknowledged.load();
+    };
+    Require(! callbackCompletes(false), "the retained non-pumping counterfactual prevents the synchronous setup callback from completing");
+    Require(callbackCompletes(true), "sent-message setup waiting lets the synchronous callback complete");
+    MSG message{};
+    Require(PeekMessageW(&message, window.Hwnd(), posted, posted, PM_NOREMOVE) != FALSE &&
+                PeekMessageW(&message, window.Hwnd(), WM_CHAR, WM_CHAR, PM_NOREMOVE) != FALSE,
+            "setup waiting does not drain posted probes or queued character input");
+}
+
+void TestSentMessageSetupWaitPreservesItsAbsoluteDeadline()
+{
+    wil::unique_event ready(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(static_cast<bool>(ready), "create unsignaled setup deadline event");
+    DWORD error = ERROR_ACCESS_DENIED;
+    Require(WaitForDxUiEventWithSentMessagesUntil(ready.get(), GetTickCount64(), &error) == WAIT_TIMEOUT && error == ERROR_SUCCESS,
+            "an expired absolute setup deadline returns timeout without stale Windows error");
+    static_cast<void>(SetEvent(ready.get()));
+    Require(WaitForDxUiEventWithSentMessagesUntil(ready.get(), GetTickCount64(), &error) == WAIT_TIMEOUT,
+            "an already published outcome cannot extend an expired deadline");
+    Require(WaitForDxUiEventWithSentMessagesUntil(ready.get(), GetTickCount64() + 5000u, &error) == WAIT_OBJECT_0,
+            "an already published outcome is read without starting another wait");
+}
+
+void TestSentMessageSetupWaitRejectsReadinessPublishedAfterItsDeadline()
+{
+    AttachedHostWindow window;
+    wil::unique_event ready(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(static_cast<bool>(ready), "create late readiness event");
+    constexpr UINT sent      = WM_APP + 0x6d2u;
+    const ULONGLONG deadline = GetTickCount64() + 1000u;
+    bool entered             = false;
+    window.SetApplicationMessageHandler([&](UINT message, WPARAM, LPARAM, LRESULT& result)
+    {
+        if (message != sent)
+            return false;
+        entered             = true;
+        const ULONGLONG now = GetTickCount64();
+        if (now <= deadline)
+            Sleep(static_cast<DWORD>(deadline - now + 1u));
+        static_cast<void>(SetEvent(ready.get()));
+        result = 17;
+        return true;
+    });
+    std::jthread worker([&]() noexcept
+    {
+        DWORD_PTR result = 0u;
+        static_cast<void>(SendMessageTimeoutW(window.Hwnd(), sent, 0u, 0, SMTO_ABORTIFHUNG, 2000u, &result));
+    });
+    const DWORD waited = WaitForDxUiEventWithSentMessagesUntil(ready.get(), deadline);
+    worker.join();
+    Require(entered && WaitForSingleObject(ready.get(), 0u) == WAIT_OBJECT_0 && waited == WAIT_TIMEOUT,
+            "a synchronous callback cannot publish late readiness that extends the original deadline");
+}
+
+void TestExpectedForegroundTransferNeverHidesAnotherLoss()
+{
+    AttachedHostWindow window;
+    const uint32_t before = window.ForegroundLossCount();
+    const DWORD expected  = GetCurrentThreadId();
+    window.ExpectForegroundTransferToForTest(expected);
+    SimulateForegroundTheftForTest(window.Hwnd(), expected);
+    Require(window.ForegroundLossCount() == before + 1u && window.UnexpectedForegroundLossCount() == 0u,
+            "the deliberate worker transfer keeps total history without counting as external interference");
+    SimulateForegroundTheftForTest(window.Hwnd(), 0u);
+    Require(window.ForegroundLossCount() == before + 2u && window.UnexpectedForegroundLossCount() == 1u && window.LastUnexpectedForegroundThread() == 0u,
+            "an unknown foreign loss is retained even after the expected transfer");
+    SimulateForegroundTheftForTest(window.Hwnd(), expected);
+    Require(window.ForegroundLossCount() == before + 3u && window.UnexpectedForegroundLossCount() == 1u,
+            "another expected transfer never erases the preceding external loss");
+}
+
+void TestForegroundTransferDiagnosticsRejectMissingTargetWithoutActivation()
+{
+    DxUi::TestSupport::Win32DesktopBackend desktop;
+    DxUi::TestSupport::ForegroundTransferObservation observation{};
+    observation.attachmentError = ERROR_ACCESS_DENIED;
+    observation.detachError     = ERROR_ACCESS_DENIED;
+    Require(! desktop.BringToForeground(nullptr, &observation), "missing foreground target is refused");
+    Require(! observation.targetAlive && ! observation.attachmentCalled && ! observation.requestCalled && ! observation.detachCalled &&
+                observation.attachmentError == ERROR_SUCCESS && observation.detachError == ERROR_SUCCESS,
+            "missing target records no activation/attachment and does not inherit stale diagnostics");
+}
+
+void TestForegroundAttemptRetriesInitialActivationRefusalWithoutALossEvent()
+{
+    int calls                     = 0;
+    const ForegroundRunResult run = RunUntilForegroundHeld([&]
+    {
+        ++calls;
+        return ForegroundAttempt{false, 0u, calls > 1};
+    });
+    Require(run.held && ! run.activationRefused && run.runs == 2 && calls == 2,
+            "a refused initial activation without a loss event cannot masquerade as a held sequence");
+}
+
+void TestForegroundAttemptPersistentActivationRefusalKeepsTheExistingBound()
+{
+    int calls                     = 0;
+    const ForegroundRunResult run = RunUntilForegroundHeld([&]
+    {
+        ++calls;
+        return ForegroundAttempt{false, 0u, false};
+    });
+    Require(! run.held && run.activationRefused && run.runs == 5 && calls == 5,
+            "permanent refusal exhausts the existing five attempts and remains a setup failure");
+    const ForegroundRunResult lost = RunUntilForegroundHeld([] { return ForegroundAttempt{true, GetCurrentThreadId(), true}; }, 3);
+    Require(! lost.held && ! lost.activationRefused && lost.runs == 3, "a real foreground loss remains distinct from an activation that never succeeded");
+}
+
+void TestForegroundAttemptDoesNotRetryAReadySequenceWithAFailedPredicate()
+{
+    int calls                     = 0;
+    bool predicate                = true;
+    const ForegroundRunResult run = RunUntilForegroundHeld([&]
+    {
+        ++calls;
+        predicate = false;
+        return ForegroundAttempt{false, 0u, true};
+    });
+    Require(run.held && run.runs == 1 && calls == 1 && ! predicate, "a held ready sequence is never retried to hide a failed correctness predicate");
+}
+
 void TestWindowHostCaptionMessagesReachApplicationAndDefaultHandling()
 {
     using namespace DxUi;
@@ -4720,7 +4952,13 @@ void TestNoninteractiveWindowActivationBlockerRejectsFocusStealing()
     const uint64_t activationAttempts = localBlocker.BlockedActivationCount();
     const uint64_t focusAttempts      = localBlocker.BlockedFocusCount();
     static_cast<void>(SetWindowLongPtrW(window.get(), GWL_EXSTYLE, protectedStyle & ~WS_EX_NOACTIVATE));
-    Require(! TryActivateDxUiTestWindow(window.get()), "the foreground helper refuses an active noninteractive blocker even without the window style");
+    DxUiActivationObservation observation{};
+    const char* terminal = nullptr;
+    Require(! TryActivateDxUiTestWindow(window.get(), 800u, &terminal, &observation),
+            "the foreground helper refuses an active noninteractive blocker even without the window style");
+    Require(observation.recorded && std::string_view(terminal) == "activation-blocked" && ! observation.directCalled && ! observation.fallbackCalled &&
+                ! observation.transfer.attachmentCalled,
+            "activation diagnostics preserve the blocker and record no direct or attached foreground request");
     if (ownsBlocker)
     {
         Require(localBlocker.BlockedActivationCount() == activationAttempts && localBlocker.BlockedFocusCount() == focusAttempts,
@@ -5382,6 +5620,16 @@ void TestPostedPayloadTypeIdentitySurvivesIdenticalIcfDeleters()
 void RunWindowHostTests()
 {
     DXUI_RUN_TEST(TestPostedPayloadTypeIdentitySurvivesIdenticalIcfDeleters);
+    DXUI_RUN_TEST(TestFocusAutomationCacheRequestInitializesOnItsClientThread);
+    DXUI_RUN_TEST(TestThreadExitWaitServicesLateTeardownCallbacks);
+    DXUI_RUN_TEST(TestSentMessageSetupWaitServicesCallbacksAndPreservesQueuedInput);
+    DXUI_RUN_TEST(TestSentMessageSetupWaitPreservesItsAbsoluteDeadline);
+    DXUI_RUN_TEST(TestSentMessageSetupWaitRejectsReadinessPublishedAfterItsDeadline);
+    DXUI_RUN_TEST(TestExpectedForegroundTransferNeverHidesAnotherLoss);
+    DXUI_RUN_TEST(TestForegroundTransferDiagnosticsRejectMissingTargetWithoutActivation);
+    DXUI_RUN_TEST(TestForegroundAttemptRetriesInitialActivationRefusalWithoutALossEvent);
+    DXUI_RUN_TEST(TestForegroundAttemptPersistentActivationRefusalKeepsTheExistingBound);
+    DXUI_RUN_TEST(TestForegroundAttemptDoesNotRetryAReadySequenceWithAFailedPredicate);
     DXUI_RUN_TEST(TestWindowHostTakesTheRequestedLifetimeBeforePruningFocus);
     DXUI_RUN_TEST(TestWindowHostNewerCallbackFocusRequestWins);
     DXUI_RUN_TEST(TestWindowHostFailedBlurBeforeBasePreservesOnlyTheNewFocus);

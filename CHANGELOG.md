@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Backport the existing popup-visibility and native-focus fixture fixes from 3893daa6 and ee63697c without changing production source or public headers. Preserve the original behavior assertions, bounded waits and the zero-skip focus gate, and add deterministic hidden-popup, initial-activation-refusal and interrupted-IMM controls.
 - Resolve canonical private include paths while preserving independent public headers and shipping sources; add boundary controls and register the permanent payload ICF regression in the applicable native inventory.
 - Preserve the pinned SDK API while making private includes and HRESULT boundaries explicit for /Wall consumers; use per-type data tags so folded deleters cannot admit a wrong payload type, with a Release ICF and lifetime regression in WindowHost.
 - Record the normal S0-S2 remote-main merge, complete final PR evidence, independently replayed performance decisions and reviewed six-profile functional/gallery results; retain S3-S7 proposals and failed/incomplete policy, ARM foreground/resource, physical-input and consumer qualification in separate WIP records.
