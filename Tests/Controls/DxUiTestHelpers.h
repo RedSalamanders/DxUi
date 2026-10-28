@@ -20,6 +20,7 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <format>
@@ -176,35 +177,54 @@ inline bool RunDxUiTest(const char* name, void (*test)())
     return WaitForDxUiThreadFocus(hwnd, timeoutMs);
 }
 
+// Backport the current leased-fixture foreground transfer without changing library code.
+// The input queues are attached only for the foreground request and detached before focus validation.
 [[nodiscard]] inline bool TryActivateDxUiTestWindow(HWND hwnd, DWORD timeoutMs = 800u) noexcept
 {
+    const auto finish = [hwnd](bool result, const char* stage) noexcept
+    {
+        if (! result)
+            std::fprintf(stderr, "    [ACTIVATION] stage=%s foreground=%d focus=%d\n", stage, GetForegroundWindow() == hwnd, GetFocus() == hwnd);
+        return result;
+    };
+    if (DxUi::TestSupport::ScopedWindowActivationBlocker::IsActiveForCurrentThread())
+        return finish(false, "activation-blocked");
     if (! TryFocusDxUiTestWindow(hwnd, timeoutMs))
-    {
-        return false;
-    }
-
+        return finish(false, "initial-thread-focus");
     if (GetForegroundWindow() == hwnd)
-    {
         return true;
-    }
-
     if (SetForegroundWindow(hwnd) == FALSE && GetForegroundWindow() != hwnd)
     {
-        return false;
+        const DWORD ownThread        = GetCurrentThreadId();
+        const HWND foreground        = GetForegroundWindow();
+        const DWORD foregroundThread = foreground ? GetWindowThreadProcessId(foreground, nullptr) : 0u;
+        bool detached                = true;
+        const bool accepted          = [&]() noexcept
+        {
+            const bool attached = foregroundThread != 0u && foregroundThread != ownThread && AttachThreadInput(ownThread, foregroundThread, TRUE) != FALSE;
+            const auto detach   = wil::scope_exit([&]() noexcept
+            {
+                if (attached)
+                    detached = AttachThreadInput(ownThread, foregroundThread, FALSE) != FALSE;
+            });
+            return SetForegroundWindow(hwnd) != FALSE || GetForegroundWindow() == hwnd;
+        }();
+        if (! accepted || ! detached)
+            return finish(false, detached ? "foreground-transfer" : "input-detach");
+        if (GetFocus() != hwnd && ! TryFocusDxUiTestWindow(hwnd, timeoutMs))
+            return finish(false, "thread-focus-after-detach");
     }
-
     const ULONGLONG deadline = GetTickCount64() + timeoutMs;
     do
     {
         if (GetForegroundWindow() == hwnd)
-        {
-            return true;
-        }
-
-        Sleep(10);
+            return finish(GetFocus() == hwnd, "focus-after-foreground");
+        if (MsgWaitForMultipleObjectsEx(0u, nullptr, 10u, QS_SENDMESSAGE, MWMO_INPUTAVAILABLE) == WAIT_FAILED)
+            return finish(false, "foreground-message-wait-failed");
+        MSG message{};
+        static_cast<void>(PeekMessageW(&message, nullptr, WM_NULL, WM_NULL, PM_NOREMOVE));
     } while (GetTickCount64() < deadline);
-
-    return GetForegroundWindow() == hwnd;
+    return finish(GetForegroundWindow() == hwnd && GetFocus() == hwnd, "foreground-or-focus-timeout");
 }
 
 inline void RequireColorNear(const D2D1_COLOR_F& actual, const D2D1_COLOR_F& expected, const char* message)

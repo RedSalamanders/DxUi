@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Backport the current leased-fixture foreground transfer into the API3 test activation helper, including scoped input attachment, immediate detachment checks, bounded sent-message waits and setup-stage diagnostics. Library code and public API remain unchanged; real Menu skips remain a failing qualification gate.
 - Resolve canonical private include paths while preserving independent public headers and shipping sources; add boundary controls and register the permanent payload ICF regression in the applicable native inventory.
 - Preserve the pinned SDK API while making private includes and HRESULT boundaries explicit for /Wall consumers; use per-type data tags so folded deleters cannot admit a wrong payload type, with a Release ICF and lifetime regression in WindowHost.
 - Add optional immutable prepared Tree accessibility rows with complete offscreen Unicode names and bounded snapshot capture; existing models retain their fallback behavior.
