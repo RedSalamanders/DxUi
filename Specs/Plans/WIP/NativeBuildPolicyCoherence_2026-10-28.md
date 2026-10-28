@@ -58,3 +58,11 @@ the staged scene relative to itself, with a narrowly documented C4464 path-compa
 preprocessor control reproduces the original missing include, accepts the staged real headers, preserves the
 baseline implementation/project and restores its original harness. This supplements the earlier missing console
 module repair. No baseline optimization flag, profile identity, judge, threshold or policy qualification is changed.
+
+Hosted paired job 123103072753 on af669a00 then exposed the second bare dependency: the heap-diagnostic support
+header. The preprocessing fixture had supplied a support search directory absent from the baseline. It now
+supplies neither private sample nor support search directories, independently reproduces both missing includes,
+and accepts both self-locating shared-header paths. The full paired benchmark input list was audited for quoted
+includes. All six af669 native builds passed; its runtime parent was stopped while waiting for the desktop mutex,
+with only its console host present and no native child running, before integrating this final harness repair.
+No runtime pass is claimed for that interrupted batch. Logs, process guards and both no-verdict CI failures remain.

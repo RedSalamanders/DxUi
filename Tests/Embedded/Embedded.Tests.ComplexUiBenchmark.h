@@ -4,8 +4,8 @@
 #pragma warning(push)
 #pragma warning(disable : 4464)
 #include "../../Samples/ComplexUi/ComplexUiScene.h"
+#include "../Support/Support.Tests.HeapDiagnostic.h"
 #pragma warning(pop)
-#include "Support.Tests.HeapDiagnostic.h"
 #include <algorithm>
 #include <array>
 #include <fstream>

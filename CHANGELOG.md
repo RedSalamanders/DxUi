@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Resolve both shared benchmark headers through paths relative to the staged fixture. The historical baseline preprocessing control now supplies no private sample/support include directories and independently reproduces both missing includes before accepting and restoring the staged fix.
 - Resolve the staged benchmark's shared scene relative to its header so historical baseline projects do not need a new sample include directory. A real MSVC preprocessing control reproduces the old missing include, verifies the staged fix, preserves baseline library inputs and restores the original harness.
 - Settle owner activation and preceding mouse messages before each sent-cancellation menu case, verify foreground/focus again, and retain terminal owner diagnostics on failure. All four cancellation messages and dismissal/command assertions remain mandatory.
 - Stage and fingerprint the build driver's console dependency in paired benchmark trees, fixing baseline startup before measurements. Regression controls reproduce the missing import, execute the staged module, reject warnings, preserve the baseline library/project and restore the original driver.

@@ -95,7 +95,7 @@ Invoke-TestCase 'real library and benchmark profiles expose the benchmark-only o
         foreach($record in $restored){Assert-Equal $record.expectedUtc.Ticks $record.actualUtc.Ticks 'every exact original timestamp returns';Assert-Equal $record.expectedSha256 $record.actualSha256 'every original byte returns'}
     }
 }
-Invoke-TestCase 'the staged real benchmark header resolves its scene without changing an older library include profile' {
+Invoke-TestCase 'staged real benchmark headers resolve both shared inputs without private baseline include directories' {
     $root=Join-Path $scratch 'old-include-profile'
     $backup=Join-Path $scratch 'old-include-profile-backup'
     [void][IO.Directory]::CreateDirectory($root)
@@ -132,7 +132,7 @@ Invoke-TestCase 'the staged real benchmark header resolves its scene without cha
   <PropertyGroup Label="Configuration"><ConfigurationType>StaticLibrary</ConfigurationType><PlatformToolset>v145</PlatformToolset><UseDebugLibraries>false</UseDebugLibraries></PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props"/>
   <PropertyGroup><OutDir>$(MSBuildProjectDirectory)\out\</OutDir><IntDir>$(MSBuildProjectDirectory)\obj\</IntDir></PropertyGroup>
-  <ItemDefinitionGroup><ClCompile><PreprocessToFile>true</PreprocessToFile><AdditionalIncludeDirectories>$(MSBuildProjectDirectory)\include;$(MSBuildProjectDirectory)\Tests\Support</AdditionalIncludeDirectories><PreprocessorDefinitions>UNICODE;_UNICODE;WIN32_LEAN_AND_MEAN;NOMINMAX</PreprocessorDefinitions><LanguageStandard>stdcpplatest</LanguageStandard></ClCompile></ItemDefinitionGroup>
+  <ItemDefinitionGroup><ClCompile><PreprocessToFile>true</PreprocessToFile><AdditionalIncludeDirectories>$(MSBuildProjectDirectory)\include</AdditionalIncludeDirectories><PreprocessorDefinitions>UNICODE;_UNICODE;WIN32_LEAN_AND_MEAN;NOMINMAX</PreprocessorDefinitions><LanguageStandard>stdcpplatest</LanguageStandard></ClCompile></ItemDefinitionGroup>
   <ItemGroup><ClCompile Include="Probe.cpp"/></ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets"/>
 </Project>
@@ -143,6 +143,13 @@ Invoke-TestCase 'the staged real benchmark header resolves its scene without cha
     & $msbuild $projectPath /t:ClCompile /nologo /nr:false /v:minimal /p:Configuration=Release /p:Platform=x64 /p:PreferredToolArchitecture=x64 *> $negative
     Assert-True ($LASTEXITCODE -ne 0) 'the original missing-include failure reproduces'
     Assert-True ([IO.File]::ReadAllText($negative) -match 'C1083.*ComplexUiScene\.h') 'the refusal is the observed scene include failure'
+    $bareHeap=$current.Replace('"../Support/Support.Tests.HeapDiagnostic.h"','"Support.Tests.HeapDiagnostic.h"')
+    Assert-True ($bareHeap -cne $current) 'the second negative control restores the observed bare support include'
+    [IO.File]::WriteAllText($header,$bareHeap)
+    $heapNegative=Join-Path $root 'bare-support-include.log'
+    & $msbuild $projectPath /t:ClCompile /nologo /nr:false /v:minimal /p:Configuration=Release /p:Platform=x64 /p:PreferredToolArchitecture=x64 *> $heapNegative
+    Assert-True ($LASTEXITCODE -ne 0) 'the original missing-support-include failure reproduces'
+    Assert-True ([IO.File]::ReadAllText($heapNegative) -match 'C1083.*Support\.Tests\.HeapDiagnostic\.h') 'the refusal is the observed support include failure'
     $records=@(Copy-HarnessOverlay -Source $repository -Target $root -Paths @(Get-BenchmarkInputPaths) -BackupDirectory $backup)
     try {
         $positive=Join-Path $root 'staged-relative-include.log'
@@ -154,7 +161,7 @@ Invoke-TestCase 'the staged real benchmark header resolves its scene without cha
     } finally {
         Restore-HarnessOverlay -Target $root -Records $records -BackupDirectory $backup
     }
-    Assert-Equal $bare ([IO.File]::ReadAllText($header)) 'restoration returns the old harness bytes'
+    Assert-Equal $bareHeap ([IO.File]::ReadAllText($header)) 'restoration returns the old harness bytes'
 }
 Write-Host "Retained profile and include-resolution fixtures: $scratch"
 Complete-TestRun 'PairedProjectProfiles'
