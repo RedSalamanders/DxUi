@@ -108,6 +108,16 @@ as a successful alignment; restore only when the current point still matches a p
 Retain bounded initial/final readback, poll-count and elapsed-time diagnostics. This synchronization does not
 identify which host or desktop action delayed or changed a cursor position.
 
+Keyboard root-switch fixtures require modal-dispatch readiness before posted state probes, using the remainder
+of the same five-second discovery budget. They run under the existing bounded foreground-attempt helper with
+a fresh owner per admitted attempt; a held behavioral failure and exhausted admission remain failures.
+A stationary-pointer assertion must establish and read back the owned physical cursor at the matching owner
+client point. Posting the same virtual coordinate alone does not establish stationarity. Fresh same-point mouse
+messages remain covered after keyboard navigation: retain the original 120 ms popup-alive check immediately
+after posting, then acknowledge dispatch with the existing state probe and verify unchanged root-switch count
+and physical position. Preserve the 800 ms keyboard-state bound. Diagnostics retain owner/cancel context and
+pointer/keyboard routes; an earlier untraced cancellation or pointer event remains unassigned.
+
 Native-menu dismissal fixtures verify actual focus on the menu-bar host after `FocusFirstItem()` and before
 starting a popup-discovery driver. The driver uses one 5 s deadline for visible-popup discovery and the existing
 modal-dispatch readiness signal, and requires the dismissal-key post itself to succeed after both are ready. Keep

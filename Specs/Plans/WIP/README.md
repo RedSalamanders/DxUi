@@ -2,7 +2,7 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
-- **ACTIVE**: [Stationary submenu hover](StationarySubmenuHover_2026-10-28.md). A pointer-seeded eligible submenu row must receive the existing cascade delay without requiring a later mouse move; source fix and native qualification remain pending review.
+- **ACTIVE**: [Stationary submenu hover](StationarySubmenuHover_2026-10-28.md). Source c155 passes the local six-build/57-normal/twelve-foreground matrix; two hosted ARM64 root-switch fixtures fail. Reviewed foreground/readiness/physical-pointer fixture corrections need their own qualification; original failure causes and performance holds remain open.
 
 - **ACTIVE**: [Qualification runner reliability](QualificationRunnerReliability_2026-10-28.md). Current producer 0a2279c has six builds and six focused Debug Menu cases passing; ordinary runtime is partial at 19/57 with zero skips, while Release, ASan, twelve foreground suites and final tooling remain open. Windows/Linux tooling/format pass; all six hosted native profiles are in progress. Historical c155 completed with two ARM64 native failures and an inconclusive paired result (71/72 unstable controls). Historical 6e, d4, test-only 921 and 762 outcomes remain distinct.
 

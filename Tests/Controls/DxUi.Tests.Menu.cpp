@@ -3054,16 +3054,6 @@ void TestMenuKeyboardRightArrowMatchesWindowsMenuLoop()
 {
     using namespace DxUi;
 
-    auto trace = std::make_unique<MenuHoverTraceForTest>(true, true);
-    AttachedHostWindow ownerWindow;
-    SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
-    ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
-    ownerWindow.PumpMessages();
-
-    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
-    ownerWindow.PumpMessages();
-    DrainPendingMouseMessagesForMenuSuite();
-
     const std::vector<std::vector<MenuFlyoutItem>> rootMenus = {
         {
             {.text = L"A1", .commandId = 3101},
@@ -3072,11 +3062,7 @@ void TestMenuKeyboardRightArrowMatchesWindowsMenuLoop()
         {
             {.text      = L"B1",
              .commandId = 3201,
-             .children =
-                 {
-                     MenuFlyoutItem{.text = L"B11", .commandId = 3211},
-                     MenuFlyoutItem{.text = L"B12", .commandId = 3212},
-                 }},
+             .children  = {MenuFlyoutItem{.text = L"B11", .commandId = 3211}, MenuFlyoutItem{.text = L"B12", .commandId = 3212}}},
             {.text = L"B2", .commandId = 3202},
         },
         {
@@ -3086,316 +3072,417 @@ void TestMenuKeyboardRightArrowMatchesWindowsMenuLoop()
         },
     };
 
-    size_t activeRootIndex = 0u;
-    ContextMenuSessionCallbacks sessionCallbacks{};
-    sessionCallbacks.switchRootFromDirection = [&](bool forward) -> std::optional<ContextMenuRootSwitchRequest>
-    {
-        activeRootIndex = forward ? ((activeRootIndex + 1u) % rootMenus.size()) : ((activeRootIndex + rootMenus.size() - 1u) % rootMenus.size());
-
-        ContextMenuRootSwitchRequest request{};
-        request.screenPoint = POINT{180, 180};
-        request.items       = rootMenus[activeRootIndex];
-        return request;
-    };
-
     std::string driverFailure;
-    std::thread driver([&]
+    bool commandReturned          = false;
+    const ForegroundRunResult run = RunUntilForegroundHeld([&]() -> ForegroundAttempt
     {
-        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
-        const HWND aPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"A1");
-        if (! aPopupHwnd)
-        {
-            driverFailure = "menu popup window appears for right-arrow root switching validation";
-            return;
-        }
+        driverFailure.clear();
+        commandReturned = false;
+        AttachedHostWindow ownerWindow;
+        SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
+        ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
+        ownerWindow.PumpMessages();
+        if (! TryActivateDxUiTestWindow(ownerWindow.Hwnd()))
+            return ForegroundAttempt{.activationEstablished = false};
+        const uint32_t lossesBefore = ownerWindow.ForegroundLossCount();
 
-        const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
-
-        ContextMenuPopupDebugState popupState{};
-        PostMessageW(aPopupHwnd, WM_KEYDOWN, VK_HOME, 0);
-        if (! WaitForContextMenuPopupState(aPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
-            return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
-        }, popupState))
+        MenuHoverTraceForTest trace(true, true, ownerWindow.Hwnd());
+        ScopedMenuPointerFixture pointerFixture(ownerWindow.Hwnd());
+        const RECT virtualScreen = GetVirtualScreenBounds();
+        if (! pointerFixture.AlignCursor(POINT{virtualScreen.left + 4, virtualScreen.top + 4}))
         {
-            driverFailure = "Home selects the first A root item before directional switching";
-            return;
+            driverFailure = "owned pointer parks away from the keyboard root-switch popups";
+            trace.Dump(true);
+            return ForegroundAttempt{.lost                  = ownerWindow.ForegroundLossCount() != lossesBefore,
+                                     .thiefThreadId         = ownerWindow.LastForegroundThiefThreadId(),
+                                     .activationEstablished = true};
         }
+        DrainPendingMouseMessagesForMenuSuite();
 
-        PostMessageW(aPopupHwnd, WM_KEYDOWN, VK_DOWN, 0);
-        if (! WaitForContextMenuPopupState(aPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
-            return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 1u;
-        }, popupState))
+        size_t activeRootIndex = 0u;
+        ContextMenuSessionCallbacks sessionCallbacks{};
+        sessionCallbacks.switchRootFromDirection = [&](bool forward) -> std::optional<ContextMenuRootSwitchRequest>
         {
-            driverFailure = "Down selects A2 before directional switching";
-            return;
-        }
+            activeRootIndex = forward ? ((activeRootIndex + 1u) % rootMenus.size()) : ((activeRootIndex + rootMenus.size() - 1u) % rootMenus.size());
+            ContextMenuRootSwitchRequest request{};
+            request.screenPoint = POINT{180, 180};
+            request.items       = rootMenus[activeRootIndex];
+            return request;
+        };
 
-        PostMessageW(aPopupHwnd, WM_KEYDOWN, VK_RIGHT, 0);
-        const HWND bPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B1");
-        if (! bPopupHwnd)
+        const auto discoveryDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(5000);
+        MenuModalDispatchReadinessForTest dispatchReady(ownerWindow.Hwnd(), false, &trace);
+        std::thread driver([&]
         {
-            driverFailure = "Right arrow on A2 opens the B root popup";
-            return;
-        }
+            const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
+            const auto discoveryRemaining = discoveryDeadline - std::chrono::steady_clock::now();
+            if (discoveryRemaining <= std::chrono::steady_clock::duration::zero())
+            {
+                driverFailure = "menu popup discovery stays inside the shared 5-second readiness budget";
+                return;
+            }
+            const HWND aPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(
+                ownerWindow.Hwnd(), L"A1", std::chrono::duration_cast<std::chrono::milliseconds>(discoveryRemaining), &trace);
+            if (! aPopupHwnd)
+            {
+                if (driverFailure.empty())
+                    driverFailure = "menu popup window appears for right-arrow root switching validation";
+                return;
+            }
+            dispatchReady.NoteDiscovery();
+            if (! dispatchReady.WaitUntil(discoveryDeadline))
+            {
+                driverFailure = "popup modal dispatch becomes ready within the shared discovery budget";
+                return;
+            }
+            const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
 
-        ContextMenuPopupStateWaitDiagnostics bPopupStateWait{};
-        if (! WaitForContextMenuPopupState(bPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
-            return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
-        }, popupState, std::chrono::milliseconds(800), &bPopupStateWait))
-        {
-            driverFailure = std::format("Right arrow on A2 focuses B1 in the next root popup; {}",
-                                        DescribeContextMenuPopupStateWaitFailure(bPopupHwnd, ownerWindow.Hwnd(), bPopupStateWait));
-            return;
-        }
+            ContextMenuPopupDebugState popupState{};
+            {
+                [[maybe_unused]] const ScopedMenuPointerFixture popupDpiContext(aPopupHwnd);
+                if (! WaitForContextMenuPopupState(aPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+                    return state.visibleWidthDip > 0.0f && state.visibleHeightDip > 0.0f;
+                }, popupState))
+                {
+                    driverFailure = "initial A popup exposes state after modal dispatch readiness";
+                    return;
+                }
+            }
+            if (PostMessageW(aPopupHwnd, WM_KEYDOWN, VK_HOME, 0) == FALSE ||
+                ! WaitForContextMenuPopupState(aPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+                return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
+            }, popupState))
+            {
+                driverFailure = "Home selects the first A root item before directional switching";
+                return;
+            }
+            if (PostMessageW(aPopupHwnd, WM_KEYDOWN, VK_DOWN, 0) == FALSE ||
+                ! WaitForContextMenuPopupState(aPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+                return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 1u;
+            }, popupState))
+            {
+                driverFailure = "Down selects A2 before directional switching";
+                return;
+            }
+            if (PostMessageW(aPopupHwnd, WM_KEYDOWN, VK_RIGHT, 0) == FALSE)
+            {
+                driverFailure = "Right key posts to A2 before root switching";
+                return;
+            }
+            const HWND bPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B1");
+            if (! bPopupHwnd)
+            {
+                driverFailure = "Right arrow on A2 opens the B root popup";
+                return;
+            }
+            {
+                [[maybe_unused]] const ScopedMenuPointerFixture popupDpiContext(bPopupHwnd);
+                ContextMenuPopupStateWaitDiagnostics bPopupStateWait{};
+                if (! WaitForContextMenuPopupState(bPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+                    return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
+                }, popupState, std::chrono::milliseconds(800), &bPopupStateWait))
+                {
+                    driverFailure = std::format("Right arrow on A2 focuses B1 in the next root popup; {}",
+                                                DescribeContextMenuPopupStateWaitFailure(bPopupHwnd, ownerWindow.Hwnd(), bPopupStateWait));
+                    return;
+                }
+            }
+            if (PostMessageW(bPopupHwnd, WM_KEYDOWN, VK_RIGHT, 0) == FALSE)
+            {
+                driverFailure = "Right key posts to B1 before opening its submenu";
+                return;
+            }
+            const HWND bSubmenuHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B11");
+            if (! bSubmenuHwnd)
+            {
+                driverFailure = "Right arrow on B1 opens the B submenu";
+                return;
+            }
+            {
+                [[maybe_unused]] const ScopedMenuPointerFixture popupDpiContext(bSubmenuHwnd);
+                if (! WaitForContextMenuPopupState(bSubmenuHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+                    return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
+                }, popupState))
+                {
+                    driverFailure = "Right arrow on B1 focuses B11 in the submenu";
+                    return;
+                }
+            }
+            if (PostMessageW(bSubmenuHwnd, WM_KEYDOWN, VK_RIGHT, 0) == FALSE)
+            {
+                driverFailure = "Right key posts to B11 before switching to C";
+                return;
+            }
+            const HWND cPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"C1");
+            if (! cPopupHwnd)
+            {
+                driverFailure = "Right arrow on B11 switches to the C root popup";
+                return;
+            }
+            {
+                [[maybe_unused]] const ScopedMenuPointerFixture popupDpiContext(cPopupHwnd);
+                if (! WaitForContextMenuPopupState(cPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+                    return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
+                }, popupState))
+                    driverFailure = "Right arrow on B11 focuses C1 after switching to the next root popup";
+            }
+        });
 
-        PostMessageW(bPopupHwnd, WM_KEYDOWN, VK_RIGHT, 0);
-        const HWND bSubmenuHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B11");
-        if (! bSubmenuHwnd)
-        {
-            driverFailure = "Right arrow on B1 opens the B submenu";
-            return;
-        }
-
-        if (! WaitForContextMenuPopupState(bSubmenuHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
-            return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
-        }, popupState))
-        {
-            driverFailure = "Right arrow on B1 focuses B11 in the submenu";
-            return;
-        }
-
-        PostMessageW(bSubmenuHwnd, WM_KEYDOWN, VK_RIGHT, 0);
-        const HWND cPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"C1");
-        if (! cPopupHwnd)
-        {
-            driverFailure = "Right arrow on B11 switches from the leaf submenu to the C root popup";
-            return;
-        }
-
-        if (! WaitForContextMenuPopupState(cPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
-            return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
-        }, popupState))
-        {
-            driverFailure = "Right arrow on B11 focuses C1 after switching to the next root popup";
-        }
+        const ThemePalette theme        = MakeAnimatedTestThemePalette(true);
+        const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, rootMenus[activeRootIndex], theme, sessionCallbacks);
+        commandReturned                 = result.has_value();
+        driver.join();
+        trace.Dump(! driverFailure.empty());
+        return ForegroundAttempt{.lost                  = ownerWindow.ForegroundLossCount() != lossesBefore,
+                                 .thiefThreadId         = ownerWindow.LastForegroundThiefThreadId(),
+                                 .activationEstablished = true};
     });
 
-    const ThemePalette theme        = MakeAnimatedTestThemePalette(true);
-    const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, rootMenus[activeRootIndex], theme, sessionCallbacks);
-    driver.join();
-
-    trace->Dump(! driverFailure.empty());
+    Require(run.held, "right-arrow menu test keeps foreground after bounded retries for observed foreground loss");
     Require(driverFailure.empty(), driverFailure.c_str());
-    Require(! result.has_value(), "closing the right-arrow menu loop validation popup with Escape returns no invoked command");
+    Require(! commandReturned, "closing the right-arrow menu loop validation popup with Escape returns no invoked command");
 }
 
 void TestStationaryMouseDoesNotOverrideKeyboardRootSwitch()
 {
     using namespace DxUi;
 
-    AttachedHostWindow ownerWindow;
-    SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 420, 260, SWP_NOZORDER | SWP_NOACTIVATE);
-    ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
-    ownerWindow.PumpMessages();
-
-    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
-
     const std::vector<std::vector<MenuFlyoutItem>> rootMenus = {
-        {
-            {.text = L"A1", .commandId = 3651},
-            {.text = L"A2", .commandId = 3652},
-        },
-        {
-            {.text = L"B1", .commandId = 3661},
-            {.text = L"B2", .commandId = 3662},
-        },
-        {
-            {.text = L"C1", .commandId = 3671},
-            {.text = L"C2", .commandId = 3672},
-        },
+        {{.text = L"A1", .commandId = 3651}, {.text = L"A2", .commandId = 3652}},
+        {{.text = L"B1", .commandId = 3661}, {.text = L"B2", .commandId = 3662}},
+        {{.text = L"C1", .commandId = 3671}, {.text = L"C2", .commandId = 3672}},
     };
     const std::array<POINT, 3> rootPopupPoints = {POINT{170, 180}, POINT{250, 180}, POINT{330, 180}};
 
-    size_t activeRootIndex  = 0u;
-    const auto buildRequest = [&](size_t rootIndex) -> ContextMenuRootSwitchRequest
-    {
-        ContextMenuRootSwitchRequest request{};
-        request.screenPoint = rootPopupPoints[rootIndex];
-        request.items       = rootMenus[rootIndex];
-        return request;
-    };
-
-    ContextMenuSessionCallbacks sessionCallbacks{};
-    sessionCallbacks.switchRootFromDirection = [&](bool forward) -> std::optional<ContextMenuRootSwitchRequest>
-    {
-        activeRootIndex = forward ? ((activeRootIndex + 1u) % rootMenus.size()) : ((activeRootIndex + rootMenus.size() - 1u) % rootMenus.size());
-        return buildRequest(activeRootIndex);
-    };
-    sessionCallbacks.switchRootFromPointer = [&](POINT screenPoint) -> std::optional<ContextMenuRootSwitchRequest>
-    {
-        POINT clientPoint = screenPoint;
-        if (ScreenToClient(ownerWindow.Hwnd(), &clientPoint) == FALSE)
-        {
-            return std::nullopt;
-        }
-        if (clientPoint.y < 0 || clientPoint.y >= 40)
-        {
-            return std::nullopt;
-        }
-
-        size_t hitIndex = rootMenus.size();
-        if (clientPoint.x >= 40 && clientPoint.x < 120)
-        {
-            hitIndex = 0u;
-        }
-        else if (clientPoint.x >= 140 && clientPoint.x < 220)
-        {
-            hitIndex = 1u;
-        }
-        else if (clientPoint.x >= 240 && clientPoint.x < 320)
-        {
-            hitIndex = 2u;
-        }
-
-        if (hitIndex >= rootMenus.size() || hitIndex == activeRootIndex)
-        {
-            return std::nullopt;
-        }
-
-        activeRootIndex = hitIndex;
-        return buildRequest(activeRootIndex);
-    };
-
-    DrainPendingMouseMessagesForMenuSuite();
-
     std::string driverFailure;
-    std::thread driver([&]
+    bool commandReturned          = false;
+    const ForegroundRunResult run = RunUntilForegroundHeld([&]() -> ForegroundAttempt
     {
-        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
-        const HWND aPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"A1");
-        if (! aPopupHwnd)
+        driverFailure.clear();
+        commandReturned = false;
+        AttachedHostWindow ownerWindow;
+        SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 420, 260, SWP_NOZORDER | SWP_NOACTIVATE);
+        ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
+        ownerWindow.PumpMessages();
+        if (! TryActivateDxUiTestWindow(ownerWindow.Hwnd()))
+            return ForegroundAttempt{.activationEstablished = false};
+        const uint32_t lossesBefore = ownerWindow.ForegroundLossCount();
+
+        MenuHoverTraceForTest trace(true, true, ownerWindow.Hwnd());
+        ScopedMenuPointerFixture pointerFixture(ownerWindow.Hwnd());
+        POINT bClientPoint{160, 16};
+        POINT bScreenPoint = bClientPoint;
+        if (ClientToScreen(ownerWindow.Hwnd(), &bScreenPoint) == FALSE || ! pointerFixture.AlignCursor(bScreenPoint, ownerWindow.Hwnd()))
         {
-            driverFailure = "initial A popup opens before stationary-mouse keyboard switching validation";
-            return;
+            driverFailure = "owned physical cursor parks at the B header point before the stationary-pointer menu case";
+            trace.Dump(true);
+            return ForegroundAttempt{.lost                  = ownerWindow.ForegroundLossCount() != lossesBefore,
+                                     .thiefThreadId         = ownerWindow.LastForegroundThiefThreadId(),
+                                     .activationEstablished = true};
+        }
+        DrainPendingMouseMessagesForMenuSuite();
+        POINT parkedPoint{};
+        if (GetPhysicalCursorPos(&parkedPoint) == FALSE || parkedPoint.x != bScreenPoint.x || parkedPoint.y != bScreenPoint.y)
+        {
+            driverFailure = "physical cursor readback confirms the B header point before opening the menu";
+            trace.Dump(true);
+            return ForegroundAttempt{.lost                  = ownerWindow.ForegroundLossCount() != lossesBefore,
+                                     .thiefThreadId         = ownerWindow.LastForegroundThiefThreadId(),
+                                     .activationEstablished = true};
         }
 
-        const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
+        size_t activeRootIndex  = 0u;
+        const auto buildRequest = [&](size_t rootIndex)
+        {
+            ContextMenuRootSwitchRequest request{};
+            request.screenPoint = rootPopupPoints[rootIndex];
+            request.items       = rootMenus[rootIndex];
+            return request;
+        };
+        ContextMenuSessionCallbacks sessionCallbacks{};
+        sessionCallbacks.switchRootFromDirection = [&](bool forward) -> std::optional<ContextMenuRootSwitchRequest>
+        {
+            activeRootIndex = forward ? ((activeRootIndex + 1u) % rootMenus.size()) : ((activeRootIndex + rootMenus.size() - 1u) % rootMenus.size());
+            return buildRequest(activeRootIndex);
+        };
+        sessionCallbacks.switchRootFromPointer = [&](POINT screenPoint) -> std::optional<ContextMenuRootSwitchRequest>
+        {
+            POINT clientPoint = screenPoint;
+            if (ScreenToClient(ownerWindow.Hwnd(), &clientPoint) == FALSE || clientPoint.y < 0 || clientPoint.y >= 40)
+                return std::nullopt;
+            size_t hitIndex = rootMenus.size();
+            if (clientPoint.x >= 40 && clientPoint.x < 120)
+                hitIndex = 0u;
+            else if (clientPoint.x >= 140 && clientPoint.x < 220)
+                hitIndex = 1u;
+            else if (clientPoint.x >= 240 && clientPoint.x < 320)
+                hitIndex = 2u;
+            if (hitIndex >= rootMenus.size() || hitIndex == activeRootIndex)
+                return std::nullopt;
+            activeRootIndex = hitIndex;
+            return buildRequest(activeRootIndex);
+        };
 
-        if (PostMessageW(ownerWindow.Hwnd(), WM_MOUSEMOVE, 0, MAKELPARAM(160, 16)) == FALSE)
+        const auto discoveryDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(5000);
+        MenuModalDispatchReadinessForTest dispatchReady(ownerWindow.Hwnd(), false, &trace);
+        std::thread driver([&]
         {
-            driverFailure = "posting the initial B hover before stationary-mouse keyboard switching validation succeeds";
-            return;
-        }
+            const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
+            const auto discoveryRemaining = discoveryDeadline - std::chrono::steady_clock::now();
+            if (discoveryRemaining <= std::chrono::steady_clock::duration::zero())
+            {
+                driverFailure = "menu popup discovery stays inside the shared 5-second readiness budget";
+                return;
+            }
+            const HWND aPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(
+                ownerWindow.Hwnd(), L"A1", std::chrono::duration_cast<std::chrono::milliseconds>(discoveryRemaining), &trace);
+            if (! aPopupHwnd)
+            {
+                if (driverFailure.empty())
+                    driverFailure = "initial A popup opens before stationary-mouse keyboard switching validation";
+                return;
+            }
+            dispatchReady.NoteDiscovery();
+            if (! dispatchReady.WaitUntil(discoveryDeadline))
+            {
+                driverFailure = "popup modal dispatch becomes ready within the shared discovery budget";
+                return;
+            }
+            const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
 
-        const HWND bPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B1");
-        if (! bPopupHwnd)
-        {
-            driverFailure = "initial owner mouse move switches from A to B before stationary-mouse keyboard switching validation";
-            return;
-        }
+            const auto waitForPopupState = [&](HWND popupHwnd, auto&& predicate, ContextMenuPopupDebugState& state)
+            {
+                [[maybe_unused]] const ScopedMenuPointerFixture popupDpiContext(popupHwnd);
+                return WaitForContextMenuPopupState(popupHwnd, std::forward<decltype(predicate)>(predicate), state);
+            };
+            ContextMenuPopupDebugState popupState{};
+            if (! waitForPopupState(aPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+                return state.visibleWidthDip > 0.0f && state.visibleHeightDip > 0.0f;
+            }, popupState))
+            {
+                driverFailure = "initial A popup exposes state after modal dispatch readiness";
+                return;
+            }
 
-        ContextMenuPopupDebugState popupState{};
-        if (! WaitForContextMenuPopupState(
-                bPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept { return state.rootPointerSwitchCount == 1u; }, popupState))
-        {
-            driverFailure = "initial B hover is processed before keyboard root switching validation";
-            return;
-        }
+            const LPARAM bMousePoint   = MAKELPARAM(160, 16);
+            const size_t pointerBefore = trace.PointerDispatchCount();
+            if (PostMessageW(ownerWindow.Hwnd(), WM_MOUSEMOVE, 0, bMousePoint) == FALSE)
+            {
+                driverFailure = "initial B header pointer message posts before switching A to B";
+                return;
+            }
+            const HWND bPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B1");
+            if (! bPopupHwnd)
+            {
+                driverFailure = "initial owner mouse move switches from A to B before keyboard validation";
+                return;
+            }
+            if (! waitForPopupState(bPopupHwnd, [&](const ContextMenuPopupDebugState& state) noexcept {
+                return trace.PointerDispatchCount() > pointerBefore && state.rootPointerSwitchCount == 1u;
+            }, popupState))
+            {
+                driverFailure = "initial B header pointer dispatch is acknowledged and records one root switch";
+                return;
+            }
 
-        if (! SendMenuKeyForMenuSuite(bPopupHwnd, VK_HOME))
-        {
-            driverFailure = "Home key is delivered before stationary-mouse keyboard switching validation";
-            return;
-        }
-        if (! WaitForContextMenuPopupState(bPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
-            return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
-        }, popupState))
-        {
-            driverFailure = "Home selects B1 before stationary-mouse keyboard switching validation";
-            return;
-        }
+            if (! SendMenuKeyForMenuSuite(bPopupHwnd, VK_HOME) || ! waitForPopupState(bPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+                return state.keyboardIndex == std::optional<size_t>{0u};
+            }, popupState))
+            {
+                driverFailure = "Home selects B1 before stationary-mouse keyboard switching validation";
+                return;
+            }
+            if (! SendMenuKeyForMenuSuite(bPopupHwnd, VK_RIGHT))
+            {
+                driverFailure = "Right arrow is delivered before stationary-mouse validation";
+                return;
+            }
+            const HWND cPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"C1");
+            if (! cPopupHwnd || ! waitForPopupState(cPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+                return state.keyboardIndex == std::optional<size_t>{0u} && state.rootPointerSwitchCount == 1u;
+            }, popupState))
+            {
+                driverFailure = "Right arrow switches from B to C and focuses C1 without a second pointer switch";
+                return;
+            }
+            const auto postStationaryMoveAndCheck = [&](HWND popupHwnd, const char* message) -> bool
+            {
+                const size_t pointerBefore = trace.PointerDispatchCount();
+                if (PostMessageW(ownerWindow.Hwnd(), WM_MOUSEMOVE, 0, bMousePoint) == FALSE)
+                {
+                    driverFailure = std::format("posting same-point B-header mouse message succeeds before {}", message);
+                    return false;
+                }
+                if (WaitForWindowDestroyed(popupHwnd, std::chrono::milliseconds(120)))
+                {
+                    driverFailure = message;
+                    return false;
+                }
+                if (trace.PointerDispatchCount() <= pointerBefore)
+                {
+                    driverFailure = std::format("same-point pointer message is acknowledged during the existing 120 ms guard before {}", message);
+                    return false;
+                }
+                if (! waitForPopupState(
+                        popupHwnd, [](const ContextMenuPopupDebugState& state) noexcept { return state.rootPointerSwitchCount == 1u; }, popupState))
+                {
+                    driverFailure = std::format("posted state probe retains one pointer root switch after {}", message);
+                    return false;
+                }
+                POINT currentPhysical{};
+                if (GetPhysicalCursorPos(&currentPhysical) == FALSE || currentPhysical.x != bScreenPoint.x || currentPhysical.y != bScreenPoint.y)
+                {
+                    driverFailure = std::format("physical cursor remains parked at B while checking {}", message);
+                    return false;
+                }
+                return true;
+            };
+            if (! postStationaryMoveAndCheck(cPopupHwnd, "a stationary mouse over B does not pull keyboard navigation back from C"))
+                return;
 
-        if (! SendMenuKeyForMenuSuite(bPopupHwnd, VK_RIGHT))
-        {
-            driverFailure = "Right arrow key is delivered before stationary-mouse validation";
-            return;
-        }
-        const HWND cPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"C1");
-        if (! cPopupHwnd)
-        {
-            driverFailure = "Right arrow switches from B to C before stationary-mouse validation";
-            return;
-        }
+            if (! SendMenuKeyForMenuSuite(cPopupHwnd, VK_LEFT))
+            {
+                driverFailure = "Left arrow key is delivered before stationary-mouse previous-root validation";
+                return;
+            }
+            const HWND bPopupAfterLeftHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B1");
+            if (! bPopupAfterLeftHwnd || ! waitForPopupState(bPopupAfterLeftHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+                return state.keyboardIndex == std::optional<size_t>{0u} && state.rootPointerSwitchCount == 1u;
+            }, popupState))
+            {
+                driverFailure = "Left arrow returns from C to B without another pointer root switch";
+                return;
+            }
+            if (! SendMenuKeyForMenuSuite(bPopupAfterLeftHwnd, VK_LEFT))
+            {
+                driverFailure = "second Left arrow key is delivered before stationary-mouse previous-root validation";
+                return;
+            }
+            const HWND aPopupAfterSecondLeftHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"A1");
+            if (! aPopupAfterSecondLeftHwnd || ! waitForPopupState(aPopupAfterSecondLeftHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+                return state.keyboardIndex == std::optional<size_t>{0u} && state.rootPointerSwitchCount == 1u;
+            }, popupState))
+            {
+                driverFailure = "a second Left arrow switches from B to A without another pointer root switch";
+                return;
+            }
+            static_cast<void>(postStationaryMoveAndCheck(aPopupAfterSecondLeftHwnd, "a stationary mouse over B does not pull keyboard navigation back from A"));
+        });
 
-        if (! WaitForContextMenuPopupState(cPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
-            return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
-        }, popupState))
-        {
-            driverFailure = "switching from B to C focuses C1 before stationary-mouse validation";
-            return;
-        }
-
-        if (PostMessageW(ownerWindow.Hwnd(), WM_MOUSEMOVE, 0, MAKELPARAM(160, 16)) == FALSE)
-        {
-            driverFailure = "posting the stationary B hover after switching to C succeeds";
-            return;
-        }
-        if (WaitForWindowDestroyed(cPopupHwnd, std::chrono::milliseconds(120)))
-        {
-            driverFailure = "a stationary mouse over B does not pull keyboard navigation back from C";
-            return;
-        }
-
-        if (! SendMenuKeyForMenuSuite(cPopupHwnd, VK_LEFT))
-        {
-            driverFailure = "Left arrow key is delivered before stationary-mouse previous-root validation";
-            return;
-        }
-        const HWND bPopupAfterLeftHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B1");
-        if (! bPopupAfterLeftHwnd)
-        {
-            driverFailure = "Left arrow returns from C to B before stationary-mouse previous-root validation";
-            return;
-        }
-
-        if (! SendMenuKeyForMenuSuite(bPopupAfterLeftHwnd, VK_LEFT))
-        {
-            driverFailure = "second Left arrow key is delivered before stationary-mouse previous-root validation";
-            return;
-        }
-        const HWND aPopupAfterSecondLeftHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"A1");
-        if (! aPopupAfterSecondLeftHwnd)
-        {
-            driverFailure = "a second Left arrow switches from B to A before stationary-mouse previous-root validation";
-            return;
-        }
-
-        if (! WaitForContextMenuPopupState(aPopupAfterSecondLeftHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
-            return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
-        }, popupState))
-        {
-            driverFailure = "switching from B to A focuses A1 before stationary-mouse previous-root validation";
-            return;
-        }
-
-        if (PostMessageW(ownerWindow.Hwnd(), WM_MOUSEMOVE, 0, MAKELPARAM(160, 16)) == FALSE)
-        {
-            driverFailure = "posting the stationary B hover after switching to A succeeds";
-            return;
-        }
-        if (WaitForWindowDestroyed(aPopupAfterSecondLeftHwnd, std::chrono::milliseconds(120)))
-        {
-            driverFailure = "a stationary mouse over B does not pull keyboard navigation back from A";
-        }
+        const ThemePalette theme = MakeAnimatedTestThemePalette(true);
+        const std::optional<int> result =
+            ContextMenu::Show(ownerWindow.Hwnd(), rootPopupPoints[activeRootIndex], rootMenus[activeRootIndex], theme, sessionCallbacks);
+        commandReturned = result.has_value();
+        driver.join();
+        trace.Dump(! driverFailure.empty());
+        return ForegroundAttempt{.lost                  = ownerWindow.ForegroundLossCount() != lossesBefore,
+                                 .thiefThreadId         = ownerWindow.LastForegroundThiefThreadId(),
+                                 .activationEstablished = true};
     });
 
-    const ThemePalette theme = MakeAnimatedTestThemePalette(true);
-    const std::optional<int> result =
-        ContextMenu::Show(ownerWindow.Hwnd(), rootPopupPoints[activeRootIndex], rootMenus[activeRootIndex], theme, sessionCallbacks);
-    driver.join();
-
+    Require(run.held, "stationary pointer menu test keeps foreground after bounded retries for observed foreground loss");
     Require(driverFailure.empty(), driverFailure.c_str());
-    Require(! result.has_value(), "closing the stationary-mouse keyboard switching validation popup with Escape returns no invoked command");
+    Require(! commandReturned, "closing the stationary-mouse keyboard switching validation popup with Escape returns no invoked command");
 }
 
 void TestMenuPointerOverSiblingRootSwitchesOpenMenu()
