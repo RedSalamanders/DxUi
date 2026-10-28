@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Control keyboard root-switch fixtures with held foreground, modal readiness and matching physical pointer state. Preserve the original assertions and deadlines, add cancellation/input diagnostics, and retain the earlier ARM64 failure causes as unassigned. Production Menu behavior and performance policy are unchanged.
 - Cancel pending pointer cascade timers across the menu chain when keyboard navigation takes over, preserving AltGr. An ordered regression fails against the unchanged implementation and covers stale open/close timer delivery; final native qualification remains pending. Preserve the separate unassigned ARM64 info-row failure and retain its assertions while restoring the fixture's existing input safeguards.
 - Add an ordered menu regression for keyboard takeover while pointer open/close timers are pending, including stale timer delivery against keyboard-focused children. Preserve the foreground failure at source d4a36c; the controlled red and production correction remain pending.
 - Start the existing submenu delay when a popup appears beneath a stationary pointer over an enabled submenu row. Preserve keyboard selection, disabled/leaf rows, existing child ownership and timer behavior. Add a parked-pointer regression that fails against the unchanged implementation; final native and performance qualification remain pending.

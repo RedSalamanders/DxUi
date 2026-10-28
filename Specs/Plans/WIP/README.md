@@ -2,7 +2,7 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
-- **ACTIVE**: [Stationary submenu hover](StationarySubmenuHover_2026-10-28.md). A pointer-seeded eligible submenu row must receive the existing cascade delay without requiring a later mouse move; source fix and native qualification remain pending review.
+- **ACTIVE**: [Stationary submenu hover](StationarySubmenuHover_2026-10-28.md). Source c155 passes the local six-build/57-normal/twelve-foreground matrix; two hosted ARM64 root-switch fixtures fail. Reviewed foreground/readiness/physical-pointer fixture corrections need their own qualification; original failure causes and performance holds remain open.
 
 - **ACTIVE**: [Qualification runner reliability](QualificationRunnerReliability_2026-10-28.md). Atomic progress updates with concurrent readers and explicit successful runner exit-state normalization; controlled failures are retained and final source qualification remains pending.
 
