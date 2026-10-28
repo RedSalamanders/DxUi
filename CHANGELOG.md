@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Record exact SDK086 qualification across six hosted native profiles and external consumers, plus all twelve local keyboard/menu suite runs with zero skips and verified restoration. Preserve the actual sanitizer detections, ICF type-safety evidence and exact-pin RedTilde results while keeping performance policy, consumer platform and release holds explicit.
 - Compare the deliberately rejected payload owner before destruction in the ICF regression's negative-control cleanup. Preserve the initial Release pass with actual folded deleters; qualify the final test revision separately.
 - Keep private posted-payload type identity in writable per-type storage so identical-code folding cannot make distinct deleter addresses authorize a wrong Take or Reclaim; retain the deleter only for destruction and preserve single-module ownership scope. The focused WindowHost regression proves Release ControlTests folds the deleters, rejects wrong types, preserves correct ownership, and destroys taken, reclaimed, and drained payloads once; build and runtime qualification remain pending.
 - Archive the final Markdown/caption qualification: all six standalone and consumer build profiles pass, with nineteen SDK suites and 67 consumer cases plus 32 captures in each x64 configuration and real sanitizer detection. Preserve earlier failures and source identities; native ARM64, physical input and paired performance remain open, and the original CI/performance queue stays paused.

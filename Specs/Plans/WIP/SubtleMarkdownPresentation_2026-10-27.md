@@ -14,15 +14,15 @@
 - [ ] Complete native ARM64, physical input and paired performance gates before claiming full qualification.
 - [x] Adopt exact SDK eb0f10b9 in RedTilde; review its three-DPI hidden Markdown and caption captures.
 - [x] Synchronize normative documentation, actual consumer capture gallery, qualification archive and changelog.
-- [ ] Move this plan to Done only after the remaining gates pass; the original performance/CI queue stays paused.
+- [ ] Move this plan to Done only after the remaining gates pass. The original queue was resumed on 28 October; earlier pause records remain historical.
 
 ## Payload type-safety follow-up — 28 October 2026
 
 - [x] Reproduce actual Release /OPT:ICF folding: distinct payload types share a deleter address and the old helper accepts wrong Take/Reclaim; preserve the negative and the private tagged positive control, with exactly-once disposal.
 - [x] Implement private writable type identity and a permanent WindowHost regression; only Release ControlTests enables/mandates actual ICF. Root review corrects non-Release unused diagnostics and keeps link-incremental policy in its property group.
 - [x] Qualify the initial fix dcabe291 in x64 Release: the focused regression passes with actual folded deleters and zero capability skips. Preserve that source-bound run; independently reviewed failure-path pointer comparison is then moved before destruction and requires fresh final evidence.
-- [ ] Qualify the final fix in all six SDK build profiles and all x64 normal/foreground suites, including real ASan detection; earlier eb0 results remain historical.
-- [ ] Explicitly adopt the new exact source pin in RedTilde and qualify affected consumer builds/runtimes before merge.
+- [x] Qualify final source SDK086 in all six hosted native profiles and external consumers, including native ARM64 and actual ASan detection. All four local foreground suites pass in every x64 profile with zero skips and verified restoration; earlier eb0 results remain historical.
+- [x] Adopt exact SDK086 in RedTilde and qualify six consumer builds, three x64 native/capture profiles and the Release nine-stage keyboard run at producer E090. Later audit-only source changes retain their own scope.
 - [ ] Complete current-source CI and performance review; native/hosted consumer ARM64 and independent performance-policy holds remain explicit.
 
 The private registry gains one pointer per bounded entry (about one KiB at 128
@@ -30,6 +30,12 @@ entries on supported 64-bit targets). Public headers/API and shipped linker
 policy are unchanged. This fixes ownership correctness under ICF; no speed or
 memory improvement is claimed. The earlier final status below describes eb0,
 which precedes this newly reproduced defect and correction.
+
+Current artifact IDs, executable identities and evidence boundaries are recorded in the
+[native lifecycle packet](../../../Measurements/NativeLifecycle_2026-10-28/README.md).
+The actual-base paired collection and upload pass, but verdict publication is inconclusive/fails because
+the base policy is unqualified. Independent policy/control qualification remains open. Current native evidence
+does not close RedTilde's original-UI findings, billing-blocked hosted ARM64 or physical IME/AT acceptance.
 ## Scope and preservation
 
 The user selected the first screenshot's Markdown styling: subtle H1/H2 rules,

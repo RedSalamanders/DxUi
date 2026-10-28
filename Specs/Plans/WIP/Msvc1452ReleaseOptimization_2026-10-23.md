@@ -3,6 +3,17 @@
 Status: ACTIVE qualification; hosted native cohort verified; paired, performance/manual and release holds remain
 Date: 2026-10-23
 
+## Current source qualification — 28 October 2026
+
+- [x] Qualify exact source `086ad82a5872768db23ea83862ab4af13dff0c5b`: all six hosted native profiles and external consumers pass in [run 40605395948](https://github.com/RedSalamanders/DxUi/actions/runs/40605395948), merge candidate `f2bad236` against actual base `5d983536`.
+- [x] Complete all four local foreground suites in each x64 profile, with zero skips and verified focus/foreground/cursor restoration. Debug and ASan receive fresh canonical builds; Release passes exact-input build admission. ASan detects the deliberate failure separately from the successful profile.
+- [x] Retain the actual Release ICF negative and the permanent folded-deleter regression for writable payload type tags. Preserve earlier failures and producer identities; no shipped linker-policy change or saving is claimed.
+- [x] Qualify RedTilde's exact SDK086 adoption at native producer `e0908338`: six builds, three x64 67-case/32-capture runs, real ASan detection and nine input stages. Audit-only successor `41f0072` changes no native implementation.
+- [x] Complete the current paired collection and retain checksum-verified artifact `12786737643`: measurement/upload pass, verdict publication fails with inconclusive `policy-review-required`. The gated verdict's empty scenario list is not a numerical pass.
+- [ ] Qualify the performance policy and controls independently. The base policy remains unqualified; hosted RedTilde ARM64 is billing-blocked, and physical IME/AT and release acceptance remain separate.
+
+The [native lifecycle packet](../../../Measurements/NativeLifecycle_2026-10-28/README.md) binds current provider artifacts and local executable identities. The owner requests integration with disclosed holds; publication does not accept performance costs. Earlier dated checkpoints and paths below remain historical. Keep this plan in WIP.
+
 ## Hosted setup repair checkpoint (2026-10-27)
 
 ### Merged repair and independently replayed evidence closeout
@@ -220,6 +231,6 @@ regeneration is unnecessary. Consumer pins remain unchanged, and policy/noise/ju
 - [x] Preserve the original main failure and independently demonstrate the TSF helper contract gap.
 - [x] Retain exact-source local helper qualification and the two valid hidden/zero-height controlled negatives.
 - [x] Verify the final zero-size HWND fixture independently without focus requests or an SDK rebuild.
-- [ ] Qualify the combined fixed source with actual ten-row and full NativeTextInput receipts under the approved lease.
-- [ ] Pass final source validators/formatting and publish the focused source for six-profile hosted qualification.
-- [ ] Independently replay final native/provider/consumer evidence before merge; keep all other acceptance holds separate.
+- [x] Qualify the combined fixed source with actual ten-row and full NativeTextInput receipts under the approved lease: final SDK086 runs all four foreground suites in every x64 profile without skips and verifies restoration.
+- [x] Pass native-source validators/formatting and publish exact SDK086 for six-profile hosted qualification; all six native jobs and external consumers pass.
+- [x] Review final native/provider/consumer evidence before integration, retaining the independent performance-policy and consumer platform holds above.
