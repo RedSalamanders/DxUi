@@ -5497,6 +5497,255 @@ void TestMenuKeyboardAltExitsMenuLoop()
                                 "dismissing the menu popup with Alt preserves or restores focus to the previously focused control");
 }
 
+// Order stale root hover timers against keyboard input on the menu UI thread.
+void TestMenuKeyboardInputCancelsPendingSubmenuHoverTimers()
+{
+    using namespace DxUi;
+    constexpr UINT kRunOrderedSequenceMessage = WM_APP + 0x65Au;
+
+    struct SequenceResult
+    {
+        bool handlerRan                                  = false;
+        bool popupIdentityValid                          = false;
+        bool geometryReady                               = false;
+        bool openMovesSucceeded                          = false;
+        bool openPendingBeforeKeyboard                   = false;
+        bool openTimerCanceledImmediatelyAfterHome       = false;
+        bool keyboardChildOpened                         = false;
+        bool keyboardChildSurvivedStaleOpenTimer         = false;
+        int keyboardChildIndexAfterOpenTimer             = -1;
+        bool previousChildClosed                         = false;
+        bool closeOpenMovesSucceeded                     = false;
+        bool closePhaseOpenPending                       = false;
+        bool pointerChildOpened                          = false;
+        bool closePendingBeforeKeyboard                  = false;
+        bool closeTimerCanceledImmediatelyAfterFirstDown = false;
+        bool keyboardChildSelectedB12                    = false;
+        bool keyboardChildSurvivedStaleCloseTimer        = false;
+        int keyboardChildIndexAfterCloseTimer            = -1;
+    };
+
+    SequenceResult observed{};
+    int callbackFailure = 0;
+    std::string failure;
+    const ForegroundRunResult run = RunUntilForegroundHeld([&]() -> ForegroundAttempt
+    {
+        observed        = {};
+        callbackFailure = 0;
+        failure.clear();
+
+        AttachedHostWindow ownerWindow;
+        SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
+        ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
+        ownerWindow.PumpMessages();
+
+        ScopedMenuPointerFixture pointerFixture(ownerWindow.Hwnd());
+        const RECT virtualScreen = GetVirtualScreenBounds();
+        if (! pointerFixture.AlignCursor(POINT{virtualScreen.left + 4, virtualScreen.top + 4}))
+        {
+            failure = "the owned pointer fixture parks outside the popup before the modal menu opens";
+            return ForegroundAttempt{.activationEstablished = true};
+        }
+        DrainPendingMouseMessagesForMenuSuite();
+        if (! TryActivateDxUiTestWindow(ownerWindow.Hwnd()))
+            return ForegroundAttempt{.activationEstablished = false};
+        DrainPendingMouseMessagesForMenuSuite();
+        const uint32_t lossesBefore = ownerWindow.ForegroundLossCount();
+
+        // B2 is a leaf so moving from the open B11 child to B2 arms the close timer.
+        const std::vector<MenuFlyoutItem> items = {
+            {.text      = L"B1",
+             .commandId = 37101,
+             .children  = {MenuFlyoutItem{.text = L"B11", .commandId = 37111}, MenuFlyoutItem{.text = L"B12", .commandId = 37112}}},
+            {.text = L"B2", .commandId = 37102},
+        };
+
+        wil::unique_event_nothrow sequenceFinished;
+        sequenceFinished.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+        Require(sequenceFinished != nullptr, "keyboard-hover cancellation creates its ordered-sequence event");
+        MenuModalDispatchReadinessForTest dispatchReady(ownerWindow.Hwnd());
+        const auto discoveryDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(5000);
+        bool sequenceHandled         = false; // UI-thread-only one-shot guard.
+        ownerWindow.SetApplicationMessageHandler([&](UINT message, WPARAM wParam, LPARAM, LRESULT& result) noexcept
+        {
+            if (message != kRunOrderedSequenceMessage)
+                return false;
+            result = 0;
+            if (sequenceHandled)
+                return true;
+            sequenceHandled     = true;
+            observed.handlerRan = true;
+
+            const HWND root             = reinterpret_cast<HWND>(wParam);
+            observed.popupIdentityValid = root && IsWindow(root) != FALSE && GetWindow(root, GW_OWNER) == ownerWindow.Hwnd();
+            if (! observed.popupIdentityValid)
+            {
+                callbackFailure = 1;
+                static_cast<void>(SetEvent(sequenceFinished.get()));
+                return true;
+            }
+
+            [[maybe_unused]] const ScopedMenuPointerFixture popupDpiContext(root);
+            ContextMenuPopupDebugState rootState{};
+            D2D1_RECT_F b1{};
+            D2D1_RECT_F b2{};
+            RECT popupRect{};
+            observed.geometryReady = DebugGetContextMenuPopupState(root, rootState) && rootState.dpi != 0u && DebugGetContextMenuPopupItemRect(root, 0u, b1) &&
+                                     DebugGetContextMenuPopupItemRect(root, 1u, b2) && GetWindowRect(root, &popupRect) != FALSE;
+            if (! observed.geometryReady)
+            {
+                callbackFailure = 2;
+                static_cast<void>(SetEvent(sequenceFinished.get()));
+                return true;
+            }
+
+            const auto moveToRow = [&](const D2D1_RECT_F& row) noexcept
+            {
+                const LONG x = static_cast<LONG>(std::lround((row.left + row.right) * 0.5f * static_cast<float>(rootState.dpi) / 96.0f));
+                const LONG y = static_cast<LONG>(std::lround((row.top + row.bottom) * 0.5f * static_cast<float>(rootState.dpi) / 96.0f));
+                if (! pointerFixture.AlignCursor(POINT{popupRect.left + x, popupRect.top + y}))
+                    return false;
+                DrainPendingMouseMessagesForMenuSuite();
+                return SendClientMouseMoveForMenuSuite(root, x, y);
+            };
+            const auto child              = [&]() noexcept { return FindOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B11"); };
+            const auto rootStateAvailable = [&]() noexcept { return DebugGetContextMenuPopupState(root, rootState); };
+
+            // OPEN: create a pending B1 open, then Home cancels it before Right opens B11.
+            observed.openMovesSucceeded = moveToRow(b2) && moveToRow(b1);
+            if (! observed.openMovesSucceeded || ! rootStateAvailable())
+            {
+                callbackFailure = 3;
+            }
+            else
+            {
+                observed.openPendingBeforeKeyboard =
+                    rootState.hoverTimerActive && rootState.hoverTimerPendingOpen && rootState.hoverTimerItemIndex == std::optional<size_t>{0u};
+                static_cast<void>(SendMessageW(root, WM_KEYDOWN, VK_HOME, 0));
+                observed.openTimerCanceledImmediatelyAfterHome = rootStateAvailable() && ! rootState.hoverTimerActive;
+                static_cast<void>(SendMessageW(root, WM_KEYDOWN, VK_RIGHT, 0));
+                HWND submenu = child();
+                ContextMenuPopupDebugState childState{};
+                observed.keyboardChildOpened =
+                    submenu && DebugGetContextMenuPopupState(submenu, childState) && childState.keyboardIndex == std::optional<size_t>{0u};
+
+                // Direct synchronous WM_TIMER delivery intentionally models a stale already-queued
+                // native timer. DebugFireContextMenuPopupHoverTimer posts and would run after this sequence.
+                static_cast<void>(SendMessageW(root, WM_TIMER, 1u, 0));
+                submenu    = child();
+                childState = {};
+                observed.keyboardChildSurvivedStaleOpenTimer =
+                    submenu && DebugGetContextMenuPopupState(submenu, childState) && childState.keyboardIndex == std::optional<size_t>{0u};
+                observed.keyboardChildIndexAfterOpenTimer = childState.keyboardIndex.has_value() ? static_cast<int>(childState.keyboardIndex.value()) : -1;
+
+                // CLOSE: close the keyboard child, open it by pointer timer, then move to leaf B2.
+                submenu = child();
+                if (submenu)
+                    static_cast<void>(SendMessageW(submenu, WM_KEYDOWN, VK_LEFT, 0));
+                observed.previousChildClosed     = child() == nullptr;
+                observed.closeOpenMovesSucceeded = observed.previousChildClosed && moveToRow(b2) && moveToRow(b1);
+                if (! observed.closeOpenMovesSucceeded || ! rootStateAvailable())
+                {
+                    callbackFailure = 4;
+                }
+                else
+                {
+                    observed.closePhaseOpenPending =
+                        rootState.hoverTimerActive && rootState.hoverTimerPendingOpen && rootState.hoverTimerItemIndex == std::optional<size_t>{0u};
+                    if (observed.closePhaseOpenPending)
+                        static_cast<void>(SendMessageW(root, WM_TIMER, 1u, 0));
+                    submenu                     = child();
+                    observed.pointerChildOpened = submenu != nullptr;
+                    if (submenu && moveToRow(b2))
+                    {
+                        observed.closePendingBeforeKeyboard = rootStateAvailable() && rootState.hoverTimerActive && rootState.hoverTimerPendingClose;
+                        static_cast<void>(SendMessageW(submenu, WM_KEYDOWN, VK_DOWN, 0));
+                        observed.closeTimerCanceledImmediatelyAfterFirstDown = rootStateAvailable() && ! rootState.hoverTimerActive;
+                        static_cast<void>(SendMessageW(submenu, WM_KEYDOWN, VK_DOWN, 0));
+                        childState = {};
+                        observed.keyboardChildSelectedB12 =
+                            DebugGetContextMenuPopupState(submenu, childState) && childState.keyboardIndex == std::optional<size_t>{1u};
+                        static_cast<void>(SendMessageW(root, WM_TIMER, 1u, 0));
+                        submenu    = child();
+                        childState = {};
+                        observed.keyboardChildSurvivedStaleCloseTimer =
+                            submenu && DebugGetContextMenuPopupState(submenu, childState) && childState.keyboardIndex == std::optional<size_t>{1u};
+                        observed.keyboardChildIndexAfterCloseTimer =
+                            childState.keyboardIndex.has_value() ? static_cast<int>(childState.keyboardIndex.value()) : -1;
+                    }
+                    else
+                    {
+                        callbackFailure = 5;
+                    }
+                }
+            }
+
+            static_cast<void>(SetEvent(sequenceFinished.get()));
+            return true;
+        });
+        const auto clearMessageHandler = wil::scope_exit([&]() noexcept { ownerWindow.SetApplicationMessageHandler({}); });
+
+        std::thread driver([&]
+        {
+            const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), failure);
+            const HWND root = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B1");
+            if (! root)
+            {
+                failure = "the keyboard-hover cancellation popup is discovered";
+                return;
+            }
+            dispatchReady.NoteDiscovery();
+            if (! dispatchReady.WaitUntil(discoveryDeadline))
+            {
+                failure = "the menu modal dispatch is ready within the existing discovery budget";
+                return;
+            }
+            if (PostMessageW(ownerWindow.Hwnd(), kRunOrderedSequenceMessage, reinterpret_cast<WPARAM>(root), 0) == FALSE)
+            {
+                failure = "the owner accepts the ordered keyboard-hover sequence message";
+                return;
+            }
+            if (WaitForSingleObject(sequenceFinished.get(), 5000u) != WAIT_OBJECT_0)
+            {
+                failure = "the ordered keyboard-hover sequence completes";
+                return;
+            }
+            DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd());
+        });
+
+        const std::optional<int> command = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, ownerWindow.Host().GetTheme());
+        driver.join();
+        if (command.has_value() && failure.empty())
+            failure = "the keyboard-hover cancellation sequence invokes no menu command";
+        if (failure.empty() && callbackFailure != 0)
+            failure = callbackFailure == 1   ? "the owner message carries the discovered owned root popup"
+                      : callbackFailure == 2 ? "the root popup exposes live state, item geometry, and DPI"
+                      : callbackFailure == 3 ? "the B2-to-B1 pointer moves establish a pending-open timer"
+                      : callbackFailure == 4 ? "the prior child closes and the second pointer-open path is established"
+                                             : "the child opens and accepts the close-timer sequence";
+
+        return ForegroundAttempt{ownerWindow.ForegroundLossCount() != lossesBefore, ownerWindow.LastForegroundThiefThreadId(), true};
+    });
+
+    Require(run.held, "keyboard-hover cancellation retains the foreground within the existing attempt bound");
+    Require(failure.empty(), failure.c_str());
+    Require(observed.handlerRan && observed.popupIdentityValid, "the one-shot owner callback receives its owned root popup");
+    Require(observed.geometryReady, "the callback calibrates both menu rows from live popup geometry and DPI");
+    Require(observed.openMovesSucceeded && observed.openPendingBeforeKeyboard, "pointer B2-to-B1 arms the B1 pending-open timer");
+    Require(observed.openTimerCanceledImmediatelyAfterHome, "Home cancels the root pending-open timer before Right opens a child");
+    Require(observed.keyboardChildOpened, "Right opens B11 with keyboard focus");
+    Require(observed.keyboardChildSurvivedStaleOpenTimer && observed.keyboardChildIndexAfterOpenTimer == 0,
+            "stale root open-timer delivery preserves keyboard-focused B11");
+    Require(observed.previousChildClosed, "Left closes B11 before the pointer-open close-timer phase");
+    Require(observed.closeOpenMovesSucceeded && observed.closePhaseOpenPending, "the second B2-to-B1 move arms the pointer-open timer");
+    Require(observed.pointerChildOpened, "the pointer timer opens B11 for the sibling-close phase");
+    Require(observed.closePendingBeforeKeyboard, "moving from B11 to leaf B2 arms the pending-close timer");
+    Require(observed.closeTimerCanceledImmediatelyAfterFirstDown, "the first Down cancels the root pending-close timer immediately");
+    Require(observed.keyboardChildSelectedB12, "the second Down selects B12 before stale close-timer delivery");
+    Require(observed.keyboardChildSurvivedStaleCloseTimer && observed.keyboardChildIndexAfterCloseTimer == 1,
+            "stale root close-timer delivery preserves keyboard-focused B12");
+}
+
 void TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop()
 {
     using namespace DxUi;
@@ -12046,6 +12295,7 @@ void RunMenuTests()
     runTest("TestMenuKeyboardF10ExitsMenuLoop", TestMenuKeyboardF10ExitsMenuLoop);
     runTest("TestMenuKeyboardAltExitsMenuLoop", TestMenuKeyboardAltExitsMenuLoop);
     runTest("TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop", TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop);
+    runTest("TestMenuKeyboardInputCancelsPendingSubmenuHoverTimers", TestMenuKeyboardInputCancelsPendingSubmenuHoverTimers);
     runTest("TestMenuKeyboardRightArrowInRightToLeftClosesOnlyTheSubmenu", TestMenuKeyboardRightArrowInRightToLeftClosesOnlyTheSubmenu);
     runTest("TestMenuSliderMnemonicAndAltGrKeepTheMenuOpen", TestMenuSliderMnemonicAndAltGrKeepTheMenuOpen);
     runTest("TestMenuLoopEndsWhenAnotherThreadDismissesIt", TestMenuLoopEndsWhenAnotherThreadDismissesIt);
