@@ -1,0 +1,116 @@
+{
+  "schema": "sdk-control-diagnostics-public-projection-manifest-v1",
+  "fileCount": 12,
+  "totalBytes": 183753,
+  "files": [
+    {
+      "file": ".gitattributes",
+      "bytes": 61,
+      "sha256": "22106984A6C1274EAD5C283789CA11D75B303658949AAA627698747E7B2D6160"
+    },
+    {
+      "file": "native-qualification.json",
+      "bytes": 14504,
+      "sha256": "55C51A545C355F51D6EBDFCD6B865F74DE40822A22B2FBD2467D54E538829D8B"
+    },
+    {
+      "file": "paired-ci/integrity-manifest.json",
+      "bytes": 1998,
+      "sha256": "692745507ADEABEFADDC107A3AEAF28B13CA3E19E19E1AFC04DC3105133BFEC8"
+    },
+    {
+      "file": "README.md",
+      "bytes": 4473,
+      "sha256": "6C3E1BAE12EA93F58220B830F6596440940914AB40E383C82C2B213F801A13AD"
+    },
+    {
+      "file": "sdk-artifact-hashes.csv",
+      "bytes": 27770,
+      "sha256": "5F122D80BA6C90D82477AB94141F9F77716E4B4EC303F6AC7902B8F6435EC5A2"
+    },
+    {
+      "file": "sdk-identity.json",
+      "bytes": 5102,
+      "sha256": "42BED1F0E83AAE83D6F9A17A49BEAF1278046E05A03589D0F376D9462ACA1287"
+    },
+    {
+      "file": "sdk-largest-replicate-spreads.csv",
+      "bytes": 7621,
+      "sha256": "A9A79AE70E6216CF9A186C7D13BD399A87DD73128DF9671B0C7835BAABF344A6"
+    },
+    {
+      "file": "sdk-replicate-comparisons.csv",
+      "bytes": 41736,
+      "sha256": "25D426EBE9372A8DDCE469A88A5BC49F6918F2B6A6ECBF34E0C56C1E5466B192"
+    },
+    {
+      "file": "sdk-slots.csv",
+      "bytes": 5518,
+      "sha256": "8D226C404807E1DCDF8F3092FF16497C1F09BFF3BA8B26DE96C61D4BE24FE02D"
+    },
+    {
+      "file": "sdk-smokes.csv",
+      "bytes": 429,
+      "sha256": "384D760EE51FCCDEC46B1805B4DBC76C15091EB628B94AFEE5B5CBCAFF678324"
+    },
+    {
+      "file": "sdk-timer-observer-comparisons.csv",
+      "bytes": 2735,
+      "sha256": "F8A504302B94C52EA4B8748A5FF5DD99796103EED23EE6FC1B86DB27F00964B5"
+    },
+    {
+      "file": "sdk-windows.csv",
+      "bytes": 71806,
+      "sha256": "7745CA4D7449C60E2575998F683D7F4222D3FC6BB7D969128170EBAA66F6E093"
+    }
+  ],
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-complex-ui-boundaries-v3",
+  "benchmarkInputs": {
+    "Tests/Embedded/Embedded.Tests.ComplexUiProfiling.h": "BEEE3E4C80FB9A6FC85C2D65F699405A82CD71838CDF7C07A5C6E0D3B285F61C",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBoundaries.h": "35EEF751613211F6AA5725773BA04CCDA3D34B762381A5734431AF16F4E060F6",
+    "Tests/Embedded/Embedded.Tests.Embedded.cpp": "44007FAFE9C7DD4D65A1F4E2F91AB2AA9018DB851C7A03FC79DEFB0976EAB8F9",
+    "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+    "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
+    "performance-profile.ps1": "A5BB1FCDE7361FEFE5137A439C73CCC0FC3E529A94349CA6665E6D0F62C9745F",
+    "Tools/PerformanceProfiling.psm1": "E69653D12F528157C6140B3CBCF966AE6262A64D6F306186C0C6DE7DF5E8D512",
+    "Tools/PerformancePolicy.psm1": "B93E825963039A607297EF8A8D5162F6787CBF34209F81FB6D35465F65193B20",
+    "Tools/ScopedTesting.psm1": "BD8BDAE656BF08317AA6D40EEFCC7B8F921E72217F77CCAC5532DA73EA7D805E"
+  },
+  "inputClosure": {
+    "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+    "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+    "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
+    "Tests/Embedded/Embedded.Tests.ComplexUiProfiling.h": "BEEE3E4C80FB9A6FC85C2D65F699405A82CD71838CDF7C07A5C6E0D3B285F61C",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBoundaries.h": "35EEF751613211F6AA5725773BA04CCDA3D34B762381A5734431AF16F4E060F6",
+    "Tests/Embedded/Embedded.Tests.Embedded.cpp": "44007FAFE9C7DD4D65A1F4E2F91AB2AA9018DB851C7A03FC79DEFB0976EAB8F9",
+    "performance-profile.ps1": "A5BB1FCDE7361FEFE5137A439C73CCC0FC3E529A94349CA6665E6D0F62C9745F",
+    "Tools/PerformanceProfiling.psm1": "E69653D12F528157C6140B3CBCF966AE6262A64D6F306186C0C6DE7DF5E8D512",
+    "Tools/PerformancePolicy.psm1": "B93E825963039A607297EF8A8D5162F6787CBF34209F81FB6D35465F65193B20",
+    "Tools/ScopedTesting.psm1": "BD8BDAE656BF08317AA6D40EEFCC7B8F921E72217F77CCAC5532DA73EA7D805E",
+    "Tools\\Watch-BenchmarkHost.ps1": "DD31F0CEFF0A383FEE1DC971893A85AD803A6962D6AD2C9F0B34007DD156807D"
+  },
+  "evidenceRole": "packet-integrity-manifest",
+  "scopeNote": "Integrity manifest for this packet; it is not workload-result evidence.",
+  "closure": {
+    "model": "outer files plus child integrity manifest; nested child files verified by the child manifest",
+    "directEntryCount": 12,
+    "directBytes": 183753,
+    "childManifests": [
+      {
+        "path": "paired-ci/integrity-manifest.json",
+        "sha256": "692745507ADEABEFADDC107A3AEAF28B13CA3E19E19E1AFC04DC3105133BFEC8",
+        "nestedFileCount": 5,
+        "nestedBytes": 360018
+      }
+    ],
+    "transitiveFileCount": 17,
+    "transitiveBytes": 543771
+  }
+}

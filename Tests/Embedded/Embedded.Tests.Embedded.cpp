@@ -1327,6 +1327,21 @@ __declspec(noinline) static int RunFunctionalTests()
             TestRichDocumentAllocationFailureAtomicity();
         return 0;
     }
+    if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--benchmark-complex-ui-boundaries-v3")
+    {
+        ComplexUiBoundaries::WarpRasterMode mode{};
+        ComplexUiBoundaries::Scenario scenario{};
+        bool dirty = false;
+        if (__argc != 7 || (std::wstring_view(__wargv[3]) != L"Off" && std::wstring_view(__wargv[3]) != L"On") ||
+            ! ComplexUiBoundaries::TryParseRasterMode(__wargv[4], mode) || ! ComplexUiBoundaries::TryParseScenario(__wargv[5], scenario) ||
+            ! ComplexUiBoundaries::TryParsePhase(__wargv[6], dirty))
+        {
+            std::fputs("Boundary v3 diagnostic requires output, Off|On, Default|CallingThread, an exact scenario and Clean|Dirty.\n", stderr);
+            return 1;
+        }
+        ComplexUiBoundaries::Run(__wargv[2], std::wstring_view(__wargv[3]) == L"On", mode, scenario, dirty);
+        return 0;
+    }
     if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--benchmark-complex-ui-boundaries")
     {
         if (__argc != 4 && __argc != 5)
