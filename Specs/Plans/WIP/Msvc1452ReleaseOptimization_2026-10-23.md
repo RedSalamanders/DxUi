@@ -3,6 +3,17 @@
 Status: ACTIVE qualification; hosted native cohort verified; paired, performance/manual and release holds remain
 Date: 2026-10-23
 
+## Current source qualification — 28 October 2026
+
+- [x] Qualify exact source `086ad82a5872768db23ea83862ab4af13dff0c5b`: all six hosted native profiles and external consumers pass in [run 40605395948](https://github.com/RedSalamanders/DxUi/actions/runs/40605395948), merge candidate `f2bad236` against actual base `5d983536`.
+- [x] Complete all four local foreground suites in each x64 profile, with zero skips and verified focus/foreground/cursor restoration. Debug and ASan receive fresh canonical builds; Release passes exact-input build admission. ASan detects the deliberate failure separately from the successful profile.
+- [x] Retain the actual Release ICF negative and the permanent folded-deleter regression for writable payload type tags. Preserve earlier failures and producer identities; no shipped linker-policy change or saving is claimed.
+- [x] Qualify RedTilde's exact SDK086 adoption at native producer `e0908338`: six builds, three x64 67-case/32-capture runs, real ASan detection and nine input stages. Audit-only successor `41f0072` changes no native implementation.
+- [x] Complete the current paired collection and retain checksum-verified artifact `12786737643`: measurement/upload pass, verdict publication fails with inconclusive `policy-review-required`. The gated verdict's empty scenario list is not a numerical pass.
+- [ ] Qualify the performance policy and controls independently. The base policy remains unqualified; hosted RedTilde ARM64 is billing-blocked, and physical IME/AT and release acceptance remain separate.
+
+The [native lifecycle packet](../../../Measurements/NativeLifecycle_2026-10-28/README.md) binds current provider artifacts and local executable identities. The owner requests integration with disclosed holds; publication does not accept performance costs. Earlier dated checkpoints and paths below remain historical. Keep this plan in WIP.
+
 ## Hosted setup repair checkpoint (2026-10-27)
 
 ### Merged repair and independently replayed evidence closeout
@@ -184,3 +195,42 @@ The canonical ProgressBar now has explicit animation pause state, independent of
 The approved integration combines current main with the retained MSVC 14.52 work, preserving newer callback guards and the pause API. Qualification of this combined source is recorded separately from earlier branch receipts. Historical passes and remaining native, interactive, performance and release gates are retained; the merge does not close them automatically.
 
 On 2026-10-27 the user explicitly authorized local validation followed by merge, deferring hosted CI and native ARM64 execution. RedPrism/RedTilde hosted jobs were refused for GitHub billing/spending restrictions; RedXe/DxUi hosted provisioning failed before qualification. Local checks do not convert these results into CI passes. Native ARM64, interactive/manual, paired-performance and release gates remain open.
+
+## Post-merge native focus lifecycle followup (2026-10-27)
+
+Main `e3447765`, run 40509208565, failed the x64 Debug Full TSF foreign-document assertion while five other native
+profiles and all eight required consumer steps passed. Its failed ZIP and 82 payload streams remain separately
+replayed. Later main `5d983536`, run 40528944780, completed successfully according to final provider metadata;
+that passing repeat does not attribute the original failure or qualify the new source below.
+
+An independent nonforeground control at private source `375b4939` exposed a real shared-helper contract gap:
+restoring a non-null previous association could leave focus empty and lose a retained independent document.
+The original negative and eight safety outcomes remain retained. Minimal source `21cda758` then passed twelve
+Foundation controls, including 64 alternating replacement/retirement cycles with balanced references, the original
+three focused NativeTextInput cases and all 172 NativeTextInput cases in x64 Debug. These are actual prior-source
+results, not qualification of this combined public source. Diagnostic public getters are excluded.
+
+Separate unchanged-runtime producers `0a9b20f2` and `cde6d909` each demonstrated four valid unexpected native-focus
+transfers: Button/Tree on hidden nonzero and visible zero-height hosts. All four visible transfer/logical-only
+controls passed. Two zero-width rows in each producer failed fixture setup (actual widths 120 and 32); no width
+before-run claim is made. Both failed runs, exact source/profile files, seven/eight completion streams and lease
+restoration were byte/hash-bound and retained privately. The second approved countdown was manually started;
+foreground/focus were unchanged and the pointer was restored. Earlier capacity-stop and compile failures remain.
+
+Two tiny hidden Win32 probes compared default sizing, minimum-track override, `SWP_NOSENDCHANGING` and scoped
+position restoration: twelve rows each, including the actual activating fixture's extended style, reached exact
+zero-width/zero-height with the no-send flag while foreground, focus and active window stayed unchanged. This
+proves fixture geometry only. The final fixture uses that flag and removes the unsuccessful hook entirely.
+
+The combined public source starts from `5d983536`, includes the bounded TSF helper repair and adds only the
+non-text native-transfer visibility/positive-size guard. Same-target handling, callback revisions, public ABI,
+physical-input assertions, deadlines and performance rules remain unchanged. Durable rules belong to the
+[input contract](../../UI/UI_InputAndAccessibility.md). No control appearance or gallery pixels change; gallery
+regeneration is unnecessary. Consumer pins remain unchanged, and policy/noise/judge/manual/platform holds remain.
+
+- [x] Preserve the original main failure and independently demonstrate the TSF helper contract gap.
+- [x] Retain exact-source local helper qualification and the two valid hidden/zero-height controlled negatives.
+- [x] Verify the final zero-size HWND fixture independently without focus requests or an SDK rebuild.
+- [x] Qualify the combined fixed source with actual ten-row and full NativeTextInput receipts under the approved lease: final SDK086 runs all four foreground suites in every x64 profile without skips and verifies restoration.
+- [x] Pass native-source validators/formatting and publish exact SDK086 for six-profile hosted qualification; all six native jobs and external consumers pass.
+- [x] Review final native/provider/consumer evidence before integration, retaining the independent performance-policy and consumer platform holds above.

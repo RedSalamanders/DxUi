@@ -1962,6 +1962,48 @@ literally, as with nested Markdown/native anchors. The footer's independent
 backlinks still target exact raw references. Unresolved literal markers add no
 action and do not invalidate an otherwise supported HTML anchor.
 
+## Caption button presentation and nonclient hover
+
+`ButtonAppearance::Caption` and `CaptionClose` retain button invocation and
+accessibility semantics with square transparent idle surfaces and immediate hover
+feedback. Caption controls use neutral hover; close uses the paired theme roles
+`captionCloseFill`, `captionClosePressedFill` and `captionCloseText`. High contrast
+retains the system style's fill/text/focus pair.
+
+Native hosts may report `HTMINBUTTON`, `HTMAXBUTTON` and `HTCLOSE` over their
+client-rendered controls. `ControlHost::HandleMessage` observes the corresponding
+`WM_NCMOUSEMOVE` with screen-to-client/DPI conversion and nonclient leave tracking;
+it clears hover for other nonclient regions and on `WM_NCMOUSELEAVE`. These
+messages remain unhandled so callers preserve native default processing, including
+maximize hover/Snap. Consumers own frame hit geometry and activation policy. They
+must prevent duplicate native/client dispatch, retain resizing/dragging, and cancel
+a pressed gesture on capture loss.
+
+## Optional subtle Markdown presentation
+
+`RichText::MarkdownPresentationStyle::Subtle` on `LayoutOptions` and
+`RichTextEditorAppearance` selects document decoration independently of parsing.
+The default remains `Default`. Changing the style retires prepared geometry and
+is part of its cache identity; invalid enum values fail before publication.
+Source text, selection, undo history, source view and semantic roles do not change.
+
+Subtle H1/H2 headings have a one-DIP separator below the text, included in element
+bounds and backed by at least fourteen DIP of following space. Tables use bounded
+natural column measurements plus twelve DIP of cell padding, proportionally
+shrunk when necessary, and draw horizontal row rules without vertical cell borders.
+RTL placement and explicit cell alignment remain supported. Standalone diagrams
+and display-only mathematical paragraphs center through prepared DWrite geometry,
+so source hit testing and caret placement agree with drawing. Inline math retains
+the surrounding paragraph's alignment. Quotes accept a shaded background.
+
+The editor resolves neutral decoration from `borderDefault` and shades quotes with
+an eight-percent blend of ordinary text ink over the document fill during preparation.
+This remains visible when input/card roles coincide. High contrast uses resolved text/surface
+colors. Caller-provided drawing brushes remain supported by prepared layouts.
+The new style's runtime and consumer qualification is tracked in the
+[active plan](../Plans/WIP/SubtleMarkdownPresentation_2026-10-27.md); this contract
+does not establish completed platform or performance qualification.
+
 ## Native in-document mathematics and broader diagrams (RedTilde continuation)
 
 RichMarkdown recognizes `$...$`, `$$...$$`, `\(...\)` and `\[...\]` inside ordinary

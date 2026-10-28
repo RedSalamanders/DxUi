@@ -1,5 +1,11 @@
 # Control guide
 
+Custom native title bars can use square `ButtonAppearance::Caption` and
+`CaptionClose` controls for neutral and red close-button hover/press feedback.
+High contrast retains its system colors. Hosts can pass nonclient hover/leave
+messages to `ControlHost::HandleMessage` while retaining default processing;
+caption hit testing and activation remain the consumer's responsibility.
+
 Quiet document chrome can opt into `ButtonAppearance::Subtle`, `Outline` and checked `Tab` while preserving
 ordinary Button invocation and TogglePattern. Text buttons support `SetLeadingIcon` and `SetShortcutText`;
 the consumer owns shortcut dispatch. `TreeAppearance` exposes the pane ground and optionally suppresses

@@ -109,6 +109,7 @@
   "Tests/Embedded/Embedded.Tests.RichTextResources.h",
   "Tests/Foundation/Foundation.Tests.Foundation.cpp",
   "Tests/Foundation/Foundation.Tests.PublicHelpers.cpp",
+  "Tests/Foundation/Foundation.Tests.TsfFocus.cpp",
   "Tests/InteractiveLease/InteractiveLease.Tests.ChildProcess.h",
   "Tests/InteractiveLease/InteractiveLease.Tests.Confirmation.h",
   "Tests/InteractiveLease/InteractiveLease.Tests.Runner.cpp",

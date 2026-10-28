@@ -13,6 +13,7 @@ struct PayloadEntry
     UINT message                    = 0u;
     void* value                     = nullptr;
     void (*destroy)(void*) noexcept = nullptr;
+    const void* typeTag             = nullptr;
 };
 struct PayloadRegistry
 {
@@ -36,6 +37,8 @@ template <class T> void DestroyPayload(void* value) noexcept
 {
     delete static_cast<T*>(value);
 }
+// Type identity must not use the deleter address: /OPT:ICF can fold identical deleter code.
+template <class T> inline unsigned char PostedPayloadTypeTag = 0u;
 } // namespace DxUi::Detail
 namespace DxUi
 {
@@ -105,7 +108,7 @@ template <class T> bool PostMessagePayload(HWND hwnd, UINT msg, WPARAM wp, std::
     for (auto& e : r.entries)
         if (! e.token)
         {
-            e = {r.next++, hwnd, msg, value.get(), &DxUi::Detail::DestroyPayload<T>};
+            e = {r.next++, hwnd, msg, value.get(), &DxUi::Detail::DestroyPayload<T>, &DxUi::Detail::PostedPayloadTypeTag<T>};
             if (! PostMessageW(hwnd, msg, wp, e.token))
             {
                 e = {};
@@ -129,7 +132,7 @@ template <class T> bool ReclaimMessagePayload(HWND window, UINT message, LPARAM 
         auto& r = DxUi::Detail::Payloads();
         std::lock_guard lock(r.mutex);
         for (auto& e : r.entries)
-            if (token && e.token == token && e.window == window && e.message == message && e.destroy == &DxUi::Detail::DestroyPayload<T>)
+            if (token && e.token == token && e.window == window && e.message == message && e.typeTag == &DxUi::Detail::PostedPayloadTypeTag<T>)
             {
                 removed = e;
                 e       = {};
@@ -165,7 +168,7 @@ template <class T> bool SendMessagePayload(HWND hwnd, UINT msg, WPARAM wp, std::
         for (auto& e : r.entries)
             if (! e.token)
             {
-                e     = {r.next++, hwnd, msg, value.release(), &DxUi::Detail::DestroyPayload<T>};
+                e     = {r.next++, hwnd, msg, value.release(), &DxUi::Detail::DestroyPayload<T>, &DxUi::Detail::PostedPayloadTypeTag<T>};
                 token = e.token;
                 break;
             }
@@ -190,7 +193,7 @@ template <class T> std::unique_ptr<T> TakeMessagePayload(HWND expectedWindow, UI
         auto& r = DxUi::Detail::Payloads();
         std::lock_guard lock(r.mutex);
         for (auto& e : r.entries)
-            if (token && e.token == token && e.window == expectedWindow && e.message == expectedMessage && e.destroy == &DxUi::Detail::DestroyPayload<T>)
+            if (token && e.token == token && e.window == expectedWindow && e.message == expectedMessage && e.typeTag == &DxUi::Detail::PostedPayloadTypeTag<T>)
             {
                 taken = e;
                 e     = {};

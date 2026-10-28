@@ -329,6 +329,17 @@ ButtonVisualStyle ResolveButtonAppearanceVisualStyle(const ThemePalette& theme,
     // Opt-in presentation never dilutes the system contrast pair or a primary action.
     if (appearance == ButtonAppearance::Filled || primary || theme.highContrast)
         return style;
+    if (appearance == ButtonAppearance::Caption || appearance == ButtonAppearance::CaptionClose)
+    {
+        const auto hot   = enabled ? (pressed ? 1.0f : ClampUnit(hoverStrength)) : 0.0f;
+        const bool close = appearance == ButtonAppearance::CaptionClose;
+        style.text       = ! enabled ? theme.disabledText : close && hot > 0.0f ? theme.captionCloseText : theme.text;
+        style.fill       = close ? (pressed ? theme.captionClosePressedFill : theme.captionCloseFill) : theme.text;
+        style.fill.a *= hot * (close ? 1.0f : pressed ? 0.16f : 0.10f);
+        style.showBorder             = false;
+        style.showSelectionUnderline = false;
+        return style;
+    }
     const bool selected = checked && appearance != ButtonAppearance::Tab;
     style.text          = ! enabled                                          ? theme.disabledText
                           : selected                                         ? theme.selectionText

@@ -252,6 +252,14 @@ struct SemanticBox
         return {after != native->rtl ? bounds.right : bounds.left, after ? bounds.bottom - caretHeight : bounds.top, caretHeight};
     }
 };
+struct MarkdownDecorations
+{
+    // Debug iterator proxies allocate: choose fallible size constructors.
+    MarkdownDecorations() : tableRows(0u), headingRules(0u)
+    {
+    }
+    std::vector<D2D1_RECT_F> tableRows, headingRules;
+};
 bool SameOptions(const LayoutOptions& a, const LayoutOptions& b) noexcept
 {
     return a.widthDip == b.widthDip && a.fontSizeDip == b.fontSizeDip && a.codeFontSizeDip == b.codeFontSizeDip &&
@@ -259,7 +267,7 @@ bool SameOptions(const LayoutOptions& a, const LayoutOptions& b) noexcept
            a.codeFontFamily == b.codeFontFamily && a.headingFontSizeDip == b.headingFontSizeDip &&
            a.headingLineHeightMultiplier == b.headingLineHeightMultiplier && a.paragraphSpacingAfterLines == b.paragraphSpacingAfterLines &&
            a.listItemSpacingDip == b.listItemSpacingDip && a.semanticSpacing == b.semanticSpacing && a.locale == b.locale &&
-           a.readingDirection == b.readingDirection && a.textAlignment == b.textAlignment;
+           a.readingDirection == b.readingDirection && a.textAlignment == b.textAlignment && a.markdownPresentation == b.markdownPresentation;
 }
 void Union(std::optional<D2D1_RECT_F>& bounds, const D2D1_RECT_F& rectangle) noexcept
 {
@@ -324,6 +332,8 @@ struct PreparedSemanticGeometry::State
           bounds(document->Elements().size()),
           sourceLines(0u) // Fallible size constructor: MSVC Debug's noexcept default allocates an iterator proxy.
     {
+        if (options.markdownPresentation == MarkdownPresentationStyle::Subtle)
+            decorations = std::make_unique<MarkdownDecorations>();
         if ((imageResources && ! imageResources->placements.empty()) || ! SemanticExtensionAccess::Maths(*document).empty())
         {
             const RichImageResourceSet empty;
@@ -348,6 +358,7 @@ struct PreparedSemanticGeometry::State
     std::unique_ptr<NativeImageGeometry> images;
     std::unique_ptr<NativeDiagramGeometry> native;
     std::vector<std::unique_ptr<SemanticBox>> boxes;
+    std::unique_ptr<MarkdownDecorations> decorations;
     // Source caret boxes are in physical source order, while their zero-width
     // display anchors may coincide with or follow generated marker text. Keep
     // the glyph search index in display order instead of assuming both orders
@@ -442,6 +453,7 @@ struct PreparedSemanticGeometry::Preparation
         NativeObjects,
         NativeImages,
         MarkerLayouts,
+        TableAllocate,
         Layouts,
         RowPlacement,
         IndexSourceBoxes,
@@ -468,6 +480,8 @@ struct PreparedSemanticGeometry::Preparation
           caretSites(0u),
           sourceBoxes(0u)
     {
+        if (options.markdownPresentation == MarkdownPresentationStyle::Subtle)
+            tableSizing = std::make_unique<std::vector<std::unique_ptr<TableSizing>>>(0u);
         if (options.listItemSpacingDip)
             spacingItems = std::make_unique<std::vector<std::size_t>>(state->document->Syntax()->Nodes().size(), MarkdownNoNode);
         if (options.paragraphSpacingAfterLines && options.lineHeightMultiplier > 0.0f)
@@ -499,16 +513,34 @@ struct PreparedSemanticGeometry::Preparation
     std::vector<CaretAnchor> caretAnchors;
     std::vector<CaretSite> caretSites;
     std::vector<std::size_t> sourceBoxes;
+    struct TableSizing
+    {
+        TableSizing() : preferred(0u), widths(0u), probeWidths(0u), probeParagraphs(0u), probes(0u)
+        {
+        }
+        std::size_t table{}, columns{};
+        std::size_t widthIndex{};
+        float indent{}, preferredTotal{}, scale{};
+        SemanticParagraph firstContent;
+        std::vector<float> preferred, widths, probeWidths;
+        std::vector<std::size_t> probeParagraphs;
+        std::vector<std::unique_ptr<SemanticBox>> probes;
+    };
+    // Stable owners avoid MSVC Debug's allocating noexcept vector moves when
+    // another table grows this collection during an allocation sweep.
+    std::unique_ptr<std::vector<std::unique_ptr<TableSizing>>> tableSizing;
     // Only an opted-in list policy needs this bounded parent-first metadata.
     // A nullable owner avoids even Debug STL proxy allocation for legacy calls.
     std::unique_ptr<std::vector<std::size_t>> spacingItems;
     Phase phase = Phase::IndexElements;
-    std::size_t paragraph{}, rowStart{}, rowPlacement{}, rowTable = MarkdownNoNode, rowIndex{}, boundsIndex{};
+    std::size_t paragraph{}, rowStart{}, rowPlacement{}, rowTable = MarkdownNoNode, rowIndex{}, boundsIndex{}, tableAllocateIndex{};
     float y{}, rowHeight{};
+    float rowLeft = std::numeric_limits<float>::max(), rowRight{};
     float flowBottom{}, emptyHeight{}, gapAfter{}, paragraphGap{};
     std::size_t flowItem = MarkdownNoNode;
     bool rowActive{};
     std::size_t emptyLine{}, plannedBoxes{}, markerIndex{}, lastLayoutCalls{};
+    bool markerTableMeasured{};
     std::size_t lineBox{}, lineOffset{}, sourceLineStart{};
     bool HasSpacingPolicy() const noexcept
     {
@@ -653,11 +685,19 @@ struct PreparedSemanticGeometry::Preparation
         const auto paragraphs = state->document->Paragraphs();
         if (markerIndex == paragraphs.size())
         {
-            phase = Phase::Layouts;
+            phase = state->options.markdownPresentation == MarkdownPresentationStyle::Subtle ? Phase::TableAllocate : Phase::Layouts;
             return false;
         }
-        const auto index    = markerIndex++;
+        const auto index    = markerIndex;
         const auto& content = paragraphs[index];
+        if (state->options.markdownPresentation == MarkdownPresentationStyle::Subtle && content.table != MarkdownNoNode && ! markerTableMeasured)
+        {
+            MeasureTableOne(index, content);
+            markerTableMeasured = true;
+            return true;
+        }
+        markerTableMeasured = false;
+        ++markerIndex;
         if (content.markerOwner == MarkdownNoNode)
             return false;
         if (content.markerEnd <= content.display.first || content.markerEnd > content.display.last)
@@ -696,6 +736,123 @@ struct PreparedSemanticGeometry::Preparation
     {
         rowPlacement = rowStart;
         phase        = Phase::RowPlacement;
+    }
+    TableSizing* FindTableSizing(std::size_t table) noexcept
+    {
+        if (! tableSizing)
+            return nullptr;
+        const auto found = std::ranges::find_if(*tableSizing, [table](const auto& sizing) { return sizing->table == table; });
+        return found == tableSizing->end() ? nullptr : found->get();
+    }
+    const TableSizing* FindTableSizing(std::size_t table) const noexcept
+    {
+        if (! tableSizing)
+            return nullptr;
+        const auto& tables = *tableSizing;
+        const auto found   = std::ranges::find_if(tables, [table](const auto& sizing) { return sizing->table == table; });
+        return found == tables.end() ? nullptr : found->get();
+    }
+    void MeasureTableOne(std::size_t paragraphIndex, const SemanticParagraph& content)
+    {
+        if (! content.columns || content.column >= content.columns || content.columns > SemanticDocument::MaximumParagraphs)
+            throw std::logic_error("Invalid semantic table measurement");
+        auto* sizing = FindTableSizing(content.table);
+        if (! sizing)
+        {
+            if (! tableSizing)
+                throw std::logic_error("Missing subtle table staging");
+            tableSizing->push_back(std::make_unique<TableSizing>());
+            sizing               = tableSizing->back().get();
+            sizing->table        = content.table;
+            sizing->columns      = content.columns;
+            sizing->firstContent = content;
+            sizing->preferred.assign(content.columns, 24.0f);
+            sizing->preferredTotal = 24.0f * static_cast<float>(content.columns);
+            sizing->probeWidths.assign(content.columns, -1.0f);
+            sizing->probeParagraphs.assign(content.columns, MarkdownNoNode);
+            sizing->probes.resize(content.columns);
+        }
+        if (sizing->columns != content.columns)
+            throw std::logic_error("Inconsistent semantic table column count");
+        LayoutOptions options = state->options;
+        options.widthDip      = std::max(state->options.widthDip, 1048576.0f);
+        options.textAlignment = DWRITE_TEXT_ALIGNMENT_LEADING;
+        Projection projection{
+            std::wstring(0u, L' '), std::wstring(0u, L' '), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)};
+        IdentityProjection(*state->document, content.display, projection);
+        PreparedLayout measured;
+        measured.PrepareSemanticOwned(state->factory.get(), projection, options, true);
+        const auto textBounds         = measured.HorizontalTextBounds();
+        float textWidth               = std::max(0.0f, textBounds.second - textBounds.first);
+        const auto includeObjectWidth = [&](MarkdownRange object, float objectWidth)
+        {
+            if (object.first < content.display.first || object.last > content.display.last || object.first >= object.last)
+                return;
+            const auto local    = object.first - content.display.first;
+            const auto leading  = measured.Caret(local);
+            const auto trailing = measured.Caret(local + (object.last - object.first));
+            textWidth += std::max(0.0f, std::min(objectWidth, options.widthDip) - std::abs(trailing.x - leading.x));
+        };
+        if (state->images)
+            for (const auto& image : state->images->placements)
+                if (image.display.first >= content.display.first && image.display.last <= content.display.last)
+                    includeObjectWidth(image.display, image.Size().width);
+        if (const auto* diagram = state->native ? state->native->Find(content.element) : nullptr)
+        {
+            const auto extent = diagram->paint->Geometry()->extent;
+            includeObjectWidth(state->document->Elements()[diagram->element].display, static_cast<float>(extent.width));
+        }
+        const auto width = textWidth + 12.0f;
+        if (! std::isfinite(width) || width <= 0.0f)
+            throw std::overflow_error("Nonfinite intrinsic table column width");
+        const auto previous               = sizing->preferred[content.column];
+        sizing->preferred[content.column] = std::max(previous, width);
+        sizing->preferredTotal += sizing->preferred[content.column] - previous;
+        const bool hasInlineObjects =
+            (state->native && state->native->Find(content.element)) || (state->images && std::ranges::any_of(state->images->placements, [&](const auto& image) {
+            return image.display.first >= content.display.first && image.display.last <= content.display.last;
+        }));
+        const bool leadingAligned = state->options.readingDirection == DWRITE_READING_DIRECTION_LEFT_TO_RIGHT &&
+                                    state->options.textAlignment == DWRITE_TEXT_ALIGNMENT_LEADING &&
+                                    (content.alignment == MarkdownAlignment::None || content.alignment == MarkdownAlignment::Left);
+        if (! hasInlineObjects && leadingAligned && textWidth > sizing->probeWidths[content.column])
+        {
+            auto probe                              = std::make_unique<SemanticBox>();
+            probe->paragraph                        = content;
+            probe->width                            = textWidth;
+            probe->layout                           = std::move(measured);
+            sizing->probeWidths[content.column]     = textWidth;
+            sizing->probeParagraphs[content.column] = paragraphIndex;
+            sizing->probes[content.column]          = std::move(probe);
+        }
+    }
+    void AllocateTableOne()
+    {
+        if (! tableSizing || tableAllocateIndex == tableSizing->size())
+        {
+            phase = Phase::Layouts;
+            return;
+        }
+        auto& sizing = *(*tableSizing)[tableAllocateIndex];
+        if (sizing.widthIndex == 0u)
+        {
+            const auto baseIndent = static_cast<float>(std::min(sizing.firstContent.indent, 64u)) *
+                                    (state->options.semanticSpacing ? state->options.semanticSpacing->containerIndentDip : 16.0f);
+            sizing.indent         = std::min(state->options.widthDip - 1.0f, baseIndent + Gutter(sizing.firstContent));
+            const auto available  = std::max(1.0f, state->options.widthDip - sizing.indent);
+            if (! std::isfinite(sizing.preferredTotal) || sizing.preferredTotal <= 0.0f)
+                throw std::overflow_error("Nonfinite intrinsic semantic table width");
+            sizing.scale = sizing.preferredTotal > available ? available / sizing.preferredTotal : 1.0f;
+            sizing.widths.reserve(sizing.columns);
+        }
+        const auto preferred = sizing.preferred[sizing.widthIndex++];
+        sizing.widths.push_back(std::max(0.01f, preferred * sizing.scale));
+        if (sizing.widthIndex == sizing.columns)
+        {
+            ++tableAllocateIndex;
+            if (tableAllocateIndex < tableSizing->size())
+                (*tableSizing)[tableAllocateIndex]->widthIndex = 0u;
+        }
     }
     void LayoutOne()
     {
@@ -822,10 +979,33 @@ struct PreparedSemanticGeometry::Preparation
                 rowTable  = content.table;
                 rowIndex  = content.row;
                 rowHeight = 0.0f;
+                rowLeft   = std::numeric_limits<float>::max();
+                rowRight  = 0.0f;
             }
-            const auto column     = rtl ? content.columns - content.column - 1u : content.column;
-            const float cellWidth = box->width / static_cast<float>(content.columns);
-            box->x += cellWidth * static_cast<float>(column) + 6.0f;
+            const auto column = rtl ? content.columns - content.column - 1u : content.column;
+            float cellWidth   = box->width / static_cast<float>(content.columns);
+            if (next.options.markdownPresentation == MarkdownPresentationStyle::Subtle)
+            {
+                const auto* sizing = FindTableSizing(content.table);
+                if (! sizing || sizing->widths.size() != content.columns)
+                    throw std::logic_error("Missing intrinsic semantic table widths");
+                cellWidth = sizing->widths[content.column];
+                float preceding{};
+                for (std::size_t index = 0u; index < column; ++index)
+                    preceding += sizing->widths[rtl ? content.columns - index - 1u : index];
+                if (rtl)
+                {
+                    float tableWidth{};
+                    for (const float width : sizing->widths)
+                        tableWidth += width;
+                    box->x += box->width - tableWidth + preceding;
+                }
+                else
+                    box->x += preceding;
+            }
+            else
+                box->x += cellWidth * static_cast<float>(column);
+            box->x += 6.0f;
             box->y += 6.0f;
             box->width = std::max(1.0f, cellWidth - 12.0f);
             if (content.alignment == MarkdownAlignment::Center)
@@ -835,10 +1015,37 @@ struct PreparedSemanticGeometry::Preparation
             else if (content.alignment == MarkdownAlignment::Right)
                 options.textAlignment = rtl ? DWRITE_TEXT_ALIGNMENT_LEADING : DWRITE_TEXT_ALIGNMENT_TRAILING;
         }
+        else if (next.options.markdownPresentation == MarkdownPresentationStyle::Subtle)
+        {
+            const auto& element = next.document->Elements()[content.element];
+            if (element.role == SemanticRole::Diagram || std::ranges::any_of(SemanticExtensionAccess::Maths(*next.document), [&](const auto& formula) {
+                return formula.display && next.document->Elements()[formula.element].display == content.display;
+            }))
+                options.textAlignment = DWRITE_TEXT_ALIGNMENT_CENTER;
+        }
         options.widthDip = std::max(1.0f, box->width);
         auto* native     = next.native ? next.native->Find(content.element) : nullptr;
         if (native && (native->display < content.display.first || native->display >= content.display.last))
             native = nullptr;
+        if (table && next.options.markdownPresentation == MarkdownPresentationStyle::Subtle)
+        {
+            auto* sizing = FindTableSizing(content.table);
+            if (! sizing || content.column >= sizing->probes.size())
+                throw std::logic_error("Missing intrinsic semantic table probe");
+            auto& measured              = sizing->probes[content.column];
+            const bool hasInlineObjects = native || (next.images && std::ranges::any_of(next.images->placements, [&](const auto& image) {
+                return image.display.first >= content.display.first && image.display.last <= content.display.last;
+            }));
+            const bool ownsProbe        = sizing->probeParagraphs[content.column] == paragraph;
+            if (ownsProbe && measured && measured->paragraph.display == content.display && ! hasInlineObjects && ! rtl &&
+                options.textAlignment == DWRITE_TEXT_ALIGNMENT_LEADING && measured->width <= options.widthDip)
+            {
+                box->layout = std::move(measured->layout);
+                box->height = box->layout.Height();
+            }
+            if (ownsProbe)
+                measured.reset();
+        }
         if (! box->layout.Ready())
         {
             Projection projection{
@@ -998,12 +1205,21 @@ struct PreparedSemanticGeometry::Preparation
                     next.options.paragraphSpacingAfterLines && next.document->Elements()[content.element].role == SemanticRole::Paragraph ? paragraphGap : 8.0f;
                 if (next.options.semanticSpacing && content.heading > 0 && content.heading <= 6)
                     gapAfter = next.options.semanticSpacing->headingAfterDip[content.heading - 1];
+                if (next.options.markdownPresentation == MarkdownPresentationStyle::Subtle && content.heading > 0u && content.heading <= 2u)
+                    gapAfter = std::max(gapAfter, 14.0f);
                 flowItem = ItemOwner(content);
             }
             y = AddHeight(flowBottom, std::max(gapAfter, emptyHeight));
         }
         else
-            y = AddHeight(bottom, 8.0f);
+            y = AddHeight(
+                bottom, next.options.markdownPresentation == MarkdownPresentationStyle::Subtle && content.heading > 0u && content.heading <= 2u ? 14.0f : 8.0f);
+        if (next.options.markdownPresentation == MarkdownPresentationStyle::Subtle && content.heading > 0u && content.heading <= 2u && ! caretOnly)
+        {
+            const auto lineY = bottom + 3.0f;
+            next.decorations->headingRules.push_back(D2D1::RectF(box->x, lineY, box->x + box->width, lineY + 1.0f));
+            Union(next.bounds[content.element], next.decorations->headingRules.back());
+        }
         if (consumeParagraph)
             ++paragraph;
         if (consumeEmptyLine)
@@ -1019,16 +1235,28 @@ struct PreparedSemanticGeometry::Preparation
         if (rowPlacement < next.boxes.size())
         {
             auto& box = *next.boxes[rowPlacement++];
-            const float cellWidth =
+            float cellWidth =
                 (next.options.widthDip - std::min(next.options.widthDip - 1.0f,
                                                   static_cast<float>(std::min(box.paragraph.indent, 64u)) *
                                                           (next.options.semanticSpacing ? next.options.semanticSpacing->containerIndentDip : 16.0f) +
                                                       Gutter(box.paragraph))) /
                 static_cast<float>(box.paragraph.columns);
-            box.frame                          = D2D1::RectF(box.x - 6.0f, y, box.x - 6.0f + cellWidth, y + rowHeight + 12.0f);
+            if (next.options.markdownPresentation == MarkdownPresentationStyle::Subtle)
+            {
+                const auto* sizing = FindTableSizing(box.paragraph.table);
+                if (! sizing || sizing->widths.size() != box.paragraph.columns)
+                    throw std::logic_error("Missing intrinsic semantic table row widths");
+                cellWidth = sizing->widths[box.paragraph.column];
+            }
+            const auto left                    = box.x - 6.0f;
+            rowLeft                            = std::min(rowLeft, left);
+            rowRight                           = std::max(rowRight, left + cellWidth);
+            box.frame                          = D2D1::RectF(left, y, left + cellWidth, y + rowHeight + 12.0f);
             next.bounds[box.paragraph.element] = box.frame;
             return;
         }
+        if (next.options.markdownPresentation == MarkdownPresentationStyle::Subtle && rowLeft < rowRight)
+            next.decorations->tableRows.push_back(D2D1::RectF(rowLeft, y, rowRight, y + rowHeight + 12.0f));
         y = AddHeight(y, rowHeight + 12.0f);
         if (HasSpacingPolicy())
         {
@@ -1054,7 +1282,8 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
     { return ! value || (std::isfinite(value.value()) && value.value() >= 0.0f && value.value() <= maximum); };
     if (! factory || ! document || ! std::isfinite(options.widthDip) || options.widthDip <= 0.0f || ! std::isfinite(options.fontSizeDip) ||
         options.fontSizeDip <= 0.0f || ! validSpacing(options.paragraphSpacingAfterLines, 4.0f) || ! validSpacing(options.listItemSpacingDip, 256.0f) ||
-        (options.semanticSpacing && ! options.semanticSpacing->IsValid()))
+        (options.semanticSpacing && ! options.semanticSpacing->IsValid()) ||
+        (options.markdownPresentation != MarkdownPresentationStyle::Default && options.markdownPresentation != MarkdownPresentationStyle::Subtle))
         throw std::invalid_argument("Invalid semantic geometry request");
     const auto diagrams    = SemanticExtensionAccess::Diagrams(*document);
     const auto nativeCount = diagrams.size() + SemanticExtensionAccess::Maths(*document).size();
@@ -1297,6 +1526,8 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 if (work.MeasureMarkerOne())
                     ++result.layoutsPrepared;
             }
+            else if (work.phase == Preparation::Phase::TableAllocate)
+                work.AllocateTableOne();
             else if (work.phase == Preparation::Phase::Layouts)
             {
                 if (result.layoutsPrepared == budget.maximumLayouts)
@@ -1845,7 +2076,8 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                                     float bottom,
                                     ID2D1Brush* fill,
                                     float imageOpacity,
-                                    const LinkDrawing* links) const
+                                    const LinkDrawing* links,
+                                    ID2D1Brush* quoteFill) const
 {
     const auto& state = Current();
     if (! target || ! text || ! decoration || ! std::isfinite(top) || ! std::isfinite(bottom) || top > bottom || ! std::isfinite(imageOpacity) ||
@@ -1862,7 +2094,11 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
         if (! bounds || bounds->bottom <= top || bounds->top >= bottom)
             continue;
         const auto rectangle = D2D1::RectF(bounds->left + origin.x, bounds->top + origin.y, bounds->right + origin.x, bounds->bottom + origin.y);
+        if (elements[i].role == SemanticRole::Quote && quoteFill)
+            target->FillRectangle(rectangle, quoteFill);
         if (elements[i].role == SemanticRole::Image && state.images && state.images->Placed(i))
+            continue;
+        if (elements[i].role == SemanticRole::Cell && state.options.markdownPresentation == MarkdownPresentationStyle::Subtle)
             continue;
         if (elements[i].role == SemanticRole::Cell || elements[i].role == SemanticRole::Code || elements[i].role == SemanticRole::Image)
             target->DrawRectangle(rectangle, decoration);
@@ -1871,6 +2107,18 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
             const float x = state.options.readingDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT ? rectangle.right + 8.0f : rectangle.left - 8.0f;
             target->DrawLine(D2D1::Point2F(x, rectangle.top), D2D1::Point2F(x, rectangle.bottom), decoration, 2.0f);
         }
+    }
+    if (const auto* decorations = state.decorations.get())
+    {
+        for (const auto& rule : decorations->headingRules)
+            if (rule.bottom > top && rule.top < bottom)
+                target->DrawLine(
+                    D2D1::Point2F(rule.left + origin.x, rule.top + origin.y), D2D1::Point2F(rule.right + origin.x, rule.top + origin.y), decoration);
+        for (const auto& row : decorations->tableRows)
+            if (row.bottom > top && row.top < bottom)
+                target->DrawLine(D2D1::Point2F(row.left + origin.x, row.bottom - 1.0f + origin.y),
+                                 D2D1::Point2F(row.right + origin.x, row.bottom - 1.0f + origin.y),
+                                 decoration);
     }
     for (const auto& box : state.boxes)
         if (box->frame.bottom > top && box->frame.top < bottom)

@@ -1077,3 +1077,10 @@ PR delegation MUST account for conditional workflow jobs. DxUi uses the existing
 ## Test-run retention
 
 [Generated test-run evidence](Testing_RunEvidence.md) owns completed, failed and interrupted run storage, verification and CI collection.
+
+Release ControlTests explicitly enables identical-code folding for the private
+posted-payload regression and requires runtime equality of two identical deleter
+addresses. Wrong-type Take and Reclaim must still reject and preserve the genuine
+payload; correct Take/Reclaim and window drain destroy it exactly once. Debug and
+ASan retain those ownership checks without requiring folding. This test-only link
+setting does not alter the library, benchmark or consumer linker policies.

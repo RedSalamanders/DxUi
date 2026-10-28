@@ -9,6 +9,7 @@
 
 bool TestPublicHelpers();
 bool TestFontAvailabilityInvalidation();
+bool TestTsfFocusAssociationRestorationControls();
 
 namespace
 {
@@ -59,6 +60,7 @@ int main(int argc, char** argv)
     }
     Check(TestPublicHelpers(), "public consumer helpers compile, link and retain their policies");
     Check(TestFontAvailabilityInvalidation(), "font availability invalidation refreshes one factory or all factories without stale negative answers");
+    Check(TestTsfFocusAssociationRestorationControls(), "TSF association restoration preserves independent focus and respects newer owners");
     DxUi::FrameClock clock;
     LARGE_INTEGER frequency{};
     Check(QueryPerformanceFrequency(&frequency) != 0, "QPC frequency available");

@@ -65,6 +65,21 @@ values. Embedded adds zero-allocation queries after retired previews, a 256 KiB
 transient-storage bound and allocation-failure sweeps through page sealing.
 
 For independent resource investigations, force fresh execution and retain paired fixture/build provenance. Timing, native ARM64, real devices, IME/assistive technology and foreground input remain separate qualification requirements. These commands do not manufacture those claims.
+
+Foundation includes controlled TSF-association restoration coverage using in-process COM doubles. It needs no
+COM activation, HWND operation or foreground input. Its twelve cases cover an empty post-association focus with
+non-null previous association, independent and retiring document ownership, third-document and newer-transition
+preservation, failed API calls, and 64 alternating replacement/retirement cycles with balanced COM references.
+The real NativeTextInput callback/reentrancy cases remain separately foreground-gated; these controls do not
+attribute a hosted desktop failure or replace physical-input/IME qualification.
+
+`TestNativeTextInputNonTextFocusHiddenAndZeroSizePreservesForegroundOwner` runs under the existing approved
+foreground lease. Ten observations cover Button/Tree targets on hidden, zero-width, zero-height and visible hosts,
+including native-transfer and logical-only controls. Every request changes logical target and asserts actual HWND
+client/host geometry, immediate native ownership and ownership after pumping. The owned geometry fixture uses
+`SWP_NOSENDCHANGING` to avoid default overlapped-window minimum-width validation. One attempt records all rows;
+an observed unexpected transfer to the owned target fails before external foreground unavailability is classified.
+
 The `Control` scope includes intrinsic measurement/Flex/form correctness, the localized form matrix and the
 256-field inventory/cache boundary. `Accessibility` includes native/embedded form provider and notification
 tests. `performance-forms.ps1` supplies a separate candidate-only synthetic resource diagnostic; its populated

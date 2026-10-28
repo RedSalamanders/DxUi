@@ -1,4 +1,5 @@
 #include "../../src/Controls/DxUi.Typography.h"
+#include "../../src/Support/PostedPayload.h"
 #include "../../src/Support/WindowMessages.h"
 #include "../Support/Support.Tests.PerformanceCapture.h"
 #include "Controls.Tests.DxUiFocusEventClient.h"
@@ -298,6 +299,76 @@ void TestWindowHostCaptionMessagesReachApplicationAndDefaultHandling()
     }
 }
 
+void TestWindowHostNonclientCaptionHoverKeepsDefaultProcessing()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"retained editor");
+    field->SetBounds(D2D1::RectF(0, 64, 220, 108));
+    std::array<Button*, 3> buttons{};
+    unsigned invoked{};
+    for (std::size_t i = 0; i < buttons.size(); ++i)
+    {
+        buttons[i] = root->AddChild<Button>(L"caption");
+        buttons[i]->SetBounds(D2D1::RectF(static_cast<float>(i) * 46, 0, static_cast<float>(i + 1) * 46, 36));
+        buttons[i]->SetFocusable(false);
+        buttons[i]->SetAppearance(i == 2 ? ButtonAppearance::CaptionClose : ButtonAppearance::Caption);
+        buttons[i]->SetOnClick([&] { ++invoked; });
+    }
+    window.Host().SetRoot(std::move(root));
+    window.Host().SetFocusControl(field, false);
+    const auto foreground = GetForegroundWindow();
+    constexpr std::array<WPARAM, 3> hits{HTMINBUTTON, HTMAXBUTTON, HTCLOSE};
+    for (const UINT dpi : {96u, 144u, 192u})
+    {
+        RECT suggested{};
+        Require(GetWindowRect(window.Hwnd(), &suggested) != FALSE, "read owned hidden host frame");
+        bool handled{};
+        static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_DPICHANGED, MAKELONG(dpi, dpi), reinterpret_cast<LPARAM>(&suggested), handled));
+        WindowHostBitmapCapture idle;
+        Require(! window.Host().DebugCaptureBitmap(idle) && idle.bgraPixels.empty(), "ordinary capture still refuses an invisible native host");
+        Require(window.Host().DebugCaptureBitmap(idle, true), "explicit hidden capture stages a completed frame without showing the host");
+        const auto sample = [&](const WindowHostBitmapCapture& frame, std::size_t button)
+        {
+            const auto x = static_cast<UINT>(MulDiv(static_cast<int>(button) * 46 + 3, static_cast<int>(dpi), 96));
+            const auto y = static_cast<UINT>(MulDiv(3, static_cast<int>(dpi), 96));
+            Require(x < frame.widthPx && y < frame.heightPx, "caption background sample fits the hidden frame");
+            const auto pixel = (static_cast<std::size_t>(y) * frame.widthPx + x) * 4u;
+            return std::array<uint8_t, 3>{frame.bgraPixels[pixel], frame.bgraPixels[pixel + 1u], frame.bgraPixels[pixel + 2u]};
+        };
+        for (std::size_t i = 0; i < buttons.size(); ++i)
+        {
+            POINT point{MulDiv(static_cast<int>(i) * 46 + 23, static_cast<int>(dpi), 96), MulDiv(18, static_cast<int>(dpi), 96)};
+            Require(ClientToScreen(window.Hwnd(), &point) != FALSE, "convert the owned caption point to nonclient screen coordinates");
+            const auto coordinates = MAKELPARAM(static_cast<SHORT>(point.x), static_cast<SHORT>(point.y));
+            handled                = true;
+            static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_NCMOUSEMOVE, hits[i], coordinates, handled));
+            Require(! handled && buttons[i]->IsHovered(), "nonclient caption hover converts at each DPI and preserves default Snap processing");
+            WindowHostBitmapCapture hovered, repeated;
+            Require(window.Host().DebugCaptureBitmap(hovered, true) && window.Host().DebugCaptureBitmap(repeated, true),
+                    "consecutive hidden captures stage the current hover frame before presentation");
+            for (std::size_t button = 0; button < buttons.size(); ++button)
+            {
+                Require((sample(hovered, button) != sample(idle, button)) == (button == i), "only the hovered caption background changes in the first capture");
+                Require(sample(repeated, button) == sample(hovered, button), "repeated hidden capture has no prior-frame lag");
+            }
+            static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_NCMOUSEMOVE, HTCAPTION, coordinates, handled));
+            Require(! handled && ! buttons[i]->IsHovered(), "native draggable caption space clears control hover without being claimed");
+            const auto cleared = window.Host().DebugGetInvalidateCount();
+            for (unsigned move = 0; move < 16; ++move)
+                static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_NCMOUSEMOVE, HTCAPTION, coordinates, handled));
+            Require(window.Host().DebugGetInvalidateCount() == cleared, "steady native caption movement does not repeatedly invalidate an empty hover state");
+            static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_NCMOUSEMOVE, hits[i], coordinates, handled));
+            static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_NCMOUSELEAVE, 0, 0, handled));
+            Require(! handled && ! buttons[i]->IsHovered(), "nonclient leave clears hover and retains native default processing");
+        }
+    }
+    Require(invoked == 0 && window.Host().GetFocusControl() == field && field->GetText() == L"retained editor" && GetForegroundWindow() == foreground &&
+                ! IsWindowVisible(window.Hwnd()),
+            "caption hover never invokes commands, rewrites text, or activates its hidden host");
+}
+
 void TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies()
 {
     using namespace DxUi;
@@ -538,6 +609,31 @@ struct PostedPayloadDrainStressPayload final
         }
     }
 };
+
+struct PostedPayloadIcfA final
+{
+    uint32_t marker          = 0xA11CE001u;
+    uint32_t* destroyedCount = nullptr;
+
+    ~PostedPayloadIcfA() noexcept
+    {
+        ++*destroyedCount;
+    }
+};
+
+struct PostedPayloadIcfB final
+{
+    uint32_t marker          = 0xA11CE001u;
+    uint32_t* destroyedCount = nullptr;
+
+    ~PostedPayloadIcfB() noexcept
+    {
+        ++*destroyedCount;
+    }
+};
+
+static_assert(sizeof(PostedPayloadIcfA) == sizeof(PostedPayloadIcfB));
+static_assert(alignof(PostedPayloadIcfA) == alignof(PostedPayloadIcfB));
 
 LRESULT CALLBACK PostedPayloadDrainStressWndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) noexcept
 {
@@ -1808,6 +1904,98 @@ void TestPostedPayloadTakeRequiresTheMatchingWindowMessageAndType()
     Require(genuine != nullptr, "the exact HWND, message, and type can still take the preserved payload");
     genuine.reset();
     Require(destroyedCount.load(std::memory_order_acquire) == 1u, "the correctly consumed payload is destroyed exactly once");
+}
+
+void TestPostedPayloadTypeIdentitySurvivesIdenticalIcfDeleters()
+{
+    using PayloadDeleter             = void (*)(void*) noexcept;
+    PayloadDeleter volatile deleterA = &DxUi::Detail::DestroyPayload<PostedPayloadIcfA>;
+    PayloadDeleter volatile deleterB = &DxUi::Detail::DestroyPayload<PostedPayloadIcfB>;
+    const bool deletersFolded        = deleterA == deleterB;
+    static_cast<void>(deletersFolded);
+#if defined(DXUI_POSTED_PAYLOAD_ICF_REQUIRED)
+    Require(deletersFolded, "Release ControlTests must link this regression with /OPT:ICF and fold the identical payload deleters");
+#endif
+
+    constexpr UINT kPayloadMessage = WM_APP + 0x70u;
+    PostedPayloadDrainStressWindowState state;
+    uint32_t takeDestroyedCount           = 0u;
+    uint32_t wrongReclaimDestroyedCount   = 0u;
+    uint32_t correctReclaimDestroyedCount = 0u;
+    uint32_t drainedDestroyedCount        = 0u;
+    auto hwnd                             = CreatePostedPayloadDrainStressWindow(state);
+    Require(hwnd != nullptr, "the ICF payload type-identity test window is created");
+
+    const auto postAndRemove = [&](auto payload, uint32_t& destroyedCount, LPARAM& token)
+    {
+        payload->destroyedCount = &destroyedCount;
+        if (! DxUi::PostMessagePayload(hwnd.get(), kPayloadMessage, 0u, std::move(payload), &token))
+            return false;
+        MSG queued{};
+        return PeekMessageW(&queued, hwnd.get(), kPayloadMessage, kPayloadMessage, PM_REMOVE) != FALSE && queued.lParam == token;
+    };
+
+    LPARAM takeToken                             = 0;
+    auto takePayload                             = std::make_unique<PostedPayloadIcfA>();
+    PostedPayloadIcfA* const originalTakePayload = takePayload.get();
+    Require(postAndRemove(std::move(takePayload), takeDestroyedCount, takeToken), "the type-A payload is posted and its token is retained");
+
+    auto wrongTypeTake               = DxUi::TakeMessagePayload<PostedPayloadIcfB>(hwnd.get(), kPayloadMessage, takeToken);
+    const bool wrongTypeTakeAccepted = wrongTypeTake != nullptr;
+    if (wrongTypeTake)
+    {
+        // On the old implementation, ICF can make this wrongly typed owner non-null.
+        // Release it before any assertion, then restore the original allocation as A.
+        void* const returnedPayload = wrongTypeTake.release();
+        const bool returnedOriginal = returnedPayload == originalTakePayload;
+        std::unique_ptr<PostedPayloadIcfA> restoredOwner(originalTakePayload);
+        restoredOwner.reset();
+        Require(returnedOriginal, "the wrong-type take returned the original registered allocation");
+    }
+    else
+    {
+        auto correctTake = DxUi::TakeMessagePayload<PostedPayloadIcfA>(hwnd.get(), kPayloadMessage, takeToken);
+        Require(correctTake != nullptr && correctTake.get() == originalTakePayload,
+                "rejecting the wrong type preserves the original payload for a correct Take");
+        correctTake.reset();
+    }
+    Require(! wrongTypeTakeAccepted, "a folded deleter address is not accepted as payload type identity");
+    Require(takeDestroyedCount == 1u, "the Take scenario destroys its payload exactly once");
+
+    LPARAM wrongReclaimToken                             = 0;
+    auto wrongReclaimPayload                             = std::make_unique<PostedPayloadIcfA>();
+    PostedPayloadIcfA* const originalWrongReclaimPayload = wrongReclaimPayload.get();
+    Require(postAndRemove(std::move(wrongReclaimPayload), wrongReclaimDestroyedCount, wrongReclaimToken),
+            "the second type-A payload is posted for the Reclaim mismatch check");
+
+    const bool wrongTypeReclaimAccepted = DxUi::ReclaimMessagePayload<PostedPayloadIcfB>(hwnd.get(), kPayloadMessage, wrongReclaimToken);
+    if (! wrongTypeReclaimAccepted)
+    {
+        auto correctTake = DxUi::TakeMessagePayload<PostedPayloadIcfA>(hwnd.get(), kPayloadMessage, wrongReclaimToken);
+        Require(correctTake != nullptr && correctTake.get() == originalWrongReclaimPayload,
+                "rejecting the wrong Reclaim preserves the original payload for a correct Take");
+        correctTake.reset();
+    }
+    Require(! wrongTypeReclaimAccepted, "Reclaim also checks the writable payload type identity");
+    Require(wrongReclaimDestroyedCount == 1u, "the mismatched Reclaim scenario destroys its payload exactly once");
+
+    LPARAM correctReclaimToken = 0;
+    auto correctReclaimPayload = std::make_unique<PostedPayloadIcfA>();
+    Require(postAndRemove(std::move(correctReclaimPayload), correctReclaimDestroyedCount, correctReclaimToken),
+            "a third payload is posted for the matching Reclaim check");
+    Require(DxUi::ReclaimMessagePayload<PostedPayloadIcfA>(hwnd.get(), kPayloadMessage, correctReclaimToken),
+            "the matching type can reclaim its pending payload");
+    Require(correctReclaimDestroyedCount == 1u, "matching Reclaim destroys the payload once");
+    Require(! DxUi::TakeMessagePayload<PostedPayloadIcfA>(hwnd.get(), kPayloadMessage, correctReclaimToken) && correctReclaimDestroyedCount == 1u,
+            "a reclaimed token is stale and cannot destroy the payload again");
+
+    LPARAM drainedToken = 0;
+    auto drainedPayload = std::make_unique<PostedPayloadIcfA>();
+    Require(postAndRemove(std::move(drainedPayload), drainedDestroyedCount, drainedToken), "a final payload is posted for the window-drain check");
+    Require(DxUi::DrainPostedPayloadsForWindow(hwnd.get()) == 1u, "draining the window removes its one pending payload");
+    Require(drainedDestroyedCount == 1u, "window drain destroys the pending payload exactly once");
+    Require(! DxUi::TakeMessagePayload<PostedPayloadIcfA>(hwnd.get(), kPayloadMessage, drainedToken) && drainedDestroyedCount == 1u,
+            "the drained token is stale and cannot destroy the payload again");
 }
 
 void TestPostedPayloadCapacityFailureDestroysAndAllowsRetry()
@@ -6824,6 +7012,7 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestWindowHostBlocksLayoutMutationDuringRender);
     DXUI_RUN_TEST(TestPostMessagePayloadTeardownDrainDeletesUndeliveredPayloads);
     DXUI_RUN_TEST(TestPostedPayloadTakeRequiresTheMatchingWindowMessageAndType);
+    DXUI_RUN_TEST(TestPostedPayloadTypeIdentitySurvivesIdenticalIcfDeleters);
     DXUI_RUN_TEST(TestPostedPayloadCapacityFailureDestroysAndAllowsRetry);
     DXUI_RUN_TEST(TestWindowHostAttachmentReservationIsExclusiveAndIdempotent);
     DXUI_RUN_TEST(TestWindowHostRejectedReattachmentPreservesBothHostsAndQueuedPayloads);
@@ -6872,6 +7061,7 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestWindowHostMessagePruneCachePathOverflowUsesFullPruneFallback);
     DXUI_RUN_TEST(TestWindowHostMessagePruneCacheDoesNotPublishAcrossReentrantPruning);
     DXUI_RUN_TEST(TestWindowHostCaptionMessagesReachApplicationAndDefaultHandling);
+    DXUI_RUN_TEST(TestWindowHostNonclientCaptionHoverKeepsDefaultProcessing);
     DXUI_RUN_TEST(TestWindowHostEscapeClosesComboPopupBeforeCancelButton);
     DXUI_RUN_TEST(TestWindowHostMenuKeyInvokesFocusedButtonContextMenu);
     DXUI_RUN_TEST(TestWindowHostShiftF10InvokesFocusedToggleContextMenu);

@@ -235,6 +235,8 @@ enum class ButtonAppearance : uint8_t
     Subtle,
     Outline,
     Tab,
+    Caption,
+    CaptionClose,
 };
 
 enum class EasingCurve : uint8_t
@@ -953,12 +955,15 @@ struct ThemePalette
     D2D1_COLOR_F tooltipText       = D2D1::ColorF(0.98f, 0.98f, 0.98f, 1.0f);
 
     // ── Status indicators ────────────────────────────────────────────
-    D2D1_COLOR_F infoFill    = D2D1::ColorF(0.90f, 0.95f, 1.0f, 1.0f);
-    D2D1_COLOR_F infoText    = D2D1::ColorF(0.0f, 0.39f, 0.71f, 1.0f);
-    D2D1_COLOR_F warningFill = D2D1::ColorF(1.0f, 0.98f, 0.90f, 1.0f);
-    D2D1_COLOR_F warningText = D2D1::ColorF(0.65f, 0.38f, 0.0f, 1.0f);
-    D2D1_COLOR_F errorFill   = D2D1::ColorF(1.0f, 0.95f, 0.95f, 1.0f);
-    D2D1_COLOR_F errorText   = D2D1::ColorF(0.75f, 0.0f, 0.0f, 1.0f);
+    D2D1_COLOR_F infoFill                = D2D1::ColorF(0.90f, 0.95f, 1.0f, 1.0f);
+    D2D1_COLOR_F infoText                = D2D1::ColorF(0.0f, 0.39f, 0.71f, 1.0f);
+    D2D1_COLOR_F warningFill             = D2D1::ColorF(1.0f, 0.98f, 0.90f, 1.0f);
+    D2D1_COLOR_F warningText             = D2D1::ColorF(0.65f, 0.38f, 0.0f, 1.0f);
+    D2D1_COLOR_F errorFill               = D2D1::ColorF(1.0f, 0.95f, 0.95f, 1.0f);
+    D2D1_COLOR_F errorText               = D2D1::ColorF(0.75f, 0.0f, 0.0f, 1.0f);
+    D2D1_COLOR_F captionCloseFill        = D2D1::ColorF(0xC42B1C);
+    D2D1_COLOR_F captionClosePressedFill = D2D1::ColorF(0xA32418);
+    D2D1_COLOR_F captionCloseText        = D2D1::ColorF(D2D1::ColorF::White);
 };
 
 struct ButtonVisualStyle
@@ -2998,6 +3003,7 @@ struct RichTextEditorAppearance
     std::optional<float> listItemSpacingDip;         // Finite 0..256 DIP between items.
     bool operator==(const RichTextEditorAppearance&) const noexcept = default;
     std::optional<RichText::SemanticSpacing> semanticSpacing;
+    RichText::MarkdownPresentationStyle markdownPresentation = RichText::MarkdownPresentationStyle::Default;
 };
 struct RichTextSourceHighlight
 {
@@ -5749,6 +5755,8 @@ public:
     [[nodiscard]] D2D1_RECT_F DebugGetTooltipBoundsDip() const noexcept;
     [[nodiscard]] bool DebugIsTooltipInspectionAtEnd() const noexcept;
     [[nodiscard]] bool DebugCaptureBitmap(WindowHostBitmapCapture& out) noexcept;
+    // Hidden harnesses opt in explicitly; pixels are staged before swap-chain presentation.
+    [[nodiscard]] bool DebugCaptureBitmap(WindowHostBitmapCapture& out, bool allowHidden) noexcept;
     [[nodiscard]] ITextStoreACP* DebugCreateNativeTextInputTextStoreForTest() noexcept;
     [[nodiscard]] bool DebugPostActiveNativeTextStoreWorkForTest() noexcept;
     [[nodiscard]] UINT_PTR DebugGetNativeTextStoreDispatchCookieForTest() const noexcept;

@@ -714,6 +714,173 @@ void TestNativeTextInputInactiveResetAndRootReplacementPreserveKeyboardFocus()
     Require(replacementPreservedFocus, "replacing the inactive editor root preserves the other window's keyboard focus");
 }
 
+void TestNativeTextInputNonTextFocusHiddenAndZeroSizePreservesForegroundOwner()
+{
+    using namespace DxUi;
+    const ScopedActivatingTestWindows activatingWindows;
+    AttachedHostWindow owner;
+    AttachedHostWindow targetWindow;
+    auto ownerRoot = std::make_unique<Panel>();
+    ownerRoot->AddChild<Button>(L"Foreground owner")->SetBounds(D2D1::RectF(12.0f, 12.0f, 180.0f, 44.0f));
+    owner.Host().SetRoot(std::move(ownerRoot));
+    auto targetRoot = std::make_unique<Panel>();
+    auto* button    = targetRoot->AddChild<Button>(L"Logical focus target");
+    auto* tree      = targetRoot->AddChild<Tree>();
+    button->SetBounds(D2D1::RectF(12.0f, 12.0f, 180.0f, 44.0f));
+    tree->SetBounds(D2D1::RectF(12.0f, 52.0f, 220.0f, 140.0f));
+    targetWindow.Host().SetRoot(std::move(targetRoot));
+    static_cast<void>(ShowWindow(owner.Hwnd(), SW_SHOWNOACTIVATE));
+    Require(TryActivateDxUiTestWindow(owner.Hwnd()), "non-text focus fixture establishes its owned foreground window");
+
+    enum class HostState
+    {
+        Hidden,
+        ZeroWidth,
+        ZeroHeight,
+        Visible
+    };
+    struct Observation
+    {
+        const char* state             = "not-attempted";
+        const char* control           = "not-attempted";
+        bool requestedTransfer        = false;
+        bool expectedTransfer         = false;
+        bool setup                    = false;
+        bool changedTarget            = false;
+        bool visible                  = false;
+        LONG clientWidth              = 0;
+        LONG clientHeight             = 0;
+        UINT hostWidth                = 0u;
+        UINT hostHeight               = 0u;
+        bool beforeOwner              = false;
+        bool logicalRetained          = false;
+        bool returnPolicy             = false;
+        bool pumpedPolicy             = false;
+        bool returnFocusAtTarget      = false;
+        bool returnForegroundAtTarget = false;
+        bool returnActiveAtTarget     = false;
+    };
+    std::array<Observation, 10u> observations{};
+    size_t observationCount = 0u;
+    const std::array<Control*, 2u> controls{button, tree};
+    constexpr std::array<const char*, 2u> names{"Button", "Tree"};
+    const auto run = [&]
+    {
+        observations     = {};
+        observationCount = 0u;
+        const auto check = [&](HostState state, size_t controlIndex, bool requestedTransfer, bool expectedTransfer)
+        {
+            Observation& observed      = observations[observationCount++];
+            observed.state             = state == HostState::Hidden       ? "hidden-nonzero"
+                                         : state == HostState::ZeroWidth  ? "visible-zero-width"
+                                         : state == HostState::ZeroHeight ? "visible-zero-height"
+                                                                          : "visible-nonzero";
+            observed.control           = names[controlIndex];
+            observed.requestedTransfer = requestedTransfer;
+            observed.expectedTransfer  = expectedTransfer;
+            Control* const target      = controls[controlIndex];
+            targetWindow.Host().SetFocusControl(nullptr, false);
+            observed.changedTarget = targetWindow.Host().GetFocusControl() != target;
+            RECT frame{};
+            RECT client{};
+            const bool readable      = GetWindowRect(targetWindow.Hwnd(), &frame) != FALSE && GetClientRect(targetWindow.Hwnd(), &client) != FALSE;
+            const LONG desiredWidth  = state == HostState::ZeroWidth ? 0 : 320;
+            const LONG desiredHeight = state == HostState::ZeroHeight ? 0 : 180;
+            // Measure the existing non-client border at this HWND's DPI instead of assuming frame metrics.
+            const LONG borderWidth  = (frame.right - frame.left) - (client.right - client.left);
+            const LONG borderHeight = (frame.bottom - frame.top) - (client.bottom - client.top);
+            // The owned geometry fixture must reach zero client size instead of Windows' default minimum width.
+            const bool resized = readable && SetWindowPos(targetWindow.Hwnd(),
+                                                          nullptr,
+                                                          0,
+                                                          0,
+                                                          desiredWidth + borderWidth,
+                                                          desiredHeight + borderHeight,
+                                                          SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSENDCHANGING) != FALSE;
+            static_cast<void>(ShowWindow(targetWindow.Hwnd(), state == HostState::Hidden ? SW_HIDE : SW_SHOWNOACTIVATE));
+            targetWindow.PumpMessages();
+            const bool ownerActivated = TryActivateDxUiTestWindow(owner.Hwnd());
+            const bool clientReadable = GetClientRect(targetWindow.Hwnd(), &client) != FALSE;
+            observed.visible          = IsWindowVisible(targetWindow.Hwnd()) != FALSE;
+            observed.clientWidth      = client.right - client.left;
+            observed.clientHeight     = client.bottom - client.top;
+            observed.hostWidth        = targetWindow.Host().DebugGetWidthPx();
+            observed.hostHeight       = targetWindow.Host().DebugGetHeightPx();
+            observed.beforeOwner      = GetFocus() == owner.Hwnd() && GetForegroundWindow() == owner.Hwnd() && GetActiveWindow() == owner.Hwnd();
+            const bool dimensions     = state == HostState::ZeroWidth ? observed.clientWidth == 0 && observed.clientHeight > 0 && observed.hostWidth == 0u
+                                        : state == HostState::ZeroHeight
+                                            ? observed.clientHeight == 0 && observed.clientWidth > 0 && observed.hostHeight == 0u
+                                            : observed.clientWidth > 0 && observed.clientHeight > 0 && observed.hostWidth > 0u && observed.hostHeight > 0u;
+            observed.setup            = resized && clientReadable && ownerActivated && observed.beforeOwner && observed.changedTarget && dimensions &&
+                                        observed.visible == (state != HostState::Hidden) && target->IsFocusable();
+            if (! observed.setup)
+                return;
+            // Every request deliberately changes logical target; the separate same-target early-return contract is not altered.
+            targetWindow.Host().SetFocusControl(target, requestedTransfer);
+            const HWND expected               = expectedTransfer ? targetWindow.Hwnd() : owner.Hwnd();
+            observed.logicalRetained          = targetWindow.Host().GetFocusControl() == target && target->HasFocus();
+            observed.returnFocusAtTarget      = GetFocus() == targetWindow.Hwnd();
+            observed.returnForegroundAtTarget = GetForegroundWindow() == targetWindow.Hwnd();
+            observed.returnActiveAtTarget     = GetActiveWindow() == targetWindow.Hwnd();
+            observed.returnPolicy             = GetFocus() == expected && GetForegroundWindow() == expected && GetActiveWindow() == expected;
+            targetWindow.PumpMessages();
+            observed.pumpedPolicy = GetFocus() == expected && GetForegroundWindow() == expected && GetActiveWindow() == expected;
+        };
+        for (const HostState state : {HostState::Hidden, HostState::ZeroWidth, HostState::ZeroHeight})
+            for (size_t controlIndex = 0u; controlIndex < controls.size(); ++controlIndex)
+                check(state, controlIndex, true, false);
+        for (size_t controlIndex = 0u; controlIndex < controls.size(); ++controlIndex)
+        {
+            check(HostState::Visible, controlIndex, false, false);
+            check(HostState::Visible, controlIndex, true, true);
+        }
+        static_cast<void>(TryActivateDxUiTestWindow(owner.Hwnd()));
+    };
+    const ForegroundRunResult foregroundRun = RunWhileForegroundHeld(owner, run, 1);
+    bool setupPassed                        = observationCount == observations.size();
+    bool inactivePassed                     = true;
+    bool visiblePassed                      = true;
+    bool unexpectedNativeTransfer           = false;
+    for (size_t index = 0u; index < observationCount; ++index)
+    {
+        const Observation& observed = observations[index];
+        std::cerr << std::format("    [NON-TEXT-FOCUS] state={} control={} requestedTransfer={} expectedTransfer={} setup={} changedTarget={} visible={} "
+                                 "client={}x{} host={}x{} beforeOwner={} logical={} returnPolicy={} pumpedPolicy={} focusAtTarget={} "
+                                 "foregroundAtTarget={} activeAtTarget={}\n",
+                                 observed.state,
+                                 observed.control,
+                                 observed.requestedTransfer,
+                                 observed.expectedTransfer,
+                                 observed.setup,
+                                 observed.changedTarget,
+                                 observed.visible,
+                                 observed.clientWidth,
+                                 observed.clientHeight,
+                                 observed.hostWidth,
+                                 observed.hostHeight,
+                                 observed.beforeOwner,
+                                 observed.logicalRetained,
+                                 observed.returnPolicy,
+                                 observed.pumpedPolicy,
+                                 observed.returnFocusAtTarget,
+                                 observed.returnForegroundAtTarget,
+                                 observed.returnActiveAtTarget);
+        setupPassed              = setupPassed && observed.setup;
+        unexpectedNativeTransfer = unexpectedNativeTransfer || (observed.setup && ! observed.expectedTransfer && observed.returnFocusAtTarget);
+        const bool preserved     = observed.logicalRetained && observed.returnPolicy && observed.pumpedPolicy;
+        if (index < 6u)
+            inactivePassed = inactivePassed && preserved;
+        else
+            visiblePassed = visiblePassed && preserved;
+    }
+    Require(! unexpectedNativeTransfer, "an owned target never receives unexpected native focus before foreground availability is classified");
+    if (! ForegroundHeldOrSkip(foregroundRun, "non-text hidden/suspended focus assertions"))
+        return;
+    Require(setupPassed, "all non-text focus variants establish their owned focus, exact host state and changed logical target");
+    Require(inactivePassed, "hidden and zero-size hosts retain non-text logical focus without moving native focus, foreground or active window");
+    Require(visiblePassed, "visible nonzero changed targets honor both explicit native-focus transfer and logical-only requests");
+}
+
 void TestNativeTextInputFocusNotificationRemovalRetiresEditorImmediately()
 {
     using namespace DxUi;
@@ -9541,6 +9708,7 @@ void RunNativeTextInputTests()
     DXUI_RUN_TEST(TestNativeTextInputBackendActivatesTsfDocumentOnFocus);
     DXUI_RUN_TEST(TestNativeTextInputHostFocusTransferPreservesNestedTsfActivation);
     DXUI_RUN_TEST(TestNativeTextInputInactiveResetAndRootReplacementPreserveKeyboardFocus);
+    DXUI_RUN_TEST(TestNativeTextInputNonTextFocusHiddenAndZeroSizePreservesForegroundOwner);
     DXUI_RUN_TEST(TestNativeTextInputFocusNotificationRemovalRetiresEditorImmediately);
     DXUI_RUN_TEST(TestNativeTextInputTsfCallbacksPreserveReentrantSameControlSession);
     DXUI_RUN_TEST(TestNativeTextInputTsfReconciliationExcludesFollowingQueuedGeometry);

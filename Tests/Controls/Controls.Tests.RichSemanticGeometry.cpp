@@ -54,6 +54,10 @@ void TestRichSemanticGeometryParagraphsTablesAndSourceRanges()
 {
     RichSemanticTests::Run(RichSemanticGeometryTests::ParagraphsTablesAndSourceRanges);
 }
+void TestRichSemanticGeometryMarkdownSubtlePresentation()
+{
+    RichSemanticTests::Run(RichSemanticGeometryTests::MarkdownSubtlePresentation);
+}
 void TestRichSemanticDocumentHeadingMarginsAndIndentation()
 {
     RichSemanticTests::Run(RichSemanticGeometryTests::DocumentHeadingMarginsAndIndentation);
@@ -135,6 +139,7 @@ void RunRichSemanticGeometryTests()
     DXUI_RUN_TEST(TestRichSemanticNativeFallbackSyntaxOwnership);
     DXUI_RUN_TEST(TestRichSemanticNativeMathAndBroaderDiagrams);
     DXUI_RUN_TEST(TestRichSemanticGeometryParagraphsTablesAndSourceRanges);
+    DXUI_RUN_TEST(TestRichSemanticGeometryMarkdownSubtlePresentation);
     DXUI_RUN_TEST(TestRichSemanticDocumentHeadingMarginsAndIndentation);
     DXUI_RUN_TEST(TestRichSemanticGeometryAtomicNavigationAndCancellation);
     DXUI_RUN_TEST(TestRichSemanticGeometrySourceCaretSites);

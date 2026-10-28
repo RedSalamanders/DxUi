@@ -1,5 +1,7 @@
 # Independent DxUi measurements
 
+- [Current native lifecycle qualification, 086ad82a](NativeLifecycle_2026-10-28/README.md): all six hosted native profiles and external consumers pass, including actual ARM64/ASan execution. All twelve local foreground suite runs pass with zero skips and verified restoration. Paired performance and the unqualified base policy remain separate gates.
+
 - [Merged renderer and Menu qualification, 7020121d](RedesignCompletion_2026-10-27/sdk-7020121d/README.md): all six native profiles, 505 manifest data streams, two real ASan detectors and the exact-head local Menu lease pass. The paired study has zero independently recomputed regression rows, but 69/72 unstable controls and an unqualified base policy leave performance acceptance open. PR #116 preserves the tested tree and renderer98 ancestry.
 
 - [Current-source A/A calibration, 4077f57d](RedesignCompletion_2026-10-26/aa-calibration-4077/README.md): the independent replay has 0/78 regression rows, but all 72 controls are unstable and 631/1,872 control observations drifted. Both judges agree; policy remains unqualified, so this is calibration evidence only.

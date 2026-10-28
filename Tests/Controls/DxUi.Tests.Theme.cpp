@@ -828,9 +828,19 @@ void TestButtonQuietPresentationKeepsSelectionFocusAndContrast()
         const auto focused = ResolveButtonVisualStyle(theme, true, false, false, true, true, false);
         Require(ResolveButtonAppearanceVisualStyle(theme, focused, ButtonAppearance::Tab, true, false, false, true, 0.f).showFocus,
                 "tab presentation does not suppress the keyboard focus indicator");
+        const auto captionIdle  = ResolveButtonAppearanceVisualStyle(theme, ordinary, ButtonAppearance::Caption, true, false, false, false, 0.f);
+        const auto captionHot   = ResolveButtonAppearanceVisualStyle(theme, ordinary, ButtonAppearance::Caption, true, false, false, false, 1.f);
+        const auto closeHot     = ResolveButtonAppearanceVisualStyle(theme, ordinary, ButtonAppearance::CaptionClose, true, false, false, false, 1.f);
+        const auto closePressed = ResolveButtonAppearanceVisualStyle(theme, ordinary, ButtonAppearance::CaptionClose, true, true, false, false, 1.f);
+        Require(captionIdle.fill.a == 0.f && captionHot.fill.a > 0.f && ! captionHot.showBorder,
+                "caption controls have neutral hover over an idle transparent surface");
+        RequireColorNear(closeHot.fill, theme.captionCloseFill, "close hover has its dedicated red surface");
+        RequireColorNear(closeHot.text, theme.captionCloseText, "close hover retains its contrast-paired text");
+        RequireColorNear(closePressed.fill, theme.captionClosePressedFill, "close press uses the dedicated pressed surface");
         theme.highContrast = true;
         const auto system  = ResolveButtonVisualStyle(theme, true, false, false, true, true, false, true);
-        for (const auto appearance : {ButtonAppearance::Subtle, ButtonAppearance::Outline, ButtonAppearance::Tab})
+        for (const auto appearance :
+             {ButtonAppearance::Subtle, ButtonAppearance::Outline, ButtonAppearance::Tab, ButtonAppearance::Caption, ButtonAppearance::CaptionClose})
         {
             const auto result = ResolveButtonAppearanceVisualStyle(theme, system, appearance, true, false, false, true, 0.f);
             RequireColorNear(result.fill, system.fill, "high contrast preserves the exact system selection ground");

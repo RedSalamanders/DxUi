@@ -62,7 +62,17 @@ Unicode table, measured hanging list columns and underlined inert links. The
 validated native HTML text subset reuses existing styles; unsupported markup
 keeps literal monospaced leaf contents. Link underlining inherits body/disabled/
 selected text ink by default. Document-surface appearance may opt into accent link ink and hover/caret underlines; explicit underline and high contrast remain persistent. Source highlights use theme selection ink below selection, and optional paragraph focus dimming uses subdued text outside high contrast. Public appearance options own border, background, bounded text column and typography. Table/code/image outlines, quote strokes and rules reuse the caret
-ink role; selection keeps the existing selected-text/fill roles in every theme.
+ink role in the default presentation; selection keeps the existing selected-text/fill roles in every theme.
+Opt-in `MarkdownPresentationStyle::Subtle` uses neutral `borderDefault` decoration,
+H1/H2 separators, content-sized horizontal-rule tables, centered standalone display
+objects and a neutral eight-percent text-ink blend over the document fill for quotes. High contrast uses the resolved text/surface
+pair. The existing default gallery appearance is unchanged; consumer adoption must
+capture the opted-in document with actual source/build/DPI provenance.
+
+Caption button appearances are square and transparent while idle, with immediate
+neutral hover for `Caption` and paired red/white hover for `CaptionClose`.
+The close roles are `captionCloseFill`, `captionClosePressedFill` and
+`captionCloseText`; high contrast retains system colors and focus affordances.
 Cell padding is 6 DIP, default block spacing 8 DIP and nesting indentation 16 DIP per level
 within the bounded viewport, plus measured ancestor list gutters. Native marker
 and body share a first baseline and RTL mirrors the leading column. Empty/trailing/container-only source lines have
