@@ -362,6 +362,13 @@ UTC creation timestamp. Cleanup acts only on the retained process whose identity
 timeout, descendant survival and bounded pipe-drain assertions remain required; no timestamp tolerance or
 descendant-tree termination substitutes for them. The [Linux portability packet](../../Measurements/Tooling/2026-10-11-linux-portability/README.md)
 retains the original PR failures and same-source before/after fixtures; it does not qualify native performance.
+The inherited-pipe fixture separates parent launch/setup from the observed drain phase. A controlled 3.2-second
+setup delay must not consume the drain assertion's three-second observation bound; the helper retains its
+0.2-second drain budget. Its optional `observedDrainElapsedMs` scalar begins when the helper observes direct
+exit or finishes termination handling, not at the kernel exit instant. An exact PID/creation-identity holder
+must still be alive when the helper returns, independently of that scalar, and must acknowledge explicit release
+with exit zero. A five-second holder failsafe and identity-checked failure cleanup keep the fixture bounded.
+Startup delay and an EOF-wait substitution are distinct controlled checks; neither assigns an original untraced failure.
 `validate-skills.ps1` checks all repository skills, reading front matter as a strict `key: value` subset of YAML
 that any YAML parser reads the same way; `validate-specs.ps1`
 checks local links, normative documents and plan indexes; `validate-dependencies.ps1` verifies historical origin

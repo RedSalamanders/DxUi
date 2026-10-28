@@ -681,10 +681,17 @@ Invoke-FixtureCase 'owned child timeout terminates that child and preserves its 
 Invoke-FixtureCase 'direct child exit with inherited pipe still has bounded drain and explicit error' {
     param($root)
     Set-ProfilingFixtureIdentityHelper $root
-    Set-FixtureFile $root 'holder.ps1' 'Start-Sleep -Seconds 3'
+    Set-FixtureFile $root 'holder.ps1' @'
+$clock=[Diagnostics.Stopwatch]::StartNew()
+$release=Join-Path $PSScriptRoot 'release-holder'
+while (-not (Test-Path -LiteralPath $release) -and $clock.Elapsed.TotalSeconds -lt 5) { Start-Sleep -Milliseconds 20 }
+if (-not (Test-Path -LiteralPath $release)) { exit 1 }
+[IO.File]::WriteAllText((Join-Path $PSScriptRoot 'holder-released'),'release observed')
+'@
     Set-FixtureFile $root 'parent.ps1' @'
-param($Shell,$Root)
+param($Shell,$Root,$SetupDelayMs)
 . (Join-Path $Root 'process-identity.ps1')
+if ($SetupDelayMs -gt 0) { Start-Sleep -Milliseconds $SetupDelayMs }
 $start=[Diagnostics.ProcessStartInfo]::new($Shell)
 $start.UseShellExecute=$false; $start.CreateNoWindow=$true
 foreach ($arg in @('-NoProfile','-File',(Join-Path $Root 'holder.ps1'))) { $start.ArgumentList.Add($arg) }
@@ -697,12 +704,28 @@ $child.Dispose()
 '@
     try {
         $clock=[Diagnostics.Stopwatch]::StartNew()
-        $child=Invoke-OwnedProfilingProcess -Executable $shellPath -Arguments @('-NoProfile','-File',(Join-Path $root 'parent.ps1'),$shellPath,$root) -WorkingDirectory $root -TimeoutSeconds 10 -DrainTimeoutSeconds 0.2
+        $child=Invoke-OwnedProfilingProcess -Executable $shellPath -Arguments @('-NoProfile','-File',(Join-Path $root 'parent.ps1'),$shellPath,$root,'3200') -WorkingDirectory $root -TimeoutSeconds 10 -DrainTimeoutSeconds 0.2
         Assert-True (-not $child.timedOut -and $child.exitCode -eq 0) 'direct child ended normally'
         Assert-True (-not [string]::IsNullOrEmpty($child.drainError)) 'retained descendant pipe declared incomplete'
         Assert-True $child.stdout.Contains('emitted stdout prefix') 'stdout prefix retained before pipe EOF'
         Assert-True $child.stderr.Contains('emitted stderr prefix') 'stderr prefix retained before pipe EOF'
-        Assert-True ($clock.Elapsed.TotalSeconds -lt 3) 'drain does not wait for the descendant'
+        $clock.Stop()
+        $timingDetail="totalElapsedMs=$([Math]::Round($clock.Elapsed.TotalMilliseconds,1)); observedDrainElapsedMs=$($child.observedDrainElapsedMs)"
+        Assert-True ($clock.Elapsed.TotalSeconds -ge 3) "setup delay is outside the drain interval ($timingDetail)"
+        Assert-True ($child.drainTimeoutSeconds -eq 0.2) 'the existing 0.2s drain budget is preserved'
+        Assert-True ($null -ne $child.observedDrainElapsedMs -and $child.observedDrainElapsedMs -ge 0 -and $child.observedDrainElapsedMs -lt 3000) "observed post-exit drain stays below the old 3-second bound ($timingDetail)"
+        $identity=Get-Content -LiteralPath (Join-Path $root 'holder.identity.json') -Raw | ConvertFrom-Json -AsHashtable
+        $holder=Get-Process -Id ([int]$identity.id) -ErrorAction Stop
+        try {
+            $null=$holder.Handle
+            Assert-True (Test-ProfilingFixtureProcessIdentity $holder $identity) 'holder creation identity matches the exact test-owned process'
+            Assert-True (-not $holder.HasExited) 'helper returned while the inherited-pipe holder remains alive'
+            # An EOF-wait implementation cannot return while this gate keeps the exact holder alive.
+            [IO.File]::WriteAllText((Join-Path $root 'release-holder'),'release')
+            Assert-True $holder.WaitForExit(5000) 'holder exits cooperatively after explicit release'
+            Assert-Equal 0 $holder.ExitCode 'holder release succeeds rather than reaching its failsafe'
+            Assert-True (Test-Path -LiteralPath (Join-Path $root 'holder-released')) 'holder acknowledges the explicit release'
+        } finally { $holder.Dispose() }
     } finally {
         if (Test-Path (Join-Path $root 'holder.identity.json')) {
             $identity=[IO.File]::ReadAllText((Join-Path $root 'holder.identity.json')) | ConvertFrom-Json -AsHashtable
