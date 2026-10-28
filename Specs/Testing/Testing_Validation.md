@@ -118,6 +118,11 @@ after posting, then acknowledge dispatch with the existing state probe and verif
 and physical position. Preserve the 800 ms keyboard-state bound. Diagnostics retain owner/cancel context and
 pointer/keyboard routes; an earlier untraced cancellation or pointer event remains unassigned.
 
+The stationary root-switch fixture parks on the initial active A header before showing A. Only after A has
+completed modal readiness and exposes visible geometry may the fixture align the physical cursor to B.
+An acknowledged B move must leave exactly one pointer root switch, including when the alignment itself
+already delivered that switch. Keep the subsequent keyboard sequence and stationary-position assertions.
+
 Native-menu dismissal fixtures verify actual focus on the menu-bar host after `FocusFirstItem()` and before
 starting a popup-discovery driver. The driver uses one 5 s deadline for visible-popup discovery and the existing
 modal-dispatch readiness signal, and requires the dismissal-key post itself to succeed after both are ready. Keep
@@ -306,9 +311,19 @@ cases, missing checks and wrong-source final receipts. The initial journal publi
 later snapshots replace the existing journal atomically. A concurrent polling reader must allow delete sharing:
 its open handle may retain a coherent old snapshot while the path names the new one. Use `File.Replace` for
 updates with an explicit CLR-null backup argument; PowerShell's ordinary `$null` can bind as an empty path.
-Publication failures remain errors and never start or count a conformance phase. Watchdog fixtures retain their
-readiness/termination bounds and distinguish early helper exit from deadline termination, including bounded
-stdout/stderr diagnostics. A generic historical readiness assertion alone does not establish its original cause.
+Publication failures remain errors and never start or count a conformance phase. The external-timeout fixture's
+child writes a readiness payload to a distinct pending path only from inside the phase body, after the module
+has published `activePhase`; it closes that file and moves it without replacement to the final marker path.
+The parent holds the child after the pending file appears, verifies that this staged file is not readiness,
+then releases publication and waits for the final marker within the existing ten-second readiness bound. It
+terminates the child and waits within the existing three-second bound, reading the journal only after child
+closure so it does not test a mutable path between `Test-Path` and `Open`. A Windows negative control holds
+the existing journal without delete sharing: failed active publication must exit nonzero, omit both marker
+paths, and leave status, active phase, phase count and completion count unchanged. Each child path gets one
+bounded closure wait; if it remains live, its owned fixture is preserved and reported instead of deleted.
+Both controls retain bounded stdout/stderr and early-exit diagnostics. The observed original assertion was a
+missing progress path at the read site; `TestSupport` removed the fixture on unwind, so the original failure's
+initiating cause remains unassigned.
 PR #99's retained x64 Release Full step exhausted its combined 35-minute window after 16 ordinary suite receipts;
 Accessibility was still in progress and had emitted no native timeout or failure. The observed 18-minute gap
 before the MSBuild banner has no measured subphase attribution. Bounded top-level build/gate BEGIN/END/FAIL records

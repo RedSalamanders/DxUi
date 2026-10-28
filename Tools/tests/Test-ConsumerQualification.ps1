@@ -118,45 +118,165 @@ Invoke-FixtureCase 'delete-sharing reader keeps an old coherent snapshot across 
         Assert-Equal 'passed' $current.phases[0].state 'published case outcome is complete'
     }finally{$held.Dispose()}
 }
-Invoke-FixtureCase 'external timeout retains the active incomplete phase' {
-    param($fixture)
+function Invoke-OwnedProcessFixtureCase([string]$Name,[scriptblock]$Body) {
+    Invoke-TestCase $Name {
+        $fixture=New-FixtureRoot
+        $lifecycle=[pscustomobject]@{Preserve=$false;Reason=$null}
+        try{& $Body $fixture $lifecycle}
+        finally{
+            # Stock Invoke-FixtureCase always removes its root; these cases must keep it if the owned child survives closure.
+            if($lifecycle.Preserve){Write-Warning "Preserving live-child fixture root '$fixture': $($lifecycle.Reason)"}
+            else{Remove-FixtureRoot $fixture}
+        }
+    }.GetNewClosure()
+}
+Invoke-OwnedProcessFixtureCase 'external timeout retains the active incomplete phase without polling the mutable journal' {
+    param($fixture,$lifecycle)
     $childScript=Join-Path $fixture 'Child.ps1'
     [IO.File]::WriteAllText($childScript,@'
-param($Module,$Output)
-Import-Module $Module
+param($Module,$Output,$Ready,$PendingReady,$Release)
+$ErrorActionPreference='Stop'
+Import-Module -Name $Module -Force -ErrorAction Stop
 $p=New-ConsumerQualificationProgress $Output @{commit='e'*40}
-Invoke-ConsumerQualificationPhase $p 'DelayedNegative' {[Threading.Thread]::Sleep(60000)} -NegativeCheck
+Invoke-ConsumerQualificationPhase $p 'DelayedNegative' {
+    # The pending file is fully closed before its same-directory, no-overwrite publication.
+    [IO.File]::WriteAllText($PendingReady,'phase-body-entered',[Text.UTF8Encoding]::new($false))
+    $releaseTimer=[Diagnostics.Stopwatch]::StartNew()
+    while(-not (Test-Path -LiteralPath $Release -PathType Leaf) -and $releaseTimer.Elapsed -lt [TimeSpan]::FromSeconds(60)){Start-Sleep -Milliseconds 10}
+    if(-not (Test-Path -LiteralPath $Release -PathType Leaf)){throw 'Parent did not release the readiness publication.'}
+    [IO.File]::Move($PendingReady,$Ready)
+    [Threading.Thread]::Sleep(60000)
+} -NegativeCheck
 '@)
     $path=Join-Path $fixture 'progress.json'
+    $readyPath=Join-Path $fixture 'phase-body-ready.marker'
+    $pendingPath=Join-Path $fixture 'phase-body-ready.pending'
+    $releasePath=Join-Path $fixture 'phase-body-ready.release'
     $start=[Diagnostics.ProcessStartInfo]::new('pwsh')
     $start.UseShellExecute=$false;$start.CreateNoWindow=$true
     $start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
-    foreach($arg in @('-NoProfile','-File',$childScript,'-Module',(Join-Path $PSScriptRoot '../ConsumerQualification.psm1'),'-Output',$path)){$start.ArgumentList.Add($arg)}
-    $child=[Diagnostics.Process]::Start($start)
-    $stdoutTask=$child.StandardOutput.ReadToEndAsync()
-    $stderrTask=$child.StandardError.ReadToEndAsync()
+    foreach($arg in @('-NoProfile','-File',$childScript,'-Module',(Join-Path $PSScriptRoot '../ConsumerQualification.psm1'),'-Output',$path,'-Ready',$readyPath,'-PendingReady',$pendingPath,'-Release',$releasePath)){$start.ArgumentList.Add($arg)}
+    $child=$null;$stdoutTask=$null;$stderrTask=$null;$waitAttempted=$false;$terminated=$false
     try{
-        $deadline=[DateTime]::UtcNow.AddSeconds(10);$ready=$false
-        while([DateTime]::UtcNow-lt $deadline -and -not $child.HasExited){
-            if(Test-Path $path){$r=Read-ConsumerProgressSnapshot $path;if($r.activePhase-eq 'DelayedNegative'){$ready=$true;break}}
+        $child=[Diagnostics.Process]::Start($start)
+        $stdoutTask=$child.StandardOutput.ReadToEndAsync()
+        $stderrTask=$child.StandardError.ReadToEndAsync()
+        $readinessTimer=[Diagnostics.Stopwatch]::StartNew();$pendingObserved=$false;$readyBeforeRelease=$false;$ready=$false
+        while($readinessTimer.Elapsed -lt [TimeSpan]::FromSeconds(10) -and -not $child.HasExited){
+            if(Test-Path -LiteralPath $pendingPath -PathType Leaf){$pendingObserved=$true;break}
             Start-Sleep -Milliseconds 25
         }
+        if(-not $pendingObserved){$pendingObserved=Test-Path -LiteralPath $pendingPath -PathType Leaf}
+        if($pendingObserved){
+            $readyBeforeRelease=Test-Path -LiteralPath $readyPath -PathType Leaf
+            if(-not $readyBeforeRelease){[IO.File]::WriteAllText($releasePath,'publish',[Text.UTF8Encoding]::new($false))}
+        }
+        while($readinessTimer.Elapsed -lt [TimeSpan]::FromSeconds(10) -and -not $child.HasExited){
+            if(Test-Path -LiteralPath $readyPath -PathType Leaf){$ready=$true;break}
+            Start-Sleep -Milliseconds 25
+        }
+        if(-not $ready){$ready=Test-Path -LiteralPath $readyPath -PathType Leaf}
         $childExitedBeforeTermination=$child.HasExited
-        $deadlineExpired=[DateTime]::UtcNow-ge $deadline
+        $deadlineExpired=$readinessTimer.Elapsed -ge [TimeSpan]::FromSeconds(10)
         if(-not $childExitedBeforeTermination){$child.Kill()}
+        $waitAttempted=$true
         $terminated=$child.WaitForExit(3000)
-        Assert-True $terminated 'owned helper exited within the unchanged termination bound'
         $stdout=try{if($terminated -and $stdoutTask.Wait(500)){$stdoutTask.GetAwaiter().GetResult()}else{'<stdout drain exceeded 500 ms after exit>'}}catch{"<stdout drain failed: $($_.Exception.GetBaseException().Message)>"}
         $stderr=try{if($terminated -and $stderrTask.Wait(500)){$stderrTask.GetAwaiter().GetResult()}else{'<stderr drain exceeded 500 ms after exit>'}}catch{"<stderr drain failed: $($_.Exception.GetBaseException().Message)>"}
-        if(-not $ready){
-            $progress=if(Test-Path $path){try{Read-ConsumerProgressSnapshot $path | ConvertTo-Json -Depth 12 -Compress}catch{"<progress read failed: $($_.Exception.Message)>"}}else{'<progress file missing>'}
-            $message="owned helper did not publish its active phase before interruption; exitedBeforeTermination=$childExitedBeforeTermination; deadlineExpired=$deadlineExpired; exitCode=$(if($child.HasExited){$child.ExitCode}else{'unknown'}); deadlineUtc=$($deadline.ToString('o')); progress=$progress; stdout=$stdout; stderr=$stderr"
-            Assert-True $ready $message
-        }
-        $r=Read-ConsumerProgressSnapshot $path
+        $progress=if($terminated -and (Test-Path -LiteralPath $path -PathType Leaf)){try{Read-ConsumerProgressSnapshot $path | ConvertTo-Json -Depth 12 -Compress}catch{"<progress read failed: $($_.Exception.Message)>"}}elseif($terminated){'<progress file missing>'}else{'<progress not read: child did not close>'}
+        $message="owned helper did not publish a complete immutable body-readiness marker before interruption; pendingObserved=$pendingObserved; readyBeforeRelease=$readyBeforeRelease; exitedBeforeTermination=$childExitedBeforeTermination; deadlineExpired=$deadlineExpired; exitCode=$(if($child.HasExited){$child.ExitCode}else{'unknown'}); elapsedMs=$([int]$readinessTimer.Elapsed.TotalMilliseconds); progress=$progress; stdout=$stdout; stderr=$stderr"
+        if(-not $terminated){$lifecycle.Preserve=$true;$lifecycle.Reason="child PID $($child.Id) did not close within the single three-second wait; $message"}
+        Assert-True $terminated "owned helper exited within the unchanged termination bound; $message"
+        Assert-True $pendingObserved "child body did not stage its readiness marker; $message"
+        Assert-True (-not $readyBeforeRelease) "pending marker was mistaken for published readiness before release; $message"
+        Assert-True $ready "owned helper did not publish the final marker after release; $message"
+        Assert-Equal 'phase-body-entered' ([IO.File]::ReadAllText($readyPath)) 'readiness marker is moved into place only after its complete content is closed'
+        $r=Read-ConsumerProgressSnapshot $path # Read only after the child has exited and its writer is closed.
         Assert-Equal 'incomplete' $r.status 'watchdog termination is never completion'
         Assert-Equal 'DelayedNegative' $r.activePhase 'the exact unfinished case remains visible'
         Assert-Equal 0 ([int]$r.negativeChecks) 'unfinished negative case is not counted'
-    }finally{if(-not $child.HasExited){$child.Kill();[void]$child.WaitForExit(3000)};$child.Dispose()}
+        Assert-Equal 'running' $r.phases[0].state 'the interrupted phase remains explicitly running'
+    }finally{
+        if($null -ne $child){
+            if(-not $waitAttempted){
+                if(-not $child.HasExited){
+                    try{$child.Kill()}catch{if(-not $child.HasExited){$lifecycle.Preserve=$true;$lifecycle.Reason="cleanup could not terminate child PID $($child.Id): $($_.Exception.Message)"}}
+                }
+                $waitAttempted=$true;$terminated=$child.WaitForExit(3000)
+            }
+            if(-not $child.HasExited){$lifecycle.Preserve=$true;if(-not $lifecycle.Reason){$lifecycle.Reason="child PID $($child.Id) remained live after its only bounded closure attempt"}}
+            else{$child.Dispose()}
+        }
+    }
 }
+if($IsWindows){Invoke-OwnedProcessFixtureCase 'failed active publication cannot produce timeout readiness or progress' {
+    param($fixture,$lifecycle)
+    $childScript=Join-Path $fixture 'Child.ps1'
+    [IO.File]::WriteAllText($childScript,@'
+param($Module,$Output,$Ready,$PendingReady)
+$ErrorActionPreference='Stop'
+Import-Module -Name $Module -Force -ErrorAction Stop
+$p=New-ConsumerQualificationProgress $Output @{commit='i'*40}
+$held=[IO.File]::Open($Output,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::ReadWrite)
+try{
+    try{
+        Invoke-ConsumerQualificationPhase $p 'DelayedNegative' {
+            [IO.File]::WriteAllText($PendingReady,'phase-body-entered',[Text.UTF8Encoding]::new($false))
+            [IO.File]::Move($PendingReady,$Ready)
+            [Threading.Thread]::Sleep(60000)
+        } -NegativeCheck
+    }catch{
+        [Console]::Error.WriteLine("CHILD_PHASE_FAILURE: $($_.Exception.GetBaseException().Message)")
+        throw
+    }
+}finally{$held.Dispose()}
+'@)
+    $path=Join-Path $fixture 'progress.json'
+    $readyPath=Join-Path $fixture 'phase-body-ready.marker'
+    $pendingPath=Join-Path $fixture 'phase-body-ready.pending'
+    $start=[Diagnostics.ProcessStartInfo]::new('pwsh')
+    $start.UseShellExecute=$false;$start.CreateNoWindow=$true
+    $start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
+    foreach($arg in @('-NoProfile','-File',$childScript,'-Module',(Join-Path $PSScriptRoot '../ConsumerQualification.psm1'),'-Output',$path,'-Ready',$readyPath,'-PendingReady',$pendingPath)){$start.ArgumentList.Add($arg)}
+    $child=$null;$stdoutTask=$null;$stderrTask=$null;$waitAttempted=$false;$terminated=$false
+    try{
+        $child=[Diagnostics.Process]::Start($start)
+        $stdoutTask=$child.StandardOutput.ReadToEndAsync()
+        $stderrTask=$child.StandardError.ReadToEndAsync()
+        $readinessTimer=[Diagnostics.Stopwatch]::StartNew();$ready=$false
+        while($readinessTimer.Elapsed -lt [TimeSpan]::FromSeconds(10) -and -not $child.HasExited){
+            if(Test-Path -LiteralPath $readyPath -PathType Leaf){$ready=$true;break}
+            Start-Sleep -Milliseconds 25
+        }
+        if(-not $ready){$ready=Test-Path -LiteralPath $readyPath -PathType Leaf}
+        $earlyExit=$child.HasExited
+        if(-not $earlyExit){$child.Kill()}
+        $waitAttempted=$true
+        $terminated=$child.WaitForExit(3000)
+        $stdout=try{if($terminated -and $stdoutTask.Wait(500)){$stdoutTask.GetAwaiter().GetResult()}else{'<stdout drain exceeded 500 ms after exit>'}}catch{"<stdout drain failed: $($_.Exception.GetBaseException().Message)>"}
+        $stderr=try{if($terminated -and $stderrTask.Wait(500)){$stderrTask.GetAwaiter().GetResult()}else{'<stderr drain exceeded 500 ms after exit>'}}catch{"<stderr drain failed: $($_.Exception.GetBaseException().Message)>"}
+        Assert-True $terminated "failed-publication helper exited within the unchanged termination bound; exitCode=$(if($child.HasExited){$child.ExitCode}else{'unknown'}); stdout=$stdout; stderr=$stderr"
+        $r=Read-ConsumerProgressSnapshot $path # Read only after child closure, never between path check and replacement.
+        $failureDetails="earlyExit=$earlyExit; readinessMarker=$ready; exitCode=$($child.ExitCode); status=$($r.status); activePhase=$($r.activePhase); negativeChecks=$($r.negativeChecks); phases=$(@($r.phases).Count); stdout=$stdout; stderr=$stderr"
+        Assert-True $earlyExit "active-publication failure exits before watchdog termination; $failureDetails"
+        Assert-True ($child.ExitCode -ne 0) "active-publication failure remains a nonzero child result; $failureDetails"
+        Assert-True (-not $ready) "failed active publication never creates the body-readiness marker; $failureDetails"
+        Assert-True ($stderr -match 'CHILD_PHASE_FAILURE:') "publisher failure remains visible in child stderr; $failureDetails"
+        Assert-Equal 'incomplete' $r.status "failed publication cannot change journal status; $failureDetails"
+        Assert-Equal $null $r.activePhase "failed publication cannot claim an active phase; $failureDetails"
+        Assert-Equal 0 ([int]$r.negativeChecks) "failed publication cannot count a negative case; $failureDetails"
+        Assert-Equal 0 (@($r.phases).Count) "failed publication cannot add a phase; $failureDetails"
+    }finally{
+        if($null -ne $child){
+            if(-not $waitAttempted){
+                if(-not $child.HasExited){
+                    try{$child.Kill()}catch{if(-not $child.HasExited){$lifecycle.Preserve=$true;$lifecycle.Reason="cleanup could not terminate child PID $($child.Id): $($_.Exception.Message)"}}
+                }
+                $waitAttempted=$true;$terminated=$child.WaitForExit(3000)
+            }
+            if(-not $child.HasExited){$lifecycle.Preserve=$true;if(-not $lifecycle.Reason){$lifecycle.Reason="child PID $($child.Id) remained live after its only bounded closure attempt"}}
+            else{$child.Dispose()}
+        }
+    }
+}}
 Complete-TestRun 'Consumer qualification progress'

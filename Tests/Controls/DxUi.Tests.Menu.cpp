@@ -3270,11 +3270,14 @@ void TestStationaryMouseDoesNotOverrideKeyboardRootSwitch()
 
         MenuHoverTraceForTest trace(true, true, ownerWindow.Hwnd());
         ScopedMenuPointerFixture pointerFixture(ownerWindow.Hwnd());
+        POINT aClientPoint{80, 16};
+        POINT aScreenPoint = aClientPoint;
         POINT bClientPoint{160, 16};
         POINT bScreenPoint = bClientPoint;
-        if (ClientToScreen(ownerWindow.Hwnd(), &bScreenPoint) == FALSE || ! pointerFixture.AlignCursor(bScreenPoint, ownerWindow.Hwnd()))
+        if (ClientToScreen(ownerWindow.Hwnd(), &aScreenPoint) == FALSE || ClientToScreen(ownerWindow.Hwnd(), &bScreenPoint) == FALSE ||
+            ! pointerFixture.AlignCursor(aScreenPoint, ownerWindow.Hwnd()))
         {
-            driverFailure = "owned physical cursor parks at the B header point before the stationary-pointer menu case";
+            driverFailure = "owned physical cursor parks at active A header before the stationary-pointer menu case";
             trace.Dump(true);
             return ForegroundAttempt{.lost                  = ownerWindow.ForegroundLossCount() != lossesBefore,
                                      .thiefThreadId         = ownerWindow.LastForegroundThiefThreadId(),
@@ -3282,9 +3285,9 @@ void TestStationaryMouseDoesNotOverrideKeyboardRootSwitch()
         }
         DrainPendingMouseMessagesForMenuSuite();
         POINT parkedPoint{};
-        if (GetPhysicalCursorPos(&parkedPoint) == FALSE || parkedPoint.x != bScreenPoint.x || parkedPoint.y != bScreenPoint.y)
+        if (GetPhysicalCursorPos(&parkedPoint) == FALSE || parkedPoint.x != aScreenPoint.x || parkedPoint.y != aScreenPoint.y)
         {
-            driverFailure = "physical cursor readback confirms the B header point before opening the menu";
+            driverFailure = "physical cursor readback confirms the active A header before opening the menu";
             trace.Dump(true);
             return ForegroundAttempt{.lost                  = ownerWindow.ForegroundLossCount() != lossesBefore,
                                      .thiefThreadId         = ownerWindow.LastForegroundThiefThreadId(),
@@ -3361,6 +3364,21 @@ void TestStationaryMouseDoesNotOverrideKeyboardRootSwitch()
             }, popupState))
             {
                 driverFailure = "initial A popup exposes state after modal dispatch readiness";
+                return;
+            }
+
+            // Align on the driver thread only after A is ready. The temporary fixture sets this
+            // thread's DPI context; it does not own cursor restoration. The outer fixture owns it.
+            [[maybe_unused]] const ScopedMenuPointerFixture ownerDpiContext(ownerWindow.Hwnd());
+            if (! pointerFixture.AlignCursor(bScreenPoint, ownerWindow.Hwnd()))
+            {
+                driverFailure = "owned physical cursor aligns to the B header after A is dispatch-ready";
+                return;
+            }
+            POINT alignedBPhysicalPoint{};
+            if (GetPhysicalCursorPos(&alignedBPhysicalPoint) == FALSE || alignedBPhysicalPoint.x != bScreenPoint.x || alignedBPhysicalPoint.y != bScreenPoint.y)
+            {
+                driverFailure = "physical cursor readback confirms the B header after A is dispatch-ready";
                 return;
             }
 
