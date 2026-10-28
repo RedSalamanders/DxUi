@@ -6393,7 +6393,8 @@ void TestMenuInfoRowsDoNotDismissOnClick()
             // A cross-thread state probe is posted only after both button posts. The modal loop
             // prioritizes queued client mouse input before its posted debug-state probe.
             ContextMenuPopupDebugState afterClickState{};
-            postClickStateProbeSucceeded = DebugGetContextMenuPopupState(popupHwnd, afterClickState) && afterClickState.itemCount == items.size();
+            postClickStateProbeSucceeded = DebugGetContextMenuPopupState(popupHwnd, afterClickState) && afterClickState.itemTexts.size() == items.size() &&
+                                           afterClickState.itemKinds.size() == items.size() && afterClickState.itemKinds.front() == MenuItemKind::Info;
             trace.Driver("info.post-click-state", postClickStateProbeSucceeded ? 1u : 0u, afterClickState.renderCount);
             if (! postClickStateProbeSucceeded)
                 driverFailure = "the info popup answers a valid state probe after posted button input";
