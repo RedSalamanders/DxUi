@@ -264,7 +264,7 @@ foreach ($mode in @('signature-only','wrong-width','truncated','no-IDAT','traili
 
 # Shims are deliberately synthetic unit evidence; real v2 receipt/build correctness is covered by
 # PerformancePolicy tests and subsequent coordinated native runs, never established by this fixture.
-function New-BoundaryReport([bool] $Timers = $true, [string] $WarpRasterMode = '') {
+function New-BoundaryReport([bool] $Timers = $true, [string] $WarpRasterMode = '', [string] $BoundaryScenario = '', [string] $BoundaryPhase = 'Clean') {
     $report=[ordered]@{ schema=1; fixture='dxui-complex-ui-boundaries-v1'; classification='diagnostic-only'; renderer='WARP';
         scenario='Default'; heapSampling=$false; boundaryTimers=$Timers; width=1280; height=720; dpi=96; controls=83; modelRows=1000;
         warmFrames=200; probeFrames=320; hiddenPreparations=0; hiddenComposites=0; hiddenSurfaceBytes=0; pointerBits=64; iteratorDebugLevel=0;
@@ -284,6 +284,26 @@ function New-BoundaryReport([bool] $Timers = $true, [string] $WarpRasterMode = '
         $report.schema=2; $report.fixture='dxui-complex-ui-boundaries-v2'; $report.warpRasterMode=$WarpRasterMode
         $report.requestedDeviceFlags=if ($WarpRasterMode -ceq 'CallingThread') { 40 } else { 32 }
         $report.deviceCreationFlags=$report.requestedDeviceFlags
+    }
+    if ($BoundaryScenario) {
+        $report.schema=3; $report.fixture='dxui-complex-ui-boundaries-v3'; $report.scenario=$BoundaryScenario
+        $report['phase']=$BoundaryPhase; $report['firstUpdate']=if ($BoundaryPhase -ceq 'Dirty') { 200 } else { 0 }
+        $report['dirtyAllocationCeilingPerFrame']=64
+        $report['ownerCpuScope']='Cumulative owner CPU readings include QPC-bracketed probes; coarse zero deltas remain valid.'
+        for ($windowIndex=0; $windowIndex -lt 8; $windowIndex++) {
+            $window=$report.windows[$windowIndex]
+            $window.cpuAfter=(New-ProfilingCounters (1080+$windowIndex*100))
+            for ($frameIndex=0; $frameIndex -lt 40; $frameIndex++) {
+                $frame=$window.frames[$frameIndex]
+                $frame['composeAllocations']=0
+                if ($BoundaryPhase -ceq 'Dirty') { $frame.cppAllocations=54 }
+                for ($edge=0; $edge -lt 9; $edge++) { if ($frame.qpc[$edge] -ne 0) { $frame.qpc[$edge]+=10 } }
+                $frame['updateEndQpc']=if ($Timers) { $frame.qpc[0] } else { 0 }
+                $frame['cpuProbeQpc']=@(($frame.qpc[0]-2),($frame.qpc[0]-1),($frame.qpc[8]+1),($frame.qpc[8]+2))
+                $frame['ownerCpuBefore']=(New-ProfilingCpu (1010+$windowIndex*100+$frameIndex))
+                $frame['ownerCpuAfter']=(New-ProfilingCpu (1011+$windowIndex*100+$frameIndex))
+            }
+        }
     }
     return $report
 }
@@ -350,6 +370,61 @@ foreach ($case in @(
 Invoke-TestCase 'v1 boundary report cannot hide an undeclared device policy' {
     $report=New-BoundaryReport; $report['warpRasterMode']='CallingThread'
     Assert-Throws { Assert-BoundaryReport $report -Timers $true } 'undeclared execution policy'
+}
+foreach ($scenario in @('Default','MultilineGrid','MultilineGridDistinct')) {
+    foreach ($timers in @($false,$true)) {
+        Invoke-TestCase "v3 boundary binds scenario $scenario and frame CPU probes, timers=$timers" {
+            $report=New-BoundaryReport $timers Default $scenario
+            Assert-Equal 'complete' (Assert-BoundaryReport $report -Timers $timers -BoundaryScenario $scenario) 'v3 scenario and CPU interval inventory'
+        }
+    }
+}
+foreach ($case in @(
+    @{Name='wrong scenario'; Change={param($r) $r.scenario='Default'}},
+    @{Name='missing probe'; Change={param($r) $r.windows[0].frames[0].Remove('ownerCpuBefore')}},
+    @{Name='CPU time reversal'; Change={param($r) $r.windows[0].frames[1].ownerCpuAfter.user100ns=1}},
+    @{Name='CPU cycles reversal'; Change={param($r) $r.windows[0].frames[1].ownerCpuAfter.cycles=1}},
+    @{Name='CPU probe intrudes into frame'; Change={param($r) $r.windows[0].frames[0].cpuProbeQpc[1]=$r.windows[0].frames[0].qpc[1]+1}},
+    @{Name='CPU probes overlap previous frame'; Change={param($r) $r.windows[0].frames[1].cpuProbeQpc[0]=$r.windows[0].frames[0].qpc[0]}},
+    @{Name='CPU probe exceeds window'; Change={param($r) $r.windows[0].frames[39].cpuProbeQpc[3]=$r.windows[0].endedQpc+1}},
+    @{Name='missing CPU scope'; Change={param($r) $r.Remove('ownerCpuScope')}}
+    @{Name='update edge after preparation'; Change={param($r) $r.windows[0].frames[0].updateEndQpc=$r.windows[0].frames[0].qpc[1]+1}}
+    @{Name='string CPU probe tick'; Change={param($r) $r.windows[0].frames[0].cpuProbeQpc[0]=[string]$r.windows[0].frames[0].cpuProbeQpc[0]}}
+    @{Name='string CPU counter'; Change={param($r) $r.windows[0].frames[0].ownerCpuBefore.cycles=[string]$r.windows[0].frames[0].ownerCpuBefore.cycles}}
+    @{Name='boolean CPU counter'; Change={param($r) $r.windows[0].frames[0].ownerCpuBefore.user100ns=$true}}
+)) {
+    Invoke-TestCase ("v3 boundary rejects " + $case.Name) {
+        $report=New-BoundaryReport $true Default MultilineGridDistinct; & $case.Change $report
+        Assert-Throws { Assert-BoundaryReport $report -Timers $true -BoundaryScenario MultilineGridDistinct } $case.Name
+    }
+}
+Invoke-TestCase 'v3 zero coarse CPU advancement is retained, not fabricated' {
+    $report=New-BoundaryReport $true Default Default
+    $report.windows[0].frames[0].ownerCpuAfter=(New-ProfilingCpu 1010)
+    Assert-Equal 'complete' (Assert-BoundaryReport $report -Timers $true -BoundaryScenario Default) 'coarse CPU zero is allowed'
+}
+Invoke-TestCase 'v3 unavailable frame CPU is partial with preserved query errors' {
+    $report=New-BoundaryReport $true Default Default
+    Set-UnavailableCpu $report.windows[0].frames[0].ownerCpuAfter
+    Assert-Throws { Assert-BoundaryReport $report -Timers $true -BoundaryScenario Default } 'false completeness'
+    $report.telemetryCompleteness='partial'
+    Assert-Equal 'partial' (Assert-BoundaryReport $report -Timers $true -BoundaryScenario Default) 'unavailable CPU remains partial'
+}
+Invoke-TestCase 'v3 dirty phase uses explicit input and allocation budgets' {
+    $report=New-BoundaryReport $true Default MultilineGridDistinct Dirty
+    Assert-Equal 'complete' (Assert-BoundaryReport $report -Timers $true -BoundaryScenario MultilineGridDistinct -BoundaryPhase Dirty) 'dirty phase accepted'
+    $report.windows[0].frames[0].cppAllocations=65
+    Assert-Throws { Assert-BoundaryReport $report -Timers $true -BoundaryScenario MultilineGridDistinct -BoundaryPhase Dirty } 'dirty ceiling cannot grow'
+}
+Invoke-TestCase 'v3 phase identity cannot relabel dirty as clean' {
+    $report=New-BoundaryReport $true Default MultilineGridDistinct Dirty
+    $report.phase='Clean'
+    Assert-Throws { Assert-BoundaryReport $report -Timers $true -BoundaryScenario MultilineGridDistinct -BoundaryPhase Dirty } 'phase mismatch'
+}
+Invoke-TestCase 'v3 composition remains allocation-free in dirty phases' {
+    $report=New-BoundaryReport $true Default MultilineGridDistinct Dirty
+    $report.windows[0].frames[0].composeAllocations=1
+    Assert-Throws { Assert-BoundaryReport $report -Timers $true -BoundaryScenario MultilineGridDistinct -BoundaryPhase Dirty } 'dirty composition budget'
 }
 
 function New-ProfilingRunnerFixture([string] $Root, [string] $Mode = 'valid', [bool] $Heap = $false) {
@@ -513,12 +588,38 @@ foreach ($mode in @('Default','CallingThread')) {
         Assert-Equal $mode $child.arguments[3] 'alternate WARP policy casing normalized'
     }
 }
+foreach ($scenario in @('Default','MultilineGrid','MultilineGridDistinct')) {
+    Invoke-FixtureCase "public v3 boundary runner selects exact scenario $scenario" {
+        param($root)
+        $output=New-ProfilingRunnerFixture $root
+        Set-FixtureJson $root 'native.json' (New-BoundaryReport $true Default $scenario)
+        & (Join-Path $root 'performance-profile.ps1') -Configuration Release -SkipBuild -BoundaryTimers On -BoundaryScenario $scenario.ToLowerInvariant() -OutputPath $output
+        $receipt=Get-FixtureJson $root '.build/reports/profile.json'
+        Assert-Equal 'dxui-complex-ui-boundaries-v3' $receipt.fixture 'new diagnostic identity'
+        Assert-Equal $scenario $receipt.scenario 'exact native scenario retained'
+        $child=Get-FixtureJson $root '.build/reports/profile.json.child.json'
+        Assert-Equal '--benchmark-complex-ui-boundaries-v3' $child.arguments[0] 'separate v3 dispatch'
+        Assert-Equal 'Default' $child.arguments[3] 'explicit default raster policy'
+        Assert-Equal $scenario $child.arguments[4] 'exact scenario argument'
+        Assert-Equal 'Clean' $child.arguments[5] 'explicit clean phase'
+    }
+}
+Invoke-FixtureCase 'public v3 boundary runner normalizes the dirty phase' {
+    param($root)
+    $output=New-ProfilingRunnerFixture $root
+    Set-FixtureJson $root 'native.json' (New-BoundaryReport $false Default MultilineGridDistinct Dirty)
+    & (Join-Path $root 'performance-profile.ps1') -Configuration Release -SkipBuild -BoundaryTimers Off -BoundaryScenario MultilineGridDistinct -BoundaryPhase dirty -OutputPath $output
+    $child=Get-FixtureJson $root '.build/reports/profile.json.child.json'
+    Assert-Equal 'Dirty' $child.arguments[5] 'native phase normalized'
+}
 Invoke-FixtureCase 'WARP mode requires boundaries before any identity or output mutation' {
     param($root)
     $output=New-ProfilingRunnerFixture $root
     Set-FixtureFile $root '.build/reports/profile.json' 'preserve original'
     Assert-Throws { Invoke-ProfilingMeasurement -Root $root -Platform x64 -Configuration Release -Scenario Default -Heap $false -WarpRasterMode CallingThread -OutputPath $output } 'direct boundary requirement'
     Assert-Throws { & (Join-Path $root 'performance-profile.ps1') -SkipBuild -WarpRasterMode Default -OutputPath $output } 'public boundary requirement'
+    Assert-Throws { & (Join-Path $root 'performance-profile.ps1') -SkipBuild -BoundaryScenario Default -OutputPath $output } 'scenario requires boundary timers'
+    Assert-Throws { & (Join-Path $root 'performance-profile.ps1') -SkipBuild -BoundaryTimers On -BoundaryPhase Dirty -OutputPath $output } 'dirty phase requires explicit scenario'
     Assert-Equal 'preserve original' ([IO.File]::ReadAllText($output)) 'invalid option preserves existing output'
     Assert-True (-not (Test-Path (Join-Path $root 'calls.txt'))) 'invalid option starts no identity/child work'
 }

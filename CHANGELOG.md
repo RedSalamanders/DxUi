@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Add a separate v3 complex-UI boundary diagnostic for explicit default, multiline and distinct-grid clean/dirty scenes, retaining frame-aligned QPC edges and surrounding owner CPU-query brackets with strict schema/runner controls. Canonical benchmark inputs, performance bands and policy remain unchanged; native qualification and causal interpretation remain open.
 - Record exact SDK086 qualification across six hosted native profiles and external consumers, plus all twelve local keyboard/menu suite runs with zero skips and verified restoration. Preserve the actual sanitizer detections, ICF type-safety evidence and exact-pin RedTilde results while keeping performance policy, consumer platform and release holds explicit.
 - Compare the deliberately rejected payload owner before destruction in the ICF regression's negative-control cleanup. Preserve the initial Release pass with actual folded deleters; qualify the final test revision separately.
 - Keep private posted-payload type identity in writable per-type storage so identical-code folding cannot make distinct deleter addresses authorize a wrong Take or Reclaim; retain the deleter only for destruction and preserve single-module ownership scope. The focused WindowHost regression proves Release ControlTests folds the deleters, rejects wrong types, preserves correct ownership, and destroys taken, reclaimed, and drained payloads once; build and runtime qualification remain pending.

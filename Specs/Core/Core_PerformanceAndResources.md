@@ -672,6 +672,28 @@ attribution requires an actual aligned trace and its loss/completeness checks;
 a permission refusal leaves that gate open. This diagnostic changes no acceptance
 workload, judge, policy, threshold or historical receipt.
 
+The explicitly selected `dxui-complex-ui-boundaries-v3` diagnostic adds
+`performance-profile.ps1 -BoundaryTimers Off|On -BoundaryScenario Default|MultilineGrid|MultilineGridDistinct
+-BoundaryPhase Clean|Dirty`. It retains the same 200 dirty warm frames, populated capture and eight forward/reverse
+command-control windows. `BoundaryScenario` is separate from the existing startup-profile `Scenario` argument;
+`BoundaryPhase` defaults to Clean and Dirty requires an explicit boundary scenario. Each dirty window updates the
+same model frames 200 through 239, allowing order reversals without silently advancing to different input ranges.
+The distinct model retains short Tree names and four different multiline values per row, matching the canonical
+scene's model setup. These diagnostic warm-up/phase sequences remain distinct from canonical acceptance.
+
+V3 preserves absolute frame edges and, with timers On, adds the end-of-Update edge before Prepare. Attribute the
+reported tail using every subinterval from that same ranked frame, never independently ranked segment tails.
+Each frame additionally retains the owned main thread's cumulative kernel/user time in 100ns units and raw cycle
+counts before/after it, with separate QPC brackets around both query probes. The CPU-counter interval surrounds
+the timed frame and includes query overhead; neither the CPU-counter difference nor the probe cost establishes
+isolated frame CPU time, worker consumption, scheduler delay or GPU duration. Coarse time deltas of zero remain
+valid, and cycles are not converted into invented elapsed time. Queries that fail remain explicit and make the
+report partial. Timers Off leaves all interior/update edges zero but retains CPU probes; it does not isolate
+their observer effect. V1/V2 remain separate historical schemas with no per-frame owner CPU samples.
+All windows require zero composition allocations, unchanged surfaces and matching preparation counts; clean
+whole-frame allocations remain zero and dirty allocations retain the existing profile-specific ceiling.
+No canonical benchmark input, investigation band, judged metric, baseline or policy changes with this diagnostic.
+
 The [external thread-state controls](../../Measurements/RichText/README.md)
 verify owned-child main-thread identity and a common native/managed QPC clock.
 WaitReason is read only for Wait. Require the entire acquisition bracket inside

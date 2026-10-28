@@ -2,6 +2,8 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
+- **ACTIVE**: [Performance control diagnostics](PerformanceControlDiagnostics_2026-10-28.md). Separate v3 boundary diagnostics add explicit distinct-grid and clean/dirty phases with frame-aligned QPC and surrounding owner CPU counters. Canonical inputs and policy remain unchanged; native qualification and causal interpretation are pending.
+
 - **ACTIVE**: [Subtle Markdown presentation](SubtleMarkdownPresentation_2026-10-27.md). Opt-in heading rules, intrinsic tables, centered display objects and shaded quotes for RedTilde; focused rendering and exact consumer adoption qualification are in progress. Earlier performance/CI queues remain paused.
 
 - **ACTIVE**: [MSVC 14.52 and Release optimization](Msvc1452ReleaseOptimization_2026-10-23.md). The compiler repair and six-profile cohort are archived; separate post-merge TSF and inactive-host focus contract repairs await final-source qualification. Five-repository paired, performance/manual and release holds remain open.

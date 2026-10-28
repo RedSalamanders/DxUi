@@ -260,12 +260,15 @@ function Assert-BoundaryReport {
     [CmdletBinding()]
     param([Parameter(Mandatory)] $Receipt, [bool] $Timers,
         [ValidateSet('Debug','Release','ASan Debug')][string] $Configuration = 'Release', [int] $ProcessId,
-        [ValidateSet('','Default','CallingThread')][string] $WarpRasterMode = '')
+        [ValidateSet('','Default','CallingThread')][string] $WarpRasterMode = '',
+        [ValidateSet('','Default','MultilineGrid','MultilineGridDistinct')][string] $BoundaryScenario = '',
+        [ValidateSet('Clean','Dirty')][string] $BoundaryPhase = 'Clean')
     Assert-ProfilingObject $Receipt 'report'
     if ($WarpRasterMode) { $WarpRasterMode=if ($WarpRasterMode -ieq 'Default') { 'Default' } else { 'CallingThread' } }
-    $schema=if ($WarpRasterMode) { 2 } else { 1 }
+    if ($BoundaryScenario) { $BoundaryScenario=@('Default','MultilineGrid','MultilineGridDistinct') | Where-Object { $_ -ieq $BoundaryScenario }; if (-not $WarpRasterMode) { $WarpRasterMode='Default' } }
+    $schema=if ($BoundaryScenario) { 3 } elseif ($WarpRasterMode) { 2 } else { 1 }
     foreach ($pair in @(@('schema',$schema),@('fixture',"dxui-complex-ui-boundaries-v$schema"),@('classification','diagnostic-only'),@('renderer','WARP'),
-            @('scenario','Default'),@('heapSampling',$false),@('boundaryTimers',$Timers),@('width',1280),@('height',720),@('dpi',96),
+            @('scenario',$(if ($BoundaryScenario) { $BoundaryScenario } else { 'Default' })),@('heapSampling',$false),@('boundaryTimers',$Timers),@('width',1280),@('height',720),@('dpi',96),
             @('controls',83),@('modelRows',1000),@('warmFrames',200),@('probeFrames',320),@('hiddenPreparations',0),@('hiddenComposites',0),
             @('hiddenSurfaceBytes',0),@('pointerBits',64),@('iteratorDebugLevel',$(if ($Configuration -eq 'Release') { 0 } else { 2 })))) {
         Assert-ProfilingExact $Receipt $pair[0] $pair[1] 'report'
@@ -289,6 +292,13 @@ function Assert-BoundaryReport {
     foreach ($key in @('timingScope','schedulingScope')) {
         if ($Receipt[$key] -isnot [string] -or [string]::IsNullOrWhiteSpace($Receipt[$key])) { throw "Invalid boundary report: $key is absent." }
     }
+    if ($BoundaryScenario -and ($Receipt['ownerCpuScope'] -isnot [string] -or [string]::IsNullOrWhiteSpace($Receipt['ownerCpuScope']))) { throw 'Invalid boundary report: owner CPU scope is absent.' }
+    if ($BoundaryScenario) {
+        $BoundaryPhase=if ($BoundaryPhase -ieq 'Dirty') { 'Dirty' } else { 'Clean' }
+        Assert-ProfilingExact $Receipt 'phase' $BoundaryPhase 'report'
+        Assert-ProfilingExact $Receipt 'firstUpdate' $(if ($BoundaryPhase -ceq 'Dirty') { 200 } else { 0 }) 'report'
+        Assert-ProfilingExact $Receipt 'dirtyAllocationCeilingPerFrame' $(if ($Configuration -eq 'Release') { 64 } else { 320 }) 'report'
+    }
     $clock=$Receipt['clock']; Assert-ProfilingObject $clock 'report.clock'
     Assert-ProfilingExact $clock 'implementation' 'QueryPerformanceCounter' 'report.clock'
     Assert-ProfilingNumber $clock 'ticksPerSecond' 'report.clock' -Integer
@@ -307,13 +317,18 @@ function Assert-BoundaryReport {
         if ($window['startedQpc'] -lt $previous -or $window['endedQpc'] -le $window['startedQpc']) { throw 'Invalid boundary report: window QPC order differs.' }
         foreach ($edge in @('cpuBefore','cpuAfter')) {
             if (-not (Assert-ProfilingCounters $window[$edge] "$context.$edge")) { $complete=$false }
-            foreach ($kindCpu in @('main','process')) { Assert-ProfilingCpuHistory $window[$edge][$kindCpu] $history $kindCpu "$context.$edge.$kindCpu" }
         }
+        foreach ($kindCpu in @('main','process')) { Assert-ProfilingCpuHistory $window.cpuBefore[$kindCpu] $history $kindCpu "$context.cpuBefore.$kindCpu" }
         Assert-ProfilingArray $window 'frames' 40 $context
         $previous=[decimal]$window['startedQpc']
         foreach ($frame in $window['frames']) {
             Assert-ProfilingObject $frame "$context.frames"
-            Assert-ProfilingExact $frame 'cppAllocations' 0 "$context.frames"
+            if ($BoundaryScenario -and $BoundaryPhase -ceq 'Dirty') {
+                Assert-ProfilingNumber $frame 'cppAllocations' "$context.frames" -Integer
+                if ($frame.cppAllocations -gt $Receipt.dirtyAllocationCeilingPerFrame) { throw 'Invalid boundary report: dirty frame exceeds its allocation ceiling.' }
+            } else { Assert-ProfilingExact $frame 'cppAllocations' 0 "$context.frames" }
+            if ($BoundaryScenario) { Assert-ProfilingExact $frame 'composeAllocations' 0 "$context.frames" }
+            $priorFrameEnd=$previous
             Assert-ProfilingArray $frame 'qpc' 9 "$context.frames"
             for ($edge=0; $edge -lt 9; $edge++) {
                 $value=@{ tick=$frame['qpc'][$edge] }; Assert-ProfilingNumber $value 'tick' "$context.frames.qpc" -Integer
@@ -325,7 +340,23 @@ function Assert-BoundaryReport {
                 $previous=[decimal]$value.tick
             }
             if ($frame.qpc[8] -le $frame.qpc[0]) { throw 'Invalid boundary report: frame must have positive duration.' }
+            if ($BoundaryScenario) {
+                Assert-ProfilingNumber $frame 'updateEndQpc' "$context.frames" -Integer
+                if (($Timers -and ($frame.updateEndQpc -lt $frame.qpc[0] -or $frame.updateEndQpc -gt $frame.qpc[1])) -or
+                    (-not $Timers -and $frame.updateEndQpc -ne 0)) { throw 'Invalid boundary report: update boundary differs from timer mode or frame order.' }
+                Assert-ProfilingArray $frame 'cpuProbeQpc' 4 "$context.frames"
+                foreach ($tick in $frame.cpuProbeQpc) { Assert-ProfilingNumber @{tick=$tick} 'tick' "$context.frames.cpuProbeQpc" -Integer }
+                if ($frame.cpuProbeQpc[0] -lt $priorFrameEnd -or $frame.cpuProbeQpc[0] -gt $frame.cpuProbeQpc[1] -or
+                    $frame.cpuProbeQpc[1] -gt $frame.qpc[0] -or $frame.qpc[8] -gt $frame.cpuProbeQpc[2] -or
+                    $frame.cpuProbeQpc[2] -gt $frame.cpuProbeQpc[3] -or $frame.cpuProbeQpc[3] -gt $window.endedQpc) { throw 'Invalid boundary report: owner CPU probe brackets do not enclose the frame.' }
+                foreach ($edge in @('ownerCpuBefore','ownerCpuAfter')) {
+                    if (-not (Assert-ProfilingCpu $frame[$edge] "$context.frames.$edge")) { $complete=$false }
+                    Assert-ProfilingCpuHistory $frame[$edge] $history 'main' "$context.frames.$edge"
+                }
+                $previous=[decimal]$frame.cpuProbeQpc[3]
+            } elseif ($frame.Contains('ownerCpuBefore') -or $frame.Contains('ownerCpuAfter') -or $frame.Contains('cpuProbeQpc')) { throw 'Invalid boundary report: owner CPU probes require v3.' }
         }
+        foreach ($kindCpu in @('main','process')) { Assert-ProfilingCpuHistory $window.cpuAfter[$kindCpu] $history $kindCpu "$context.cpuAfter.$kindCpu" }
         $previous=[decimal]$window['endedQpc']
     }
     $completeness=if ($complete) { 'complete' } else { 'partial' }
@@ -476,7 +507,9 @@ function Invoke-ProfilingMeasurement {
     param([Parameter(Mandatory)][string] $Root, [string] $Platform, [string] $Configuration,
         [ValidateSet('Default','MultilineGrid')][string] $Scenario, [bool] $Heap, [Parameter(Mandatory)][string] $OutputPath,
         [ValidateSet('','Off','On')][string] $BoundaryTimers = '',
-        [ValidateSet('','Default','CallingThread')][string] $WarpRasterMode = '')
+        [ValidateSet('','Default','CallingThread')][string] $WarpRasterMode = '',
+        [ValidateSet('','Default','MultilineGrid','MultilineGridDistinct')][string] $BoundaryScenario = '',
+        [ValidateSet('Clean','Dirty')][string] $BoundaryPhase = 'Clean')
     # PowerShell ValidateSet accepts alternate casing; native arguments have an
     # exact spelling. Normalize before constructing commands or validating output.
     $Scenario=if ($Scenario -ieq 'Default') { 'Default' } else { 'MultilineGrid' }
@@ -484,6 +517,10 @@ function Invoke-ProfilingMeasurement {
     if ($WarpRasterMode) { $WarpRasterMode=if ($WarpRasterMode -ieq 'Default') { 'Default' } else { 'CallingThread' } }
     if ($BoundaryTimers -and ($Heap -or $Scenario -ne 'Default')) { throw 'Boundary diagnostics require Default without heap sampling.' }
     if ($WarpRasterMode -and -not $BoundaryTimers) { throw 'WARP raster mode requires boundary diagnostics.' }
+    if ($BoundaryScenario -and -not $BoundaryTimers) { throw 'Boundary scenario requires boundary diagnostics.' }
+    if ($BoundaryPhase -ne 'Clean' -and -not $BoundaryScenario) { throw 'Dirty boundary phase requires an explicit boundary scenario.' }
+    $BoundaryPhase=if ($BoundaryPhase -ieq 'Dirty') { 'Dirty' } else { 'Clean' }
+    if ($BoundaryScenario) { $BoundaryScenario=@('Default','MultilineGrid','MultilineGridDistinct') | Where-Object { $_ -ieq $BoundaryScenario }; if (-not $WarpRasterMode) { $WarpRasterMode='Default' } }
     $OutputPath = [IO.Path]::GetFullPath($OutputPath)
     if ([IO.Path]::GetExtension($OutputPath) -ine '.json') { throw 'Profiling output must name a JSON report.' }
     $rootPrefix = [IO.Path]::GetFullPath($Root) + [IO.Path]::DirectorySeparatorChar
@@ -503,6 +540,7 @@ function Invoke-ProfilingMeasurement {
         $arguments = if ($BoundaryTimers) { @('--benchmark-complex-ui-boundaries',$OutputPath,$BoundaryTimers) }
             else { @('--benchmark-complex-ui-profile',$OutputPath,$Scenario,$(if ($Heap) { 'On' } else { 'Off' })) }
         if ($WarpRasterMode) { $arguments += $WarpRasterMode }
+        if ($BoundaryScenario) { $arguments[0]='--benchmark-complex-ui-boundaries-v3'; $arguments += @($BoundaryScenario,$BoundaryPhase) }
         $child = Invoke-OwnedProfilingProcess -Executable $exe -WorkingDirectory $Root -Arguments $arguments
         [IO.File]::WriteAllText(($OutputPath + '.log'), ($child.stdout + $child.stderr), [Text.UTF8Encoding]::new($false))
         $metadata = [ordered]@{}
@@ -522,7 +560,7 @@ function Invoke-ProfilingMeasurement {
         Assert-PerformanceMeasurementState -Before $before -After $after
         Assert-PerformanceBuildAttestation -Root $Root -Platform $Platform -Configuration $Configuration -State $after
         $receipt = [Text.UTF8Encoding]::new($false, $true).GetString($bytes) | ConvertFrom-Json -AsHashtable -Depth 32
-        $completeness = if ($BoundaryTimers) { Assert-BoundaryReport -Receipt $receipt -Timers ($BoundaryTimers -eq 'On') -Configuration $Configuration -ProcessId $child.processId -WarpRasterMode $WarpRasterMode }
+        $completeness = if ($BoundaryTimers) { Assert-BoundaryReport -Receipt $receipt -Timers ($BoundaryTimers -eq 'On') -Configuration $Configuration -ProcessId $child.processId -WarpRasterMode $WarpRasterMode -BoundaryScenario $BoundaryScenario -BoundaryPhase $BoundaryPhase }
             else { Assert-ProfilingReport -Receipt $receipt -Scenario $Scenario -Heap $Heap -Configuration $Configuration -ProcessId $child.processId }
         if ((Get-FileHash -LiteralPath $OutputPath -Algorithm SHA256).Hash -cne $rawHash) { throw 'Profiling native bytes changed during validation.' }
         if ((Get-FileHash -LiteralPath $capturePath -Algorithm SHA256).Hash -cne $captureHash) { throw 'Profiling capture bytes changed during validation.' }
