@@ -4,11 +4,11 @@ One entry per plan, separated by blank lines, so that changes to different plans
 
 - **ACTIVE**: [Stationary submenu hover](StationarySubmenuHover_2026-10-28.md). A pointer-seeded eligible submenu row must receive the existing cascade delay without requiring a later mouse move; source fix and native qualification remain pending review.
 
-- **ACTIVE**: [Qualification runner reliability](QualificationRunnerReliability_2026-10-28.md). Atomic progress updates with concurrent readers and explicit successful runner exit-state normalization; controlled failures are retained and final source qualification remains pending.
+- **ACTIVE**: [Qualification runner reliability](QualificationRunnerReliability_2026-10-28.md). Current producer 0a2279c has six builds and six focused Debug Menu cases passing; ordinary runtime is partial at 19/57 with zero skips, while Release, ASan, twelve foreground suites and final tooling remain open. Windows/Linux tooling/format pass; all six hosted native profiles are in progress. Historical c155 completed with two ARM64 native failures and an inconclusive paired result (71/72 unstable controls). Historical 6e, d4, test-only 921 and 762 outcomes remain distinct.
 
 - **ACTIVE**: [Subtle Markdown presentation](SubtleMarkdownPresentation_2026-10-27.md). Opt-in heading rules, intrinsic tables, centered display objects and shaded quotes for RedTilde; focused rendering and exact consumer adoption qualification are in progress. Earlier performance/CI queues remain paused.
 
-- **ACTIVE**: [Configured icon fallback reading direction](IconFallbackReadingDirection_2026-10-28.md). The Small fallback preserves requested direction for all configured icon roles with deterministic cache-seeded coverage; source changes await the focused regression and six-profile native qualification.
+- **ACTIVE**: [Configured icon fallback reading direction](IconFallbackReadingDirection_2026-10-28.md). The Small fallback preserves requested direction for all configured icon roles with deterministic cache-seeded coverage. Current producer 0a2279c has six builds and six focused Debug Menu cases passing, with 19/57 ordinary executions complete; Release, ASan, foreground and hosted native gates remain open.
 
 - **ACTIVE**: [MSVC 14.52 and Release optimization](Msvc1452ReleaseOptimization_2026-10-23.md). The compiler repair and six-profile cohort are archived; separate post-merge TSF and inactive-host focus contract repairs await final-source qualification. Five-repository paired, performance/manual and release holds remain open.
 
@@ -72,7 +72,4 @@ Completed records are `../Done/SharedLibraryReadiness_2026-09-09.md`,
 user-deferred to RedSalamander's `DxUi_DeferredPlatformQualification_2026-09-13.md`.
 RedXe retains its separately owned hardware, real IME and assistive-technology gates.
 
-- **ACTIVE**: [Delayed submenu-close foreground qualification](MenuDelayedSubmenuForeground_2026-10-28.md). Preserve the main ARM64 Release failure, repair the two-Show test's foreground accounting and complete native qualification without changing product dismissal behavior.
-
-Plans never override normative contracts. Completed plans move to Done after
-validation and normative closeout.
+- **ACTIVE**: [Delayed submenu-close foreground qualification](MenuDelayedSubmenuForeground_2026-10-28.md). Preserve the 6e/594 delayed-hover failure, d4 keyboard/hosted failures, and 921 test-only Home-cancellation red case. Current producer 0a2279c has six focused Debug Menu cases passing; 19/57 ordinary executions are complete, and Release, ASan, twelve foreground suites and hosted native jobs remain open.

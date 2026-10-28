@@ -1,0 +1,556 @@
+{
+  "schemaVersion": 2,
+  "packetStatus": "current-producer-0a2279c-partial; historical-attempts-retained; qualification-in-progress",
+  "producerSource": {
+    "repository": "RedSalamanders/DxUi",
+    "commit": "0a2279c7ea658e4bb0cf185cb7a04a2da08299d3",
+    "commitUrl": "https://github.com/RedSalamanders/DxUi/commit/0a2279c7ea658e4bb0cf185cb7a04a2da08299d3",
+    "cleanAtCheckpoint": true,
+    "compiledSourceIdentity": null,
+    "note": "Current receipts are source-bound to this commit; per-profile compiled identities and hashes are retained in localBuilds. Prior source outcomes are explicitly historical."
+  },
+  "localBuilds": {
+    "status": "PASS",
+    "allSixProfilesPassed": true,
+    "profiles": [
+      {
+        "profile": "x64-Debug",
+        "sourceCommit": "0a2279c7ea658e4bb0cf185cb7a04a2da08299d3",
+        "status": "PASSED",
+        "incrementalStatus": "PASSED",
+        "buildIdentity": "5f7b4d6ba60f20269aee4a772691bb919068de452f4caa086f50d107bf16ee93",
+        "buildDigest": "d28e21783fb8ed873fa2b3d6de4bfe8f60075859493c39ce85efd3bf4b3f55f8",
+        "buildReceiptSha256": "911BC477908D8DFC3F40F98746EE92B85EE3407CE72EB1D015F3C7E6B553344B",
+        "incrementalReceiptSha256": "2F42F1BDCF1000D13BDD034AF89BADD5BDAC11365ED911B94DE9914032ABE85B"
+      },
+      {
+        "profile": "x64-Release",
+        "sourceCommit": "0a2279c7ea658e4bb0cf185cb7a04a2da08299d3",
+        "status": "PASSED",
+        "incrementalStatus": "PASSED",
+        "buildIdentity": "9b7b3daff063699845be9350a6a83423152d8031b880a7320c9b402920c86276",
+        "buildDigest": "47eebecf6af53c83a0d2216bae0f9c44434c9a84d8c3614dbd67472cfe5c85a9",
+        "buildReceiptSha256": "122CD419ACF2626C24B1A42EE6E0229115513840106B4538BB8FDD115B59FD88",
+        "incrementalReceiptSha256": "D962C2279BF388AA53A38019FACA32AD54C39AFBDD54FD9C016B4C7B75F3160D"
+      },
+      {
+        "profile": "x64-ASan-Debug",
+        "sourceCommit": "0a2279c7ea658e4bb0cf185cb7a04a2da08299d3",
+        "status": "PASSED",
+        "incrementalStatus": "PASSED",
+        "buildIdentity": "dc189012b6fdd6cd6fc3dccea0a71e6d5b087037e3036e57446c37d5edf98861",
+        "buildDigest": "1f8fe958079ca98bee6f7dc98bbe48548b4853eeaa3aaff89027fba43a2889f4",
+        "buildReceiptSha256": "E94218E71C414CFA65E262C4BF53C3C1254C14F3F6395699C8BCEB08BFFC6A66",
+        "incrementalReceiptSha256": "E46B260DF62E70A6DB1A7B67CE768B041322C4F8D4D06CA5C04401C341BA77B1"
+      },
+      {
+        "profile": "ARM64-Debug",
+        "sourceCommit": "0a2279c7ea658e4bb0cf185cb7a04a2da08299d3",
+        "status": "PASSED",
+        "incrementalStatus": "PASSED",
+        "buildIdentity": "bae0f4d0330ea2c5599cb66923dc24954ac1975059b294e9a27ecfcb3cac3db3",
+        "buildDigest": "b28eae8a0475218f63e59aee86486e78c54c594deae4f514836499c017c4bc3a",
+        "buildReceiptSha256": "311CFE422650BD36CDB65153D4B804022A5015C19ABD88AEE51225804862B045",
+        "incrementalReceiptSha256": "6CE284AA4954B6C2635C058393B8F7993D43FC810134036B8B40CB7DE3AADE99"
+      },
+      {
+        "profile": "ARM64-Release",
+        "sourceCommit": "0a2279c7ea658e4bb0cf185cb7a04a2da08299d3",
+        "status": "PASSED",
+        "incrementalStatus": "PASSED",
+        "buildIdentity": "accb5033051d445cf33ad4daf696290433ec4e0c169063f574611259c842d163",
+        "buildDigest": "63a5eebc551dee63210597654ec796c40f3fac9d308ae3e671d67eaec1e73c3f",
+        "buildReceiptSha256": "FE1BBB7E02417BB68EB23C536AE158D5DCEF503E89D56175FF868BFAAD7FCB4D",
+        "incrementalReceiptSha256": "5ABD2B59ED2D8ADE01691F8165BC70C89C7FD28F82D32BDA2422D4908D2AEADD"
+      },
+      {
+        "profile": "ARM64-ASan-Debug",
+        "sourceCommit": "0a2279c7ea658e4bb0cf185cb7a04a2da08299d3",
+        "status": "PASSED",
+        "incrementalStatus": "PASSED",
+        "buildIdentity": "e9a2bee42c9e9f4f0e412a84d4e43af3e657f16c8b3787d67b81a942aa5db5c0",
+        "buildDigest": "1923e8297a15cde4e2e8be4af07649a796585b6ab5c2e5f13bbbad4b7d1c87fd",
+        "buildReceiptSha256": "48B8936AA539A67AD7DD39004BC801A7CB85EA767B9BE6D3EADA37348F4FD01F",
+        "incrementalReceiptSha256": "3CEC83B21266B69ECBF7A256C48985A56AFBDF5B23587382A0FA1680B9BD4C4B"
+      }
+    ],
+    "summaryReceiptSha256": "CFA63CF388E75180AEBB8596DBA9974A77B277B8378A9BFAA34805FE1AB7ED74",
+    "arm64Runtime": "not-established-by-cross-builds"
+  },
+  "staticValidation": {
+    "status": "PENDING_FINAL_RERUN",
+    "lastAttempt": {
+      "sourceCommit": "0a2279c7ea658e4bb0cf185cb7a04a2da08299d3",
+      "status": "FAILED",
+      "exitCode": 1,
+      "receiptSha256": "187CB8888236D40E4D436E52E8D45C7690EA71FBB4E311936D7CAEE2D65C713D",
+      "observedFailure": "The external-timeout fixture reported a missing progress path at its read site after a separate existence check.",
+      "cause": "unassigned; TestSupport removed the fixture during failure unwind."
+    },
+    "note": "The corrected fixture has a focused isolated 8/8 receipt but has not yet been integrated and full-static revalidated against this producer."
+  },
+  "runtime": {
+    "focusedMenuDebug": {
+      "status": "PASS",
+      "profile": "x64-Debug",
+      "cases": [
+        "TestMenuKeyboardRightArrowMatchesWindowsMenuLoop",
+        "TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop",
+        "TestMenuKeyboardRootSwitchIgnoresStationaryPostedMove",
+        "TestMenuKeyboardRootSwitchIgnoresStationarySentMove",
+        "TestMenuKeyboardSubmenuIgnoresStationaryPostedMove",
+        "TestMenuKeyboardSubmenuIgnoresStationarySentMove"
+      ],
+      "passedCases": 6,
+      "skips": 0,
+      "exitCode": 0,
+      "buildIdentity": "5f7b4d6ba60f20269aee4a772691bb919068de452f4caa086f50d107bf16ee93",
+      "executableSha256": "C0B2C366CD417CD3ABF3931BF3A28EA6064B8316DBF9D27D530F3646D5FDB61A",
+      "pdbSha256": "D2D49721091988399CB3EF1631C96094EB8439C439355C5317EFE1883C5DA633",
+      "callerReceiptSha256": "F9FAC2668FEE12CEA334E03DD13B4427725E1FEB91C48FBFF6D8517991C48974",
+      "testLogSha256": "66F370469B21707D0316367820F7EC85539AE619E650EF09C9F9B37E2ED964F7"
+    },
+    "ordinaryX64Full": {
+      "status": "PARTIAL",
+      "completedExecutions": 19,
+      "passedExecutions": 19,
+      "expectedExecutions": 57,
+      "skips": 0,
+      "latestProfile": "x64-Debug",
+      "profileReceiptSha256": "EDBC8A393F0546BA42E6CB8824B6B5BCC793E6F5D4B704AD7CE0361DBF6FB2B5",
+      "remainingProfiles": [
+        "x64-Release",
+        "x64-ASan-Debug"
+      ],
+      "note": "19/57 ordinary executions are complete. Release and ASan runs remain pending."
+    },
+    "authorizedForeground": {
+      "status": "PENDING",
+      "expectedSuiteRuns": 12
+    },
+    "asanDetectorProbe": {
+      "status": "PENDING",
+      "note": "A successful ASan build is not an ASan runtime probe."
+    }
+  },
+  "hostedCi": {
+    "pullRequest": 128,
+    "url": "https://github.com/RedSalamanders/DxUi/pull/128",
+    "sourceCommit": "0a2279c7ea658e4bb0cf185cb7a04a2da08299d3",
+    "status": "IN_PROGRESS",
+    "formatRun": {
+      "runId": 40777144009,
+      "status": "PASS"
+    },
+    "validationRun": {
+      "runId": 40777143980,
+      "status": "QUEUED_AT_LAST_CAPTURE"
+    },
+    "finalNativeAndConsumerGate": "PENDING",
+    "latestSnapshot": {
+      "toolingAndFormat": "PASS",
+      "platforms": [
+        "Windows",
+        "Linux"
+      ],
+      "nativeProfilesStatus": "IN_PROGRESS",
+      "nativeProfilesExpected": 6,
+      "finalGate": "PENDING"
+    }
+  },
+  "candidateHostedCi": {
+    "workflowRunId": 40777143980,
+    "candidateCommit": "0a2279c7ea658e4bb0cf185cb7a04a2da08299d3",
+    "status": "IN_PROGRESS",
+    "note": "Do not infer a final gate from a queued validation snapshot.",
+    "latestSnapshot": {
+      "windowsLinuxToolingAndFormat": "PASS",
+      "nativeProfilesStatus": "IN_PROGRESS",
+      "nativeProfilesExpected": 6,
+      "finalGate": "PENDING"
+    }
+  },
+  "pullRequests": [
+    {
+      "number": 124,
+      "url": "https://github.com/RedSalamanders/DxUi/pull/124",
+      "relation": "stack base; paired result is historical and policy-inconclusive",
+      "state": "TODO_RECHECK"
+    },
+    {
+      "number": 125,
+      "url": "https://github.com/RedSalamanders/DxUi/pull/125",
+      "relation": "qualification runner reliability",
+      "state": "TODO_RECHECK"
+    },
+    {
+      "number": 126,
+      "url": "https://github.com/RedSalamanders/DxUi/pull/126",
+      "relation": "stationary-cursor submenu candidate stacked on PR125",
+      "candidateCommit": "d4a36c09ede66aee60974ebb6da76d83109596e0",
+      "state": "candidate-qualification-pending"
+    },
+    {
+      "number": 128,
+      "url": "https://github.com/RedSalamanders/DxUi/pull/128",
+      "relation": "current 0a2279c producer candidate",
+      "state": "OPEN_AT_CAPTURE"
+    }
+  ],
+  "historicalPairedEvidence": {
+    "sourceScope": "PR124 tested source, not this closeout source",
+    "reportSha256": "126acbf80631bae8466711145fcb10bdfca01e0967def9bafd5306f6ec923b5f",
+    "metricRowsReplayed": 78,
+    "resolvedPrimaryRegressions": 0,
+    "unstableSameSideControls": 70,
+    "sameSideComparisons": 72,
+    "producerConclusion": "inconclusive-unqualified-base-policy",
+    "performanceAcceptance": false
+  },
+  "historicalObserverFollowup": {
+    "report": "historical-124-observer.md",
+    "machineReadableSummary": "historical-124-observer.json",
+    "runId": 40682230783,
+    "rawTraceSha256": "810895FF0F28838613432BBAF1A0490C95AA0834079FE526C372CA072861D65D",
+    "percentileMethod": "nearest-rank sorted[ceil(0.95*n)-1]; conventional median",
+    "allProcessObservedEndpointIntervals": 315,
+    "allProcessObservedMedianBusyCoreEquivalents": 2.2196123582,
+    "allProcessObservedNearestRankP95BusyCoreEquivalents": 3.3169558147,
+    "reportEndIntervals": 144,
+    "reportEndMedianBusyCoreEquivalents": 2.8463948774,
+    "reportEndNearestRankP95BusyCoreEquivalents": 3.3800767943,
+    "processMapping": "144 logical time/name matches; trace has no executable image or process start identity",
+    "quietHostCriterionDeclared": false,
+    "conclusion": "Both CPU populations include benchmark and unrelated work; cannot attribute the 70/72 unstable controls to broad host load or claim a quiet host.",
+    "performanceAcceptance": false
+  },
+  "historicalC155PairedEvidence": {
+    "artifactId": 12853852639,
+    "artifactBytes": 194043636,
+    "artifactSha256": "50b3ca732ad9a2e60cd904282c468d472709c1be5f68cd11fff7345be02cd2fb",
+    "rawReports": 144,
+    "rawReceiptHashesMatched": 144,
+    "numericRowsReplayed": 78,
+    "numericRowsMatched": 78,
+    "unstableSameSideComparisons": 71,
+    "sameSideComparisons": 72,
+    "verdict": "INCONCLUSIVE; policy review required",
+    "performanceAcceptance": false,
+    "providerManifestSha256": "6B65F6523D37233A047BD6953A5AA8FC09DD81D5A0BFDFF0EE1B30E28041326B",
+    "numericReplaySha256": "D18DC82A1CA2E0FE7C18E3E7445EEA4A20ACF66444E4C2091BD2E505404D6E30",
+    "controlReplaySha256": "55C2D084E2379D86B19F2FC6D3BD4E5C34103A4872FDD296DD6142461A0440E3",
+    "timingResolutionFinding": "All 57,600 preparation samples fall on 100 ns QPC bins. Clean Prepare p95 is 600-900 ns, while 5% is 30-45 ns. This resolution limit applies to tiny clean Prepare only and is not a general explanation for unstable controls.",
+    "resolvedPrimaryRegressions": 0,
+    "rawReportFlagsPreserved": true,
+    "rawReportFlagsNote": "Raw flags remain unchanged in the sealed paired artifact; this summary reports the independently resolved primary-regression count."
+  },
+  "sourceAttempts": [
+    {
+      "attemptId": "producer-0a2279c-current",
+      "sourceCommit": "0a2279c7ea658e4bb0cf185cb7a04a2da08299d3",
+      "role": "current producer",
+      "status": "PARTIAL",
+      "localBuilds": {
+        "status": "PASS",
+        "profiles": [
+          {
+            "profile": "x64-Debug",
+            "sourceCommit": "0a2279c7ea658e4bb0cf185cb7a04a2da08299d3",
+            "status": "PASSED",
+            "incrementalStatus": "PASSED",
+            "buildIdentity": "5f7b4d6ba60f20269aee4a772691bb919068de452f4caa086f50d107bf16ee93",
+            "buildDigest": "d28e21783fb8ed873fa2b3d6de4bfe8f60075859493c39ce85efd3bf4b3f55f8",
+            "buildReceiptSha256": "911BC477908D8DFC3F40F98746EE92B85EE3407CE72EB1D015F3C7E6B553344B",
+            "incrementalReceiptSha256": "2F42F1BDCF1000D13BDD034AF89BADD5BDAC11365ED911B94DE9914032ABE85B"
+          },
+          {
+            "profile": "x64-Release",
+            "sourceCommit": "0a2279c7ea658e4bb0cf185cb7a04a2da08299d3",
+            "status": "PASSED",
+            "incrementalStatus": "PASSED",
+            "buildIdentity": "9b7b3daff063699845be9350a6a83423152d8031b880a7320c9b402920c86276",
+            "buildDigest": "47eebecf6af53c83a0d2216bae0f9c44434c9a84d8c3614dbd67472cfe5c85a9",
+            "buildReceiptSha256": "122CD419ACF2626C24B1A42EE6E0229115513840106B4538BB8FDD115B59FD88",
+            "incrementalReceiptSha256": "D962C2279BF388AA53A38019FACA32AD54C39AFBDD54FD9C016B4C7B75F3160D"
+          },
+          {
+            "profile": "x64-ASan-Debug",
+            "sourceCommit": "0a2279c7ea658e4bb0cf185cb7a04a2da08299d3",
+            "status": "PASSED",
+            "incrementalStatus": "PASSED",
+            "buildIdentity": "dc189012b6fdd6cd6fc3dccea0a71e6d5b087037e3036e57446c37d5edf98861",
+            "buildDigest": "1f8fe958079ca98bee6f7dc98bbe48548b4853eeaa3aaff89027fba43a2889f4",
+            "buildReceiptSha256": "E94218E71C414CFA65E262C4BF53C3C1254C14F3F6395699C8BCEB08BFFC6A66",
+            "incrementalReceiptSha256": "E46B260DF62E70A6DB1A7B67CE768B041322C4F8D4D06CA5C04401C341BA77B1"
+          },
+          {
+            "profile": "ARM64-Debug",
+            "sourceCommit": "0a2279c7ea658e4bb0cf185cb7a04a2da08299d3",
+            "status": "PASSED",
+            "incrementalStatus": "PASSED",
+            "buildIdentity": "bae0f4d0330ea2c5599cb66923dc24954ac1975059b294e9a27ecfcb3cac3db3",
+            "buildDigest": "b28eae8a0475218f63e59aee86486e78c54c594deae4f514836499c017c4bc3a",
+            "buildReceiptSha256": "311CFE422650BD36CDB65153D4B804022A5015C19ABD88AEE51225804862B045",
+            "incrementalReceiptSha256": "6CE284AA4954B6C2635C058393B8F7993D43FC810134036B8B40CB7DE3AADE99"
+          },
+          {
+            "profile": "ARM64-Release",
+            "sourceCommit": "0a2279c7ea658e4bb0cf185cb7a04a2da08299d3",
+            "status": "PASSED",
+            "incrementalStatus": "PASSED",
+            "buildIdentity": "accb5033051d445cf33ad4daf696290433ec4e0c169063f574611259c842d163",
+            "buildDigest": "63a5eebc551dee63210597654ec796c40f3fac9d308ae3e671d67eaec1e73c3f",
+            "buildReceiptSha256": "FE1BBB7E02417BB68EB23C536AE158D5DCEF503E89D56175FF868BFAAD7FCB4D",
+            "incrementalReceiptSha256": "5ABD2B59ED2D8ADE01691F8165BC70C89C7FD28F82D32BDA2422D4908D2AEADD"
+          },
+          {
+            "profile": "ARM64-ASan-Debug",
+            "sourceCommit": "0a2279c7ea658e4bb0cf185cb7a04a2da08299d3",
+            "status": "PASSED",
+            "incrementalStatus": "PASSED",
+            "buildIdentity": "e9a2bee42c9e9f4f0e412a84d4e43af3e657f16c8b3787d67b81a942aa5db5c0",
+            "buildDigest": "1923e8297a15cde4e2e8be4af07649a796585b6ab5c2e5f13bbbad4b7d1c87fd",
+            "buildReceiptSha256": "48B8936AA539A67AD7DD39004BC801A7CB85EA767B9BE6D3EADA37348F4FD01F",
+            "incrementalReceiptSha256": "3CEC83B21266B69ECBF7A256C48985A56AFBDF5B23587382A0FA1680B9BD4C4B"
+          }
+        ],
+        "summaryReceiptSha256": "CFA63CF388E75180AEBB8596DBA9974A77B277B8378A9BFAA34805FE1AB7ED74",
+        "allSixProfilesPassed": true,
+        "arm64Runtime": "not-established-by-cross-builds"
+      },
+      "focusedMenu": {
+        "status": "PASS",
+        "profile": "x64-Debug",
+        "cases": [
+          "TestMenuKeyboardRightArrowMatchesWindowsMenuLoop",
+          "TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop",
+          "TestMenuKeyboardRootSwitchIgnoresStationaryPostedMove",
+          "TestMenuKeyboardRootSwitchIgnoresStationarySentMove",
+          "TestMenuKeyboardSubmenuIgnoresStationaryPostedMove",
+          "TestMenuKeyboardSubmenuIgnoresStationarySentMove"
+        ],
+        "passedCases": 6,
+        "skips": 0,
+        "exitCode": 0,
+        "buildIdentity": "5f7b4d6ba60f20269aee4a772691bb919068de452f4caa086f50d107bf16ee93",
+        "executableSha256": "C0B2C366CD417CD3ABF3931BF3A28EA6064B8316DBF9D27D530F3646D5FDB61A",
+        "pdbSha256": "D2D49721091988399CB3EF1631C96094EB8439C439355C5317EFE1883C5DA633",
+        "callerReceiptSha256": "F9FAC2668FEE12CEA334E03DD13B4427725E1FEB91C48FBFF6D8517991C48974",
+        "testLogSha256": "66F370469B21707D0316367820F7EC85539AE619E650EF09C9F9B37E2ED964F7"
+      },
+      "staticValidation": {
+        "finalStatus": "PENDING",
+        "lastAttempt": {
+          "status": "FAILED",
+          "exitCode": 1,
+          "receiptSha256": "187CB8888236D40E4D436E52E8D45C7690EA71FBB4E311936D7CAEE2D65C713D",
+          "observedFailure": "The external-timeout fixture reported a missing progress path at its read site after a separate existence check.",
+          "initiatingCause": "unassigned; TestSupport removed the fixture during failure unwind."
+        }
+      },
+      "ordinaryX64Runtime": {
+        "status": "PARTIAL",
+        "completedExecutions": 19,
+        "passedExecutions": 19,
+        "expectedExecutions": 57,
+        "skips": 0,
+        "latestProfile": "x64-Debug",
+        "profileReceiptSha256": "EDBC8A393F0546BA42E6CB8824B6B5BCC793E6F5D4B704AD7CE0361DBF6FB2B5",
+        "remainingProfiles": [
+          "x64-Release",
+          "x64-ASan-Debug"
+        ]
+      },
+      "crossProfileForeground": {
+        "status": "PENDING",
+        "expectedSuiteExecutions": 12
+      },
+      "finalToolingAndHostedCi": {
+        "status": "IN_PROGRESS",
+        "windowsLinuxToolingAndFormat": "PASS",
+        "nativeProfilesStatus": "IN_PROGRESS",
+        "nativeProfilesExpected": 6,
+        "finalGate": "PENDING"
+      },
+      "performanceAcceptance": "NOT_CLAIMED"
+    },
+    {
+      "attemptId": "production-6e90427b-historical",
+      "sourceCommit": "6e90427bce5200f7c583d7f4c81f6c4dcfd77f62",
+      "role": "historical production checkpoint",
+      "localBuilds": {
+        "status": "PASS",
+        "profiles": 6
+      },
+      "ordinaryX64Runtime": {
+        "status": "PASS",
+        "suiteExecutions": 57,
+        "skips": 0
+      },
+      "foreground": {
+        "status": "FAILED",
+        "expected": 12,
+        "passed": 11,
+        "failed": 1,
+        "failure": "ASan Debug Menu: TestMenuHoveringSiblingWithChildrenReplacesOpenSubmenuAfterDelay",
+        "restoration": "verified for completed leases"
+      },
+      "testOnlyRedReproduction": {
+        "testSource": "594667be7d0790b7b1a6ecd597177c79a0595578",
+        "outcome": "expected red against unchanged 6e production",
+        "failure": "pending submenu timer did not fire before delayed replacement assertion"
+      },
+      "hostedCi": {
+        "runId": 40717449947,
+        "status": "PASS",
+        "nativeProfilesPassed": 6,
+        "appliesToSource": "6e only"
+      }
+    },
+    {
+      "attemptId": "candidate-d4a36c09-historical",
+      "sourceCommit": "d4a36c09ede66aee60974ebb6da76d83109596e0",
+      "pullRequest": 126,
+      "role": "historical candidate",
+      "localBuilds": {
+        "status": "PASS",
+        "profiles": 6
+      },
+      "ordinaryX64Runtime": {
+        "status": "PASS",
+        "suiteExecutions": 57,
+        "skips": 0
+      },
+      "focusedMenu": {
+        "status": "PASS",
+        "cases": 6,
+        "skips": 0
+      },
+      "foreground": {
+        "status": "FAILED",
+        "failure": "x64 Debug Menu: TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop",
+        "cause": "unassigned"
+      },
+      "hostedCi": {
+        "runId": 40737741687,
+        "status": "FAILED",
+        "nativeProfilesPassed": 5,
+        "nativeFailure": "ARM64 Debug Info-row result; cause unassigned",
+        "pairedJob": "cancelled",
+        "pairedArtifact": {
+          "id": 12846207518,
+          "downloaded": false,
+          "replayed": false
+        },
+        "ciGate": "FAILED"
+      }
+    },
+    {
+      "attemptId": "candidate-c155de84-historical",
+      "sourceCommit": "c155de84e68cee4a8fa118c58b5bc3cbcb53aaf9",
+      "pullRequest": 126,
+      "role": "historical candidate, not current producer",
+      "localBuilds": {
+        "status": "PASS",
+        "profiles": 6
+      },
+      "ordinaryX64Runtime": {
+        "status": "PASS",
+        "suiteExecutions": 57,
+        "skips": 0,
+        "receiptSha256": "1E7E5CEF6F9748710C61F22320AEBFDCE264571E1E43894610206E580CF0F3ED"
+      },
+      "foreground": {
+        "status": "PASS",
+        "expected": 12,
+        "passed": 12,
+        "actualAsanExecution": true,
+        "restoration": "verified"
+      },
+      "hostedCi": {
+        "runId": 40757949246,
+        "candidateHead": "c155de84e68cee4a8fa118c58b5bc3cbcb53aaf9",
+        "testedTree": "c61685fd320ba61849a967c5c1ee7d59136edb8d",
+        "buildsPassed": 6,
+        "publicConsumerChecksPassed": 6,
+        "nativeProfilesFullyPassed": 4,
+        "nativeProfilesFailed": 2,
+        "fullNativeReportRows": 126,
+        "passedRows": 124,
+        "failedRows": 2,
+        "skips": 0,
+        "failures": [
+          "ARM64 Release: TestMenuKeyboardRightArrowMatchesWindowsMenuLoop",
+          "ARM64 ASan Debug: TestStationaryMouseDoesNotOverrideKeyboardRootSwitch"
+        ]
+      },
+      "pairedPerformance": {
+        "artifactId": 12853852639,
+        "artifactBytes": 194043636,
+        "artifactSha256": "50b3ca732ad9a2e60cd904282c468d472709c1be5f68cd11fff7345be02cd2fb",
+        "rawReports": 144,
+        "rawReceiptHashesMatched": 144,
+        "numericRowsReplayed": 78,
+        "numericRowsMatched": 78,
+        "unstableSameSideComparisons": 71,
+        "sameSideComparisons": 72,
+        "verdict": "INCONCLUSIVE; policy review required",
+        "performanceAcceptance": false,
+        "providerManifestSha256": "6B65F6523D37233A047BD6953A5AA8FC09DD81D5A0BFDFF0EE1B30E28041326B",
+        "numericReplaySha256": "D18DC82A1CA2E0FE7C18E3E7445EEA4A20ACF66444E4C2091BD2E505404D6E30",
+        "controlReplaySha256": "55C2D084E2379D86B19F2FC6D3BD4E5C34103A4872FDD296DD6142461A0440E3",
+        "timingResolutionFinding": "All 57,600 preparation samples fall on 100 ns QPC bins. Clean Prepare p95 is 600-900 ns, while 5% is 30-45 ns. This resolution limit applies to tiny clean Prepare only and is not a general explanation for unstable controls.",
+        "resolvedPrimaryRegressions": 0,
+        "rawReportFlagsPreserved": true,
+        "rawReportFlagsNote": "Raw flags remain unchanged in the sealed paired artifact; this summary reports the independently resolved primary-regression count."
+      }
+    }
+  ],
+  "openOwnerGates": [
+    "0a2279c full 57-suite ordinary x64 runtime",
+    "0a2279c twelve-suite cross-profile foreground obligation",
+    "0a2279c final static/tooling and hosted CI",
+    "shared performance policy and controls",
+    "consumer and physical-platform gates"
+  ],
+  "closeoutTodo": [
+    "Finish the 57-suite ordinary x64 runtime on 0a2279c with source-bound receipts.",
+    "Complete the twelve-suite cross-profile foreground obligation on 0a2279c with actual ASan and restoration evidence.",
+    "Integrate the reviewed timeout fixture correction and rerun full static/tooling for 0a2279c.",
+    "Recheck PR #128 and hosted CI before reporting a final verdict.",
+    "Keep performance acceptance and consumer/platform gates separate."
+  ],
+  "historicalTestOnlyExperiments": [
+    {
+      "sourceCommit": "92193a7787cd1ce247de7d8f7d82d922ce0499f8",
+      "receiptSha256": "3094FCB1E37AA6731EE39BD3CD0E9BD4268088A8D27DB59B74C3554C939DA25F",
+      "scope": "test-only ordered UI-thread Home-cancellation regression",
+      "result": "expected red: assertion that Home cancels the root pending-open timer failed; the timer remained pending before Right navigation; production source remained d4",
+      "basedOnProductionCommit": "d4a36c09ede66aee60974ebb6da76d83109596e0"
+    },
+    {
+      "sourceCommit": "762983a021c448e4c7334d347ba46f79e20ac817",
+      "receiptSha256": "8C6E26ECA373641B210165568664EA77C964C5106B72F764F5994F00CE4E3BA7",
+      "scope": "historical x64 Debug compile attempt",
+      "result": "FAILED at compile: C2039 ContextMenuPopupDebugState has no member itemCount in test source; no runtime qualification"
+    },
+    {
+      "sourceCommit": "594667be7d0790b7b1a6ecd597177c79a0595578",
+      "basedOnProductionCommit": "6e90427bce5200f7c583d7f4c81f6c4dcfd77f62",
+      "scope": "test-only controlled stationary-submenu red reproduction",
+      "result": "expected assertion failure: pending submenu timer remained active before the replacement delay",
+      "productionSourceChanged": false
+    }
+  ],
+  "historicalD4HostedReceipts": {
+    "ciFinalSha256": "92D90DE5C0DC6065E5DA0ABAB365CF40A9AD15BB958676BF30D348AA6D258809",
+    "artifactInventorySha256": "713C691DCC24796EB5332FB5ECADF20C2F8E82C4062937D15B24667360425F7B"
+  },
+  "historicalProvisionalTemplateSnapshot": {
+    "classification": "historical-provisional-before-producer-0a-reconcile",
+    "relativePath": ".build/before-packet-reconcile-20261028/qualification.json.template.historical-provisional-c155-before-0a-reconcile",
+    "bytes": 31736,
+    "sha256": "F25D4B3D0CDFE63B288738D812A5C70825B4021CD4E5B5E8C80489AE79708B78",
+    "originalFlatTemplateSha256": "F25D4B3D0CDFE63B288738D812A5C70825B4021CD4E5B5E8C80489AE79708B78"
+  }
+}
