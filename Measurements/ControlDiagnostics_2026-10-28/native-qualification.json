@@ -1,0 +1,275 @@
+{
+  "schema": "public-safe-native-qualification-projection-v1",
+  "sourceCommit": "0b8e76c58a11698744e6a4ce5f803f6170b1f2b6",
+  "localQualification": {
+    "rootResultsAndLogs": [
+      {
+        "phase": "build",
+        "profile": "x64/Debug",
+        "resultFileSha256": "8123C3138F1F4155E80365171E98294F2703E2FD8E21B889AD61E921566B108B",
+        "logSha256": "746CFED7576C9051B10DDEEA7333BFFBC56AAF4B27DBF2E4D9150DE8B9726ADB",
+        "sourceCommit": "0b8e76c58a11698744e6a4ce5f803f6170b1f2b6",
+        "exitCode": 0,
+        "startedUtc": "2026-10-28T06:54:03.012795Z",
+        "completedUtc": "2026-10-28T06:59:13.0146215Z"
+      },
+      {
+        "phase": "build",
+        "profile": "x64/Release",
+        "resultFileSha256": "B6D40CC2F5D110542E43241FEE3A9B2D6AE40AA4F86CEA46DD488754A0480EF4",
+        "logSha256": "B31814493D413FE636F5C0D17A18172A8470E17AEF8396244EA75B88F48C6C14",
+        "sourceCommit": "0b8e76c58a11698744e6a4ce5f803f6170b1f2b6",
+        "exitCode": 0,
+        "startedUtc": "2026-10-28T06:47:58.3777795Z",
+        "completedUtc": "2026-10-28T06:54:02.9944348Z"
+      },
+      {
+        "phase": "build",
+        "profile": "x64/ASan Debug",
+        "resultFileSha256": "C930CEBDD8BC8F197FC9389752FA92A93E811CB0624D8AB4C2980CA91DC6FF86",
+        "logSha256": "02314874BF7366ECDF2E5CF5830B241D352353140F58AB862EFEF7E783709397",
+        "sourceCommit": "0b8e76c58a11698744e6a4ce5f803f6170b1f2b6",
+        "exitCode": 0,
+        "startedUtc": "2026-10-28T06:59:13.0243674Z",
+        "completedUtc": "2026-10-28T07:04:32.1221353Z"
+      },
+      {
+        "phase": "build",
+        "profile": "ARM64/Debug",
+        "resultFileSha256": "EECC6E7102CFB785ED9734E9BC2123FFF61C95F5A29244E0E5284BEDADD124F7",
+        "logSha256": "2CFF03A6F93B6CCA6C9333FED0029BC9CAF999F1B8C6AE3F7A26D32EBDD12CD2",
+        "sourceCommit": "0b8e76c58a11698744e6a4ce5f803f6170b1f2b6",
+        "exitCode": 0,
+        "startedUtc": "2026-10-28T07:10:58.6811893Z",
+        "completedUtc": "2026-10-28T07:17:37.962556Z"
+      },
+      {
+        "phase": "build",
+        "profile": "ARM64/Release",
+        "resultFileSha256": "8C194385DC639A32C714A078DAF8EEDECDF2FEA460874BD8900FD1ACF5070963",
+        "logSha256": "28D0D0CB24841B1AC8CD6B25FA6933E19F323597B88A509BABC4CC7874833AAA",
+        "sourceCommit": "0b8e76c58a11698744e6a4ce5f803f6170b1f2b6",
+        "exitCode": 0,
+        "startedUtc": "2026-10-28T07:04:32.1313984Z",
+        "completedUtc": "2026-10-28T07:10:58.6697007Z"
+      },
+      {
+        "phase": "build",
+        "profile": "ARM64/ASan Debug",
+        "resultFileSha256": "DA547AE8A420887F98E7D239A26247E29FFCAF083F183D944C298DAF39C90411",
+        "logSha256": "53E55C9F20022602ABC67E09FF2039379D2AB55C694190A5EEFBEAB2B09CF96B",
+        "sourceCommit": "0b8e76c58a11698744e6a4ce5f803f6170b1f2b6",
+        "exitCode": 0,
+        "startedUtc": "2026-10-28T07:17:37.9710908Z",
+        "completedUtc": "2026-10-28T07:23:38.4406535Z"
+      },
+      {
+        "phase": "full-test",
+        "profile": "x64/Release",
+        "resultFileSha256": "3233DD0DDB592CAB7F2AB5A78476F6BD64038CB0855FB8A63219FAA286E26948",
+        "logSha256": "C573EF25A3E365187ED62DC9901910FB0F5D4B7209D95AB14BF552F613B06C69",
+        "sourceCommit": "0b8e76c58a11698744e6a4ce5f803f6170b1f2b6",
+        "exitCode": 0,
+        "startedUtc": "2026-10-28T07:24:57.5451646Z",
+        "completedUtc": "2026-10-28T07:30:48.2180326Z",
+        "passedSuites": 19
+      },
+      {
+        "phase": "full-test",
+        "profile": "x64/Debug",
+        "resultFileSha256": "BEF6CAD954766B65BDAB1D5F22CAC263E366FC75C7AEB93DF5E6A02F4AF25607",
+        "logSha256": "2CC3CFDEC8848157D2C7EEFFB650F041CFE92F3E05F377A857D2ABA6692F898F",
+        "sourceCommit": "0b8e76c58a11698744e6a4ce5f803f6170b1f2b6",
+        "exitCode": 0,
+        "startedUtc": "2026-10-28T07:30:48.2385227Z",
+        "completedUtc": "2026-10-28T07:37:30.3088753Z",
+        "passedSuites": 19
+      },
+      {
+        "phase": "full-test",
+        "profile": "x64/ASan Debug",
+        "resultFileSha256": "F5B1DB5202262C25C33EDAF823D81A3C9F478A53DC866C31D5D6EBFEB00662BC",
+        "logSha256": "709A73AF334F9A6F3AAB37F1D03A5A0BBFFC9FD8AD52352FF85CC5B87EDAEEB6",
+        "sourceCommit": "0b8e76c58a11698744e6a4ce5f803f6170b1f2b6",
+        "exitCode": 0,
+        "startedUtc": "2026-10-28T07:37:30.3266307Z",
+        "completedUtc": "2026-10-28T07:47:40.3809353Z",
+        "passedSuites": 19
+      },
+      {
+        "phase": "validate",
+        "resultFileSha256": "11D9772776DC44C8F9F0F35E90726E8163B46E12181888DB5DC23967C3AD393A",
+        "logSha256": "E0E972A0A4938221E0D910B9F2F2A8962DBC6080C5A27FA53430E2891A96DF2A",
+        "sourceCommit": "0b8e76c58a11698744e6a4ce5f803f6170b1f2b6",
+        "exitCode": 0,
+        "startedUtc": "2026-10-28T07:13:27.8706331Z",
+        "completedUtc": "2026-10-28T07:22:20.7861918Z"
+      },
+      {
+        "phase": "format-check",
+        "resultFileSha256": "AF040291BAB65E92A96C323003403292AEAB87B153EC7C0C1AE3C1919CB7810B",
+        "logSha256": "40069EBD779C805D65FDF916FAB097A9FAB55EE711591D431E8B440454609812",
+        "sourceCommit": "0b8e76c58a11698744e6a4ce5f803f6170b1f2b6",
+        "exitCode": 0,
+        "startedUtc": "2026-10-28T07:22:20.8056446Z",
+        "completedUtc": "2026-10-28T07:22:41.3643102Z"
+      },
+      {
+        "phase": "Test-Changes-explain",
+        "resultFileSha256": "B0F26BB1941B8F578850BB66C0CEB4D166984DCEDCE62596BFDE32AE3887A13E",
+        "logSha256": "D8BC7A2F09B9F5F6BE7E3AD14998C5F01A5925901E3344D9ECD58225AD38AC8F",
+        "sourceCommit": "0b8e76c58a11698744e6a4ce5f803f6170b1f2b6",
+        "exitCode": 0,
+        "startedUtc": "2026-10-28T07:22:41.3750469Z",
+        "completedUtc": "2026-10-28T07:22:43.099195Z"
+      }
+    ],
+    "count": 12,
+    "buildProfiles": 6,
+    "fullTestConfigurations": 3,
+    "fullTestSuitesPerConfiguration": 19,
+    "nativeTestRuns": [
+      {
+        "configuration": "Release",
+        "runId": "20261028T072513837Z-48816-dd9ec7f2e32b4028a645e25568fb13bd",
+        "completedSha256": "4AB6250FB7B5CFAA42B8FCA7CF0168D1677015C1F54AB001007E7D7877416159",
+        "passedSuites": 19,
+        "completedUtc": "2026-10-28T07:30:48.1601793Z"
+      },
+      {
+        "configuration": "Debug",
+        "runId": "20261028T073104875Z-47356-256040a95aaf452b9d0a9a4136d16df0",
+        "completedSha256": "2187825BD1C63B2EFEE8F2542596D671B88737A24A1259AE15341615E4F3B8FD",
+        "passedSuites": 19,
+        "completedUtc": "2026-10-28T07:37:30.2500954Z"
+      },
+      {
+        "configuration": "ASan-Debug",
+        "runId": "20261028T073746622Z-4524-f572c7d18075482ca651a024900efe93",
+        "completedSha256": "694F1324A72CC970FBE5A566D8DAFEA9DFFBCA59012BC07CD763A731286B2161",
+        "passedSuites": 19,
+        "completedUtc": "2026-10-28T07:47:40.324632Z"
+      }
+    ]
+  },
+  "actualAddressSanitizerProbe": {
+    "runId": "20261028T073746622Z-4524-f572c7d18075482ca651a024900efe93",
+    "suite": "AddressSanitizer",
+    "platform": "x64",
+    "nativeArchitecture": "X64",
+    "configuration": "ASan Debug",
+    "executableSha256": "2FEE890D988A726FEF25DDFC9B6E3463654DEAF2D4A4CBD4158F65419C833751",
+    "exitCode": 1,
+    "detected": true,
+    "diagnostic": "heap-use-after-free detected",
+    "resultJsonSha256": "3145A3E991D7F2C33A13099F5F2728239F655EA22F1A8CCE0BA95B65BA0C88A0",
+    "logSha256": "F36D2F7508DF74461F8E64BA7498FAE8ACB202CF7B1F3BBB8C3841DEAC3C89FC",
+    "completedRunMarkerSha256": "694F1324A72CC970FBE5A566D8DAFEA9DFFBCA59012BC07CD763A731286B2161"
+  },
+  "hostedNativeCi": {
+    "runId": "40646316345",
+    "url": "https://github.com/RedSalamanders/DxUi/actions/runs/40646316345",
+    "sourceHead": "0b8e76c58a11698744e6a4ce5f803f6170b1f2b6",
+    "testedMerge": "246a64ff3dff36c1ce2c95af60c128f5dd2a1bf9",
+    "mergedMain": "592b9fb9f31c9834bbb4b521ec2ced385366291f",
+    "tree": "50df00889de214a681d3c366c934dd0feb4a1ada",
+    "nativeProfiles": [
+      {
+        "completedAt": "2026-10-28T08:03:52Z",
+        "conclusion": "success",
+        "name": "native (ARM64, windows-11-vs2026-arm, Release, 155)",
+        "startedAt": "2026-10-28T06:51:04Z",
+        "status": "completed",
+        "url": "https://github.com/RedSalamanders/DxUi/actions/runs/40646316345/job/122676016466"
+      },
+      {
+        "completedAt": "2026-10-28T07:50:50Z",
+        "conclusion": "success",
+        "name": "native (ARM64, windows-11-vs2026-arm, Debug, 150)",
+        "startedAt": "2026-10-28T06:51:04Z",
+        "status": "completed",
+        "url": "https://github.com/RedSalamanders/DxUi/actions/runs/40646316345/job/122676016514"
+      },
+      {
+        "completedAt": "2026-10-28T07:17:20Z",
+        "conclusion": "success",
+        "name": "native (x64, windows-2025-vs2026, Debug, 90)",
+        "startedAt": "2026-10-28T06:51:04Z",
+        "status": "completed",
+        "url": "https://github.com/RedSalamanders/DxUi/actions/runs/40646316345/job/122676016520"
+      },
+      {
+        "completedAt": "2026-10-28T07:20:17Z",
+        "conclusion": "success",
+        "name": "native (x64, windows-2025-vs2026, ASan Debug, 105)",
+        "startedAt": "2026-10-28T06:51:04Z",
+        "status": "completed",
+        "url": "https://github.com/RedSalamanders/DxUi/actions/runs/40646316345/job/122676016532"
+      },
+      {
+        "completedAt": "2026-10-28T07:28:46Z",
+        "conclusion": "success",
+        "name": "native (x64, windows-2025-vs2026, Release, 90)",
+        "startedAt": "2026-10-28T06:51:04Z",
+        "status": "completed",
+        "url": "https://github.com/RedSalamanders/DxUi/actions/runs/40646316345/job/122676016534"
+      },
+      {
+        "completedAt": "2026-10-28T08:03:18Z",
+        "conclusion": "success",
+        "name": "native (ARM64, windows-11-vs2026-arm, ASan Debug, 165)",
+        "startedAt": "2026-10-28T06:51:05Z",
+        "status": "completed",
+        "url": "https://github.com/RedSalamanders/DxUi/actions/runs/40646316345/job/122676016622"
+      }
+    ],
+    "overallConclusion": "failure",
+    "pairedCollection": "success",
+    "pairedArtifactUpload": "success",
+    "verdictPublication": "failure",
+    "literalVerdict": "inconclusive",
+    "reason": "The base policy is not independently qualified; its verdict cannot establish a candidate pass.",
+    "metadataSha256": "4143D5B0EC9CFBD3CA9D3B0BC1D3EA711A5AFB5304460DD0F368A505A3DE1648",
+    "coverage": "All six native profiles pass; overall CI does not pass because of the explicit performance policy gate."
+  },
+  "scopeLimits": [
+    "No absolute paths or process/user/device identifiers are emitted.",
+    "Local evidence is scoped to the listed source commit and 12 result/log pairs.",
+    "Full tests were 19 suites each for x64 Release, Debug, and ASan Debug.",
+    "Hosted native jobs pass; overall CI fails at the inconclusive performance-policy gate. No policy acceptance is claimed."
+  ],
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-complex-ui-boundaries-v3",
+  "benchmarkInputs": {
+    "Tests/Embedded/Embedded.Tests.ComplexUiProfiling.h": "BEEE3E4C80FB9A6FC85C2D65F699405A82CD71838CDF7C07A5C6E0D3B285F61C",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBoundaries.h": "35EEF751613211F6AA5725773BA04CCDA3D34B762381A5734431AF16F4E060F6",
+    "Tests/Embedded/Embedded.Tests.Embedded.cpp": "44007FAFE9C7DD4D65A1F4E2F91AB2AA9018DB851C7A03FC79DEFB0976EAB8F9",
+    "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+    "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
+    "performance-profile.ps1": "A5BB1FCDE7361FEFE5137A439C73CCC0FC3E529A94349CA6665E6D0F62C9745F",
+    "Tools/PerformanceProfiling.psm1": "E69653D12F528157C6140B3CBCF966AE6262A64D6F306186C0C6DE7DF5E8D512",
+    "Tools/PerformancePolicy.psm1": "B93E825963039A607297EF8A8D5162F6787CBF34209F81FB6D35465F65193B20",
+    "Tools/ScopedTesting.psm1": "BD8BDAE656BF08317AA6D40EEFCC7B8F921E72217F77CCAC5532DA73EA7D805E"
+  },
+  "inputClosure": {
+    "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+    "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+    "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
+    "Tests/Embedded/Embedded.Tests.ComplexUiProfiling.h": "BEEE3E4C80FB9A6FC85C2D65F699405A82CD71838CDF7C07A5C6E0D3B285F61C",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBoundaries.h": "35EEF751613211F6AA5725773BA04CCDA3D34B762381A5734431AF16F4E060F6",
+    "Tests/Embedded/Embedded.Tests.Embedded.cpp": "44007FAFE9C7DD4D65A1F4E2F91AB2AA9018DB851C7A03FC79DEFB0976EAB8F9",
+    "performance-profile.ps1": "A5BB1FCDE7361FEFE5137A439C73CCC0FC3E529A94349CA6665E6D0F62C9745F",
+    "Tools/PerformanceProfiling.psm1": "E69653D12F528157C6140B3CBCF966AE6262A64D6F306186C0C6DE7DF5E8D512",
+    "Tools/PerformancePolicy.psm1": "B93E825963039A607297EF8A8D5162F6787CBF34209F81FB6D35465F65193B20",
+    "Tools/ScopedTesting.psm1": "BD8BDAE656BF08317AA6D40EEFCC7B8F921E72217F77CCAC5532DA73EA7D805E",
+    "Tools\\Watch-BenchmarkHost.ps1": "DD31F0CEFF0A383FEE1DC971893A85AD803A6962D6AD2C9F0B34007DD156807D"
+  },
+  "evidenceRole": "source-wide-qualification-support",
+  "scopeNote": "This source-wide qualification record supports the diagnostic packet; the validate/build/full-suite results do not all represent runs of the named performance fixture."
+}

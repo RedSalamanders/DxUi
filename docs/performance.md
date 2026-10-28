@@ -528,6 +528,12 @@ frame; independent segment percentiles do not attribute a frame tail. The scene,
 probes make these diagnostic observations separate from canonical acceptance. Retain all native bytes and
 sidecars, and declare the complete serial fresh-process schedule before running it.
 
+The [source-bound diagnostic collection and qualification](../Measurements/ControlDiagnostics_2026-10-28/README.md)
+retains all 34 processes and the local six-profile/three-runtime evidence. It observes blocking readback dominating
+Default-WARP clean composite tails and higher composite costs with CallingThread WARP. It does not establish
+GPU duration, a quiet host, stable canonical controls or performance acceptance. Pure Prepare starts at
+`updateEndQpc` in both phases; the preceding Clean interval is marker/no-op work.
+
 Hosted paired artifacts also retain the original measured native outputs and
 attestations. `Tools/Watch-BenchmarkHost.ps1` records continuous cumulative host
 CPU and process CPU/memory observations before the study starts through its end.
