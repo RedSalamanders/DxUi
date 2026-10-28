@@ -1231,6 +1231,12 @@ void TestModalMenuDismissesOnSentCancellationAndDeactivation()
         if (! activated)
             std::cerr << "Sent dismissal owner activation failed at " << activationStage << " for " << test.label << '\n';
         Require(activated, "the sent-dismissal owner holds the foreground before opening its modal menu");
+        // Finish activation delivery and discard preceding fixtures' queued mouse
+        // messages before opening the popup whose sent cancellation is under test.
+        ownerWindow.PumpMessages();
+        DrainPendingMouseMessagesForMenuSuite();
+        Require(GetForegroundWindow() == ownerWindow.Hwnd() && GetFocus() == ownerWindow.Hwnd(),
+                "the sent-dismissal owner remains foreground and focused after setup delivery");
         const std::wstring label = std::format(L"Sent dismissal {}", test.message);
         const std::vector<MenuFlyoutItem> items{{.text = label, .commandId = 91603}};
         std::string driverFailure;
@@ -1259,6 +1265,9 @@ void TestModalMenuDismissesOnSentCancellationAndDeactivation()
 
         const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, ownerWindow.Host().GetTheme());
         driver.join();
+        if (! driverFailure.empty())
+            std::cerr << "Sent dismissal state: message=" << test.label << " ownerVisible=" << (IsWindowVisible(ownerWindow.Hwnd()) != FALSE)
+                      << " ownerForeground=" << (GetForegroundWindow() == ownerWindow.Hwnd()) << " ownerFocus=" << (GetFocus() == ownerWindow.Hwnd()) << '\n';
         Require(driverFailure.empty(), driverFailure.c_str());
         Require(! result.has_value(), std::format("{} dismisses without invoking a command", test.label).c_str());
     }
