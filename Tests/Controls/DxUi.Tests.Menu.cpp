@@ -176,13 +176,16 @@ private:
 
 struct ContextMenuPopupStateWaitSnapshot
 {
-    bool hasKeyboardIndex = false;
-    size_t keyboardIndex  = 0u;
-    bool hasHoveredIndex  = false;
-    size_t hoveredIndex   = 0u;
-    size_t itemCount      = 0u;
-    UINT dpi              = 0u;
-    uint64_t renderCount  = 0u;
+    bool hasKeyboardIndex    = false;
+    size_t keyboardIndex     = 0u;
+    bool hasHoveredIndex     = false;
+    size_t hoveredIndex      = 0u;
+    size_t itemCount         = 0u;
+    UINT dpi                 = 0u;
+    uint64_t renderCount     = 0u;
+    float visibleWidthDip    = 0.0f;
+    float visibleHeightDip   = 0.0f;
+    bool usesAppBackdropBlur = false;
 };
 
 struct ContextMenuPopupStateWaitDiagnostics
@@ -246,13 +249,16 @@ bool WaitForContextMenuPopupStateWithProbe(HWND popupHwnd,
                 ++diagnostics->successfulProbes;
                 diagnostics->hasSuccessfulState  = true;
                 diagnostics->lastSuccessfulState = {
-                    .hasKeyboardIndex = outState.keyboardIndex.has_value(),
-                    .keyboardIndex    = outState.keyboardIndex.value_or(0u),
-                    .hasHoveredIndex  = outState.hoveredIndex.has_value(),
-                    .hoveredIndex     = outState.hoveredIndex.value_or(0u),
-                    .itemCount        = outState.itemTexts.size(),
-                    .dpi              = outState.dpi,
-                    .renderCount      = outState.renderCount,
+                    .hasKeyboardIndex    = outState.keyboardIndex.has_value(),
+                    .keyboardIndex       = outState.keyboardIndex.value_or(0u),
+                    .hasHoveredIndex     = outState.hoveredIndex.has_value(),
+                    .hoveredIndex        = outState.hoveredIndex.value_or(0u),
+                    .itemCount           = outState.itemTexts.size(),
+                    .dpi                 = outState.dpi,
+                    .renderCount         = outState.renderCount,
+                    .visibleWidthDip     = outState.visibleWidthDip,
+                    .visibleHeightDip    = outState.visibleHeightDip,
+                    .usesAppBackdropBlur = outState.usesAppBackdropBlur,
                 };
             }
         }
@@ -300,9 +306,12 @@ void TestContextMenuPopupStateWaitDiagnosticsRetainLastSuccessfulProbe()
         ++probes;
         if (probes == 1u)
         {
-            out.keyboardIndex = 2u;
-            out.dpi           = 144u;
-            out.renderCount   = 7u;
+            out.keyboardIndex       = 2u;
+            out.dpi                 = 144u;
+            out.renderCount         = 7u;
+            out.visibleWidthDip     = 321.5f;
+            out.visibleHeightDip    = 123.25f;
+            out.usesAppBackdropBlur = true;
             out.itemTexts.resize(3u);
             return true;
         }
@@ -316,8 +325,9 @@ void TestContextMenuPopupStateWaitDiagnosticsRetainLastSuccessfulProbe()
             "wait diagnostics distinguish the final failed probe from the earlier successful probe");
     Require(diagnostics.hasSuccessfulState && diagnostics.lastSuccessfulState.hasKeyboardIndex && diagnostics.lastSuccessfulState.keyboardIndex == 2u &&
                 diagnostics.lastSuccessfulState.dpi == 144u && diagnostics.lastSuccessfulState.itemCount == 3u &&
-                diagnostics.lastSuccessfulState.renderCount == 7u,
-            "wait diagnostics retain the most recent successful state after a later probe failure clears its output");
+                diagnostics.lastSuccessfulState.renderCount == 7u && diagnostics.lastSuccessfulState.visibleWidthDip == 321.5f &&
+                diagnostics.lastSuccessfulState.visibleHeightDip == 123.25f && diagnostics.lastSuccessfulState.usesAppBackdropBlur,
+            "wait diagnostics retain dimensions and backdrop state after a later probe failure clears its output");
 
     diagnostics          = {};
     state                = {};
@@ -347,8 +357,9 @@ void TestContextMenuPopupStateWaitDiagnosticsRetainLastSuccessfulProbe()
 {
     const auto describeIndex = [](bool hasIndex, size_t index) -> std::string { return hasIndex ? std::format("{}", index) : std::string("none"); };
     const auto& state        = diagnostics.lastSuccessfulState;
-    return std::format("keyboard-state probe for popup {:#x}: alive={} visible={} ownerMatches={} attempts={} successful={} "
-                       "lastProbe={} elapsedMs={} lastState={} keyboard={} hovered={} items={} dpi={} renders={}",
+    return std::format("popup-state probe for popup {:#x}: alive={} visible={} ownerMatches={} attempts={} successful={} "
+                       "lastProbe={} elapsedMs={} lastState={} keyboard={} hovered={} items={} dpi={} renders={} "
+                       "visibleDip=({:.1f},{:.1f}) appBackdropBlur={}",
                        reinterpret_cast<uintptr_t>(popupHwnd),
                        IsWindow(popupHwnd) != FALSE,
                        IsWindowVisible(popupHwnd) != FALSE,
@@ -362,7 +373,10 @@ void TestContextMenuPopupStateWaitDiagnosticsRetainLastSuccessfulProbe()
                        describeIndex(state.hasHoveredIndex, state.hoveredIndex),
                        state.itemCount,
                        state.dpi,
-                       state.renderCount);
+                       state.renderCount,
+                       state.visibleWidthDip,
+                       state.visibleHeightDip,
+                       state.usesAppBackdropBlur);
 }
 
 bool WaitForContextMenuPopupItemRect(HWND popupHwnd,
@@ -7662,11 +7676,14 @@ void TestMenuAcrylicBackdropScenarioEmitsMetrics()
     WindowHostBitmapCapture popupCapture{};
     uint64_t openToCaptureUs = 0u;
     const auto startedAt     = std::chrono::steady_clock::now();
+    MenuModalDispatchReadinessForTest dispatchReady(ownerWindow.Hwnd());
 
     std::thread driver([&]
     {
         const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
-        const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
+        const auto readinessDeadline    = std::chrono::steady_clock::now() + std::chrono::milliseconds(5000);
+        const auto popupDiscoveryBudget = std::chrono::duration_cast<std::chrono::milliseconds>(readinessDeadline - std::chrono::steady_clock::now());
+        const HWND popupHwnd            = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd(), popupDiscoveryBudget);
         if (! popupHwnd)
         {
             driverFailure = "menu popup window appears for acrylic backdrop metric capture";
@@ -7674,11 +7691,26 @@ void TestMenuAcrylicBackdropScenarioEmitsMetrics()
         }
         const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
 
-        ContextMenuPopupDebugState popupState{};
-        if (! WaitForContextMenuPopupState(
-                popupHwnd, [](const ContextMenuPopupDebugState& state) { return state.visibleWidthDip > 0.0f && state.visibleHeightDip > 0.0f; }, popupState))
+        // Visibility discovers the measurement HWND; the modal posted-probe pump becomes ready at its first popup-message peek.
+        dispatchReady.NoteDiscovery();
+        if (! dispatchReady.WaitUntil(readinessDeadline))
         {
-            driverFailure = "menu popup enables app-rendered backdrop blur for acrylic backdrop metric capture";
+            driverFailure = std::format("menu popup modal posted-probe dispatch becomes ready (popup={:#x} alive={} visible={} ownerMatches={})",
+                                        reinterpret_cast<uintptr_t>(popupHwnd),
+                                        IsWindow(popupHwnd) != FALSE,
+                                        IsWindowVisible(popupHwnd) != FALSE,
+                                        GetWindow(popupHwnd, GW_OWNER) == ownerWindow.Hwnd());
+            return;
+        }
+
+        ContextMenuPopupDebugState popupState{};
+        ContextMenuPopupStateWaitDiagnostics stateDiagnostics{};
+        if (! WaitForContextMenuPopupState(popupHwnd, [](const ContextMenuPopupDebugState& state) {
+            return state.visibleWidthDip > 0.0f && state.visibleHeightDip > 0.0f;
+        }, popupState, std::chrono::milliseconds(800), &stateDiagnostics))
+        {
+            driverFailure = std::format("menu popup exposes initialized geometry for acrylic metric capture ({})",
+                                        DescribeContextMenuPopupStateWaitFailure(popupHwnd, ownerWindow.Hwnd(), stateDiagnostics));
             return;
         }
 

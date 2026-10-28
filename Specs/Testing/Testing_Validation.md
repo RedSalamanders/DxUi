@@ -611,6 +611,12 @@ and losing capture clears the tooltip. It shows the tooltip with a tick past the
 Native menu input fixtures wait for a visible popup: the hidden measurement HWND is not ready for input.
 Cold creation has a separate five-second setup allowance; owner-message-flood hover and invocation checks
 retain their 800 ms deadlines after setup. Capture readiness similarly waits for the final visible surface.
+The acrylic metric fixture shares that five-second budget between popup discovery and the existing modal
+posted-dispatch acknowledgement before its unchanged 800 ms geometry query. A geometry/probe timeout is not
+evidence of failed blur rendering. Its later injected bitmap deliberately isolates rendering; the injected
+app-blur flag does not establish production backdrop capture. Keep all visual thresholds and record the last
+answered dimensions, render count, DPI and blur flag when a later state probe fails. Hook fields documented as
+UI-thread-only are read after driver join, never from the driver's timeout path.
 The interactive owner-message-flood fixture aligns the physical cursor with its posted pointer target:
 Windows-generated capture moves must describe the same position. It restores the original position only
 if the pointer remains at the fixture target, preserving intervening human movement. The 2,000-message

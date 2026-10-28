@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Wait for modal posted-dispatch readiness before probing acrylic-metric popup geometry within the existing setup budget, preserve probe diagnostics and visual thresholds, and refresh the reviewed runner/CI contract after the qualification changes.
 - Publish consumer progress as coherent atomic snapshots for concurrent readers, preserve collision and helper-failure diagnostics, and clear stale expected native probe status only after successful suite and evidence completion. Performance, consumer and hosted-platform holds remain separate.
 - Guard the delayed submenu-close test's complete two-popup sequence with fresh, bounded foreground attempts and reacquire the owner before its tested popup. Preserve all hover/timer assertions and deadlines, retain interrupted traces, and add a controlled-loss regression; native validation remains pending.
 - Preserve the requested reading direction when configured Icon, IconLarge and HeroIcon formats fall back to Small; add deterministic shared-factory cache coverage for all three roles. The focused regression has not yet been built or run; six-profile qualification remains pending.
