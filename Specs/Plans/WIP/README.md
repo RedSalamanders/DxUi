@@ -4,6 +4,8 @@ One entry per plan, separated by blank lines, so that changes to different plans
 
 - **ACTIVE**: [Subtle Markdown presentation](SubtleMarkdownPresentation_2026-10-27.md). Opt-in heading rules, intrinsic tables, centered display objects and shaded quotes for RedTilde; focused rendering and exact consumer adoption qualification are in progress. Earlier performance/CI queues remain paused.
 
+- **ACTIVE**: [Configured icon fallback reading direction](IconFallbackReadingDirection_2026-10-28.md). The Small fallback preserves requested direction for all configured icon roles with deterministic cache-seeded coverage; source changes await the focused regression and six-profile native qualification.
+
 - **ACTIVE**: [MSVC 14.52 and Release optimization](Msvc1452ReleaseOptimization_2026-10-23.md). The compiler repair and six-profile cohort are archived; separate post-merge TSF and inactive-host focus contract repairs await final-source qualification. Five-repository paired, performance/manual and release holds remain open.
 
 - **ACTIVE**: [Source ink renderer qualification](SourceInkRendererQualification_2026-10-27.md). Renderer merged through PR #116 with all six source-bound native profiles passing. The actual-base paired study has zero regression rows but an unqualified policy and unstable controls; consumer performance, hosted RedTilde and physical/platform holds remain separate.
@@ -65,6 +67,8 @@ Completed records are `../Done/SharedLibraryReadiness_2026-09-09.md`,
 `../Done/PreparedTreeAccessibility_2026-10-06.md`. Further ARM64 and ASan qualification is
 user-deferred to RedSalamander's `DxUi_DeferredPlatformQualification_2026-09-13.md`.
 RedXe retains its separately owned hardware, real IME and assistive-technology gates.
+
+- **ACTIVE**: [Delayed submenu-close foreground qualification](MenuDelayedSubmenuForeground_2026-10-28.md). Preserve the main ARM64 Release failure, repair the two-Show test's foreground accounting and complete native qualification without changing product dismissal behavior.
 
 Plans never override normative contracts. Completed plans move to Done after
 validation and normative closeout.

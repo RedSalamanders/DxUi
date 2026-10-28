@@ -305,6 +305,8 @@ After a font-selection change, call `DxUi::Typography::InvalidateFontFamilyAvail
 checking available families and rebuilding affected formats. Passing null clears every factory's availability
 answers. Serialize this with the host's font queries; cached checks remain cheap and misses refresh installed
 fonts. Do not invalidate per frame.
+When an optional Fluent icon family is unavailable, configured icon roles fall back to the matching Small format while
+preserving its requested text direction and alignment.
 
 Native consumers that know an attached HWND can acquire its canonical root with
 `DxUi::CreateWindowHostAccessibilityProvider(hwnd)` from `<DxUi/DxUi.h>`. Adopt the returned owned COM

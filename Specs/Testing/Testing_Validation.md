@@ -649,6 +649,17 @@ state, item rectangles, paint, text and layout, its backdrop, and a bitmap captu
   plus `InSendMessageEx` flags. These observations do not attribute an untraced cancellation or authorize retrying
   a held behavioral failure. The same readiness, hover, timer and elapsed assertions and deadlines still apply.
 
+The delayed submenu-close fixture guards its complete calibration-Show, physical alignment and tested-Show sequence
+with fresh `RunUntilForegroundHeld` attempts. It reacquires the owner's actual foreground and focus immediately before
+the tested Show, then records the original driver/result predicates until the attempt's foreground observation is known.
+Only an observed `WM_ACTIVATEAPP` loss or explicit acquisition refusal admits another attempt, at the existing five-run
+bound; a held failure is never retried, and exhaustion fails this fixture. Discarded attempts retain their failure and
+passive owner/cancellation trace. The controlled-loss regression delivers synthetic `WM_ACTIVATEAPP` loss through the
+existing takeover helper and cancels the first tested popup with `WM_CANCELMODE`, then
+requires a fresh held attempt to satisfy the original complete hover/timer/close sequence. Popup discovery, probe and
+hover deadlines remain unchanged. This proves wrapper recovery, not that an external application caused the CI failure;
+activation cancellation alone does not identify which application or mechanism caused it.
+
 The native disclosure automation client subscribes from its own MTA thread while the owner thread pumps.
 Cold client setup (COM, `ElementFromHandle` and property-event subscription) has a separate 20-second
 allowance, because hosted x64 runners have exceeded the former 3000 ms bound. Acknowledged expansion, collapse

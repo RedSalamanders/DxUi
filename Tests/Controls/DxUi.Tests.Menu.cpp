@@ -4402,16 +4402,19 @@ void TestMenuRootSwitchDoesNotPollCursorWhileIdle()
     Require(! result.has_value(), "closing the idle cursor polling validation popup with Escape returns no invoked command");
 }
 
-void TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay()
+ForegroundAttempt RunMenuHoveringSiblingClosesOpenSubmenuAfterDelay(std::string& failure, bool injectForegroundLoss, bool& injectedForegroundLoss)
 {
     using namespace DxUi;
 
+    failure.clear();
     AttachedHostWindow ownerWindow;
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
 
-    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "modal menu owner activates before its popup opens");
+    if (! TryActivateDxUiTestWindow(ownerWindow.Hwnd()))
+        return ForegroundAttempt{.activationEstablished = false};
+    const uint32_t lossesBefore = ownerWindow.ForegroundLossCount();
     DrainPendingMouseMessagesForMenuSuite();
     const std::vector<MenuFlyoutItem> items = {
         {.text      = L"B1",
@@ -4424,7 +4427,14 @@ void TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay()
         {.text = L"B2", .commandId = 3682},
     };
 
-    MenuHoverTraceForTest trace(true);
+    MenuHoverTraceForTest trace(true, false, ownerWindow.Hwnd());
+    const auto observed = [&](bool activationEstablished = true)
+    {
+        const bool lost = ownerWindow.ForegroundLossCount() != lossesBefore;
+        std::cout << "    [MENU DELAYED CLOSE] foregroundLost=" << lost << " activationEstablished=" << activationEstablished << " failure=" << failure << '\n';
+        trace.Dump(lost || ! activationEstablished || ! failure.empty());
+        return ForegroundAttempt{lost, ownerWindow.LastForegroundThiefThreadId(), activationEstablished};
+    };
     ScopedMenuPointerFixture pointerFixture(ownerWindow.Hwnd());
     POINT originalCursor{};
     Require(GetPhysicalCursorPos(&originalCursor) != FALSE && pointerFixture.AlignCursor(originalCursor),
@@ -4480,17 +4490,19 @@ void TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay()
     calibrationDriver.join();
     if (! calibrationFailure.empty() || calibrationResult.has_value() || ! cursorAtB1Ready)
     {
-        trace.Dump(true);
-        Require(false, calibrationFailure.empty() ? "calibration Show closes without invoking a command and records B1 position" : calibrationFailure.c_str());
-        return;
+        failure = calibrationFailure.empty() ? "calibration Show closes without invoking a command and records B1 position" : calibrationFailure;
+        return observed();
     }
     if (! pointerFixture.AlignCursor(cursorAtB1))
     {
-        trace.Dump(true);
-        Require(false, "the owned cursor parks at B1 before the repeated Show");
-        return;
+        failure = "the owned cursor parks at B1 before the repeated Show";
+        return observed();
     }
     DrainPendingMouseMessagesForMenuSuite();
+    // Calibration and physical alignment may pump or allow another foreground transfer.
+    // Establish the actual owner state immediately before the Show under test.
+    if (! TryActivateDxUiTestWindow(ownerWindow.Hwnd()))
+        return observed(false);
 
     std::string driverFailure;
     std::thread driver([&]
@@ -4667,12 +4679,55 @@ void TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay()
         }
     });
 
+    struct ForegroundLossInjection
+    {
+        HWND owner;
+        DWORD thread;
+        bool* injected;
+    } injection{ownerWindow.Hwnd(), GetThreadId(driver.native_handle()), &injectedForegroundLoss};
+    const auto clearInjection = wil::scope_exit([]() noexcept { DebugSetContextMenuModalLoopPeekHookForTest(nullptr, nullptr); });
+    if (injectForegroundLoss)
+    {
+        DebugSetContextMenuModalLoopPeekHookForTest(
+            [](void* context, HWND popup, UINT) noexcept
+        {
+            auto& state = *static_cast<ForegroundLossInjection*>(context);
+            if (*state.injected || GetWindow(popup, GW_OWNER) != state.owner)
+                return;
+            *state.injected = true;
+            SimulateForegroundTheftForTest(state.owner, state.thread);
+            SendMessageW(popup, WM_CANCELMODE, 0u, 0);
+        },
+            &injection);
+    }
     const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
     driver.join();
 
-    trace.Dump(! driverFailure.empty());
-    Require(driverFailure.empty(), driverFailure.c_str());
-    Require(! result.has_value(), "closing the delayed submenu-close validation popup with Escape returns no invoked command");
+    failure = driverFailure;
+    if (failure.empty() && result.has_value())
+        failure = "closing the delayed submenu-close validation popup with Escape returns no invoked command";
+    return observed();
+}
+
+void TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay()
+{
+    std::string failure;
+    bool injectedForegroundLoss = false;
+    const ForegroundRunResult run =
+        RunUntilForegroundHeld([&] { return RunMenuHoveringSiblingClosesOpenSubmenuAfterDelay(failure, false, injectedForegroundLoss); });
+    Require(run.held, "delayed submenu-close validation establishes and retains the foreground within the existing attempt bound");
+    Require(failure.empty(), failure.c_str());
+}
+
+void TestMenuDelayedSubmenuCloseRestartsAfterObservedForegroundLoss()
+{
+    std::string failure;
+    bool injectedForegroundLoss = false;
+    const ForegroundRunResult run =
+        RunUntilForegroundHeld([&] { return RunMenuHoveringSiblingClosesOpenSubmenuAfterDelay(failure, ! injectedForegroundLoss, injectedForegroundLoss); });
+    Require(run.held, "delayed submenu-close regression obtains a held attempt within the existing attempt bound");
+    Require(injectedForegroundLoss && run.runs > 1, "observed activation loss discards the interrupted popup and starts a fresh complete two-Show attempt");
+    Require(failure.empty(), failure.c_str());
 }
 
 void TestMenuHoveringSiblingWithChildrenReplacesOpenSubmenuAfterDelay()
@@ -11741,6 +11796,7 @@ void RunMenuTests()
     runTest("TestMenuRootSwitchUsesDeliveredOwnerMouseMoveAfterPopupSwitch", TestMenuRootSwitchUsesDeliveredOwnerMouseMoveAfterPopupSwitch);
     runTest("TestMenuRootSwitchDoesNotPollCursorWhileIdle", TestMenuRootSwitchDoesNotPollCursorWhileIdle);
     runTest("TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay", TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay);
+    runTest("TestMenuDelayedSubmenuCloseRestartsAfterObservedForegroundLoss", TestMenuDelayedSubmenuCloseRestartsAfterObservedForegroundLoss);
     runTest("TestMenuHoveringSiblingWithChildrenReplacesOpenSubmenuAfterDelay", TestMenuHoveringSiblingWithChildrenReplacesOpenSubmenuAfterDelay);
     runTest("TestMenuModalLoopPeeksOnlyLivePopupsWhenAPeekClosesASubmenu", TestMenuModalLoopPeeksOnlyLivePopupsWhenAPeekClosesASubmenu);
     runTest("TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay", TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay);
