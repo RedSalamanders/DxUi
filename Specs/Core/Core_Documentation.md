@@ -58,6 +58,12 @@ SHA-256 inventory; preserve and verify the raw bytes before removing redundant c
 metadata or rewrite historical results to satisfy the receipt schema. Evidence intended for checkout obeys the
 [consumer path-length limit](../Build/Build_ToolchainAndConsumption.md).
 
+Hash-bound packets preserve their declared file bytes across Git checkouts, using an explicitly scoped root or
+packet-local `.gitattributes` rule. Verify staged blob bytes against the public manifest before publishing. Source
+reconstruction from Git requires the committed effective checkout attributes and an exact revision/tree binding;
+label reconstructed checkout bytes separately from a retained original source archive. Do not guess line endings
+to turn a mismatched source hash into a verification pass.
+
 Gallery fixtures must bound message settling by elapsed time as well as message count. Animated
 full-control sheets can continuously refill the queue under sanitizer instrumentation. An explicit
 synchronous redraw establishes each captured frame after settling; waiting for an empty queue is

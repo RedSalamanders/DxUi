@@ -694,6 +694,14 @@ All windows require zero composition allocations, unchanged surfaces and matchin
 whole-frame allocations remain zero and dirty allocations retain the existing profile-specific ceiling.
 No canonical benchmark input, investigation band, judged metric, baseline or policy changes with this diagnostic.
 
+Use `updateEndQpc` to start the pure Prepare interval in both phases. In Clean, the preceding start-to-Update-end
+interval contains marker/no-op work and is not an Update call. Disabled Clear/Compose intervals likewise retain
+branch/marker wall costs rather than zero-cost operation measurements. A window's p95 frame and all its component
+intervals must come from that same chronological rank. The [34-process diagnostic packet](../../Measurements/ControlDiagnostics_2026-10-28/README.md)
+retains two fresh processes per factor cell and separate smokes; repeated windows are not additional independent
+replicates. Its observed blocking-readback costs and slower CallingThread mode do not qualify the canonical
+controls, explain scheduling, approve policy or replace any historical acceptance outcome.
+
 The [external thread-state controls](../../Measurements/RichText/README.md)
 verify owned-child main-thread identity and a common native/managed QPC clock.
 WaitReason is read only for Wait. Require the entire acquisition bracket inside
