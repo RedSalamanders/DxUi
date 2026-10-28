@@ -72,3 +72,8 @@ the shared ComplexUiScene.h was copied, but its local directory was absent from 
 The fixture now adds that copied sample directory while preserving inherited public dependency includes. This
 repairs the external fixture's include closure; public headers, library source and the baseline benchmark policy
 are unchanged. Actual relocated Debug/Release/ASan builds and rendering/conformance checks remain required.
+
+On fb33d6b2, actual relocated Debug and Release consumer checks pass, including native-module conformance and all
+ten rejected mismatches. The full validator's five independent validators pass; tooling then correctly refuses the
+stale scoped-CI digest because test-consumer.ps1 belongs to its execution closure. Refresh the digest through the
+canonical calculation and rerun the scoped/full tooling checks. A digest refresh alone is no native or CI pass.

@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Bind scoped PR coverage to the repaired relocated-consumer runner's actual execution bytes through the canonical workflow digest, retaining the stale-digest rejection and requiring fresh scoped/full validation rather than treating an identity refresh as qualification.
 - Compile the relocated public sample with its copied ComplexUi scene directory in the external project's include search, preserving public dependency includes and isolation from private library source paths. Retain the hosted missing-include failures and require the actual consumer build/render/conformance matrix.
 - Resolve both shared benchmark headers through paths relative to the staged fixture. The historical baseline preprocessing control now supplies no private sample/support include directories and independently reproduces both missing includes before accepting and restoring the staged fix.
 - Resolve the staged benchmark's shared scene relative to its header so historical baseline projects do not need a new sample include directory. A real MSVC preprocessing control reproduces the old missing include, verifies the staged fix, preserves baseline library inputs and restores the original harness.
