@@ -5,6 +5,8 @@
 .PARAMETER SkipBuild Reuse only an exact successful current v2 build. Both before/after identities and the diagnostic helper closure are verified.
 .PARAMETER BoundaryTimers Select the separate Default-only clear/composition/readback diagnostic, with interior QPC timers Off or On. Cannot combine with Heap.
 .PARAMETER WarpRasterMode Explicit Default or CallingThread WARP execution policy for the separate v2 boundary diagnostic. Requires BoundaryTimers; canonical device creation is unchanged.
+.PARAMETER BoundaryScenario Explicit Default, MultilineGrid or MultilineGridDistinct selects boundary v3 with frame-aligned owner-thread CPU probes. Requires BoundaryTimers; Scenario remains Default. CPU probes include their own overhead.
+.PARAMETER BoundaryPhase Clean (default) or Dirty for explicit boundary v3. Dirty updates frames 200 through 239 independently in each command-control window.
 #>
 [CmdletBinding()]
 param(
@@ -14,6 +16,8 @@ param(
     [switch] $Heap,
     [ValidateSet('','Off','On')][string] $BoundaryTimers = '',
     [ValidateSet('','Default','CallingThread')][string] $WarpRasterMode = '',
+    [ValidateSet('','Default','MultilineGrid','MultilineGridDistinct')][string] $BoundaryScenario = '',
+    [ValidateSet('Clean','Dirty')][string] $BoundaryPhase = 'Clean',
     [string] $OutputPath = '',
     [switch] $SkipBuild
 )
@@ -21,6 +25,8 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 if ($BoundaryTimers -and ($Heap -or $Scenario -ne 'Default')) { throw 'Boundary diagnostics require Default without heap sampling.' }
 if ($WarpRasterMode -and -not $BoundaryTimers) { throw 'WARP raster mode requires boundary diagnostics.' }
+if ($BoundaryScenario -and -not $BoundaryTimers) { throw 'Boundary scenario requires boundary diagnostics.' }
+if ($BoundaryPhase -ne 'Clean' -and -not $BoundaryScenario) { throw 'Dirty boundary phase requires an explicit boundary scenario.' }
 $native = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
 if (($Platform -eq 'ARM64' -and $native -ne 'Arm64') -or ($Platform -eq 'x64' -and $native -ne 'X64')) {
     throw 'Profiling diagnostics require native execution matching the requested architecture.'
@@ -28,6 +34,7 @@ if (($Platform -eq 'ARM64' -and $native -ne 'Arm64') -or ($Platform -eq 'x64' -a
 if (-not $OutputPath) {
     $kind = if ($BoundaryTimers) { "Boundaries-$BoundaryTimers" } elseif ($Heap) { 'Heap' } else { 'NoHeap' }
     if ($WarpRasterMode) { $kind += "-$WarpRasterMode" }
+    if ($BoundaryScenario) { $kind += "-v3-$BoundaryScenario-$BoundaryPhase" }
     $OutputPath = Join-Path $PSScriptRoot ".build/reports/Profiling-$Scenario-$Platform-$Configuration-$kind.json"
 }
 $OutputPath = [IO.Path]::GetFullPath($OutputPath)
@@ -47,7 +54,7 @@ if (-not $SkipBuild) {
     & (Join-Path $PSScriptRoot 'build.ps1') -Platform $Platform -Configuration $Configuration
     if ($LASTEXITCODE -ne 0) { throw "Profiling build failed with exit code $LASTEXITCODE." }
 }
-Invoke-ProfilingMeasurement -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration -Scenario $Scenario -Heap ([bool]$Heap) -BoundaryTimers $BoundaryTimers -WarpRasterMode $WarpRasterMode -OutputPath $OutputPath
+Invoke-ProfilingMeasurement -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration -Scenario $Scenario -Heap ([bool]$Heap) -BoundaryTimers $BoundaryTimers -WarpRasterMode $WarpRasterMode -BoundaryScenario $BoundaryScenario -BoundaryPhase $BoundaryPhase -OutputPath $OutputPath
 Write-Host "Diagnostic report: $OutputPath"
 Write-Host "Exact native bytes: $OutputPath.raw.json"
 Write-Host 'Diagnostic only; no acceptance or policy verdict.'

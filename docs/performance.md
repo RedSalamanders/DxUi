@@ -512,6 +512,22 @@ Interior timers can alter readiness; omitted-command controls change backend
 dependencies and cannot be subtracted into GPU durations. Scheduler attribution
 requires an actual aligned trace. This adds no acceptance metric or verdict.
 
+For the distinct-grid scenario or frame-aligned owner-thread CPU counters, explicitly select v3:
+
+```powershell
+./performance-profile.ps1 -SkipBuild -BoundaryTimers On -BoundaryScenario MultilineGridDistinct -BoundaryPhase Dirty
+```
+
+`BoundaryScenario` also accepts `Default` and `MultilineGrid`; `BoundaryPhase` defaults to `Clean`. V3 keeps 200
+warm frames and the same forward/reverse command controls; each dirty window repeats model updates 200–239.
+It records an Update-end edge, absolute frame/segment QPC boundaries and cumulative owner-thread CPU/cycle
+readings surrounding each frame. Separate QPC query brackets expose probe cost. CPU intervals include probe
+overhead, coarse CPU deltas may be zero, and cycles are not elapsed time. Timers Off keeps CPU probes but clears
+interior edges, so it does not isolate CPU-query observer effects. Compare all intervals on the same ranked
+frame; independent segment percentiles do not attribute a frame tail. The scene, fixed extra warmup and CPU
+probes make these diagnostic observations separate from canonical acceptance. Retain all native bytes and
+sidecars, and declare the complete serial fresh-process schedule before running it.
+
 Hosted paired artifacts also retain the original measured native outputs and
 attestations. `Tools/Watch-BenchmarkHost.ps1` records continuous cumulative host
 CPU and process CPU/memory observations before the study starts through its end.
