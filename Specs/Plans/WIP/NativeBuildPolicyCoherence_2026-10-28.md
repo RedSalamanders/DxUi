@@ -44,3 +44,17 @@ conversions, observable test expression order, and declaration-local diagnostic
 annotations for existing noncopyable/aggregate traits. Those annotations preserve
 public aggregate and overload semantics; static trait checks guard the contract.
 No pinned source product is edited. Consumer compatibility remains a separate gate.
+
+Candidate 7c790156 passed all six native builds, all three ordinary Full x64 profiles and Debug/Release focus
+profiles. Its ASan focus run passed Menu but lost foreground ownership during NativeTextInput; the foreground
+PID was independently identified as Windows ShellExperienceHost. The lease refused the remaining resource
+suites and reported failed restoration. Preserve the failure and native images under
+`E:/DxUi.Perf/build-policy-evidence-20261028/main-asan-focus4-shell-foreground-failure/`; the cause is not established,
+the ASan focus gate remains open, and no assertion or desktop-ownership rule is relaxed for the rerun.
+
+Hosted paired job 123071471655 on de45a598 stopped before measurement because its staged benchmark used a bare
+scene include unavailable in the historical baseline's project include profile. The shared header now resolves
+the staged scene relative to itself, with a narrowly documented C4464 path-compatibility annotation. A real MSVC
+preprocessor control reproduces the original missing include, accepts the staged real headers, preserves the
+baseline implementation/project and restores its original harness. This supplements the earlier missing console
+module repair. No baseline optimization flag, profile identity, judge, threshold or policy qualification is changed.

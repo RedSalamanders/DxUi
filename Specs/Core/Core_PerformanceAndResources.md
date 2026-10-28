@@ -128,6 +128,11 @@ staging preserves their library sources and compiler/linker project rather than 
 the measured implementation or its policy. Missing-module and warning-bearing controls
 must fail, and restoring a named tree removes only the dependency introduced by the overlay.
 
+Compiled shared-fixture includes must also resolve under the historical baseline's include profile. The embedded
+benchmark names its scene relative to the staged header, preserving the baseline library/project configuration.
+A real compiler preprocessing control must reproduce the old missing include, accept the staged real headers and
+restore the old harness bytes. This control checks include resolution; it is not native benchmark execution.
+
 Hosted paired runs retain original measured executables, libraries, symbols and
 build attestations as CI artifacts alongside every report. Continuous host
 observations record native cumulative CPU counters, process CPU/memory, sample
