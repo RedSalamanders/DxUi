@@ -4,6 +4,8 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Resolve canonical private include paths in source validation while keeping public headers and shipping sources independent of private/test-only roots; cover both allowed paths and rejected boundary leaks.
+- Preserve the pinned SDK API while making private includes and HRESULT boundaries explicit for /Wall consumers; use per-type data tags so folded deleters cannot admit a wrong payload type, with a Release ICF and lifetime regression in WindowHost.
 - Add ProgressBar animation pause and resume while retaining indeterminate, enabled and value state, with phase, idle and real-client value-event coverage.
 - Preserve accepted Grid UI Automation selection changes when callbacks arrange sibling detail controls, while rejecting callbacks that reassign the model even before a fresh accessibility snapshot is published.
   - Cover AddToSelection, RemoveFromSelection and Select with sibling relayout, plus a same-pointer model-rebind negative control.

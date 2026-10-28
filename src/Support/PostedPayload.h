@@ -13,7 +13,12 @@ struct PayloadEntry
     UINT message                    = 0u;
     void* value                     = nullptr;
     void (*destroy)(void*) noexcept = nullptr;
+    const void* typeTag             = nullptr;
 };
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626)
 struct PayloadRegistry
 {
     std::mutex mutex;
@@ -27,11 +32,16 @@ struct PayloadRegistry
                 e.destroy(e.value);
     }
 };
+#pragma warning(pop)
+
 inline PayloadRegistry& Payloads()
 {
     static PayloadRegistry registry;
     return registry;
 }
+// Writable data has a distinct per-type address even when /OPT:ICF merges identical deleters.
+// This is private registry metadata; all existing API-3/API-4 token/lifetime contracts remain intact.
+template <class T> inline unsigned char PostedPayloadTypeTag = 0u;
 template <class T> void DestroyPayload(void* value) noexcept
 {
     delete static_cast<T*>(value);
@@ -104,7 +114,7 @@ template <class T> bool PostMessagePayload(HWND hwnd, UINT msg, WPARAM wp, std::
     for (auto& e : r.entries)
         if (! e.token)
         {
-            e = {r.next++, hwnd, msg, value.get(), &DxUi::Detail::DestroyPayload<T>};
+            e = {r.next++, hwnd, msg, value.get(), &DxUi::Detail::DestroyPayload<T>, &DxUi::Detail::PostedPayloadTypeTag<T>};
             if (! PostMessageW(hwnd, msg, wp, e.token))
             {
                 e = {};
@@ -138,7 +148,7 @@ template <class T> bool SendMessagePayload(HWND hwnd, UINT msg, WPARAM wp, std::
         for (auto& e : r.entries)
             if (! e.token)
             {
-                e     = {r.next++, hwnd, msg, value.release(), &DxUi::Detail::DestroyPayload<T>};
+                e     = {r.next++, hwnd, msg, value.release(), &DxUi::Detail::DestroyPayload<T>, &DxUi::Detail::PostedPayloadTypeTag<T>};
                 token = e.token;
                 break;
             }
@@ -176,7 +186,7 @@ template <class T> std::unique_ptr<T> TakeMessagePayload(HWND expectedWindow, UI
         auto& r = DxUi::Detail::Payloads();
         std::lock_guard lock(r.mutex);
         for (auto& e : r.entries)
-            if (token && e.token == token && e.window == expectedWindow && e.message == expectedMessage && e.destroy == &DxUi::Detail::DestroyPayload<T>)
+            if (token && e.token == token && e.window == expectedWindow && e.message == expectedMessage && e.typeTag == &DxUi::Detail::PostedPayloadTypeTag<T>)
             {
                 taken = e;
                 e     = {};

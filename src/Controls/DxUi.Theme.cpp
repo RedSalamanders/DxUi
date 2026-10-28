@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
-#include "../Support/Diagnostics.h"
+#include "Support/Diagnostics.h"
 
 namespace DxUi
 {

@@ -3,6 +3,7 @@
 #include "../Support/Support.Tests.PerformanceCapture.h"
 #include "Controls.Tests.DxUiFocusEventClient.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Controls.Tests.PostedPayloadIcf.h"
 #include "Scope.Tests.HostControlRegressions.h"
 #include <DxUi/NativeMenuInterop.h>
 
@@ -5607,8 +5608,19 @@ void TestWindowHostReadsThePointerDeviceOfEachMouseMessage()
     static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONUP, 0, point, handled));
 }
 
+void TestPostedPayloadTypeIdentitySurvivesIdenticalIcfDeleters()
+{
+#if defined(DXUI_POSTED_PAYLOAD_ICF_REQUIRED)
+    constexpr bool requireFold = true;
+#else
+    constexpr bool requireFold = false;
+#endif
+    Require(DxUiPostedPayloadIcfRegression::Run<false>(requireFold) == 0,
+            "posted payloads keep their pinned type/lifetime contract when identical deleters fold");
+}
 void RunWindowHostTests()
 {
+    DXUI_RUN_TEST(TestPostedPayloadTypeIdentitySurvivesIdenticalIcfDeleters);
     DXUI_RUN_TEST(TestFocusAutomationCacheRequestInitializesOnItsClientThread);
     DXUI_RUN_TEST(TestThreadExitWaitServicesLateTeardownCallbacks);
     DXUI_RUN_TEST(TestSentMessageSetupWaitServicesCallbacksAndPreservesQueuedInput);

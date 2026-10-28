@@ -32,4 +32,8 @@
       <RuntimeLibrary Condition="'$(Configuration)'=='Release'">MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
   </ItemDefinitionGroup>
+  <!-- Canonical private includes are available only to the SDK's owned targets. -->
+  <ItemDefinitionGroup Condition="'$(MSBuildProjectName)'=='DxUi' or '$(MSBuildProjectName)'=='DxUi.ControlTests' or '$(MSBuildProjectName)'=='DxUi.EmbeddedTests' or '$(MSBuildProjectName)'=='DxUi.FoundationTests' or '$(MSBuildProjectName)'=='DxUi.InteractiveLease' or '$(MSBuildProjectName)'=='DxUi.EmbeddedControls'">
+    <ClCompile><AdditionalIncludeDirectories>$(DxUiRepositoryRoot)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories></ClCompile>
+  </ItemDefinitionGroup>
 </Project>

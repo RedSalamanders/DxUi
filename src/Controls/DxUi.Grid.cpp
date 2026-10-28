@@ -2,8 +2,8 @@
 #define NOMINMAX
 #endif
 
-#include "../Support/Diagnostics.h"
 #include "DxUi.Internal.h"
+#include "Support/Diagnostics.h"
 
 #include <algorithm>
 #include <bit>
