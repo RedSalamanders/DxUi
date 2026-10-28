@@ -121,6 +121,9 @@ Microsoft.Cpp.targets. Set DxUiRoot, DxUiConsumerLockFile and DxUiConsumerOutput
 Compile with Unicode, stdcpplatest, v145 and the matching /MDd or /MD runtime. The public example's source includes
 only public DxUi headers and ordinary Windows/WIL headers; it never reaches src. Diagnostic hook availability is
 fixed in Configuration.h and must not be overridden by consumers.
+The relocated consumer fixture copies the sample's shared ComplexUi scene into its own sample tree and adds
+that copied directory to its compilation include search. It must compile without private library source paths
+or include directories inherited from the developer checkout.
 
 `build.ps1` presents a DxUi banner and color-classifies streamed MSBuild diagnostics in interactive terminals while
 preserving plain redirected output and a complete file log. It rejects only running executables in the selected

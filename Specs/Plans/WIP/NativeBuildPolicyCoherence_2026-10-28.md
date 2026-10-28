@@ -66,3 +66,9 @@ and accepts both self-locating shared-header paths. The full paired benchmark in
 includes. All six af669 native builds passed; its runtime parent was stopped while waiting for the desktop mutex,
 with only its console host present and no native child running, before integrating this final harness repair.
 No runtime pass is claimed for that interrupted batch. Logs, process guards and both no-verdict CI failures remain.
+
+Hosted b4fa57 x64 Debug and ASan consumer qualification failed with C1083 in the relocated sample Main.cpp:
+the shared ComplexUiScene.h was copied, but its local directory was absent from the generated external project.
+The fixture now adds that copied sample directory while preserving inherited public dependency includes. This
+repairs the external fixture's include closure; public headers, library source and the baseline benchmark policy
+are unchanged. Actual relocated Debug/Release/ASan builds and rendering/conformance checks remain required.
