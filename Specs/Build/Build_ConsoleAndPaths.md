@@ -86,3 +86,5 @@ Owner: repository build maintainers. Review by 2027-01-31.
 The evaluated-profile check rejects the exception in other profiles.
 See https://learn.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warning-c4746.
 The green footer duration measures the public entrypoint through result publication, including restore, admission and attestation. Native compilation phase timings and workload performance receipts retain their separate meanings.
+
+On non-Windows tooling hosts, the Windows build formatter retains literal POSIX paths. URI escaping and OSC8 checks apply to drive-qualified Windows paths; diagnostic, color, quoting and refusal controls run on both hosts.

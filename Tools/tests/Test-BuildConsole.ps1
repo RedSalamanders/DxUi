@@ -44,8 +44,12 @@ $binary=Join-Path $ScratchRoot "synthetic # app's É.exe"
 $plain=ConvertTo-NativeBuildLink -LiteralPath $binary -HyperlinkMode Never
 Require ($plain -ceq [IO.Path]::GetFullPath($binary)) 'Plain link mode changed the path.'
 $link=ConvertTo-NativeBuildLink -LiteralPath $binary -HyperlinkMode Always
-Require ($link.Contains('file://localhost/') -and $link.Contains('%20') -and $link.Contains('%23')) 'File hyperlink was not URI-escaped and locally hosted.'
-Require ($link.Contains([string][char]27+']8;;')) 'OSC 8 opening sequence missing.'
+if($plain -match '^[a-zA-Z]:[\\/]'){
+    Require ($link.Contains('file://localhost/') -and $link.Contains('%20') -and $link.Contains('%23')) 'File hyperlink was not URI-escaped and locally hosted.'
+    Require ($link.Contains([string][char]27+']8;;')) 'OSC 8 opening sequence missing.'
+}else{
+    Require ($link -ceq $plain) 'Non-Windows paths must retain their literal fallback in the Windows build formatter.'
+}
 Refuses {ConvertTo-NativeBuildLink -LiteralPath ('unsafe'+[char]27+'path') -HyperlinkMode Always} 'control characters'
 $records=@(Write-NativeBuildResult -Project Fixture -Platform x64 -Configuration Release -LogPath $clean -Artifacts @($binary) -Executable $binary -ColorMode Always -HyperlinkMode Always 6>&1)
 $messages=@($records|ForEach-Object{[string]$_.MessageData})
