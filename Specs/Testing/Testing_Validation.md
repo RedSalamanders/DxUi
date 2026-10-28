@@ -1084,3 +1084,5 @@ addresses. Wrong-type Take and Reclaim must still reject and preserve the genuin
 payload; correct Take/Reclaim and window drain destroy it exactly once. Debug and
 ASan retain those ownership checks without requiring folding. This test-only link
 setting does not alter the library, benchmark or consumer linker policies.
+
+The modal timer-ID collision fixture establishes on-screen owner geometry and verified foreground activation before starting either timer. It requires observed popup entry before dispatch assertions. Its independent popup-relative fallback and existing dispatch/dismissal assertions remain mandatory; setup failure is a failure, not a capability skip.

@@ -1879,6 +1879,13 @@ void TestModalMenuDispatchesUnrelatedTimerWithSubmenuId()
     }
 
     AttachedHostWindow ownerWindow;
+    // Establish the capturing-menu precondition before starting either timer. The
+    // default attached owner is hidden; opening from it does not prove modal entry.
+    Require(SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 320, 220, SWP_NOZORDER | SWP_NOACTIVATE) != FALSE,
+            "the modal timer owner has on-screen geometry");
+    ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
+    ownerWindow.PumpMessages();
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "the modal timer owner activates before either timer starts");
     const std::vector<MenuFlyoutItem> items{{.text = L"Timer dispatch", .commandId = 91602}};
     size_t timerDispatchCount    = 0u;
     bool dismissPosted           = false;
@@ -1949,6 +1956,7 @@ void TestModalMenuDispatchesUnrelatedTimerWithSubmenuId()
             std::cerr << "Modal timer regression state: " << diagnostics << '\n';
         Require(condition, expectation);
     };
+    requireWithTimerDiagnostics(popupObserved, "the timer regression observes its popup before checking modal dispatch");
     requireWithTimerDiagnostics(timerDispatchCount >= 1u, "the modal loop dispatches an unrelated window timer that shares submenu id 1");
     requireWithTimerDiagnostics(! fallbackFired, "timer id 1 dispatches before the popup-relative bounded-dismissal fallback");
     requireWithTimerDiagnostics(dismissPosted, "the dispatched timer can post Escape to close the modal menu");

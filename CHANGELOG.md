@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Prepare and verify the modal timer regression's visible foreground owner before starting its timers, and require observed popup entry before dispatch assertions. Timer-ID collision checks, fallback bounds and command/dismissal assertions remain unchanged.
 - Validate canonical private include roots without lending test headers to shipping sources or private headers to the public API; bind the qualification fixture child to the current PowerShell engine and retain its output without changing readiness or termination deadlines.
 - Preserve reviewed volatile behavior and scope the MSVC ARM64 Release LTCG model notice exception; validate its architecture/configuration boundary and unify successful build duration reporting.
 - Fix owned signed/unsigned and drawing conversions, callback and test diagnostics; preserve identity/aggregate traits with narrowly reviewed declaration annotations. Classify dependency headers through evaluated MSBuild paths. Zero-warning native qualification remains tracked in the active build-policy plan.
