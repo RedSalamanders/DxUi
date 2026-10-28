@@ -122,6 +122,12 @@ can leave the library's newest-project/import selection different for identical 
 The staging manifest records the role, physical path, original UTC stamp and staged UTC
 stamp for every selected root/project. Partial staging failure restores all acquired stamps.
 
+The current build driver's transitive console module is part of the shared overlay and
+full harness identity. Older baseline trees must import that staged module before building;
+staging preserves their library sources and compiler/linker project rather than replacing
+the measured implementation or its policy. Missing-module and warning-bearing controls
+must fail, and restoring a named tree removes only the dependency introduced by the overlay.
+
 Hosted paired runs retain original measured executables, libraries, symbols and
 build attestations as CI artifacts alongside every report. Continuous host
 observations record native cumulative CPU counters, process CPU/memory, sample

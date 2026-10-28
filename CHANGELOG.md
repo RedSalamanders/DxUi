@@ -4,6 +4,8 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Settle owner activation and preceding mouse messages before each sent-cancellation menu case, verify foreground/focus again, and retain terminal owner diagnostics on failure. All four cancellation messages and dismissal/command assertions remain mandatory.
+- Stage and fingerprint the build driver's console dependency in paired benchmark trees, fixing baseline startup before measurements. Regression controls reproduce the missing import, execute the staged module, reject warnings, preserve the baseline library/project and restore the original driver.
 - Validate literal POSIX-path fallback in Linux console-tooling tests while retaining Windows URI escaping and OSC8 checks, with diagnostic, color, quoting and failure controls on both hosts.
 - Prepare and verify the modal timer regression's visible foreground owner before starting its timers, and require observed popup entry before dispatch assertions. Timer-ID collision checks, fallback bounds and command/dismissal assertions remain unchanged.
 - Validate canonical private include roots without lending test headers to shipping sources or private headers to the public API; bind the qualification fixture child to the current PowerShell engine and retain its output without changing readiness or termination deadlines.
