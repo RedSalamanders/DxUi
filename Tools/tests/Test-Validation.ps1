@@ -46,6 +46,37 @@ Invoke-FixtureCase 'owned source can evolve without rewriting its historical has
     Assert-Equal 0 (Get-DependencyFailureCount $root) 'failures'
 }
 
+Invoke-FixtureCase 'canonical owned includes resolve through the supported private roots' {
+    param($root)
+    Set-DependencyFixture $root
+    Set-FixtureFile $root 'src/Support/Diagnostics.h' "#pragma once`n"
+    Set-FixtureFile $root 'src/Controls/Control.cpp' '#include "Support/Diagnostics.h"'
+    Set-FixtureFile $root 'Tests/Support/Fixture.h' "#pragma once`n"
+    Set-FixtureFile $root 'Tests/Embedded/Bridge.h' "#pragma once`n"
+    Set-FixtureFile $root 'Samples/ComplexUi/Scene.h' "#pragma once`n"
+    Set-FixtureFile $root 'Tests/Controls/Control.Tests.Canonical.cpp' @'
+#include "Support/Diagnostics.h"
+#include "Fixture.h"
+#include "Bridge.h"
+#include "Scene.h"
+'@
+    Assert-Equal 0 (Get-DependencyFailureCount $root) 'actual owned include search roots resolve'
+}
+
+Invoke-FixtureCase 'private include resolution never lends test roots to shipping sources or public headers' {
+    param($root)
+    Set-DependencyFixture $root
+    Set-FixtureFile $root 'Tests/Support/OnlyTest.h' "#pragma once`n"
+    Set-FixtureFile $root 'src/Controls/Control.cpp' '#include "OnlyTest.h"'
+    Assert-True (Get-DependencyFailureCount $root) 'shipping sources cannot borrow test-only include roots'
+    Set-FixtureFile $root 'src/Controls/Control.cpp' "// independent source`n"
+    Set-FixtureFile $root 'src/Controls/Internal.h' "#pragma once`n"
+    Set-FixtureFile $root 'include/DxUi/DxUi.h' '#include "Controls/Internal.h"'
+    Assert-True (Get-DependencyFailureCount $root) 'public headers cannot borrow the private src include root'
+    Set-FixtureFile $root 'include/DxUi/DxUi.h' '#include "../../src/Controls/Internal.h"'
+    Assert-Contains (Get-DependencyFailures $root) 'Public include escapes the supported header root: include/DxUi/DxUi.h: ../../src/Controls/Internal.h' 'relative spelling cannot bypass the public boundary'
+}
+
 Invoke-FixtureCase 'new owned source needs no fake historical origin' {
     param($root)
     Set-DependencyFixture $root

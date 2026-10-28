@@ -11,7 +11,7 @@
 #include <d2d1effects.h>
 #include <limits>
 
-#include "../Support/Diagnostics.h"
+#include "Support/Diagnostics.h"
 
 namespace DxUi
 {

@@ -31,3 +31,5 @@ RedXe retains its separately owned hardware, real IME and assistive-technology g
 
 Plans never override normative contracts. Completed plans move to Done after
 validation and normative closeout.
+
+- **ACTIVE**: [Native build policy compatibility](NativeBuildPolicyCompatibility_2026-10-28.md). Preserve the pinned API, qualify warning repairs and payload type identity under Release ICF, and validate consumer adoption.

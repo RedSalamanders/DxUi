@@ -1,1 +1,0 @@
-- Add an opt-in hosted A/A calibration dispatch that measures one explicit revision with the same binary under both labels, retains diagnostic reports, and never gates pull-request qualification.

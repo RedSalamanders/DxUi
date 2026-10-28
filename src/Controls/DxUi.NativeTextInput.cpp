@@ -2,8 +2,8 @@
 #include "TextStoreTarget.h"
 #include "TsfFocus.h"
 
-#include "../Support/Diagnostics.h"
-#include "../Support/WindowMessages.h"
+#include "Support/Diagnostics.h"
+#include "Support/WindowMessages.h"
 
 #include <algorithm>
 #include <chrono>

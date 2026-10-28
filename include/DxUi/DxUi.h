@@ -1539,16 +1539,25 @@ struct DesiredSize
     bool overflow = false;
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4623 4626 5027)
 struct MeasureContext
 {
     const ControlHost& host;
     // Optional caller-owned pass budget, borrowed synchronously. Nested containers preserve it; cached results consume no units.
     size_t* remainingTextUnits = nullptr;
 };
+#pragma warning(pop)
 
 [[nodiscard]] bool AreValidLayoutConstraints(const LayoutConstraints& constraints) noexcept;
 inline constexpr size_t kMaxIntrinsicTextUnits = 65'536u;
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626)
 class Control
 {
 public:
@@ -1733,6 +1742,7 @@ private:
     bool _intrinsicLayoutEnabled        = false;
     bool _intrinsicLayoutPending        = false;
 };
+#pragma warning(pop)
 
 [[nodiscard]] inline HRESULT MeasureControl(const Control& control,
                                             const MeasureContext& context,
@@ -1742,6 +1752,10 @@ private:
     return control.Measure(context, constraints, result);
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class Panel : public Control
 {
 public:
@@ -1821,6 +1835,7 @@ protected:
 private:
     std::vector<std::unique_ptr<Control>> _children;
 };
+#pragma warning(pop)
 
 class PageHost final : public Control
 {
@@ -1892,6 +1907,10 @@ private:
     TransitionState _transition;
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class CardPanel : public Panel
 {
 public:
@@ -1905,7 +1924,12 @@ public:
 private:
     float _cornerRadiusDip = 4.0f; // 4 DIP inline card, 8 DIP overlay card
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class Label : public Control
 {
 public:
@@ -1936,7 +1960,12 @@ private:
     std::optional<D2D1_COLOR_F> _textColor;
     Control* _mnemonicTarget = nullptr;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class Button : public Control
 {
 public:
@@ -2033,7 +2062,12 @@ private:
     bool _multiline                                = false;
     ButtonVariant _variant                         = ButtonVariant::Standard;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class Toggle : public Button
 {
 public:
@@ -2063,7 +2097,12 @@ private:
     std::shared_ptr<const std::function<void(bool)>> _onToggled;
     bool _checked = false;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class Checkbox final : public Toggle
 {
 public:
@@ -2083,9 +2122,14 @@ protected:
 private:
     bool _indeterminate = false;
 };
+#pragma warning(pop)
 
 class RadioButtons;
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class RadioButton final : public Button
 {
 public:
@@ -2108,7 +2152,12 @@ private:
     RadioButtons* _group = nullptr;
     bool _checked        = false;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class RadioButtons final : public Panel
 {
 public:
@@ -2130,7 +2179,12 @@ private:
     std::wstring _header;
     int _selectedIndex = -1;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class ProgressBar final : public Control
 {
 public:
@@ -2171,7 +2225,12 @@ private:
     mutable float _animationPhase       = 0.0f;
     uint64_t _lastTickMs                = 0;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class PageIndicator final : public Control
 {
 public:
@@ -2208,6 +2267,7 @@ private:
     uint32_t _pressedIndex  = UINT32_MAX;
     bool _pressed           = false;
 };
+#pragma warning(pop)
 
 struct ThroughputGraphHueWeight final
 {
@@ -2295,6 +2355,10 @@ struct ThroughputGraphDebugState final
 // Reusable throughput history control. It renders an optional limit marker,
 // rainbow sample strokes, and per-stream hue-weight bands while honoring the
 // host's reduced-motion and high-contrast palette contracts.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class ThroughputGraph final : public Control
 {
 public:
@@ -2339,6 +2403,7 @@ private:
     mutable bool _lastHighContrast              = false;
     mutable ThroughputGraphBandPaintMetrics _lastBandPaintMetrics{};
 };
+#pragma warning(pop)
 
 enum class SliderOrientation : uint8_t
 {
@@ -2358,6 +2423,10 @@ struct SliderChange
     double value;
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class Slider final : public Control
 {
 public:
@@ -2467,7 +2536,12 @@ private:
     static constexpr uint64_t _interactionAnimationDurationMs = 100u;
     static constexpr uint64_t _valueAnimationDurationMs       = 167u;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class Toolbar final : public Panel
 {
 public:
@@ -2479,7 +2553,12 @@ public:
 
     void Paint(ControlHost& host) const override;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class MenuBar final : public Control
 {
 public:
@@ -2559,7 +2638,12 @@ private:
     bool _retainSelectedIndexOnFocusLost = false;
     mutable MenuBarLayoutCache _menuBarLayoutCache;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class TabControl final : public Panel
 {
 public:
@@ -2733,7 +2817,12 @@ private:
     bool _dragReordering          = false;
     mutable TabHeaderLayoutCache _tabHeaderLayoutCache;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class ColorSwatch final : public Control
 {
 public:
@@ -2754,7 +2843,12 @@ private:
     std::shared_ptr<const std::function<void()>> _onClick;
     bool _pressed = false;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626)
 class TextField : public Control
 {
 public:
@@ -2947,7 +3041,12 @@ private:
 
     static constexpr size_t kMaxEditHistoryEntries = 64u;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class ComboBox : public Control
 {
 public:
@@ -3139,7 +3238,12 @@ private:
     float _minimumPopupItemHeightDip               = 0.0f;
     static constexpr size_t kMaxEditHistoryEntries = 64u;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class TagPicker : public Panel
 {
 public:
@@ -3206,7 +3310,12 @@ private:
     std::shared_ptr<const std::function<void(std::span<const std::wstring>)>> _onSelectionChanged;
     bool _syncingCombo = false;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class StatusStrip final : public Control
 {
 public:
@@ -3245,7 +3354,12 @@ private:
     FontRole _fontRole              = FontRole::Small;
     bool _blendWithWindowBackground = false;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class PopupLayer final : public Panel
 {
 public:
@@ -3256,6 +3370,7 @@ protected:
     [[nodiscard]] Control* HitTestOverlay(D2D1_POINT_2F point) override;
     [[nodiscard]] const Control* HitTestOverlay(D2D1_POINT_2F point) const override;
 };
+#pragma warning(pop)
 
 enum class StackOrientation : uint8_t
 {
@@ -3288,6 +3403,10 @@ struct LayoutConstraint
 //   stack->SetChildExtent(edit, 32.0f);
 //   stack->ApplyLayout();
 //
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class StackPanel : public Panel
 {
 public:
@@ -3324,6 +3443,7 @@ private:
     uint64_t _layoutRevision      = 0u;
     std::vector<std::pair<const Control*, float>> _childExtents;
 };
+#pragma warning(pop)
 
 enum class LabelPlacement : uint8_t
 {
@@ -3338,6 +3458,10 @@ enum class ValidationState : uint8_t
 };
 
 // A presentation field owns stable label/editor/help/error controls. It never changes application values.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class FormField final : public Panel
 {
 public:
@@ -3446,8 +3570,13 @@ private:
     ValidationState _validationState = ValidationState::None;
     bool _required                   = false;
 };
+#pragma warning(pop)
 
 // Opt-in one/two-column form body. Fixed footer actions remain a separate sibling.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class FormPanel final : public Panel
 {
 public:
@@ -3499,6 +3628,7 @@ private:
     D2D1_SIZE_F _contentSize                = {};
     bool _overflow                          = false;
 };
+#pragma warning(pop)
 
 struct MeasuredActionLayout
 {
@@ -3523,6 +3653,10 @@ struct FlexChildOptions
     LayoutAlignment alignment = LayoutAlignment::Stretch;
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class FlexPanel final : public Panel
 {
 public:
@@ -3594,6 +3728,7 @@ private:
     D2D1_SIZE_F _contentSize{};
     bool _layoutOverflow = false;
 };
+#pragma warning(pop)
 
 // Allocation-free ordered flow, in local DIPs. Call on layout invalidation, then apply the same
 // rectangles to the controls. Text measurement and minimum target sizes belong to the caller.
@@ -3627,6 +3762,10 @@ private:
 //   stack->ApplyLayout();
 //   scroll->SetContentHeight(stack->GetContentExtent());
 //
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class ScrollPanel : public Panel
 {
 public:
@@ -3702,7 +3841,12 @@ private:
 
     std::shared_ptr<const std::function<void(float)>> _onScrollChanged;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class TooltipLayer final : public Control
 {
 public:
@@ -3759,7 +3903,12 @@ private:
     bool _hideScheduled            = false;
     uint64_t _hideTickMs           = 0u;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class Tree final : public Control
 {
 public:
@@ -4020,7 +4169,12 @@ private:
     D2D1_POINT_2F _reorderPress{};
     std::optional<TreeDrop> _reorderDrop;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class Grid final : public Control
 {
 public:
@@ -4430,6 +4584,7 @@ private:
         bool active          = false;
     } _sortGlyphTransition{};
 };
+#pragma warning(pop)
 
 ThemePalette MakeDefaultThemePalette(bool dark) noexcept;
 ThemePalette MakeThemePalette(const ThemeColors& viewerTheme) noexcept;
@@ -4551,6 +4706,10 @@ struct SplitterChange
 // separator's leading edge from the control's leading edge, clamped by the pane minimums. Dragging previews,
 // releasing commits, Escape or capture loss restores the drag start. Left/Right (Up/Down) step, Shift steps
 // further, Home/End go to the limits; keyboard changes commit. The persistable position is consumer state.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class Splitter final : public Control
 {
 public:
@@ -4609,6 +4768,7 @@ private:
     float _dragPointerOffsetDip      = 0.0f;
     bool _dragging                   = false;
 };
+#pragma warning(pop)
 
 enum class NumericStepperChangePhase : uint8_t
 {
@@ -4626,6 +4786,10 @@ struct NumericStepperChange
 // A labeled numeric field with step buttons and keyboard nudge for inspectors and dialogs. Typing previews as soon
 // as the text parses; Enter, focus loss, the buttons, Up/Down (Shift: large step) commit; Escape cancels the edit
 // and restores the committed value. Values clamp to [minimum, maximum] and format with a fixed number of decimals.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class NumericStepper final : public Panel
 {
 public:
@@ -4706,6 +4870,7 @@ private:
     bool _editPreviewed  = false; // The open edit sent a preview, so it must end with Commit or Cancel.
     bool _syncing        = false;
 };
+#pragma warning(pop)
 
 struct HsvColor
 {
@@ -4738,6 +4903,10 @@ struct ColorPickerChange
 // HSV field, hue strip, R/G/B steppers, hex field, new/current swatches, OK and Cancel. Pointer drags and typed
 // values preview; OK or Enter commit; Escape, Cancel, or capture loss during a drag cancel and restore the current
 // color. Eyedropping outside the picker is the host's job: it feeds `SampleColor`. Strings are consumer-supplied.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class ColorPicker final : public Panel
 {
 public:
@@ -4861,6 +5030,7 @@ private:
     mutable wil::com_ptr<ID2D1LinearGradientBrush> _valueBrush;
     mutable wil::com_ptr<ID2D1LinearGradientBrush> _hueBrush;
 };
+#pragma warning(pop)
 
 class ControlHost final
 {
