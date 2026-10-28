@@ -4744,6 +4744,215 @@ void TestMenuDelayedSubmenuCloseRestartsAfterObservedForegroundLoss()
     Require(failure.empty(), failure.c_str());
 }
 
+ForegroundAttempt RunMenuStationaryCursorInitialSubmenuHover(std::string& failure)
+{
+    using namespace DxUi;
+
+    failure.clear();
+    AttachedHostWindow ownerWindow;
+    SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
+    ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
+    ownerWindow.PumpMessages();
+
+    if (! TryActivateDxUiTestWindow(ownerWindow.Hwnd()))
+        return ForegroundAttempt{.activationEstablished = false};
+    const uint32_t lossesBefore = ownerWindow.ForegroundLossCount();
+    bool activationEstablished  = true;
+    DrainPendingMouseMessagesForMenuSuite();
+
+    const std::vector<MenuFlyoutItem> items = {
+        {.text = L"B1", .commandId = 36931, .children = {MenuFlyoutItem{.text = L"B11", .commandId = 369311}}},
+        {.text = L"Disabled submenu", .enabled = false, .children = {MenuFlyoutItem{.text = L"Disabled child", .commandId = 369321}}},
+        {.text = L"Leaf", .commandId = 36933},
+    };
+    const POINT anchor{180, 180};
+    ScopedMenuPointerFixture pointerFixture(ownerWindow.Hwnd());
+    const RECT virtualScreen = GetVirtualScreenBounds();
+    if (! pointerFixture.AlignCursor(POINT{virtualScreen.left + 4, virtualScreen.top + 4}))
+    {
+        failure = "the owned pointer parks outside the calibration popup";
+        return ForegroundAttempt{.activationEstablished = true};
+    }
+    if (! TryActivateDxUiTestWindow(ownerWindow.Hwnd()))
+        return ForegroundAttempt{.activationEstablished = false};
+    DrainPendingMouseMessagesForMenuSuite();
+
+    std::array<POINT, 3> rowCentersScreen{};
+    bool calibrationReady = false;
+    std::string calibrationFailure;
+    std::optional<int> calibrationResult;
+    {
+        const auto calibrationDiscoveryDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(5000);
+        MenuModalDispatchReadinessForTest calibrationDispatchReady(ownerWindow.Hwnd());
+        std::thread calibrationDriver([&]
+        {
+            const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), calibrationFailure);
+            const HWND popupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B1");
+            if (! popupHwnd)
+            {
+                calibrationFailure = "calibration popup appears for stationary submenu hover";
+                return;
+            }
+            calibrationDispatchReady.NoteDiscovery();
+            if (! calibrationDispatchReady.WaitUntil(calibrationDiscoveryDeadline))
+            {
+                calibrationFailure = "calibration popup modal dispatch becomes ready within the discovery budget";
+                return;
+            }
+            const auto dismissPopup = wil::scope_exit([&]() noexcept
+            {
+                if (IsWindow(popupHwnd) != FALSE)
+                    DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd());
+            });
+
+            ContextMenuPopupDebugState popupState{};
+            if (! WaitForContextMenuPopupState(popupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+                return state.visibleWidthDip > 0.0f && state.visibleHeightDip > 0.0f;
+            }, popupState))
+            {
+                calibrationFailure = "calibration popup exposes geometry for stationary submenu hover";
+                return;
+            }
+
+            [[maybe_unused]] const ScopedMenuPointerFixture popupDpiContext(popupHwnd);
+            for (size_t index = 0; index < rowCentersScreen.size(); ++index)
+            {
+                D2D1_RECT_F itemRectDip{};
+                if (! DebugGetContextMenuPopupItemRect(popupHwnd, index, itemRectDip))
+                {
+                    calibrationFailure = "calibration popup exposes each eligible and ineligible row rectangle";
+                    return;
+                }
+
+                const float scale = static_cast<float>(popupState.dpi) / 96.0f;
+                POINT rowCenter{static_cast<LONG>(std::lround(((itemRectDip.left + itemRectDip.right) * 0.5f) * scale)),
+                                static_cast<LONG>(std::lround(((itemRectDip.top + itemRectDip.bottom) * 0.5f) * scale))};
+                if (! ClientToScreen(popupHwnd, &rowCenter))
+                {
+                    calibrationFailure = "calibration converts each row center to screen coordinates";
+                    return;
+                }
+                rowCentersScreen[index] = rowCenter;
+            }
+
+            calibrationReady = true;
+            DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd());
+            if (! WaitForWindowDestroyed(popupHwnd, std::chrono::milliseconds(1200)))
+                calibrationFailure = "calibration popup closes before stationary submenu hover";
+        });
+
+        calibrationResult = ContextMenu::Show(ownerWindow.Hwnd(), anchor, items, ownerWindow.Host().GetTheme());
+        calibrationDriver.join();
+    }
+    if (! calibrationFailure.empty() || calibrationResult.has_value() || ! calibrationReady)
+    {
+        failure = calibrationFailure.empty() ? "calibration Show closes without invoking a command and records all row centers" : calibrationFailure;
+        return ForegroundAttempt{ownerWindow.ForegroundLossCount() != lossesBefore, ownerWindow.LastForegroundThiefThreadId(), true};
+    }
+
+    const auto runParkedRow = [&](size_t rowIndex, bool expectSubmenu) -> bool
+    {
+        DrainPendingMouseMessagesForMenuSuite();
+        if (! pointerFixture.AlignCursor(rowCentersScreen[rowIndex]))
+        {
+            failure = std::format("the owned pointer parks over menu row {} before Show", rowIndex);
+            return false;
+        }
+        POINT parkedCursor{};
+        if (! GetPhysicalCursorPos(&parkedCursor) || parkedCursor.x != rowCentersScreen[rowIndex].x || parkedCursor.y != rowCentersScreen[rowIndex].y)
+        {
+            failure = std::format("the physical pointer remains on menu row {} immediately before Show", rowIndex);
+            return false;
+        }
+        DrainPendingMouseMessagesForMenuSuite();
+        if (! TryActivateDxUiTestWindow(ownerWindow.Hwnd()))
+        {
+            failure               = std::format("the menu owner reacquires the foreground before stationary row {} is shown", rowIndex);
+            activationEstablished = false;
+            return false;
+        }
+        DrainPendingMouseMessagesForMenuSuite();
+
+        std::string driverFailure;
+        const auto discoveryDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(5000);
+        MenuModalDispatchReadinessForTest dispatchReady(ownerWindow.Hwnd());
+        std::thread driver([&]
+        {
+            const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
+            const HWND popupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B1");
+            if (! popupHwnd)
+            {
+                driverFailure = std::format("popup opens with stationary row {} beneath the pointer", rowIndex);
+                return;
+            }
+            dispatchReady.NoteDiscovery();
+            if (! dispatchReady.WaitUntil(discoveryDeadline))
+            {
+                driverFailure = "stationary-hover popup modal dispatch becomes ready within the discovery budget";
+                return;
+            }
+            const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
+
+            ContextMenuPopupDebugState popupState{};
+            const std::optional<size_t> expectedHoveredIndex = rowIndex == 1u ? std::nullopt : std::optional<size_t>{rowIndex};
+            if (! DebugGetContextMenuPopupState(popupHwnd, popupState) || popupState.hoveredIndex != expectedHoveredIndex)
+            {
+                driverFailure = std::format("popup initialization records stationary row {} with its eligible hover state", rowIndex);
+                return;
+            }
+
+            if (! expectSubmenu)
+            {
+                const std::wstring_view childText = rowIndex == 1u ? L"Disabled child" : L"B11";
+                if (popupState.hoverTimerActive || FindOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), childText))
+                {
+                    driverFailure = std::format("stationary disabled or leaf row {} does not arm or open a submenu", rowIndex);
+                }
+                return;
+            }
+
+            HWND submenuHwnd = FindOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B11");
+            if (! submenuHwnd &&
+                (! popupState.hoverTimerActive || ! popupState.hoverTimerPendingOpen || popupState.hoverTimerItemIndex != std::optional<size_t>{rowIndex}))
+            {
+                driverFailure = "stationary enabled submenu row opens or exposes its existing pending-open timer";
+                return;
+            }
+            if (! submenuHwnd && ! WaitForSubmenuOpenAfterHoverForMenuSuite(ownerWindow.Hwnd(), popupHwnd, rowIndex, L"B11", submenuHwnd, popupState))
+                driverFailure = "stationary enabled submenu row opens through the existing delayed-open path without pointer motion";
+        });
+
+        const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), anchor, items, ownerWindow.Host().GetTheme());
+        driver.join();
+        if (! driverFailure.empty())
+        {
+            failure = driverFailure;
+            return false;
+        }
+        if (result.has_value())
+        {
+            failure = "stationary submenu hover validation invokes no command";
+            return false;
+        }
+        return true;
+    };
+
+    if (! runParkedRow(0u, true) || ! runParkedRow(1u, false) || ! runParkedRow(2u, false))
+    {
+        return ForegroundAttempt{ownerWindow.ForegroundLossCount() != lossesBefore, ownerWindow.LastForegroundThiefThreadId(), activationEstablished};
+    }
+
+    return ForegroundAttempt{ownerWindow.ForegroundLossCount() != lossesBefore, ownerWindow.LastForegroundThiefThreadId(), activationEstablished};
+}
+
+void TestMenuStationaryCursorOpensEligibleSubmenuAfterDelay()
+{
+    std::string failure;
+    const ForegroundRunResult run = RunUntilForegroundHeld([&] { return RunMenuStationaryCursorInitialSubmenuHover(failure); });
+    Require(run.held, "stationary submenu hover establishes and retains the foreground within the existing attempt bound");
+    Require(failure.empty(), failure.c_str());
+}
+
 void TestMenuHoveringSiblingWithChildrenReplacesOpenSubmenuAfterDelay()
 {
     using namespace DxUi;
@@ -11828,6 +12037,7 @@ void RunMenuTests()
     runTest("TestMenuRootSwitchUsesDeliveredOwnerMouseMoveAfterPopupSwitch", TestMenuRootSwitchUsesDeliveredOwnerMouseMoveAfterPopupSwitch);
     runTest("TestMenuRootSwitchDoesNotPollCursorWhileIdle", TestMenuRootSwitchDoesNotPollCursorWhileIdle);
     runTest("TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay", TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay);
+    runTest("TestMenuStationaryCursorOpensEligibleSubmenuAfterDelay", TestMenuStationaryCursorOpensEligibleSubmenuAfterDelay);
     runTest("TestMenuDelayedSubmenuCloseRestartsAfterObservedForegroundLoss", TestMenuDelayedSubmenuCloseRestartsAfterObservedForegroundLoss);
     runTest("TestMenuHoveringSiblingWithChildrenReplacesOpenSubmenuAfterDelay", TestMenuHoveringSiblingWithChildrenReplacesOpenSubmenuAfterDelay);
     runTest("TestMenuModalLoopPeeksOnlyLivePopupsWhenAPeekClosesASubmenu", TestMenuModalLoopPeeksOnlyLivePopupsWhenAPeekClosesASubmenu);

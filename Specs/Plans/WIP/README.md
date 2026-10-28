@@ -2,6 +2,8 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
+- **ACTIVE**: [Stationary submenu hover](StationarySubmenuHover_2026-10-28.md). A pointer-seeded eligible submenu row must receive the existing cascade delay without requiring a later mouse move; source fix and native qualification remain pending review.
+
 - **ACTIVE**: [Qualification runner reliability](QualificationRunnerReliability_2026-10-28.md). Atomic progress updates with concurrent readers and explicit successful runner exit-state normalization; controlled failures are retained and final source qualification remains pending.
 
 - **ACTIVE**: [Subtle Markdown presentation](SubtleMarkdownPresentation_2026-10-27.md). Opt-in heading rules, intrinsic tables, centered display objects and shaded quotes for RedTilde; focused rendering and exact consumer adoption qualification are in progress. Earlier performance/CI queues remain paused.
