@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Publish consumer progress as coherent atomic snapshots for concurrent readers, preserve collision and helper-failure diagnostics, and clear stale expected native probe status only after successful suite and evidence completion. Performance, consumer and hosted-platform holds remain separate.
 - Guard the delayed submenu-close test's complete two-popup sequence with fresh, bounded foreground attempts and reacquire the owner before its tested popup. Preserve all hover/timer assertions and deadlines, retain interrupted traces, and add a controlled-loss regression; native validation remains pending.
 - Preserve the requested reading direction when configured Icon, IconLarge and HeroIcon formats fall back to Small; add deterministic shared-factory cache coverage for all three roles. The focused regression has not yet been built or run; six-profile qualification remains pending.
 - Archive compact source-bound control diagnostics and qualification for the v3 profiling extension: all six local and hosted native profiles and 57 normal x64 suite executions pass, with actual ASan detection. Independently replay all 34 diagnostic processes; retain blocking-readback and slower CallingThread observations without changing canonical inputs, historical findings or the open performance-policy gate.

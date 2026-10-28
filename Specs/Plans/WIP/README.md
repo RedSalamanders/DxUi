@@ -2,6 +2,8 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
+- **ACTIVE**: [Qualification runner reliability](QualificationRunnerReliability_2026-10-28.md). Atomic progress updates with concurrent readers and explicit successful runner exit-state normalization; controlled failures are retained and final source qualification remains pending.
+
 - **ACTIVE**: [Subtle Markdown presentation](SubtleMarkdownPresentation_2026-10-27.md). Opt-in heading rules, intrinsic tables, centered display objects and shaded quotes for RedTilde; focused rendering and exact consumer adoption qualification are in progress. Earlier performance/CI queues remain paused.
 
 - **ACTIVE**: [Configured icon fallback reading direction](IconFallbackReadingDirection_2026-10-28.md). The Small fallback preserves requested direction for all configured icon roles with deterministic cache-seeded coverage; source changes await the focused regression and six-profile native qualification.

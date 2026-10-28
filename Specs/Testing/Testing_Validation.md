@@ -208,8 +208,10 @@ Release CI run retains the common benchmark receipt.
 `test.ps1` builds the selected configuration, runs Foundation, Embedded and all inherited control suites and records a JSON receipt with
 architecture, configuration, time and executable path under `.build/reports`. Failures propagate as nonzero exits.
 Callers MUST judge a PowerShell runner through a fresh process's exit code or invocation success (`$?`)
-captured immediately after the script call. Ambient `$LASTEXITCODE` can retain an intentional native ASan
-probe's nonzero result after a successful in-process script; it is not that script's completion status.
+captured immediately after the script call. Ambient `$LASTEXITCODE` is not a general script-completion status.
+`test.ps1` additionally clears it to zero only after all requested suites pass and successful evidence finalization
+returns. Suite failures and evidence-finalization exceptions never reach that reset. Historical in-process calls
+can retain the intentional native ASan probe's nonzero result despite successful sealed suite/lease outcomes.
 Preserve wrapper failures separately from sealed native outcomes. A reporting-error disposition requires
 independent source/invocation proof and exact owner, source, artifact and sealed-payload binding; it MUST
 NOT rewrite failed records, hide a real suite/lease failure or claim aggregate wrapper success.
@@ -290,7 +292,13 @@ cases are required before publishing `ExternalConsumer-*.json`; progress becomes
 final receipt exists. Progress is never counted as a final consumer result. The workflow's existing reports upload
 retains both incomplete progress and completed receipts after failure. `Tools/ConsumerQualification.psm1` owns this
 test-case journal separately from fixed build-stage timing, and its fixtures cover interruption, failure, duplicate
-cases, missing checks and wrong-source final receipts.
+cases, missing checks and wrong-source final receipts. The initial journal publication is non-overwriting;
+later snapshots replace the existing journal atomically. A concurrent polling reader must allow delete sharing:
+its open handle may retain a coherent old snapshot while the path names the new one. Use `File.Replace` for
+updates with an explicit CLR-null backup argument; PowerShell's ordinary `$null` can bind as an empty path.
+Publication failures remain errors and never start or count a conformance phase. Watchdog fixtures retain their
+readiness/termination bounds and distinguish early helper exit from deadline termination, including bounded
+stdout/stderr diagnostics. A generic historical readiness assertion alone does not establish its original cause.
 PR #99's retained x64 Release Full step exhausted its combined 35-minute window after 16 ordinary suite receipts;
 Accessibility was still in progress and had emitted no native timeout or failure. The observed 18-minute gap
 before the MSBuild banner has no measured subphase attribution. Bounded top-level build/gate BEGIN/END/FAIL records

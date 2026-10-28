@@ -295,3 +295,6 @@ if ($failures.Count) { throw "DxUi failed suites: $($failures -join '; '). See $
 Write-Host "All $($Suites.Count) requested suites passed."
 $runPassed = $true
 } finally { Complete-TestRunEvidence -Run $evidence -Passed $runPassed }
+# Nested native probes can leave a failing child exit code even when every requested suite passed.
+# Reset only after successful evidence finalization so callers observe the runner's final result.
+$global:LASTEXITCODE = 0

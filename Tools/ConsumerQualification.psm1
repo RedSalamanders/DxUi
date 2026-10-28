@@ -2,17 +2,18 @@
 # it must retain the active conformance case when an external CI watchdog ends the process.
 # It never substitutes for the final ExternalConsumer receipt.
 Set-StrictMode -Version Latest
-function Save-ConsumerQualificationProgress($Progress) {
+function Save-ConsumerQualificationProgress($Progress,[switch]$Initial) {
     $temporary=$Progress.Path+'.pending-'+[guid]::NewGuid().ToString('N')
     [IO.File]::WriteAllText($temporary,($Progress.Record|ConvertTo-Json -Depth 12),[Text.UTF8Encoding]::new($false))
-    [IO.File]::Move($temporary,$Progress.Path,$true)
+    if($Initial){[IO.File]::Move($temporary,$Progress.Path)}
+    else{[IO.File]::Replace($temporary,$Progress.Path,[System.Management.Automation.Language.NullString]::Value)}
 }
 function New-ConsumerQualificationProgress {
     [CmdletBinding()]param([Parameter(Mandatory)][string]$Path,[Parameter(Mandatory)][hashtable]$Context)
     if(Test-Path -LiteralPath $Path){throw 'Consumer progress must have a fresh owned path.'}
     [void][IO.Directory]::CreateDirectory((Split-Path -Parent $Path))
     $progress=[pscustomobject]@{Path=$Path;Owner=$PID;Record=[ordered]@{schema=1;suite='ConsumerProgress';status='incomplete';startedUtc=[DateTime]::UtcNow.ToString('o');context=$Context;activePhase=$null;negativeChecks=0;phases=[Collections.Generic.List[object]]::new()}}
-    Save-ConsumerQualificationProgress $progress
+    Save-ConsumerQualificationProgress $progress -Initial
     return $progress
 }
 function Invoke-ConsumerQualificationPhase {
