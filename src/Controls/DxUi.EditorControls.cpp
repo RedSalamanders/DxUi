@@ -8,7 +8,7 @@
 #include <string>
 #include <utility>
 
-#include "../Support/Diagnostics.h"
+#include "Support/Diagnostics.h"
 
 // Editor consumer controls: Splitter, NumericStepper, ColorPicker. See UI_ControlsAndLayout.md.
 

@@ -4,7 +4,7 @@
 
 #include "DxUi.Internal.h"
 
-#include "../Support/Diagnostics.h"
+#include "Support/Diagnostics.h"
 
 #include <algorithm>
 #include <array>

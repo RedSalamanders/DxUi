@@ -68,3 +68,18 @@ through the posted request or the modal loop.
 Native tooltip show/hide deadlines use the current UI-thread dispatcher clock, not the last tick of an idle
 individual host. A resumed host must not show or hide a newly scheduled tooltip immediately because its
 previous tick is stale. Embedded tooltip scheduling retains the application-provided animation epoch.
+
+## Payload type identity under Release folding
+
+Payload type identity uses a distinct mutable per-type data tag. A deleter function address is not a type identifier:
+MSVC /OPT:ICF may fold identical deleters. Posting and sending record the tag; taking compares the tag before
+exposing a typed owner. The registry remains bounded to 128 entries. One pointer per entry adds 1024 bytes on
+64-bit targets; tags add one byte per instantiated payload type before linker alignment. No worker, allocation,
+public API revision or plugin ownership boundary is added by this fix.
+
+API 3 retains destructive rejection: a wrong-type take destroys the original payload and returns null. A later correct payload remains usable.
+
+The WindowHost regression TestPostedPayloadTypeIdentitySurvivesIdenticalIcfDeleters uses equal-layout payloads
+with identical deleters, requires actual function folding in Release, rejects a wrong-type take and checks exact
+destruction counts. Debug and ASan run the same lifetime checks without requiring code folding. Its private
+code-address observation is volatile only to observe the linker result; it is not synchronization.

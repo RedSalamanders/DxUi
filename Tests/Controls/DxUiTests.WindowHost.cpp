@@ -1,6 +1,7 @@
 #include "../../src/Controls/DxUi.Typography.h"
 #include "../../src/Support/WindowMessages.h"
 #include "../Support/PerformanceCapture.h"
+#include "Controls.Tests.PostedPayloadIcf.h"
 #include "DxUiFocusEventClient.h"
 #include "DxUiTestHelpers.h"
 
@@ -3652,8 +3653,19 @@ void TestWindowHostWorksWithoutOptionalSdkDebugLayer()
     Require(host.GetTextFormat(DxUi::FontRole::Body) != nullptr, "native graphics and text initialize with or without the optional D3D SDK debug layer");
 }
 
+void TestPostedPayloadTypeIdentitySurvivesIdenticalIcfDeleters()
+{
+#if defined(DXUI_POSTED_PAYLOAD_ICF_REQUIRED)
+    constexpr bool requireFold = true;
+#else
+    constexpr bool requireFold = false;
+#endif
+    Require(DxUiPostedPayloadIcfRegression::Run<true>(requireFold) == 0,
+            "posted payloads keep their pinned type/lifetime contract when identical deleters fold");
+}
 void RunWindowHostTests()
 {
+    DXUI_RUN_TEST(TestPostedPayloadTypeIdentitySurvivesIdenticalIcfDeleters);
     DXUI_RUN_TEST(TestWindowHostWorksWithoutOptionalSdkDebugLayer);
     DXUI_RUN_TEST(TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies);
     DXUI_RUN_TEST(TestWindowHostKeyboardInputMarksFocusVisible);

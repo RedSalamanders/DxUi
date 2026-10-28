@@ -8,7 +8,7 @@
 
 #include <d2d1effects.h>
 
-#include "../Support/Diagnostics.h"
+#include "Support/Diagnostics.h"
 
 namespace DxUi
 {

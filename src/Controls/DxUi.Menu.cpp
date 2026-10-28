@@ -19,10 +19,10 @@
 #include <wincodec.h>
 #include <windowsx.h>
 
-#include "../Support/Diagnostics.h"
-#include "../Support/LiveResourceCount.h"
-#include "../Support/Utilities.h"
-#include "../Support/WindowMessages.h"
+#include "Support/Diagnostics.h"
+#include "Support/LiveResourceCount.h"
+#include "Support/Utilities.h"
+#include "Support/WindowMessages.h"
 
 #pragma comment(lib, "shcore.lib")
 
@@ -3057,6 +3057,10 @@ public:
 // Accessible described menus use the same retained row identities and geometry.
 // ---------------------------------------------------------------------------
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4626 5027)
 template <typename Base> class MenuAccessibilityItem final : public Base
 {
 public:
@@ -3089,6 +3093,7 @@ private:
     MenuPopup& _popup;
     size_t _index;
 };
+#pragma warning(pop)
 
 [[nodiscard]] bool PopulateMenuAccessibility(MenuContentControl& content, MenuPopup& popup) noexcept
 try

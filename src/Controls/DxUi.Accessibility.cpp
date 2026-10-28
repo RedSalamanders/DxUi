@@ -1,8 +1,8 @@
-#include "../Support/Diagnostics.h"
-#include "../Support/LiveResourceCount.h"
-#include "../Support/WindowMessages.h"
 #include "DxUi.AccessibilityTextUnits.h"
 #include "DxUi.Internal.h"
+#include "Support/Diagnostics.h"
+#include "Support/LiveResourceCount.h"
+#include "Support/WindowMessages.h"
 #include <DxUi/Embedded.h>
 
 #include <algorithm>
@@ -598,6 +598,10 @@ struct AccessibilityControlAddress
     uint32_t ordinal  = 0u;
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626)
 struct AccessibilitySnapshot
 {
     HWND hwnd     = nullptr;
@@ -625,6 +629,7 @@ struct AccessibilitySnapshot
     // What DebugGetContextMenuResources reports for a snapshot of a menu popup while anything still holds it.
     Detail::LiveResourceCount liveMenuRecords;
 };
+#pragma warning(pop)
 
 [[nodiscard]] bool IsSemanticAccessibilityControl(const Control* control) noexcept;
 [[nodiscard]] bool TryResolveSingleSemanticRootControlPath(const Control* root, ControlPath& outPath) noexcept;
@@ -6131,7 +6136,7 @@ HRESULT AccessibilityProvider::Navigate(NavigateDirection direction, IRawElement
         if (! IsCurrentThreadWindowThread())
             return RPC_E_WRONG_THREAD;
         const auto site = _target->site;
-        return site ? site->Navigate(direction, outProvider) : UIA_E_ELEMENTNOTAVAILABLE;
+        return site ? site->Navigate(direction, outProvider) : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
     }
 
     if (_kind == AccessibilityFragmentKind::TreeItem)
@@ -6386,7 +6391,7 @@ HRESULT AccessibilityProvider::get_FragmentRoot(IRawElementProviderFragmentRoot*
         if (! IsCurrentThreadWindowThread())
             return RPC_E_WRONG_THREAD;
         const auto site = _target->site;
-        return site ? site->FragmentRoot(outRoot) : UIA_E_ELEMENTNOTAVAILABLE;
+        return site ? site->FragmentRoot(outRoot) : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
     }
     *outRoot = CreateRootProvider();
     return S_OK;
@@ -8272,10 +8277,10 @@ HRESULT AccessibilityProvider::ExecuteInvokeOnWindowThread() noexcept
 
     if (accessibleControl && accessibleControl->SupportsAccessibleInvoke())
     {
-        return accessibleControl->InvokeAccessible(*host) ? S_OK : UIA_E_NOTSUPPORTED;
+        return accessibleControl->InvokeAccessible(*host) ? S_OK : static_cast<HRESULT>(UIA_E_NOTSUPPORTED);
     }
 
-    return button->Invoke(*host, true) ? S_OK : UIA_E_NOTSUPPORTED;
+    return button->Invoke(*host, true) ? S_OK : static_cast<HRESULT>(UIA_E_NOTSUPPORTED);
 }
 
 HRESULT AccessibilityProvider::ExecuteToggleOnWindowThread() noexcept
@@ -8540,7 +8545,7 @@ HRESULT AccessibilityProvider::ExecuteExpandOnWindowThread(bool expanded) noexce
         }
         // Like Invoke, release the snapshot lock before a callback which may destroy the tree.
         // The application acknowledges state and owns content visibility; do not retain/touch button afterward.
-        return button->Invoke(*host, true) ? S_OK : UIA_E_NOTSUPPORTED;
+        return button->Invoke(*host, true) ? S_OK : static_cast<HRESULT>(UIA_E_NOTSUPPORTED);
     }
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     ControlHost* host = ResolveHost();
@@ -8886,6 +8891,11 @@ bool AnnounceWindowHostFocus(HWND hwnd) noexcept
             case AccessibilityFragmentKind::GridRow:
                 raw = new (std::nothrow) AccessibilityProvider(target.get(), hwnd, fragment->path, fragment->gridRowId, AccessibilityFragmentKind::GridRow);
                 break;
+            case ::DxUi::AccessibilityFragmentKind::Control:
+            case ::DxUi::AccessibilityFragmentKind::GridCell:
+            case ::DxUi::AccessibilityFragmentKind::GridHeader:
+            case ::DxUi::AccessibilityFragmentKind::Root:
+            case ::DxUi::AccessibilityFragmentKind::TextFieldPasswordRevealButton:
             default: raw = new (std::nothrow) AccessibilityProvider(target.get(), hwnd, fragment->path); break;
         }
         if (! raw)

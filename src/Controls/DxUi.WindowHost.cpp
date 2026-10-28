@@ -26,11 +26,11 @@
 #include <richedit.h>
 #include <windowsx.h>
 
-#include "../Support/AnimationDispatcher.h"
-#include "../Support/Diagnostics.h"
-#include "../Support/WindowMessages.h"
 #include "DxUi.Typography.h"
 #include "DxUi/FrameRuntime.h"
+#include "Support/AnimationDispatcher.h"
+#include "Support/Diagnostics.h"
+#include "Support/WindowMessages.h"
 
 #pragma comment(lib, "d2d1.lib")
 #pragma comment(lib, "d3d11.lib")
