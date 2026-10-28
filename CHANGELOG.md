@@ -4,6 +4,10 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Plan the production review of the 18-28 October merges (#87-#121) in
+  `Specs/Plans/WIP/CodeReview_2026-10-28.md`: verified findings by priority, incomplete claimed fixes, still-open
+  audit and review items, simplification proposals and developer questions. Review only; no library, test or tooling
+  behavior changed, and nothing was built or run.
 - Record exact SDK086 qualification across six hosted native profiles and external consumers, plus all twelve local keyboard/menu suite runs with zero skips and verified restoration. Preserve the actual sanitizer detections, ICF type-safety evidence and exact-pin RedTilde results while keeping performance policy, consumer platform and release holds explicit.
 - Compare the deliberately rejected payload owner before destruction in the ICF regression's negative-control cleanup. Preserve the initial Release pass with actual folded deleters; qualify the final test revision separately.
 - Keep private posted-payload type identity in writable per-type storage so identical-code folding cannot make distinct deleter addresses authorize a wrong Take or Reclaim; retain the deleter only for destruction and preserve single-module ownership scope. The focused WindowHost regression proves Release ControlTests folds the deleters, rejects wrong types, preserves correct ownership, and destroys taken, reclaimed, and drained payloads once; build and runtime qualification remain pending.
