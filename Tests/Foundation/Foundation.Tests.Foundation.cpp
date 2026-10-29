@@ -5,7 +5,7 @@
 #include <string_view>
 #include <windows.h>
 
-#include "../Support/Support.Tests.FailureReports.h"
+#include "Support.Tests.FailureReports.h"
 
 bool TestPublicHelpers();
 bool TestFontAvailabilityInvalidation();
@@ -36,6 +36,11 @@ void Record(void* context, std::wstring_view, uint64_t value) noexcept
 #if defined(__SANITIZE_ADDRESS__)
 // Only the isolated --asan-probe child reaches this deliberate defect. Its parent
 // requires the specific sanitizer diagnosis; a crash alone is not a passing probe.
+// This test deliberately forces an observable access (ICF/timing or the isolated ASan defect).
+// No volatile access provides synchronization. MSVC codegen needs the scope before the function.
+// Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4746)
 __declspec(noinline) int ProbeAddressSanitizer()
 {
     auto allocation         = std::make_unique<char[]>(8);
@@ -43,6 +48,7 @@ __declspec(noinline) int ProbeAddressSanitizer()
     allocation.reset();
     return borrowed[0];
 }
+#pragma warning(pop)
 #endif
 } // namespace
 int main(int argc, char** argv)

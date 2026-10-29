@@ -1,5 +1,5 @@
-#include "../../src/Support/AnimationDispatcher.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Support/AnimationDispatcher.h"
 
 namespace
 {
@@ -9,6 +9,10 @@ struct ReentrantTooltipCaptureState
     size_t captureLostCount = 0u;
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class ReentrantTooltipCaptureControl final : public DxUi::Control
 {
 public:
@@ -29,6 +33,7 @@ public:
 private:
     ReentrantTooltipCaptureState* _state = nullptr;
 };
+#pragma warning(pop)
 
 // A native tooltip's deadlines are on the UI thread's animation dispatcher clock, which a tick moves by the time since the last
 // tick but by no more than the dispatcher's hitch clamp: a runner that stalls for a second moves it 50 ms. So the timer tests

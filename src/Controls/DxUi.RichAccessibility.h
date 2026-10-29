@@ -86,6 +86,10 @@ HRESULT DispatchAccessibilityUiActionToWindowThread(HWND, AccessibilityUiActionR
     return enclosing;
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class RichSemanticElementProvider final : public IRawElementProviderSimple,
                                           public IRawElementProviderFragment,
                                           public IInvokeProvider,
@@ -174,14 +178,14 @@ public:
             target_->embedded
                 ? static_cast<ProviderOptions>(ProviderOptions_ServerSideProvider | ProviderOptions_UseComThreading | ProviderOptions_ProviderOwnsSetFocus)
                 : ProviderOptions_ServerSideProvider;
-        return CaptureSnapshot() ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
+        return CaptureSnapshot() ? S_OK : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
     }
     HRESULT STDMETHODCALLTYPE get_HostRawElementProvider(IRawElementProviderSimple** result) noexcept override
     {
         if (! result)
             return E_POINTER;
         *result = nullptr;
-        return CaptureSnapshot() ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
+        return CaptureSnapshot() ? S_OK : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
     }
     HRESULT STDMETHODCALLTYPE GetPatternProvider(PATTERNID id, IUnknown** result) noexcept override
     {
@@ -303,7 +307,7 @@ public:
         if (target == RichText::MarkdownNoNode)
             return S_OK;
         auto peer = target == 0u ? CreateControlElement(target_, hwnd_, path_, identity_) : Create(target_, hwnd_, *record, target);
-        return peer ? peer.query_to(result) : UIA_E_ELEMENTNOTAVAILABLE;
+        return peer ? peer.query_to(result) : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
     }
     HRESULT STDMETHODCALLTYPE GetRuntimeId(SAFEARRAY** result) noexcept override
     {
@@ -359,7 +363,7 @@ public:
         if (! result)
             return E_POINTER;
         *result = nullptr;
-        return CaptureSnapshot() ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
+        return CaptureSnapshot() ? S_OK : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
     }
     HRESULT STDMETHODCALLTYPE get_FragmentRoot(IRawElementProviderFragmentRoot** result) noexcept override
     {
@@ -374,14 +378,14 @@ public:
             if (target_->threadId != GetCurrentThreadId())
                 return RPC_E_WRONG_THREAD;
             const auto site = target_->site;
-            return site ? site->FragmentRoot(result) : UIA_E_ELEMENTNOTAVAILABLE;
+            return site ? site->FragmentRoot(result) : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
         }
         auto root = AcquireCanonicalRootProvider(target_);
-        return root ? root.query_to(result) : UIA_E_ELEMENTNOTAVAILABLE;
+        return root ? root.query_to(result) : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
     }
     HRESULT STDMETHODCALLTYPE SetFocus() noexcept override
     {
-        return CaptureSnapshot() ? UIA_E_NOTSUPPORTED : UIA_E_ELEMENTNOTAVAILABLE;
+        return CaptureSnapshot() ? static_cast<HRESULT>(UIA_E_NOTSUPPORTED) : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
     }
     HRESULT STDMETHODCALLTYPE Toggle() noexcept override
     try
@@ -415,7 +419,7 @@ public:
             return UIA_E_INVALIDOPERATION;
         // Do not touch editor after this call: its committed notification
         // may destroy/rebind the owner. The snapshot keeps only data alive.
-        return editor->ToggleSemanticTask(*host, record->RichSemantic(), element_) ? S_OK : UIA_E_INVALIDOPERATION;
+        return editor->ToggleSemanticTask(*host, record->RichSemantic(), element_) ? S_OK : static_cast<HRESULT>(UIA_E_INVALIDOPERATION);
     }
     catch (const std::bad_alloc&)
     {
@@ -460,9 +464,9 @@ public:
                 return UIA_E_ELEMENTNOTAVAILABLE;
             return (*source == document->SourceBlock() ? editor->EndSemanticSourceEdit(*host) : editor->BeginSemanticSourceEdit(*host, document, element_))
                        ? S_OK
-                       : UIA_E_INVALIDOPERATION;
+                       : static_cast<HRESULT>(UIA_E_INVALIDOPERATION);
         }
-        return editor->NavigateSemanticElement(*host, document, element_) ? S_OK : UIA_E_INVALIDOPERATION;
+        return editor->NavigateSemanticElement(*host, document, element_) ? S_OK : static_cast<HRESULT>(UIA_E_INVALIDOPERATION);
     }
     catch (const std::bad_alloc&)
     {
@@ -549,7 +553,7 @@ public:
         const auto* record  = Record(snapshot);
         if (! record)
             return UIA_E_ELEMENTNOTAVAILABLE;
-        return record->RichSemantic()->Elements()[element_].role == RichText::SemanticRole::Table ? S_OK : UIA_E_NOTSUPPORTED;
+        return record->RichSemantic()->Elements()[element_].role == RichText::SemanticRole::Table ? S_OK : static_cast<HRESULT>(UIA_E_NOTSUPPORTED);
     }
     HRESULT STDMETHODCALLTYPE get_Row(int* result) noexcept override
     {
@@ -730,3 +734,4 @@ private:
     uint64_t publication_, semanticRevision_;
     size_t element_;
 };
+#pragma warning(pop)

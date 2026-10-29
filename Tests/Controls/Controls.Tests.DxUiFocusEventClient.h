@@ -9,7 +9,12 @@
 #include <string_view>
 #include <thread>
 #include <vector>
+// Windows SDK WRL owns its interlocked/volatile implementation and target semantics.
+// Scope is this system header only. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4746)
 #include <wrl/implements.h>
+#pragma warning(pop)
 
 // Focus subscriptions inspect the desktop, including unrelated providers. Keep each provider request shorter than
 // the client's setup allowance; the test still requires its own focus events within the notification deadline.
@@ -41,6 +46,10 @@
     return hr;
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class FocusNameRecorder final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
                                                                     IUIAutomationFocusChangedEventHandler,
                                                                     Microsoft::WRL::FtmBase>
@@ -89,6 +98,7 @@ private:
     mutable std::mutex _mutex;
     std::vector<std::wstring> _names;
 };
+#pragma warning(pop)
 
 // An in-process UIA client on its own MTA thread, as a screen reader is another process: it records the names of
 // focus-changed events and focuses a named element of the window on request. Providers answer on the window's thread,

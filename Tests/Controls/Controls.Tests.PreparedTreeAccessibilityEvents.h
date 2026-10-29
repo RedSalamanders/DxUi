@@ -1,7 +1,11 @@
 #pragma once
 
-#include "../Support/Support.Tests.PreparedTreeSemanticFixture.h"
+#include "Support.Tests.PreparedTreeSemanticFixture.h"
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class PreparedTreeStructureObserver final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
                                                                                 IUIAutomationStructureChangedEventHandler,
                                                                                 Microsoft::WRL::FtmBase>
@@ -41,6 +45,7 @@ public:
         return S_OK;
     }
 };
+#pragma warning(pop)
 
 static void RunPreparedTreeReentrantNativeClient(bool coalescedBurst)
 {
@@ -220,6 +225,10 @@ void TestPreparedTreeSourceBurstRetiresIntermediateSourcesDuringNativeCallback()
     RunPreparedTreeReentrantNativeClient(true);
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626)
 class OptionalCaptureTreeModel final : public DxUi::ITreeModel
 {
 public:
@@ -254,6 +263,7 @@ public:
         return retained;
     }
 };
+#pragma warning(pop)
 
 void TestPreparedTreeInvalidCountFallsBackToCurrentModel()
 {

@@ -403,6 +403,10 @@ struct ForegroundTransferObservation
     DWORD detachError      = ERROR_SUCCESS;
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class Win32DesktopBackend final : public DesktopBackend
 {
 public:
@@ -657,6 +661,7 @@ private:
 
     HWND _anchor;
 };
+#pragma warning(pop)
 
 // Whether this session has an interactive desktop that a run may take over, and if not, why. A run must refuse when there is none:
 // a service, a scheduled task or a remote shell has no desktop to take, a locked screen or a disconnected session has an input
@@ -712,6 +717,10 @@ protected:
 }
 
 // The probe of the Windows session this process runs in.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class Win32DesktopProbe final : public DesktopProbe
 {
 public:
@@ -799,4 +808,5 @@ private:
         return narrow;
     }
 };
+#pragma warning(pop)
 } // namespace DxUi::TestSupport

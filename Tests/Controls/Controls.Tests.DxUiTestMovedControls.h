@@ -117,7 +117,8 @@ inline void ConfigureHostPlace(AttachedHostWindow& window, UINT dpi, bool dark, 
     RECT outer{};
     GetWindowRect(window.Hwnd(), &outer);
     bool handled = false;
-    static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_DPICHANGED, MAKELONG(dpi, dpi), reinterpret_cast<LPARAM>(&outer), handled));
+    static_cast<void>(
+        window.Host().HandleMessage(window.Hwnd(), WM_DPICHANGED, static_cast<WPARAM>(MAKELONG(dpi, dpi)), reinterpret_cast<LPARAM>(&outer), handled));
     Require(handled && window.Host().GetDpi() == static_cast<float>(dpi), "the host takes the requested dpi");
     RECT client{};
     GetWindowRect(window.Hwnd(), &outer);

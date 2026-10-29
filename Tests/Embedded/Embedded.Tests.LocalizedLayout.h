@@ -326,7 +326,7 @@ static void TestLocalizedCheckboxCaption(GraphicsFixture& gpu)
             for (UINT x = 44; x < 274; ++x)
             {
                 const size_t offset = (static_cast<size_t>(y) * gpu.width + x) * 4;
-                if (! std::equal(pixels.begin() + offset, pixels.begin() + offset + 3, empty.begin() + offset))
+                if (! std::equal(pixels.data() + offset, pixels.data() + offset + 3, empty.data() + offset))
                     ++changed;
             }
         }
@@ -373,7 +373,7 @@ static void TestRightToLeftCheckboxCaptionHugsIndicator(GraphicsFixture& gpu)
         for (UINT x = 12; x < 312; ++x)
         {
             const size_t offset = (static_cast<size_t>(y) * gpu.width + x) * 4;
-            if (! std::equal(captioned.begin() + offset, captioned.begin() + offset + 3, empty.begin() + offset))
+            if (! std::equal(captioned.data() + offset, captioned.data() + offset + 3, empty.data() + offset))
             {
                 minimumX = (std::min)(minimumX, x);
                 maximumX = (std::max)(maximumX, x);
@@ -417,7 +417,7 @@ static void TestRightToLeftTabTitleStartsAtTheRight(GraphicsFixture& gpu)
             for (UINT x = static_cast<UINT>(tab.left); x < static_cast<UINT>(tab.right); ++x)
             {
                 const size_t offset = (static_cast<size_t>(y) * gpu.width + x) * 4;
-                if (! std::equal(titled.begin() + offset, titled.begin() + offset + 3, untitled.begin() + offset))
+                if (! std::equal(titled.data() + offset, titled.data() + offset + 3, untitled.data() + offset))
                 {
                     minimumX = (std::min)(minimumX, x);
                     maximumX = (std::max)(maximumX, x);

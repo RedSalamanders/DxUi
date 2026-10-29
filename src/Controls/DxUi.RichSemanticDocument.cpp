@@ -39,6 +39,20 @@ std::optional<std::size_t> SemanticDocument::SourceEditingNode(std::size_t eleme
         case MarkdownBlockKind::HtmlBlock:
         case MarkdownBlockKind::FrontMatter:
         case MarkdownBlockKind::SourceEditor: return node;
+        case ::DxUi::RichText::MarkdownBlockKind::AtxHeading:
+        case ::DxUi::RichText::MarkdownBlockKind::BlankLine:
+        case ::DxUi::RichText::MarkdownBlockKind::BlockQuote:
+        case ::DxUi::RichText::MarkdownBlockKind::Document:
+        case ::DxUi::RichText::MarkdownBlockKind::FootnoteDefinition:
+        case ::DxUi::RichText::MarkdownBlockKind::List:
+        case ::DxUi::RichText::MarkdownBlockKind::ListItem:
+        case ::DxUi::RichText::MarkdownBlockKind::Paragraph:
+        case ::DxUi::RichText::MarkdownBlockKind::ReferenceDefinition:
+        case ::DxUi::RichText::MarkdownBlockKind::SetextHeading:
+        case ::DxUi::RichText::MarkdownBlockKind::Table:
+        case ::DxUi::RichText::MarkdownBlockKind::TableCell:
+        case ::DxUi::RichText::MarkdownBlockKind::TableRow:
+        case ::DxUi::RichText::MarkdownBlockKind::ThematicBreak:
         default: return std::nullopt;
     }
 }
@@ -47,6 +61,10 @@ std::span<const SemanticDiagnostic> SemanticDocument::Diagnostics() const noexce
 {
     return extensions_ ? std::span<const SemanticDiagnostic>(extensions_->diagnostics) : std::span<const SemanticDiagnostic>{};
 }
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5027)
 struct SemanticBuilder::Preparation
 {
     struct Visit
@@ -56,6 +74,10 @@ struct SemanticBuilder::Preparation
         unsigned flags{}, heading{}, indent{};
         bool inlineNode{}, close{}, footerRoot{}, backlink{}, exactSource{};
     };
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     struct DiagramWork
     {
         DiagramWork(Visit value, std::wstring_view body, std::uint64_t revision) : visit(value)
@@ -74,6 +96,7 @@ struct SemanticBuilder::Preparation
             Publish
         } phase{};
     };
+#pragma warning(pop)
     explicit Preparation(std::shared_ptr<const MarkdownSyntax> syntax, std::size_t sourceBlock, std::span<const MarkdownRange> sourceObjects)
         : document(new SemanticDocument(std::move(syntax))),
           output(document->runs_),
@@ -190,6 +213,9 @@ struct SemanticBuilder::Preparation
             case MarkdownBlockKind::TableRow: return SemanticRole::Row;
             case MarkdownBlockKind::TableCell: return SemanticRole::Cell;
             case MarkdownBlockKind::ThematicBreak: return SemanticRole::Rule;
+            case ::DxUi::RichText::MarkdownBlockKind::BlankLine:
+            case ::DxUi::RichText::MarkdownBlockKind::Paragraph:
+            case ::DxUi::RichText::MarkdownBlockKind::ReferenceDefinition:
             default: return SemanticRole::Paragraph;
         }
     }
@@ -208,6 +234,14 @@ struct SemanticBuilder::Preparation
             case MarkdownBlockKind::FootnoteDefinition:
             case MarkdownBlockKind::TableCell:
             case MarkdownBlockKind::ThematicBreak: return true;
+            case ::DxUi::RichText::MarkdownBlockKind::BlankLine:
+            case ::DxUi::RichText::MarkdownBlockKind::BlockQuote:
+            case ::DxUi::RichText::MarkdownBlockKind::Document:
+            case ::DxUi::RichText::MarkdownBlockKind::List:
+            case ::DxUi::RichText::MarkdownBlockKind::ListItem:
+            case ::DxUi::RichText::MarkdownBlockKind::ReferenceDefinition:
+            case ::DxUi::RichText::MarkdownBlockKind::Table:
+            case ::DxUi::RichText::MarkdownBlockKind::TableRow:
             default: return false;
         }
     }
@@ -224,6 +258,20 @@ struct SemanticBuilder::Preparation
             case SemanticRole::Metadata:
             case SemanticRole::Cell:
             case SemanticRole::Link: element.name.assign(output.text, element.display.first, element.display.last - element.display.first); break;
+            case ::DxUi::RichText::SemanticRole::Diagram:
+            case ::DxUi::RichText::SemanticRole::Document:
+            case ::DxUi::RichText::SemanticRole::Footnote:
+            case ::DxUi::RichText::SemanticRole::FootnoteBacklink:
+            case ::DxUi::RichText::SemanticRole::FootnoteReference:
+            case ::DxUi::RichText::SemanticRole::Image:
+            case ::DxUi::RichText::SemanticRole::List:
+            case ::DxUi::RichText::SemanticRole::ListItem:
+            case ::DxUi::RichText::SemanticRole::Math:
+            case ::DxUi::RichText::SemanticRole::Quote:
+            case ::DxUi::RichText::SemanticRole::Row:
+            case ::DxUi::RichText::SemanticRole::Rule:
+            case ::DxUi::RichText::SemanticRole::Table:
+            case ::DxUi::RichText::SemanticRole::Task:
             default: break;
         }
     }
@@ -312,6 +360,14 @@ struct SemanticBuilder::Preparation
             case MarkdownInlineKind::Emphasis: markdownFlags |= Italic; break;
             case MarkdownInlineKind::Strikethrough: markdownFlags |= Strike; break;
             case MarkdownInlineKind::Link: markdownFlags |= Link; break;
+            case ::DxUi::RichText::MarkdownInlineKind::Code:
+            case ::DxUi::RichText::MarkdownInlineKind::FootnoteReference:
+            case ::DxUi::RichText::MarkdownInlineKind::HardBreak:
+            case ::DxUi::RichText::MarkdownInlineKind::Html:
+            case ::DxUi::RichText::MarkdownInlineKind::Image:
+            case ::DxUi::RichText::MarkdownInlineKind::Math:
+            case ::DxUi::RichText::MarkdownInlineKind::SoftBreak:
+            case ::DxUi::RichText::MarkdownInlineKind::Text:
             default: break;
         }
         if (node.kind == MarkdownInlineKind::Html && html.valid)
@@ -1088,6 +1144,7 @@ struct SemanticBuilder::Preparation
         append(cursor, document->Map().Source().size(), Regular, 0u);
     }
 };
+#pragma warning(pop)
 
 SemanticBuilder::SemanticBuilder() noexcept  = default;
 SemanticBuilder::~SemanticBuilder() noexcept = default;

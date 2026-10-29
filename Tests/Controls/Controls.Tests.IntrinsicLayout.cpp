@@ -1,7 +1,7 @@
 #include "Controls.Tests.IntrinsicLayout.h"
 
-#include "../../Samples/EmbeddedControls/GraphicsFixture.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "GraphicsFixture.h"
 
 #include <DxUi/Typography.h>
 #include <dwrite_1.h>
@@ -28,6 +28,10 @@ using namespace DxUi;
     return a.left == b.left && a.top == b.top && a.right == b.right && a.bottom == b.bottom;
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class MeasuredProbe final : public Control
 {
 public:
@@ -56,7 +60,12 @@ protected:
             callback();
     }
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class FlexDetachProbe final : public Control
 {
 public:
@@ -76,6 +85,7 @@ protected:
             (*callback)();
     }
 };
+#pragma warning(pop)
 
 struct VisualCancellationProbeState
 {
@@ -95,6 +105,10 @@ void RecordVisualPreparationWake(void* context) noexcept
     state.requestDuringVisualPreparation = state.requestDuringVisualPreparation || state.insideVisualPreparation;
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class VisualCancellationProbe final : public Control
 {
 public:
@@ -133,6 +147,7 @@ protected:
 private:
     VisualCancellationProbeState* _state;
 };
+#pragma warning(pop)
 
 [[nodiscard]] FlexChildOptions Fixed(float width, float height)
 {
@@ -561,7 +576,7 @@ void TestButtonContentFontSizeNativeGlyphPaintCacheAndGeneration()
             for (UINT x = static_cast<UINT>(host.DipsToPixels(chevron.left)); x < static_cast<UINT>(host.DipsToPixels(chevron.right)); ++x)
             {
                 const auto at = (static_cast<size_t>(y) * before.widthPx + x) * 4u;
-                Require(std::equal(before.bgraPixels.begin() + at, before.bgraPixels.begin() + at + 4u, after.bgraPixels.begin() + at),
+                Require(std::equal(before.bgraPixels.data() + at, before.bgraPixels.data() + at + 4u, after.bgraPixels.data() + at),
                         "internal drop-down chevron keeps its original pixel geometry when the caption size changes");
             }
     });
@@ -795,11 +810,12 @@ void TestButtonPreparedIconTextLayoutMatchesDrawTextW()
         {
             RECT suggested{0, 0, 640, 480};
             bool handled = false;
-            static_cast<void>(host.HandleMessage(window.Hwnd(), WM_DPICHANGED, MAKELONG(dpi, dpi), reinterpret_cast<LPARAM>(&suggested), handled));
+            static_cast<void>(
+                host.HandleMessage(window.Hwnd(), WM_DPICHANGED, static_cast<WPARAM>(MAKELONG(dpi, dpi)), reinterpret_cast<LPARAM>(&suggested), handled));
             Require(handled && std::abs(host.GetDpi() - static_cast<float>(dpi)) <= 0.001f, "prepared-layout endpoint fixture applies the requested host DPI");
             button->SetBounds(D2D1::RectF(12.25f, 12.5f, 24.25f, 24.5f));
-            const UINT requiredWidthPx  = static_cast<UINT>(std::ceil(24.25f * dpi / 96.0f));
-            const UINT requiredHeightPx = static_cast<UINT>(std::ceil(24.5f * dpi / 96.0f));
+            const UINT requiredWidthPx  = static_cast<UINT>(std::ceil(24.25f * static_cast<float>(dpi) / 96.0f));
+            const UINT requiredHeightPx = static_cast<UINT>(std::ceil(24.5f * static_cast<float>(dpi) / 96.0f));
             Require(host.DebugGetWidthPx() >= requiredWidthPx && host.DebugGetHeightPx() >= requiredHeightPx,
                     "endpoint canvas fully contains the prepared glyph bounds without clipping");
             requireFallbackParity();

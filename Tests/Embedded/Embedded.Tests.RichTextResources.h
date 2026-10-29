@@ -1,15 +1,15 @@
 #pragma once
-#include "../Support/Support.Tests.FlowchartLayout.h"
-#include "../Support/Support.Tests.Footnotes.h"
-#include "../Support/Support.Tests.MarkdownBlocks.h"
-#include "../Support/Support.Tests.MarkdownCapacity.h"
-#include "../Support/Support.Tests.MarkdownInlines.h"
-#include "../Support/Support.Tests.PreparedFlowchart.h"
-#include "../Support/Support.Tests.RichImage.h"
-#include "../Support/Support.Tests.RichImagePaths.h"
-#include "../Support/Support.Tests.RichImageResources.h"
-#include "../Support/Support.Tests.SemanticDiagrams.h"
-#include "../Support/Support.Tests.SemanticSourceBlock.h"
+#include "Support.Tests.FlowchartLayout.h"
+#include "Support.Tests.Footnotes.h"
+#include "Support.Tests.MarkdownBlocks.h"
+#include "Support.Tests.MarkdownCapacity.h"
+#include "Support.Tests.MarkdownInlines.h"
+#include "Support.Tests.PreparedFlowchart.h"
+#include "Support.Tests.RichImage.h"
+#include "Support.Tests.RichImagePaths.h"
+#include "Support.Tests.RichImageResources.h"
+#include "Support.Tests.SemanticDiagrams.h"
+#include "Support.Tests.SemanticSourceBlock.h"
 #include <DxUi/RichSemanticDocument.h>
 
 // The paired benchmark also compiles this common fixture against its older
@@ -145,12 +145,17 @@ static void TestReadOnlyParsedSnapshotAllocationFailures()
 static void TestRichEditorSteadyLinkHoverAllocatesNothing(GraphicsFixture& gpu)
 {
     using namespace DxUi;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class HoverEditor final : public RichTextEditor
     {
     public:
         using RichTextEditor::GetTextInputRangeRects;
         using RichTextEditor::RichTextEditor;
     };
+#pragma warning(pop)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "link hover shared WARP resources");
     EmbeddedHost view;
@@ -186,7 +191,7 @@ static void TestRichEditorSteadyLinkHoverAllocatesNothing(GraphicsFixture& gpu)
         allocations = allocationBytes = 0u;
         for (unsigned step = 0u; step < 1024u; ++step)
         {
-            static_cast<void>(editor->OnMouseMove(view.Controls(), D2D1::Point2F(point.x + (step % 2u) * .1f, point.y), 0u));
+            static_cast<void>(editor->OnMouseMove(view.Controls(), D2D1::Point2F(point.x + static_cast<float>(step % 2u) * .1f, point.y), 0u));
             underlined = underlined && editor->IsLinkUnderlineVisible(first);
         }
         requests = allocations;
@@ -1480,12 +1485,17 @@ static void TestEmbeddedFootnoteResolutionAndSourceEdits(GraphicsFixture& gpu)
 static void TestParserCapacityMemoryFailureIsRetryable(GraphicsFixture& gpu)
 {
     using namespace DxUi;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class PreparationProbe final : public RichTextEditor
     {
     public:
         using RichTextEditor::PrepareContent;
         using RichTextEditor::RichTextEditor;
     };
+#pragma warning(pop)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "capacity memory probe borrowed device");
     EmbeddedHost view;
@@ -2170,6 +2180,10 @@ static void TestRichTextCooperativeSchedulingAndTextInput(GraphicsFixture& gpu)
 static void TestRichTextCooperativeFailureDoesNotRetryAutomatically(GraphicsFixture& gpu)
 {
     using namespace DxUi;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class FailingPreparation final : public RichTextEditor
     {
     public:
@@ -2182,6 +2196,7 @@ static void TestRichTextCooperativeFailureDoesNotRetryAutomatically(GraphicsFixt
             return fail ? E_OUTOFMEMORY : RichTextEditor::PrepareContent(host);
         }
     };
+#pragma warning(pop)
     EmbeddedHost view;
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "failing cooperative graphics");
@@ -2205,6 +2220,10 @@ static void TestRichTextCooperativeFailureDoesNotRetryAutomatically(GraphicsFixt
 static void TestEmbeddedContinuationCallbackCannotReenterOrUseDetachedState(GraphicsFixture& gpu)
 {
     using namespace DxUi;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class OneDeferredPreparation final : public RichTextEditor
     {
     public:
@@ -2218,6 +2237,7 @@ static void TestEmbeddedContinuationCallbackCannotReenterOrUseDetachedState(Grap
             return prepareCalls == 1u ? S_FALSE : RichTextEditor::PrepareContent(host);
         }
     };
+#pragma warning(pop)
     struct Requests
     {
         EmbeddedHost* view{};
@@ -2685,6 +2705,10 @@ static void TestRetainedRichTextSchedulingCanRetireOwner(GraphicsFixture& gpu)
 
 static void TestRetainedRichTextFailedPreparation(GraphicsFixture& gpu)
 {
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class FailingEditor final : public DxUi::RichTextEditor
     {
     public:
@@ -2699,6 +2723,7 @@ static void TestRetainedRichTextFailedPreparation(GraphicsFixture& gpu)
                 throw std::runtime_error("injected post-raster preparation failure");
         }
     };
+#pragma warning(pop)
     std::shared_ptr<DxUi::GraphicsDevice> graphics;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "failed rich-text preparation pool");
     DxUi::EmbeddedHost view;

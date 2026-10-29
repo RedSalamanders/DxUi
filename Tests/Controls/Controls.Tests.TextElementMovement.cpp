@@ -74,7 +74,7 @@ void TextFieldInteriorDeletion(bool multiline)
             field.SetMultiline(multiline);
             field.SetBounds(D2D1::RectF(0, 0, 480, 120));
             field.SetSelectionRange(2, 2);
-            Require(field.OnKeyDown(host, key, 0), "legacy field handles collapsed deletion at an interior ACP");
+            Require(field.OnKeyDown(host, static_cast<UINT>(key), 0), "legacy field handles collapsed deletion at an interior ACP");
             std::cout << "interior field multiline=" << multiline << " key=" << key << " resultUnits=" << field.GetText().size()
                       << " validUtf16=" << DxUi::RichText::IsValidUtf16(field.GetText()) << '\n';
             Require(field.GetText() == L"AB", "collapsed legacy deletion removes the containing grapheme without leaving a surrogate half or mark");
@@ -106,7 +106,7 @@ void TestComboBoxInteriorAcpDeletion()
             combo.SetBounds(D2D1::RectF(0, 0, 480, 32));
             combo.SetText(source);
             combo.SetEditableSelectionRange(2, 2);
-            Require(combo.OnKeyDown(host, key, 0), "editable combo handles deletion at an explicit interior ACP");
+            Require(combo.OnKeyDown(host, static_cast<UINT>(key), 0), "editable combo handles deletion at an explicit interior ACP");
             Require(combo.GetText() == L"AB", "editable combo removes the whole containing grapheme");
             Require(combo.OnKeyDown(host, 'Z', MK_CONTROL) && combo.GetText() == source, "combo interior deletion is one reversible edit");
         }

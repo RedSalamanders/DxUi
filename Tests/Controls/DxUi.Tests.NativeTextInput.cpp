@@ -1,8 +1,8 @@
-#include "../../src/Controls/DxUi.Internal.h"
-#include "../../src/Controls/TextStoreTarget.h"
-#include "../../src/Support/WindowMessages.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.TextStoreComposition.h"
+#include "Controls/DxUi.Internal.h"
+#include "Controls/TextStoreTarget.h"
+#include "Support/WindowMessages.h"
 #include <thread>
 
 #include <array>
@@ -23,6 +23,10 @@
 namespace
 {
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class ReentrantExportTextField final : public DxUi::TextField
 {
 public:
@@ -39,6 +43,7 @@ public:
         return exported;
     }
 };
+#pragma warning(pop)
 
 class ScopedActivatingTestWindows final
 {
@@ -170,6 +175,10 @@ private:
     std::atomic<ULONG> _referenceCount{1u};
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class ReentrantNativeTextInputThreadMgrSink final : public ITfThreadMgrEventSink
 {
 public:
@@ -261,6 +270,7 @@ public:
 private:
     std::atomic<ULONG> _referenceCount{1u};
 };
+#pragma warning(pop)
 
 class ScopedNativeTextInputThreadMgrSink final
 {
@@ -2195,12 +2205,17 @@ void TestNativeTextInputZeroSizeCancelsImeAndResumesOnlyWithRetainedFocus()
 {
     using namespace DxUi;
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class ObservedTextField final : public TextField
     {
     public:
         using TextField::GetLifetimeToken;
         using TextField::TextField;
     };
+#pragma warning(pop)
     const ScopedActivatingTestWindows activatingWindows;
     AttachedHostWindow window;
     static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
@@ -4163,8 +4178,12 @@ void TestNativeTextInputBackendImeCompositionOwnsSpecialKeys()
 
     const auto runScenario = []<typename TextControl>(const char* controlName)
     {
-        // Count only retained callbacks while preserving each canonical editor's
-        // behavior. The native IME gate must run before either override is called.
+    // Count only retained callbacks while preserving each canonical editor's
+    // behavior. The native IME gate must run before either override is called.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
         class KeyProbe final : public TextControl
         {
         public:
@@ -4181,6 +4200,7 @@ void TestNativeTextInputBackendImeCompositionOwnsSpecialKeys()
                 return TextControl::OnKeyUp(host, key, modifiers);
             }
         };
+#pragma warning(pop)
 
         AttachedHostWindow window;
         static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));

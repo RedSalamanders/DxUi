@@ -1,10 +1,10 @@
-#include "../../src/Controls/TextClipboard.h"
-#include "../../src/Support/AnimationDispatcher.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Controls/TextClipboard.h"
+#include "Support/AnimationDispatcher.h"
 
-#include "../Support/Support.Tests.FailureReports.h"
-#include "../Support/Support.Tests.ForegroundThief.h"
-#include "../Support/Support.Tests.PerformanceCapture.h"
+#include "Support.Tests.FailureReports.h"
+#include "Support.Tests.ForegroundThief.h"
+#include "Support.Tests.PerformanceCapture.h"
 #include <optional>
 #include <string>
 #include <string_view>

@@ -14,7 +14,7 @@
 #include "Controls.Tests.TextElementMovement.h"
 #include "Controls.Tests.TextElements.h"
 
-#include "../../include/DxUi/ControlCatalog.h"
+#include "DxUi/ControlCatalog.h"
 
 #include <cstring>
 #include <limits>
@@ -1613,6 +1613,10 @@ void TestGridMovedBetweenDensitiesMatchesAFreshOne()
 
 // Counts the announcements a control hears in counters the test owns (a move may destroy the control), and where its
 // host stood when it heard them.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class AnnouncementProbe final : public Panel
 {
 public:
@@ -1646,6 +1650,7 @@ protected:
 private:
     Heard* _heard;
 };
+#pragma warning(pop)
 
 // A move announces the flow direction and density the control now inherits, as a parent's own change is announced to
 // its children: once, once it stands in its final place, and only when a value differs.

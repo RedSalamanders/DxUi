@@ -1,6 +1,6 @@
 #pragma once
-#include "../../Samples/EmbeddedControls/GraphicsFixture.h"
-#include "../../src/Controls/DxUi.PreparedFlowchart.h"
+#include "Controls/DxUi.PreparedFlowchart.h"
+#include "GraphicsFixture.h"
 #include "Support.Tests.CountingWriteFactory.h"
 #include "Support.Tests.FlowchartLayout.h"
 #include <algorithm>
@@ -418,7 +418,7 @@ template <typename Check> inline void EdgeLabelRasterOracle(Check&& check)
                 {
                     const auto offset = (static_cast<std::size_t>(y) * width + x) * 4u;
                     ++compared;
-                    if (! std::equal(actual.begin() + offset, actual.begin() + offset + 4u, expected.begin() + offset))
+                    if (! std::equal(actual.data() + offset, actual.data() + offset + 4u, expected.data() + offset))
                         ++different;
                 }
         }

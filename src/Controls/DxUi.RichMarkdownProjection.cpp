@@ -27,6 +27,10 @@ std::size_t Projection::ToSource(std::size_t offset, bool trailing) const
 }
 namespace
 {
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4626 5027)
 class Builder
 {
 public:
@@ -105,6 +109,7 @@ public:
         }
     }
 };
+#pragma warning(pop)
 void FillProjection(Projection& result, std::wstring&& text, std::uint64_t revision, ViewMode mode)
 {
     if (mode != ViewMode::Source && mode != ViewMode::Rich)

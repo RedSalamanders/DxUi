@@ -1,5 +1,5 @@
-#include "../Support/WindowMessages.h"
 #include "DxUi.Internal.h"
+#include "Support/WindowMessages.h"
 #include "TextClipboard.h"
 #include "TextStoreTarget.h"
 #include "TsfFocus.h"

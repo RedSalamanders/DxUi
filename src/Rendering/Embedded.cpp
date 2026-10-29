@@ -1,5 +1,5 @@
-#include "../Controls/DxUi.Internal.h"
-#include "../Support/Diagnostics.h"
+#include "Controls/DxUi.Internal.h"
+#include "Support/Diagnostics.h"
 #include <DxUi/Embedded.h>
 #include <DxUi/FrameRuntime.h>
 #include <DxUiCompositePS.h>
@@ -817,6 +817,7 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
                 case PointerAction::Wheel: inspectionMessage = WM_MOUSEWHEEL; break;
                 case PointerAction::Cancel: inspectionMessage = WM_CAPTURECHANGED; break;
                 case PointerAction::Leave: inspectionMessage = WM_MOUSELEAVE; break;
+                case ::DxUi::PointerAction::Move:
                 default: break;
             }
             if (_host.HandleTooltipInspectionPointer(inspectionMessage, point, event.wheelDelta))
@@ -881,6 +882,8 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
                 return target->OnMouseUp(_host, point, false, event.modifiers);
             }
             case PointerAction::Wheel: return target->OnMouseWheel(_host, point, event.wheelDelta, event.modifiers);
+            case ::DxUi::PointerAction::Cancel:
+            case ::DxUi::PointerAction::Leave:
             default: return false;
         }
     }

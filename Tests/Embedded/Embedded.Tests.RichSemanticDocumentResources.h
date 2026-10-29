@@ -1,5 +1,5 @@
 #pragma once
-#include "../Support/Support.Tests.RichSemanticDocument.h"
+#include "Support.Tests.RichSemanticDocument.h"
 
 static void TestRichSemanticDocumentFailureAndStorageBudgets(bool trace = false)
 {

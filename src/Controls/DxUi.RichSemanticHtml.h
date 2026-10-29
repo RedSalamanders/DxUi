@@ -53,6 +53,16 @@ inline unsigned HtmlFlags(NativeHtmlKind kind) noexcept
         case NativeHtmlKind::Code:
         case NativeHtmlKind::Pre: return Code;
         case NativeHtmlKind::A: return Link;
+        case ::DxUi::RichText::Detail::NativeHtmlKind::Br:
+        case ::DxUi::RichText::Detail::NativeHtmlKind::Div:
+        case ::DxUi::RichText::Detail::NativeHtmlKind::H1:
+        case ::DxUi::RichText::Detail::NativeHtmlKind::H2:
+        case ::DxUi::RichText::Detail::NativeHtmlKind::H3:
+        case ::DxUi::RichText::Detail::NativeHtmlKind::H4:
+        case ::DxUi::RichText::Detail::NativeHtmlKind::H5:
+        case ::DxUi::RichText::Detail::NativeHtmlKind::H6:
+        case ::DxUi::RichText::Detail::NativeHtmlKind::P:
+        case ::DxUi::RichText::Detail::NativeHtmlKind::Span:
         default: return 0u;
     }
 }

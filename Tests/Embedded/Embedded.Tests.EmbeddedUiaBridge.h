@@ -15,13 +15,22 @@
 #include <wil/com.h>
 #include <wil/resource.h>
 #include <wrl/client.h>
+// Windows SDK WRL owns its interlocked/volatile implementation and target semantics.
+// Scope is this system header only. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4746)
 #include <wrl/implements.h>
+#pragma warning(pop)
 
 #include <atomic>
 
 namespace EmbeddedUiaTest
 {
 // The application's element for its window: a pane that hosts the window and has the view's root element for its only child.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class ApplicationElement final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
                                                                      IRawElementProviderSimple,
                                                                      IRawElementProviderFragment,
@@ -167,8 +176,13 @@ private:
     HWND _hwnd = nullptr;
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> _viewRoot;
 };
+#pragma warning(pop)
 
 // What the view asks of its application: the application element is the view root's parent and every element's fragment root.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class ApplicationSite final : public DxUi::EmbeddedAccessibilitySite
 {
 public:
@@ -211,6 +225,7 @@ public:
 private:
     ApplicationElement* _application; // Borrowed: the bridge outlives the attachment, which it ends first.
 };
+#pragma warning(pop)
 
 // The application window, its element and the view's attachment to them. Declare it after the view and before the client: the
 // client unsubscribes while the bridge still answers, and the bridge ends the attachment before the view goes.

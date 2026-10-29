@@ -112,6 +112,14 @@ inline std::wstring Inline(const MarkdownSyntax& syntax, std::size_t first, bool
                 break;
             case MarkdownInlineKind::Strikethrough: tag = L"del"; break;
             case MarkdownInlineKind::Link: tag = L"a"; break;
+            case ::DxUi::RichText::MarkdownInlineKind::Code:
+            case ::DxUi::RichText::MarkdownInlineKind::FootnoteReference:
+            case ::DxUi::RichText::MarkdownInlineKind::HardBreak:
+            case ::DxUi::RichText::MarkdownInlineKind::Html:
+            case ::DxUi::RichText::MarkdownInlineKind::Image:
+            case ::DxUi::RichText::MarkdownInlineKind::Math:
+            case ::DxUi::RichText::MarkdownInlineKind::SoftBreak:
+            case ::DxUi::RichText::MarkdownInlineKind::Text:
             default: break;
         }
         if (visit.close)

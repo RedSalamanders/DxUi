@@ -3,11 +3,20 @@
 #include <limits>
 #include <string_view>
 #include <wil/com.h>
+// Windows SDK WRL owns its interlocked/volatile implementation and target semantics.
+// Scope is this system header only. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4746)
 #include <wrl/implements.h>
+#pragma warning(pop)
 namespace NativeTextTests
 {
 // Counts the actual COM entry points, independently of a preparation service's
 // returned statistics. All successful work reaches the real installed SDK.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class CountingWriteFactory final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDWriteFactory>
 {
 public:
@@ -171,4 +180,5 @@ public:
             glyphRun, pixelsPerDip, transform, renderingMode, measuringMode, baselineOriginX, baselineOriginY, glyphRunAnalysis);
     }
 };
+#pragma warning(pop)
 } // namespace NativeTextTests

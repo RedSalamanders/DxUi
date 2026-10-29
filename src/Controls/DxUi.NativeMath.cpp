@@ -83,9 +83,9 @@ class Parser
             {
                 char32_t scalar = unit;
                 if (unit >= L'A' && unit <= L'Z')
-                    scalar = (script ? calligraphic : blackboard)[unit - L'A'];
+                    scalar = (script ? calligraphic : blackboard)[static_cast<std::size_t>(unit - L'A')];
                 else if (unit >= L'a' && unit <= L'z')
-                    scalar = script ? lowerScript[unit - L'a'] : 0x1D552u + unit - L'a';
+                    scalar = script ? lowerScript[static_cast<std::size_t>(unit - L'a')] : 0x1D552u + unit - L'a';
                 else if (! script && unit >= L'0' && unit <= L'9')
                     scalar = 0x1D7D8u + unit - L'0';
                 if (scalar <= 0xFFFF)

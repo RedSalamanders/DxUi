@@ -10,11 +10,20 @@
 
 namespace DxUi::Tests
 {
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 struct PreparedTreeSourceWitness final
 {
     std::atomic<size_t> destructions{0u};
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4626)
 class ThreePreparedTreeRows final : public IPreparedTreeAccessibilityRows
 {
 public:
@@ -50,6 +59,7 @@ private:
     const Names _names;
     const std::shared_ptr<PreparedTreeSourceWitness> _witness;
 };
+#pragma warning(pop)
 
 // Positive fixture inputs are the concrete complete three-row source above, never a partially prepared model.
 class ThreePreparedTreeModel final : public ITreeModel

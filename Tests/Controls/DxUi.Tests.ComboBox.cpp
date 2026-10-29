@@ -18,6 +18,10 @@ std::shared_ptr<int> MakeRetainedCallbackCleanupThatClearsRoot(DxUi::WindowHost&
     });
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class StripedBackdropControl final : public DxUi::Control
 {
 public:
@@ -52,7 +56,12 @@ public:
 private:
     LONG _stripeWidthPx = 12;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class OverlayPaintProbeControl final : public DxUi::Control
 {
 public:
@@ -75,7 +84,12 @@ public:
         }
     }
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class PointerSinkControl final : public DxUi::Control
 {
 public:
@@ -102,6 +116,7 @@ public:
 private:
     size_t _mouseDownCount = 0u;
 };
+#pragma warning(pop)
 
 WindowHostBitmapCapture CaptureAttachedHostWindowBitmapForComboSuite(AttachedHostWindow& window, const char* context)
 {
@@ -138,23 +153,6 @@ WindowHostBitmapCapture CaptureAttachedHostWindowBitmapForComboSuite(AttachedHos
 
     return static_cast<uint32_t>(std::abs(channel(lhsBgra, 0u) - channel(rhsBgra, 0u)) + std::abs(channel(lhsBgra, 8u) - channel(rhsBgra, 8u)) +
                                  std::abs(channel(lhsBgra, 16u) - channel(rhsBgra, 16u)));
-}
-
-[[nodiscard]] size_t CountSubstring(std::string_view text, std::string_view needle) noexcept
-{
-    if (needle.empty())
-    {
-        return 0u;
-    }
-
-    size_t count  = 0u;
-    size_t offset = 0u;
-    while ((offset = text.find(needle, offset)) != std::string_view::npos)
-    {
-        ++count;
-        offset += needle.size();
-    }
-    return count;
 }
 
 [[nodiscard]] bool PostHostLeftClickForComboSuite(HWND hwnd, POINT screenPoint) noexcept
@@ -1210,11 +1208,16 @@ void TestEditableComboBoxTextCallbackKeepsItsSnapshotDuringReentry()
 void TestEditableComboBoxImportReportsWhenTextChangedDestroysComboBox()
 {
     using namespace DxUi;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class ImportComboBox final : public ComboBox
     {
     public:
         using ComboBox::ImportTextInputState;
     };
+#pragma warning(pop)
 
     WindowHost host;
     auto root   = std::make_unique<Panel>();

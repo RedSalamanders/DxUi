@@ -583,7 +583,7 @@ Export-ModuleMember -Function Get-DxUiVisualStudioInstallation
     }
     foreach ($path in @('performance.ps1','performance-paired.ps1','build.ps1','vcpkg-install.ps1','Tools/Compare-Performance.ps1','Tools/PerformanceComparison.psm1',
             'Tools/PairedRun.psm1','Tools/BenchmarkGate.psm1','Tools/PerformancePolicy.psm1','Tools/PerformanceAcceptancePolicy.v1.json','Tools/VcpkgTriplet.psm1',
-            'Tools/ScopedTesting.psm1','Tools/Validation.psm1','Tools/Changelog.psm1','Tools/Modules/Documentation/Changelog.psm1','vcpkg.json','vcpkg-tool.json')) { Set-FixtureFile $root $path "fixed fixture harness: $path" }
+            'Tools/ScopedTesting.psm1','Tools/Validation.psm1','Tools/Changelog.psm1','Tools/Modules/Documentation/Changelog.psm1','Build/BuildConsole.psm1','vcpkg.json','vcpkg-tool.json')) { Set-FixtureFile $root $path "fixed fixture harness: $path" }
     Set-FixtureFile $root '.build/vcpkg_installed/x64/vcpkg/status' 'fixture installed dependency'
     Set-FixtureFile $root '.build/vcpkg_installed/x64/vcpkg/info/wil_x64-windows.list' 'x64-windows/include/wil.h'
     Set-FixtureFile $root '.build/vcpkg_installed/x64/x64-windows/include/wil.h' 'fixture installed header'
@@ -639,6 +639,15 @@ Export-ModuleMember -Function Get-DxUiVisualStudioInstallation
         Assert-Equal 'build-only' $originalIdentity.identityStatus 'complete synthetic evaluation and actual tool bytes are attested without a native build claim'
         $originalFull = & $getIdentity
         Assert-Equal 'verifiable' $originalFull.identityStatus ("synthetic byte/metadata structure has full tool identity, not qualification evidence: $($originalFull['identityError'])")
+        $consolePath=Join-Path $root 'Build/BuildConsole.psm1'
+        $consoleBytes=[IO.File]::ReadAllText($consolePath)
+        try {
+            Set-FixtureFile $root 'Build/BuildConsole.psm1' ($consoleBytes+' changed')
+            $changedConsole=& $getIdentity
+            Assert-Equal 'verifiable' $changedConsole.identityStatus 'changed console bytes remain structurally identifiable'
+            Assert-True ($changedConsole.harnessIdentity -cne $originalFull.harnessIdentity) 'the transitive console dependency participates in full harness identity'
+            Assert-Equal $originalFull.toolchainIdentity $changedConsole.toolchainIdentity 'console reporting does not silently change compiler profiles'
+        } finally {Set-FixtureFile $root 'Build/BuildConsole.psm1' $consoleBytes}
         if ($syntheticWindowsEnvironment) {
             $warpBytes = [IO.File]::ReadAllBytes($fixtureWarpPath)
             try {

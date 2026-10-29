@@ -17,12 +17,12 @@
 // warning on a private desktop that no one sees, and runs children without a foreground grant. Tools/tests/Test-InteractiveLease.ps1
 // runs it.
 
-#include "../Support/Support.Tests.FailureReports.h"
-#include "../Support/Support.Tests.InteractiveLease.h"
-#include "../Support/Support.Tests.TestWatchdog.h"
 #include "InteractiveLease.Tests.ChildProcess.h"
 #include "InteractiveLease.Tests.Confirmation.h"
 #include "InteractiveLease.Tests.WarningBanner.h"
+#include "Support.Tests.FailureReports.h"
+#include "Support.Tests.InteractiveLease.h"
+#include "Support.Tests.TestWatchdog.h"
 
 #include <atomic>
 #include <charconv>
@@ -76,6 +76,10 @@ void Print(std::string_view line) noexcept
 
 [[nodiscard]] bool IsVerifiedGitHubHostedRunner() noexcept;
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4626 5027)
 class HostedWarningInputOperations final
 {
 public:
@@ -256,8 +260,13 @@ private:
     IL::WarningBanner& _banner;
     TS::Win32DesktopBackend& _desktop;
 };
+#pragma warning(pop)
 
 // The Windows services of one lease.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class Win32LeaseServices final : public TS::LeaseServices
 {
 public:
@@ -403,6 +412,7 @@ private:
     TS::Win32DesktopBackend _desktop;
     IL::WarningBanner _banner;
 };
+#pragma warning(pop)
 
 [[nodiscard]] std::optional<std::wstring_view> ValueOf(std::wstring_view argument, std::wstring_view name)
 {

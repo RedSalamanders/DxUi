@@ -1,5 +1,5 @@
 #pragma once
-#include "../../src/Support/Diagnostics.h"
+#include "Support/Diagnostics.h"
 #include <filesystem>
 #include <fstream>
 #include <stdexcept>
@@ -18,8 +18,9 @@ inline std::string Utf8(std::wstring_view text)
 inline void String(std::wstring_view value)
 {
     output << '"';
-    for (unsigned char c : Utf8(value))
+    for (const char unit : Utf8(value))
     {
+        const auto c = static_cast<unsigned char>(unit);
         if (c == '"' || c == '\\')
             output << '\\' << c;
         else if (c < 32)

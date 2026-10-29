@@ -1,12 +1,12 @@
 #include "Controls.Tests.RichTextInput.h"
-#include "../../Samples/EmbeddedControls/EmbeddedTextClient.h"
-#include "../../Samples/EmbeddedControls/GraphicsFixture.h"
-#include "../../Samples/EmbeddedControls/RichImageLoader.h"
-#include "../Support/Support.Tests.ClipboardFixture.h"
-#include "../Support/Support.Tests.RichImagePaths.h"
-#include "../Support/Support.Tests.RichImageResources.h"
-#include "../Support/Support.Tests.RichTextStateReplacement.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "EmbeddedTextClient.h"
+#include "GraphicsFixture.h"
+#include "RichImageLoader.h"
+#include "Support.Tests.ClipboardFixture.h"
+#include "Support.Tests.RichImagePaths.h"
+#include "Support.Tests.RichImageResources.h"
+#include "Support.Tests.RichTextStateReplacement.h"
 #include <DxUi/Embedded.h>
 #include <imm.h>
 

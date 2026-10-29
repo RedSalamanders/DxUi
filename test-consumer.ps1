@@ -61,6 +61,7 @@ $project=@"
  <PropertyGroup>$identityProperties<DxUiDisableStlAnnotations>$annotationsXml</DxUiDisableStlAnnotations><DxUiRoot>$rootXml</DxUiRoot><DxUiConsumerOutputRoot>$outputXml</DxUiConsumerOutputRoot><DxUiConsumerLockFile>$lockXml</DxUiConsumerLockFile><OutDir>`$(MSBuildProjectDirectory)\bin\</OutDir><IntDir>`$(MSBuildProjectDirectory)\obj\</IntDir></PropertyGroup>
  <Import Project="$rootXml\Build\DxUi.Consumer.props" />
  <ItemDefinitionGroup><ClCompile><LanguageStandard>stdcpplatest</LanguageStandard><ExceptionHandling>Sync</ExceptionHandling><PreprocessorDefinitions>UNICODE;_UNICODE;WIN32_LEAN_AND_MEAN;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions><AdditionalOptions>/utf-8 /Zc:preprocessor %(AdditionalOptions)</AdditionalOptions><WarningLevel>Level4</WarningLevel><TreatWarningAsError>true</TreatWarningAsError><RuntimeLibrary Condition="('`$(Configuration)'=='Debug' or '`$(Configuration)'=='ASan Debug')">MultiThreadedDebugDLL</RuntimeLibrary><RuntimeLibrary Condition="'`$(Configuration)'=='Release'">MultiThreadedDLL</RuntimeLibrary></ClCompile><Link><SubSystem>Console</SubSystem></Link></ItemDefinitionGroup>
+ <ItemDefinitionGroup><ClCompile><AdditionalIncludeDirectories>`$(MSBuildProjectDirectory)\Samples\ComplexUi;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories></ClCompile></ItemDefinitionGroup>
  <ItemGroup><ClCompile Include="Samples/EmbeddedControls/Main.cpp" /></ItemGroup>
  <Import Project="`$(VCTargetsPath)\Microsoft.Cpp.targets" />
  <Import Project="$rootXml\Build\DxUi.Consumer.targets" />

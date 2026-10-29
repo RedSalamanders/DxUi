@@ -1,8 +1,8 @@
 #include "Controls.Tests.RichSemanticGeometry.h"
-#include "../../src/Controls/DxUi.SemanticExtensions.h"
-#include "../Support/Support.Tests.RichSemanticEditor.h"
-#include "../Support/Support.Tests.RichSemanticGeometry.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Controls/DxUi.SemanticExtensions.h"
+#include "Support.Tests.RichSemanticEditor.h"
+#include "Support.Tests.RichSemanticGeometry.h"
 namespace
 {
 void TestRichSemanticNativeObjectFailureContainment()

@@ -214,6 +214,17 @@ private:
                 Add(block.source, TextInkRole::Subtle);
                 Add(node.destination, TextInkRole::Link);
                 break;
+            case ::DxUi::RichText::MarkdownBlockKind::BlankLine:
+            case ::DxUi::RichText::MarkdownBlockKind::Document:
+            case ::DxUi::RichText::MarkdownBlockKind::FootnoteDefinition:
+            case ::DxUi::RichText::MarkdownBlockKind::HtmlBlock:
+            case ::DxUi::RichText::MarkdownBlockKind::IndentedCode:
+            case ::DxUi::RichText::MarkdownBlockKind::List:
+            case ::DxUi::RichText::MarkdownBlockKind::Paragraph:
+            case ::DxUi::RichText::MarkdownBlockKind::SourceEditor:
+            case ::DxUi::RichText::MarkdownBlockKind::Table:
+            case ::DxUi::RichText::MarkdownBlockKind::TableCell:
+            case ::DxUi::RichText::MarkdownBlockKind::TableRow:
             default: break;
         }
     }
@@ -248,6 +259,10 @@ private:
                 Add(range, TextInkRole::Subtle);
                 inlinePhase_ = InlinePhase::Finished;
                 break;
+            case ::DxUi::RichText::MarkdownInlineKind::FootnoteReference:
+            case ::DxUi::RichText::MarkdownInlineKind::HardBreak:
+            case ::DxUi::RichText::MarkdownInlineKind::SoftBreak:
+            case ::DxUi::RichText::MarkdownInlineKind::Text:
             default: inlinePhase_ = InlinePhase::Finished; break;
         }
     }
@@ -357,6 +372,8 @@ private:
                     ++destinationPosition_;
                 }
                 return;
+            case ::DxUi::RichText::Detail::RichSourceInk::InlinePhase::Finished:
+            case ::DxUi::RichText::Detail::RichSourceInk::InlinePhase::None:
             default: inlinePhase_ = InlinePhase::Finished; return;
         }
     }
