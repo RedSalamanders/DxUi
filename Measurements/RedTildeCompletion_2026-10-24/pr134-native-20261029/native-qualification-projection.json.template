@@ -1,0 +1,1662 @@
+{
+  "schema": "hosted-pr134-native-public-v1",
+  "status": "reviewed evidence; performance acceptance remains separate",
+  "runId": 40869356681,
+  "compiledMerge": "b7d43757bd7c1c2464c5d349ff1b1e0993da69e9",
+  "publishedHead": "c1c207a8e1038789241ca4bc975e72581b2d9616",
+  "testedTreeSha256": null,
+  "treeNote": "The sealed native audit omits the Git tree. The separate independent Git-object replay below verifies merge and published-head tree equality; a Git tree object ID is not a SHA-256 payload hash.",
+  "nativeMatrix": {
+    "profileCount": 6,
+    "successfulNativeJobs": 6,
+    "fullSuiteNames": [
+      "Foundation",
+      "Embedded",
+      "Grid",
+      "Theme",
+      "Control",
+      "MenuExitLifetime",
+      "NewControls",
+      "EditorControls",
+      "TextField",
+      "MultilineText",
+      "ReadOnly",
+      "ComboBox",
+      "Tree",
+      "Tooltip",
+      "Rendering",
+      "Animation",
+      "Accessibility",
+      "WindowHost",
+      "InteractiveLease",
+      "Menu",
+      "NativeTextInput"
+    ],
+    "full21Results": 126,
+    "full21ExitCode": 0,
+    "full21SkipCount": 0,
+    "separateResourceCoverage": {
+      "suiteNames": [
+        "MenuResourceScaling",
+        "MenuTextLayoutResources"
+      ],
+      "resultCount": 2,
+      "exitCode": 0,
+      "skipCount": 0,
+      "platform": "x64",
+      "configuration": "Release"
+    },
+    "verifiedPayloadFileHashChecksAcrossReportedRuns": 505,
+    "profiles": [
+      {
+        "artifactName": "native-ARM64-Release",
+        "artifactId": 12899607413,
+        "serverZipSha256": "36387216711b5ed91d3e9fd415df03f097d719c9c74a32fc7457cee203a7f1ec",
+        "jobId": 123432279695,
+        "jobConclusion": "success",
+        "checkoutMergeVerified": true,
+        "rawNativeExecutableIncluded": false,
+        "runs": [
+          {
+            "runType": "full-21-native",
+            "configuration": "Release",
+            "platform": "ARM64",
+            "suiteNames": [
+              "Foundation",
+              "Embedded",
+              "Grid",
+              "Theme",
+              "Control",
+              "MenuExitLifetime",
+              "NewControls",
+              "EditorControls",
+              "TextField",
+              "MultilineText",
+              "ReadOnly",
+              "ComboBox",
+              "Tree",
+              "Tooltip",
+              "Rendering",
+              "Animation",
+              "Accessibility",
+              "WindowHost",
+              "InteractiveLease",
+              "Menu",
+              "NativeTextInput"
+            ],
+            "outcome": "passed",
+            "suiteResultCount": 21,
+            "suiteResults": [
+              {
+                "suite": "Accessibility",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "EA0B50042A8CC2646AC80BFE5A058031C12A6ED90542677576BAF03B07979C97"
+              },
+              {
+                "suite": "Animation",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "EA0B50042A8CC2646AC80BFE5A058031C12A6ED90542677576BAF03B07979C97"
+              },
+              {
+                "suite": "ComboBox",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "EA0B50042A8CC2646AC80BFE5A058031C12A6ED90542677576BAF03B07979C97"
+              },
+              {
+                "suite": "Control",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "EA0B50042A8CC2646AC80BFE5A058031C12A6ED90542677576BAF03B07979C97"
+              },
+              {
+                "suite": "EditorControls",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "EA0B50042A8CC2646AC80BFE5A058031C12A6ED90542677576BAF03B07979C97"
+              },
+              {
+                "suite": "Embedded",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "36D2F14E9FAD385E4516DF9B232AC60FFAEDFF17A793B5BF56E1DF26CDE43FCF"
+              },
+              {
+                "suite": "Foundation",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "1C77CC71868019838D558A1188A81258343110805003FBF2D10A4C2A9C6DF9BD"
+              },
+              {
+                "suite": "Grid",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "EA0B50042A8CC2646AC80BFE5A058031C12A6ED90542677576BAF03B07979C97"
+              },
+              {
+                "suite": "InteractiveLease",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "EA0B50042A8CC2646AC80BFE5A058031C12A6ED90542677576BAF03B07979C97"
+              },
+              {
+                "suite": "Menu",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "EA0B50042A8CC2646AC80BFE5A058031C12A6ED90542677576BAF03B07979C97"
+              },
+              {
+                "suite": "MenuExitLifetime",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "EA0B50042A8CC2646AC80BFE5A058031C12A6ED90542677576BAF03B07979C97"
+              },
+              {
+                "suite": "MultilineText",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "EA0B50042A8CC2646AC80BFE5A058031C12A6ED90542677576BAF03B07979C97"
+              },
+              {
+                "suite": "NativeTextInput",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "EA0B50042A8CC2646AC80BFE5A058031C12A6ED90542677576BAF03B07979C97"
+              },
+              {
+                "suite": "NewControls",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "EA0B50042A8CC2646AC80BFE5A058031C12A6ED90542677576BAF03B07979C97"
+              },
+              {
+                "suite": "ReadOnly",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "EA0B50042A8CC2646AC80BFE5A058031C12A6ED90542677576BAF03B07979C97"
+              },
+              {
+                "suite": "Rendering",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "EA0B50042A8CC2646AC80BFE5A058031C12A6ED90542677576BAF03B07979C97"
+              },
+              {
+                "suite": "TextField",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "EA0B50042A8CC2646AC80BFE5A058031C12A6ED90542677576BAF03B07979C97"
+              },
+              {
+                "suite": "Theme",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "EA0B50042A8CC2646AC80BFE5A058031C12A6ED90542677576BAF03B07979C97"
+              },
+              {
+                "suite": "Tooltip",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "EA0B50042A8CC2646AC80BFE5A058031C12A6ED90542677576BAF03B07979C97"
+              },
+              {
+                "suite": "Tree",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "EA0B50042A8CC2646AC80BFE5A058031C12A6ED90542677576BAF03B07979C97"
+              },
+              {
+                "suite": "WindowHost",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "EA0B50042A8CC2646AC80BFE5A058031C12A6ED90542677576BAF03B07979C97"
+              }
+            ],
+            "fullSuiteSkipCount": 0,
+            "verifiedPayloadFileHashChecks": 82,
+            "fullInputReceipt": {
+              "sourceCommit": "b7d43757bd7c1c2464c5d349ff1b1e0993da69e9",
+              "sourceFingerprint": "7D69E3575DC019CB08D57049A118B9EA19D1CD4F9D987B725CBB7287C5A94ED9",
+              "sourceDirty": false,
+              "buildIdentityVersion": 2,
+              "identityStatus": "verifiable",
+              "identityScope": "full",
+              "buildInputIdentity": "0b8b434604def0f3ec3b4c2d6846ba526f35f268df0d67129df0a2a7cfde814c",
+              "buildArtifactIdentity": "85cc483f6f7c89a7696b5d6b47d3d08d7ff080b9bed73e17f70f2456b2a2273f",
+              "buildAttestationIdentity": "65b8226e67f925d351be254f8d80adfeabaf400cd4741037646e3272890bcc10",
+              "executableSha256": "36D2F14E9FAD385E4516DF9B232AC60FFAEDFF17A793B5BF56E1DF26CDE43FCF"
+            },
+            "asanSentinel": null,
+            "hostedLeaseReceipts": {
+              "Menu": {
+                "mode": "verified-github-hosted",
+                "state": "completed",
+                "exitCode": 0,
+                "foregroundReceipt": "restored",
+                "focusReceipt": "none",
+                "cursorReceipt": "restored"
+              },
+              "NativeTextInput": {
+                "mode": "verified-github-hosted",
+                "state": "completed",
+                "exitCode": 0,
+                "foregroundReceipt": "restored",
+                "focusReceipt": "none",
+                "cursorReceipt": "restored"
+              }
+            },
+            "embeddedExeSha256": "36D2F14E9FAD385E4516DF9B232AC60FFAEDFF17A793B5BF56E1DF26CDE43FCF",
+            "rawNativeExecutableIncluded": false
+          }
+        ]
+      },
+      {
+        "artifactName": "native-ARM64-ASan Debug",
+        "artifactId": 12899222845,
+        "serverZipSha256": "61b40344e3e3e48509971e519fa71403c754efffb8ea8e8965370b504b9f0438",
+        "jobId": 123432279876,
+        "jobConclusion": "success",
+        "checkoutMergeVerified": true,
+        "rawNativeExecutableIncluded": false,
+        "runs": [
+          {
+            "runType": "full-21-native",
+            "configuration": "ASan Debug",
+            "platform": "ARM64",
+            "suiteNames": [
+              "Foundation",
+              "Embedded",
+              "Grid",
+              "Theme",
+              "Control",
+              "MenuExitLifetime",
+              "NewControls",
+              "EditorControls",
+              "TextField",
+              "MultilineText",
+              "ReadOnly",
+              "ComboBox",
+              "Tree",
+              "Tooltip",
+              "Rendering",
+              "Animation",
+              "Accessibility",
+              "WindowHost",
+              "InteractiveLease",
+              "Menu",
+              "NativeTextInput"
+            ],
+            "outcome": "passed",
+            "suiteResultCount": 21,
+            "suiteResults": [
+              {
+                "suite": "Accessibility",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "434A411396014B3B1B891D7C4E5D90AFAC48FFA3BB8DB390D6F2DF016B71B53E"
+              },
+              {
+                "suite": "AddressSanitizer",
+                "exitCode": 1,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "335D46EDCF3201F263A6BF36DB9EE5EFCC1CF4259119D7DA9460A1EB8DCF8E41"
+              },
+              {
+                "suite": "Animation",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "434A411396014B3B1B891D7C4E5D90AFAC48FFA3BB8DB390D6F2DF016B71B53E"
+              },
+              {
+                "suite": "ComboBox",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "434A411396014B3B1B891D7C4E5D90AFAC48FFA3BB8DB390D6F2DF016B71B53E"
+              },
+              {
+                "suite": "Control",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "434A411396014B3B1B891D7C4E5D90AFAC48FFA3BB8DB390D6F2DF016B71B53E"
+              },
+              {
+                "suite": "EditorControls",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "434A411396014B3B1B891D7C4E5D90AFAC48FFA3BB8DB390D6F2DF016B71B53E"
+              },
+              {
+                "suite": "Embedded",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "C68655AC6C20D649AA8890E4387F88A10567B6267EB7CD3CB6B7484E3BA20720"
+              },
+              {
+                "suite": "Foundation",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "335D46EDCF3201F263A6BF36DB9EE5EFCC1CF4259119D7DA9460A1EB8DCF8E41"
+              },
+              {
+                "suite": "Grid",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "434A411396014B3B1B891D7C4E5D90AFAC48FFA3BB8DB390D6F2DF016B71B53E"
+              },
+              {
+                "suite": "InteractiveLease",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "434A411396014B3B1B891D7C4E5D90AFAC48FFA3BB8DB390D6F2DF016B71B53E"
+              },
+              {
+                "suite": "Menu",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "434A411396014B3B1B891D7C4E5D90AFAC48FFA3BB8DB390D6F2DF016B71B53E"
+              },
+              {
+                "suite": "MenuExitLifetime",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "434A411396014B3B1B891D7C4E5D90AFAC48FFA3BB8DB390D6F2DF016B71B53E"
+              },
+              {
+                "suite": "MultilineText",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "434A411396014B3B1B891D7C4E5D90AFAC48FFA3BB8DB390D6F2DF016B71B53E"
+              },
+              {
+                "suite": "NativeTextInput",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "434A411396014B3B1B891D7C4E5D90AFAC48FFA3BB8DB390D6F2DF016B71B53E"
+              },
+              {
+                "suite": "NewControls",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "434A411396014B3B1B891D7C4E5D90AFAC48FFA3BB8DB390D6F2DF016B71B53E"
+              },
+              {
+                "suite": "ReadOnly",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "434A411396014B3B1B891D7C4E5D90AFAC48FFA3BB8DB390D6F2DF016B71B53E"
+              },
+              {
+                "suite": "Rendering",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "434A411396014B3B1B891D7C4E5D90AFAC48FFA3BB8DB390D6F2DF016B71B53E"
+              },
+              {
+                "suite": "TextField",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "434A411396014B3B1B891D7C4E5D90AFAC48FFA3BB8DB390D6F2DF016B71B53E"
+              },
+              {
+                "suite": "Theme",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "434A411396014B3B1B891D7C4E5D90AFAC48FFA3BB8DB390D6F2DF016B71B53E"
+              },
+              {
+                "suite": "Tooltip",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "434A411396014B3B1B891D7C4E5D90AFAC48FFA3BB8DB390D6F2DF016B71B53E"
+              },
+              {
+                "suite": "Tree",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "434A411396014B3B1B891D7C4E5D90AFAC48FFA3BB8DB390D6F2DF016B71B53E"
+              },
+              {
+                "suite": "WindowHost",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "434A411396014B3B1B891D7C4E5D90AFAC48FFA3BB8DB390D6F2DF016B71B53E"
+              }
+            ],
+            "fullSuiteSkipCount": 0,
+            "verifiedPayloadFileHashChecks": 84,
+            "fullInputReceipt": {
+              "sourceCommit": "b7d43757bd7c1c2464c5d349ff1b1e0993da69e9",
+              "sourceFingerprint": "7D69E3575DC019CB08D57049A118B9EA19D1CD4F9D987B725CBB7287C5A94ED9",
+              "sourceDirty": false,
+              "buildIdentityVersion": 2,
+              "identityStatus": "verifiable",
+              "identityScope": "full",
+              "buildInputIdentity": "27592b8b47dd5966e7f75e4ba2ece8dc8127b9790d68478d56a6c90fecdc5e2c",
+              "buildArtifactIdentity": "9e62d38f5eec72da04cbb786ec40a4828eb504644cf414f944a716530fa3ea0e",
+              "buildAttestationIdentity": "31a6319e8864d99c2dd7ed5d1a412fb99ea6432c042ffaf7460b1ec5a9e63260",
+              "executableSha256": "C68655AC6C20D649AA8890E4387F88A10567B6267EB7CD3CB6B7484E3BA20720"
+            },
+            "asanSentinel": {
+              "detected": true,
+              "expectedExitCode": 1,
+              "digestMatchesAddressSanitizerResult": true,
+              "nativeArchitecture": "Arm64"
+            },
+            "hostedLeaseReceipts": {
+              "Menu": {
+                "mode": "verified-github-hosted",
+                "state": "completed",
+                "exitCode": 0,
+                "foregroundReceipt": "restored",
+                "focusReceipt": "none",
+                "cursorReceipt": "restored"
+              },
+              "NativeTextInput": {
+                "mode": "verified-github-hosted",
+                "state": "completed",
+                "exitCode": 0,
+                "foregroundReceipt": "restored",
+                "focusReceipt": "none",
+                "cursorReceipt": "restored"
+              }
+            },
+            "embeddedExeSha256": "C68655AC6C20D649AA8890E4387F88A10567B6267EB7CD3CB6B7484E3BA20720",
+            "rawNativeExecutableIncluded": false
+          }
+        ]
+      },
+      {
+        "artifactName": "native-ARM64-Debug",
+        "artifactId": 12898452578,
+        "serverZipSha256": "156fb2b0f3549f384bd09b9f6cd7abec9e8866ddd6a9330b9fab0081b501880b",
+        "jobId": 123432279674,
+        "jobConclusion": "success",
+        "checkoutMergeVerified": true,
+        "rawNativeExecutableIncluded": false,
+        "runs": [
+          {
+            "runType": "full-21-native",
+            "configuration": "Debug",
+            "platform": "ARM64",
+            "suiteNames": [
+              "Foundation",
+              "Embedded",
+              "Grid",
+              "Theme",
+              "Control",
+              "MenuExitLifetime",
+              "NewControls",
+              "EditorControls",
+              "TextField",
+              "MultilineText",
+              "ReadOnly",
+              "ComboBox",
+              "Tree",
+              "Tooltip",
+              "Rendering",
+              "Animation",
+              "Accessibility",
+              "WindowHost",
+              "InteractiveLease",
+              "Menu",
+              "NativeTextInput"
+            ],
+            "outcome": "passed",
+            "suiteResultCount": 21,
+            "suiteResults": [
+              {
+                "suite": "Accessibility",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "19F3F8B90CCD10E45391C06ECE2353596B12C3B1F6F9994BB60AD1F7060CD45D"
+              },
+              {
+                "suite": "Animation",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "19F3F8B90CCD10E45391C06ECE2353596B12C3B1F6F9994BB60AD1F7060CD45D"
+              },
+              {
+                "suite": "Control",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "19F3F8B90CCD10E45391C06ECE2353596B12C3B1F6F9994BB60AD1F7060CD45D"
+              },
+              {
+                "suite": "ComboBox",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "19F3F8B90CCD10E45391C06ECE2353596B12C3B1F6F9994BB60AD1F7060CD45D"
+              },
+              {
+                "suite": "EditorControls",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "19F3F8B90CCD10E45391C06ECE2353596B12C3B1F6F9994BB60AD1F7060CD45D"
+              },
+              {
+                "suite": "Embedded",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "D4D1CD71BC054399829EEB73DFA9F550BF9C2F6C6207C001A076B0BCEDEA7904"
+              },
+              {
+                "suite": "Foundation",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "599B4DFCCA0216F0BB680FEB838F5229FB437C4BB6013DE6A4A5EE4915ABFF78"
+              },
+              {
+                "suite": "Grid",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "19F3F8B90CCD10E45391C06ECE2353596B12C3B1F6F9994BB60AD1F7060CD45D"
+              },
+              {
+                "suite": "InteractiveLease",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "19F3F8B90CCD10E45391C06ECE2353596B12C3B1F6F9994BB60AD1F7060CD45D"
+              },
+              {
+                "suite": "Menu",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "19F3F8B90CCD10E45391C06ECE2353596B12C3B1F6F9994BB60AD1F7060CD45D"
+              },
+              {
+                "suite": "MenuExitLifetime",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "19F3F8B90CCD10E45391C06ECE2353596B12C3B1F6F9994BB60AD1F7060CD45D"
+              },
+              {
+                "suite": "MultilineText",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "19F3F8B90CCD10E45391C06ECE2353596B12C3B1F6F9994BB60AD1F7060CD45D"
+              },
+              {
+                "suite": "NativeTextInput",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "19F3F8B90CCD10E45391C06ECE2353596B12C3B1F6F9994BB60AD1F7060CD45D"
+              },
+              {
+                "suite": "NewControls",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "19F3F8B90CCD10E45391C06ECE2353596B12C3B1F6F9994BB60AD1F7060CD45D"
+              },
+              {
+                "suite": "ReadOnly",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "19F3F8B90CCD10E45391C06ECE2353596B12C3B1F6F9994BB60AD1F7060CD45D"
+              },
+              {
+                "suite": "Rendering",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "19F3F8B90CCD10E45391C06ECE2353596B12C3B1F6F9994BB60AD1F7060CD45D"
+              },
+              {
+                "suite": "TextField",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "19F3F8B90CCD10E45391C06ECE2353596B12C3B1F6F9994BB60AD1F7060CD45D"
+              },
+              {
+                "suite": "Theme",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "19F3F8B90CCD10E45391C06ECE2353596B12C3B1F6F9994BB60AD1F7060CD45D"
+              },
+              {
+                "suite": "Tooltip",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "19F3F8B90CCD10E45391C06ECE2353596B12C3B1F6F9994BB60AD1F7060CD45D"
+              },
+              {
+                "suite": "Tree",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "19F3F8B90CCD10E45391C06ECE2353596B12C3B1F6F9994BB60AD1F7060CD45D"
+              },
+              {
+                "suite": "WindowHost",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "Arm64",
+                "resultDigestSha256": "19F3F8B90CCD10E45391C06ECE2353596B12C3B1F6F9994BB60AD1F7060CD45D"
+              }
+            ],
+            "fullSuiteSkipCount": 0,
+            "verifiedPayloadFileHashChecks": 82,
+            "fullInputReceipt": {
+              "sourceCommit": "b7d43757bd7c1c2464c5d349ff1b1e0993da69e9",
+              "sourceFingerprint": "7D69E3575DC019CB08D57049A118B9EA19D1CD4F9D987B725CBB7287C5A94ED9",
+              "sourceDirty": false,
+              "buildIdentityVersion": 2,
+              "identityStatus": "verifiable",
+              "identityScope": "full",
+              "buildInputIdentity": "6125011617f77999f08e703fa37139459de433fee0cbda512a855cea48554ef2",
+              "buildArtifactIdentity": "5bc5eb52e85bdf69b758f75724a8c9db73d3222dda2d118017e15966006d543f",
+              "buildAttestationIdentity": "796729ce0df9e0f72d3ab95a902cf10613a2ee90fa655f676dc7d03701fa72b8",
+              "executableSha256": "D4D1CD71BC054399829EEB73DFA9F550BF9C2F6C6207C001A076B0BCEDEA7904"
+            },
+            "asanSentinel": null,
+            "hostedLeaseReceipts": {
+              "Menu": {
+                "mode": "verified-github-hosted",
+                "state": "completed",
+                "exitCode": 0,
+                "foregroundReceipt": "restored",
+                "focusReceipt": "none",
+                "cursorReceipt": "restored"
+              },
+              "NativeTextInput": {
+                "mode": "verified-github-hosted",
+                "state": "completed",
+                "exitCode": 0,
+                "foregroundReceipt": "restored",
+                "focusReceipt": "none",
+                "cursorReceipt": "restored"
+              }
+            },
+            "embeddedExeSha256": "D4D1CD71BC054399829EEB73DFA9F550BF9C2F6C6207C001A076B0BCEDEA7904",
+            "rawNativeExecutableIncluded": false
+          }
+        ]
+      },
+      {
+        "artifactName": "native-x64-Release",
+        "artifactId": 12898041159,
+        "serverZipSha256": "d93cdef79659ff4d653ba430e7926ee9ad4f2c0d127c3e0e5d25b30642d9df16",
+        "jobId": 123432279676,
+        "jobConclusion": "success",
+        "checkoutMergeVerified": true,
+        "rawNativeExecutableIncluded": false,
+        "runs": [
+          {
+            "runType": "full-21-native",
+            "configuration": "Release",
+            "platform": "x64",
+            "suiteNames": [
+              "Foundation",
+              "Embedded",
+              "Grid",
+              "Theme",
+              "Control",
+              "MenuExitLifetime",
+              "NewControls",
+              "EditorControls",
+              "TextField",
+              "MultilineText",
+              "ReadOnly",
+              "ComboBox",
+              "Tree",
+              "Tooltip",
+              "Rendering",
+              "Animation",
+              "Accessibility",
+              "WindowHost",
+              "InteractiveLease",
+              "Menu",
+              "NativeTextInput"
+            ],
+            "outcome": "passed",
+            "suiteResultCount": 21,
+            "suiteResults": [
+              {
+                "suite": "Accessibility",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "FBA5F65C9CE3B2642672696DDB1E3C8ED399ED7340E41B066E2DE027E890BFA2"
+              },
+              {
+                "suite": "Animation",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "FBA5F65C9CE3B2642672696DDB1E3C8ED399ED7340E41B066E2DE027E890BFA2"
+              },
+              {
+                "suite": "ComboBox",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "FBA5F65C9CE3B2642672696DDB1E3C8ED399ED7340E41B066E2DE027E890BFA2"
+              },
+              {
+                "suite": "Control",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "FBA5F65C9CE3B2642672696DDB1E3C8ED399ED7340E41B066E2DE027E890BFA2"
+              },
+              {
+                "suite": "EditorControls",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "FBA5F65C9CE3B2642672696DDB1E3C8ED399ED7340E41B066E2DE027E890BFA2"
+              },
+              {
+                "suite": "Embedded",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "E1606A6ADB3925392335788DD8CC98DDDBF6F0BD0DA87D3C255C880ADF7D3582"
+              },
+              {
+                "suite": "Foundation",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "89EA8BCD2423D139CBE3BBFEA7B20CD648E42C44CD3BC2154B2D0D2FE327126D"
+              },
+              {
+                "suite": "Grid",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "FBA5F65C9CE3B2642672696DDB1E3C8ED399ED7340E41B066E2DE027E890BFA2"
+              },
+              {
+                "suite": "InteractiveLease",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "FBA5F65C9CE3B2642672696DDB1E3C8ED399ED7340E41B066E2DE027E890BFA2"
+              },
+              {
+                "suite": "Menu",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "FBA5F65C9CE3B2642672696DDB1E3C8ED399ED7340E41B066E2DE027E890BFA2"
+              },
+              {
+                "suite": "MenuExitLifetime",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "FBA5F65C9CE3B2642672696DDB1E3C8ED399ED7340E41B066E2DE027E890BFA2"
+              },
+              {
+                "suite": "MultilineText",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "FBA5F65C9CE3B2642672696DDB1E3C8ED399ED7340E41B066E2DE027E890BFA2"
+              },
+              {
+                "suite": "NativeTextInput",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "FBA5F65C9CE3B2642672696DDB1E3C8ED399ED7340E41B066E2DE027E890BFA2"
+              },
+              {
+                "suite": "NewControls",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "FBA5F65C9CE3B2642672696DDB1E3C8ED399ED7340E41B066E2DE027E890BFA2"
+              },
+              {
+                "suite": "ReadOnly",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "FBA5F65C9CE3B2642672696DDB1E3C8ED399ED7340E41B066E2DE027E890BFA2"
+              },
+              {
+                "suite": "Rendering",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "FBA5F65C9CE3B2642672696DDB1E3C8ED399ED7340E41B066E2DE027E890BFA2"
+              },
+              {
+                "suite": "TextField",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "FBA5F65C9CE3B2642672696DDB1E3C8ED399ED7340E41B066E2DE027E890BFA2"
+              },
+              {
+                "suite": "Theme",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "FBA5F65C9CE3B2642672696DDB1E3C8ED399ED7340E41B066E2DE027E890BFA2"
+              },
+              {
+                "suite": "Tooltip",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "FBA5F65C9CE3B2642672696DDB1E3C8ED399ED7340E41B066E2DE027E890BFA2"
+              },
+              {
+                "suite": "Tree",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "FBA5F65C9CE3B2642672696DDB1E3C8ED399ED7340E41B066E2DE027E890BFA2"
+              },
+              {
+                "suite": "WindowHost",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "FBA5F65C9CE3B2642672696DDB1E3C8ED399ED7340E41B066E2DE027E890BFA2"
+              }
+            ],
+            "fullSuiteSkipCount": 0,
+            "verifiedPayloadFileHashChecks": 82,
+            "fullInputReceipt": {
+              "sourceCommit": "b7d43757bd7c1c2464c5d349ff1b1e0993da69e9",
+              "sourceFingerprint": "7D69E3575DC019CB08D57049A118B9EA19D1CD4F9D987B725CBB7287C5A94ED9",
+              "sourceDirty": false,
+              "buildIdentityVersion": 2,
+              "identityStatus": "verifiable",
+              "identityScope": "full",
+              "buildInputIdentity": "e00fe0c049c6706b71dd69a5abbc6a91bb0048f5fe3b7f14e6b65f19586d718b",
+              "buildArtifactIdentity": "8c4257a15e7c2890f37177bfb1f2482d9988108afa9e7dba068b53d881f6d7c9",
+              "buildAttestationIdentity": "7ee0cfe396d85f83023499cd0295481d7bff117ede588b76d2b49dce7c4bbae6",
+              "executableSha256": "E1606A6ADB3925392335788DD8CC98DDDBF6F0BD0DA87D3C255C880ADF7D3582"
+            },
+            "asanSentinel": null,
+            "hostedLeaseReceipts": {
+              "Menu": {
+                "mode": "verified-github-hosted",
+                "state": "completed",
+                "exitCode": 0,
+                "foregroundReceipt": "unchanged",
+                "focusReceipt": "unchanged",
+                "cursorReceipt": "unchanged"
+              },
+              "NativeTextInput": {
+                "mode": "verified-github-hosted",
+                "state": "completed",
+                "exitCode": 0,
+                "foregroundReceipt": "unchanged",
+                "focusReceipt": "unchanged",
+                "cursorReceipt": "unchanged"
+              }
+            },
+            "embeddedExeSha256": "E1606A6ADB3925392335788DD8CC98DDDBF6F0BD0DA87D3C255C880ADF7D3582",
+            "rawNativeExecutableIncluded": false
+          },
+          {
+            "runType": "separate-resource-coverage",
+            "configuration": "Release",
+            "platform": "x64",
+            "suiteNames": [
+              "MenuResourceScaling",
+              "MenuTextLayoutResources"
+            ],
+            "outcome": "passed",
+            "suiteResultCount": 2,
+            "suiteResults": [
+              {
+                "suite": "MenuResourceScaling",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "FBA5F65C9CE3B2642672696DDB1E3C8ED399ED7340E41B066E2DE027E890BFA2"
+              },
+              {
+                "suite": "MenuTextLayoutResources",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "FBA5F65C9CE3B2642672696DDB1E3C8ED399ED7340E41B066E2DE027E890BFA2"
+              }
+            ],
+            "fullSuiteSkipCount": 0,
+            "verifiedPayloadFileHashChecks": 9,
+            "fullInputReceipt": null,
+            "asanSentinel": null,
+            "hostedLeaseReceipts": {},
+            "embeddedExeSha256": null,
+            "rawNativeExecutableIncluded": false
+          }
+        ]
+      },
+      {
+        "artifactName": "native-x64-ASan Debug",
+        "artifactId": 12897268626,
+        "serverZipSha256": "886614f746f35f75ea919a584fbd5a1314b46969c92079c7fd86e861ff4aa329",
+        "jobId": 123432279930,
+        "jobConclusion": "success",
+        "checkoutMergeVerified": true,
+        "rawNativeExecutableIncluded": false,
+        "runs": [
+          {
+            "runType": "full-21-native",
+            "configuration": "ASan Debug",
+            "platform": "x64",
+            "suiteNames": [
+              "Foundation",
+              "Embedded",
+              "Grid",
+              "Theme",
+              "Control",
+              "MenuExitLifetime",
+              "NewControls",
+              "EditorControls",
+              "TextField",
+              "MultilineText",
+              "ReadOnly",
+              "ComboBox",
+              "Tree",
+              "Tooltip",
+              "Rendering",
+              "Animation",
+              "Accessibility",
+              "WindowHost",
+              "InteractiveLease",
+              "Menu",
+              "NativeTextInput"
+            ],
+            "outcome": "passed",
+            "suiteResultCount": 21,
+            "suiteResults": [
+              {
+                "suite": "Accessibility",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "94A5290E654C30F5CD00134543F16B62BA8C63B44DAE5BD18A7FDF164AECC531"
+              },
+              {
+                "suite": "AddressSanitizer",
+                "exitCode": 1,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "3C83C8E304164AAB0079F2F22AAB3C0EAC1AD8199FC1A1A46B1A33FB6FF987EB"
+              },
+              {
+                "suite": "Animation",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "94A5290E654C30F5CD00134543F16B62BA8C63B44DAE5BD18A7FDF164AECC531"
+              },
+              {
+                "suite": "ComboBox",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "94A5290E654C30F5CD00134543F16B62BA8C63B44DAE5BD18A7FDF164AECC531"
+              },
+              {
+                "suite": "Control",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "94A5290E654C30F5CD00134543F16B62BA8C63B44DAE5BD18A7FDF164AECC531"
+              },
+              {
+                "suite": "EditorControls",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "94A5290E654C30F5CD00134543F16B62BA8C63B44DAE5BD18A7FDF164AECC531"
+              },
+              {
+                "suite": "Embedded",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "B33D375D6E65651046D1CC5D3C0A600A7E95DDB3150CEB9C6240831C9FC7B18B"
+              },
+              {
+                "suite": "Foundation",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "3C83C8E304164AAB0079F2F22AAB3C0EAC1AD8199FC1A1A46B1A33FB6FF987EB"
+              },
+              {
+                "suite": "Grid",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "94A5290E654C30F5CD00134543F16B62BA8C63B44DAE5BD18A7FDF164AECC531"
+              },
+              {
+                "suite": "InteractiveLease",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "94A5290E654C30F5CD00134543F16B62BA8C63B44DAE5BD18A7FDF164AECC531"
+              },
+              {
+                "suite": "Menu",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "94A5290E654C30F5CD00134543F16B62BA8C63B44DAE5BD18A7FDF164AECC531"
+              },
+              {
+                "suite": "MenuExitLifetime",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "94A5290E654C30F5CD00134543F16B62BA8C63B44DAE5BD18A7FDF164AECC531"
+              },
+              {
+                "suite": "MultilineText",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "94A5290E654C30F5CD00134543F16B62BA8C63B44DAE5BD18A7FDF164AECC531"
+              },
+              {
+                "suite": "NativeTextInput",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "94A5290E654C30F5CD00134543F16B62BA8C63B44DAE5BD18A7FDF164AECC531"
+              },
+              {
+                "suite": "NewControls",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "94A5290E654C30F5CD00134543F16B62BA8C63B44DAE5BD18A7FDF164AECC531"
+              },
+              {
+                "suite": "ReadOnly",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "94A5290E654C30F5CD00134543F16B62BA8C63B44DAE5BD18A7FDF164AECC531"
+              },
+              {
+                "suite": "Rendering",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "94A5290E654C30F5CD00134543F16B62BA8C63B44DAE5BD18A7FDF164AECC531"
+              },
+              {
+                "suite": "TextField",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "94A5290E654C30F5CD00134543F16B62BA8C63B44DAE5BD18A7FDF164AECC531"
+              },
+              {
+                "suite": "Theme",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "94A5290E654C30F5CD00134543F16B62BA8C63B44DAE5BD18A7FDF164AECC531"
+              },
+              {
+                "suite": "Tooltip",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "94A5290E654C30F5CD00134543F16B62BA8C63B44DAE5BD18A7FDF164AECC531"
+              },
+              {
+                "suite": "Tree",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "94A5290E654C30F5CD00134543F16B62BA8C63B44DAE5BD18A7FDF164AECC531"
+              },
+              {
+                "suite": "WindowHost",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "94A5290E654C30F5CD00134543F16B62BA8C63B44DAE5BD18A7FDF164AECC531"
+              }
+            ],
+            "fullSuiteSkipCount": 0,
+            "verifiedPayloadFileHashChecks": 84,
+            "fullInputReceipt": {
+              "sourceCommit": "b7d43757bd7c1c2464c5d349ff1b1e0993da69e9",
+              "sourceFingerprint": "7D69E3575DC019CB08D57049A118B9EA19D1CD4F9D987B725CBB7287C5A94ED9",
+              "sourceDirty": false,
+              "buildIdentityVersion": 2,
+              "identityStatus": "verifiable",
+              "identityScope": "full",
+              "buildInputIdentity": "5d1477232c3471661b7dcf5bd502fa4b734be082f066caf2a16d99e8a0d29921",
+              "buildArtifactIdentity": "d2badf124005026a0510b116419792579755a747e30e6fb69d3588e296b2d41a",
+              "buildAttestationIdentity": "360e06f0436fce5ea7dca39a893c02c2be9d58515bc22add83560cb00d652914",
+              "executableSha256": "B33D375D6E65651046D1CC5D3C0A600A7E95DDB3150CEB9C6240831C9FC7B18B"
+            },
+            "asanSentinel": {
+              "detected": true,
+              "expectedExitCode": 1,
+              "digestMatchesAddressSanitizerResult": true,
+              "nativeArchitecture": "X64"
+            },
+            "hostedLeaseReceipts": {
+              "Menu": {
+                "mode": "verified-github-hosted",
+                "state": "completed",
+                "exitCode": 0,
+                "foregroundReceipt": "unchanged",
+                "focusReceipt": "unchanged",
+                "cursorReceipt": "unchanged"
+              },
+              "NativeTextInput": {
+                "mode": "verified-github-hosted",
+                "state": "completed",
+                "exitCode": 0,
+                "foregroundReceipt": "unchanged",
+                "focusReceipt": "unchanged",
+                "cursorReceipt": "unchanged"
+              }
+            },
+            "embeddedExeSha256": "B33D375D6E65651046D1CC5D3C0A600A7E95DDB3150CEB9C6240831C9FC7B18B",
+            "rawNativeExecutableIncluded": false
+          }
+        ]
+      },
+      {
+        "artifactName": "native-x64-Debug",
+        "artifactId": 12896976783,
+        "serverZipSha256": "301aae5d2d9fcda28217b2631b437c097ee38a9ca197ee6533b2ea02a9a81a7f",
+        "jobId": 123432279659,
+        "jobConclusion": "success",
+        "checkoutMergeVerified": true,
+        "rawNativeExecutableIncluded": false,
+        "runs": [
+          {
+            "runType": "full-21-native",
+            "configuration": "Debug",
+            "platform": "x64",
+            "suiteNames": [
+              "Foundation",
+              "Embedded",
+              "Grid",
+              "Theme",
+              "Control",
+              "MenuExitLifetime",
+              "NewControls",
+              "EditorControls",
+              "TextField",
+              "MultilineText",
+              "ReadOnly",
+              "ComboBox",
+              "Tree",
+              "Tooltip",
+              "Rendering",
+              "Animation",
+              "Accessibility",
+              "WindowHost",
+              "InteractiveLease",
+              "Menu",
+              "NativeTextInput"
+            ],
+            "outcome": "passed",
+            "suiteResultCount": 21,
+            "suiteResults": [
+              {
+                "suite": "Accessibility",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "1892F319255466CD58D5AE31919F7060F69051973C6AEA4FCD9D278E5FD7156B"
+              },
+              {
+                "suite": "Animation",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "1892F319255466CD58D5AE31919F7060F69051973C6AEA4FCD9D278E5FD7156B"
+              },
+              {
+                "suite": "ComboBox",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "1892F319255466CD58D5AE31919F7060F69051973C6AEA4FCD9D278E5FD7156B"
+              },
+              {
+                "suite": "Control",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "1892F319255466CD58D5AE31919F7060F69051973C6AEA4FCD9D278E5FD7156B"
+              },
+              {
+                "suite": "EditorControls",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "1892F319255466CD58D5AE31919F7060F69051973C6AEA4FCD9D278E5FD7156B"
+              },
+              {
+                "suite": "Embedded",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "38B8E1C2D9466FF995D4C5298160F81DF183B67F934D7B1E180AD38FFB3B137D"
+              },
+              {
+                "suite": "Foundation",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "0E207CE96848C96F106221E0AF8CE0546BE4F1FCA250138C32B8AB64409479C3"
+              },
+              {
+                "suite": "Grid",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "1892F319255466CD58D5AE31919F7060F69051973C6AEA4FCD9D278E5FD7156B"
+              },
+              {
+                "suite": "InteractiveLease",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "1892F319255466CD58D5AE31919F7060F69051973C6AEA4FCD9D278E5FD7156B"
+              },
+              {
+                "suite": "Menu",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "1892F319255466CD58D5AE31919F7060F69051973C6AEA4FCD9D278E5FD7156B"
+              },
+              {
+                "suite": "MenuExitLifetime",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "1892F319255466CD58D5AE31919F7060F69051973C6AEA4FCD9D278E5FD7156B"
+              },
+              {
+                "suite": "MultilineText",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "1892F319255466CD58D5AE31919F7060F69051973C6AEA4FCD9D278E5FD7156B"
+              },
+              {
+                "suite": "NativeTextInput",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "1892F319255466CD58D5AE31919F7060F69051973C6AEA4FCD9D278E5FD7156B"
+              },
+              {
+                "suite": "NewControls",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "1892F319255466CD58D5AE31919F7060F69051973C6AEA4FCD9D278E5FD7156B"
+              },
+              {
+                "suite": "ReadOnly",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "1892F319255466CD58D5AE31919F7060F69051973C6AEA4FCD9D278E5FD7156B"
+              },
+              {
+                "suite": "Rendering",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "1892F319255466CD58D5AE31919F7060F69051973C6AEA4FCD9D278E5FD7156B"
+              },
+              {
+                "suite": "TextField",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "1892F319255466CD58D5AE31919F7060F69051973C6AEA4FCD9D278E5FD7156B"
+              },
+              {
+                "suite": "Theme",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "1892F319255466CD58D5AE31919F7060F69051973C6AEA4FCD9D278E5FD7156B"
+              },
+              {
+                "suite": "Tooltip",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "1892F319255466CD58D5AE31919F7060F69051973C6AEA4FCD9D278E5FD7156B"
+              },
+              {
+                "suite": "Tree",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "1892F319255466CD58D5AE31919F7060F69051973C6AEA4FCD9D278E5FD7156B"
+              },
+              {
+                "suite": "WindowHost",
+                "exitCode": 0,
+                "skipCount": 0,
+                "nativeArchitecture": "X64",
+                "resultDigestSha256": "1892F319255466CD58D5AE31919F7060F69051973C6AEA4FCD9D278E5FD7156B"
+              }
+            ],
+            "fullSuiteSkipCount": 0,
+            "verifiedPayloadFileHashChecks": 82,
+            "fullInputReceipt": {
+              "sourceCommit": "b7d43757bd7c1c2464c5d349ff1b1e0993da69e9",
+              "sourceFingerprint": "7D69E3575DC019CB08D57049A118B9EA19D1CD4F9D987B725CBB7287C5A94ED9",
+              "sourceDirty": false,
+              "buildIdentityVersion": 2,
+              "identityStatus": "verifiable",
+              "identityScope": "full",
+              "buildInputIdentity": "1e358b27cf62122ce0d721c276c80f8142b85f91b76c17c44190e56021d8b313",
+              "buildArtifactIdentity": "d4da6c5ef3450123ca2ea00b59c0a6a4d6a6ca562adb4585bd9fa073ee4e412f",
+              "buildAttestationIdentity": "86fe50c59f20c5b660578ee16331b93f6163bcec0afb8720c33894930c4bac36",
+              "executableSha256": "38B8E1C2D9466FF995D4C5298160F81DF183B67F934D7B1E180AD38FFB3B137D"
+            },
+            "asanSentinel": null,
+            "hostedLeaseReceipts": {
+              "Menu": {
+                "mode": "verified-github-hosted",
+                "state": "completed",
+                "exitCode": 0,
+                "foregroundReceipt": "restored",
+                "focusReceipt": "unchanged",
+                "cursorReceipt": "unchanged"
+              },
+              "NativeTextInput": {
+                "mode": "verified-github-hosted",
+                "state": "completed",
+                "exitCode": 0,
+                "foregroundReceipt": "restored",
+                "focusReceipt": "unchanged",
+                "cursorReceipt": "unchanged"
+              }
+            },
+            "embeddedExeSha256": "38B8E1C2D9466FF995D4C5298160F81DF183B67F934D7B1E180AD38FFB3B137D",
+            "rawNativeExecutableIncluded": false
+          }
+        ]
+      }
+    ]
+  },
+  "asanDetectors": {
+    "count": 2,
+    "expectedExitCode": 1,
+    "detected": true,
+    "digestMatchesAddressSanitizerSuiteRecord": true,
+    "architectures": [
+      "Arm64",
+      "X64"
+    ]
+  },
+  "consumerReceipts": {
+    "count": 8,
+    "allSourceCommit": "b7d43757bd7c1c2464c5d349ff1b1e0993da69e9",
+    "allExitCode": 0,
+    "receiptRows": [
+      {
+        "profile": "native-ARM64-Release",
+        "platform": "ARM64",
+        "configuration": "Release",
+        "nativeArchitecture": "Arm64",
+        "sourceCommit": "b7d43757bd7c1c2464c5d349ff1b1e0993da69e9",
+        "exitCode": 0,
+        "disableStlAnnotations": false,
+        "nativeModuleChecks": 12,
+        "negativeChecks": 10,
+        "consumerExecutableSha256": "1015EACFEF594B26FA4F6859C5452F97F93CF4805C85FDE514B4DB2BD9BF3A24",
+        "librarySha256": "08AC7286F245C0B9139C47960FF1D18ED632AFFB353AAFD3F00C77EC1C4EA2EE",
+        "buildIdentityFingerprint": "6c8f04ea25d1cc0363eaba08ea40252f8adf041a9b5f834c40f26b22b30af89b",
+        "toolset": "v145",
+        "vcToolsVersion": "14.52.37025",
+        "windowsSdkVersion": "10.0.26100.0",
+        "runtimeFamily": "MD",
+        "preferredToolArchitecture": "x86"
+      },
+      {
+        "profile": "native-ARM64-ASan Debug",
+        "platform": "ARM64",
+        "configuration": "ASan Debug",
+        "nativeArchitecture": "Arm64",
+        "sourceCommit": "b7d43757bd7c1c2464c5d349ff1b1e0993da69e9",
+        "exitCode": 0,
+        "disableStlAnnotations": true,
+        "nativeModuleChecks": 12,
+        "negativeChecks": 10,
+        "consumerExecutableSha256": "B7E2E94F8A3CACF6EE777461DB5FF80E8F2BD816FB16D40B7713E421C0E0C860",
+        "librarySha256": "91A589D331582520B809ADB57573721BB803451416762697813B75653EC6107F",
+        "buildIdentityFingerprint": "852ad0f695c88c24ffb0c85b1c48ed472b74c9b01236eeba7d22243908a84a0d",
+        "toolset": "v145",
+        "vcToolsVersion": "14.52.37025",
+        "windowsSdkVersion": "10.0.26100.0",
+        "runtimeFamily": "MD",
+        "preferredToolArchitecture": "x86"
+      },
+      {
+        "profile": "native-ARM64-ASan Debug",
+        "platform": "ARM64",
+        "configuration": "ASan Debug",
+        "nativeArchitecture": "Arm64",
+        "sourceCommit": "b7d43757bd7c1c2464c5d349ff1b1e0993da69e9",
+        "exitCode": 0,
+        "disableStlAnnotations": false,
+        "nativeModuleChecks": 12,
+        "negativeChecks": 10,
+        "consumerExecutableSha256": "1C4F789481D80E9EA3F91252098A41AF4563B522BF44C2679637F357D4918DC6",
+        "librarySha256": "BEEB7B61D8CBFA9FF35CD3E0B191D92697EF8193A80018966091E069B757ABE3",
+        "buildIdentityFingerprint": "6c8f04ea25d1cc0363eaba08ea40252f8adf041a9b5f834c40f26b22b30af89b",
+        "toolset": "v145",
+        "vcToolsVersion": "14.52.37025",
+        "windowsSdkVersion": "10.0.26100.0",
+        "runtimeFamily": "MD",
+        "preferredToolArchitecture": "x86"
+      },
+      {
+        "profile": "native-ARM64-Debug",
+        "platform": "ARM64",
+        "configuration": "Debug",
+        "nativeArchitecture": "Arm64",
+        "sourceCommit": "b7d43757bd7c1c2464c5d349ff1b1e0993da69e9",
+        "exitCode": 0,
+        "disableStlAnnotations": false,
+        "nativeModuleChecks": 12,
+        "negativeChecks": 10,
+        "consumerExecutableSha256": "890BF382C34176F5DA199182684D987C06846C04D533DD2612E58AB77A796B6C",
+        "librarySha256": "390F71113556E8959A9F40C191138115833D35E0AE7F7546ECF242D97735D5A1",
+        "buildIdentityFingerprint": "6c8f04ea25d1cc0363eaba08ea40252f8adf041a9b5f834c40f26b22b30af89b",
+        "toolset": "v145",
+        "vcToolsVersion": "14.52.37025",
+        "windowsSdkVersion": "10.0.26100.0",
+        "runtimeFamily": "MD",
+        "preferredToolArchitecture": "x86"
+      },
+      {
+        "profile": "native-x64-Release",
+        "platform": "x64",
+        "configuration": "Release",
+        "nativeArchitecture": "X64",
+        "sourceCommit": "b7d43757bd7c1c2464c5d349ff1b1e0993da69e9",
+        "exitCode": 0,
+        "disableStlAnnotations": false,
+        "nativeModuleChecks": 12,
+        "negativeChecks": 10,
+        "consumerExecutableSha256": "3FFD8405E074298ECC1D2D6CAA8EE449B29862815E098721B331530FC20396A3",
+        "librarySha256": "54BE4917B58C0349C4FA23AB600E08F6E13F524F8874F09C6C1EE20E62386D9C",
+        "buildIdentityFingerprint": "6e20bb4c0a76d6c52d9b2d7f0b998dd5062b11a69e6aa8cf2635512cc906e3c7",
+        "toolset": "v145",
+        "vcToolsVersion": "14.52.37025",
+        "windowsSdkVersion": "10.0.26100.0",
+        "runtimeFamily": "MD",
+        "preferredToolArchitecture": "x86"
+      },
+      {
+        "profile": "native-x64-ASan Debug",
+        "platform": "x64",
+        "configuration": "ASan Debug",
+        "nativeArchitecture": "X64",
+        "sourceCommit": "b7d43757bd7c1c2464c5d349ff1b1e0993da69e9",
+        "exitCode": 0,
+        "disableStlAnnotations": false,
+        "nativeModuleChecks": 12,
+        "negativeChecks": 10,
+        "consumerExecutableSha256": "39C7CA04D07CEA8E89CCA9BA16C9892BE32E347DC2F71BDE763B7095BB0DD53C",
+        "librarySha256": "2851EC49A39458F6F9567791969F5D051664E43D69C892E3446894EE814DCCDD",
+        "buildIdentityFingerprint": "6e20bb4c0a76d6c52d9b2d7f0b998dd5062b11a69e6aa8cf2635512cc906e3c7",
+        "toolset": "v145",
+        "vcToolsVersion": "14.52.37025",
+        "windowsSdkVersion": "10.0.26100.0",
+        "runtimeFamily": "MD",
+        "preferredToolArchitecture": "x86"
+      },
+      {
+        "profile": "native-x64-ASan Debug",
+        "platform": "x64",
+        "configuration": "ASan Debug",
+        "nativeArchitecture": "X64",
+        "sourceCommit": "b7d43757bd7c1c2464c5d349ff1b1e0993da69e9",
+        "exitCode": 0,
+        "disableStlAnnotations": true,
+        "nativeModuleChecks": 12,
+        "negativeChecks": 10,
+        "consumerExecutableSha256": "F7C322157C626B00973518C7D2BAE6F0D9B47C31FDFDB295B3E8443C12BC4499",
+        "librarySha256": "B76D0A31872EBFBF249B093C4E15B6683C1A7933651BCBADBF5EEA94FC37BE8B",
+        "buildIdentityFingerprint": "4fe8953747a3f9805b1cd1c11649f8a4722a51330b008eed88720526d900778e",
+        "toolset": "v145",
+        "vcToolsVersion": "14.52.37025",
+        "windowsSdkVersion": "10.0.26100.0",
+        "runtimeFamily": "MD",
+        "preferredToolArchitecture": "x86"
+      },
+      {
+        "profile": "native-x64-Debug",
+        "platform": "x64",
+        "configuration": "Debug",
+        "nativeArchitecture": "X64",
+        "sourceCommit": "b7d43757bd7c1c2464c5d349ff1b1e0993da69e9",
+        "exitCode": 0,
+        "disableStlAnnotations": false,
+        "nativeModuleChecks": 12,
+        "negativeChecks": 10,
+        "consumerExecutableSha256": "D53BD02C39EDAEB6D4E9668D1134BA6B941506421D62B59FFD39B19C10A87EDC",
+        "librarySha256": "5EF3DDC0AFF0AEB665AC1347CB5EE5DFD21E00433937581CEBC6B1952960A915",
+        "buildIdentityFingerprint": "6e20bb4c0a76d6c52d9b2d7f0b998dd5062b11a69e6aa8cf2635512cc906e3c7",
+        "toolset": "v145",
+        "vcToolsVersion": "14.52.37025",
+        "windowsSdkVersion": "10.0.26100.0",
+        "runtimeFamily": "MD",
+        "preferredToolArchitecture": "x86"
+      }
+    ]
+  },
+  "toolchain": {
+    "toolset": "v145",
+    "vcToolsVersion": "14.52.37025",
+    "windowsSdkVersion": "10.0.26100.0",
+    "runtimeFamily": "MD",
+    "preferredToolArchitecture": "x86"
+  },
+  "provenance": {
+    "nativeAuditSha256": "E575C1D7009F387D8623E6D21E733F35CD0DF9C401D0D0830755B3B820A79F24",
+    "sourceCommitInFullInputReceipts": "b7d43757bd7c1c2464c5d349ff1b1e0993da69e9",
+    "sourceDirty": false,
+    "fullIdentityStatus": "verifiable",
+    "fullIdentityScope": "full",
+    "rawNativeExecutableInArtifactZips": false
+  },
+  "hostedLeaseInterpretation": "Focus/foreground/cursor values below are copied literally from hosted lease receipts. They describe receipt state only; they do not establish physical IME/accessibility availability or a general focus-none condition.",
+  "overallGate": {
+    "nativeEvidence": "six hosted native jobs successful",
+    "pairedPerformance": "separate and still held/active",
+    "overallGreenClaim": false,
+    "mergeOrAcceptanceClaim": false
+  },
+  "gitObjectReplay": {
+    "tree": "06261ed45b87e5c849d4cf847a2898a6aff9c060",
+    "parents": [
+      "660b2c89fc0b1f1e4f33ef125b2705601f2117b9",
+      "c1c207a8e1038789241ca4bc975e72581b2d9616"
+    ],
+    "mergeAndPublishedHeadTreesEqual": true,
+    "proofSha256": "970A2872F6B53C1523C76677663117699C1C770A90FFA3EC85357C95A1B1D609",
+    "observedSource": "GitHub git commit objects"
+  }
+}

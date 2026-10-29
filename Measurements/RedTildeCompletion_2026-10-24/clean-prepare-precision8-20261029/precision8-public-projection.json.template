@@ -1,0 +1,510 @@
+{
+  "schema": "dxui-clean-prepare-precision8-public-v1",
+  "releaseStatus": "reviewed evidence; performance acceptance remains separate",
+  "sourceCommit": "8ccb8a148b392be3712d4c0d6048dfeb1fd0be94",
+  "metadataHead": "c1c207a8e1038789241ca4bc975e72581b2d9616",
+  "qualifiedArtifact": {
+    "profile": "x64 Release",
+    "archiveMember": "local-outputs/x64/Release/DxUi.EmbeddedTests.exe",
+    "sha256": "964D743346F0514D4F9ACB0672CA99AAE61E413C76061C4CC7641F8769EE1611",
+    "pdbArchiveMember": "local-outputs/x64/Release/DxUi.EmbeddedTests.pdb",
+    "pdbSha256": "6979FAE80BC4EB0EC92CDC45151AB89A475688842EDFE2AD409BB888407EC9B0",
+    "archiveSha256": "1F5249B8E2D22D04E0668D6E75A0BA7C8A6691B06FAD26FB2152310FD322AA9C",
+    "preservationManifestSha256": "2509F98875E08692832DC70A58664F20717A1A5D52C212C6EDE59BBF396A6160"
+  },
+  "producerBindings": {
+    "controllerSha256": "639FFD3EE6B62DC9B9A676DE0BC936BF45FF028E197EA063698163E7F913A15A",
+    "offlineAuditorSha256": "193F21B8EFE0ABC21605DDCD82D8245BA788267F2FFF65807F965A4C0028116A",
+    "independentReplaySha256": "B11B31BF79E32E58D12BFE74E0DC3BC250FF783CF97ECFDC848D67A4C5E6E3D9"
+  },
+  "study": {
+    "processReplicates": 8,
+    "rowsPerProcess": 128,
+    "totalRows": 1024,
+    "seed": 20261029,
+    "batchSizes": [
+      1,
+      8,
+      64,
+      512
+    ],
+    "repetitionsPerBatchSize": 16,
+    "warmupNoopCallsPerProcess": 20,
+    "prepareCallsPerProcess": 9360,
+    "emptyLoopCallsPerProcess": 9360,
+    "actualOsExitCodes": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "timeouts": 0,
+    "sourceHash64Decimal": "714575116261318623",
+    "sceneStateHash64Decimal": "12993143238892939887"
+  },
+  "clock": {
+    "qpcFrequencyHz": 10000000,
+    "qpcTickNanoseconds": 100,
+    "normalized512CallArithmeticGranularityNanosecondsPerCall": 0.1953125,
+    "granularityLabel": "arithmetic granularity from integer QPC ticks divided across 512 calls; not a measurement-accuracy claim"
+  },
+  "method": {
+    "statistic": "For each process, median and min/max of its 16 normalized batch means for each size and role.",
+    "prepareScope": "QPC loop bracket includes HRESULT checks, S_FALSE result classification, and loop bookkeeping.",
+    "emptyLoopScope": "Separate empty-loop bracket/control context; it is not matched-call subtraction.",
+    "perProcessRows": [
+      {
+        "replicate": 1,
+        "prepare": {
+          "1": {
+            "medianWithinProcessNsPerCall": "0.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "100.000000",
+            "sampleCount": 16
+          },
+          "8": {
+            "medianWithinProcessNsPerCall": "18.750000",
+            "minNsPerCall": "12.500000",
+            "maxNsPerCall": "62.500000",
+            "sampleCount": 16
+          },
+          "64": {
+            "medianWithinProcessNsPerCall": "15.625000",
+            "minNsPerCall": "15.625000",
+            "maxNsPerCall": "17.187500",
+            "sampleCount": 16
+          },
+          "512": {
+            "medianWithinProcessNsPerCall": "16.015625",
+            "minNsPerCall": "15.820312",
+            "maxNsPerCall": "16.601562",
+            "sampleCount": 16
+          }
+        },
+        "emptyLoop": {
+          "1": {
+            "medianWithinProcessNsPerCall": "0.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "100.000000",
+            "sampleCount": 16
+          },
+          "8": {
+            "medianWithinProcessNsPerCall": "0.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "12.500000",
+            "sampleCount": 16
+          },
+          "64": {
+            "medianWithinProcessNsPerCall": "0.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "1.562500",
+            "sampleCount": 16
+          },
+          "512": {
+            "medianWithinProcessNsPerCall": "0.390625",
+            "minNsPerCall": "0.195312",
+            "maxNsPerCall": "41.601562",
+            "sampleCount": 16
+          }
+        }
+      },
+      {
+        "replicate": 2,
+        "prepare": {
+          "1": {
+            "medianWithinProcessNsPerCall": "0.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "500.000000",
+            "sampleCount": 16
+          },
+          "8": {
+            "medianWithinProcessNsPerCall": "25.000000",
+            "minNsPerCall": "12.500000",
+            "maxNsPerCall": "37.500000",
+            "sampleCount": 16
+          },
+          "64": {
+            "medianWithinProcessNsPerCall": "17.187500",
+            "minNsPerCall": "15.625000",
+            "maxNsPerCall": "45.312500",
+            "sampleCount": 16
+          },
+          "512": {
+            "medianWithinProcessNsPerCall": "16.210938",
+            "minNsPerCall": "16.015625",
+            "maxNsPerCall": "25.781250",
+            "sampleCount": 16
+          }
+        },
+        "emptyLoop": {
+          "1": {
+            "medianWithinProcessNsPerCall": "0.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "100.000000",
+            "sampleCount": 16
+          },
+          "8": {
+            "medianWithinProcessNsPerCall": "0.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "12.500000",
+            "sampleCount": 16
+          },
+          "64": {
+            "medianWithinProcessNsPerCall": "1.562500",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "1.562500",
+            "sampleCount": 16
+          },
+          "512": {
+            "medianWithinProcessNsPerCall": "0.390625",
+            "minNsPerCall": "0.195312",
+            "maxNsPerCall": "0.585938",
+            "sampleCount": 16
+          }
+        }
+      },
+      {
+        "replicate": 3,
+        "prepare": {
+          "1": {
+            "medianWithinProcessNsPerCall": "0.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "400.000000",
+            "sampleCount": 16
+          },
+          "8": {
+            "medianWithinProcessNsPerCall": "18.750000",
+            "minNsPerCall": "12.500000",
+            "maxNsPerCall": "87.500000",
+            "sampleCount": 16
+          },
+          "64": {
+            "medianWithinProcessNsPerCall": "16.406250",
+            "minNsPerCall": "15.625000",
+            "maxNsPerCall": "32.812500",
+            "sampleCount": 16
+          },
+          "512": {
+            "medianWithinProcessNsPerCall": "16.015625",
+            "minNsPerCall": "15.820312",
+            "maxNsPerCall": "68.750000",
+            "sampleCount": 16
+          }
+        },
+        "emptyLoop": {
+          "1": {
+            "medianWithinProcessNsPerCall": "50.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "100.000000",
+            "sampleCount": 16
+          },
+          "8": {
+            "medianWithinProcessNsPerCall": "0.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "12.500000",
+            "sampleCount": 16
+          },
+          "64": {
+            "medianWithinProcessNsPerCall": "1.562500",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "1.562500",
+            "sampleCount": 16
+          },
+          "512": {
+            "medianWithinProcessNsPerCall": "0.390625",
+            "minNsPerCall": "0.195312",
+            "maxNsPerCall": "0.585938",
+            "sampleCount": 16
+          }
+        }
+      },
+      {
+        "replicate": 4,
+        "prepare": {
+          "1": {
+            "medianWithinProcessNsPerCall": "0.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "500.000000",
+            "sampleCount": 16
+          },
+          "8": {
+            "medianWithinProcessNsPerCall": "12.500000",
+            "minNsPerCall": "12.500000",
+            "maxNsPerCall": "25.000000",
+            "sampleCount": 16
+          },
+          "64": {
+            "medianWithinProcessNsPerCall": "15.625000",
+            "minNsPerCall": "15.625000",
+            "maxNsPerCall": "18.750000",
+            "sampleCount": 16
+          },
+          "512": {
+            "medianWithinProcessNsPerCall": "16.015625",
+            "minNsPerCall": "15.820312",
+            "maxNsPerCall": "23.046875",
+            "sampleCount": 16
+          }
+        },
+        "emptyLoop": {
+          "1": {
+            "medianWithinProcessNsPerCall": "0.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "100.000000",
+            "sampleCount": 16
+          },
+          "8": {
+            "medianWithinProcessNsPerCall": "0.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "12.500000",
+            "sampleCount": 16
+          },
+          "64": {
+            "medianWithinProcessNsPerCall": "1.562500",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "1.562500",
+            "sampleCount": 16
+          },
+          "512": {
+            "medianWithinProcessNsPerCall": "0.390625",
+            "minNsPerCall": "0.195312",
+            "maxNsPerCall": "0.390625",
+            "sampleCount": 16
+          }
+        }
+      },
+      {
+        "replicate": 5,
+        "prepare": {
+          "1": {
+            "medianWithinProcessNsPerCall": "50.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "300.000000",
+            "sampleCount": 16
+          },
+          "8": {
+            "medianWithinProcessNsPerCall": "25.000000",
+            "minNsPerCall": "12.500000",
+            "maxNsPerCall": "25.000000",
+            "sampleCount": 16
+          },
+          "64": {
+            "medianWithinProcessNsPerCall": "15.625000",
+            "minNsPerCall": "15.625000",
+            "maxNsPerCall": "21.875000",
+            "sampleCount": 16
+          },
+          "512": {
+            "medianWithinProcessNsPerCall": "16.015625",
+            "minNsPerCall": "15.820312",
+            "maxNsPerCall": "18.554688",
+            "sampleCount": 16
+          }
+        },
+        "emptyLoop": {
+          "1": {
+            "medianWithinProcessNsPerCall": "0.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "100.000000",
+            "sampleCount": 16
+          },
+          "8": {
+            "medianWithinProcessNsPerCall": "0.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "12.500000",
+            "sampleCount": 16
+          },
+          "64": {
+            "medianWithinProcessNsPerCall": "0.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "1.562500",
+            "sampleCount": 16
+          },
+          "512": {
+            "medianWithinProcessNsPerCall": "0.390625",
+            "minNsPerCall": "0.195312",
+            "maxNsPerCall": "0.390625",
+            "sampleCount": 16
+          }
+        }
+      },
+      {
+        "replicate": 6,
+        "prepare": {
+          "1": {
+            "medianWithinProcessNsPerCall": "100.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "100.000000",
+            "sampleCount": 16
+          },
+          "8": {
+            "medianWithinProcessNsPerCall": "12.500000",
+            "minNsPerCall": "12.500000",
+            "maxNsPerCall": "25.000000",
+            "sampleCount": 16
+          },
+          "64": {
+            "medianWithinProcessNsPerCall": "15.625000",
+            "minNsPerCall": "15.625000",
+            "maxNsPerCall": "18.750000",
+            "sampleCount": 16
+          },
+          "512": {
+            "medianWithinProcessNsPerCall": "16.015625",
+            "minNsPerCall": "15.820312",
+            "maxNsPerCall": "20.703125",
+            "sampleCount": 16
+          }
+        },
+        "emptyLoop": {
+          "1": {
+            "medianWithinProcessNsPerCall": "0.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "100.000000",
+            "sampleCount": 16
+          },
+          "8": {
+            "medianWithinProcessNsPerCall": "0.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "12.500000",
+            "sampleCount": 16
+          },
+          "64": {
+            "medianWithinProcessNsPerCall": "0.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "1.562500",
+            "sampleCount": 16
+          },
+          "512": {
+            "medianWithinProcessNsPerCall": "0.390625",
+            "minNsPerCall": "0.195312",
+            "maxNsPerCall": "0.390625",
+            "sampleCount": 16
+          }
+        }
+      },
+      {
+        "replicate": 7,
+        "prepare": {
+          "1": {
+            "medianWithinProcessNsPerCall": "100.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "100.000000",
+            "sampleCount": 16
+          },
+          "8": {
+            "medianWithinProcessNsPerCall": "18.750000",
+            "minNsPerCall": "12.500000",
+            "maxNsPerCall": "25.000000",
+            "sampleCount": 16
+          },
+          "64": {
+            "medianWithinProcessNsPerCall": "17.187500",
+            "minNsPerCall": "15.625000",
+            "maxNsPerCall": "17.187500",
+            "sampleCount": 16
+          },
+          "512": {
+            "medianWithinProcessNsPerCall": "16.210938",
+            "minNsPerCall": "16.210938",
+            "maxNsPerCall": "16.406250",
+            "sampleCount": 16
+          }
+        },
+        "emptyLoop": {
+          "1": {
+            "medianWithinProcessNsPerCall": "0.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "100.000000",
+            "sampleCount": 16
+          },
+          "8": {
+            "medianWithinProcessNsPerCall": "0.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "12.500000",
+            "sampleCount": 16
+          },
+          "64": {
+            "medianWithinProcessNsPerCall": "1.562500",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "1.562500",
+            "sampleCount": 16
+          },
+          "512": {
+            "medianWithinProcessNsPerCall": "0.195312",
+            "minNsPerCall": "0.195312",
+            "maxNsPerCall": "0.390625",
+            "sampleCount": 16
+          }
+        }
+      },
+      {
+        "replicate": 8,
+        "prepare": {
+          "1": {
+            "medianWithinProcessNsPerCall": "100.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "400.000000",
+            "sampleCount": 16
+          },
+          "8": {
+            "medianWithinProcessNsPerCall": "25.000000",
+            "minNsPerCall": "12.500000",
+            "maxNsPerCall": "25.000000",
+            "sampleCount": 16
+          },
+          "64": {
+            "medianWithinProcessNsPerCall": "15.625000",
+            "minNsPerCall": "15.625000",
+            "maxNsPerCall": "17.187500",
+            "sampleCount": 16
+          },
+          "512": {
+            "medianWithinProcessNsPerCall": "16.015625",
+            "minNsPerCall": "15.820312",
+            "maxNsPerCall": "16.406250",
+            "sampleCount": 16
+          }
+        },
+        "emptyLoop": {
+          "1": {
+            "medianWithinProcessNsPerCall": "0.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "100.000000",
+            "sampleCount": 16
+          },
+          "8": {
+            "medianWithinProcessNsPerCall": "0.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "12.500000",
+            "sampleCount": 16
+          },
+          "64": {
+            "medianWithinProcessNsPerCall": "0.000000",
+            "minNsPerCall": "0.000000",
+            "maxNsPerCall": "1.562500",
+            "sampleCount": 16
+          },
+          "512": {
+            "medianWithinProcessNsPerCall": "0.195312",
+            "minNsPerCall": "0.195312",
+            "maxNsPerCall": "0.390625",
+            "sampleCount": 16
+          }
+        }
+      }
+    ]
+  },
+  "evidenceLimits": [
+    "S_FALSE behavior is enforced by producer code and successful process exit; every individual HRESULT is not serialized in the raw report.",
+    "The diagnostic does not prove the timed EXE loaded a particular DxUi module or renderer, or identify GPU/runtime modules.",
+    "Quiet-host state is unobserved.",
+    "This separate amortized batch study does not replace canonical per-call P95 and cannot be compared directly to the prior 600 ns P95 result or used to assign that difference to one cause.",
+    "No global paired-control stability or policy-acceptance claim is made.",
+    "Process replicates remain separate; no cross-process pooling, control subtraction, p-values, or threshold changes."
+  ]
+}

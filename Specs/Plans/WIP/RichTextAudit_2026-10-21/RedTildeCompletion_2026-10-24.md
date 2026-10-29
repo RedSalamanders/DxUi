@@ -2,6 +2,15 @@
 
 ## Progress checklist
 
+### Latest functional and diagnostic qualification — 29 October 2026
+
+- [x] Require every clean-Prepare timer diagnostic warmup/batch call to return `S_FALSE`, with sticky negative oracles for earlier non-no-op results. Native producer `8ccb8a14`, metadata head `c1c207a8`, [PR134](https://github.com/RedSalamanders/DxUi/pull/134). Library/public API and canonical metrics/bands/policy are unchanged; gallery pixels need no update for this diagnostic validation change.
+- [x] Qualify the local producer in all six canonical build profiles, three x64 explicit oracles and three complete Embedded runs, with actual ASan detection and full affected tooling/validators. Isolated outputs preserve 76 prior products and 301 reports. Local ARM64 results are cross-builds; the direct native runs are scoped evidence, not a default full-run attestation.
+- [x] Qualify actual hosted x64 and ARM64 Debug/Release/ASan execution in run `40869356681`, compiled merge `b7d43757`, whose Git tree equals published head `c1c207a8`. All six jobs, 126 declared Full suite outcomes and eight consumer modes pass with zero skips; two expected ASan detections are separate. Independent artifact replay verifies 505 payload hashes. Native ZIPs record executable identity but omit raw executables; literal hosted focus states do not qualify physical IME/AT. See the [reviewed native packet](../../../../Measurements/RedTildeCompletion_2026-10-24/pr134-native-20261029/README.md).
+- [x] Complete one separately declared eight-process precision diagnostic and independently replay all 1,024 rows/74,880 timed calls per role. The median of sixteen 512-call normalized batch means per process is 16.016–16.211 ns/call; all within-process ranges, including larger outliers, remain visible. Empty-loop values remain separate. A normalized QPC step is arithmetic granularity, not accuracy or isolated latency. See the [complete 64-summary projection](../../../../Measurements/RedTildeCompletion_2026-10-24/clean-prepare-precision8-20261029/README.md). This does not replace per-call p95, prove a quiet host, explain every control, or approve policy.
+- [ ] Finish the independently collected PR134 paired result and its evidence replay. The job remains active at this checkpoint; the native pass is not an overall-green or merge verdict. Preserve every slot and source identity rather than rerunning or pooling the separate precision diagnostic.
+- [ ] Keep shared performance-policy/control, consumer adoption and physical-platform/release obligations open. The RedTilde owner accepts only +2.0045% Compose and +2.2195% Split working set for the current feature set; that decision closes the application memory cost/advice item and does not approve SDK policy or noisy command controls. Hosted RedTilde ARM64 remains separately billing-blocked.
+
 ### Current 2fed qualification checkpoint — 25 October 2026
 
 - [x] PR #102 integration: merged as `97b26bad7fcdb0aa3dbb2efd4bceac77aab5a295`; merged tree `2c0641bc363bf713cfc709d721c3f6549dd5aef8` is identical to reviewed DxUi source `2fed82465dcee9f213753754e0e8e54f353cf38f`.
