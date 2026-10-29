@@ -18,8 +18,8 @@ regenerate the gallery when visuals, controls, layout, typography, themes, state
 internal change may leave gallery pixels unchanged, but its change/plan must state why docs/gallery need no update.
 Do not accept stale instructions or screenshots as complete work.
 
-The [Changes workflow](Core_Changes.md) requires one fragment while editing and folding before PrePush/final
-handoff and after every integration, even for one fragment. The active plan index lists one plan per entry,
+The [Changes workflow](Core_Changes.md) requires one fragment in each change and never a `CHANGELOG.md` edit;
+fragments are folded on `main` after merge. The active plan index lists one plan per entry,
 entries separated by blank lines, so updates to different plans merge without conflicts.
 
 Every catalog control MUST have a usage entry in `docs/controls.md`, a populated gallery tile, meaningful behavior

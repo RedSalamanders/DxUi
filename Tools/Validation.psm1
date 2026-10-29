@@ -316,8 +316,8 @@ function Test-DxUiSpecs([Parameter(Mandatory)][string] $Root) {
 }
 
 function Test-DxUiChangelog([Parameter(Mandatory)][string] $Root) {
-    # A change is recorded as a fragment under Changes/, which its README explains, until Fold-Changelog.ps1 moves it under
-    # CHANGELOG.md's Unreleased heading. Every fragment is one dated bullet.
+    # A change is recorded as a fragment under Changes/, which its README explains. After merge the default branch folds it
+    # under CHANGELOG.md's Unreleased heading (Submit-ChangelogFold.ps1). Every fragment is one dated bullet.
     $failures = [Collections.Generic.List[string]]::new()
     $failures.AddRange([string[]](Get-ChangelogProblems $Root))
     return New-ValidationResult $failures @()

@@ -27,4 +27,4 @@ Run the three root validation scripts for documentation/dependency changes and t
 Generated measurement reports live under `.build`, never in Specs. Reviewed gallery snapshots live in `docs/gallery`.
 Historical import records are explained under [Done](Done/README.md). See [the active index](Plans/WIP/README.md).
 
-The [Changes workflow](Core/Core_Changes.md) owns fragment format, validation and immediate folding before PrePush/final handoff and after integration.
+The [Changes workflow](Core/Core_Changes.md) owns fragment format, validation and the fold of merged fragments on `main` through a pull request of its own; a change keeps its fragment and never edits `CHANGELOG.md`.
