@@ -14,12 +14,13 @@ Five repositories implement the same policy without implicitly advancing DxUi pi
 
 - [x] Preserve the pre-change effective-profile audit and isolate changes from concurrent tooling work.
 - [x] Restore RedTilde ARM64 through its normal entrypoint and pass the required policy/lease checks.
-- [ ] Enforce and negatively test the common compiler/debug/linker policy in every supported native profile and pinned archive.
-- [x] Unify green zero-warning build results, diagnostic/log links and opt-in terminal executable hyperlinks, preserving plain text and existing build/run semantics.
+- [x] Enforce and negatively test the common compiler/debug/linker policy in every supported native profile and pinned archive.
+- [x] Unify green zero-warning build results, diagnostic/log links and automatic terminal executable hyperlinks where supported, preserving plain text and existing build/run semantics.
 - [x] Shorten source-commit and output-fingerprint folders to 16 hex characters with full identity validation and collision refusal; retain existing data without cleanup.
 - [x] Update source discovery, direct helper builds, provenance, test fixtures and dependency identities together.
 - [x] Publish zero-warning guidance and normative build/path/terminal contracts, with meaningful tooling tests.
-- [ ] Execute affected tests, evaluated profiles, required native builds and applicable runtime qualification; retain every failed result and distinguish cross-builds from runtime tests.
+- [x] Execute affected tests, evaluated profiles, required native builds and applicable local x64 runtime qualification; retain every failed result and distinguish ARM64 cross-builds from runtime tests.
+- [ ] Freeze matching Release artifacts, report before/after image sizes and complete quiet paired performance measurements.
 - [ ] Fold/check the changelog; validate formatting/specs/tooling and close this plan only after all required gates pass.
 
 ## Decisions and limits
@@ -77,3 +78,13 @@ On fb33d6b2, actual relocated Debug and Release consumer checks pass, including 
 ten rejected mismatches. The full validator's five independent validators pass; tooling then correctly refuses the
 stale scoped-CI digest because test-consumer.ps1 belongs to its execution closure. Refresh the digest through the
 canonical calculation and rerun the scoped/full tooling checks. A digest refresh alone is no native or CI pass.
+
+
+## Local qualification checkpoint, 2026-10-29
+
+The current five-repository audit passes 504 native profiles and 73,502 evaluated setting groups. All four consumers
+pass their 24 required pinned-archive profiles; the additional Tilde lease profiles and negative controls pass.
+Exact source identities, raw metadata and field differences are retained under the task's final-audit-20261029
+evidence. Ordinary Debug and ASan formats remain separate from the recorded RedSalamander Full Embedded recovery mode.
+
+All six canonical native builds and all three local Full profiles pass; each Full profile executes 19 ordinary suites with zero capability skips. Source 24aafbc5 also passes all three approved Menu/NativeTextInput focus profiles, zero skips with verified restoration. Quiet performance comparison and final candidate CI remain pending.
