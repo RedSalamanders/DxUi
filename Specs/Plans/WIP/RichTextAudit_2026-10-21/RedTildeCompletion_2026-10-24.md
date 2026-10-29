@@ -426,9 +426,21 @@ The baseline test run also emitted its standard unpaired complex-UI report; it i
 - [x] Require exact `S_FALSE` for every diagnostic batch and warmup call, with sticky rejection of an early
   `S_OK` followed by `S_FALSE`; retain no-work counters, state fingerprints and normalization checks.
 - [x] Cover earlier failure, alternate success and already-rejected state in the same native oracle.
-- [ ] Qualify six isolated builds and the x64 Debug, Release and ASan Debug Embedded functional/oracle paths.
+- [x] Qualify six isolated builds and the x64 Debug, Release and ASan Debug Embedded functional/oracle paths.
 
 This is a diagnostic test correction. It does not demonstrate dirty work in historical observations, alter the
 library or canonical benchmark/policy, or close the inconclusive paired evidence. Existing F/660 qualification
 products are preserved. Direct isolated native results will be reported separately from the default runner's
 performance attestation; no new performance collection or foreground input is part of this slice.
+
+Qualification is bound to native test source `8ccb8a148b392be3712d4c0d6048dfeb1fd0be94`: canonical x64 and
+ARM64 Debug, Release and ASan Debug isolated builds pass. Each x64 profile passes the explicit
+`--test-clean-prepare-timer-oracle` and full Embedded functional entry point (460,400 Debug, 437,322 Release and
+460,400 ASan Debug checks). The new isolated ASan Foundation executable diagnoses the deliberate use-after-free
+with actual exit 1 and restored `ASAN_OPTIONS`; the detector gate passes. Affected Tooling and all five validators
+pass, reporting `SELECTED_PASSED; repository NOT_EVALUATED`. All 76 earlier default product files and 301 existing
+reports remain byte-identical. This metadata follow-up does not relabel the native runs as a new producer.
+
+The isolated direct-entrypoint evidence does not establish the default runner's performance attestation,
+native ARM64, foreground or paired performance qualification. No new performance collection, benchmark policy
+change, control-stability approval or historical dirty-work inference is made.
