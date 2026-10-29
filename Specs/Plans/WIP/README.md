@@ -2,13 +2,7 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
-- **ACTIVE**: [Stationary submenu hover](StationarySubmenuHover_2026-10-28.md). Source c155 passes the local six-build/57-normal/twelve-foreground matrix; two hosted ARM64 root-switch fixtures fail. Reviewed foreground/readiness/physical-pointer fixture corrections need their own qualification; original failure causes and performance holds remain open.
-
-- **ACTIVE**: [Qualification runner reliability](QualificationRunnerReliability_2026-10-28.md). The recovery candidate is based on `9d974c0e`; its prior local static attempt failed validation and an 8-case x64 Debug Menu smoke passed. Hosted run 40791275031 for unchanged 9d passed tooling, format, validation, native-scope and x64 Debug/Release native jobs; x64 ASan, ARM64 profiles and paired measurement remain in progress. The recovery candidate inherits none of those results; final qualification remains pending. Historical 0a hosted failures, c155 two-profile failures/71-of-72 unstable paired controls, and 6e/d4/test-only 921 and 762 outcomes remain distinct.
-
 - **ACTIVE**: [Subtle Markdown presentation](SubtleMarkdownPresentation_2026-10-27.md). Opt-in heading rules, intrinsic tables, centered display objects and shaded quotes for RedTilde; focused rendering and exact consumer adoption qualification are in progress. Earlier performance/CI queues remain paused.
-
-- **ACTIVE**: [Configured icon fallback reading direction](IconFallbackReadingDirection_2026-10-28.md). The Small fallback preserves requested direction for all configured icon roles with deterministic cache-seeded coverage. Current recovery candidate is based on `9d974c0e`; its local static attempt failed validation, and the 8-case Menu smoke does not exercise the icon fallback scenario. Hosted 40791275031 is bound to unchanged 9d; validation, tooling, format, native-scope and x64 Debug/Release passed, while x64 ASan, ARM64 profiles and paired measurement remain in progress. The current candidate's own qualification is pending.
 
 - **ACTIVE**: [MSVC 14.52 and Release optimization](Msvc1452ReleaseOptimization_2026-10-23.md). The compiler repair and six-profile cohort are archived; separate post-merge TSF and inactive-host focus contract repairs await final-source qualification. Five-repository paired, performance/manual and release holds remain open.
 
@@ -71,5 +65,3 @@ Completed records are `../Done/SharedLibraryReadiness_2026-09-09.md`,
 `../Done/PreparedTreeAccessibility_2026-10-06.md`. Further ARM64 and ASan qualification is
 user-deferred to RedSalamander's `DxUi_DeferredPlatformQualification_2026-09-13.md`.
 RedXe retains its separately owned hardware, real IME and assistive-technology gates.
-
-- **ACTIVE**: [Delayed submenu-close foreground qualification](MenuDelayedSubmenuForeground_2026-10-28.md). Preserve the 6e/594 delayed-hover failure, d4 keyboard/hosted failures, and 921 test-only Home-cancellation red case. The current recovery candidate is based on `9d974c0e`; its local static attempt failed validation and its 8-case x64 Debug Menu smoke passed with restoration, but the twelve-suite foreground matrix remains open. Hosted 40791275031 covers unchanged 9d only: x64 Debug/Release passed; x64 ASan, all ARM64 profiles and paired measurement remain in progress.

@@ -60,3 +60,7 @@
 Historical plans do not override normative domain contracts.
 
 - [Test-run evidence retention](TestRunEvidence_2026-10-21.md) — completed workflow implementation; product qualification boundaries remain explicit.
+- [Configured icon fallback reading direction](IconFallbackReadingDirection_2026-10-28.md) — F-source functional, build and runtime criteria passed; performance policy and consumer adoption remain separate.
+- [Delayed submenu-close foreground qualification](MenuDelayedSubmenuForeground_2026-10-28.md) — F-source 57-suite and 12-suite foreground outcomes passed; prior failures and unassigned cause remain historical.
+- [Stationary submenu hover](StationarySubmenuHover_2026-10-28.md) — F-source keyboard/timer/Info-row and full native evidence passed; shared performance acceptance is not claimed.
+- [Qualification runner reliability](QualificationRunnerReliability_2026-10-28.md) — F-source full static and native criteria passed; overall CI failed at the independent paired-performance verdict.
