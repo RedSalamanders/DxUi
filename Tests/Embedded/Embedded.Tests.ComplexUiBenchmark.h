@@ -1,6 +1,11 @@
 #pragma once
+// Historical paired baselines do not search Samples/ComplexUi. Keep this shared fixture self-locating.
+// Owner: benchmark maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4464)
 #include "../../Samples/ComplexUi/ComplexUiScene.h"
 #include "../Support/Support.Tests.HeapDiagnostic.h"
+#pragma warning(pop)
 #include <algorithm>
 #include <array>
 #include <fstream>

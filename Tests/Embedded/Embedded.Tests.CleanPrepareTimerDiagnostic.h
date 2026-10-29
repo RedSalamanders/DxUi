@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../../Samples/ComplexUi/ComplexUiScene.h"
-#include "../../Samples/EmbeddedControls/GraphicsFixture.h"
+#include "ComplexUiScene.h"
+#include "GraphicsFixture.h"
 #include <algorithm>
 #include <array>
 #include <atomic>

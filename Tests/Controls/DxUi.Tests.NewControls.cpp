@@ -2819,9 +2819,7 @@ void TestTabControlSelectionSnapshotCleanupCanRetireRootBeforeMouseDownTail()
     size_t callbackCount          = 0u;
     bool retiredBySnapshotCleanup = false;
     tabControl->SetOnSelectionChanged([tabControl,
-                                       &host,
                                        &callbackCount,
-                                       &retiredBySnapshotCleanup,
                                        payload = std::shared_ptr<int>(new int(1),
                                                                       [&host, &retiredBySnapshotCleanup](int* value) noexcept
     {
@@ -2857,9 +2855,7 @@ void TestMenuBarHoverMoveSnapshotCleanupCanRetireRootSafely()
     size_t callbackCount          = 0u;
     bool retiredBySnapshotCleanup = false;
     menuBar->SetOnHoverChanged([menuBar,
-                                &host,
                                 &callbackCount,
-                                &retiredBySnapshotCleanup,
                                 payload = std::shared_ptr<int>(new int(1),
                                                                [&host, &retiredBySnapshotCleanup](int* value) noexcept
     {
@@ -2894,9 +2890,7 @@ void TestMenuBarHoverLeaveSnapshotCleanupCanRetireRootSafely()
     size_t callbackCount          = 0u;
     bool retiredBySnapshotCleanup = false;
     menuBar->SetOnHoverChanged([menuBar,
-                                &host,
                                 &callbackCount,
-                                &retiredBySnapshotCleanup,
                                 payload = std::shared_ptr<int>(new int(1),
                                                                [&host, &retiredBySnapshotCleanup](int* value) noexcept
     {

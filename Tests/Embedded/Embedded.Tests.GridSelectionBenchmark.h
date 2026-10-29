@@ -1,5 +1,5 @@
 #pragma once
-#include "../../Samples/ComplexUi/ComplexUiScene.h"
+#include "ComplexUiScene.h"
 #include <DxUi/Embedded.h>
 #include <algorithm>
 #include <array>
@@ -186,6 +186,10 @@ struct PaintScenario
 
 // A Grid in an embedded view on the supplied WARP device, painted with MarkDirty and Prepare (what a repaint costs the library)
 // and then composited and completed (the whole frame).
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class PaintFixture final
 {
 public:
@@ -246,6 +250,7 @@ private:
     DxUi::Grid* _grid = nullptr;
     wil::com_ptr_nothrow<ID3D11Texture2D> _completion;
 };
+#pragma warning(pop)
 
 // One scenario: a Grid selected as Ctrl+A or a few clicks would select it, scrolled, and painted in five rounds of 60 dirty frames.
 inline void MeasurePaint(GraphicsFixture& gpu, const std::shared_ptr<DxUi::GraphicsDevice>& graphics, const PaintScenario& scenario, std::ostream& output)
@@ -305,9 +310,23 @@ inline void MeasurePaint(GraphicsFixture& gpu, const std::shared_ptr<DxUi::Graph
         }
         if (round)
             output << ',';
-        output << "{\"prepareP50Ms\":" << Median(prepare) << ",\"prepareP95Ms\":" << Percentile95(prepare) << ",\"prepareMcycP50\":" << Median(megacycles)
-               << ",\"prepareMcycP95\":" << Percentile95(megacycles) << ",\"frameP50Ms\":" << Median(frames) << ",\"frameP95Ms\":" << Percentile95(frames)
-               << ",\"cppAllocations\":" << cppAllocations << ",\"cppBytes\":" << cppBytes << ",\"privateBytes\":" << PrivateBytes() << '}';
+        // Sequence computation and output as originally intended, including the
+        // private-byte observation after statistics/output scratch work.
+        output << "{\"prepareP50Ms\":";
+        const auto prepareMedian = Median(prepare);
+        output << prepareMedian << ",\"prepareP95Ms\":";
+        const auto prepareP95 = Percentile95(prepare);
+        output << prepareP95 << ",\"prepareMcycP50\":";
+        const auto cyclesMedian = Median(megacycles);
+        output << cyclesMedian << ",\"prepareMcycP95\":";
+        const auto cyclesP95 = Percentile95(megacycles);
+        output << cyclesP95 << ",\"frameP50Ms\":";
+        const auto framesMedian = Median(frames);
+        output << framesMedian << ",\"frameP95Ms\":";
+        const auto framesP95 = Percentile95(frames);
+        output << framesP95 << ",\"cppAllocations\":" << cppAllocations << ",\"cppBytes\":" << cppBytes << ",\"privateBytes\":";
+        const auto privateBytes = PrivateBytes();
+        output << privateBytes << '}';
     }
     output << "]}";
     std::cout << "Grid selection paint " << scenario.name << ": " << visibleRows << " visible rows\n";
@@ -372,9 +391,21 @@ inline void MeasureSelectionCost(GraphicsFixture& gpu, const std::shared_ptr<DxU
         }
         if (round)
             output << ',';
-        output << "{\"smallMcycP50\":" << Median(smallCycles) << ",\"everyMcycP50\":" << Median(everyCycles) << ",\"smallP50Ms\":" << Median(smallMs)
-               << ",\"everyP50Ms\":" << Median(everyMs) << ",\"costMcyc\":" << Median(everyCycles) - Median(smallCycles)
-               << ",\"costMs\":" << Median(everyMs) - Median(smallMs) << '}';
+        output << "{\"smallMcycP50\":";
+        const auto smallCyclesMedian = Median(smallCycles);
+        output << smallCyclesMedian << ",\"everyMcycP50\":";
+        const auto everyCyclesMedian = Median(everyCycles);
+        output << everyCyclesMedian << ",\"smallP50Ms\":";
+        const auto smallMsMedian = Median(smallMs);
+        output << smallMsMedian << ",\"everyP50Ms\":";
+        const auto everyMsMedian = Median(everyMs);
+        output << everyMsMedian << ",\"costMcyc\":";
+        const auto costEveryCyclesMedian = Median(everyCycles);
+        const auto costSmallCyclesMedian = Median(smallCycles);
+        output << costEveryCyclesMedian - costSmallCyclesMedian << ",\"costMs\":";
+        const auto costEveryMsMedian = Median(everyMs);
+        const auto costSmallMsMedian = Median(smallMs);
+        output << costEveryMsMedian - costSmallMsMedian << '}';
     }
     output << "]}";
     std::cout << "Grid selection cost of IsSelected in a paint over " << rows << " rows\n";
@@ -383,6 +414,11 @@ inline void MeasureSelectionCost(GraphicsFixture& gpu, const std::shared_ptr<DxU
 // Nanoseconds per IsSelected call over `queries`, every one of which is selected (`allSelected`) or none of which is: the median of
 // seven timed passes of a length that makes one pass last about 20 ms. A pool of thousands of queries is cut to the number a pass
 // has time for, so that a slow answer is timed over fewer queries rather than for seconds.
+// This test deliberately forces an observable access (ICF/timing or the isolated ASan defect).
+// No volatile access provides synchronization. MSVC codegen needs the scope before the function.
+// Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4746)
 [[nodiscard]] inline double NanosecondsPerCall(const DxUi::GridSelectionModel& model, std::span<const uint64_t> queries, bool allSelected)
 {
     static volatile size_t sink = 0;
@@ -396,6 +432,7 @@ inline void MeasureSelectionCost(GraphicsFixture& gpu, const std::shared_ptr<DxU
                 hits += model.IsSelected(id) ? 1u : 0u;
         const double ns = ElapsedNs(start);
         sink            = sink + hits;
+
         Check(hits == (allSelected ? repetitions * used.size() : 0u), "grid selection membership answers as the selection says");
         return ns / static_cast<double>(repetitions * used.size());
     };
@@ -410,6 +447,7 @@ inline void MeasureSelectionCost(GraphicsFixture& gpu, const std::shared_ptr<DxU
         samples.push_back(pass(used, repetitions));
     return Median(samples);
 }
+#pragma warning(pop)
 
 // A deterministic stream of 64-bit values (SplitMix64), for query orders that a branch predictor cannot learn.
 struct RandomStream
@@ -452,8 +490,12 @@ inline void MeasureMembership(size_t selected, std::ostream& output)
     if (hitQueries.empty())
         output << "null";
     else
-        output << NanosecondsPerCall(model, hitQueries, true);
-    output << ",\"missNs\":" << NanosecondsPerCall(model, missQueries, false);
+    {
+        const auto hitNs = NanosecondsPerCall(model, hitQueries, true);
+        output << hitNs;
+    }
+    const auto missNs = NanosecondsPerCall(model, missQueries, false);
+    output << ",\"missNs\":" << missNs;
 
     const std::vector<uint64_t> scrambled = RowIds(selected, true);
     DxUi::GridSelectionModel scatteredModel;
@@ -477,8 +519,12 @@ inline void MeasureMembership(size_t selected, std::ostream& output)
     if (scatteredHits.empty())
         output << "null";
     else
-        output << NanosecondsPerCall(scatteredModel, scatteredHits, true);
-    output << ",\"scatteredMissNs\":" << NanosecondsPerCall(scatteredModel, scatteredMisses, false) << '}';
+    {
+        const auto hitNs = NanosecondsPerCall(scatteredModel, scatteredHits, true);
+        output << hitNs;
+    }
+    const auto scatteredMissNs = NanosecondsPerCall(scatteredModel, scatteredMisses, false);
+    output << ",\"scatteredMissNs\":" << scatteredMissNs << '}';
 }
 
 struct OperationCost

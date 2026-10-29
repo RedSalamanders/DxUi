@@ -716,4 +716,41 @@ Invoke-FixtureCase 'the legacy judge is loaded from the measured base Git object
     Assert-Equal $null $missing.module 'and leaves no module to call'
 }
 
+Invoke-FixtureCase 'an older tree imports the staged build console and retains its original library inputs' {
+    param($root)
+    $target=Join-Path $root 'old-tree'
+    $backup=Join-Path $root 'backup'
+    Set-FixtureFile $target 'src/Library.cpp' 'original library source'
+    Set-FixtureFile $target 'DxUi.vcxproj' 'original library project'
+    Set-FixtureFile $target 'build.ps1' 'original build driver'
+    Set-FixtureFile $target 'clean.log' 'Build succeeded. 0 Warning(s) 0 Error(s)'
+    Set-FixtureFile $target 'warning.log' 'probe.cpp(1): warning C4100: fixture warning'
+    $tokens=$null;$parseErrors=$null
+    $ast=[Management.Automation.Language.Parser]::ParseFile((Join-Path $repository 'build.ps1'),[ref]$tokens,[ref]$parseErrors)
+    Assert-Equal 0 $parseErrors.Count 'the real build driver parses'
+    $imports=@($ast.FindAll({param($node)
+        $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -ceq 'Import-Module' -and
+        $node.Extent.Text.Contains('Build/BuildConsole.psm1')
+    },$true))
+    Assert-Equal 1 $imports.Count 'the probe executes the real console import statement'
+    $probe='param([string]$LogPath)'+"`n"+'$ErrorActionPreference=''Stop'''+"`n"+$imports[0].Extent.Text+"`n"+'Assert-NativeBuildDiagnostics -LogPath $LogPath'+"`n"
+    Set-FixtureFile $target 'Probe.ps1' $probe
+    $engine=Join-Path $PSHOME $(if($IsWindows){'pwsh.exe'}else{'pwsh'})
+    $probePath=Join-Path $target 'Probe.ps1'
+    & $engine -NoProfile -File $probePath -LogPath (Join-Path $target 'clean.log') *> (Join-Path $root 'missing-module.log')
+    Assert-True ($LASTEXITCODE -ne 0) 'the historical missing-module failure is reproduced before staging'
+    $paths=@('build.ps1')+@(Get-PairedHarness|Where-Object{$_ -ceq 'Build/BuildConsole.psm1'})
+    Assert-Equal 2 $paths.Count 'the paired overlay owns the driver and its console dependency'
+    $records=@(Copy-HarnessOverlay -Source $repository -Target $target -Paths $paths -BackupDirectory $backup)
+    & $engine -NoProfile -File $probePath -LogPath (Join-Path $target 'clean.log') *> (Join-Path $root 'clean-import.log')
+    Assert-Equal 0 $LASTEXITCODE 'an old tree imports and executes the staged real module'
+    & $engine -NoProfile -File $probePath -LogPath (Join-Path $target 'warning.log') *> (Join-Path $root 'warning-refusal.log')
+    Assert-True ($LASTEXITCODE -ne 0) 'staging preserves zero-warning refusal'
+    Assert-Equal 'original library source' ([IO.File]::ReadAllText((Join-Path $target 'src/Library.cpp'))) 'the baseline implementation is retained'
+    Assert-Equal 'original library project' ([IO.File]::ReadAllText((Join-Path $target 'DxUi.vcxproj'))) 'the baseline compiler/linker project is retained'
+    Restore-HarnessOverlay -Target $target -Records $records -BackupDirectory $backup
+    Assert-Equal 'original build driver' ([IO.File]::ReadAllText((Join-Path $target 'build.ps1'))) 'the historical driver is restored'
+    Assert-True (-not(Test-Path -LiteralPath (Join-Path $target 'Build/BuildConsole.psm1'))) 'the newly staged dependency is removed on restoration'
+}
+
 Complete-TestRun 'PairedRun'

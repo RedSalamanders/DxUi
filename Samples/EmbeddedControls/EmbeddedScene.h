@@ -5,6 +5,10 @@
 #include <wil/result.h>
 
 // This sample uses only installed public headers. The application supplies the device and presents the result.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 struct EmbeddedScene
 {
     DxUi::EmbeddedHost view;
@@ -121,3 +125,4 @@ struct EmbeddedScene
         return S_OK;
     }
 };
+#pragma warning(pop)

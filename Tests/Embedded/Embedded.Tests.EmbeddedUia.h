@@ -1,8 +1,8 @@
-#include "../Support/Support.Tests.SelectionEventInterruption.h"
-#include "../Support/Support.Tests.UiaTestClient.h"
 #include "Embedded.Tests.EmbeddedUiaBridge.h"
+#include "Support.Tests.SelectionEventInterruption.h"
+#include "Support.Tests.UiaTestClient.h"
 #if DXUI_ENABLE_DIAGNOSTICS
-#include "../../src/Controls/DxUi.Internal.h"
+#include "Controls/DxUi.Internal.h"
 #endif
 
 #include <string_view>
@@ -106,6 +106,10 @@ public:
 
 // A client of the application's window, with the expectations a test makes of what it sees. `application` is the application's
 // element, whose only child is the view's root element.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class EmbeddedClientWalk final
 {
 public:
@@ -173,8 +177,13 @@ public:
     UiaTest::Client client;
     UiaTest::ElementId application;
 };
+#pragma warning(pop)
 
 // A prepared view of one control, attached to an application window.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 struct EmbeddedSingleControlView final
 {
     template <typename Control> EmbeddedSingleControlView(GraphicsFixture& gpu, std::unique_ptr<Control> control, std::wstring_view name)
@@ -190,6 +199,7 @@ struct EmbeddedSingleControlView final
     std::shared_ptr<DxUi::GraphicsDevice> pool;
     DxUi::EmbeddedHost view;
 };
+#pragma warning(pop)
 
 // The elements of a view's tree as its providers hand them out: the root's first child, then its next siblings.
 static wil::com_ptr_nothrow<IRawElementProviderFragment> EmbeddedFirstChild(IRawElementProviderFragment& parent)

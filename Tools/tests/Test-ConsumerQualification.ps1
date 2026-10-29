@@ -186,7 +186,7 @@ try {
     $readyPath=Join-Path $fixture 'phase-body-ready.marker'
     $pendingPath=Join-Path $fixture 'phase-body-ready.pending'
     $releasePath=Join-Path $fixture 'phase-body-ready.release'
-    $start=[Diagnostics.ProcessStartInfo]::new('pwsh')
+    $start=[Diagnostics.ProcessStartInfo]::new((Join-Path $PSHOME $(if($IsWindows){'pwsh.exe'}else{'pwsh'})))
     $start.UseShellExecute=$false;$start.CreateNoWindow=$true
     $start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
     foreach($arg in @('-NoProfile','-File',$childScript,'-Module',(Join-Path $PSScriptRoot '../ConsumerQualification.psm1'),'-Output',$path,'-Ready',$readyPath,'-PendingReady',$pendingPath,'-Release',$releasePath)){$start.ArgumentList.Add($arg)}

@@ -420,6 +420,10 @@ void TestApplicationTextServiceLifecycle()
     services.Detach();
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class TextServicesReentrantFocusSink final : public ITfThreadMgrEventSink
 {
 public:
@@ -482,6 +486,7 @@ public:
 private:
     std::atomic<ULONG> _references{1u};
 };
+#pragma warning(pop)
 
 bool TestTextServicesSameComIdentity(IUnknown* left, IUnknown* right) noexcept
 {

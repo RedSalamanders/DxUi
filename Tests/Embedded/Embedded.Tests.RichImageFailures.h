@@ -1,7 +1,7 @@
 #pragma once
-#include "../../src/Controls/DxUi.RichSemanticGeometry.h"
-#include "../Support/Support.Tests.PreparedFlowchart.h"
-#include "../Support/Support.Tests.RichImageResources.h"
+#include "Controls/DxUi.RichSemanticGeometry.h"
+#include "Support.Tests.PreparedFlowchart.h"
+#include "Support.Tests.RichImageResources.h"
 static void TestRichImageResourceAllocationFailures()
 {
     using namespace DxUi::RichText;

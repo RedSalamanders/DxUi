@@ -192,6 +192,10 @@ struct Frame
     size_t compositeCppAllocationBytes = 0u;
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class Fixture final
 {
 public:
@@ -644,6 +648,7 @@ private:
     bool _manualDirty        = true;
     uint64_t _manualMeasures = 0u;
 };
+#pragma warning(pop)
 
 inline void CheckControlParity(const DxUi::Control& manual, const DxUi::Control& form)
 {

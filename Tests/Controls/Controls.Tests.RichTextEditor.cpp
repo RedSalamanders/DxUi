@@ -1,17 +1,17 @@
 #include "Controls.Tests.RichTextEditor.h"
-#include "../../src/Controls/TextClipboard.h"
-#include "../Support/Support.Tests.ClipboardFixture.h"
-#include "../Support/Support.Tests.Footnotes.h"
-#include "../Support/Support.Tests.MarkdownBlocks.h"
-#include "../Support/Support.Tests.MarkdownCapacity.h"
-#include "../Support/Support.Tests.MarkdownInlines.h"
-#include "../Support/Support.Tests.RichImage.h"
-#include "../Support/Support.Tests.RichImagePaths.h"
-#include "../Support/Support.Tests.RichImageResources.h"
-#include "../Support/Support.Tests.SemanticDiagrams.h"
-#include "../Support/Support.Tests.SemanticSourceBlock.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.RichMarkdown.h"
+#include "Controls/TextClipboard.h"
+#include "Support.Tests.ClipboardFixture.h"
+#include "Support.Tests.Footnotes.h"
+#include "Support.Tests.MarkdownBlocks.h"
+#include "Support.Tests.MarkdownCapacity.h"
+#include "Support.Tests.MarkdownInlines.h"
+#include "Support.Tests.RichImage.h"
+#include "Support.Tests.RichImagePaths.h"
+#include "Support.Tests.RichImageResources.h"
+#include "Support.Tests.SemanticDiagrams.h"
+#include "Support.Tests.SemanticSourceBlock.h"
 #include <DxUi/ControlCatalog.h>
 #include <DxUi/RichSemanticDocument.h>
 #include <chrono>
@@ -318,6 +318,10 @@ void TestRichTextEditorCommittedTextThenSelectionCallbacks()
     Require(movedSelection.ReplaceSelection(L"x") && movedEvents == std::vector<char>{'T', 'S'} && movedSelection.GetSelection() == Selection{0u, 0u},
             "selection mutation inside text callback publishes once and prevents stale duplicate selection");
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class TextServiceEditor final : public RichTextEditor
     {
     public:
@@ -325,6 +329,7 @@ void TestRichTextEditorCommittedTextThenSelectionCallbacks()
         using RichTextEditor::ImportTextInputState;
         using RichTextEditor::RichTextEditor;
     };
+#pragma warning(pop)
     ControlHost textHost;
     auto textOwner   = std::make_unique<TextServiceEditor>(L"abc");
     auto* textEditor = textOwner.get();
@@ -435,6 +440,10 @@ void TestRichTextEditorCommittedTextThenSelectionCallbacks()
 
 void TestRichTextEditorSelectionGestureAndTextServicePublication()
 {
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class SelectionAdapterEditor final : public RichTextEditor
     {
     public:
@@ -443,6 +452,7 @@ void TestRichTextEditorSelectionGestureAndTextServicePublication()
         using RichTextEditor::OnCaptureLost;
         using RichTextEditor::RichTextEditor;
     };
+#pragma warning(pop)
     AttachedHostWindow window;
     auto owned   = std::make_unique<SelectionAdapterEditor>(L"alpha beta gamma");
     auto* editor = owned.get();
@@ -1016,6 +1026,10 @@ void TestRichTextEditorNativeCooperativePreparation()
 }
 void TestRichTextEditorNativeMessageSchedulingAndFailure()
 {
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class FailingEditor final : public RichTextEditor
     {
     public:
@@ -1030,6 +1044,7 @@ void TestRichTextEditorNativeMessageSchedulingAndFailure()
             return fail ? E_OUTOFMEMORY : RichTextEditor::PrepareContent(host);
         }
     };
+#pragma warning(pop)
     AttachedHostWindow window;
     auto owned   = std::make_unique<FailingEditor>();
     auto* editor = owned.get();
@@ -1072,6 +1087,10 @@ void TestRichTextEditorNativeMessageSchedulingAndFailure()
 }
 void TestRichTextEditorNativeDenseSourceAndSplitScheduling()
 {
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class ObservedEditor final : public RichTextEditor
     {
     public:
@@ -1087,6 +1106,7 @@ void TestRichTextEditorNativeDenseSourceAndSplitScheduling()
             return hr;
         }
     };
+#pragma warning(pop)
     for (const size_t blockCount : {1500u, 6000u})
     {
         std::wstring source;
@@ -1176,6 +1196,10 @@ void TestRichTextEditorNativeHostVisibilityAndZeroHeight()
 }
 void TestRichTextEditorNativePreparationCanReplaceRoot()
 {
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class ReplacingEditor final : public RichTextEditor
     {
     public:
@@ -1201,6 +1225,7 @@ void TestRichTextEditorNativePreparationCanReplaceRoot()
             return result;
         }
     };
+#pragma warning(pop)
     AttachedHostWindow window;
     auto editor         = std::make_unique<ReplacingEditor>();
     const auto lifetime = GetControlLifetimeToken(*editor);
@@ -1645,12 +1670,17 @@ void TestRichTextEditorNativeImagePixels()
 }
 void TestRichTextEditorNativeLosslessMarkdownPreparation()
 {
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class SourceAdapterEditor final : public RichTextEditor
     {
     public:
         using RichTextEditor::ExportTextInputState;
         using RichTextEditor::RichTextEditor;
     };
+#pragma warning(pop)
     const std::wstring source = L"# Unicode \U0001f600\r\n\n~~~lang\r\n# kept &NotEqualTilde;\n~~~\n[^unknown]: $x$\n";
     AttachedHostWindow window;
     auto owned   = std::make_unique<SourceAdapterEditor>(source);

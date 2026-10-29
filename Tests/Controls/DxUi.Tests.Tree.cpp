@@ -409,6 +409,10 @@ void TestTreeSelectionAndReconciliationStopAfterModelGetterReplacesModel()
 void TestTreeSelectionDelegateReplacingModelStopsOuterNotifications()
 {
     using namespace DxUi;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4626 5027)
     class ReplacingDelegate final : public ITreeDelegate
     {
     public:
@@ -436,6 +440,7 @@ void TestTreeSelectionDelegateReplacingModelStopsOuterNotifications()
         Tree& _tree;
         ITreeModel& _replacement;
     };
+#pragma warning(pop)
 
     WindowHost host;
     auto root  = std::make_unique<Panel>();
@@ -2632,6 +2637,10 @@ void TestTreeSelectAllStopsWhenSelectionCallbackReplacesItsDelegate()
         size_t sets    = 0u;
         size_t focus   = 0u;
     };
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4626 5027)
     struct ReplacementDelegate final : ITreeDelegate
     {
         explicit ReplacementDelegate(CallbackCounts& counts) noexcept : counts(counts)
@@ -2651,6 +2660,11 @@ void TestTreeSelectAllStopsWhenSelectionCallbackReplacesItsDelegate()
         }
         CallbackCounts& counts;
     };
+#pragma warning(pop)
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4626 5027)
     struct RetiringDelegate final : ITreeDelegate
     {
         RetiringDelegate(Tree& tree, std::unique_ptr<RetiringDelegate>& owner, ITreeDelegate* replacement, CallbackCounts& counts) noexcept
@@ -2679,6 +2693,7 @@ void TestTreeSelectAllStopsWhenSelectionCallbackReplacesItsDelegate()
         ITreeDelegate* replacement;
         CallbackCounts& counts;
     };
+#pragma warning(pop)
 
     for (const bool replaceDelegate : {false, true})
     {
@@ -3197,6 +3212,10 @@ void TestTreeSingleClickCaptureTransferMayRetireTheTree()
     // focus transfer or foreground input is needed to exercise capture handoff.
     window.Host().SetFocusControl(tree, false);
     const auto lifetime = GetControlLifetimeToken(*tree);
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class PreviousCaptureOwner final : public Panel
     {
     public:
@@ -3215,6 +3234,7 @@ void TestTreeSingleClickCaptureTransferMayRetireTheTree()
     private:
         CaptureState& _state;
     };
+#pragma warning(pop)
     auto previousRoot  = std::make_unique<PreviousCaptureOwner>(state);
     auto* captureOwner = previousRoot.get();
     previousRoot->SetBounds(D2D1::RectF(0.0f, 0.0f, 80.0f, 80.0f));

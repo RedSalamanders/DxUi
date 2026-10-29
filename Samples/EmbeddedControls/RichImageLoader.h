@@ -162,6 +162,10 @@ public:
     }
 
 private:
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     struct State
     {
         static constexpr std::size_t MaximumJobs = MaximumResults, MaximumResultBytes = 67108864u,
@@ -251,5 +255,6 @@ private:
             }
         }
     };
+#pragma warning(pop)
     std::shared_ptr<State> state_;
 };

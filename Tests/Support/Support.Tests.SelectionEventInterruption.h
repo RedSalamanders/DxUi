@@ -5,7 +5,7 @@
 // messages, and a message can hide or remove the control, or detach its host); here the library's diagnostics hook runs an action
 // after the first event and counts every event raised while it is set, so a test asserts that the raising ended there.
 
-#include "../../src/Controls/DxUi.Internal.h"
+#include "Controls/DxUi.Internal.h"
 
 #include <functional>
 #include <utility>

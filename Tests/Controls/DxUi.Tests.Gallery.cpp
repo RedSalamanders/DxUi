@@ -33,15 +33,6 @@ void ResizeClientArea(AttachedHostWindow& window, UINT widthPx, UINT heightPx);
     return std::clamp(value, 0.0f, 1.0f);
 }
 
-[[nodiscard]] D2D1_COLOR_F ColorFromArgbForGallery(uint32_t argb) noexcept
-{
-    const float a = static_cast<float>((argb >> 24u) & 0xFFu) / 255.0f;
-    const float r = static_cast<float>((argb >> 16u) & 0xFFu) / 255.0f;
-    const float g = static_cast<float>((argb >> 8u) & 0xFFu) / 255.0f;
-    const float b = static_cast<float>(argb & 0xFFu) / 255.0f;
-    return D2D1::ColorF(r, g, b, a);
-}
-
 [[nodiscard]] uint32_t PackArgbForGallery(const D2D1_COLOR_F& color) noexcept
 {
     const auto toByte = [](float value) noexcept -> uint32_t { return static_cast<uint32_t>(std::clamp(std::lround(ClampUnit(value) * 255.0f), 0l, 255l)); };
@@ -440,6 +431,10 @@ struct GalleryMenuCaptures
     return captures;
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class GalleryBitmapPreview final : public Control
 {
 public:
@@ -516,6 +511,7 @@ private:
     mutable wil::com_ptr<ID2D1Device> _device;
     mutable wil::com_ptr<ID2D1Bitmap1> _bitmap;
 };
+#pragma warning(pop)
 
 struct Tile
 {
@@ -1846,6 +1842,10 @@ void DrawAuditBadge(WindowHost& host, const D2D1_RECT_F& rect, std::wstring_view
     DrawCenteredText(host, text, rect, role, ChooseTextForAudit(fill));
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class ButtonContrastAuditControl final : public Control
 {
 public:
@@ -1999,6 +1999,7 @@ private:
     std::vector<GalleryTheme> _themes;
     bool _showHeader = true;
 };
+#pragma warning(pop)
 
 [[nodiscard]] WindowHostBitmapCapture CaptureButtonContrastAuditSlice(std::vector<GalleryTheme> themes, bool showHeader, float heightDip)
 {

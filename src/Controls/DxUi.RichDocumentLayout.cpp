@@ -12,6 +12,10 @@ namespace
 {
 // Reserve the final slot for one whole-layout compatibility resource.
 constexpr std::size_t TargetChunkUnits = 1024u, MaximumChunks = 127u;
+// Stack-only rounding/observation barrier; no inter-thread synchronization or memory-mapped I/O.
+// Both target volatile models preserve these accesses. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4746)
 float AddCoordinate(float left, float right) noexcept
 {
     // Match individual single-precision DirectWrite accumulation, rather than
@@ -19,6 +23,7 @@ float AddCoordinate(float left, float right) noexcept
     volatile float result = left + right;
     return result;
 }
+#pragma warning(pop)
 bool SameStyles(const Projection& left, const Projection& right) noexcept
 {
     return left.text == right.text && left.runs.size() == right.runs.size() &&
@@ -77,6 +82,10 @@ struct ChunkPlacement
     std::shared_ptr<const GeometryChunk> geometry;
 };
 } // namespace
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626)
 struct PreparedDocumentLayout::State
 {
     State() : chunks(0u)
@@ -92,6 +101,11 @@ struct PreparedDocumentLayout::State
     float height{};
     mutable LayoutPreparation last;
 };
+#pragma warning(pop)
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626)
 struct PreparedDocumentLayout::Preparation
 {
     enum class Phase
@@ -152,6 +166,7 @@ struct PreparedDocumentLayout::Preparation
             throw std::overflow_error("Rich geometry height overflow");
     }
 };
+#pragma warning(pop)
 PreparedDocumentLayout::PreparedDocumentLayout() noexcept  = default;
 PreparedDocumentLayout::~PreparedDocumentLayout() noexcept = default;
 const PreparedDocumentLayout::State& PreparedDocumentLayout::Prepared() const

@@ -1,9 +1,9 @@
 #include "Controls.Tests.RichTextLayout.h"
-#include "../../Samples/EmbeddedControls/GraphicsFixture.h"
-#include "../../src/Controls/DxUi.RichSourceInk.h"
-#include "../../src/Controls/DxUi.RichTextSourceInkRenderer.h"
-#include "../Support/Support.Tests.PreparedFlowchart.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Controls/DxUi.RichSourceInk.h"
+#include "Controls/DxUi.RichTextSourceInkRenderer.h"
+#include "GraphicsFixture.h"
+#include "Support.Tests.PreparedFlowchart.h"
 #include <DxUi/RichTextLayout.h>
 #include <cmath>
 #include <dwrite_3.h>
@@ -12,7 +12,12 @@
 #include <limits>
 #include <utility>
 #include <wil/result.h>
+// Windows SDK WRL owns its interlocked/volatile implementation and target semantics.
+// Scope is this system header only. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4746)
 #include <wrl/implements.h>
+#pragma warning(pop)
 namespace
 {
 using namespace DxUi::RichText;
@@ -30,6 +35,10 @@ template <typename F> void Reject(F&& operation, const char* description)
     Require(rejected, description);
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class SourceInkTestPositioning final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDWriteInlineObject>
 {
 public:
@@ -59,6 +68,7 @@ public:
         return S_OK;
     }
 };
+#pragma warning(pop)
 
 struct SourceInkRunDiagnostic
 {
@@ -66,6 +76,10 @@ struct SourceInkRunDiagnostic
     bool description{}, textMatch{}, monospaced{}, colorFont{}, effect{}, sideways{}, clusterMap{}, cjkText{}, familyKnown{}, requestedFamily{};
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class SourceInkDiagnosticRenderer final
     : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDWriteTextRenderer>
 {
@@ -267,6 +281,7 @@ private:
     UINT32 runCount_{}, underlines_{}, strikes_{};
     bool inlineIdentity_{};
 };
+#pragma warning(pop)
 
 void TestRichTextLayoutPrototypeContracts()
 {

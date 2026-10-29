@@ -1,8 +1,8 @@
 <#
 .SYNOPSIS Checks paired timestamp staging against real installed-MSBuild evaluated library and benchmark profiles.
 .DESCRIPTION
-Evaluates synthetic copies of the repository's real project/import files. No targets, compilation, dependency restore,
-attestation or desktop input runs. Retains original/staged/restored timestamps and evaluated metadata beneath
+Evaluates synthetic copies of the repository's real project/import files and preprocesses real staged harness headers.
+No C++ type checking, linking, dependency restore, attestation or desktop input runs. Retains profiles and include controls beneath
 .build/paired-project-profile-fixtures/<unique-id>. Linux reports this Windows-specific qualification unavailable.
 #>
 [CmdletBinding()]param()
@@ -11,6 +11,8 @@ $ErrorActionPreference='Stop'
 if(-not $IsWindows){Write-Host 'SKIP paired project-profile evaluation: Windows MSBuild required; portable staging tests run separately.';return}
 Import-Module (Join-Path $PSScriptRoot 'TestSupport.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../VisualStudio.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot '../PerformanceComparison.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot '../PairedRun.psm1') -Force
 $policy=Import-Module (Join-Path $PSScriptRoot '../PerformancePolicy.psm1') -Force -PassThru
 $repository=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $msbuild=Join-Path (Get-DxUiVisualStudioInstallation) 'MSBuild/Current/Bin/MSBuild.exe'
@@ -41,7 +43,7 @@ function Read-ActualProfile([string]$Root,[Collections.IDictionary]$Project,[str
 Invoke-TestCase 'real library and benchmark profiles expose the benchmark-only omission and match after complete catalog staging' {
     $projects=@(Get-PerformanceProjectCatalog)
     $roots=@((Join-Path $scratch 'candidate'),(Join-Path $scratch 'nested/baseline'))
-    $files=@('DxUi.sln','Directory.Build.props','Directory.Build.targets','Build/DxUi.AddressSanitizer.targets')+@($projects.path)
+    $files=@('DxUi.sln','Directory.Build.props','Directory.Build.targets','Build/DxUi.AddressSanitizer.targets','Build/NativeBuildPolicy.targets')+@($projects.path)
     $stamp=[DateTime]::UtcNow.AddDays(2)
     foreach($root in $roots){foreach($relative in $files){
         $destination=Join-Path $root $relative
@@ -93,5 +95,73 @@ Invoke-TestCase 'real library and benchmark profiles expose the benchmark-only o
         foreach($record in $restored){Assert-Equal $record.expectedUtc.Ticks $record.actualUtc.Ticks 'every exact original timestamp returns';Assert-Equal $record.expectedSha256 $record.actualSha256 'every original byte returns'}
     }
 }
-Write-Host "Retained metadata-only profile fixture: $scratch"
+Invoke-TestCase 'staged real benchmark headers resolve both shared inputs without private baseline include directories' {
+    $root=Join-Path $scratch 'old-include-profile'
+    $backup=Join-Path $scratch 'old-include-profile-backup'
+    [void][IO.Directory]::CreateDirectory($root)
+    foreach($relative in @(Get-BenchmarkInputPaths)){
+        $destination=Join-Path $root $relative
+        [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($destination))
+        [IO.File]::Copy((Join-Path $repository $relative),$destination)
+    }
+    # Only include resolution is exercised: public API/WIL stand-ins are empty because /P does no type checking.
+    # The actual benchmark, scene and support header bytes are used, plus installed SDK/STL headers.
+    foreach($relative in @('include/DxUi/Embedded.h','include/wil/result.h','include/wil/resource.h')){
+        $path=Join-Path $root $relative
+        [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($path))
+        [IO.File]::WriteAllText($path,'// Preprocessor-only dependency stand-in.')
+    }
+    [void][IO.Directory]::CreateDirectory((Join-Path $root 'src'))
+    $library=Join-Path $root 'src/Library.cpp'
+    $libraryProject=Join-Path $root 'Library.vcxproj'
+    [IO.File]::WriteAllText($library,'original baseline library implementation')
+    [IO.File]::WriteAllText($libraryProject,'original baseline compiler/linker project')
+    $beforeSource=(Get-FileHash $library).Hash
+    $beforeProject=(Get-FileHash $libraryProject).Hash
+    $header=Join-Path $root 'Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h'
+    $current=[IO.File]::ReadAllText($header)
+    $bare=$current.Replace('"../../Samples/ComplexUi/ComplexUiScene.h"','"ComplexUiScene.h"')
+    Assert-True ($bare -cne $current) 'the negative control restores the observed bare include'
+    [IO.File]::WriteAllText($header,$bare)
+    [IO.File]::WriteAllText((Join-Path $root 'Probe.cpp'),'#include "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h"')
+    $project=@'
+<Project DefaultTargets="ClCompile" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations"><ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration></ItemGroup>
+  <PropertyGroup Label="Globals"><WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion></PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props"/>
+  <PropertyGroup Label="Configuration"><ConfigurationType>StaticLibrary</ConfigurationType><PlatformToolset>v145</PlatformToolset><UseDebugLibraries>false</UseDebugLibraries></PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props"/>
+  <PropertyGroup><OutDir>$(MSBuildProjectDirectory)\out\</OutDir><IntDir>$(MSBuildProjectDirectory)\obj\</IntDir></PropertyGroup>
+  <ItemDefinitionGroup><ClCompile><PreprocessToFile>true</PreprocessToFile><AdditionalIncludeDirectories>$(MSBuildProjectDirectory)\include</AdditionalIncludeDirectories><PreprocessorDefinitions>UNICODE;_UNICODE;WIN32_LEAN_AND_MEAN;NOMINMAX</PreprocessorDefinitions><LanguageStandard>stdcpplatest</LanguageStandard></ClCompile></ItemDefinitionGroup>
+  <ItemGroup><ClCompile Include="Probe.cpp"/></ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets"/>
+</Project>
+'@
+    $projectPath=Join-Path $root 'Probe.vcxproj'
+    [IO.File]::WriteAllText($projectPath,$project)
+    $negative=Join-Path $root 'bare-include.log'
+    & $msbuild $projectPath /t:ClCompile /nologo /nr:false /v:minimal /p:Configuration=Release /p:Platform=x64 /p:PreferredToolArchitecture=x64 *> $negative
+    Assert-True ($LASTEXITCODE -ne 0) 'the original missing-include failure reproduces'
+    Assert-True ([IO.File]::ReadAllText($negative) -match 'C1083.*ComplexUiScene\.h') 'the refusal is the observed scene include failure'
+    $bareHeap=$current.Replace('"../Support/Support.Tests.HeapDiagnostic.h"','"Support.Tests.HeapDiagnostic.h"')
+    Assert-True ($bareHeap -cne $current) 'the second negative control restores the observed bare support include'
+    [IO.File]::WriteAllText($header,$bareHeap)
+    $heapNegative=Join-Path $root 'bare-support-include.log'
+    & $msbuild $projectPath /t:ClCompile /nologo /nr:false /v:minimal /p:Configuration=Release /p:Platform=x64 /p:PreferredToolArchitecture=x64 *> $heapNegative
+    Assert-True ($LASTEXITCODE -ne 0) 'the original missing-support-include failure reproduces'
+    Assert-True ([IO.File]::ReadAllText($heapNegative) -match 'C1083.*Support\.Tests\.HeapDiagnostic\.h') 'the refusal is the observed support include failure'
+    $records=@(Copy-HarnessOverlay -Source $repository -Target $root -Paths @(Get-BenchmarkInputPaths) -BackupDirectory $backup)
+    try {
+        $positive=Join-Path $root 'staged-relative-include.log'
+        & $msbuild $projectPath /t:ClCompile /nologo /nr:false /v:minimal /p:Configuration=Release /p:Platform=x64 /p:PreferredToolArchitecture=x64 *> $positive
+        Assert-Equal 0 $LASTEXITCODE 'the current staged real header preprocesses with the old include profile'
+        Assert-True (-not([IO.File]::ReadAllText($positive) -match '(?i):\s*(warning|error)\s+[A-Z]+[0-9]+:')) 'the positive control is warning-free'
+        Assert-Equal $beforeSource (Get-FileHash $library).Hash 'the baseline implementation is unchanged'
+        Assert-Equal $beforeProject (Get-FileHash $libraryProject).Hash 'the baseline compiler/linker project is unchanged'
+    } finally {
+        Restore-HarnessOverlay -Target $root -Records $records -BackupDirectory $backup
+    }
+    Assert-Equal $bareHeap ([IO.File]::ReadAllText($header)) 'restoration returns the old harness bytes'
+}
+Write-Host "Retained profile and include-resolution fixtures: $scratch"
 Complete-TestRun 'PairedProjectProfiles'

@@ -1,5 +1,5 @@
 #pragma once
-#include "../../src/Controls/DxUi.PreparedMath.h"
+#include "Controls/DxUi.PreparedMath.h"
 #include <DxUi/RichMath.h>
 #include <array>
 #include <cmath>

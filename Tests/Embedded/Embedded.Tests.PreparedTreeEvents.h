@@ -1,13 +1,17 @@
 #pragma once
 
-#include "../Support/Support.Tests.PreparedTreeSemanticFixture.h"
-#include "../Support/Support.Tests.UiaTestClient.h"
 #include "Embedded.Tests.EmbeddedUiaBridge.h"
+#include "Support.Tests.PreparedTreeSemanticFixture.h"
+#include "Support.Tests.UiaTestClient.h"
 #include <mutex>
 #if defined(DXUI_HAS_INTRINSIC_LAYOUT) && DXUI_ENABLE_DIAGNOSTICS
-#include "../../src/Controls/DxUi.Internal.h"
+#include "Controls/DxUi.Internal.h"
 #endif
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class EmbeddedPreparedTreeObserver final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
                                                                                IUIAutomationStructureChangedEventHandler,
                                                                                IUIAutomationPropertyChangedEventHandler,
@@ -108,10 +112,12 @@ public:
             if (SUCCEEDED(result))
                 result = label->get_CurrentName(name.put());
             const std::wstring_view text = name ? std::wstring_view(name.get(), SysStringLen(name.get())) : std::wstring_view{};
-            std::cerr << "[RELATIONSHIP EVENT] type=" << eventValue.vt << " result=" << static_cast<unsigned long>(result)
-                      << " first=" << (text == L"Form label first β") << " final=" << (text == L"Form label final Ω")
-                      << " pending=" << (text == L"Form label pending") << " gateOpen=" << (WaitForSingleObject(continueDelivery.get(), 0) == WAIT_OBJECT_0)
-                      << '\n';
+            const bool gateOpen          = WaitForSingleObject(continueDelivery.get(), 0) == WAIT_OBJECT_0;
+            const bool firstLabel        = text == L"Form label first β";
+            const bool finalLabel        = text == L"Form label final Ω";
+            const bool pendingLabel      = text == L"Form label pending";
+            std::cerr << "[RELATIONSHIP EVENT] type=" << eventValue.vt << " result=" << static_cast<unsigned long>(result) << " first=" << firstLabel
+                      << " final=" << finalLabel << " pending=" << pendingLabel << " gateOpen=" << gateOpen << '\n';
             if (SUCCEEDED(result) && text == L"Form label first β")
             {
                 // UIA can deliver the same literal relationship more than once through the bridge. Each
@@ -202,6 +208,7 @@ public:
         return S_OK;
     }
 };
+#pragma warning(pop)
 
 static void RunPreparedTreeReentrantEmbeddedClient(GraphicsFixture& gpu, bool coalescedBurst, bool propertyEvent = false, bool relationshipEvent = false)
 {

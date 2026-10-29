@@ -1,5 +1,5 @@
 #pragma once
-#include "../../src/Controls/TextClipboard.h"
+#include "Controls/TextClipboard.h"
 // Exercise the real clipboard codec/transport using private HGLOBAL storage. Only
 // ownership calls are replaced, so no test opens or mutates the desktop clipboard.
 class ClipboardTransportFixture final

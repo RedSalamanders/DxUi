@@ -1,4 +1,3 @@
-#include "../Support/Diagnostics.h"
 #include "DxUi.Internal.h"
 #include "DxUi.RichAccessibilityEpoch.h"
 #include "DxUi.RichEditorLayout.h"
@@ -8,6 +7,7 @@
 #include "DxUi.RichSourceInk.h"
 #include "DxUi.SemanticExtensions.h"
 #include "DxUi.TextElements.h"
+#include "Support/Diagnostics.h"
 #include "TextClipboard.h"
 #include <DxUi/RichTextLayout.h>
 #include <cmath>
@@ -29,6 +29,10 @@ D2D1_COLOR_F ResolveMarkdownQuoteFill(const ThemePalette& theme, const TextField
     return CompositeOverBackground(ink, style.fill);
 }
 } // namespace
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 struct RichTextEditor::State
 {
     explicit State(std::wstring text) : document(std::move(text)), documentFilePath(0u, L' ')
@@ -144,6 +148,7 @@ struct RichTextEditor::State
     std::shared_ptr<const RichText::MarkdownCommandPlan> taskPressPlan;
     D2D1_RECT_F taskPressRect{};
 };
+#pragma warning(pop)
 
 RichTextEditor::RichTextEditor(std::wstring text) : _state(std::make_unique<State>(std::move(text)))
 {
