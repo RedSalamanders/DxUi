@@ -1,0 +1,48 @@
+{
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-complex-ui-v2",
+  "benchmarkInputs": {
+    "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+    "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+    "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+  },
+  "scenarioFixtures": {
+    "Default": "dxui-complex-ui-v2",
+    "MultilineGrid": "dxui-complex-ui-multiline-grid-v1",
+    "MultilineGridDistinct": "dxui-complex-ui-multiline-grid-distinct-v1"
+  },
+  "evidenceRole": "packet-integrity-manifest",
+  "schema": "ci-0b-public-projection-manifest-v1",
+  "files": [
+    {
+      "file": "primary-metrics.csv",
+      "bytes": 30477,
+      "sha256": "B7B8EA9AC8D6C6BC522BF47B30B4B80C013F8D00918FACBC7FA9C490EE82F7D7"
+    },
+    {
+      "file": "public-projection.json",
+      "bytes": 13247,
+      "sha256": "379A38F1224894F72AE510F1B74F3016EB6B1FBC11A6724C4E0FE47B3116C12B"
+    },
+    {
+      "file": "README.md",
+      "bytes": 2413,
+      "sha256": "EE811B0CB38048E5BF63A4D2F19AB8B23B2CC27A94F8A9FC8DA42AFD14E16150"
+    },
+    {
+      "file": "same-side-control-metrics.csv",
+      "bytes": 288755,
+      "sha256": "B759C6AAC594D89BAC20150E8B18A140AF5B5B8DD754DD6F419A9E7A99EA1049"
+    },
+    {
+      "file": "same-side-controls.csv",
+      "bytes": 25126,
+      "sha256": "1C3A7FE66F5923415921E980724EA80A93477BE375719B4AA184224C00894532"
+    }
+  ],
+  "fileCount": 5,
+  "totalBytes": 360018
+}

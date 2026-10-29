@@ -1,0 +1,262 @@
+{
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-complex-ui-v2",
+  "benchmarkInputs": {
+    "Tests/Embedded/Embedded.Tests.BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+    "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+    "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+    "Tests/Support/Support.Tests.HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+  },
+  "scenarioFixtures": {
+    "Default": "dxui-complex-ui-v2",
+    "MultilineGrid": "dxui-complex-ui-multiline-grid-v1",
+    "MultilineGridDistinct": "dxui-complex-ui-multiline-grid-distinct-v1"
+  },
+  "evidenceRole": "independent-paired-ci-projection",
+  "schema": "ci-0b-independent-review-v3",
+  "runId": "40646316345",
+  "archiveSha256": "1029CB8B0E8BC6E34FD0B173AAF2CDB171A9A51EC300E4438F2B62EAC9B09EFB",
+  "archiveBytes": 194703285,
+  "pairRunId": "20261028T065612Z-881e5d5ff252",
+  "baselineCommit": "881e5d5ff252d5988c1357a5c64d14f480b46793",
+  "candidateCommit": "246a64ff3dff36c1ce2c95af60c128f5dd2a1bf9",
+  "candidatePrHead": "0b8e76c58a11698744e6a4ce5f803f6170b1f2b6",
+  "ciMergeTree": "50df00889de214a681d3c366c934dd0feb4a1ada",
+  "ciMergeParents": [
+    "881e5d5ff252d5988c1357a5c64d14f480b46793",
+    "0b8e76c58a11698744e6a4ce5f803f6170b1f2b6"
+  ],
+  "baselineCandidatePreflight": "matched",
+  "sourceProof": {
+    "schema": "git-checkout-derived-source-proof-v1",
+    "repo": "RedSalamanders/DxUi",
+    "baselineCommit": "881e5d5ff252d5988c1357a5c64d14f480b46793",
+    "prHeadCommit": "0b8e76c58a11698744e6a4ce5f803f6170b1f2b6",
+    "ciMergeCommit": "246a64ff3dff36c1ce2c95af60c128f5dd2a1bf9",
+    "ciMergeTree": "50df00889de214a681d3c366c934dd0feb4a1ada",
+    "ciMergeParents": [
+      "881e5d5ff252d5988c1357a5c64d14f480b46793",
+      "0b8e76c58a11698744e6a4ce5f803f6170b1f2b6"
+    ],
+    "githubApiCommitVerified": true,
+    "attributes": [
+      {
+        "revisionRole": "baseline",
+        "commit": "881e5d5ff252d5988c1357a5c64d14f480b46793",
+        "gitattributesSha256": "39ED0E44D40074B4ADE9655C65265276D93B6DCF4E020CCD024E671D785BC11A",
+        "requiredRulePresent": true
+      },
+      {
+        "revisionRole": "prHead",
+        "commit": "0b8e76c58a11698744e6a4ce5f803f6170b1f2b6",
+        "gitattributesSha256": "39ED0E44D40074B4ADE9655C65265276D93B6DCF4E020CCD024E671D785BC11A",
+        "requiredRulePresent": true
+      },
+      {
+        "revisionRole": "ciMerge",
+        "commit": "246a64ff3dff36c1ce2c95af60c128f5dd2a1bf9",
+        "gitattributesBlobSha": "aabf92c98e19eb5e4a2e84b4cce7ba59a1f6cc4d",
+        "contentSha256": "39ED0E44D40074B4ADE9655C65265276D93B6DCF4E020CCD024E671D785BC11A",
+        "requiredRulePresent": true
+      }
+    ],
+    "inputsByRevision": [
+      {
+        "revisionRole": "baseline",
+        "commit": "881e5d5ff252d5988c1357a5c64d14f480b46793",
+        "attributeBlobSha256": "39ED0E44D40074B4ADE9655C65265276D93B6DCF4E020CCD024E671D785BC11A",
+        "attributeRule": "*.h text eol=crlf",
+        "nestedAttributeOverrides": [],
+        "inputCount": 6,
+        "matchedInputCount": 6,
+        "method": "reconstruct checkout bytes from commit blob per committed eol rule",
+        "inputs": [
+          {
+            "path": "Tests/Embedded/Embedded.Tests.BenchmarkMain.h",
+            "expectedSha256": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+            "reconstructedCheckoutSha256": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+            "matched": true,
+            "gitBlobSha1": null
+          },
+          {
+            "path": "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h",
+            "expectedSha256": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+            "reconstructedCheckoutSha256": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+            "matched": true,
+            "gitBlobSha1": null
+          },
+          {
+            "path": "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h",
+            "expectedSha256": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+            "reconstructedCheckoutSha256": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+            "matched": true,
+            "gitBlobSha1": null
+          },
+          {
+            "path": "Tests/Support/Support.Tests.HeapDiagnostic.h",
+            "expectedSha256": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+            "reconstructedCheckoutSha256": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+            "matched": true,
+            "gitBlobSha1": null
+          },
+          {
+            "path": "Samples/ComplexUi/ComplexUiScene.h",
+            "expectedSha256": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+            "reconstructedCheckoutSha256": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+            "matched": true,
+            "gitBlobSha1": null
+          },
+          {
+            "path": "Samples/EmbeddedControls/GraphicsFixture.h",
+            "expectedSha256": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
+            "reconstructedCheckoutSha256": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
+            "matched": true,
+            "gitBlobSha1": null
+          }
+        ]
+      },
+      {
+        "revisionRole": "prHead",
+        "commit": "0b8e76c58a11698744e6a4ce5f803f6170b1f2b6",
+        "attributeBlobSha256": "39ED0E44D40074B4ADE9655C65265276D93B6DCF4E020CCD024E671D785BC11A",
+        "attributeRule": "*.h text eol=crlf",
+        "nestedAttributeOverrides": [],
+        "inputCount": 6,
+        "matchedInputCount": 6,
+        "method": "reconstruct checkout bytes from commit blob per committed eol rule",
+        "inputs": [
+          {
+            "path": "Tests/Embedded/Embedded.Tests.BenchmarkMain.h",
+            "expectedSha256": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+            "reconstructedCheckoutSha256": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+            "matched": true,
+            "gitBlobSha1": null
+          },
+          {
+            "path": "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h",
+            "expectedSha256": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+            "reconstructedCheckoutSha256": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+            "matched": true,
+            "gitBlobSha1": null
+          },
+          {
+            "path": "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h",
+            "expectedSha256": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+            "reconstructedCheckoutSha256": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+            "matched": true,
+            "gitBlobSha1": null
+          },
+          {
+            "path": "Tests/Support/Support.Tests.HeapDiagnostic.h",
+            "expectedSha256": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+            "reconstructedCheckoutSha256": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+            "matched": true,
+            "gitBlobSha1": null
+          },
+          {
+            "path": "Samples/ComplexUi/ComplexUiScene.h",
+            "expectedSha256": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+            "reconstructedCheckoutSha256": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+            "matched": true,
+            "gitBlobSha1": null
+          },
+          {
+            "path": "Samples/EmbeddedControls/GraphicsFixture.h",
+            "expectedSha256": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
+            "reconstructedCheckoutSha256": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
+            "matched": true,
+            "gitBlobSha1": null
+          }
+        ]
+      }
+    ],
+    "ciMergeInputs": [
+      {
+        "path": "Tests/Embedded/Embedded.Tests.BenchmarkMain.h",
+        "apiBlobSha": "5b7d36c742e4b069a6603a9e53f0692eefa3b8f1",
+        "ciInputSha256": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+        "reconstructedCheckoutSha256": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+        "matchesExpected": true
+      },
+      {
+        "path": "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h",
+        "apiBlobSha": "c924b6e6246b3390f4dfcdd7d300e99290f877e1",
+        "ciInputSha256": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+        "reconstructedCheckoutSha256": "D4CCE9201FB0FA080E26B0CAD623A64198E00B4D3A28BB9190AAFB6B864D8153",
+        "matchesExpected": true
+      },
+      {
+        "path": "Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h",
+        "apiBlobSha": "16394d4d262d53bf38c189d46f7a00fe12b159d3",
+        "ciInputSha256": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+        "reconstructedCheckoutSha256": "4126FDCE2B80E8294A1ED880F963EC67D25546A1B321F6A1FD0C282B64C967F9",
+        "matchesExpected": true
+      },
+      {
+        "path": "Tests/Support/Support.Tests.HeapDiagnostic.h",
+        "apiBlobSha": "fb916c417caebbe7f01a904dc85ca38d510a1ecd",
+        "ciInputSha256": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+        "reconstructedCheckoutSha256": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+        "matchesExpected": true
+      },
+      {
+        "path": "Samples/ComplexUi/ComplexUiScene.h",
+        "apiBlobSha": "6e69bfc66d422f6dbfacbb0991bba11ba93490cb",
+        "ciInputSha256": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+        "reconstructedCheckoutSha256": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+        "matchesExpected": true
+      },
+      {
+        "path": "Samples/EmbeddedControls/GraphicsFixture.h",
+        "apiBlobSha": "c09da768cd99dcb58769b09412e96fb1d289bfa3",
+        "ciInputSha256": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
+        "reconstructedCheckoutSha256": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
+        "matchesExpected": true
+      }
+    ],
+    "classification": "Git checkout bytes reconstructed from committed .gitattributes and exact GitHub merge-tree blobs; not a retained full source archive."
+  },
+  "summarySha256": "3A7E1ECD2CFF3B9EEF46038A670B3ACB08C645EB9EF8BBDF06D276DE41B62FC0",
+  "verdictSha256": "F97E89F3ABA2DEF9A67361DEC2E2FCA6756727ECEEAF4C2EFA089192EB3B8BD9",
+  "buildPreflightSha256": "999B103A7E13115C940FEFD710B6FF0FF9D924A72B187E55884528459C5F9E0D",
+  "hostCompletionMetadataSha256": "0AF51A7671D27F21CADDFEA03E7E8097D813375659495CAD22494D976AEED9F3",
+  "rawNativeJsonReportsReviewed": 144,
+  "perRunPhaseMedianChecks": 1728,
+  "aggregateMetricRows": 78,
+  "sameSideControlComparisons": 72,
+  "sameSideControlSummaryStatusCounts": {
+    "unstable-control": 71,
+    "stable-control": 1
+  },
+  "rawComparisonFileStatusCounts": {
+    "advice-required": 61,
+    "within-noise-budget": 11
+  },
+  "reportedSameSideRegressedFlags": 150,
+  "reportedAbsoluteDriftFlags": 304,
+  "literalVerdict": {
+    "conclusion": "inconclusive",
+    "strictControls": false,
+    "policyStatus": "policy-review-required",
+    "reason": "Policy review required: The base policy is not independently qualified; its verdict cannot establish a candidate pass."
+  },
+  "hostCoverageMetadata": {
+    "startedUtc": "2026-10-28T06:56:11.6217616Z",
+    "completedUtc": "2026-10-28T09:15:15.8681401Z",
+    "reason": "stop-requested",
+    "samples": 8075,
+    "requestedIntervalMilliseconds": 1000,
+    "declaredStreamSha256": "691956131947476CC1D8110338FC468817C866B01657DC106322EFCB3F621A8F",
+    "declaredStreamUncompressedBytes": 133384126,
+    "streamContentHashRecomputed": false,
+    "limitation": "Sample gaps and collection costs must be inspected; no dedicated-host, scheduler-delay or GPU-duration claim."
+  },
+  "limits": [
+    "No full host JSONL replay or rehash; completion metadata only.",
+    "P-values and Holm-adjusted values are omitted and were not recomputed.",
+    "No performance acceptance is established; literal CI verdict is inconclusive because the measured-base policy is not independently qualified.",
+    "Checkout inputs are Git-content-derived Windows bytes reconstructed using the committed *.h text eol=crlf rule, not files retained as a full source archive."
+  ]
+}

@@ -13,6 +13,48 @@ enum class WarpRasterMode
     Default,
     CallingThread
 };
+enum class Scenario
+{
+    Default,
+    MultilineGrid,
+    MultilineGridDistinct
+};
+inline bool TryParseScenario(std::wstring_view value, Scenario& result) noexcept
+{
+    if (value == L"Default")
+        result = Scenario::Default;
+    else if (value == L"MultilineGrid")
+        result = Scenario::MultilineGrid;
+    else if (value == L"MultilineGridDistinct")
+        result = Scenario::MultilineGridDistinct;
+    else
+        return false;
+    return true;
+}
+inline const char* ScenarioName(Scenario scenario) noexcept
+{
+    return scenario == Scenario::MultilineGridDistinct ? "MultilineGridDistinct" : scenario == Scenario::MultilineGrid ? "MultilineGrid" : "Default";
+}
+inline bool TryParsePhase(std::wstring_view value, bool& dirty) noexcept
+{
+    if (value == L"Clean")
+        dirty = false;
+    else if (value == L"Dirty")
+        dirty = true;
+    else
+        return false;
+    return true;
+}
+inline void ConfigureModel(ComplexUiModel& model, Scenario scenario)
+{
+    model.multilineGrid = scenario != Scenario::Default;
+    if (scenario == Scenario::MultilineGridDistinct)
+        ComplexUiBenchmark::FillDistinctCellTexts(model);
+    else if (scenario == Scenario::MultilineGrid)
+        for (size_t index = 0u; index < model.names.size(); ++index)
+            model.names[index] = L"Description française détaillée de l’élément " + std::to_wstring(index) +
+                                 L" : vérifier les informations avant de poursuivre.\nUne deuxième phrase complète avec é et 📷.";
+}
 inline bool TryParseRasterMode(std::wstring_view value, WarpRasterMode& result) noexcept
 {
     if (value == L"Default")
@@ -49,6 +91,20 @@ inline HRESULT CreateDiagnosticTarget(GraphicsFixture& graphics, WarpRasterMode 
 }
 inline void TestDevicePolicies()
 {
+    auto scenario = Scenario::Default;
+    Check(TryParseScenario(L"MultilineGridDistinct", scenario) && scenario == Scenario::MultilineGridDistinct, "distinct boundary scenario parses");
+    Check(! TryParseScenario(L"multilinegriddistinct", scenario) && scenario == Scenario::MultilineGridDistinct,
+          "scenario spelling is exact and failure preserves value");
+    Check(TryParseScenario(L"MultilineGrid", scenario) && scenario == Scenario::MultilineGrid, "multiline boundary scenario parses");
+    Check(TryParseScenario(L"Default", scenario) && scenario == Scenario::Default, "default boundary scenario parses");
+    bool dirty = false;
+    Check(TryParsePhase(L"Dirty", dirty) && dirty, "dirty boundary phase parses");
+    Check(! TryParsePhase(L"dirty", dirty) && dirty, "invalid boundary phase preserves value");
+    Check(TryParsePhase(L"Clean", dirty) && ! dirty, "clean boundary phase parses");
+    ComplexUiModel model;
+    ConfigureModel(model, Scenario::MultilineGridDistinct);
+    Check(model.multilineGrid && model.cellTexts.size() == model.names.size() * 4u && model.names[0] == L"Item 0" && model.cellTexts[0] != model.cellTexts[1],
+          "distinct boundary model retains short tree names and distinct column texts");
     auto parsed = WarpRasterMode::CallingThread;
     Check(TryParseRasterMode(L"Default", parsed) && parsed == WarpRasterMode::Default, "default WARP diagnostic mode parses");
     Check(! TryParseRasterMode(L"SingleThreaded", parsed) && parsed == WarpRasterMode::Default, "invalid WARP mode leaves the caller value unchanged");
@@ -77,7 +133,13 @@ inline void TestDevicePolicies()
 struct Frame
 {
     std::array<int64_t, 9> qpc{};
-    size_t cppAllocations = 0u;
+    size_t cppAllocations     = 0u;
+    size_t composeAllocations = 0u;
+    int64_t updateEndQpc      = 0;
+    // v3 only: CPU queries surround the frame, with their own QPC brackets.
+    // The cumulative-counter interval includes probe overhead; it is not isolated frame CPU.
+    std::array<int64_t, 4> cpuProbeQpc{};
+    ComplexUiProfiling::CpuSample ownerCpuBefore, ownerCpuAfter;
 };
 struct Window
 {
@@ -93,7 +155,11 @@ inline int64_t Counter() noexcept
     return value.QuadPart;
 }
 
-__declspec(noinline) inline void Run(const wchar_t* outputPath, bool timers, std::optional<WarpRasterMode> rasterMode = std::nullopt)
+__declspec(noinline) inline void Run(const wchar_t* outputPath,
+                                     bool timers,
+                                     std::optional<WarpRasterMode> rasterMode = std::nullopt,
+                                     std::optional<Scenario> selectedScenario = std::nullopt,
+                                     bool dirty                               = false)
 {
     const auto windows = std::make_unique<std::array<Window, 8>>();
     LARGE_INTEGER frequency{};
@@ -108,7 +174,14 @@ __declspec(noinline) inline void Run(const wchar_t* outputPath, bool timers, std
     Hr(CreateDiagnosticTarget(gpu, mode), "boundary diagnostic WARP device");
     Check(gpu.device->GetCreationFlags() == RequestedDeviceFlags(mode), "boundary diagnostic actual device flags");
     ComplexUiScene scene;
+    const auto scenario = selectedScenario.value_or(Scenario::Default);
+    ConfigureModel(scene.model, scenario);
     Hr(scene.Initialize(gpu.device.get()), "boundary diagnostic synthetic scene");
+    if (scenario != Scenario::Default)
+    {
+        scene.grid->SetRowHeightDip(64.0f);
+        scene.grid->SetLineClamp(2u);
+    }
     D3D11_TEXTURE2D_DESC descriptor{};
     descriptor.Width = descriptor.Height = descriptor.MipLevels = descriptor.ArraySize = descriptor.SampleDesc.Count = 1u;
     descriptor.Format                                                                                                = DXGI_FORMAT_B8G8R8A8_UNORM;
@@ -145,11 +218,22 @@ __declspec(noinline) inline void Run(const wchar_t* outputPath, bool timers, std
         window.before     = ComplexUiProfiling::ReadCpu();
         const auto before = scene.view.GetStatistics();
         window.started    = Counter();
+        size_t frameIndex = 0u;
         for (auto& frame : window.frames)
         {
-            allocations            = 0u;
-            countAllocations       = true;
-            frame.qpc[0]           = Counter();
+            if (selectedScenario)
+            {
+                frame.cpuProbeQpc[0] = Counter();
+                frame.ownerCpuBefore = ComplexUiProfiling::SampleCpu(GetCurrentThread(), false);
+                frame.cpuProbeQpc[1] = Counter();
+            }
+            allocations      = 0u;
+            countAllocations = true;
+            frame.qpc[0]     = Counter();
+            if (dirty)
+                scene.Update(200u + frameIndex);
+            if (selectedScenario && timers)
+                frame.updateEndQpc = Counter();
             const HRESULT prepared = scene.view.Prepare(1280u, 720u);
             if (timers)
                 frame.qpc[1] = Counter();
@@ -164,7 +248,9 @@ __declspec(noinline) inline void Run(const wchar_t* outputPath, bool timers, std
             }
             if (timers)
                 frame.qpc[3] = Counter();
-            const HRESULT composited = window.composite ? scene.view.Composite(gpu.context.get(), gpu.Viewport()) : S_FALSE;
+            const auto allocationStart = allocations;
+            const HRESULT composited   = window.composite ? scene.view.Composite(gpu.context.get(), gpu.Viewport()) : S_FALSE;
+            frame.composeAllocations   = allocations - allocationStart;
             if (timers)
                 frame.qpc[4] = Counter();
             gpu.context->CopySubresourceRegion(completion.get(), 0u, 0u, 0u, 0u, gpu.target.get(), 0u, &pixel);
@@ -178,19 +264,29 @@ __declspec(noinline) inline void Run(const wchar_t* outputPath, bool timers, std
                 gpu.context->Unmap(completion.get(), 0u);
             if (timers)
                 frame.qpc[7] = Counter();
-            frame.qpc[8]         = Counter();
-            countAllocations     = false;
+            frame.qpc[8]     = Counter();
+            countAllocations = false;
+            if (selectedScenario)
+            {
+                frame.cpuProbeQpc[2] = Counter();
+                frame.ownerCpuAfter  = ComplexUiProfiling::SampleCpu(GetCurrentThread(), false);
+                frame.cpuProbeQpc[3] = Counter();
+                complete = complete && ComplexUiProfiling::CpuComplete(frame.ownerCpuBefore) && ComplexUiProfiling::CpuComplete(frame.ownerCpuAfter);
+            }
             frame.cppAllocations = allocations;
-            Check(prepared == S_FALSE, "boundary clean preparation is a no-op");
+            Check(prepared == (dirty ? S_OK : S_FALSE), "boundary preparation matches the explicit phase");
             Check(composited == (window.composite ? S_OK : S_FALSE), "boundary controlled composition");
             Hr(mappedResult, "boundary blocking one-pixel map");
-            Check(frame.cppAllocations == 0u, "boundary probes allocate no C++ heap storage");
+            Check(dirty ? frame.cppAllocations <= ComplexUiBenchmark::kDirtyAllocationsPerFrameCeiling : frame.cppAllocations == 0u,
+                  "boundary whole-frame allocations respect the explicit phase budget");
+            Check(frame.composeAllocations == 0u, "boundary composition allocates no C++ heap storage");
+            ++frameIndex;
         }
         window.ended     = Counter();
         window.after     = ComplexUiProfiling::ReadCpu();
         const auto after = scene.view.GetStatistics();
-        Check(after.preparations == before.preparations && after.surfaceAllocations == before.surfaceAllocations && after.surfaceBytes == before.surfaceBytes &&
-                  after.composites - before.composites == (window.composite ? kFrames : 0u),
+        Check(after.preparations - before.preparations == (dirty ? kFrames : 0u) && after.surfaceAllocations == before.surfaceAllocations &&
+                  after.surfaceBytes == before.surfaceBytes && after.composites - before.composites == (window.composite ? kFrames : 0u),
               "boundary controls preserve preparation and surface invariants");
         complete = complete && ComplexUiProfiling::CpuComplete(window.before.main) && ComplexUiProfiling::CpuComplete(window.before.process) &&
                    ComplexUiProfiling::CpuComplete(window.after.main) && ComplexUiProfiling::CpuComplete(window.after.process);
@@ -202,10 +298,12 @@ __declspec(noinline) inline void Run(const wchar_t* outputPath, bool timers, std
           "boundary hidden view releases surface and does no work");
     std::ofstream output{std::filesystem::path(outputPath)};
     Check(bool(output), "boundary output file");
-    const auto schema = rasterMode ? 2 : 1;
+    const auto schema = selectedScenario ? 3 : rasterMode ? 2 : 1;
     output << std::setprecision(17) << "{\"schema\":" << schema << ",\"fixture\":\"dxui-complex-ui-boundaries-v" << schema
            << "\",\"classification\":\"diagnostic-only\",\"renderer\":\"WARP\","
-              "\"scenario\":\"Default\",\"heapSampling\":false,\"width\":1280,\"height\":720,\"dpi\":96,\"controls\":83,\"modelRows\":1000,"
+              "\"scenario\":\""
+           << ScenarioName(scenario)
+           << "\",\"heapSampling\":false,\"width\":1280,\"height\":720,\"dpi\":96,\"controls\":83,\"modelRows\":1000,"
               "\"warmFrames\":200,\"probeFrames\":320,\"hiddenPreparations\":0,\"hiddenComposites\":0,\"hiddenSurfaceBytes\":0,"
            << "\"compiler\":" << _MSC_FULL_VER << ",\"iteratorDebugLevel\":" << _ITERATOR_DEBUG_LEVEL << ",\"pointerBits\":" << sizeof(void*) * 8u
            << ",\"processId\":" << GetCurrentProcessId() << ",\"mainThreadId\":" << GetCurrentThreadId() << ",\"mainThreadCreation100ns\":" << creation100ns
@@ -222,6 +320,12 @@ __declspec(noinline) inline void Run(const wchar_t* outputPath, bool timers, std
     if (rasterMode)
         output << "\"warpRasterMode\":\"" << (mode == WarpRasterMode::CallingThread ? "CallingThread" : "Default")
                << "\",\"requestedDeviceFlags\":" << RequestedDeviceFlags(mode) << ",\"deviceCreationFlags\":" << gpu.device->GetCreationFlags() << ',';
+    if (selectedScenario)
+        output
+            << "\"phase\":\"" << (dirty ? "Dirty" : "Clean") << "\",\"firstUpdate\":" << (dirty ? 200u : 0u)
+            << ",\"dirtyAllocationCeilingPerFrame\":" << ComplexUiBenchmark::kDirtyAllocationsPerFrameCeiling
+            << ",\"ownerCpuScope\":\"Cumulative main-thread kernel/user 100ns and cycle readings surround each frame. CPU intervals include the query probes; "
+               "zero coarse time deltas are valid. CPU probe QPC brackets expose observer cost, not scheduler delay or GPU time.\",";
     output << "\"windows\":[";
     for (size_t index = 0u; index < windows->size(); ++index)
     {
@@ -246,7 +350,22 @@ __declspec(noinline) inline void Run(const wchar_t* outputPath, bool timers, std
                     output << ',';
                 output << frame.qpc[edge];
             }
-            output << "]}";
+            output << ']';
+            if (selectedScenario)
+            {
+                output << ",\"composeAllocations\":" << frame.composeAllocations << ",\"updateEndQpc\":" << frame.updateEndQpc << ",\"cpuProbeQpc\":[";
+                for (size_t edge = 0u; edge < frame.cpuProbeQpc.size(); ++edge)
+                {
+                    if (edge)
+                        output << ',';
+                    output << frame.cpuProbeQpc[edge];
+                }
+                output << "],\"ownerCpuBefore\":";
+                ComplexUiProfiling::WriteCpu(output, frame.ownerCpuBefore);
+                output << ",\"ownerCpuAfter\":";
+                ComplexUiProfiling::WriteCpu(output, frame.ownerCpuAfter);
+            }
+            output << '}';
         }
         output << "]}";
     }
