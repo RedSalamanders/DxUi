@@ -57,23 +57,6 @@ std::shared_ptr<int> MakeRetainedCallbackCleanupThatClearsRoot(DxUi::WindowHost&
     return count;
 }
 
-[[nodiscard]] size_t CountOccurrences(std::string_view text, std::string_view needle) noexcept
-{
-    if (needle.empty())
-    {
-        return 0u;
-    }
-
-    size_t count  = 0u;
-    size_t offset = 0u;
-    while ((offset = text.find(needle, offset)) != std::string_view::npos)
-    {
-        ++count;
-        offset += needle.size();
-    }
-    return count;
-}
-
 void EmitColorGlyphPixelCountForTest(std::wstring_view detail, const WindowHostBitmapCapture& capture, size_t warmPixelCount) noexcept
 {
     if (! DxUi::Debug::Perf::IsCaptureEnabled())
@@ -1433,12 +1416,17 @@ void TestMaskedTextFieldUnicode17SourceMapping()
 void TestNativeTextFieldEditSelectionPreservesReversedEndpoints()
 {
     using namespace DxUi;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class Probe final : public TextField
     {
     public:
         using TextField::ExportTextInputState;
         using TextField::TextField;
     };
+#pragma warning(pop)
     AttachedHostWindow window;
     auto root   = std::make_unique<Panel>();
     auto* field = root->AddChild<Probe>(L"abcdef");
@@ -1972,12 +1960,17 @@ void TestTextFieldClearButtonStopsAfterTextChangedDestroysField()
 void TestTextFieldImportReportsWhenTextChangedDestroysField()
 {
     using namespace DxUi;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class ImportField final : public TextField
     {
     public:
         using TextField::ImportTextInputState;
         using TextField::TextField;
     };
+#pragma warning(pop)
 
     WindowHost host;
     auto root   = std::make_unique<Panel>();
@@ -2203,6 +2196,10 @@ void TestTextFieldBlurCallbackRetainsMutableStateAcrossFocusLosses()
 void TestTextFieldTextChangeDispatchDoesNotCopyRegisteredCallable()
 {
     using namespace DxUi;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4626)
     struct CopyGuardedCallback final
     {
         bool* throwOnCopy = nullptr;
@@ -2227,6 +2224,7 @@ void TestTextFieldTextChangeDispatchDoesNotCopyRegisteredCallable()
             ++*callCount;
         }
     };
+#pragma warning(pop)
 
     TextField field(L"copy guard");
     bool throwOnCopy = false;

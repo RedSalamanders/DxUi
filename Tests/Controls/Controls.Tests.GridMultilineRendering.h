@@ -10,6 +10,10 @@
 
 // One window at 96 dpi with a borrowed-model Grid over text cells: the bed the multiline pixel tests paint in. A 96-dpi host
 // makes a device-independent pixel a pixel, so a scrolled offset of whole DIPs lands on whole pixels.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 struct MultilineBed
 {
     // The grid the window's host owns borrows the model, so the model outlives the window.
@@ -92,6 +96,7 @@ struct MultilineBed
         return tooltip;
     }
 };
+#pragma warning(pop)
 
 // Accented letters: a precomposed letter (é) and its decomposed form (e and a combining acute) are the same text. DirectWrite
 // composes the pair, so a cell of either paints the same lines, the same omission marker and the same pixels, at every clamp,

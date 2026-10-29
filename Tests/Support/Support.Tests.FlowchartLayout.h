@@ -1,5 +1,5 @@
 #pragma once
-#include "../../src/Controls/DxUi.NativeFlowchartLayout.h"
+#include "Controls/DxUi.NativeFlowchartLayout.h"
 #include "Support.Tests.NativeFlowchartCorpus.h"
 #include <cmath>
 #include <limits>

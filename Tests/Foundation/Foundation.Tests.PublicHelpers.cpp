@@ -9,10 +9,15 @@
 static_assert(! std::is_copy_constructible_v<DxUi::NativeMenuBarHost>);
 static_assert(DxUi::MenuBar::kDefaultHeightDip == 30.0f);
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 struct ExtensionReparentContract : DxUi::Control
 {
     using DxUi::Control::Reparent;
 };
+#pragma warning(pop)
 static_assert(std::is_same_v<decltype(&ExtensionReparentContract::Reparent), void (DxUi::Control::*)(DxUi::Panel*, DxUi::ControlHost*) noexcept>);
 
 bool TestFontAvailabilityInvalidation()
@@ -65,3 +70,12 @@ bool TestPublicHelpers()
            DxUi::NormalizeAccessibilityTextUnit(TextUnit_Format) == TextUnit_Word &&
            DxUi::Typography::GetUiTextFamilyForSizeDip(13) == DxUi::Typography::kSegoeUiVariableTextFamily;
 }
+
+// Warning cleanup must retain the public aggregate/identity semantics.
+static_assert(std::is_aggregate_v<DxUi::MeasureContext>);
+static_assert(! std::is_default_constructible_v<DxUi::MeasureContext>);
+static_assert(std::is_copy_constructible_v<DxUi::MeasureContext>);
+static_assert(! std::is_copy_assignable_v<DxUi::MeasureContext>);
+static_assert(! std::is_copy_constructible_v<DxUi::Control>);
+static_assert(! std::is_move_constructible_v<DxUi::Control>);
+static_assert(std::is_copy_assignable_v<DxUi::IGridModel>);

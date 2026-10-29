@@ -1,6 +1,6 @@
 #include "Controls.Tests.RichDocumentLayout.h"
-#include "../../Samples/EmbeddedControls/GraphicsFixture.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "GraphicsFixture.h"
 #include <DxUi/RichTextLayout.h>
 #include <algorithm>
 #include <bit>
@@ -13,7 +13,12 @@
 #include <span>
 #include <vector>
 #include <wil/result.h>
+// Windows SDK WRL owns its interlocked/volatile implementation and target semantics.
+// Scope is this system header only. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4746)
 #include <wrl/implements.h>
+#pragma warning(pop)
 
 namespace
 {
@@ -25,6 +30,10 @@ struct GlyphOrigin
     float x{}, y{}, fontSize{};
     DWRITE_FONT_METRICS fontMetrics{};
 };
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class GlyphOriginRecorder final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDWriteTextRenderer>
 {
 public:
@@ -96,11 +105,21 @@ private:
     std::size_t count_{};
     bool snapping_{};
 };
+#pragma warning(pop)
+// Stack-only rounding/observation barrier; no inter-thread synchronization or memory-mapped I/O.
+// Both target volatile models preserve these accesses. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4746)
 inline float Add(float first, float second) noexcept
 {
     volatile float result = first + second;
     return result;
 }
+#pragma warning(pop)
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class InvisibleLinePrefix final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDWriteInlineObject>
 {
 public:
@@ -136,6 +155,7 @@ public:
 private:
     float height_{};
 };
+#pragma warning(pop)
 void RunRawLineOrigins()
 {
     const auto oldPrecision     = std::cout.precision();

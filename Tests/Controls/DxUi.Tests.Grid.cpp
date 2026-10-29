@@ -2845,6 +2845,7 @@ void TestGroupedGridApplyGroupLayoutStopsWhenDelegateIsCleared()
 
     struct ClearingDelegate final : IGridDelegate
     {
+        using IGridDelegate::OnGridGroupToggled;
         size_t calls = 0u;
 
         void OnGridGroupToggled(Grid& sender, uint64_t, bool) override
@@ -5017,9 +5018,9 @@ void TestGridFocusedRowIsDrawnAndCtrlKeysMoveOnlyTheFocus()
     const DxUi::ThemePalette theme = fixture.host.GetTheme();
     fixture.host.SetFocusControl(&grid);
     Require(grid.RequestSelectRow(5u, 0u), "row 5 is selected");
-    for (const UINT key : {VK_END, VK_HOME, VK_NEXT, VK_PRIOR, VK_DOWN, VK_UP})
+    for (const int key : {VK_END, VK_HOME, VK_NEXT, VK_PRIOR, VK_DOWN, VK_UP})
     {
-        Require(grid.OnKeyDown(fixture.host, key, MK_CONTROL), "a Ctrl movement key is handled");
+        Require(grid.OnKeyDown(fixture.host, static_cast<UINT>(key), MK_CONTROL), "a Ctrl movement key is handled");
         Require(grid.GetSelectionModel().GetCount() == 1u && grid.GetSelectionModel().IsSelected(model.GetStableRowId(5u)),
                 "a Ctrl movement key leaves the selection as it was");
     }

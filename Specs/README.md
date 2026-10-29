@@ -28,3 +28,5 @@ Generated measurement reports live under `.build`, never in Specs. Reviewed gall
 Historical import records are explained under [Done](Done/README.md). See [the active index](Plans/WIP/README.md).
 
 The [Changes workflow](Core/Core_Changes.md) owns fragment format, validation and immediate folding before PrePush/final handoff and after integration.
+
+Common native build policy, zero-warning acceptance, terminal output and short consumer paths: [Build_ConsoleAndPaths](Build/Build_ConsoleAndPaths.md).

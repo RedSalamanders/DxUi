@@ -1,5 +1,7 @@
 # Active plans
 
+- **ACTIVE**: [Native build policy, terminal results and short DxUi paths](NativeBuildPolicyCoherence_2026-10-28.md). Shared /Wall without /WX, zero-warning validation, Debug/ASan symbols, Release-only ICF, terminal results and verified short dependency folders.
+
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
 - **ACTIVE**: [Subtle Markdown presentation](SubtleMarkdownPresentation_2026-10-27.md). Opt-in heading rules, intrinsic tables, centered display objects and shaded quotes for RedTilde; focused rendering and exact consumer adoption qualification are in progress. Earlier performance/CI queues remain paused.

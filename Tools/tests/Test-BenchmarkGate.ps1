@@ -113,8 +113,15 @@ function Get-LocalIncludes([string] $Root, [string] $File) {
     # The quoted includes of one source file that name a file of this repository, as repository-relative paths.
     $directory = Split-Path -Parent (Join-Path $Root $File)
     foreach ($match in [regex]::Matches([IO.File]::ReadAllText((Join-Path $Root $File)), '(?m)^\s*#\s*include\s+"([^"]+)"')) {
-        $full = [IO.Path]::GetFullPath((Join-Path $directory $match.Groups[1].Value))
-        if (Test-Path -LiteralPath $full -PathType Leaf) { [IO.Path]::GetRelativePath($Root, $full).Replace('\', '/') }
+        # Mirror the owned SDK targets' explicit include roots, in compiler search order.
+        $roots=@($directory)+@('include','src','Tests/Support','Tests/Embedded','Samples/EmbeddedControls','Samples/ComplexUi'|ForEach-Object{Join-Path $Root $_})
+        foreach($includeRoot in $roots){
+            $full = [IO.Path]::GetFullPath((Join-Path $includeRoot $match.Groups[1].Value))
+            if (Test-Path -LiteralPath $full -PathType Leaf) {
+                [IO.Path]::GetRelativePath($Root, $full).Replace('\', '/')
+                break
+            }
+        }
     }
 }
 

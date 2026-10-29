@@ -1,4 +1,4 @@
-#include "../ComplexUi/ComplexUiScene.h"
+#include "ComplexUiScene.h"
 #include "EmbeddedScene.h"
 #include "EmbeddedTextClient.h"
 #include "GraphicsFixture.h"
@@ -11,6 +11,10 @@ namespace
 {
 constexpr UINT RenderMessage     = WM_APP + 1;
 constexpr UINT ImageReadyMessage = WM_APP + 2;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626)
 struct App
 {
     App() : pendingImages(0u)
@@ -391,6 +395,7 @@ struct App
         return got < 0 ? HRESULT_FROM_WIN32(GetLastError()) : (message.wParam ? E_FAIL : S_OK);
     }
 };
+#pragma warning(pop)
 } // namespace
 int wmain(int argc, wchar_t** argv)
 {

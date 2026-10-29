@@ -1,6 +1,6 @@
 #pragma once
-#include "../../src/Controls/DxUi.RichSemanticGeometry.h"
-#include "../../src/Controls/DxUi.SemanticExtensions.h"
+#include "Controls/DxUi.RichSemanticGeometry.h"
+#include "Controls/DxUi.SemanticExtensions.h"
 #include "Support.Tests.PreparedFlowchart.h"
 #include "Support.Tests.RichSemanticDocument.h"
 #include <DxUi/DxUi.h>

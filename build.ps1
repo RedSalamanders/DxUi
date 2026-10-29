@@ -15,6 +15,8 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$nativeEntryElapsed = [Diagnostics.Stopwatch]::StartNew()
+Import-Module (Join-Path $PSScriptRoot 'Build/BuildConsole.psm1') -ErrorAction Stop
 
 function Test-DxUiInteractiveTerminal {
     try {
@@ -194,15 +196,14 @@ Invoke-DxUiBuildPhase -Phase MSBuild -Body {
         throw "DxUi build failed. Log: $log"
     }
 }
+Assert-NativeBuildDiagnostics -LogPath $log
 if ($attestPerformanceBuild) {
     Invoke-DxUiBuildPhase -Phase PostBuildAttestation -Body {
         Complete-PerformanceBuildAttestation -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration -Before $performanceBuildBefore
     }
 }
 
-Write-Host ''
-Write-Host '========================================' -ForegroundColor Green
-Write-Host "DxUi build passed in $($stopwatch.Elapsed.ToString('mm\:ss'))" -ForegroundColor Green
-Write-Host "Output: $output" -ForegroundColor Cyan
-Write-Host "Log: $log" -ForegroundColor DarkGray
-Write-Host '========================================' -ForegroundColor Green
+$profileOutput=Join-Path $output "$Platform/$Configuration"
+$library=Join-Path $profileOutput 'DxUi.lib'
+$sample=Join-Path $profileOutput 'DxUi.EmbeddedControls.exe'
+Write-NativeBuildResult -Project DxUi -Platform $Platform -Configuration $Configuration -LogPath $log -Artifacts @($library) -Executable $sample -Duration $nativeEntryElapsed.Elapsed

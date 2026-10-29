@@ -8,7 +8,12 @@
 #include <stdexcept>
 #include <wil/resource.h>
 #include <wil/result.h>
+// Windows SDK WRL owns its interlocked/volatile implementation and target semantics.
+// Scope is this system header only. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4746)
 #include <wrl/implements.h>
+#pragma warning(pop)
 namespace DxUi::RichText
 {
 namespace
@@ -21,6 +26,10 @@ void Check(HRESULT result, const char* operation)
 // A positioning-only first line lets DirectWrite perform its own sequential
 // document-coordinate rounding, mixed-font caret math and color-font drawing.
 // Its two private text units never enter source/display ACP mappings.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class InvisibleLayoutOrigin final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDWriteInlineObject>
 {
 public:
@@ -58,6 +67,7 @@ public:
 private:
     float height_{};
 };
+#pragma warning(pop)
 
 } // namespace
 struct PreparedLayout::State

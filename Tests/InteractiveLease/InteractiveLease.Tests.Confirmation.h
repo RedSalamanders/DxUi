@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../Support/Support.Tests.InteractiveLease.h"
+#include "Support.Tests.InteractiveLease.h"
 
 #include <CommCtrl.h>
 

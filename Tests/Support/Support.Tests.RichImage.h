@@ -1,5 +1,5 @@
 #pragma once
-#include "../../src/Controls/DxUi.RichImage.h"
+#include "Controls/DxUi.RichImage.h"
 #include <DxUi/RichImage.h>
 #include <algorithm>
 #include <array>
@@ -296,7 +296,7 @@ template <typename Check> inline void Core(Check&& check)
     {
         const auto palette = 13u + static_cast<std::size_t>(gif[11]) * 3u;
         check(palette + 3u <= descriptor, "generated GIF background palette lies before its descriptor");
-        fill = {std::byte(gif[palette + 2u]), std::byte(gif[palette + 1u]), std::byte(gif[palette]), std::byte(255u)};
+        fill = {{std::byte(gif[palette + 2u]), std::byte(gif[palette + 1u]), std::byte(gif[palette]), std::byte(255u)}};
     }
     for (unsigned y = 0u; y < 5u; ++y)
         for (unsigned x = 0u; x < 4u; ++x)

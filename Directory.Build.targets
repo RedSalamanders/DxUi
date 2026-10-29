@@ -30,4 +30,5 @@
     <Error Condition="'$(Platform)'!='x64' and '$(Platform)'!='ARM64'" Text="DxUi supports x64 and ARM64." />
     <Error Condition="'$(Configuration)'!='Debug' and '$(Configuration)'!='Release' and '$(Configuration)'!='ASan Debug'" Text="DxUi supports Debug, Release and ASan Debug." />
   </Target>
+  <Import Project="$(MSBuildThisFileDirectory)Build/NativeBuildPolicy.targets" />
 </Project>

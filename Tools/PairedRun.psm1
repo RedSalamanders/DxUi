@@ -9,7 +9,8 @@ $script:PathComparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase
 # The measurement driver and its comparator; the compiled benchmark inputs come from the comparator module, which also
 # hashes them into every receipt.
 $script:HarnessScripts = @('performance.ps1', 'performance-paired.ps1', 'Tools/Compare-Performance.ps1', 'Tools/PerformanceComparison.psm1',
-    'Tools/PairedRun.psm1', 'Tools/PerformancePolicy.psm1', 'Tools/PerformanceAcceptancePolicy.v1.json', 'Tools/BenchmarkGate.psm1')
+    'Tools/PairedRun.psm1', 'Tools/PerformancePolicy.psm1', 'Tools/PerformanceAcceptancePolicy.v1.json', 'Tools/BenchmarkGate.psm1',
+    'Build/BuildConsole.psm1')
 # Old revisions compile their original include names. Overlay the current payload
 # at those existing paths too, so renaming a fixture cannot leave an old fixture in use.
 $script:HarnessLegacyInputs = [ordered]@{

@@ -4,6 +4,21 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Record passing local x64 runtime qualification and ARM64 cross-builds for the common build policy, with immutable Release size evidence and remaining performance/CI gates explicit.
+- Record the current native profile and pinned-archive policy audit, qualified native builds and explicit remaining runtime, performance and integration gates.
+- Reconcile the toolchain contract with 16-character DxUi source/output locators, complete identity metadata and the retained conservative long-path compatibility guarantee.
+- Bind scoped PR coverage to the repaired relocated-consumer runner's actual execution bytes through the canonical workflow digest, retaining the stale-digest rejection and requiring fresh scoped/full validation rather than treating an identity refresh as qualification.
+- Compile the relocated public sample with its copied ComplexUi scene directory in the external project's include search, preserving public dependency includes and isolation from private library source paths. Retain the hosted missing-include failures and require the actual consumer build/render/conformance matrix.
+- Resolve both shared benchmark headers through paths relative to the staged fixture. The historical baseline preprocessing control now supplies no private sample/support include directories and independently reproduces both missing includes before accepting and restoring the staged fix.
+- Resolve the staged benchmark's shared scene relative to its header so historical baseline projects do not need a new sample include directory. A real MSVC preprocessing control reproduces the old missing include, verifies the staged fix, preserves baseline library inputs and restores the original harness.
+- Settle owner activation and preceding mouse messages before each sent-cancellation menu case, verify foreground/focus again, and retain terminal owner diagnostics on failure. All four cancellation messages and dismissal/command assertions remain mandatory.
+- Stage and fingerprint the build driver's console dependency in paired benchmark trees, fixing baseline startup before measurements. Regression controls reproduce the missing import, execute the staged module, reject warnings, preserve the baseline library/project and restore the original driver.
+- Validate literal POSIX-path fallback in Linux console-tooling tests while retaining Windows URI escaping and OSC8 checks, with diagnostic, color, quoting and failure controls on both hosts.
+- Prepare and verify the modal timer regression's visible foreground owner before starting its timers, and require observed popup entry before dispatch assertions. Timer-ID collision checks, fallback bounds and command/dismissal assertions remain unchanged.
+- Validate canonical private include roots without lending test headers to shipping sources or private headers to the public API; bind the qualification fixture child to the current PowerShell engine and retain its output without changing readiness or termination deadlines.
+- Preserve reviewed volatile behavior and scope the MSVC ARM64 Release LTCG model notice exception; validate its architecture/configuration boundary and unify successful build duration reporting.
+- Fix owned signed/unsigned and drawing conversions, callback and test diagnostics; preserve identity/aggregate traits with narrowly reviewed declaration annotations. Classify dependency headers through evaluated MSBuild paths. Zero-warning native qualification remains tracked in the active build-policy plan.
+- Unify native builds on /Wall without /WX and require zero diagnostics before accepting success; align Debug /ZI and ASan /Zi, enable Release-only /OPT:ICF, print green artifact/log links with quoted launch commands, and shorten consumer DxUi source/output folders while preserving complete collision-checked identities. Native qualification remains tracked in the active build-policy plan.
 - Plan the production review of the 18-28 October merges (#87-#121) in
   `Specs/Plans/WIP/CodeReview_2026-10-28.md`: verified findings by priority, incomplete claimed fixes, still-open
   audit and review items, simplification proposals and developer questions. Review only; no library, test or tooling

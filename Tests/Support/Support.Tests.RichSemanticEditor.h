@@ -1,6 +1,6 @@
 #pragma once
-#include "../../src/Controls/DxUi.PreparedMath.h"
-#include "../../src/Controls/DxUi.RichSemanticGeometry.h"
+#include "Controls/DxUi.PreparedMath.h"
+#include "Controls/DxUi.RichSemanticGeometry.h"
 #include "Support.Tests.CountingWriteFactory.h"
 #include "Support.Tests.RichSemantic.h"
 #include <DxUi/DxUi.h>
@@ -15,6 +15,10 @@ namespace RichSemanticEditorTests
 using namespace DxUi;
 using namespace DxUi::RichText;
 using RichSemanticTests::Check;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class DirectPrepareRichTextEditor final : public RichTextEditor
 {
 public:
@@ -24,6 +28,7 @@ public:
         return PrepareContent(host);
     }
 };
+#pragma warning(pop)
 inline HRESULT PrepareUntilSettled(DirectPrepareRichTextEditor& editor, ControlHost& host)
 {
     for (std::size_t turn = 0u; turn < 1024u; ++turn)
@@ -64,6 +69,10 @@ private:
     IDWriteFactory* previous_{};
 };
 #endif
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 struct RetiringTabEditor final : RichTextEditor
 {
     explicit RetiringTabEditor(Button*& successor) : RichTextEditor(L"retiring"), successor_(&successor)
@@ -94,6 +103,7 @@ struct RetiringTabEditor final : RichTextEditor
 private:
     Button** successor_;
 };
+#pragma warning(pop)
 template <typename Prepare, typename Key, typename Character> void StructuralHostRouting(ControlHost& host, Prepare&& prepare, Key&& key, Character&& character)
 {
     auto panel   = std::make_unique<Panel>();
@@ -501,12 +511,17 @@ template <typename Prepare> void Rendering(ControlHost& host, Prepare&& prepare)
 }
 // Expose the protected text-service import seam for deterministic composition
 // transport tests. Physical IME/foreground qualification remains separate.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 struct SourceCaretEditorFixture final : RichTextEditor
 {
     using RichTextEditor::ExportTextInputState;
     using RichTextEditor::ImportTextInputState;
     using RichTextEditor::RichTextEditor;
 };
+#pragma warning(pop)
 template <typename Prepare> void TaskCheckboxAlignment(ControlHost& host, Prepare&& prepare)
 {
     const std::wstring source = L"- [ ] An unchecked task\r\n- [x] A checked task\r\n";

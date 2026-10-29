@@ -1,9 +1,9 @@
-#include "../../src/Support/AnimationDispatcher.h"
-#include "../Support/Support.Tests.PerformanceCapture.h"
 #include "Controls.Tests.AnimationClock.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.HostControlRegressions.h"
 #include "DxUi/FrameRuntime.h"
+#include "Support.Tests.PerformanceCapture.h"
+#include "Support/AnimationDispatcher.h"
 
 #include <array>
 #include <fstream>
@@ -504,6 +504,10 @@ void TestSliderTouchHaloStaysInsideItsPaintBoundsAndBehindOverlays()
 {
     using namespace DxUi;
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class PaintProbe final : public Control
     {
     public:
@@ -533,6 +537,7 @@ void TestSliderTouchHaloStaysInsideItsPaintBoundsAndBehindOverlays()
     private:
         D2D1_COLOR_F _color;
     };
+#pragma warning(pop)
 
     const auto capturePixel = [](const WindowHostBitmapCapture& capture, WindowHost& host, float xDip, float yDip)
     {

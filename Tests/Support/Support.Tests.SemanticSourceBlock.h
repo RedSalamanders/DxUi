@@ -325,12 +325,17 @@ template <typename Check> inline void SourceRegions(Check&& check)
     check(parser.Published() == edited && ! parser.HasPendingPreparation(), "cancellation cannot publish part of a replacement source envelope");
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class SourceEditingEditor : public RichTextEditor
 {
 public:
     using RichTextEditor::ExportTextInputState;
     using RichTextEditor::ImportTextInputState;
 };
+#pragma warning(pop)
 template <typename Prepare, typename Check> inline void Retained(SourceEditingEditor& editor, ControlHost& host, Prepare&& prepare, Check&& check)
 {
     editor.SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);

@@ -96,6 +96,10 @@ template <typename Check> inline void Core(Check&& check)
 
 // The production adapter remains protected. Tests exercise service commits
 // without asking the desktop clipboard, OS focus or a real IME to participate.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class ServiceEditor final : public RichTextEditor
 {
 public:
@@ -103,6 +107,7 @@ public:
     using RichTextEditor::ImportTextInputState;
     using RichTextEditor::RichTextEditor;
 };
+#pragma warning(pop)
 template <typename Check> inline void Service(ServiceEditor& editor, ControlHost& host, Check&& check)
 {
     for (const auto& example : examples)

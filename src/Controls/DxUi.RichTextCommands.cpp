@@ -68,6 +68,10 @@ bool TextLeaf(Kind kind) noexcept
     return kind == Kind::Paragraph || kind == Kind::AtxHeading || kind == Kind::SetextHeading || kind == Kind::TableCell;
 }
 } // namespace
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4626 5027)
 struct MarkdownCommandPlanner
 {
     MarkdownCommandPlan plan;
@@ -1023,6 +1027,7 @@ struct MarkdownCommandPlanner
         return plan;
     }
 };
+#pragma warning(pop)
 
 void MarkdownCommandPlanner::SetList(const MarkdownCommandRequest& request)
 {
@@ -2105,6 +2110,18 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
             }
             break;
         }
+        case ::DxUi::RichText::MarkdownCommand::IndentList:
+        case ::DxUi::RichText::MarkdownCommand::InsertParagraph:
+        case ::DxUi::RichText::MarkdownCommand::InsertTable:
+        case ::DxUi::RichText::MarkdownCommand::JoinBackward:
+        case ::DxUi::RichText::MarkdownCommand::JoinForward:
+        case ::DxUi::RichText::MarkdownCommand::OutdentList:
+        case ::DxUi::RichText::MarkdownCommand::RemoveLink:
+        case ::DxUi::RichText::MarkdownCommand::SetHeading:
+        case ::DxUi::RichText::MarkdownCommand::SetLink:
+        case ::DxUi::RichText::MarkdownCommand::SetList:
+        case ::DxUi::RichText::MarkdownCommand::ToggleStyle:
+        case ::DxUi::RichText::MarkdownCommand::ToggleTask:
         default: return;
     }
     plan.applicable_ = true;

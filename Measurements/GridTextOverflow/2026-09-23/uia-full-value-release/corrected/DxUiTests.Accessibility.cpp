@@ -7,7 +7,12 @@
 #include <iterator>
 #include <numeric>
 #include <thread>
+// Windows SDK WRL owns its interlocked/volatile implementation and target semantics.
+// Scope is this system header only. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4746)
 #include <wrl/implements.h>
+#pragma warning(pop)
 
 namespace
 {

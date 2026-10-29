@@ -1,6 +1,6 @@
 #include "Controls.Tests.RichDocument.h"
-#include "../Support/Support.Tests.RichTextStateReplacement.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Support.Tests.RichTextStateReplacement.h"
 #include <DxUi/RichDocument.h>
 #include <atomic>
 #include <random>

@@ -1,7 +1,7 @@
 #include "Controls.Tests.RichSemantic.h"
-#include "../Support/Support.Tests.RichSemantic.h"
-#include "../Support/Support.Tests.RichSemanticEditor.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Support.Tests.RichSemantic.h"
+#include "Support.Tests.RichSemanticEditor.h"
 namespace
 {
 void TestRichSemanticCoordinateOracles()

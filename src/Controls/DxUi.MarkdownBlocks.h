@@ -10,6 +10,10 @@ namespace DxUi::RichText::Detail
 {
 // Private block recognizer. It owns no source or host. The public parser owns
 // staging and calls one physical-line or generated-table-cell event at a time.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4626 5027)
 class MarkdownBlocks
 {
     using Kind = MarkdownBlockKind;
@@ -1345,4 +1349,5 @@ public:
         return statistics_;
     }
 };
+#pragma warning(pop)
 } // namespace DxUi::RichText::Detail

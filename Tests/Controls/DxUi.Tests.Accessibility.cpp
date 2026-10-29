@@ -1,13 +1,13 @@
-#include "../../src/Controls/DxUi.AccessibilityTextUnits.h"
-#include "../../src/Support/PostedPayload.h"
-#include "../Support/Support.Tests.SelectionEventInterruption.h"
-#include "../Support/Support.Tests.UiaTestClient.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.FormAccessibility.h"
 #include "Controls.Tests.GridMultilineFixtures.h"
 #include "Controls.Tests.GridUiaPattern.h"
 #include "Controls.Tests.HostControlRegressions.h"
 #include "Controls.Tests.RichTextAccessibility.h"
+#include "Controls/DxUi.AccessibilityTextUnits.h"
+#include "Support.Tests.SelectionEventInterruption.h"
+#include "Support.Tests.UiaTestClient.h"
+#include "Support/PostedPayload.h"
 
 #include <array>
 #include <atomic>
@@ -20,7 +20,12 @@
 #include <stdexcept>
 #include <thread>
 #include <utility>
+// Windows SDK WRL owns its interlocked/volatile implementation and target semantics.
+// Scope is this system header only. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4746)
 #include <wrl/implements.h>
+#pragma warning(pop)
 
 namespace
 {
@@ -173,6 +178,10 @@ void RequireReplacementButtonAtPoint(HWND hwnd, DxUi::WindowHost& host, IRawElem
             "the old collapsed root cannot bind to its replacement");
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class DisclosureChangeObserver final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
                                                                            IUIAutomationPropertyChangedEventHandler,
                                                                            Microsoft::WRL::FtmBase>
@@ -190,6 +199,7 @@ public:
         return S_OK;
     }
 };
+#pragma warning(pop)
 
 void TestDisclosureNotifiesNativeAutomationClient()
 {
@@ -3989,7 +3999,7 @@ void TestNativeAccessibilityInvokeReturnsCallbackHresultUnlessTheTargetRetires()
     Require(invoke->Invoke() == E_ACCESSDENIED && failureCount == 1u, "UIA Invoke returns the accessible callback's failure HRESULT");
 
     auto retiringButton = std::make_unique<Button>(L"Retiring result callback");
-    retiringButton->SetAccessibleInvokeResult([&window, &retirementCount](ControlHost& host)
+    retiringButton->SetAccessibleInvokeResult([&retirementCount](ControlHost& host)
     {
         ++retirementCount;
         host.SetRoot({});
@@ -7922,6 +7932,10 @@ void TestWindowHostReplacedTreeItemsGetNewRuntimeIds()
     Require(staleResult == UIA_E_ELEMENTNOTAVAILABLE, "the removed tree's item element reports that it is gone");
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class StructureInvalidationObserver final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
                                                                                 IUIAutomationStructureChangedEventHandler,
                                                                                 Microsoft::WRL::FtmBase>
@@ -7935,6 +7949,7 @@ public:
         return S_OK;
     }
 };
+#pragma warning(pop)
 
 // Rebuilding a window's controls invalidates what a client navigated: the host tells it so (it drops elements that now
 // report they are gone and navigates again), and a republish that changed no control tells it nothing.
@@ -8030,6 +8045,10 @@ void TestWindowHostRebuildRaisesStructureInvalidation()
             "a UIA client learns that a new root replaced every element");
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class DisclosureSenderObserver final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
                                                                            IUIAutomationPropertyChangedEventHandler,
                                                                            Microsoft::WRL::FtmBase>
@@ -8061,6 +8080,7 @@ private:
     mutable std::mutex _mutex;
     std::wstring _senderAutomationId;
 };
+#pragma warning(pop)
 
 // A status root collapses into its window's fragment root while its children stay elements of their own: an event
 // about a child comes from that child, never from the root that stands for the window.
@@ -8158,6 +8178,10 @@ struct HeardSelectionEvent
     [[nodiscard]] bool operator==(const HeardSelectionEvent&) const  = default;
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class SelectionEventObserver final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
                                                                          IUIAutomationEventHandler,
                                                                          IUIAutomationPropertyChangedEventHandler,
@@ -8228,6 +8252,7 @@ private:
     mutable std::mutex _mutex;
     std::vector<HeardSelectionEvent> _events;
 };
+#pragma warning(pop)
 
 // The selection events of a multi-select tree, heard by a UI Automation client: a selection that became one new item is that
 // item being selected, other changes are items added to and removed from it (each also changes IsSelected), a change too large
@@ -8679,6 +8704,10 @@ struct AccessibilityResolutionCost
 };
 
 // A window of panels holding 49 buttons each: 40 of them are about 2,000 controls.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class LargeAccessibilityWindow final
 {
 public:
@@ -8710,6 +8739,7 @@ public:
     std::vector<DxUi::Panel*> groups;
     std::vector<DxUi::Button*> buttons;
 };
+#pragma warning(pop)
 
 struct AccessibilityWalkCosts
 {
@@ -9266,6 +9296,10 @@ void TestUiaArrivalDiagnosticsPreserveEventEqualityAndPerStepDeduplication()
 }
 
 // A UI Automation client of one test window, with what the tests ask of it. `root` is the window's element.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class SingleControlClient final
 {
 public:
@@ -9323,6 +9357,7 @@ public:
     UiaTest::Client client;
     UiaTest::ElementId root;
 };
+#pragma warning(pop)
 
 void TestAccessibilityRangeValueChangesReachSubscribedClient()
 {
@@ -9408,6 +9443,10 @@ void ConfigureCategoriesTree(DxUi::Tree& tree, MutableTreeModel& model)
 }
 
 // The window of a tree and nothing else.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 struct SingleTreeWindow final
 {
     SingleTreeWindow()
@@ -9423,8 +9462,13 @@ struct SingleTreeWindow final
     AttachedHostWindow window;
     DxUi::Tree* tree = nullptr;
 };
+#pragma warning(pop)
 
 // The window of a tree and a button.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 struct TreeBesideAButtonWindow final
 {
     TreeBesideAButtonWindow()
@@ -9441,6 +9485,7 @@ struct TreeBesideAButtonWindow final
     AttachedHostWindow window;
     DxUi::Tree* tree = nullptr;
 };
+#pragma warning(pop)
 
 class StatusGridModel final : public DxUi::IGridModel
 {
@@ -9504,6 +9549,10 @@ void ConfigureResultsGrid(DxUi::Grid& grid, StatusGridModel& model)
 }
 
 // The window of a grid and nothing else.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 struct SingleGridWindow final
 {
     SingleGridWindow()
@@ -9518,8 +9567,13 @@ struct SingleGridWindow final
     AttachedHostWindow window;
     DxUi::Grid* grid = nullptr;
 };
+#pragma warning(pop)
 
 // The window of a grid and a button.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 struct GridBesideAButtonWindow final
 {
     GridBesideAButtonWindow()
@@ -9535,6 +9589,7 @@ struct GridBesideAButtonWindow final
     AttachedHostWindow window;
     DxUi::Grid* grid = nullptr;
 };
+#pragma warning(pop)
 
 // What a client sees of a tree and its items; `tree` is the tree's element: the window's in a window the tree fills, its own in
 // a window it shares.
@@ -10035,6 +10090,10 @@ void TestTreeExpansionReachesAClientSubscribedToTheWindow()
 void TestPreparedTreeExpansionOfTheFocusedItemReachesAClient()
 {
     using DxUi::TreeItemData;
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4626 5027)
     class PreparedRows final : public DxUi::IPreparedTreeAccessibilityRows
     {
     public:
@@ -10063,6 +10122,7 @@ void TestPreparedTreeExpansionOfTheFocusedItemReachesAClient()
     private:
         const std::vector<TreeItemData> _items;
     };
+#pragma warning(pop)
     class PreparedModel final : public DxUi::ITreeModel
     {
     public:
@@ -10433,6 +10493,10 @@ private:
 // The window of a grid of thirty rows in its default extended selection: alone, so that the window's element stands for it, or
 // beside a button. Its client area is set in DIPs, so that the grid shows its first nine rows or more at any scale, and its last
 // rows are off screen.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 struct SelectionGridWindow final
 {
     explicit SelectionGridWindow(bool fillsItsWindow)
@@ -10462,6 +10526,7 @@ struct SelectionGridWindow final
     AttachedHostWindow window;
     DxUi::Grid* grid = nullptr;
 };
+#pragma warning(pop)
 
 // The existing provider hook runs after a raise attempt, including IsSelected properties. These are attempts, not successful
 // delivery counts or event payload identities. Record only numeric data in the hook; printing never pumps messages.
@@ -10799,6 +10864,10 @@ void ExpectRootReplacementDuringSelectionPublish(AttachedHostWindow& window, con
     Require(window.Host().DebugGetInvalidateCount() == replacementInvalidations, "a destroyed control never invalidates the replacement after its publish");
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 struct SelectionPublishTreeWindow final
 {
     SelectionPublishTreeWindow(bool fillsItsWindow, bool multiSelect)
@@ -10837,6 +10906,7 @@ struct SelectionPublishTreeWindow final
     AttachedHostWindow window;
     DxUi::Tree* tree = nullptr;
 };
+#pragma warning(pop)
 
 void TestTreeSelectionPublishReplacementFollowsRequests()
 {
@@ -11103,6 +11173,10 @@ void ConfigureRequestField(DxUi::TextField& field)
     field.SetAccessibleName(L"Requête");
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 struct SingleFieldWindow final
 {
     SingleFieldWindow()
@@ -11119,7 +11193,12 @@ struct SingleFieldWindow final
     AttachedHostWindow window;
     DxUi::TextField* field = nullptr;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 struct FieldBesideAButtonWindow final
 {
     FieldBesideAButtonWindow()
@@ -11137,6 +11216,7 @@ struct FieldBesideAButtonWindow final
     AttachedHostWindow window;
     DxUi::TextField* field = nullptr;
 };
+#pragma warning(pop)
 
 UiaTest::Subscription TextEventsSubscription()
 {

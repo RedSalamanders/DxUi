@@ -1,6 +1,6 @@
 #pragma once
-#include "../../src/Controls/DxUi.RichImagePaths.h"
-#include "../../src/Controls/TextClipboard.h"
+#include "Controls/DxUi.RichImagePaths.h"
+#include "Controls/TextClipboard.h"
 #include <DxUi/DxUi.h>
 #include <cstring>
 #include <shlobj.h>

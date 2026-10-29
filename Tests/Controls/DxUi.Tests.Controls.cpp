@@ -18,6 +18,10 @@ namespace
 
 template <typename Container> void RequireOverlayDismissalSurvivesOwnerRetirement()
 {
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class RetiringOverlay final : public DxUi::Control
     {
     public:
@@ -39,6 +43,7 @@ template <typename Container> void RequireOverlayDismissalSurvivesOwnerRetiremen
     private:
         size_t& _calls;
     };
+#pragma warning(pop)
     DxUi::WindowHost host;
     size_t calls = 0u;
     auto root    = std::make_unique<Container>();
@@ -73,6 +78,10 @@ void TestLocalizedActionLayout()
 
 void TestPanelTakeChildPreservesInheritanceAndReparentsSafely()
 {
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class InheritanceProbe final : public DxUi::Control
     {
     public:
@@ -92,6 +101,7 @@ void TestPanelTakeChildPreservesInheritanceAndReparentsSafely()
             ++densityChanges;
         }
     };
+#pragma warning(pop)
     DxUi::WindowHost host;
     auto root     = std::make_unique<DxUi::Panel>();
     auto* panel   = root.get();
@@ -453,20 +463,6 @@ void TestMeasuredActionsFailureAndDirectionContracts()
     Require(! button->Invoke(host, false) && clicks == 1, "disabled wrapped action cannot invoke");
 }
 
-std::string RemoveAsciiWhitespace(const std::string& text)
-{
-    std::string normalized;
-    normalized.reserve(text.size());
-    for (const char ch : text)
-    {
-        if (std::isspace(static_cast<unsigned char>(ch)) == 0)
-        {
-            normalized.push_back(ch);
-        }
-    }
-    return normalized;
-}
-
 void TestGroupedGridHeaderClickTogglesCollapsedStateAndRehomesSelection()
 {
     using namespace DxUi;
@@ -632,6 +628,10 @@ void TestScrollPanelScrollCallbackCanReplaceItsOwnCallable()
 
 void TestScrollPanelScrollDispatchDoesNotCopyCallbackTargets()
 {
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4626)
     struct Callback final
     {
         bool& rejectCopies;
@@ -651,6 +651,7 @@ void TestScrollPanelScrollDispatchDoesNotCopyCallbackTargets()
             ++calls;
         }
     };
+#pragma warning(pop)
 
     DxUi::ScrollPanel scroll;
     scroll.SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, 100.0f));
@@ -730,6 +731,10 @@ struct ScrollPanelReentrancyProbeState
     size_t hoverEnterCount = 0u;
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class ScrollPanelClearingChild final : public DxUi::Control
 {
 public:
@@ -781,6 +786,7 @@ private:
     DxUi::ScrollPanel* _owner               = nullptr;
     ScrollPanelReentrancyProbeState* _state = nullptr;
 };
+#pragma warning(pop)
 
 void TestMenuBarLayoutCacheRecomputesHitRectsAfterLayoutInvalidations()
 {
@@ -885,6 +891,10 @@ void TestTabControlLayoutRevalidatesPagesAfterCallbacks()
 {
     using namespace DxUi;
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class BoundsCallbackPage final : public Panel
     {
     public:
@@ -905,7 +915,12 @@ void TestTabControlLayoutRevalidatesPagesAfterCallbacks()
     private:
         std::function<void()> _onBoundsChanged;
     };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class DetachingHiddenPage final : public Panel
     {
     public:
@@ -944,6 +959,7 @@ void TestTabControlLayoutRevalidatesPagesAfterCallbacks()
     private:
         std::function<void(DetachingHiddenPage&)> _onHidden;
     };
+#pragma warning(pop)
 
     // The selected page's bounds callback removes an earlier sibling. Layout must re-find the selected page
     // instead of applying its old index to the sibling that shifted into that slot.
@@ -2022,6 +2038,10 @@ struct ScrollPanelDetachProbeState
     std::function<void()> onCaptureLost;
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class ScrollPanelDetachProbe final : public DxUi::Control
 {
 public:
@@ -2078,6 +2098,7 @@ protected:
 private:
     ScrollPanelDetachProbeState* _state = nullptr;
 };
+#pragma warning(pop)
 
 void TestScrollPanelEndsHoverOfARowTakenFromIt()
 {
@@ -2432,6 +2453,10 @@ void TestPanelCallbacksCanRemoveSiblingsAndDestroyTheirOwner()
 {
     using namespace DxUi;
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class CallbackPanel final : public Panel
     {
     public:
@@ -2476,6 +2501,7 @@ void TestPanelCallbacksCanRemoveSiblingsAndDestroyTheirOwner()
         std::function<void()> _onHidden;
         std::function<void()> _onBoundsChanged;
     };
+#pragma warning(pop)
 
     // Removing the next sibling from the first child's callback must not invalidate the iteration or skip the
     // surviving sibling that shifts into its place.
@@ -2530,6 +2556,10 @@ enum class PanelTraversalKind : uint8_t
     HitTestOverlay,
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626)
 struct PanelTraversalCallbackState final
 {
     DxUi::WindowHost* host = nullptr;
@@ -2542,7 +2572,12 @@ struct PanelTraversalCallbackState final
     size_t triggerCalls = 0u;
     size_t siblingCalls = 0u;
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class PanelTraversalTestPanel final : public DxUi::Panel
 {
 public:
@@ -2556,10 +2591,17 @@ public:
         return HitTestOverlay(point);
     }
 };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 class PanelTraversalCallbackChild final : public DxUi::Control
 {
 public:
+    using DxUi::Control::HitTest;
+    using DxUi::Control::HitTestOverlay;
     PanelTraversalCallbackChild(PanelTraversalCallbackState& state, bool triggersRetirement) noexcept : _state(&state), _triggersRetirement(triggersRetirement)
     {
     }
@@ -2612,6 +2654,7 @@ private:
     PanelTraversalCallbackState* _state = nullptr;
     bool _triggersRetirement            = false;
 };
+#pragma warning(pop)
 
 void TestPanelTraversalCallbacksCanRetireOwnerSafely()
 {
@@ -2713,6 +2756,10 @@ void TestPageHostOutgoingPaintCanReplaceItsPageWithoutLeakingDrawingState()
         Control* replacementPage         = nullptr;
     };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class OutgoingPage final : public Panel
     {
     public:
@@ -2755,7 +2802,12 @@ void TestPageHostOutgoingPaintCanReplaceItsPageWithoutLeakingDrawingState()
 
         State* _state = nullptr;
     };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class IncomingPage final : public Panel
     {
     public:
@@ -2776,6 +2828,7 @@ void TestPageHostOutgoingPaintCanReplaceItsPageWithoutLeakingDrawingState()
     private:
         State* _state = nullptr;
     };
+#pragma warning(pop)
 
     for (const bool replaceFromOverlay : {false, true})
     {
@@ -2830,9 +2883,14 @@ void TestPageHostHitTestingRejectsAChildFromAReplacedPage()
         size_t hitTestCalls = 0u;
     } state;
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class ReplacingHitPage final : public Panel
     {
     public:
+        using Panel::HitTest;
         explicit ReplacingHitPage(State& state) : _state(&state)
         {
             _staleChild = AddChild<Button>(L"retired");
@@ -2852,6 +2910,7 @@ void TestPageHostHitTestingRejectsAChildFromAReplacedPage()
         State* _state        = nullptr;
         Control* _staleChild = nullptr;
     };
+#pragma warning(pop)
 
     WindowHost host;
     auto theme          = host.GetTheme();
@@ -2879,6 +2938,10 @@ void TestScrollPanelQueriesAndPaintStopAfterRootRetirement()
 {
     using namespace DxUi;
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626)
     struct QueryState final
     {
         WindowHost* host = nullptr;
@@ -2895,10 +2958,17 @@ void TestScrollPanelQueriesAndPaintStopAfterRootRetirement()
             host->SetRoot(std::move(replacementRoot));
         }
     };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class RetiringQueryChild final : public Control
     {
     public:
+        using Control::HitTest;
+        using Control::HitTestOverlay;
         explicit RetiringQueryChild(QueryState& state) noexcept : _state(&state)
         {
         }
@@ -2929,6 +2999,7 @@ void TestScrollPanelQueriesAndPaintStopAfterRootRetirement()
     private:
         QueryState* _state = nullptr;
     };
+#pragma warning(pop)
 
     // The ordinary child query retires the ScrollPanel while UpdateInnerHover is resolving a hit.
     {
@@ -2977,6 +3048,10 @@ void TestScrollPanelQueriesAndPaintStopAfterRootRetirement()
         QueryState state;
         state.host            = &host;
         state.replacementRoot = std::make_unique<Panel>();
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
         class RetiringPaintChild final : public Control
         {
         public:
@@ -2994,6 +3069,7 @@ void TestScrollPanelQueriesAndPaintStopAfterRootRetirement()
         private:
             QueryState* _state = nullptr;
         };
+#pragma warning(pop)
 
         auto root    = std::make_unique<Panel>();
         auto* scroll = root->AddChild<ScrollPanel>();
@@ -3014,6 +3090,10 @@ void TestPageHostCallbacksCanDestroyTheirOwnerSafely()
 {
     using namespace DxUi;
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class CallbackPage final : public Panel
     {
     public:
@@ -3046,6 +3126,7 @@ void TestPageHostCallbacksCanDestroyTheirOwnerSafely()
         std::function<void()> _onBounds;
         std::function<void()> _onHidden;
     };
+#pragma warning(pop)
 
     // Incoming bounds are applied before SetPage installs the page. If that callback replaces the host root, the
     // outer SetPage must return without reading the destroyed PageHost or its former host.
@@ -3258,6 +3339,10 @@ void TestStackPanelLayoutStopsAfterChildCallbacksRetireItsTree()
 {
     using namespace DxUi;
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626)
     struct State final
     {
         WindowHost* host  = nullptr;
@@ -3284,7 +3369,12 @@ void TestStackPanelLayoutStopsAfterChildCallbacksRetireItsTree()
             }
         }
     };
+#pragma warning(pop)
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class LayoutCallbackChild final : public Control
     {
     public:
@@ -3335,6 +3425,7 @@ void TestStackPanelLayoutStopsAfterChildCallbacksRetireItsTree()
         State* _state      = nullptr;
         bool _retiresOwner = false;
     };
+#pragma warning(pop)
 
     for (const bool replaceRoot : {false, true})
     {

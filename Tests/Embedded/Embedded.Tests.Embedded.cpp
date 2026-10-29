@@ -1,14 +1,14 @@
 // Compile the public accessibility header first: consumers must not supply its COM prerequisites.
 #include <DxUi/EmbeddedAccessibility.h>
 
-#include "../../Samples/EmbeddedControls/EmbeddedScene.h"
-#include "../../Samples/EmbeddedControls/GraphicsFixture.h"
-#include "../../src/Controls/DxUi.TextElements.h"
-#include "../../src/Support/PostedPayload.h"
-#include "../Support/Support.Tests.FailureReports.h"
-#include "../Support/Support.Tests.MarkdownSourceCorrelation.h"
-#include "../Support/Support.Tests.RichTextStateReplacement.h"
-#include "../Support/Support.Tests.SemanticSourceBlock.h"
+#include "Controls/DxUi.TextElements.h"
+#include "EmbeddedScene.h"
+#include "GraphicsFixture.h"
+#include "Support.Tests.FailureReports.h"
+#include "Support.Tests.MarkdownSourceCorrelation.h"
+#include "Support.Tests.RichTextStateReplacement.h"
+#include "Support.Tests.SemanticSourceBlock.h"
+#include "Support/PostedPayload.h"
 #include <DxUi/AccessibilityTextUnits.h>
 #include <DxUi/ControlCatalog.h>
 #include <DxUi/Diagnostics.h>
@@ -54,9 +54,6 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
     }
     return HRESULT_FROM_WIN32(ERROR_TIMEOUT);
 }
-#include "../Support/Support.Tests.RichSemantic.h"
-#include "../Support/Support.Tests.RichSemanticEditor.h"
-#include "../Support/Support.Tests.RichSemanticGeometry.h"
 #include "Embedded.Tests.CleanPrepareTimerDiagnostic.h"
 #include "Embedded.Tests.ComplexUiBenchmark.h"
 #include "Embedded.Tests.ComplexUiBoundaries.h"
@@ -76,6 +73,9 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.RichSemanticGeometryResources.h"
 #include "Embedded.Tests.RichSemanticResources.h"
 #include "Embedded.Tests.RichTextResources.h"
+#include "Support.Tests.RichSemantic.h"
+#include "Support.Tests.RichSemanticEditor.h"
+#include "Support.Tests.RichSemanticGeometry.h"
 #if defined(DXUI_HAS_INTRINSIC_LAYOUT)
 #include "Embedded.Tests.FormLayoutBenchmark.h"
 #endif
@@ -224,6 +224,10 @@ struct FrenchGridModel final : DxUi::IGridModel
     }
 };
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
 struct FrenchGridScene
 {
     FrenchGridModel model; // Destroy the view before the model it borrows.
@@ -251,6 +255,7 @@ struct FrenchGridScene
         return S_OK;
     }
 };
+#pragma warning(pop)
 
 // Prepares the scene at `dpi` (the 480 x 240 DIP view, in physical pixels), composites it on the fixture's device and reads it back.
 static void RenderFrenchGrid(GraphicsFixture& gpu, FrenchGridScene& scene, float dpi, std::vector<uint8_t>& pixels)
@@ -693,6 +698,7 @@ __declspec(noinline) static void TestPointerDoesNotRetargetAfterHoverOrHitGeomet
     class Delegate final : public DxUi::IGridDelegate
     {
     public:
+        using DxUi::IGridDelegate::OnGridCheckboxToggled;
         explicit Delegate(State& state) noexcept : _state(&state)
         {
         }
@@ -706,9 +712,14 @@ __declspec(noinline) static void TestPointerDoesNotRetargetAfterHoverOrHitGeomet
     private:
         State* _state;
     };
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class MutatingControl final : public DxUi::Control
     {
     public:
+        using DxUi::Control::HitTest;
         MutatingControl(State& state, bool mutateFromHit) noexcept : _state(&state), _mutateFromHit(mutateFromHit)
         {
         }
@@ -749,6 +760,7 @@ __declspec(noinline) static void TestPointerDoesNotRetargetAfterHoverOrHitGeomet
         State* _state;
         bool _mutateFromHit;
     };
+#pragma warning(pop)
     std::shared_ptr<DxUi::GraphicsDevice> graphics;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "graphics for pointer reentrancy tests");
     for (const unsigned mutationSource : {0u, 1u, 2u})
@@ -802,6 +814,10 @@ __declspec(noinline) static void TestPreparationCallbacksCanRetireRoot(GraphicsF
         size_t paintCalls   = 0u;
         size_t overlayCalls = 0u;
     };
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class CallbackRoot final : public DxUi::Panel
     {
     public:
@@ -834,6 +850,7 @@ __declspec(noinline) static void TestPreparationCallbacksCanRetireRoot(GraphicsF
     private:
         State* _state;
     };
+#pragma warning(pop)
 
     std::shared_ptr<DxUi::GraphicsDevice> graphics;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "graphics for preparation retirement tests");
@@ -895,6 +912,10 @@ __declspec(noinline) static void TestPageReplacementDuringPaintDefersBoundsUntil
         DxUi::Control* replacement = nullptr;
         size_t calls               = 0u;
     };
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
     class ReplacingPage final : public DxUi::Control
     {
     public:
@@ -915,6 +936,7 @@ __declspec(noinline) static void TestPageReplacementDuringPaintDefersBoundsUntil
     private:
         State* _state;
     };
+#pragma warning(pop)
     State state;
     std::shared_ptr<DxUi::GraphicsDevice> graphics;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "graphics for deferred page bounds");
@@ -1179,7 +1201,7 @@ __declspec(noinline) static int RunFunctionalTests()
         // handler belongs only to the explicit diagnostic child, never a suite
         // or canonical benchmark. Ordinary allocation failures must be caught
         // by the same atomicity sweep that the complete suite executes below.
-        const auto previous = std::set_terminate([]
+        const auto previous = std::set_terminate([]() noexcept
         {
             std::fputs("rich preparation probe: unexpected noexcept termination\n", stderr);
             // Bounded addresses need no C++ heap allocation even while the
@@ -1197,7 +1219,12 @@ __declspec(noinline) static int RunFunctionalTests()
             std::fflush(stderr);
             std::_Exit(197);
         });
-        const auto restore  = wil::scope_exit([=] noexcept { std::set_terminate(previous); });
+        // The standard terminate_handler type omits noexcept; restoring the saved handler does not invoke it.
+        // Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 5039)
+        const auto restore = wil::scope_exit([=] noexcept { std::set_terminate(previous); });
+#pragma warning(pop)
         if (std::wstring_view(__wargv[1]) == L"--test-rich-layout-clear")
             TestRichPreparedLayoutClearAllocationBudget(true);
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-geometry-failures")

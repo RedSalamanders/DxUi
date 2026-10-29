@@ -53,7 +53,7 @@ function Literal([string]$Text){
 $output=[Text.StringBuilder]::new()
 [void]$output.AppendLine(@'
 #pragma once
-#include "../../src/Controls/DxUi.NativeFlowchart.h"
+#include "Controls/DxUi.NativeFlowchart.h"
 // Generated offline from pinned Mermaid 11.4.1 MIT documentation. Original
 // fence bodies use LF in vectors; the complete original bytes remain pinned.
 // Subset expectations are reviewed DxUi data, never owned-parser observations.

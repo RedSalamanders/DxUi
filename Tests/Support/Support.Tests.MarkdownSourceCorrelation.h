@@ -1,5 +1,5 @@
 #pragma once
-#include "../../src/Controls/DxUi.MarkdownSourceCorrelation.h"
+#include "Controls/DxUi.MarkdownSourceCorrelation.h"
 #include <DxUi/MarkdownSyntax.h>
 #include <algorithm>
 #include <string_view>

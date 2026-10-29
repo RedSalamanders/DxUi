@@ -55,17 +55,20 @@ out, cleans or overwrites the developer's existing sibling checkout. A missing r
 with an actionable message. An explicit development override may use edited source, but must record its fingerprint
 and mark the result non-release; clean release validation requires the lock match.
 
-Consumers restore the pinned tree under `<root>\.build\dependencies\DxUi\source\<commit>\`, which is 74 characters
-after the consumer's root. Git without long paths cannot create a file whose full path exceeds 259 characters, and the
-restore then fails as a dirty checkout. Every tracked path in this repository is therefore at most 150 characters, so
-any consumer root of up to 35 characters restores without Git long paths. `validate-dependencies.ps1` rejects a longer
+Consumers restore the pinned tree under `<root>\.build\dependencies\DxUi\source\<first-16-commit-hex>\`, which is
+50 characters after the consumer's root. The lock and verified Git HEAD retain the complete 40-character commit;
+the folder prefix is only a locator. Historical full-commit folders are retained. Git without long paths cannot create
+a file whose full path exceeds 259 characters. The conservative existing guarantee remains: every tracked path is at
+most 150 characters and consumer roots of up to 35 characters restore without Git long paths, including the older
+full-commit layout. `validate-dependencies.ps1` rejects a longer
 path, tracked or about to be, before it can reach a pin.
 
 Consumers import `Build/DxUi.Consumer.props` / `.targets` and reference `src/DxUi.vcxproj`. They do
 not maintain a second list of library `.cpp` files. Public header paths and output paths resolve from the imported
 file/project, never an assumed application `SolutionDir`. Standalone `.build` outputs and consumer dependency outputs
-are separate. Consumer outputs use `.build/dependencies/DxUi/<fingerprint>/<platform>/<configuration>/` beneath that
-consumer; the fingerprint includes source, toolchain, CRT and build flags. Parallel builds of both applications must
+are separate. Consumer outputs use `.build/dependencies/DxUi/<first-16-fingerprint-hex>/<platform>/<configuration>/`
+beneath that consumer, retaining the complete SHA256 fingerprint in verified identity metadata. The fingerprint
+includes source, toolchain, CRT and build flags. Parallel builds of both applications must
 not share writable intermediates or vcpkg work trees.
 
 Pin WIL and any other extracted dependency with the library; no implicit reuse of whatever headers are on the
@@ -121,6 +124,9 @@ Microsoft.Cpp.targets. Set DxUiRoot, DxUiConsumerLockFile and DxUiConsumerOutput
 Compile with Unicode, stdcpplatest, v145 and the matching /MDd or /MD runtime. The public example's source includes
 only public DxUi headers and ordinary Windows/WIL headers; it never reaches src. Diagnostic hook availability is
 fixed in Configuration.h and must not be overridden by consumers.
+The relocated consumer fixture copies the sample's shared ComplexUi scene into its own sample tree and adds
+that copied directory to its compilation include search. It must compile without private library source paths
+or include directories inherited from the developer checkout.
 
 `build.ps1` presents a DxUi banner and color-classifies streamed MSBuild diagnostics in interactive terminals while
 preserving plain redirected output and a complete file log. It rejects only running executables in the selected
@@ -219,7 +225,7 @@ without a change of its own:
 
 Additions do not increment it. Instead of incrementing, a change may keep the old form working for one revision: an alias for
 a renamed declaration, or a script or function that forwards to its replacement. The next increment removes it. Such an
-alias carries no `[[deprecated]]` attribute, since consumers compile with warnings as errors; the changelog names it and its
+alias carries no `[[deprecated]]` attribute, since consumers require zero-warning builds; the changelog names it and its
 replacement. The changelog fragment of a change that increments the revision says so and lists what each consumer must
 change.
 
@@ -312,3 +318,5 @@ qualifications passed, with independently replayed original ZIPs and completion 
 initial-focus limitations and a separate local x64 Release Menu supplement. It does not establish blanket physical-input
 or performance acceptance. Strict paired preflight matched after complete-catalog project staging. All original calculations replayed, but final publication refused the unqualified base policy; unstable controls and dual-judge disagreements also remain open. The external main merge has the same reviewed tree. A separate main x64 Debug NativeTextInput failure remains unattributed; this record does not replace or retag either cohort.
 Provider runner-file hashes and exact source Git-blob hashes have explicitly different representation labels.
+
+The [native policy, console and dependency-path contract](Build_ConsoleAndPaths.md) owns /Wall without /WX, zero-warning acceptance, Debug/ASan symbols, Release-only ICF, common terminal results and verified short dependency folders.
