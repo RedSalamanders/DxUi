@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "packetStatus": "preserved-0a-ordinary-pass-hosted-native-failed; active-corrected-source-unqualified",
+  "packetStatus": "preserved-0a-history; current-9d-recovery-candidate-not-qualified; latest-hosted-base-run-in-progress",
   "producerSource": {
     "repository": "RedSalamanders/DxUi",
     "commit": "0a2279c7ea658e4bb0cf185cb7a04a2da08299d3",
@@ -539,18 +539,20 @@
     }
   ],
   "openOwnerGates": [
-    "0a2279c full 57-suite ordinary x64 runtime",
-    "0a2279c twelve-suite cross-profile foreground obligation",
-    "0a2279c final static/tooling and hosted CI",
-    "shared performance policy and controls",
-    "consumer and physical-platform gates"
+    "Current recovery candidate has no current-source qualification; commit and bind it before claims.",
+    "Six local build profiles and 57 ordinary x64 runtime executions remain pending for the current candidate.",
+    "The 12-suite cross-profile foreground matrix remains pending; the 8-case x64 Debug smoke is a narrower baseline result.",
+    "Final full static qualification remains pending for the current candidate; the prior 9d base attempt failed validation.",
+    "Fresh hosted qualification of the committed current candidate remains pending; run 40791275031 covers only the unchanged base.",
+    "Shared performance-policy/control review remains inconclusive and separate.",
+    "Consumer adoption and native ARM64/runtime gate remain separately open."
   ],
   "closeoutTodo": [
-    "Finish the 57-suite ordinary x64 runtime on 0a2279c with source-bound receipts.",
-    "Complete the twelve-suite cross-profile foreground obligation on 0a2279c with actual ASan and restoration evidence.",
-    "Integrate the reviewed timeout fixture correction and rerun full static/tooling for 0a2279c.",
-    "Recheck PR #128 and hosted CI before reporting a final verdict.",
-    "Keep performance acceptance and consumer/platform gates separate."
+    "Commit only after root review, then qualify the final current source with six local build profiles and 57 ordinary x64 runtime executions.",
+    "Run the full 12-suite cross-profile foreground matrix with actual ASan execution and restoration evidence.",
+    "Run fresh full static validation/format/Explain/PrePush on the final integrated source; preserve the prior 9d validation failure.",
+    "Check and record the final hosted run for the committed candidate; do not reuse base-only 9d results.",
+    "Keep performance acceptance, consumer adoption and physical/platform gates separate."
   ],
   "historicalTestOnlyExperiments": [
     {
@@ -586,6 +588,86 @@
     "originalFlatTemplateSha256": "F25D4B3D0CDFE63B288738D812A5C70825B4021CD4E5B5E8C80489AE79708B78"
   },
   "activeCandidate": {
+    "branch": "ej/consumer-progress-recovery-20261029",
+    "status": "QUALIFICATION_PENDING",
+    "baseCommit": "9d974c0efbc24ea3168afaf7d0953f2000b797e2",
+    "sourceCommit": null,
+    "trackedSourceState": "two modified files on the new branch; no candidate commit yet",
+    "workingTreeSourceHashes": {
+      "Tools/ConsumerQualification.psm1": "953A671E98BCB3973DC4DE2390584B238F56E82B7036F45F68562A55C9363DAC",
+      "Tools/tests/Test-ConsumerQualification.ps1": "7DBA817B1A6413C8F0630B2C889259207034BE3CFEC671A916EE9EE62A598907"
+    },
+    "priorLocalStatic": {
+      "sourceCommit": "9d974c0efbc24ea3168afaf7d0953f2000b797e2",
+      "status": "FAILED_VALIDATION",
+      "format": "PASS",
+      "validate": "FAIL",
+      "testChangesExplain": "PASS",
+      "testPrePushExplain": "PASS",
+      "receiptSha256": "4E5B1E57FAD85B694986D0DB276C33AE37C110CDC6DC2F90AD6B7FC980020FB4",
+      "note": "This attempt is on the unchanged base source and is retained; current dirty candidate still needs a fresh full static run."
+    },
+    "focusedPublisherRetry": {
+      "status": "PASS_FOCUSED_DEVELOPMENT_ONLY",
+      "passed": 12,
+      "expected": 12,
+      "exitCode": 0,
+      "moduleSha256": "953A671E98BCB3973DC4DE2390584B238F56E82B7036F45F68562A55C9363DAC",
+      "testSha256": "7DBA817B1A6413C8F0630B2C889259207034BE3CFEC671A916EE9EE62A598907",
+      "stdoutSha256": "63C54FDBACD71F2108BEEA5154E375D983971B4E3A3E268C3345738EFC7AC2E0",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "note": "Private copied suite for the exact current module/test. It is not a full static or repository pass. Counterfactual v1 red and v2 green prove the post-identity deadline guard prevents a second replace after the retry admission window.",
+      "readOnlyTargetWin32Code": 5,
+      "readOnlyRetryWaits": 0,
+      "replaceFile1175Observed": false
+    },
+    "focusedMenuSmokeOnBase": {
+      "sourceCommit": "9d974c0efbc24ea3168afaf7d0953f2000b797e2",
+      "profile": "x64-Debug",
+      "status": "PASS_FOCUSED",
+      "passed": 8,
+      "expected": 8,
+      "skips": 0,
+      "exitCode": 0,
+      "buildIdentity": "ba1503d63bba9186b0951e0a7963b1b0fc9c3450ba09096106e03cd8391eeb49",
+      "callerReceiptSha256": "AE1D3C2B10DFDEBBD15C7B116285F3BBA4976465BDFDECD87F77275A7C9115D7",
+      "testLogSha256": "C8BCCD13BEB24627DD5382206BC3988B0928CE15CCF6ACC9CAAED5A97676A98C",
+      "leaseRestoration": "verified",
+      "note": "This earlier smoke is bound to the base source, not the recovery candidate, and does not replace the 12-suite foreground matrix."
+    },
+    "hostedBaseRun": {
+      "runId": 40791275031,
+      "url": "https://github.com/RedSalamanders/DxUi/actions/runs/40791275031",
+      "sourceCommit": "9d974c0efbc24ea3168afaf7d0953f2000b797e2",
+      "capturedAtUtc": "2026-10-29T00:55:04Z",
+      "status": "IN_PROGRESS",
+      "windowsLinuxTooling": "PASS",
+      "format": "PASS",
+      "validation": "PASS",
+      "nativeScope": "PASS",
+      "nativeProfiles": {
+        "x64-Debug": "PASS",
+        "x64-Release": "PASS",
+        "x64-ASan-Debug": "IN_PROGRESS",
+        "ARM64-Debug": "IN_PROGRESS",
+        "ARM64-Release": "IN_PROGRESS",
+        "ARM64-ASan-Debug": "IN_PROGRESS"
+      },
+      "pairedBenchmark": "IN_PROGRESS",
+      "candidateApplicability": "base-only; current recovery candidate has no hosted run"
+    },
+    "required": [
+      "six local build profiles for current candidate",
+      "57 ordinary x64 suite executions for current candidate",
+      "12-suite cross-profile foreground matrix with ASan execution and restoration",
+      "full format/validation/Explain/PrePush static qualification on the final integrated source",
+      "fresh hosted native/consumer/paired run for the committed candidate",
+      "separate performance policy/control review and consumer/platform gates"
+    ],
+    "changes": "Preserves the already-reviewed initial-A setup correction and changes only consumer progress publication retry admission. Initial create remains non-overwriting; Windows updates may retry only Win32 32/1175 after exact target/pending file identity, length and SHA-256 checks, with at most 3 replace calls, 2 x 25 ms waits and a 250 ms retry-admission window rechecked after verification. Persistent, unknown and changed-state errors remain fatal; no phase-body restart.",
+    "ciContractDependency": "Tools/TestRunEvidence.psm1 is already present in Tests/test-scopes.json prContractFiles as the transitive NTFS file-identity helper; the canonical digest below is refreshed for the changed ConsumerQualification module and test."
+  },
+  "historical0aActiveCandidate": {
     "branch": "ej/menu-pointer-setup-and-validation-20261029",
     "status": "NOT_QUALIFIED",
     "sourceCommit": null,
@@ -598,5 +680,14 @@
       "fresh hosted qualification"
     ],
     "changes": "Stationary root-switch pointer setup order and consumer-journal readiness; production source unchanged from0a"
-  }
+  },
+  "historical0aOpenOwnerGates": [
+    "Current recovery candidate has no current-source qualification; commit and bind it before claims.",
+    "Six local build profiles and 57 ordinary x64 runtime executions remain pending for the current candidate.",
+    "The 12-suite cross-profile foreground matrix remains pending; the 8-case x64 Debug smoke is a narrower baseline result.",
+    "Final full static qualification remains pending for the current candidate; the prior 9d base attempt failed validation.",
+    "Fresh hosted qualification of the committed current candidate remains pending; run 40791275031 covers only the unchanged base.",
+    "Shared performance-policy/control review remains inconclusive and separate.",
+    "Consumer adoption and native ARM64/runtime gate remain separately open."
+  ]
 }

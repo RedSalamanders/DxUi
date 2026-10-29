@@ -2,11 +2,99 @@
 # it must retain the active conformance case when an external CI watchdog ends the process.
 # It never substitutes for the final ExternalConsumer receipt.
 Set-StrictMode -Version Latest
+
+if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT -and -not ('TestRunEvidenceV2.Native' -as [type])) {
+    $script:evidenceModule = Import-Module -Name (Join-Path $PSScriptRoot 'TestRunEvidence.psm1') -PassThru -Verbose:$false
+    & $script:evidenceModule { Initialize-TestRunEvidenceNative }
+}
+
+function Get-ConsumerProgressFileSnapshot([string] $Path) {
+    $handle = [TestRunEvidenceV2.Native]::Pin($Path, $false)
+    try {
+        $identity = [TestRunEvidenceV2.Native]::Identity($handle)
+        $stream = [IO.FileStream]::new($handle, [IO.FileAccess]::Read, 4096, $false)
+        try {
+            $sha = [Security.Cryptography.SHA256]::Create()
+            try {
+                $hash = [Convert]::ToHexString($sha.ComputeHash($stream))
+                return [pscustomobject]@{ Path = $Path; Identity = $identity; Length = $stream.Length; Sha256 = $hash }
+            } finally { $sha.Dispose() }
+        } finally { $stream.Dispose() }
+    } finally { if (-not $handle.IsClosed) { $handle.Dispose() } }
+}
+
+function Test-ConsumerProgressFileSnapshotEqual($Expected, $Actual) {
+    return $Expected.Path -ceq $Actual.Path -and $Expected.Identity -ceq $Actual.Identity -and
+        $Expected.Length -eq $Actual.Length -and $Expected.Sha256 -ceq $Actual.Sha256
+}
+
+function Assert-ConsumerProgressFilesUnchanged($ExpectedTarget, $ExpectedTemporary, [int] $Code, [int] $Attempt, [Exception] $Failure) {
+    try {
+        $targetNow = Get-ConsumerProgressFileSnapshot $ExpectedTarget.Path
+        $temporaryNow = Get-ConsumerProgressFileSnapshot $ExpectedTemporary.Path
+    } catch {
+        Write-Verbose "DXUI_CONSUMER_PUBLISH_RETRY_REFUSED code=$Code attempt=$Attempt reason=identity-read-failed"
+        throw [IO.IOException]::new("Consumer journal state could not be verified after replace error $Code; refusing retry.", $Failure)
+    }
+    if (-not (Test-ConsumerProgressFileSnapshotEqual $ExpectedTarget $targetNow) -or
+        -not (Test-ConsumerProgressFileSnapshotEqual $ExpectedTemporary $temporaryNow)) {
+        Write-Verbose "DXUI_CONSUMER_PUBLISH_RETRY_REFUSED code=$Code attempt=$Attempt reason=identity-or-content-changed"
+        throw [IO.IOException]::new("Consumer journal or pending identity/content changed after replace error $Code; refusing retry.", $Failure)
+    }
+}
+
+function Get-ConsumerReplaceWin32Code([Exception] $Exception) {
+    $unsigned = [BitConverter]::ToUInt32([BitConverter]::GetBytes([int] $Exception.HResult), 0)
+    if (($unsigned -shr 16) -ne 0x8007) { return $null }
+    return [int] ($unsigned -band 0xFFFF)
+}
+
 function Save-ConsumerQualificationProgress($Progress,[switch]$Initial) {
     $temporary=$Progress.Path+'.pending-'+[guid]::NewGuid().ToString('N')
     [IO.File]::WriteAllText($temporary,($Progress.Record|ConvertTo-Json -Depth 12),[Text.UTF8Encoding]::new($false))
-    if($Initial){[IO.File]::Move($temporary,$Progress.Path)}
-    else{[IO.File]::Replace($temporary,$Progress.Path,[System.Management.Automation.Language.NullString]::Value)}
+    if($Initial){[IO.File]::Move($temporary,$Progress.Path);return}
+    if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
+        [IO.File]::Replace($temporary,$Progress.Path,[System.Management.Automation.Language.NullString]::Value)
+        return
+    }
+
+    $maxAttempts = 3
+    $maxElapsed = [TimeSpan]::FromMilliseconds(250)
+    $retryDelayMs = 25
+    # Retry only Win32 sharing violation (32) and ReplaceFile's non-destructive 1175;
+    # both paths must still resolve to the same file IDs and bytes before another call.
+    $retryableCodes = @(32, 1175)
+    $targetBefore = Get-ConsumerProgressFileSnapshot $Progress.Path
+    $temporaryBefore = Get-ConsumerProgressFileSnapshot $temporary
+    $timer = [Diagnostics.Stopwatch]::StartNew()
+    $previousFailure = $null
+    $previousCode = 0
+    for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+        if ($attempt -gt 1 -and $timer.Elapsed -ge $maxElapsed) { throw $previousFailure }
+        if ($attempt -gt 1) {
+            Assert-ConsumerProgressFilesUnchanged $targetBefore $temporaryBefore $previousCode ($attempt - 1) $previousFailure
+            if ($timer.Elapsed -ge $maxElapsed) {
+                Write-Verbose "DXUI_CONSUMER_PUBLISH_RETRY_REFUSED code=$previousCode attempt=$($attempt - 1) reason=deadline-after-identity elapsedMs=$([int] $timer.Elapsed.TotalMilliseconds)"
+                throw $previousFailure
+            }
+        }
+        try {
+            [IO.File]::Replace($temporary,$Progress.Path,[System.Management.Automation.Language.NullString]::Value)
+            if ($attempt -gt 1) { Write-Verbose "DXUI_CONSUMER_PUBLISH_RETRY_SUCCESS attempt=$attempt max=$maxAttempts" }
+            return
+        } catch {
+            $failure = $_.Exception.GetBaseException()
+            $code = Get-ConsumerReplaceWin32Code $failure
+            if ($code -notin $retryableCodes -or $attempt -ge $maxAttempts -or $timer.Elapsed -ge $maxElapsed) { throw $failure }
+            Assert-ConsumerProgressFilesUnchanged $targetBefore $temporaryBefore $code $attempt $failure
+
+            if (($timer.Elapsed + [TimeSpan]::FromMilliseconds($retryDelayMs)) -ge $maxElapsed) { throw $failure }
+            $previousFailure = $failure
+            $previousCode = $code
+            Write-Verbose "DXUI_CONSUMER_PUBLISH_RETRY code=$code attempt=$attempt max=$maxAttempts elapsedMs=$([int] $timer.Elapsed.TotalMilliseconds)"
+            Start-Sleep -Milliseconds $retryDelayMs
+        }
+    }
 }
 function New-ConsumerQualificationProgress {
     [CmdletBinding()]param([Parameter(Mandatory)][string]$Path,[Parameter(Mandatory)][hashtable]$Context)

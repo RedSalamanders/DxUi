@@ -305,13 +305,23 @@ case and the restored clean pin record a start, outcome and monotonic duration. 
 `status=incomplete` and the active case intact; no later final receipt is inferred. Ten distinct successful negative
 cases are required before publishing `ExternalConsumer-*.json`; progress becomes completed only after that matching
 final receipt exists. Progress is never counted as a final consumer result. The workflow's existing reports upload
-retains both incomplete progress and completed receipts after failure. `Tools/ConsumerQualification.psm1` owns this
-test-case journal separately from fixed build-stage timing, and its fixtures cover interruption, failure, duplicate
-cases, missing checks and wrong-source final receipts. The initial journal publication is non-overwriting;
-later snapshots replace the existing journal atomically. A concurrent polling reader must allow delete sharing:
-its open handle may retain a coherent old snapshot while the path names the new one. Use `File.Replace` for
-updates with an explicit CLR-null backup argument; PowerShell's ordinary `$null` can bind as an empty path.
-Publication failures remain errors and never start or count a conformance phase. The external-timeout fixture's
+retains both incomplete progress and completed receipts after failure. `Tools/ConsumerQualification.psm1` is the
+sole writer for this owner-process journal, separately from fixed build-stage timing, and its fixtures cover
+interruption, failure, duplicate cases, missing checks and wrong-source final receipts. Initial journal creation is
+non-overwriting; later snapshots replace the existing journal atomically. A concurrent polling reader must allow
+delete sharing: its open handle may retain a coherent old snapshot while the path names the new one. Use
+`File.Replace` for updates with an explicit CLR-null backup argument; PowerShell's ordinary `$null` can bind as an
+empty path.
+
+On Windows, update publication may retry only `HRESULT_FROM_WIN32(ERROR_SHARING_VIOLATION)` (32) or
+`HRESULT_FROM_WIN32(ERROR_UNABLE_TO_REMOVE_REPLACED)` (1175). Before a retry, the existing destination and pending
+file must still have their original file identities, lengths and SHA-256 values. Recheck this state immediately
+before the next `File.Replace`; recheck the elapsed deadline after those identity/hash reads and refuse a new
+replacement when the 250 ms retry-admission window has expired. Allow at most three replacement calls and two
+25 ms waits. This is an admission bound, not a hard total-wall-time bound: a synchronous OS replacement or
+identity/hash operation cannot be interrupted. Persistent locks, unknown errors, failed identity reads, or any
+changed file state fail visibly and never restart the conformance phase body. Publication failures remain errors
+and never start or count a conformance phase. The external-timeout fixture's
 child writes a readiness payload to a distinct pending path only from inside the phase body, after the module
 has published `activePhase`; it closes that file and moves it without replacement to the final marker path.
 The parent holds the child after the pending file appears, verifies that this staged file is not readiness,
