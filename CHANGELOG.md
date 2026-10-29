@@ -4,6 +4,10 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Plan the production review of the 18-28 October merges (#87-#121) in
+  `Specs/Plans/WIP/CodeReview_2026-10-28.md`: verified findings by priority, incomplete claimed fixes, still-open
+  audit and review items, simplification proposals and developer questions. Review only; no library, test or tooling
+  behavior changed, and nothing was built or run.
 - Archive compact source-bound control diagnostics and qualification for the v3 profiling extension: all six local and hosted native profiles and 57 normal x64 suite executions pass, with actual ASan detection. Independently replay all 34 diagnostic processes; retain blocking-readback and slower CallingThread observations without changing canonical inputs, historical findings or the open performance-policy gate.
 - Add a separate v3 complex-UI boundary diagnostic for explicit default, multiline and distinct-grid clean/dirty scenes, retaining frame-aligned QPC edges and surrounding owner CPU-query brackets with strict schema/runner controls. Canonical benchmark inputs, performance bands and policy remain unchanged; native qualification and causal interpretation remain open.
 - Record exact SDK086 qualification across six hosted native profiles and external consumers, plus all twelve local keyboard/menu suite runs with zero skips and verified restoration. Preserve the actual sanitizer detections, ICF type-safety evidence and exact-pin RedTilde results while keeping performance policy, consumer platform and release holds explicit.
