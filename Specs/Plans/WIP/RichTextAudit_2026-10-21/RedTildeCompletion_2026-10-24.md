@@ -419,3 +419,16 @@ The test-only counterfactual on source `4faf16ed647df71cd7d5623c1682738592771c3e
 The reviewed implementation skips `IDWriteTextLayout1` queries and `SetCharacterSpacing` calls only when a Label typography override's character spacing is zero. Nonzero spacing retains the previous query, mutation and failure handling; retained layouts and cache identity are unchanged. DirectWrite's zero default was checked on a fresh layout at both the first and last text positions, and a test-only parity case on the unchanged `cd35e988` source passed in x64 Release (`20261025T171341303Z-11288-66b6a0e4678547d8b999ac5d0f0dfa47`). It compares RTL wrapped metrics and role-default versus exact-default override pixels for LTR, wrapped RTL and mnemonic text, while checking that nonzero tracking remains visible. The x64 Release build and this baseline parity case passed before the production change. The candidate build and rerun are pending; the six-profile matrix, ordinary Full suites, paired performance validation, and interactive/platform obligations remain open.
 
 The baseline test run also emitted its standard unpaired complex-UI report; it is not optimization evidence. An initial test invocation used the nonexistent suite name `IntrinsicLayout` and was rejected before running tests; the corrected `Control` suite passed. A first, superseded test overlay failed to compile after including unintended fixture edits; that source/log is preserved privately and is not a product failure. The corrected test-only overlay is the sole baseline test change. Four interactive suites passed on the unchanged `cd35e988` source (`20261025T162748129Z-13244-69ae807e8df24109ad5544547bc053ff`); this is source-bound baseline proof, not candidate interactive qualification. A separate hosted ARM64 Debug success is not attributed to this candidate source. Current CI/profile and all consumer gates remain separately tracked.
+
+
+### Clean Prepare result classification correction — 29 October
+
+- [x] Require exact `S_FALSE` for every diagnostic batch and warmup call, with sticky rejection of an early
+  `S_OK` followed by `S_FALSE`; retain no-work counters, state fingerprints and normalization checks.
+- [x] Cover earlier failure, alternate success and already-rejected state in the same native oracle.
+- [ ] Qualify six isolated builds and the x64 Debug, Release and ASan Debug Embedded functional/oracle paths.
+
+This is a diagnostic test correction. It does not demonstrate dirty work in historical observations, alter the
+library or canonical benchmark/policy, or close the inconclusive paired evidence. Existing F/660 qualification
+products are preserved. Direct isolated native results will be reported separately from the default runner's
+performance attestation; no new performance collection or foreground input is part of this slice.

@@ -833,10 +833,12 @@ alternating preparation/reference order, all raw ticks, frequency, call counts a
 reference is a separate observation; never subtract it from canonical metrics or change their investigation bands.
 Verify unchanged preparation/composition counters, resource statistics and the sampled model/slider/progress/Grid
 selection state. These consistency fingerprints do not establish every control's state or visual equivalence.
-The native `--test-clean-prepare-timer-oracle` checks the call/tick normalization and real prepared-scene invariants;
+Every actual clean Prepare call in each batch and warmup must return exactly `S_FALSE`. A sticky all-results
+check rejects an earlier `S_OK`, other success code or failure even if the final result is `S_FALSE`; the native
+`--test-clean-prepare-timer-oracle` covers that rejection as well as call/tick normalization and real prepared-scene invariants;
 unknown argument counts fail before functional suites, and reports refuse to overwrite existing evidence. A
 batched diagnostic does not replace the canonical clean preparation p95, same-side controls or policy review.
-The bracket includes HRESULT and loop bookkeeping; normalized values are bracket averages, not isolated method
+The bracket includes HRESULT checks, `S_FALSE` classification and loop bookkeeping; normalized values are bracket averages, not isolated method
 latency. The [control investigation](../../Measurements/RedTildeCompletion_2026-10-24/controls-investigation-20261025/README.md)
 retains aggregate replay and diagnostic limits. Internal assertions cover more state than the serialized subset.
 
