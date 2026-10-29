@@ -1,5 +1,7 @@
 # Independent DxUi measurements
 
+- [Final PR134 paired comparison, 29 October](RedTildeCompletion_2026-10-24/pr134-paired-20261029/README.md): all 144 receipts and 78 rows replay; five raw flags, zero Holm regressions and no exact-budget rises coexist with 71/72 unstable controls and an inconclusive unqualified-policy verdict.
+
 - [Clean-Prepare hosted native qualification, 29 October](RedTildeCompletion_2026-10-24/pr134-native-20261029/README.md): six actual x64/ARM64 native profiles, 126 declared Full results, two real ASan detections and eight consumer modes pass. Paired policy/control acceptance remains separate.
 
 - [Separate clean-Prepare precision diagnostic, 29 October](RedTildeCompletion_2026-10-24/clean-prepare-precision8-20261029/README.md): eight process replicates and all 64 per-process summaries; normalized batch means and empty-loop context do not replace canonical per-call p95.

@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Publish the final PR134 paired comparison with complete metric/control projections, role-bound retained binaries and independent replay. Preserve five raw flags, zero Holm regressions and no exact-budget rises alongside 71/72 unstable controls and the unqualified-policy CI refusal; consumer adoption and hosted RedTilde ARM64 stay open.
 - Publish reviewed clean-Prepare qualification and precision evidence: all six hosted native profiles, 126 declared Full outcomes, two separate ASan detections and eight consumer modes pass. Preserve all 64 summaries from the separate eight-process batch diagnostic and its measurement limits; keep paired-policy, consumer and physical-platform acceptance open.
 - Qualify the clean Prepare diagnostic correction with six isolated builds, all three x64 Embedded/oracle profiles, a new sanitizer detection probe and affected tooling checks; preserve prior products and reports. Native ARM64, foreground and paired performance gates remain separate.
 - Require exact S_FALSE throughout clean Prepare diagnostic batches and warmups, with sticky negative oracle coverage and unchanged no-work/state guards. Library behavior, benchmark policy and historical evidence conclusions remain unchanged.
