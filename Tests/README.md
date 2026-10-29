@@ -18,7 +18,8 @@ Native test files use `<Component>.Tests.Something.h/.cpp`, with a real componen
 
 `Embedded` also checks the prepared-state and normalization oracle for the clean
 Prepare timer diagnostic. Its isolated `--test-clean-prepare-timer-oracle` entry
-point runs the same assertions. The opt-in command
+point runs the same assertions, including sticky rejection of an earlier non-`S_FALSE` result in a clean batch
+and exact `S_FALSE` for every warmup. Prepared-state and no-work counters remain independently checked. The opt-in command
 `DxUi.EmbeddedTests.exe --benchmark-clean-prepare-floor <fresh-report.json> <unsigned-seed>`
 retains raw QPC ticks for 1, 8, 64 and 512 clean calls per bracket, with a separate
 empty-loop reference. It refuses an existing report path. These observations

@@ -2,6 +2,15 @@
 
 ## Progress checklist
 
+### Latest functional and diagnostic qualification — 29 October 2026
+
+- [x] Require every clean-Prepare timer diagnostic warmup/batch call to return `S_FALSE`, with sticky negative oracles for earlier non-no-op results. Native producer `8ccb8a14`, metadata head `c1c207a8`, [PR134](https://github.com/RedSalamanders/DxUi/pull/134). Library/public API and canonical metrics/bands/policy are unchanged; gallery pixels need no update for this diagnostic validation change.
+- [x] Qualify the local producer in all six canonical build profiles, three x64 explicit oracles and three complete Embedded runs, with actual ASan detection and full affected tooling/validators. Isolated outputs preserve 76 prior products and 301 reports. Local ARM64 results are cross-builds; the direct native runs are scoped evidence, not a default full-run attestation.
+- [x] Qualify actual hosted x64 and ARM64 Debug/Release/ASan execution in run `40869356681`, compiled merge `b7d43757`, whose Git tree equals published head `c1c207a8`. All six jobs, 126 declared Full suite outcomes and eight consumer modes pass with zero skips; two expected ASan detections are separate. Independent artifact replay verifies 505 payload hashes. Native ZIPs record executable identity but omit raw executables; literal hosted focus states do not qualify physical IME/AT. See the [reviewed native packet](../../../../Measurements/RedTildeCompletion_2026-10-24/pr134-native-20261029/README.md).
+- [x] Complete one separately declared eight-process precision diagnostic and independently replay all 1,024 rows/74,880 timed calls per role. The median of sixteen 512-call normalized batch means per process is 16.016–16.211 ns/call; all within-process ranges, including larger outliers, remain visible. Empty-loop values remain separate. A normalized QPC step is arithmetic granularity, not accuracy or isolated latency. See the [complete 64-summary projection](../../../../Measurements/RedTildeCompletion_2026-10-24/clean-prepare-precision8-20261029/README.md). This does not replace per-call p95, prove a quiet host, explain every control, or approve policy.
+- [x] Complete PR134 paired collection and evidence replay in run `40869356681`: 144 raw receipts, 78 metric rows, 936 block effects and all 72 control vectors reconcile. Five raw flags remain visible, zero rows meet the Holm regression criterion, and no exact budget rises; 71/72 controls remain unstable. Both timed executable streams are bound to raw roles. The verdict publisher and overall CI fail under the unqualified measured-base policy. See the [final paired packet](../../../../Measurements/RedTildeCompletion_2026-10-24/pr134-paired-20261029/README.md). This completes collection/replay, not performance acceptance or integration.
+- [ ] Keep shared performance-policy/control, consumer adoption and physical-platform/release obligations open. The RedTilde owner accepts only +2.0045% Compose and +2.2195% Split working set for the current feature set; that decision closes the application memory cost/advice item and does not approve SDK policy or noisy command controls. Hosted RedTilde ARM64 remains separately billing-blocked: exact documentation head `ff7911a6` run `40894072056` starts zero steps with explicit payment/spending-limit annotations. The SDK086 consumer pin remains unchanged.
+
 ### Current 2fed qualification checkpoint — 25 October 2026
 
 - [x] PR #102 integration: merged as `97b26bad7fcdb0aa3dbb2efd4bceac77aab5a295`; merged tree `2c0641bc363bf713cfc709d721c3f6549dd5aef8` is identical to reviewed DxUi source `2fed82465dcee9f213753754e0e8e54f353cf38f`.
@@ -419,3 +428,28 @@ The test-only counterfactual on source `4faf16ed647df71cd7d5623c1682738592771c3e
 The reviewed implementation skips `IDWriteTextLayout1` queries and `SetCharacterSpacing` calls only when a Label typography override's character spacing is zero. Nonzero spacing retains the previous query, mutation and failure handling; retained layouts and cache identity are unchanged. DirectWrite's zero default was checked on a fresh layout at both the first and last text positions, and a test-only parity case on the unchanged `cd35e988` source passed in x64 Release (`20261025T171341303Z-11288-66b6a0e4678547d8b999ac5d0f0dfa47`). It compares RTL wrapped metrics and role-default versus exact-default override pixels for LTR, wrapped RTL and mnemonic text, while checking that nonzero tracking remains visible. The x64 Release build and this baseline parity case passed before the production change. The candidate build and rerun are pending; the six-profile matrix, ordinary Full suites, paired performance validation, and interactive/platform obligations remain open.
 
 The baseline test run also emitted its standard unpaired complex-UI report; it is not optimization evidence. An initial test invocation used the nonexistent suite name `IntrinsicLayout` and was rejected before running tests; the corrected `Control` suite passed. A first, superseded test overlay failed to compile after including unintended fixture edits; that source/log is preserved privately and is not a product failure. The corrected test-only overlay is the sole baseline test change. Four interactive suites passed on the unchanged `cd35e988` source (`20261025T162748129Z-13244-69ae807e8df24109ad5544547bc053ff`); this is source-bound baseline proof, not candidate interactive qualification. A separate hosted ARM64 Debug success is not attributed to this candidate source. Current CI/profile and all consumer gates remain separately tracked.
+
+
+### Clean Prepare result classification correction — 29 October
+
+- [x] Require exact `S_FALSE` for every diagnostic batch and warmup call, with sticky rejection of an early
+  `S_OK` followed by `S_FALSE`; retain no-work counters, state fingerprints and normalization checks.
+- [x] Cover earlier failure, alternate success and already-rejected state in the same native oracle.
+- [x] Qualify six isolated builds and the x64 Debug, Release and ASan Debug Embedded functional/oracle paths.
+
+This is a diagnostic test correction. It does not demonstrate dirty work in historical observations, alter the
+library or canonical benchmark/policy, or close the inconclusive paired evidence. Existing F/660 qualification
+products are preserved. Direct isolated native results will be reported separately from the default runner's
+performance attestation; no new performance collection or foreground input is part of this slice.
+
+Qualification is bound to native test source `8ccb8a148b392be3712d4c0d6048dfeb1fd0be94`: canonical x64 and
+ARM64 Debug, Release and ASan Debug isolated builds pass. Each x64 profile passes the explicit
+`--test-clean-prepare-timer-oracle` and full Embedded functional entry point (460,400 Debug, 437,322 Release and
+460,400 ASan Debug checks). The new isolated ASan Foundation executable diagnoses the deliberate use-after-free
+with actual exit 1 and restored `ASAN_OPTIONS`; the detector gate passes. Affected Tooling and all five validators
+pass, reporting `SELECTED_PASSED; repository NOT_EVALUATED`. All 76 earlier default product files and 301 existing
+reports remain byte-identical. This metadata follow-up does not relabel the native runs as a new producer.
+
+The isolated direct-entrypoint evidence does not establish the default runner's performance attestation,
+native ARM64, foreground or paired performance qualification. No new performance collection, benchmark policy
+change, control-stability approval or historical dirty-work inference is made.
