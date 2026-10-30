@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Document the explicit organization-owner, PR-only emergency merge route with a recorded reason and exact-head match; preserve actual checks and native publication qualification.
 - Include the reviewed native build policy in the portable SDK, qualify the extracted consumer with zero warnings, and prove consumer-owned warnings still fail validation.
 - Retain stdout/stderr and real exit codes for windowless hosted native commands through the common pinned CI engine v1.0.4.
 - Upgrade the shared CI engine to v1.0.3, fixing manual formatter staging and distinct artifact/publication outputs. Preserve failed pilot receipts and require fresh native qualification for the new engine identity.
