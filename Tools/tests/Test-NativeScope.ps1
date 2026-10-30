@@ -1,3 +1,4 @@
+# Historical NativeScope compatibility fixtures; current CI uses the pinned common classifier and callers.
 # Which runs of the validation workflow need its six native jobs: the documentation rules (every kind of documentation, and
 # everything else, this repository's tracked files included), the scope step on fixture merge commits and for pushes and
 # manual runs, and the triggers and wiring of the workflows. Everything runs against fixture repositories; no build or runner
@@ -171,207 +172,42 @@ Invoke-FixtureCase 'a pull request builds natively unless it changes documentati
     Assert-Throws { & (Join-Path $repository 'Tools/Get-NativeScope.ps1') -EventName 'pull_request' -BaseRef 'main' -Repository $empty 6>$null } 'a pull request whose commits cannot be read fails the step'
 }
 
-# --- The workflows ----------------------------------------------------------------------------------------------------------
-
-$workflow = [IO.File]::ReadAllText((Join-Path $repository '.github/workflows/ci.yml'))
-
-function Get-WorkflowJob([string] $Name) {
-    # The text of one job: from its key at two spaces of indentation to the next key there.
-    $match = [regex]::Match($workflow, "(?ms)^  ${Name}:\r?\n(?<body>.*?)(?=^  [A-Za-z0-9_-]+:\r?\n|\z)")
-    if (-not $match.Success) { throw "ci.yml has no job $Name" }
-    return $match.Groups['body'].Value
+# --- Current shared workflow contract (legacy scope command tests above remain compatibility coverage) --------------------
+$engine = Join-Path $repository '.ci-engine'
+Import-Module (Join-Path $engine 'Tools/Modules/Ci.Policy.psm1')
+Import-Module (Join-Path $engine 'Tools/Modules/Ci.Project.psm1')
+Invoke-TestCase 'the current caller is pinned and PR delegation has no native profiles' {
+    $project=Read-CiProject $repository
+    Test-CiProjectConfiguration @{root=$repository;engineRoot=$engine;project=$project;development=$false}
+    Assert-Equal 0 @((Get-Content (Join-Path $repository 'Tests/test-scopes.json') -Raw|ConvertFrom-Json).prCoverage).Count 'native PR delegation is empty'
+    $pr=[IO.File]::ReadAllText((Join-Path $engine '.github/workflows/pr.yml'))
+    Assert-True ($pr.Contains("CI_NATIVE_BUILDS_DISABLED: 'true'")) 'PR tooling cannot enter native builds'
+    Assert-True (-not ($pr -match 'setup-msvc|build.ps1|test-consumer.ps1')) 'PRs do not execute native producer or compiler fixtures'
 }
-
-function Assert-NativeWorkflowBudgets([string] $Native, [object[]] $Profiles) {
-    Assert-True ($Native -cmatch '(?m)^      fail-fast: false\r?$') 'a profile failure cannot cancel the other native producers'
-    Assert-True ($Native -cmatch '(?m)^    timeout-minutes: \$\{\{ matrix\.jobTimeoutMinutes \}\}\r?$') 'the enclosing timeout follows the selected matrix row'
-    $rows = [regex]::Matches($Native, '(?ms)^          - platform: (?<platform>\S+)\r?\n(?<body>.*?)(?=^          - platform:|^    runs-on:|\z)')
-    Assert-Equal 6 $rows.Count 'six native profiles retain their own job budgets'
-    Assert-Equal $Profiles.Count $rows.Count 'the native matrix matches the scoped PR profile count'
-    $expected = @($Profiles | ForEach-Object { "$($_.platform)|$($_.configuration)" })
-    $limits = @{}
-    foreach ($row in $rows) {
-        $configuration = [regex]::Match($row.Groups['body'].Value, '(?m)^            configuration: (?<name>[^\r\n]+)\r?$')
-        $budget = [regex]::Match($row.Groups['body'].Value, '(?m)^            jobTimeoutMinutes: (?<minutes>[1-9]\d*)\r?$')
-        Assert-True ($configuration.Success -and $budget.Success) 'each row declares a configuration and a positive numeric budget'
-        $key = "$($row.Groups['platform'].Value)|$($configuration.Groups['name'].Value)"
-        Assert-Contains $expected $key 'every matrix row has declared scoped PR coverage'
-        Assert-True (-not $limits.ContainsKey($key)) "the native profile $key is unique"
-        $limits[$key] = [int]$budget.Groups['minutes'].Value
+Invoke-TestCase 'main native qualification keeps both native architectures and the global production barrier' {
+    $native=[IO.File]::ReadAllText((Join-Path $engine '.github/workflows/native.yml'))
+    Assert-Equal 2 ([regex]::Matches($native,'platform: ARM64').Count) 'native ARM64 in both roles'
+    Assert-Equal 2 ([regex]::Matches($native,'platform: x64').Count) 'native x64 in both roles'
+    Assert-True ($native.Contains('needs: [admission, test-gate]')) 'neither production branch can precede the global gate'
+    Assert-True ($native.Contains('timeout-minutes: 360')) 'the regression job retains a finite cold-build/test allowance'
+    Assert-True ($native.Contains('retention-days: 90')) 'source-bound regression and production receipts remain available'
+    Assert-True (-not $native.Contains('continue-on-error: true')) 'native qualification cannot ignore a failed phase'
+    $queue=[IO.File]::ReadAllText((Join-Path $repository '.github/workflows/qualify.yml'))
+    Assert-True ($queue.Contains('cancel-in-progress: false') -and $queue.Contains('queue: max')) 'later merges cannot cancel admitted work'
+}
+Invoke-TestCase 'the project adapter keeps Full native suites, consumer qualification and gallery coverage' {
+    $adapter=[IO.File]::ReadAllText((Join-Path $repository 'Tools/Invoke-ProjectCi.ps1'))
+    foreach($command in @("Run 'test.ps1'","'-Full','-SkipTooling','-SkipBuild'","Run 'test-consumer.ps1'","Run 'gallery.ps1'","'-DisableStlAnnotations'","MenuResourceScaling,MenuTextLayoutResources","Get-CiSuiteEvidence","Invoke-CiAssertionProbe")){
+        Assert-True ($adapter.Contains($command)) "the adapter retains $command"
     }
-    $steps = [regex]::Matches($Native, '(?ms)^      - (?<body>.*?)(?=^      - |\z)')
-    $stageLimits = @{}
-    foreach ($stage in @(
-        @{ Name = 'Build'; Pattern = '(?m)^        run: \./build\.ps1 -Configuration "\$\{\{ matrix\.configuration \}\}" -Platform \$\{\{ matrix\.platform \}\}\r?$' },
-        @{ Name = 'Native'; Pattern = '(?m)^        run: \./test\.ps1 -Full -SkipTooling -SkipBuild -Configuration "\$\{\{ matrix\.configuration \}\}" -Platform \$\{\{ matrix\.platform \}\}\r?$' },
-        @{ Name = 'Consumer'; Pattern = '^name: Qualify the relocated public consumer\r?\n'; Minutes = 15 },
-        @{ Name = 'DisabledAnnotations'; Pattern = '^name: Qualify the consumer with STL annotations disabled\r?\n'; Minutes = 15 }
-    )) {
-        $selected = @($steps | Where-Object { $_.Groups['body'].Value -cmatch $stage.Pattern })
-        Assert-Equal 1 $selected.Count "the $($stage.Name) qualification is present exactly once"
-        if ($stage.Name -in @('Build','Native')) {
-            Assert-True ($selected[0].Groups['body'].Value -cmatch '(?m)^        timeout-minutes: \$\{\{ matrix\.platform == ''ARM64'' && 65 \|\| 35 \}\}\r?$') 'build and Full each retain a separate finite qualification window'
-            Assert-True (-not ($selected[0].Groups['body'].Value -cmatch '(?m)^        (if|continue-on-error):')) 'build and Full retain default success dependency and failure accounting'
-            $stageLimits[$stage.Name] = @{ x64 = 35; ARM64 = 65 }
-        } else {
-            if($stage.Name-ceq 'Consumer'){
-                Assert-True ($selected[0].Groups['body'].Value.Contains("timeout-minutes: `${{ matrix.platform == 'ARM64' && matrix.configuration == 'Release' && 20 || 15 }}")) 'only ARM64 Release has the measured 20-minute cold-consumer window'
-                $stageLimits[$stage.Name]=15
-            }else{
-                $budget = [regex]::Match($selected[0].Groups['body'].Value, '(?m)^        timeout-minutes: (?<minutes>[1-9]\d*)\r?$')
-                Assert-True $budget.Success "the $($stage.Name) stage retains a bounded watchdog"
-                $stageLimits[$stage.Name] = [int]$budget.Groups['minutes'].Value
-                Assert-Equal $stage.Minutes $stageLimits[$stage.Name] "the $($stage.Name) stage watchdog is unchanged"
-            }
-            $condition = if ($stage.Name -ceq 'Consumer') { '        if: ${{ !cancelled() }}' }
-                else { '        if: ${{ !cancelled() && matrix.configuration == ''ASan Debug'' }}' }
-            Assert-True ($selected[0].Groups['body'].Value.Contains($condition)) 'consumer failure accounting remains independent of the build/Full verdict'
-        }
-    }
-    $buildStep = @($steps | Where-Object { $_.Groups['body'].Value -cmatch '^name: Build native profile\r?\n' })
-    $fullStep = @($steps | Where-Object { $_.Groups['body'].Value -cmatch '^name: Full native qualification\r?\n' })
-    Assert-True ($buildStep.Count -eq 1 -and $fullStep.Count -eq 1 -and $buildStep[0].Index -lt $fullStep[0].Index) 'one official build precedes one attested Full run'
-    Assert-Equal 1 @($steps | Where-Object { $_.Groups['body'].Value -cmatch '(?m)^        run: \./test\.ps1 -Full(?: |\r?$)' }).Count 'there is exactly one Full invocation, without a second rebuilding path'
-    $upload = @($steps | Where-Object { $_.Groups['body'].Value.Contains('          name: native-${{ matrix.platform }}-${{ matrix.configuration }}') })
-    Assert-True ($upload.Count -eq 1 -and $upload[0].Groups['body'].Value.Contains('        if: always()')) 'native evidence is still retained after failure'
-    foreach ($key in $expected) {
-        $parts = $key -split '\|', 2
-        $stages = $stageLimits.Build[$parts[0]] + $stageLimits.Native[$parts[0]] + $stageLimits.Consumer
-        if($key-ceq 'ARM64|Release'){$stages+=5}
-        if ($parts[1] -ceq 'ASan Debug') { $stages += $stageLimits.DisabledAnnotations }
-        Assert-True ($limits[$key] -ge $stages + 5) "the $key job fits every explicit qualification window and five minutes for setup and artifacts"
-        Assert-Equal ($stages + 5) $limits[$key] "the $key job retains its reviewed bounded allowance"
+    $test=[IO.File]::ReadAllText((Join-Path $repository 'test.ps1'))
+    Assert-True ($test.Contains('normal-suites.json')) 'normal native execution writes its own unfiltered suite summary'
+}
+Invoke-TestCase 'historical scope commands remain parseable compatibility entry points' {
+    foreach($name in @('Tools/NativeScope.psm1','Tools/Get-NativeScope.ps1')){
+        $tokens=$null;$errors=$null
+        [void][Management.Automation.Language.Parser]::ParseFile((Join-Path $repository $name),[ref]$tokens,[ref]$errors)
+        Assert-Equal 0 @($errors).Count "$name syntax"
     }
 }
-
-Invoke-TestCase 'a push validates main alone, and every pull request and manual run is validated' {
-    Assert-True ($workflow -cmatch '(?m)^  push:\r?\n    branches: \[main\]\r?\n  pull_request:\r?\n  workflow_dispatch:\r?\n') 'pushes to main, every pull request and every dispatch'
-    $format = [IO.File]::ReadAllText((Join-Path $repository '.github/workflows/format.yml'))
-    Assert-True ($format -cmatch '(?m)^  push:\r?\n    branches: \[main\]\r?\n    paths: ') 'the formatting check also takes pushes to main alone'
-    Assert-True ($format -cmatch '(?m)^  pull_request:\r?\n    paths: ') 'and every pull request that changes what it checks'
-}
-
-Invoke-TestCase 'the native jobs follow the scope job, and run when it cannot decide' {
-    $scope = Get-WorkflowJob 'native-scope'
-    Assert-True $scope.Contains('runs-on: ubuntu-24.04') 'the scope is decided on a small hosted runner'
-    Assert-True ($scope -cmatch '(?m)^    timeout-minutes: \d+\s*$') 'which cannot hang'
-    Assert-True $scope.Contains('fetch-depth: 2') 'with the merge ref and its parents'
-    Assert-True $scope.Contains('run: ./Tools/Get-NativeScope.ps1') 'by the scope script'
-    Assert-True $scope.Contains('native: ${{ steps.scope.outputs.native }}') 'whose decision is the job''s output'
-    $native = Get-WorkflowJob 'native'
-    Assert-True ($native -cmatch '(?m)^    needs: native-scope\s*$') 'the native jobs wait for the scope'
-    Assert-True $native.Contains("if: `${{ !cancelled() && needs.native-scope.outputs.native != 'false' }}") 'and are left out only by a decision: a failed scope runs them, a cancelled run does not'
-    $validation = Get-WorkflowJob 'validation'
-    Assert-True (-not ($validation -cmatch '(?m)^    needs:')) 'validation runs independently so it can report its own failures'
-    Assert-True (-not ((Get-WorkflowJob 'windows-tooling') -cmatch '(?m)^    needs:')) 'Windows tooling is independent of native scope'
-    Assert-True (-not ((Get-WorkflowJob 'paired-benchmark') -cmatch '(?m)^    needs:')) 'the paired benchmark is independent of native scope'
-    $gate = Get-WorkflowJob 'ci-gate'
-    Assert-True $gate.Contains('if: ${{ always() }}') 'the required aggregate runs even when a producer fails or is skipped'
-    Assert-True ($gate -cmatch '(?m)^    needs: \[validation, windows-tooling, format, native-scope, native, paired-benchmark\]$') 'the aggregate accounts for every required qualification'
-}
-
-Invoke-TestCase 'native budgets preserve every profile and its complete sequential qualification windows' {
-    $profiles = @(([IO.File]::ReadAllText((Join-Path $repository 'Tests/test-scopes.json')) | ConvertFrom-Json).prCoverage)
-    Assert-NativeWorkflowBudgets (Get-WorkflowJob 'native') $profiles
-}
-
-Invoke-TestCase 'an enclosing limit below any profile qualification windows fails the budget contract' {
-    $profiles = @(([IO.File]::ReadAllText((Join-Path $repository 'Tests/test-scopes.json')) | ConvertFrom-Json).prCoverage)
-    $native = Get-WorkflowJob 'native'
-    foreach ($profile in $profiles) {
-        $prefix = '(?ms)(^          - platform: ' + [regex]::Escape($profile.platform) + '\r?\n            runner: [^\r\n]+\r?\n            configuration: ' + [regex]::Escape($profile.configuration) + '\r?\n            jobTimeoutMinutes: )(?<minutes>[1-9]\d*)(?=\r?\n)'
-        $lowered = [regex]::Replace($native, $prefix, { param($match) $match.Groups[1].Value + ([int]$match.Groups['minutes'].Value - 1) })
-        Assert-True ($native -cne $lowered) 'each falsification lowers exactly its selected enclosing limit'
-        Assert-Throws { Assert-NativeWorkflowBudgets $lowered $profiles } 'an enclosing limit must not cut off its declared qualification windows'
-    }
-}
-
-Invoke-TestCase 'the historical shared 25-minute Full limit cannot truncate cold ARM64 qualification' {
-    $profiles = @(([IO.File]::ReadAllText((Join-Path $repository 'Tests/test-scopes.json')) | ConvertFrom-Json).prCoverage)
-    $native = Get-WorkflowJob 'native'
-    $lowered = $native.Replace('timeout-minutes: ${{ matrix.platform == ''ARM64'' && 65 || 35 }}', 'timeout-minutes: 25')
-    Assert-True ($native -cne $lowered) 'the falsification restores the observed shared Full timeout'
-    Assert-Throws { Assert-NativeWorkflowBudgets $lowered $profiles } 'the ARM64 cold build must leave time for actual suites and provenance'
-}
-
-Invoke-TestCase 'the observed rich-build Full cutoffs cannot replace complete native qualification' {
-    $profiles = @(([IO.File]::ReadAllText((Join-Path $repository 'Tests/test-scopes.json')) | ConvertFrom-Json).prCoverage)
-    $native = Get-WorkflowJob 'native'
-    foreach ($window in @('timeout-minutes: ${{ matrix.platform == ''ARM64'' && 65 || 25 }}',
-        'timeout-minutes: ${{ matrix.platform == ''ARM64'' && 45 || 35 }}')) {
-        $lowered = $native.Replace('timeout-minutes: ${{ matrix.platform == ''ARM64'' && 65 || 35 }}', $window)
-        Assert-True ($native -cne $lowered) 'the falsification restores an observed PR #89 cutoff'
-        Assert-Throws { Assert-NativeWorkflowBudgets $lowered $profiles } 'a truncated suite cannot qualify the candidate'
-    }
-}
-
-Invoke-TestCase 'Full cannot bypass the official build dependency or its early receipt gate' {
-    $profiles = @(([IO.File]::ReadAllText((Join-Path $repository 'Tests/test-scopes.json')) | ConvertFrom-Json).prCoverage)
-    $native = Get-WorkflowJob 'native'
-    $full = [regex]::Match($native, '(?ms)^      - name: Full native qualification\r?\n.*?(?=^      - |\z)').Value
-    $build = [regex]::Match($native, '(?ms)^      - name: Build native profile\r?\n.*?(?=^      - |\z)').Value
-    Assert-True ($full.Length -gt 0 -and $build.Length -gt 0) 'both falsification targets exist'
-    foreach ($changed in @(
-        $native.Replace($full,$full.Replace('-SkipTooling -SkipBuild','-SkipTooling')),
-        $native.Replace($build,''),
-        $native.Replace($build,$build + $build),
-        $native.Replace($full,''),
-        $native.Replace($full,$full + $full),
-        $native.Replace($build + $full,$full + $build),
-        $native.Replace($full,$full.Replace('        shell: pwsh',"        if: `${{ always() }}`n        shell: pwsh")),
-        $native.Replace($build,$build.Replace('        shell: pwsh',"        continue-on-error: true`n        shell: pwsh"))
-    )) {
-        Assert-True ($changed -cne $native) 'each falsification changes the qualification dependency'
-        Assert-Throws { Assert-NativeWorkflowBudgets $changed $profiles } 'missing/duplicate/reordered builds, rebuilding Full, or failure bypass cannot satisfy the contract'
-    }
-}
-Invoke-TestCase 'consumer windows retain only the measured ARM64 Release exception' {
-    $profiles = @(([IO.File]::ReadAllText((Join-Path $repository 'Tests/test-scopes.json')) | ConvertFrom-Json).prCoverage)
-    $native = Get-WorkflowJob 'native'
-    foreach ($limit in @('', '0', '20')) {
-        $changed = $native.Replace('timeout-minutes: 15', "timeout-minutes: $limit")
-        Assert-True ($native -cne $changed) 'the falsification alters the consumer limits'
-        Assert-Throws { Assert-NativeWorkflowBudgets $changed $profiles } 'missing, unbounded or widened consumers do not satisfy the finite contract'
-    }
-    $consumerWindow="timeout-minutes: `${{ matrix.platform == 'ARM64' && matrix.configuration == 'Release' && 20 || 15 }}"
-    foreach($changed in @($native.Replace($consumerWindow,'timeout-minutes: 15'),
-        $native.Replace($consumerWindow,$consumerWindow.Replace('&& 20','&& 25')),
-        $native.Replace($consumerWindow,"timeout-minutes: `${{ matrix.platform == 'ARM64' && 20 || 15 }}"))){
-        Assert-True ($changed-cne $native) 'each mutation changes the measured exception'
-        Assert-Throws {Assert-NativeWorkflowBudgets $changed $profiles} 'unmeasured narrowing, widening or extra profiles cannot replace the reviewed finite exception'
-    }
-}
-
-Invoke-TestCase 'the scope scripts parse and are strict' {
-    foreach ($name in @('Tools/NativeScope.psm1', 'Tools/Get-NativeScope.ps1')) {
-        $tokens = $null
-        $errors = $null
-        [void][Management.Automation.Language.Parser]::ParseFile((Join-Path $repository $name), [ref]$tokens, [ref]$errors)
-        Assert-Equal 0 @($errors).Count "$name has no syntax errors: $(@($errors | ForEach-Object { $_.Message }) -join '; ')"
-        Assert-True ([IO.File]::ReadAllText((Join-Path $repository $name)) -cmatch '(?m)^Set-StrictMode -Version Latest\r?$') "$name is strict"
-    }
-}
-
-function Assert-WindowsToolingBudget([string]$Job) {
-    Assert-True ($Job-cmatch '(?m)^    timeout-minutes: 20\r?$') 'Windows tooling retains its measured bounded allowance'
-    foreach($required in @('uses: ./.github/actions/setup-msvc','run: ./validate.ps1','run: ./Tools/tests/Test-AsanRuntime.ps1')) {
-        Assert-Equal 1 ([regex]::Matches($Job,[regex]::Escape($required))).Count 'compiler preparation, complete tooling and ASan runtime checks remain exactly once'
-    }
-    Assert-True (-not ($Job-cmatch '(?m)^        (if|continue-on-error):')) 'tooling failures cannot bypass required checks'
-}
-Invoke-TestCase 'only Windows tooling gains the measured real-project metadata allowance' {
-    $job=Get-WorkflowJob 'windows-tooling'
-    Assert-WindowsToolingBudget $job
-    foreach($minutes in @('','0','15','19','21')) {
-        $changed=$job.Replace('timeout-minutes: 20',"timeout-minutes: $minutes")
-        Assert-True ($changed-cne $job) 'each mutation changes the job ceiling'
-        Assert-Throws {Assert-WindowsToolingBudget $changed} 'missing, old or widened ceilings fail the reviewed contract'
-    }
-    foreach($required in @('uses: ./.github/actions/setup-msvc','run: ./validate.ps1','run: ./Tools/tests/Test-AsanRuntime.ps1')) {
-        Assert-Throws {Assert-WindowsToolingBudget ($job.Replace($required,''))} 'a larger window cannot remove required validation'
-    }
-    Assert-True ((Get-WorkflowJob 'format')-cmatch '(?m)^    timeout-minutes: 15\r?$') 'format retains fifteen minutes'
-    Assert-True ((Get-WorkflowJob 'validation')-cmatch '(?m)^    timeout-minutes: 20\r?$') 'Ubuntu validation retains twenty minutes'
-}
-
 Complete-TestRun 'NativeScope'

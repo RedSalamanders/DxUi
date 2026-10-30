@@ -107,47 +107,83 @@
   "rules": [
     {
       "pattern": "src/Controls/DxUi.NativeFlowchart*",
-      "scopes": ["EditorControls", "Embedded", "Accessibility"],
+      "scopes": [
+        "EditorControls",
+        "Embedded",
+        "Accessibility"
+      ],
       "reason": "owned native diagram grammar, CPU geometry and semantic alternatives"
     },
     {
       "pattern": "src/Controls/DxUi.NativeMath.cpp",
-      "scopes": ["EditorControls", "Embedded", "Accessibility"],
+      "scopes": [
+        "EditorControls",
+        "Embedded",
+        "Accessibility"
+      ],
       "reason": "owned native math grammar and semantic source fallback"
     },
     {
       "pattern": "src/Controls/DxUi.PreparedFlowchart*",
-      "scopes": ["EditorControls", "Embedded", "Accessibility"],
+      "scopes": [
+        "EditorControls",
+        "Embedded",
+        "Accessibility"
+      ],
       "reason": "native retained diagram geometry, raster resources and source bounds"
     },
     {
       "pattern": "src/Controls/DxUi.PreparedMath.h",
-      "scopes": ["EditorControls", "Embedded", "Accessibility"],
+      "scopes": [
+        "EditorControls",
+        "Embedded",
+        "Accessibility"
+      ],
       "reason": "native retained equation geometry and source bounds"
     },
     {
       "pattern": "src/Controls/DxUi.SemanticExtensions.h",
-      "scopes": ["EditorControls", "Embedded", "Accessibility"],
+      "scopes": [
+        "EditorControls",
+        "Embedded",
+        "Accessibility"
+      ],
       "reason": "source-owned native object metadata and local fallback identity"
     },
     {
       "pattern": "Tests/Support/Support.Tests.Rich*",
-      "scopes": ["EditorControls", "Embedded", "Accessibility"],
+      "scopes": [
+        "EditorControls",
+        "Embedded",
+        "Accessibility"
+      ],
       "reason": "shared rich document, native/embedded editor and accessibility fixtures"
     },
     {
       "pattern": "Tests/Support/Support.Tests.Markdown*",
-      "scopes": ["EditorControls", "Embedded", "Accessibility"],
+      "scopes": [
+        "EditorControls",
+        "Embedded",
+        "Accessibility"
+      ],
       "reason": "shared lossless syntax and native presentation corpus fixtures"
     },
     {
       "pattern": "Tests/Support/Support.Tests.MathCorpus.h",
-      "scopes": ["EditorControls", "Embedded", "Accessibility"],
+      "scopes": [
+        "EditorControls",
+        "Embedded",
+        "Accessibility"
+      ],
       "reason": "independent bounded native math syntax and geometry compatibility fixtures"
     },
     {
       "pattern": "Tests/Support/Support.Tests.*Flowchart*",
-      "scopes": ["EditorControls", "Embedded", "Accessibility"],
+      "scopes": [
+        "EditorControls",
+        "Embedded",
+        "Accessibility"
+      ],
       "reason": "shared native/embedded diagram grammar, layout and raster fixtures"
     },
     {
@@ -590,185 +626,18 @@
       "reason": "menu popups and native text input publish UI Automation elements and events from the providers"
     }
   ],
-  "prCoverage": [
-    {
-      "configuration": "Debug",
-      "scopes": [
-        "Foundation",
-        "Embedded",
-        "Grid",
-        "Theme",
-        "Control",
-        "MenuExitLifetime",
-        "NewControls",
-        "EditorControls",
-        "TextField",
-        "MultilineText",
-        "ReadOnly",
-        "ComboBox",
-        "Tree",
-        "Tooltip",
-        "Rendering",
-        "Animation",
-        "Accessibility",
-        "WindowHost",
-        "InteractiveLease",
-        "Tooling"
-      ],
-      "platform": "x64"
-    },
-    {
-      "configuration": "Release",
-      "scopes": [
-        "Foundation",
-        "Embedded",
-        "Grid",
-        "Theme",
-        "Control",
-        "MenuExitLifetime",
-        "NewControls",
-        "EditorControls",
-        "TextField",
-        "MultilineText",
-        "ReadOnly",
-        "ComboBox",
-        "Tree",
-        "Tooltip",
-        "Rendering",
-        "Animation",
-        "Accessibility",
-        "WindowHost",
-        "InteractiveLease",
-        "Tooling"
-      ],
-      "platform": "x64"
-    },
-    {
-      "configuration": "ASan Debug",
-      "scopes": [
-        "Foundation",
-        "Embedded",
-        "Grid",
-        "Theme",
-        "Control",
-        "MenuExitLifetime",
-        "NewControls",
-        "EditorControls",
-        "TextField",
-        "MultilineText",
-        "ReadOnly",
-        "ComboBox",
-        "Tree",
-        "Tooltip",
-        "Rendering",
-        "Animation",
-        "Accessibility",
-        "WindowHost",
-        "InteractiveLease",
-        "Tooling"
-      ],
-      "platform": "x64"
-    },
-    {
-      "configuration": "Debug",
-      "scopes": [
-        "Foundation",
-        "Embedded",
-        "Grid",
-        "Theme",
-        "Control",
-        "MenuExitLifetime",
-        "NewControls",
-        "EditorControls",
-        "TextField",
-        "MultilineText",
-        "ReadOnly",
-        "ComboBox",
-        "Tree",
-        "Tooltip",
-        "Rendering",
-        "Animation",
-        "Accessibility",
-        "WindowHost",
-        "InteractiveLease",
-        "Tooling"
-      ],
-      "platform": "ARM64"
-    },
-    {
-      "configuration": "Release",
-      "scopes": [
-        "Foundation",
-        "Embedded",
-        "Grid",
-        "Theme",
-        "Control",
-        "MenuExitLifetime",
-        "NewControls",
-        "EditorControls",
-        "TextField",
-        "MultilineText",
-        "ReadOnly",
-        "ComboBox",
-        "Tree",
-        "Tooltip",
-        "Rendering",
-        "Animation",
-        "Accessibility",
-        "WindowHost",
-        "InteractiveLease",
-        "Tooling"
-      ],
-      "platform": "ARM64"
-    },
-    {
-      "configuration": "ASan Debug",
-      "scopes": [
-        "Foundation",
-        "Embedded",
-        "Grid",
-        "Theme",
-        "Control",
-        "MenuExitLifetime",
-        "NewControls",
-        "EditorControls",
-        "TextField",
-        "MultilineText",
-        "ReadOnly",
-        "ComboBox",
-        "Tree",
-        "Tooltip",
-        "Rendering",
-        "Animation",
-        "Accessibility",
-        "WindowHost",
-        "InteractiveLease",
-        "Tooling"
-      ],
-      "platform": "ARM64"
-    }
-  ],
+  "prCoverage": [],
   "prContractFiles": [
+    ".ci/project.json",
     ".github/workflows/ci.yml",
-    "build.ps1",
-    "test-consumer.ps1",
-    "test.ps1",
-    "validate.ps1",
-    "vcpkg-install.ps1",
-    "Tools/BenchmarkGate.psm1",
-    "Tools/CapabilitySkipPolicy.psm1",
-    "Tools/ConsumerQualification.psm1",
-    "Tools/Get-NativeScope.ps1",
-    "Tools/InteractiveRun.psm1",
-    "Tools/NativeScope.psm1",
-    "Tools/ScopedTesting.psm1",
-    "Tools/SuiteFailure.psm1",
-    "Tools/TestRunEvidence.psm1",
-    "Tools/tests/Test-CiGate.ps1",
-    "Tools/tests/Test-ConsumerQualification.ps1",
-    "Tools/tests/Test-NativeScope.ps1",
-    "Tools/tests/Test-RunEvidence.ps1"
+    ".github/workflows/qualify.yml",
+    ".github/workflows/qualification.yml",
+    ".github/workflows/format.yml",
+    ".github/workflows/publish.yml",
+    ".github/workflows/security.yml",
+    "Tools/Invoke-ProjectCi.ps1",
+    "Tools/ScopedTesting.psm1"
   ],
   "prNativeScopeModule": "Tools/NativeScope.psm1",
-  "prWorkflowDigest": "8f76322a5c4be000b6d0110033bad463057a48ed604115fe13d1b8b7a61e2ad0"
+  "prWorkflowDigest": "13c0005ac827d0a4b3f41c6585fce7b01b4a949c960ae954ecc58023e2911f33"
 }

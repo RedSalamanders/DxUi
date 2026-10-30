@@ -390,61 +390,34 @@ matched latency/retention evidence. This decision does not close whole-host call
 
 ### Hosted paired gate
 
-The `paired-benchmark` job of [ci.yml](../../.github/workflows/ci.yml) runs the study on a hosted x64 Release runner.
-During migration, `Tools/BenchmarkGate.psm1` fails closed: a measured report cannot pass unless its base commit contains an
-independently qualified versioned policy, all required receipt identities are present and the policy is unchanged. The new
-candidate-only policy is explicitly untrusted. `Tools/tests/Test-BenchmarkGate.ps1` covers that fail-closed path.
+The paired-benchmark job of [benchmark.yml](../../.github/workflows/benchmark.yml) is an explicit manual hosted x64
+Release action. [The unified CI contract](../Build/Build_UnifiedCI.md) owns event routing: PRs do not compile,
+and automatic main batches do not repeat this long study. Removing the PR/timer route does not waive required
+before/after performance acceptance.
 
-- **When.** For every pull request to `main` that changes something the benchmark measures: the library inputs a receipt's
-  `sourceFingerprint` covers (`src`, `include`, `Build`, the build props and vcpkg manifests), the harness and its
-  benchmark inputs, the sources of the benchmark executable (`Tests/Embedded`, `Tests/Support`) and the fixtures and samples
-  compiled into it (`Samples`), the build and restore scripts, the paired measurement and gate tooling and the workflow. A
-  measured path matches in any case, as the Windows runner builds `Src/x.cpp` like `src/x.cpp`.
-  Markdown never counts, and neither do the control and foundation tests, the validators, the gallery and the formatter. The
-  job always starts for a pull request to `main`: its first step matches the changed paths against those rules and names
-  the files that decided, and the steps after it run only when one matched, so a pull request that changes none of them
-  ends the job within a couple of minutes with the check passed. A step that cannot decide fails the job, so nothing passes
-  unmeasured because its scope could not be read. The job is not skipped for such a pull request, because GitHub reports a
-  skipped job under its unevaluated name expression and a required check of the same name would wait forever. A manual
-  dispatch with `benchmark_baseline` measures the revisions it names. A newer push to a pull request cancels its older run,
-  and its job is bounded at 180 minutes; manual diagnostic runs are bounded at 240 minutes. A
-  pull request's check is named `paired-benchmark (pull request)`, apart from the push and manual runs of the same job, so
-  that a required check names exactly one check run.
-- **What is compared.** The candidate is the pull request's merge ref. The baseline is that merge commit's first parent, the
-  base as the merge ref was made, so the two differ by exactly this pull request. The merge base with the branch would
-  also hold whatever `main` gained since the branch was cut and would blame a regression it brought on this pull
-  request; the two are one commit when the base has not moved. Both are built in Release and measured by
-  `performance-paired.ps1` with the merge ref's harness in `Default`, `MultilineGrid` and `MultilineGridDistinct`, twelve
-  independently drawn ABBA/BAAB blocks each: 24 runs per side per scenario. The assignment protocol and schedule seed/order are retained. The
-  gate keeps no baseline receipt, so it measures the base afresh.
-  The allocation counters live in `Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h`, a benchmark input like the
-  fixture, so a receipt's `benchmarkSha256` covers them and both trees count with the merge ref's instrument once the base
-  has the header as well.
-- **What is published.** The job summary lists each scenario's set verdict and, for every metric, its medians, change,
-  p-value, band, same-binary controls and outcome, with the flagged metrics first, and the artifact
-  `paired-benchmark-x64-Release` keeps every receipt, comparison, `summary.json` and the conclusion as `verdict.json`.
-  A flagged metric is listed whatever the conclusion; the gate dismisses nothing.
-- **Conclusion.** Under the migrated contract, a complete statistical result is still not a pass until the measured base
-  contains the trusted qualified policy. Missing/mismatched toolchain, executable, dependency or harness identity and any
-  unqualified/changed policy produce `inconclusive` and fail the pull-request check. Source fingerprints alone cannot
-  label an observed timing shift as noise. The report keeps the old judge and new judge decisions over identical receipt
-  hashes so reviewers can assess the migration; neither decision can self-approve the candidate's policy. The two must
-  agree on every metric but one expected difference: the paired-block judge bounds every round of an exact budget, so a
-  rise of its raw-round maximum alone regresses there and not in the median-based judge, and reaches the verdict table.
-  Any other disagreement keeps the run inconclusive and names the metrics that differ.
-- **Trust anchor and current workflow boundary.** The required contract binds a pull-request measurement to
-  the event's named base and merge commits, loads the qualified policy and approved judge from that base, and
-  rejects mismatches between the event pair, measured summary, verdict and aggregate check. The scope, verdict
-  and aggregate tools accept `-ExpectedBaseSha` and `-ExpectedCandidateSha` and enforce equality when supplied.
-  In the current `.github/workflows/ci.yml`, these expected IDs are not supplied from the event: scope derives
-  the candidate from checkout `HEAD` and the base from its first parent, and verdict and aggregate receive no
-  expected-pair values. All three still execute from the merge-ref checkout. Hosted CI therefore uses a
-  merge-ref-derived pair and does not independently bind it to the event or provide a trusted-base execution
-  boundary. CR-29/Q12 retains the follow-up: propagate the event IDs through every step, run scope/verdict/aggregate
-  from the trusted base, and add workflow-level negative coverage proving missing or mismatched IDs fail closed.
-  The base policy must still be independently qualified and match its approved judge hash; a candidate's policy
-  or judge cannot qualify itself. `.github/CODEOWNERS` names the owner of `.github`, `Tools`, performance scripts
-  and agent instructions; requiring a code owner's review remains a maintainer ruleset decision.
+- **When.** An operator names the baseline and optionally the candidate (empty selects the dispatched source). The
+  harness resolves immutable commits before measurement. Each manual run has its own non-cancelling concurrency lane,
+  a 240-minute enclosing bound, 15 minutes for restore and 210 minutes for measurement, leaving time for evidence.
+- **What is compared.** Both frozen commits build in Release and run Default, MultilineGrid and MultilineGridDistinct
+  with twelve independently drawn ABBA/BAAB blocks each: 24 observations per side per scenario. The assignment protocol,
+  schedule, seeds, original outputs and receipts are retained. The baseline is measured afresh. The allocation counters
+  and the shared fixture are part of the benchmark identity.
+- **Conclusion.** require_passing_verdict defaults to true and reaches the canonical Publish-BenchmarkVerdict gate.
+  Diagnostic A/A requires identical explicit revisions and explicitly disabling that gate; a green diagnostic workflow
+  never establishes performance qualification. Inconclusive, incomplete or mismatched evidence cannot pass acceptance.
+- **Evidence.** A continuous host observer must report readiness before measurement, stop cooperatively in finally and
+  retain continuity/cost information. Failed measurement still produces a verdict, and every outcome uploads original
+  EXE/LIB/PDB/DLL outputs, receipts, comparisons, reports and host observations. A repeat cannot replace failed evidence.
+- **Policy trust.** The independently qualified baseline policy and approved judge hash remain mandatory. A candidate's
+  policy cannot approve itself. Historical six-run reports remain readable but cannot pass a twelve-block policy merely
+  through reclassification. Old/new judge differences remain visible over identical receipt hashes; unexpected
+  disagreement is inconclusive. The scope and verdict helpers retain optional ExpectedBaseSha/ExpectedCandidateSha
+  equality checks for explicit callers.
+- **Open trust boundary.** The study runs from the selected dispatch source; this routing change does not establish a
+  separate trusted-base execution boundary or independently attest an event pair. CR-29/Q12 remains with its existing
+  owner. CODEOWNERS still names workflow/tooling/performance owners; requiring code-owner review is a maintainer
+  ruleset decision. The legacy PR scope/aggregate commands are compatibility entry points and are not current CI gates.
+
 - **Controls of the metric in question.** A shared hosted runner drifts beyond some band in nearly every control, in a few
   metrics (mostly the p95 of frame, preparation and composition times, and the working set), so the check judges the
   controls of the metric a set flagged, not of all twenty-six together. The

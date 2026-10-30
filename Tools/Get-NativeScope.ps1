@@ -1,3 +1,4 @@
+# Legacy PR-routing compatibility. Current CI authority is Specs/Build/Build_UnifiedCI.md and the pinned engine.
 <#
 .SYNOPSIS Decides whether a run of the validation workflow needs its six native jobs.
 .DESCRIPTION

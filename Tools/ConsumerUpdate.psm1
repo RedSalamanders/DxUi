@@ -19,7 +19,7 @@ function Get-DxUiUpdateNotice {
         $comparison = & $Request "compare/$($pin.commit)...$candidate"
         if ($comparison.status -eq 'behind') { return "DxUi pin is ahead of main; review $LockFile before any change." }
         if ($comparison.status -ne 'ahead') { return "DxUi pin and main diverge; review $LockFile before any change." }
-        $runs = & $Request "actions/workflows/ci.yml/runs?head_sha=$candidate&branch=main&event=push&per_page=1"
+        $runs = & $Request "actions/workflows/qualify.yml/runs?head_sha=$candidate&branch=main&event=workflow_dispatch&per_page=1"
         $latest = @($runs.workflow_runs)
         if ($latest.Count -ne 1 -or $latest[0].head_sha -cne $candidate -or
             $latest[0].status -ne 'completed' -or $latest[0].conclusion -ne 'success') {

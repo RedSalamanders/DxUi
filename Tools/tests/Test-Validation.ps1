@@ -290,23 +290,19 @@ Invoke-TestCase 'every tooling test script is strict itself, so a direct run fai
     Assert-Equal 0 $lax.Count "tooling tests without Set-StrictMode -Version Latest: $($lax -join ', ')"
 }
 
-Invoke-TestCase 'the validation entry point covers every validator and is what CI and test.ps1 run' {
-    $repository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
-    $steps = @(Get-DxUiValidationSteps)
-    foreach ($script in Get-ChildItem -LiteralPath $repository -Filter 'validate-*.ps1') { Assert-Contains $steps $script.Name "the validator $($script.Name) is a step" }
-    Assert-Contains $steps 'Tools/tests/Invoke-ToolingTests.ps1' 'the tooling tests are a step'
-    Assert-Equal $steps.Count @($steps | Select-Object -Unique).Count 'no step twice'
-    foreach ($step in $steps) { Assert-True (Test-Path -LiteralPath (Join-Path $repository $step) -PathType Leaf) "the step exists: $step" }
-    $ci = [IO.File]::ReadAllText((Join-Path $repository '.github/workflows/ci.yml'))
-    Assert-True ($ci -cmatch '(?m)^\s+run: \./validate\.ps1\s*$') 'the validation job runs validate.ps1'
-    Assert-True (-not $ci.Contains('run: ./validate-skills.ps1')) 'and not the validators one by one'
-    Assert-True ([IO.File]::ReadAllText((Join-Path $repository 'test.ps1')).Contains("'Tools/tests/Invoke-ToolingTests.ps1'")) 'test.ps1 runs the tooling tests'
-    foreach ($name in @('validate.ps1', 'test.ps1')) {
-        $tokens = $null
-        $errors = $null
-        [void][Management.Automation.Language.Parser]::ParseFile((Join-Path $repository $name), [ref]$tokens, [ref]$errors)
-        Assert-Equal 0 @($errors).Count "$name has no syntax errors: $(@($errors | ForEach-Object { $_.Message }) -join '; ')"
-    }
+Invoke-TestCase 'complete local validation remains available while PRs select the compiler-free subset' {
+    $repository=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
+    $steps=@(Get-DxUiValidationSteps)
+    foreach($script in Get-ChildItem -LiteralPath $repository -Filter 'validate-*.ps1'){Assert-Contains $steps $script.Name "Local validation retains $($script.Name)"}
+    Assert-Contains $steps 'Tools/tests/Invoke-ToolingTests.ps1' 'Complete local validation retains tooling'
+    Assert-Equal $steps.Count @($steps|Select-Object -Unique).Count 'No duplicated validation'
+    foreach($step in $steps){Assert-True (Test-Path -LiteralPath (Join-Path $repository $step) -PathType Leaf) "Existing step $step"}
+    $adapter=[IO.File]::ReadAllText((Join-Path $repository 'Tools/Invoke-ProjectCi.ps1'))
+    $static=$adapter.Substring($adapter.IndexOf("if ("+[char]36+"Phase -eq 'Static')"),$adapter.IndexOf("if ("+[char]36+"Phase -ne 'Qualification')")-$adapter.IndexOf("if ("+[char]36+"Phase -eq 'Static')"))
+    Assert-True (-not $static.Contains('Invoke-ToolingTests.ps1') -and -not $static.Contains("Run 'validate.ps1'")) 'PRs cannot enter compiler fixtures'
+    foreach($name in @('validate-skills.ps1','validate-specs.ps1','validate-dependencies.ps1','validate-test-port.ps1','validate-build-matrix.ps1')){Assert-True ($static.Contains($name)) "PR retains compiler-free $name"}
+    Assert-True ($adapter.Contains("Run 'Tools/tests/Invoke-ToolingTests.ps1'")) 'Main batch retains complete tooling'
+    Assert-True ([IO.File]::ReadAllText((Join-Path $repository 'test.ps1')).Contains("'Tools/tests/Invoke-ToolingTests.ps1'")) 'Local full tests retain tooling'
 }
 
 function Get-SkillFailures([string] $Root, [string] $Folder, [string] $Text) {
