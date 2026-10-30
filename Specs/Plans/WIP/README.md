@@ -47,12 +47,14 @@ The parent rich-text plan keeps its own gates.
 
 - **ACTIVE**: [Library qualification and consumer adoption](ConsumerUiQualification_2026-10-11.md). Single owner of shared qualification; the API-4 register owns consumer actions. PR #88's exact post-merge run passes six native profiles, eight enabled public-consumer checks and 128 zero-skip suite receipts (Menu 113/113 and NativeTextInput 169/169 per profile), with both intentional ASan probes detected. Three shared ARM64 leases again report foreground-minimized/none, leaving focus restoration unverified; approved ordinary-host/native ARM64 observations with recorded initial focus remain necessary. PR #87 evidence retains its original source identity. Green push CI does not qualify the skipped paired gate or unchanged qualified=false policy. Earlier failures, attribution gaps, timing/memory flags, MultilineGrid uncertainty and retention limits remain. All 20 qualification HOLDs, deadlines and thresholds stay unchanged.
 
-- **SPEC READY**: [Code review of the 18-28 October merges (#87-#121)](CodeReview_2026-10-28.md). Static review by the
-lead and nine reviewers; P1 and most P2 findings were re-read at `881e5d5f`. Fourteen P1 user-visible defects
-(Grid/Tree resize, drag cancellation, Source line pitch, RTL tables, TSF capacity and read-only status, math and Mermaid
-misparses, read-only editor shortcuts), P2 resiliency/performance items including device loss at resize, CI trust gaps,
-incomplete claimed fixes and 19 developer questions.
-No code changed; remediation waits for the callback re-entry and allocation-failure decisions.
+- **SPEC READY**: [Code review of the 18-30 October merges (#87-#137)](CodeReview_2026-10-28.md). Static review by the
+lead and nine reviewers, refreshed on 30 October at `09f6d96a` by six more. Every earlier P1 still reproduces and none
+was fixed. Fourteen P1 user-visible defects remain (Grid/Tree resize, drag cancellation, Source line pitch, RTL
+tables, TSF capacity and read-only status, math and Mermaid misparses, read-only editor shortcuts). P2
+resiliency/performance items include device loss at resize and a new `Grid::SetModel` use-after-free under
+allocation failure. Also recorded: a menu typed-character timer regression from #131, a zero-warning gate that can
+pass unscanned builds, CI trust gaps, incomplete claimed fixes and 26 developer questions. No code changed;
+remediation waits for the callback re-entry and allocation-failure decisions.
 
 - **ACTIVE**: [Code review of the ten-day merge window](CodeReview_2026-10-10.md). [PR #96](https://github.com/RedSalamanders/DxUi/pull/96) integrates main `ceffe76a4`; frozen source `da335d36` passed six builds, 57 ordinary and 12 authorized foreground x64 suite executions with zero skips, two ASan detection probes and three exact-pin consumers. The plan links its 24 October summary with full static/CMake/format checks and six reviewed gallery captures. Native ARM64 runtime, manual/product qualification, paired performance/R10, remaining RichText visual qualification, CI event-SHA wiring and deferred administration remain open; historical and failed receipts are retained.
 
