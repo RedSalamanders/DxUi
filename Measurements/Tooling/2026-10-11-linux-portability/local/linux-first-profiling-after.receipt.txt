@@ -1,7 +1,0 @@
-{
-  "sourceBase": "cdb3be2cf68d6444de9e66559db44fcfd75c0781",
-  "script": "Tools/tests/Test-PerformanceProfiling.ps1",
-  "scriptSha256": "AA6443655F822C6F6AA2FD9AE95FC9F5D5E19C4737560CE5050384D691372487",
-  "exitCode": 0,
-  "log": "/mnt/c/Users/eric/.codex/tmp/dpf-s0-s2-merge/linux-after-Test-PerformanceProfiling.log"
-}

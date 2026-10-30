@@ -1,3 +1,0 @@
-﻿slotId,kind,scenario,phase,timers,raster,receiptSha256,total320FrameSecondsAcrossEightWindows,telemetryCompleteness
-smoke-multiline-clean,functional-smoke,MultilineGrid,Clean,On,Default,B36A794953FB2A91347F033E08DC4356CA38323C0BB8944CB1BC813571612520,0.1280061,complete
-smoke-multiline-dirty,functional-smoke,MultilineGrid,Dirty,On,Default,5B60FC3240BDBD528512875BBF0FFCB21C4D1A48C85FD30CA30E0CBE5ED575E2,2.741189,complete

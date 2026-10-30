@@ -1,7 +1,0 @@
-{
-  "platform": "Native Ubuntu WSL",
-  "path": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-  "git": "/usr/bin/git",
-  "windowsPowerShellAvailable": false,
-  "cmakeAvailable": false
-}

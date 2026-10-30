@@ -1,3 +1,0 @@
-Rendered independent DxUi sample to C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\gallery\x64\Debug\embedded-controls.png
-Gallery: C:\Users\eric\.codex\worktrees\performance-forms\DxUi\.build\gallery\x64\Debug\index.html
-Published documentation gallery: C:\Users\eric\.codex\worktrees\performance-forms\DxUi\docs\gallery

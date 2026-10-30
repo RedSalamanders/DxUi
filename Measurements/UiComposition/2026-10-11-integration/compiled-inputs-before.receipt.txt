@@ -1,6 +1,0 @@
-{
-  "purpose": "frozen-compiled-inputs-before-prose-evidence-archival",
-  "sourceCommit": "284a9ec60cc767cad16775e4131b597ff1101b23",
-  "compiledSourceIdentity": "1926f358006a86a83d57c8c18c99485c6bd0f91f514e0119747f1f05a08eae89",
-  "sourceDirty": false
-}

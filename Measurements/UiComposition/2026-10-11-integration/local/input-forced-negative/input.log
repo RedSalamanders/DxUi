@@ -1,7 +1,0 @@
-[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
-[START] NativeTextInput
-  [START] TestNativeImeUndoGroupingResetsDiscardedForegroundAttempt
-    [FOREGROUND] DxUi.ControlTests.exe (process 27840) took the foreground in run 1 of 5
-    [IME-UNDO-SETUP] attempt=1 activated=true terminal=simulated-nonactivating onChar=true textLengths=0/1/1 oneA=true/true foreground=3bc1f6a foregroundProcess=30860 focus=2d02106 target=2d02106 logicalTarget=true nativeSession=false losses=1 sequenceHeld=true finalNotifications=1
-    [IME-UNDO-SETUP] attempt=2 activated=true terminal=simulated-nonactivating onChar=true textLengths=1/2/2 oneA=false/false foreground=3bc1f6a foregroundProcess=30860 focus=2d02106 target=2d02106 logicalTarget=true nativeSession=true losses=1 sequenceHeld=true finalNotifications=1
-FAILED: undo fixture creates one earlier independent typed edit

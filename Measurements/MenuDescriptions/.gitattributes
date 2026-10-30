@@ -1,3 +1,0 @@
-# Preserve raw receipt/log hashes across checkouts; these are retained evidence.
-*.txt -text
-*.log -text

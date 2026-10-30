@@ -1,7 +1,0 @@
-Diagnostic pilot 1/12: Default, heap=False
-Exception: C:\Users\eric\.codex\worktrees\performance-forms\DxUi\Measurements\Performance\2026-10-10-profiling\Invoke-Pilot.ps1:57
-Line |
-  57 |  … }).Count) { throw 'The fixed diagnostic inventory contains a failed,  …
-     |                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     | The fixed diagnostic inventory contains a failed, identity-mismatched or unattempted report. Retain every
-     | result; do not silently rerun.

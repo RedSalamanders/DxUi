@@ -1,3 +1,0 @@
-# Retain the reviewed derived comparison and CSV projection bytes.
-public-projection.comparison.json -text -whitespace
-metric-rows.csv -text -whitespace

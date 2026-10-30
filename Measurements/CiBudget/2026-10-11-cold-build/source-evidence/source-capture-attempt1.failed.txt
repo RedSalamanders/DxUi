@@ -1,1 +1,0 @@
-Initial source-binding orchestration used the PowerShell automatic input variable inside Where-Object, shadowing the expected source tuple. The tree and expected blob hashes are equal; input bytes were not published. Retained API payloads are unchanged. Repaired only the external capture variable name; no producer or repository contract was changed.

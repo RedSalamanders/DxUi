@@ -1,3 +1,0 @@
-# Preserve the exact reviewed test and collection receipts.
-*.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
-*.log -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

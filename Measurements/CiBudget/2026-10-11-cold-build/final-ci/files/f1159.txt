@@ -1,8 +1,0 @@
-{
-  "status": "ROOT_REVIEW_DRIVER_SETUP_FAILURE",
-  "driver": "C:\\Users\\eric\\.codex\\tmp\\dpf-s0-s2-merge\\early-ci-native-cold-budget\\Record-RootArmRefusals-399.before-git-filter.ps1",
-  "driverSha256": "A08282270155313827F7E9982DD46EF70B38856A9135D23F4AA07067BE83F9A8",
-  "exitCode": 1,
-  "reason": "The first attempt compared CRLF working-tree source with LF committed Git blobs using --no-filters. No product or CI failure; no refusal review receipt was written.",
-  "correction": "Compare the clean checkout through its committed text filters while retaining separate actual working-tree SHA256 and raw Git-object hashes."
-}

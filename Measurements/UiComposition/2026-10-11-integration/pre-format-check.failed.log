@@ -1,4 +1,0 @@
-Formatter: clang-format version 22.1.3
-C:\Users\eric\.codex\worktrees\performance-forms\DxUi\Tests\Controls\DxUi.Tests.NativeTextInput.cpp:2879:71: error: code should be clang-formatted [-Wclang-format-violations]
-    Require(! simulateFirstLoss || ! DxUiTestWindowsCanActivateFlag(),
-                                                                      ^

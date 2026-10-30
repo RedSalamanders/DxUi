@@ -1,4 +1,0 @@
-ROOT PASS Debug: actual matching before/after/post-focus state, current EXE hashes, 14 forms, embedded delivery witnesses, four zero-skip full native suites and complete lease/IME witnesses; confirmation=started.
-ROOT PASS Release: actual matching before/after/post-focus state, current EXE hashes, 14 forms, embedded delivery witnesses, four zero-skip full native suites and complete lease/IME witnesses; confirmation=autostarted.
-ROOT PASS ASan Debug: actual matching before/after/post-focus state, current EXE hashes, 14 forms, embedded delivery witnesses, four zero-skip full native suites and complete lease/IME witnesses; confirmation=started.
-ROOT PASS deliberate sanitizer detection matched the current ASan Foundation executable.

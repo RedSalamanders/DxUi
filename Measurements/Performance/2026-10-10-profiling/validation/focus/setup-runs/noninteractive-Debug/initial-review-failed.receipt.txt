@@ -1,9 +1,0 @@
-{
-  "purpose": "failed-archive-review-preserved",
-  "parentNativeExitCode": 0,
-  "reviewerExitCode": 1,
-  "reviewerError": "Invalid complete noninteractive receipt/log: MenuExitLifetime",
-  "cause": "Reviewer incorrectly required a normal completion marker from the deliberate std::exit(0) fixture",
-  "initialReviewerSourceSha256": "B3372C697813CB568E3E9CE9F8A456D5219CE04F4BBF39E9675C0B9C93537267",
-  "recordedUtc": "2026-10-11T04:16:47.5024608Z"
-}

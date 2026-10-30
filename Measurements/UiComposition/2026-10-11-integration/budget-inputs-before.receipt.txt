@@ -1,5 +1,0 @@
-{
-  "sourceCommit": "bf11ba44fbd661fd5e1e6015f95d5719a4bfba83",
-  "sourceDirty": false,
-  "compiledSourceIdentity": "3dc3cdc29207fa2ea624d66a36f6516ce7fcd3cd5a32b0cbb99c35e1b95b73c2"
-}

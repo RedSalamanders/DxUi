@@ -1,3 +1,0 @@
-# Preserve exact archive and checksum-manifest bytes, including CRLF.
-*.zip -text
-*-manifest.txt -text -whitespace
