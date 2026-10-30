@@ -1,0 +1,1 @@
+- Include the reviewed native build policy in the portable SDK, qualify the extracted consumer with zero warnings, and prove consumer-owned warnings still fail validation.

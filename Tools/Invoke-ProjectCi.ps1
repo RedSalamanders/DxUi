@@ -65,7 +65,7 @@ if ($Phase -in @('ReleaseTestBuild','Qualification','Production')) {
     if ($Phase -eq 'ReleaseTestBuild') { return }
 }
 if ($Phase -eq 'Production') {
-    Run 'Tools/New-SdkPackage.ps1' @('-Platform',$Platform,'-Version',$context.batch.version)
+    Run 'Tools/New-SdkPackage.ps1' @('-Platform',$Platform,'-Version',$context.batch.version,'-SmokeRoot',$env:RUNNER_TEMP)
     $archives = @(Get-ChildItem (Join-Path $root '.build/sdk') -Filter "*-$Platform.zip" -File | ForEach-Object FullName)
     Write-CiProductionReceipt -Context $context -Archives $archives -TestModeDisabled $true -SmokePassed $true
     # Retain the original extracted-consumer proof beside the internal ZIP receipt.

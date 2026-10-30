@@ -320,3 +320,5 @@ or performance acceptance. Strict paired preflight matched after complete-catalo
 Provider runner-file hashes and exact source Git-blob hashes have explicitly different representation labels.
 
 The [native policy, console and dependency-path contract](Build_ConsoleAndPaths.md) owns /Wall without /WX, zero-warning acceptance, Debug/ASan symbols, Release-only ICF, common terminal results and verified short dependency folders.
+
+The relocatable Release SDK distribution and extracted-consumer proof are governed by Specs/Build/Build_UnifiedCI.md. Its exact compiler/LTCG/CRT identity and packaged build policy do not change the independently pinned source-consumer interface above.
