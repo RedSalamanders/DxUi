@@ -108,6 +108,21 @@ as a successful alignment; restore only when the current point still matches a p
 Retain bounded initial/final readback, poll-count and elapsed-time diagnostics. This synchronization does not
 identify which host or desktop action delayed or changed a cursor position.
 
+Keyboard root-switch fixtures require modal-dispatch readiness before posted state probes, using the remainder
+of the same five-second discovery budget. They run under the existing bounded foreground-attempt helper with
+a fresh owner per admitted attempt; a held behavioral failure and exhausted admission remain failures.
+A stationary-pointer assertion must establish and read back the owned physical cursor at the matching owner
+client point. Posting the same virtual coordinate alone does not establish stationarity. Fresh same-point mouse
+messages remain covered after keyboard navigation: retain the original 120 ms popup-alive check immediately
+after posting, then acknowledge dispatch with the existing state probe and verify unchanged root-switch count
+and physical position. Preserve the 800 ms keyboard-state bound. Diagnostics retain owner/cancel context and
+pointer/keyboard routes; an earlier untraced cancellation or pointer event remains unassigned.
+
+The stationary root-switch fixture parks on the initial active A header before showing A. Only after A has
+completed modal readiness and exposes visible geometry may the fixture align the physical cursor to B.
+An acknowledged B move must leave exactly one pointer root switch, including when the alignment itself
+already delivered that switch. Keep the subsequent keyboard sequence and stationary-position assertions.
+
 Native-menu dismissal fixtures verify actual focus on the menu-bar host after `FocusFirstItem()` and before
 starting a popup-discovery driver. The driver uses one 5 s deadline for visible-popup discovery and the existing
 modal-dispatch readiness signal, and requires the dismissal-key post itself to succeed after both are ready. Keep
@@ -208,8 +223,10 @@ Release CI run retains the common benchmark receipt.
 `test.ps1` builds the selected configuration, runs Foundation, Embedded and all inherited control suites and records a JSON receipt with
 architecture, configuration, time and executable path under `.build/reports`. Failures propagate as nonzero exits.
 Callers MUST judge a PowerShell runner through a fresh process's exit code or invocation success (`$?`)
-captured immediately after the script call. Ambient `$LASTEXITCODE` can retain an intentional native ASan
-probe's nonzero result after a successful in-process script; it is not that script's completion status.
+captured immediately after the script call. Ambient `$LASTEXITCODE` is not a general script-completion status.
+`test.ps1` additionally clears it to zero only after all requested suites pass and successful evidence finalization
+returns. Suite failures and evidence-finalization exceptions never reach that reset. Historical in-process calls
+can retain the intentional native ASan probe's nonzero result despite successful sealed suite/lease outcomes.
 Preserve wrapper failures separately from sealed native outcomes. A reporting-error disposition requires
 independent source/invocation proof and exact owner, source, artifact and sealed-payload binding; it MUST
 NOT rewrite failed records, hide a real suite/lease failure or claim aggregate wrapper success.
@@ -288,9 +305,35 @@ case and the restored clean pin record a start, outcome and monotonic duration. 
 `status=incomplete` and the active case intact; no later final receipt is inferred. Ten distinct successful negative
 cases are required before publishing `ExternalConsumer-*.json`; progress becomes completed only after that matching
 final receipt exists. Progress is never counted as a final consumer result. The workflow's existing reports upload
-retains both incomplete progress and completed receipts after failure. `Tools/ConsumerQualification.psm1` owns this
-test-case journal separately from fixed build-stage timing, and its fixtures cover interruption, failure, duplicate
-cases, missing checks and wrong-source final receipts.
+retains both incomplete progress and completed receipts after failure. `Tools/ConsumerQualification.psm1` is the
+sole writer for this owner-process journal, separately from fixed build-stage timing, and its fixtures cover
+interruption, failure, duplicate cases, missing checks and wrong-source final receipts. Initial journal creation is
+non-overwriting; later snapshots replace the existing journal atomically. A concurrent polling reader must allow
+delete sharing: its open handle may retain a coherent old snapshot while the path names the new one. Use
+`File.Replace` for updates with an explicit CLR-null backup argument; PowerShell's ordinary `$null` can bind as an
+empty path.
+
+On Windows, update publication may retry only `HRESULT_FROM_WIN32(ERROR_SHARING_VIOLATION)` (32) or
+`HRESULT_FROM_WIN32(ERROR_UNABLE_TO_REMOVE_REPLACED)` (1175). Before a retry, the existing destination and pending
+file must still have their original file identities, lengths and SHA-256 values. Recheck this state immediately
+before the next `File.Replace`; recheck the elapsed deadline after those identity/hash reads and refuse a new
+replacement when the 250 ms retry-admission window has expired. Allow at most three replacement calls and two
+25 ms waits. This is an admission bound, not a hard total-wall-time bound: a synchronous OS replacement or
+identity/hash operation cannot be interrupted. Persistent locks, unknown errors, failed identity reads, or any
+changed file state fail visibly and never restart the conformance phase body. Publication failures remain errors
+and never start or count a conformance phase. The external-timeout fixture's
+child writes a readiness payload to a distinct pending path only from inside the phase body, after the module
+has published `activePhase`; it closes that file and moves it without replacement to the final marker path.
+The parent holds the child after the pending file appears, verifies that this staged file is not readiness,
+then releases publication and waits for the final marker within the existing ten-second readiness bound. It
+terminates the child and waits within the existing three-second bound, reading the journal only after child
+closure so it does not test a mutable path between `Test-Path` and `Open`. A Windows negative control holds
+the existing journal without delete sharing: failed active publication must exit nonzero, omit both marker
+paths, and leave status, active phase, phase count and completion count unchanged. Each child path gets one
+bounded closure wait; if it remains live, its owned fixture is preserved and reported instead of deleted.
+Both controls retain bounded stdout/stderr and early-exit diagnostics. The observed original assertion was a
+missing progress path at the read site; `TestSupport` removed the fixture on unwind, so the original failure's
+initiating cause remains unassigned.
 PR #99's retained x64 Release Full step exhausted its combined 35-minute window after 16 ordinary suite receipts;
 Accessibility was still in progress and had emitted no native timeout or failure. The observed 18-minute gap
 before the MSBuild banner has no measured subphase attribution. Bounded top-level build/gate BEGIN/END/FAIL records
@@ -354,6 +397,13 @@ UTC creation timestamp. Cleanup acts only on the retained process whose identity
 timeout, descendant survival and bounded pipe-drain assertions remain required; no timestamp tolerance or
 descendant-tree termination substitutes for them. The [Linux portability packet](../../Measurements/Tooling/2026-10-11-linux-portability/README.md)
 retains the original PR failures and same-source before/after fixtures; it does not qualify native performance.
+The inherited-pipe fixture separates parent launch/setup from the observed drain phase. A controlled 3.2-second
+setup delay must not consume the drain assertion's three-second observation bound; the helper retains its
+0.2-second drain budget. Its optional `observedDrainElapsedMs` scalar begins when the helper observes direct
+exit or finishes termination handling, not at the kernel exit instant. An exact PID/creation-identity holder
+must still be alive when the helper returns, independently of that scalar, and must acknowledge explicit release
+with exit zero. A five-second holder failsafe and identity-checked failure cleanup keep the fixture bounded.
+Startup delay and an EOF-wait substitution are distinct controlled checks; neither assigns an original untraced failure.
 `validate-skills.ps1` checks all repository skills, reading front matter as a strict `key: value` subset of YAML
 that any YAML parser reads the same way; `validate-specs.ps1`
 checks local links, normative documents and plan indexes; `validate-dependencies.ps1` verifies historical origin
@@ -603,6 +653,12 @@ and losing capture clears the tooltip. It shows the tooltip with a tick past the
 Native menu input fixtures wait for a visible popup: the hidden measurement HWND is not ready for input.
 Cold creation has a separate five-second setup allowance; owner-message-flood hover and invocation checks
 retain their 800 ms deadlines after setup. Capture readiness similarly waits for the final visible surface.
+The acrylic metric fixture shares that five-second budget between popup discovery and the existing modal
+posted-dispatch acknowledgement before its unchanged 800 ms geometry query. A geometry/probe timeout is not
+evidence of failed blur rendering. Its later injected bitmap deliberately isolates rendering; the injected
+app-blur flag does not establish production backdrop capture. Keep all visual thresholds and record the last
+answered dimensions, render count, DPI and blur flag when a later state probe fails. Hook fields documented as
+UI-thread-only are read after driver join, never from the driver's timeout path.
 The interactive owner-message-flood fixture aligns the physical cursor with its posted pointer target:
 Windows-generated capture moves must describe the same position. It restores the original position only
 if the pointer remains at the fixture target, preserving intervening human movement. The 2,000-message
@@ -648,6 +704,17 @@ state, item rectangles, paint, text and layout, its backdrop, and a bitmap captu
   Cancellation context contains only flags for foreground existence/owner/process and capture owner/popup,
   plus `InSendMessageEx` flags. These observations do not attribute an untraced cancellation or authorize retrying
   a held behavioral failure. The same readiness, hover, timer and elapsed assertions and deadlines still apply.
+
+The delayed submenu-close fixture guards its complete calibration-Show, physical alignment and tested-Show sequence
+with fresh `RunUntilForegroundHeld` attempts. It reacquires the owner's actual foreground and focus immediately before
+the tested Show, then records the original driver/result predicates until the attempt's foreground observation is known.
+Only an observed `WM_ACTIVATEAPP` loss or explicit acquisition refusal admits another attempt, at the existing five-run
+bound; a held failure is never retried, and exhaustion fails this fixture. Discarded attempts retain their failure and
+passive owner/cancellation trace. The controlled-loss regression delivers synthetic `WM_ACTIVATEAPP` loss through the
+existing takeover helper and cancels the first tested popup with `WM_CANCELMODE`, then
+requires a fresh held attempt to satisfy the original complete hover/timer/close sequence. Popup discovery, probe and
+hover deadlines remain unchanged. This proves wrapper recovery, not that an external application caused the CI failure;
+activation cancellation alone does not identify which application or mechanism caused it.
 
 The native disclosure automation client subscribes from its own MTA thread while the owner thread pumps.
 Cold client setup (COM, `ElementFromHandle` and property-event subscription) has a separate 20-second

@@ -40,7 +40,8 @@ configured role-format cache key when the size, after 1/64-DIP normalization, an
 Alignment, paragraph alignment, wrapping and reading direction remain in the key. Other normalized sizes and weights
 remain separate. Icon, HeroIcon and IconLarge use the role-default key only when the Fluent icon family is available;
 without it, the default Small fallback and explicit custom-format creation/retry paths remain intact. This alias does not
-change the bounded cache capacity or its owner-paint/preparation eviction timing.
+change the bounded cache capacity or its owner-paint/preparation eviction timing. The Small fallback preserves the
+requested alignment, paragraph alignment, wrapping and reading direction, and reuses the matching configured Small format.
 For `Label` typography overrides, `characterSpacingDip == 0` uses DirectWrite's default zero character spacing.
 Measurement and painting leave a new or retained text layout at that default instead of querying
 `IDWriteTextLayout1` and applying an explicit zero mutation. Nonzero spacing keeps the existing query, mutation and

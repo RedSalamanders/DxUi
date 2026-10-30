@@ -398,7 +398,7 @@ function Invoke-OwnedProfilingProcess {
                 text=[Text.StringBuilder]::new(); closed=$false; truncated=$false; error='' }
         })
         $exitTask = $process.WaitForExitAsync()
-        $timedOut = $false; $terminationError = ''; $drainError = ''; $drainDeadline = $null
+        $timedOut = $false; $terminationError = ''; $drainError = ''; $drainDeadline = $null; $drainStartedElapsedMs = $null
         while ($true) {
             if ($null -eq $drainDeadline -and -not $process.HasExited -and $clock.Elapsed.TotalSeconds -ge $TimeoutSeconds) {
                 $timedOut = $true
@@ -406,9 +406,13 @@ function Invoke-OwnedProfilingProcess {
                 # creates no descendants; do not follow parent IDs into independent applications.
                 try { $process.Kill() } catch { if (-not $process.HasExited) { $terminationError = $_.Exception.Message } }
                 if (-not $process.WaitForExit(5000)) { $terminationError = 'Owned profiling child did not terminate after timeout.' }
-                $drainDeadline = $clock.Elapsed.TotalMilliseconds + $DrainTimeoutSeconds * 1000
+                $drainStartedElapsedMs = $clock.Elapsed.TotalMilliseconds
+                $drainDeadline = $drainStartedElapsedMs + $DrainTimeoutSeconds * 1000
             }
-            if ($null -eq $drainDeadline -and $process.HasExited) { $drainDeadline = $clock.Elapsed.TotalMilliseconds + $DrainTimeoutSeconds * 1000 }
+            if ($null -eq $drainDeadline -and $process.HasExited) {
+                $drainStartedElapsedMs = $clock.Elapsed.TotalMilliseconds
+                $drainDeadline = $drainStartedElapsedMs + $DrainTimeoutSeconds * 1000
+            }
             foreach ($pipe in $pipes) {
                 if ($pipe.closed -or -not $pipe.task.IsCompleted) { continue }
                 try {
@@ -440,6 +444,8 @@ function Invoke-OwnedProfilingProcess {
             startedUtc=$started.ToString('o'); completedUtc=[DateTime]::UtcNow.ToString('o'); timeoutSeconds=$TimeoutSeconds;
             drainTimeoutSeconds=$DrainTimeoutSeconds; exitCode=$(if ($process.HasExited) { $process.ExitCode } else { $null });
             timedOut=$timedOut; terminationError=$terminationError; drainError=$drainError;
+            # Observed drain entry follows child-exit observation or termination handling; launch/setup is excluded.
+            observedDrainElapsedMs=$(if ($null -ne $drainStartedElapsedMs) { [Math]::Max(0,[Math]::Round($clock.Elapsed.TotalMilliseconds-$drainStartedElapsedMs,3)) } else { $null });
             pipeCharacterLimit=$PipeCharacterLimit; stdoutTruncated=$pipes[0].truncated; stderrTruncated=$pipes[1].truncated;
             stdout=$pipes[0].text.ToString(); stderr=$pipes[1].text.ToString() }
     } catch {

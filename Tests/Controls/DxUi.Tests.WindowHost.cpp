@@ -17,6 +17,7 @@
 #include <functional>
 #include <future>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string_view>
 #include <thread>
@@ -6806,6 +6807,76 @@ void TestWindowHostConfiguredTextFormatsAliasExactRoleDefaults()
             Require(explicitIcon != nullptr &&
                         host.GetTextFormat(FontRole::Icon, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false) == smallDefault,
                     "an explicit icon request does not replace or poison the missing-font default fallback");
+        }
+    }
+
+    // Keep one host attached so the next host shares its DirectWrite factory, then seed only the cached Fluent-family
+    // answers. This exercises the fallback even on machines where Segoe Fluent Icons is installed.
+    struct ScopedMissingFluentIconFamily final
+    {
+        wil::com_ptr<IDWriteFactory> factory;
+        std::optional<bool> priorAvailable;
+
+        explicit ScopedMissingFluentIconFamily(IDWriteFactory* sharedFactory) : factory(sharedFactory)
+        {
+            std::scoped_lock lock(Typography::GetMeasurementCacheMutex());
+            for (auto& entry : Typography::GetFontFamilyCache())
+            {
+                if (entry.factoryKey == factory.get() && entry.familyName == Typography::kSegoeFluentIconsFamily)
+                {
+                    priorAvailable  = entry.available;
+                    entry.available = false;
+                    break;
+                }
+            }
+        }
+
+        ~ScopedMissingFluentIconFamily() noexcept
+        {
+            std::scoped_lock lock(Typography::GetMeasurementCacheMutex());
+            auto& cache = Typography::GetFontFamilyCache();
+            for (auto& entry : cache)
+            {
+                if (entry.factoryKey == factory.get() && entry.familyName == Typography::kSegoeFluentIconsFamily)
+                {
+                    if (priorAvailable.has_value())
+                        entry.available = priorAvailable.value();
+                    break;
+                }
+            }
+        }
+    };
+    {
+        AttachedHostWindow factoryOwner;
+        static_cast<void>(factoryOwner.Host().HasFluentIconFont()); // Populate the shared factory's cached family answer.
+        wil::com_ptr<IDWriteFactory> ownerFactory = factoryOwner.Host().GetWriteFactory();
+        Require(ownerFactory != nullptr, "the first host retains the shared DirectWrite factory");
+        ScopedMissingFluentIconFamily unavailableFluent(ownerFactory.get());
+        Require(unavailableFluent.priorAvailable.has_value(), "the exact shared factory has a cached Fluent-family answer to seed");
+        AttachedHostWindow fallbackWindow;
+        auto& fallbackHost = fallbackWindow.Host();
+        Require(fallbackHost.GetWriteFactory() == ownerFactory.get(), "both hosts share the exact DirectWrite factory whose cache entry was seeded");
+        Require(! fallbackHost.HasFluentIconFont(), "the seeded family cache makes Fluent unavailable to the second shared-factory host");
+
+        constexpr DWRITE_TEXT_ALIGNMENT fallbackAlignment      = DWRITE_TEXT_ALIGNMENT_CENTER;
+        constexpr DWRITE_PARAGRAPH_ALIGNMENT fallbackParagraph = DWRITE_PARAGRAPH_ALIGNMENT_CENTER;
+        constexpr bool fallbackWrap                            = false;
+        constexpr DWRITE_READING_DIRECTION ltr                 = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
+        constexpr DWRITE_READING_DIRECTION rtl                 = DWRITE_READING_DIRECTION_RIGHT_TO_LEFT;
+        IDWriteTextFormat* const smallLtr = fallbackHost.GetTextFormat(FontRole::Small, fallbackAlignment, fallbackParagraph, fallbackWrap, ltr);
+        IDWriteTextFormat* const smallRtl = fallbackHost.GetTextFormat(FontRole::Small, fallbackAlignment, fallbackParagraph, fallbackWrap, rtl);
+        Require(smallLtr && smallRtl && smallLtr != smallRtl, "Small formats retain separate LTR and RTL cache entries");
+        Require(smallLtr->GetReadingDirection() == ltr && smallRtl->GetReadingDirection() == rtl,
+                "Small fallback formats expose the requested reading direction");
+
+        constexpr std::array iconRoles{FontRole::Icon, FontRole::IconLarge, FontRole::HeroIcon};
+        for (const FontRole iconRole : iconRoles)
+        {
+            IDWriteTextFormat* const first = fallbackHost.GetTextFormat(iconRole, fallbackAlignment, fallbackParagraph, fallbackWrap, rtl);
+            Require(first && first == smallRtl && first->GetReadingDirection() == rtl,
+                    "each unavailable configured icon role reuses the direction-matched Small format");
+            Require(fallbackHost.GetTextFormat(iconRole, fallbackAlignment, fallbackParagraph, fallbackWrap, rtl) == first,
+                    "each fallback role reuses its warm Small format on repeated requests");
         }
     }
 }

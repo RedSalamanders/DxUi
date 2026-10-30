@@ -422,6 +422,14 @@ it. If no delivered move has established pointer history, the capture-time read 
 initializes that history. A stationary capture message must preserve a keyboard-opened
 popup's first-item selection; a genuinely moved pointer must still select its hovered
 row. Capture changes must not overwrite existing delivered movement history.
+When a popup initializes hover from a stationary pointer over an enabled submenu
+row, it starts the ordinary 400 ms cascade delay after showing the popup; another
+pointer move is unnecessary. Keyboard-initialized selection, disabled rows and
+rows without children do not start this pointer timer. Existing child ownership
+and same-row movement preserve an already pending timer.
+Keyboard navigation cancels pending pointer cascade timers throughout the popup
+chain. A previously queued timer must not replace or close a keyboard-focused
+child. AltGr's modifier event preserves the existing pointer timer behavior.
 A menu's row layouts and accessibility proxies exist only while it is open: closing it returns them, even
 while a client still holds its row elements. `DebugGetContextMenuResources` counts them exactly (popups, row text
 layouts and the accessibility records of menu-popup snapshots, wherever held), so a test asserts that a closed menu

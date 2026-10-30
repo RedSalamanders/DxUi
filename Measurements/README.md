@@ -1,5 +1,13 @@
 # Independent DxUi measurements
 
+- [Final PR134 paired comparison, 29 October](RedTildeCompletion_2026-10-24/pr134-paired-20261029/README.md): all 144 receipts and 78 rows replay; five raw flags, zero Holm regressions and no exact-budget rises coexist with 71/72 unstable controls and an inconclusive unqualified-policy verdict.
+
+- [Clean-Prepare hosted native qualification, 29 October](RedTildeCompletion_2026-10-24/pr134-native-20261029/README.md): six actual x64/ARM64 native profiles, 126 declared Full results, two real ASan detections and eight consumer modes pass. Paired policy/control acceptance remains separate.
+
+- [Separate clean-Prepare precision diagnostic, 29 October](RedTildeCompletion_2026-10-24/clean-prepare-precision8-20261029/README.md): eight process replicates and all 64 per-process summaries; normalized batch means and empty-loop context do not replace canonical per-call p95.
+
+- [Qualification runner reliability, 2026-10-28](QualificationReliability_2026-10-28/README.md): current producer `0a2279c7` (PR #128) has six local build profiles, six focused x64 Debug Menu cases, and 57/57 ordinary x64 Debug/Release/ASan executions passing with zero skips. The twelve-suite foreground matrix is NOT RUN. Hosted run 40777143980 has three failed x64 native jobs and a failed ARM64 ASan job; ARM64 Debug/Release remain pending in the latest captured snapshot. Overall qualification remains open. Preserves source-specific 6e/594, d4, c155/PR #126, test-only 921 and compile-only 762 outcomes. The c155 paired study remains inconclusive with unstable same-side controls; performance policy review is open.
+
 - [Current native lifecycle qualification, 086ad82a](NativeLifecycle_2026-10-28/README.md): all six hosted native profiles and external consumers pass, including actual ARM64/ASan execution. All twelve local foreground suite runs pass with zero skips and verified restoration. Paired performance and the unqualified base policy remain separate gates.
 
 - [Merged renderer and Menu qualification, 7020121d](RedesignCompletion_2026-10-27/sdk-7020121d/README.md): all six native profiles, 505 manifest data streams, two real ASan detectors and the exact-head local Menu lease pass. The paired study has zero independently recomputed regression rows, but 69/72 unstable controls and an unqualified base policy leave performance acceptance open. PR #116 preserves the tested tree and renderer98 ancestry.

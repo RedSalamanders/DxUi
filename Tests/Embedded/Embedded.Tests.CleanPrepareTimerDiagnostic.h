@@ -155,6 +155,11 @@ struct QpcSample
     return {value.QuadPart, valid != FALSE};
 }
 
+[[nodiscard]] constexpr bool AccumulateCleanNoopResult(bool allNoopResults, HRESULT result) noexcept
+{
+    return allNoopResults && result == S_FALSE;
+}
+
 [[nodiscard]] inline BatchSample MeasureBatch(
     ComplexUiScene& scene, size_t batchSize, size_t repetition, size_t groupPosition, bool preparationFirst, bool isPreparation, uint64_t frequency)
 {
@@ -168,11 +173,13 @@ struct QpcSample
     result.before           = CaptureSnapshot(scene);
     const QpcSample start   = ReadQpc();
     HRESULT lastResult      = S_OK;
+    bool allNoopResults     = true;
     if (isPreparation)
     {
         for (size_t call = 0; call < batchSize; ++call)
         {
-            lastResult = scene.view.Prepare(1280u, 720u);
+            lastResult     = scene.view.Prepare(1280u, 720u);
+            allNoopResults = AccumulateCleanNoopResult(allNoopResults, lastResult);
             if (FAILED(lastResult))
                 break;
             ++result.loopIterations;
@@ -183,6 +190,8 @@ struct QpcSample
     const QpcSample end = ReadQpc();
     result.elapsedTicks = end.ticks - start.ticks;
     result.after        = CaptureSnapshot(scene);
+    if (isPreparation)
+        Check(allNoopResults, "every clean Prepare diagnostic batch call returns S_FALSE");
     Check(start.valid && end.valid, "clean Prepare diagnostic QPC samples succeed");
     Check(SUCCEEDED(lastResult), "clean Prepare diagnostic calls succeed");
     Check(result.loopIterations == batchSize, "clean Prepare diagnostic exact batch call count");
@@ -265,15 +274,27 @@ inline void PrepareFixture(ComplexUiScene& scene, GraphicsFixture& gpu)
     gpu.Bind();
     Hr(scene.view.Composite(gpu.context.get(), gpu.Viewport()), "clean Prepare diagnostic initial fixture composition");
     Check(! scene.view.NeedsPreparation(), "clean Prepare diagnostic fixture starts prepared");
-    const auto prepared = CaptureSnapshot(scene);
+    const auto prepared       = CaptureSnapshot(scene);
+    bool allWarmupNoopResults = true;
     for (size_t index = 0; index < kWarmupCalls; ++index)
-        Check(SUCCEEDED(scene.view.Prepare(1280u, 720u)), "clean Prepare diagnostic warmup call succeeds");
+    {
+        const HRESULT warmupResult = scene.view.Prepare(1280u, 720u);
+        allWarmupNoopResults       = AccumulateCleanNoopResult(allWarmupNoopResults, warmupResult);
+        Check(allWarmupNoopResults, "every clean Prepare diagnostic warmup returns S_FALSE");
+    }
     Check(SamePreparedState(prepared, CaptureSnapshot(scene)), "clean Prepare diagnostic warmup keeps prepared state and source");
 }
 
 inline void RunOracle()
 {
     constexpr uint64_t kOracleFrequency = 10'000'000u;
+    Check(AccumulateCleanNoopResult(true, S_FALSE), "clean Prepare no-op result tracker accepts S_FALSE");
+    const bool earlierSuccessThenNoop = AccumulateCleanNoopResult(AccumulateCleanNoopResult(true, S_OK), S_FALSE);
+    Check(! earlierSuccessThenNoop, "clean Prepare result tracker rejects earlier S_OK followed by final S_FALSE");
+    Check(! AccumulateCleanNoopResult(AccumulateCleanNoopResult(true, E_FAIL), S_FALSE), "clean Prepare result tracker retains an earlier failure");
+    Check(! AccumulateCleanNoopResult(true, static_cast<HRESULT>(2)), "clean Prepare result tracker rejects other successful results");
+    Check(! AccumulateCleanNoopResult(false, S_FALSE), "clean Prepare result tracker never resets a rejected result");
+
     std::vector<BatchSample> oracleSamples;
     oracleSamples.reserve(kBatchSizes.size() * 2u);
     for (const size_t batchSize : kBatchSizes)
@@ -339,7 +360,8 @@ inline void WriteReport(
            << "\",\"sourceHashAlgorithm\":\"fnv1a64-utf16le\",\"sourceHash64\":" << samples.front().before.sourceHash
            << ",\"sceneStateHashAlgorithm\":\"fnv1a64-scene-values\",\"sceneStateHash64\":" << samples.front().before.sceneStateHash << ",\"seed\":" << seed
            << ",\"qpcFrequency\":" << frequency << ",\"qpcTickNanoseconds\":" << 1.0e9 / static_cast<double>(frequency)
-           << ",\"measurementScope\":\"loop bracket including HRESULT checks and loop bookkeeping; emptyLoop is separate context, never subtracted\""
+           << ",\"measurementScope\":\"loop bracket including HRESULT checks, S_FALSE result classification and loop bookkeeping; emptyLoop is separate "
+              "context, never subtracted\""
            << ",\"isolatedMethodLatency\":false"
            << ",\"warmupNoopCalls\":" << kWarmupCalls << ",\"repetitionsPerBatchSize\":" << kRepetitionsPerSize
            << ",\"batchSizes\":[1,8,64,512],\"baseOrder\":[" << baseOrder[0] << ',' << baseOrder[1] << ',' << baseOrder[2] << ',' << baseOrder[3]

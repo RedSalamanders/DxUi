@@ -2538,7 +2538,7 @@ IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role,
 
     if ((role == FontRole::Icon || role == FontRole::HeroIcon || role == FontRole::IconLarge) && ! HasFluentIconFont())
     {
-        return GetTextFormat(FontRole::Small, alignment, paragraphAlignment, wrap);
+        return GetTextFormat(FontRole::Small, alignment, paragraphAlignment, wrap, readingDirection);
     }
 
     if (! _dwriteFactory)
