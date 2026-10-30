@@ -9,7 +9,9 @@ Frozen batch version (0.1.build).
 .build/sdk/DxUi-SDK-<version>-<platform>.zip and source/compiler/archive identity receipt.
 .NOTES
 Requires a completed production-only Release build, PowerShell 7.4 and the selected MSVC 14.52 toolchain.
-Copies public headers, WIL public dependencies, licenses, Release library and integration props.
+Copies public headers, WIL public dependencies, licenses, Release library, integration props
+and the unchanged reviewed native build policy. SDK headers are external dependencies of
+the extracted consumer; its own translation units retain /Wall and zero-warning validation.
 The smoke compiles its own consumer against extracted files only; it never rebuilds DxUi.
 .EXAMPLE
 ./Tools/New-SdkPackage.ps1 -Platform x64 -Version 0.1.1234
@@ -40,12 +42,17 @@ $triplet=if($Platform -eq 'ARM64'){'arm64-windows'}else{'x64-windows'}
 $installed=Join-Path $root ".build/vcpkg_installed/$Platform/$triplet"
 Copy-Item -Path (Join-Path $installed 'include/*') -Destination (Join-Path $stage 'include') -Recurse
 Copy-Item -LiteralPath $library -Destination (Join-Path $stage "lib/$Platform/Release/DxUi.lib")
+New-Item -ItemType Directory -Path (Join-Path $stage 'build') | Out-Null
+Copy-Item -LiteralPath (Join-Path $root 'Build/NativeBuildPolicy.targets') -Destination (Join-Path $stage 'build/NativeBuildPolicy.targets')
 New-Item -ItemType Directory -Path (Join-Path $stage 'licenses') | Out-Null
 foreach($name in @('LICENSE.txt','THIRD-PARTY-NOTICES.md')){Copy-Item -LiteralPath (Join-Path $root $name) -Destination (Join-Path $stage 'licenses')}
 Copy-Item -LiteralPath (Join-Path $installed 'share/wil/copyright') -Destination (Join-Path $stage 'licenses/WIL-LICENSE.txt')
 $props=@'
 <Project>
-  <PropertyGroup><DxUiSdkRoot>$(MSBuildThisFileDirectory)</DxUiSdkRoot></PropertyGroup>
+  <PropertyGroup>
+    <DxUiSdkRoot>$(MSBuildThisFileDirectory)</DxUiSdkRoot>
+    <ExternalIncludePath>$(DxUiSdkRoot)include;$(ExternalIncludePath)</ExternalIncludePath>
+  </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>$(DxUiSdkRoot)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -60,6 +67,7 @@ $props=@'
     <Error Condition="'$(Platform)'!='@PLATFORM@'" Text="This SDK ZIP has another native architecture." />
     <Error Condition="'$(VCToolsVersion)'!='@COMPILER@'" Text="Use the SDK manifest's exact MSVC compiler version for LTCG compatibility." />
   </Target>
+  <Import Project="$(MSBuildThisFileDirectory)build\NativeBuildPolicy.targets" />
 </Project>
 '@
 $props=$props.Replace('@PLATFORM@',$Platform).Replace('@COMPILER@',$identity.Identity.vcToolsVersion)
@@ -69,6 +77,7 @@ Import DxUi.Sdk.props after Microsoft.Cpp.props in a Release project for the arc
 Use the exact MSVC compiler version in sdk-manifest.json; the library contains LTCG objects and uses /MD.
 This archive contains no producer source, producer test binaries, SDK-private test headers or Debug/ASan archive.
 Public source-pin consumers retain the separate Build/DxUi.Consumer.props contract in the source repository.
+The included native policy preserves /Wall for your sources and the producer's reviewed diagnostic exceptions.
 '@ | Set-Content -LiteralPath (Join-Path $stage 'README.txt') -Encoding utf8
 $manifest=[ordered]@{schemaVersion=1;version=$Version;platform=$Platform;configuration='Release';kind='sdk';
     source=(& git -C $root rev-parse HEAD).Trim();apiRevision=$identity.Identity.apiRevision;compiler=$identity.Identity;
@@ -113,7 +122,27 @@ Assert-NativeBuildDiagnostics -LogPath $smokeLog
 & (Join-Path $smoke 'bin/SdkSmoke.exe')
 if($LASTEXITCODE -ne 0){throw 'Extracted SDK-only consumer failed at runtime.'}
 if((Get-FileHash -LiteralPath (Join-Path $extracted "lib/$Platform/Release/DxUi.lib")).Hash -cne $before){throw 'Consumer build changed the SDK archive library.'}
+# A real first-party warning must still be rejected after SDK headers become external.
+# Keep separate outputs so this negative control cannot replace the positive consumer.
+$warningProject=Join-Path $smoke 'SdkWarningControl.vcxproj'
+$warningSource=Join-Path $smoke 'WarningControl.cpp'
+[IO.File]::WriteAllText($warningSource,'int main() { int unused = 1; return 0; }')
+[IO.File]::WriteAllText($warningProject,$project.Replace('Include="Main.cpp"','Include="WarningControl.cpp"'))
+$warningLog=Join-Path $logs "sdk-warning-control-$Version-$Platform.log"
+$warningArguments=@($warningProject,'/nologo','/m','/v:minimal','/p:Configuration=Release',
+    ("/p:Platform=$Platform"),("/p:VCToolsVersion=$($identity.Identity.vcToolsVersion)"),
+    ('/p:IntDir='+(Join-Path $smoke 'warning-obj')+'\'),('/p:OutDir='+(Join-Path $smoke 'warning-bin')+'\'))
+& $msbuild @warningArguments 2>&1 | Tee-Object -FilePath $warningLog | ForEach-Object {Write-Host $_}
+if($LASTEXITCODE -ne 0){throw 'SDK warning control must compile successfully with /WX disabled.'}
+$diagnostics=Get-NativeBuildDiagnostics -LogPath $warningLog
+if($diagnostics.WarningCount -lt 1 -or $diagnostics.ErrorCount -ne 0 -or
+    [IO.File]::ReadAllText($warningLog) -notmatch '\bC4189\b'){throw 'SDK integration hid the first-party warning control.'}
+$refused=$false
+try { Assert-NativeBuildDiagnostics -LogPath $warningLog } catch { $refused=$_.Exception.Message -like 'Zero-warning build validation failed:*' }
+if(-not $refused){throw 'SDK first-party warning did not fail zero-warning validation.'}
 $manifest['smokePassed']=$true
+$manifest['firstPartyWarningControlPassed']=$true
+$manifest['nativePolicySha256']=(Get-FileHash -LiteralPath (Join-Path $extracted 'build/NativeBuildPolicy.targets')).Hash.ToLowerInvariant()
 $manifest['archiveSha256']=(Get-FileHash -LiteralPath $archive).Hash.ToLowerInvariant()
 $manifest|ConvertTo-Json -Depth 12|Set-Content -LiteralPath ($archive+'.receipt.json') -Encoding utf8
 Write-Host "Qualified extracted SDK ZIP: $archive"
