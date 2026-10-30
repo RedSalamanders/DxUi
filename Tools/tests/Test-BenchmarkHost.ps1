@@ -5,7 +5,7 @@ Import-Module (Join-Path $PSScriptRoot 'TestSupport.psm1') -Force
 $scriptPath = Join-Path $PSScriptRoot '../Watch-BenchmarkHost.ps1'
 
 Invoke-TestCase 'hosted study admits continuous observations and retains original native outputs' {
-    $workflow = Get-Content (Join-Path $PSScriptRoot '../../.github/workflows/ci.yml') -Raw
+    $workflow = Get-Content (Join-Path $PSScriptRoot '../../.github/workflows/benchmark.yml') -Raw
     $measure = $workflow.Substring($workflow.IndexOf('      - id: measure'),$workflow.IndexOf('      - id: verdict')-$workflow.IndexOf('      - id: measure'))
     Assert-True ($measure.IndexOf("Test-Path (`$hostPath + '.ready')") -lt $measure.IndexOf('./performance-paired.ps1 @pairedArgs')) 'ready evidence precedes measurement'
     Assert-True ($measure.Contains('finally {') -and $measure.Contains("(`$hostPath + '.stop')") -and $measure.Contains("`$observer.State -ne 'Completed'")) 'all outcomes stop and check the owned observer'

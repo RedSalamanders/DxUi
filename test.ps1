@@ -293,6 +293,10 @@ if ($foregroundLeaseRequired) {
 }
 if ($failures.Count) { throw "DxUi failed suites: $($failures -join '; '). See $($evidence.Directory)." }
 Write-Host "All $($Suites.Count) requested suites passed."
+Publish-TestRunEvidenceReceipt -Run $evidence -Name 'normal-suites.json' -Receipt ([ordered]@{
+    schemaVersion=1; platform=$Platform; configuration=$Configuration; passed=$true
+    countUnit='suite'; discovered=@($Suites); executed=@($Suites); filtered=($Tests.Count -ne 0)
+})
 $runPassed = $true
 } finally { Complete-TestRunEvidence -Run $evidence -Passed $runPassed }
 # Nested native probes can leave a failing child exit code even when every requested suite passed.

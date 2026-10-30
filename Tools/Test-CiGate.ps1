@@ -1,3 +1,4 @@
+# Legacy PR-routing compatibility. Current CI authority is Specs/Build/Build_UnifiedCI.md and the pinned engine.
 <#
 .SYNOPSIS Verifies the fixed aggregate CI check against every required job result.
 .DESCRIPTION A skipped native matrix is accepted only after a successful PR scope decision explicitly says native=false.

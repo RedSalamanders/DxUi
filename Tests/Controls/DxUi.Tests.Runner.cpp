@@ -5,6 +5,7 @@
 #include "Support.Tests.FailureReports.h"
 #include "Support.Tests.ForegroundThief.h"
 #include "Support.Tests.PerformanceCapture.h"
+#include "Support.Tests.PreparedTreeSemanticFixture.h"
 #include <optional>
 #include <string>
 #include <string_view>
@@ -93,6 +94,22 @@ void RunWatchdogSelfTestProgress()
 int wmain(int argc, wchar_t** argv)
 {
     DxUiTestFailureReports::RouteAwayFromDialogs();
+    if (argc == 2 && std::wstring_view(argv[1]) == L"--ci-assertion-probe")
+    {
+        try
+        {
+            [[maybe_unused]] DxUi::Tests::ThreePreparedTreeModel missingSource({});
+            std::fputs("CI_ASSERTION_PROBE_DISABLED: fixture precondition returned\n", stderr);
+            return 0;
+        }
+        catch (const std::invalid_argument&)
+        {
+            // The real shared fixture guard must reject invalid input even with NDEBUG.
+        }
+        Require(false, "CI_ASSERTION_PROBE");
+        std::fputs("CI_ASSERTION_PROBE_DISABLED\n", stderr);
+        return 0;
+    }
     // The failure-report self-test, reachable only through --failure-report-self-test, which Tools/tests/Test-TestWatchdog.ps1
     // runs: a failed runtime check must end the run with its report and exit code 3, never wait on a dialog.
     if (argc == 2 && std::wstring_view(argv[1]) == L"--failure-report-self-test")

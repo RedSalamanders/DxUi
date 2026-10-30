@@ -1,0 +1,138 @@
+name: Manual paired benchmark
+on:
+  workflow_dispatch:
+    inputs:
+      benchmark_baseline:
+        description: Explicit frozen baseline revision
+        type: string
+        required: true
+      benchmark_candidate:
+        description: Candidate revision; empty uses dispatched ref
+        type: string
+        default: ''
+      benchmark_calibration_aa:
+        description: Diagnostic A/A with identical explicit revisions
+        type: boolean
+        default: false
+      benchmark_scenarios:
+        description: Comma separated paired scenarios
+        type: string
+        default: Default,MultilineGrid,MultilineGridDistinct
+      require_passing_verdict:
+        description: Require the full paired acceptance verdict; disable only for diagnostic A/A
+        type: boolean
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: paired-manual-${{ github.run_id }}
+  cancel-in-progress: false
+jobs:
+  paired-benchmark:
+    name: paired-benchmark
+    runs-on: windows-2025-vs2026
+    # Twelve blocks across three gating scenarios mean 144 benchmark receipts, plus both builds; retain time to publish on timeout.
+    timeout-minutes: 240
+    steps:
+      - name: Enable long Windows checkout paths
+        shell: pwsh
+        run: git config --global core.longpaths true
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      # Explicit manual source revisions are required. Original native outputs and continuous host evidence remain mandatory.
+      - name: Prepare required MSVC 14.52 tools
+        uses: ./.github/actions/setup-msvc
+        with:
+          platform: x64
+      # Restore and measure only after successful native toolchain setup.
+      - shell: pwsh
+        timeout-minutes: 15
+        run: ./vcpkg-install.ps1 -Platform x64
+      - id: measure
+        shell: pwsh
+        timeout-minutes: 210
+        env:
+          BENCHMARK_BASELINE: ${{ inputs.benchmark_baseline }}
+          BENCHMARK_CANDIDATE: ${{ inputs.benchmark_candidate }}
+          BENCHMARK_SCENARIOS: ${{ inputs.benchmark_scenarios || 'Default,MultilineGrid,MultilineGridDistinct' }}
+          BENCHMARK_GATE: ${{ inputs.require_passing_verdict }}
+          BENCHMARK_CALIBRATION_AA: ${{ github.event_name == 'workflow_dispatch' && inputs.benchmark_calibration_aa || false }}
+        run: |
+          $pairedArgs = @{
+            BaselineRevision = $env:BENCHMARK_BASELINE
+            CandidateRevision = $env:BENCHMARK_CANDIDATE
+            Scenario = @($env:BENCHMARK_SCENARIOS -split ',' | ForEach-Object { $_.Trim() })
+            Blocks = 12
+          }
+          if ($env:BENCHMARK_CALIBRATION_AA -eq 'true') {
+            if ($env:BENCHMARK_GATE -eq 'true') { throw 'A/A is diagnostic; explicitly disable require_passing_verdict for this calibration.' }
+            if ($env:GITHUB_EVENT_NAME -ne 'workflow_dispatch' -or
+                [string]::IsNullOrWhiteSpace($env:BENCHMARK_BASELINE) -or
+                [string]::IsNullOrWhiteSpace($env:BENCHMARK_CANDIDATE) -or
+                $env:BENCHMARK_BASELINE -cne $env:BENCHMARK_CANDIDATE) {
+              throw 'A/A calibration requires an explicit workflow_dispatch with identical non-empty baseline and candidate revisions.'
+            }
+            $pairedArgs.CalibrationAA = $true
+          }
+          $hostPath = Join-Path $PWD '.build/host-observations/paired.jsonl'
+          $observer = Start-Job -FilePath ./Tools/Watch-BenchmarkHost.ps1 -ArgumentList $hostPath
+          try {
+            $deadline = [DateTime]::UtcNow.AddSeconds(60)
+            while (-not (Test-Path ($hostPath + '.ready'))) {
+              if ($observer.State -in @('Failed','Completed','Stopped') -or [DateTime]::UtcNow -gt $deadline) {
+                throw 'Continuous host observations failed to start; preserve the attempt.'
+              }
+              Start-Sleep -Milliseconds 100
+            }
+            ./performance-paired.ps1 @pairedArgs
+            if ($LASTEXITCODE) { throw "Paired study failed with exit code $LASTEXITCODE." }
+          } finally {
+            New-Item -ItemType Directory -Force -Path (Split-Path $hostPath) | Out-Null
+            Set-Content -LiteralPath ($hostPath + '.stop') -Value 'Study ended; retain every observation.'
+            $null = Wait-Job $observer -Timeout 15
+            if ($observer.State -ne 'Completed') {
+              Stop-Job $observer
+              Receive-Job $observer
+              throw 'Host observation continuity is incomplete; retain the failed study.'
+            }
+            Receive-Job $observer -ErrorAction Stop
+          }
+      # Retain a verdict after measurement failure; cancellation cannot create qualification.
+      - id: verdict
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        env:
+          BENCHMARK_PAIR: Explicit manual source revisions
+          BENCHMARK_GATE: ${{ inputs.require_passing_verdict }}
+        run: ./Tools/Publish-BenchmarkVerdict.ps1 -Gate:($env:BENCHMARK_GATE -eq 'true')
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ always() }}
+        with:
+          name: paired-benchmark-x64-Release
+          path: |
+            .build/paired/*/reports/**
+            .build/paired/*/baseline/.build/x64/Release/*.exe
+            .build/paired/*/baseline/.build/x64/Release/*.lib
+            .build/paired/*/baseline/.build/x64/Release/*.pdb
+            .build/paired/*/baseline/.build/x64/Release/*.dll
+            .build/paired/*/baseline/.build/reports/**
+            .build/paired/*/candidate/.build/x64/Release/*.exe
+            .build/paired/*/candidate/.build/x64/Release/*.lib
+            .build/paired/*/candidate/.build/x64/Release/*.pdb
+            .build/paired/*/candidate/.build/x64/Release/*.dll
+            .build/paired/*/candidate/.build/reports/**
+            .build/x64/Release/*.exe
+            .build/x64/Release/*.lib
+            .build/x64/Release/*.pdb
+            .build/x64/Release/*.dll
+            .build/reports/performance-build/**
+            .build/host-observations/**
+            .build/paired/*/baseline/.build/logs/*.log
+            .build/paired/*/candidate/.build/logs/*.log
+            .build/logs/*.log
+            .build/evidence/test-runs/**
+          # Preserve the original measured native outputs and attestations, including A/A's single physical tree.
+          include-hidden-files: true
+          retention-days: 14

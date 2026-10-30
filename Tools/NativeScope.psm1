@@ -1,3 +1,4 @@
+# Legacy PR-routing compatibility. Current CI authority is Specs/Build/Build_UnifiedCI.md and the pinned engine.
 # Which runs of the validation workflow (ci.yml) need its six native jobs. A push to main and a manual run always do:
 # consumers adopt the main commit whose latest push run succeeded (Tools/ConsumerUpdate.psm1), so a main run is never cut
 # short. A pull request does unless every path it changes is documentation, which the validation job checks and no native

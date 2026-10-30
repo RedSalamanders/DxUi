@@ -4,8 +4,8 @@
 
 #include <array>
 #include <atomic>
-#include <cassert>
 #include <memory>
+#include <stdexcept>
 #include <string>
 
 namespace DxUi::Tests
@@ -71,11 +71,14 @@ public:
     }
     void Replace(std::shared_ptr<const ThreePreparedTreeRows> source)
     {
-        assert(source && source->GetCount() == _items.size());
+        // Fixture preconditions are shared by two runners and stay active in Release.
+        if (! source || source->GetCount() != _items.size())
+            throw std::invalid_argument("Prepared tree fixture requires its complete three-row source");
         for (size_t index = 0u; index < _items.size(); ++index)
         {
             const auto row = source->GetItem(index).value();
-            assert(row.visibleIndex == index && row.itemId == ThreePreparedTreeRows::Ids[index]);
+            if (row.visibleIndex != index || row.itemId != ThreePreparedTreeRows::Ids[index])
+                throw std::invalid_argument("Prepared tree fixture source identity differs");
             _items[index] = TreeItemData{.id          = row.itemId,
                                          .text        = std::wstring(row.text),
                                          .depth       = static_cast<uint32_t>(row.depth),

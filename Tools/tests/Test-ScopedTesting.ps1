@@ -535,49 +535,33 @@ try {
     }
 
     Run-Case 'a profile outside actual PR coverage cannot be delegated' {Assert-Scope (@(Get-ScopedPrCoverage $repository $manifest Unknown Unknown).Count -eq 0) 'Unknown PR profile delegated'}
-    Run-Case 'PR coverage accounts for conditional native jobs without an API dependency' {
-        $profile=$manifest.prCoverage[0]
-        $documentation=@(Get-ScopedPrCandidateScopes $repository $manifest $profile.platform $profile.configuration @('README.md'))
-        $code=@(Get-ScopedPrCandidateScopes $repository $manifest $profile.platform $profile.configuration @('src/Controls/DxUi.Grid.cpp'))
-        if($manifest.repository -like '*/DxUi') {
-            Assert-Scope ($documentation.Count -eq 1 -and $documentation[0] -eq 'Tooling') 'Skipped native PR jobs were counted as coverage'
-            Assert-Scope ($code.Count -eq $manifest.scopes.Count) 'Native PR coverage was narrowed for code edits'
-        } else {
-            Assert-Scope ($documentation.Count -eq $manifest.scopes.Count -and $code.Count -eq $manifest.scopes.Count) 'Unconditional RedXe PR gate was incorrectly narrowed'
-        }
-    }
-    Run-Case 'reviewed CI preserves full native coverage and separates independent tooling' {
-        $workflow=[IO.File]::ReadAllText((Join-Path $repository '.github/workflows/ci.yml')) -replace "`r`n","`n"
-        Assert-Scope ((Get-ScopedPrContractDigest $repository $manifest) -ceq $manifest.prWorkflowDigest) 'CI contract digest is stale'
-        if ($manifest.repository -like '*/DxUi') {
-            foreach ($path in @('.github/workflows/ci.yml', 'test.ps1', 'Tools/Get-NativeScope.ps1', 'Tools/NativeScope.psm1', 'Tools/BenchmarkGate.psm1', 'Tools/ScopedTesting.psm1')) {
-                Assert-Scope (@($manifest.prContractFiles) -ccontains $path) "The CI coverage contract leaves out $path"
+    Run-Case 'compiler-free PRs delegate no native or compiler-dependent tooling obligations' {
+        foreach($platform in @('x64','ARM64')){
+            foreach($configuration in @('Debug','Release','ASan Debug')){
+                Assert-Scope (@(Get-ScopedPrCandidateScopes $repository $manifest $platform $configuration @('src/changed.cpp')).Count -eq 0) 'PR checks cannot satisfy native/tooling execution'
             }
         }
-        Assert-Scope ($workflow -match 'test.ps1 -Full -SkipTooling') 'CI accidentally uses affected iteration or repeats independent tooling'
+        Assert-Scope ($manifest.prCoverage.Count -eq 0) 'The manifest advertises compiler-dependent PR coverage'
+    }
+    Run-Case 'reviewed CI keeps PR coverage empty and normal native execution in the main adapter' {
+        Assert-Scope ((@($manifest.prCoverage)).Count -eq 0) 'Native PR coverage must remain empty'
+        $engine=Join-Path $repository '.ci-engine'
+        Import-Module (Join-Path $engine 'Tools/Modules/Ci.Project.psm1')
+        Import-Module (Join-Path $engine 'Tools/Modules/Ci.Policy.psm1')
+        $project=Read-CiProject $repository
+        Test-CiProjectConfiguration @{root=$repository;engineRoot=$engine;project=$project;development=$false}
+        $adapter=[IO.File]::ReadAllText((Join-Path $repository 'Tools/Invoke-ProjectCi.ps1'))
+        Assert-Scope ($adapter.Contains("Run 'test.ps1'") -and $adapter.Contains("'-Full','-SkipTooling','-SkipBuild'")) 'The normal batch lost Full native execution'
+        Assert-Scope ($adapter.Contains('Invoke-ToolingTests.ps1')) 'Compiler-dependent tooling lost its main owner'
+        Assert-Scope ($adapter.Contains('Get-CiSuiteEvidence')) 'Native suite execution must produce canonical fresh evidence'
+        Assert-Scope (@(Get-ScopedPrCoverage $repository $manifest x64 Release).Count -eq 0) 'Native qualification was delegated to a static PR check'
+        foreach($retained in @("Run 'test-consumer.ps1'","'-DisableStlAnnotations'","MenuResourceScaling,MenuTextLayoutResources","Run 'gallery.ps1'")){
+            Assert-Scope ($adapter.Contains($retained)) "The main/manual adapter lost $retained"
+        }
         $errors=$null;$tokens=$null;$ast=[Management.Automation.Language.Parser]::ParseFile((Join-Path $repository 'test.ps1'),[ref]$tokens,[ref]$errors)
         Assert-Scope (@($errors).Count -eq 0) 'Native entrypoint has parse errors'
-        $defaults=($ast.ParamBlock.Parameters | Where-Object {$_.Name.VariablePath.UserPath -eq 'Suites'}).DefaultValue.Extent.Text
-        foreach($scope in $manifest.scopes){
-            Assert-Scope ($defaults.Contains("'$($scope.name)'") -or -not $scope.native) "CI native default misses $($scope.name)"
-        }
-        foreach($profile in $manifest.prCoverage){foreach($scope in $profile.scopes){Assert-Scope ($scope -in $manifest.scopes.name) "PR profile declares nonexistent scope $scope"}}
-        if($manifest.repository -like '*/DxUi') {
-            Assert-Scope ($manifest.prCoverage.Count -eq 6 -and $workflow.Contains('MenuResourceScaling,MenuTextLayoutResources')) 'DxUi profile/resource coverage was narrowed'
-            Assert-Scope ($workflow -match '(?m)^      - name: Qualify the relocated public consumer\r?\n        if: \$\{\{ !cancelled\(\) \}\}') 'Native failure hides independent consumer qualification'
-            Assert-Scope ($workflow -match '(?m)^      - name: Qualify the consumer with STL annotations disabled\r?\n        if: \$\{\{ !cancelled\(\) && matrix.configuration == ''ASan Debug'' \}\}') 'Native or first consumer failure hides the ASan annotation variant'
-            Assert-Scope ($workflow.Contains('run: ./validate.ps1')) 'Portable tooling gate missing'
-            Assert-Scope ($workflow.Contains('windows-tooling:') -and ([regex]::Matches($workflow,'run: ./validate.ps1')).Count -eq 2) 'One qualification per Windows/Linux host was not retained'
-            Assert-Scope (([regex]::Matches($workflow,'run: ./Tools/tests/Test-AsanRuntime.ps1')).Count -eq 1) 'Runtime staging fixture is repeated or missing'
-            Assert-Scope ($workflow.Contains('ci-gate:') -and $workflow.Contains('needs: [validation, windows-tooling, format, native-scope, native, paired-benchmark]')) 'The aggregate gate does not require every qualification job'
-            Assert-Scope ($workflow -match '(?m)^  native-scope:\r?\n    runs-on: ubuntu-24\.04\r?\n    timeout-minutes: 5\r?\n    outputs:') 'Native skip output is not a job-level classifier result'
-        } else {
-            Assert-Scope ($manifest.prCoverage.Count -eq 1 -and $manifest.prCoverage[0].configuration -eq 'Release' -and $manifest.prCoverage[0].platform -eq 'x64') 'RedXe PR coverage overclaimed'
-            Assert-Scope ($workflow.Contains('./Tests/BuildProcessTests/Invoke-ToolingTests.ps1')) 'Independent tooling job missing'
-        }
-        $digest=$manifest.prWorkflowDigest
-        try {$manifest.prWorkflowDigest='stale';$profile=$manifest.prCoverage[0];Assert-Scope (@(Get-ScopedPrCoverage $repository $manifest $profile.platform $profile.configuration).Count -eq 0) 'Modified workflow was delegated'}
-        finally {$manifest.prWorkflowDigest=$digest}
+        $defaults=($ast.ParamBlock.Parameters|Where-Object {$_.Name.VariablePath.UserPath -eq 'Suites'}).DefaultValue.Extent.Text
+        foreach($scope in $manifest.scopes){Assert-Scope ($defaults.Contains("'"+$scope.name+"'") -or -not $scope.native) "Normal native defaults miss $($scope.name)"}
     }
     Run-Case 'public runner executes once, reuses success and never retains failed or mutated runs' {
         $sandbox=Join-Path $fixture 'runner'

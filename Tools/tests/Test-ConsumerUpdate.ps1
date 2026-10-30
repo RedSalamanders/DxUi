@@ -24,6 +24,9 @@ try {
             if ($route.StartsWith('compare/')) {
                 return @{status=$(if ($case -eq 'divergent') {'diverged'} elseif ($case -eq 'ahead') {'behind'} else {'ahead'})}
             }
+            if ($route -notlike 'actions/workflows/qualify.yml/runs*event=workflow_dispatch*') {
+                throw 'The cheap push coordinator is not native qualification.'
+            }
             if ($case -eq 'absent') { return @{workflow_runs=@()} }
             return @{workflow_runs=@(@{
                 head_sha=$(if($case -eq 'wrong-run'){$old}else{$new})

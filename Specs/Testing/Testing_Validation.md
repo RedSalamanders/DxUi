@@ -236,9 +236,9 @@ comparison and fails for a suspected regression or invalid evidence; no baseline
 `-Interactive` selects the control suites that need the real desktop and runs them under the desktop lease after all of this
 (see Interactive tests below); no other option or run reaches the lease.
 Use the [performance contract](../Core/Core_PerformanceAndResources.md) for before/after acceptance and regression advice.
-A pull request to `main` that changes something the benchmark measures also runs the paired benchmark on a hosted runner
-(the contract's [hosted paired gate](../Core/Core_PerformanceAndResources.md#hosted-paired-gate)), and
-`Tools/tests/Test-BenchmarkGate.ps1` runs with the other tooling tests in every `validate.ps1` and `test.ps1` run.
+Long paired studies use the explicit manual benchmark.yml action; a required passing verdict remains the acceptance gate.
+PRs run compiler-free formatting/tooling/security. Main batches retain normal Full native suites and consumer/gallery checks.
+Tools/tests/Test-BenchmarkGate.ps1 still runs in complete local validation and the main tooling phase.
 The short WARP benchmark reports completed offscreen throughput, not display refresh or hardware acceptance.
 `DxUi.ControlTests.exe --suite=<Suite> --test=<Name>[,<Name>...]` (`test.ps1 -Suites <Suite> -Tests <Name>[,<Name>]`) runs
 only the named test functions of the selected suite, so one test iterates in seconds instead of a whole suite in minutes.

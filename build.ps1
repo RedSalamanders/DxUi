@@ -5,16 +5,20 @@ milliseconds diagnose build orchestration; they are not native workload measurem
 .PARAMETER Configuration Debug, Release or ASan Debug.
 .PARAMETER Platform x64 or ARM64.
 .PARAMETER OutputRoot Optional isolated output root; defaults to this checkout's .build directory.
+.PARAMETER ProductionOnly Build only the Release library target; excludes test executables from the production role.
 #>
 [CmdletBinding()]
 param(
     [ValidateSet('Debug','Release','ASan Debug')][string] $Configuration = 'Debug',
     [ValidateSet('x64','ARM64')][string] $Platform = 'x64',
     [string] $OutputRoot = '',
-    [switch] $Rebuild
+    [switch] $Rebuild,
+    [switch] $ProductionOnly
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+if ($env:CI_NATIVE_BUILDS_DISABLED -eq 'true') { throw 'Native builds are forbidden in compiler-free PR checks.' }
+if ($ProductionOnly -and $Configuration -ne 'Release') { throw 'ProductionOnly requires Release.' }
 $nativeEntryElapsed = [Diagnostics.Stopwatch]::StartNew()
 Import-Module (Join-Path $PSScriptRoot 'Build/BuildConsole.psm1') -ErrorAction Stop
 
@@ -148,7 +152,7 @@ Invoke-DxUiBuildPhase -Phase DependencyAdmission -Body {
     }
 }
 $defaultOutput = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '.build')).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
-$attestPerformanceBuild = [string]::Equals($output, $defaultOutput, [StringComparison]::OrdinalIgnoreCase)
+$attestPerformanceBuild = (-not $ProductionOnly) -and [string]::Equals($output, $defaultOutput, [StringComparison]::OrdinalIgnoreCase)
 if ($attestPerformanceBuild) {
     # Consumer-owned output roots retain their separate integration contract. Default builds also serve performance.ps1
     # and test.ps1 -SkipBuild, so bind compiled source/dependencies and the resolved toolchain before invoking MSBuild.
@@ -167,6 +171,10 @@ $log = Join-Path $logDirectory ("build-$Platform-$Configuration-" + [guid]::NewG
 $arguments = @((Join-Path $PSScriptRoot 'DxUi.sln'), '/m', '/nologo', '/verbosity:minimal', "/t:$target",
     "/p:Configuration=$Configuration", "/p:Platform=$Platform", "/p:DxUiOutputRoot=$output",
     "/flp:logfile=$log;verbosity=normal;encoding=UTF-8")
+if ($ProductionOnly) {
+    if ($Configuration -ne 'Release') { throw 'ProductionOnly requires Release.' }
+    $arguments[4] = if ($Rebuild) { '/t:DxUi:Rebuild' } else { '/t:DxUi' }
+}
 Write-Host 'Build configuration:' -ForegroundColor Cyan
 Write-Host "  Configuration: $Configuration"
 Write-Host "  Platform:      $Platform"
@@ -206,4 +214,5 @@ if ($attestPerformanceBuild) {
 $profileOutput=Join-Path $output "$Platform/$Configuration"
 $library=Join-Path $profileOutput 'DxUi.lib'
 $sample=Join-Path $profileOutput 'DxUi.EmbeddedControls.exe'
+if ($ProductionOnly) { $sample = '' }
 Write-NativeBuildResult -Project DxUi -Platform $Platform -Configuration $Configuration -LogPath $log -Artifacts @($library) -Executable $sample -Duration $nativeEntryElapsed.Elapsed
