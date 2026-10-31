@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Adopt shared CI v1.0.7 with separate sandbox and workspace evidence uploads. Preserve paired native regression, production and archive validation; no product publication is performed.
 - Remove hosted SDK and gallery publication workflows; keep native SDK ZIP/extracted-consumer qualification and local documentation generation. Shared CI refuses SDK publication routes. No public API, renderer or gallery pixels change. Correct compiler-free dependency validation to check the already independent tool and ports revisions without changing either pin.
 - Refresh the production review of the ten-day merge window through #137 at `09f6d96a`. Every earlier P1 still
   reproduces. Second reviewers confirmed, corrected or refuted each earlier unverified item. The refresh adds a
