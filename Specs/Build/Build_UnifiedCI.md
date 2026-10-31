@@ -51,16 +51,11 @@ remains enabled; CodeQL uses explicit C/C++ build mode none, which does not invo
 Compiler-free CodeQL does not analyze generated code as completely as a build-based scan:
 [GitHub build-mode contract](https://docs.github.com/en/code-security/how-tos/find-and-fix-code-vulnerabilities/manage-your-configuration/codeql-for-compiled-languages).
 
-Publication is an explicit trusted-main action, defaulting to prepare-only. Select an original successful
-qualify.yml run with complete matching receipts and retained ZIPs for both native architectures. Publication
-promotes those exact bytes without building, restamping, signing afterwards or substituting an older green
-run for a later failure. Missing/expired artifacts require a fresh explicit qualification. Existing conflicting
-tags, assets or winget submissions are retained for review and never overwritten. Product releases publish
-ZIP assets only. Applications support winget; the DxUi SDK does not. winget requires anonymous immutable
-release URLs, matching ZIP hashes, the configured nested executable, an explicit product license and a working
-publication credential. Private visibility or unavailable credentials are readiness gates, never permission
-to change visibility, billing, licensing or access.
-
+DxUi has no hosted publication workflow, including SDK releases, Prepare, winget or documentation-gallery publication.
+The normal native qualification pipeline still verifies and retains both SDK ZIPs as internal artifacts. Those ZIPs
+and their extracted-consumer receipts do not create a public release. Local gallery generation remains available
+through gallery.ps1 -PublishDocs; reviewed generated documentation enters through an ordinary pull request.
+The five application projects retain their separate explicit artifact-only publication contract.
 The implementation remains unqualified until the organization rollout plan records actual hosted acceptance.
 Source changes, tests written, static checks, and the shared engine's own behavior tests alone do not establish
 that all six native product pipelines passed.
@@ -71,7 +66,7 @@ The adapter retains Full native suites, hosted foreground leases, the relocated 
 
 
 
-Manual gallery generation executes native project code with read-only credentials. A separate trusted-main writer verifies the frozen PR head, commits only generated gallery data by ordinary push and explicitly dispatches fresh PR checks. Manual benchmark.yml retains original outputs and continuous host observations, requires a passing verdict by default and labels A/A as diagnostic. Existing baseline-policy/judge and CR-29/Q12 owner obligations stay open. SDK consumer diagnostics are retained in .build/logs and its original source/compiler/library/archive receipt is retained beside the internal production ZIP.
+Local gallery generation remains available for reviewed documentation pull requests. DxUi has no hosted gallery publication or commit workflow. Manual benchmark.yml retains original outputs and continuous host observations, requires a passing verdict by default and labels A/A as diagnostic. Existing baseline-policy/judge and CR-29/Q12 owner obligations stay open. SDK consumer diagnostics are retained in .build/logs and its original source/compiler/library/archive receipt is retained beside the internal production ZIP.
 
 The SDK ZIP carries the unchanged reviewed NativeBuildPolicy.targets and imports it from DxUi.Sdk.props. Public SDK/WIL headers are external dependencies of the extracted consumer; consumer-owned translation units retain /Wall and the zero-warning gate. Packaging compiles/links/runs a consumer using only extracted files, verifies the library hash is unchanged, then compiles a separate C4189 control and requires diagnostic validation to reject it with /WX still disabled. The receipt records the policy hash and that negative control; no producer test or source tree is packaged.
 

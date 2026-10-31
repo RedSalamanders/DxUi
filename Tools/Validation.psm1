@@ -423,9 +423,15 @@ function Test-DxUiDependencies([Parameter(Mandatory)][string] $Root) {
     $failures = [Collections.Generic.List[string]]::new()
     $manifest = Read-JsonFile (Join-Path $Root 'vcpkg.json')
     $tool = Read-JsonFile (Join-Path $Root 'vcpkg-tool.json')
-    if (-not (Test-SameValue (Get-RequiredJsonValue $manifest 'builtin-baseline') (Get-RequiredJsonValue $tool 'commit')) -or
-        -not (Test-FullMatch $tool['commit'] '[0-9a-f]{40}')) {
-        $failures.Add('vcpkg baseline/tool revision mismatch')
+    # The restore script pins its executable checkout separately from the manifest's ports baseline.
+    # Validate both immutable identities without rewriting either pin or requiring accidental equality.
+    $baseline = Get-RequiredJsonValue $manifest 'builtin-baseline'
+    $toolCommit = Get-RequiredJsonValue $tool 'commit'
+    if (-not (Test-FullMatch $baseline '[0-9a-f]{40}') -or $baseline -ceq ('0' * 40)) {
+        $failures.Add('vcpkg ports baseline requires a nonzero full 40-character revision')
+    }
+    if (-not (Test-FullMatch $toolCommit '[0-9a-f]{40}') -or $toolCommit -ceq ('0' * 40)) {
+        $failures.Add('vcpkg tool requires a nonzero full 40-character revision')
     }
     $provenance = Read-JsonFile (Join-Path $Root 'Specs/Done/SourceImport/source-origin.json')
     if (-not (Test-SameValue (Get-JsonValue $provenance 'schemaVersion') 2) -or -not (Test-FullMatch (Get-RequiredJsonValue $provenance 'commit') '[0-9a-f]{40}')) {

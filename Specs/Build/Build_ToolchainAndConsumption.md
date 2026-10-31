@@ -89,6 +89,9 @@ standalone EmbeddedControls executable all consume it. The test-only `DxUi.Inter
 `["DxUi"]`, API revision 4.
 
 Run `vcpkg-install.ps1 -Platform x64` (or ARM64/All) before build. WIL and the vcpkg tool revision are pinned.
+The manifest's ports builtin-baseline and vcpkg-tool.json's executable checkout are independent nonzero full Git
+revisions. Restore uses each for its own role; metadata validation checks both immutable identities and never
+requires equality or rewrites either pin. Their compatibility still requires actual source-bound native qualification.
 `-OutputRoot` isolates restore and build work in a consumer-owned directory. The same absolute directory, including
 its trailing separator, becomes `DxUiConsumerOutputRoot`; props locate its public WIL headers and the project
 reference passes it as `DxUiOutputRoot`. No application checkout is needed. Missing restore and mismatched/dirty pins

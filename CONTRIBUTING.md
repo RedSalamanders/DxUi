@@ -13,14 +13,12 @@ keyboard, pointer cancellation, UIA, DPI and layout limits along with rendering.
 Review [docs](docs/README.md) with every code change. Update affected instructions and regenerate visible changes
 with `gallery.ps1 -PublishDocs`; explain when a nonvisual change needs no screenshot refresh. Capture performance
 before implementation and compare afterwards using [the measurement workflow](docs/performance.md). A confirmed
-regression requires developer advice with measured options before acceptance. A pull request that changes something the
-benchmark measures also runs the hosted paired benchmark, whose check fails for a confirmed degradation or an
-inconclusive run (re-run it, or repeat the set on a quiet machine). The validation workflow runs on pull requests and
-on pushes to main, not on pushes to other branches (start it by hand for a branch without a pull request), and a pull
-request that changes documentation alone skips its six native jobs. The formatting workflow checks PRs;
-its manual apply mode can commit formatting on a selected branch. After a merge, the manual "Publish docs gallery"
-workflow regenerates `docs/gallery` on a native x64 Release build and commits it to a selected branch, only when a
-sheet, the index or the README changed; review the committed sheets in its diff. `.github/CODEOWNERS` names the owner
+regression requires developer advice with measured options before acceptance. Required paired benchmarks remain explicit
+manual qualification; a confirmed degradation or inconclusive result does not pass that gate. PRs run compiler-free
+checks and formatting feedback. Meaningful main inputs qualify after five quiet minutes, with both native x64/ARM64
+Release regressions required before production SDK ZIPs. The explicit formatting action may commit a reviewed PR's
+formatting and request fresh checks. Generate changed gallery documentation locally, review every sheet and include
+it in an ordinary PR. DxUi has no hosted publication workflow. `.github/CODEOWNERS` names the owner
 of the workflows, `Tools`, the performance scripts and the agent instructions.
 
 Formatting requires clang-format 22.1.3. To use the same checksum-pinned Windows x64 tool as CI from the repository root:

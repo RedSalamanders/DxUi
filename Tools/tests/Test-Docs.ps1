@@ -402,27 +402,18 @@ Invoke-TestCase 'each completed plan has exactly one link in the Done index' {
     }
 }
 
-Invoke-TestCase 'normal native qualification retains gallery execution and publication remains manual' {
+Invoke-TestCase 'normal native qualification retains gallery execution without a hosted publication route' {
     $adapter=[IO.File]::ReadAllText((Join-Path $repository 'Tools/Invoke-ProjectCi.ps1'))
     Assert-True ($adapter.Contains("Run 'gallery.ps1'") -and $adapter.Contains("'-SkipBuild'")) 'ordinary batch tests retain the native gallery without rebuilding'
-    $workflow=[IO.File]::ReadAllText((Join-Path $repository '.github/workflows/gallery.yml'))
-    $generation=$workflow.IndexOf('./gallery.ps1 -Configuration Release -Platform x64 -PublishDocs')
-    $upload=$workflow.IndexOf('name: proposed-docs-gallery')
-    Assert-True ($generation -ge 0 -and $upload -gt $generation) 'the manual proposal contains the rendered gallery'
-    Assert-True ($workflow.Contains('path: docs/gallery/')) 'the data artifact is the actual generated directory'
+    foreach($name in @('publish.yml','gallery.yml')){
+        Assert-True (-not(Test-Path -LiteralPath (Join-Path $repository ('.github/workflows/'+$name)))) "no hosted publisher: $name"
+    }
+    foreach($file in Get-ChildItem -LiteralPath (Join-Path $repository '.github/workflows') -Filter '*.yml'){
+        Assert-True (-not([IO.File]::ReadAllText($file.FullName).Contains('/.github/workflows/publish.yml@'))) 'no indirect shared publication caller'
+    }
 }
 
-Invoke-TestCase 'gallery rendering is read-only and a trusted manual writer rechecks the new PR head' {
-    $workflow=[IO.File]::ReadAllText((Join-Path $repository '.github/workflows/gallery.yml'))
-    Assert-True ($workflow.Contains('workflow_dispatch:') -and -not ($workflow -match '(?m)^  (push|pull_request|schedule):')) 'explicit manual operation only'
-    Assert-True ($workflow.Contains("github.ref == 'refs/heads/main' && inputs.publish_docs")) 'trusted main dispatcher requires explicit publication'
-    Assert-True ($workflow -match '(?s)publish_docs:.*?type: boolean\s+default: false') 'prepare/render is never an implicit write'
-    $render=[regex]::Match($workflow,'(?ms)^  render:.*?(?=^  [A-Za-z0-9_-]+:|\z)').Value
-    $commit=[regex]::Match($workflow,'(?ms)^  commit:.*?(?=^  [A-Za-z0-9_-]+:|\z)').Value
-    Assert-True ($render.Contains('persist-credentials: false') -and -not $render.Contains('contents: write')) 'native project code receives read-only credentials'
-    Assert-True ($commit.Contains('ref: main') -and $commit.Contains('contents: write')) 'writer executes trusted main code'
-    Assert-True (-not ($commit -match 'setup-msvc|gallery.ps1 -Configuration|vcpkg-install')) 'the writer never executes native project code'
-    Assert-True ($commit.Contains('EXPECTED_HEAD') -and $commit.Contains('-PullRequest')) 'writer checks the frozen PR identity'
+Invoke-TestCase 'explicit gallery commit tooling preserves fast-forward pushes and fresh PR checks' {
     $script=[IO.File]::ReadAllText($commitGallery)
     Assert-True ($script.Contains('push origin HEAD')) 'ordinary fast-forward push'
     Assert-True ($script -cnotmatch '--force|--force-with-lease|push\s+(-\w*f|\+)') 'no forced update'

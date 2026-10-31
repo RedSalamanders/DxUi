@@ -5,8 +5,8 @@ gallery.ps1 -PublishDocs rewrites docs/gallery. Its generation.json records the 
 differs after every commit even when every sheet is identical; the gallery counts as changed only when a sheet, the HTML
 index or the README differs, and a lone new generation.json is left uncommitted (the sheets, and so the gallery, are
 current). Only docs/gallery is staged, so nothing else a build touched is committed. The push is an ordinary one, never
-forced: a branch that moved since the checkout fails the run, which is then repeated. The manual Gallery workflow runs this
-after regenerating the gallery natively; run it locally with -NoPush to see what a publish would commit.
+forced: a branch that moved since the checkout fails the run, which is then repeated. This remains an explicit local
+compatibility command; DxUi has no hosted gallery publication workflow. Use -NoPush to commit without pushing.
 .PARAMETER Root Repository whose docs/gallery is committed; defaults to this one.
 .PARAMETER NoPush Commit and stop, without pushing.
 .PARAMETER PullRequest Optional same-repository PR number. After a token push, verify its new head and explicitly dispatch fresh compiler-free checks.
