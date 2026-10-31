@@ -264,6 +264,88 @@ Move this plan to Done when those boxes are done and the index lists one deliver
 qualification ledger, and only plans that still have unlanded work. DX-11-style optional items in
 other plans are unaffected.
 
+## Citation check
+
+A later pass checked the code and spec anchors, not only the plan status lines.
+`include/` and `src/` are still byte-identical to `f2940cc2`, so a line number that was
+right on 31 October is still the same bytes. That does not make every older anchor right.
+
+### Delivery review and the 15-day table
+
+The repair sites named by [DeliveryReview_2026-10-31](DeliveryReview_2026-10-31.md) are still
+the code they describe:
+
+- `Eol` returns the line ending, else another line's, else `L"\r\n"`
+  (`DxUi.RichTextCommands.cpp` 138-145). Source Enter still assigns `L"\r\n"`
+  (`DxUi.RichTextEditor.cpp` 2349).
+- `Document::MaximumUnits` is `64 * 1024` (`RichDocument.h` 94). Over-capacity throws
+  `std::length_error` (`DxUi.RichDocument.cpp` 24 and 711). The native ceiling is still
+  `size_t` max (`TextStoreTarget.h` 36-38). The client ceiling is still 65536
+  (`TextInputServices.cpp` 17 and 75-77). Import still catches `std::logic_error`
+  (`DxUi.RichTextEditor.cpp` 1847-1851).
+- Quoted paste still appends the raw path (`DxUi.RichTextEditor.cpp` 441-444).
+  `ValidLocalPathText` still rejects quotes and newlines (`DxUi.RichImagePaths.h` 43).
+  Embedded paste still calls the same function (`Embedded.cpp` 1188).
+- UIA focus still sets `keyboardIndex` and does not cancel (`DxUi.Menu.cpp` 3512-3527).
+  Keyboard routing still cancels first (`5454-5457`), including `WM_CHAR` (`5888-5915`).
+- `Grid::SetModel` still returns before `_model = model` on `bad_alloc` (`DxUi.Grid.cpp` 1177-1180).
+- Resize device-loss still discards size-dependent resources only (`DxUi.WindowHost.cpp` 4262-4269).
+  Present-path device-loss still drops device resources (`4588-4598`).
+- `GetStatus` still sets only `TS_SS_NOHIDDENTEXT` (`DxUi.TextStoreACP.cpp` 1342-1343).
+- Unfocused Tree text still passes `theme.selectionText` (`DxUi.Tree.cpp` 83). The resolver
+  still returns that color when it clears 4.5:1 (`DxUi.Theme.cpp` 252-264).
+- The mouse-up invoke path still uses `guard.IsCurrent()` after collapse and does not
+  resume that guard (`DxUi.Tree.cpp` 1919-1939). `CollapseSelectionToItem` does resume
+  (`3064`, `3072`).
+- The typography-override label measure still uses `widthIncludingTrailingWhitespace`
+  and does not set `baselineDip` (`DxUi.Layout.cpp` 281-283). `MeasureText` still uses
+  ink width when wrapping and sets `baselineDip` (`103-105`).
+
+The same paragraphs are still in the normative specs:
+
+- UIA focus follows the menu session rule (`UI_InputAndAccessibility.md` 386-388).
+  Keyboard navigation cancels cascade timers, and a queued timer must not replace a
+  keyboard-focused child (`430-432`). The timer paragraph names keyboard navigation.
+  It does not name UIA. The queued-timer sentence covers a child that already has
+  `keyboardIndex`, which is what UIA focus writes.
+- Inactive Tree text prefers `text`; Grid text prefers `selectionText`
+  (`UI_ControlsAndLayout.md` 711-712). A model refresh does not end a Tree gesture
+  (`752-756`).
+- Hardware Enter falls back to raw CRLF, and Shift+Enter keeps that replacement
+  (`UI_InputAndAccessibility.md` 1156-1157). `docs/rich-text.md` 256 still says
+  "Enter as CRLF". The current contract requires the behavior the delivery plan
+  wants to change. The code matches the contract. The repair is a contract edit
+  plus a code edit.
+- Additions do not increment `apiRevision`, and an equal revision does not permit
+  mixing old and new objects (`Build_ToolchainAndConsumption.md` 221-239). The
+  mixing sentence is 238-239, just past the plan's cited end line 235.
+
+### 28 October P1 anchors
+
+Each P1 was opened at the cited lines. The behavior is still there. These anchors
+are off by a few lines, or name the wrong line for one clause:
+
+| Claim | Cited | What is there |
+| --- | --- | --- |
+| R28-03 chunk size about 1,024 | `DxUi.RichDocumentLayout.cpp` 375 | Line 375 increments `reusedChunks`. `TargetChunkUnits = 1024` is line 14. The spacing skip `lineHeight > 0 && ! textOffset` is `DxUi.RichTextLayout.cpp` 321. Line 247 is the two-unit `textOffset`, not that test. |
+| R28-04 `HorizontalTextBounds` returns `{left, width}` | `DxUi.RichTextLayout.cpp` 424 | Line 424 is `LineMetrics`. `HorizontalTextBounds` returns `{textLeft, textWidth}` at 430-434. The RTL subtraction at `DxUi.RichSemanticGeometry.cpp` 820 is the cited line. |
+| R28-07 `\` is in the escape set | `DxUi.NativeMath.cpp` 491 | The set containing `\` is line 492. |
+| R28-10 `FinishLinkLabel` | `DxUi.RichSourceInk.h` 264-270 | `FinishMarkerRun` is 269. `FinishLinkLabel` is 279-295 and still subdues the first unit, then the tail. |
+| R28-12 setters that do invalidate | `DxUi.Grid.cpp` 6851 | `RequestInvalidate` is 6845. Line 6851 is the catch comment. `SetHeaderBusy` (1434) and `SetSortSpec` (1444-1471) still do not invalidate. `Tree::SetSelectedItemId` still ends at 871 with a snapshot refresh and no invalidate. `SetSelectedItemIds` still ends at 983 the same way. |
+| R28-13 first key starts at the first row | `UI_ControlsAndLayout.md` 679 | That sentence is line 673. |
+
+`OnBoundsChanged` is still absent on Grid and Tree. `ComputeVisibleSpan` still clamps only below zero (`DxUi.Grid.cpp` 7742). Tree paint still passes the raw vertical offset into that span (`DxUi.Tree.cpp` 1293-1294). Pending content still cancels capture (`DxUi.Controls.cpp` 2468-2472). `GetStatus` is unchanged. `\|` still returns the bar character (`DxUi.NativeMath.cpp` 214-215). The reserved flowchart words at `DxUi.NativeFlowchart.cpp` 177 still omit `accTitle` and `accDescr`, and `:::` is still taken as a description (`399-409`). Printable key-down still returns handled for any focused text-input control (`DxUi.WindowHost.cpp` 3720-3723), read-only included. UIA `ScrollIntoView` still scrolls and returns without a new publish (`DxUi.Accessibility.cpp` 7456-7459). `NotifyDataChanged` still reveals the focused row (`DxUi.Tree.cpp` 711-715). Typeahead still starts at the next row (`3476`).
+
+`Tools/Test-CiGate.ps1` and `Tools/Modules/Documentation/Changelog.psm1` exist. The 28 October citations of those files used short paths. The dedupe comment is at `Changelog.psm1` 231, and the removed-fragment refusal is at 196-197.
+
+### Rich-text audit register
+
+`RichTextAudit_2026-10-21/findings.md` cites lines against `fa5821c8`. Of 243 unique `src/`, `include/`, `docs/`, `Tests/` or `Specs/` paths with a line number, 7 are still the same text at the same line, 162 are the same text elsewhere in the file, 33 no longer contain that line text, and 40 name a file that is not at that path. The median move is 65 lines. About 69 of the moves are more than 100 lines.
+
+The missing paths are mostly the old `Scope.Tests.*` names. Those suites now live under names such as `Tests/Controls/Controls.Tests.RichSemanticDocument.cpp` and `Tests/Support/Support.Tests.RichSemantic.h`. `RichTextResources.h` is now `Tests/Embedded/Embedded.Tests.RichTextResources.h`. A citation written as `UI\_ControlsAndLayout.md` is the Markdown escape of a file that does exist.
+
+This pass did not re-judge every one of the 1,092 finding narratives. A shifted line means the cited statement is still in the file. A gone line means that exact source text is not, which can be a fix or a rewrite. `commands-01`'s cited delete-column path is the guarded one at `DxUi.RichTextCommands.cpp` 2096-2099; the audit's line 1936 is 161 lines above that guard.
+
 ## Rejected conclusions
 
 - The folder is full of finished plans that can be deleted. Every indexed plan still has an open row.
