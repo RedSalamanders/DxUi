@@ -1,12 +1,18 @@
 # Active plans
 
-- **SPEC READY**: [Code review of the 15-day window (16-31 October)](CodeReview_2026-10-31.md). Independent red-team of `src/` and `include/` at the delivery tip. Current main is not a consumer pin: stop-ship paste, `Grid::SetModel`, device-loss and menu-timer defects remain, and DeliveryReview Wave 1 does not close the fourteen earlier P1s. Remediation follows Waves 0-7; DX-* repair text stays in the delivery plan. Review only; no library code changed.
+One entry per plan, separated by a blank line, so that changes to different plans merge without conflicts.
+**SPEC READY** means the sequence is written and implementation has not started. **ACTIVE** means
+implementation or qualification is in progress. **HOLD** means the work stays deferred until a separate
+scope decision. A plan's own status line uses the same three words. Promote this sentence into
+`Specs/README.md` when it is accepted; until then the preamble is the working definition.
+
+- **SPEC READY**: [Code review of the 15-day window (16-31 October)](CodeReview_2026-10-31.md). Independent red-team of `src/` and `include/` at the delivery tip. Current main is not a consumer pin: stop-ship paste, `Grid::SetModel`, device-loss and menu-timer defects remain, and DeliveryReview Wave 1 does not close the fourteen earlier P1s. Remediation follows Waves 0-7; DX-* repair text stays in the delivery plan. Review only; no library code changed. This is the delivery sequencer.
 
 - **SPEC READY**: [Delivery review 2026-10-31](DeliveryReview_2026-10-31.md). Implementation has not started. Owns the DX-* library repair text. The full delivery sequence, including the P1s this plan does not schedule, is the 15-day red-team above. Land the menu UIA timer cancel, source-view Enter, native IME capacity and quoted file-paste fallback on main, and port both menu timer cancels onto the two wall-compat branches, before the lower-urgency tree and control repairs. RedTilde and RedSalamander pin that main commit; RedPrism and RedXe re-pin their wall-compat branches. `apiRevision` stays 4.
 
-- **ACTIVE**: [Native build policy, terminal results and short DxUi paths](NativeBuildPolicyCoherence_2026-10-28.md). Shared /Wall without /WX, zero-warning validation, Debug/ASan symbols, Release-only ICF, terminal results and verified short dependency folders.
+- **SPEC READY**: [WIP folder quality, 31 October 2026](WipFolderQuality_2026-10-31.md). Review of the 23 plans indexed at `5f31f2b3`. Library source behind the same-day delivery reviews is unchanged. The index still mixes stale gates, two wave systems and evidence ledgers with unlanded work. This plan sequences the folder repair. It is not a delivery sequencer and it changes no library code.
 
-One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
+- **ACTIVE**: [Native build policy, terminal results and short DxUi paths](NativeBuildPolicyCoherence_2026-10-28.md). Shared /Wall without /WX, zero-warning validation, Debug/ASan symbols, Release-only ICF, terminal results and verified short dependency folders.
 
 - **ACTIVE**: [Subtle Markdown presentation](SubtleMarkdownPresentation_2026-10-27.md). Opt-in heading rules, intrinsic tables, centered display objects and shaded quotes for RedTilde; focused rendering and exact consumer adoption qualification are in progress. Earlier performance/CI queues remain paused.
 
