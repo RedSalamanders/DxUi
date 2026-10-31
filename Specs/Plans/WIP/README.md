@@ -1,6 +1,8 @@
 # Active plans
 
-- **SPEC READY**: [Delivery review 2026-10-31](DeliveryReview_2026-10-31.md). Implementation has not started. Land the menu UIA timer cancel, source-view Enter, native IME capacity and quoted file-paste fallback on main, and port both menu timer cancels onto the two wall-compat branches, before the lower-urgency tree and control repairs. RedTilde and RedSalamander pin that main commit; RedPrism and RedXe re-pin their wall-compat branches. `apiRevision` stays 4.
+- **SPEC READY**: [Code review of the 15-day window (16-31 October)](CodeReview_2026-10-31.md). Independent red-team of `src/` and `include/` at the delivery tip. Current main is not a consumer pin: stop-ship paste, `Grid::SetModel`, device-loss and menu-timer defects remain, and DeliveryReview Wave 1 does not close the fourteen earlier P1s. Remediation follows Waves 0-7; DX-* repair text stays in the delivery plan. Review only; no library code changed.
+
+- **SPEC READY**: [Delivery review 2026-10-31](DeliveryReview_2026-10-31.md). Implementation has not started. Owns the DX-* library repair text. The full delivery sequence, including the P1s this plan does not schedule, is the 15-day red-team above. Land the menu UIA timer cancel, source-view Enter, native IME capacity and quoted file-paste fallback on main, and port both menu timer cancels onto the two wall-compat branches, before the lower-urgency tree and control repairs. RedTilde and RedSalamander pin that main commit; RedPrism and RedXe re-pin their wall-compat branches. `apiRevision` stays 4.
 
 - **ACTIVE**: [Native build policy, terminal results and short DxUi paths](NativeBuildPolicyCoherence_2026-10-28.md). Shared /Wall without /WX, zero-warning validation, Debug/ASan symbols, Release-only ICF, terminal results and verified short dependency folders.
 
