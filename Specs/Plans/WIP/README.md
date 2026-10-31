@@ -1,5 +1,7 @@
 # Active plans
 
+- **SPEC READY**: [Delivery review 2026-10-31](DeliveryReview_2026-10-31.md). Implementation has not started. Land the menu UIA timer cancel, source-view Enter, native IME capacity and quoted file-paste fallback on main, and port both menu timer cancels onto the two wall-compat branches, before the lower-urgency tree and control repairs. RedTilde and RedSalamander pin that main commit; RedPrism and RedXe re-pin their wall-compat branches. `apiRevision` stays 4.
+
 - **ACTIVE**: [Native build policy, terminal results and short DxUi paths](NativeBuildPolicyCoherence_2026-10-28.md). Shared /Wall without /WX, zero-warning validation, Debug/ASan symbols, Release-only ICF, terminal results and verified short dependency folders.
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
