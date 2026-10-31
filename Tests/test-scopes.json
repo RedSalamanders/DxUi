@@ -633,11 +633,10 @@
     ".github/workflows/qualify.yml",
     ".github/workflows/qualification.yml",
     ".github/workflows/format.yml",
-    ".github/workflows/publish.yml",
     ".github/workflows/security.yml",
     "Tools/Invoke-ProjectCi.ps1",
     "Tools/ScopedTesting.psm1"
   ],
   "prNativeScopeModule": "Tools/NativeScope.psm1",
-  "prWorkflowDigest": "7e98cf2974d62a044cb50ca950312bceaba3fa0c875578219dcf93f57bd53ee4"
+  "prWorkflowDigest": "7fc4f3f49b271b2925477f79d2a055c83d296578e936968d978485a9898f6c6e"
 }

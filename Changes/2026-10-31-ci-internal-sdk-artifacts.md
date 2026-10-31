@@ -1,0 +1,1 @@
+- Remove hosted SDK and gallery publication workflows; keep native SDK ZIP/extracted-consumer qualification and local documentation generation. Shared CI refuses SDK publication routes. No public API, renderer or gallery pixels change. Correct compiler-free dependency validation to check the already independent tool and ports revisions without changing either pin.

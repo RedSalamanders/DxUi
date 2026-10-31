@@ -39,6 +39,28 @@ function Set-Origin([string] $Root, [hashtable] $Changes) {
 
 function Get-DependencyFailureCount([string] $Root) { return (Test-DxUiDependencies $Root).Failures.Count }
 
+Invoke-FixtureCase 'ports baseline and executable checkout remain independent immutable pins' {
+    param($root)
+    Set-DependencyFixture $root
+    Set-FixtureJson $root 'vcpkg.json' @{ 'builtin-baseline' = ('b' * 40) }
+    $before = @((Get-FileHash (Join-Path $root 'vcpkg.json')).Hash, (Get-FileHash (Join-Path $root 'vcpkg-tool.json')).Hash)
+    Assert-Equal 0 (Get-DependencyFailureCount $root) 'different exact tool and ports revisions are supported by restore'
+    $after = @((Get-FileHash (Join-Path $root 'vcpkg.json')).Hash, (Get-FileHash (Join-Path $root 'vcpkg-tool.json')).Hash)
+    Assert-Equal ($before -join ',') ($after -join ',') 'validation never aligns or updates dependency pins'
+}
+
+Invoke-FixtureCase 'each independent vcpkg identity rejects moving, zero, truncated and malformed revisions' {
+    param($root)
+    foreach($field in @('baseline','tool')){
+        foreach($value in @('main',('0' * 40),('a' * 39),('A' * 40))){
+            Set-DependencyFixture $root
+            if($field -ceq 'baseline'){Set-FixtureJson $root 'vcpkg.json' @{ 'builtin-baseline' = $value }}
+            else{Set-FixtureJson $root 'vcpkg-tool.json' @{ commit = $value }}
+            Assert-True ((Get-DependencyFailureCount $root) -gt 0) "$field refuses $value"
+        }
+    }
+}
+
 Invoke-FixtureCase 'owned source can evolve without rewriting its historical hash' {
     param($root)
     Set-DependencyFixture $root

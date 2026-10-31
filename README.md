@@ -91,3 +91,5 @@ links and a quoted launch command. OSC 8 capable terminals can open the local
 file links. Cross-built ARM64 applications still need ARM64 Windows to run.
 
 CI behavior and manual actions: [Unified CI contract](Specs/Build/Build_UnifiedCI.md).
+
+DxUi CI retains qualified SDK ZIPs as internal artifacts. It has no hosted SDK, winget or gallery publication workflow; documentation generation remains an explicit local operation.
