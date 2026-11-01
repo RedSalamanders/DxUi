@@ -353,61 +353,77 @@ __declspec(noinline) static void TestEmbeddedSingleGridIsNavigableFromTheApplica
 // and each item whose state changed reports its IsSelected change) and cleared (the item is removed).
 __declspec(noinline) static void TestEmbeddedSingleTreeEventsReachAClientSubscribedToTheApplicationsWindow(GraphicsFixture& gpu)
 {
-    EmbeddedTreeModel model;
-    auto control     = std::make_unique<DxUi::Tree>();
-    DxUi::Tree* tree = control.get();
-    control->SetModel(&model);
-    EmbeddedSingleControlView test(gpu, std::move(control), L"Catégories");
-    EmbeddedUiaTest::Bridge bridge(test.view, 320, 160);
-    Hr(bridge.Attach(), "attach the single-tree view to the application window");
-    UiaTest::Subscription subscription = UiaTest::SelectionEventsSubscription();
-    subscription.properties.push_back(UIA_HasKeyboardFocusPropertyId);
-    subscription.structure = true;
-    subscription.focus     = true;
-    EmbeddedClientWalk walk(bridge, std::move(subscription));
+    {
+        EmbeddedTreeModel model;
+        auto control     = std::make_unique<DxUi::Tree>();
+        DxUi::Tree* tree = control.get();
+        control->SetModel(&model);
+        EmbeddedSingleControlView test(gpu, std::move(control), L"Catégories");
+        EmbeddedUiaTest::Bridge bridge(test.view, 320, 160);
+        Hr(bridge.Attach(), "attach the single-tree view to the application window");
+        UiaTest::Subscription subscription = UiaTest::SelectionEventsSubscription();
+        subscription.properties.push_back(UIA_HasKeyboardFocusPropertyId);
+        subscription.structure = true;
+        subscription.focus     = true;
+        EmbeddedClientWalk walk(bridge, std::move(subscription));
 
-    // What the view raises when it publishes a change: the tree takes the focus, and the application reports it has the window's.
-    test.view.Controls().SetFocusControl(tree);
-    Hr(test.view.Prepare(320, 160, 96), "prepare the focused tree");
-    Hr(bridge.Update(), "publish the focused tree");
-    walk.Expect(walk.client.WaitForEvent(EmbeddedHeardProperty(UIA_HasKeyboardFocusPropertyId, UIA_TreeControlTypeId, L"Catégories", L"true")),
+        // What the view raises when it publishes a change: the tree takes the focus, and the application reports it has the window's.
+        test.view.Controls().SetFocusControl(tree);
+        Hr(test.view.Prepare(320, 160, 96), "prepare the focused tree");
+        Hr(bridge.Update(), "publish the focused tree");
+        walk.Expect(walk.client.WaitForEvent(EmbeddedHeardProperty(UIA_HasKeyboardFocusPropertyId, UIA_TreeControlTypeId, L"Catégories", L"true")),
                 "a client subscribed to the application's window hears the tree take the keyboard focus");
-    walk.Expect(walk.client.WaitForEvent([](const UiaTest::HeardEvent& heard)
-    { return heard.kind == UiaTest::EventKind::Focus && heard.controlType == UIA_TreeControlTypeId && heard.name == L"Catégories"; }),
+        walk.Expect(walk.client.WaitForEvent([](const UiaTest::HeardEvent& heard)
+        { return heard.kind == UiaTest::EventKind::Focus && heard.controlType == UIA_TreeControlTypeId && heard.name == L"Catégories"; }),
                 "a client hears the focus change the view raises for its tree");
 
-    // The tree's selection: each step changes it, the application publishes, and the view raises the events.
-    const auto hear = [&](size_t expected, const char* step, const std::function<void()>& change)
+    }
+    // UI Automation can deliver duplicate callbacks asynchronously.
+    // Seed each predecessor before subscribing so no previous transition can
+    // contribute events to the next action's exact event oracle.
+    const auto item = [](std::wstring_view what, std::wstring_view name) { return std::wstring(what) + L" TreeItem '" + std::wstring(name) + L"'"; };
+    const auto transition = [&](std::optional<uint64_t> predecessor, unsigned operation, size_t expected, std::vector<std::wstring> events, const char* step)
     {
-        return UiaTest::HearSelectionEvents(walk.client,
-                                            expected,
-                                            [&]
+        EmbeddedTreeModel model;
+        auto control = std::make_unique<DxUi::Tree>();
+        auto* tree = control.get();
+        tree->SetModel(&model);
+        if (predecessor)
+            tree->SetSelectedItemId(predecessor);
+        EmbeddedSingleControlView test(gpu, std::move(control), L"Catégories");
+        test.view.Controls().SetFocusControl(tree);
+        Hr(test.view.Prepare(320, 160, 96), "prepare independently seeded selection");
+        EmbeddedUiaTest::Bridge bridge(test.view, 320, 160);
+        Hr(bridge.Attach(), "attach independently seeded selection");
+        EmbeddedClientWalk walk(bridge, UiaTest::SelectionEventsSubscription());
+        const auto heard = UiaTest::HearSelectionEvents(walk.client, expected, [&]
         {
-            change();
+            if (operation == 0u)
+            {
+                const auto rect = tree->GetVisibleItemHitRect(2u);
+                Check(rect.has_value(), "the tree has a rectangle for the item");
+                ClickEmbeddedView(test.view, D2D1::Point2F((rect->left + rect->right) * 0.5f, (rect->top + rect->bottom) * 0.5f));
+            }
+            else if (operation == 1u)
+                Check(test.view.DispatchKey(VK_UP, true), "the tree takes Up");
+            else if (operation == 2u)
+                tree->SetSelectedItemId(1u);
+            else
+                tree->SetSelectedItemId(std::nullopt);
             PublishEmbeddedView(test, bridge, step);
         });
+        walk.ExpectHeard(heard, std::move(events), step);
     };
-    const auto item  = [](std::wstring_view what, std::wstring_view name) { return std::wstring(what) + L" TreeItem '" + std::wstring(name) + L"'"; };
-    const auto click = [&](size_t visibleIndex)
-    {
-        const std::optional<D2D1_RECT_F> rect = tree->GetVisibleItemHitRect(visibleIndex);
-        Check(rect.has_value(), "the tree has a rectangle for the item");
-        ClickEmbeddedView(test.view, D2D1::Point2F((rect->left + rect->right) * 0.5f, (rect->top + rect->bottom) * 0.5f));
-    };
-    walk.ExpectHeard(hear(2u, "a click on an item", [&] { click(2u); }),
-                     {item(L"Selected", L"Afficheurs"), item(L"IsSelected:true", L"Afficheurs")},
-                     "a click on an item of an empty selection");
-    walk.ExpectHeard(hear(3u, "Up", [&] { Check(test.view.DispatchKey(VK_UP, true), "the tree takes Up"); }),
-                     {item(L"Selected", L"Volets"), item(L"IsSelected:true", L"Volets"), item(L"IsSelected:false", L"Afficheurs")},
-                     "Up");
-    walk.ExpectHeard(hear(3u, "the application selecting an item", [&] { tree->SetSelectedItemId(1u); }),
-                     {item(L"Selected", L"Général"), item(L"IsSelected:true", L"Général"), item(L"IsSelected:false", L"Volets")},
-                     "the application selecting an item");
-    walk.ExpectHeard(hear(2u, "the application clearing the selection", [&] { tree->SetSelectedItemId(std::nullopt); }),
-                     {item(L"Removed", L"Général"), item(L"IsSelected:false", L"Général")},
-                     "the application clearing the selection");
+    transition(std::nullopt, 0u, 2u, {item(L"Selected", L"Afficheurs"), item(L"IsSelected:true", L"Afficheurs")},
+               "a click on an item of an empty selection");
+    transition(3u, 1u, 3u,
+               {item(L"Selected", L"Volets"), item(L"IsSelected:true", L"Volets"), item(L"IsSelected:false", L"Afficheurs")}, "Up");
+    transition(2u, 2u, 3u,
+               {item(L"Selected", L"Général"), item(L"IsSelected:true", L"Général"), item(L"IsSelected:false", L"Volets")},
+               "the application selecting an item");
+    transition(1u, 3u, 2u, {item(L"Removed", L"Général"), item(L"IsSelected:false", L"Général")},
+               "the application clearing the selection");
 }
-
 // Queue embedded TreeItem status changes while delivery is held. Distinct item IDs keep their events separate, repeated updates
 // to one ID coalesce from the original to the latest value, and a removed ID is pruned before its queued event is delivered.
 #if DXUI_ENABLE_DIAGNOSTICS
