@@ -296,7 +296,16 @@ inline void ListsAndHeadings()
         Exact(L"> > alpha\n", {4u, 4u}, request, L"> alpha\n", std::nullopt, profile);
         Unavailable(L"- item\n", {2u, 2u}, request, profile);
         request.quoteAction = MarkdownQuoteAction::Toggle;
-        request.command     = MarkdownCommand::InsertParagraph;
+        request.command     = MarkdownCommand::SetCodeBlock;
+        request.text        = L"cpp";
+        Exact(L"hello\n", {0u, 5u}, request, L"~~~cpp\nhello\n~~~\n", std::nullopt, profile);
+        Exact(L"a ~~~ b\n", {0u, 7u}, request, L"~~~~cpp\na ~~~ b\n~~~~\n", std::nullopt, profile);
+        Exact(L"~~~\nhello\n~~~\n", {5u, 5u}, request, L"hello\n", std::nullopt, profile);
+        request.command = MarkdownCommand::SetCodeLanguage;
+        request.text    = L"rust";
+        Exact(L"~~~cpp\nhello\n~~~\n", {8u, 8u}, request, L"~~~rust\nhello\n~~~\n", std::nullopt, profile);
+        request.text    = {};
+        request.command = MarkdownCommand::InsertParagraph;
         Exact(L"> 9) alpha\r\n", {10u, 10u}, request, L"> 9) alpha\r\n> 10) \r\n", Selection{18u, 18u}, profile);
         Exact(L"9. abc\n   tail\n", {4u, 4u}, request, L"9. a\n10. bc\n    tail\n", std::nullopt, profile);
         Exact(L"9.\titem\n\tmore\n", {7u, 7u}, request, L"9.\titem\n10.\t\n\tmore\n", std::nullopt, profile);

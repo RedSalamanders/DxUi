@@ -1223,6 +1223,10 @@ The source-exact SetQuote command toggles or adds/removes one quote level for
 supported selected physical text lines as one transaction. It declines mixed
 toggle states, list-owned lines, lazy missing prefixes and selections containing
 unsupported blocks or blank trivia rather than partially rewriting them.
+SetCodeBlock wraps supported top-level paragraph lines in a tilde fence longer
+than any contained run, or unwraps a closed top-level fence. SetCodeLanguage
+replaces a current top-level fence info string. Nested container conversion and
+unclosed-fence unwrapping are unavailable pending their source-prefix policy.
 
 A task press MUST stage an immutable current source plan without editing text.
 Only matching release inside its checkbox can apply it. Leaving the rectangle,

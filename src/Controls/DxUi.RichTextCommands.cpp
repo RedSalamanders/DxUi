@@ -840,6 +840,7 @@ struct MarkdownCommandPlanner
     }
     void SetList(const MarkdownCommandRequest& request);
     void Quote(MarkdownQuoteAction action);
+    void CodeBlock(const MarkdownCommandRequest& request);
     void Join(bool backwards);
     void Style(MarkdownTextStyle style);
     void Link(const MarkdownCommandRequest& request, bool remove);
@@ -1196,6 +1197,84 @@ void MarkdownCommandPlanner::Quote(MarkdownQuoteAction action)
                 ++last;
             Add(marker, last, L"");
         }
+    }
+    plan.applicable_ = true;
+}
+
+void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
+{
+    if (request.text.size() > 255u || ! IsValidUtf16(request.text) || request.text.find_first_of(L"\r\n") != request.text.npos)
+        throw std::invalid_argument("Invalid code language");
+    const auto first = plan.before_.Start(), last = plan.before_.End();
+    const auto fenced = NodeAt(Kind::FencedCode, first);
+    if (fenced != MarkdownNoNode)
+    {
+        const auto& node = nodes[fenced];
+        if (node.parent == MarkdownNoNode || nodes[node.parent].block.kind != Kind::Document || last > node.block.source.last)
+            return;
+        const auto& opening = Line(node.block.source.first);
+        if (request.command == MarkdownCommand::SetCodeLanguage)
+        {
+            if (node.block.fenceMarker == L'`' && request.text.find(L'`') != request.text.npos)
+                return;
+            auto info = node.block.info;
+            if (info.first < opening.first || info.first > info.last || info.last > opening.bodyEnd)
+                return;
+            Add(info.first, info.last, request.text);
+            plan.applicable_ = true;
+            return;
+        }
+        if (! node.block.closed || node.block.source.last <= opening.end)
+            return;
+        const auto& closing = Line(node.block.source.last - 1u);
+        if (closing.first < opening.end)
+            return;
+        Add(opening.first, opening.end, L"");
+        Add(closing.first, closing.end, L"");
+        plan.applicable_ = true;
+        return;
+    }
+    if (request.command == MarkdownCommand::SetCodeLanguage)
+        return;
+    auto end = last;
+    if (end > first && Line(end).first == end)
+        --end;
+    const auto& firstLine = Line(first);
+    const auto& lastLine  = Line(end);
+    const auto begin = firstLine.first, finish = lastLine.end;
+    for (std::size_t i = 1u; i < nodes.size(); ++i)
+    {
+        const auto& node = nodes[i];
+        if (node.block.source.last <= begin || node.block.source.first >= finish)
+            continue;
+        if (node.block.kind != Kind::Paragraph && node.block.kind != Kind::BlankLine)
+            return;
+    }
+    size_t longest = 0u, run = 0u;
+    for (const wchar_t ch : Slice(begin, finish))
+    {
+        run     = ch == L'~' ? run + 1u : 0u;
+        longest = std::max(longest, run);
+    }
+    const std::wstring fence(std::max(size_t{3u}, longest + 1u), L'~');
+    std::wstring opening = fence;
+    opening += request.text;
+    opening += Eol(firstLine);
+    std::wstring closing(0u, L' ');
+    if (lastLine.end == lastLine.bodyEnd)
+        closing += Eol(lastLine);
+    closing += fence;
+    if (lastLine.end != lastLine.bodyEnd)
+        closing += Eol(lastLine);
+    if (begin == finish)
+    {
+        opening += closing;
+        Add(begin, begin, opening);
+    }
+    else
+    {
+        Add(begin, begin, opening);
+        Add(finish, finish, closing);
     }
     plan.applicable_ = true;
 }
@@ -2497,7 +2576,7 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
 {
     if (request.text.size() > Document::MaximumUnits || request.destination.size() > Document::MaximumUnits || request.title.size() > Document::MaximumUnits)
         throw std::length_error("Structural request text exceeds source capacity");
-    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::SetQuote))
+    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::SetCodeLanguage))
         throw std::invalid_argument("Invalid Markdown command");
     Detail::MarkdownCommandPlanner builder(source, revision, std::move(syntax), selection);
     // Resolved definitions own editable content, while the label and
@@ -2530,6 +2609,8 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
         case MarkdownCommand::RemoveLink: builder.Link(request, true); break;
         case MarkdownCommand::ToggleTask: builder.Task(); break;
         case MarkdownCommand::SetQuote: builder.Quote(request.quoteAction); break;
+        case MarkdownCommand::SetCodeBlock:
+        case MarkdownCommand::SetCodeLanguage: builder.CodeBlock(request); break;
         case MarkdownCommand::InsertTable:
         case MarkdownCommand::InsertTableRow:
         case MarkdownCommand::DeleteTableRow:
