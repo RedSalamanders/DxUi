@@ -809,21 +809,25 @@ class Parser
             return Make(MathKind::Style, std::move(label), {textMode ? TextColorBody(depth + 1u) : Atom(depth + 1u)});
         return Make(MathKind::Accent, std::move(label), {TextColorBody(depth + 1u)});
     }
-    void AppendColored(std::vector<MathNode>& output, std::wstring_view label, MathNode&& body)
+    void AppendColored(std::vector<MathNode>& output, std::wstring_view label, MathNode&& body, bool declaration = false)
     {
         if (body.kind != MathKind::Row)
         {
             output.push_back(Make(MathKind::Style, std::wstring(label), {std::move(body)}));
             return;
         }
+        bool first = true;
         for (auto& child : body.children)
         {
-            if (child.kind == MathKind::Space)
+            const bool space = child.kind == MathKind::Space;
+            if (space)
                 output.push_back(std::move(child));
-            else if (child.kind == MathKind::Row)
+            else if (declaration && first && child.kind == MathKind::Row)
                 AppendColored(output, label, std::move(child));
             else
                 output.push_back(Make(MathKind::Style, std::wstring(label), {std::move(child)}));
+            if (! space)
+                first = false;
         }
     }
     MathNode Command(unsigned depth)
@@ -943,7 +947,7 @@ class Parser
                         Reject(MathIssue::UnsupportedCommand);
                     auto label = std::wstring(L"textcolor:");
                     label += Detail::EncodeNativeColor(color.value());
-                    AppendColored(children, label, Row(depth + 1u, grouped, cell, right, indexClose, stopBrace));
+                    AppendColored(children, label, Row(depth + 1u, grouped, cell, right, indexClose, stopBrace), true);
                     return Make(MathKind::Row, L"", std::move(children));
                 }
                 if (declaration == L"displaystyle" || declaration == L"textstyle" || declaration == L"scriptstyle" || declaration == L"scriptscriptstyle" ||
