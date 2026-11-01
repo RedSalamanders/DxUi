@@ -2141,10 +2141,13 @@ later descriptions append in declaration order, within the shared label limit.
 An explicit description equal to the ID still counts as the first description.
 The bounded `classDiagram` profile accepts direction, simple class declarations,
 colon members and bounded multiline `class Name { ... }` member blocks, directed/undirected associations and inheritance (`<|--`, `--|>`). Blocks require a standalone closing brace; nested blocks, generics and markup retain exact source with a diagnostic.
+One alphabetic `<<annotation>>` per existing class is accepted on a separate line
+or inside its block and displayed as `«annotation»` above the class name; repeated,
+nonalphabetic or undefined-class annotations retain source.
 State/class layouts use the deterministic native graph router; members are plain
 multiline node labels. Inheritance uses the native triangle arrow. This is not
 Mermaid coordinate compatibility. Composite states, class namespaces/generics,
-class compartments, relationship multiplicities, stereotypes, styling,
+class compartments, relationship multiplicities, other stereotypes, styling,
 interaction directives and other diagram families remain exact fenced source.
 Invisible edge labels remain unsupported. Other flowchart grammar and source-provenance rules remain unchanged.
 

@@ -34,6 +34,7 @@ struct NativeFlowchartParser::Preparation
     std::shared_ptr<FlowchartModel> model;
     std::size_t scan{}, first{}, depth{}, statements{}, classBlockNode{}, classBlockStart{};
     std::array<bool, MaximumNodes> stateDescriptions{};
+    std::array<bool, MaximumNodes> classAnnotations{};
     std::array<std::uint8_t, MaximumNodes> pseudoKinds{};
     bool quote{}, escaped{}, pipe{}, comment{}, header{}, done{}, classBlock{};
     explicit Preparation(std::wstring_view source, std::uint64_t revision) : model(std::make_shared<FlowchartModel>(source, revision))
@@ -130,6 +131,29 @@ struct NativeFlowchartParser::Preparation
             label.assign(description);
             stateDescriptions[node] = true;
         }
+        return true;
+    }
+    bool ClassAnnotation(std::size_t node, std::size_t start, std::size_t finish)
+    {
+        const auto marker = Text().substr(start, finish - start);
+        if (marker.size() < 5u || marker.size() > 36u || ! marker.starts_with(L"<<") || ! marker.ends_with(L">>") || classAnnotations[node])
+            return Error(FlowchartIssue::UnsupportedStatement, start, finish, FlowchartOutcome::Unsupported);
+        for (const auto c : marker.substr(2u, marker.size() - 4u))
+            if (! Letter(c))
+                return Error(FlowchartIssue::UnsupportedStatement, start, finish, FlowchartOutcome::Unsupported);
+        auto& label             = model->nodes[node].label;
+        const auto renderedSize = marker.size() - 2u;
+        if (renderedSize + 1u > MaximumLabelUnits - label.size())
+            return Error(FlowchartIssue::LabelCapacity, start, finish, FlowchartOutcome::Capacity);
+        std::wstring annotated(0u, L' ');
+        annotated.reserve(renderedSize + 1u + label.size());
+        annotated.push_back(L'«');
+        annotated.append(marker.substr(2u, marker.size() - 4u));
+        annotated.push_back(L'»');
+        annotated.push_back(L'\n');
+        annotated.append(label);
+        label.swap(annotated);
+        classAnnotations[node] = true;
         return true;
     }
     bool Label(std::size_t& at, std::size_t end, wchar_t close, std::wstring& value)
@@ -370,6 +394,8 @@ struct NativeFlowchartParser::Preparation
                 classBlock = false;
                 return true;
             }
+            if (Text().substr(at, 2u) == L"<<")
+                return ClassAnnotation(classBlockNode, at, end);
             const auto memberStart = at;
             if (! Letter(Text()[at]) && Text()[at] != L'+' && Text()[at] != L'-')
                 return Error(FlowchartIssue::UnsupportedStatement, at, end, FlowchartOutcome::Unsupported);
@@ -382,6 +408,23 @@ struct NativeFlowchartParser::Preparation
                 return Error(FlowchartIssue::LabelCapacity, memberStart, end, FlowchartOutcome::Capacity);
             label.push_back(L'\n');
             return PlainText(at, end, label, true);
+        }
+        if (model->family == NativeDiagramFamily::Class && Text().substr(at, 2u) == L"<<")
+        {
+            const auto start = at;
+            const auto close = Text().find(L">>", at + 2u);
+            if (close == std::wstring_view::npos || close + 2u >= end || ! Space(Text()[close + 2u]))
+                return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+            at = close + 2u;
+            Skip(at, end);
+            const auto before = model->nodes.size();
+            std::size_t node{};
+            if (! Node(at, end, node))
+                return false;
+            Skip(at, end);
+            if (at != end || node == before)
+                return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+            return ClassAnnotation(node, start, close + 2u);
         }
         if (model->family != NativeDiagramFamily::Flowchart && Text().substr(at, 9u) == L"direction" && (at + 9u == end || Space(Text()[at + 9u])))
         {

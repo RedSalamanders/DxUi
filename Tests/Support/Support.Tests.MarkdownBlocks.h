@@ -695,6 +695,24 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
     check(inlineCapacity->outcome == FlowchartOutcome::Capacity && inlineCapacity->diagnostic.issue == FlowchartIssue::LabelCapacity &&
               inlineCapacity->source == oversizedInline && inlineCapacity->nodes.empty() && inlineCapacity->edges.empty(),
           "oversized inline edge text retains source and publishes no partial graph");
+    // Mermaid 11.4.1 shapeUtil.ts presents the first annotation in guillemets above the class name.
+    for (const auto source : {L"classDiagram\nclass Shape\n<<interface>> Shape\nShape : draw()\n", L"classDiagram\nclass Shape {\n<<interface>>\ndraw()\n}\n"})
+    {
+        parser.Begin(source, 33u);
+        const auto result = Complete(parser);
+        check(result->outcome == FlowchartOutcome::Prepared && result->source == source && result->nodes.size() == 1u &&
+                  result->nodes[0u].label == L"«interface»\nShape\ndraw()",
+              "standalone and block class annotations render the same bounded stereotype label");
+    }
+    for (const auto source : {L"classDiagram\n<<interface>> Missing\n",
+                              L"classDiagram\nclass A\n<<interface>> A\n<<service>> A\n",
+                              L"classDiagram\nclass A {\n<<bad-annotation>>\n}\n"})
+    {
+        parser.Begin(source, 34u);
+        const auto result = Complete(parser);
+        check(result->outcome == FlowchartOutcome::Unsupported && result->source == source && result->nodes.empty() && result->edges.empty(),
+              "undefined, repeated and unsupported class annotations retain exact source");
+    }
     std::wstring oversizedMember = L"classDiagram\nclass A {\n+";
     oversizedMember.append(NativeFlowchartParser::MaximumLabelUnits, L'x');
     oversizedMember.append(L"\n}\n");

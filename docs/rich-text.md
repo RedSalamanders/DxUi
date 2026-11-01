@@ -1451,6 +1451,9 @@ The first nonempty state description replaces the implicit ID label. Later quote
 or colon descriptions append in source order; empty descriptions keep the current label.
 The bounded `classDiagram` profile accepts direction, simple class declarations,
 colon members and bounded multiline `class Name { ... }` member blocks, directed/undirected associations and inheritance (`<|--`, `--|>`). Blocks require a standalone closing brace; nested blocks, generics and markup retain exact source with a diagnostic.
+One alphabetic `<<annotation>>` per existing class is accepted on a separate line
+or inside its block and displayed as `«annotation»` above the class name; repeated,
+nonalphabetic or undefined-class annotations retain source.
 State/class layouts use the deterministic native graph router; members are plain
 multiline node labels. Inheritance uses a hollow triangle without a line through its
 interior. Flowchart stadiums use capsule outlines and shape-aware connection ports;
@@ -1464,7 +1467,7 @@ references through the pinned Markdown reference table and accept `<br>`, `<br/>
 and `<br />` line breaks. Other HTML and unsupported references retain source.
 This is not
 Mermaid coordinate compatibility. Composite states, class namespaces/generics,
-class compartments, relationship multiplicities, stereotypes, styling,
+class compartments, relationship multiplicities, other stereotypes, styling,
 interaction directives and other diagram families remain exact fenced source.
 Unsupported shape productions retain the complete fence instead of becoming plain
 rectangle or rounded labels. Source-provenance rules remain unchanged.

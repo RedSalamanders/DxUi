@@ -234,7 +234,8 @@ template <typename Check> inline void RasterOracle(Check&& check)
                               L"graph TD;A[\"Unicode \u03b2 \U0001f600\"]",
                               L"graph TD;A[\"\u05d0\u05d1\u05d2\"]",
                               L"graph TD;A[\"first\\nsecond\"]",
-                              L"graph TD;A[one<br>two #9829;]"})
+                              L"graph TD;A[one<br>two #9829;]",
+                              L"classDiagram\nclass Shape\n<<interface>> Shape\n"})
         for (const auto direction : {DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT})
         {
             const auto graph = FlowchartLayoutTests::Graph(source);
