@@ -111,9 +111,10 @@ bool IsHistoryWordElement(std::wstring_view text) noexcept
         if (IsUtf16TrailSurrogate(c))
             return false;
         WORD type1 = 0u, type3 = 0u;
-        if (c != L'_' && (! GetStringTypeW(CT_CTYPE1, &c, 1, &type1) ||
-                          ((type1 & (C1_ALPHA | C1_DIGIT)) == 0u &&
-                           (! GetStringTypeW(CT_CTYPE3, &c, 1, &type3) || (type3 & (C3_NONSPACING | C3_DIACRITIC | C3_VOWELMARK)) == 0u))))
+        if (c != L'_' && c != L'\u200d' &&
+            (! GetStringTypeW(CT_CTYPE1, &c, 1, &type1) ||
+             ((type1 & (C1_ALPHA | C1_DIGIT)) == 0u &&
+              (! GetStringTypeW(CT_CTYPE3, &c, 1, &type3) || (type3 & (C3_NONSPACING | C3_DIACRITIC | C3_VOWELMARK)) == 0u))))
             return false;
     }
     return true;

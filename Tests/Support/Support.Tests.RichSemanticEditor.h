@@ -273,6 +273,12 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     Check(editor->OnKeyDown(host, VK_BACK, 0u) && editor->OnKeyDown(host, VK_BACK, 0u) && editor->GetText().empty() && editor->Undo() &&
               editor->GetText() == L"\U0001f600a\u0301",
           "adjacent source grapheme deletions restore both whole elements in one undo");
+    editor->SetText(L"\U0001f469\u200d\U0001f4bba");
+    prepare();
+    editor->SetSelection({6u, 6u});
+    Check(editor->OnKeyDown(host, VK_BACK, 0u) && editor->OnKeyDown(host, VK_BACK, 0u) && editor->GetText().empty() && editor->Undo() &&
+              editor->GetText() == L"\U0001f469\u200d\U0001f4bba",
+          "joined emoji and adjacent text restore as whole graphemes in one undo");
     editor->SetViewMode(ViewMode::Rich);
     editor->SetText(L"**abc**");
     prepare();
