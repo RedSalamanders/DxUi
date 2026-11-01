@@ -437,6 +437,16 @@ std::pair<float, float> PreparedLayout::HorizontalTextBounds() const
         throw std::logic_error("Unprepared rich-text horizontal metrics");
     return {state_->textLeft, state_->textWidth};
 }
+float PreparedLayout::MinimumTextWidth() const
+{
+    if (! state_)
+        throw std::logic_error("Unprepared rich-text intrinsic width");
+    float minimum{};
+    Check(state_->layout->DetermineMinWidth(&minimum), "DetermineMinWidth");
+    if (! std::isfinite(minimum) || minimum < 0.0f)
+        throw std::overflow_error("Nonfinite rich-text intrinsic width");
+    return minimum;
+}
 float PreparedLayout::VerticalOrigin() const noexcept
 {
     return state_ ? state_->verticalOrigin : 0.0f;

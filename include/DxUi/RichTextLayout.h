@@ -136,6 +136,7 @@ private:
     friend class Detail::PreparedSemanticGeometry;
     std::pair<float, float> DrawingVerticalBounds() const;
     std::pair<float, float> HorizontalTextBounds() const;
+    float MinimumTextWidth() const;
     std::span<const DWRITE_LINE_METRICS> LineMetrics() const;
     struct SemanticInlineObject
     {
