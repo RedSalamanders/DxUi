@@ -843,6 +843,7 @@ struct MarkdownCommandPlanner
     void SetList(const MarkdownCommandRequest& request);
     void Quote(MarkdownQuoteAction action);
     void CodeBlock(const MarkdownCommandRequest& request);
+    void ExitCode();
     void HardBreak();
     void Math(const MarkdownCommandRequest& request);
     void ThematicBreak();
@@ -1325,6 +1326,35 @@ void MarkdownCommandPlanner::HardBreak()
     insertion += prefix;
     Add(caret, caret, insertion);
     plan.after_       = {caret + insertion.size(), caret + insertion.size()};
+    explicitSelection = true;
+    plan.applicable_  = true;
+}
+
+void MarkdownCommandPlanner::ExitCode()
+{
+    if (plan.before_.Start() != plan.before_.End())
+        return;
+    const auto index = NodeAt(Kind::FencedCode, plan.before_.caret);
+    if (index == MarkdownNoNode)
+        return;
+    const auto& node = nodes[index];
+    if (node.parent == MarkdownNoNode || nodes[node.parent].block.kind != Kind::Document)
+        return;
+    const auto at     = node.block.source.last;
+    const auto eol    = Eol(Line(node.block.source.first));
+    const bool hasEnd = at > 0u && (text[at - 1u] == L'\r' || text[at - 1u] == L'\n');
+    std::wstring insertion(0u, L' ');
+    if (! hasEnd)
+        insertion += eol;
+    if (! node.block.closed)
+    {
+        insertion.append(node.block.fenceLength, node.block.fenceMarker);
+        insertion += eol;
+    }
+    const auto caret = at + insertion.size();
+    insertion += eol;
+    Add(at, at, insertion);
+    plan.after_       = {caret, caret};
     explicitSelection = true;
     plan.applicable_  = true;
 }
@@ -2573,6 +2603,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
         case ::DxUi::RichText::MarkdownCommand::InsertMath:
         case ::DxUi::RichText::MarkdownCommand::InsertThematicBreak:
         case ::DxUi::RichText::MarkdownCommand::InsertImage:
+        case ::DxUi::RichText::MarkdownCommand::ExitCodeBlock:
         default: return;
     }
     plan.applicable_ = true;
@@ -2765,7 +2796,7 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
 {
     if (request.text.size() > Document::MaximumUnits || request.destination.size() > Document::MaximumUnits || request.title.size() > Document::MaximumUnits)
         throw std::length_error("Structural request text exceeds source capacity");
-    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::InsertImage))
+    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::ExitCodeBlock))
         throw std::invalid_argument("Invalid Markdown command");
     Detail::MarkdownCommandPlanner builder(source, revision, std::move(syntax), selection);
     // Resolved definitions own editable content, while the label and
@@ -2804,6 +2835,7 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
         case MarkdownCommand::InsertMath: builder.Math(request); break;
         case MarkdownCommand::InsertThematicBreak: builder.ThematicBreak(); break;
         case MarkdownCommand::InsertImage: builder.Image(request); break;
+        case MarkdownCommand::ExitCodeBlock: builder.ExitCode(); break;
         case MarkdownCommand::InsertTable:
         case MarkdownCommand::InsertTableRow:
         case MarkdownCommand::DeleteTableRow:

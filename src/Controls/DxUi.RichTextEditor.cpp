@@ -1588,7 +1588,7 @@ RichText::MarkdownCommandStatus RichTextEditor::ExecuteMarkdownCommand(const Ric
 std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownCommandState(const RichText::MarkdownCommandRequest& request) const noexcept
 {
     using namespace RichText;
-    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::InsertImage))
+    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::ExitCodeBlock))
         return std::nullopt;
     MarkdownCommandState result;
     if (! Editable() || ! _state->markdownRendering || _state->mode != ViewMode::Rich || _state->sourceEditing)
@@ -3673,6 +3673,9 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                     if (_state->markdownRendering && _state->mode == RichText::ViewMode::Rich)
                     {
                         RichText::MarkdownCommandRequest request;
+                        request.command = RichText::MarkdownCommand::ExitCodeBlock;
+                        if (ExecuteMarkdownCommand(request) != RichText::MarkdownCommandStatus::Unavailable)
+                            return true;
                         request.command = RichText::MarkdownCommand::ToggleTask;
                         static_cast<void>(ExecuteMarkdownCommand(request));
                         return true;

@@ -304,6 +304,9 @@ inline void ListsAndHeadings()
         request.command = MarkdownCommand::SetCodeLanguage;
         request.text    = L"rust";
         Exact(L"~~~cpp\nhello\n~~~\n", {8u, 8u}, request, L"~~~rust\nhello\n~~~\n", std::nullopt, profile);
+        request.command = MarkdownCommand::ExitCodeBlock;
+        Exact(L"~~~\nx\n~~~\n", {4u, 4u}, request, L"~~~\nx\n~~~\n\n", Selection{10u, 10u}, profile);
+        Exact(L"~~~\nx", {4u, 4u}, request, L"~~~\nx\n~~~\n\n", Selection{10u, 10u}, profile);
         request.command = MarkdownCommand::InsertHardBreak;
         Exact(L"hello\n", {2u, 2u}, request, L"he  \nllo\n", Selection{5u, 5u}, profile);
         Exact(L"> hello\r\n", {4u, 4u}, request, L"> he  \r\n> llo\r\n", Selection{10u, 10u}, profile);

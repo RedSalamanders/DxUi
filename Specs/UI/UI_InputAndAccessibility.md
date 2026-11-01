@@ -1237,6 +1237,8 @@ SetCodeBlock wraps supported top-level paragraph lines in a tilde fence longer
 than any contained run, or unwraps a closed top-level fence. SetCodeLanguage
 replaces a current top-level fence info string. Nested container conversion and
 unclosed-fence unwrapping are unavailable pending their source-prefix policy.
+Ctrl+Enter in a top-level fenced block exits to an empty following source line;
+an unclosed block receives its matching closing fence first, in one undo step.
 InsertMath in the RichMarkdown profile wraps a selected source expression, or
 inserts a supplied nonempty expression, using inline or display delimiters.
 It selects the expression and rejects conflicting delimiters, multiline payloads,

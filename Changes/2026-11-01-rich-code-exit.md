@@ -1,0 +1,1 @@
+- Add Ctrl+Enter source-exact exit from top-level fenced code, including closing an unclosed fence; nested container and native qualification remain pending.

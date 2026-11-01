@@ -30,7 +30,8 @@ enum class MarkdownCommand
     InsertHardBreak,
     InsertMath,
     InsertThematicBreak,
-    InsertImage
+    InsertImage,
+    ExitCodeBlock
 };
 enum class MarkdownQuoteAction
 {
