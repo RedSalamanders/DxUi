@@ -148,6 +148,12 @@ template <typename Prepare, typename Key, typename Character> void StructuralHos
     editor->SetText(L"word");
     prepare();
     unsigned menus = 0u;
+    const RichTextContextMenuLabels labels{L"Undo", L"Redo", L"Cut", L"Copy", L"Paste", L"Select all", L"Bold", L"Italic"};
+    editor->SetDefaultContextMenuLabels(&labels);
+    auto invalidLabels = labels;
+    invalidLabels.cut.clear();
+    RichSemanticTests::Reject<std::invalid_argument>([&] { editor->SetDefaultContextMenuLabels(&invalidLabels); },
+                                                     "default context menu requires complete localized labels");
     editor->SetOnContextMenu([&](POINT, bool) { ++menus; });
     editor->SetSelection({0u, 2u});
     Check(editor->OnContextMenu(host, true, D2D1::Point2F(8.0f, 8.0f)) && menus == 1u && editor->GetSelection() == Selection{0u, 2u},

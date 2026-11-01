@@ -1214,6 +1214,11 @@ preparation. High contrast uses the theme text color and outlines backgrounds.
 An editor context-menu callback receives focus first. Keyboard invocation retains
 the selection; a pointer invocation outside it moves the caret to the hit source
 position. Selection callback reentry that changes the target cancels the menu.
+Supplying localized default-menu labels opts into the asynchronous built-in
+Undo, Redo, Cut, Copy, Paste, Select All, Bold and Italic menu. A consumer
+context-menu callback takes precedence; the menu's deferred command verifies
+editor lifetime and binding before dispatch. It requires a host HWND; embedded
+hosts without one continue to use the consumer callback.
 Ctrl+Backspace and Ctrl+Delete erase to the preceding or following word boundary;
 rich-view deletion maps visible fragments through the structural source planner.
 An active source-edit session bounds word deletion to its own interval.

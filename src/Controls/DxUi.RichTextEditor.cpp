@@ -148,6 +148,7 @@ struct RichTextEditor::State
     size_t keyboardNavigationElement = RichText::MarkdownNoNode;
     std::vector<RichTextSourceHighlight> highlights;
     std::vector<RichTextDecoration> decorations;
+    std::shared_ptr<const RichTextContextMenuLabels> contextMenuLabels;
     struct HighlightRectangle
     {
         D2D1_RECT_F rectangle{};
@@ -1002,6 +1003,19 @@ void RichTextEditor::SetDecorations(const RichText::SourceSnapshot& expectedSour
 std::span<const RichTextDecoration> RichTextEditor::GetDecorations() const noexcept
 {
     return _state->decorations;
+}
+void RichTextEditor::SetDefaultContextMenuLabels(const RichTextContextMenuLabels* labels)
+{
+    if (! labels)
+    {
+        _state->contextMenuLabels.reset();
+        return;
+    }
+    for (const auto* text : {&labels->undo, &labels->redo, &labels->cut, &labels->copy, &labels->paste, &labels->selectAll, &labels->bold, &labels->italic})
+        if (text->empty() || text->size() > 255u || ! RichText::IsValidUtf16(*text))
+            throw std::invalid_argument("Invalid rich context menu label");
+    auto next = std::make_shared<const RichTextContextMenuLabels>(*labels);
+    _state->contextMenuLabels.swap(next);
 }
 void RichTextEditor::SetFocusModeEnabled(bool enabled) noexcept
 {
@@ -3840,7 +3854,60 @@ bool RichTextEditor::OnContextMenu(ControlHost& host, bool keyboardInvocation, D
             else
                 _state->sourceCaretSite = previousSite;
         }
-        return Control::OnContextMenu(host, keyboardInvocation, point);
+        if (Control::OnContextMenu(host, keyboardInvocation, point))
+            return true;
+        const auto labels = _state->contextMenuLabels;
+        const auto hwnd   = host.GetHwnd();
+        if (! labels || ! hwnd)
+            return false;
+        const auto selection = GetSelection();
+        std::vector<MenuFlyoutItem> items(0u);
+        items.reserve(8u);
+        const auto add = [&](const std::wstring& label, int id, bool enabled)
+        {
+            items.emplace_back();
+            auto& item     = items.back();
+            item.text      = label;
+            item.commandId = id;
+            item.enabled   = enabled;
+        };
+        add(labels->undo, 1, Editable() && CanUndo());
+        add(labels->redo, 2, Editable() && CanRedo());
+        add(labels->cut, 3, Editable() && selection.Start() != selection.End());
+        add(labels->copy, 4, selection.Start() != selection.End());
+        add(labels->paste, 5, Editable());
+        add(labels->selectAll, 6, Snapshot().Length() != 0u);
+        add(labels->bold, 7, Editable());
+        add(labels->italic, 8, Editable());
+        const auto anchor = ResolveContextMenuAnchor(host, keyboardInvocation, point);
+        if (lifetime.expired() || GetHost() != &host)
+            return true;
+        auto* owner        = &host;
+        const auto binding = _state->bindingRevision;
+        ContextMenuSessionCallbacks options;
+        options.focusFirstNavigableItem = keyboardInvocation;
+        return ContextMenu::ShowAsync(hwnd,
+                                      anchor,
+                                      items,
+                                      host.GetTheme(),
+                                      [this, lifetime, owner, binding](std::optional<int> command)
+        {
+            if (lifetime.expired() || GetHost() != owner || _state->bindingRevision != binding || ! command)
+                return;
+            switch (command.value())
+            {
+                case 1: static_cast<void>(OnKeyDown(*owner, 'Z', MK_CONTROL)); break;
+                case 2: static_cast<void>(OnKeyDown(*owner, 'Y', MK_CONTROL)); break;
+                case 3: static_cast<void>(OnKeyDown(*owner, 'X', MK_CONTROL)); break;
+                case 4: static_cast<void>(OnCopy(*owner)); break;
+                case 5: static_cast<void>(OnKeyDown(*owner, 'V', MK_CONTROL)); break;
+                case 6: static_cast<void>(OnSelectAll(*owner)); break;
+                case 7: static_cast<void>(OnKeyDown(*owner, 'B', MK_CONTROL)); break;
+                case 8: static_cast<void>(OnKeyDown(*owner, 'I', MK_CONTROL)); break;
+                default: break;
+            }
+        },
+                                      options);
     }
     catch (const std::bad_alloc&)
     {
