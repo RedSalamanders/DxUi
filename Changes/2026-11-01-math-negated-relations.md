@@ -1,0 +1,1 @@
+- Render supported negated mathematical relations as their Unicode relation glyphs.

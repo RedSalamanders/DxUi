@@ -2074,6 +2074,8 @@ and `tilde`/`widetilde` are admitted. Escaped `\|` produces a double vertical ba
 as an ordinary atom and as a scalable or sized delimiter. Text groups collapse
 source whitespace and remove grouping braces while retaining escaped literal braces. Matrix rows may
 have a trailing separator; gathered rows have one column and cases at most two.
+`\not` admits ungrouped single relation glyphs `= < > ≤ ≥ ∈ ∋ ⊂ ⊃ ⊆ ⊇ ∼ ≡ ≈ ∣ ∥`
+and substitutes their Unicode negations; other operands retain exact source.
 Unsupported commands remain local exact source. This is a named native profile,
 not a claim of all KaTeX functions or identical TeX font metrics and glyph assemblies. The Cambria Math face supplies bounded OpenType MATH italic corrections and precomposed vertical delimiter variants when available. Variants fit the allocated width; missing, malformed or too-small variants use deterministic vector fallback. Glyph assemblies and variable-font device corrections are not implemented. The at-most-4-MiB font snapshot and bounded glyph-indexed tables are shared per geometry generation.
 Native `binom`, `dbinom` and `tbinom` form a two-row parenthesized matrix with

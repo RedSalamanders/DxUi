@@ -1410,6 +1410,8 @@ and `tilde`/`widetilde` are admitted. Escaped `\|` produces a double vertical ba
 as an ordinary atom and as a scalable or sized delimiter. Text groups collapse
 source whitespace and remove grouping braces while retaining escaped literal braces. Matrix rows may
 have a trailing separator; gathered rows have one column and cases at most two.
+`\not` admits ungrouped single relation glyphs `= < > ≤ ≥ ∈ ∋ ⊂ ⊃ ⊆ ⊇ ∼ ≡ ≈ ∣ ∥`
+and substitutes their Unicode negations; other operands retain exact source.
 Unsupported commands remain local exact source. This is a named native profile,
 not a claim of all KaTeX functions or identical TeX font metrics and glyph assemblies. Prepared math reads bounded OpenType MATH italic corrections and selects adequate precomposed vertical delimiter variants when the active Cambria Math face supplies them; variants fit the allocated width. Missing, truncated, oversized or unavailable variants use the existing vector fallback. Glyph assemblies and variable-font device corrections are not implemented. The at-most-4-MiB MATH snapshot and glyph-indexed lookup data are shared within one geometry generation; painting performs no font-table reads.
 ASCII minus and asterisk use mathematical operator glyphs, tilde supplies spacing,

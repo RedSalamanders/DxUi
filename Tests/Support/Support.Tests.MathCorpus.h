@@ -229,6 +229,30 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
               operators.root.children[1u].atomClass == MathAtomClass::Binary && operators.root.children[3u].text == L"∗" &&
               operators.root.children[3u].atomClass == MathAtomClass::Binary && operators.root.children[5u].kind == MathKind::Space,
           "math-mode ASCII operators use their mathematical glyphs and tilde is spacing");
+    for (const auto& [source, glyph] : {std::pair{L"\\not=", L"≠"},
+                                        std::pair{L"\\not<", L"≮"},
+                                        std::pair{L"\\not>", L"≯"},
+                                        std::pair{L"\\not\\in", L"∉"},
+                                        std::pair{L"\\not\\ni", L"∌"},
+                                        std::pair{L"\\not\\leq", L"≰"},
+                                        std::pair{L"\\not\\geq", L"≱"},
+                                        std::pair{L"\\not\\subset", L"⊄"},
+                                        std::pair{L"\\not\\supset", L"⊅"},
+                                        std::pair{L"\\not\\subseteq", L"⊈"},
+                                        std::pair{L"\\not\\supseteq", L"⊉"},
+                                        std::pair{L"\\not\\sim", L"≁"},
+                                        std::pair{L"\\not\\equiv", L"≢"},
+                                        std::pair{L"\\not\\approx", L"≉"},
+                                        std::pair{L"\\not\\mid", L"∤"},
+                                        std::pair{L"\\not\\parallel", L"∦"}})
+    {
+        const auto negated = ParseMath(source);
+        check(negated && negated.root.children.size() == 1u && negated.root.children[0u].text == glyph &&
+                  negated.root.children[0u].atomClass == MathAtomClass::Relation,
+              "supported negation retains its exact Unicode relation glyph and spacing class");
+    }
+    check(! ParseMath(L"\\not x") && ! ParseMath(L"\\not\\frac{1}{2}"),
+          "unsupported negation operands retain source instead of drawing an approximate overlay");
     const auto prime = ParseMath(L"f''_i");
     check(prime && prime.root.children.size() == 1u && prime.root.children[0u].kind == MathKind::Scripts && prime.root.children[0u].children[1u].text == L"i" &&
               prime.root.children[0u].children[2u].text == L"′′",

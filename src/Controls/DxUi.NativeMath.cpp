@@ -290,6 +290,35 @@ class Parser
             while (at < source.size() && Letter(source[at]))
                 ++at;
             const auto name = source.substr(first, at - first);
+            if (name == L"not")
+            {
+                auto operand = Atom(depth + 1u);
+                if (operand.kind != MathKind::Text || operand.atomClass != MathAtomClass::Relation || operand.text.size() != 1u)
+                    Reject(MathIssue::UnsupportedCommand);
+                constexpr std::array pairs{std::pair{L'=', L'≠'},
+                                           std::pair{L'<', L'≮'},
+                                           std::pair{L'>', L'≯'},
+                                           std::pair{L'≤', L'≰'},
+                                           std::pair{L'≥', L'≱'},
+                                           std::pair{L'∈', L'∉'},
+                                           std::pair{L'∋', L'∌'},
+                                           std::pair{L'⊂', L'⊄'},
+                                           std::pair{L'⊃', L'⊅'},
+                                           std::pair{L'⊆', L'⊈'},
+                                           std::pair{L'⊇', L'⊉'},
+                                           std::pair{L'∼', L'≁'},
+                                           std::pair{L'≡', L'≢'},
+                                           std::pair{L'≈', L'≉'},
+                                           std::pair{L'∣', L'∤'},
+                                           std::pair{L'∥', L'∦'}};
+                for (const auto& [positive, negative] : pairs)
+                    if (operand.text[0u] == positive)
+                    {
+                        operand.text[0u] = negative;
+                        return operand;
+                    }
+                Reject(MathIssue::UnsupportedCommand);
+            }
             if (name == L"frac" || name == L"dfrac" || name == L"tfrac")
                 return Make(MathKind::Fraction, std::wstring(name), {Atom(depth + 1), Atom(depth + 1)});
             if (name == L"binom" || name == L"dbinom" || name == L"tbinom")
