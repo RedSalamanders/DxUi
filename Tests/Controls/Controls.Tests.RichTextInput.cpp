@@ -27,6 +27,11 @@ void TestRichTextOleSourceMove()
     class Receiver final : public RichFileDropReceiver
     {
     public:
+        Receiver()                           = default;
+        Receiver(const Receiver&)            = delete;
+        Receiver& operator=(const Receiver&) = delete;
+        Receiver(Receiver&&)                 = delete;
+        Receiver& operator=(Receiver&&)      = delete;
         RichTextEditor editor{L"one two three"};
         std::optional<RichTextSourceMove> move;
         IDataObject* expected = nullptr;
@@ -50,8 +55,13 @@ void TestRichTextOleSourceMove()
             {
                 return editor.MoveSelectedSource(*move, 13u);
             }
+            catch (const std::bad_alloc&)
+            {
+                std::terminate(); // Application receiver exceptions cannot cross the OLE callback boundary.
+            }
             catch (const std::exception&)
             {
+                // A refused source move leaves the target unchanged.
                 return false;
             }
         }

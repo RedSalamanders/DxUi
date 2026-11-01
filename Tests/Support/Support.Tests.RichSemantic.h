@@ -444,12 +444,23 @@ inline void ListsAndHeadings()
             const auto escapedCloserSyntax = Parse(escapedCloser, profile);
             Check(std::ranges::any_of(escapedCloserSyntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
                   "an escaped closer does not hide a later valid math closer");
-            for (const auto source : {std::wstring_view(L"\\[x\\]"), std::wstring_view(L"$$x$$")})
+            for (const auto source : {std::wstring_view(L"\\[\nx\n\\]"), std::wstring_view(L"$$\nx\n$$")})
             {
                 Document displayCloser{std::wstring(source)};
                 const auto displayCloserSyntax = Parse(displayCloser, profile);
-                Check(std::ranges::any_of(displayCloserSyntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
-                      "indexed display delimiters retain valid closing recognition");
+                const auto owner               = std::ranges::find_if(displayCloserSyntax->Nodes(), [](const auto& node) {
+                    return node.block.kind == MarkdownBlockKind::FencedCode && (node.block.fenceMarker == L'[' || node.block.fenceMarker == L'$');
+                });
+                Check(owner != displayCloserSyntax->Nodes().end() && owner->block.closed && owner->block.source == MarkdownRange{0u, source.size()} &&
+                          displayCloserSyntax->Slice(owner->block.content) == L"x\n",
+                      "own-line display delimiters retain the complete closed source envelope and exact body");
+            }
+            for (const auto source : {std::wstring_view(L"\\[x\\]"), std::wstring_view(L"$$x$$")})
+            {
+                Document inlineDisplay{std::wstring(source)};
+                const auto syntax = Parse(inlineDisplay, profile);
+                Check(std::ranges::none_of(syntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
+                      "display delimiters sharing a content line do not become inline math");
             }
             std::wstring oversizedMath(L"\\(");
             oversizedMath.append(MathMaximumSourceUnits + 1u, L'x');

@@ -195,12 +195,17 @@ static void TestRichSourceDragGesture(GraphicsFixture& gpu)
     editor->SetSelection({4u, 7u});
     Hr(PrepareRichEmbeddedContent(view, 320u, 120u), "prepare stale source-drag gesture");
     invoked = false;
-    Check(view.DispatchPointer({PointerAction::Down, x, y}), "begin another possible source drag");
+    // This is a separate primary gesture, independent of the first drag's
+    // platform double-click interval. Exercise the press guard before a
+    // preparation turn can cancel capture for its own independent reason.
+    Check(editor->OnMouseDown(view.Controls(), {x, y}, false, 0u) && view.Controls().GetCapturedControl() == editor,
+          "begin another possible source drag with owned capture");
     editor->SetSelection({0u, 0u});
     editor->SetSelection({4u, 7u});
-    Hr(PrepareRichEmbeddedContent(view, 320u, 120u), "prepare after restoring selection");
-    Check(view.DispatchPointer({PointerAction::Move, x + 40.0f, y}) && ! invoked && editor->GetText() == L"one two three",
+    Check(view.DispatchPointer({PointerAction::Move, x + 40.0f, y}) && ! invoked && editor->GetText() == L"one two three" &&
+              ! view.Controls().GetCapturedControl(),
           "selection changed away and back cancels the original press");
+    Hr(PrepareRichEmbeddedContent(view, 320u, 120u), "prepare after cancelled stale source drag");
 }
 
 static void TestRichMiddleAutoScroll(GraphicsFixture& gpu)

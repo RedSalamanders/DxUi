@@ -1,0 +1,1 @@
+- Keep display-math, source-title hover and stale-drag fixtures aligned with their own-line, source-character and captured-press contracts, and fix canonical clipboard/test ownership warnings without suppressing diagnostics.

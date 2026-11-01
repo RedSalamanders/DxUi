@@ -86,7 +86,7 @@ public:
                     return result;
             }
         if (includeBitmap)
-            for (const auto format : {CF_DIBV5, CF_DIB})
+            for (const auto format : {UINT{CF_DIBV5}, UINT{CF_DIB}})
                 if (const auto data = calls.getData(format))
                 {
                     const auto bytes = GlobalSize(data);

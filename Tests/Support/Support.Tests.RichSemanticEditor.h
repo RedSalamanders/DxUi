@@ -1387,9 +1387,16 @@ template <typename Prepare, typename Move, typename Key> void TitleTooltipContra
     const auto sourceElement = std::ranges::find_if(
         editing->Elements(), [&](const auto& item) { return editing->IsSourceEditingElement(static_cast<std::size_t>(&item - editing->Elements().data())); });
     Check(sourceElement != editing->Elements().end(), "title fixture has an expanded source owner");
-    const auto sourceBounds = editor->GetSemanticElementBounds(host, static_cast<std::size_t>(sourceElement - editing->Elements().begin()));
-    Check(sourceBounds.has_value(), "expanded link source has prepared bounds");
-    move(D2D1::Point2F((sourceBounds->left + sourceBounds->right) * .5f, (sourceBounds->top + sourceBounds->bottom) * .5f), MK_CONTROL);
+    const auto sourceRects = editor->TryGetTextInputRangeRects(host, sourceElement->source.first, sourceElement->source.first + 1u);
+    Check(sourceRects && ! sourceRects->empty(), "expanded link source has a visible prepared character rectangle");
+    const auto sourceBounds = sourceRects->front();
+    const float scale       = static_cast<float>(host.GetDpi()) / 96.f;
+    const auto sourcePoint  = D2D1::Point2F(std::round((sourceBounds.left + sourceBounds.right) * .5f * scale) / scale,
+                                            std::round((sourceBounds.top + sourceBounds.bottom) * .5f * scale) / scale);
+    const auto sourceHit    = editor->TryHitTestTextInputPoint(host, sourcePoint);
+    Check(sourceHit && sourceElement->source.first <= sourceHit.value() && sourceHit.value() < sourceElement->source.last,
+          "expanded source hover point maps inside its exact source owner");
+    move(sourcePoint, MK_CONTROL);
     Check(host.DebugGetPendingTooltipText() == L"General tooltip", "expanded source help is not exposed as an authored link title");
     Check(editor->EndSemanticSourceEdit(host), "title fixture closes inline source");
     prepare();
