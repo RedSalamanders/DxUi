@@ -2136,7 +2136,8 @@ fractions (`frac`, `dfrac`, `tfrac`), indexed roots, simultaneous scripts, Greek
 operator symbols, named functions, text/operator names (including bold and italic
 text commands), roman/bold/italic and
 blackboard, script, Fraktur, sans-serif and monospace mathematical alphabets, accents,
-scalable paired delimiters, matrices, cases, aligned and gathered rows. Alphabet
+scalable paired delimiters (including single and double vertical arrows), matrices,
+cases, aligned and gathered rows. Alphabet
 mapping covers ASCII letters; blackboard, sans-serif and monospace also map ASCII
 digits. Other characters are preserved. Matrix rows use `\\` and cells use `&`; shorter rows
 are padded with empty cells to the widest row, within the total-cell limit. User macros, packages, file input, evaluation and full LaTeX

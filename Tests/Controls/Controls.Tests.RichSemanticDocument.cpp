@@ -158,6 +158,19 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
                 italicText->GlyphLayouts()[0u].node->text == L"italic text" && ! italicText->GlyphLayouts()[0u].bold && italicText->GlyphLayouts()[0u].italic,
             "text style commands retain their text and select the requested native font style");
     Require(! ParseMath(L"\\textbf{unclosed"), "malformed styled text rejects the entire formula");
+    for (const auto& [source, left, right] :
+         {std::tuple{L"\\left\\uparrow x\\right\\downarrow", L'↑', L'↓'},
+          std::tuple{L"\\left\\updownarrow x\\right\\Updownarrow", L'↕', L'⇕'},
+          std::tuple{L"\\left\\Uparrow x\\right\\Downarrow", L'⇑', L'⇓'}})
+    {
+        const auto expression = ParseMath(source);
+        Require(expression && expression.root.children.size() == 1u && expression.root.children[0u].kind == MathKind::Delimited &&
+                    expression.root.children[0u].text == std::wstring{left, right}, "vertical arrow delimiters retain exact independent symbols");
+        const auto arrows = prepare(source);
+        Require(arrows->Size().width > 0.f && arrows->Size().height > 0.f, "vertical arrow fences have measured native geometry");
+    }
+    const auto sizedArrow = prepare(L"\\Big\\updownarrow");
+    Require(sizedArrow->Size().height > 0.f, "explicitly sized vertical arrow delimiters prepare");
 
     for (const auto& [source, annotation, above] :
          {std::tuple{L"\\overset{a}{=}", L"a", true}, std::tuple{L"\\underset{b}{=}", L"b", false}, std::tuple{L"\\stackrel{c}{=}", L"c", true}})

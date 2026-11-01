@@ -320,10 +320,16 @@ class Parser
                 return L'⌈';
             if (name == L"rceil")
                 return L'⌉';
+            if (name == L"uparrow") return L'↑';
+            if (name == L"downarrow") return L'↓';
+            if (name == L"updownarrow") return L'↕';
+            if (name == L"Uparrow") return L'⇑';
+            if (name == L"Downarrow") return L'⇓';
+            if (name == L"Updownarrow") return L'⇕';
             Reject();
         }
         const auto value = source[at++];
-        if (std::wstring_view(L"()[]{}|.⌊⌋⌈⌉⟨⟩‖/<>").find(value) == source.npos)
+        if (std::wstring_view(L"()[]{}|.⌊⌋⌈⌉⟨⟩‖/<>↑↓↕⇑⇓⇕").find(value) == source.npos)
             Reject();
         return value;
     }

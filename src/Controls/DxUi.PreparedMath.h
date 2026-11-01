@@ -381,15 +381,15 @@ class PreparedMath final
                     break;
                 case MathKind::Delimited:
                     if (node.kind == MathKind::Delimited &&
-                        (node.text.size() != 2u || std::wstring_view(L"()[]{}|.⟨⟩‖⌊⌋⌈⌉/<>\\").find(node.text[0]) == std::wstring_view::npos ||
-                         std::wstring_view(L"()[]{}|.⟨⟩‖⌊⌋⌈⌉/<>\\").find(node.text[1]) == std::wstring_view::npos))
+                        (node.text.size() != 2u || std::wstring_view(L"()[]{}|.⟨⟩‖⌊⌋⌈⌉/<>\\↑↓↕⇑⇓⇕").find(node.text[0]) == std::wstring_view::npos ||
+                         std::wstring_view(L"()[]{}|.⟨⟩‖⌊⌋⌈⌉/<>\\↑↓↕⇑⇓⇕").find(node.text[1]) == std::wstring_view::npos))
                         throw std::length_error("Invalid mathematical fence pair");
                     if (node.children.size() != 1u)
                         throw std::length_error("Invalid mathematical unary node");
                     break;
                 case MathKind::Delimiter:
                     if (! node.children.empty() || node.text.size() != 1u ||
-                        std::wstring_view(L"()[]{}|.⟨⟩‖⌊⌋⌈⌉/<>\\").find(node.text[0]) == std::wstring_view::npos || node.delimiterSize < 1u ||
+                        std::wstring_view(L"()[]{}|.⟨⟩‖⌊⌋⌈⌉/<>\\↑↓↕⇑⇓⇕").find(node.text[0]) == std::wstring_view::npos || node.delimiterSize < 1u ||
                         node.delimiterSize > 4u)
                         throw std::length_error("Invalid sized mathematical delimiter");
                     break;
