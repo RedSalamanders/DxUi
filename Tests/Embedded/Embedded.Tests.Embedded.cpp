@@ -1498,6 +1498,8 @@ __declspec(noinline) static int RunFunctionalTests()
         {
             RichSemanticEditorTests::SemanticGeometryReuse(view.Controls(),
                                                            [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "incremental preparation"); });
+            RichSemanticEditorTests::NativeObjectSourceContract(view.Controls(),
+                                                                [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "shared embedded object contract"); });
             RichSemanticEditorTests::PendingSourceWindowTransport(view.Controls());
             RichSemanticEditorTests::PendingRichSourceWindowTransport(view.Controls());
             RichSemanticEditorTests::UrlOnSelectionPaste(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "URL paste"); });

@@ -1062,7 +1062,7 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
           "find request callback can retire its editor without a stale continuation");
     prepare();
 }
-template <typename Prepare> void MathAndBroaderDiagrams(ControlHost& host, Prepare&& prepare)
+template <typename Prepare> void NativeObjectSourceContract(ControlHost& host, Prepare&& prepare)
 {
     for (const std::wstring source : {L"Before $x_i^2+\\frac{1}{2}$ after.\r\n\r\n$$\\begin{bmatrix}a&b\\\\c&d\\end{bmatrix}$$\r\n",
                                       L"```mermaid\nstateDiagram-v2\n[*] --> Ready\nReady --> Active : Begin\n```\n",
@@ -1106,6 +1106,10 @@ template <typename Prepare> void MathAndBroaderDiagrams(ControlHost& host, Prepa
               "atomic source object replacement and undo preserve exact source");
         prepare();
     }
+}
+template <typename Prepare> void MathAndBroaderDiagrams(ControlHost& host, Prepare&& prepare)
+{
+    NativeObjectSourceContract(host, prepare);
     {
         const std::wstring source = L"Before *mixed* $\\frac{1}{2}$ after\n\n# Heading **bold** $\\frac{1}{2}$ end";
         auto root                 = std::make_unique<RichTextEditor>(source);

@@ -41,6 +41,15 @@ void TestRichSemanticNativeFallbackSyntaxOwnership()
     Require(retry->Diagnostics().empty() && retry->Map().Display() == original->Map().Display(),
             "clearing presentation rejection retries the unchanged syntax");
 }
+void TestRichSemanticNativeObjectSharedContract()
+{
+    AttachedHostWindow window;
+    RichSemanticTests::Run([&]
+    {
+        RichSemanticEditorTests::NativeObjectSourceContract(
+            window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare shared native object contract"); });
+    });
+}
 void TestRichSemanticNativeMathAndBroaderDiagrams()
 {
     AttachedHostWindow window;
@@ -158,6 +167,7 @@ void RunRichSemanticGeometryTests()
 {
     DXUI_RUN_TEST(TestRichSemanticNativeObjectFailureContainment);
     DXUI_RUN_TEST(TestRichSemanticNativeFallbackSyntaxOwnership);
+    DXUI_RUN_TEST(TestRichSemanticNativeObjectSharedContract);
     DXUI_RUN_TEST(TestRichSemanticNativeMathAndBroaderDiagrams);
     DXUI_RUN_TEST(TestRichSemanticGeometryParagraphsTablesAndSourceRanges);
     DXUI_RUN_TEST(TestRichSemanticGeometryMarkdownSubtlePresentation);
