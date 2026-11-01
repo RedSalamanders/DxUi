@@ -400,6 +400,9 @@ static void TestEmbeddedTextInput(GraphicsFixture& gpu)
     Check(view.ReadTextInput(snapshot) == S_FALSE && snapshot.state.text.empty(), "hidden text snapshot clears old data");
     view.SetVisible(true);
     Hr(view.Prepare(480, 240), "reshow text");
+    DxUi::EmbeddedKeyDispatchReceipt staleReceipt;
+    Check(! view.DispatchKey(VK_SPACE, true, 0u, staleReceipt) && view.ShouldTranslateCharacter(staleReceipt),
+          "a text key issues a translatable receipt before suspension");
     preview(L"hidden draft");
     state = read();
     auto staleRevision = snapshot.revision;
@@ -413,6 +416,8 @@ static void TestEmbeddedTextInput(GraphicsFixture& gpu)
     Check(snapshot.focusId != oldFocusId && ! state.compositionStartIndex && state.text == L"External update" &&
               view.ApplyTextInput(staleRevision, {}, Action::Cancel) == HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH),
           "reshow creates a fresh session and rejects the stale composition revision");
+    Check(! view.ShouldTranslateCharacter(staleReceipt) && view.DispatchCharacter(L' ', 0u, staleReceipt) && field->GetText() == L"External update",
+          "a pre-suspension character receipt is consumed without retargeting or editing");
     preview(L"focus draft");
     view.CancelTextInput();
     Check(field->GetText() == L"External update" && view.ReadTextInput(snapshot) == S_FALSE && ! view.Controls().GetFocusControl(),
