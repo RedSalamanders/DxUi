@@ -1,0 +1,1 @@
+- Preserve embedded NUL in stored source-search queries and verify shortcut navigation and atomic replacements against exact counted UTF-16 source.

@@ -217,6 +217,18 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     Check(editor->ReplaceAllSourceMatches(L"one", L"x", {.wholeWord = true}) == 2u && editor->GetText() == L"x x only" && editor->Undo() &&
               editor->GetText() == L"One one only",
           "editor replace-all is case-insensitive and one undo transaction");
+    const std::wstring nulSource(L"a\0ba\0b", 6u);
+    editor->SetText(nulSource);
+    editor->SetSelection({0u, 0u});
+    editor->SetSearchQuery(std::wstring_view(L"\0b", 2u));
+    editor->SetSearchShortcutsEnabled(true);
+    Check(editor->OnKeyDown(host, VK_F3, 0u) && editor->GetSelection() == Selection{1u, 3u} && editor->OnKeyDown(host, VK_F3, 0u) &&
+              editor->GetSelection() == Selection{4u, 6u},
+          "stored counted-NUL search queries retain their exact extent through next-match shortcuts");
+    editor->SetSearchShortcutsEnabled(false);
+    Check(editor->ReplaceAllSourceMatches(std::wstring_view(L"\0b", 2u), std::wstring_view(L"\0", 1u)) == 2u &&
+              editor->GetText() == std::wstring(L"a\0a\0", 4u) && editor->Undo() && editor->GetText() == nulSource,
+          "counted-NUL queries and replacements preserve exact source and one undo transaction");
     editor->SetText(L"word");
     const auto decorationSource = editor->Snapshot();
     const std::array decorations{RichTextDecoration{0u, 4u, RichTextDecorationKind::Background, RichTextDecorationRole::Accent},
@@ -1620,14 +1632,14 @@ inline void NativeMathHRESULTFailureContainment(ControlHost& host)
         }
     }
     {
-        auto root = std::make_unique<DirectPrepareRichTextEditor>(L"```mermaid\ngraph LR;A[Draft]-->B[Ready]\n```\n");
+        auto root    = std::make_unique<DirectPrepareRichTextEditor>(L"```mermaid\ngraph LR;A[Draft]-->B[Ready]\n```\n");
         auto* editor = root.get();
         editor->SetBounds(D2D1::RectF(0.f, 0.f, 480.f, 240.f));
         editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
         editor->SetMarkdownRenderingEnabled(true);
         host.SetRoot(std::move(root));
         SemanticWriteFactoryOverride override(host);
-        auto* calls = override.Get();
+        auto* calls           = override.Get();
         calls->failLayoutText = L"Draft";
         Check(PrepareUntilSettled(*editor, host) == S_OK && calls->matchingLayouts > 0u, "prepare a measured native diagram");
         const auto labels = calls->matchingLayouts;
@@ -1830,7 +1842,7 @@ template <typename Prepare> void SemanticGeometryReuse(ControlHost& host, Prepar
     std::wstring source;
     for (unsigned i = 0u; i < 100u; ++i)
         source += L"Paragraph **bold** text.\n\n";
-    auto root = std::make_unique<RichTextEditor>(source);
+    auto root    = std::make_unique<RichTextEditor>(source);
     auto* editor = root.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
     editor->SetMarkdownRenderingEnabled(true);
@@ -1849,12 +1861,11 @@ template <typename Prepare> void SemanticGeometryReuse(ControlHost& host, Prepar
     Check(editor->ReplaceSelection(L"y") && ! editor->GetAcknowledgedSemanticDocument(host),
           "a second source edit retires stale semantic geometry before preparation");
     editor->SetSelection({8u, 8u});
-    Check(editor->ReplaceSelection(L"z") && editor->Revision() == firstRevision + 2u,
-          "superseding edits remain separate source transactions");
+    Check(editor->ReplaceSelection(L"z") && editor->Revision() == firstRevision + 2u, "superseding edits remain separate source transactions");
     prepare();
     Check(editor->GetAcknowledgedSemanticDocument(host) && editor->DebugGetState().reusedGeometryChunks >= 90u,
           "latest publication reuses only compatible boxes after cancelled source preparation");
-    auto appearance = editor->GetAppearance();
+    auto appearance            = editor->GetAppearance();
     appearance.bodyFontSizeDip = 19.f;
     editor->SetAppearance(appearance);
     prepare();
