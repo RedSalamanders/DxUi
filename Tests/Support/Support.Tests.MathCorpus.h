@@ -923,6 +923,21 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         }
     }
 #endif
+#if DXUI_ENABLE_DIAGNOSTICS
+    for (const auto name : {L"overlinesegment", L"underlinesegment"})
+    {
+        const auto expression = std::make_shared<const MathExpression>(ParseMath(L"\\" + std::wstring(name) + L"{abc}"));
+        check(static_cast<bool>(*expression), "line-segment accent parses completely");
+        Detail::PreparedMath accent(factory, expression, 24.f);
+        while (! accent.Advance()) {}
+        const auto& lines = accent.StrokeLayouts();
+        check(lines.size() == 3u && lines[0u].first.y == lines[0u].last.y && lines[1u].first.x == lines[1u].last.x &&
+                  lines[2u].first.x == lines[2u].last.x && lines[1u].first.x < lines[2u].first.x &&
+                  ((std::wstring_view(name).starts_with(L"under")) ? lines[0u].first.y > accent.GlyphLayouts()[0u].origin.y :
+                                                                   lines[0u].first.y < accent.GlyphLayouts()[0u].origin.y),
+              "line-segment accents stage a horizontal shaft with distinct bounded end bars");
+    }
+#endif
     for (const auto source : {L"\\genfrac{(}{)}{-2pt}{0}{a}{b}", L"\\genfrac{(}{)}{}{4}{a}{b}", L"\\genfrac{?}{}{}{}{a}{b}",
                               L"\\genfrac{}{}{}{}{a}"})
         check(! ParseMath(source), "unsupported general fraction dimensions, style and delimiters reject the whole source");

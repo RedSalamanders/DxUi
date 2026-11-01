@@ -733,7 +733,8 @@ class Parser
             L"overbrace", L"underbrace", L"overgroup", L"undergroup", L"boxed", L"cancel", L"bcancel", L"xcancel", L"sout", L"phase", L"angl",
             L"overline", L"underline", L"bar", L"hat", L"widehat", L"vec", L"dot", L"ddot", L"tilde", L"widetilde", L"check", L"widecheck",
             L"breve", L"acute", L"grave", L"mathring", L"underbar", L"utilde", L"overleftarrow", L"overrightarrow", L"overleftrightarrow",
-            L"Overrightarrow", L"underleftarrow", L"underrightarrow", L"underleftrightarrow", L"overleftharpoon", L"overrightharpoon"};
+            L"Overrightarrow", L"underleftarrow", L"underrightarrow", L"underleftrightarrow", L"overleftharpoon", L"overrightharpoon",
+            L"overlinesegment", L"underlinesegment"};
         return std::ranges::find(names, name) != std::end(names);
     }
     MathNode UnaryAccentCommand(std::wstring_view name, unsigned depth)

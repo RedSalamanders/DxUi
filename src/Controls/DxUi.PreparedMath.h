@@ -330,7 +330,7 @@ class PreparedMath final
     {
         return name == L"overleftarrow" || name == L"overrightarrow" || name == L"overleftrightarrow" || name == L"Overrightarrow" ||
                name == L"underleftarrow" || name == L"underrightarrow" || name == L"underleftrightarrow" ||
-               name == L"overleftharpoon" || name == L"overrightharpoon";
+               name == L"overleftharpoon" || name == L"overrightharpoon" || name == L"overlinesegment" || name == L"underlinesegment";
     }
     static std::optional<std::uint32_t> ColorArgument(std::wstring_view text, std::wstring_view prefix) noexcept
     {
@@ -1774,6 +1774,7 @@ class PreparedMath final
                 if (leftArrow) { Stroke(left + head, y - head, left, y, stroke); if (node.text != L"overleftharpoon") Stroke(left, y, left + head, y + head, stroke); }
                 if (rightArrow) { Stroke(right - head, y - head, right, y, stroke); if (node.text != L"overrightharpoon") Stroke(right, y, right - head, y + head, stroke); }
                 if (node.text == L"Overrightarrow") Stroke(left, y + head, right, y + head, stroke);
+                if (node.text.ends_with(L"linesegment")) { Stroke(left, y - head, left, y + head, stroke); Stroke(right, y - head, right, y + head, stroke); }
             }
             else if (node.text == L"overbrace" || node.text == L"underbrace" || node.text == L"overgroup" || node.text == L"undergroup")
             {
