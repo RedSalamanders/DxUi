@@ -1595,6 +1595,16 @@ void TestRichTextEditorNativeDiagramSelectionRaster()
     Require(window.Host().DebugCaptureBitmap(capture), "native selected graphic capture without activating the desktop");
     SemanticDiagramTests::SelectionPixels(
         *editor, window.Host(), capture.bgraPixels, capture.widthPx, capture.heightPx, window.Host().GetDpi() / 96.f, Require);
+    const auto diagramSource    = editor->GetText();
+    const auto diagramSelection = editor->GetSelection();
+    const auto diagramRevision  = editor->Revision();
+    window.Host().DebugSimulateDeviceLoss();
+    RenderEditor(window);
+    Require(window.Host().DebugCaptureBitmap(capture), "capture native diagram after device replacement");
+    SemanticDiagramTests::SelectionPixels(
+        *editor, window.Host(), capture.bgraPixels, capture.widthPx, capture.heightPx, window.Host().GetDpi() / 96.f, Require);
+    Require(editor->GetText() == diagramSource && editor->GetSelection() == diagramSelection && editor->Revision() == diagramRevision,
+            "native diagram device recovery preserves source, selection and revision");
 }
 void TestRichTextEditorNativeFootnoteBlockSourceEdits()
 {
@@ -1840,6 +1850,18 @@ void TestRichTextEditorNativeImagePixels()
     Require(window.Host().DebugCaptureBitmap(capture), "native selected image raster capture");
     RichImageResourceTests::PatternPixels(
         *editor, window.Host(), capture.bgraPixels, capture.widthPx, capture.heightPx, window.Host().GetDpi() / 96.f, Require, true);
+    const auto imageSource    = editor->GetText();
+    const auto imageSelection = editor->GetSelection();
+    const auto imageRevision  = editor->Revision();
+    window.Host().DebugSimulateDeviceLoss();
+    RenderEditor(window);
+    Require(window.Host().DebugCaptureBitmap(capture), "capture native raster image after device replacement");
+    RichImageResourceTests::PatternPixels(
+        *editor, window.Host(), capture.bgraPixels, capture.widthPx, capture.heightPx, window.Host().GetDpi() / 96.f, Require, true);
+    std::vector<RichImageRequest> recoveredRequests(0u);
+    editor->TakePendingImageRequests(recoveredRequests);
+    Require(recoveredRequests.empty() && editor->GetText() == imageSource && editor->GetSelection() == imageSelection && editor->Revision() == imageRevision,
+            "native raster device recovery preserves source and selection without re-requesting image bytes");
     constexpr std::string_view svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><rect width='20' height='20' fill='red'/></svg>";
     std::shared_ptr<const RichImage> vectorImage;
     Require(SUCCEEDED(RichImage::CreateSvg(20u, 20u, std::as_bytes(std::span(svg)), vectorImage)), "create native SVG image fixture");
