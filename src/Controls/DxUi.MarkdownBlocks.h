@@ -397,7 +397,7 @@ class MarkdownBlocks
             return 3u;
         if (Starts(text, L"<![CDATA["))
             return 5u;
-        if (text.size() > 2u && Starts(text, L"<!") && Letter(text[2]))
+        if (text.size() > 2u && Starts(text, L"<!") && (sourceProfile_ == MarkdownProfile::Gfm029 ? (text[2] >= L'A' && text[2] <= L'Z') : Letter(text[2])))
             return 4u;
         if (text.size() < 2u || text[0] != L'<')
             return 0;

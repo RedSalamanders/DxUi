@@ -64,6 +64,13 @@ inline std::wstring BlockSignature(const MarkdownSyntax& syntax)
     }
     return result;
 }
+template <typename Check> inline void CheckDeclarationProfile(const MarkdownSyntax& syntax, bool uppercase, Check&& check)
+{
+    const bool html = uppercase || syntax.Profile() != MarkdownProfile::Gfm029;
+    check(BlockSignature(syntax) == (html ? L"<htmlblock></htmlblock><p></p>" : L"<p></p>"),
+          "declaration block start follows the exact selected CommonMark or GFM profile");
+    check(syntax.Source() == (uppercase ? L"<!DOCTYPE html>\nfoo" : L"<!doctype html>\nfoo"), "profile-sensitive declaration recognition retains exact source");
+}
 struct Scenario
 {
     std::wstring_view name, source, signature;

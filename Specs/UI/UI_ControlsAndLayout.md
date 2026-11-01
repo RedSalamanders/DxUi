@@ -1302,6 +1302,9 @@ Every result carries its CommonMark0312, Gfm029 or RichMarkdown target, extensio
 options and source revision. M3 supplies base inline parsing and specified GFM
 extensions; RichMarkdown math/Mermaid/footnotes/front matter and semantic native
 rendering/editing remain later gates.
+The Gfm029 HTML declaration block start requires an uppercase ASCII letter after
+`<!`, as in its pinned grammar; CommonMark0312 and RichMarkdown accept either
+ASCII letter case.
 Begin validates/owns at most 65,536 UTF-16 units, accepting raw NUL and rejecting
 unpaired surrogates. Reference-label folding replaces raw NUL with U+FFFD before
 matching, consistently with normalized inline text; exact Source() stays intact.

@@ -522,6 +522,13 @@ void TestLosslessMarkdownInlineScenariosAndExtensionIdentity()
 }
 void TestLosslessMarkdownBlockScenariosAndNodeIdentity()
 {
+    for (const auto profile : {MarkdownProfile::Gfm029, MarkdownProfile::CommonMark0312, MarkdownProfile::RichMarkdown})
+        for (const bool uppercase : {false, true})
+        {
+            MarkdownParser declaration;
+            declaration.Begin(uppercase ? L"<!DOCTYPE html>\nfoo" : L"<!doctype html>\nfoo", 1u, profile);
+            MarkdownBlockTests::CheckDeclarationProfile(*CompleteMarkdown(declaration, 1u), uppercase, Require);
+        }
     for (const auto& scenario : MarkdownBlockTests::scenarios)
     {
         MarkdownParser parser;

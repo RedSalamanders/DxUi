@@ -3679,6 +3679,17 @@ static void TestEmbeddedLosslessMarkdownPreparation(GraphicsFixture& gpu)
         Check(pixels == originalPixels, "lossless analysis does not silently replace or change the v0 formatted renderer");
     }
     const auto held = editor->GetMarkdownSyntax();
+    for (const auto profile : {MarkdownProfile::Gfm029, MarkdownProfile::CommonMark0312, MarkdownProfile::RichMarkdown})
+        for (const bool uppercase : {false, true})
+        {
+            editor->SetMarkdownAnalysisProfile(profile);
+            editor->SetText(uppercase ? L"<!DOCTYPE html>\nfoo" : L"<!doctype html>\nfoo");
+            Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded profile-specific declaration");
+            const auto parsed = editor->GetMarkdownSyntax();
+            Check(parsed != nullptr, "embedded declaration syntax is published");
+            MarkdownBlockTests::CheckDeclarationProfile(*parsed, uppercase, Check);
+        }
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
     for (const auto& scenario : MarkdownBlockTests::scenarios)
     {
         editor->SetText(std::wstring(scenario.source));

@@ -1,0 +1,1 @@
+- Match the pinned GFM 0.29 uppercase declaration-block rule while retaining later CommonMark and RichMarkdown behavior.
