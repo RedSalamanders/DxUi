@@ -1270,6 +1270,9 @@ its text; an active session with no valid cache remains unavailable.
 InsertThematicBreak inserts a separated rule at a top-level caret, retaining
 the existing text and line-ending convention; unsupported container positions
 decline rather than rewriting a prefix.
+ClearFormatting removes complete selected strong, emphasis and strikethrough
+wrappers as one transaction. Partial wrapper selections and inline code, links
+or other object intersections remain unavailable pending source-exact splitting.
 InsertImage creates an inert Markdown image with escaped alt/title and a
 validated remote or local destination. Absolute local paths use the same
 document-relative URI builder as file paste. A selected plain source range can

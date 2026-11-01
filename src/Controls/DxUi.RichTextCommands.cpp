@@ -1067,6 +1067,7 @@ struct MarkdownCommandPlanner
     void Math(const MarkdownCommandRequest& request);
     void ThematicBreak();
     void Image(const MarkdownCommandRequest& request);
+    void ClearFormatting();
     void Join(bool backwards);
     void Style(MarkdownTextStyle style);
     void Link(const MarkdownCommandRequest& request, bool remove);
@@ -1599,6 +1600,36 @@ void MarkdownCommandPlanner::Math(const MarkdownCommandRequest& request)
     plan.after_       = plan.before_.anchor <= plan.before_.caret ? Selection{begin, end} : Selection{end, begin};
     explicitSelection = true;
     plan.applicable_  = true;
+}
+
+void MarkdownCommandPlanner::ClearFormatting()
+{
+    if (plan.before_.Start() == plan.before_.End())
+        return;
+    size_t leaf{};
+    if (! InlineSelection(leaf))
+        return;
+    const auto first = plan.before_.Start(), last = plan.before_.End();
+    std::vector<MarkdownRange> removals(0u);
+    for (const auto& node : plan.syntax_->Inlines())
+    {
+        if (node.source.first >= last || node.source.last <= first || node.kind == MarkdownInlineKind::Text)
+            continue;
+        if (node.kind != MarkdownInlineKind::Strong && node.kind != MarkdownInlineKind::Emphasis && node.kind != MarkdownInlineKind::Strikethrough)
+            return;
+        const auto body = InlineBody(node);
+        if (! body || first > body->first || last < body->last)
+            return;
+        removals.push_back({node.source.first, body->first});
+        removals.push_back({body->last, node.source.last});
+    }
+    std::ranges::sort(removals, {}, &MarkdownRange::first);
+    for (size_t i = 1u; i < removals.size(); ++i)
+        if (removals[i].first < removals[i - 1u].last || removals[i].first == removals[i - 1u].first)
+            return;
+    for (const auto range : removals)
+        Add(range.first, range.last, L"");
+    plan.applicable_ = true;
 }
 
 void MarkdownCommandPlanner::ThematicBreak()
@@ -2769,6 +2800,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
         case ::DxUi::RichText::MarkdownCommand::InsertThematicBreak:
         case ::DxUi::RichText::MarkdownCommand::InsertImage:
         case ::DxUi::RichText::MarkdownCommand::ExitCodeBlock:
+        case ::DxUi::RichText::MarkdownCommand::ClearFormatting:
         default: return;
     }
     plan.applicable_ = true;
@@ -2961,7 +2993,7 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
 {
     if (request.text.size() > Document::MaximumUnits || request.destination.size() > Document::MaximumUnits || request.title.size() > Document::MaximumUnits)
         throw std::length_error("Structural request text exceeds source capacity");
-    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::ExitCodeBlock))
+    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::ClearFormatting))
         throw std::invalid_argument("Invalid Markdown command");
     Detail::MarkdownCommandPlanner builder(source, revision, std::move(syntax), selection);
     // Resolved definitions own editable content, while the label and
@@ -3001,6 +3033,7 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
         case MarkdownCommand::InsertThematicBreak: builder.ThematicBreak(); break;
         case MarkdownCommand::InsertImage: builder.Image(request); break;
         case MarkdownCommand::ExitCodeBlock: builder.ExitCode(); break;
+        case MarkdownCommand::ClearFormatting: builder.ClearFormatting(); break;
         case MarkdownCommand::InsertTable:
         case MarkdownCommand::InsertTableRow:
         case MarkdownCommand::DeleteTableRow:

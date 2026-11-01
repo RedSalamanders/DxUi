@@ -1703,7 +1703,7 @@ RichText::MarkdownCommandStatus RichTextEditor::ExecuteMarkdownCommand(const Ric
 std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownCommandState(const RichText::MarkdownCommandRequest& request) const noexcept
 {
     using namespace RichText;
-    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::ExitCodeBlock))
+    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::ClearFormatting))
         return std::nullopt;
     MarkdownCommandState result;
     if (! Editable() || ! _state->markdownRendering || _state->mode != ViewMode::Rich || _state->sourceEditing)
