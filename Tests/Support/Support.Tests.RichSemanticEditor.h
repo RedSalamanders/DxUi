@@ -4,6 +4,7 @@
 #include "Controls/DxUi.RichSourceWindow.h"
 #include "Controls/DxUi.RichSourceWindow.h"
 #include "Support.Tests.CountingWriteFactory.h"
+#include "Support.Tests.RichImageResources.h"
 #include "Support.Tests.RichSemantic.h"
 #include <DxUi/DxUi.h>
 #include <cmath>
@@ -1065,19 +1066,30 @@ template <typename Prepare> void MathAndBroaderDiagrams(ControlHost& host, Prepa
 {
     for (const std::wstring source : {L"Before $x_i^2+\\frac{1}{2}$ after.\r\n\r\n$$\\begin{bmatrix}a&b\\\\c&d\\end{bmatrix}$$\r\n",
                                       L"```mermaid\nstateDiagram-v2\n[*] --> Ready\nReady --> Active : Begin\n```\n",
-                                      L"```mermaid\nclassDiagram\nAnimal <|-- Bird\nBird : +fly()\n```\n"})
+                                      L"```mermaid\nclassDiagram\nAnimal <|-- Bird\nBird : +fly()\n```\n",
+                                      L"before ![fixture](image.png) after\n"})
     {
         auto root    = std::make_unique<RichTextEditor>(source);
         auto* editor = root.get();
         editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
         editor->SetMarkdownRenderingEnabled(true);
+        editor->SetDocumentFilePath(L"C:\\docs\\note.md");
         host.SetRoot(std::move(root));
         prepare();
+        if (source.find(L"![fixture]") != std::wstring::npos)
+        {
+            std::vector<RichImageRequest> requests(0u);
+            editor->TakePendingImageRequests(requests);
+            Check(requests.size() == 1u && editor->CompleteImageRequest(requests[0], RichImageResourceTests::Picture()),
+                  "common native object contract resolves the image through the caller-owned transport");
+            prepare();
+        }
         const auto semantic = editor->GetAcknowledgedSemanticDocument(host);
         Check(semantic && editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic,
-              "native and embedded owners prepare mathematical and broader diagram objects");
-        const auto object = std::ranges::find_if(
-            semantic->Elements(), [](const auto& element) { return element.role == SemanticRole::Math || element.role == SemanticRole::Diagram; });
+              "native and embedded owners prepare mathematical, diagram and decoded image objects");
+        const auto object = std::ranges::find_if(semantic->Elements(), [](const auto& element) {
+            return element.role == SemanticRole::Math || element.role == SemanticRole::Diagram || element.role == SemanticRole::Image;
+        });
         Check(object != semantic->Elements().end(), "prepared object exists");
         const auto index  = static_cast<std::size_t>(object - semantic->Elements().begin());
         const auto bounds = editor->GetSemanticElementBounds(host, index);
