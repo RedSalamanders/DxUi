@@ -1376,6 +1376,23 @@ template <typename Prepare, typename Move, typename Key> void TitleTooltipContra
     Check(host.DebugGetPendingTooltipText() == L"Image title", "nested image title wins over its enclosing link title");
     Check(editor->GetText() == source && editor->GetSelection() == selection && ! editor->CanUndo() && host.GetFocusControl() == focus,
           "title hover preserves exact source, selection, history and focus");
+    const auto titleLink = std::ranges::find_if(semantic->Elements(), [](const auto& item) { return item.role == SemanticRole::Link && item.title == L"Link title"; });
+    Check(titleLink != semantic->Elements().end() && editor->BeginSemanticSourceEdit(host, semantic, static_cast<std::size_t>(titleLink - semantic->Elements().begin())),
+          "title fixture opens its inline link source");
+    prepare();
+    const auto editing = editor->GetAcknowledgedSemanticDocument(host);
+    Check(editing != nullptr, "expanded link source has an acknowledged document");
+    const auto sourceElement = std::ranges::find_if(editing->Elements(), [&](const auto& item)
+    {
+        return editing->IsSourceEditingElement(static_cast<std::size_t>(&item - editing->Elements().data()));
+    });
+    Check(sourceElement != editing->Elements().end(), "title fixture has an expanded source owner");
+    const auto sourceBounds = editor->GetSemanticElementBounds(host, static_cast<std::size_t>(sourceElement - editing->Elements().begin()));
+    Check(sourceBounds.has_value(), "expanded link source has prepared bounds");
+    move(D2D1::Point2F((sourceBounds->left + sourceBounds->right) * .5f, (sourceBounds->top + sourceBounds->bottom) * .5f), MK_CONTROL);
+    Check(host.DebugGetPendingTooltipText() == L"General tooltip", "expanded source help is not exposed as an authored link title");
+    Check(editor->EndSemanticSourceEdit(host), "title fixture closes inline source");
+    prepare();
     editor->SetReadOnly(true);
     prepare();
     move(image, 0u);

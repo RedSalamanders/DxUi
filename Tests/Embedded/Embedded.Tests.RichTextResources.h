@@ -61,6 +61,75 @@ static void TestRichLabelWakeupAndRetirement(GraphicsFixture& gpu)
     Check(state.retired && ! view.Controls().GetRoot(), "label wakeup callback can retire the editor before the setter returns");
 }
 
+static void TestRichTooltipReentrantTransitions(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create tooltip transition graphics");
+    EmbeddedHost view;
+    struct CallbackState
+    {
+        RichTextEditor* editor{};
+        unsigned action{};
+        bool called{}, failed{};
+    } state;
+    EmbeddedCallbacks callbacks{};
+    callbacks.context = &state;
+    callbacks.requestPreparation = [](void* context) noexcept
+    {
+        auto& current = *static_cast<CallbackState*>(context);
+        const auto action = std::exchange(current.action, 0u);
+        if (! action)
+            return;
+        current.called = true;
+        try
+        {
+            if (action == 1u)
+                current.editor->SetReadOnly(true);
+            else
+                current.editor->SetViewMode(RichText::ViewMode::Rich);
+        }
+        catch (const std::bad_alloc&) { std::terminate(); }
+        catch (const std::exception&)
+        {
+            // ABI callback records failure for the owning test to report.
+            current.failed = true;
+        }
+    };
+    Hr(view.Attach(graphics, callbacks), "attach tooltip transition host");
+    for (const unsigned action : {1u, 2u})
+    {
+        auto root = std::make_unique<RichTextEditor>(L"[link](https://example.test \"Link title\")");
+        state.editor = root.get();
+        state.editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
+        state.editor->SetMarkdownRenderingEnabled(true);
+        state.editor->SetReadOnly(true);
+        view.Controls().SetRoot(std::move(root));
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare tooltip transition fixture");
+        const auto document = state.editor->GetAcknowledgedSemanticDocument(view.Controls());
+        const auto link = std::ranges::find_if(document->Elements(), [](const auto& element) { return element.role == RichText::SemanticRole::Link; });
+        Check(link != document->Elements().end(), "tooltip transition has a link owner");
+        const auto bounds = state.editor->GetSemanticElementBounds(view.Controls(), static_cast<std::size_t>(link - document->Elements().begin()));
+        Check(bounds.has_value(), "tooltip transition has prepared link bounds");
+        view.DispatchPointer({PointerAction::Move, (bounds->left + bounds->right) * .5f, (bounds->top + bounds->bottom) * .5f});
+        Check(view.Controls().DebugGetPendingTooltipText() == L"Link title", "tooltip transition selects an authored title");
+        Check(view.Controls().DebugAdvanceTooltipDelayForTest(), "tooltip transition makes the owned tooltip visible");
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "settle visible tooltip before callback");
+        Check(view.Controls().HasTooltip(), "tooltip transition starts with visible content");
+        state.called = state.failed = false;
+        state.action = action;
+        if (action == 1u)
+            state.editor->SetReadOnly(false);
+        else
+            state.editor->SetViewMode(RichText::ViewMode::Source);
+        Check(state.called && ! state.failed && state.editor->IsReadOnly() && state.editor->GetViewMode() == RichText::ViewMode::Rich,
+              "a newer setter in tooltip invalidation wins over the outer read-only or mode transition");
+        Check(state.editor->GetText() == L"[link](https://example.test \"Link title\")" && ! state.editor->CanUndo(),
+              "reentrant tooltip transitions preserve source and history");
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "settle reentrant tooltip transition");
+    }
+}
+
 static void TestRichPreparedWordFailureAtomicity(GraphicsFixture& gpu)
 {
     using namespace DxUi;

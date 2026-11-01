@@ -934,6 +934,9 @@ Ctrl; read-only editors do not. A nested image title takes precedence over its
 containing link title. Otherwise the control's consumer tooltip remains eligible.
 Tooltip selection does not mutate source, selection, history or focus. Source
 changes, scrolling, hiding and control detachment retire the previous title.
+Editor setters commit before clearing a visible title tooltip; synchronous
+embedded invalidation may call a newer setter, and that newer state wins.
+An expanded inline source owner's edit help is not an authored hover title.
 
 ## Retained RichTextEditor v0 preview (D2c)
 
