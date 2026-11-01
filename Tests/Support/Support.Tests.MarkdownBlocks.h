@@ -285,7 +285,7 @@ inline constexpr Scenario scenarios[] = {
     {L"flowchart TD\nA --> B\nstyle A fill:red\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement},
     {L"flowchart TD\nA --> B\nclick A \"https://example.invalid\"\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement},
     {L"%%{init: {}}%%\nflowchart TD\nA --> B\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedConfiguration},
-    {L"flowchart TD\nA[\"<b>HTML</b>\"]\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedLabelMarkup},
+    {L"flowchart TD\nA[\"<b>HTML</b>\"]\n", {}, {}, 1u, 0u, {}, L"HTML"},
     {L"flowchart TD\nA@{shape: hex}\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedShape},
     {L"flowchart TD\nA -.-> B\n", {}, {}, 2u, 1u, {}, L"A"},
     {L"flowchart TD\nA ---oB\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedEdge},
@@ -340,6 +340,14 @@ template <typename Check> inline void CheckModel(const FlowchartModel& model, co
     }
     check(model.direction == scenario.direction && model.nodes.front().label == scenario.firstLabel && model.nodes.front().shape == scenario.firstShape,
           "prepared native graph has expected direction, last explicit label and shape");
+    if (scenario.source == L"flowchart TD\nA[\"<b>HTML</b>\"]\n")
+    {
+        const auto& node = model.nodes.front();
+        check(node.identifier.first == 13u && node.identifier.last == 14u && node.declaration.first == 13u && node.declaration.last == 29u &&
+                  node.styles.count == 1u && node.styles.spans[0u].first == 0u && node.styles.spans[0u].last == 4u &&
+                  node.styles.spans[0u].flags == LabelBold,
+              "bold HTML fixture preserves the exact declaration and bold text interval");
+    }
     for (const auto& node : model.nodes)
         check(node.identifier.first < node.identifier.last && node.identifier.last <= model.source.size() && node.declaration.last <= model.source.size(),
               "native graph identifier and latest declaration retain raw body coordinates");

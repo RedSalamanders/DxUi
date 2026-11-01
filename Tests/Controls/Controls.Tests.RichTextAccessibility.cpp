@@ -40,7 +40,7 @@ public:
 #pragma warning(disable : 4625 4626)
 struct RichAccessibilityFixture
 {
-    explicit RichAccessibilityFixture(bool embedded, bool markdownAnalysis = false, bool semanticRendering = false) : embedded(embedded)
+    explicit RichAccessibilityFixture(bool embedded, bool markdownAnalysis = false, bool semanticRendering = false, UINT inputWidth = 480u) : embedded(embedded), viewportWidth(inputWidth)
     {
         if (embedded)
         {
@@ -53,6 +53,9 @@ struct RichAccessibilityFixture
         else
         {
             window   = std::make_unique<AttachedHostWindow>();
+            if (viewportWidth > 480)
+                Require(SetWindowPos(window->Hwnd(), nullptr, 0, 0, static_cast<int>(viewportWidth), 240, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE) != FALSE,
+                        "size offscreen rich accessibility fixture without activation");
             controls = &window->Host();
         }
         auto root = std::make_unique<RichAccessibilityEditor>(L"**alpha**\r\nbeta");
@@ -66,8 +69,8 @@ struct RichAccessibilityFixture
         controls->SetRoot(std::move(root));
         if (embedded)
         {
-            RequireSucceeded(PrepareEmbeddedContentForTests(view, 480, 240), "prepare rich UIA view");
-            bridge = std::make_unique<EmbeddedUiaTest::Bridge>(view, 480, 240);
+            RequireSucceeded(PrepareEmbeddedContentForTests(view, viewportWidth, 240), "prepare rich UIA view");
+            bridge = std::make_unique<EmbeddedUiaTest::Bridge>(view, viewportWidth, 240);
             RequireSucceeded(bridge->Attach(false, 0x524943480001ull), "attach rich application accessibility bridge");
             RequireSucceeded(view.GetAccessibilityProvider(provider.put()), "embedded rich root provider");
         }
@@ -89,7 +92,7 @@ struct RichAccessibilityFixture
     {
         if (embedded)
         {
-            RequireSucceeded(PrepareEmbeddedContentForTests(view, 480, 240), "prepare rich source publication");
+            RequireSucceeded(PrepareEmbeddedContentForTests(view, viewportWidth, 240), "prepare rich source publication");
             RequireSucceeded(bridge->Update(), "publish rich embedded semantics");
         }
         else
@@ -143,6 +146,7 @@ struct RichAccessibilityFixture
         return simple;
     }
     bool embedded;
+    UINT viewportWidth;
     GraphicsFixture gpu;
     EmbeddedHost view;
     std::unique_ptr<AttachedHostWindow> window;
@@ -1945,7 +1949,8 @@ wil::com_ptr_nothrow<IRawElementProviderSimple> FindNamedSemanticPart(IRawElemen
 void SemanticDiagramAlternatives(bool embedded)
 {
     using namespace RichText;
-    RichAccessibilityFixture fixture(embedded, true, true);
+    // The fixed-axis Gantt fixture requires more than the ordinary 320/480 DIP test view.
+    RichAccessibilityFixture fixture(embedded, true, true, 800);
     fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
     const std::wstring source = L"```mermaid\ngraph TD;A[\"Unicode \u03b2\"]-->B\n```\n";
     fixture.editor->SetText(source);
@@ -2050,6 +2055,32 @@ void SemanticDiagramAlternatives(bool embedded)
     wil::com_ptr_nothrow<ITextRangeProvider> mathRange;
     RequireSucceeded(text->RangeFromChild(mathImage.get(), mathRange.put()), "display math fence source range");
     Require(ReadTextRangeText(*mathRange.get(), -1, "display math fence exact source") == mathFence, "display math UIA range owns the complete original fence");
+
+    // A timeline that does not fit is source-owned; an independent small graph
+    // in the same document must still retain its native provider.
+    RichAccessibilityFixture narrow(embedded, true, true, 320);
+    narrow.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    const std::wstring compactSource = L"```mermaid\ngraph TD;A\n```\n";
+    const std::wstring combined = compactSource + L"\n" + gantt;
+    narrow.editor->SetText(combined);
+    narrow.Publish();
+    const auto narrowRoot = narrow.Simple();
+    const auto smallImage = FindSemanticPart(*narrowRoot.get(), UIA_ImageControlTypeId);
+    Require(smallImage && ReadProviderStringProperty(*smallImage.get(), UIA_NamePropertyId, "narrow graph alternative").starts_with(L"Flowchart,"),
+            "a fitting graph remains native when the adjacent Gantt cannot fit");
+    const auto narrowText = TextProvider(narrow);
+    wil::com_ptr_nothrow<ITextRangeProvider> smallRange, fullRange;
+    RequireSucceeded(narrowText->RangeFromChild(smallImage.get(), smallRange.put()), "narrow fitting graph source");
+    Require(ReadTextRangeText(*smallRange.get(), -1, "narrow fitting graph source") == compactSource, "the retained graphic owns its exact source fence");
+    RequireSucceeded(narrowText->get_DocumentRange(fullRange.put()), "narrow complete source");
+    Require(ReadTextRangeText(*fullRange.get(), -1, "narrow complete source") == combined && narrow.editor->GetText() == combined,
+            "width fallback preserves the complete Gantt fence and the surrounding source exactly");
+    const auto narrowDocument = narrow.editor->GetAcknowledgedSemanticDocument(*narrow.controls);
+    Require(narrowDocument && std::ranges::count_if(narrowDocument->Elements(), [](const auto& element)
+    {
+        return element.role == SemanticRole::Diagram;
+    }) == 1,
+            "the oversized Gantt falls back locally without suppressing the fitting diagram");
 }
 void SemanticMathLiteralFallback(bool embedded)
 {
