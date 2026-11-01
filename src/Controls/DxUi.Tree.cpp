@@ -116,17 +116,10 @@ struct TreeResolvedRowVisuals final
     return result;
 }
 
-[[nodiscard]] std::optional<size_t> FindVisibleItemIndexById(const std::vector<TreeItemData>& items, uint64_t itemId) noexcept
+[[nodiscard]] std::optional<size_t> FindIndexedItem(std::span<const std::pair<uint64_t, size_t>> index, uint64_t id) noexcept
 {
-    for (size_t index = 0u; index < items.size(); ++index)
-    {
-        if (items[index].id == itemId)
-        {
-            return index;
-        }
-    }
-
-    return std::nullopt;
+    const auto found = std::lower_bound(index.begin(), index.end(), id, [](const auto& entry, uint64_t value) { return entry.first < value; });
+    return found != index.end() && found->first == id ? std::optional(found->second) : std::nullopt;
 }
 
 [[nodiscard]] size_t CountDescendants(const std::vector<TreeItemData>& items, size_t parentIndex) noexcept
@@ -1080,9 +1073,24 @@ try
     if (! guard.IsCurrent() || visibleIndex >= count)
         return false;
 
-    std::vector<TreeItemData> beforeItems;
-    if (! TryControlCallback([&] { beforeItems = CaptureVisibleItems(); }) || ! guard.IsCurrent())
-        return false;
+    constexpr size_t maximumAnimatedRows = 4096u;
+    ControlHost* const animationHost     = GetHost();
+    bool animate                         = animationHost && ! animationHost->GetTheme().reducedMotion && count <= maximumAnimatedRows;
+    std::optional<std::vector<TreeItemData>> beforeItems;
+    if (animate)
+    {
+        try
+        {
+            beforeItems.emplace(CaptureVisibleItems());
+        }
+        catch (const std::bad_alloc&)
+        {
+            animate = false;
+        }
+        if (! guard.IsCurrent())
+            return false;
+        animate = animate && beforeItems && beforeItems->size() == count;
+    }
     TreeItemData item;
     if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
         return false;
@@ -1096,31 +1104,65 @@ try
         return true;
     }
 
-    StartExpanderAnimation(item.id, item.expanded, expanded);
     const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
-    ITreeDelegate* const delegate         = _delegate;
-    const uint64_t revisionBeforeToggle   = _modelRevision;
+    if (animate)
+        StartExpanderAnimation(item.id, item.expanded, expanded);
+    else
+    {
+        ClearTreeExpansionAnimation();
+        std::erase_if(_expanderAnimations, [&](const ExpanderAnimationState& animation) { return animation.itemId == item.id; });
+    }
+    if (selfLifetime.expired() || ! guard.IsCurrent())
+        return false;
+    ITreeDelegate* const delegate       = _delegate;
+    const uint64_t revisionBeforeToggle = _modelRevision;
     if (! TryControlCallback([&] { delegate->OnTreeToggleExpanded(item.id, expanded); }) || selfLifetime.expired() || ! guard.ResumeAfterCallback())
     {
         return false;
     }
     // A delegate usually publishes its edit with NotifyDataChanged before it returns: the rows then slide from the order
     // captured before the callback to the order after it. A delegate that applies the edit later animates nothing.
-    std::vector<TreeItemData> afterItems;
-    if (! TryControlCallback([&] { afterItems = CaptureVisibleItems(); }) || ! guard.IsCurrent())
-        return false;
     if (_modelRevision != revisionBeforeToggle)
     {
         // A published answer is the result: the request succeeded only when the item now has the requested state. A
         // refused toggle leaves its chevron where the model put it.
-        const auto current = std::ranges::find(afterItems, item.id, &TreeItemData::id);
-        if (current == afterItems.end() || ! current->hasChildren || current->expanded != expanded)
+        const auto currentIndex = model->FindVisibleItemById(item.id);
+        TreeItemData current;
+        if (! guard.IsCurrent() || ! currentIndex || ! TryControlCallback([&] { model->GetVisibleItem(*currentIndex, current); }) || ! guard.IsCurrent())
+            return false;
+        if (current.id != item.id || ! current.hasChildren || current.expanded != expanded)
         {
             std::erase_if(_expanderAnimations, [&](const ExpanderAnimationState& animation) { return animation.itemId == item.id; });
             return false;
         }
     }
-    BeginTreeExpansionAnimation(item.id, expanded, std::move(beforeItems), std::move(afterItems));
+    const size_t afterCount = model->GetVisibleItemCount();
+    if (! guard.IsCurrent())
+        return false;
+    std::optional<std::vector<TreeItemData>> afterItems;
+    if (animate && afterCount <= maximumAnimatedRows)
+    {
+        try
+        {
+            afterItems.emplace(CaptureVisibleItems());
+        }
+        catch (const std::bad_alloc&)
+        {
+            animate = false;
+        }
+        if (! guard.IsCurrent())
+            return false;
+        animate = animate && afterItems && afterItems->size() == afterCount;
+    }
+    else
+        animate = false;
+    if (animate)
+        BeginTreeExpansionAnimation(item.id, expanded, std::move(beforeItems.value()), std::move(afterItems.value()));
+    else
+    {
+        ClearTreeExpansionAnimation();
+        std::erase_if(_expanderAnimations, [&](const ExpanderAnimationState& animation) { return animation.itemId == item.id; });
+    }
     RefreshAccessibilitySnapshot();
     return ! selfLifetime.expired() && guard.ResumeAfterCallback();
 }
@@ -1325,9 +1367,9 @@ void Tree::Paint(ControlHost& host) const
         {
             const auto& animation        = _treeExpansionAnimation.value();
             const float progress         = GetTreeExpansionProgress(nowTickMs);
-            const auto beforeIndex       = FindVisibleItemIndexById(animation.beforeItems, item.id);
-            const auto afterParentIndex  = FindVisibleItemIndexById(animation.afterItems, animation.itemId);
-            const auto beforeParentIndex = FindVisibleItemIndexById(animation.beforeItems, animation.itemId);
+            const auto beforeIndex       = FindIndexedItem(animation.beforeIndex, item.id);
+            const auto afterParentIndex  = animation.afterParent;
+            const auto beforeParentIndex = animation.beforeParent;
             if (beforeIndex.has_value())
             {
                 const float beforeTopDip = contentRect.top + (static_cast<float>(beforeIndex.value()) * _rowHeightDip) - _verticalScrollDip;
@@ -1377,24 +1419,26 @@ void Tree::Paint(ControlHost& host) const
     if (animateTreeExpansion && _treeExpansionAnimation.has_value() && ! _treeExpansionAnimation->toExpanded)
     {
         const auto& animation        = _treeExpansionAnimation.value();
-        const auto beforeParentIndex = FindVisibleItemIndexById(animation.beforeItems, animation.itemId);
-        const auto afterParentIndex  = FindVisibleItemIndexById(animation.afterItems, animation.itemId);
+        const auto beforeParentIndex = animation.beforeParent;
+        const auto afterParentIndex  = animation.afterParent;
         if (beforeParentIndex.has_value() && afterParentIndex.has_value())
         {
             const float progress             = GetTreeExpansionProgress(nowTickMs);
-            const size_t descendantCount     = CountDescendants(animation.beforeItems, beforeParentIndex.value());
+            const size_t descendantCount     = animation.beforeDescendants;
             const float collapseTargetTopDip = contentRect.top + (static_cast<float>(afterParentIndex.value() + 1u) * _rowHeightDip) - _verticalScrollDip;
             for (size_t offset = 0u; offset < descendantCount; ++offset)
             {
                 const size_t beforeIndex        = beforeParentIndex.value() + 1u + offset;
                 const TreeItemData& removedItem = animation.beforeItems[beforeIndex];
-                if (FindVisibleItemIndexById(animation.afterItems, removedItem.id).has_value())
+                if (FindIndexedItem(animation.afterIndex, removedItem.id).has_value())
                 {
                     continue;
                 }
 
-                const float beforeTopDip           = contentRect.top + (static_cast<float>(beforeIndex) * _rowHeightDip) - _verticalScrollDip;
-                const float rowTopDip              = Lerp(beforeTopDip, collapseTargetTopDip, progress);
+                const float beforeTopDip = contentRect.top + (static_cast<float>(beforeIndex) * _rowHeightDip) - _verticalScrollDip;
+                const float rowTopDip    = Lerp(beforeTopDip, collapseTargetTopDip, progress);
+                if (rowTopDip + _rowHeightDip <= contentRect.top || rowTopDip >= contentRect.bottom)
+                    continue;
                 const TreeItemLayoutMetrics layout = ComputeItemLayoutMetrics(host, rowTopDip, removedItem);
                 if (layout.rowRect.bottom <= contentRect.top || layout.rowRect.top >= contentRect.bottom)
                 {
@@ -3085,8 +3129,9 @@ bool Tree::NotifySelectionSetChanged(const std::vector<uint64_t>& previous)
 
     // The delegate gets its own copy: it may change the selection, or destroy the tree, from inside the call.
     const std::vector<uint64_t> selectedItemIds(current);
-    const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
-    ITreeDelegate* const delegate         = _delegate;
+    if (selfLifetime.expired() || ! guard.IsCurrent())
+        return false;
+    ITreeDelegate* const delegate = _delegate;
     return TryControlCallback([&] { delegate->OnTreeSelectionSetChanged(selectedItemIds); }) && ! selfLifetime.expired() && guard.ResumeAfterCallback();
 }
 
@@ -3394,13 +3439,20 @@ void Tree::StartExpanderAnimation(uint64_t itemId, bool fromExpanded, bool toExp
     }
 
     const float targetProgress = toExpanded ? 1.0f : 0.0f;
-    _expanderAnimations.push_back(ExpanderAnimationState{.itemId       = itemId,
-                                                         .fromExpanded = fromExpanded,
-                                                         .toExpanded   = toExpanded,
-                                                         .fromProgress = currentProgress,
-                                                         .toProgress   = targetProgress,
-                                                         .startTickMs  = nowTickMs,
-                                                         .active       = true});
+    try
+    {
+        _expanderAnimations.push_back(ExpanderAnimationState{.itemId       = itemId,
+                                                             .fromExpanded = fromExpanded,
+                                                             .toExpanded   = toExpanded,
+                                                             .fromProgress = currentProgress,
+                                                             .toProgress   = targetProgress,
+                                                             .startTickMs  = nowTickMs,
+                                                             .active       = true});
+    }
+    catch (const std::bad_alloc&)
+    {
+        return; // Expansion still commits; this optional chevron animation is omitted.
+    }
     // Every path that turns a chevron asks for ticks, a UI Automation Expand included.
     host->RequestAnimation();
 }
@@ -3412,6 +3464,7 @@ float Tree::GetExpanderProgress(uint64_t itemId, bool expanded, uint64_t nowTick
 
 std::vector<TreeItemData> Tree::CaptureVisibleItems() const
 {
+    ++_debugExpansionCaptureCount;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
     std::vector<TreeItemData> items;
@@ -3440,6 +3493,7 @@ void Tree::BeginTreeExpansionAnimation(uint64_t itemId,
                                        bool toExpanded,
                                        std::vector<TreeItemData>&& beforeItems,
                                        std::vector<TreeItemData>&& afterItems) noexcept
+try
 {
     ControlHost* const host = GetHost();
     if (beforeItems.empty() || afterItems.empty() || ! host || host->GetTheme().reducedMotion)
@@ -3467,15 +3521,33 @@ void Tree::BeginTreeExpansionAnimation(uint64_t itemId,
     }
 
     TreeExpansionAnimationState animation{};
-    animation.itemId        = itemId;
-    animation.toExpanded    = toExpanded;
-    animation.active        = true;
-    animation.startTickMs   = host->GetAnimationTickMs();
-    animation.beforeItems   = std::move(beforeItems);
-    animation.afterItems    = std::move(afterItems);
+    animation.itemId      = itemId;
+    animation.toExpanded  = toExpanded;
+    animation.active      = true;
+    animation.startTickMs = host->GetAnimationTickMs();
+    animation.beforeItems = std::move(beforeItems);
+    animation.afterItems  = std::move(afterItems);
+    animation.beforeIndex.reserve(animation.beforeItems.size());
+    animation.afterIndex.reserve(animation.afterItems.size());
+    for (size_t index = 0u; index < animation.beforeItems.size(); ++index)
+        animation.beforeIndex.emplace_back(animation.beforeItems[index].id, index);
+    for (size_t index = 0u; index < animation.afterItems.size(); ++index)
+        animation.afterIndex.emplace_back(animation.afterItems[index].id, index);
+    std::ranges::sort(animation.beforeIndex);
+    std::ranges::sort(animation.afterIndex);
+    animation.beforeParent = FindIndexedItem(animation.beforeIndex, itemId);
+    animation.afterParent  = FindIndexedItem(animation.afterIndex, itemId);
+    if (animation.beforeParent)
+        animation.beforeDescendants = CountDescendants(animation.beforeItems, animation.beforeParent.value());
     _treeExpansionAnimation = std::move(animation);
     // Every path that slides the rows asks for ticks, a UI Automation Expand included.
     host->RequestAnimation();
+}
+catch (const std::bad_alloc&)
+{
+    // Optional motion is discarded on allocation failure; the model's accepted expansion remains committed.
+    ClearTreeExpansionAnimation();
+    std::erase_if(_expanderAnimations, [itemId](const ExpanderAnimationState& animation) { return animation.itemId == itemId; });
 }
 
 void Tree::ClearTreeExpansionAnimation() noexcept

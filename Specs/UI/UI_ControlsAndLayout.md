@@ -620,6 +620,10 @@ one. Such a row shows only its part inside: its fill, focus ring, text, badge an
 same applies to rows an expansion or collapse animates. The reorder marker is clipped 1 DIP past the viewport, inside
 the inset, so an insertion line on the edge keeps its full 2 DIP.
 
+### Tree expansion animation capacity
+
+Tree expansion and collapse retain their model, selection, focus, delegate and accessibility semantics at any model size. Row and chevron transitions are optional: if either visible-row snapshot would exceed 4096 rows, or animation preparation cannot allocate, the accepted change appears immediately. Admitted transitions prepare stable-ID indexes once and reuse them during painting. Reduced-motion settings also apply the change immediately.
+
 ### Tree row drag
 
 `Tree::SetReorderEnabled` arms a pointer drag on a row (not the expander or the scrollbar). After the pointer moves

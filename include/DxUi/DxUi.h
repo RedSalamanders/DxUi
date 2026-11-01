@@ -4618,6 +4618,10 @@ public:
     [[nodiscard]] std::optional<size_t> DebugGetSelectedVisibleIndex() const noexcept;
     // The item whose rows are sliding open or closed, while that animation runs.
     [[nodiscard]] std::optional<uint64_t> DebugGetExpansionAnimationItemId() const noexcept;
+    [[nodiscard]] size_t DebugGetExpansionCaptureCount() const noexcept
+    {
+        return _debugExpansionCaptureCount;
+    }
     // The rows' slide and an item's chevron at a time of the host's animation clock; at rest, the slide reads 1 and the
     // chevron its item's state.
     [[nodiscard]] float DebugGetExpansionProgress(uint64_t nowTickMs) const noexcept;
@@ -4797,6 +4801,9 @@ private:
         uint64_t startTickMs = 0u;
         std::vector<TreeItemData> beforeItems;
         std::vector<TreeItemData> afterItems;
+        std::vector<std::pair<uint64_t, size_t>> beforeIndex, afterIndex;
+        std::optional<size_t> beforeParent, afterParent;
+        size_t beforeDescendants{};
     };
     std::vector<ExpanderAnimationState> _expanderAnimations{};
     std::optional<TreeExpansionAnimationState> _treeExpansionAnimation;
@@ -4804,6 +4811,7 @@ private:
     mutable TreeTooltipOverflowCache _tooltipOverflowCache;
 #if DXUI_ENABLE_DIAGNOSTICS
     size_t _debugTooltipGeometryCount{};
+    mutable size_t _debugExpansionCaptureCount{};
 #endif
     ScrollbarHotPart _verticalScrollbarHotPart = ScrollbarHotPart::None;
     ScrollbarAnimationState _verticalScrollbarAnimation{};

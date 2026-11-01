@@ -1,0 +1,1 @@
+- Bound Tree expansion animation preparation and reuse stable-ID indexes during painting; large trees apply expansion immediately. Native and performance qualification remain pending.

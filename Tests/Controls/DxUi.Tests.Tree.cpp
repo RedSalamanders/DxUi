@@ -3547,6 +3547,55 @@ void TestTreeExpansionAnimatesWhenTheDelegatePublishes()
     Require(delegate.toggles == 4u && model.GetVisibleItemCount() == 4u, "the refused collapse reached the delegate and changed nothing");
 }
 
+// Large models retain expansion semantics without allocating animation snapshots or scheduling transition ticks.
+void TestTreeLargeExpansionSkipsAnimation()
+{
+    using namespace DxUi;
+    class Delegate final : public ITreeDelegate
+    {
+    public:
+        Delegate(MutableTreeModel& model, Tree& tree) : model(model), tree(tree)
+        {
+        }
+        void OnTreeToggleExpanded(uint64_t id, bool expanded) override
+        {
+            Require(id == 1u, "the large tree toggles the requested row");
+            ++toggles;
+            auto items           = FlatTreeItems(5000u);
+            items[0].hasChildren = true;
+            items[0].expanded    = expanded;
+            model.SetVisibleItems(std::move(items));
+            tree.NotifyDataChanged();
+        }
+        MutableTreeModel& model;
+        Tree& tree;
+        size_t toggles{};
+    };
+    WindowHost host;
+    EnableMotionForTest(host);
+    auto root  = std::make_unique<Panel>();
+    Tree* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 160.0f));
+    MutableTreeModel model;
+    auto items           = FlatTreeItems(5000u);
+    items[0].hasChildren = true;
+    model.SetVisibleItems(std::move(items));
+    Delegate delegate(model, *tree);
+    tree->SetModel(&model);
+    tree->SetDelegate(&delegate);
+    host.SetRoot(std::move(root));
+    tree->SetSelectedItemId(4u);
+    const size_t captures = tree->DebugGetExpansionCaptureCount();
+    Require(tree->RequestExpandedState(0u, true), "large expansion succeeds");
+    TreeItemData item;
+    model.GetVisibleItem(0u, item);
+    Require(item.expanded && delegate.toggles == 1u && tree->IsItemSelected(4u), "expansion commits once and preserves selection");
+    Require(tree->RequestExpandedState(0u, false), "large collapse succeeds");
+    model.GetVisibleItem(0u, item);
+    Require(! item.expanded && delegate.toggles == 2u && tree->IsItemSelected(4u), "collapse commits once and preserves selection");
+    Require(tree->DebugGetExpansionCaptureCount() == captures && ! tree->DebugGetExpansionAnimationItemId(), "neither operation captures animation rows");
+    Require(! tree->Tick(host, 1000u), "large expansion and collapse do not leave an animation tick loop");
+}
 } // namespace
 
 void RunTreeTests()
@@ -3554,6 +3603,7 @@ void RunTreeTests()
     DXUI_RUN_TEST(TestTreeGesturesContinueWhenACallbackChangesAnotherControl);
     DXUI_RUN_TEST(TestTreeClickSurvivesAFocusHandlerThatChangesAnotherControl);
     DXUI_RUN_TEST(TestTreeExpansionAnimatesWhenTheDelegatePublishes);
+    DXUI_RUN_TEST(TestTreeLargeExpansionSkipsAnimation);
     DXUI_RUN_TEST(TestTreeFocusRequestContainsAThrowingDelegate);
     DXUI_RUN_TEST(TestTreePointerRechecksTheModelAfterFocusCallbacks);
     DXUI_RUN_TEST(TestTreeUnhandledKeysLeaveAnEmptySelectionAlone);
