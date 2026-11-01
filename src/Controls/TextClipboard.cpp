@@ -33,7 +33,7 @@ HRESULT ReadUnicodeClipboardData(HANDLE data, std::wstring& text) noexcept
     const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(data); });
     return DecodeClipboardText(std::span(value, bytes / sizeof(wchar_t)), text);
 }
-class WindowsTextClipboard final : public TextClipboard, public StructuredTextClipboard, public SelectiveStructuredTextClipboard
+class WindowsTextClipboard final : public TextClipboard, public StructuredTextClipboard, public SelectiveStructuredTextClipboard, public BitmapStructuredTextClipboard
 {
 public:
     HRESULT Read(HWND owner, std::wstring& text) noexcept override
@@ -52,6 +52,10 @@ public:
         return ReadSelectedContent(owner, content, true, false);
     }
     HRESULT ReadSelectedContent(HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml) noexcept override
+    {
+        return ReadSelectedBitmapContent(owner, content, includeFiles, includeHtml, false);
+    }
+    HRESULT ReadSelectedBitmapContent(HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml, bool includeBitmap) noexcept override
     try
     {
         if (! owner)
@@ -78,6 +82,26 @@ public:
                 if (FAILED(result))
                     return result;
             }
+        if (includeBitmap)
+            for (const auto format : {CF_DIBV5, CF_DIB})
+                if (const auto data = calls.getData(format))
+                {
+                    const auto bytes = GlobalSize(data);
+                    if (bytes > TextClipboardContent::MaximumBitmapBytes)
+                        continue;
+                    const auto* buffer = static_cast<const std::byte*>(GlobalLock(data));
+                    if (! buffer)
+                        continue;
+                    const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(data); });
+                    const auto bitmap = DecodeClipboardBitmap(std::span(buffer, bytes), format == CF_DIBV5, staged);
+                    if (bitmap == E_OUTOFMEMORY)
+                        return bitmap;
+                    if (bitmap == S_OK)
+                    {
+                        content.Swap(staged);
+                        return S_OK;
+                    }
+                }
         const auto result = ReadUnicodeClipboardData(calls.getData(CF_UNICODETEXT), staged.text);
         if (FAILED(result))
             return result;
@@ -252,6 +276,63 @@ HRESULT DecodeClipboardText(std::span<const wchar_t> buffer, std::wstring& text)
         return E_OUTOFMEMORY;
     }
 }
+HRESULT DecodeClipboardBitmap(std::span<const std::byte> buffer, bool v5, TextClipboardContent& content) noexcept
+try
+{
+    if (buffer.size() < sizeof(BITMAPINFOHEADER) || buffer.size() > TextClipboardContent::MaximumBitmapBytes)
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    BITMAPINFOHEADER header{};
+    std::memcpy(&header, buffer.data(), sizeof(header));
+    if ((header.biSize != sizeof(BITMAPINFOHEADER) && header.biSize != sizeof(BITMAPV4HEADER) && header.biSize != sizeof(BITMAPV5HEADER)) ||
+        (v5 && header.biSize != sizeof(BITMAPV5HEADER)) || header.biSize > buffer.size() || header.biWidth <= 0 || header.biWidth > 8192 ||
+        header.biHeight == 0 || header.biHeight < -8192 || header.biHeight > 8192 || header.biPlanes != 1u || header.biClrUsed != 0u ||
+        (header.biBitCount != 24u && header.biBitCount != 32u) ||
+        (header.biCompression != BI_RGB && (header.biCompression != BI_BITFIELDS || header.biBitCount != 32u)))
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    if (header.biSize == sizeof(BITMAPV5HEADER))
+    {
+        BITMAPV5HEADER extended{};
+        std::memcpy(&extended, buffer.data(), sizeof(extended));
+        if (extended.bV5ProfileData || extended.bV5ProfileSize)
+            return HRESULT_FROM_WIN32(ERROR_NOT_SUPPORTED);
+    }
+    std::size_t offset = header.biSize;
+    if (header.biCompression == BI_BITFIELDS && header.biSize == sizeof(BITMAPINFOHEADER))
+        offset += 3u * sizeof(DWORD);
+    if (offset > buffer.size())
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    if (header.biCompression == BI_BITFIELDS)
+    {
+        DWORD masks[3]{};
+        const auto maskOffset = header.biSize == sizeof(BITMAPINFOHEADER) ? sizeof(BITMAPINFOHEADER) : offsetof(BITMAPV4HEADER, bV4RedMask);
+        std::memcpy(masks, buffer.data() + maskOffset, sizeof(masks));
+        if (! masks[0] || ! masks[1] || ! masks[2] || (masks[0] & masks[1]) || (masks[0] & masks[2]) || (masks[1] & masks[2]))
+            return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+        if (header.biSize >= sizeof(BITMAPV4HEADER))
+        {
+            DWORD alpha{};
+            std::memcpy(&alpha, buffer.data() + offsetof(BITMAPV4HEADER, bV4AlphaMask), sizeof(alpha));
+            if (alpha & (masks[0] | masks[1] | masks[2]))
+                return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+        }
+    }
+    const auto height = static_cast<std::size_t>(header.biHeight < 0 ? -header.biHeight : header.biHeight);
+    const auto stride = ((static_cast<std::size_t>(header.biWidth) * header.biBitCount + 31u) / 32u) * 4u;
+    if (height > (TextClipboardContent::MaximumBitmapBytes - offset) / stride)
+        return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
+    const auto pixels = stride * height;
+    if (pixels > buffer.size() - offset || (header.biSizeImage && header.biSizeImage != pixels))
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    std::vector<std::byte> staged(0u);
+    staged.assign(buffer.begin(), buffer.begin() + static_cast<std::ptrdiff_t>(offset + pixels));
+    content.bitmapDib.swap(staged);
+    content.bitmapV5 = v5;
+    return S_OK;
+}
+catch (const std::bad_alloc&)
+{
+    return E_OUTOFMEMORY;
+}
 HRESULT DecodeClipboardFilePaths(std::span<const std::byte> buffer, TextClipboardContent& content) noexcept
 try
 {
@@ -339,8 +420,15 @@ HRESULT ReadTextClipboardContent(TextClipboard& clipboard, HWND owner, TextClipb
     return ReadTextClipboardContent(clipboard, owner, content, includeFiles, false);
 }
 HRESULT ReadTextClipboardContent(TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml) noexcept
+{
+    return ReadTextClipboardContent(clipboard, owner, content, includeFiles, includeHtml, false);
+}
+HRESULT ReadTextClipboardContent(TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml, bool includeBitmap) noexcept
 try
 {
+    if (includeBitmap)
+        if (auto* bitmap = dynamic_cast<BitmapStructuredTextClipboard*>(&clipboard))
+            return bitmap->ReadSelectedBitmapContent(owner, content, includeFiles, includeHtml, true);
     if (includeFiles || includeHtml)
     {
         if (auto* selective = dynamic_cast<SelectiveStructuredTextClipboard*>(&clipboard))

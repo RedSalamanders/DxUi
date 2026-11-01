@@ -36,6 +36,7 @@ public:
     wil::unique_hglobal data;
     wil::unique_hglobal fileData;
     wil::unique_hglobal htmlData;
+    wil::unique_hglobal dibData, dibV5Data;
     bool busy              = false;
     bool failAllocation    = false;
     bool failEmpty         = false;
@@ -66,8 +67,10 @@ private:
     static HANDLE WINAPI GetData(UINT format)
     {
         const auto htmlFormat = RegisterClipboardFormatW(L"HTML Format");
-        _current->check(format == CF_UNICODETEXT || format == CF_HDROP || format == htmlFormat, "transport reads supported clipboard formats");
-        return format == CF_HDROP ? _current->fileData.get() : (format == htmlFormat ? _current->htmlData.get() : _current->data.get());
+        _current->check(format == CF_UNICODETEXT || format == CF_HDROP || format == htmlFormat || format == CF_DIB || format == CF_DIBV5,
+                        "transport reads supported clipboard formats");
+        return format == CF_HDROP ? _current->fileData.get() : format == CF_DIB ? _current->dibData.get() : format == CF_DIBV5 ? _current->dibV5Data.get()
+                                                                     : (format == htmlFormat ? _current->htmlData.get() : _current->data.get());
     }
     static BOOL WINAPI Empty()
     {

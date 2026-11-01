@@ -2765,7 +2765,11 @@ bool ControlHost::ReadClipboardContent(TextClipboardContent& content) const noex
 }
 bool ControlHost::ReadClipboardContent(TextClipboardContent& content, bool includeHtml) const noexcept
 {
-    return _hwnd && ReadTextClipboardContent(ActiveTextClipboard(), _hwnd, content, true, includeHtml) == S_OK;
+    return ReadClipboardContent(content, includeHtml, false);
+}
+bool ControlHost::ReadClipboardContent(TextClipboardContent& content, bool includeHtml, bool includeBitmap) const noexcept
+{
+    return _hwnd && ReadTextClipboardContent(ActiveTextClipboard(), _hwnd, content, true, includeHtml, includeBitmap) == S_OK;
 }
 
 #if DXUI_ENABLE_DIAGNOSTICS

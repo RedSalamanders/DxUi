@@ -923,6 +923,42 @@ void TestRichTextApplicationImageClipboard()
     services.ClearClient();
     RequireSucceeded(services.SetClient(client), "restore ordinary embedded text client");
     prepare();
+    class BitmapClipboard final : public TextClipboard, public BitmapStructuredTextClipboard
+    {
+    public:
+        BitmapClipboard() : bytes(0u) {}
+        HRESULT Read(HWND, std::wstring&) noexcept override { return E_UNEXPECTED; }
+        HRESULT Write(HWND, std::wstring_view) noexcept override { return E_NOTIMPL; }
+        HRESULT ReadSelectedBitmapContent(HWND, TextClipboardContent& output, bool files, bool html, bool bitmap) noexcept override
+        try
+        {
+            if (! files || html || ! bitmap) return E_INVALIDARG;
+            TextClipboardContent staged;
+            staged.bitmapDib.assign(bytes.begin(), bytes.end());
+            output.Swap(staged);
+            ++reads;
+            return S_OK;
+        }
+        catch (const std::bad_alloc&) { return E_OUTOFMEMORY; }
+        std::vector<std::byte> bytes;
+        unsigned reads{};
+    } bitmapClipboard;
+    BITMAPINFOHEADER bitmapHeader{};
+    bitmapHeader.biSize = sizeof(bitmapHeader);
+    bitmapHeader.biWidth = 2;
+    bitmapHeader.biHeight = 2;
+    bitmapHeader.biPlanes = 1u;
+    bitmapHeader.biBitCount = 32u;
+    bitmapHeader.biSizeImage = 16u;
+    bitmapClipboard.bytes.resize(sizeof(bitmapHeader) + 16u);
+    std::memcpy(bitmapClipboard.bytes.data(), &bitmapHeader, sizeof(bitmapHeader));
+    editor->SetSelection({7u, 0u});
+    editor->SetBitmapPasteHandler([](std::span<const std::byte>, bool) -> std::optional<std::wstring> { return L"C:\\docs\\bitmap.png"; });
+    Require(services.Clipboard(TextClipboardCommand::Paste, &bitmapClipboard) == S_OK && bitmapClipboard.reads == 1u &&
+                editor->GetText() == L"![bitmap](bitmap.png)" && editor->Undo() && editor->GetText() == L"replace",
+            "application text service routes the optional bitmap transport and commits one undoable embedded paste");
+    editor->SetBitmapPasteHandler({});
+    prepare();
     editor->SetReadOnly(true);
     const auto reads = clipboard.reads;
     Require(services.Clipboard(TextClipboardCommand::Paste, &clipboard) == E_ACCESSDENIED && clipboard.reads == reads,

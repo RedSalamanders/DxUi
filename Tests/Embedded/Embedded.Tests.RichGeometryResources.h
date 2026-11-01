@@ -433,6 +433,47 @@ static void TestEmbeddedSemanticReusePixels(GraphicsFixture& gpu)
 static void TestHtmlClipboardFragment()
 {
     using namespace DxUi;
+    BITMAPINFOHEADER dibHeader{};
+    dibHeader.biSize = sizeof(dibHeader);
+    dibHeader.biWidth = 2;
+    dibHeader.biHeight = 2;
+    dibHeader.biPlanes = 1u;
+    dibHeader.biBitCount = 32u;
+    dibHeader.biSizeImage = 16u;
+    std::vector<std::byte> dib(sizeof(dibHeader) + 16u);
+    std::memcpy(dib.data(), &dibHeader, sizeof(dibHeader));
+    TextClipboardContent decodedBitmap;
+    Check(DecodeClipboardBitmap(dib, false, decodedBitmap) == S_OK && decodedBitmap.bitmapDib == dib && ! decodedBitmap.bitmapV5,
+          "packed DIB decoder copies a bounded independent bitmap");
+    std::size_t bitmapAllocations{};
+    {
+        const auto oldCounting = countAllocations;
+        const auto oldCalls = allocations, oldBytes = allocationBytes;
+        const auto restore = wil::scope_exit([=]() noexcept { countAllocations = oldCounting; allocations = oldCalls; allocationBytes = oldBytes; });
+        allocations = allocationBytes = 0u;
+        countAllocations = true;
+        Check(DecodeClipboardBitmap(dib, false, decodedBitmap) == S_OK, "measure bitmap copy allocation points");
+        countAllocations = false;
+        bitmapAllocations = allocations;
+    }
+    Check(bitmapAllocations > 0u && bitmapAllocations < 32u, "bitmap copy has a bounded allocation schedule");
+    for (std::size_t point = 0u; point < bitmapAllocations; ++point)
+    {
+        TextClipboardContent output;
+        output.text = L"sentinel";
+        const auto oldFailure = failAllocationAfter;
+        failAllocationAfter = point;
+        const auto result = DecodeClipboardBitmap(dib, false, output);
+        failAllocationAfter = oldFailure;
+        Check(result == E_OUTOFMEMORY && output.text == L"sentinel" && output.bitmapDib.empty(), "bitmap allocation failure publishes no partial content");
+    }
+    const auto retainedBitmap = decodedBitmap.bitmapDib;
+    Check(FAILED(DecodeClipboardBitmap(std::span(dib).first(dib.size() - 1u), false, decodedBitmap)) && decodedBitmap.bitmapDib == retainedBitmap,
+          "truncated bitmap rejection preserves the prior output");
+    dibHeader.biWidth = 8193;
+    std::memcpy(dib.data(), &dibHeader, sizeof(dibHeader));
+    Check(FAILED(DecodeClipboardBitmap(dib, false, decodedBitmap)) && decodedBitmap.bitmapDib == retainedBitmap,
+          "oversized bitmap dimensions are rejected without publication");
     const std::string body = "<b>hello</b>";
     const auto header = std::format("Version:1.0\r\nStartHTML:{:010}\r\nEndHTML:{:010}\r\nStartFragment:{:010}\r\nEndFragment:{:010}\r\n", 105, 117, 105, 117);
     Check(header.size() == 105u, "CF_HTML test header has stable byte offsets");

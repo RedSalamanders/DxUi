@@ -148,6 +148,18 @@ Markdown shortcuts use Ctrl+Shift+0–6 for heading clear/levels, Ctrl+Shift+X f
 strike, Ctrl+backtick for code and Ctrl+K for the consumer's link-edit request.
 Ctrl+Insert copies, Shift+Insert pastes and Shift+Delete cuts. Ctrl+Shift+V
 pastes Unicode text directly without the optional HTML, file or URL conversion.
+Applications can opt into bitmap paste with `SetBitmapPasteHandler`. The
+callback receives a borrowed, validated owned DIB and a DIBV5 flag after the
+clipboard is closed; save the asset using application policy and return its
+absolute supported image path, or return no path to cancel. The editor inserts
+the reference in one undo transaction only if focus, selection, revision,
+binding and composition still match. File lists take priority over bitmaps;
+bitmaps take priority over HTML and Unicode, while Ctrl+Shift+V remains plain.
+Accepted DIBs are bounded to 32 MiB and 8192 pixels per dimension, with 24/32-bit
+uncompressed RGB or 32-bit bitfields and no embedded color profile. The library
+does not create the asset or retain clipboard handles. Existing clipboard
+interfaces keep their signatures; bitmap-aware transports and embedded clients
+use the new optional interfaces.
 Alt+Up/Down moves a physical line inside a paragraph, a whole sibling list item
 in Rich mode, or a raw physical line in Source mode. The selection follows the
 moved text and Undo restores the original source in one step. List marker numbers

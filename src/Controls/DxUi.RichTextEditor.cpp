@@ -500,6 +500,7 @@ struct RichTextEditor::State
     std::shared_ptr<const RichText::CodeTokenizer> codeTokenizer;
     std::shared_ptr<const std::function<void(std::wstring_view)>> onCodeCopyRequested;
     std::shared_ptr<const std::function<std::optional<std::wstring>(std::wstring_view)>> htmlPasteConverter;
+    std::shared_ptr<const std::function<std::optional<std::wstring>(std::span<const std::byte>, bool)>> bitmapPasteHandler;
     std::wstring codeCopyAccessibleName;
     std::shared_ptr<const RichText::SemanticDocument> codeInkDocument;
     std::vector<RichText::TextInkRange> codeInk, codeInkStaged;
@@ -1142,6 +1143,49 @@ bool RichTextEditor::TryPrepareFileReferencesAt(const TextClipboardContent& cont
     }
     replacement.swap(staged);
     return true;
+}
+bool RichTextEditor::ApplyClipboardBitmapPaste(const TextClipboardContent& content)
+{
+    auto* host = GetHost();
+    const auto selection = GetSelection();
+    const auto handler = _state->bitmapPasteHandler;
+    if (! host || host->GetFocusControl() != this || ! handler || content.bitmapDib.empty() ||
+        ! CanPasteMarkdownFileReferences(selection) || MarkdownCommandInputBlocked(host, this))
+        return false;
+    TextClipboardContent validated;
+    if (DecodeClipboardBitmap(content.bitmapDib, content.bitmapV5, validated) != S_OK)
+        return false;
+    const auto lifetime = GetLifetimeToken();
+    const auto revision = Revision(), binding = _state->bindingRevision, location = _state->imageLocationRevision;
+    const auto selectionEpoch = _state->document.selectionEpoch_, interaction = host->GetInteractionRevision();
+    const auto invoke = [&]() -> std::optional<std::wstring>
+    {
+        try
+        {
+            return (*handler)(validated.bitmapDib, validated.bitmapV5);
+        }
+        catch (const std::bad_alloc&)
+        {
+            std::terminate(); // Application observer allocation failures remain fatal at input boundaries.
+        }
+        catch (const std::exception&)
+        {
+            Debug::Warning(L"DxUi::RichTextEditor: bitmap paste handler failed.");
+            return std::nullopt;
+        }
+    };
+    const auto path = invoke();
+    if (lifetime.expired() || GetHost() != host || host->GetFocusControl() != this || Revision() != revision ||
+        _state->bindingRevision != binding || _state->imageLocationRevision != location || _state->document.selectionEpoch_ != selectionEpoch ||
+        host->GetInteractionRevision() != interaction || GetSelection() != selection ||
+        _state->bitmapPasteHandler != handler || ! path || ! CanPasteMarkdownFileReferences(selection) || MarkdownCommandInputBlocked(host, this))
+        return false;
+    const auto reference = RichText::Detail::BuildMarkdownFileReference(_state->documentFilePath, *path);
+    if (! reference || ! reference->starts_with(L"!["))
+        return false;
+    TextClipboardContent file;
+    file.filePaths.emplace_back(*path);
+    return ApplyClipboardFilePaste(file);
 }
 bool RichTextEditor::ApplyClipboardFilePaste(const TextClipboardContent& content)
 {
@@ -2574,6 +2618,15 @@ void RichTextEditor::SetHtmlPasteConverter(std::function<std::optional<std::wstr
 {
     auto next = converter ? std::make_shared<const std::function<std::optional<std::wstring>(std::wstring_view)>>(std::move(converter)) : nullptr;
     _state->htmlPasteConverter.swap(next);
+}
+void RichTextEditor::SetBitmapPasteHandler(std::function<std::optional<std::wstring>(std::span<const std::byte>, bool)> handler)
+{
+    auto next = handler ? std::make_shared<const std::function<std::optional<std::wstring>(std::span<const std::byte>, bool)>>(std::move(handler)) : nullptr;
+    _state->bitmapPasteHandler.swap(next);
+}
+bool RichTextEditor::HasBitmapPasteHandler() const noexcept
+{
+    return bool(_state->bitmapPasteHandler);
 }
 bool RichTextEditor::HasHtmlPasteConverter() const noexcept
 {
@@ -5663,19 +5716,28 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                     const auto location  = _state->imageLocationRevision;
                     const auto selection = GetSelection();
                     const auto focus     = host.GetFocusControl();
+                    const auto selectionEpoch = _state->document.selectionEpoch_, interaction = host.GetInteractionRevision();
+                    if (shift)
+                    {
+                        const auto plain = host.ReadTextFromClipboard();
+                        if (plain && ! plain->empty() && ! lifetime.expired() && GetHost() == &host && host.GetFocusControl() == focus &&
+                            _state->bindingRevision == binding && Revision() == revision && _state->imageLocationRevision == location &&
+                            _state->document.selectionEpoch_ == selectionEpoch && host.GetInteractionRevision() == interaction && GetSelection() == selection)
+                            static_cast<void>(ReplaceSelection(*plain));
+                        return true;
+                    }
                     TextClipboardContent content;
                     const bool available = host.ReadClipboardContent(
-                        content, ! shift && bool(_state->htmlPasteConverter) && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich);
+                        content, bool(_state->htmlPasteConverter) && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich,
+                        bool(_state->bitmapPasteHandler) && CanPasteMarkdownFileReferences(selection));
                     if (available && ! lifetime.expired() && GetHost() == &host && host.GetFocusControl() == focus && _state->bindingRevision == binding &&
-                        Revision() == revision && _state->imageLocationRevision == location && GetSelection() == selection)
+                        Revision() == revision && _state->imageLocationRevision == location && _state->document.selectionEpoch_ == selectionEpoch &&
+                        host.GetInteractionRevision() == interaction && GetSelection() == selection)
                     {
-                        if (shift)
-                        {
-                            if (! content.text.empty())
-                                static_cast<void>(ReplaceSelection(std::move(content.text)));
-                        }
-                        else if (! content.filePaths.empty())
+                        if (! content.filePaths.empty())
                             static_cast<void>(ApplyClipboardFilePaste(content));
+                        else if (! content.bitmapDib.empty())
+                            static_cast<void>(ApplyClipboardBitmapPaste(content));
                         else
                         {
                             std::wstring replacement(0u, L' ');
@@ -5683,7 +5745,7 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                             const bool transformed = TryPrepareClipboardPaste(content, replacement, &stalePaste);
                             if (stalePaste || lifetime.expired() || GetHost() != &host || host.GetFocusControl() != focus ||
                                 _state->bindingRevision != binding || Revision() != revision || _state->imageLocationRevision != location ||
-                                GetSelection() != selection)
+                                _state->document.selectionEpoch_ != selectionEpoch || host.GetInteractionRevision() != interaction || GetSelection() != selection)
                                 return true;
                             if (transformed)
                                 static_cast<void>(ReplaceSelection(std::move(replacement)));

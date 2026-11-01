@@ -849,13 +849,28 @@ HRESULT TextInputServices::Clipboard(TextClipboardCommand command, TextClipboard
             const bool includeFiles = transform && transform->AcceptsFilePaths(snapshot);
             auto* html              = dynamic_cast<TextClipboardHtmlPaste*>(client.get());
             const bool includeHtml  = transform && html && html->AcceptsHtml(snapshot);
+            auto* bitmap = dynamic_cast<TextClipboardBitmapPaste*>(client.get());
+            const bool includeBitmap = bitmap && bitmap->AcceptsBitmap(snapshot);
             if (client != _state->client)
                 return TF_E_DISCONNECTED;
-            const HRESULT paste = ReadTextClipboardContent(service, _state->hwnd, content, includeFiles, includeHtml);
+            const HRESULT paste = ReadTextClipboardContent(service, _state->hwnd, content, includeFiles, includeHtml, includeBitmap);
             if (paste != S_OK)
                 return paste;
             if (client != _state->client)
                 return TF_E_DISCONNECTED;
+            if (content.filePaths.empty() && ! content.bitmapDib.empty() && bitmap)
+            {
+                const auto result = bitmap->ApplyBitmapPaste(snapshot, content);
+                if (result == S_OK)
+                {
+                    if (client == _state->client)
+                        NotifyChanged();
+                    return S_OK;
+                }
+                if (client != _state->client)
+                    return TF_E_DISCONNECTED;
+                return result;
+            }
             if (! content.filePaths.empty())
                 if (auto* direct = dynamic_cast<TextClipboardFilePaste*>(client.get()))
                 {

@@ -864,6 +864,21 @@ line endings and commits once against the captured revision. Embedded controls h
 go through the application service. Automated control suites inject a private clipboard, including their setup/read
 helpers, and never use a desktop clipboard as a test data channel.
 
+Bitmap paste is opt-in through the separate bitmap-aware structured transport
+and client interfaces; the existing clipboard virtual signatures remain intact.
+File lists take priority, then a valid CF_DIBV5/CF_DIB, then HTML and Unicode.
+Plain paste reads Unicode directly. A bitmap is copied before clipboard release
+and before the application callback, with at most 32 MiB and 8192 pixels per
+dimension. Admitted packed DIBs use 24/32-bit BI_RGB or 32-bit BI_BITFIELDS,
+valid nonoverlapping masks, and no embedded or linked color profile; malformed
+offers fall through to the next format. The callback receives borrowed owned
+bytes synchronously and owns asset persistence. A stale focus, binding, revision,
+selection epoch or composition MUST prevent the resulting source transaction.
+The application callback may make its own copy; library validation can hold at
+most two independent admitted 32 MiB payload copies during the synchronous call.
+An accepted supported local image path inserts one Markdown image in one undo
+transaction. The library does not save a file or retain a clipboard handle.
+
 Rich file-reference paste optionally uses StructuredTextClipboard with bounded wide
 CF_HDROP and Unicode fallback under one nonblocking clipboard ownership attempt.
 ANSI file lists and malformed/unterminated buffers MUST fail without publishing

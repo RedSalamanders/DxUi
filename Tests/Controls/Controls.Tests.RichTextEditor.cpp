@@ -1677,6 +1677,74 @@ void TestRichTextEditorNativeFileReferencePaste()
     Require(editor->OnKeyDown(window.Host(), 'V', MK_CONTROL) && editor->GetText() == L"[report\\.pdf](files/report.pdf)",
             "native quoted text file path becomes a full-filename relative link");
     Require(editor->Undo() && editor->GetText() == L"replace", "native text file-path link is one undo transaction");
+    BITMAPINFOHEADER header{};
+    header.biSize = sizeof(header);
+    header.biWidth = 2;
+    header.biHeight = 2;
+    header.biPlanes = 1u;
+    header.biBitCount = 32u;
+    header.biCompression = BI_RGB;
+    header.biSizeImage = 16u;
+    std::vector<std::byte> dib(sizeof(header) + 16u);
+    std::memcpy(dib.data(), &header, sizeof(header));
+    clipboard.dibData.reset(GlobalAlloc(GMEM_MOVEABLE, dib.size()));
+    Require(clipboard.dibData != nullptr, "bitmap fixture owns fake clipboard storage");
+    auto* bitmap = GlobalLock(clipboard.dibData.get());
+    Require(bitmap != nullptr, "bitmap fixture locks fake clipboard storage");
+    std::memcpy(bitmap, dib.data(), dib.size());
+    GlobalUnlock(clipboard.dibData.get());
+    RequireSucceeded(SystemTextClipboard().Write(window.Hwnd(), L"plain text"), "mixed bitmap fixture supplies Unicode text");
+    window.Host().SetFocusControl(editor, false);
+    editor->SetText(L"replace");
+    editor->SetSelection({7u, 0u});
+    RenderEditor(window);
+    unsigned bitmapCalls{};
+    editor->SetBitmapPasteHandler([&](std::span<const std::byte> bytes, bool v5) -> std::optional<std::wstring>
+    {
+        ++bitmapCalls;
+        Require(! v5 && std::ranges::equal(bytes, dib) && clipboard.opens == clipboard.closes,
+                "asset callback receives owned exact DIB after clipboard release");
+        return L"C:\\docs\\bitmap.png";
+    });
+    Require(editor->OnKeyDown(window.Host(), 'V', MK_CONTROL) && editor->GetText() == L"![bitmap](bitmap.png)" && bitmapCalls == 1u,
+            "bitmap paste takes priority over Unicode and inserts an application-saved asset");
+    Require(editor->Undo() && editor->GetText() == L"replace" && editor->GetSelection() == Selection{7u, 0u},
+            "bitmap paste restores exact source and backward selection in one undo");
+    clipboard.fileData.reset(GlobalAlloc(GMEM_MOVEABLE, bytes.size()));
+    Require(clipboard.fileData != nullptr, "mixed clipboard offers an owned file list");
+    auto* mixedFiles = GlobalLock(clipboard.fileData.get());
+    Require(mixedFiles != nullptr, "mixed file-list fixture locks its storage");
+    std::memcpy(mixedFiles, bytes.data(), bytes.size());
+    GlobalUnlock(clipboard.fileData.get());
+    RenderEditor(window);
+    Require(editor->OnKeyDown(window.Host(), 'V', MK_CONTROL) &&
+                editor->GetText() == L"![a](a.png)\r\n\r\n[report\\.pdf](report.pdf)" && bitmapCalls == 1u,
+            "file list takes priority over a simultaneous bitmap");
+    Require(editor->Undo() && editor->GetText() == L"replace", "mixed file-list paste remains one undo");
+    RenderEditor(window);
+    Require(editor->OnKeyDown(window.Host(), 'V', MK_CONTROL | MK_SHIFT) && editor->GetText() == L"plain text" && bitmapCalls == 1u,
+            "plain paste ignores a simultaneous bitmap offer");
+    Require(editor->Undo() && editor->GetText() == L"replace", "plain paste remains one undo");
+    clipboard.fileData.reset();
+    RenderEditor(window);
+    editor->SetBitmapPasteHandler([&](std::span<const std::byte>, bool) -> std::optional<std::wstring>
+    {
+        editor->SetSelection({0u, 0u});
+        return L"C:\\docs\\bitmap.png";
+    });
+    Require(editor->OnKeyDown(window.Host(), 'V', MK_CONTROL) && editor->GetText() == L"replace" && editor->GetSelection() == Selection{0u, 0u},
+            "asset callback selection changes supersede the pending paste");
+    editor->SetSelection({7u, 0u});
+    RenderEditor(window);
+    editor->SetBitmapPasteHandler([&](std::span<const std::byte>, bool) -> std::optional<std::wstring>
+    {
+        editor->SetSelection({0u, 0u});
+        editor->SetSelection({7u, 0u});
+        return L"C:\\docs\\bitmap.png";
+    });
+    Require(editor->OnKeyDown(window.Host(), 'V', MK_CONTROL) && editor->GetText() == L"replace" && editor->GetSelection() == Selection{7u, 0u},
+            "selection epoch rejects a callback that moves away and back to the same range");
+    editor->SetBitmapPasteHandler({});
 }
 void TestRichTextEditorNativeImageResources()
 {

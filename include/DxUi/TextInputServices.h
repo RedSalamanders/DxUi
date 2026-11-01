@@ -1,5 +1,6 @@
 #pragma once
 #include "Embedded.h"
+#include <cstddef>
 
 namespace DxUi
 {
@@ -42,7 +43,8 @@ public:
 struct TextClipboardContent
 {
     static constexpr size_t MaximumFiles = 16u, MaximumFileUnits = 32767u, MaximumTotalFileUnits = 65536u;
-    TextClipboardContent() : text(0u, L' '), filePaths(0u), htmlFragment(0u, L' ')
+    static constexpr size_t MaximumBitmapBytes = 32u * 1024u * 1024u;
+    TextClipboardContent() : text(0u, L' '), filePaths(0u), htmlFragment(0u, L' '), bitmapDib(0u)
     {
     }
     TextClipboardContent(const TextClipboardContent&)            = default;
@@ -51,12 +53,16 @@ struct TextClipboardContent
     std::vector<std::wstring> filePaths;
     std::wstring htmlFragment; // Validated, bounded CF_HTML UTF-8 fragment.
     bool hasHtmlFragment = false;
+    std::vector<std::byte> bitmapDib; // Owned validated packed DIB; never a clipboard handle.
+    bool bitmapV5 = false;
     void Swap(TextClipboardContent& other) noexcept
     {
         text.swap(other.text);
         filePaths.swap(other.filePaths);
         htmlFragment.swap(other.htmlFragment);
         std::swap(hasHtmlFragment, other.hasHtmlFragment);
+        bitmapDib.swap(other.bitmapDib);
+        std::swap(bitmapV5, other.bitmapV5);
     }
 };
 class StructuredTextClipboard
@@ -73,6 +79,13 @@ class SelectiveStructuredTextClipboard
 public:
     virtual ~SelectiveStructuredTextClipboard()                                                                                  = default;
     virtual HRESULT ReadSelectedContent(HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml) noexcept = 0;
+};
+// Optional bitmap-aware extension; existing clipboard vtables remain unchanged.
+class BitmapStructuredTextClipboard
+{
+public:
+    virtual ~BitmapStructuredTextClipboard() = default;
+    virtual HRESULT ReadSelectedBitmapContent(HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml, bool includeBitmap) noexcept = 0;
 };
 // Application-side optional source-paste transform. Called on the attaching UI
 // thread, outside rendering, before the existing revision-checked commit. It
@@ -101,6 +114,13 @@ class TextClipboardFilePaste
 public:
     virtual ~TextClipboardFilePaste()                                                                                       = default;
     virtual HRESULT ApplyFilePaste(const EmbeddedTextInputSnapshot& snapshot, const TextClipboardContent& content) noexcept = 0;
+};
+class TextClipboardBitmapPaste
+{
+public:
+    virtual ~TextClipboardBitmapPaste() = default;
+    virtual bool AcceptsBitmap(const EmbeddedTextInputSnapshot& snapshot) const noexcept = 0;
+    virtual HRESULT ApplyBitmapPaste(const EmbeddedTextInputSnapshot& snapshot, const TextClipboardContent& content) noexcept = 0;
 };
 
 // One lazy TSF service per application HWND. Borrows the HWND and retains only the active client.

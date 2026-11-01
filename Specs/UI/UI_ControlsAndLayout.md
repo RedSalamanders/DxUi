@@ -1050,6 +1050,11 @@ fetch is implied. Display requires caller-serviced immutable image resources;
 unserviced or declined resources retain their alternative. File links retain
 the existing inert link presentation. Paste MUST NOT activate/open a file, query
 existence or register drag-and-drop; classification uses the path suffix only.
+An opt-in bitmap-paste handler may save validated owned DIB bytes and return a
+supported absolute image path. It runs after clipboard release; the editor
+rechecks source, selection epoch, binding, focus and composition before the
+same one-transaction file-reference insertion. Invalid, canceled or stale
+results do not mutate source. The application owns any asset side effects.
 
 The separate [file-drop plan](../Plans/WIP/RichTextFileDrop_2026-10-20.md) specifies
 pending drag-and-drop support with the same displayed-image/relative-file-link

@@ -2867,6 +2867,35 @@ static void TestEmbeddedFileReferencePaste(GraphicsFixture& gpu)
         Check(editor->TryPrepareClipboardPaste(content, replacement) && replacement == expected, "mixed paste retries every allocation failure exactly");
     }
     std::cout << "mixed file paste allocation points=" << requests << '\n';
+    BITMAPV5HEADER header{};
+    header.bV5Size = sizeof(header);
+    header.bV5Width = 2;
+    header.bV5Height = 2;
+    header.bV5Planes = 1u;
+    header.bV5BitCount = 32u;
+    header.bV5Compression = BI_RGB;
+    header.bV5SizeImage = 16u;
+    TextClipboardContent bitmap;
+    bitmap.bitmapV5 = true;
+    bitmap.bitmapDib.resize(sizeof(header) + 16u);
+    std::memcpy(bitmap.bitmapDib.data(), &header, sizeof(header));
+    view.Controls().SetFocusControl(editor, false);
+    Hr(PrepareRichEmbeddedContent(view, 640u, 240u), "bitmap paste preparation");
+    EmbeddedTextInputSnapshot snapshot;
+    Hr(view.ReadTextInput(snapshot), "bitmap paste focus snapshot");
+    unsigned bitmapCalls{};
+    editor->SetBitmapPasteHandler([&](std::span<const std::byte> data, bool v5) -> std::optional<std::wstring>
+    {
+        ++bitmapCalls;
+        Check(v5 && std::ranges::equal(data, bitmap.bitmapDib), "embedded asset handler receives exact validated DIBV5 bytes");
+        return L"C:\\docs\\bitmap.png";
+    });
+    Check(view.ApplyClipboardBitmapPaste(snapshot.revision + 1u, snapshot.focusId, bitmap) == HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH) && bitmapCalls == 0u,
+          "stale embedded bitmap paste refuses before the asset callback");
+    Check(view.ApplyClipboardBitmapPaste(snapshot.revision, snapshot.focusId, bitmap) == S_OK && editor->GetText() == L"![bitmap](bitmap.png)" && bitmapCalls == 1u,
+          "embedded bitmap paste commits a saved asset once without an HWND");
+    Check(editor->Undo() && editor->GetText() == source && editor->GetSelection() == selection,
+          "embedded bitmap paste restores exact source and selection in one undo");
 }
 static void TestEmbeddedRetainedObjectSourceEditing(GraphicsFixture& gpu)
 {

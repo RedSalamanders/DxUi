@@ -8,7 +8,8 @@
 class EmbeddedTextClient final : public DxUi::TextInputClient,
                                  public DxUi::TextClipboardPasteTransform,
                                  public DxUi::TextClipboardFilePaste,
-                                 public DxUi::TextClipboardHtmlPaste
+                                 public DxUi::TextClipboardHtmlPaste,
+                                 public DxUi::TextClipboardBitmapPaste
 {
 public:
     EmbeddedTextClient(DxUi::EmbeddedHost& view, HWND window, uint64_t focus, float dpi) noexcept : _view(&view), _window(window), _focus(focus), _dpi(dpi)
@@ -37,6 +38,17 @@ public:
             return false;
         const auto* editor = dynamic_cast<DxUi::RichTextEditor*>(_view->Controls().GetFocusControl());
         return editor && editor->HasHtmlPasteConverter() && editor->IsMarkdownRenderingEnabled() && editor->GetViewMode() == DxUi::RichText::ViewMode::Rich;
+    }
+    bool AcceptsBitmap(const DxUi::EmbeddedTextInputSnapshot& snapshot) const noexcept override
+    {
+        if (! _view || snapshot.focusId != _focus || snapshot.state.readOnly)
+            return false;
+        const auto* editor = dynamic_cast<DxUi::RichTextEditor*>(_view->Controls().GetFocusControl());
+        return editor && editor->HasBitmapPasteHandler() && editor->IsMarkdownRenderingEnabled() && editor->GetViewMode() == DxUi::RichText::ViewMode::Rich;
+    }
+    HRESULT ApplyBitmapPaste(const DxUi::EmbeddedTextInputSnapshot& snapshot, const DxUi::TextClipboardContent& content) noexcept override
+    {
+        return _view ? _view->ApplyClipboardBitmapPaste(snapshot.revision, _focus, content) : TF_E_DISCONNECTED;
     }
     HRESULT TransformPaste(const DxUi::EmbeddedTextInputSnapshot& snapshot,
                            const DxUi::TextClipboardContent& content,

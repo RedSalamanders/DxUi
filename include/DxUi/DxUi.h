@@ -18,6 +18,7 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include <cstddef>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -3336,6 +3337,10 @@ public:
     void SetOnCodeCopyRequested(std::function<void(std::wstring_view)> callback, std::wstring accessibleName = L"Copy code");
     // Optional application converter: borrowed validated CF_HTML fragment to Markdown source.
     void SetHtmlPasteConverter(std::function<std::optional<std::wstring>(std::wstring_view)> converter);
+    // Receives borrowed validated DIB bytes outside clipboard ownership; return
+    // an absolute supported image path after application-owned asset storage.
+    void SetBitmapPasteHandler(std::function<std::optional<std::wstring>(std::span<const std::byte>, bool)> handler);
+    [[nodiscard]] bool HasBitmapPasteHandler() const noexcept;
     [[nodiscard]] bool HasHtmlPasteConverter() const noexcept;
     [[nodiscard]] std::wstring_view GetCodeCopyAccessibleName() const noexcept;
     HRESULT InvokeSemanticCodeCopy(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& document, size_t element) noexcept;
@@ -3565,6 +3570,7 @@ private:
                                     std::wstring& replacement,
                                     size_t targetSite = RichText::MarkdownNoNode) const;
     bool ApplyClipboardFilePaste(const TextClipboardContent& content);
+    bool ApplyClipboardBitmapPaste(const TextClipboardContent& content);
     struct FileDropPosition
     {
         size_t caret{}, site = RichText::MarkdownNoNode;
@@ -6136,6 +6142,7 @@ public:
     [[nodiscard]] std::optional<std::wstring> ReadTextFromClipboard() const noexcept;
     [[nodiscard]] bool ReadClipboardContent(TextClipboardContent& content) const noexcept;
     [[nodiscard]] bool ReadClipboardContent(TextClipboardContent& content, bool includeHtml) const noexcept;
+    [[nodiscard]] bool ReadClipboardContent(TextClipboardContent& content, bool includeHtml, bool includeBitmap) const noexcept;
 
     // Call after accelerator/TSF pretranslation and before TranslateMessage. For Return/Space key-down
     // directed at this attached HWND, dispatches once through the real window procedure, then translates

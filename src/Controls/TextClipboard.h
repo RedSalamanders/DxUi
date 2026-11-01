@@ -8,11 +8,13 @@ HRESULT DecodeClipboardText(std::span<const wchar_t> buffer, std::wstring& text)
 bool ValidClipboardUnicode(std::wstring_view text) noexcept;
 HRESULT ClipboardAllocationSize(size_t textUnits, size_t& bytes) noexcept;
 HRESULT DecodeClipboardFilePaths(std::span<const std::byte> buffer, TextClipboardContent& content) noexcept;
+HRESULT DecodeClipboardBitmap(std::span<const std::byte> buffer, bool v5, TextClipboardContent& content) noexcept;
 // OLE owns the data object and its medium for this synchronous call. The
 // returned content owns every path and never aliases the medium.
 HRESULT ReadDataObjectFilePaths(IDataObject* dataObject, TextClipboardContent& content) noexcept;
 HRESULT ReadTextClipboardContent(TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles) noexcept;
 HRESULT ReadTextClipboardContent(TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml) noexcept;
+HRESULT ReadTextClipboardContent(TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml, bool includeBitmap) noexcept;
 [[nodiscard]] TextClipboard& SystemTextClipboard() noexcept;
 // Test-only override, borrowed on the calling UI thread. Production never installs this.
 #if DXUI_ENABLE_DIAGNOSTICS
