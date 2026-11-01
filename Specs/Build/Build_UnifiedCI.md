@@ -86,3 +86,5 @@ Qualification uploads retain adapter evidence separately from workspace logs. Ne
 with workspace paths in one artifact input; the Windows drive-root common ancestor can become drive-relative.
 This preserves diagnostics after failure without moving test data or bypassing native acceptance.
 The PR delegation identity binds exact bytes and the membership of `.github/`, `.ci/`, `Build/`, `Tools/`, `Tests/`, root PowerShell entrypoints, `Directory.Build.*`, and the manifest (excluding its own digest). Coverage remains empty for compiler-free PRs; a stale or unreviewed digest cannot delegate execution. CODEOWNERS covers those tracked policy surfaces, subject to the repository's independently configured review rules.
+
+The extracted SDK smoke directly includes the public FileDrop and RichImage headers, validates the source-owned Unicode drag data object without a window, and admits a bounded SVG. These paths exercise the packaged archive's file-drop and SVG link closure; the source-pin consumer independently compiles FileDrop as a standalone public header. Smoke qualification requires a fresh actual package/link/run and is not established by syntax checking.

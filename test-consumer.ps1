@@ -70,7 +70,7 @@ $project=@"
 "@
 # Compile every supported helper header as the first and only include in its own translation unit.
 $headerUnits = foreach ($header in @('DxUi','Typography','FocusRestore','PointerInput','AccessibilityTextUnits','NativeMenuInterop',
-    'RichDocument','RichMarkdown','RichTextLayout','MarkdownSyntax','RichSemantic','RichSemanticDocument','RichTextCommands','RichImage','RichTextExport')) {
+    'FileDrop','RichDocument','RichMarkdown','RichTextLayout','MarkdownSyntax','RichSemantic','RichSemanticDocument','RichTextCommands','RichImage','RichTextExport')) {
     "#include <DxUi/$header.h>" | Set-Content -LiteralPath (Join-Path $consumer "$header.cpp") -Encoding utf8
     '<ClCompile Include="' + $header + '.cpp" />'
 }
