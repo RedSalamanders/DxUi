@@ -1,0 +1,1 @@
+- Route bounded native HTML images through the shared image alternative, resource request and completion pipeline, preserving source and remote opt-in behavior.

@@ -192,6 +192,27 @@ inline void NativeHtmlAndLinkPresentation()
     }
     for (const auto breakTag : {L"<br>", L"<br/>", L"<br />", L"<BR />"})
         Check(Build(std::wstring(L"one") + breakTag + L"two\n")->Map().Display() == L"one\ntwo\n", "all declared void-break spellings have one native LF");
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+    {
+        const std::wstring imageSource = L"one <IMG alt='A &amp; B' SRC='pictures/item.png' title='hint' /> end\n";
+        const auto imageDocument       = Build(imageSource, profile);
+        Check(imageDocument->Map().Display() == L"one [image: A & B] end\n", "HTML images share the atomic Markdown image alternative");
+        const auto imageElement = std::ranges::find(imageDocument->Elements(), SemanticRole::Image, &SemanticElement::role);
+        Check(imageElement != imageDocument->Elements().end() && imageElement->nativeHtml && imageElement->name == L"A & B" &&
+                  imageElement->destination == L"pictures/item.png" && imageElement->title == L"hint" &&
+                  imageDocument->Syntax()->Slice(imageElement->source) == L"<IMG alt='A &amp; B' SRC='pictures/item.png' title='hint' />",
+              "HTML image metadata decodes once and retains the exact whole-tag source owner");
+        RichSemanticTests::CheckRanges(
+            imageDocument->Map().SourceRanges(imageElement->display), {imageElement->source}, "HTML image alternative maps atomically to its original tag");
+        CheckGraph(*imageDocument);
+        for (const auto invalidImage : {L"one <img alt='x'> end\n",
+                                        L"one <img src='x' src='y'> end\n",
+                                        L"one <img src=x> end\n",
+                                        L"one <img src='javascript:bad'> end\n",
+                                        L"one <img src='x' onerror='bad'> end\n",
+                                        L"one </img> end\n"})
+            Check(Build(invalidImage, profile)->Map().Display() == invalidImage, "unsupported image attributes or schemes preserve the complete leaf");
+    }
     Check(Build(L"<div>text</div>\n")->Map().Display() == L"text\n", "a single div wrapper uses native paragraph content");
     Check(Build(L"one <A HREF='#x' TITLE='hint'>label</A>\n")->Map().Display() == L"one label\n",
           "native HTML tag/attribute names use ASCII case-insensitive matching");
