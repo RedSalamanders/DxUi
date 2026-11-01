@@ -23,4 +23,22 @@ Invoke-FixtureCase 'stale ambient and previous child exit status do not contamin
     Invoke-DxUiToolingTestRoster @((Join-Path $root 'clean.ps1'))
     Assert-Equal 0 $global:LASTEXITCODE 'successful roster clears stale status'
 }
+Invoke-FixtureCase 'timeout stops only the owned child and continues the roster' {
+    param($root)
+    Set-FixtureFile $root 'slow.ps1' 'Start-Sleep -Seconds 30'
+    Set-FixtureFile $root 'later.ps1' '[IO.File]::WriteAllText((Join-Path $PSScriptRoot "after-timeout.txt"), "ran")'
+    $failure = $null
+    try { Invoke-DxUiToolingTestRoster -Scripts @((Join-Path $root 'slow.ps1'), (Join-Path $root 'later.ps1')) -TimeoutSeconds 1 }
+    catch { $failure = $_.Exception.Message }
+    Assert-True ($failure -match 'slow\.ps1' -and (Test-Path (Join-Path $root 'after-timeout.txt'))) 'timeout fails the child and preserves the remaining roster'
+}
+Invoke-FixtureCase 'forced test support imports stay isolated between scripts' {
+    param($root)
+    $module = (Join-Path $PSScriptRoot 'TestSupport.psm1').Replace("'", "''")
+    $script = "Import-Module '$module' -Force`nInvoke-FixtureCase 'child fixture' { param(`$childRoot) Set-FixtureFile `$childRoot 'proof.txt' 'ok' }`nComplete-TestRun 'child'`n"
+    Set-FixtureFile $root 'first.ps1' $script
+    Set-FixtureFile $root 'second.ps1' $script
+    Invoke-DxUiToolingTestRoster @((Join-Path $root 'first.ps1'), (Join-Path $root 'second.ps1'))
+    Assert-Equal 0 $global:LASTEXITCODE 'successive module imports both complete'
+}
 Complete-TestRun 'Tooling roster'
