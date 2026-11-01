@@ -1,0 +1,1 @@
+- Report mixed list command state across interior and nested source intervals without heap allocation; native and performance qualification remain pending.

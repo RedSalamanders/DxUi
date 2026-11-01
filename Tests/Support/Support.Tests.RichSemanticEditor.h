@@ -473,6 +473,23 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     editor->SetSelection({2u, 14u});
     const auto mixedState = editor->QueryMarkdownCommandState(stateRequest);
     Check(mixedState && mixedState->mixed && ! mixedState->active, "command-state query reports mixed formatting");
+    editor->SetText(L"- a\n\n1. b\n\n- c\n");
+    prepare();
+    editor->SetSelection({0u, 15u});
+    stateRequest.command = MarkdownCommand::SetList;
+    stateRequest.listKind = MarkdownListKind::Unordered;
+    const auto mixedLists = editor->QueryMarkdownCommandState(stateRequest);
+    Check(mixedLists && mixedLists->mixed && ! mixedLists->listKind && ! mixedLists->active,
+          "list state sees an ordered interior even when both selection endpoints are unordered");
+    editor->SetText(L"- outer\n  1. inner\n");
+    prepare();
+    editor->SetSelection({13u, 18u});
+    const auto nestedList = editor->QueryMarkdownCommandState(stateRequest);
+    Check(nestedList && ! nestedList->mixed && nestedList->listKind == MarkdownListKind::Ordered,
+          "selection wholly inside a nested item reports its innermost list kind");
+    editor->SetText(L"**word** plain");
+    prepare();
+    editor->SetSelection({2u, 14u});
     for (const auto command : {MarkdownCommand::JoinBackward, MarkdownCommand::JoinForward})
     {
         stateRequest.command = command;

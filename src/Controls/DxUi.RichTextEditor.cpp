@@ -26,6 +26,76 @@ namespace DxUi
 {
 namespace
 {
+std::optional<RichText::MarkdownListKind> UniformListKind(const RichText::MarkdownSyntax& syntax, std::size_t first, std::size_t last) noexcept
+{
+    using namespace RichText;
+    const auto& nodes = syntax.Nodes();
+    // The syntax node cap fits in uint16_t. This bounded stack avoids heap
+    // allocation while traversing nested item intervals in source order.
+    static_assert(MarkdownSyntax::MaximumNodeRecords <= static_cast<std::size_t>(UINT16_MAX) + 1u);
+    std::array<std::uint16_t, MarkdownSyntax::MaximumNodeRecords> items;
+    std::size_t depth = 0u, cursor = first;
+    std::optional<MarkdownListKind> result;
+    bool mixed = false;
+    const auto kindAtTop = [&]() noexcept
+    {
+        if (! depth)
+            return MarkdownListKind::None;
+        const auto& item = nodes[items[depth - 1u]];
+        if (item.task != MarkdownTask::None)
+            return MarkdownListKind::Task;
+        const auto marker = nodes[item.parent].listMarker;
+        return marker == L'.' || marker == L')' ? MarkdownListKind::Ordered : MarkdownListKind::Unordered;
+    };
+    const auto consume = [&](std::size_t boundary) noexcept
+    {
+        const auto end = std::min(boundary, last);
+        if (end <= cursor)
+            return;
+        const auto kind = kindAtTop();
+        if (result && result.value() != kind)
+            mixed = true;
+        else if (! result)
+            result = kind;
+        cursor = end;
+    };
+    std::size_t node = 0u;
+    bool entering = true;
+    while (node != MarkdownNoNode && ! mixed && cursor < last)
+    {
+        const auto& current = nodes[node];
+        if (entering)
+        {
+            if (current.block.kind == MarkdownBlockKind::ListItem)
+            {
+                consume(current.block.source.first);
+                items[depth++] = static_cast<std::uint16_t>(node);
+            }
+            if (current.firstChild != MarkdownNoNode)
+            {
+                node = current.firstChild;
+                continue;
+            }
+        }
+        if (current.block.kind == MarkdownBlockKind::ListItem)
+        {
+            consume(current.block.source.last);
+            --depth;
+        }
+        if (current.nextSibling != MarkdownNoNode)
+        {
+            node = current.nextSibling;
+            entering = true;
+        }
+        else
+        {
+            node = current.parent;
+            entering = false;
+        }
+    }
+    consume(last);
+    return mixed ? std::nullopt : result.value_or(MarkdownListKind::None);
+}
 std::optional<RichText::MarkdownRange> HeadingFragment(const RichText::SemanticDocument& document, std::wstring_view destination)
 {
     if (! destination.starts_with(L'#'))
@@ -2146,29 +2216,7 @@ std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownComma
             no = true;
     }
     result.headingLevel = mixedHeading ? 0u : heading;
-    const auto listAt   = [&](size_t position) noexcept
-    {
-        const auto& nodes = document->Syntax()->Nodes();
-        size_t best       = MarkdownNoNode;
-        for (size_t i = 1u; i < nodes.size(); ++i)
-        {
-            const auto& node = nodes[i];
-            if (node.block.kind != MarkdownBlockKind::ListItem || node.block.source.first > position || position >= node.block.source.last)
-                continue;
-            if (best == MarkdownNoNode || node.block.source.last - node.block.source.first < nodes[best].block.source.last - nodes[best].block.source.first)
-                best = i;
-        }
-        if (best == MarkdownNoNode || nodes[best].parent == MarkdownNoNode)
-            return MarkdownListKind::None;
-        if (nodes[best].task != MarkdownTask::None)
-            return MarkdownListKind::Task;
-        const auto marker = nodes[nodes[best].parent].listMarker;
-        return marker == L'.' || marker == L')' ? MarkdownListKind::Ordered : MarkdownListKind::Unordered;
-    };
-    const auto startList = listAt(first);
-    const auto endList   = listAt(last ? last - 1u : 0u);
-    if (startList == endList)
-        result.listKind = startList;
+    result.listKind = UniformListKind(*document->Syntax(), first, last);
     if (request.command == MarkdownCommand::SetHeading)
     {
         result.active = seen && ! mixedHeading && heading == request.headingLevel;
