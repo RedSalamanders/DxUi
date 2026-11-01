@@ -10844,13 +10844,14 @@ void ScrollPanel::OnDescendantDetaching(Control& subtree) noexcept
 {
     ControlHost* const host                  = GetHost();
     const std::weak_ptr<int> selfLifetime    = GetLifetimeToken();
+    Control* const parent = _parent;
     if (Control* const captured = LiveInnerCaptured(); captured && IsControlInTree(&subtree, captured))
     {
         SetInnerCaptured(nullptr);
         if (host)
         {
             static_cast<void>(TryControlCallback([&] { captured->OnCaptureLost(*host); }));
-            if (selfLifetime.expired())
+            if (selfLifetime.expired() || GetHost() != host || _parent != parent)
                 return;
             if (! _dragThumb && host->GetCapturedControl() == this)
                 host->ReleaseMouseCapture();
@@ -10862,6 +10863,7 @@ void ScrollPanel::OnDescendantDetached(Control& subtree) noexcept
 {
     ControlHost* const host                  = GetHost();
     const std::weak_ptr<int> selfLifetime    = GetLifetimeToken();
+    Control* const parent = _parent;
     const std::weak_ptr<int> subtreeLifetime = subtree.GetLifetimeToken();
     if (selfLifetime.expired() || subtreeLifetime.expired())
         return;
@@ -10872,7 +10874,7 @@ void ScrollPanel::OnDescendantDetached(Control& subtree) noexcept
         {
             const std::weak_ptr<int> hoveredLifetime = hovered->GetLifetimeToken();
             static_cast<void>(TryControlCallback([&] { hovered->OnHoverChanged(*host, false); }));
-            if (! selfLifetime.expired() && ! hoveredLifetime.expired())
+            if (! selfLifetime.expired() && ! hoveredLifetime.expired() && ! subtreeLifetime.expired() && GetHost() == host && _parent == parent)
                 static_cast<void>(TryControlCallback([&] { hovered->OnMouseLeave(*host); }));
         }
     }
