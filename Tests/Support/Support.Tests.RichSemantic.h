@@ -1104,5 +1104,17 @@ inline void GuardsAndDeletion()
               "code wrapper cleanup follows normalized source units across quote prefixes");
         Check(deleting.Undo() && deleting.Snapshot().IsSameRevision(old), "nested code deletion restores container prefixes and CRLF exactly");
     }
+    {
+        constexpr std::wstring_view spelling = L"`keep` and `\nfoo\n` plus `bar`";
+        Document deleting(spelling);
+        const auto first = spelling.find(L"foo"), second = spelling.find(L"bar");
+        deleting.SetSelection({first, second + 3u});
+        const auto old = deleting.Snapshot();
+        const std::array ranges{MarkdownRange{first, first + 3u}, MarkdownRange{second, second + 3u}};
+        const auto deletion = BuildMarkdownDeletion(old, deleting.Revision(), Parse(deleting), deleting.GetSelection(), ranges);
+        Check(ApplyMarkdownCommand(deleting, deletion) && deleting.Text() == L"`keep` and  plus ",
+              "disjoint deletion cleans each affected code wrapper without touching unrelated code");
+        Check(deleting.Undo() && deleting.Snapshot().IsSameRevision(old), "disjoint code cleanup restores every original source range");
+    }
 }
 } // namespace RichCommandTests

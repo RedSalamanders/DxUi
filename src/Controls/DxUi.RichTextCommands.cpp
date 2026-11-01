@@ -4006,11 +4006,20 @@ void MarkdownCommandPlanner::Delete(std::span<const MarkdownRange> ranges)
     {
         MarkdownRange source, body;
     };
+    merge();
     std::vector<Wrapper> wrappers(0u);
     std::vector<const MarkdownInline*> codeInlines(0u);
     for (const auto& node : plan.syntax_->Inlines())
         if (node.kind == MarkdownInlineKind::Code)
-            codeInlines.push_back(&node);
+        {
+            // Only a deletion intersecting this source can cover its body.
+            // Expanded enclosing wrappers already have fully covered bodies,
+            // so this remains true throughout the nested-wrapper fixed point.
+            const auto deletion =
+                std::lower_bound(owned.begin(), owned.end(), node.source.first, [](const auto range, auto first) { return range.last <= first; });
+            if (deletion != owned.end() && deletion->first < node.source.last)
+                codeInlines.push_back(&node);
+        }
         else if (const auto body = InlineBody(node); body && body->first < body->last)
             wrappers.push_back({node.source, *body});
     std::sort(codeInlines.begin(), codeInlines.end(), [](const auto* a, const auto* b) { return a->source.first < b->source.first; });
