@@ -1603,22 +1603,30 @@ void MarkdownCommandPlanner::HardBreak()
     std::wstring prefix(Slice(line.first, at));
     if (const auto item = Ancestor(leaf, Kind::ListItem); item != MarkdownNoNode)
     {
-        if (ParentItem(item) != MarkdownNoNode)
-            return;
-        const auto quote = NodeAt(Kind::BlockQuote, caret);
-        if (quote != MarkdownNoNode && Ancestor(quote, Kind::ListItem) == item)
-            return;
-        ItemPrefix marker;
-        if (! Prefix(item, marker))
-            return;
-        if (Line(nodes[item].block.source.first).first == line.first)
+        // Every list marker that starts on this physical line becomes its
+        // equivalent indentation. Keep intervening quote prefixes verbatim.
+        std::vector<ItemPrefix> markers(0u);
+        for (auto owner = item; owner != MarkdownNoNode; owner = ParentItem(owner))
         {
-            const auto before = Columns(Slice(line.first, marker.first));
-            const auto width  = Columns(Slice(marker.first, marker.content), before) - before;
-            prefix.assign(Slice(line.first, marker.first));
-            prefix.append(width, L' ');
-            prefix += Slice(marker.content, at);
+            if (Line(nodes[owner].block.source.first).first != line.first)
+                continue;
+            ItemPrefix marker;
+            if (! Prefix(owner, marker) || marker.first < line.first || marker.content > at)
+                return;
+            markers.push_back(marker);
         }
+        prefix.clear();
+        auto cursor = line.first;
+        for (auto marker = markers.rbegin(); marker != markers.rend(); ++marker)
+        {
+            if (marker->first < cursor)
+                return;
+            prefix += Slice(cursor, marker->first);
+            const auto before = Columns(Slice(line.first, marker->first));
+            prefix.append(Columns(Slice(marker->first, marker->content), before) - before, L' ');
+            cursor = marker->content;
+        }
+        prefix += Slice(cursor, at);
     }
     std::wstring insertion(L"  ");
     insertion += Eol(line);

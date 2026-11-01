@@ -327,6 +327,8 @@ inline void ListsAndHeadings()
         Exact(L"hello\n", {1u, 4u}, request, L"h  \no\n", Selection{4u, 4u}, profile);
         Exact(L"> hello\r\n", {4u, 4u}, request, L"> he  \r\n> llo\r\n", Selection{10u, 10u}, profile);
         Exact(L"- item\n", {4u, 4u}, request, L"- it  \n  em\n", Selection{9u, 9u}, profile);
+        Exact(L"- outer\n  - item\n", {14u, 14u}, request, L"- outer\n  - it  \n    em\n", Selection{21u, 21u}, profile);
+        Exact(L"- > item\n", {6u, 6u}, request, L"- > it  \n  > em\n", Selection{13u, 13u}, profile);
         request.command = MarkdownCommand::InsertMath;
         if (profile == MarkdownProfile::RichMarkdown)
         {

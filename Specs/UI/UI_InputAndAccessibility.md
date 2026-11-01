@@ -1275,6 +1275,9 @@ It selects the expression and rejects conflicting delimiters, inline multiline
 payloads, opaque inline interiors and expressions beyond native math source
 capacity. Top-level display expressions may span nonblank physical lines;
 blank-line and nested multiline admission remains unavailable.
+InsertHardBreak preserves representable quote and nested-list prefixes, replacing
+each list marker on the split line with equal-width continuation indentation.
+Unrepresentable lazy prefixes remain unavailable.
 The non-mutating command-state query reports current style, heading and list
 presentation without constructing an edit; unavailable editor states report
 `available = false`. Applicability remains unknown for an enabled rich editor
