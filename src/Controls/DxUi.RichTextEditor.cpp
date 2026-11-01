@@ -565,11 +565,16 @@ struct RichTextEditor::State
     uint64_t bindingRevision            = 0;
     uint64_t fileDropEpoch              = 0;
     uint64_t resourceGeneration         = 0;
-    uint64_t requestRevision = 0, requestBinding = 0, requestTypography = 0, requestResources = 0;
-    IDWriteFactory* requestFactory = nullptr; // Identity only; staged layouts retain the factory through WIL.
-    RichText::ViewMode requestMode = RichText::ViewMode::Rich;
-    float requestWidth             = 0;
-    bool requestActive             = false;
+    struct LayoutKey
+    {
+        uint64_t revision{}, binding{}, typography{}, resources{};
+        IDWriteFactory* factory{}; // Identity only; staged layouts retain the factory through WIL.
+        float width{};
+        RichText::ViewMode mode                 = RichText::ViewMode::Rich;
+        bool operator==(const LayoutKey&) const = default;
+    };
+    LayoutKey requestKey;
+    bool requestActive         = false;
     size_t preparationAdvances = 0, cancelledPreparations = 0, lastAdvanceLayouts = 0, lastAdvanceBlockSteps = 0;
     float layoutWidth      = 0;
     float scrollDip        = 0;
@@ -3312,9 +3317,8 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             state.images.Publish();
             state.imageSource = Snapshot();
         }
-        const bool sameRequest = state.requestActive && state.layout.HasPendingPreparation() && state.requestFactory == factory &&
-                                 state.requestRevision == revision && state.requestBinding == binding && state.requestTypography == typography &&
-                                 state.requestResources == resources && state.requestWidth == width && state.requestMode == state.mode;
+        const State::LayoutKey requestKey{revision, binding, typography, resources, factory, width, state.mode};
+        const bool sameRequest = state.requestActive && state.layout.HasPendingPreparation() && state.requestKey == requestKey;
         if (! sameRequest)
         {
             if (state.layout.HasPendingPreparation())
@@ -3385,15 +3389,9 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                                           {typography, resources},
                                           state.images.Snapshot(),
                                           host.GetDeviceContext());
-            richPreparationActive   = false;
-            state.requestRevision   = revision;
-            state.requestBinding    = binding;
-            state.requestTypography = typography;
-            state.requestResources  = resources;
-            state.requestWidth      = width;
-            state.requestMode       = state.mode;
-            state.requestFactory    = factory;
-            state.requestActive     = true;
+            richPreparationActive = false;
+            state.requestKey      = requestKey;
+            state.requestActive   = true;
         }
         if (state.layout.HasPendingPreparation())
         {
@@ -3415,7 +3413,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         }
         // No application callback crosses staging. Recheck the complete key
         // before acknowledging geometry; host publication follows rasterization.
-        if (GetHost() != &host || Revision() != revision || state.bindingRevision != binding || state.mode != state.requestMode ||
+        if (GetHost() != &host || Revision() != revision || state.bindingRevision != binding || state.mode != state.requestKey.mode ||
             host.GetResourceGeneration() != resources || host.GetTypographyRevision() != typography ||
             std::max(1.0f, TextViewport().right - TextViewport().left) != width)
         {

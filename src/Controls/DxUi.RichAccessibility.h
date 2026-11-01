@@ -468,7 +468,7 @@ public:
         if (record->controlValueReadOnly)
             return UIA_E_INVALIDOPERATION;
         auto* host   = target_->ResolveHost();
-        auto* editor = host ? dynamic_cast<RichTextEditor*>(ResolveIdentifiedControlAtPath(host->GetRoot(), path_, identity_)) : nullptr;
+        auto* editor = host ? Detail::RichEditorAccessibilityAccess::As(ResolveIdentifiedControlAtPath(host->GetRoot(), path_, identity_)) : nullptr;
         if (! editor || ! IsControlPathVisible(host->GetRoot(), path_))
             return UIA_E_ELEMENTNOTAVAILABLE;
         if (! IsControlEffectivelyInteractive(host->GetRoot(), editor))
@@ -513,7 +513,7 @@ public:
         if (! record->controlEnabled)
             return UIA_E_ELEMENTNOTENABLED;
         auto* host   = target_->ResolveHost();
-        auto* editor = host ? dynamic_cast<RichTextEditor*>(ResolveIdentifiedControlAtPath(host->GetRoot(), path_, identity_)) : nullptr;
+        auto* editor = host ? Detail::RichEditorAccessibilityAccess::As(ResolveIdentifiedControlAtPath(host->GetRoot(), path_, identity_)) : nullptr;
         if (! editor || ! IsControlPathVisible(host->GetRoot(), path_))
             return UIA_E_ELEMENTNOTAVAILABLE;
         if (! IsControlEffectivelyInteractive(host->GetRoot(), editor))
