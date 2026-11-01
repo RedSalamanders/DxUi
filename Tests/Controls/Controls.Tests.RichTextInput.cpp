@@ -652,6 +652,44 @@ void TestRichTextImageClipboardTransport()
     Require(ReadTextClipboardContent(SystemTextClipboard(), window.Hwnd(), content, true) == S_OK && content.filePaths.empty() &&
                 content.text == L"unicode fallback",
             "absent files use the same-open Unicode fallback");
+    editor->SetText(L"hello");
+    editor->SetBounds(D2D1::RectF(8.0f, 8.0f, 400.0f, 120.0f));
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    auto appearance = editor->GetAppearance();
+    appearance.pasteUrlOnSelection = true;
+    editor->SetAppearance(appearance);
+    window.Host().SetFocusControl(editor, false);
+    Require(PrepareNativeContentForTests(window.Host()), "prepare URL clipboard selection");
+    editor->SetSelection({0u, 5u});
+    RequireSucceeded(SystemTextClipboard().Write(window.Hwnd(), L"https://example.invalid/a"), "seed private URL clipboard");
+    Require(bool(editor->GetMarkdownSyntax()), "URL clipboard fixture has current Markdown analysis");
+    const bool handledUrl = editor->OnKeyDown(window.Host(), 'V', MK_CONTROL);
+    Require(handledUrl && editor->GetText() == L"[hello](<https://example.invalid/a>)" && editor->Undo() && editor->GetText() == L"hello", "native URL paste uses one source transaction and undo");
+    Require(PrepareNativeContentForTests(window.Host()), "prepare HTML clipboard selection");
+    editor->SetSelection({0u, 5u});
+    const std::string html = std::format("Version:1.0\r\nStartHTML:{:010}\r\nEndHTML:{:010}\r\nStartFragment:{:010}\r\nEndFragment:{:010}\r\n", 105, 117, 105, 117) + "<b>hello</b>";
+    clipboard.htmlData.reset(GlobalAlloc(GMEM_MOVEABLE, html.size()));
+    Require(bool(clipboard.htmlData), "allocate private HTML clipboard");
+    auto* htmlMemory = GlobalLock(clipboard.htmlData.get());
+    Require(htmlMemory != nullptr, "lock private HTML clipboard");
+    {
+        const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(clipboard.htmlData.get()); });
+        std::memcpy(htmlMemory, html.data(), html.size());
+    }
+    editor->SetHtmlPasteConverter([](std::wstring_view value) -> std::optional<std::wstring> {
+        return value == L"<b>hello</b>" ? std::optional<std::wstring>{L"**hello**"} : std::nullopt;
+    });
+    Require(editor->OnKeyDown(window.Host(), 'V', MK_CONTROL) && editor->GetText() == L"**hello**" && editor->Undo() && editor->GetText() == L"hello",
+            "native HTML conversion takes precedence and remains one undo step");
+    Require(PrepareNativeContentForTests(window.Host()), "prepare stale HTML clipboard");
+    editor->SetSelection({0u, 5u});
+    editor->SetHtmlPasteConverter([&](std::wstring_view) -> std::optional<std::wstring> {
+        editor->SetText(L"new source");
+        return L"stale";
+    });
+    Require(editor->OnKeyDown(window.Host(), 'V', MK_CONTROL) && editor->GetText() == L"new source",
+            "native paste does not overwrite a reentrant source replacement");
 }
 
 void TestRichTextApplicationImageClipboard()
