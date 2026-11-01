@@ -394,8 +394,7 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
         }
 #endif
         Require(isolatedFence->StrokeLayouts().empty(), "the isolated font delimiter has no vector fallback strokes");
-        wil::com_ptr<IWICImagingFactory> imaging;
-        THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+        const auto imaging = CreateWicFactoryForTest();
         wil::com_ptr<IWICBitmap> bitmap;
         THROW_IF_FAILED(imaging->CreateBitmap(128u, 128u, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
         const auto drawing = PreparedFlowchartTests::DrawingFactory();
