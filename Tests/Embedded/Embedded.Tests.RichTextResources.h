@@ -2611,12 +2611,12 @@ static void TestRetainedRichTextUiaRangeAllocationBudget(GraphicsFixture& gpu)
         return range;
     };
     const auto baseline = makeRange();
-    const auto invoke = [&](ITextRangeProvider& range, unsigned operation)
+    const auto invoke   = [&](ITextRangeProvider& range, unsigned operation)
     {
         int value{};
         wil::unique_bstr resultText;
         SAFEARRAY* rectangles = nullptr;
-        const auto release = wil::scope_exit([&] noexcept
+        const auto release    = wil::scope_exit([&] noexcept
         {
             if (rectangles)
                 SafeArrayDestroy(rectangles);
@@ -2634,27 +2634,30 @@ static void TestRetainedRichTextUiaRangeAllocationBudget(GraphicsFixture& gpu)
     };
     for (unsigned operation = 0u; operation < 6u; ++operation)
     {
+        auto warm = makeRange();
+        Hr(invoke(*warm.get(), operation), "warm retained UIA geometry outside the observed failure schedule");
         auto measured = makeRange();
         allocations = allocationBytes = 0u;
-        countAllocations = true;
-        const HRESULT result = invoke(*measured.get(), operation);
-        countAllocations = false;
-        const size_t observed = allocations;
+        countAllocations              = true;
+        const HRESULT result          = invoke(*measured.get(), operation);
+        countAllocations              = false;
+        const size_t observed         = allocations;
         Hr(result, "observe successful direct UIA range operation");
         Check(observed > 0u && observed < 256u, "direct UIA range command has a bounded observed allocation schedule");
         for (size_t point = 0u; point < observed; ++point)
         {
-            auto range = makeRange();
+            auto range            = makeRange();
             const auto oldFailure = failAllocationAfter;
             HRESULT failureResult{};
             {
                 const auto restoreFailure = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-                failAllocationAfter = point;
-                failureResult = invoke(*range.get(), operation);
+                failAllocationAfter       = point;
+                failureResult             = invoke(*range.get(), operation);
             }
             Check(failureResult == E_OUTOFMEMORY, "every observed direct TextPattern range allocation failure reports E_OUTOFMEMORY");
             int start{}, end{};
-            Hr(range->CompareEndpoints(TextPatternRangeEndpoint_Start, baseline.get(), TextPatternRangeEndpoint_Start, &start), "compare unchanged range start");
+            Hr(range->CompareEndpoints(TextPatternRangeEndpoint_Start, baseline.get(), TextPatternRangeEndpoint_Start, &start),
+               "compare unchanged range start");
             Hr(range->CompareEndpoints(TextPatternRangeEndpoint_End, baseline.get(), TextPatternRangeEndpoint_End, &end), "compare unchanged range end");
             Check(start == 0 && end == 0, "a failed range command preserves both exact source endpoints");
             Hr(invoke(*range.get(), operation), "retry direct UIA range command after allocation failure");
