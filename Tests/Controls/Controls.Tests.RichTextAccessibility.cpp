@@ -2005,6 +2005,17 @@ void SemanticDiagramAlternatives(bool embedded)
     wil::com_ptr_nothrow<ITextRangeProvider> pieRange;
     RequireSucceeded(text->RangeFromChild(pieImage.get(), pieRange.put()), "pie source range");
     Require(ReadTextRangeText(*pieRange.get(), -1, "pie exact raw fence") == pie, "pie UIA range owns the original fence");
+    const std::wstring er = L"```mermaid\nerDiagram\nCUSTOMER ||--o{ ORDER : places\n```\n";
+    fixture.editor->SetText(er);
+    fixture.Publish();
+    const auto erImage = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
+    Require(erImage != nullptr, "ER diagram is exposed as an acknowledged native image provider");
+    const auto erName = ReadProviderStringProperty(*erImage.get(), UIA_NamePropertyId, "ER alternative");
+    Require(erName.starts_with(L"Entity relationship diagram") && erName.find(L"CUSTOMER [1]") != std::wstring::npos &&
+                erName.find(L"ORDER [0..*]") != std::wstring::npos, "ER provider exposes entity multiplicities");
+    wil::com_ptr_nothrow<ITextRangeProvider> erRange;
+    RequireSucceeded(text->RangeFromChild(erImage.get(), erRange.put()), "ER source range");
+    Require(ReadTextRangeText(*erRange.get(), -1, "ER exact raw fence") == er, "ER UIA range owns the original fence");
 }
 void SemanticMathLiteralFallback(bool embedded)
 {

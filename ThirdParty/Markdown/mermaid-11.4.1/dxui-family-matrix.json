@@ -64,14 +64,14 @@
     "file": "entityRelationshipDiagram.md.txt",
     "gitBlob": "8c83d22320142d0b66c47559939da2b932b09e58",
     "sha256": "B7365CEADC3937056BB564DA684D07C0985EB6F3209335D0EAC57C1440FA2A48",
-    "support": "unsupported-family",
+    "support": "limited-er",
     "firstExample": {
-      "reason": "unsupported-diagram-family",
-      "issue": "UnsupportedFamily",
+      "reason": "bounded-er-relationships-and-multiplicities",
+      "issue": "None",
       "direction": "TopBottom",
-      "outcome": "Unsupported",
-      "edges": 0,
-      "nodes": 0
+      "outcome": "Prepared",
+      "edges": 3,
+      "nodes": 4
     }
   },
   {

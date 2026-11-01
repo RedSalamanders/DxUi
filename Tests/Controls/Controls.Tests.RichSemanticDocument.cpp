@@ -843,6 +843,13 @@ void TestRichSemanticNativeMathematicsAndBroaderMermaid()
                 pieDiagram->name.starts_with(L"Pie chart: Inventory") && pieDiagram->name.find(L"One: 25") != std::wstring::npos &&
                 pieDiagram->name.find(L"Three: 75") != std::wstring::npos,
             "pie semantic alternative preserves title, slice values, order and exact source");
+    const std::wstring erSource = L"```mermaid\nerDiagram\nCUSTOMER ||--o{ ORDER : places\n```\n";
+    const auto erDocument = RichSemanticDocumentTests::Build(erSource, MarkdownProfile::RichMarkdown);
+    const auto erDiagram = std::ranges::find(erDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
+    Require(erDocument->Map().Source() == erSource && erDiagram != erDocument->Elements().end() &&
+                erDiagram->name.starts_with(L"Entity relationship diagram") && erDiagram->name.find(L"CUSTOMER [1]") != std::wstring::npos &&
+                erDiagram->name.find(L"ORDER [0..*]") != std::wstring::npos,
+            "ER semantic alternative exposes both multiplicities with exact source");
 }
 void TestRichSemanticDocumentStructuralStyleValues()
 {

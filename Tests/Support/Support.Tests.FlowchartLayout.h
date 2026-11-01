@@ -4,6 +4,7 @@
 #include <cmath>
 #include <limits>
 #include <stdexcept>
+#include <tuple>
 
 namespace FlowchartLayoutTests
 {
@@ -34,12 +35,14 @@ inline std::shared_ptr<const FlowchartLayoutPlan> Place(std::shared_ptr<const Fl
 {
     const std::vector<FlowchartSize> nodes(graph->nodes.size(), {16.0, 12.0});
     std::vector<FlowchartSize> edges(graph->edges.size(), FlowchartSize{});
+    const bool cardinality = std::ranges::any_of(graph->edges, [](const auto& edge) { return ! edge.fromCardinality.empty() || ! edge.toCardinality.empty(); });
+    const std::vector<FlowchartSize> endpointLabels(cardinality ? graph->edges.size() : 0u, {16.0, 12.0});
     const std::vector<FlowchartSize> groups(graph->family == NativeDiagramFamily::Pie ? 1u : graph->groups.size(), {16.0, 12.0});
     for (std::size_t index = 0u; index < edges.size(); ++index)
         if (! graph->edges[index].label.empty())
             edges[index] = {20.0, 12.0};
     NativeFlowchartLayout layout;
-    layout.Begin(std::move(graph), nodes, edges, {}, {}, groups);
+    layout.Begin(std::move(graph), nodes, edges, endpointLabels, endpointLabels, groups);
     return Complete(layout, check, budget);
 }
 inline bool Near(double a, double b) noexcept
@@ -96,6 +99,34 @@ template <typename Check> inline void Geometry(Check&& check)
         const auto rejected = Graph(invalid);
         check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == invalid && rejected->nodes.empty(),
               "invalid pie values retain exact source without partial slices");
+    }
+    const auto er = Graph(L"erDiagram\nCUSTOMER ||--o{ ORDER : places\nCUSTOMER {\nstring name\nint id PK\n}\n");
+    const auto loneEntity = Graph(L"erDiagram\nCUSTOMER\n");
+    check(loneEntity->outcome == FlowchartOutcome::Prepared && loneEntity->nodes.size() == 1u && loneEntity->edges.empty(),
+          "standalone ER entities retain their source-owned identifier");
+    const auto erPlan = Place(er, check);
+    check(er->outcome == FlowchartOutcome::Prepared && er->family == NativeDiagramFamily::EntityRelationship && er->nodes.size() == 2u &&
+              er->nodes[0u].label == L"CUSTOMER\nstring name\nint id PK" && er->nodes[0u].compartmentCount == 1u && er->edges.size() == 1u &&
+              er->edges[0u].erFrom == ErMultiplicity::One && er->edges[0u].erTo == ErMultiplicity::ZeroOrMany &&
+              er->edges[0u].fromCardinality == L"1" && er->edges[0u].toCardinality == L"0..*",
+          "ER model retains typed entities, attributes and both endpoint multiplicities");
+    check(erPlan->issue == FlowchartLayoutIssue::None && erPlan->edges.size() == 1u && erPlan->edges[0u].erFrom == ErMultiplicity::One &&
+              erPlan->edges[0u].erTo == ErMultiplicity::ZeroOrMany, "ER endpoint multiplicities reach native geometry");
+    for (const auto& [source, left, right] :
+         {std::tuple{L"erDiagram\nA o|..|{ B : owns\n", ErMultiplicity::ZeroOrOne, ErMultiplicity::OneOrMany},
+          std::tuple{L"erDiagram\nA }o..|o B : owns\n", ErMultiplicity::ZeroOrMany, ErMultiplicity::ZeroOrOne},
+          std::tuple{L"erDiagram\nA }|..o{ B : owns\n", ErMultiplicity::OneOrMany, ErMultiplicity::ZeroOrMany}})
+    {
+        const auto relationship = Graph(source);
+        check(relationship->outcome == FlowchartOutcome::Prepared && relationship->edges.size() == 1u && relationship->edges[0u].erFrom == left &&
+                  relationship->edges[0u].erTo == right && relationship->edges[0u].style == FlowchartLineStyle::Dotted,
+              "ER alternate multiplicity spellings and non-identifying relationships retain typed meanings");
+    }
+    for (const auto invalid : {L"erDiagram\nA -- B : x\n", L"erDiagram\nA ||--o{ B\n", L"erDiagram\nA {\nstring id\n"})
+    {
+        const auto rejected = Graph(invalid);
+        check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == invalid && rejected->nodes.empty(),
+              "unsupported ER syntax retains exact source without partial entities");
     }
     for (const auto direction : {L"TD", L"BT", L"LR", L"RL"})
     {

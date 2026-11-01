@@ -27,8 +27,10 @@ enum class NativeDiagramFamily
     State,
     Class,
     Sequence,
-    Pie
+    Pie,
+    EntityRelationship
 };
+enum class ErMultiplicity { None, One, ZeroOrOne, OneOrMany, ZeroOrMany };
 enum class FlowchartShape
 {
     Rectangle,
@@ -134,6 +136,7 @@ struct FlowchartEdge
     std::size_t minimumRanks{1u};
     bool arrow{};
     bool openArrow{}; // Sequence asynchronous messages use an open arrowhead.
+    ErMultiplicity erFrom{}, erTo{};
 };
 struct FlowchartModel
 {
@@ -168,7 +171,8 @@ inline bool ValidSequenceModel(const FlowchartModel& graph) noexcept
     for (const auto& edge : graph.edges)
         if (edge.from >= graph.nodes.size() || edge.to >= graph.nodes.size() || edge.relation != FlowchartRelation::Arrow || ! edge.arrow ||
             (edge.style != FlowchartLineStyle::Solid && edge.style != FlowchartLineStyle::Dotted) || edge.minimumRanks != 1u || edge.label.empty() ||
-            ! edge.fromCardinality.empty() || ! edge.toCardinality.empty() || edge.source.first >= edge.source.last || edge.source.last > graph.source.size())
+            ! edge.fromCardinality.empty() || ! edge.toCardinality.empty() || edge.erFrom != ErMultiplicity::None || edge.erTo != ErMultiplicity::None ||
+            edge.source.first >= edge.source.last || edge.source.last > graph.source.size())
             return false;
     return true;
 }
@@ -211,6 +215,33 @@ inline bool ValidPieModel(const FlowchartModel& graph) noexcept
         for (std::size_t other = index + 1u; other < graph.nodes.size(); ++other)
             if (graph.nodes[index].label == graph.nodes[other].label) return false;
     return std::isfinite(total) && total > 0.0;
+}
+inline std::wstring_view ErMultiplicityLabel(ErMultiplicity value) noexcept
+{
+    switch (value)
+    {
+        case ErMultiplicity::One: return L"1";
+        case ErMultiplicity::ZeroOrOne: return L"0..1";
+        case ErMultiplicity::OneOrMany: return L"1..*";
+        case ErMultiplicity::ZeroOrMany: return L"0..*";
+        case ErMultiplicity::None: return {};
+    }
+    return {};
+}
+inline bool ValidErModel(const FlowchartModel& graph) noexcept
+{
+    if (graph.family != NativeDiagramFamily::EntityRelationship) return true;
+    if (graph.direction != FlowchartDirection::TopBottom || ! graph.groups.empty()) return false;
+    for (const auto& node : graph.nodes)
+        if (node.shape != FlowchartShape::Rectangle || node.groupMask || node.label.empty() || node.identifier.first >= node.identifier.last ||
+            node.identifier.last > graph.source.size()) return false;
+    for (const auto& edge : graph.edges)
+        if (edge.from >= graph.nodes.size() || edge.to >= graph.nodes.size() || edge.relation != FlowchartRelation::Line || edge.arrow || edge.openArrow ||
+            (edge.style != FlowchartLineStyle::Solid && edge.style != FlowchartLineStyle::Dotted) || edge.minimumRanks != 1u || edge.label.empty() ||
+            ErMultiplicityLabel(edge.erFrom).empty() || ErMultiplicityLabel(edge.erTo).empty() || edge.fromCardinality != ErMultiplicityLabel(edge.erFrom) ||
+            edge.toCardinality != ErMultiplicityLabel(edge.erTo) || edge.source.first >= edge.source.last || edge.source.last > graph.source.size())
+            return false;
+    return true;
 }
 class NativeFlowchartParser
 {

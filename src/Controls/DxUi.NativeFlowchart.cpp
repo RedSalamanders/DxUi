@@ -35,14 +35,14 @@ struct NativeFlowchartParser::Preparation
     std::shared_ptr<FlowchartModel> model;
     std::wstring noteBlockText;
     std::size_t scan{}, first{}, depth{}, statements{}, classBlockNode{}, classBlockStart{}, descriptionBlockStart{};
-    std::size_t noteBlockStart{}, noteBlockTarget{};
+    std::size_t noteBlockStart{}, noteBlockTarget{}, erBlockNode{}, erBlockStart{};
     std::array<bool, MaximumNodes> stateDescriptions{};
     std::array<bool, MaximumNodes> classAnnotations{};
     std::array<std::uint8_t, MaximumNodes> pseudoKinds{};
     std::array<std::size_t, 4u> groupStack{};
     std::size_t groupDepth{};
     bool quote{}, escaped{}, pipe{}, comment{}, header{}, done{}, classBlock{}, titleSeen{}, descriptionSeen{}, descriptionBlock{}, descriptionHasLine{};
-    bool noteBlock{}, noteBlockLeft{}, noteBlockHasLine{};
+    bool noteBlock{}, noteBlockLeft{}, noteBlockHasLine{}, erBlock{};
     bool pieTitleSeen{};
     double pieTotal{};
     explicit Preparation(std::wstring_view source, std::uint64_t revision) : model(std::make_shared<FlowchartModel>(source, revision)), noteBlockText(0u, L' ')
@@ -547,6 +547,35 @@ struct NativeFlowchartParser::Preparation
                 return Error(FlowchartIssue::UnexpectedToken, separator, at);
         }
     }
+    bool ErEntity(std::size_t& at, std::size_t end, std::size_t& entity)
+    {
+        Skip(at, end);
+        const auto start = at;
+        if (at == end || ! Letter(Text()[at])) return Error(FlowchartIssue::InvalidIdentifier, at, end);
+        while (at < end && (IdUnit(Text()[at]) || Text()[at] == L'-')) ++at;
+        const auto id = Text().substr(start, at - start);
+        if (id.size() > MaximumIdentifierUnits) return Error(FlowchartIssue::IdentifierCapacity, start, at, FlowchartOutcome::Capacity);
+        for (entity = 0u; entity < model->nodes.size(); ++entity)
+            if (model->nodes[entity].key == id) return true;
+        if (model->nodes.size() == MaximumNodes) return Error(FlowchartIssue::NodeCapacity, start, at, FlowchartOutcome::Capacity);
+        FlowchartNode node;
+        node.identifier = node.declaration = {start, at};
+        node.key.assign(id); node.label.assign(id);
+        model->nodes.push_back(node);
+        return true;
+    }
+    bool ErEnd(std::size_t& at, std::size_t end, ErMultiplicity& result, std::wstring& label)
+    {
+        if (end - at < 2u) return Error(FlowchartIssue::UnsupportedEdge, at, end, FlowchartOutcome::Unsupported);
+        const auto token = Text().substr(at, 2u);
+        if (token == L"||") { result = ErMultiplicity::One; label.assign(L"1"); }
+        else if (token == L"o|" || token == L"|o") { result = ErMultiplicity::ZeroOrOne; label.assign(L"0..1"); }
+        else if (token == L"}|" || token == L"|{") { result = ErMultiplicity::OneOrMany; label.assign(L"1..*"); }
+        else if (token == L"}o" || token == L"o{") { result = ErMultiplicity::ZeroOrMany; label.assign(L"0..*"); }
+        else return Error(FlowchartIssue::UnsupportedEdge, at, at + 2u, FlowchartOutcome::Unsupported);
+        at += 2u;
+        return true;
+    }
     bool Statement(std::size_t end)
     {
         auto at = first;
@@ -589,11 +618,11 @@ struct NativeFlowchartParser::Preparation
                 header = true;
                 return true;
             }
-            if (line == L"stateDiagram-v2" || line == L"stateDiagram" || line == L"classDiagram" || line == L"sequenceDiagram")
+            if (line == L"stateDiagram-v2" || line == L"stateDiagram" || line == L"classDiagram" || line == L"sequenceDiagram" || line == L"erDiagram")
             {
-                model->family    = line == L"classDiagram"      ? NativeDiagramFamily::Class
+                model->family    = line == L"classDiagram" ? NativeDiagramFamily::Class
                                    : line == L"sequenceDiagram" ? NativeDiagramFamily::Sequence
-                                                                : NativeDiagramFamily::State;
+                                   : line == L"erDiagram" ? NativeDiagramFamily::EntityRelationship : NativeDiagramFamily::State;
                 model->direction = FlowchartDirection::TopBottom;
                 header           = true;
                 return true;
@@ -674,7 +703,7 @@ struct NativeFlowchartParser::Preparation
                 return Error(FlowchartIssue::UnsupportedStatement, groupStart, end, FlowchartOutcome::Unsupported);
             return OpenGroup(key, title, keyStart, groupStart, end);
         }
-        if (! classBlock && (statement == L"accDescr {" || statement == L"accDescr{"))
+        if (! classBlock && ! erBlock && (statement == L"accDescr {" || statement == L"accDescr{"))
         {
             if (descriptionSeen)
                 return Error(FlowchartIssue::UnsupportedStatement, at, end, FlowchartOutcome::Unsupported);
@@ -684,7 +713,7 @@ struct NativeFlowchartParser::Preparation
             return true;
         }
         for (const auto& [prefix, title] : {std::pair{std::wstring_view(L"accTitle:"), true}, std::pair{std::wstring_view(L"accDescr:"), false}})
-            if (! classBlock && statement.starts_with(prefix))
+            if (! classBlock && ! erBlock && statement.starts_with(prefix))
             {
                 auto& seen = title ? titleSeen : descriptionSeen;
                 if (seen)
@@ -703,6 +732,44 @@ struct NativeFlowchartParser::Preparation
                 seen = true;
                 return true;
             }
+        if (model->family == NativeDiagramFamily::EntityRelationship)
+        {
+            const auto start = at;
+            if (erBlock)
+            {
+                if (statement == L"}") { erBlock = false; return true; }
+                if (statement.find_first_of(L"{}\";") != std::wstring_view::npos)
+                    return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+                return ClassMember(erBlockNode, at, end);
+            }
+            std::size_t from{}, to{};
+            if (! ErEntity(at, end, from)) return false;
+            Skip(at, end);
+            if (at == end) return true;
+            if (at + 1u == end && Text()[at] == L'{')
+            {
+                erBlock = true; erBlockNode = from; erBlockStart = start;
+                return true;
+            }
+            FlowchartEdge edge;
+            edge.from = from; edge.source = {start, end};
+            if (! ErEnd(at, end, edge.erFrom, edge.fromCardinality)) return false;
+            if (Text().substr(at, 2u) == L"--") edge.style = FlowchartLineStyle::Solid;
+            else if (Text().substr(at, 2u) == L"..") edge.style = FlowchartLineStyle::Dotted;
+            else return Error(FlowchartIssue::UnsupportedEdge, at, end, FlowchartOutcome::Unsupported);
+            at += 2u;
+            if (! ErEnd(at, end, edge.erTo, edge.toCardinality)) return false;
+            if (! ErEntity(at, end, to)) return false;
+            edge.to = to;
+            Skip(at, end);
+            if (at == end || Text()[at++] != L':') return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+            Skip(at, end);
+            if (at == end) return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+            if (! PlainText(at, end, edge.label)) return false;
+            if (model->edges.size() == MaximumEdges) return Error(FlowchartIssue::EdgeCapacity, start, end, FlowchartOutcome::Capacity);
+            model->edges.push_back(edge);
+            return true;
+        }
         if (model->family == NativeDiagramFamily::Pie)
         {
             const auto start = at;
@@ -1386,12 +1453,9 @@ struct NativeFlowchartParser::Preparation
         {
             if (! comment && ! Statement(scan))
                 return;
-            if (classBlock || descriptionBlock || noteBlock || groupDepth)
+            if (classBlock || erBlock || descriptionBlock || noteBlock || groupDepth)
             {
-                const auto start = noteBlock          ? noteBlockStart
-                                   : descriptionBlock ? descriptionBlockStart
-                                   : classBlock       ? classBlockStart
-                                                      : model->groups[groupStack[groupDepth - 1u]].source.first;
+                const auto start = noteBlock ? noteBlockStart : descriptionBlock ? descriptionBlockStart : classBlock ? classBlockStart : erBlock ? erBlockStart : model->groups[groupStack[groupDepth - 1u]].source.first;
                 Error(FlowchartIssue::UnexpectedToken, start, scan);
                 return;
             }

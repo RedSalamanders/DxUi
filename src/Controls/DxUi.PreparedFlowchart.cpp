@@ -233,6 +233,8 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
         throw std::invalid_argument("Invalid sequence timeline model");
     if (! ValidPieModel(*graph))
         throw std::invalid_argument("Invalid native pie topology");
+    if (! ValidErModel(*graph))
+        throw std::invalid_argument("Invalid native entity relationship model");
     if (! graph->groups.empty() && graph->family != NativeDiagramFamily::Flowchart && graph->family != NativeDiagramFamily::State &&
         graph->family != NativeDiagramFamily::Class)
         throw std::invalid_argument("Groups require a supported diagram profile");
@@ -249,7 +251,8 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
               (node.noteTarget == MarkdownNoNode ? graph->family != NativeDiagramFamily::Class
                                                  : node.noteTarget >= graph->nodes.size() || graph->nodes[node.noteTarget].shape == FlowchartShape::Note))))
             throw std::invalid_argument("Invalid flowchart node label/shape");
-        if (node.compartmentCount > node.compartmentStarts.size() || (node.compartmentCount && graph->family != NativeDiagramFamily::Class))
+        if (node.compartmentCount > node.compartmentStarts.size() ||
+            (node.compartmentCount && graph->family != NativeDiagramFamily::Class && graph->family != NativeDiagramFamily::EntityRelationship))
             throw std::invalid_argument("Invalid class compartment count");
         for (std::size_t group = 0u; group < graph->groups.size(); ++group)
             if ((node.groupMask & (1u << group)) && (node.groupMask & graph->groups[group].parentMask) != graph->groups[group].parentMask)
@@ -261,14 +264,14 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
     }
     for (const auto& edge : graph->edges)
         if (edge.label.size() > NativeFlowchartParser::MaximumLabelUnits || edge.fromCardinality.size() > 32u || edge.toCardinality.size() > 32u ||
-            ((! edge.fromCardinality.empty() || ! edge.toCardinality.empty()) && graph->family != NativeDiagramFamily::Class) ||
+            ((! edge.fromCardinality.empty() || ! edge.toCardinality.empty()) && graph->family != NativeDiagramFamily::Class &&
+             graph->family != NativeDiagramFamily::EntityRelationship) ||
             edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() ||
-            (edge.openArrow && (graph->family != NativeDiagramFamily::Sequence || ! edge.arrow)) || edge.minimumRanks == 0u ||
-            edge.minimumRanks > NativeFlowchartParser::MaximumLinkRanks || edge.relation < FlowchartRelation::Line ||
-            edge.relation > FlowchartRelation::Composition ||
-            edge.arrow != (edge.relation != FlowchartRelation::Line && edge.relation != FlowchartRelation::Note) ||
-            (edge.relation == FlowchartRelation::Note &&
-             (graph->nodes[edge.to].shape != FlowchartShape::Note || graph->nodes[edge.to].noteTarget != edge.from)))
+            (edge.openArrow && (graph->family != NativeDiagramFamily::Sequence || ! edge.arrow)) ||
+            (graph->family != NativeDiagramFamily::EntityRelationship && (edge.erFrom != ErMultiplicity::None || edge.erTo != ErMultiplicity::None)) ||
+            edge.minimumRanks == 0u || edge.minimumRanks > NativeFlowchartParser::MaximumLinkRanks || edge.relation < FlowchartRelation::Line ||
+            edge.relation > FlowchartRelation::Composition || edge.arrow != (edge.relation != FlowchartRelation::Line && edge.relation != FlowchartRelation::Note) ||
+            (edge.relation == FlowchartRelation::Note && (graph->nodes[edge.to].shape != FlowchartShape::Note || graph->nodes[edge.to].noteTarget != edge.from)))
             throw std::invalid_argument("Invalid native flowchart edge");
     if (next_ && next_->state->Matches(write, drawing, graph, typography, resourceEpoch))
         return LayoutPreparationStatus::Pending;
@@ -571,6 +574,41 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
                 point + 1u == edge.path.size())
                 end = edge.diamond[2u];
             target->DrawLine(Point(edge.path[point - 1u]), Point(end), stroke, lineWidth, lineStyle);
+        }
+        if (state.graph->family == NativeDiagramFamily::EntityRelationship)
+        {
+            const auto endpoint = [&](bool last, ErMultiplicity cardinality) noexcept
+            {
+                const auto originPoint = last ? edge.path.back() : edge.path.front();
+                FlowchartPoint neighbour = originPoint;
+                for (std::size_t step = 1u; step < edge.path.size(); ++step)
+                {
+                    neighbour = last ? edge.path[edge.path.size() - 1u - step] : edge.path[step];
+                    if (neighbour.x != originPoint.x || neighbour.y != originPoint.y) break;
+                }
+                const auto length = std::hypot(neighbour.x - originPoint.x, neighbour.y - originPoint.y);
+                if (length <= 0.0) return;
+                const auto dx = (neighbour.x - originPoint.x) / length, dy = (neighbour.y - originPoint.y) / length;
+                const auto p = [&](double distance, double across) noexcept
+                { return Point({originPoint.x + dx * distance - dy * across, originPoint.y + dy * distance + dx * across}); };
+                const auto bar = [&](double distance) noexcept { target->DrawLine(p(distance, -4.0), p(distance, 4.0), stroke); };
+                const bool many = cardinality == ErMultiplicity::OneOrMany || cardinality == ErMultiplicity::ZeroOrMany;
+                const bool optional = cardinality == ErMultiplicity::ZeroOrOne || cardinality == ErMultiplicity::ZeroOrMany;
+                if (many)
+                {
+                    target->DrawLine(p(9.0, 0.0), p(2.0, -4.0), stroke);
+                    target->DrawLine(p(9.0, 0.0), p(2.0, 4.0), stroke);
+                }
+                else bar(4.0);
+                if (optional)
+                {
+                    const auto center = p(many ? 13.0 : 11.0, 0.0);
+                    target->DrawEllipse(D2D1::Ellipse(center, 2.f, 2.f), stroke);
+                }
+                else bar(many ? 13.0 : 9.0);
+            };
+            endpoint(false, edge.erFrom);
+            endpoint(true, edge.erTo);
         }
         if (edge.openArrow)
         {

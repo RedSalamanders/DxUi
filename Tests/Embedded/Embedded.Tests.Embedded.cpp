@@ -1797,6 +1797,7 @@ __declspec(noinline) static int RunFunctionalTests()
     PreparedFlowchartTests::GroupRaster(Check);
     PreparedFlowchartTests::SequenceRaster(Check);
     PreparedFlowchartTests::PieRaster(Check);
+    PreparedFlowchartTests::ErRaster(Check);
     PreparedFlowchartTests::StateNoteRaster(Check);
     TestRichTextCooperativeFailureDoesNotRetryAutomatically(gpu);
     TestRetainedRichTextSharedViewsAndResources(gpu);

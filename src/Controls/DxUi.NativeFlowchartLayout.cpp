@@ -758,16 +758,18 @@ struct NativeFlowchartLayout::Preparation
         const auto fromX = from.bounds.x + from.bounds.width / 2.0, toX = to.bounds.x + to.bounds.width / 2.0;
         // Unambiguous adjacent single-node ranks share a centerline; every
         // other route retains its exterior lane and rank-row corridors.
-        const auto cross       = direct[index] ? fromX
-                                 : back        ? Margin + leftWidth - laneOffset[index] - laneWidth[index]
-                                               : bandLeft + bandWidth + Margin + laneOffset[index];
-        placed.path            = {{{fromX, start}, {fromX, first}, {cross, first}, {cross, last}, {toX, last}, {toX, end}}};
-        placed.relation        = edge.relation;
-        placed.style           = edge.style;
-        placed.hasArrow        = edge.arrow;
-        const auto base        = end + (back ? Margin : -Margin);
-        placed.arrow           = {{{toX, end}, {toX - 4.0, base}, {toX + 4.0, base}}};
-        const auto middle      = end + (back ? 6.0 : -6.0);
+        const auto cross = direct[index] ? fromX
+                           : back        ? Margin + leftWidth - laneOffset[index] - laneWidth[index]
+                                         : bandLeft + bandWidth + Margin + laneOffset[index];
+        placed.path      = {{{fromX, start}, {fromX, first}, {cross, first}, {cross, last}, {toX, last}, {toX, end}}};
+        placed.relation  = edge.relation;
+        placed.style     = edge.style;
+        placed.erFrom    = edge.erFrom;
+        placed.erTo      = edge.erTo;
+        placed.hasArrow  = edge.arrow;
+        const auto base  = end + (back ? Margin : -Margin);
+        placed.arrow     = {{{toX, end}, {toX - 4.0, base}, {toX + 4.0, base}}};
+        const auto middle = end + (back ? 6.0 : -6.0);
         const auto diamondTail = end + (back ? 12.0 : -12.0);
         placed.diamond         = {{{toX, end}, {toX - 4.0, middle}, {toX, diamondTail}, {toX + 4.0, middle}}};
         placed.hasLabel        = ! edge.label.empty();
@@ -979,6 +981,8 @@ void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
         throw std::invalid_argument("Invalid sequence timeline model");
     if (! ValidPieModel(*graph))
         throw std::invalid_argument("Invalid pie chart topology");
+    if (! ValidErModel(*graph))
+        throw std::invalid_argument("Invalid entity relationship model");
     for (const auto& node : graph->nodes)
         if (node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Note ||
             (node.shape == FlowchartShape::Note &&
@@ -991,6 +995,7 @@ void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
             edge.minimumRanks > NativeFlowchartParser::MaximumLinkRanks || edge.relation < FlowchartRelation::Line ||
             edge.relation > FlowchartRelation::Composition || edge.style < FlowchartLineStyle::Solid || edge.style > FlowchartLineStyle::Invisible ||
             (edge.openArrow && (graph->family != NativeDiagramFamily::Sequence || ! edge.arrow)) ||
+            (graph->family != NativeDiagramFamily::EntityRelationship && (edge.erFrom != ErMultiplicity::None || edge.erTo != ErMultiplicity::None)) ||
             (edge.style == FlowchartLineStyle::Invisible && (edge.arrow || ! edge.label.empty())) ||
             edge.arrow != (edge.relation != FlowchartRelation::Line && edge.relation != FlowchartRelation::Note) ||
             (edge.relation == FlowchartRelation::Note &&

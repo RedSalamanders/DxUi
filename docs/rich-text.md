@@ -242,7 +242,7 @@ using an explicit document location:
 
 The native extension engine choice is C++ only. `DxUiNativeFlowchart1` currently
 has an internal CPU parser with focused Debug checks for rectangles, rounded nodes, circles,
-diamonds, stadiums, hexagons and subroutines, four directions and bounded solid, dotted, thick and invisible edge chains. Bounded state, class, sequence and pie profiles are also available; other Mermaid families,
+diamonds, stadiums, hexagons and subroutines, four directions and bounded solid, dotted, thick and invisible edge chains. Bounded state, class, sequence, pie and ER profiles are also available; other Mermaid families,
 other expanded shapes/edges, advanced subgraph forms, styling, icons and executable directives remain
 unsupported. The pinned original corpus distinguishes accepted graphs from
 rejected definitions. Source-independent cooperative CPU geometry passes focused
@@ -1507,6 +1507,11 @@ within `1..512` DIP. Source, selection, history and focus are preserved.
 `sourceMonospace` selects the code family for Source view, and `tabStopDip`
 sets an explicit tab interval independently of typed indentation. Both remain
 optional; existing Source view typography is preserved by default.
+The bounded `erDiagram` profile renders named entities, plain attribute blocks,
+solid/dotted relationships, labels and standard one/optional/many endpoint
+multiplicities as native bars, circles and crow's feet. Unsupported forms retain
+their complete source with a diagnostic.
+
 The bounded `pie` profile renders up to 16 unique quoted plain labels and nonnegative
 decimal values, with optional title and `showData`. Values have at most 15 integer
 digits and two fractional digits and require a positive total. Sectors follow
@@ -1520,7 +1525,7 @@ dashed lifelines and chronological messages are drawn natively; accessibility
 retains participant/message order and the exact fence. Notes, actors, activations,
 loops, directives and other syntax retain the full source with a diagnostic.
 
-Flowchart, state, class, sequence and pie diagrams accept one `accTitle: text` and one
+Flowchart, state, class, sequence, pie and ER diagrams accept one `accTitle: text` and one
 `accDescr: text` or multiline `accDescr {` / `accDescr{` block closed by a
 standalone `}`. Values are plain text, each bounded to 1024 UTF-16 units;
 multiline descriptions join trimmed physical lines with LF, retaining empty

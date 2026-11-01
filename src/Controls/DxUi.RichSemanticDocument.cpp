@@ -781,6 +781,7 @@ struct SemanticBuilder::Preparation
             const auto family = graph.family == Detail::NativeDiagramFamily::State   ? L"State diagram, "
                                 : graph.family == Detail::NativeDiagramFamily::Class ? L"Class diagram, "
                                 : graph.family == Detail::NativeDiagramFamily::Sequence ? L"Sequence diagram, "
+                                : graph.family == Detail::NativeDiagramFamily::EntityRelationship ? L"Entity relationship diagram, "
                                                                                      : L"Flowchart, ";
             const bool initialized = graph.family == Detail::NativeDiagramFamily::Pie
                                          ? DiagramAlternative({L"Pie chart: ", graph.pieTitle, L". Slices: "})
@@ -868,6 +869,13 @@ struct SemanticBuilder::Preparation
                                     edge.style == Detail::FlowchartLineStyle::Dotted ? Label(AccessibilityTextId::SequenceDottedEnd) : L"; "});
                 return;
             }
+            if (graph.family == Detail::NativeDiagramFamily::EntityRelationship)
+            {
+                DiagramAlternative({id(edge.from), L" [", edge.fromCardinality,
+                                    edge.style == Detail::FlowchartLineStyle::Dotted ? L"] non-identifying " : L"] identifying ",
+                                    edge.label, L" ", id(edge.to), L" [", edge.toCardinality, L"]; "});
+                return;
+            }
             if (edge.relation == Detail::FlowchartRelation::Note)
             {
                 DiagramAlternative({id(edge.from), Label(AccessibilityTextId::DiagramNote), graph.nodes[edge.to].label, L"; "});
@@ -922,6 +930,7 @@ struct SemanticBuilder::Preparation
                          : graph.family == Detail::NativeDiagramFamily::Class ? L"Class diagram. Source is available as document text."
                          : graph.family == Detail::NativeDiagramFamily::Sequence ? L"Sequence diagram. Source is available as document text."
                          : graph.family == Detail::NativeDiagramFamily::Pie ? L"Pie chart. Source is available as document text."
+                         : graph.family == Detail::NativeDiagramFamily::EntityRelationship ? L"Entity relationship diagram. Source is available as document text."
                                                                               : L"Flowchart. Source is available as document text.";
         if (! graph.accessibleTitle.empty())
         {

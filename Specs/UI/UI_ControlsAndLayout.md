@@ -1897,12 +1897,13 @@ remain accounted for. Independent subset expectations distinguish 32 admitted
 graphs from 73 unsupported definitions and record each issue and exact UTF-16 diagnostic range, including the documented stadium and
 the original endpoint-group fan-out examples.
 The family matrix separately identifies the limited flowchart, state, class and
-sequence and pie profiles, the example collection, and 16 unsupported diagram families. Generated
+sequence, pie and ER profiles, the example collection, and 15 unsupported diagram families. Generated
 first-example fixtures specify the exact expected outcome and diagnostic for all
 20 diagram-family documents: the state example prepares five nodes and six
 transitions; the class example prepares six nodes and four relationships, and
 the sequence example prepares two participants and three messages, and the pie
-example prepares three slices. The remaining 16 examples are unsupported-family fallbacks. These cases measure
+example prepares three slices, and the ER example prepares four entities and three
+relationships. The remaining 15 examples are unsupported-family fallbacks. These cases measure
 local subset coverage, not complete Mermaid family conformance. Original reference
 bytes and MIT notice remain under `ThirdParty/Markdown/mermaid-11.4.1`.
 
@@ -2344,7 +2345,16 @@ follow source order clockwise and use repeated theme-derived shades with a match
 ordered legend; `showData` includes the original value spelling in the legend.
 The accessible alternative exposes the title and all labels and values in order.
 
-Flowchart, state, class, sequence and pie diagrams accept one `accTitle: text` and one
+The bounded `erDiagram` profile accepts named entities, plain attribute blocks,
+solid identifying or dotted non-identifying relationships with plain labels, and
+the `||`, `o|`, `|o`, `}|`, `|{`, `}o` and `o{` endpoint multiplicities. Entity
+IDs may contain ASCII letters, digits, underscores and hyphens after the first
+character. Typed multiplicities use bars, circles and crow's feet in native
+geometry and are named in the accessible alternative. Unsupported forms retain
+the complete source with a diagnostic; diagram source, node, edge, label and
+extent budgets apply.
+
+Flowchart, state, class, sequence, pie and ER diagrams accept one `accTitle: text` and one
 `accDescr: text` or multiline `accDescr {` / `accDescr{` block closed by a
 standalone `}`. Values are plain text, each bounded to 1024 UTF-16 units;
 multiline descriptions join trimmed physical lines with LF, retaining empty
