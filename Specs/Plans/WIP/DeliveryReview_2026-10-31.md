@@ -3,7 +3,7 @@
 Status: ACTIVE. The 1 November worktree implements and tests the current-source DX repairs under
 [the delivery sequencer](CodeReview_2026-10-31.md). Individual acceptance rows remain open until their tests execute.
 Date: 2026-10-31.
-Source: `include/` and `src/` are byte-identical among this worktree `d98d7605` (`ej/code-review-20261030`), the delivery tip `f2940cc265db79458b6615492779b839c5c1b94a` (31 Oct 2026, merge of #152), and current `origin/main` `07ff5741cc0cbcd10f7aa5e9e120d0c4b0c16d92` (merge of #154). The commits after the delivery tip are CI evidence roots and a changelog fold. Line numbers below are that shared source.
+Historical review source (31 October): `include/` and `src/` were byte-identical among this worktree `d98d7605` (`ej/code-review-20261030`), the delivery tip `f2940cc265db79458b6615492779b839c5c1b94a` (31 Oct 2026, merge of #152), and then-current `origin/main` `07ff5741cc0cbcd10f7aa5e9e120d0c4b0c16d92` (merge of #154). The commits after the delivery tip are CI evidence roots and a changelog fold. Line numbers below are that shared source.
 Owning contracts: [input and accessibility](../../UI/UI_InputAndAccessibility.md), [controls and layout](../../UI/UI_ControlsAndLayout.md), [toolchain and consumption](../../Build/Build_ToolchainAndConsumption.md), and [embedded hosting](../../Rendering/Rendering_EmbeddedD3D11.md).
 Related records, which this plan does not re-implement: menu timer behavior already required by the input contract; [R28-05](CodeReview_2026-10-28.md) (the same native IME capacity hole); audit [editor-12](RichTextAudit_2026-10-21/findings.md) and checklist [W2.10](RichTextAudit_2026-10-21.md) (the same raw-Enter ending). This plan owns the DX-* library repair text. The full delivery sequence, including the P1s this plan does not schedule, is [the 15-day red-team](CodeReview_2026-10-31.md). Consumer WIPs own product bugs and re-pins.
 
@@ -140,3 +140,17 @@ Dropped as a ship item. The receipt overload of `DispatchCharacter` resets the r
 ## Validation when implementation starts
 
 Extend the existing menu, rich-text, tree, layout, catalog, and TagPicker tests named above. A new native test file uses `<Component>.Tests.Something.h/.cpp` and `Tests/native-test-files.json`. Run the affected `test.ps1` configurations for the files actually changed. The wall-compat ports are verified on those branches, not by a consumer pin of `f2940cc2`. Move this plan to Done only after the chosen items are implemented, their tests pass, and the Enter contract sentences are updated. DX-11 may stay unchecked if the ordinal assertions are not added. DX-7 stays in the note above.
+
+## Current-source disposition — 1 November 2026
+
+The source comparisons, consumer locks and DX finding descriptions above are
+historical to the review baseline. The 1 November delivery candidate contains
+repairs and focused tests for the DX work; individual rows remain open until
+source-specific implementation review and final validation establish them.
+The 31 October sequencer owns overlapping R28 and DX work, including the
+compatibility-branch ports; exact consumer adoption remains consumer-owned.
+The current r17 failures and subsequent candidate repairs are retained in that
+sequencer, not treated as a passing final run. Shared platform, physical-input,
+performance-policy and consumer qualification remains in
+[ConsumerUiQualification](ConsumerUiQualification_2026-10-11.md). No API
+revision change or historical failure erasure is implied.
