@@ -1198,6 +1198,9 @@ can highlight matches and apply replacements in one revision-checked edit.
 An editor context-menu callback receives focus first. Keyboard invocation retains
 the selection; a pointer invocation outside it moves the caret to the hit source
 position. Selection callback reentry that changes the target cancels the menu.
+Ctrl+Backspace and Ctrl+Delete erase to the preceding or following word boundary;
+rich-view deletion maps visible fragments through the structural source planner.
+An active source-edit session bounds word deletion to its own interval.
 
 A task press MUST stage an immutable current source plan without editing text.
 Only matching release inside its checkbox can apply it. Leaving the rectangle,

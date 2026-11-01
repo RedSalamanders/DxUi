@@ -2642,7 +2642,7 @@ void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool by
     state.preferredCaretX = preferredX;
     SelectionChanged(true, true);
 }
-bool RichTextEditor::Erase(ControlHost& host, bool backwards)
+bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord)
 {
     if (! Editable())
         return false;
@@ -2656,9 +2656,23 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards)
         auto first = selection.Start(), last = selection.End();
         if (first == last)
         {
-            const auto range = GetTextElementDeletionRange(source.Text(), selection.caret, backwards);
-            first            = range.first;
-            last             = range.last;
+            const auto text = source.Text();
+            if (byWord)
+            {
+                first = backwards ? FindPreviousWordBoundary(text, selection.caret) : selection.caret;
+                last  = backwards ? selection.caret : FindNextWordBoundary(text, selection.caret);
+                if (_state->sourceEditing)
+                {
+                    first = std::max(first, _state->sourceEditing->region.source.first);
+                    last  = std::min(last, _state->sourceEditing->region.source.last);
+                }
+            }
+            else
+            {
+                const auto range = GetTextElementDeletionRange(text, selection.caret, backwards);
+                first            = range.first;
+                last             = range.last;
+            }
         }
         const bool changed = _state->document.Replace(first, last, {}, {first, first});
         Changed(changed);
@@ -2705,9 +2719,12 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards)
             // instead use exact raw graphemes, including indivisible CRLF.
             if (geometry->IsCellSourceSite(selection.caret, _state->sourceCaretSite))
                 return false;
-            const auto source  = Snapshot();
-            const auto first   = backwards ? StepToPreviousTextElement(source.Text(), selection.caret) : selection.caret;
-            const auto last    = backwards ? selection.caret : StepToNextTextElement(source.Text(), selection.caret);
+            const auto source = Snapshot();
+            const auto text   = source.Text();
+            const auto first =
+                backwards ? (byWord ? FindPreviousWordBoundary(text, selection.caret) : StepToPreviousTextElement(text, selection.caret)) : selection.caret;
+            const auto last =
+                backwards ? selection.caret : (byWord ? FindNextWordBoundary(text, selection.caret) : StepToNextTextElement(text, selection.caret));
             const bool changed = _state->document.Replace(first, last, L"", {first, first});
             Changed(changed);
             return changed;
@@ -2719,7 +2736,10 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards)
             const auto& map     = document->Map();
             const auto position = map.ToDisplay(selection.caret);
             std::pair<size_t, size_t> range;
-            if (LayoutIsCurrent(host) && _state->layout.Semantic())
+            if (byWord)
+                range = backwards ? std::pair{FindPreviousWordBoundary(map.Display(), position), position}
+                                  : std::pair{position, FindNextWordBoundary(map.Display(), position)};
+            else if (LayoutIsCurrent(host) && _state->layout.Semantic())
                 range = _state->layout.DeletionRange(position, backwards);
             else
             {
@@ -2747,7 +2767,10 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards)
     if (! LayoutIsCurrent(host))
     {
         const auto projection = RichText::Project(Snapshot(), Revision(), _state->markdownRendering ? RichText::ViewMode::Source : _state->mode);
-        const auto range      = GetTextElementDeletionRange(projection.text, projection.ToDisplay(selection.caret), backwards);
+        const auto position   = projection.ToDisplay(selection.caret);
+        const auto range      = byWord ? (backwards ? TextElementRange{FindPreviousWordBoundary(projection.text, position), position}
+                                                    : TextElementRange{position, FindNextWordBoundary(projection.text, position)})
+                                       : GetTextElementDeletionRange(projection.text, position, backwards);
         if (range.first == range.last)
             return false;
         const auto first = projection.ToSource(range.first), last = projection.ToSource(range.last, true);
@@ -2758,7 +2781,9 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards)
     auto& state              = *_state;
     const auto& projection   = state.layout;
     const auto position      = projection.ToDisplay(selection.caret);
-    const auto [first, last] = state.layout.DeletionRange(position, backwards);
+    const auto [first, last] = byWord ? (backwards ? std::pair{FindPreviousWordBoundary(projection.DisplayText(), position), position}
+                                                   : std::pair{position, FindNextWordBoundary(projection.DisplayText(), position)})
+                                      : state.layout.DeletionRange(position, backwards);
     if (first == last)
         return false;
     const auto begin   = projection.ToSource(first);
@@ -3141,7 +3166,7 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                 }
                 return false;
             case VK_BACK:
-            case VK_DELETE: static_cast<void>(Erase(host, key == VK_BACK)); return true;
+            case VK_DELETE: static_cast<void>(Erase(host, key == VK_BACK, control)); return true;
             case VK_LEFT:
             case VK_RIGHT:
             case VK_UP:

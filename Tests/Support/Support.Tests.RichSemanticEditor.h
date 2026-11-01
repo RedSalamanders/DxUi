@@ -325,6 +325,13 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     Check(editor->OnKeyDown(host, VK_TAB, 0u) && editor->GetText().starts_with(L"\tone"), "source Tab can insert a literal tab");
     tabAppearance.sourceTabUsesTabs = false;
     editor->SetAppearance(tabAppearance);
+    editor->SetText(L"alpha beta");
+    editor->SetSelection({10u, 10u});
+    Check(editor->OnKeyDown(host, VK_BACK, MK_CONTROL) && editor->GetText() == L"alpha " && editor->Undo() && editor->GetText() == L"alpha beta",
+          "Ctrl+Backspace deletes a whole source word in one undo transaction");
+    editor->SetSelection({0u, 0u});
+    Check(editor->OnKeyDown(host, VK_DELETE, MK_CONTROL) && editor->GetText() == L"beta" && editor->Undo(),
+          "Ctrl+Delete deletes the next source word in one undo transaction");
     editor->SetViewMode(ViewMode::Rich);
     editor->SetText(L"```\nabc\n```\n");
     prepare();
