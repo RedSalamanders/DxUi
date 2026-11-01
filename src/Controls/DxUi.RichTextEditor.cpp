@@ -5134,6 +5134,15 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
             return false;
         _state->pendingLeadSurrogate = 0;
         const bool control = ModifiersContainCtrl(modifiers), shift = ModifiersContainShift(modifiers);
+        if (! ModifiersContainAlt(modifiers))
+        {
+            if (key == VK_INSERT && control && ! shift)
+                return OnKeyDown(host, 'C', MK_CONTROL);
+            if (key == VK_INSERT && shift && ! control)
+                return OnKeyDown(host, 'V', MK_CONTROL);
+            if (key == VK_DELETE && shift && ! control)
+                return OnKeyDown(host, 'X', MK_CONTROL);
+        }
         if (control || key == VK_ESCAPE || key == VK_RETURN || key == VK_TAB || key == VK_F2 || key == VK_LEFT || key == VK_RIGHT || key == VK_UP ||
             key == VK_DOWN || key == VK_HOME || key == VK_END || key == VK_PRIOR || key == VK_NEXT)
         {
@@ -5398,11 +5407,16 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                     const auto focus     = host.GetFocusControl();
                     TextClipboardContent content;
                     const bool available = host.ReadClipboardContent(
-                        content, bool(_state->htmlPasteConverter) && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich);
+                        content, ! shift && bool(_state->htmlPasteConverter) && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich);
                     if (available && ! lifetime.expired() && GetHost() == &host && host.GetFocusControl() == focus && _state->bindingRevision == binding &&
                         Revision() == revision && _state->imageLocationRevision == location && GetSelection() == selection)
                     {
-                        if (! content.filePaths.empty())
+                        if (shift)
+                        {
+                            if (! content.text.empty())
+                                static_cast<void>(ReplaceSelection(std::move(content.text)));
+                        }
+                        else if (! content.filePaths.empty())
                             static_cast<void>(ApplyClipboardFilePaste(content));
                         else
                         {

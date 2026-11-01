@@ -140,6 +140,8 @@ High-contrast pixel qualification and performance evidence remain delivery gates
 tab when `sourceTabUsesTabs` is set. Ctrl+Tab remains host traversal. Optional
 Markdown shortcuts use Ctrl+Shift+0–6 for heading clear/levels, Ctrl+Shift+X for
 strike, Ctrl+backtick for code and Ctrl+K for the consumer's link-edit request.
+Ctrl+Insert copies, Shift+Insert pastes and Shift+Delete cuts. Ctrl+Shift+V
+pastes Unicode text directly without the optional HTML, file or URL conversion.
 The feature is disabled by default. `QueryMarkdownCommandState` returns current
 style/heading/list presentation without allocation. Applicability is unknown
 when neither an immediate proof nor an exact prepared result is available.

@@ -2002,6 +2002,9 @@ raw fence range. Source changes and presentation withdrawal retire old children.
 F2 and guarded UIA Invoke enter an acknowledged code/HTML/metadata or math object's
 exact source in place. Esc, F2 or Ctrl+Enter leaves that presentation. Enabled
 read-only owners permit source inspection; edits still require an editable owner.
+The editor accepts Ctrl+Insert for copy, Shift+Insert for paste and Shift+Delete
+for cut. Ctrl+Shift+V inserts the clipboard's Unicode text without optional
+HTML, file-reference or URL conversion, subject to ordinary edit and composition guards.
 F2 also opens a Markdown link or image's exact inline envelope. Its UIA
 ExpandCollapse action enters and exits that presentation; a link's Invoke retains
 its navigation action. Native HTML links and images do not use this inline action.

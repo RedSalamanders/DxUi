@@ -792,6 +792,20 @@ void TestRichTextEditorClipboardAtomicityAndSourceContract()
     Require(window.Host().CopyTextToClipboard(std::wstring(1, wchar_t(0xd800))), "transport fixture can supply malformed UTF-16");
     static_cast<void>(raw->OnKeyDown(window.Host(), 'V', MK_CONTROL));
     Require(raw->Revision() == revision && IsValidUtf16(raw->GetText()), "malformed paste rejected without edit");
+    raw->SetText(L"hello");
+    raw->SetSelection({0u, 5u});
+    Require(raw->OnKeyDown(window.Host(), VK_INSERT, MK_CONTROL) && clipboard.text == L"hello", "Ctrl+Insert copies the selected source");
+    Require(raw->OnKeyDown(window.Host(), VK_DELETE, MK_SHIFT) && raw->GetText().empty(), "Shift+Delete cuts the selected source");
+    Require(raw->OnKeyDown(window.Host(), VK_INSERT, MK_SHIFT) && raw->GetText() == L"hello", "Shift+Insert pastes the copied source");
+    raw->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    raw->SetMarkdownRenderingEnabled(true);
+    auto appearance = raw->GetAppearance();
+    appearance.pasteUrlOnSelection = true;
+    raw->SetAppearance(appearance);
+    raw->SetSelection({0u, 5u});
+    clipboard.text = L"https://example.invalid";
+    Require(raw->OnKeyDown(window.Host(), 'V', MK_CONTROL | MK_SHIFT) && raw->GetText() == clipboard.text,
+            "Ctrl+Shift+V pastes literal Unicode instead of transforming a URL selection");
     clipboard.text      = L"replacement";
     const auto original = raw->GetText();
     clipboard.afterRead = [&] { raw->SetSelection({1, 1}); };
