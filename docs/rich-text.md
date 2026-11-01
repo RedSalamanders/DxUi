@@ -137,6 +137,8 @@ style/heading/list presentation and explicitly unknown applicability where a
 nonallocating planner predicate is not yet available.
 During an active or indeterminate native composition, every structural command
 reports unavailable while its current style presentation remains visible.
+Task, table and strikethrough commands also report unavailable when the active
+dialect disables their corresponding extensions.
 List state considers the complete selected source interval, including nested
 and intervening list kinds, using an allocation-free syntax traversal. Beyond
 64 nested items, parent-link recovery may add work proportional to ancestor depth.

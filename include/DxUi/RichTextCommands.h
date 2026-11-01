@@ -55,6 +55,8 @@ enum class MarkdownTextStyle
     Strikethrough,
     Code
 };
+// Shared extension admission only; source and payload checks remain separate.
+bool IsCommandFeatureEnabled(const MarkdownSyntax& syntax, MarkdownCommand command, MarkdownTextStyle style, MarkdownListKind listKind) noexcept;
 enum class MarkdownCommandStatus
 {
     Unavailable,

@@ -577,6 +577,23 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     Check(headingJoin && headingJoin->available == std::optional<bool>{true} &&
               editor->ExecuteMarkdownCommand(stateRequest) == MarkdownCommandStatus::Changed && editor->GetText() == L"title\n" && editor->Undo(),
           "join state and execution agree on removing a document-level heading");
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::CommonMark0312);
+    editor->SetText(L"- a\n");
+    prepare();
+    editor->SetSelection({2u, 2u});
+    for (const auto command : {MarkdownCommand::ToggleTask, MarkdownCommand::SetList, MarkdownCommand::InsertTable,
+                               MarkdownCommand::DeleteTableColumn, MarkdownCommand::ToggleStyle})
+    {
+        MarkdownCommandRequest disabled;
+        disabled.command = command;
+        disabled.listKind = MarkdownListKind::Task;
+        disabled.style = MarkdownTextStyle::Strikethrough;
+        const auto disabledState = editor->QueryMarkdownCommandState(disabled);
+        Check(disabledState && disabledState->available == std::optional<bool>{false} &&
+                  editor->ExecuteMarkdownCommand(disabled) == MarkdownCommandStatus::Unavailable,
+              "disabled dialect features are unavailable in both command state and execution");
+    }
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
     editor->SetText(L"~~~\nx\n~~~\n");
     prepare();
     editor->SetSelection({4u, 4u});

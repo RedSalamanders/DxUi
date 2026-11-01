@@ -120,6 +120,17 @@ bool CanInsertThematicBreak(const MarkdownSyntax& syntax, Selection selection) n
 {
     return InspectThematicBreak(syntax, selection).has_value();
 }
+bool IsCommandFeatureEnabled(const MarkdownSyntax& syntax, MarkdownCommand command, MarkdownTextStyle style, MarkdownListKind listKind) noexcept
+{
+    const auto extensions = syntax.Extensions();
+    if (command == MarkdownCommand::ToggleTask || (command == MarkdownCommand::SetList && listKind == MarkdownListKind::Task))
+        return HasMarkdownExtension(extensions, MarkdownExtensions::TaskLists);
+    if (command == MarkdownCommand::ToggleStyle && style == MarkdownTextStyle::Strikethrough)
+        return HasMarkdownExtension(extensions, MarkdownExtensions::Strikethrough);
+    if (command >= MarkdownCommand::InsertTable && command <= MarkdownCommand::PreviousTableCell)
+        return HasMarkdownExtension(extensions, MarkdownExtensions::Tables);
+    return true;
+}
 static MarkdownRange JoinVisibleBody(const MarkdownSyntax& syntax, std::size_t leaf) noexcept
 {
     const auto& block = syntax.Nodes()[leaf].block.content;
@@ -2027,7 +2038,7 @@ void MarkdownCommandPlanner::SetList(const MarkdownCommandRequest& request)
         throw std::invalid_argument("Invalid Markdown list kind");
     if (request.listStart && *request.listStart > 999999999u)
         throw std::out_of_range("Ordered list start exceeds nine digits");
-    if (request.listKind == MarkdownListKind::Task && ! HasMarkdownExtension(plan.syntax_->Extensions(), MarkdownExtensions::TaskLists))
+    if (! IsCommandFeatureEnabled(*plan.syntax_, MarkdownCommand::SetList, MarkdownTextStyle::Strong, request.listKind))
         return;
     const auto items = SelectedItems();
     auto number      = request.listStart.value_or(1u);
@@ -2152,7 +2163,7 @@ void MarkdownCommandPlanner::SetList(const MarkdownCommandRequest& request)
 }
 void MarkdownCommandPlanner::Task()
 {
-    if (! HasMarkdownExtension(plan.syntax_->Extensions(), MarkdownExtensions::TaskLists))
+    if (! IsCommandFeatureEnabled(*plan.syntax_, MarkdownCommand::ToggleTask, MarkdownTextStyle::Strong, MarkdownListKind::None))
         return;
     const auto items = SelectedItems();
     if (items.size() > 1u)
@@ -2474,7 +2485,7 @@ void MarkdownCommandPlanner::Style(MarkdownTextStyle style)
     if (style != MarkdownTextStyle::Strong && style != MarkdownTextStyle::Emphasis && style != MarkdownTextStyle::Strikethrough &&
         style != MarkdownTextStyle::Code)
         throw std::invalid_argument("Invalid Markdown text style");
-    if (style == MarkdownTextStyle::Strikethrough && ! HasMarkdownExtension(plan.syntax_->Extensions(), MarkdownExtensions::Strikethrough))
+    if (! IsCommandFeatureEnabled(*plan.syntax_, MarkdownCommand::ToggleStyle, style, MarkdownListKind::None))
         return;
     std::size_t leaf{};
     if (! InlineSelection(leaf))
@@ -2847,7 +2858,7 @@ void MarkdownCommandPlanner::Link(const MarkdownCommandRequest& request, bool re
 }
 void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
 {
-    if (! HasMarkdownExtension(plan.syntax_->Extensions(), MarkdownExtensions::Tables))
+    if (! IsCommandFeatureEnabled(*plan.syntax_, request.command, MarkdownTextStyle::Strong, MarkdownListKind::None))
         return;
     const auto emptyRow = [](std::size_t columns, bool delimiter)
     {
