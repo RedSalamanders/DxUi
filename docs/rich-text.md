@@ -1929,7 +1929,7 @@ transformation is implied.
 Standalone RichMarkdown images may use an immediately adjacent bounded suffix,
 for example `![map](map.png){width=48 height=40 align=center caption="Map overview"}`.
 Dimensions are optional integer DIPs (1–4096), alignment is left/center/right,
-and an optional plain caption is explicit. One dimension preserves intrinsic
+and an optional plain caption is explicit; it excludes quotes, backslashes, control characters and closing braces. One dimension preserves intrinsic
 aspect ratio. Unsupported or malformed suffixes stay literal, and CommonMark and
 GFM keep this spelling literal. The image and suffix form one atomic source owner;
 the caption is generated display text anchored to its authored source and F2

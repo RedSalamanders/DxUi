@@ -2765,7 +2765,7 @@ RichMarkdown admits a bounded presentation suffix immediately after a standalone
 image: `{width=48 height=40 align=center caption="Map overview"}`. Fields are
 optional, unique and space-separated; dimensions are integer DIPs from 1 through
 4096, alignment is left, center or right, and the explicit plain caption is
-1–256 UTF-16 units without control characters, quotes or backslashes. A single
+1–256 UTF-16 units without control characters, quotes, backslashes or closing braces. A single
 dimension preserves intrinsic aspect ratio; two set the authored size before
 normal viewport-fit admission. Unknown, duplicate, malformed or non-standalone
 suffixes remain ordinary literal source. CommonMark and GFM do not consume the
