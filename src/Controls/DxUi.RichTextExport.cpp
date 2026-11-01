@@ -363,6 +363,24 @@ public:
         const auto elements = document.Elements();
         if (selected.first == selected.last)
             return;
+        // Browsers supply list markers. A partial generated marker must be
+        // exported as text rather than combined with another browser marker.
+        for (const auto& paragraph : document.Paragraphs())
+        {
+            const auto first = paragraph.display.first;
+            const auto last  = paragraph.markerEnd;
+            if (paragraph.markerOwner != MarkdownNoNode && first < last && selected.first < last && selected.last > first &&
+                (selected.first > first || selected.last < last))
+            {
+                std::wstring text(0u, L' ');
+                Text(text);
+                Open(result, L"pre");
+                Escape(result, text);
+                Close(result, L"pre");
+                Append(result, L"\n");
+                return;
+            }
+        }
         while (! pending.empty())
         {
             const auto visit = pending.back();

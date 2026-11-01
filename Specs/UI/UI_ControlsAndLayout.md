@@ -1876,6 +1876,10 @@ HTML heading IDs MUST use the published collision-resolved heading slugs. Local
 fragment links without a target in the selected export, and unresolved wiki
 targets, MUST remain inert text. Display line breaks outside preformatted blocks
 MUST be emitted as HTML line-break elements.
+When a display selection intersects only part of a generated list marker,
+HTML uses a flat preformatted block containing the selected rendered text, so
+the browser preserves whitespace and cannot add a second marker; this fallback drops rich structure for
+that selection and still replaces native objects with their text alternatives.
 
 `autoParagraphDirection` is an opt-in semantic layout policy. Each paragraph
 uses the first Unicode 17 strong L, R or AL scalar outside nested bidi isolates.

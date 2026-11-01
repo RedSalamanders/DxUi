@@ -90,6 +90,25 @@ template <typename Check> void Core(Check&& check)
     check(secondItem.Text() == L"second" && secondItem.HtmlFragment().find(L"<ol start=\"6\">") != std::wstring_view::npos &&
               secondItem.HtmlFragment().find(L"first") == std::wstring_view::npos,
           "a partial ordered list retains the selected item's ordinal without exporting earlier items");
+    for (const auto sourceText : {std::wstring_view(L"- alpha\n"), std::wstring_view(L"12. alpha\n")})
+    {
+        const auto list = RichSemanticDocumentTests::Build(sourceText, MarkdownProfile::RichMarkdown);
+        const auto listDisplay = list->Map().Display();
+        const auto contentStart = listDisplay.find(L"alpha");
+        check(contentStart != listDisplay.npos && contentStart >= 2u, "list fixture has a generated multi-unit marker");
+        if (contentStart == listDisplay.npos || contentStart < 2u)
+            continue;
+        for (const auto selection : {MarkdownRange{0u, 1u}, MarkdownRange{1u, contentStart},
+                                     MarkdownRange{1u, contentStart + 5u}, MarkdownRange{0u, contentStart - 1u}})
+        {
+            const auto selectedList = ExportSemanticDocument(*list, selection);
+            const auto expected = listDisplay.substr(selection.first, selection.last - selection.first);
+            const auto fragment = selectedList.HtmlFragment();
+            check(selectedList.Text() == expected && fragment.starts_with(L"<pre>") && fragment.ends_with(L"</pre>\n") &&
+                      fragment.substr(5u, fragment.size() - 12u) == expected && fragment.find(L"<li>") == fragment.npos,
+                  "partial list markers export once as flat text, for marker-only and marker-plus-content ranges");
+        }
+    }
     const auto unsafe = ExportSemanticDocument(*RichSemanticDocumentTests::Build(L"<script>alert(1)</script>\n", MarkdownProfile::RichMarkdown));
     check(unsafe.HtmlFragment().find(L"<script") == unsafe.HtmlFragment().npos && unsafe.HtmlFragment().find(L"&lt;script&gt;") != unsafe.HtmlFragment().npos,
           "untrusted literal HTML never becomes an executable export tag");
