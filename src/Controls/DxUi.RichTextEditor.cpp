@@ -418,7 +418,7 @@ bool RichTextEditor::TryPrepareFileReferencesAt(const TextClipboardContent& cont
     if (const auto at = source.find_first_of(L"\r\n"); at != source.npos)
         eol = source.substr(at, source[at] == L'\r' && at + 1u < source.size() && source[at + 1u] == L'\n' ? 2u : 1u);
     std::optional<RichText::Detail::FileReferenceContext> context;
-    if (content.filePaths.size() > 1u && syntax && ! syntax->SourceRegion() && _state->markdownRendering && _state->mode == ViewMode::Rich &&
+    if (content.filePaths.size() > 1u && syntax && ! syntax->SourceRegion() && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich &&
         ! _state->sourceEditing)
     {
         auto* host           = GetHost();
