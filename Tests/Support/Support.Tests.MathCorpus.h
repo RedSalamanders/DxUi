@@ -1039,6 +1039,8 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     }
     for (const auto source : {L"\\text{\\'{ab}}", L"\\text{\\'}", L"\\text{\\cafe}"})
         check(! ParseMath(source), "unsupported or incomplete text accents preserve the complete source");
+    for (const auto source : {L"\\genfrac ( ] {2pt}{1}a{a+1}", L"{a\\above{2pt} b+1}", L"\\genfrac\\langle\\rangle{0pt}{}{a}{b}"})
+        check(static_cast<bool>(ParseMath(source)), "pinned KaTeX general-fraction delimiter and grouped-dimension forms parse completely");
     const auto binomial = ParseMath(L"\\binom{n}{k}");
     check(binomial && binomial.root.children.size() == 1u && binomial.root.children[0u].kind == MathKind::Matrix &&
               binomial.root.children[0u].text == L"pmatrix" && binomial.root.children[0u].columns == 1u && binomial.root.children[0u].children.size() == 2u,

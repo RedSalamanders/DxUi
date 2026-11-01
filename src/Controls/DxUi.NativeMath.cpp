@@ -581,13 +581,20 @@ class Parser
             return arrow;
 
     }
+    std::wstring GeneralFractionDelimiter()
+    {
+        Space();
+        if (at < source.size() && source[at] == L'{')
+            return GroupText();
+        return std::wstring(1u, Delimiter());
+    }
     MathNode GeneralFraction(unsigned depth)
     {
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
 #endif
-        const auto left = GroupText();
-        const auto right = GroupText();
+        const auto left = GeneralFractionDelimiter();
+        const auto right = GeneralFractionDelimiter();
         const auto rule = GroupText();
         const auto style = GroupText();
         const auto delimiter = [](std::wstring_view value) -> wchar_t
@@ -1249,6 +1256,13 @@ class Parser
     std::wstring RuleDimensionSource()
     {
         Space();
+        if (at < source.size() && source[at] == L'{')
+        {
+            const auto dimension = GroupText();
+            if (! Detail::ParseMathDimension(dimension))
+                Reject(MathIssue::UnsupportedCommand);
+            return std::wstring(dimension);
+        }
         const auto first = at;
         while (at < source.size() && ((source[at] >= L'0' && source[at] <= L'9') || source[at] == L'.'))
             ++at;
