@@ -3319,8 +3319,7 @@ static void TestEmbeddedImageResources(GraphicsFixture& gpu)
     const auto sizedImage = std::ranges::find(sizedDocument->Elements(), RichText::SemanticRole::Image, &RichText::SemanticElement::role);
     Check(sizedImage != sizedDocument->Elements().end(), "authored SVG retains its image owner");
     const auto sizedBounds = editor->GetSemanticElementBounds(view.Controls(), static_cast<std::size_t>(sizedImage - sizedDocument->Elements().begin()));
-    Check(sizedBounds && std::abs(sizedBounds->right - sizedBounds->left - 48.f) < .02f &&
-              std::abs(sizedBounds->bottom - sizedBounds->top - 40.f) < .02f,
+    Check(sizedBounds && std::abs(sizedBounds->right - sizedBounds->left - 48.f) < .02f && std::abs(sizedBounds->bottom - sizedBounds->top - 40.f) < .02f,
           "authored SVG uses its non-square 48 by 40 geometry");
     gpu.Bind();
     Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "compose authored SVG geometry");
