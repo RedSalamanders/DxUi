@@ -1406,8 +1406,9 @@ operator limit policy in its typed model. Variables are italic by default; numbe
 text groups and named operators are upright. Binary atoms at unary positions use
 ordinary spacing. Explicit math atom wrappers, display/text/script declarations,
 `limits`/`nolimits`, starred `operatorname`, sized `big`/`Big`/`bigg`/`Bigg` delimiters,
-and `tilde`/`widetilde` are admitted. Text groups collapse source whitespace and
-remove grouping braces while retaining escaped literal braces. Matrix rows may
+and `tilde`/`widetilde` are admitted. Escaped `\|` produces a double vertical bar
+as an ordinary atom and as a scalable or sized delimiter. Text groups collapse
+source whitespace and remove grouping braces while retaining escaped literal braces. Matrix rows may
 have a trailing separator; gathered rows have one column and cases at most two.
 Unsupported commands remain local exact source. This is a named native profile,
 not a claim of all KaTeX functions or identical TeX font metrics and glyph assemblies. Prepared math reads bounded OpenType MATH italic corrections and selects adequate precomposed vertical delimiter variants when the active Cambria Math face supplies them; variants fit the allocated width. Missing, truncated, oversized or unavailable variants use the existing vector fallback. Glyph assemblies and variable-font device corrections are not implemented. The at-most-4-MiB MATH snapshot and glyph-indexed lookup data are shared within one geometry generation; painting performs no font-table reads.

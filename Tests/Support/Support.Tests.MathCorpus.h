@@ -234,6 +234,17 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
               prime.root.children[0u].children[2u].text == L"′′",
           "prime runs are superscripts on the preceding atom and coexist with subscripts");
     check(! ParseMath(L"f'^2"), "a prime followed by a second superscript is rejected rather than misrendered");
+    const auto norm = ParseMath(L"\\|x\\|");
+    check(norm && norm.root.children.size() == 3u && norm.root.children[0u].text == L"‖" && norm.root.children[2u].text == L"‖",
+          "escaped double vertical bars render independently as norm atoms");
+    const auto scalableNorm = ParseMath(L"\\left\\|x\\right\\|");
+    check(scalableNorm && scalableNorm.root.children.size() == 1u && scalableNorm.root.children[0u].kind == MathKind::Delimited &&
+              scalableNorm.root.children[0u].text == L"‖‖",
+          "both scalable norm delimiters retain their double-bar glyph identity");
+    const auto sizedNorm = ParseMath(L"\\big\\|");
+    check(sizedNorm && sizedNorm.root.children.size() == 1u && sizedNorm.root.children[0u].kind == MathKind::Delimiter &&
+              sizedNorm.root.children[0u].text == L"‖" && sizedNorm.root.children[0u].delimiterSize == 1u,
+          "sized norm delimiter preserves its double-bar glyph and requested size");
     const auto binomial = ParseMath(L"\\binom{n}{k}");
     check(binomial && binomial.root.children.size() == 1u && binomial.root.children[0u].kind == MathKind::Matrix &&
               binomial.root.children[0u].text == L"pmatrix" && binomial.root.children[0u].columns == 1u && binomial.root.children[0u].children.size() == 2u,

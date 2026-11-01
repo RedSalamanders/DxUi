@@ -538,6 +538,8 @@ class Parser
                 const auto escaped = source[at++];
                 if (std::wstring_view(L",;:! ").find(escaped) != source.npos)
                     return Make(MathKind::Space, std::wstring(1, escaped));
+                if (escaped == L'|')
+                    return Make(MathKind::Text, L"‖");
                 if (std::wstring_view(L"{}%_$&#").find(escaped) != source.npos)
                     return Make(MathKind::Text, std::wstring(1, escaped));
             }
