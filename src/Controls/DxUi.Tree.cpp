@@ -529,6 +529,13 @@ void Tree::InvalidateTreeTextMeasurementCaches() const noexcept
     _tooltipOverflowCache.resolvedTooltipText.clear();
 }
 
+void Tree::PropagateHost(ControlHost* host) noexcept
+{
+    if (GetHost() != host)
+        InvalidateTreeTextMeasurementCaches();
+    Control::PropagateHost(host);
+}
+
 void Tree::SetEmptyStateText(std::wstring text)
 {
     if (_emptyStateText == text)
@@ -1585,11 +1592,27 @@ bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
             return false;
         if (! TryControlCallback([&] { model->GetVisibleItem(_hoveredVisibleIndex.value(), item); }) || ! guard.IsCurrent())
             return false;
-        const TreeItemLayoutMetrics layout = ComputeItemLayoutMetrics(host, _hoveredVisibleIndex.value(), item);
-        if (! guard.IsCurrent())
-            return false;
-        std::wstring tooltipText = ResolveCachedTreeTooltipText(host, _hoveredVisibleIndex.value(), item, layout);
-        tooltipChanged           = tooltipText.empty() ? host.BeginTooltipHideDelay() : host.SetTooltip(std::move(tooltipText), point);
+        std::wstring tooltipText;
+        if (! item.tooltipText.empty())
+            tooltipText = item.tooltipText;
+        else if (const auto& cache = _tooltipOverflowCache;
+                 cache.valid && cache.host == &host && cache.interactionRevision == host.GetInteractionRevision() &&
+                 cache.typographyRevision == host.GetTypographyRevision() && cache.resourceGeneration == host.GetResourceGeneration() &&
+                 cache.visibleIndex == _hoveredVisibleIndex.value() && cache.itemId == item.id && cache.text == item.text && cache.tooltipText.empty())
+            tooltipText = cache.resolvedTooltipText;
+        else
+        {
+#if DXUI_ENABLE_DIAGNOSTICS
+            ++_debugTooltipGeometryCount;
+#endif
+            const TreeItemLayoutMetrics layout = ComputeItemLayoutMetrics(host, _hoveredVisibleIndex.value(), item);
+            if (! guard.IsCurrent())
+                return false;
+            tooltipText = ResolveCachedTreeTooltipText(host, _hoveredVisibleIndex.value(), item, layout);
+            if (! guard.IsCurrent())
+                return false;
+        }
+        tooltipChanged = tooltipText.empty() ? host.BeginTooltipHideDelay() : host.SetTooltip(std::move(tooltipText), point);
     }
     else
     {
@@ -2408,6 +2431,10 @@ std::wstring Tree::ResolveCachedTreeTooltipText(const ControlHost& host,
     if (cache.valid && cache.visibleIndex == visibleIndex && cache.itemId == item.id && cache.text == item.text && cache.tooltipText == item.tooltipText &&
         cache.textFormat == textFormat && cache.availableWidthDip == availableWidthDip)
     {
+        cache.host                = &host;
+        cache.interactionRevision = host.GetInteractionRevision();
+        cache.typographyRevision  = host.GetTypographyRevision();
+        cache.resourceGeneration  = host.GetResourceGeneration();
         return cache.resolvedTooltipText;
     }
 
@@ -2456,6 +2483,10 @@ std::wstring Tree::ResolveCachedTreeTooltipText(const ControlHost& host,
     cache.textFormat          = textFormat;
     cache.availableWidthDip   = availableWidthDip;
     cache.resolvedTooltipText = resolvedTooltipText;
+    cache.host                = &host;
+    cache.interactionRevision = host.GetInteractionRevision();
+    cache.typographyRevision  = host.GetTypographyRevision();
+    cache.resourceGeneration  = host.GetResourceGeneration();
     return cache.resolvedTooltipText;
 }
 

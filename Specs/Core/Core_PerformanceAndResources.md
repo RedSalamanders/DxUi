@@ -6,6 +6,8 @@ failure preserves the previously published selection. Repeated IDs occur only on
 requested visible ID remains focus and anchor. Hash membership is expected linear, not an adversarial worst-case bound.
 Tree pointer hit testing computes the expander lane without shaping badge text or changing the badge measurement cache;
 paint and input share the same lane geometry, including reserved-space and right-to-left layouts.
+Repeated hover on the same unchanged Tree row reuses its tooltip geometry; explicit tooltip text bypasses badge and
+overflow measurement. Model presentation, host, typography, resource or interaction changes invalidate that reuse.
 Icon-only button preparation validates tree membership at entry. Later reentrant boundaries check the owner and root
 lifetimes, host, root identity and interaction revision before accessing or publishing control state.
 Button shortcut width is prepared and cached by host, typography, resources and reading direction; painting uses the

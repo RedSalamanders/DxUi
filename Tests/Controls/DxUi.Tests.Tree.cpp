@@ -1694,8 +1694,15 @@ void TestTreeHoveredClippedTextShowsFullTextTooltip()
     Require(host.HasTooltip(), "tree clipped-text hover shows a full-text tooltip");
     Require(host.GetTooltipText() == clippedText, "tree clipped-text tooltip uses the full item text");
 
+    const auto geometryCount = tree->DebugGetTooltipGeometryCount();
+    Require(geometryCount != 0u, "the first overflow tooltip checks row geometry");
     Require(tree->OnMouseMove(host, hoverPoint, 0), "tree repeated clipped-text hover remains handled");
     Require(host.GetTooltipText() == clippedText, "tree repeated clipped-text hover keeps the full item tooltip");
+    Require(tree->DebugGetTooltipGeometryCount() == geometryCount, "a repeated hover reuses tooltip geometry without measuring a badge");
+    model.SetVisibleItems({TreeItemData{.id = 1u, .text = clippedText, .badgeText = L"badge", .tooltipText = L"Explicit help"}});
+    tree->NotifyDataChanged();
+    Require(tree->OnMouseMove(host, hoverPoint, 0) && host.GetTooltipText() == L"Explicit help", "explicit tooltip survives a badge change");
+    Require(tree->DebugGetTooltipGeometryCount() == geometryCount, "explicit tooltip needs neither badge nor overflow geometry");
 }
 
 } // namespace

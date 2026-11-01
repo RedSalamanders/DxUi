@@ -4610,6 +4610,10 @@ public:
                                               TreeDebugRowVisualState& out) const noexcept;
     [[nodiscard]] TreeScrollbarVisualState DebugGetScrollbarVisualState(const ThemePalette& theme) const noexcept;
     [[nodiscard]] float DebugGetVerticalScrollDip() const noexcept;
+    [[nodiscard]] size_t DebugGetTooltipGeometryCount() const noexcept
+    {
+        return _debugTooltipGeometryCount;
+    }
     [[nodiscard]] size_t DebugGetFirstVisibleIndex() const noexcept;
     [[nodiscard]] std::optional<size_t> DebugGetSelectedVisibleIndex() const noexcept;
     // The item whose rows are sliding open or closed, while that animation runs.
@@ -4636,6 +4640,7 @@ public:
     bool OnSelectAll(ControlHost& host) override;
     void OnDensityChanged() noexcept override;
     void OnBoundsChanged() noexcept override;
+    void PropagateHost(ControlHost* host) noexcept override;
 
 private:
     enum class HitZone : uint8_t
@@ -4680,6 +4685,8 @@ private:
         IDWriteTextFormat* textFormat = nullptr;
         float availableWidthDip       = 0.0f;
         std::wstring resolvedTooltipText;
+        const ControlHost* host = nullptr;
+        uint64_t interactionRevision{}, typographyRevision{}, resourceGeneration{};
     };
 
     enum class ScrollbarHotPart : uint8_t
@@ -4795,6 +4802,9 @@ private:
     std::optional<TreeExpansionAnimationState> _treeExpansionAnimation;
     mutable std::vector<TreeBadgeWidthCacheEntry> _badgeWidthCache;
     mutable TreeTooltipOverflowCache _tooltipOverflowCache;
+#if DXUI_ENABLE_DIAGNOSTICS
+    size_t _debugTooltipGeometryCount{};
+#endif
     ScrollbarHotPart _verticalScrollbarHotPart = ScrollbarHotPart::None;
     ScrollbarAnimationState _verticalScrollbarAnimation{};
     bool _dragVerticalThumb = false;
