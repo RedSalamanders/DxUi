@@ -8529,6 +8529,36 @@ void TestMenuAcrylicBackdropScenarioEmitsMetrics()
                             S_OK);
 }
 
+void TestRichEditorDefaultContextMenuDispatch()
+{
+    using namespace DxUi;
+    AttachedHostWindow owner;
+    SetWindowPos(owner.Hwnd(), nullptr, 160, 160, 420, 300, SWP_NOZORDER | SWP_NOACTIVATE);
+    auto editor  = std::make_unique<RichTextEditor>(L"word");
+    auto* target = editor.get();
+    editor->SetBounds(D2D1::RectF(8, 8, 320, 160));
+    const RichTextContextMenuLabels labels{L"Undo", L"Redo", L"Cut", L"Copy", L"Paste", L"Select all", L"Bold", L"Italic"};
+    editor->SetDefaultContextMenuLabels(&labels);
+    owner.Host().SetRoot(std::move(editor));
+    ShowWindow(owner.Hwnd(), SW_SHOWNOACTIVATE);
+    owner.PumpMessages();
+    owner.Host().SetFocusControl(target, false);
+    Require(target->OnContextMenu(owner.Host(), true, D2D1::Point2F(8, 8)), "rich default context menu opens");
+    const auto dismiss = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(owner.Hwnd()); });
+    const HWND popup   = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Undo");
+    Require(popup != nullptr, "rich default menu popup appears");
+    D2D1_RECT_F item{};
+    Require(WaitForContextMenuPopupItemRect(popup, 5u, item), "rich Select all menu row has geometry");
+    const float dpi = static_cast<float>(GetDpiForWindow(popup));
+    POINT center{static_cast<LONG>(std::lround((item.left + item.right) * 0.5f * dpi / USER_DEFAULT_SCREEN_DPI)),
+                 static_cast<LONG>(std::lround((item.top + item.bottom) * 0.5f * dpi / USER_DEFAULT_SCREEN_DPI))};
+    Require(ClientToScreen(popup, &center) != FALSE, "rich context action maps to screen coordinates");
+    static_cast<void>(SendCapturedMouseMessageForMenuSuite(popup, WM_LBUTTONDOWN, MK_LBUTTON, center));
+    static_cast<void>(SendCapturedMouseMessageForMenuSuite(popup, WM_LBUTTONUP, 0, center));
+    owner.PumpMessages();
+    Require(target->GetSelection() == RichText::Selection{0u, 4u} && WaitForWindowDestroyed(popup), "rich menu dispatch selects text and closes");
+}
+
 void TestContextMenuShowAsyncKeepsOwnerPaintableWhileOpen()
 {
     using namespace DxUi;
@@ -12530,6 +12560,7 @@ void RunMenuTests()
         DxUi::Ui::AnimationDispatcher::GetInstance().Shutdown();
     runTest("TestContextMenuDebugCaptureBoundsWedgedWindowThread", TestContextMenuDebugCaptureBoundsWedgedWindowThread);
     runTest("TestContextMenuShowAsyncKeepsOwnerPaintableWhileOpen", TestContextMenuShowAsyncKeepsOwnerPaintableWhileOpen);
+    runTest("TestRichEditorDefaultContextMenuDispatch", TestRichEditorDefaultContextMenuDispatch);
     runTest("TestContextMenuRootMinimumWidthUsesAnchorAndAllowsContentExpansion", TestContextMenuRootMinimumWidthUsesAnchorAndAllowsContentExpansion);
     runTest("TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets", TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets);
     runTest("TestContextMenuShowAsyncSubmenuCloseKeepsSessionAlive", TestContextMenuShowAsyncSubmenuCloseKeepsSessionAlive);
