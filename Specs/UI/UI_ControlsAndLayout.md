@@ -2048,6 +2048,12 @@ native object's minimum and share remaining width according to their wrappable
 content. Only when the summed minima exceed the viewport are those minima reduced
 proportionally, allowing DirectWrite's emergency character breaks. Tables draw
 horizontal row rules without vertical cell borders.
+Opt-in `tableOverflow` on the editor appearance or pure layout options preserves
+those minima even when they exceed the viewport. The retained width includes the
+complete table; both reading directions use nonnegative physical coordinates so
+the editor's horizontal scroll API can reach every cell. With the option off,
+tables retain viewport-bounded emergency wrapping. This view option never rewrites
+source alignment markers or column definitions.
 RTL placement and explicit cell alignment remain supported. Standalone diagrams
 and display-only mathematical paragraphs center through prepared DWrite geometry,
 so source hit testing and caret placement agree with drawing. Inline math retains

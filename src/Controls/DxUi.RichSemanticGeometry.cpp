@@ -324,9 +324,9 @@ struct MarkdownDecorations
 };
 bool SameOptions(const LayoutOptions& a, const LayoutOptions& b) noexcept
 {
-    return a.tabStopDip == b.tabStopDip && a.widthDip == b.widthDip && a.fontSizeDip == b.fontSizeDip && a.codeFontSizeDip == b.codeFontSizeDip &&
-           a.lineHeightMultiplier == b.lineHeightMultiplier && a.headingScaleStep == b.headingScaleStep && a.fontFamily == b.fontFamily &&
-           a.codeFontFamily == b.codeFontFamily && a.headingFontSizeDip == b.headingFontSizeDip &&
+    return a.tableOverflow == b.tableOverflow && a.tabStopDip == b.tabStopDip && a.widthDip == b.widthDip && a.fontSizeDip == b.fontSizeDip &&
+           a.codeFontSizeDip == b.codeFontSizeDip && a.lineHeightMultiplier == b.lineHeightMultiplier && a.headingScaleStep == b.headingScaleStep &&
+           a.fontFamily == b.fontFamily && a.codeFontFamily == b.codeFontFamily && a.headingFontSizeDip == b.headingFontSizeDip &&
            a.headingLineHeightMultiplier == b.headingLineHeightMultiplier && a.paragraphSpacingAfterLines == b.paragraphSpacingAfterLines &&
            a.listItemSpacingDip == b.listItemSpacingDip && a.semanticSpacing == b.semanticSpacing && a.locale == b.locale &&
            a.readingDirection == b.readingDirection && a.textAlignment == b.textAlignment && a.markdownPresentation == b.markdownPresentation &&
@@ -407,6 +407,7 @@ struct PreparedSemanticGeometry::State
           bounds(document->Elements().size()),
           sourceLines(0u) // Fallible size constructor: MSVC Debug's noexcept default allocates an iterator proxy.
     {
+        width = options.widthDip;
         if (options.markdownPresentation == MarkdownPresentationStyle::Subtle)
         {
             decorations = std::make_unique<MarkdownDecorations>();
@@ -465,7 +466,7 @@ struct PreparedSemanticGeometry::State
     std::vector<std::size_t> nodeElements;
     std::vector<std::optional<D2D1_RECT_F>> bounds;
     std::vector<std::pair<std::size_t, std::size_t>> sourceLines;
-    float height{};
+    float height{}, width{};
     std::size_t reusedBoxes{};
     const SemanticBox& BoxAt(std::size_t position) const
     {
@@ -1012,7 +1013,7 @@ struct PreparedSemanticGeometry::Preparation
             // First preserve each column's widest nonbreaking word/object.
             // Remaining width is shared by its capacity to wrap. Only when
             // even the summed minima do not fit do we permit emergency breaks.
-            sizing.compressMinimum = sizing.minimumTotal > available;
+            sizing.compressMinimum = sizing.minimumTotal > available && ! state->options.tableOverflow;
             const auto flexible    = sizing.preferredTotal - sizing.minimumTotal;
             sizing.scale           = sizing.compressMinimum ? available / sizing.minimumTotal
                                      : flexible > 0.0f      ? std::clamp((available - sizing.minimumTotal) / flexible, 0.0f, 1.0f)
@@ -1174,7 +1175,7 @@ struct PreparedSemanticGeometry::Preparation
                     float tableWidth{};
                     for (const float width : sizing->widths)
                         tableWidth += width;
-                    box->x += box->width - tableWidth + preceding;
+                    box->x += (next.options.tableOverflow ? std::max(0.0f, box->width - tableWidth) : box->width - tableWidth) + preceding;
                 }
                 else
                     box->x += preceding;
@@ -1553,6 +1554,7 @@ struct PreparedSemanticGeometry::Preparation
             rowLeft                            = std::min(rowLeft, left);
             rowRight                           = std::max(rowRight, left + cellWidth);
             box.frame                          = D2D1::RectF(left, y, left + cellWidth, y + rowHeight + 12.0f);
+            next.width                         = std::max(next.width, box.frame.right);
             next.bounds[box.paragraph.element] = box.frame;
             return;
         }
@@ -2185,6 +2187,10 @@ std::uint64_t PreparedSemanticGeometry::Revision() const noexcept
 float PreparedSemanticGeometry::Height() const noexcept
 {
     return state_ ? state_->height : 0.0f;
+}
+float PreparedSemanticGeometry::Width() const noexcept
+{
+    return state_ ? state_->width : 0.0f;
 }
 std::size_t PreparedSemanticGeometry::BoxCount() const noexcept
 {

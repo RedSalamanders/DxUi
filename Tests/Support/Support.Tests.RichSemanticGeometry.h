@@ -885,6 +885,17 @@ inline void MarkdownSubtlePresentation()
         const auto caret      = minimumTable.SourceCaret(wordSource);
         Check(caret.height > 0.0f && minimumTable.HitTestSource(caret.x, caret.y + caret.height * .5f).position == wordSource,
               "minimum-width allocation keeps the source caret aligned with its cell");
+        minimumOptions.widthDip      = 80.0f;
+        minimumOptions.tableOverflow = true;
+        minimumTable.Begin(factory.get(), minimumDocument, minimumOptions);
+        Complete(minimumTable);
+        const auto overflow = minimumTable.ElementBounds(static_cast<std::size_t>(cell - cells.begin()));
+        Check(overflow && overflow->left >= 0.0f && overflow->right - overflow->left + .1f >= wordMinimum + 12.0f && minimumTable.Width() > 80.0f,
+              "opt-in table overflow preserves minimum content widths and a positive physical extent in either direction");
+        minimumOptions.tableOverflow = false;
+        minimumTable.Begin(factory.get(), minimumDocument, minimumOptions);
+        Complete(minimumTable);
+        Check(minimumTable.Width() <= 80.1f, "disabling overflow retires oversized widths and restores bounded wrapping");
     }
     for (const auto [width, direction] : {std::pair{520.0f, DWRITE_READING_DIRECTION_LEFT_TO_RIGHT},
                                           std::pair{230.0f, DWRITE_READING_DIRECTION_LEFT_TO_RIGHT},
