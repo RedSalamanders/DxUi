@@ -233,6 +233,17 @@ NOT rewrite failed records, hide a real suite/lease failure or claim aggregate w
 Every invocation also runs the populated complex-UI benchmark through `performance.ps1` and includes FPS/memory
 scenarios and the performance receipt path in each suite receipt. `-PerformanceBaseline` requires a matched
 comparison and fails for a suspected regression or invalid evidence; no baseline is explicitly `unpaired`.
+The opt-in `-ParallelSuites` value is 1–8, defaulting to serial execution. The
+canonical runner holds its existing native-artifact lock and before/after captures,
+runs build, filter/watchdog checks and performance serially, and then schedules only
+non-foreground suite children concurrently. Each has independent raw stdout/stderr,
+a combined UTF-8 log and its own receipt; a nonzero child, skip policy violation or
+output-drain failure remains a failure. Stream logs retain their original bytes;
+the combined log places stdout before stderr and uses UTF-8 or Windows OEM decoding.
+Duplicate suite names are refused in parallel mode. Owned children are terminated on
+runner failure; foreground suites remain serial under their one restoring lease and
+do not overlap the ordinary batch. Specifying this option selects the lower-level
+suite runner; `-Full -ParallelSuites 4` explicitly requests the full normal set.
 `-Interactive` selects the control suites that need the real desktop and runs them under the desktop lease after all of this
 (see Interactive tests below); no other option or run reaches the lease.
 Use the [performance contract](../Core/Core_PerformanceAndResources.md) for before/after acceptance and regression advice.

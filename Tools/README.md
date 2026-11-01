@@ -11,6 +11,10 @@ validators and the tooling tests in turn and reports every failure before it fai
 before native probes or self-checks. Fixed top-level timing records diagnose orchestration and do not qualify native performance.
 After successful suite and evidence completion, `test.ps1` clears an expected nested probe's stale native exit
 status. Callers still use fresh-process completion or immediate invocation success; failures remain errors.
+`test.ps1 -Full -ParallelSuites 4` opts into at most four concurrent non-foreground suite processes; the default
+is one. Build, performance and native preflights precede the batch. Foreground suites keep their serial lease.
+Each child has its own raw stdout/stderr and combined suite log, and normal suite receipts and artifact ownership
+still apply. Passing `-ParallelSuites` directly selects the lower-level suite runner; use `-Full` to make full scope explicit.
 Canonical benchmark output retains its logical evidence path; only the native Windows argv uses
 an idempotent extended-length drive/UNC spelling, including long Unicode paths. The v2 gates and failures remain unchanged.
 The independent Windows tooling job allows 20 minutes for compiler preparation, all tooling (including real paired-project
@@ -18,6 +22,7 @@ metadata regression) and the ASan runtime check; this operational allowance chan
 
 | Tool | Purpose |
 | --- | --- |
+| ParallelSuites.psm1, tests/Test-ParallelSuites.ps1 | Bounded owned-child scheduling and independent overlap, failure, logging, argument and cleanup checks for the opt-in native suite batch. |
 | Release-Changelog.ps1 | Generates a separate exact release heading from already folded Unreleased notes; supports read-only `-WhatIf` and preserves prior history. |
 | Generate-NativeMathSymbols.ps1 | Offline, hash-verified generation of the bounded native math symbol classes from pinned KaTeX source; `-Check` compares without writing. |
 | Generate-MetadataCorpus.ps1 | Offline, hash-verified regeneration of the pinned TOML 1.0 and YAML validity vectors; `-Check` compares without writing. The native tests exclude multi-document YAML and identify duplicate-key representation cases. |
