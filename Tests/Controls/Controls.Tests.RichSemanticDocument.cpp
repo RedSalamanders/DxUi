@@ -16,6 +16,19 @@
 
 namespace
 {
+std::wstring MathLeafText(const DxUi::RichText::MathNode& root)
+{
+    std::wstring text;
+    const auto append = [&](auto&& self, const DxUi::RichText::MathNode& node) -> void
+    {
+        if (node.kind == DxUi::RichText::MathKind::Text)
+            text += node.text;
+        for (const auto& child : node.children)
+            self(self, child);
+    };
+    append(append, root);
+    return text;
+}
 void TestRichTextInertExportAndClipboard()
 {
     RichTextExportTests::Core(Require);
@@ -25,7 +38,7 @@ void TestRichMathTextWhitespaceAndPreparation()
     using namespace DxUi::RichText;
     const auto expression = std::make_shared<const MathExpression>(ParseMath(L"\\text{speed\r\n in\t {m/s}}"));
     Require(static_cast<bool>(*expression), "text-mode whitespace remains accepted mathematical source");
-    Require(expression->root.children.size() == 1u && expression->root.children[0u].text == L"speed in m/s",
+    Require(expression->root.children.size() == 1u && MathLeafText(expression->root) == L"speed in m/s",
             "TeX text groups collapse source whitespace and omit grouping braces before shaping");
     Detail::PreparedMath paint(PreparedFlowchartTests::WriteFactory().get(), expression, 24.f);
     unsigned turns{};
@@ -62,16 +75,7 @@ void TestRichMathLimitModifiersAndSymbolIdentity()
     for (const auto source : {L"\\limits x", L"x\\nolimits_2", L"\\sum\\limits\\nolimits_2"})
         Require(! ParseMath(source), "limit modifiers without one eligible operator reject instead of changing another atom");
     const auto symbols = ParseMath(L"\\epsilon\\varepsilon\\phi\\varphi\\cdot");
-    std::wstring text;
-    const auto append = [&](auto&& self, const MathNode& node) -> void
-    {
-        if (node.kind == MathKind::Text)
-            text += node.text;
-        for (const auto& child : node.children)
-            self(self, child);
-    };
-    append(append, symbols.root);
-    Require(symbols && text == L"\u03f5\u03b5\u03d5\u03c6\u22c5", "TeX variant Greek letters and centered dot preserve their distinct identities");
+    Require(symbols && MathLeafText(symbols.root) == L"\u03f5\u03b5\u03d5\u03c6\u22c5", "TeX variant Greek letters and centered dot preserve their distinct identities");
 }
 void TestRichMathExplicitDelimiterRecognition()
 {

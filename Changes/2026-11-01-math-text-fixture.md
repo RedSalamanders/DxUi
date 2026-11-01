@@ -1,0 +1,1 @@
+- Verify normalized mathematical text across nested text-mode groups while preserving exact whitespace and symbol assertions.
