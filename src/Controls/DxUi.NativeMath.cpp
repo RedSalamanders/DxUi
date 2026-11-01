@@ -727,6 +727,8 @@ class Parser
             if (unit == L'}')
             {
                 flush();
+                if (children.size() == 1u)
+                    return std::move(children[0u]);
                 return Make(MathKind::Row, L"", std::move(children));
             }
             if (unit == L'$')
@@ -769,7 +771,7 @@ class Parser
                     activeColor.append(Detail::EncodeNativeColor(color.value()));
                 }
                 else if (name == L"textcolor" || name == L"colorbox" || name == L"fcolorbox")
-                    append(ColorCommand(name, depth + 1u, true));
+                    append(ColorCommand(name, depth, true));
                 else if (name == L"textbf" || name == L"textit" || name == L"textrm")
                     append(Make(MathKind::Style, name == L"textbf" ? L"mathbf" : name == L"textit" ? L"mathit" : L"mathrm",
                                 {TextColorBody(depth + 1u)}));

@@ -178,6 +178,12 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     };
     compareColoredSpacing(L"a\\textcolor{blue}{+}b", L"a+b");
     compareColoredSpacing(L"\\color{blue}{2+}3", L"2+3");
+    std::wstring nestedColor(0u, L' ');
+    for (std::size_t depth = 0u; depth < MathMaximumGroupDepth; ++depth)
+        nestedColor.append(L"\\colorbox{white}{");
+    nestedColor += L'x';
+    nestedColor.append(MathMaximumGroupDepth, L'}');
+    check(static_cast<bool>(ParseMath(nestedColor)), "author-color text groups admit the published nesting boundary");
     check(Detail::OptionalMathFontOperation(S_OK) && ! Detail::OptionalMathFontOperation(DWRITE_E_UNSUPPORTEDOPERATION),
           "optional math font operation falls back only for unsupported operations");
     bool outOfMemoryPropagated = false;
