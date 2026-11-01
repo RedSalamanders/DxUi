@@ -6684,17 +6684,22 @@ bool RichTextEditor::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT) n
                 return true;
             const auto lifetime = GetLifetimeToken();
             const auto callback = _state->onSourceDragRequested;
+            const auto selection = GetSelection();
+            const auto selectionEpoch = _state->document.selectionEpoch_;
+            const auto revision = Revision();
+            const auto snapshot = Snapshot();
             _state->sourceMovePress = _state->dragging = false;
             host.ReleaseMouseCapture();
-            if (lifetime.expired() || GetHost() != &host || ! callback || _state->onSourceDragRequested != callback)
+            if (lifetime.expired() || GetHost() != &host || ! callback || _state->onSourceDragRequested != callback ||
+                Revision() != revision || _state->document.selectionEpoch_ != selectionEpoch || GetSelection() != selection ||
+                ! Snapshot().IsSameRevision(snapshot))
                 return true;
             const auto move = BeginSourceMove();
             if (! move)
                 return true;
             try
             {
-                const auto selection = GetSelection();
-                const auto text = Snapshot().Slice(selection.Start(), selection.End());
+                const auto text = snapshot.Slice(selection.Start(), selection.End());
                 try
                 {
                     (*callback)(*move, text);
