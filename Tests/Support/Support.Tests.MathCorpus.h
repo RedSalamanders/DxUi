@@ -202,6 +202,46 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         THROW_IF_FAILED(factory->CreateFontFace(face->GetType(), 1u, &sourceFilePointer, face->GetIndex(), DWRITE_FONT_SIMULATIONS_OBLIQUE, simulated.put()));
         check(! Detail::SameMathFontFile(face.get(), simulated.get()),
               "the same SDK font file with synthetic oblique cannot borrow normal-face MATH kerning");
+        std::array<wchar_t, MAX_PATH> windowsDirectory{};
+        const UINT windowsLength = GetWindowsDirectoryW(windowsDirectory.data(), static_cast<UINT>(windowsDirectory.size()));
+        check(windowsLength > 0u && windowsLength < windowsDirectory.size(), "variable font fixture resolves the Windows font directory");
+        std::wstring variablePath(windowsDirectory.data(), windowsLength);
+        variablePath.append(L"\\Fonts\\SegUIVar.ttf");
+        wil::com_ptr<IDWriteFontFile> variableFile;
+        THROW_IF_FAILED(factory->CreateFontFileReference(variablePath.c_str(), nullptr, variableFile.put()));
+        BOOL variableSupported{};
+        DWRITE_FONT_FILE_TYPE variableFileType{};
+        DWRITE_FONT_FACE_TYPE variableFaceType{};
+        UINT32 variableFaces{};
+        THROW_IF_FAILED(variableFile->Analyze(&variableSupported, &variableFileType, &variableFaceType, &variableFaces));
+        check(variableSupported && variableFaces > 0u, "variable font fixture opens a supported system font");
+        auto* variableFilePointer = variableFile.get();
+        wil::com_ptr<IDWriteFontFace> variableFace;
+        THROW_IF_FAILED(factory->CreateFontFace(variableFaceType, 1u, &variableFilePointer, 0u, DWRITE_FONT_SIMULATIONS_NONE, variableFace.put()));
+        wil::com_ptr<IDWriteFontFace5> variableFace5;
+        THROW_IF_FAILED(variableFace->QueryInterface(IID_PPV_ARGS(variableFace5.put())));
+        wil::com_ptr<IDWriteFontResource> variableResource;
+        THROW_IF_FAILED(variableFace5->GetFontResource(variableResource.put()));
+        const auto variableCount = variableResource->GetFontAxisCount();
+        check(variableCount > 0u && variableCount <= 64u, "variable font fixture exposes bounded axes");
+        std::array<DWRITE_FONT_AXIS_VALUE, 64u> variableAxes{};
+        std::array<DWRITE_FONT_AXIS_RANGE, 64u> variableRanges{};
+        THROW_IF_FAILED(variableResource->GetDefaultFontAxisValues(variableAxes.data(), variableCount));
+        THROW_IF_FAILED(variableResource->GetFontAxisRanges(variableRanges.data(), variableCount));
+        wil::com_ptr<IDWriteFontFace5> defaultInstance, alternateInstance;
+        THROW_IF_FAILED(variableResource->CreateFontFace(DWRITE_FONT_SIMULATIONS_NONE, variableAxes.data(), variableCount, defaultInstance.put()));
+        bool changedAxis{};
+        for (UINT32 axis = 0u; axis < variableCount; ++axis)
+            if (variableRanges[axis].maxValue > variableRanges[axis].minValue)
+            {
+                variableAxes[axis].value = variableAxes[axis].value == variableRanges[axis].maxValue ? variableRanges[axis].minValue : variableRanges[axis].maxValue;
+                changedAxis = true;
+                break;
+            }
+        check(changedAxis, "variable font fixture supplies a nonconstant axis");
+        THROW_IF_FAILED(variableResource->CreateFontFace(DWRITE_FONT_SIMULATIONS_NONE, variableAxes.data(), variableCount, alternateInstance.put()));
+        check(Detail::SameMathFontFile(defaultInstance.get(), defaultInstance.get()) && ! Detail::SameMathFontFile(defaultInstance.get(), alternateInstance.get()),
+              "same-file variable font instances match only at identical canonical axes");
         wil::com_ptr<IDWriteTextFormat> fallbackFormat;
         THROW_IF_FAILED(factory->CreateTextFormat(
             L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 24.f, L"en-us", fallbackFormat.put()));
