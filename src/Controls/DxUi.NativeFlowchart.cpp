@@ -778,8 +778,8 @@ struct NativeFlowchartParser::Preparation
             {
                 reverse       = Text()[at] == L'<';
                 edge.arrow    = true;
-                edge.relation = FlowchartRelation::Inheritance;
                 edge.style    = Text()[at + (reverse ? 2u : 0u)] == L'.' ? FlowchartLineStyle::Dotted : FlowchartLineStyle::Solid;
+                edge.relation = edge.style == FlowchartLineStyle::Dotted ? FlowchartRelation::Realization : FlowchartRelation::Inheritance;
                 at += 4u;
             }
             else

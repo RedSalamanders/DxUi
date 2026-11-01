@@ -1,0 +1,1 @@
+- Describe class realization as implementation in the accessible graph alternative.

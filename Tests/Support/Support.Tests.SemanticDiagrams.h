@@ -114,6 +114,12 @@ template <typename Check> inline void Core(Check&& check)
         check(*expectedHelp ? element.title == expectedHelp : element.title.find(L"Connections:") != std::wstring::npos,
               "diagram help uses the authored description or generated graph summary");
     }
+    {
+        const auto doc = Build(L"```mermaid\nclassDiagram\nInterface <|.. Implementation\n```", check);
+        const auto diagrams = SemanticExtensionAccess::Diagrams(*doc);
+        check(diagrams.size() == 1u && doc->Elements()[diagrams.front().element].name.find(L"Implementation implements Interface") != std::wstring::npos,
+              "class realization exposes implementation semantics in the accessible alternative");
+    }
     for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029})
     {
         const auto doc = Build(scenarios[0u].source, check, profile);

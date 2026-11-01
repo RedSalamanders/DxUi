@@ -532,7 +532,7 @@ void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
     for (const auto& edge : graph->edges)
         if (edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() || edge.minimumRanks == 0u ||
             edge.minimumRanks > NativeFlowchartParser::MaximumLinkRanks || edge.relation < FlowchartRelation::Line ||
-            edge.relation > FlowchartRelation::Inheritance || edge.style < FlowchartLineStyle::Solid || edge.style > FlowchartLineStyle::Invisible ||
+            edge.relation > FlowchartRelation::Realization || edge.style < FlowchartLineStyle::Solid || edge.style > FlowchartLineStyle::Invisible ||
             (edge.style == FlowchartLineStyle::Invisible && (edge.arrow || ! edge.label.empty())) || edge.arrow != (edge.relation != FlowchartRelation::Line))
             throw std::invalid_argument("Invalid flowchart layout edge");
     for (const auto value : nodeLabels)

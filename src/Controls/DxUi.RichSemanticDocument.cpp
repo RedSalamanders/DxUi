@@ -804,12 +804,13 @@ struct SemanticBuilder::Preparation
                 return;
             }
             const auto& edge = graph.edges[work.cursor++];
-            if (edge.relation == Detail::FlowchartRelation::Inheritance)
+            if (edge.relation == Detail::FlowchartRelation::Inheritance || edge.relation == Detail::FlowchartRelation::Realization)
             {
+                const auto action = edge.relation == Detail::FlowchartRelation::Realization ? L" implements " : L" inherits ";
                 if (edge.label.empty())
-                    DiagramAlternative({id(edge.from), L" inherits ", id(edge.to), L"; "});
+                    DiagramAlternative({id(edge.from), action, id(edge.to), L"; "});
                 else
-                    DiagramAlternative({id(edge.from), L" (", edge.label, L") inherits ", id(edge.to), L"; "});
+                    DiagramAlternative({id(edge.from), L" (", edge.label, L")", action, id(edge.to), L"; "});
             }
             else if (edge.label.empty())
                 DiagramAlternative({id(edge.from), edge.arrow ? L" \u2192 " : L" \u2014 ", id(edge.to), L"; "});

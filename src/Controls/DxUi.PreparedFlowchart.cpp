@@ -203,7 +203,7 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
     for (const auto& edge : graph->edges)
         if (edge.label.size() > NativeFlowchartParser::MaximumLabelUnits || edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() ||
             edge.minimumRanks == 0u || edge.minimumRanks > NativeFlowchartParser::MaximumLinkRanks || edge.relation < FlowchartRelation::Line ||
-            edge.relation > FlowchartRelation::Inheritance || edge.arrow != (edge.relation != FlowchartRelation::Line))
+            edge.relation > FlowchartRelation::Realization || edge.arrow != (edge.relation != FlowchartRelation::Line))
             throw std::invalid_argument("Invalid native flowchart edge");
     if (next_ && next_->state->Matches(write, drawing, graph, typography, resourceEpoch))
         return LayoutPreparationStatus::Pending;
@@ -413,13 +413,14 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
         for (std::size_t point = 1u; point < edge.path.size(); ++point)
         {
             auto end = edge.path[point];
-            if (edge.relation == FlowchartRelation::Inheritance && state.arrowPaths[index] && point + 1u == edge.path.size())
+            if ((edge.relation == FlowchartRelation::Inheritance || edge.relation == FlowchartRelation::Realization) && state.arrowPaths[index] &&
+                point + 1u == edge.path.size())
                 end = {(edge.arrow[1u].x + edge.arrow[2u].x) / 2.0, (edge.arrow[1u].y + edge.arrow[2u].y) / 2.0};
             target->DrawLine(Point(edge.path[point - 1u]), Point(end), stroke, lineWidth, lineStyle);
         }
         if (state.arrowPaths[index])
         {
-            if (edge.relation == FlowchartRelation::Inheritance)
+            if (edge.relation == FlowchartRelation::Inheritance || edge.relation == FlowchartRelation::Realization)
                 target->DrawGeometry(state.arrowPaths[index].get(), stroke);
             else
                 target->FillGeometry(state.arrowPaths[index].get(), stroke);
