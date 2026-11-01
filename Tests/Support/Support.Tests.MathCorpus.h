@@ -489,6 +489,17 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
 #endif
     check(! ParseMath(L"\\xrightarrow[unfinished{x}") && ! ParseMath(L"\\xrightarrow"),
           "unclosed or missing arrow labels reject the complete formula");
+#if DXUI_ENABLE_DIAGNOSTICS
+    for (const auto source : {L"\\mathbf{\\textmd{x}}", L"\\mathit{\\textup{x}}", L"\\mathbf{\\textnormal{x}}"})
+    {
+        const auto expression = std::make_shared<const MathExpression>(ParseMath(source));
+        check(static_cast<bool>(*expression), "bounded text-style reset parses");
+        Detail::PreparedMath layout(factory, expression, 24.f);
+        while (! layout.Advance()) {}
+        check(layout.GlyphLayouts().size() == 1u && ! layout.GlyphLayouts()[0u].bold && ! layout.GlyphLayouts()[0u].italic,
+              "text medium, upright and normal commands cancel the enclosing corresponding style");
+    }
+#endif
     check(static_cast<bool>(ParseMath(L"\\boxed{\\xcancel{a+b}}")) && ! ParseMath(L"\\boxed") && ! ParseMath(L"\\cancel{"),
           "nested annotations parse and incomplete operands fail closed");
     // The named sizes and factors are pinned independently to KaTeX 0.16.11 Options.js.
