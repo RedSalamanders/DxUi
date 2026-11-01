@@ -32,7 +32,7 @@ The generated tests verify every family fixture's exact expected outcome and
 diagnostic instead of treating the whole state/class family as unsupported.
 Neither accepted CPU graphs nor unsupported results establish native rendering.
 
-`katex-0.16.11` retains only original command documentation and the MIT notice
+`katex-0.16.11` retains original command documentation, symbol source and the MIT notice
 from commit `fbbea3573439d51e6568356f5886053b111b1f88`; `collection.json` records
 URLs, Git blobs and exact SHA-256 values. These pin the math command reference.
 No KaTeX implementation, JavaScript runtime, browser or external helper is built
