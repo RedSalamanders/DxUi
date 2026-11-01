@@ -462,6 +462,16 @@ inline void ListsAndHeadings()
                 Check(std::ranges::none_of(syntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
                       "display delimiters sharing a content line do not become inline math");
             }
+            for (const auto length : {std::size_t{1u}, MathMaximumSourceUnits + 1u})
+            {
+                std::wstring source(L"prefix $$");
+                source.append(length, L'x');
+                Document unclosedDisplay{source};
+                const auto syntax = Parse(unclosedDisplay, profile);
+                Check(syntax->Source() == source &&
+                          std::ranges::none_of(syntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
+                      "short and over-capacity inline double-dollar openers both remain literal exact source");
+            }
             std::wstring oversizedMath(L"\\(");
             oversizedMath.append(MathMaximumSourceUnits + 1u, L'x');
             Document oversizedMathSource(oversizedMath);
