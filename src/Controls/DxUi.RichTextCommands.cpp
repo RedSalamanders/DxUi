@@ -1522,8 +1522,11 @@ void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
     if (fenced != MarkdownNoNode)
     {
         const auto& node = nodes[fenced];
-        if (node.parent == MarkdownNoNode || nodes[node.parent].block.kind != Kind::Document || last > node.block.source.last)
+        if (node.parent == MarkdownNoNode || last > node.block.source.last)
             return;
+        for (auto parent = node.parent; parent != MarkdownNoNode; parent = nodes[parent].parent)
+            if (nodes[parent].block.kind != Kind::Document && nodes[parent].block.kind != Kind::BlockQuote)
+                return; // A list marker may be owned by the opening physical line.
         const auto& opening = Line(node.block.source.first);
         if (! node.block.closed || node.block.source.last <= opening.end)
             return;
