@@ -44,6 +44,7 @@ struct FlowchartPlacedEdge
     // Crossings are allowed; routing does not promise crossing minimization.
     std::array<FlowchartPoint, 6u> path{};
     std::array<FlowchartPoint, 3u> arrow{};
+    std::array<FlowchartPoint, 4u> diamond{};
     FlowchartRect label;
     FlowchartRect fromCardinality, toCardinality;
     bool hasArrow{}, hasLabel{};

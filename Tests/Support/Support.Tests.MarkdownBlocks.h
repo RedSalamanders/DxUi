@@ -493,7 +493,9 @@ inline std::wstring ModelSignature(const FlowchartModel& model)
     {
         result.append(std::to_wstring(edge.from)).push_back(L'>');
         result.append(std::to_wstring(edge.to)).push_back(L':');
-        result.push_back(edge.relation == FlowchartRelation::Inheritance ? L'I' : (edge.arrow ? L'A' : L'L'));
+        result.push_back(edge.relation == FlowchartRelation::Inheritance ? L'I'
+                         : edge.relation == FlowchartRelation::Aggregation ? L'G'
+                         : edge.relation == FlowchartRelation::Composition ? L'C' : (edge.arrow ? L'A' : L'L'));
         result.push_back(L':');
         result.append(edge.label).push_back(L';');
     }
@@ -558,7 +560,7 @@ inline constexpr FamilyGrammarExpectation familyGrammarExpectations[] = {
     {L"stateDiagram-v2\nS : <b>Ready</b>\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedLabelMarkup, {}},
     {L"stateDiagram-v2\nA --> B : go &amp; stop\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedLabelMarkup, {}},
     {L"classDiagram\nStack : +push(T~int~ item)\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedLabelMarkup, {}},
-    {L"classDiagram\nCar --* Wheel\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedEdge, {}},
+    {L"classDiagram\nCar --* Wheel\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"C|T|Car=Car:R;Wheel=Wheel:R;|0>1:C:;"},
     {L"classDiagram\nnote \"From Duck till Zebra\"\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement, {}},
     {L"classDiagram\nA:::service\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement, {}},
     {L"stateDiagram-v2\nA:::active\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement, {}},
@@ -616,6 +618,23 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
     check(association->outcome == FlowchartOutcome::Prepared && association->edges.size() == 1u && association->edges[0].relation == FlowchartRelation::Line &&
               association->edges[0].style == FlowchartLineStyle::Dotted,
           "class dotted association retains its line type and no arrowhead");
+    for (const auto& [op, reverse, relation, style] : {
+             std::tuple{L"*--", true, FlowchartRelation::Composition, FlowchartLineStyle::Solid},
+             std::tuple{L"--*", false, FlowchartRelation::Composition, FlowchartLineStyle::Solid},
+             std::tuple{L"o--", true, FlowchartRelation::Aggregation, FlowchartLineStyle::Solid},
+             std::tuple{L"--o", false, FlowchartRelation::Aggregation, FlowchartLineStyle::Solid},
+             std::tuple{L"*..", true, FlowchartRelation::Composition, FlowchartLineStyle::Dotted},
+             std::tuple{L"..*", false, FlowchartRelation::Composition, FlowchartLineStyle::Dotted},
+             std::tuple{L"o..", true, FlowchartRelation::Aggregation, FlowchartLineStyle::Dotted},
+             std::tuple{L"..o", false, FlowchartRelation::Aggregation, FlowchartLineStyle::Dotted}})
+    {
+        const auto source = std::wstring(L"classDiagram\nA ") + op + L" B\n";
+        parser.Begin(source, 1u);
+        const auto result = Complete(parser);
+        check(result->outcome == FlowchartOutcome::Prepared && result->edges.size() == 1u && result->edges[0].from == (reverse ? 1u : 0u) &&
+                  result->edges[0].to == (reverse ? 0u : 1u) && result->edges[0].relation == relation && result->edges[0].style == style,
+              "composition and aggregation preserve their diamond endpoint and line style");
+    }
     parser.Begin(L"classDiagram\nA : +size: int\nA : +draw()\nA : +other: int\n<<interface>> A\n", 1u);
     const auto compartments = Complete(parser);
     check(compartments->outcome == FlowchartOutcome::Prepared && compartments->nodes.size() == 1u &&

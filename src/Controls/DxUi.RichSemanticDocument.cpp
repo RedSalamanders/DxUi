@@ -839,18 +839,23 @@ struct SemanticBuilder::Preparation
             {
                 const auto action = edge.relation == Detail::FlowchartRelation::Realization ? L" implements "
                                     : edge.relation == Detail::FlowchartRelation::Inheritance ? L" inherits "
+                                    : edge.relation == Detail::FlowchartRelation::Composition ? L" is part of "
+                                    : edge.relation == Detail::FlowchartRelation::Aggregation ? L" is aggregated by "
                                     : edge.arrow ? L" \u2192 " : L" \u2014 ";
                 DiagramAlternative({id(edge.from), L" [", edge.fromCardinality, L"]", action, id(edge.to), L" [", edge.toCardinality,
                                     L"] ", edge.label, L"; "});
                 return;
             }
-            if (edge.relation == Detail::FlowchartRelation::Inheritance || edge.relation == Detail::FlowchartRelation::Realization)
+            if (edge.relation == Detail::FlowchartRelation::Inheritance || edge.relation == Detail::FlowchartRelation::Realization ||
+                edge.relation == Detail::FlowchartRelation::Composition || edge.relation == Detail::FlowchartRelation::Aggregation)
             {
                 const auto action = edge.relation == Detail::FlowchartRelation::Realization ? L" implements " : L" inherits ";
+                const auto description = edge.relation == Detail::FlowchartRelation::Composition ? L" is part of "
+                                         : edge.relation == Detail::FlowchartRelation::Aggregation ? L" is aggregated by " : action;
                 if (edge.label.empty())
-                    DiagramAlternative({id(edge.from), action, id(edge.to), L"; "});
+                    DiagramAlternative({id(edge.from), description, id(edge.to), L"; "});
                 else
-                    DiagramAlternative({id(edge.from), L" (", edge.label, L")", action, id(edge.to), L"; "});
+                    DiagramAlternative({id(edge.from), L" (", edge.label, L")", description, id(edge.to), L"; "});
             }
             else if (edge.label.empty())
                 DiagramAlternative({id(edge.from), edge.arrow ? L" \u2192 " : L" \u2014 ", id(edge.to), L"; "});

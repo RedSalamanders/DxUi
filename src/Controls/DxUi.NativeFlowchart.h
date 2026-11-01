@@ -44,7 +44,9 @@ enum class FlowchartRelation
     Arrow,
     Inheritance,
     Realization,
-    Note
+    Note,
+    Aggregation,
+    Composition
 };
 enum class FlowchartLineStyle
 {

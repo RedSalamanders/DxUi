@@ -480,9 +480,12 @@ template <typename Check> inline void EdgeLabelRasterOracle(Check&& check)
         constexpr UINT stride = 512u * 4u;
         std::vector<BYTE> pixels(stride * 512u);
         THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
-        const auto& head  = relationPlan->edges.front().arrow;
-        const auto x      = static_cast<UINT>(std::lround((head[0u].x + head[1u].x + head[2u].x) / 3.0));
-        const auto y      = static_cast<UINT>(std::lround((head[0u].y + head[1u].y + head[2u].y) / 3.0));
+        const auto& edge = relationPlan->edges.front();
+        const auto diamond = edge.relation == FlowchartRelation::Aggregation || edge.relation == FlowchartRelation::Composition;
+        const auto x = static_cast<UINT>(std::lround(diamond ? (edge.diamond[0u].x + edge.diamond[2u].x) / 2.0
+                                                           : (edge.arrow[0u].x + edge.arrow[1u].x + edge.arrow[2u].x) / 3.0));
+        const auto y = static_cast<UINT>(std::lround(diamond ? (edge.diamond[0u].y + edge.diamond[2u].y) / 2.0
+                                                           : (edge.arrow[0u].y + edge.arrow[1u].y + edge.arrow[2u].y) / 3.0));
         const auto offset = (static_cast<std::size_t>(y) * 512u + x) * 4u;
         return std::array<BYTE, 4u>{pixels[offset], pixels[offset + 1u], pixels[offset + 2u], pixels[offset + 3u]};
     };
@@ -493,6 +496,11 @@ template <typename Check> inline void EdgeLabelRasterOracle(Check&& check)
         const auto filled = arrowHeadCenter(header + L"Base --> Derived\n");
         check(hollow[0u] > 240u && hollow[1u] > 240u && hollow[2u] > 240u && filled[0u] < 32u && filled[1u] < 32u && filled[2u] < 32u,
               "class inheritance has a hollow triangle and associations a filled arrowhead in all four directions");
+        const auto aggregate = arrowHeadCenter(header + L"Whole o-- Part\n");
+        const auto composition = arrowHeadCenter(header + L"Whole *-- Part\n");
+        check(aggregate[0u] > 240u && aggregate[1u] > 240u && aggregate[2u] > 240u &&
+                  composition[0u] < 32u && composition[1u] < 32u && composition[2u] < 32u,
+              "class aggregation has a hollow diamond and composition a filled diamond in all four directions");
     }
 
     const auto stadiumGraph = FlowchartLayoutTests::Graph(L"flowchart LR;Terminal([capsule])");

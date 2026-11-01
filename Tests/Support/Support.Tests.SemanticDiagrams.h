@@ -144,6 +144,12 @@ template <typename Check> inline void Core(Check&& check)
         check(diagrams.size() == 1u && doc->Elements()[diagrams.front().element].name.find(L"S note: Review this state") != std::wstring::npos,
               "state notes expose their target and text in the accessible graph alternative");
     }
+    {
+        const auto doc = Build(L"```mermaid\nclassDiagram\nWhole *-- Part\n```", check);
+        const auto diagrams = SemanticExtensionAccess::Diagrams(*doc);
+        check(diagrams.size() == 1u && doc->Elements()[diagrams.front().element].name.find(L"Part is part of Whole") != std::wstring::npos,
+              "composition exposes whole and part in the accessible alternative");
+    }
     for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029})
     {
         const auto doc = Build(scenarios[0u].source, check, profile);

@@ -1492,3 +1492,9 @@ plain-label grammar, and render a folded-corner box on the requested physical
 side with a dotted attachment. Their target and text are included in the
 accessible graph alternative. Notes that collide with another node fail closed
 to exact source; multiline notes and other note forms remain unsupported.
+
+Class relationships admit composition (`*--`, `--*`, `*..`, `..*`) and
+aggregation (`o--`, `--o`, `o..`, `..o`). The diamond remains attached to the
+whole in either spelling; composition paints a filled diamond and aggregation a
+hollow one. Dot variants use dotted lines. The accessible graph alternative
+describes the part-to-whole relationship and preserves any endpoint cardinalities.

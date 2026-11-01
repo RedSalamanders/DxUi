@@ -1,0 +1,1 @@
+- Render bounded Mermaid class composition and aggregation with accurate diamond endpoints and accessibility.

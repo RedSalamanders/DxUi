@@ -233,7 +233,7 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
             ((! edge.fromCardinality.empty() || ! edge.toCardinality.empty()) && graph->family != NativeDiagramFamily::Class) ||
             edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() ||
             edge.minimumRanks == 0u || edge.minimumRanks > NativeFlowchartParser::MaximumLinkRanks || edge.relation < FlowchartRelation::Line ||
-            edge.relation > FlowchartRelation::Note || edge.arrow != (edge.relation != FlowchartRelation::Line && edge.relation != FlowchartRelation::Note) ||
+            edge.relation > FlowchartRelation::Composition || edge.arrow != (edge.relation != FlowchartRelation::Line && edge.relation != FlowchartRelation::Note) ||
             (edge.relation == FlowchartRelation::Note && (graph->nodes[edge.to].shape != FlowchartShape::Note || graph->nodes[edge.to].noteTarget != edge.from)))
             throw std::invalid_argument("Invalid native flowchart edge");
     if (next_ && next_->state->Matches(write, drawing, graph, typography, resourceEpoch))
@@ -380,7 +380,13 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                         break;
                     }
                     if (state.geometry->edges[work.cursor].hasArrow)
-                        state.arrowPaths[work.cursor] = Path(state.drawing.get(), state.geometry->edges[work.cursor].arrow);
+                    {
+                        const auto& edge = state.geometry->edges[work.cursor];
+                        if (edge.relation == FlowchartRelation::Aggregation || edge.relation == FlowchartRelation::Composition)
+                            state.arrowPaths[work.cursor] = Path(state.drawing.get(), edge.diamond);
+                        else
+                            state.arrowPaths[work.cursor] = Path(state.drawing.get(), edge.arrow);
+                    }
                     ++work.cursor;
                     break;
                 case Preparation::Stage::Publish:
@@ -476,11 +482,15 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
             if ((edge.relation == FlowchartRelation::Inheritance || edge.relation == FlowchartRelation::Realization) && state.arrowPaths[index] &&
                 point + 1u == edge.path.size())
                 end = {(edge.arrow[1u].x + edge.arrow[2u].x) / 2.0, (edge.arrow[1u].y + edge.arrow[2u].y) / 2.0};
+            if ((edge.relation == FlowchartRelation::Aggregation || edge.relation == FlowchartRelation::Composition) && state.arrowPaths[index] &&
+                point + 1u == edge.path.size())
+                end = edge.diamond[2u];
             target->DrawLine(Point(edge.path[point - 1u]), Point(end), stroke, lineWidth, lineStyle);
         }
         if (state.arrowPaths[index])
         {
-            if (edge.relation == FlowchartRelation::Inheritance || edge.relation == FlowchartRelation::Realization)
+            if (edge.relation == FlowchartRelation::Inheritance || edge.relation == FlowchartRelation::Realization ||
+                edge.relation == FlowchartRelation::Aggregation)
                 target->DrawGeometry(state.arrowPaths[index].get(), stroke);
             else
                 target->FillGeometry(state.arrowPaths[index].get(), stroke);

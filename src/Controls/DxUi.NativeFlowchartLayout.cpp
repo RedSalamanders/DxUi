@@ -575,6 +575,9 @@ struct NativeFlowchartLayout::Preparation
         placed.hasArrow  = edge.arrow;
         const auto base  = end + (back ? Margin : -Margin);
         placed.arrow     = {{{toX, end}, {toX - 4.0, base}, {toX + 4.0, base}}};
+        const auto middle = end + (back ? 6.0 : -6.0);
+        const auto diamondTail = end + (back ? 12.0 : -12.0);
+        placed.diamond = {{{toX, end}, {toX - 4.0, middle}, {toX, diamondTail}, {toX + 4.0, middle}}};
         placed.hasLabel  = ! edge.label.empty();
         placed.label     = {cross + 4.0, (first + last - Major(edgeLabels[index])) / 2.0, Cross(edgeLabels[index]), Major(edgeLabels[index])};
         const auto fromSize = fromCardinalities[index], toSize = toCardinalities[index];
@@ -626,6 +629,12 @@ struct NativeFlowchartLayout::Preparation
         {
             point = Transform(point);
             if (edge.hasArrow)
+                Include(point);
+        }
+        for (auto& point : edge.diamond)
+        {
+            point = Transform(point);
+            if (edge.relation == FlowchartRelation::Aggregation || edge.relation == FlowchartRelation::Composition)
                 Include(point);
         }
         edge.label = Transform(edge.label);
@@ -748,6 +757,8 @@ struct NativeFlowchartLayout::Preparation
                     Shift(point, shift);
                 for (auto& point : plan->edges[cursor].arrow)
                     Shift(point, shift);
+                for (auto& point : plan->edges[cursor].diamond)
+                    Shift(point, shift);
                 Shift(plan->edges[cursor].label, shift);
                 Shift(plan->edges[cursor].fromCardinality, shift);
                 Shift(plan->edges[cursor].toCardinality, shift);
@@ -779,7 +790,7 @@ void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
     for (const auto& edge : graph->edges)
         if (edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() || edge.minimumRanks == 0u ||
             edge.minimumRanks > NativeFlowchartParser::MaximumLinkRanks || edge.relation < FlowchartRelation::Line ||
-            edge.relation > FlowchartRelation::Note || edge.style < FlowchartLineStyle::Solid || edge.style > FlowchartLineStyle::Invisible ||
+            edge.relation > FlowchartRelation::Composition || edge.style < FlowchartLineStyle::Solid || edge.style > FlowchartLineStyle::Invisible ||
             (edge.style == FlowchartLineStyle::Invisible && (edge.arrow || ! edge.label.empty())) ||
             edge.arrow != (edge.relation != FlowchartRelation::Line && edge.relation != FlowchartRelation::Note) ||
             (edge.relation == FlowchartRelation::Note && (graph->nodes[edge.to].shape != FlowchartShape::Note || graph->nodes[edge.to].noteTarget != edge.from)))
