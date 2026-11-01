@@ -1280,6 +1280,17 @@ void MarkdownCommandPlanner::Quote(MarkdownQuoteAction action)
             selected.push_back({line.first, at, Ancestor(i, Kind::BlockQuote) != MarkdownNoNode});
         }
     }
+    for (const auto& empty : plan.syntax_->EmptyLines())
+    {
+        const auto& line = Line(empty.source.first);
+        const bool included =
+            plan.before_.Start() == plan.before_.End() ? line.first <= end && end <= line.bodyEnd : line.end > plan.before_.Start() && line.first <= end;
+        if (! included)
+            continue;
+        if (empty.owner >= nodes.size() || empty.insertion < line.first || empty.insertion > line.bodyEnd)
+            return;
+        selected.push_back({line.first, empty.insertion, Ancestor(empty.owner, Kind::BlockQuote) != MarkdownNoNode});
+    }
     if (selected.empty())
     {
         if (action != MarkdownQuoteAction::Outdent && EmptyStructuralSite())

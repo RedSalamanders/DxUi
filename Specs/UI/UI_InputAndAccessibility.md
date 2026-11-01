@@ -1241,8 +1241,9 @@ coalesce in the same bounded way; direction or explicit word deletion ends a run
 The source-exact SetQuote command toggles or adds/removes one quote level for
 supported selected physical text lines as one transaction, including list-owned
 lines with representable container prefixes. A mixed toggle quotes the
-unquoted lines while preserving existing quotes. It declines lazy missing prefixes and selections containing
-unsupported blocks or blank trivia rather than partially rewriting them.
+unquoted lines while preserving existing quotes, including parsed empty-line
+trivia with representable prefixes. It declines lazy missing prefixes and
+selections containing unsupported blocks rather than partially rewriting them.
 SetCodeBlock wraps supported top-level paragraph lines in a tilde fence longer
 than any contained run, or unwraps a closed top-level fence. SetCodeLanguage
 replaces a current top-level fence info string. Nested container conversion and

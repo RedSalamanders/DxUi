@@ -302,6 +302,7 @@ inline void ListsAndHeadings()
         request.quoteAction = MarkdownQuoteAction::Toggle;
         Exact(L"- item\n", {2u, 2u}, request, L"- > item\n", std::nullopt, profile);
         Exact(L"> a\n# b\n", {0u, 7u}, request, L"> a\n> # b\n", std::nullopt, profile);
+        Exact(L"a\n\nb\n", {0u, 4u}, request, L"> a\n> \n> b\n", std::nullopt, profile);
         request.command = MarkdownCommand::SetCodeBlock;
         request.text    = L"cpp";
         Exact(L"hello\n", {0u, 5u}, request, L"~~~cpp\nhello\n~~~\n", std::nullopt, profile);
