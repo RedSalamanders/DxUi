@@ -2111,7 +2111,7 @@ preparation retry or resource-generation recovery.
 
 The native Mermaid engine additionally accepts a bounded `stateDiagram` /
 `stateDiagram-v2` profile: direction, simple declarations/quoted aliases,
-`[*]` initial/final states, transitions with colon labels and state descriptions.
+`[*]` initial/final states, explicit `state Name <<choice>>` diamond pseudostates, transitions with colon labels and state descriptions. Choice labels are not admitted.
 The first nonempty quoted or colon state description replaces the fallback ID;
 later descriptions append in declaration order, within the shared label limit.
 An explicit description equal to the ID still counts as the first description.

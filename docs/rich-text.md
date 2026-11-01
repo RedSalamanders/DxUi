@@ -1408,7 +1408,7 @@ errors are separate failures and cannot become permanent syntax rejections.
 
 The native Mermaid engine additionally accepts a bounded `stateDiagram` /
 `stateDiagram-v2` profile: direction, simple declarations/quoted aliases,
-`[*]` initial/final states, transitions with colon labels and state descriptions.
+`[*]` initial/final states, explicit `state Name <<choice>>` diamond pseudostates, transitions with colon labels and state descriptions. Choice labels are not admitted.
 The first nonempty state description replaces the implicit ID label. Later quoted
 or colon descriptions append in source order; empty descriptions keep the current label.
 The bounded `classDiagram` profile accepts direction, simple class declarations,

@@ -111,6 +111,8 @@ struct NativeFlowchartParser::Preparation
     {
         if (description.empty())
             return true;
+        if (model->nodes[node].shape == FlowchartShape::Diamond)
+            return Error(FlowchartIssue::UnsupportedStatement, firstUnit, end, FlowchartOutcome::Unsupported);
         auto& label = model->nodes[node].label;
         if (stateDescriptions[node])
         {
@@ -362,8 +364,10 @@ struct NativeFlowchartParser::Preparation
                 return Error(FlowchartIssue::InvalidDirection, at, end);
             return true;
         }
+        bool stateDeclaration = false;
         if (model->family == NativeDiagramFamily::State && Text().substr(at, 5u) == L"state" && at + 5u < end && Space(Text()[at + 5u]))
         {
+            stateDeclaration = true;
             at += 5u;
             Skip(at, end);
             if (at < end && Text()[at] == L'"')
@@ -401,6 +405,23 @@ struct NativeFlowchartParser::Preparation
                 if (at != end)
                     return Error(FlowchartIssue::UnsupportedStatement, at, end, FlowchartOutcome::Unsupported);
                 return StateDescription(node, label, firstLabel, end);
+            }
+        }
+        if (stateDeclaration)
+        {
+            constexpr std::wstring_view marker = L"<<choice>>";
+            const auto markerAt                = Text().find(marker, at);
+            if (markerAt != std::wstring_view::npos && markerAt + marker.size() == end)
+            {
+                std::size_t node{};
+                if (! Node(at, markerAt, node))
+                    return false;
+                Skip(at, markerAt);
+                if (at != markerAt || stateDescriptions[node])
+                    return Error(FlowchartIssue::UnsupportedStatement, at, end, FlowchartOutcome::Unsupported);
+                model->nodes[node].shape = FlowchartShape::Diamond;
+                model->nodes[node].label.clear();
+                return true;
             }
         }
         if (model->family == NativeDiagramFamily::Class && Text().substr(at, 5u) == L"class" && at + 5u < end && Space(Text()[at + 5u]))

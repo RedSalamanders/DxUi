@@ -63,6 +63,9 @@ template <typename Check> inline void Geometry(Check&& check)
               "forward edge follows the independent six-point corridor oracle");
     check(plan->edges[0u].hasArrow && Near(plan->edges[0u].arrow[1u].x, 24.0) && Near(plan->edges[0u].arrow[1u].y, 88.0),
           "arrow head ends on the target shape boundary");
+    const auto choice = Place(Graph(L"stateDiagram-v2\nstate C <<choice>>\nA --> C\nC --> B : yes\n"), check);
+    check(choice->nodes.size() == 3u && choice->nodes[0u].shape == FlowchartShape::Diamond && choice->edges.size() == 2u,
+          "state choice pseudostates retain diamond geometry and both transitions");
     const auto styled = Place(Graph(L"flowchart LR\nA -.-> B\nB -.- C\nC ==> D\nD === E\nE ~~~ F\n"), check);
     check(styled->edges.size() == 5u && styled->edges[0u].style == FlowchartLineStyle::Dotted && styled->edges[1u].style == FlowchartLineStyle::Dotted &&
               styled->edges[2u].style == FlowchartLineStyle::Thick && styled->edges[3u].style == FlowchartLineStyle::Thick &&
