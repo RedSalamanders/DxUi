@@ -11,6 +11,8 @@ $generators=@(
              'corpora/GFM-0.29.0.gfm.13-COPYING.txt','whatwg-2026-10-18/entities.json','whatwg-2026-10-18/LICENSE.txt')},
     @{script='Tools/Generate-MetadataCorpus.ps1';inputs='ThirdParty/Markdown/corpora';output='Tests/Controls/Controls.Tests.MetadataCorpus.h';
       pins=@('toml-test-96fd088/source.tar','yaml-test-suite-6ad3d2c/source.tar')},
+    @{script='Tools/Generate-NativeMathSymbols.ps1';inputs='ThirdParty/Markdown/katex-0.16.11';output='src/Controls/DxUi.NativeMathSymbols.h';
+      pins=@('symbols.js.txt','LICENSE.txt')},
     @{script='Tools/Generate-MarkdownUnicodeData.ps1';inputs='ThirdParty/Unicode/17.0.0';output='src/Controls/DxUi.MarkdownUnicodeData.h';
       pins=@('CaseFolding.txt','UnicodeData.txt','LICENSE.txt')},
     @{script='Tools/Generate-NativeFlowchartTestData.ps1';inputs='ThirdParty/Markdown/mermaid-11.4.1';output='Tests/Support/Support.Tests.NativeFlowchartCorpus.h';

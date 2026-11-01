@@ -25,5 +25,13 @@
     "gitBlob": "c12269029e88308285580dd8ed3478ab1b5a1342",
     "sha256": "5E4271A06D43EDB199566C73A8480CE7A69BCCC8F229A41D963425CE7515954E",
     "url": "https://raw.githubusercontent.com/KaTeX/KaTeX/fbbea3573439d51e6568356f5886053b111b1f88/docs/supported.md"
-  }
-]
+  },
+  {
+    "commit": "fbbea3573439d51e6568356f5886053b111b1f88",
+    "tag": "v0.16.11",
+    "upstreamPath": "src/symbols.js",
+    "file": "symbols.js.txt",
+    "gitBlob": "2d25337a2d7dc0fdb4fc23cd078d8f3421b5ab24",
+    "sha256": "B868D9461CD60C21DCD29BB1829389783C2864714C3E5B7D053EF0CECCECF511",
+    "url": "https://raw.githubusercontent.com/KaTeX/KaTeX/fbbea3573439d51e6568356f5886053b111b1f88/src/symbols.js"
+  }]

@@ -1,3 +1,4 @@
+#include "DxUi.NativeMathSymbols.h"
 #include <DxUi/RichDocument.h>
 #include <DxUi/RichMath.h>
 #include <algorithm>
@@ -354,6 +355,17 @@ class Parser
             }
             if (name == L"quad" || name == L"qquad")
                 return Make(MathKind::Space, std::wstring(name));
+            const auto symbol = std::lower_bound(std::begin(Detail::NativeMathSymbols),
+                                                 std::end(Detail::NativeMathSymbols),
+                                                 name,
+                                                 [](const Detail::NativeMathSymbol& entry, std::wstring_view key) { return entry.name < key; });
+            if (symbol != std::end(Detail::NativeMathSymbols) && symbol->name == name)
+            {
+                auto result      = Make(MathKind::Text, std::wstring(1u, symbol->glyph));
+                result.atomClass = symbol->atom;
+                result.italic    = symbol->italic;
+                return result;
+            }
             constexpr std::pair<std::wstring_view, std::wstring_view> symbols[]{{L"alpha", L"α"},
                                                                                 {L"beta", L"β"},
                                                                                 {L"gamma", L"γ"},

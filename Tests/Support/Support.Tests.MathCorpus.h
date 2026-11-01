@@ -1,9 +1,11 @@
 #pragma once
+#include "Controls/DxUi.NativeMathSymbols.h"
 #include "Controls/DxUi.PreparedMath.h"
 #include <DxUi/RichMath.h>
 #include <array>
 #include <cmath>
 #include <iostream>
+#include <tuple>
 
 // Owned independent fixtures for the bounded native profile. The M01..M20
 // inputs also appear in the reviewed KaTeX-0.16.11 target inventory; upstream
@@ -209,6 +211,24 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
               prime.root.children[0u].children[2u].text == L"′′",
           "prime runs are superscripts on the preceding atom and coexist with subscripts");
     check(! ParseMath(L"f'^2"), "a prime followed by a second superscript is rejected rather than misrendered");
+    static_assert(std::size(Detail::NativeMathSymbols) == 411u);
+    for (const auto& symbol : Detail::NativeMathSymbols)
+    {
+        const auto expression = ParseMath(L"\\" + std::wstring(symbol.name));
+        check(expression && expression.root.children.size() == 1u && expression.root.children[0u].kind == MathKind::Text &&
+                  expression.root.children[0u].text == std::wstring(1u, symbol.glyph) && expression.root.children[0u].atomClass == symbol.atom &&
+                  expression.root.children[0u].italic == symbol.italic,
+              "pinned upstream mathematical command preserves its Unicode glyph and atom class");
+    }
+    for (const auto& [source, glyph, atom] : {std::tuple{L"\\prec", L'≺', MathAtomClass::Relation},
+                                              std::tuple{L"\\oplus", L'⊕', MathAtomClass::Binary},
+                                              std::tuple{L"\\aleph", L'ℵ', MathAtomClass::Ordinary}})
+    {
+        const auto expression = ParseMath(source);
+        check(expression && expression.root.children.size() == 1u && expression.root.children[0u].text == std::wstring(1u, glyph) &&
+                  expression.root.children[0u].atomClass == atom,
+              "independent representative relation, binary and ordinary symbols match their reviewed identities");
+    }
     for (const auto [rows, columns] : {std::pair{16u, 8u}, std::pair{8u, 16u}})
         check(static_cast<bool>(ParseMath(Matrix(rows, columns))), "matrix admits exactly 128 cells within row and column bounds");
     for (const auto [rows, columns] : {std::pair{17u, 1u}, std::pair{1u, 17u}, std::pair{16u, 9u}})

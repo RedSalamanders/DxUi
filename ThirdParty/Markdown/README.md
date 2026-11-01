@@ -101,3 +101,5 @@ characters, restricts task whitespace and does not fold VT/FF labels or filter V
 tag boundaries as the adjacent specification prose describes. The strict owned grammar keeps the
 pinned specification's explicit domain/whitespace rules; these differences must
 remain recorded instead of silently broadening or excluding conformance cases.
+
+The pinned KaTeX `symbols.js.txt` supplies explicit Unicode and atom-class records to `Tools/Generate-NativeMathSymbols.ps1`; native parsing stays bounded and executes no JavaScript. The generated subset and four vertical-delimiter exceptions are documented in the rich-text contract.
