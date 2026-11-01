@@ -111,6 +111,10 @@ inline std::wstring Inline(const MarkdownSyntax& syntax, std::size_t first, bool
                     tag = L"strong";
                 break;
             case MarkdownInlineKind::Strikethrough: tag = L"del"; break;
+            case MarkdownInlineKind::Highlight: tag = L"mark"; break;
+            case MarkdownInlineKind::Superscript: tag = L"sup"; break;
+            case MarkdownInlineKind::Subscript: tag = L"sub"; break;
+            case MarkdownInlineKind::Inserted: tag = L"ins"; break;
             case MarkdownInlineKind::Link: tag = L"a"; break;
             case ::DxUi::RichText::MarkdownInlineKind::Code:
             case ::DxUi::RichText::MarkdownInlineKind::FootnoteReference:

@@ -29,8 +29,9 @@ bool TryResolveExtensions(MarkdownProfile profile, std::optional<MarkdownExtensi
 {
     if (profile != MarkdownProfile::CommonMark0312 && profile != MarkdownProfile::Gfm029 && profile != MarkdownProfile::RichMarkdown)
         return false;
-    result = extensions.value_or(profile == MarkdownProfile::CommonMark0312 ? MarkdownExtensions::None : MarkdownExtensions::All);
-    return ! (static_cast<unsigned>(result) & ~static_cast<unsigned>(MarkdownExtensions::All)) &&
+    result = extensions.value_or(profile == MarkdownProfile::CommonMark0312 ? MarkdownExtensions::None
+                                 : profile == MarkdownProfile::RichMarkdown ? MarkdownExtensions::RichAll : MarkdownExtensions::All);
+    return ! (static_cast<unsigned>(result) & ~static_cast<unsigned>(profile == MarkdownProfile::RichMarkdown ? MarkdownExtensions::RichAll : MarkdownExtensions::All)) &&
            (profile != MarkdownProfile::CommonMark0312 || result == MarkdownExtensions::None);
 }
 MarkdownExtensions ValidateExtensions(MarkdownProfile profile, std::optional<MarkdownExtensions> extensions)

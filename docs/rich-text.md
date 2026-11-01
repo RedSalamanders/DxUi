@@ -944,6 +944,16 @@ below. `LexemeSourceAnchor` expresses leading/trailing source affinity when one
 reference expands to several UTF-16 units. It does not replace model edit-boundary
 checks or provide generated-object/footnote semantic anchors.
 
+RichMarkdown additionally enables `==highlight==`, `^superscript^`,
+`~subscript~` and `++inserted++`; `~~strike~~` remains GFM strikethrough.
+These can be selected individually using the RichMarkdown extension flags; use
+`MarkdownExtensions::All` for the earlier GFM-only mask or `RichAll` for all
+defaults. CommonMark and GFM do not admit the extra bits. Scripts use the same
+prepared typography as supported native HTML scripts. An unsupported drawing
+target retains the owning leaf as exact source and retries after resource change.
+Focused parser/semantic checks pass; full native, accessibility and performance
+qualification remain pending.
+
 Use opt-in analysis in either retained host:
 
 ```cpp

@@ -1390,6 +1390,30 @@ void TestLosslessMarkdownGlobalNodeAdmissionAndCooperativePadding()
 {
     MarkdownCapacityTests::ParserBounds(Require);
 }
+void TestRichMarkdownInlineExtensions()
+{
+    MarkdownParser parser;
+    constexpr std::wstring_view input = L"==highlight== ++insert++ ^high^ ~low~ ~~strike~~";
+    parser.Begin(input, 1u, MarkdownProfile::RichMarkdown);
+    const auto rich = CompleteMarkdown(parser, 1u);
+    CheckInlineForest(*rich);
+    Require(MarkdownHtmlTests::Html(*rich) == L"<p><mark>highlight</mark> <ins>insert</ins> <sup>high</sup> <sub>low</sub> <del>strike</del></p>\n",
+            "RichMarkdown parses each extension delimiter and preserves GFM strike");
+    parser.Begin(input, 2u, MarkdownProfile::Gfm029);
+    const auto gfm = CompleteMarkdown(parser, 1u);
+    Require(MarkdownHtmlTests::Html(*gfm) == L"<p>==highlight== ++insert++ ^high^ ~low~ <del>strike</del></p>\n",
+            "GFM keeps RichMarkdown-only delimiters literal");
+    parser.Begin(input, 3u, MarkdownProfile::RichMarkdown, MarkdownExtensions::All);
+    const auto disabled = CompleteMarkdown(parser, 1u);
+    Require(MarkdownHtmlTests::Html(*disabled) == MarkdownHtmlTests::Html(*gfm), "explicit extension mask can disable all four new delimiters");
+    parser.Begin(L"==**bold**== [++label++](dest) `^literal^`", 4u, MarkdownProfile::RichMarkdown);
+    const auto nested = CompleteMarkdown(parser, 1u);
+    CheckInlineForest(*nested);
+    Require(MarkdownHtmlTests::Html(*nested) == L"<p><mark><strong>bold</strong></mark> <a href=\"dest\"><ins>label</ins></a> <code>^literal^</code></p>\n",
+            "extension nesting respects Markdown link and code ownership");
+    Reject([&] { parser.Begin(input, 5u, MarkdownProfile::Gfm029, MarkdownExtensions::Highlight); },
+           "RichMarkdown delimiter flags cannot change GFM parsing");
+}
 } // namespace
 
 void TestLosslessMarkdownCorrelationSourceReadBudget()
@@ -1405,6 +1429,7 @@ void TestLosslessMarkdownCorrelationSnapshotIdentity()
 }
 void RunRichMarkdownTests()
 {
+    DXUI_RUN_TEST(TestRichMarkdownInlineExtensions);
     DXUI_RUN_TEST(TestLosslessMarkdownCorrelationSourceReadBudget);
     DXUI_RUN_TEST(TestLosslessMarkdownCorrelationSnapshotIdentity);
     DXUI_RUN_TEST(TestRichMarkdownPrototypeContracts);

@@ -1839,6 +1839,69 @@ template <typename Prepare> void SemanticWords(ControlHost& host, Prepare&& prep
     Check(VisitSemanticWords(*plainUrl, {urlOffset, urlOffset + 3u}, visitor, &urlPart) == 0u,
           "a viewport clipped inside a plain URL does not expose its fragments as words");
 }
+template <typename Prepare> void InlineExtensions(ControlHost& host, Prepare&& prepare)
+{
+    const std::wstring source(L"==marked== ++inserted++ ^up^ ~down~");
+    auto root = std::make_unique<RichTextEditor>(source);
+    auto* editor = root.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    host.SetRoot(std::move(root));
+    prepare();
+    const auto document = editor->GetAcknowledgedSemanticDocument(host);
+    Check(document && document->Map().Display().find(L"marked inserted up down") != std::wstring_view::npos,
+          "extension delimiters hide while preserving exact source");
+    const auto flagAt = [&](std::wstring_view text, unsigned flag)
+    {
+        const auto position = document->Map().Display().find(text);
+        return position != std::wstring_view::npos && std::ranges::any_of(document->Runs(), [&](const auto& run)
+        { return run.start <= position && position < run.start + run.length && (run.flags & flag) != 0u; });
+    };
+    Check(flagAt(L"marked", Marked) && flagAt(L"inserted", Underline) && flagAt(L"up", Superscript) && flagAt(L"down", Subscript),
+          "extension source maps into highlight, insertion and native script styles");
+    const auto up = source.find(L"up");
+    editor->SetSelection({up, up + 2u});
+    Check(editor->ReplaceSelection(L"x") && editor->Undo() && editor->GetText() == source,
+          "edits inside a script retain source spelling and undo");
+    prepare();
+    editor->SetSelection({2u, 8u});
+    MarkdownCommandRequest clear;
+    clear.command = MarkdownCommand::ClearFormatting;
+    Check(editor->ExecuteMarkdownCommand(clear) == MarkdownCommandStatus::Changed && editor->GetText().starts_with(L"marked ") &&
+              editor->Undo() && editor->GetText() == source, "clear formatting owns and restores a highlighted envelope");
+}
+template <typename Prepare> void InlineScriptFallback(ControlHost& host, Prepare&& prepare)
+{
+#if DXUI_ENABLE_DIAGNOSTICS
+    const auto previous = RichText::Detail::testRichScriptTargetUnsupported;
+    const auto restore = wil::scope_exit([=]() noexcept { RichText::Detail::testRichScriptTargetUnsupported = previous; });
+    const std::wstring source(L"# Before\n\nprose ^script^ tail\n\n**After**\n");
+    auto root = std::make_unique<RichTextEditor>(source);
+    auto* editor = root.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    host.SetRoot(std::move(root));
+    editor->SetSelection({2u, 2u});
+    RichText::Detail::testRichScriptTargetUnsupported = true;
+    prepare();
+    const auto fallback = editor->GetAcknowledgedSemanticDocument(host);
+    Check(fallback && fallback->Map().Display().find(L"prose ^script^ tail") != std::wstring_view::npos &&
+              fallback->Map().Display().ends_with(L"After\n") && editor->GetText() == source,
+          "unsupported Markdown script target retains the exact paragraph and neighboring semantics");
+    RichText::Detail::testRichScriptTargetUnsupported = false;
+    auto appearance = editor->GetAppearance();
+    appearance.bodyFontSizeDip = 19.f;
+    editor->SetAppearance(appearance);
+    prepare();
+    const auto retry = editor->GetAcknowledgedSemanticDocument(host);
+    Check(retry && retry != fallback && retry->Map().Display().find(L"prose script tail") != std::wstring_view::npos &&
+              editor->GetSelection() == Selection{2u, 2u} && ! editor->CanUndo(),
+          "new typography retries unchanged Markdown script and preserves selection/history");
+#else
+    static_cast<void>(host);
+    static_cast<void>(prepare);
+#endif
+}
 template <typename Prepare> void ScrollbarAndNotifications(ControlHost& host, Prepare&& prepare)
 {
     std::wstring source(0u, L' ');

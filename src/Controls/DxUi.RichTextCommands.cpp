@@ -13,6 +13,30 @@ namespace DxUi::RichText
 {
 namespace
 {
+std::size_t InlineStyleDelimiterWidth(MarkdownInlineKind kind) noexcept
+{
+    switch (kind)
+    {
+        case MarkdownInlineKind::Emphasis:
+        case MarkdownInlineKind::Superscript:
+        case MarkdownInlineKind::Subscript: return 1u;
+        case MarkdownInlineKind::Strong:
+        case MarkdownInlineKind::Strikethrough:
+        case MarkdownInlineKind::Highlight:
+        case MarkdownInlineKind::Inserted: return 2u;
+        case MarkdownInlineKind::Text:
+        case MarkdownInlineKind::SoftBreak:
+        case MarkdownInlineKind::HardBreak:
+        case MarkdownInlineKind::Code:
+        case MarkdownInlineKind::Link:
+        case MarkdownInlineKind::Image:
+        case MarkdownInlineKind::Html:
+        case MarkdownInlineKind::FootnoteReference:
+        case MarkdownInlineKind::Math:
+        case MarkdownInlineKind::SourceEditor:
+        default: return 0u;
+    }
+}
 size_t CommandNodeAt(const MarkdownSyntax& syntax, MarkdownBlockKind kind, size_t at) noexcept
 {
     const auto& nodes = syntax.Nodes();
@@ -293,8 +317,8 @@ static std::optional<size_t> FindInlineInsertionSite(const MarkdownSyntax& synta
         if (node.kind == MarkdownInlineKind::Text || node.source.last <= first || node.source.first >= last)
             continue;
         const bool style =
-            node.kind == MarkdownInlineKind::Strong || node.kind == MarkdownInlineKind::Emphasis || node.kind == MarkdownInlineKind::Strikethrough;
-        const size_t count = node.kind == MarkdownInlineKind::Emphasis ? 1u : 2u;
+            InlineStyleDelimiterWidth(node.kind) != 0u;
+        const size_t count = InlineStyleDelimiterWidth(node.kind);
         if (! style || node.source.last - node.source.first < count * 2u || first < node.source.first + count || last > node.source.last - count)
             return std::nullopt;
     }
@@ -304,8 +328,8 @@ static std::optional<size_t> FindInlineInsertionSite(const MarkdownSyntax& synta
             if (node.kind == MarkdownInlineKind::Text || node.source.first >= first || node.source.last <= first)
                 continue;
             const bool style =
-                node.kind == MarkdownInlineKind::Strong || node.kind == MarkdownInlineKind::Emphasis || node.kind == MarkdownInlineKind::Strikethrough;
-            const size_t delimiter = node.kind == MarkdownInlineKind::Emphasis ? 1u : 2u;
+                InlineStyleDelimiterWidth(node.kind) != 0u;
+            const size_t delimiter = InlineStyleDelimiterWidth(node.kind);
             if (! style || node.source.last - node.source.first < delimiter * 2u || first < node.source.first + delimiter ||
                 first > node.source.last - delimiter)
                 return std::nullopt;
@@ -2211,7 +2235,7 @@ void MarkdownCommandPlanner::HardBreak()
         if (node.kind == MarkdownInlineKind::Text || ! intersects)
             continue;
         const bool style =
-            node.kind == MarkdownInlineKind::Strong || node.kind == MarkdownInlineKind::Emphasis || node.kind == MarkdownInlineKind::Strikethrough;
+            InlineStyleDelimiterWidth(node.kind) != 0u;
         const auto body = style ? InlineBody(node) : std::nullopt;
         if (! body || first < body->first || last > body->last)
             return;
@@ -2354,7 +2378,7 @@ void MarkdownCommandPlanner::ClearFormatting()
     {
         if (node.source.first >= last || node.source.last <= first || node.kind == MarkdownInlineKind::Text)
             continue;
-        if (node.kind != MarkdownInlineKind::Strong && node.kind != MarkdownInlineKind::Emphasis && node.kind != MarkdownInlineKind::Strikethrough &&
+        if (! InlineStyleDelimiterWidth(node.kind) &&
             node.kind != MarkdownInlineKind::Link)
             return;
         if (node.kind == MarkdownInlineKind::Link && text[node.source.first] != L'[')
@@ -2661,9 +2685,8 @@ void MarkdownCommandPlanner::Join(bool backwards)
 std::optional<MarkdownRange> MarkdownCommandPlanner::InlineBody(const MarkdownInline& node) const
 {
     auto first = node.source.first, last = node.source.last;
-    if (node.kind == MarkdownInlineKind::Strong || node.kind == MarkdownInlineKind::Emphasis || node.kind == MarkdownInlineKind::Strikethrough)
+    if (const auto count = InlineStyleDelimiterWidth(node.kind))
     {
-        const auto count = node.kind == MarkdownInlineKind::Emphasis ? 1u : 2u;
         if (last - first < count * 2u)
             return std::nullopt;
         return MarkdownRange{first + count, last - count};
@@ -2905,7 +2928,7 @@ void MarkdownCommandPlanner::Image(const MarkdownCommandRequest& request)
         if (node.kind == MarkdownInlineKind::Text || ! intersects)
             continue;
         const bool style =
-            node.kind == MarkdownInlineKind::Strong || node.kind == MarkdownInlineKind::Emphasis || node.kind == MarkdownInlineKind::Strikethrough;
+            InlineStyleDelimiterWidth(node.kind) != 0u;
         const auto body = style ? InlineBody(node) : std::nullopt;
         if (! body || first < body->first || last > body->last)
             return;
@@ -3043,7 +3066,7 @@ void MarkdownCommandPlanner::Style(MarkdownTextStyle style)
             (plan.before_.Start() > node.source.first || plan.before_.End() < node.source.last))
         {
             const bool eligibleAncestorStyle =
-                node.kind == MarkdownInlineKind::Strong || node.kind == MarkdownInlineKind::Emphasis || node.kind == MarkdownInlineKind::Strikethrough;
+                InlineStyleDelimiterWidth(node.kind) != 0u;
             const auto body = eligibleAncestorStyle ? InlineBody(node) : std::nullopt;
             // Nested formatting may be applied to a complete source selection
             // inside an existing style body (including entity source spelling).

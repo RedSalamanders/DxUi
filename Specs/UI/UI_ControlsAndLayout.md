@@ -1255,10 +1255,18 @@ HTML and soft/hard breaks. Code and HTML remain opaque to entity/escape decoding
 Code values normalize physical line endings to spaces and apply the standard
 single leading/trailing-space rule. Exact source spelling is retained separately.
 
-`MarkdownExtensions` defaults to None for CommonMark and All for Gfm029 and
-RichMarkdown. Explicit options select Tables, TaskLists, Strikethrough, Autolinks
-and TagFilter; unknown bits and CommonMark/GFM-option combinations are rejected
+`MarkdownExtensions` defaults to None for CommonMark, All for Gfm029 and
+RichAll for RichMarkdown. Explicit options select Tables, TaskLists, Strikethrough, Autolinks,
+TagFilter and the RichMarkdown-only Highlight, Superscript, Subscript and Inserted flags;
+unknown bits and unsupported profile/option combinations are rejected
 atomically. Options participate in request coalescing/publication identity.
+RichMarkdown resolves exact `==...==`, `^...^`, `~...~` and `++...++` delimiter
+runs as marked, superscript, subscript and underlined insertion respectively;
+`~~...~~` remains strikethrough. Delimiters obey inline flanking and nesting,
+code/HTML/math ownership and exact source mapping. GFM/CommonMark keep the new
+spellings literal. Invalid run lengths remain literal. The existing script
+renderer prepares typography and falls back to the exact owning source leaf if
+the target cannot draw script content; a matching resource-key change retries.
 GFM tables are recognized before cell inlines, retain alignment/header metadata,
 unescape cell pipes even in code, pad missing cells and retain ignored excess
 source. Task metadata belongs to the list item, requires its first paragraph

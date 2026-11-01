@@ -57,6 +57,24 @@ void TestRichSemanticNativeFallbackSyntaxOwnership()
             const auto htmlRetry = RichSemanticDocumentTests::Complete(builder, *htmlSyntax);
             Require(htmlRetry->Map().Display() == htmlOriginal->Map().Display(), "clearing the target rejection retries native HTML");
         }
+    const std::wstring markdownScript = L"a ^script^ b\n\nother text\n";
+    const auto scriptSyntax = RichSemanticDocumentTests::Parse(markdownScript, MarkdownProfile::RichMarkdown);
+    builder.Begin(scriptSyntax);
+    const auto scriptOriginal = RichSemanticDocumentTests::Complete(builder, *scriptSyntax);
+    const auto scriptOwner = std::ranges::find_if(scriptOriginal->Elements(), [&](const auto& element)
+    {
+        return element.role == SemanticRole::Paragraph && scriptSyntax->Slice(element.source).find(L"^script^") != std::wstring_view::npos;
+    });
+    Require(scriptOwner != scriptOriginal->Elements().end(), "Markdown script has an exact owning paragraph");
+    const std::array scriptRanges{scriptOwner->source};
+    Detail::SemanticExtensionAccess::BeginWithNativeFallbacks(builder, scriptSyntax, scriptRanges);
+    const auto scriptFallback = RichSemanticDocumentTests::Complete(builder, *scriptSyntax);
+    Require(scriptFallback->Map().Display().find(L"a ^script^ b") != std::wstring_view::npos &&
+                scriptFallback->Map().Display().find(L"other text") != std::wstring_view::npos,
+            "rejected Markdown script falls back only its exact source leaf");
+    builder.Begin(scriptSyntax);
+    Require(RichSemanticDocumentTests::Complete(builder, *scriptSyntax)->Map().Display() == scriptOriginal->Map().Display(),
+            "Markdown script target replacement retries the original semantic leaf");
     const std::wstring fenceSource = L"```math\n\\frac{1}{2}\n```\n";
     const auto fenceSyntax         = RichSemanticDocumentTests::Parse(fenceSource, MarkdownProfile::RichMarkdown);
     builder.Begin(fenceSyntax);

@@ -22,7 +22,12 @@ enum class MarkdownExtensions : unsigned
     Strikethrough = 4u,
     Autolinks     = 8u,
     TagFilter     = 16u,
-    All           = 31u
+    All           = 31u,
+    Highlight     = 32u,
+    Superscript   = 64u,
+    Subscript     = 128u,
+    Inserted      = 256u,
+    RichAll       = 511u
 };
 constexpr MarkdownExtensions operator|(MarkdownExtensions a, MarkdownExtensions b) noexcept
 {
@@ -131,7 +136,11 @@ enum class MarkdownInlineKind
     Html,
     FootnoteReference,
     Math,
-    SourceEditor
+    SourceEditor,
+    Highlight,
+    Superscript,
+    Subscript,
+    Inserted
 };
 // Resolved inline values, with original spelling retained in Source(). Indices
 // are revision-local. source encloses delimiters and any stripped line prefixes;

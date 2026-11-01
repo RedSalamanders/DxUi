@@ -586,6 +586,10 @@ struct SemanticBuilder::Preparation
             case MarkdownInlineKind::Strong: markdownFlags |= Bold; break;
             case MarkdownInlineKind::Emphasis: markdownFlags |= Italic; break;
             case MarkdownInlineKind::Strikethrough: markdownFlags |= Strike; break;
+            case MarkdownInlineKind::Highlight: markdownFlags |= Marked; break;
+            case MarkdownInlineKind::Inserted: markdownFlags |= Underline; break;
+            case MarkdownInlineKind::Superscript: markdownFlags = (markdownFlags & ~Subscript) | Superscript; break;
+            case MarkdownInlineKind::Subscript: markdownFlags = (markdownFlags & ~Superscript) | Subscript; break;
             case MarkdownInlineKind::Link: markdownFlags |= Link; break;
             case ::DxUi::RichText::MarkdownInlineKind::Code:
             case ::DxUi::RichText::MarkdownInlineKind::FootnoteReference:
@@ -603,7 +607,9 @@ struct SemanticBuilder::Preparation
             HtmlTag(html.At(node.source), visit.parent, markdownFlags, visit.heading);
             return;
         }
-        const auto flags = markdownFlags | html.flags;
+        auto flags = markdownFlags | html.flags;
+        if ((flags & (Superscript | Subscript)) == (Superscript | Subscript))
+            flags &= (markdownFlags & Subscript) != 0u ? ~Superscript : ~Subscript;
         auto parent      = visit.parent;
         if (node.kind == MarkdownInlineKind::SourceEditor)
         {
@@ -1692,7 +1698,7 @@ void SemanticBuilder::BeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyn
                    ((info.starts_with(L"mermaid") && (info.size() == 7u || info[7u] == L' ' || info[7u] == L'\t')) || info == L"math" || info == L"latex" ||
                     node.block.fenceMarker == L'$' || node.block.fenceMarker == L'[');
         });
-        bool scriptHtml = false;
+        bool scriptHtml = false, scriptMarkdown = false;
         if (! inlineMath && ! diagram)
         {
             const auto& nodes = syntax->Nodes();
@@ -1704,6 +1710,11 @@ void SemanticBuilder::BeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyn
             });
             if (leaf != nodes.end())
             {
+                scriptMarkdown = std::ranges::any_of(syntax->Inlines(), [&](const auto& node)
+                {
+                    return (node.kind == MarkdownInlineKind::Superscript || node.kind == MarkdownInlineKind::Subscript) &&
+                           node.source.first >= range.first && node.source.last <= range.last;
+                });
                 Detail::SemanticValue normalized;
                 const auto index = static_cast<std::size_t>(leaf - nodes.begin());
                 Detail::NormalizeSemanticLeaf(*syntax, index, normalized);
@@ -1714,7 +1725,7 @@ void SemanticBuilder::BeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyn
                 { return tag.kind == Detail::NativeHtmlKind::Sup || tag.kind == Detail::NativeHtmlKind::Sub; });
             }
         }
-        if (! scriptHtml && (syntax->Profile() != MarkdownProfile::RichMarkdown || (! inlineMath && ! diagram)))
+        if (! scriptHtml && ! scriptMarkdown && (syntax->Profile() != MarkdownProfile::RichMarkdown || (! inlineMath && ! diagram)))
             throw std::invalid_argument("Native source fallback requires an exact native syntax owner");
         previousEnd = range.last;
     }

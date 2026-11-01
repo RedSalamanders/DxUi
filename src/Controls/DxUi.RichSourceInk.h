@@ -253,6 +253,10 @@ private:
             case MarkdownInlineKind::Emphasis:
             case MarkdownInlineKind::Strong:
             case MarkdownInlineKind::Strikethrough:
+            case MarkdownInlineKind::Highlight:
+            case MarkdownInlineKind::Superscript:
+            case MarkdownInlineKind::Subscript:
+            case MarkdownInlineKind::Inserted:
             case MarkdownInlineKind::SourceEditor:
             case MarkdownInlineKind::Math:
                 marker_       = source[range.first];

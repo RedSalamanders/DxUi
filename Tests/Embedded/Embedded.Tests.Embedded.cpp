@@ -1521,6 +1521,8 @@ __declspec(noinline) static int RunFunctionalTests()
             RichSemanticEditorTests::UrlOnSelectionPaste(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "URL paste"); });
             RichSemanticEditorTests::SemanticWords(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "semantic word viewport"); });
             RichSemanticEditorTests::SemanticDirection(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "paragraph direction"); });
+            RichSemanticEditorTests::InlineExtensions(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "inline extension styles"); });
+            RichSemanticEditorTests::InlineScriptFallback(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "inline script fallback"); });
             RichSemanticEditorTests::SourceHorizontalAndGuides(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "source guides"); });
             RichSemanticEditorTests::RichTableHorizontalOverflow(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "table overflow"); });
         });

@@ -3236,11 +3236,26 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 if (state.nativeObjectRejections)
                     objects = state.nativeObjectRejections->objects;
                 bool added = false;
+                const auto hasScript = [&](std::size_t index)
+                {
+                    if (index >= value->Elements().size()) return false;
+                    const auto& owner = value->Elements()[index];
+                    if (owner.syntaxNode >= value->Syntax()->Nodes().size()) return false;
+                    const auto kind = value->Syntax()->Nodes()[owner.syntaxNode].block.kind;
+                    if (kind != RichText::MarkdownBlockKind::Paragraph && kind != RichText::MarkdownBlockKind::AtxHeading &&
+                        kind != RichText::MarkdownBlockKind::SetextHeading && kind != RichText::MarkdownBlockKind::TableCell)
+                        return false;
+                    return std::ranges::any_of(value->Runs(), [&](const auto& run)
+                    {
+                        return (run.flags & (RichText::Superscript | RichText::Subscript)) != 0u && run.start < owner.display.last &&
+                               run.start + run.length > owner.display.first;
+                    });
+                };
                 for (const auto element : elements)
                 {
                     if (element >= value->Elements().size() ||
                         (value->Elements()[element].role != RichText::SemanticRole::Math && value->Elements()[element].role != RichText::SemanticRole::Diagram &&
-                         ! value->Elements()[element].nativeHtml))
+                         ! value->Elements()[element].nativeHtml && ! hasScript(element)))
                         break;
                     const auto source = value->Elements()[element].source;
                     if (std::ranges::find(objects, source) == objects.end())
@@ -3255,7 +3270,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 {
                     return element < value->Elements().size() && (value->Elements()[element].role == RichText::SemanticRole::Math ||
                                                                   value->Elements()[element].role == RichText::SemanticRole::Diagram ||
-                                                                  value->Elements()[element].nativeHtml);
+                                                                  value->Elements()[element].nativeHtml || hasScript(element));
                 }))
                 {
                     std::ranges::sort(objects, [](const auto& a, const auto& b)
