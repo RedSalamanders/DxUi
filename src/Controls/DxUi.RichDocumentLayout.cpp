@@ -33,8 +33,8 @@ bool SameStyles(const Projection& left, const Projection& right) noexcept
 }
 bool SameOptions(const LayoutOptions& left, const LayoutOptions& right) noexcept
 {
-    return left.tabStopDip == right.tabStopDip && left.widthDip == right.widthDip && left.fontSizeDip == right.fontSizeDip &&
-           left.codeFontSizeDip == right.codeFontSizeDip && left.lineHeightMultiplier == right.lineHeightMultiplier &&
+    return left.tableOverflow == right.tableOverflow && left.tabStopDip == right.tabStopDip && left.widthDip == right.widthDip &&
+           left.fontSizeDip == right.fontSizeDip && left.codeFontSizeDip == right.codeFontSizeDip && left.lineHeightMultiplier == right.lineHeightMultiplier &&
            left.headingScaleStep == right.headingScaleStep && left.fontFamily == right.fontFamily && left.headingFontSizeDip == right.headingFontSizeDip &&
            left.headingLineHeightMultiplier == right.headingLineHeightMultiplier && left.paragraphSpacingAfterLines == right.paragraphSpacingAfterLines &&
            left.listItemSpacingDip == right.listItemSpacingDip && left.semanticSpacing == right.semanticSpacing &&

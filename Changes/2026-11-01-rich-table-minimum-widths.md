@@ -1,1 +1,1 @@
-Rich Markdown tables preserve each column's minimum word width before distributing remaining wrapping space, including right-to-left layout.
+- Rich Markdown tables preserve each column's minimum word width before distributing remaining wrapping space, including right-to-left layout.

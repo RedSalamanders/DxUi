@@ -2,8 +2,8 @@
 #include "Configuration.h"
 #include "MarkdownSyntax.h"
 #include "PreparedTreeAccessibility.h"
-#include "RichImage.h"
 #include "RichCodeTokenizer.h"
+#include "RichImage.h"
 #include "RichMarkdown.h"
 #include "RichSemantic.h"
 #include "RichSemanticDocument.h"
@@ -3102,8 +3102,9 @@ struct RichTextEditorAppearance
     // Reserve a vertical scrollbar lane, including in right-to-left layout.
     bool showVerticalScrollbar = false;
     bool sourceMonospace       = false;
-    float zoom                 = 1.0f; // Font scale, .25..4; source/history are unchanged.
-    float tabStopDip           = 0.0f; // Zero keeps DirectWrite's default; otherwise 1..4096 DIP.
+    bool tableOverflow         = false; // Subtle table minimum widths may overflow horizontally.
+    float zoom                 = 1.0f;  // Font scale, .25..4; source/history are unchanged.
+    float tabStopDip           = 0.0f;  // Zero keeps DirectWrite's default; otherwise 1..4096 DIP.
     // Zero preserves host Tab traversal; 1..16 inserts that many spaces in source/code.
     unsigned sourceTabSpaces   = 0u;
     bool sourceTabUsesTabs     = false; // When enabled, insert a tab instead of spaces.

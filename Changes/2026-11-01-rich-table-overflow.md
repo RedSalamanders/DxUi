@@ -1,0 +1,1 @@
+- Add opt-in horizontal table overflow that preserves minimum word widths and reports the full retained content extent in either reading direction.
