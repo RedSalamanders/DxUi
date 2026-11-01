@@ -153,7 +153,8 @@ try {
     Run-Case 'unmapped executable input widens to every scope' {$plan=Get-ScopedTestPlan $manifest @('Unknown/new.cpp');Assert-Scope $plan.full 'Fallback was narrowed'}
     if($manifest.repository -like '*/DxUi') {
         Run-Case 'native rich grammar geometry and shared fixtures retain accessibility coverage' {
-            foreach($path in @('include/DxUi/RichMath.h','include/DxUi/RichSemanticDocument.h','src/Controls/DxUi.RichSemanticDocument.cpp',
+            foreach($path in @('include/DxUi/RichMath.h','include/DxUi/RichSemanticDocument.h','include/DxUi/RichTextExport.h',
+                              'src/Controls/DxUi.RichSemanticDocument.cpp','src/Controls/DxUi.RichTextExport.cpp','Tests/Support/Support.Tests.RichTextExport.h',
                               'src/Controls/DxUi.NativeMath.cpp','src/Controls/DxUi.PreparedMath.h','src/Controls/DxUi.NativeFlowchart.cpp',
                               'src/Controls/DxUi.NativeFlowchartLayout.h','src/Controls/DxUi.PreparedFlowchart.cpp','src/Controls/DxUi.SemanticExtensions.h',
                               'src/Controls/DxUi.RichTextScriptRenderer.h','src/Controls/DxUi.RichBidi.h',

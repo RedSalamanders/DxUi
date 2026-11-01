@@ -36,7 +36,8 @@ HRESULT ReadUnicodeClipboardData(HANDLE data, std::wstring& text) noexcept
 class WindowsTextClipboard final : public TextClipboard,
                                    public StructuredTextClipboard,
                                    public SelectiveStructuredTextClipboard,
-                                   public BitmapStructuredTextClipboard
+                                   public BitmapStructuredTextClipboard,
+                                   public HtmlTextClipboardWriter
 {
 public:
     HRESULT Read(HWND owner, std::wstring& text) noexcept override
@@ -170,12 +171,111 @@ public:
         static_cast<void>(memory.release());
         return S_OK;
     }
+    HRESULT WriteExport(HWND owner, const RichText::ExportContent& content) noexcept override
+    try
+    {
+        if (! owner || content.Text().find(L'\0') != std::wstring_view::npos)
+            return E_INVALIDARG;
+        std::string html(0u, '\0');
+        RETURN_IF_FAILED(EncodeClipboardHtml(content.HtmlFragment(), html));
+        size_t textBytes{};
+        RETURN_IF_FAILED(ClipboardAllocationSize(content.Text().size(), textBytes));
+        const auto format = RegisterClipboardFormatW(L"HTML Format");
+        if (! format)
+            return LastClipboardError();
+        const auto& calls = ClipboardCalls();
+        wil::unique_hglobal textMemory(calls.allocate(GMEM_MOVEABLE, textBytes));
+        wil::unique_hglobal htmlMemory(calls.allocate(GMEM_MOVEABLE, html.size() + 1u));
+        if (! textMemory || ! htmlMemory)
+            return E_OUTOFMEMORY;
+        auto* textValue = static_cast<wchar_t*>(GlobalLock(textMemory.get()));
+        if (! textValue)
+            return LastClipboardError();
+        {
+            const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(textMemory.get()); });
+            std::memcpy(textValue, content.Text().data(), content.Text().size() * sizeof(wchar_t));
+            textValue[content.Text().size()] = L'\0';
+        }
+        auto* htmlValue = static_cast<char*>(GlobalLock(htmlMemory.get()));
+        if (! htmlValue)
+            return LastClipboardError();
+        {
+            const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(htmlMemory.get()); });
+            std::memcpy(htmlValue, html.data(), html.size());
+            htmlValue[html.size()] = '\0';
+        }
+        if (! calls.open(owner))
+            return LastClipboardError();
+        const auto close = wil::scope_exit([&calls]() noexcept { calls.close(); });
+        if (! calls.empty() || ! calls.setData(CF_UNICODETEXT, textMemory.get()))
+            return LastClipboardError();
+        static_cast<void>(textMemory.release());
+        if (! calls.setData(format, htmlMemory.get()))
+            return LastClipboardError();
+        static_cast<void>(htmlMemory.release());
+        return S_OK;
+    }
+    catch (const std::bad_alloc&)
+    {
+        // Clipboard allocation failures are explicit and never delete source.
+        return E_OUTOFMEMORY;
+    }
 };
 } // namespace
 #if DXUI_ENABLE_DIAGNOSTICS
 thread_local TextClipboard* testTextClipboard                     = nullptr;
 thread_local const ClipboardSystemCalls* testClipboardSystemCalls = nullptr;
 #endif
+HRESULT EncodeClipboardHtml(std::wstring_view fragment, std::string& bytes) noexcept
+try
+{
+    if (fragment.size() > RichText::ExportContent::MaximumUnits || fragment.find(L'\0') != fragment.npos)
+        return E_INVALIDARG;
+    // RichDocument::EncodeUtf8 enforces the 64 Ki source-document ceiling.
+    // Export markup has a separate 4 Mi-unit bound; use the same strict Windows
+    // UTF-16 conversion here without admitting an oversized source document.
+    const auto count =
+        fragment.empty() ? 0
+                         : WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, fragment.data(), static_cast<int>(fragment.size()), nullptr, 0, nullptr, nullptr);
+    if (! fragment.empty() && ! count)
+        return E_INVALIDARG;
+    constexpr std::string_view header = "Version:1.0\r\nStartHTML:0000000000\r\nEndHTML:0000000000\r\nStartFragment:0000000000\r\nEndFragment:0000000000\r\n";
+    constexpr std::string_view prefix = "<html><body><!--StartFragment-->", suffix = "<!--EndFragment--></body></html>";
+    std::string staged(header);
+    staged.append(prefix);
+    const auto first = staged.size();
+    staged.resize(first + static_cast<size_t>(count));
+    if (count &&
+        WideCharToMultiByte(
+            CP_UTF8, WC_ERR_INVALID_CHARS, fragment.data(), static_cast<int>(fragment.size()), staged.data() + first, count, nullptr, nullptr) != count)
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    const auto last = staged.size();
+    staged.append(suffix);
+    const auto writeOffset = [&](std::string_view name, size_t offset)
+    {
+        const auto at = header.find(name) + name.size();
+        std::array<char, 20u> digits{};
+        const auto result = std::to_chars(digits.data(), digits.data() + digits.size(), offset);
+        const auto length = static_cast<size_t>(result.ptr - digits.data());
+        if (result.ec != std::errc{} || length > 10u)
+            throw std::length_error("Clipboard HTML offset capacity exceeded");
+        std::memcpy(staged.data() + at + 10u - length, digits.data(), length);
+    };
+    writeOffset("StartHTML:", header.size());
+    writeOffset("EndHTML:", staged.size());
+    writeOffset("StartFragment:", first);
+    writeOffset("EndFragment:", last);
+    bytes.swap(staged);
+    return S_OK;
+}
+catch (const std::bad_alloc&)
+{
+    return E_OUTOFMEMORY;
+}
+catch (const std::length_error&)
+{
+    return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
+}
 HRESULT DecodeClipboardHtml(std::span<const std::byte> buffer, std::wstring& fragment) noexcept
 try
 {
@@ -474,5 +574,12 @@ TextClipboard& ActiveTextClipboard() noexcept
         return *testTextClipboard;
 #endif
     return SystemTextClipboard();
+}
+HRESULT CopyExportToClipboard(HWND owner, const RichText::ExportContent& content, TextClipboard* clipboard) noexcept
+{
+    auto& target = clipboard ? *clipboard : ActiveTextClipboard();
+    if (auto* html = dynamic_cast<HtmlTextClipboardWriter*>(&target))
+        return html->WriteExport(owner, content);
+    return target.Write(owner, content.Text());
 }
 } // namespace DxUi

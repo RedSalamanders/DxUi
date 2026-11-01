@@ -41,6 +41,7 @@ public:
     bool failAllocation    = false;
     bool failEmpty         = false;
     bool failPublish       = false;
+    bool failHtmlPublish   = false;
     size_t opens           = 0;
     size_t closes          = 0;
     size_t allocations     = 0;
@@ -82,17 +83,20 @@ private:
             return FALSE;
         }
         _current->data.reset();
+        _current->fileData.reset();
+        _current->htmlData.reset();
         return TRUE;
     }
     static HANDLE WINAPI SetData(UINT format, HANDLE value)
     {
-        _current->check(format == CF_UNICODETEXT, "transport publishes Unicode clipboard data");
-        if (_current->failPublish)
+        const auto html = RegisterClipboardFormatW(L"HTML Format");
+        _current->check(format == CF_UNICODETEXT || format == html, "transport publishes supported clipboard formats");
+        if (_current->failPublish || (format == html && _current->failHtmlPublish))
         {
             SetLastError(ERROR_ACCESS_DENIED);
             return nullptr;
         }
-        _current->data.reset(static_cast<HGLOBAL>(value));
+        (format == html ? _current->htmlData : _current->data).reset(static_cast<HGLOBAL>(value));
         ++_current->publications;
         return value;
     }

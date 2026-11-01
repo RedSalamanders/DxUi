@@ -183,45 +183,7 @@ std::optional<MarkdownRange> SemanticDocument::ResolveHeadingFragment(std::wstri
     if (fragment.size() == 1u)
         return MarkdownRange{};
     std::wstring wanted(0u, L' ');
-    try
-    {
-        const auto encoded = EncodeUtf8(fragment.substr(1u));
-        std::string decoded(0u, '\0');
-        decoded.reserve(encoded.size());
-        const auto hex = [](char value) noexcept -> unsigned
-        {
-            if (value >= '0' && value <= '9')
-                return static_cast<unsigned>(value - '0');
-            if (value >= 'a' && value <= 'f')
-                return static_cast<unsigned>(value - 'a') + 10u;
-            if (value >= 'A' && value <= 'F')
-                return static_cast<unsigned>(value - 'A') + 10u;
-            return 16u;
-        };
-        for (std::size_t index = 0u; index < encoded.size(); ++index)
-        {
-            auto value = encoded[index];
-            if (value == '%')
-            {
-                if (index + 2u >= encoded.size() || hex(encoded[index + 1u]) > 15u || hex(encoded[index + 2u]) > 15u)
-                    return std::nullopt;
-                value = static_cast<char>((hex(encoded[index + 1u]) << 4u) | hex(encoded[index + 2u]));
-                index += 2u;
-            }
-            if (! value)
-                return std::nullopt;
-            decoded.push_back(value);
-        }
-        wanted = DecodeUtf8(decoded);
-    }
-    catch (const std::invalid_argument&)
-    {
-        return std::nullopt;
-    }
-    catch (const std::length_error&)
-    {
-        return std::nullopt;
-    }
+    if (! Detail::DecodeHeadingFragment(fragment, wanted)) return std::nullopt;
     const auto found = std::ranges::find(headings_, wanted, &SemanticHeading::slug);
     return found == headings_.end() ? std::nullopt : std::optional(found->target);
 }

@@ -8,6 +8,7 @@
 #include "RichSemantic.h"
 #include "RichSemanticDocument.h"
 #include "RichTextCommands.h"
+#include "RichTextExport.h"
 #include "RichTextPresentation.h"
 
 // Header capability: opt-in intrinsic measurement, flow layout and form presentation APIs are available.
@@ -3542,6 +3543,13 @@ public:
     [[nodiscard]] std::optional<std::pair<size_t, size_t>> GetVisibleSourceRange(const ControlHost& host) const noexcept;
     // Valid only for the currently acknowledged semantic document and layout.
     [[nodiscard]] std::optional<RichText::MarkdownRange> GetVisibleSemanticDisplayRange(const ControlHost& host) const noexcept;
+    // Draw an explicit vertical document slice into an application-owned page
+    // on this host's prepared device context. Destination width must match the
+    // prepared text viewport; prepare a separate export editor for another page
+    // width. Clips at page edges (including oversized native objects). No editor
+    // chrome, caret, selection or transient decorations; no scroll/source/focus
+    // mutation, reflow, resource creation, worker or printer dialog.
+    void DrawPreparedPage(ControlHost& host, D2D1_RECT_F destination, float sourceTopDip, const RichText::ExportDrawing& drawing) const;
     // Display word containing the caret, mapped to exact source-owned ranges.
     // Generated display text may have no source; transformed objects retain
     // their complete source owner. Requires this host's current prepared layout.

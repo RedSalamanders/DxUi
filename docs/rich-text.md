@@ -25,6 +25,7 @@ receivers and the library must likewise be rebuilt from the same exact pin.
 | Images | Limited | Caller-owned decoding and bounded raster publication; remote requests default off | [Details](#retained-editor-preview-d2c) |
 | File-reference paste | Supported | Ordered references; document-relative destinations; one undo transaction | [Details](#retained-editor-preview-d2c) |
 | File-reference drop | Limited | App-owned STA adapter; 16 files; 256 KiB medium; guarded prepared caret | [Details](#retained-editor-preview-d2c) |
+| Rendered export | Limited | Inert bounded semantic HTML and text; explicit clipboard; prepared page slices | [Details](#rendered-export-and-printing) |
 | Metadata envelopes | Supported | Leading RichMarkdown YAML/TOML envelope; exact fences and source | [Details](#leading-metadata-envelopes) |
 | Metadata validation | Limited | Single document; YAML 1.2.2 core schema and TOML 1.0.0; bounded capacity | [Details](#leading-metadata-envelopes) |
 | Footnotes | Limited | RichMarkdown references, reordered bodies and source-exact backlinks | [Details](#footnote-rendering-and-navigation-m5b-preview) |
@@ -39,6 +40,47 @@ receivers and the library must likewise be rebuilt from the same exact pin.
 | Native Mermaid | Limited | Bounded flowchart, state, class, sequence, pie, ER, Gantt and mind map profiles; unsupported syntax remains source | [Details](#native-in-document-mathematics-and-broader-diagrams) |
 | Complete extension conformance | Not supported | Full-language parity is not established by bounded feature or corpus results | [Details](#current-capabilities) |
 <!-- rich-text-capabilities:end -->
+
+## Rendered export and printing
+
+`ExportSemanticDocument` prepares owned Unicode text and an inert HTML
+fragment from an immutable semantic publication, either for the entire display
+or a half-open display range. Range endpoints must be valid UTF-16/CRLF
+boundaries. `ExportMarkdownSyntax` synchronously builds the default semantic
+projection from a published syntax tree; call it outside Paint. The output
+retains selected structure and styles, escapes authored
+markup, admits only HTTP, HTTPS, mailto and local-fragment links, and substitutes
+readable alternatives for native objects. Images are text alternatives; the
+fragment initiates no resource loading. Each output is bounded to 4 Mi UTF-16
+units. The range is in display order, which can differ from source order for
+footnotes; callers choose the display range deliberately. Heading IDs use the
+semantic outline's collision-resolved slugs. A fragment whose heading is absent
+from the selected export is emitted as inert text; unresolved wiki targets are
+also inert. Rendered line breaks become HTML `<br>` elements outside literal
+preformatted blocks.
+
+`CopyExportToClipboard` is explicit and leaves ordinary source copy unchanged.
+The system writer stages Unicode and UTF-8 CF_HTML before one nonblocking
+clipboard ownership attempt. If the second format fails after Unicode has been
+published, it reports failure while preserving the transferred Unicode format.
+Legacy `TextClipboard` implementations receive the rendered Unicode text.
+Embedded applications supply their own clipboard owner and adapter.
+
+`RichTextEditor::DrawPreparedPage` paints a vertical content slice into a clip
+using the current prepared layout and caller-supplied target-compatible brushes.
+The caller owns the host device context's target, transform, BeginDraw/EndDraw,
+page loop, print control and PDF or image destination. The destination width
+must equal the prepared text viewport width; changed or unprepared geometry is
+rejected instead of synchronously reflowed. The same D2D device generation is
+required for prepared device resources. The call changes no source, history,
+selection or scroll and does no C++ heap allocation. Focused parser, fake
+clipboard and supplied-device raster probes passed before the heading-index
+integration; integrated native, print-device and consumer qualification remain
+pending.
+The default page uses caller brushes for monochrome diagram and math ink;
+optionally supply the page text, stroke and fill colors and enable
+`preserveAuthorColors` to apply the prepared author palettes under the existing
+contrast checks.
 
 ## Editor presentation
 

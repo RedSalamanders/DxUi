@@ -4,6 +4,7 @@
 #include <DxUi/MarkdownSyntax.h>
 #include <algorithm>
 #include <iterator>
+#include <stdexcept>
 
 namespace DxUi::RichText::Detail
 {
@@ -42,6 +43,54 @@ inline void AppendLabelScalar(std::wstring& result, std::uint32_t scalar)
         scalar -= 0x10000u;
         result.push_back(static_cast<wchar_t>(0xd800u + (scalar >> 10u)));
         result.push_back(static_cast<wchar_t>(0xdc00u + (scalar & 1023u)));
+    }
+}
+// Shared fragment decoding for navigation and inert export. A false return
+// leaves the caller's output untouched; allocation failures still propagate.
+inline bool DecodeHeadingFragment(std::wstring_view fragment, std::wstring& output)
+{
+    if (! fragment.starts_with(L'#') || fragment.size() == 1u)
+        return false;
+    try
+    {
+        const auto encoded = EncodeUtf8(fragment.substr(1u));
+        std::string decoded(0u, '\0');
+        decoded.reserve(encoded.size());
+        const auto hex = [](char value) noexcept -> unsigned
+        {
+            if (value >= '0' && value <= '9')
+                return static_cast<unsigned>(value - '0');
+            if (value >= 'a' && value <= 'f')
+                return static_cast<unsigned>(value - 'a') + 10u;
+            if (value >= 'A' && value <= 'F')
+                return static_cast<unsigned>(value - 'A') + 10u;
+            return 16u;
+        };
+        for (std::size_t index = 0u; index < encoded.size(); ++index)
+        {
+            auto value = encoded[index];
+            if (value == '%')
+            {
+                if (index + 2u >= encoded.size() || hex(encoded[index + 1u]) > 15u || hex(encoded[index + 2u]) > 15u)
+                    return false;
+                value = static_cast<char>((hex(encoded[index + 1u]) << 4u) | hex(encoded[index + 2u]));
+                index += 2u;
+            }
+            if (! value)
+                return false;
+            decoded.push_back(value);
+        }
+        auto staged = DecodeUtf8(decoded);
+        output.swap(staged);
+        return true;
+    }
+    catch (const std::invalid_argument&)
+    {
+        return false;
+    }
+    catch (const std::length_error&)
+    {
+        return false;
     }
 }
 // Shared identity for ordinary references and the named footnote profile. No

@@ -9,11 +9,239 @@
 #include "Support.Tests.RichImage.h"
 #include "Support.Tests.RichImagePaths.h"
 #include "Support.Tests.RichImageResources.h"
+#include "Support.Tests.RichTextExport.h"
 #include "Support.Tests.SemanticDiagrams.h"
 #include "Support.Tests.SemanticSourceBlock.h"
 #include <DxUi/RichSemanticDocument.h>
 #include <DxUi/RichTextCommands.h>
 #include <type_traits>
+
+static void TestRichExportAllocationFailures()
+{
+    using namespace DxUi::RichText;
+    const auto document =
+        RichSemanticDocumentTests::Build(L"# Title\n\n1. **one**\n2. [two](https://example.test) [go](#title)\n", MarkdownProfile::RichMarkdown);
+    const std::wstring source(document->Syntax()->Source());
+    const std::wstring display(document->Map().Display());
+    size_t requests{};
+    {
+        const auto oldCounting = countAllocations;
+        const auto oldCalls = allocations, oldBytes = allocationBytes;
+        const auto restore = wil::scope_exit([=] noexcept
+        {
+            countAllocations = oldCounting;
+            allocations      = oldCalls;
+            allocationBytes  = oldBytes;
+        });
+        allocations = allocationBytes = 0u;
+        countAllocations              = true;
+        const auto exported           = ExportSemanticDocument(*document);
+        requests                      = allocations;
+        Check(! exported.Text().empty() && ! exported.HtmlFragment().empty(), "measure complete export allocation points");
+    }
+    Check(requests > 0u && requests < 512u, "export allocation sweep has a finite observed schedule");
+    for (size_t failure = 0u; failure < requests; ++failure)
+    {
+        bool refused = false;
+        {
+            const auto oldFailure = failAllocationAfter;
+            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+            failAllocationAfter   = failure;
+            try
+            {
+                static_cast<void>(ExportSemanticDocument(*document));
+            }
+            catch (const std::bad_alloc&)
+            {
+                refused = true;
+            }
+        }
+        Check(refused && document->Syntax()->Source() == source && document->Map().Display() == display,
+              "every observed export allocation failure preserves its immutable publication");
+        Check(! ExportSemanticDocument(*document).HtmlFragment().empty(), "export retries after allocation failure");
+    }
+}
+
+static void TestRichPreparedPageRaster(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create prepared-page graphics");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "attach prepared-page host");
+    auto owned      = std::make_unique<RichTextEditor>(L"# First heading\n\nFirst paragraph.\n\nSecond paragraph.\n\nThird paragraph.\n\nFourth paragraph.\n");
+    auto* editor    = owned.get();
+    auto appearance = editor->GetAppearance();
+    appearance.paddingDip = 0.0f;
+    editor->SetAppearance(appearance);
+    editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    editor->SetSelection({2u, 7u});
+    view.Controls().SetRoot(std::move(owned));
+    Hr(PrepareRichEmbeddedContent(view, 240u, 120u), "prepare immutable export geometry");
+    auto* context = view.Controls().GetDeviceContext();
+    Check(context != nullptr, "prepared page has a device context");
+    const auto properties =
+        D2D1::BitmapProperties1(D2D1_BITMAP_OPTIONS_TARGET, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.0f, 96.0f);
+    const auto readProperties = D2D1::BitmapProperties1(D2D1_BITMAP_OPTIONS_CPU_READ | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+                                                        D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED),
+                                                        96.0f,
+                                                        96.0f);
+    wil::com_ptr<ID2D1Bitmap1> page, readback;
+    Hr(context->CreateBitmap(D2D1::SizeU(300u, 140u), nullptr, 0u, &properties, page.put()), "create page target");
+    Hr(context->CreateBitmap(D2D1::SizeU(300u, 140u), nullptr, 0u, &readProperties, readback.put()), "create page readback");
+    wil::com_ptr<ID2D1SolidColorBrush> ink;
+    Hr(context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), ink.put()), "create page ink");
+    wil::com_ptr<ID2D1Image> originalTarget;
+    context->GetTarget(originalTarget.put());
+    const auto restore = wil::scope_exit([&] noexcept { context->SetTarget(originalTarget.get()); });
+    context->SetTarget(page.get());
+    context->BeginDraw();
+    context->Clear(D2D1::ColorF(D2D1::ColorF::White));
+    const auto before    = editor->Snapshot();
+    const auto revision  = editor->Revision();
+    const auto selection = editor->GetSelection();
+    const auto scroll    = editor->GetScrollInfo();
+    RichText::ExportDrawing drawing;
+    drawing.text    = ink.get();
+    bool wrongWidth = false;
+    try
+    {
+        editor->DrawPreparedPage(view.Controls(), D2D1::RectF(20.f, 5.f, 259.f, 60.f), 0.f, drawing);
+    }
+    catch (const std::invalid_argument&)
+    {
+        wrongWidth = true;
+    }
+    Check(wrongWidth, "a page with a different layout width is rejected before drawing");
+    size_t observed{};
+    {
+        const auto oldCounting = countAllocations;
+        const auto oldCalls = allocations, oldBytes = allocationBytes, oldFailure = failAllocationAfter;
+        const auto reset = wil::scope_exit([=] noexcept
+        {
+            countAllocations    = oldCounting;
+            allocations         = oldCalls;
+            allocationBytes     = oldBytes;
+            failAllocationAfter = oldFailure;
+        });
+        allocations = allocationBytes = 0u;
+        countAllocations              = true;
+        failAllocationAfter           = 0u;
+        editor->DrawPreparedPage(view.Controls(), D2D1::RectF(20.f, 5.f, 260.f, 60.f), 0.f, drawing);
+        drawing.preserveAuthorColors = true;
+        drawing.pageText             = D2D1::ColorF(D2D1::ColorF::Black);
+        drawing.pageStroke           = D2D1::ColorF(D2D1::ColorF::Black);
+        drawing.pageFill             = D2D1::ColorF(D2D1::ColorF::White);
+        editor->DrawPreparedPage(view.Controls(), D2D1::RectF(20.f, 75.f, 260.f, 130.f), 60.f, drawing);
+        observed = allocations;
+    }
+    Hr(context->EndDraw(), "draw two clipped pages");
+    Check(observed == 0u && editor->Snapshot().IsSameRevision(before) && editor->Revision() == revision && editor->GetSelection() == selection &&
+              editor->GetScrollInfo()->offsetDip == scroll->offsetDip && ! editor->CanUndo(),
+          "page drawing allocates no C++ storage and preserves source, selection, scroll and history");
+    Hr(readback->CopyFromBitmap(nullptr, page.get(), nullptr), "copy page pixels");
+    D2D1_MAPPED_RECT mapped{};
+    Hr(readback->Map(D2D1_MAP_OPTIONS_READ, &mapped), "map page pixels");
+    const auto unmap = wil::scope_exit([&] noexcept { readback->Unmap(); });
+    size_t firstInk{}, secondInk{}, outsideInk{};
+    for (UINT y = 0u; y < 140u; ++y)
+        for (UINT x = 0u; x < 300u; ++x)
+        {
+            const auto* pixel = mapped.bits + y * mapped.pitch + x * 4u;
+            if (pixel[0] == 255u && pixel[1] == 255u && pixel[2] == 255u)
+                continue;
+            if (x >= 20u && x < 260u && y >= 5u && y < 60u)
+                ++firstInk;
+            else if (x >= 20u && x < 260u && y >= 75u && y < 130u)
+                ++secondInk;
+            else
+                ++outsideInk;
+        }
+    Check(firstInk > 0u && secondInk > 0u && outsideInk == 0u, "both page slices draw content strictly inside their requested clips");
+    editor->SetText(L"replacement after the prepared page");
+    bool staleRejected = false;
+    try
+    {
+        editor->DrawPreparedPage(view.Controls(), D2D1::RectF(20.f, 5.f, 260.f, 60.f), 0.f, drawing);
+    }
+    catch (const std::logic_error&)
+    {
+        staleRejected = true;
+    }
+    Check(staleRejected, "a source change rejects stale prepared-page geometry");
+}
+
+static void TestRichPageAuthoredColors(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create colored-page graphics");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "attach colored-page host");
+    auto owned            = std::make_unique<RichTextEditor>(L"```mermaid\nflowchart TD\nA[Alpha]-->B[Beta]\nstyle A fill:#000,color:#fff\n```\n");
+    auto* editor          = owned.get();
+    auto appearance       = editor->GetAppearance();
+    appearance.paddingDip = 0.f;
+    editor->SetAppearance(appearance);
+    editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    view.Controls().SetRoot(std::move(owned));
+    Hr(PrepareRichEmbeddedContent(view, 500u, 400u), "prepare author-colored diagram");
+    const auto document = editor->GetAcknowledgedSemanticDocument(view.Controls());
+    Check(document && std::ranges::any_of(document->Elements(), [](const auto& element) { return element.role == RichText::SemanticRole::Diagram; }),
+          "colored-page fixture admitted a native diagram");
+    auto* context = view.Controls().GetDeviceContext();
+    Check(context != nullptr, "colored-page fixture has a device context");
+    const auto targetProperties =
+        D2D1::BitmapProperties1(D2D1_BITMAP_OPTIONS_TARGET, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.f, 96.f);
+    const auto readProperties = D2D1::BitmapProperties1(D2D1_BITMAP_OPTIONS_CPU_READ | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+                                                        D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED),
+                                                        96.f,
+                                                        96.f);
+    std::array<wil::com_ptr<ID2D1Bitmap1>, 2u> targets, copies;
+    for (size_t i = 0u; i != 2u; ++i)
+    {
+        Hr(context->CreateBitmap(D2D1::SizeU(500u, 400u), nullptr, 0u, &targetProperties, targets[i].put()), "create colored-page target");
+        Hr(context->CreateBitmap(D2D1::SizeU(500u, 400u), nullptr, 0u, &readProperties, copies[i].put()), "create colored-page readback");
+    }
+    wil::com_ptr<ID2D1SolidColorBrush> black, white;
+    Hr(context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), black.put()), "create colored-page text");
+    Hr(context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), white.put()), "create colored-page fill");
+    wil::com_ptr<ID2D1Image> originalTarget;
+    context->GetTarget(originalTarget.put());
+    const auto restore = wil::scope_exit([&] noexcept { context->SetTarget(originalTarget.get()); });
+    RichText::ExportDrawing drawing;
+    drawing.text = drawing.decoration = black.get();
+    drawing.fill                      = white.get();
+    drawing.pageText = drawing.pageStroke = D2D1::ColorF(D2D1::ColorF::Black);
+    drawing.pageFill                      = D2D1::ColorF(D2D1::ColorF::White);
+    for (size_t i = 0u; i != 2u; ++i)
+    {
+        context->SetTarget(targets[i].get());
+        context->BeginDraw();
+        context->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        drawing.preserveAuthorColors = i != 0u;
+        editor->DrawPreparedPage(view.Controls(), D2D1::RectF(0.f, 0.f, 500.f, 400.f), 0.f, drawing);
+        Hr(context->EndDraw(), "draw colored-page variant");
+        Hr(copies[i]->CopyFromBitmap(nullptr, targets[i].get(), nullptr), "copy colored-page variant");
+    }
+    D2D1_MAPPED_RECT first{}, second{};
+    Hr(copies[0]->Map(D2D1_MAP_OPTIONS_READ, &first), "map monochrome page");
+    const auto unmapFirst = wil::scope_exit([&] noexcept { copies[0]->Unmap(); });
+    Hr(copies[1]->Map(D2D1_MAP_OPTIONS_READ, &second), "map authored-color page");
+    const auto unmapSecond = wil::scope_exit([&] noexcept { copies[1]->Unmap(); });
+    size_t different{};
+    for (UINT y = 0u; y != 400u; ++y)
+        for (UINT x = 0u; x != 500u; ++x)
+        {
+            const auto* a = first.bits + y * first.pitch + x * 4u;
+            const auto* b = second.bits + y * second.pitch + x * 4u;
+            if (a[0] != b[0] || a[1] != b[1] || a[2] != b[2])
+                ++different;
+        }
+    Check(different > 100u, "the opt-in page palette preserves visible author colors");
+}
 
 static void TestRichLabelWakeupAndRetirement(GraphicsFixture& gpu)
 {

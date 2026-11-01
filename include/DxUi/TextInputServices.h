@@ -4,6 +4,10 @@
 
 namespace DxUi
 {
+namespace RichText
+{
+class ExportContent;
+}
 // Application-side C++ adapter. Keep it in the module linking DxUi.lib; use application-defined COM/POD
 // transport to a plugin. Calls are synchronous on the attaching UI thread, outside rendering.
 class TextInputClient
@@ -37,6 +41,20 @@ public:
     virtual HRESULT Read(HWND owner, std::wstring& text) noexcept      = 0;
     virtual HRESULT Write(HWND owner, std::wstring_view text) noexcept = 0;
 };
+// Optional explicit rendered-copy transport. Existing clipboard virtuals and
+// ordinary source-copy behavior are unchanged. Content is borrowed only for
+// this synchronous call; an application adapter can transport its owned copy.
+class HtmlTextClipboardWriter
+{
+public:
+    virtual ~HtmlTextClipboardWriter()                                                       = default;
+    virtual HRESULT WriteExport(HWND owner, const RichText::ExportContent& content) noexcept = 0;
+};
+// Default system transport stages Unicode and CF_HTML before one nonblocking
+// clipboard ownership attempt. A legacy adapter receives rendered Unicode.
+// A failure after EmptyClipboard may leave only Unicode; it is still reported
+// as failure. No document mutation is coupled to this explicit copy operation.
+HRESULT CopyExportToClipboard(HWND owner, const RichText::ExportContent& content, TextClipboard* clipboard = nullptr) noexcept;
 
 // Optional structured paste transport. Existing TextClipboard implementations
 // and Unicode-only controls retain their original Read/Write behavior.

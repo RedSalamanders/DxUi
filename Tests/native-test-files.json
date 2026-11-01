@@ -146,6 +146,7 @@
   "Tests/Support/Support.Tests.RichSemanticDocument.h",
   "Tests/Support/Support.Tests.RichSemanticEditor.h",
   "Tests/Support/Support.Tests.RichSemanticGeometry.h",
+  "Tests/Support/Support.Tests.RichTextExport.h",
   "Tests/Support/Support.Tests.RichTextStateReplacement.h",
   "Tests/Support/Support.Tests.SelectionEventInterruption.h",
   "Tests/Support/Support.Tests.SemanticDiagrams.h",

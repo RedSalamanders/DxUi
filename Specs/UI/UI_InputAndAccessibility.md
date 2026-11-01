@@ -931,6 +931,13 @@ most two independent admitted 32 MiB payload copies during the synchronous call.
 An accepted supported local image path inserts one Markdown image in one undo
 transaction. The library does not save a file or retain a clipboard handle.
 
+Explicit `CopyExportToClipboard` stages rendered Unicode and UTF-8 CF_HTML
+before one nonblocking ownership attempt; ordinary copy remains source-exact.
+The optional HTML writer preserves the original TextClipboard virtual surface,
+and legacy implementations receive rendered Unicode. A failure after the
+Unicode format is transferred can leave that format on the clipboard and MUST
+be reported as failure. This operation never mutates the document.
+
 Rich file-reference paste optionally uses StructuredTextClipboard with bounded wide
 CF_HDROP and Unicode fallback under one nonblocking clipboard ownership attempt.
 ANSI file lists and malformed/unterminated buffers MUST fail without publishing

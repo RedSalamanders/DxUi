@@ -1861,6 +1861,22 @@ existing context-menu and decoration callbacks own the UI. The interval bounds
 word traversal; exclusion preparation currently scans document elements, runs
 and spans and must not be called from Paint. No dictionary or reading-rate policy
 is supplied by the library.
+Rendered export MUST operate on one immutable semantic publication. Full or
+half-open display-range export produces owned Unicode text and inert escaped
+HTML, with readable native-object alternatives and no document-authored active
+HTML or external resource loads. UTF-16 scalar and CRLF boundaries are required;
+each output is bounded to 4 Mi UTF-16 units. Prepared-page drawing MUST clip a
+vertical slice of the current retained layout at the exact prepared viewport
+width, use caller-supplied target-compatible brushes, avoid C++ heap allocation,
+and preserve source, selection, scroll and history. The caller owns the D2D
+target, page iteration and print/PDF/image transport; stale geometry fails.
+The syntax convenience entry builds a default semantic publication synchronously
+outside Paint, and retains the same bounded export and failure contract.
+HTML heading IDs MUST use the published collision-resolved heading slugs. Local
+fragment links without a target in the selected export, and unresolved wiki
+targets, MUST remain inert text. Display line breaks outside preformatted blocks
+MUST be emitted as HTML line-break elements.
+
 `autoParagraphDirection` is an opt-in semantic layout policy. Each paragraph
 uses the first Unicode 17 strong L, R or AL scalar outside nested bidi isolates.
 the pinned DerivedBidiClass defaults and explicit overrides apply to unassigned

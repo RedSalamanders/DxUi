@@ -4286,6 +4286,40 @@ std::optional<RichText::MarkdownRange> RichTextEditor::GetVisibleSemanticDisplay
         return std::nullopt;
     }
 }
+void RichTextEditor::DrawPreparedPage(ControlHost& host, D2D1_RECT_F destination, float sourceTopDip, const RichText::ExportDrawing& drawing) const
+{
+    if (GetHost() != &host || ! drawing.text || ! std::isfinite(destination.left) || ! std::isfinite(destination.top) || ! std::isfinite(destination.right) ||
+        ! std::isfinite(destination.bottom) || destination.right <= destination.left || destination.bottom <= destination.top ||
+        ! std::isfinite(sourceTopDip) || sourceTopDip < 0.f)
+        throw std::invalid_argument("Invalid rich text export page");
+    RequireCurrentLayout(host);
+    const auto viewport = TextViewport();
+    const auto bottom   = sourceTopDip + destination.bottom - destination.top;
+    if (! std::isfinite(bottom) || std::abs(destination.right - destination.left - (viewport.right - viewport.left)) > .01f)
+        throw std::invalid_argument("Export page width must match prepared content");
+    auto* context = host.GetDeviceContext();
+    if (! context)
+        THROW_HR(E_UNEXPECTED);
+    RichText::LinkDrawing links;
+    links.brush             = drawing.link;
+    links.underline         = drawing.underlineLinks;
+    links.markedTextFill    = drawing.markedTextFill;
+    links.outlineMarkedText = drawing.outlineMarkedText;
+    const RichText::Detail::DiagramColorContext diagramColors{drawing.pageText, drawing.pageStroke, drawing.pageFill};
+    context->PushAxisAlignedClip(destination, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+    const auto restoreClip = wil::scope_exit([context]() noexcept { context->PopAxisAlignedClip(); });
+    _state->layout.Draw(context,
+                        drawing.text,
+                        drawing.decoration ? drawing.decoration : drawing.text,
+                        D2D1::Point2F(destination.left, destination.top - sourceTopDip),
+                        sourceTopDip,
+                        bottom,
+                        drawing.fill,
+                        1.0f,
+                        &links,
+                        drawing.quoteFill,
+                        drawing.preserveAuthorColors ? &diagramColors : nullptr);
+}
 std::optional<D2D1_RECT_F> RichTextEditor::GetTextInputViewportRect() const noexcept
 {
     const auto viewport = TextViewport();

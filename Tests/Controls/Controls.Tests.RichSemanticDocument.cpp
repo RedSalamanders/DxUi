@@ -6,6 +6,7 @@
 #include "Support.Tests.Footnotes.h"
 #include "Support.Tests.MathCorpus.h"
 #include "Support.Tests.RichSemanticDocument.h"
+#include "Support.Tests.RichTextExport.h"
 #include "Support.Tests.SemanticDiagrams.h"
 #include "Support.Tests.SemanticSourceBlock.h"
 #include <DxUi/RichMath.h>
@@ -15,6 +16,10 @@
 
 namespace
 {
+void TestRichTextInertExportAndClipboard()
+{
+    RichTextExportTests::Core(Require);
+}
 void TestRichMathTextWhitespaceAndPreparation()
 {
     using namespace DxUi::RichText;
@@ -1079,6 +1084,7 @@ void TestRichSemanticLocalizedAccessibilityLabels()
 }
 void RunRichSemanticDocumentTests()
 {
+    DXUI_RUN_TEST(TestRichTextInertExportAndClipboard);
     DXUI_RUN_TEST(TestRichSemanticLocalizedAccessibilityLabels);
     DXUI_RUN_TEST(TestRichMathTextWhitespaceAndPreparation);
     DXUI_RUN_TEST(TestRichMathRejectedObjectOwnsItsDiagnostic);
