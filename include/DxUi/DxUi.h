@@ -3398,7 +3398,7 @@ private:
     void SelectionChanged(bool synchronizeTextInput = true, bool preservePreferredCaretX = false, bool publishSelection = true, bool revealCaret = true);
     void PublishSelectionChanged() noexcept;
     void MoveCaret(ControlHost& host, UINT key, bool extend, bool byWord);
-    bool Erase(ControlHost& host, bool backwards, bool byWord);
+    bool Erase(ControlHost& host, bool backwards, bool byWord, bool coalesceHistory = false);
     [[nodiscard]] size_t HitSource(ControlHost& host, D2D1_POINT_2F point) const;
     [[nodiscard]] std::optional<RichText::MarkdownRange> CaretLinkDisplayRange() const noexcept;
     void UpdateCaretLinkDisplayRange() noexcept;

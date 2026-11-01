@@ -335,6 +335,15 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     tabAppearance.sourceTabSpaces = 2u;
     editor->SetAppearance(tabAppearance);
     editor->SetViewMode(ViewMode::Source);
+    editor->SetText(L"word");
+    editor->SetSelection({4u, 4u});
+    Check(editor->OnKeyDown(host, VK_BACK, 0u) && editor->OnKeyDown(host, VK_BACK, 0u) && editor->GetText() == L"wo" && editor->Undo() &&
+              editor->GetText() == L"word",
+          "source backspace run coalesces into one undo");
+    editor->SetSelection({0u, 0u});
+    Check(editor->OnKeyDown(host, VK_DELETE, 0u) && editor->OnKeyDown(host, VK_DELETE, 0u) && editor->GetText() == L"rd" && editor->Undo() &&
+              editor->GetText() == L"word",
+          "source forward-delete run coalesces into one undo");
     editor->SetText(L"one\r\ntwo\r\nthree");
     editor->SetSelection({8u, 0u});
     Check(editor->OnKeyDown(host, VK_TAB, 0u) && editor->GetText() == L"  one\r\n  two\r\nthree" && editor->GetSelection() == Selection{12u, 0u},

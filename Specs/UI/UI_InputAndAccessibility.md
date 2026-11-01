@@ -1209,6 +1209,8 @@ Adjacent direct BMP letter, digit or underscore typing is one undo group for at 
 units and one second between input events. A selection move, command, punctuation,
 whitespace, or source revision change ends the group. IME transactions retain
 their native composition history policy.
+Source-view and source-region Backspace/Delete runs on those same characters
+coalesce in the same bounded way; direction or explicit word deletion ends a run.
 
 A task press MUST stage an immutable current source plan without editing text.
 Only matching release inside its checkbox can apply it. Leaving the rectangle,

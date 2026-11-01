@@ -116,6 +116,12 @@ struct RichTextEditor::State
     RichText::Document document;
     struct TypingRun
     {
+        enum class Kind
+        {
+            Insert,
+            Backspace,
+            Delete
+        } kind = Kind::Insert;
         uint64_t revision{}, selectionEpoch{}, lastTick{};
         size_t caret{}, units{};
     };
@@ -2708,7 +2714,7 @@ void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool by
     state.preferredCaretX = preferredX;
     SelectionChanged(true, true);
 }
-bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord)
+bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool coalesceHistory)
 {
     if (! Editable())
         return false;
@@ -2740,7 +2746,7 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord)
                 last             = range.last;
             }
         }
-        const bool changed = _state->document.Replace(first, last, {}, {first, first});
+        const bool changed = _state->document.ReplaceImpl(first, last, {}, {first, first}, true, coalesceHistory);
         Changed(changed);
         return changed;
     }
@@ -2840,7 +2846,7 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord)
         if (range.first == range.last)
             return false;
         const auto first = projection.ToSource(range.first), last = projection.ToSource(range.last, true);
-        const bool changed = _state->document.Replace(first, last, {}, {first, first});
+        const bool changed = _state->document.ReplaceImpl(first, last, {}, {first, first}, true, coalesceHistory);
         Changed(changed);
         return changed;
     }
@@ -2854,7 +2860,7 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord)
         return false;
     const auto begin   = projection.ToSource(first);
     const auto end     = projection.ToSource(last, true);
-    const bool changed = state.document.Replace(begin, end, {}, {begin, begin});
+    const bool changed = state.document.ReplaceImpl(begin, end, {}, {begin, begin}, true, coalesceHistory);
     Changed(changed);
     return changed;
 }
@@ -2938,14 +2944,19 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
         {
             const auto now      = GetTickCount64();
             const auto previous = _state->typingRun;
-            const bool merge    = previous && previous->revision == Revision() && previous->selectionEpoch == _state->document.selectionEpoch_ &&
-                                  previous->caret == selection.caret && now >= previous->lastTick && now - previous->lastTick <= 1000u &&
-                                  previous->units + text.size() <= 64u && _state->document.CanUndo();
+            const bool merge    = previous && previous->kind == State::TypingRun::Kind::Insert && previous->revision == Revision() &&
+                                  previous->selectionEpoch == _state->document.selectionEpoch_ && previous->caret == selection.caret &&
+                                  now >= previous->lastTick && now - previous->lastTick <= 1000u && previous->units + text.size() <= 64u &&
+                                  _state->document.CanUndo();
             const auto end      = selection.caret + text.size();
             const bool changed  = _state->document.ReplaceImpl(selection.caret, selection.caret, text, {end, end}, true, merge);
             if (changed)
-                _state->typingRun =
-                    State::TypingRun{Revision(), _state->document.selectionEpoch_, now, end, merge ? previous->units + text.size() : text.size()};
+                _state->typingRun = State::TypingRun{State::TypingRun::Kind::Insert,
+                                                     Revision(),
+                                                     _state->document.selectionEpoch_,
+                                                     now,
+                                                     end,
+                                                     merge ? previous->units + text.size() : text.size()};
             else
                 _state->typingRun.reset();
             Changed(changed);
@@ -2970,7 +2981,7 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
             return false;
         _state->pendingLeadSurrogate = 0;
         const bool control = ModifiersContainCtrl(modifiers), shift = ModifiersContainShift(modifiers);
-        if (control || key == VK_BACK || key == VK_DELETE || key == VK_ESCAPE || key == VK_RETURN || key == VK_TAB || key == VK_F2)
+        if (control || key == VK_ESCAPE || key == VK_RETURN || key == VK_TAB || key == VK_F2)
             _state->typingRun.reset();
         if (ModifiersContainAlt(modifiers))
             return false;
@@ -3258,7 +3269,48 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                 }
                 return false;
             case VK_BACK:
-            case VK_DELETE: static_cast<void>(Erase(host, key == VK_BACK, control)); return true;
+            case VK_DELETE:
+            {
+                const bool backwards = key == VK_BACK;
+                const auto selection = GetSelection();
+                bool merge           = false;
+                if (! control && Editable() && selection.Start() == selection.End() &&
+                    (_state->sourceEditing || _state->mode == RichText::ViewMode::Source ||
+                     GetMarkdownRenderingStatus() == MarkdownRenderingStatus::SourceFallback))
+                {
+                    const auto source = Snapshot();
+                    auto range        = TextElementRange{};
+                    if (! _state->sourceEditing && _state->mode == RichText::ViewMode::Source && LayoutIsCurrent(host))
+                    {
+                        const auto projected = _state->layout.DeletionRange(selection.caret, backwards);
+                        range                = {projected.first, projected.second};
+                    }
+                    else
+                        range = GetTextElementDeletionRange(source.Text(), selection.caret, backwards);
+                    WORD characterType   = 0u;
+                    const auto character = range.last == range.first + 1u ? source.Slice(range.first, range.last) : std::wstring{};
+                    const bool word      = range.last == range.first + 1u &&
+                                           (character[0] == L'_' ||
+                                            (GetStringTypeW(CT_CTYPE1, character.data(), 1, &characterType) && (characterType & (C1_ALPHA | C1_DIGIT)) != 0u));
+                    if (word)
+                    {
+                        const auto now      = GetTickCount64();
+                        const auto previous = _state->typingRun;
+                        const auto kind     = backwards ? State::TypingRun::Kind::Backspace : State::TypingRun::Kind::Delete;
+                        merge = previous && previous->kind == kind && previous->revision == Revision() &&
+                                previous->selectionEpoch == _state->document.selectionEpoch_ && previous->caret == selection.caret &&
+                                now >= previous->lastTick && now - previous->lastTick <= 1000u && previous->units < 64u && _state->document.CanUndo();
+                        _state->typingRun =
+                            State::TypingRun{kind, Revision() + 1u, _state->document.selectionEpoch_, now, range.first, merge ? previous->units + 1u : 1u};
+                    }
+                    else
+                        _state->typingRun.reset();
+                }
+                else
+                    _state->typingRun.reset();
+                static_cast<void>(Erase(host, backwards, control, merge));
+                return true;
+            }
             case VK_LEFT:
             case VK_RIGHT:
             case VK_UP:
