@@ -1024,7 +1024,8 @@ MarkdownAdvance MarkdownParser::Advance(std::size_t maximumWorkUnits)
             {
                 pending.inlinesComplete = pending.inlines.Step();
                 if (pending.inlinesComplete)
-                    pending.syntax->inlineStatistics_ = {pending.inlines.AutolinkInspectionUnits(), pending.inlines.AutolinkDecodedUnits()};
+                    pending.syntax->inlineStatistics_ = {pending.inlines.AutolinkInspectionUnits(), pending.inlines.AutolinkDecodedUnits(),
+                                                         pending.inlines.WikiInspectionUnits()};
             }
             else if (! pending.identitiesComplete)
                 pending.IdentityUnit();

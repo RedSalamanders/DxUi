@@ -3154,7 +3154,10 @@ struct RichTextLinkActivation
 {
     RichText::MarkdownRange source;
     // Borrowed for the callback; the immutable semantic publication stays alive.
+    // Wiki targets are unresolved application names; label is the rendered alias.
     std::wstring_view destination, title;
+    std::wstring_view label;
+    bool wiki = false;
 };
 struct RichTextScrollInfo
 {

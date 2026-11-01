@@ -2529,6 +2529,32 @@ void SemanticInlineLinkImageSourceEditing(bool embedded)
         fixture.editor->SetReadOnly(false);
     }
 }
+void SemanticWikiActivation(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    fixture.editor->SetMarkdownRenderingEnabled(true);
+    fixture.editor->SetText(L"[[#application|wiki label]]");
+    fixture.Publish();
+    auto simple = fixture.Simple();
+    auto link = FindNamedSemanticPart(*simple.get(), L"wiki label");
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    Require(link && SUCCEEDED(link->GetPatternProvider(UIA_InvokePatternId, pattern.put())) && ! pattern,
+            "unresolved wiki fragment has no implicit heading Invoke");
+    unsigned calls{};
+    fixture.editor->SetOnLinkActivated([&](const RichTextLinkActivation& value)
+    {
+        Require(value.wiki && value.destination == L"#application" && value.label == L"wiki label", "wiki UIA intent preserves target and label");
+        ++calls;
+    });
+    fixture.Publish();
+    link = FindNamedSemanticPart(*simple.get(), L"wiki label");
+    RequireSucceeded(link->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "application-resolved wiki Invoke pattern");
+    wil::com_ptr_nothrow<IInvokeProvider> invoke;
+    Require(pattern && SUCCEEDED(pattern.query_to(invoke.put())) && SUCCEEDED(invoke->Invoke()) && calls == 1u,
+            "wiki UIA activation delegates exactly once to the application");
+}
 void SemanticDiagnosticSelection(bool embedded)
 {
     using namespace RichText;
@@ -3296,12 +3322,14 @@ void TestRichTextAccessibilityWindowObjectSourceEditing()
     SemanticObjectSourceEditing(false);
     SemanticInlineMathSourceEditing(false);
     SemanticInlineLinkImageSourceEditing(false);
+    SemanticWikiActivation(false);
 }
 void TestRichTextAccessibilityEmbeddedObjectSourceEditing()
 {
     EmbeddedCase(SemanticObjectSourceEditing);
     EmbeddedCase(SemanticInlineMathSourceEditing);
     EmbeddedCase(SemanticInlineLinkImageSourceEditing);
+    EmbeddedCase(SemanticWikiActivation);
 }
 void TestRichTextAccessibilityWindowSourceEditingComposition()
 {

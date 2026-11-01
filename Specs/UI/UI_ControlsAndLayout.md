@@ -1272,7 +1272,7 @@ single leading/trailing-space rule. Exact source spelling is retained separately
 
 `MarkdownExtensions` defaults to None for CommonMark, All for Gfm029 and
 RichAll for RichMarkdown. Explicit options select Tables, TaskLists, Strikethrough, Autolinks,
-TagFilter and the RichMarkdown-only Highlight, Superscript, Subscript and Inserted flags;
+TagFilter and the RichMarkdown-only Highlight, Superscript, Subscript, Inserted and WikiLinks flags;
 unknown bits and unsupported profile/option combinations are rejected
 atomically. Options participate in request coalescing/publication identity.
 RichMarkdown resolves exact `==...==`, `^...^`, `~...~` and `++...++` delimiter
@@ -1282,6 +1282,16 @@ code/HTML/math ownership and exact source mapping. GFM/CommonMark keep the new
 spellings literal. Invalid run lengths remain literal. The existing script
 renderer prepares typography and falls back to the exact owning source leaf if
 the target cannot draw script content; a matching resource-key change retries.
+RichMarkdown WikiLinks accepts `[[target]]`, `[[target|alias]]` and their
+`!`-prefixed image embeds. Targets and labels are counted, case-sensitive
+unresolved text of at most 2048 UTF-16 units each. Empty, nested, escaped,
+multiline, control-bearing or multiply separated candidates remain literal;
+code, HTML and math retain precedence. Link activation exposes the target,
+label and wiki identity to the application instead of following local fragments.
+Wiki embeds create bounded `WikiTarget` image requests with an empty FilePath;
+the application resolves the target and supplies immutable pixels. Neither
+path performs filesystem, vault or network resolution. Lookahead work is
+cooperatively bounded and amortized linear over a leaf.
 GFM tables are recognized before cell inlines, retain alignment/header metadata,
 unescape cell pipes even in code, pad missing cells and retain ignored excess
 source. Task metadata belongs to the list item, requires its first paragraph

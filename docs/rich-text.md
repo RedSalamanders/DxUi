@@ -966,6 +966,16 @@ target retains the owning leaf as exact source and retries after resource change
 Focused parser/semantic checks pass; full native, accessibility and performance
 qualification remain pending.
 
+RichMarkdown also enables bounded `[[target]]`, `[[target|alias]]` and
+`![[target]]` wiki objects. Link activation passes the unresolved target,
+rendered label and `wiki` flag to `SetOnLinkActivated`; it never follows a wiki
+fragment internally. Embeds publish `RichImageSourceKind::WikiTarget` requests
+whose `Source()` is the exact target and whose `FilePath()` is empty. The
+application resolves those requests and supplies pixels. Code/HTML/math keep
+precedence; nested brackets, escapes, multiple separators and multiline or
+oversized targets stay literal. `MarkdownExtensions::All` disables wiki syntax;
+`RichAll` includes it. No vault lookup, networking or page creation is implicit.
+
 Use opt-in analysis in either retained host:
 
 ```cpp

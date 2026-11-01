@@ -31,6 +31,8 @@ class MarkdownInlines
     std::wstring_view rawSource_;
     std::optional<MarkdownSourceRegion> sourceRegion_;
     bool sourceRegionEmitted_{};
+    std::size_t wikiClose_ = MarkdownNoNode;
+    std::size_t wikiScanned_ = 0u;
     MarkdownProfile profile_;
     MarkdownExtensions extensions_;
     std::vector<MarkdownNode>& blocks_;
@@ -89,7 +91,7 @@ class MarkdownInlines
     std::optional<AutolinkRegion> autolinkRegion_;
     std::size_t autolinkFactsCursor_{};
     unsigned autolinkFactsPhase_{};
-    std::size_t autolinkInspectionUnits_{}, autolinkDecodedUnits_{};
+    std::size_t autolinkInspectionUnits_{}, autolinkDecodedUnits_{}, wikiInspectionUnits_{};
     std::vector<FootnoteVisit> footnoteWalk_;
     std::vector<std::size_t> reachableDefinitions_;
     std::vector<std::size_t> previous_, offsets_, backtickNext_;
@@ -584,6 +586,8 @@ class MarkdownInlines
     {
         const auto& block = blocks_[blockCursor_];
         text_.clear();
+        wikiClose_ = MarkdownNoNode;
+        wikiScanned_ = 0u;
         offsets_.clear();
         delimiters_.clear();
         brackets_.clear();
@@ -1628,6 +1632,78 @@ class MarkdownInlines
             Append(first - spaces >= 2u ? Kind::HardBreak : Kind::SoftBreak, start, cursor_);
             return;
         }
+        const bool wikiImage = c == L'!' && first + 2u < text_.size() && text_[first + 1u] == L'[' && text_[first + 2u] == L'[';
+        const bool wikiLink = c == L'[' && first + 1u < text_.size() && text_[first + 1u] == L'[';
+        if ((wikiImage || wikiLink) && HasMarkdownExtension(extensions_, MarkdownExtensions::WikiLinks))
+        {
+            const auto body = first + (wikiImage ? 3u : 2u);
+            if (wikiClose_ != MarkdownNoNode && wikiClose_ < body)
+                wikiClose_ = MarkdownNoNode;
+            const auto limit = (std::min)(text_.size(), body + (std::min)(std::size_t{4098u}, text_.size() - body));
+            if (wikiClose_ == MarkdownNoNode && wikiScanned_ < limit)
+            {
+                const auto start = (std::max)(body, wikiScanned_ ? wikiScanned_ - 1u : 0u);
+                auto found = MarkdownNoNode;
+                for (auto at = start; at + 1u < limit; ++at)
+                {
+                    ++wikiInspectionUnits_;
+                    if (text_[at] == L']' && text_[at + 1u] == L']')
+                    {
+                        found = at;
+                        break;
+                    }
+                }
+                if (found != MarkdownNoNode)
+                {
+                    wikiClose_ = found;
+                    wikiScanned_ = wikiClose_ + 2u;
+                }
+                else
+                    wikiScanned_ = limit;
+            }
+            if (wikiClose_ != MarkdownNoNode && wikiClose_ >= body && wikiClose_ - body <= 4096u)
+            {
+                auto separator = wikiClose_;
+                bool valid = body < wikiClose_;
+                for (auto at = body; valid && at < wikiClose_; ++at)
+                {
+                    ++wikiInspectionUnits_;
+                    const auto value = text_[at];
+                    if (value == L'[' || value == L']' || value == L'\\' || value == L'`' || value == L'<' || value < 0x20u || value == 0x7fu)
+                        valid = false;
+                    else if (value == L'|')
+                    {
+                        if (separator != wikiClose_)
+                            valid = false;
+                        else
+                            separator = at;
+                    }
+                }
+                const auto labelFirst = separator == wikiClose_ ? body : separator + 1u;
+                valid = valid && separator > body && labelFirst < wikiClose_ && separator - body <= 2048u && wikiClose_ - labelFirst <= 2048u;
+                if (valid && sourceRegion_ && sourceRegion_->kind == MarkdownSourceRegionKind::Inline)
+                {
+                    const auto envelope = Range(first, wikiClose_ + 2u);
+                    valid = envelope.last <= sourceRegion_->source.first || envelope.first >= sourceRegion_->source.last;
+                }
+                if (valid)
+                {
+                    const auto owner = Append(wikiImage ? Kind::Image : Kind::Link, first, wikiClose_ + 2u, {}, false);
+                    nodes_[owner].wiki = true;
+                    nodes_[owner].destination.assign(text_.data() + body, separator - body);
+                    const auto child = Append(Kind::Text, labelFirst, wikiClose_, std::wstring_view(text_).substr(labelFirst, wikiClose_ - labelFirst), false);
+                    Remove(child);
+                    previous_[child] = MarkdownNoNode;
+                    nodes_[owner].firstChild = child;
+                    cursor_ = wikiClose_ + 2u;
+                    if (! wikiImage)
+                        for (auto& earlier : brackets_)
+                            if (! earlier.image)
+                                earlier.active = false;
+                    return;
+                }
+            }
+        }
         if (c == L'[' || (c == L'!' && first + 1u < text_.size() && text_[first + 1u] == L'['))
         {
             const bool image = c == L'!';
@@ -1798,6 +1874,10 @@ public:
     [[nodiscard]] std::size_t AutolinkDecodedUnits() const noexcept
     {
         return autolinkDecodedUnits_;
+    }
+    [[nodiscard]] std::size_t WikiInspectionUnits() const noexcept
+    {
+        return wikiInspectionUnits_;
     }
     bool Step()
     {

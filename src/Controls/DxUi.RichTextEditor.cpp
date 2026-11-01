@@ -2011,14 +2011,14 @@ bool RichTextEditor::NavigateSemanticElement(ControlHost& host, const std::share
     const auto& link = document->Elements()[element];
     if (! target && link.role == RichText::SemanticRole::Link)
     {
-        if (link.destination.starts_with(L'#'))
+        if (! link.wiki && link.destination.starts_with(L'#'))
             target = HeadingFragment(*document, link.destination);
         else
         {
             const auto callback = _state->onLinkActivated;
             if (! callback)
                 return false;
-            const RichTextLinkActivation activation{link.source, link.destination, link.title};
+            const RichTextLinkActivation activation{link.source, link.destination, link.title, link.name, link.wiki};
             try
             {
                 (*callback)(activation);

@@ -1413,6 +1413,48 @@ void TestRichMarkdownInlineExtensions()
             "extension nesting respects Markdown link and code ownership");
     Reject([&] { parser.Begin(input, 5u, MarkdownProfile::Gfm029, MarkdownExtensions::Highlight); }, "RichMarkdown delimiter flags cannot change GFM parsing");
 }
+void TestRichMarkdownWikiLinks()
+{
+    MarkdownParser parser;
+    constexpr std::wstring_view source = L"[[Folder/Page|alias]] ![[image.png]]";
+    parser.Begin(source, 1u, MarkdownProfile::RichMarkdown);
+    const auto rich = CompleteMarkdown(parser, 1u);
+    CheckInlineForest(*rich);
+    const auto link = std::ranges::find_if(rich->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Link && node.wiki; });
+    const auto image = std::ranges::find_if(rich->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Image && node.wiki; });
+    Require(link != rich->Inlines().end() && link->destination == L"Folder/Page" && rich->Slice(link->source) == L"[[Folder/Page|alias]]" &&
+                image != rich->Inlines().end() && image->destination == L"image.png" && rich->Slice(image->source) == L"![[image.png]]",
+            "wiki objects preserve unresolved targets and exact source envelopes");
+    Require(MarkdownHtmlTests::Html(*rich) == L"<p><a href=\"Folder/Page\">alias</a> <img src=\"image.png\" alt=\"image.png\" /></p>\n",
+            "wiki aliases and embedded alternatives project independently from targets");
+    parser.Begin(source, 2u, MarkdownProfile::Gfm029);
+    const auto gfm = CompleteMarkdown(parser, 1u);
+    Require(std::ranges::none_of(gfm->Inlines(), [](const auto& node) { return node.wiki; }), "GFM never enables wiki syntax");
+    parser.Begin(source, 3u, MarkdownProfile::RichMarkdown, MarkdownExtensions::All);
+    const auto disabled = CompleteMarkdown(parser, 1u);
+    Require(std::ranges::none_of(disabled->Inlines(), [](const auto& node) { return node.wiki; }), "explicit earlier extension mask disables wiki syntax");
+    parser.Begin(L"[[bad||alias]] [[unterminated `[[code]]`", 4u, MarkdownProfile::RichMarkdown);
+    const auto malformed = CompleteMarkdown(parser, 1u);
+    Require(std::ranges::none_of(malformed->Inlines(), [](const auto& node) { return node.wiki; }), "malformed and code-owned wiki candidates remain literal");
+    std::wstring adversarial(0u, L' ');
+    for (unsigned i = 0u; i < 5000u; ++i)
+        adversarial += L"[[x";
+    parser.Begin(adversarial, 5u, MarkdownProfile::RichMarkdown);
+    const auto bounded = CompleteMarkdown(parser, 1024u);
+    Require(bounded->InlineStatistics().wikiInspectionUnits <= adversarial.size() * 8u &&
+                std::ranges::none_of(bounded->Inlines(), [](const auto& node) { return node.wiki; }),
+            "many unmatched wiki openers have linearly bounded inspected work");
+    parser.Begin(adversarial, 6u, MarkdownProfile::RichMarkdown);
+    static_cast<void>(parser.Advance(4u));
+    parser.Begin(L"[[target]]", 7u, MarkdownProfile::RichMarkdown);
+    const auto restarted = CompleteMarkdown(parser, 1u);
+    Require(std::ranges::any_of(restarted->Inlines(), [](const auto& node) { return node.wiki && node.destination == L"target"; }),
+            "superseded wiki scan clears its cached closer state");
+    parser.Begin(L"[[A]][[B]] `[[hidden]]`", 8u, MarkdownProfile::RichMarkdown);
+    const auto adjacent = CompleteMarkdown(parser, 1u);
+    Require(std::ranges::count_if(adjacent->Inlines(), [](const auto& node) { return node.wiki; }) == 2,
+            "adjacent wiki objects each own their closer and code remains opaque");
+}
 } // namespace
 
 void TestLosslessMarkdownCorrelationSourceReadBudget()
@@ -1429,6 +1471,7 @@ void TestLosslessMarkdownCorrelationSnapshotIdentity()
 void RunRichMarkdownTests()
 {
     DXUI_RUN_TEST(TestRichMarkdownInlineExtensions);
+    DXUI_RUN_TEST(TestRichMarkdownWikiLinks);
     DXUI_RUN_TEST(TestLosslessMarkdownCorrelationSourceReadBudget);
     DXUI_RUN_TEST(TestLosslessMarkdownCorrelationSnapshotIdentity);
     DXUI_RUN_TEST(TestRichMarkdownPrototypeContracts);

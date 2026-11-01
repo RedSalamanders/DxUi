@@ -469,6 +469,8 @@ struct SemanticBuilder::Preparation
     }
     std::wstring ImageAlternative(const MarkdownInline& image) const
     {
+        if (image.wiki && image.firstChild == MarkdownNoNode)
+            return std::wstring(image.value);
         std::wstring result(0u, L' ');
         std::vector<std::size_t> pending(0u);
         if (image.firstChild != MarkdownNoNode)
@@ -675,6 +677,7 @@ struct SemanticBuilder::Preparation
             const auto element = Element(node.kind == MarkdownInlineKind::Link ? SemanticRole::Link : SemanticRole::Image, node.source, owner);
             document->elements_[element].destination = node.destination;
             document->elements_[element].title       = node.title;
+            document->elements_[element].wiki        = node.wiki;
             if (node.kind == MarkdownInlineKind::Image)
             {
                 const auto alternative = ImageAlternative(node);

@@ -27,7 +27,8 @@ enum class MarkdownExtensions : unsigned
     Superscript   = 64u,
     Subscript     = 128u,
     Inserted      = 256u,
-    RichAll       = 511u
+    WikiLinks     = 512u,
+    RichAll       = 1023u
 };
 constexpr MarkdownExtensions operator|(MarkdownExtensions a, MarkdownExtensions b) noexcept
 {
@@ -159,6 +160,7 @@ struct MarkdownInline
     // UTF-16 offsets in an opaque Html value whose '<' is filtered by GFM.
     // This is the tagfilter extension, not an HTML sanitizer or execution API.
     std::vector<std::size_t> filteredHtmlOpeners;
+    bool wiki = false; // Destination is an unresolved application-owned wiki target.
 };
 // Optional extension metadata does not enlarge every ordinary inline node.
 struct MarkdownFootnoteReference
@@ -227,7 +229,7 @@ struct MarkdownInlineStatistics
 {
     // Deterministic autolink indexing/candidate visits and suffix decoding.
     // These are algorithm diagnostics, not allocator or elapsed-time limits.
-    std::size_t autolinkInspectionUnits{}, autolinkDecodedUnits{};
+    std::size_t autolinkInspectionUnits{}, autolinkDecodedUnits{}, wikiInspectionUnits{};
 };
 enum class MarkdownSourceRegionKind
 {

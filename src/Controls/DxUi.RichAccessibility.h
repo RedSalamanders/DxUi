@@ -203,7 +203,7 @@ public:
         const auto& semantic  = record->RichSemantic()->Elements()[element_];
         const auto role       = semantic.role;
         const bool linkAction = role == RichText::SemanticRole::Link && ! record->RichSemantic()->IsSourceEditingElement(element_) &&
-                                (semantic.destination.starts_with(L'#') || record->controlRichText->externalLinkActivationEnabled);
+                                ((! semantic.wiki && semantic.destination.starts_with(L'#')) || record->controlRichText->externalLinkActivationEnabled);
         const bool inlineSource =
             (role == RichText::SemanticRole::Link || role == RichText::SemanticRole::Image) && record->RichSemantic()->SourceEditingRange(element_).has_value();
         if (id == UIA_InvokePatternId && (codeCopy_ || linkAction || record->RichSemantic()->NavigationTarget(element_) ||
@@ -525,7 +525,7 @@ public:
             return UIA_E_ELEMENTNOTAVAILABLE;
         const auto& semantic    = record->RichSemantic()->Elements()[element_];
         const bool linkAction   = semantic.role == RichText::SemanticRole::Link && ! record->RichSemantic()->IsSourceEditingElement(element_) &&
-                                  (semantic.destination.starts_with(L'#') || record->controlRichText->externalLinkActivationEnabled);
+                                  ((! semantic.wiki && semantic.destination.starts_with(L'#')) || record->controlRichText->externalLinkActivationEnabled);
         const bool inlineSource = (semantic.role == RichText::SemanticRole::Link || semantic.role == RichText::SemanticRole::Image) &&
                                   record->RichSemantic()->SourceEditingRange(element_).has_value();
         if (! codeCopy_ && ! linkAction && ! record->RichSemantic()->NavigationTarget(element_) &&

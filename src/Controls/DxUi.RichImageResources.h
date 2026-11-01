@@ -191,6 +191,11 @@ public:
             {
                 try
                 {
+                    if (stage.document->Elements()[element].wiki)
+                    {
+                        kind = RichImageSourceKind::WikiTarget;
+                        return std::optional<std::wstring>(std::in_place, destination);
+                    }
                     const auto local = ResolveLocalImagePath(stage.base, destination);
                     // A direct fallible copy avoids Debug STL proxy allocation
                     // inside optional<wstring>'s noexcept move constructor.

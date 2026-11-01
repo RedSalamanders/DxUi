@@ -35,6 +35,7 @@ void TestRichSemanticNativeRetainedTransactions()
         RichSemanticEditorTests::SemanticDirection(window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare paragraph direction"); });
         RichSemanticEditorTests::InlineExtensions(window.Host(),
                                                   [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare inline extension styles"); });
+        RichSemanticEditorTests::WikiTargets(window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare wiki targets"); });
         RichSemanticEditorTests::InlineScriptFallback(window.Host(),
                                                       [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare inline script fallback"); });
         RichSemanticEditorTests::SourceHorizontalAndGuides(window.Host(),

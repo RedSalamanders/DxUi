@@ -50,7 +50,7 @@ struct SemanticElement
     unsigned heading{};
     MarkdownTask task{};
     MarkdownAlignment alignment{};
-    bool tableHeader{}, nativeHtml{};
+    bool tableHeader{}, nativeHtml{}, wiki{};
     std::size_t rows{}, columns{};
     std::wstring name, destination, title;
 };

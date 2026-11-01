@@ -1919,6 +1919,47 @@ template <typename Prepare> void InlineExtensions(ControlHost& host, Prepare&& p
               editor->GetText() == source,
           "clear formatting owns and restores a highlighted envelope");
 }
+template <typename Prepare> void WikiTargets(ControlHost& host, Prepare&& prepare)
+{
+    const std::wstring source(L"[[Folder/Page|Label]] ![[Asset]]");
+    auto root = std::make_unique<RichTextEditor>(source);
+    auto* editor = root.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    unsigned navigations{};
+    editor->SetOnLinkActivated([&](const RichTextLinkActivation& activation)
+    {
+        Check(activation.wiki && activation.destination == L"Folder/Page" && activation.label == L"Label",
+              "wiki activation exposes unresolved target and alias to the application");
+        ++navigations;
+    });
+    host.SetRoot(std::move(root));
+    prepare();
+    const auto document = editor->GetAcknowledgedSemanticDocument(host);
+    Check(document != nullptr, "wiki targets have acknowledged semantic geometry");
+    const auto link = std::ranges::find_if(document->Elements(), [](const auto& element) { return element.role == SemanticRole::Link && element.wiki; });
+    Check(link != document->Elements().end() && editor->NavigateSemanticElement(host, document, static_cast<std::size_t>(link - document->Elements().begin())) &&
+              navigations == 1u && editor->GetText() == source, "wiki navigation is application-owned and does not edit source");
+    std::vector<RichImageRequest> requests(0u);
+    editor->TakePendingImageRequests(requests);
+    Check(requests.size() == 1u && requests[0].SourceKind() == RichImageSourceKind::WikiTarget && requests[0].Source() == L"Asset" &&
+              requests[0].FilePath().empty(), "wiki embed exposes an unresolved application-owned image request");
+    Check(editor->CompleteImageRequest(requests[0], RichImageResourceTests::Picture()), "application resolves wiki embed pixels");
+    prepare();
+    editor->TakePendingImageRequests(requests);
+    Check(requests.empty() && editor->GetImageResourceStatistics().readySources == 1u && editor->GetText() == source,
+          "resolved wiki pixels publish without changing Markdown source");
+    editor->SetSelection({2u, 2u});
+    Check(editor->OnKeyDown(host, VK_F2, 0u), "wiki link enters exact inline source editing");
+    prepare();
+    const auto region = editor->GetSemanticSourceRegion();
+    Check(region && region->source == MarkdownRange{0u, source.find(L']') + 2u}, "wiki source editing owns the full raw envelope");
+    editor->SetSelection({region->source.first, region->source.last});
+    Check(editor->ReplaceSelection(L"[[broken\nsource") && editor->Undo() && editor->GetText() == source,
+          "broken wiki source remains editable and one undo restores it exactly");
+    prepare();
+    Check(editor->OnKeyDown(host, VK_ESCAPE, 0u), "wiki source session exits normally");
+}
 template <typename Prepare> void InlineScriptFallback(ControlHost& host, Prepare&& prepare)
 {
 #if DXUI_ENABLE_DIAGNOSTICS
