@@ -3286,6 +3286,9 @@ public:
                           uint64_t expectedRevision,
                           std::span<const RichText::SourceEdit> edits,
                           RichText::Selection after);
+    // Replace every non-overlapping source match in one undo transaction.
+    // Returns the match count when text changed, otherwise zero.
+    size_t ReplaceAllSourceMatches(std::wstring_view query, std::wstring_view replacement, RichText::SourceSearchOptions options = {});
     bool ToggleFormatting(std::wstring_view marker);
     // Opt-in semantic editing: current CPU analysis is required; commands never
     // advance preparation. Plans also guard syntax identity and source selection.

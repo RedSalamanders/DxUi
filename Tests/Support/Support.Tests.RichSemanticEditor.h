@@ -174,6 +174,12 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     host.SetRoot(std::move(root));
     prepare();
     host.SetFocusControl(editor, false);
+    editor->SetText(L"One one only");
+    Check(editor->ReplaceAllSourceMatches(L"one", L"x", {.wholeWord = true}) == 2u && editor->GetText() == L"x x only" && editor->Undo() &&
+              editor->GetText() == L"One one only",
+          "editor replace-all is case-insensitive and one undo transaction");
+    editor->SetText(L"word");
+    prepare();
     std::size_t notifications = 0u;
     editor->SetOnTextChanged([&] { ++notifications; });
     const auto exact = [&](std::wstring_view source,

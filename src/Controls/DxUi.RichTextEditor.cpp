@@ -1271,6 +1271,31 @@ bool RichTextEditor::ApplySourceEdits(const RichText::SourceSnapshot& expectedSo
     Changed(changed);
     return changed;
 }
+size_t RichTextEditor::ReplaceAllSourceMatches(std::wstring_view query, std::wstring_view replacement, RichText::SourceSearchOptions options)
+{
+    if (! Editable())
+        return 0u;
+    if (auto* host = GetHost(); host && host->GetFocusControl() == this)
+    {
+        NativeTextInputState input{.text = std::wstring(0u, L' '), .compositionClauseBoundaries = std::vector<size_t>(0u)};
+        const bool available = host->TryReadNativeTextInputState(this, input);
+        if ((host->HasActiveNativeTextInputSession() && ! available) || (available && (input.compositionStartIndex || input.compositionEndIndex)))
+            return 0u;
+    }
+    if (replacement.size() > RichText::Document::MaximumUnits)
+        throw std::length_error("Search replacement exceeds source capacity");
+    const auto source   = Snapshot();
+    const auto revision = Revision();
+    const auto matches  = RichText::FindInSource(source, query, options);
+    if (matches.empty())
+        return 0u;
+    std::vector<RichText::SourceEdit> edits(0u);
+    edits.reserve(matches.size());
+    for (const auto range : matches)
+        edits.push_back({range, replacement});
+    const auto end = matches.front().first + replacement.size();
+    return ApplySourceEdits(source, revision, edits, {end, end}) ? matches.size() : 0u;
+}
 RichText::MarkdownCommandStatus RichTextEditor::ApplyMarkdownCommand(const RichText::MarkdownCommandPlan& plan)
 {
     using namespace RichText;

@@ -1195,6 +1195,8 @@ Source search returns non-overlapping, scalar/CRLF-safe raw ranges using ordinal
 Unicode comparison. Optional whole-word boundaries treat letters, digits,
 underscore, combining marks and surrogate units as word characters. Consumers
 can highlight matches and apply replacements in one revision-checked edit.
+`ReplaceAllSourceMatches` supplies that atomic transaction directly, rejecting
+active native composition and read-only editing, with one undo for all matches.
 An editor context-menu callback receives focus first. Keyboard invocation retains
 the selection; a pointer invocation outside it moves the caret to the hit source
 position. Selection callback reentry that changes the target cancels the menu.
