@@ -639,18 +639,19 @@ bool MarkdownParser::TryAdoptParsedSnapshot(const SourceSnapshot& source,
         return false;
 
     const auto& canonical = syntax->parsedDataOwner_ ? syntax->parsedDataOwner_ : syntax;
-    if (canonical->parsedDataOwner_ || canonical->sourceRegionRequest_ || canonical->Profile() != profile || canonical->Extensions() != resolved ||
-        ! source.MatchesText(canonical->Source()))
+    if (canonical->parsedDataOwner_ || canonical->sourceRegionRequest_ || canonical->Profile() != profile || canonical->Extensions() != resolved)
         return false;
 
     if (published_ && published_->parsedDataOwner_ && published_->Revision() == revision && published_->Profile() == profile &&
         published_->Extensions() == resolved && publishedSource_ && publishedSource_->IsSameRevision(source) && published_->parsedDataOwner_ == canonical)
     {
-        // Reasserting the current publication supersedes a later staged
-        // request, just like Begin of an already published exact snapshot.
+        // The exact immutable source revision was already validated against this
+        // canonical parse. Retire later staged work without walking its pieces.
         Cancel();
         return true;
     }
+    if (! source.MatchesText(canonical->Source()))
+        return false;
 
     const auto identity = nextDocumentIdentity.fetch_add(1u, std::memory_order_relaxed);
     auto staged         = std::shared_ptr<MarkdownSyntax>(new MarkdownSyntax(canonical, revision, profile, resolved, identity));
