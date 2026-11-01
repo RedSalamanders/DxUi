@@ -508,6 +508,37 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
               "text medium, upright and normal commands cancel the enclosing corresponding style");
     }
 #endif
+#if DXUI_ENABLE_DIAGNOSTICS
+    {
+        auto formats = std::make_shared<Detail::MathTextFormats>(factory, L"Arial");
+        for (const auto name : {L"hat", L"widehat"})
+        {
+            const auto expression = std::make_shared<const MathExpression>(ParseMath(L"\\" + std::wstring(name) + L"{x}"));
+            Detail::PreparedMath layout(factory, expression, 24.f, false, nullptr, 96.f, formats);
+            while (! layout.Advance()) {}
+            const auto lines = layout.StrokeLayouts();
+            check(layout.VariantLayouts().empty() && lines.size() == 2u && lines[0u].first.y > lines[0u].last.y &&
+                      lines[1u].first.y < lines[1u].last.y && lines[0u].last.x == lines[1u].first.x,
+                  "non-MATH font uses the independently verified triangular hat fallback");
+        }
+        for (const auto name : {L"hat", L"widehat", L"check", L"widecheck", L"breve", L"acute", L"grave", L"mathring", L"underbar", L"utilde", L"overbrace", L"underbrace", L"overgroup", L"undergroup"})
+            for (const float size : {1.f, 2.f, 24.f})
+                for (const float dpi : {96.f, 144.f, 192.f})
+                {
+                    const auto expression = std::make_shared<const MathExpression>(ParseMath(L"\\" + std::wstring(name) + L"{x}"));
+                    Detail::PreparedMath layout(factory, expression, size, false, nullptr, dpi, formats);
+                    while (! layout.Advance()) {}
+                    const auto bounds = layout.Size();
+                    for (const auto& line : layout.StrokeLayouts())
+                    {
+                        const float half = line.thickness * .5f;
+                        check(std::min(line.first.x, line.last.x) - half >= -.001f && std::max(line.first.x, line.last.x) + half <= bounds.width + .001f &&
+                                  std::min(line.first.y, line.last.y) - half >= -.001f && std::max(line.first.y, line.last.y) + half <= bounds.height + .001f,
+                              "small and scaled accent strokes remain inside final prepared ink bounds");
+                    }
+                }
+    }
+#endif
     check(static_cast<bool>(ParseMath(L"\\boxed{\\xcancel{a+b}}")) && ! ParseMath(L"\\boxed") && ! ParseMath(L"\\cancel{"),
           "nested annotations parse and incomplete operands fail closed");
     // The named sizes and factors are pinned independently to KaTeX 0.16.11 Options.js.

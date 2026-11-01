@@ -1,0 +1,1 @@
+- Restore native triangular hat fallback and retain prepared ink bounds for small math accents.
