@@ -1,0 +1,1 @@
+- Correct the Tree control guide's single-click invocation and icon-text formatting, and remove a repeated accessibility sentence.
