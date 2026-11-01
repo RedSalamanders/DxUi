@@ -6031,8 +6031,9 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                     const auto revision  = Revision();
                     const auto binding   = _state->bindingRevision;
                     const auto selection = GetSelection();
+                    const auto focus     = host.GetFocusControl();
                     if (OnCopy(host) && ! lifetime.expired() && GetHost() == &host && _state->bindingRevision == binding && Revision() == revision &&
-                        GetSelection() == selection)
+                        GetSelection() == selection && host.GetFocusControl() == focus)
                         static_cast<void>(Erase(host, false, false));
                     return true;
                 }

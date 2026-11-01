@@ -39,6 +39,7 @@ public:
     std::wstring text;
     bool busy = false;
     std::function<void()> afterRead;
+    std::function<void()> afterWrite;
     HRESULT Read(HWND, std::wstring& out) noexcept override
     {
         if (busy)
@@ -62,6 +63,8 @@ public:
         try
         {
             text = value;
+            if (auto callback = std::exchange(afterWrite, {}))
+                callback();
             return S_OK;
         }
         catch (const std::bad_alloc&)
@@ -813,6 +816,15 @@ void TestRichTextEditorClipboardAtomicityAndSourceContract()
             "rich cut copies selected body and removes its empty source wrapper");
     Require(raw->Undo() && raw->GetText() == L"x **bold** y" && raw->GetSelection() == Selection{4u, 8u},
             "rich cut restores exact source and selection in one undo");
+    RenderEditor(window);
+    clipboard.afterWrite = [&] { raw->SetSelection({0u, 1u}); };
+    Require(raw->OnKeyDown(window.Host(), 'X', MK_CONTROL) && raw->GetText() == L"x **bold** y" && raw->GetSelection() == Selection{0u, 1u},
+            "clipboard write changing selection cannot apply stale native cut");
+    raw->SetSelection({4u, 8u});
+    window.Host().SetFocusControl(raw, false);
+    clipboard.afterWrite = [&] { window.Host().SetFocusControl(nullptr, false); };
+    Require(raw->OnKeyDown(window.Host(), 'X', MK_CONTROL) && raw->GetText() == L"x **bold** y" && ! window.Host().GetFocusControl(),
+            "clipboard write changing focus cannot apply stale native cut");
     clipboard.text      = L"replacement";
     const auto original = raw->GetText();
     clipboard.afterRead = [&] { raw->SetSelection({1, 1}); };
