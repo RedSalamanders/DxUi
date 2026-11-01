@@ -1275,7 +1275,7 @@ Every display unit belongs to exactly one nonempty span. Primary source ownershi
 is disjoint; repeated spans require an exact primary source range and kind.
 Display order may differ from source order. Admission caps source at 65,536 UTF-16
 units, display at 131,072 and spans at 65,536, before copying/index allocation.
-Malformed UTF-16/NUL, scalar/CRLF splits, unknown enums, incomplete coverage and
+Malformed UTF-16, scalar/CRLF splits, unknown enums, incomplete coverage and
 ambiguous primary ownership are errors. This does not raise Document capacity.
 
 Leading/trailing affinities resolve shared edges, hidden source and transformed
@@ -1327,7 +1327,8 @@ held documents. No worker, graphics object, HWND or timer belongs to this servic
 Admission bounds the combined block/inline graph to 32,768 nodes and geometry
 paragraphs to 4,096, in addition to Document and SourceDisplayMap capacities.
 These are preview admission limits, not larger-document or all-input latency
-qualification. Raw parser NUL remains outside Document/semantic admission.
+qualification. Counted source NUL is retained by Document/codecs/text services;
+the Markdown normalization rules replace it only in the derived display value.
 Each event is counted; leaf normalization, value tokenization, image alternative
 flattening and final map/index construction are bounded indivisible operations,
 not hard time deadlines. Empty/padded cells use generated content; amplification
@@ -1542,9 +1543,10 @@ Profile changes preserve source, selection and undo/redo. Hiding, zero extent,
 rebinding and resource retirement cancel pending work. No extra worker/HWND/timer
 is permitted in either host. Completed pure analysis is independent of geometry.
 
-The raw parser's NUL admission deliberately does not change the existing Document,
-codec, clipboard or source text-store admission contract. End-to-end NUL editing,
-complete pinned grammar/HTML output, extensions and semantic commands remain open.
+Document, codecs, semantic source ownership and text services preserve counted NUL.
+CF_UNICODETEXT refuses copies containing it without changing source or clipboard;
+this clipboard transport limit does not narrow source admission. Physical-input,
+capacity/performance and complete extension qualification remain separate.
 
 The bounded base block-tree/identity slice is qualified in the
 [M2 evidence packet](../../Measurements/RichText/README.md):
