@@ -1148,8 +1148,8 @@ images have a zero budget. The existing dimension, pixel-equivalent and total
 retained-byte limits still apply. XML admission belongs on a caller worker.
 Direct2D SVG document, stream and private same-device context creation occur in
 preparation. The bounded SVG raster is prepared at the authored, viewport-clamped
-size and current DPI in budgeted pixel tiles. Its pixels and source bytes share
-the existing aggregate retained-image ceiling; identical resources share a raster
+size and current DPI in budgeted pixel tiles. Its logical BGRA pixel bytes and
+source bytes share the existing candidate retained-image ceiling; identical resources share a raster
 only at the same pixel dimensions. Completed GPU bitmaps are private to the
 device generation; Draw uses the ordinary bitmap path, with no SVG parsing,
 device queries or SVG-specific resource creation. Unsupported targets, oversized
