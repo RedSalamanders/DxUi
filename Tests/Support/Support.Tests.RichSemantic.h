@@ -383,6 +383,10 @@ inline void ListsAndHeadings()
             const auto comparisonSyntax = Parse(mathComparison, profile);
             Check(std::ranges::any_of(comparisonSyntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
                   "a literal comparison operator does not masquerade as an HTML ownership boundary");
+            Document escapedTick(L"$a \\`b` c$");
+            const auto escapedTickSyntax = Parse(escapedTick, profile);
+            Check(std::ranges::any_of(escapedTickSyntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
+                  "an escaped backtick does not begin an opaque Markdown code span inside math");
 #if DXUI_ENABLE_DIAGNOSTICS
             for (const auto pattern : {std::wstring_view(L"<aa:a"), std::wstring_view(L"<!--")})
             {
