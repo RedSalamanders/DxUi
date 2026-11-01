@@ -143,6 +143,8 @@ public:
     // a new attachment) only sets the baseline, and a tick that goes back adds nothing. Call only while NeedsAnimation().
     bool AdvanceAnimation(uint64_t nowTickMs) noexcept;
     // Physical pixel size and DPI. Text shaping and raster work happen only here, never in Composite.
+    // Updating a surface mutates the borrowed immediate-context state, including PS SRV slot 0 and OM render targets.
+    // Rebind application state after Prepare and before subsequent drawing; Prepare does not preserve those bindings.
     // S_FALSE means hidden, zero-sized, already prepared, or cooperative content preparation remains pending;
     // in the last case NeedsPreparation() stays true and the caller should prepare on a later owner turn, not spin.
     // A failed HRESULT disables interaction until preparation succeeds. A content failure preserves its HRESULT

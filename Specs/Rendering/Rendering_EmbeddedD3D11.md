@@ -43,6 +43,9 @@ This follows the [device-context model](https://learn.microsoft.com/en-us/window
 and [DXGI interoperability](https://learn.microsoft.com/en-us/windows/win32/direct2d/direct2d-and-direct3d-interoperation-overview).
 No CPU readback/upload round trip is permitted in production rendering. Test premultiplied alpha, target format,
 text antialiasing and D2D/D3D ordering. End preparation before composition and rebind the application's pipeline state.
+Preparing a changed surface mutates the borrowed immediate context, including clearing PS shader-resource slot 0
+and output-merger render targets before D2D work. Preparation does not preserve application bindings; pipeline
+mutation is not limited to Composite. The application rebinds its state before its next draw.
 
 Share an explicit GraphicsDevice pool among views using the same device generation. Each view owns its control tree,
 focus/capture, drafts and surface. Release old-generation graphics references on device loss while retaining logical
@@ -236,3 +239,12 @@ suspend preparation requests and animation ticks. Dirty state and pending motion
 them by showing the view or preparing a nonzero target, which allocates exactly one surface (one
 `surfaceAllocations` increment) and re-rasterizes the content. Hidden and zero-sized views never request background
 frames for those deferred changes.
+
+The supplied-device sample refreshes its text-service client after accepted input/focus changes and completed
+preparation, not after every unhandled window message or cooperative pending turn. Its HWND owns TME_LEAVE
+tracking and forwards PointerAction::Leave; hide and teardown cancel the registration. A changed window origin
+notifies TextInputServices::NotifyLayoutChanged without a text refresh. Native mouse capture mirrors the
+still-current logical capture after dispatch, preserving a new capture acquired by a release callback. The
+headless text-input proof sends messages only to its hidden owned HWND and verifies leave routing, unhandled-message
+refresh counts, origin notification and unchanged foreground/focus; native text-service suites own sink-delivery
+assertions. The proof does not post WM_QUIT into its caller's message loop.
