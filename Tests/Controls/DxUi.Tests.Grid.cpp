@@ -5173,6 +5173,33 @@ void TestGridApplyGroupLayoutRestoresEveryGroupWhenTheDelegatePublishes()
             "a saved layout collapses every group although the delegate publishes each toggle");
 }
 
+void TestGridKeyboardViewportAndColumnIdentity()
+{
+    using namespace DxUi;
+    MutableTextGridModel model({{10u, {L"first"}}}, {{L"old", L"Old", 100.0f}});
+    ToolbarGridFixture fixture(model);
+    bool queried        = false;
+    model.onGetRowCount = [&] { queried = true; };
+    Require(! fixture.grid->OnKeyDown(fixture.host, 'Q', 0u) && ! queried, "unhandled keys leave the model and row enumeration untouched");
+    model.onGetRowCount  = {};
+    const auto oldHeader = fixture.grid->GetVisibleColumnHeaderRect(0u);
+    Require(oldHeader.has_value(), "initial column width is prepared");
+    model.SetColumns({{L"new", L"New", 160.0f}});
+    fixture.grid->NotifyDataChanged();
+    const auto newHeader = fixture.grid->GetVisibleColumnHeaderRect(0u);
+    Require(newHeader && newHeader->right - newHeader->left > oldHeader->right - oldHeader->left + 30.0f,
+            "same-count column replacement discards stale width and order");
+
+    MultiRowGridModel many(100u);
+    ToolbarGridFixture tall(many);
+    tall.grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 300.0f));
+    Require(tall.grid->RequestSelectRow(0u, 0u) && tall.grid->OnKeyDown(tall.host, VK_NEXT, 0u), "page down moves in a tall viewport");
+    const auto tallRow = tall.grid->GetFocusedRowId();
+    tall.grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 140.0f));
+    Require(tall.grid->RequestSelectRow(0u, 0u) && tall.grid->OnKeyDown(tall.host, VK_NEXT, 0u), "page down moves in a short viewport");
+    const auto shortRow = tall.grid->GetFocusedRowId();
+    Require(tallRow && shortRow && *tallRow > *shortRow && *shortRow > 0u, "page distance follows actual viewport height");
+}
 } // namespace
 
 void RunGridTests()
@@ -5184,6 +5211,7 @@ void RunGridTests()
     DXUI_RUN_TEST(TestGridKeysStartFromAPublishedSelection);
     DXUI_RUN_TEST(TestGridModelAssignmentGenerationIgnoresDelegateChanges);
     DXUI_RUN_TEST(TestGridFocusedRowIsDrawnAndCtrlKeysMoveOnlyTheFocus);
+    DXUI_RUN_TEST(TestGridKeyboardViewportAndColumnIdentity);
     DXUI_RUN_TEST(TestGridCtrlLeftAndRightChooseTheCurrentColumn);
     DXUI_RUN_TEST(TestGridSetModelStopsAfterAGroupGetterReplacesItsRoot);
     DXUI_RUN_TEST(TestGridKeyboardCheckboxQueryStopsAfterGetterRetiresTheGrid);

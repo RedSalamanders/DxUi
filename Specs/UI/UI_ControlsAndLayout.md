@@ -627,6 +627,9 @@ Tree expansion and collapse retain their model, selection, focus, delegate and a
 ### TextField supplementary character input
 
 Character input buffers a UTF-16 lead surrogate privately until its matching trail arrives, then inserts and publishes the complete pair as one edit. An orphan trail is consumed without changing text. Caret or selection commands, pointer input, focus changes, text replacement, text-store imports and read-only transitions cancel a pending lead; no change callback or accessibility publication exposes it alone.
+### Grid keyboard paging and column identity
+
+Page Up and Page Down use the body viewport height and prepared row/group geometry, with at least one-row progress where possible. Unhandled keys return before querying the model or enumerating rows. A model refresh compares the cached column IDs; when those identities change, widths, display order and current-cell index are rebuilt for the new columns rather than retained by position.
 ### Tree refresh and input routing
 
 A model refresh reconciles identities and clamps the scroll offset without moving the viewport to an unchanged focus. Typeahead cycles after the current row on a fresh one-character search and retains the current match as the prefix grows. A first keyboard action that selects the first row reports that selection; movement reports its final landing once. Ctrl and Shift row-selection gestures do not trigger single-click invocation. A wheel event directed outward at a scroll extent bubbles to an enclosing scroller, including partial detents.

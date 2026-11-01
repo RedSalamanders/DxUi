@@ -1243,6 +1243,7 @@ void Grid::SetModel(IGridModel* model) noexcept
     };
     _lastPaintHadAnimatedVisibleCells = false;
     _animatedVisibleCellStateValid    = false;
+    _columnIds.clear();
     _columnWidths.clear();
     _columnDisplayOrder.clear();
     _columnDisplayIndexByModel.clear();
@@ -1869,6 +1870,29 @@ void Grid::NotifyDataChanged()
         if (! guard.IsCurrent())
         {
             return;
+        }
+        if (model && ! _columnIds.empty())
+        {
+            const size_t count = model->GetColumnCount();
+            if (! guard.IsCurrent())
+                return;
+            bool changed = count != _columnIds.size();
+            for (size_t index = 0u; ! changed && index < count; ++index)
+            {
+                const auto column = model->GetColumn(index);
+                if (! guard.IsCurrent())
+                    return;
+                changed = column.id != _columnIds[index];
+            }
+            if (changed)
+            {
+                // Stored widths/order/current-cell indexes belong to the old IDs.
+                _columnIds.clear();
+                _columnWidths.clear();
+                _columnDisplayOrder.clear();
+                _columnDisplayIndexByModel.clear();
+                _activeColumn.reset();
+            }
         }
         if (model && _activeColumn)
         {
@@ -5827,6 +5851,22 @@ bool Grid::OnMouseWheel(ControlHost& host, D2D1_POINT_2F /*point*/, float wheelD
 
 bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
+    const bool command = ModifiersContainCtrl(modifiers) && ! ModifiersContainAlt(modifiers) && (virtualKey == 'A' || virtualKey == 'C');
+    if (! command)
+        switch (virtualKey)
+        {
+            case VK_UP:
+            case VK_DOWN:
+            case VK_LEFT:
+            case VK_RIGHT:
+            case VK_HOME:
+            case VK_END:
+            case VK_PRIOR:
+            case VK_NEXT:
+            case VK_RETURN:
+            case VK_SPACE: break;
+            default: return false;
+        }
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     const IGridModel* const model     = _model;
     GridModelQueryGuard guard(*this, lifetime, model);
@@ -5836,6 +5876,8 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         return false;
     }
 
+    if (command)
+        return virtualKey == 'A' ? OnSelectAll(host) : OnCopy(host);
     std::vector<GridGroupDesc> groups;
     if (! TryControlCallback([&] { groups = CollectOrderedGroups(model, &guard); }) || ! guard.IsCurrent())
     {
@@ -6042,14 +6084,40 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
     const auto currentVisibleIt      = std::ranges::find(visibleRows, currentRow);
     const size_t currentVisibleIndex = currentVisibleIt == visibleRows.end() ? 0u : static_cast<size_t>(std::distance(visibleRows.begin(), currentVisibleIt));
     size_t nextVisibleIndex          = currentVisibleIndex;
+    if (virtualKey == VK_PRIOR || virtualKey == VK_NEXT)
+    {
+        const auto viewport = GetContentRect(groups);
+        if (! guard.IsCurrent())
+            return true;
+        const float page       = std::max(_rowHeightDip, viewport.bottom - viewport.top);
+        const float currentTop = GetRowTopDip(groups, currentRow);
+        if (virtualKey == VK_PRIOR)
+        {
+            const float target = currentTop - page;
+            const auto found =
+                std::lower_bound(visibleRows.begin(), visibleRows.end(), target, [&](size_t row, float y) { return GetRowTopDip(groups, row) < y; });
+            nextVisibleIndex = static_cast<size_t>(found - visibleRows.begin());
+            if (nextVisibleIndex >= currentVisibleIndex && currentVisibleIndex)
+                nextVisibleIndex = currentVisibleIndex - 1u;
+        }
+        else
+        {
+            const float target = currentTop + page;
+            const auto found =
+                std::upper_bound(visibleRows.begin(), visibleRows.end(), target, [&](float y, size_t row) { return y < GetRowTopDip(groups, row); });
+            nextVisibleIndex = found == visibleRows.begin() ? 0u : static_cast<size_t>(found - visibleRows.begin() - 1);
+            if (nextVisibleIndex <= currentVisibleIndex && currentVisibleIndex + 1u < visibleRows.size())
+                nextVisibleIndex = currentVisibleIndex + 1u;
+        }
+    }
     switch (virtualKey)
     {
         case VK_UP: nextVisibleIndex = currentVisibleIndex == 0u ? 0u : currentVisibleIndex - 1u; break;
         case VK_DOWN: nextVisibleIndex = std::min(currentVisibleIndex + 1u, visibleRows.size() - 1u); break;
         case VK_HOME: nextVisibleIndex = 0u; break;
         case VK_END: nextVisibleIndex = visibleRows.size() - 1u; break;
-        case VK_PRIOR: nextVisibleIndex = currentVisibleIndex > 10u ? currentVisibleIndex - 10u : 0u; break;
-        case VK_NEXT: nextVisibleIndex = std::min(currentVisibleIndex + 10u, visibleRows.size() - 1u); break;
+        case VK_PRIOR:
+        case VK_NEXT: break;
         case VK_RETURN:
             if (_delegate)
             {
@@ -6501,6 +6569,7 @@ void Grid::EnsureColumnWidths() const
         const IGridModel* const model = _model;
         if (! model)
         {
+            _columnIds.clear();
             _columnWidths.clear();
             _columnDisplayOrder.clear();
             _columnDisplayIndexByModel.clear();
@@ -6516,7 +6585,9 @@ void Grid::EnsureColumnWidths() const
             return;
         }
 
+        std::vector<std::wstring> columnIds;
         std::vector<float> columnWidths;
+        columnIds.reserve(columnCount);
         columnWidths.reserve(columnCount);
         for (size_t columnIndex = 0; columnIndex < columnCount; ++columnIndex)
         {
@@ -6525,6 +6596,7 @@ void Grid::EnsureColumnWidths() const
             {
                 return;
             }
+            columnIds.push_back(column.id);
             columnWidths.push_back(std::max(column.minWidthDip, column.widthDip));
         }
 
@@ -6537,6 +6609,7 @@ void Grid::EnsureColumnWidths() const
         {
             columnDisplayOrder[displayIndex] = displayIndex;
         }
+        _columnIds.swap(columnIds);
         _columnWidths       = std::move(columnWidths);
         _columnDisplayOrder = std::move(columnDisplayOrder);
         _columnDisplayIndexByModel.clear();

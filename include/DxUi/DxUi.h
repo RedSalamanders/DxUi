@@ -5214,6 +5214,7 @@ private:
     uint64_t _modelAssignment      = 0u; // Model assigned: UI Automation peers of the old rows retire.
     IGridModel* _model             = nullptr;
     IGridDelegate* _delegate       = nullptr;
+    mutable std::vector<std::wstring> _columnIds;
     mutable std::vector<float> _columnWidths;
     mutable std::vector<size_t> _columnDisplayOrder;
     mutable std::vector<size_t> _columnDisplayIndexByModel;
