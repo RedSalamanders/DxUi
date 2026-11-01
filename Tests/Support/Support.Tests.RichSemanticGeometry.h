@@ -1749,13 +1749,14 @@ inline void MarkdownSubtlePresentation()
     const auto factory        = Factory();
     const std::wstring source = L"# Main title\n\n## Section\n\n### Plain heading\n\n| tiny | a much wider second column |\n| --- | --- |\n| x | content |\n";
     const auto document       = RichSemanticDocumentTests::Build(source);
-    const auto makeGeometry   = [&](float width, DWRITE_READING_DIRECTION direction, MarkdownPresentationStyle style)
+    const auto makeGeometry   = [&](float width, DWRITE_READING_DIRECTION direction, MarkdownPresentationStyle style, float dpi = 96.f)
     {
         auto geometry = std::make_unique<PreparedSemanticGeometry>();
         LayoutOptions options;
         options.widthDip             = width;
         options.readingDirection     = direction;
         options.markdownPresentation = style;
+        options.dpi                  = dpi;
         geometry->Begin(factory.get(), document, options);
         Complete(*geometry);
         return geometry;
@@ -1902,9 +1903,9 @@ inline void MarkdownSubtlePresentation()
     const auto ruleBoundary = subtle->ElementBounds(headings[0u].element).value().bottom - 1.0f;
     Check(clippedRaster(false, 0.0f, ruleBoundary) == clippedRaster(true, 0.0f, ruleBoundary),
           "a heading rule centered exactly on the viewport edge retains its clipped antialiased pixels");
-    const auto raster = [&](MarkdownPresentationStyle style)
+    const auto raster = [&](MarkdownPresentationStyle style, float dpi = 96.f)
     {
-        auto geometry = makeGeometry(520.0f, DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, style);
+        auto geometry = makeGeometry(520.0f, DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, style, dpi);
         target->BeginDraw();
         target->Clear(D2D1::ColorF(D2D1::ColorF::White));
         geometry->Draw(
@@ -1938,8 +1939,12 @@ inline void MarkdownSubtlePresentation()
     for (const float dpi : {120.f, 144.f, 168.f})
     {
         target->SetDpi(dpi, dpi);
-        const auto pixels = raster(MarkdownPresentationStyle::Subtle);
-        const auto ruleY  = static_cast<long>(std::lround((firstRow.bottom - 1.f) * dpi / 96.f));
+        const auto scaledGeometry = makeGeometry(520.f, DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, MarkdownPresentationStyle::Subtle, dpi);
+        const auto scaledRow      = scaledGeometry->ElementBounds(cellIndices[0u]);
+        Check(scaledRow.has_value(), "DPI-specific table retains its header row bounds");
+        const auto pixels = raster(MarkdownPresentationStyle::Subtle, dpi);
+        const auto ruleY  = static_cast<long>(std::lround((scaledRow.value().bottom - 1.f) * dpi / 96.f));
+        Check(ruleY >= 3l && ruleY + 3l < static_cast<long>(rasterHeight), "DPI-specific rule sample remains inside the raster");
         unsigned columns{};
         for (UINT x = 8u; x + 8u < rasterWidth; ++x)
         {
