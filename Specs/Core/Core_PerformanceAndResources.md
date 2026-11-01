@@ -33,6 +33,14 @@ the default fixed-spacing fallback remain unchanged.
 
 TOML front matter validation stages bounded UTF-8 converted from the admitted UTF-16 source and parses it without reserialization. Its 128-level value and dotted-key nesting ceilings and 1,024 total key-segment ceiling are reported as capacity, not invalid TOML. Parsing one bounded content envelope is indivisible and allocation failures preserve the prior publication; input queries, composition painting and idle frames do not parse. The native resource and timing gates still require measured qualification.
 
+YAML front matter event parsing and key/alias validation stage owned temporary
+buffers only. Admission limits are 128 tag directives, 4,096 graph nodes, 128
+graph levels, 256 digits per numeric key, 100,000 canonical graph visits,
+8 MiB cumulative canonical bytes, a 512 KiB event arena and 4 MiB parser callback
+allocations. Exhaustion is a capacity diagnostic, not an invalid syntax report.
+The event buffer itself is capped at 262,144 words. Validation is an indivisible
+bounded preparation operation; native timing and resource qualification remains open.
+
 The lossless Markdown analysis preview retains bounded source (65,536 UTF-16
 units), one staged result and one published result per parser. Advance has an
 operation budget; source validation/copy/comparison and allocator work are not

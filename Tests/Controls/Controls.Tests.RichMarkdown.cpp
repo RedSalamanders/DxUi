@@ -860,6 +860,70 @@ void TestLosslessMarkdownFrontMatterFencesAndProfileIsolation()
     parser.Begin(L"+++\nkey = 'new'\n+++\n", 3u, MarkdownProfile::RichMarkdown);
     Require(CompleteMarkdown(parser)->Nodes()[1u].frontMatterKind == MarkdownFrontMatterKind::Toml, "a later TOML request cannot inherit YAML envelope state");
 }
+void TestYamlFrontMatterValidationAndSourcePreservation()
+{
+    struct Case
+    {
+        std::wstring_view source;
+        std::optional<MarkdownDiagnosticCode> issue;
+    };
+    // YAML 1.2.2 examples: https://yaml.org/spec/1.2.2/ . Complex keys,
+    // schema-resolved equality and undefined aliases are independent of fences.
+    constexpr Case cases[] = {
+        {L"---\nname:\tvalue\nsequence: [one, two]\n---\n", {}},
+        {L"---\n? [alpha, beta]\n: one\n? [alpha, gamma]\n: two\n---\n", {}},
+        {L"---\na: &anchor [one, two]\nb: *anchor\n---\n", {}},
+        {L"---\n11: number\n\"11\": text\n---\n", {}},
+        {L"---\ntrue: bool\n\"true\": text\n---\n", {}},
+        // P76L from pinned yaml-test-suite, with the inner document marker
+        // commented so the exact front-matter fence remains unambiguous.
+        {L"---\n%TAG !! tag:example.com,2000:app/\n--- # YAML document\n!!int 1 - 3 # Interval, not integer\n---\n", {}},
+        // The syntax corpus admits these as event streams; this validator also
+        // enforces YAML mapping-key uniqueness at the representation layer.
+        {L"---\n: a\n: b\n---\n", MarkdownDiagnosticCode::DuplicateYamlKey},
+        {L"---\n{ &a [a, &b b]: *b, *a : [c, *b, d]}\n---\n", MarkdownDiagnosticCode::DuplicateYamlKey},
+        {L"---\na: &same first\nb: &same second\nc: *same\n---\n", {}},
+        {L"---\n? {a: 1, b: 2}\n: one\n? {b: 2, a: 1}\n: two\n---\n", MarkdownDiagnosticCode::DuplicateYamlKey},
+        {L"---\na: [one, two\n---\n", MarkdownDiagnosticCode::InvalidYamlFrontMatter},
+        {L"---\nvalue: \x0001\n---\n", MarkdownDiagnosticCode::InvalidYamlFrontMatter},
+        {L"---\nkey: *missing\n---\n", MarkdownDiagnosticCode::UnresolvedYamlAlias},
+        {L"---\na: one\n\"a\": two\n---\n", MarkdownDiagnosticCode::DuplicateYamlKey},
+        {L"---\n0xB: one\n11: two\n---\n", MarkdownDiagnosticCode::DuplicateYamlKey},
+        {L"---\n1.0: one\n1e0: two\n---\n", MarkdownDiagnosticCode::DuplicateYamlKey},
+        {L"---\n!!int \"11\": one\n0xB: two\n---\n", MarkdownDiagnosticCode::DuplicateYamlKey},
+        {L"---\n? &first [one, two]\n: a\n? *first\n: b\n---\n", MarkdownDiagnosticCode::DuplicateYamlKey},
+        {L"---\nitem: !!int nope\n---\n", MarkdownDiagnosticCode::InvalidYamlFrontMatter},
+        {L"---\n? [one, two]\n: a\n? [one, two]\n: b\n---\n", MarkdownDiagnosticCode::DuplicateYamlKey},
+        {L"---\n? &cycle [*cycle]\n: value\n---\n", MarkdownDiagnosticCode::YamlFrontMatterCapacity},
+    };
+    for (const auto& item : cases)
+    {
+        MarkdownParser parser;
+        parser.Begin(item.source, 1u, MarkdownProfile::RichMarkdown);
+        const auto syntax = CompleteMarkdown(parser, 1u);
+        Require(syntax->Source() == item.source, "YAML validation preserves exact raw source");
+        const auto issues = syntax->Diagnostics();
+        Require(item.issue ? issues.size() == 1u && issues[0].code == item.issue.value() : issues.empty(),
+                "YAML 1.2.2 syntax, duplicate keys and aliases have independent outcomes");
+        if (item.issue)
+        {
+            const auto& issue = issues[0];
+            const auto& node  = syntax->Nodes()[issue.node];
+            Require(node.block.kind == MarkdownBlockKind::FrontMatter && issue.source.first >= node.block.content.first &&
+                        issue.source.last <= node.block.content.last && issue.source.first <= issue.source.last,
+                    "YAML diagnostic stays within its source-owned payload");
+        }
+    }
+    std::wstring manyNodes = L"---\nvalues: [";
+    for (std::size_t i = 0; i < 4097u; ++i)
+        manyNodes += i ? L", a" : L"a";
+    manyNodes += L"]\n---\n";
+    MarkdownParser parser;
+    parser.Begin(manyNodes, 2u, MarkdownProfile::RichMarkdown);
+    const auto bounded = CompleteMarkdown(parser, 1u);
+    Require(bounded->Diagnostics().size() == 1u && bounded->Diagnostics()[0].code == MarkdownDiagnosticCode::YamlFrontMatterCapacity,
+            "large YAML graphs report capacity instead of invalid content");
+}
 void TestTomlFrontMatterValidationAndSourcePreservation()
 {
     struct Case
@@ -875,6 +939,7 @@ void TestTomlFrontMatterValidationAndSourcePreservation()
         {L"+++\nkey = 1\nkey = 2\n+++\n", false},
         {L"+++\n[a]\nx = 1\n[a]\ny = 2\n+++\n", false},
         {L"+++\nx = 01\n+++\n", false},
+        {L"+++\n[\n+++\n", false},
         {L"+++\nx = \"unterminated\n+++\n", false},
         {L"+++\nx = { a = 1, a = 2 }\n+++\n", false},
         {L"+++\nx = 2024-02-30\n+++\n", false},
@@ -1313,6 +1378,7 @@ void RunRichMarkdownTests()
     DXUI_RUN_TEST(TestLosslessMarkdownSchedulingCancellationAndIdentity);
     DXUI_RUN_TEST(TestMarkdownParserAdoptsExactParsedSnapshot);
     DXUI_RUN_TEST(TestLosslessMarkdownFrontMatterFencesAndProfileIsolation);
+    DXUI_RUN_TEST(TestYamlFrontMatterValidationAndSourcePreservation);
     DXUI_RUN_TEST(TestTomlFrontMatterValidationAndSourcePreservation);
     DXUI_RUN_TEST(TestNativeFlowchartGrammarAndGraphValues);
     DXUI_RUN_TEST(TestNativeFlowchartDeterministicGeometry);

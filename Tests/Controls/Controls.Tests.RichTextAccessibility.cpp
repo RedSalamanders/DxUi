@@ -2669,6 +2669,12 @@ void SemanticTomlValidationDiagnostic(bool embedded)
     Require(metadata &&
                 ReadProviderStringProperty(*metadata.get(), UIA_HelpTextPropertyId, "repaired TOML help") == L"Invoke or press F2 to edit exact source.",
             "a valid replacement retires the invalid-content explanation");
+    fixture.editor->SetText(L"---\nkey: *missing\n---\n");
+    fixture.Publish();
+    metadata = FindSemanticPart(*simple.get(), UIA_GroupControlTypeId);
+    Require(metadata &&
+                ReadProviderStringProperty(*metadata.get(), UIA_HelpTextPropertyId, "YAML alias help") == L"YAML front matter contains an unresolved alias.",
+            "window and embedded metadata explain an unresolved YAML alias");
 }
 void TestRichTextAccessibilityTomlValidationDiagnostic()
 {

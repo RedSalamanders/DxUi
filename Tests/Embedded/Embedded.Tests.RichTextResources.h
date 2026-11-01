@@ -1207,7 +1207,8 @@ static void TestRichFrontMatterAllocationFailureAtomicity(bool trace = false)
                                            L"+++\n# comment\nname = '\u03b2'\n+++\n",
                                            L"---\nkey: [\n",
                                            L"+++\nkey = [\n",
-                                           L"+++\nx = 1\nx = 2\n+++\n"})
+                                           L"+++\nx = 1\nx = 2\n+++\n",
+                                           L"---\na: 1\na: 2\n---\n"})
     {
         std::size_t requests{};
         {
@@ -1318,8 +1319,8 @@ static void TestRichFrontMatterAllocationFailureAtomicity(bool trace = false)
         }
         semanticTotal += semanticRequests;
     }
-    std::cout << "front matter allocation scenarios=5 sweptRequests=" << total << " sourcePreserved=1 retry=1\n";
-    std::cout << "front matter semantic allocation scenarios=5 sweptRequests=" << semanticTotal << " sourcePreserved=1 retry=1\n";
+    std::cout << "front matter allocation scenarios=6 sweptRequests=" << total << " sourcePreserved=1 retry=1\n";
+    std::cout << "front matter semantic allocation scenarios=6 sweptRequests=" << semanticTotal << " sourcePreserved=1 retry=1\n";
     std::cout << "semantic accessibility activation sweptRequests=" << activationRequests << " sourcePreserved=1 retry=1\n";
 }
 

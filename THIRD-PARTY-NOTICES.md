@@ -11,6 +11,8 @@ WIL is used by the implemented controls, graphics and host services; it is no lo
 
 DxUi uses [toml++ 3.4.0](https://github.com/marzer/tomlplusplus/tree/v3.4.0), Mark Gillard, MIT, as a private header-only TOML validator. Its full [notice](docs/licenses/tomlplusplus.txt) accompanies redistributions. The private vendored header records its upstream hash and local allocation-safety patch in [its README](ThirdParty/tomlplusplus/README.md).
 
+DxUi uses [rapidyaml 0.16.0](https://github.com/biojppm/rapidyaml/tree/v0.16.0) as a private YAML event parser. Its [MIT license](docs/licenses/rapidyaml.txt) and [bundled notices](docs/licenses/rapidyaml-bundled.txt) accompany redistributions. [Source provenance and local patches](ThirdParty/rapidyaml/README.md) are retained.
+
 DxUi also links Windows SDK/system libraries, using the consumer's matching MSVC runtime. Those components are
 supplied under their respective Microsoft terms, not relicensed by this project's MIT license. System fonts are
 selected at runtime; DxUi ships no fonts or icon fonts. Generated gallery images illustrate the library's own

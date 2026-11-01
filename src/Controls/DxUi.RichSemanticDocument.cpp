@@ -1027,6 +1027,28 @@ struct SemanticBuilder::Preparation
                     document->elements_[visit.element].title = L"TOML front matter exceeds the supported validation capacity.";
             }
         }
+        if (node.block.kind == MarkdownBlockKind::FrontMatter && node.block.closed && node.frontMatterKind == MarkdownFrontMatterKind::Yaml)
+        {
+            for (const auto& issue : syntax.Diagnostics())
+            {
+                if (issue.node != visit.node)
+                    continue;
+                switch (issue.code)
+                {
+                    case MarkdownDiagnosticCode::InvalidYamlFrontMatter: document->elements_[visit.element].title = L"Invalid YAML front matter."; break;
+                    case MarkdownDiagnosticCode::DuplicateYamlKey:
+                        document->elements_[visit.element].title = L"YAML front matter has a duplicate mapping key.";
+                        break;
+                    case MarkdownDiagnosticCode::UnresolvedYamlAlias:
+                        document->elements_[visit.element].title = L"YAML front matter contains an unresolved alias.";
+                        break;
+                    case MarkdownDiagnosticCode::YamlFrontMatterCapacity:
+                        document->elements_[visit.element].title = L"YAML front matter exceeds the supported validation capacity.";
+                        break;
+                    default: break;
+                }
+            }
+        }
         if (node.tableHeader)
             visit.flags |= Bold;
         if (node.block.kind == MarkdownBlockKind::Table)

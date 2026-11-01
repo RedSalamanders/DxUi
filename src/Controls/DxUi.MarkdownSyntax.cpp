@@ -405,6 +405,19 @@ struct MarkdownParser::Preparation
                                                 node.block.content,
                                                 nodeIndex});
         }
+        else if (node.block.kind == MarkdownBlockKind::FrontMatter && node.frontMatterKind == MarkdownFrontMatterKind::Yaml)
+        {
+            const auto issue =
+                Detail::ValidateYamlMetadata(syntax->Source().substr(node.block.content.first, node.block.content.last - node.block.content.first));
+            if (issue != Detail::MetadataIssue::None)
+            {
+                const auto code = issue == Detail::MetadataIssue::Capacity          ? MarkdownDiagnosticCode::YamlFrontMatterCapacity
+                                  : issue == Detail::MetadataIssue::DuplicateKey    ? MarkdownDiagnosticCode::DuplicateYamlKey
+                                  : issue == Detail::MetadataIssue::UnresolvedAlias ? MarkdownDiagnosticCode::UnresolvedYamlAlias
+                                                                                    : MarkdownDiagnosticCode::InvalidYamlFrontMatter;
+                syntax->diagnostics_.push_back({code, node.block.content, nodeIndex});
+            }
+        }
         if (identityCursor == 1u && previous)
         {
             node.identity = previous->Nodes()[0].identity;

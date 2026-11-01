@@ -1134,7 +1134,7 @@ missing-fence explanation through HelpText and a structured syntax diagnostic
 naming the opener/source owner. No input focus is required by diagnostic queries.
 Closing/editing the source MUST retire old fragments before another prepared
 publication; the closed successor MUST have no stale missing-fence explanation.
-The unclosed-fence diagnostic does not validate the payload or establish physical IME/AT support. Closed TOML payloads have a separate source-owned validity or capacity diagnostic, exposed as metadata HelpText; a corrected source retires the old explanation. YAML payload validation remains pending.
+The unclosed-fence diagnostic does not validate the payload or establish physical IME/AT support. Closed TOML payloads have a separate source-owned validity or capacity diagnostic, exposed as metadata HelpText; a corrected source retires the old explanation. Closed YAML content also exposes distinct invalid, duplicate-key, unresolved-alias and capacity explanations. Metadata corpus and native qualification remain pending.
 
 Semantic snapshot liveness MUST cover source commits/reset, transient input
 service previews/restoration, presentation/profile changes, binding retirement

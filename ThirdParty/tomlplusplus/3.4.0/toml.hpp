@@ -15597,6 +15597,10 @@ TOML_IMPL_NAMESPACE_START
 				if (*cp == U']')
 					set_error_and_return_default("tables with blank bare keys are explicitly prohibited"sv);
 
+				// DxUi: malformed headers must fail before parse_key's assertion.
+				if (!is_bare_key_character(*cp) && !is_string_delimiter(*cp))
+					set_error_and_return_default("expected a table key, saw '"sv, to_sv(*cp), "'"sv);
+
 				// get the actual key
 				start_recording();
 				parse_key();

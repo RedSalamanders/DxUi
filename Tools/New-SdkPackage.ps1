@@ -66,6 +66,8 @@ New-Item -ItemType Directory -Path (Join-Path $stage 'licenses') | Out-Null
 foreach($name in @('LICENSE.txt','THIRD-PARTY-NOTICES.md')){Copy-Item -LiteralPath (Join-Path $root $name) -Destination (Join-Path $stage 'licenses')}
 Copy-Item -LiteralPath (Join-Path $installed 'share/wil/copyright') -Destination (Join-Path $stage 'licenses/WIL-LICENSE.txt')
 Copy-Item -LiteralPath (Join-Path $root 'docs/licenses/tomlplusplus.txt') -Destination (Join-Path $stage 'licenses/tomlplusplus-LICENSE.txt')
+Copy-Item -LiteralPath (Join-Path $root 'docs/licenses/rapidyaml.txt') -Destination (Join-Path $stage 'licenses/rapidyaml-LICENSE.txt')
+Copy-Item -LiteralPath (Join-Path $root 'docs/licenses/rapidyaml-bundled.txt') -Destination (Join-Path $stage 'licenses/rapidyaml-bundled-NOTICES.txt')
 $props=@'
 <Project>
   <PropertyGroup>

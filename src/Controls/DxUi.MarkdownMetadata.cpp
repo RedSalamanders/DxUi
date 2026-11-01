@@ -18,17 +18,17 @@
 
 namespace DxUi::RichText::Detail
 {
-MetadataIssue ValidateTomlMetadata(std::wstring_view source)
+bool MetadataUtf8(std::wstring_view source, std::string& utf8)
 {
     // Markdown admission guarantees paired surrogates. The source limit bounds
     // conversion to at most 3 UTF-8 bytes per UTF-16 unit. Do not normalize EOLs.
-    std::string utf8;
+    utf8.clear();
     utf8.reserve(source.size());
     for (std::size_t index = 0; index < source.size(); ++index)
     {
         auto scalar = static_cast<std::uint32_t>(source[index]);
         if (scalar == 0u)
-            return MetadataIssue::Invalid;
+            return false;
         if (scalar >= 0xd800u && scalar <= 0xdbffu)
         {
             const auto trail = static_cast<std::uint32_t>(source[++index]);
@@ -55,6 +55,14 @@ MetadataIssue ValidateTomlMetadata(std::wstring_view source)
             utf8.push_back(static_cast<char>(0x80u | (scalar & 0x3fu)));
         }
     }
+    return true;
+}
+
+MetadataIssue ValidateTomlMetadata(std::wstring_view source)
+{
+    std::string utf8;
+    if (! MetadataUtf8(source, utf8))
+        return MetadataIssue::Invalid;
     try
     {
         const auto document = dxui_private_toml::parse(utf8);

@@ -783,6 +783,10 @@ Invoke-FixtureCase 'vendored parser input is owned and participates in native cl
     Set-FixtureFile $root $vendor ($realHeader + "`n// changed")
     $second = Get-FixtureNativeClosure $fixture
     Assert-True ((ConvertTo-Json $first -Depth 20 -Compress) -cne (ConvertTo-Json $second -Depth 20 -Compress)) 'vendored header edits change native input closure'
+    $yamlHeader = [IO.File]::ReadAllText((Join-Path $PSScriptRoot '../../ThirdParty/rapidyaml/0.16.0/rapidyaml.hpp'))
+    Set-FixtureFile $root 'ThirdParty/rapidyaml/0.16.0/rapidyaml.hpp' $yamlHeader
+    $third = Get-FixtureNativeClosure $fixture
+    Assert-True ((ConvertTo-Json $second -Depth 20 -Compress) -cne (ConvertTo-Json $third -Depth 20 -Compress)) 'the actual vendored YAML header participates in native input closure'
     Set-FixtureFile $root $vendor '#include UNKNOWN_HEADER'
     Assert-Throws { Get-FixtureNativeClosure $fixture } 'vendored macro-selected external includes must be rejected'
     Set-FixtureFile $root $vendor '#include <vector>'

@@ -3022,7 +3022,7 @@ development checks from final frozen qualification:
   numbering and explicit backlinks/reordered primary source ownership.
   - [ ] M5b.1: Metadata content validators, diagnostics and allocation/capacity
     failure contracts for the complete named YAML/TOML profiles.
-    TOML 1.0 source validation and capacity diagnostics are under implementation; YAML validation, native profile tests and retained resource evidence remain open.
+    YAML 1.2.2 core and TOML 1.0 source validation and bounded diagnostics are under implementation; full conformance corpus, native profile tests and retained resource evidence remain open.
   - [x] M5b.2: Real footnote block containers before generic reference extraction,
     normalized global resolution/diagnostics and deterministic reachable numbering.
     - [x] M5b.2a: Definition containers, literal fallback and source guards pass
