@@ -3454,13 +3454,13 @@ try
         }
         case WM_MBUTTONDOWN:
         {
-            handled = true;
             SetInputModality(InputModality::Pointer);
             const auto point = PointFromLParam(lp);
             Control* target = _capturedControl ? _capturedControl : HitTestControl(point);
-            if (target)
-                static_cast<void>(target->OnMouseMiddleDown(*this, point, static_cast<UINT>(wp)));
-            return 0;
+            handled = target && target->OnMouseMiddleDown(*this, point, static_cast<UINT>(wp));
+            if (handled)
+                return 0;
+            break;
         }
         case WM_MBUTTONUP:
             handled = _capturedControl != nullptr;
