@@ -668,6 +668,40 @@ static void TestEmbeddedCodeLineNumberPixels(GraphicsFixture& gpu)
         Check(editor->OnKeyDown(view.Controls(), 'C', MK_CONTROL | MK_SHIFT) && copied == std::wstring_view(L"a\0b\n", 4u),
               "code copy preserves counted NUL and normalizes CRLF inside fenced, quoted, list and indented blocks");
     }
+    unsigned delivered = 0u;
+    editor->SetOnCodeCopyRequested([&](std::wstring_view) { ++delivered; }, L"Kopieren");
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare code copy allocation sweep");
+    const auto beforeRevision  = editor->Revision();
+    const auto beforeSelection = editor->GetSelection();
+    size_t copyAllocations     = 0u;
+    {
+        const auto oldCounting = countAllocations;
+        const auto oldCalls = allocations, oldBytes = allocationBytes;
+        const auto restore = wil::scope_exit([=]() noexcept
+        {
+            countAllocations = oldCounting;
+            allocations      = oldCalls;
+            allocationBytes  = oldBytes;
+        });
+        allocations = allocationBytes = 0u;
+        countAllocations              = true;
+        Check(editor->OnKeyDown(view.Controls(), 'C', MK_CONTROL | MK_SHIFT), "measure code copy allocations");
+        copyAllocations = allocations;
+    }
+    Check(copyAllocations > 0u && delivered == 1u, "code copy allocation sweep observes a successful callback");
+    for (size_t failure = 0u; failure < copyAllocations; ++failure)
+    {
+        bool handled = false;
+        {
+            const auto oldFailure = failAllocationAfter;
+            const auto restore    = wil::scope_exit([=]() noexcept { failAllocationAfter = oldFailure; });
+            failAllocationAfter   = failure;
+            handled               = editor->OnKeyDown(view.Controls(), 'C', MK_CONTROL | MK_SHIFT);
+        }
+        Check(! handled && delivered == 1u && editor->Revision() == beforeRevision && editor->GetSelection() == beforeSelection,
+              "code copy allocation failure preserves the document and does not invoke the callback");
+    }
+    editor->SetOnCodeCopyRequested([&](std::wstring_view text) { copied.assign(text); }, L"Kopieren");
     editor->SetText(L"```\n```\n");
     Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "empty code copy preparation");
     editor->SetSelection({1u, 1u});
