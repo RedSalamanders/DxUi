@@ -952,6 +952,8 @@ void RichTextEditor::SetViewMode(RichText::ViewMode mode)
         throw std::invalid_argument("Invalid rich-text view mode");
     if (_state->mode == mode)
         return;
+    _state->autoFormatRun.reset();
+    _state->smartTypingSite.reset();
     RetireSemanticAccessibility();
     _state->mode = mode;
     _state->images.Cancel();
@@ -1323,6 +1325,8 @@ void RichTextEditor::SetMarkdownAnalysisProfile(std::optional<RichText::Markdown
         throw std::invalid_argument("Invalid Markdown analysis profile");
     if (_state->markdownProfile == profile)
         return;
+    _state->autoFormatRun.reset();
+    _state->smartTypingSite.reset();
     RetireSemanticAccessibility();
     _state->markdown.Clear();
     _state->images.Cancel();
@@ -1362,6 +1366,8 @@ void RichTextEditor::SetMarkdownRenderingEnabled(bool enabled)
     if (enabled && ! _state->accessibilityEpoch)
         _state->accessibilityEpoch = std::make_shared<RichText::Detail::AccessibilityEpoch>();
     RetireSemanticAccessibility();
+    _state->autoFormatRun.reset();
+    _state->smartTypingSite.reset();
     _state->markdownRendering = enabled;
     _state->images.Cancel();
     _state->sourceEditing.reset();
@@ -1629,6 +1635,8 @@ bool RichTextEditor::EndSemanticSourceEdit(ControlHost& host)
 }
 void RichTextEditor::SourcePresentationChanged(ControlHost& host)
 {
+    _state->autoFormatRun.reset();
+    _state->smartTypingSite.reset();
     _state->images.Cancel();
     RetireSemanticAccessibility();
     _state->sourceCaretSite = RichText::MarkdownNoNode;
@@ -1673,6 +1681,8 @@ void RichTextEditor::UpdateSemanticSourceRegion() noexcept
 }
 void RichTextEditor::SetReadOnly(bool readOnly) noexcept
 {
+    _state->autoFormatRun.reset();
+    _state->smartTypingSite.reset();
     _state->readOnly = readOnly;
     SelectionChanged();
 }
@@ -1735,6 +1745,8 @@ void RichTextEditor::SetMarkdownShortcutsEnabled(bool enabled) noexcept
 }
 void RichTextEditor::SetAutoPairEnabled(bool enabled) noexcept
 {
+    _state->autoFormatRun.reset();
+    _state->smartTypingSite.reset();
     _state->autoPairEnabled = enabled;
 }
 bool RichTextEditor::IsAutoPairEnabled() const noexcept
@@ -1743,6 +1755,7 @@ bool RichTextEditor::IsAutoPairEnabled() const noexcept
 }
 void RichTextEditor::SetSmartTypographyEnabled(bool enabled) noexcept
 {
+    _state->smartTypingSite.reset();
     _state->smartTypographyEnabled = enabled;
 }
 bool RichTextEditor::IsSmartTypographyEnabled() const noexcept

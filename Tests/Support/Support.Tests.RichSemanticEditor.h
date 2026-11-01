@@ -306,6 +306,14 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     editor->SetText(L"");
     prepare();
     Check(editor->OnChar(host, L'"', 0u) && editor->GetText() == L"\u201c", "smart quote opens at the start of prose");
+    editor->SetText(L"\\(x\\)");
+    prepare();
+    editor->SetSelection({3u, 3u});
+    Check(editor->OnChar(host, L'.', 0u), "seed a smart-typing site under the previous Markdown profile");
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    Check(editor->OnChar(host, L'"', 0u) && editor->GetText() == L"\\(x.\"\\)",
+          "a profile switch retires a cached prose site before the new math analysis publishes");
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
     editor->SetSmartTypographyEnabled(false);
     editor->SetText(L"");
     prepare();
@@ -313,6 +321,13 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
               editor->GetText() == L"#",
           "Markdown trigger coalescing is disabled by default");
     editor->SetMarkdownAutoFormatEnabled(true);
+    editor->SetText(L"");
+    prepare();
+    Check(editor->OnChar(host, L'#', 0u), "seed a pending Markdown trigger");
+    editor->SetViewMode(ViewMode::Source);
+    editor->SetViewMode(ViewMode::Rich);
+    Check(editor->OnChar(host, L' ', 0u) && editor->Undo() && editor->GetText() == L"#",
+          "view transitions retire pending trigger grouping even if the source revision is unchanged");
     for (const auto trigger :
          {std::wstring_view(L"## "), std::wstring_view(L"- "), std::wstring_view(L"1. "), std::wstring_view(L"> "), std::wstring_view(L"---")})
     {

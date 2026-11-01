@@ -1282,6 +1282,8 @@ precedes auto-pair and smart typography, and declines code, nonempty lines,
 source-region editing and native composition. A new trigger requires current
 syntax; once started, its revision and selection guard allow completion while
 replacement syntax is still pending.
+Profile, view, source-presentation and read-only transitions retire pending
+typing-policy context even if the raw source revision is unchanged.
 Rich-view deletion also groups adjacent single plain-source erasures; structural
 wrapper removal, transformed tokens and disjoint fragments remain separate
 transactions so their ownership is preserved.
