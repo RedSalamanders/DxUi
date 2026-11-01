@@ -35,6 +35,34 @@ public:
     }
 };
 #pragma warning(pop)
+template <typename Prepare> void TransientPreviewRetainsChunks(ControlHost& host, Prepare prepare)
+{
+    std::wstring source;
+    for (std::size_t i = 0u; i < 512u; ++i)
+        source += L"preview source line with Unicode \u6771\r\n";
+    auto owned   = std::make_unique<DirectPrepareRichTextEditor>(source);
+    auto* editor = owned.get();
+    editor->SetViewMode(ViewMode::Source);
+    editor->SetBounds(D2D1::RectF(0.f, 0.f, 400.f, 200.f));
+    host.SetRoot(std::move(owned));
+    prepare();
+    Check(editor->DebugGetState().retainedGeometryChunks > 1u, "preview fixture starts with multiple published chunks");
+    TextInputState original;
+    Check(editor->ExportTextInputState(original), "export preview entry state");
+    auto preview  = original;
+    const auto at = source.size() / 2u;
+    preview.text.insert(at, L"x");
+    preview.caretIndex           = at + 1u;
+    preview.selectionAnchorIndex = preview.caretIndex;
+    Check(editor->ImportTextInputState(host, preview, false), "silent preview is accepted");
+    prepare();
+    Check(editor->GetText() == preview.text && editor->DebugGetState().reusedGeometryChunks > 0u && ! editor->CanUndo(),
+          "silent preview preserves unaffected chunks and history");
+    Check(editor->ImportTextInputState(host, original, false), "silent preview cancellation is accepted");
+    prepare();
+    Check(editor->GetText() == source && editor->DebugGetState().reusedGeometryChunks > 0u && ! editor->CanUndo(),
+          "silent preview cancellation restores exact source and reuses unaffected chunks");
+}
 template <typename Prepare> void SelectionCancellationPublication(ControlHost& host, Prepare prepare)
 {
     for (const bool hide : {false, true})

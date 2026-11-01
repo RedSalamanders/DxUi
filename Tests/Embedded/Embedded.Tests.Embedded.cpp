@@ -1659,6 +1659,8 @@ __declspec(noinline) static int RunFunctionalTests()
         Hr(view.Attach(graphics), "incremental embedded view");
         RichSemanticTests::Run([&]
         {
+            RichSemanticEditorTests::TransientPreviewRetainsChunks(
+                view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare embedded transient preview"); });
 #if DXUI_ENABLE_DIAGNOSTICS
             RichSemanticEditorTests::SelectionCancellationPublication(
                 view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded selection cancellation"); });

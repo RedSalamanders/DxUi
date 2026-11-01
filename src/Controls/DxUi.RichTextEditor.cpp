@@ -4557,7 +4557,7 @@ bool RichTextEditor::ImportTextInputState(ControlHost& host, const TextInputStat
             UpdateSemanticSourceRegion();
             RetireSemanticAccessibility();
             _state->nativeGeometryRejected.reset();
-            RetireLayout();
+            RetireLayout(true);
         }
         SelectionChanged(false);
     }
