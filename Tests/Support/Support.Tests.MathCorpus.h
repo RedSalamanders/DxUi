@@ -1177,6 +1177,18 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     for (const auto source : {L"\\bold{x}y", L"\\frak{A}B", L"\\Bbb{A}B"})
         check(static_cast<bool>(ParseMath(source)), "font aliases accept one bounded argument");
     check(! ParseMath(L"{\\sf x \\text{word}}"), "unimplemented text-family nesting retains source instead of rewriting text glyphs");
+#if DXUI_ENABLE_DIAGNOSTICS
+    for (const auto& [source, italic] : {std::pair{L"\\emph{x}", true}, std::pair{L"\\mathit{\\emph{x}}", false}})
+    {
+        const auto expression = std::make_shared<const MathExpression>(ParseMath(source));
+        check(static_cast<bool>(*expression), "text emphasis parses");
+        Detail::PreparedMath layout(factory, expression, 24.f);
+        while (! layout.Advance()) {}
+        check(layout.GlyphLayouts().size() == 1u && layout.GlyphLayouts()[0u].italic == italic,
+              "text emphasis toggles inherited italic style");
+    }
+#endif
+    check(static_cast<bool>(ParseMath(L"\\colorbox{red}{\\emph{x}}")), "colored text permits bounded emphasis");
     const auto binomial = ParseMath(L"\\binom{n}{k}");
     check(binomial && binomial.root.children.size() == 1u && binomial.root.children[0u].kind == MathKind::Matrix &&
               binomial.root.children[0u].text == L"pmatrix" && binomial.root.children[0u].columns == 1u && binomial.root.children[0u].children.size() == 2u,

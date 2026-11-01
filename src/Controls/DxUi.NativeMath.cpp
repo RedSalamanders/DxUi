@@ -122,7 +122,7 @@ class Parser
         if (node.kind == MathKind::Style &&
             (node.text == L"mathrm" || node.text == L"mathit" || node.text == L"mathnormal" || node.text == L"mathbb" || node.text == L"mathcal" ||
              node.text == L"mathfrak" || node.text == L"mathsf" || node.text == L"mathtt" || node.text == L"textrm" || node.text == L"textsf" ||
-             node.text == L"texttt" || node.text == L"textnormal"))
+             node.text == L"texttt" || node.text == L"textnormal" || node.text == L"emph"))
             return;
         constexpr std::u32string_view blackboard   = U"𝔸𝔹ℂ𝔻𝔼𝔽𝔾ℍ𝕀𝕁𝕂𝕃𝕄ℕ𝕆ℙℚℝ𝕊𝕋𝕌𝕍𝕎𝕏𝕐ℤ";
         constexpr std::u32string_view calligraphic = U"𝒜ℬ𝒞𝒟ℰℱ𝒢ℋℐ𝒥𝒦ℒℳ𝒩𝒪𝒫𝒬ℛ𝒮𝒯𝒰𝒱𝒲𝒳𝒴𝒵";
@@ -742,7 +742,7 @@ class Parser
         if (name == L"bold") name = L"mathbf";
         else if (name == L"frak") name = L"mathfrak";
         else if (name == L"Bbb") name = L"mathbb";
-        if (name == L"text" || name == L"textbf" || name == L"textit" || name == L"textup" || name == L"textmd" || name == L"textnormal" || name == L"textrm" || name == L"textsf" || name == L"texttt" || name == L"operatorname")
+        if (name == L"text" || name == L"textbf" || name == L"textit" || name == L"textup" || name == L"textmd" || name == L"textnormal" || name == L"textrm" || name == L"textsf" || name == L"texttt" || name == L"emph" || name == L"operatorname")
         {
             const bool starred = name == L"operatorname" && at < source.size() && source[at] == L'*';
             if (starred)
@@ -751,7 +751,7 @@ class Parser
             result.italic        = false;
             result.atomClass     = name == L"operatorname" ? MathAtomClass::Operator : MathAtomClass::Ordinary;
             result.displayLimits = starred;
-            if (name == L"textup" || name == L"textmd" || name == L"textnormal" || name == L"textrm" || name == L"textsf" || name == L"texttt")
+            if (name == L"textup" || name == L"textmd" || name == L"textnormal" || name == L"textrm" || name == L"textsf" || name == L"texttt" || name == L"emph")
                 return Make(MathKind::Style, name == L"textup" ? std::wstring(L"mathrm") : std::wstring(name), {std::move(result)});
             if (name == L"textbf" || name == L"textit")
                 return Make(MathKind::Style, name == L"textbf" ? L"mathbf" : L"mathit", {std::move(result)});
@@ -1076,13 +1076,10 @@ class Parser
                 }
                 else if (name == L"textcolor" || name == L"colorbox" || name == L"fcolorbox")
                     append(ColorCommand(name, depth, true));
-                else if (name == L"textbf" || name == L"textit" || name == L"textrm" || name == L"textsf" || name == L"texttt" || name == L"textup" ||
-                         name == L"textmd" || name == L"textnormal")
-                    append(Make(MathKind::Style,
-                                name == L"textbf"   ? std::wstring(L"mathbf")
-                                : name == L"textit" ? std::wstring(L"mathit")
-                                : name == L"textup" ? std::wstring(L"mathrm")
-                                                    : std::wstring(name),
+                else if (name == L"textbf" || name == L"textit" || name == L"textrm" || name == L"textsf" || name == L"texttt" ||
+                         name == L"textup" || name == L"textmd" || name == L"textnormal" || name == L"emph")
+                    append(Make(MathKind::Style, name == L"textbf" ? std::wstring(L"mathbf") : name == L"textit" ? std::wstring(L"mathit") :
+                                                  name == L"textup" ? std::wstring(L"mathrm") : std::wstring(name),
                                 {TextColorBody(depth + 1u)}));
                 else
                     Reject(MathIssue::UnsupportedCommand);
@@ -1156,7 +1153,7 @@ class Parser
             L"not", L"frac", L"dfrac", L"tfrac", L"cfrac", L"binom", L"dbinom", L"tbinom", L"overset", L"underset", L"stackrel", L"sqrt", L"substack"};
         if (std::ranges::find(structured, name) != std::end(structured))
             return StructuredCommand(name, depth);
-        static constexpr std::wstring_view styled[] = {L"text",       L"textbf",     L"textit",   L"textup", L"textmd", L"textnormal", L"textrm", L"textsf", L"texttt", L"operatorname", L"bold", L"frak", L"Bbb", L"mathrm",    L"mathbf",   L"mathit",
+        static constexpr std::wstring_view styled[] = {L"text",       L"textbf",     L"textit",   L"textup", L"textmd", L"textnormal", L"textrm", L"textsf", L"texttt", L"emph", L"operatorname", L"bold", L"frak", L"Bbb", L"mathrm",    L"mathbf",   L"mathit",
                                                        L"mathnormal", L"boldsymbol", L"bm",       L"mathbb",       L"mathcal",   L"mathfrak", L"mathsf",
                                                        L"mathtt",     L"mathord",    L"mathop",   L"mathbin",      L"mathrel",   L"mathopen", L"mathclose",
                                                        L"mathpunct",  L"mathinner",  L"overline", L"underline",    L"bar",       L"hat",      L"widehat",

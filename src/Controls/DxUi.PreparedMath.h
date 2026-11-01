@@ -681,8 +681,7 @@ class PreparedMath final
                         node.text != L"boldsymbol" && node.text != L"bm" && node.text != L"mathbb" && node.text != L"mathcal" && node.text != L"mathfrak" &&
                         node.text != L"mathsf" && node.text != L"mathtt" && node.text != L"mathord" && node.text != L"mathop" && node.text != L"mathbin" &&
                         node.text != L"mathrel" && node.text != L"mathopen" && node.text != L"mathclose" && node.text != L"mathpunct" &&
-                        node.text != L"mathinner" && node.text != L"textsf" && node.text != L"texttt" && node.text != L"textrm" && node.text != L"textnormal" &&
-                        node.text != L"textmd" && node.text != L"displaystyle" && node.text != L"textstyle" && node.text != L"scriptstyle" &&
+                        node.text != L"mathinner" && node.text != L"textsf" && node.text != L"texttt" && node.text != L"textrm" && node.text != L"textnormal" && node.text != L"textmd" && node.text != L"emph" && node.text != L"displaystyle" && node.text != L"textstyle" && node.text != L"scriptstyle" &&
                         node.text != L"scriptscriptstyle" && node.text != L"tiny" && node.text != L"sixptsize" && node.text != L"scriptsize" &&
                         node.text != L"footnotesize" && node.text != L"small" && node.text != L"normalsize" && node.text != L"large" && node.text != L"Large" &&
                         node.text != L"LARGE" && node.text != L"huge" && node.text != L"Huge" && ! ColorArgument(node.text, L"textcolor:"))
@@ -829,6 +828,11 @@ class PreparedMath final
                     node.text == L"mathtt")
                 {
                     childItalic      = false;
+                    childForceItalic = true;
+                }
+                else if (node.text == L"emph")
+                {
+                    childItalic = ! italic;
                     childForceItalic = true;
                 }
                 else if (node.text == L"mathit")

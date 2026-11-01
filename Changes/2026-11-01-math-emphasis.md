@@ -1,0 +1,1 @@
+- Support scoped emphasis in mathematical text, including colored text.
