@@ -1545,6 +1545,7 @@ __declspec(noinline) static int RunFunctionalTests()
     SemanticDiagramTests::Core(Check);
     MarkdownSourceCorrelationTests::Reads(Check);
     MarkdownSourceCorrelationTests::ParserIdentities(Check);
+    MarkdownSourceCorrelationTests::LexicalEdits(Check);
     SemanticSourceBlockTests::Core(Check);
     SemanticSourceBlockTests::Geometry(Check);
     SemanticSourceBlockTests::SourceRegions(Check);
@@ -1600,6 +1601,7 @@ __declspec(noinline) static int RunFunctionalTests()
         Hr(transactionView.Attach(transactionGraphics), "transaction embedded view");
         RichSemanticTests::Run([&]
         {
+            RichSemanticEditorTests::SemanticGeometryReuse(transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic reuse"); });
             RichSemanticEditorTests::Transactions(transactionView.Controls(),
                                                   [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded transaction preparation"); });
             RichSemanticEditorTests::StructuralCommands(transactionView.Controls(),
@@ -1654,6 +1656,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichDocumentGeometryUnchangedAllocationBudget();
     TestRichDocumentGeometryMaximumStorageBudget();
     TestRichDocumentGeometryReplacementPeakBudget();
+    TestEmbeddedSemanticReusePixels(gpu);
     TestEmbeddedRichGeometryReuseAndRetirement(gpu);
     TestRetainedRichTextSchedulingCanRetireOwner(gpu);
     TestRetainedRichTextFailedPreparation(gpu);

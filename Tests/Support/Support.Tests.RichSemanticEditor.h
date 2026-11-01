@@ -1482,6 +1482,22 @@ inline void NativeMathHRESULTFailureContainment(ControlHost& host)
             Check(turn != 1023u, "shared-budget preparation settles");
         }
     }
+    {
+        auto root = std::make_unique<DirectPrepareRichTextEditor>(L"```mermaid\ngraph LR;A[Draft]-->B[Ready]\n```\n");
+        auto* editor = root.get();
+        editor->SetBounds(D2D1::RectF(0.f, 0.f, 480.f, 240.f));
+        editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        host.SetRoot(std::move(root));
+        SemanticWriteFactoryOverride override(host);
+        auto* calls = override.Get();
+        calls->failLayoutText = L"Draft";
+        Check(PrepareUntilSettled(*editor, host) == S_OK && calls->matchingLayouts > 0u, "prepare a measured native diagram");
+        const auto labels = calls->matchingLayouts;
+        editor->SetBounds(D2D1::RectF(0.f, 0.f, 500.f, 240.f));
+        Check(PrepareUntilSettled(*editor, host) == S_OK && calls->matchingLayouts == labels && editor->GetAcknowledgedSemanticDocument(host),
+              "width-only reflow reuses the immutable prepared diagram without reshaping labels");
+    }
     const auto install = [&](std::wstring source)
     {
         auto root    = std::make_unique<DirectPrepareRichTextEditor>(std::move(source));
@@ -1646,6 +1662,42 @@ inline void NativeMathHRESULTFailureContainment(ControlHost& host)
 #else
     static_cast<void>(host);
 #endif
+}
+
+template <typename Prepare> void SemanticGeometryReuse(ControlHost& host, Prepare&& prepare)
+{
+    std::wstring source;
+    for (unsigned i = 0u; i < 100u; ++i)
+        source += L"Paragraph **bold** text.\n\n";
+    auto root = std::make_unique<RichTextEditor>(source);
+    auto* editor = root.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    host.SetRoot(std::move(root));
+    prepare();
+    Check(editor->GetAcknowledgedSemanticDocument(host) && editor->DebugGetState().reusedGeometryChunks == 0u,
+          "first semantic publication creates its layouts");
+    editor->SetSelection({4u, 4u});
+    Check(editor->ReplaceSelection(L"x"), "edit one early paragraph");
+    prepare();
+    Check(editor->GetAcknowledgedSemanticDocument(host) && editor->DebugGetState().reusedGeometryChunks >= 90u &&
+              editor->GetText().size() == source.size() + 1u,
+          "unchanged source blocks reuse immutable DirectWrite layouts after a tracked edit");
+    const auto firstRevision = editor->Revision();
+    editor->SetSelection({7u, 7u});
+    Check(editor->ReplaceSelection(L"y") && ! editor->GetAcknowledgedSemanticDocument(host),
+          "a second source edit retires stale semantic geometry before preparation");
+    editor->SetSelection({8u, 8u});
+    Check(editor->ReplaceSelection(L"z") && editor->Revision() == firstRevision + 2u,
+          "superseding edits remain separate source transactions");
+    prepare();
+    Check(editor->GetAcknowledgedSemanticDocument(host) && editor->DebugGetState().reusedGeometryChunks >= 90u,
+          "latest publication reuses only compatible boxes after cancelled source preparation");
+    auto appearance = editor->GetAppearance();
+    appearance.bodyFontSizeDip = 19.f;
+    editor->SetAppearance(appearance);
+    prepare();
+    Check(editor->DebugGetState().reusedGeometryChunks == 0u, "typography changes never reuse incompatible semantic layouts");
 }
 
 template <typename Prepare> void Transactions(ControlHost& host, Prepare&& prepare)

@@ -7,6 +7,7 @@
 #include <limits>
 #include <stdexcept>
 #include <tuple>
+#include <unordered_map>
 #include <wil/resource.h>
 #include <wil/result.h>
 // Windows SDK WRL owns its interlocked/volatile implementation and target semantics.
@@ -85,7 +86,7 @@ private:
 struct NativeDiagramPlacement
 {
     std::size_t element{}, display{};
-    std::unique_ptr<PreparedFlowchart> paint;
+    std::shared_ptr<PreparedFlowchart> paint;
     D2D1_RECT_F bounds{}; // Relative to the containing DirectWrite paragraph.
     float caretHeight{};
     bool rtl{};
@@ -276,7 +277,7 @@ struct SemanticBox
     float x{}, y{}, width{}, height{};
     D2D1_RECT_F frame{};
     std::optional<MarkdownEmptyLine> sourceCaret;
-    bool caretOnly{}, markerOnly{};
+    bool caretOnly{}, markerOnly{}, markerLayout{};
     const NativeDiagramPlacement* native{};
     const NativeImageGeometry* images{};
     CaretGeometry Caret(std::size_t local) const
@@ -451,6 +452,7 @@ struct PreparedSemanticGeometry::State
     std::vector<std::optional<D2D1_RECT_F>> bounds;
     std::vector<std::pair<std::size_t, std::size_t>> sourceLines;
     float height{};
+    std::size_t reusedBoxes{};
     const SemanticBox& BoxAt(std::size_t position) const
     {
         if (position > document->Map().Display().size() || boxes.empty())
@@ -532,6 +534,7 @@ struct PreparedSemanticGeometry::Preparation
 {
     enum class Phase
     {
+        IndexReuse,
         IndexElements,
         IndexLiteralDefinitions,
         IndexCaretAnchors,
@@ -557,9 +560,15 @@ struct PreparedSemanticGeometry::Preparation
                          FlowchartResourceEpoch epochs,
                          std::shared_ptr<const RichImageResourceSet> images,
                          ID2D1RenderTarget* target,
-                         const NativeImageGeometry* previousImages)
+                         const NativeImageGeometry* previousImages,
+                         const State* previous,
+                         const State* previousNative)
         : state(std::make_unique<State>(std::move(document), factory, options, drawing, epochs, std::move(images), target, previousImages)),
           raster(state->images ? target : nullptr),
+          previousState(previous),
+          previousNativeState(previousNative),
+          reusable(0u),
+          emptyLayouts(0u),
           markers(state->document->Paragraphs().size()),
           gutters(state->document->Syntax()->Nodes().size(), 0.0f),
           literalDefinitionNodes(0u),
@@ -578,6 +587,17 @@ struct PreparedSemanticGeometry::Preparation
     }
     std::unique_ptr<State> state;
     wil::com_ptr<ID2D1RenderTarget> raster; // Retained only across cooperative staging; released before publication.
+    const State* previousState{};
+    const State* previousNativeState{};
+    std::unordered_multimap<std::uint64_t, std::size_t> reusable;
+    std::size_t reuseIndex{};
+    struct EmptyLayout
+    {
+        float width{};
+        DWRITE_TEXT_ALIGNMENT alignment{};
+        PreparedLayout layout;
+    };
+    std::vector<std::unique_ptr<EmptyLayout>> emptyLayouts;
     std::size_t nativeIndex{};
     std::size_t imageIndex{};
     std::vector<std::unique_ptr<SemanticBox>> markers;
@@ -621,7 +641,7 @@ struct PreparedSemanticGeometry::Preparation
     // Only an opted-in list policy needs this bounded parent-first metadata.
     // A nullable owner avoids even Debug STL proxy allocation for legacy calls.
     std::unique_ptr<std::vector<std::size_t>> spacingItems;
-    Phase phase = Phase::IndexElements;
+    Phase phase = Phase::IndexReuse;
     std::size_t paragraph{}, rowStart{}, rowPlacement{}, rowTable = MarkdownNoNode, rowIndex{}, boundsIndex{}, tableAllocateIndex{};
     float y{}, rowHeight{};
     float rowLeft = std::numeric_limits<float>::max(), rowRight{};
@@ -793,6 +813,7 @@ struct PreparedSemanticGeometry::Preparation
             throw std::logic_error("Invalid semantic marker prefix");
         auto box                    = std::make_unique<SemanticBox>();
         box->paragraph              = content;
+        box->markerLayout           = true;
         box->paragraph.display.last = content.markerEnd;
         auto options                = state->options;
         // Native no-wrap measurement is separate from the body's width. Its
@@ -802,7 +823,37 @@ struct PreparedSemanticGeometry::Preparation
         Projection projection{
             std::wstring(0u, L' '), std::wstring(0u, L' '), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)};
         IdentityProjection(*state->document, box->paragraph.display, projection);
-        box->layout.PrepareSemanticOwned(state->factory.get(), projection, options, true);
+        bool reused      = false;
+        const auto& node = state->document->Syntax()->Nodes()[content.syntaxNode];
+        if (previousState && node.identity != 0u)
+        {
+            const auto range = reusable.equal_range(node.identity);
+            for (auto found = range.first; found != range.second; ++found)
+            {
+                const auto& old      = *previousState->boxes[found->second];
+                const auto& oldNodes = previousState->document->Syntax()->Nodes();
+                if (! old.markerLayout || old.paragraph.markerOwner == MarkdownNoNode || content.markerOwner == MarkdownNoNode ||
+                    old.paragraph.markerOwner >= oldNodes.size() || content.markerOwner >= state->document->Syntax()->Nodes().size() ||
+                    oldNodes[old.paragraph.markerOwner].identity != state->document->Syntax()->Nodes()[content.markerOwner].identity)
+                    continue;
+                const auto& prior   = old.layout.Content();
+                const bool sameRuns = prior.runs.size() == projection.runs.size() &&
+                                      std::equal(prior.runs.begin(), prior.runs.end(), projection.runs.begin(), [](const auto& left, const auto& right) {
+                    return left.start == right.start && left.length == right.length && left.flags == right.flags && left.heading == right.heading;
+                });
+                if (prior.text == projection.text && sameRuns &&
+                    previousState->document->Syntax()->Slice(oldNodes[old.paragraph.syntaxNode].block.source) ==
+                        state->document->Syntax()->Slice(node.block.source))
+                {
+                    box->layout = old.layout;
+                    ++state->reusedBoxes;
+                    reused = true;
+                    break;
+                }
+            }
+        }
+        if (! reused)
+            box->layout.PrepareSemanticOwned(state->factory.get(), projection, options, true);
         const auto width = box->layout.HorizontalTextBounds().second;
         if (! std::isfinite(width) || width < 0.0f)
             throw std::overflow_error("Nonfinite semantic marker width");
@@ -810,7 +861,7 @@ struct PreparedSemanticGeometry::Preparation
         gutters[list]   = std::max(gutters[list], width);
         box->height     = box->layout.Height();
         markers[index]  = std::move(box);
-        return true;
+        return ! reused;
     }
     std::size_t SourceFirst(const SemanticParagraph& content) const
     {
@@ -1192,8 +1243,107 @@ struct PreparedSemanticGeometry::Preparation
             }
             const auto imageRanges =
                 imageInlines ? std::span(imageInlines->ranges.data(), imageInlines->count) : std::span<PreparedLayout::SemanticInlineObject>{};
-            box->layout.PrepareSemanticOwned(next.factory.get(), projection, options, false, placeholder.get(), objectOffset, imageRanges);
-            lastLayoutCalls = 1u;
+            if (previousState && node.identity != 0u && ! caretOnly && ! marker)
+            {
+                const auto range = reusable.equal_range(node.identity);
+                for (auto found = range.first; found != range.second; ++found)
+                {
+                    const auto& old       = *previousState->boxes[found->second];
+                    const auto& priorNode = previousState->document->Syntax()->Nodes()[old.paragraph.syntaxNode];
+                    const auto& prior     = old.layout.Content();
+                    const auto& oldNodes  = previousState->document->Syntax()->Nodes();
+                    const auto& newNodes  = next.document->Syntax()->Nodes();
+                    const auto sameOwner  = [&](std::size_t left, std::size_t right)
+                    {
+                        return left == MarkdownNoNode ? right == MarkdownNoNode
+                                                      : right != MarkdownNoNode && left < oldNodes.size() && right < newNodes.size() &&
+                                                            oldNodes[left].identity != 0u && oldNodes[left].identity == newNodes[right].identity;
+                    };
+                    bool sameTable = old.paragraph.table == MarkdownNoNode && content.table == MarkdownNoNode;
+                    if (old.paragraph.table != MarkdownNoNode && content.table != MarkdownNoNode &&
+                        old.paragraph.table < previousState->document->Elements().size() && content.table < next.document->Elements().size())
+                    {
+                        const auto& left  = previousState->document->Elements()[old.paragraph.table];
+                        const auto& right = next.document->Elements()[content.table];
+                        sameTable         = left.role == SemanticRole::Table && right.role == SemanticRole::Table && left.blockIdentity != 0u &&
+                                            left.blockIdentity == right.blockIdentity && left.rows == right.rows && left.columns == right.columns &&
+                                            previousState->document->Syntax()->Slice(left.source) == next.document->Syntax()->Slice(right.source);
+                    }
+                    bool sameNative = (! old.native && ! native);
+                    if (old.native && native)
+                    {
+                        const auto oldExtent = old.native->paint->Geometry()->extent;
+                        const auto newExtent = native->paint->Geometry()->extent;
+                        sameNative           = oldExtent.width == newExtent.width && oldExtent.height == newExtent.height &&
+                                               old.native->display - old.paragraph.display.first == native->display - content.display.first;
+                    }
+                    bool sameImages = ! old.images && imageRanges.empty();
+                    if (old.images && ! imageRanges.empty() && next.images)
+                    {
+                        std::size_t matched = 0u, priorCount = 0u;
+                        for (const auto& item : old.images->placements)
+                            if (item.owner == &old)
+                                ++priorCount;
+                        for (const auto& item : next.images->placements)
+                        {
+                            if (item.display.first < content.display.first || item.display.last > content.display.last ||
+                                item.display.first == item.display.last)
+                                continue;
+                            const auto first = item.display.first - content.display.first, last = item.display.last - content.display.first;
+                            const auto foundImage = std::ranges::find_if(old.images->placements,
+                                                                         [&](const auto& candidate)
+                            {
+                                if (candidate.owner != &old || candidate.display.first - old.paragraph.display.first != first ||
+                                    candidate.display.last - old.paragraph.display.first != last || bool(candidate.math) != bool(item.math))
+                                    return false;
+                                const auto a = candidate.Size(), b = item.Size();
+                                return a.width == b.width && a.height == b.height && candidate.Baseline() == item.Baseline();
+                            });
+                            if (foundImage != old.images->placements.end())
+                                ++matched;
+                        }
+                        sameImages = matched == imageRanges.size() && matched == priorCount;
+                    }
+                    const bool sameRuns = prior.runs.size() == projection.runs.size() &&
+                                          std::equal(prior.runs.begin(), prior.runs.end(), projection.runs.begin(), [](const auto& left, const auto& right) {
+                        return left.start == right.start && left.length == right.length && left.flags == right.flags && left.heading == right.heading;
+                    });
+                    if (! old.markerLayout && sameNative && sameImages && sameTable && sameOwner(old.paragraph.markerOwner, content.markerOwner) &&
+                        old.paragraph.row == content.row && old.paragraph.column == content.column && old.paragraph.columns == content.columns &&
+                        old.width == box->width && old.paragraph.indent == content.indent && old.paragraph.flags == content.flags &&
+                        old.paragraph.heading == content.heading && old.paragraph.alignment == content.alignment &&
+                        previousState->document->Syntax()->Slice(priorNode.block.source) == next.document->Syntax()->Slice(node.block.source) &&
+                        prior.text == projection.text && sameRuns)
+                    {
+                        box->layout = old.layout;
+                        ++next.reusedBoxes;
+                        break;
+                    }
+                }
+            }
+            const bool emptySite = caretOnly && ! table && ! native && imageRanges.empty() && projection.text.empty() && projection.runs.empty();
+            if (! box->layout.Ready() && emptySite)
+            {
+                const auto found = std::ranges::find_if(
+                    emptyLayouts, [&](const auto& entry) { return entry->width == options.widthDip && entry->alignment == options.textAlignment; });
+                if (found != emptyLayouts.end())
+                {
+                    box->layout = (*found)->layout;
+                }
+            }
+            if (! box->layout.Ready())
+            {
+                box->layout.PrepareSemanticOwned(next.factory.get(), projection, options, false, placeholder.get(), objectOffset, imageRanges);
+                lastLayoutCalls = 1u;
+                if (emptySite)
+                {
+                    auto cached       = std::make_unique<EmptyLayout>();
+                    cached->width     = options.widthDip;
+                    cached->alignment = options.textAlignment;
+                    cached->layout    = box->layout;
+                    emptyLayouts.push_back(std::move(cached));
+                }
+            }
             if (imageInlines && imageInlines->count)
                 for (auto& image : next.images->placements)
                     if (image.display.first >= content.display.first && image.display.last <= content.display.last && image.display.first < image.display.last)
@@ -1412,7 +1562,15 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
         if (SameOptions(priorOptions, options))
             previousImages = state_->images.get();
     }
-    auto next = std::make_unique<Preparation>(std::move(document), factory, options, drawing, epochs, std::move(images), raster, previousImages);
+    const auto* previous =
+        state_ && state_->factory.get() == factory && state_->imageEpochs == epochs && SameOptions(state_->options, options) ? state_.get() : nullptr;
+    const auto* previousNative = state_ && state_->document == document && state_->factory.get() == factory && state_->native &&
+                                         state_->native->drawing.get() == drawing && state_->native->epochs == epochs &&
+                                         state_->options.fontFamily == options.fontFamily && state_->options.fontSizeDip == options.fontSizeDip &&
+                                         state_->options.locale == options.locale && state_->options.readingDirection == options.readingDirection
+                                     ? state_.get()
+                                     : nullptr;
+    auto next = std::make_unique<Preparation>(std::move(document), factory, options, drawing, epochs, std::move(images), raster, previousImages, previous, previousNative);
     next_.swap(next);
     return LayoutPreparationStatus::Pending;
 }
@@ -1428,7 +1586,21 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
         while (result.blockSteps < budget.maximumBlockSteps)
         {
             auto& work = *next_;
-            if (work.phase == Preparation::Phase::IndexElements)
+            if (work.phase == Preparation::Phase::IndexReuse)
+            {
+                if (! work.previousState || work.reuseIndex == work.previousState->boxes.size())
+                {
+                    work.phase = Preparation::Phase::IndexElements;
+                    continue;
+                }
+                const auto index  = work.reuseIndex++;
+                const auto& box   = *work.previousState->boxes[index];
+                const auto& nodes = work.previousState->document->Syntax()->Nodes();
+                if (! box.caretOnly && (! box.markerOnly || box.markerLayout) && box.paragraph.syntaxNode < nodes.size() &&
+                    nodes[box.paragraph.syntaxNode].identity != 0u && box.layout.Ready())
+                    work.reusable.emplace(nodes[box.paragraph.syntaxNode].identity, index);
+            }
+            else if (work.phase == Preparation::Phase::IndexElements)
             {
                 const auto elements = work.state->document->Elements();
                 if (work.boundsIndex == elements.size())
@@ -1583,9 +1755,20 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                     ++result.blockSteps;
                     continue;
                 }
+                if (! placement.paint && work.previousNativeState && work.previousNativeState->native)
+                {
+                    auto* retained = work.previousNativeState->native->Find(placement.element);
+                    if (retained && retained->paint && retained->paint->Ready())
+                    {
+                        placement.paint = retained->paint;
+                        ++work.nativeIndex;
+                        ++result.blockSteps;
+                        continue;
+                    }
+                }
                 if (! placement.paint)
                 {
-                    placement.paint = std::make_unique<PreparedFlowchart>();
+                    placement.paint = std::make_shared<PreparedFlowchart>();
                     placement.paint->Begin(
                         state.factory.get(), state.native->drawing.get(), diagrams[work.nativeIndex].graph, state.options, state.native->epochs);
                     ++result.blockSteps;
@@ -1865,6 +2048,10 @@ float PreparedSemanticGeometry::Height() const noexcept
 std::size_t PreparedSemanticGeometry::BoxCount() const noexcept
 {
     return state_ ? state_->boxes.size() : 0u;
+}
+std::size_t PreparedSemanticGeometry::ReusedBoxCount() const noexcept
+{
+    return state_ ? state_->reusedBoxes : 0u;
 }
 bool PreparedSemanticGeometry::HasNativeObjects() const noexcept
 {

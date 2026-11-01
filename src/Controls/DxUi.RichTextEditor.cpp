@@ -168,6 +168,7 @@ struct RichTextEditor::State
     bool focusMode = false;
     std::wstring documentFilePath;
     uint64_t imageLocationRevision = 1u;
+    std::optional<RichText::SourceSnapshot> imageSource;
     RichText::Detail::RichImageResources images;
     RichText::Detail::RichEditorLayout layout;
     RichText::MarkdownParser markdown;
@@ -433,18 +434,19 @@ void RichTextEditor::TakePendingImageRequests(std::vector<RichText::RichImageReq
 bool RichTextEditor::CompleteImageRequest(const RichText::RichImageRequest& request, std::shared_ptr<const RichText::RichImage> image)
 {
     const auto document = GetSemanticDocument();
-    if (! GetHost() || ! IsVisible() || ! _state->markdownRendering || _state->mode != RichText::ViewMode::Rich || ! document ||
-        ! _state->images.CurrentForCompletion(document, _state->imageLocationRevision, _state->bindingRevision))
+    const bool suspended = _state->images.CanCompleteSuspended(_state->imageLocationRevision, _state->bindingRevision);
+    if (! GetHost() || ! IsVisible() || ! _state->markdownRendering || _state->mode != RichText::ViewMode::Rich ||
+        (! suspended && (! document || ! _state->images.CurrentForCompletion(document, _state->imageLocationRevision, _state->bindingRevision))))
         return false;
     const auto viewport = TextViewport();
     const auto* host    = GetHost();
-    if (_state->RejectsNativeGeometry(
+    if (document && _state->RejectsNativeGeometry(
             document, std::max(1.0f, viewport.right - viewport.left), IsRightToLeft(), host->GetTypographyRevision(), host->GetResourceGeneration()))
         return false;
     const bool alreadyDirty = _state->images.HasUnpublished();
     if (! _state->images.Complete(request, std::move(image)))
         return false;
-    if (! alreadyDirty && _state->images.HasUnpublished())
+    if (! suspended && ! alreadyDirty && _state->images.HasUnpublished())
     {
         RetireSemanticAccessibility();
         _state->hoveredLink.reset();
@@ -1824,7 +1826,10 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
         _state->decorations.clear();
     if (sourceChanged)
     {
-        _state->images.Cancel();
+        if (_state->imageSource)
+            _state->images.SuspendForEdit(Snapshot(), *_state->imageSource);
+        else
+            _state->images.Cancel();
         _state->hoveredLink.reset();
         UpdateSemanticSourceRegion();
         RetireSemanticAccessibility();
@@ -1960,7 +1965,7 @@ D2D1_RECT_F RichTextEditor::ScrollbarTrack() const noexcept
     const float left    = IsRightToLeft() ? bounds.left + padding : bounds.right - padding - kScrollbarThicknessDip;
     return D2D1::RectF(std::max(bounds.left, left), viewport.top, std::min(bounds.right, left + kScrollbarThicknessDip), viewport.bottom);
 }
-void RichTextEditor::RetireLayout() const noexcept
+void RichTextEditor::RetireLayout(bool retainGeometry) const noexcept
 {
     ++_state->fileDropEpoch;
     _state->overlaySelectionDirty = _state->overlayHighlightsDirty = true;
@@ -1972,7 +1977,10 @@ void RichTextEditor::RetireLayout() const noexcept
     _state->taskPressPlan.reset();
     if (_state->layout.HasPendingPreparation())
         ++_state->cancelledPreparations;
-    _state->layout.Clear();
+    if (retainGeometry)
+        _state->layout.Invalidate();
+    else
+        _state->layout.Clear();
     _state->markdown.Cancel();
     _state->semantic.Cancel();
     _state->markdownRequestActive = false;
@@ -2383,7 +2391,10 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             state.markdownRendering && state.mode == RichText::ViewMode::Rich && ! semanticDocument ? RichText::ViewMode::Source : state.mode;
         const auto revision = Revision(), binding = state.bindingRevision;
         if (semanticDocument)
+        {
             state.images.Publish();
+            state.imageSource = Snapshot();
+        }
         const bool sameRequest = state.requestActive && state.layout.HasPendingPreparation() && state.requestFactory == factory &&
                                  state.requestRevision == revision && state.requestBinding == binding && state.requestTypography == typography &&
                                  state.requestResources == resources && state.requestWidth == width && state.requestMode == state.mode;
@@ -4299,7 +4310,7 @@ void RichTextEditor::OnBoundsChanged() noexcept
 {
     const auto viewport = TextViewport();
     if (_state->layoutWidth != std::max(1.0f, viewport.right - viewport.left))
-        RetireLayout();
+        RetireLayout(true);
     else
     {
         _state->revealCaret = true;

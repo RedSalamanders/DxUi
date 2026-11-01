@@ -348,6 +348,8 @@ struct MarkdownParser::Preparation
     // Preserve their insertion order and consume each old identity only once.
     std::multimap<NodeKey, std::size_t> oldNodes;
     std::size_t commonFirst{}, commonOldEnd{}, commonNewEnd{}, identityCursor{}, oldIndexCursor{};
+    std::size_t lexicalPrefixLimit{}, lexicalPrefixIndex{}, lexicalSuffixIndex = MarkdownNoNode, lexicalSuffixStart{};
+    bool copyingLexicalSuffix{};
     std::uint64_t nextIdentity = 1u;
     bool identitiesComplete{};
     bool discardOldIdentities{};
@@ -368,6 +370,24 @@ struct MarkdownParser::Preparation
         commonOldEnd         = correlation.previousEnd;
         commonNewEnd         = correlation.currentEnd;
         discardOldIdentities = correlation.discardPrevious;
+        if (change && change->kind == SourceChangeKind::TrackedEdits && ! discardOldIdentities)
+        {
+            // Lexical constructs have a maximum 33-unit named reference (or a
+            // two-unit escape/CRLF). Keep a safety margin on both edit edges.
+            constexpr std::size_t margin = 34u;
+            lexicalPrefixLimit = commonFirst > margin ? commonFirst - margin : 0u;
+            const auto oldSafe = commonOldEnd + std::min(margin, a.size() - commonOldEnd);
+            const auto& lexemes = previous->Lexemes();
+            auto suffix = std::lower_bound(lexemes.begin(), lexemes.end(), oldSafe,
+                                           [](const auto& token, auto at) { return token.source.first < at; });
+            while (suffix != lexemes.end() && suffix->kind == MarkdownLexemeKind::Text)
+                ++suffix;
+            if (suffix != lexemes.end())
+            {
+                lexicalSuffixIndex = static_cast<std::size_t>(suffix - lexemes.begin());
+                lexicalSuffixStart = commonNewEnd + (suffix->source.first - commonOldEnd);
+            }
+        }
     }
     void IdentityUnit()
     {
@@ -494,12 +514,55 @@ struct MarkdownParser::Preparation
                                     syntax->diagnostics_,
                                     CharacterReference};
     std::size_t cursor{}, lineFirst{}, lexicalCursor{}, literalFirst{}, rootCursor{}, rootNode = MarkdownNoNode;
+    std::size_t reusableRootIndex = 1u;
     bool blocksComplete{}, lexemesComplete{}, rootsComplete{}, inlinesComplete{};
     void ScanBlockUnit()
     {
         if (blocks.AdvanceTableCell())
             return;
         const auto& source = blockSource;
+        if (previous && change && change->kind == SourceChangeKind::TrackedEdits && previous->Extensions() == syntax->Extensions() &&
+            ! previous->sourceRegionRequest_ && ! syntax->sourceRegionRequest_ &&
+            cursor == lineFirst && blocks.CanImportClosedRoot())
+        {
+            const bool prefix = cursor < commonFirst;
+            const bool suffix = cursor >= commonNewEnd;
+            if (prefix || suffix)
+            {
+                const auto oldPosition = prefix ? cursor : commonOldEnd + (cursor - commonNewEnd);
+                const auto& oldNodes = previous->Nodes();
+                if (reusableRootIndex < oldNodes.size())
+                {
+                    const auto& old = oldNodes[reusableRootIndex];
+                    if (old.parent != 0u || old.block.source.first < oldPosition)
+                    {
+                        ++reusableRootIndex;
+                        return;
+                    }
+                    if (old.block.source.first == oldPosition)
+                    {
+                        ++reusableRootIndex;
+                        const auto& blanks = previous->EmptyLines();
+                        const auto blank = std::lower_bound(blanks.begin(), blanks.end(), old.block.source.last,
+                                                            [](const auto& line, auto position) { return line.source.first < position; });
+                        const bool separated = blank != blanks.end() && blank->owner == 0u && blank->source.first == old.block.source.last &&
+                                               blank->source.last > blank->source.first &&
+                                               (! prefix || blank->source.last <= commonFirst);
+                        const auto oldSource = previous->Source();
+                        const bool ordinary = old.block.kind == MarkdownBlockKind::Paragraph && old.firstChild == MarkdownNoNode &&
+                                              old.block.source.last > old.block.source.first && old.block.content.first < old.block.source.last &&
+                                              oldSource[old.block.content.first] != L'[';
+                        if (separated && ordinary)
+                        {
+                            blocks.ImportClosedRootParagraph(old, cursor);
+                            cursor += old.block.source.last - old.block.source.first;
+                            lineFirst = cursor;
+                            return;
+                        }
+                    }
+                }
+            }
+        }
         if (cursor == source.size())
         {
             if (lineFirst < cursor)
@@ -558,6 +621,37 @@ struct MarkdownParser::Preparation
     void ScanLexicalUnit()
     {
         const auto& source = syntax->source_;
+        if (previous && lexicalPrefixIndex < previous->Lexemes().size())
+        {
+            const auto& token = previous->Lexemes()[lexicalPrefixIndex];
+            if (token.source.first == lexicalCursor && token.source.last <= lexicalPrefixLimit)
+            {
+                syntax->lexemes_.push_back(token);
+                lexicalCursor = literalFirst = token.source.last;
+                ++lexicalPrefixIndex;
+                return;
+            }
+        }
+        if (lexicalSuffixIndex != MarkdownNoNode && (copyingLexicalSuffix || lexicalCursor == lexicalSuffixStart))
+        {
+            if (! copyingLexicalSuffix)
+            {
+                FlushLiteral(lexicalCursor);
+                copyingLexicalSuffix = true;
+            }
+            const auto& old = previous->Lexemes();
+            if (lexicalSuffixIndex < old.size())
+            {
+                auto token = old[lexicalSuffixIndex++];
+                token.source.first = commonNewEnd + (token.source.first - commonOldEnd);
+                token.source.last = commonNewEnd + (token.source.last - commonOldEnd);
+                syntax->lexemes_.push_back(token);
+                lexicalCursor = literalFirst = token.source.last;
+                return;
+            }
+            lexemesComplete = true;
+            return;
+        }
         if (lexicalCursor == source.size())
         {
             FlushLiteral(lexicalCursor);

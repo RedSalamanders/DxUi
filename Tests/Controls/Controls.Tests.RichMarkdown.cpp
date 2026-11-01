@@ -1398,6 +1398,7 @@ void TestLosslessMarkdownCorrelationSourceReadBudget()
 void TestLosslessMarkdownCorrelationSnapshotIdentity()
 {
     MarkdownSourceCorrelationTests::ParserIdentities(Require);
+    MarkdownSourceCorrelationTests::LexicalEdits(Require);
 }
 void RunRichMarkdownTests()
 {

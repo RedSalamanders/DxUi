@@ -23,7 +23,9 @@ void TestRichSemanticTransactionRejections()
 void TestRichSemanticNativeRetainedTransactions()
 {
     AttachedHostWindow window;
-    RichSemanticTests::Run([&] {
+    RichSemanticTests::Run([&]
+    {
+        RichSemanticEditorTests::SemanticGeometryReuse(window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare semantic reuse"); });
         RichSemanticEditorTests::Transactions(window.Host(),
                                               [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native source transaction"); });
     });

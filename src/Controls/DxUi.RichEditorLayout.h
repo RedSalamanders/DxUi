@@ -120,7 +120,9 @@ public:
     }
     LayoutPreparation LastPreparation() const noexcept
     {
-        return activeSemantic_ && semantic_.Ready() ? LayoutPreparation{semantic_.BoxCount(), 0u, SourceLength(), 0u, 0u, 0u} : v0_.LastPreparation();
+        return activeSemantic_ && semantic_.Ready()
+                   ? LayoutPreparation{semantic_.BoxCount() - semantic_.ReusedBoxCount(), semantic_.ReusedBoxCount(), SourceLength(), 0u, 0u, 0u}
+                   : v0_.LastPreparation();
     }
     bool UsesWholeGeometry() const noexcept
     {

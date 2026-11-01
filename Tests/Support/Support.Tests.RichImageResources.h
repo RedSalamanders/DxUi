@@ -308,5 +308,29 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
     prepare();
     editor.TakePendingImageRequests(requests);
     check(requests.size() == 1u, "policy changes retry retained failed sources");
+
+    editor.SetText(L"prefix ![pending](pending.png) suffix");
+    prepare();
+    editor.TakePendingImageRequests(requests);
+    check(requests.size() == 1u, "tracked-edit fixture dispatches a pending image");
+    const auto retained = requests[0];
+    editor.SetSelection({0u, 0u});
+    check(editor.ReplaceSelection(L"new ") && ! retained.Cancelled(), "unrelated tracked edit retains the in-flight request");
+    check(editor.CompleteImageRequest(retained, picture), "retained completion is accepted while semantics are pending");
+    check(! editor.GetAcknowledgedSemanticDocument(host), "old image completion is not exposed as current semantics");
+    prepare();
+    editor.TakePendingImageRequests(requests);
+    check(requests.empty() && editor.GetImageResourceStatistics().readySources == 1u,
+          "new semantics adopts the completed image without a second request");
+    editor.ReloadImages();
+    prepare();
+    editor.TakePendingImageRequests(requests);
+    check(requests.size() == 1u, "affected-edit fixture dispatches a fresh request");
+    const auto affected = requests[0];
+    const auto destination = editor.GetText().find(L"pending.png");
+    check(destination != std::wstring::npos, "affected-edit destination exists");
+    editor.SetSelection({destination, destination + 1u});
+    check(editor.ReplaceSelection(L"x") && affected.Cancelled() && ! editor.CompleteImageRequest(affected, picture),
+          "editing the image source cancels and rejects the old request");
 }
 } // namespace RichImageResourceTests

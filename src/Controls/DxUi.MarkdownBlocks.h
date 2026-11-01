@@ -956,6 +956,39 @@ public:
         nodes_[0].block.content = nodes_[0].block.source;
         open_.push_back(0u);
     }
+    bool CanImportClosedRoot() const noexcept
+    {
+        return ! sourceRegion_ && open_.size() == 1u && leaf_ == MarkdownNoNode && ! tableRow_;
+    }
+    void ImportClosedRootParagraph(const MarkdownNode& old, std::size_t currentFirst)
+    {
+        if (! CanImportClosedRoot() || old.parent != 0u || old.block.kind != Kind::Paragraph || old.firstChild != MarkdownNoNode ||
+            old.block.source.first > old.block.source.last)
+            throw std::invalid_argument("Invalid closed root paragraph reuse");
+        const auto oldFirst = old.block.source.first;
+        const auto shift = [&](std::size_t position) { return currentFirst + (position - oldFirst); };
+        const auto shiftRange = [&](MarkdownRange range)
+        {
+            return range.first == 0u && range.last == 0u ? range : MarkdownRange{shift(range.first), shift(range.last)};
+        };
+        lineFirst_ = currentFirst;
+        lineEnd_ = shift(old.block.source.last);
+        const auto index = Add(Kind::Paragraph, 0u);
+        auto copy = old;
+        copy.block.source = shiftRange(copy.block.source);
+        copy.block.content = shiftRange(copy.block.content);
+        copy.block.info = shiftRange(copy.block.info);
+        copy.label = shiftRange(copy.label);
+        copy.destination = shiftRange(copy.destination);
+        copy.title = shiftRange(copy.title);
+        for (auto& line : copy.lines)
+            line.source = shiftRange(line.source);
+        copy.parent = 0u;
+        copy.firstChild = copy.nextSibling = copy.firstInline = MarkdownNoNode;
+        nodes_[index] = copy;
+        acceptedEnd_ = lineEnd_;
+        ++statistics_.reusedClosedRoots;
+    }
     void Line(std::size_t first, std::size_t bodyEnd, std::size_t end)
     {
         lineFirst_ = first;

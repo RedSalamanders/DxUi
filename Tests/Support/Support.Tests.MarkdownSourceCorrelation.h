@@ -162,4 +162,52 @@ template <typename Check> inline void ParserIdentities(Check&& check)
               "bounded replacement publishes exact new source and preserves the held large tree");
     }
 }
+template <typename Check> inline void LexicalEdits(Check&& check)
+{
+    std::wstring source;
+    for (unsigned line = 0u; line < 120u; ++line)
+        source += L"paragraph &amp; escaped\\* and &#x41;\r\n";
+    Document document(source);
+    MarkdownParser incremental;
+    incremental.Begin(document.Snapshot(), document.Revision(), MarkdownProfile::RichMarkdown);
+    Complete(incremental, check);
+    const std::wstring inserts[] = {L"&copy;", L"\\*", L"\r\n", std::wstring(L"\0", 1u), L"\U0001f600", L"&not-a-reference"};
+    for (const auto& value : inserts)
+    {
+        auto position = document.Length() / 2u;
+        while (! document.Snapshot().IsBoundary(position))
+            ++position;
+        document.Replace(position, position, value, {position + value.size(), position + value.size()});
+        incremental.Begin(document.Snapshot(), document.Revision(), MarkdownProfile::RichMarkdown);
+        const auto reused = Complete(incremental, check);
+        MarkdownParser fresh;
+        fresh.Begin(document.Snapshot(), document.Revision(), MarkdownProfile::RichMarkdown);
+        const auto expected = Complete(fresh, check);
+        check(reused && expected && reused->Source() == expected->Source() && reused->Lexemes().size() == expected->Lexemes().size(),
+              "tracked lexical edits preserve the complete fresh-parser partition");
+        check(reused->BlockStatistics().reusedClosedRoots > 0u && reused->Nodes().size() == expected->Nodes().size() &&
+                  reused->EmptyLines().size() == expected->EmptyLines().size(),
+              "separated closed root paragraphs are reused while retaining fresh-parser tree sizes");
+        for (std::size_t node = 0u; node < reused->Nodes().size(); ++node)
+        {
+            const auto& a = reused->Nodes()[node];
+            const auto& b = expected->Nodes()[node];
+            check(a.block.kind == b.block.kind && a.block.source == b.block.source && a.block.content == b.block.content &&
+                      a.parent == b.parent && a.firstChild == b.firstChild && a.nextSibling == b.nextSibling && a.firstInline == b.firstInline &&
+                      a.lines.size() == b.lines.size(),
+                  "reused root nodes match fresh block structure and source ownership");
+            for (std::size_t line = 0u; line < a.lines.size(); ++line)
+                check(a.lines[line].source == b.lines[line].source && a.lines[line].leadingSpaces == b.lines[line].leadingSpaces,
+                      "reused root lines match fresh source mappings");
+        }
+        for (std::size_t index = 0u; index < reused->Lexemes().size(); ++index)
+        {
+            const auto& left = reused->Lexemes()[index];
+            const auto& right = expected->Lexemes()[index];
+            check(left.kind == right.kind && left.source == right.source && left.valueLength == right.valueLength &&
+                      reused->LexemeValue(index) == expected->LexemeValue(index),
+                  "incremental lexical tokens match fresh source ranges and normalized values");
+        }
+    }
+}
 } // namespace MarkdownSourceCorrelationTests

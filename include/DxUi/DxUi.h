@@ -3442,7 +3442,7 @@ private:
     [[nodiscard]] bool LayoutIsCurrent(const ControlHost& host) const noexcept;
     void RequireCurrentLayout(const ControlHost& host) const;
     void UpdateCaretScroll() const;
-    void RetireLayout() const noexcept;
+    void RetireLayout(bool retainGeometry = false) const noexcept;
     void UpdateSemanticSourceRegion() noexcept;
     void SourcePresentationChanged(ControlHost& host);
     [[nodiscard]] bool CanChangeSemanticSourcePresentation(ControlHost& host) const;

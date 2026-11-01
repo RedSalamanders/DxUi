@@ -106,6 +106,7 @@ public:
     std::uint64_t Revision() const noexcept;
     float Height() const noexcept;
     std::size_t BoxCount() const noexcept;
+    std::size_t ReusedBoxCount() const noexcept;
     bool HasNativeObjects() const noexcept;
     const SemanticDocument& Document() const;
     Hit HitTest(float x, float y) const;

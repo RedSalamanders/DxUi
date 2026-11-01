@@ -35,7 +35,7 @@ public:
     RichImageResources& operator=(const RichImageResources&) = delete;
     bool Current(const std::shared_ptr<const SemanticDocument>& document, std::uint64_t location, std::uint64_t binding) const noexcept
     {
-        return ! next_ && ! policyChanged_ && document_ == document && location_ == location && binding_ == binding;
+        return ! next_ && ! policyChanged_ && ! suspended_ && document_ == document && location_ == location && binding_ == binding;
     }
     bool CurrentForCompletion(const std::shared_ptr<const SemanticDocument>& document, std::uint64_t location, std::uint64_t binding) const noexcept
     {
@@ -88,6 +88,44 @@ public:
         remoteEnabled_ = enabled;
         policyChanged_ = true;
     }
+    // Retain only jobs with at least one source occurrence outside the tracked
+    // edit. Their results remain private until new semantics confirms ownership.
+    void SuspendForEdit(const SourceSnapshot& current, const SourceSnapshot& previous) noexcept
+    {
+        next_.reset();
+        if (! document_)
+        {
+            Cancel();
+            return;
+        }
+        const auto change = current.ChangedRangeFrom(previous);
+        if (change.kind == SourceChangeKind::FullReplacement)
+        {
+            Cancel();
+            return;
+        }
+        const auto elements = document_->Elements();
+        for (std::size_t index = 0u; index < entries_.size(); ++index)
+        {
+            auto& entry = entries_[index];
+            if (! entry.pending)
+                continue;
+            const bool unaffected = std::ranges::any_of(bindings_, [&](const auto& binding)
+            {
+                if (binding.entry != index || binding.element >= elements.size())
+                    return false;
+                const auto range = elements[binding.element].source;
+                return range.last <= change.begin || range.first >= change.previousEnd;
+            });
+            if (! unaffected)
+                entry.request->cancelled.store(true, std::memory_order_relaxed);
+        }
+        suspended_ = true;
+    }
+    bool CanCompleteSuspended(std::uint64_t location, std::uint64_t binding) const noexcept
+    {
+        return suspended_ && document_ && location_ == location && binding_ == binding;
+    }
     void Cancel() noexcept
     {
         next_.reset();
@@ -95,6 +133,7 @@ public:
             if (entry.pending)
                 entry.request->cancelled.store(true, std::memory_order_relaxed);
         document_.reset();
+        suspended_ = false;
     }
     void Clear() noexcept
     {
@@ -122,7 +161,7 @@ public:
             binding_  = binding;
             return true;
         }
-        const bool preserveLocal = policyChanged_ && document_ == document && location_ == location && binding_ == binding;
+        const bool preserveLocal = (suspended_ || (policyChanged_ && document_ == document)) && location_ == location && binding_ == binding;
         auto staging             = std::make_unique<Stage>(std::move(document), base, location, binding, remoteEnabled_);
         if (preserveLocal)
             next_.reset();
@@ -212,6 +251,7 @@ public:
         snapshotDirty_ = false;
         UpdateDecodedBytes();
         policyChanged_  = false;
+        suspended_ = false;
         stage.committed = true;
         next_.reset();
         return true;
@@ -389,6 +429,6 @@ private:
     std::unique_ptr<Stage> next_;
     std::uint64_t location_{}, binding_{}, nextId_{};
     std::size_t decodedBytes_{};
-    bool remoteEnabled_{}, policyChanged_{}, snapshotDirty_{};
+    bool remoteEnabled_{}, policyChanged_{}, snapshotDirty_{}, suspended_{};
 };
 } // namespace DxUi::RichText::Detail

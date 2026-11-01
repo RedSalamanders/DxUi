@@ -1080,7 +1080,7 @@ Image requests MUST execute in caller-owned scheduling, with callback-free
 cancellation and source/base/binding/visibility validation at owner completion.
 The caller authorizes file access, including any UNC policy. Source replacement,
 presentation withdrawal, hide/rebind/destruction MUST cancel old jobs; completed
-pixels MAY survive unrelated edits and device replacement. Failed/capacity
+pixels MAY survive unrelated edits and device replacement. For a tracked edit, an in-flight request MAY remain active when at least one prior image source range is untouched; completion stays private until the new semantic document confirms its source and binding. An affected source range or untracked replacement cancels the old request. Failed/capacity
 completion MUST remain cached across unrelated source edits while preserving editable source/alternative. Explicit reload, document location or remote-image policy changes retry failed sources.
 Resource-only completion MUST NOT edit source/history/selection or cancel IME. Multiple accepted image completions before the next owner preparation stage pixels privately and publish one immutable resource snapshot; allocation failure preserves the previous publication and leaves staged pixels retryable.
 Request preparation processes at most four image candidates per owner turn;

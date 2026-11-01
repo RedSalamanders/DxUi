@@ -212,7 +212,7 @@ struct MarkdownBlockStatistics
 {
     // Prefix metadata/cursor visits and container closure visits. These are
     // deterministic diagnostic counters, not elapsed-time or total CPU bounds.
-    std::size_t prefixInspectionUnits{}, containerFinalizations{};
+    std::size_t prefixInspectionUnits{}, containerFinalizations{}, reusedClosedRoots{};
 };
 struct MarkdownInlineStatistics
 {

@@ -287,6 +287,48 @@ static void TestRichDocumentGeometryMaximumStorageBudget()
     // DirectWrite's own private heaps are outside this executable's C++ hooks;
     // the COM graph count is bounded independently, not reported as heap bytes.
 }
+static void TestEmbeddedSemanticReusePixels(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::wstring source = L"- one\n- two\n\n| a | b |\n| --- | --- |\n| c | d |\n\n"
+                          L"A formula $x^2$ and ![image](example.png).\n\n"
+                          L"```mermaid\ngraph LR;A[Draft]-->B[Ready]\n```\n\n";
+    for (unsigned i = 0u; i < 100u; ++i)
+        source += L"**Styled** paragraph and Unicode \u03b2.\n\n";
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "semantic reuse pixel graphics");
+    EmbeddedHost reused, fresh;
+    Hr(reused.Attach(graphics), "attach reused pixel view");
+    Hr(fresh.Attach(graphics), "attach fresh pixel view");
+    auto first = std::make_unique<RichTextEditor>(source);
+    auto second = std::make_unique<RichTextEditor>(source);
+    auto* firstEditor = first.get();
+    auto* secondEditor = second.get();
+    for (auto* editor : {firstEditor, secondEditor})
+    {
+        editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+    }
+    reused.Controls().SetRoot(std::move(first));
+    fresh.Controls().SetRoot(std::move(second));
+    Hr(PrepareRichEmbeddedContent(reused, 480u, 240u), "prepare initial semantic pixels");
+    firstEditor->SetSelection({3u, 3u});
+    Check(firstEditor->ReplaceSelection(L"x"), "edit semantic pixel source");
+    secondEditor->SetText(firstEditor->GetText());
+    Hr(PrepareRichEmbeddedContent(reused, 480u, 240u), "prepare reused semantic pixels");
+    Hr(PrepareRichEmbeddedContent(fresh, 480u, 240u), "prepare fresh semantic pixels");
+    Check(firstEditor->DebugGetState().reusedGeometryChunks > 0u, "pixel comparison exercises actual semantic layout reuse");
+    Hr(gpu.Resize(480u, 240u), "resize semantic pixel fixture");
+    std::vector<uint8_t> reusedPixels, freshPixels;
+    gpu.Bind();
+    Hr(reused.Composite(gpu.context.get(), gpu.Viewport()), "composite reused semantic pixels");
+    Hr(gpu.Read(reusedPixels), "read reused semantic pixels");
+    gpu.Bind();
+    Hr(fresh.Composite(gpu.context.get(), gpu.Viewport()), "composite fresh semantic pixels");
+    Hr(gpu.Read(freshPixels), "read fresh semantic pixels");
+    Check(reusedPixels == freshPixels, "reused semantic layouts match a fresh WARP render byte for byte");
+}
+
 static void TestEmbeddedRichGeometryReuseAndRetirement(GraphicsFixture& gpu)
 {
     using namespace DxUi;

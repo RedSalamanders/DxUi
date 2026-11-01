@@ -15,11 +15,11 @@ namespace DxUi
 {
 struct RichFileDropAdapter::State
 {
-    State() = default;
-    State(const State&) = delete;
+    State()                        = default;
+    State(const State&)            = delete;
     State& operator=(const State&) = delete;
-    State(State&&) = delete;
-    State& operator=(State&&) = delete;
+    State(State&&)                 = delete;
+    State& operator=(State&&)      = delete;
     std::weak_ptr<RichFileDropReceiver> receiver;
     DWORD thread{};
     std::uint64_t generation{};
