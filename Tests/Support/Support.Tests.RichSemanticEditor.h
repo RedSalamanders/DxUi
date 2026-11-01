@@ -417,6 +417,11 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
               editor->GetText() == L"\U0001f469\u200d\U0001f4bba",
           "joined emoji and adjacent text restore as whole graphemes in one undo");
     editor->SetViewMode(ViewMode::Rich);
+    editor->SetText(L"## title\n");
+    prepare();
+    editor->SetSelection({3u, 3u});
+    Check(editor->OnKeyDown(host, VK_BACK, 0u) && editor->GetText() == L"title\n" && editor->Undo() && editor->GetText() == L"## title\n",
+          "rich backspace at heading content removes the heading marker in one undo step");
     editor->SetText(L"**abc**");
     prepare();
     editor->SetSelection({5u, 5u});

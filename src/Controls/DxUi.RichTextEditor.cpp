@@ -4155,7 +4155,8 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
             const auto& map = document->Map();
             for (const auto& node : document->Syntax()->Nodes())
             {
-                if (node.block.kind != RichText::MarkdownBlockKind::Paragraph || selection.caret < node.block.content.first ||
+                const bool heading = node.block.kind == RichText::MarkdownBlockKind::AtxHeading || node.block.kind == RichText::MarkdownBlockKind::SetextHeading;
+                if ((node.block.kind != RichText::MarkdownBlockKind::Paragraph && ! (backwards && heading)) || selection.caret < node.block.content.first ||
                     selection.caret > node.block.content.last)
                     continue;
                 const auto edge    = backwards && node.firstInline != RichText::MarkdownNoNode ? document->Syntax()->Inlines()[node.firstInline].source.first
