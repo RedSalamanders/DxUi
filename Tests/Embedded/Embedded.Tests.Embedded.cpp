@@ -1385,6 +1385,9 @@ __declspec(noinline) static int RunFunctionalTests()
         {
             TestRichAppearanceConstructionFailureAtomicity();
             TestRichInputAllocationFailureAtomicity();
+            GraphicsFixture gpu;
+            Hr(gpu.Create(), "task allocation failure WARP device");
+            TestRichTaskPlanAllocationFailureKeepsPointerSelection(gpu);
         }
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-layout-clear")
             TestRichPreparedLayoutClearAllocationBudget(true);
