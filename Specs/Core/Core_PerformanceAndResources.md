@@ -58,7 +58,7 @@ independently check 128/512/4096 nested list levels
 and a 2048-level quote with 512 lazy lines. Required indentation lookahead is
 capped, thematic suffix rejection uses one line metadata pass, and containers
 finalize once rather than extending every ancestor per lazy line. BlockStatistics
-exposes those deterministic counts; it is not a total CPU/time counter. The maximum
+exposes those deterministic counts; it is not a total CPU/time counter.
 Autolink preparation separately indexes host/email suffix facts and resumes one
 region edge or source candidate per parser operation. Failed overlapping host
 and email candidates do not rescan their complete suffix. Successful splices

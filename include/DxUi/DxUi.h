@@ -4799,12 +4799,12 @@ private:
         TreeExpansionAnimationState() : beforeItems(0u), afterItems(0u), beforeIndex(0u), afterIndex(0u)
         {
         }
-        TreeExpansionAnimationState(const TreeExpansionAnimationState&) = default;
+        TreeExpansionAnimationState(const TreeExpansionAnimationState&)            = default;
         TreeExpansionAnimationState& operator=(const TreeExpansionAnimationState&) = default;
-        uint64_t itemId      = 0u;
-        bool toExpanded      = false;
-        bool active          = false;
-        uint64_t startTickMs = 0u;
+        uint64_t itemId                                                            = 0u;
+        bool toExpanded                                                            = false;
+        bool active                                                                = false;
+        uint64_t startTickMs                                                       = 0u;
         std::vector<TreeItemData> beforeItems;
         std::vector<TreeItemData> afterItems;
         std::vector<std::pair<uint64_t, size_t>> beforeIndex, afterIndex;
