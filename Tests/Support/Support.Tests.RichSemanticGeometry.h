@@ -2,6 +2,7 @@
 #include "Controls/DxUi.PaintIndex.h"
 #include "Controls/DxUi.PreparedLayoutAccess.h"
 #include "Controls/DxUi.PreparedMath.h"
+#include "Controls/DxUi.NativeColorPalette.h"
 #include "Controls/DxUi.RichSemanticGeometry.h"
 #include "Support.Tests.RichSemanticDocument.h"
 #include <cmath>
@@ -287,6 +288,47 @@ inline void MathWidthReflowAndTargetReplacement()
     wil::com_ptr<ID2D1RenderTarget> target, replacement;
     THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
     THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, replacement.put()));
+    {
+        const std::array<std::uint32_t, 3u> colors{0xff0000u, 0x112233u, 0xff0000u};
+        Detail::NativeColorPalette palette(target.get(), colors);
+        Check(! palette.Ready() && palette.Matches(target.get()) && ! palette.Matches(replacement.get()) && ! palette.Brush(0xff0000u),
+              "math palette is target-bound and stays unpublished while staging");
+        Check(! palette.Advance() && palette.Advance() && palette.Ready() && palette.Advance() && palette.Brush(0xff0000u) &&
+                  palette.Brush(0x112233u) && ! palette.Brush(0x445566u),
+              "math palette stages distinct colors one per step and shares duplicates");
+        const auto color = palette.Brush(0x112233u)->GetColor();
+        Check(std::abs(color.r - 17.f / 255.f) < .0001f && std::abs(color.g - 34.f / 255.f) < .0001f &&
+                  std::abs(color.b - 51.f / 255.f) < .0001f && color.a == 1.f,
+              "math palette publishes the requested opaque SDK color");
+        bool rejected{};
+        try
+        {
+            const std::array<std::uint32_t, 1u> invalid{0x1000000u};
+            Detail::NativeColorPalette invalidPalette(target.get(), invalid);
+        }
+        catch (const std::invalid_argument&)
+        {
+            rejected = true;
+        }
+        Check(rejected, "math palette rejects out-of-domain colors before publication");
+        Detail::NativeColorPalette pending(target.get(), colors);
+        const auto savedFailure = Detail::testNativeColorPaletteBrushFailure;
+        const auto restoreFailure = wil::scope_exit([&]() noexcept { Detail::testNativeColorPaletteBrushFailure = savedFailure; });
+        Detail::testNativeColorPaletteBrushFailure = E_OUTOFMEMORY;
+        bool failed{};
+        try
+        {
+            static_cast<void>(pending.Advance());
+        }
+        catch (const wil::ResultException& error)
+        {
+            failed = error.GetErrorCode() == E_OUTOFMEMORY;
+        }
+        Detail::testNativeColorPaletteBrushFailure = S_OK;
+        Check(failed && ! pending.Ready() && ! pending.Brush(0xff0000u) && palette.Ready() && palette.Brush(0xff0000u),
+              "failed palette staging preserves the prior publication and exposes no partial brushes");
+        Check(! pending.Advance() && pending.Advance() && pending.Ready(), "failed palette staging retries from the same color");
+    }
     const auto document = RichSemanticDocumentTests::Build(L"Body $x^2$\n\n# Heading $\\frac{1}{2}$\n", MarkdownProfile::RichMarkdown);
     auto factory        = Factory();
     PreparedSemanticGeometry geometry;

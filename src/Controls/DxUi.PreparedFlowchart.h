@@ -1,6 +1,8 @@
 #pragma once
 #include "DxUi.NativeFlowchartLayout.h"
+#include "DxUi.NativeColorPalette.h"
 #include <DxUi/RichTextLayout.h>
+#include <memory>
 
 namespace DxUi::RichText::Detail
 {
@@ -25,6 +27,7 @@ struct DiagramPalette
     std::shared_ptr<const FlowchartModel> graph;
     wil::com_ptr<ID2D1RenderTarget> target;
     std::vector<wil::com_ptr<ID2D1SolidColorBrush>> fills, strokes, texts, edgeStrokes;
+    std::unique_ptr<NativeColorPalette> palette;
     std::size_t cursor{};
     bool ready{};
 };

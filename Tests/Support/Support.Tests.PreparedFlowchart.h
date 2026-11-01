@@ -760,6 +760,22 @@ template <typename Check, typename Observe = std::nullptr_t> inline void Palette
     while (! palette.Advance()) check(++steps < 16u, "palette stages at most one target brush per bounded step");
     check(palette.Ready() && palette.Matches(graph.get(), target.get()) && ! palette.Matches(graph.get(), other.get()),
           "palette is bound to the exact graph and raster target");
+    check(steps == 6u && palette.texts[0].get() == palette.fills[1].get() && palette.fills[1].get() == palette.texts[1].get(),
+          "repeated diagram colors share one SDK brush while every authored slot consumes a staging step");
+#if DXUI_ENABLE_DIAGNOSTICS
+    DiagramPalette pending(graph, target.get());
+    const auto oldFailure = testNativeColorPaletteBrushFailure;
+    const auto restoreFailure = wil::scope_exit([&]() noexcept { testNativeColorPaletteBrushFailure = oldFailure; });
+    testNativeColorPaletteBrushFailure = E_OUTOFMEMORY;
+    bool rejected{};
+    try { static_cast<void>(pending.Advance()); }
+    catch (const wil::ResultException& error) { rejected = error.GetErrorCode() == E_OUTOFMEMORY; }
+    testNativeColorPaletteBrushFailure = S_OK;
+    check(rejected && ! pending.Ready() && pending.cursor == 0u && palette.Ready(),
+          "diagram color creation failure retains its pending slot and prior publication");
+    while (! pending.Advance()) {}
+    check(pending.Ready() && pending.texts[0].get() == pending.texts[1].get(), "diagram palette retries and still shares duplicate resources");
+#endif
     const DiagramColorContext context{D2D1::ColorF(D2D1::ColorF::Black), D2D1::ColorF(D2D1::ColorF::Blue), D2D1::ColorF(D2D1::ColorF::White)};
     const auto raster = [&](const DiagramColorContext* colors, bool firstBlack, bool darkTheme)
     {

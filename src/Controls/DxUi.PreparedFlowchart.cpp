@@ -120,6 +120,16 @@ DiagramPalette::DiagramPalette(std::shared_ptr<const FlowchartModel> input, ID2D
             throw std::invalid_argument("Invalid native diagram node color");
     for (const auto& edge : graph->edges)
         if (! ValidDiagramColor(edge.strokeColor)) throw std::invalid_argument("Invalid native diagram edge color");
+    std::vector<std::uint32_t> colors(0u);
+    colors.reserve(graph->nodes.size() * 3u + graph->edges.size());
+    for (const auto& node : graph->nodes)
+        for (const auto color : {node.fillColor, node.strokeColor, node.textColor})
+            if (color != NoDiagramColor)
+                colors.push_back(color);
+    for (const auto& edge : graph->edges)
+        if (edge.strokeColor != NoDiagramColor)
+            colors.push_back(edge.strokeColor);
+    palette = std::make_unique<NativeColorPalette>(raster, colors);
 }
 bool DiagramPalette::Needed(const FlowchartModel& graph) noexcept
 {
@@ -133,7 +143,7 @@ bool DiagramPalette::Advance()
     const auto total = nodeSlots + graph->edges.size();
     while (cursor < total)
     {
-        const auto current = cursor++;
+        const auto current = cursor;
         std::uint32_t color{};
         wil::com_ptr<ID2D1SolidColorBrush>* brush{};
         if (current < nodeSlots)
@@ -148,9 +158,13 @@ bool DiagramPalette::Advance()
             color = graph->edges[edge].strokeColor;
             brush = std::addressof(edgeStrokes[edge]);
         }
-        if (color == NoDiagramColor) continue;
-        const auto value = DiagramColor(color);
-        THROW_IF_FAILED(target->CreateSolidColorBrush(value, brush->put()));
+        if (color == NoDiagramColor)
+        {
+            ++cursor;
+            continue;
+        }
+        *brush = palette->Stage(color);
+        ++cursor;
         return false;
     }
     ready = true;
