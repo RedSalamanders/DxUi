@@ -2039,12 +2039,16 @@ void MarkdownCommandPlanner::Image(const MarkdownCommandRequest& request)
         return;
     const auto first = plan.before_.Start(), last = plan.before_.End();
     for (const auto& node : plan.syntax_->Inlines())
-        if (node.kind != MarkdownInlineKind::Text && node.source.first < last && node.source.last > first)
+    {
+        const bool intersects = first == last ? node.source.first < first && first < node.source.last : node.source.first < last && node.source.last > first;
+        if (node.kind == MarkdownInlineKind::Text || ! intersects)
+            continue;
+        const bool style =
+            node.kind == MarkdownInlineKind::Strong || node.kind == MarkdownInlineKind::Emphasis || node.kind == MarkdownInlineKind::Strikethrough;
+        const auto body = style ? InlineBody(node) : std::nullopt;
+        if (! body || first < body->first || last > body->last)
             return;
-    if (first == last)
-        for (const auto& node : plan.syntax_->Inlines())
-            if (node.kind != MarkdownInlineKind::Text && node.source.first < first && first < node.source.last)
-                return;
+    }
     const auto alt = request.text.empty() ? Slice(first, last) : request.text;
     if (! IsValidUtf16(alt) || alt.find_first_of(L"\r\n") != alt.npos)
         return;

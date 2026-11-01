@@ -360,6 +360,7 @@ inline void ListsAndHeadings()
         request.destination = L"https://example.invalid/a.png";
         request.title       = L"A";
         Exact(L"", {}, request, L"![sun](<https://example.invalid/a.png> \"A\")", std::nullopt, profile);
+        Exact(L"**word**", {2u, 6u}, request, L"**![sun](<https://example.invalid/a.png> \"A\")**", std::nullopt, profile);
         request.command = MarkdownCommand::ClearFormatting;
         Exact(L"**word**", {2u, 6u}, request, L"word", Selection{0u, 4u}, profile);
         Exact(L"**a *b* c**", {2u, 9u}, request, L"a b c", Selection{0u, 5u}, profile);

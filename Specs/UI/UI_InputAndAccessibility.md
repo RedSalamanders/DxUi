@@ -1278,7 +1278,8 @@ or other object intersections remain unavailable pending source-exact splitting.
 InsertImage creates an inert Markdown image with escaped alt/title and a
 validated remote or local destination. Absolute local paths use the same
 document-relative URI builder as file paste. A selected plain source range can
-supply the alt text; opaque inline intersections decline the command.
+supply the alt text; insertion inside a complete emphasis/strong/strike body
+preserves its wrappers, while opaque inline intersections decline the command.
 
 A task press MUST stage an immutable current source plan without editing text.
 Only matching release inside its checkbox can apply it. Leaving the rectangle,
