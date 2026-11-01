@@ -118,9 +118,9 @@ function Split-Changelog([Parameter(Mandatory)][AllowEmptyString()][string] $Cha
     }
 }
 
-function Read-ChangelogGit([Parameter(Mandatory)][string] $Root, [Parameter(Mandatory)][string[]] $Arguments, [switch] $Optional) {
-    # Git output as stored, decoded as strict UTF-8 so no console code page alters it. -Optional returns $null when the
-    # command fails (a missing object) instead of throwing.
+function Read-ChangelogGit([Parameter(Mandatory)][string] $Root, [Parameter(Mandatory)][string[]] $Arguments) {
+    # Git output as stored, decoded as strict UTF-8 so no console code page alters it.
+
     $start = [Diagnostics.ProcessStartInfo]::new('git')
     foreach ($argument in @('-C', $Root) + $Arguments) { $start.ArgumentList.Add($argument) }
     $start.UseShellExecute = $false
@@ -135,7 +135,6 @@ function Read-ChangelogGit([Parameter(Mandatory)][string] $Root, [Parameter(Mand
         if (-not $process.WaitForExit(60000)) { $process.Kill($true); throw "git $($Arguments -join ' ') did not finish within 60 seconds" }
         if (-not $copy.Wait(5000)) { throw "git $($Arguments -join ' ') output did not close" }
         if ($process.ExitCode -ne 0) {
-            if ($Optional) { return $null }
             throw "git $($Arguments -join ' ') failed ($($process.ExitCode)): $($errors.GetAwaiter().GetResult().Trim())"
         }
         $bytes = $buffer.ToArray()
@@ -148,15 +147,16 @@ function Get-ChangelogFoldProblems([Parameter(Mandatory)][string] $Root, [Parame
     # Since this checkout's merge base with $Base, Changes/ may gain fragments, and CHANGELOG.md may change only by
     # folding fragments that the merge base holds and this checkout no longer has: the fold on the default branch. The
     # changelog must equal that exact fold; the checks below name what differs (a hand edit, an entry folded from a
-    # fragment this change adds, an edited entry, an unfolded removal), and anything else, such as reordered or
+    # fragment this change adds or an edited entry), and anything else, such as reordered or
     # duplicated entries, is refused as not the exact fold.
     $problems = [Collections.Generic.List[string]]::new()
     try {
         $Root = [IO.Path]::GetFullPath($Root)
         $mergeBase = (Read-ChangelogGit $Root @('merge-base', $Base, 'HEAD')).Trim()
-        $baseText = Read-ChangelogGit $Root @('cat-file', 'blob', "${mergeBase}:CHANGELOG.md") -Optional
-        # Before adoption there is no generated changelog to protect.
-        if ($null -eq $baseText) { return , $problems.ToArray() }
+        # Distinguish an absent historical file from git/object errors, which must fail closed.
+        $basePaths = Read-ChangelogGit $Root @('ls-tree', '--name-only', $mergeBase, '--', 'CHANGELOG.md')
+        if (-not $basePaths.Trim()) { return , $problems.ToArray() }
+        $baseText = Read-ChangelogGit $Root @('cat-file', 'blob', "${mergeBase}:CHANGELOG.md")
         $changelog = Join-Path $Root 'CHANGELOG.md'
         Assert-ChangelogPath $changelog $Root
         $headText = Read-ChangelogText $changelog
@@ -166,12 +166,10 @@ function Get-ChangelogFoldProblems([Parameter(Mandatory)][string] $Root, [Parame
             $problems.Add("CHANGELOG.md changed outside its Unreleased entries since $Base; only folding fragments may change it")
         }
         $present = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-        $presentTexts = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
         # Assigned first: the comma-wrapped array a function returns is one item to a foreach over the call itself.
         $fragments = Get-ChangelogFragments $Root
         foreach ($fragment in $fragments) {
             [void]$present.Add($fragment.Name)
-            [void]$presentTexts.Add(($fragment.Text.Trim() -replace '\r\n', "`n"))
         }
         $folded = [Collections.Generic.Dictionary[string, string]]::new([StringComparer]::Ordinal)
         foreach ($path in ((Read-ChangelogGit $Root @('ls-tree', '-z', '--name-only', $mergeBase, '--', 'Changes/')) -split "`0")) {
@@ -191,17 +189,9 @@ function Get-ChangelogFoldProblems([Parameter(Mandatory)][string] $Root, [Parame
                 $problems.Add("CHANGELOG.md: '$(($entry -split "`n")[0])' was added by hand or folded from a fragment this change adds; keep it as a Changes/ fragment, which is folded on the default branch after merge")
             }
         }
-        foreach ($name in $folded.Keys) {
-            # A renamed pending fragment keeps its text under another name.
-            if ($after.Entries -cnotcontains $folded[$name] -and -not $presentTexts.Contains($folded[$name])) {
-                $problems.Add("Changes/$name was removed since $Base without its entry reaching CHANGELOG.md; restore it, since merged fragments are folded on the default branch")
-            }
-        }
-        # The exact fold, built as Fold-Changelog.ps1 builds it: newest fragment name first, renamed fragments left out.
-        # Line endings never count. A removed fragment is a rename only when its text survives in another fragment AND
-        # its entry is absent: the default branch may have gained a different fragment with the same text while the
-        # fold of this one was open, and that fold still publishes its entry.
-        $names = [string[]]@($folded.Keys | Where-Object { -not ($presentTexts.Contains($folded[$_]) -and $after.Entries -cnotcontains $folded[$_]) })
+        # Removed pending fragments without published entries are withdrawals (for example, a revert).
+        # Only entries actually published participate in the exact-fold comparison.
+        $names = [string[]]@($folded.Keys | Where-Object { $after.Entries -ccontains $folded[$_] })
         [Array]::Sort($names, [StringComparer]::Ordinal)
         [Array]::Reverse($names)
         $expected = Merge-ChangelogFragments $baseText @($names | ForEach-Object { [pscustomobject]@{ Name = $_; Text = $folded[$_] } })

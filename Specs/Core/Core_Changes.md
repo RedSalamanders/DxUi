@@ -3,8 +3,8 @@
 Status: normative repository workflow contract
 Last reviewed: 2026-10-29
 
-DxUi, RedSalamander, RedXe, RedPrism, RedTilde and RedMonitor use the same fragment format, commands and behavioral
-fixtures. Each repository owns its local changelog; changing one repository never updates a consumer's notes or
+DxUi, RedSalamander, RedXe, RedPrism, RedTilde and RedMonitor use a shared fragment format and baseline behavioral
+fixtures; the withdrawal and remote-branch checks below describe DxUi. Each repository owns its local changelog; changing one repository never updates a consumer's notes or
 dependency pin.
 
 Record each change as one UTF-8 Markdown file named `Changes/<yyyy-mm-dd>-<topic>.md`, using a real calendar date
@@ -16,7 +16,7 @@ remaining gates. Do not maintain a second manual list or hand-edit generated `CH
 folds and never edits `CHANGELOG.md`, so parallel changes never conflict on the changelog. After merges, an
 integration owner runs `Tools/Submit-ChangelogFold.ps1`, which folds the default branch's fragments in a pull
 request of its own; merge it before the next fold. Existing release notes remain in place; adopting this workflow
-does not migrate their history.
+does not migrate their history. A revert or withdrawal may remove its still-pending fragment without publishing that withdrawn entry; published corrections use a new fragment.
 
 [`Tools/Test-Changelog.ps1`](../../Tools/Test-Changelog.ps1) is the read-only validator. It rejects invalid
 names/dates, empty or multiple bullets, unindented continuation lines, unexpected entries under `Changes/`, reparse
@@ -24,9 +24,8 @@ paths inside the repository, invalid UTF-8 (only a UTF-8 byte order mark is acce
 honored), missing `Changes/README.md`, and a missing or duplicate `## Unreleased` heading in `CHANGELOG.md`. With
 `-Base <ref>` it also compares the checkout with its merge base with that ref: fragments may be added, edited or
 renamed, and `CHANGELOG.md` must equal the exact fold `Fold-Changelog.ps1` would write of the fragments that the merge
-base holds and the checkout no longer has. Hand edits, entries folded from fragments the same change adds, edited,
-removed, reordered or duplicated entries, any other change outside the Unreleased entries, and fragments removed
-without their entry are refused; line endings never count. PrePush entrypoints run it with `-Base origin/main`. CI
+base holds and the checkout no longer has, excluding withdrawn fragments whose entries are not published. Hand edits, entries folded from fragments the same change adds, edited,
+removed, reordered or duplicated entries and any other change outside the Unreleased entries are refused; line endings never count. PrePush entrypoints run it with `-Base origin/main`. CI
 compares a pull request's merge commit with its first parent (`HEAD^1`, from a two-commit checkout) and a push with
 the tip it replaced (`github.event.before`, from a full-history checkout), so every commit of a multi-commit push is
 covered; repositories without PrePush run the same command before handoff. Existing
@@ -52,7 +51,7 @@ repository's own identity, signing and hooks, pushes `changelog/fold-<commit>` a
 temporary folder by default; test harnesses pass a folder in their sandbox). It removes only the temporary worktree
 it created, also when a hook fails after Git created it, never pruning other registrations, and changes nothing in
 the caller's checkout; a cleanup problem is a warning and never replaces the original failure. It pushes nothing when
-there is nothing to fold, reuses a branch already pushed for the same commit, and reports an open fold pull request,
+there is nothing to fold, reuses an already pushed branch only after verifying its exact fold and parent, and reports an open same-repository fold pull request,
 looking through every open pull request, instead of opening a second, conflicting one. `-WhatIf` folds and commits
 only in the temporary worktree and never pushes or opens a pull request, also for a fold branch pushed earlier. GitHub
 Actions never fold: they cannot open pull requests in these repositories, and private repositories' hosted jobs are
