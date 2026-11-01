@@ -120,6 +120,37 @@ bool CanInsertThematicBreak(const MarkdownSyntax& syntax, Selection selection) n
 {
     return InspectThematicBreak(syntax, selection).has_value();
 }
+static MarkdownRange JoinVisibleBody(const MarkdownSyntax& syntax, std::size_t leaf) noexcept
+{
+    const auto& block = syntax.Nodes()[leaf].block.content;
+    auto first = block.last, last = block.first;
+    const auto text = syntax.Source();
+    for (const auto& node : syntax.Inlines())
+    {
+        if (node.source.first < block.first || node.source.last > block.last)
+            continue;
+        if (node.kind != MarkdownInlineKind::Text && node.kind != MarkdownInlineKind::Code && node.kind != MarkdownInlineKind::Image &&
+            ! (node.kind == MarkdownInlineKind::Link && node.firstChild == MarkdownNoNode))
+            continue;
+        auto range = node.source;
+        if (node.kind == MarkdownInlineKind::Code)
+        {
+            while (range.first < range.last && text[range.first] == L'`')
+                ++range.first;
+            while (range.last > range.first && text[range.last - 1u] == L'`')
+                --range.last;
+            if (range.first < range.last && text[range.first] == L' ' && text[range.last - 1u] == L' ' &&
+                text.substr(range.first, range.last - range.first).find_first_not_of(L' ') != std::wstring_view::npos)
+            {
+                ++range.first;
+                --range.last;
+            }
+        }
+        first = std::min(first, range.first);
+        last  = std::max(last, range.last);
+    }
+    return first <= last ? MarkdownRange{first, last} : block;
+}
 std::optional<std::size_t> FindJoinLeaf(const MarkdownSyntax& syntax, Selection selection, bool backwards) noexcept
 {
     if (! CanJoinSelection(selection))
@@ -137,6 +168,9 @@ std::optional<std::size_t> FindJoinLeaf(const MarkdownSyntax& syntax, Selection 
         return std::nullopt;
     const auto kind = nodes[best].block.kind;
     if (kind != MarkdownBlockKind::Paragraph && ! (backwards && (kind == MarkdownBlockKind::AtxHeading || kind == MarkdownBlockKind::SetextHeading)))
+        return std::nullopt;
+    const auto visible = JoinVisibleBody(syntax, best);
+    if (backwards ? selection.caret > visible.first : selection.caret < visible.last)
         return std::nullopt;
     return best;
 }
@@ -1250,22 +1284,6 @@ struct MarkdownCommandPlanner
     void Table(const MarkdownCommandRequest& request);
     void Delete(std::span<const MarkdownRange> ranges);
     std::optional<MarkdownRange> InlineBody(const MarkdownInline& node) const;
-    MarkdownRange VisibleBody(std::size_t leaf) const
-    {
-        auto first = nodes[leaf].block.content.last, last = nodes[leaf].block.content.first;
-        for (const auto& node : plan.syntax_->Inlines())
-        {
-            if (node.source.first < nodes[leaf].block.content.first || node.source.last > nodes[leaf].block.content.last)
-                continue;
-            if (node.kind != MarkdownInlineKind::Text && node.kind != MarkdownInlineKind::Code && node.kind != MarkdownInlineKind::Image &&
-                ! (node.kind == MarkdownInlineKind::Link && node.firstChild == MarkdownNoNode))
-                continue;
-            const auto range = node.kind == MarkdownInlineKind::Code ? InlineBody(node).value_or(node.source) : node.source;
-            first            = std::min(first, range.first);
-            last             = std::max(last, range.last);
-        }
-        return first <= last ? MarkdownRange{first, last} : nodes[leaf].block.content;
-    }
     bool InlineSelection(std::size_t& leaf) const
     {
         leaf = LeafAt(plan.before_.Start());
@@ -2144,16 +2162,14 @@ void MarkdownCommandPlanner::Join(bool backwards)
     if (! found)
         return;
     const auto current = found.value();
-    const auto visible = VisibleBody(current);
     if (backwards && (nodes[current].block.kind == Kind::AtxHeading || nodes[current].block.kind == Kind::SetextHeading))
     {
-        if (plan.before_.caret <= visible.first)
-            Heading(0u);
+        Heading(0u);
         return;
     }
     if (nodes[current].block.kind != Kind::Paragraph)
         return;
-    if (backwards && plan.before_.caret <= visible.first)
+    if (backwards)
     {
         const auto quote = Ancestor(current, Kind::BlockQuote);
         auto nearest     = nodes[current].parent;
@@ -2192,8 +2208,6 @@ void MarkdownCommandPlanner::Join(bool backwards)
             return;
         }
     }
-    if (backwards ? plan.before_.caret > visible.first : plan.before_.caret < visible.last)
-        return;
     const auto item = Ancestor(current, Kind::ListItem);
     auto previous   = backwards ? PreviousSibling(current) : current;
     auto next       = backwards ? current : nodes[current].nextSibling;

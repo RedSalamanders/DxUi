@@ -136,8 +136,8 @@ The feature is disabled by default. `QueryMarkdownCommandState` returns current
 style/heading/list presentation and explicitly unknown applicability where a
 nonallocating planner predicate is not yet available.
 For backward and forward structural join, noncollapsed selections and carets
-outside supported text leaves are known to be unavailable; eligible leaves
-still need the boundary and container predicates.
+outside supported text leaves or away from their visible edge are known to be
+unavailable; eligible edges still need the container and sibling predicates.
 The structural backward-join command removes a heading marker when the caret
 is at the start of its content; ordinary text inside the heading is unaffected.
 `GetSourceCaretLocation()` reports a zero-based logical source line and UTF-16

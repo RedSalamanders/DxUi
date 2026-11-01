@@ -481,6 +481,15 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
                   editor->ExecuteMarkdownCommand(stateRequest) == MarkdownCommandStatus::Unavailable,
               "join state and execution both reject a noncollapsed selection");
     }
+    editor->SetSelection({4u, 4u});
+    for (const auto command : {MarkdownCommand::JoinBackward, MarkdownCommand::JoinForward})
+    {
+        stateRequest.command = command;
+        const auto joinState = editor->QueryMarkdownCommandState(stateRequest);
+        Check(joinState && joinState->available == std::optional<bool>{false} &&
+                  editor->ExecuteMarkdownCommand(stateRequest) == MarkdownCommandStatus::Unavailable,
+              "join state and execution agree that a caret inside formatted text is not a boundary");
+    }
     editor->SetText(L"~~~\nx\n~~~\n");
     prepare();
     editor->SetSelection({4u, 4u});

@@ -80,7 +80,7 @@ constexpr bool CanJoinSelection(Selection selection) noexcept
 {
     return selection.anchor == selection.caret;
 }
-// Finds a candidate leaf only; sibling/container and boundary checks still apply.
+// Finds an eligible leaf and visible edge; sibling/container checks still apply.
 std::optional<std::size_t> FindJoinLeaf(const MarkdownSyntax& syntax, Selection selection, bool backwards) noexcept;
 struct MarkdownCommandRequest
 {
