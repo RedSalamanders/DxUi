@@ -3329,7 +3329,7 @@ void RichTextEditor::Paint(ControlHost& host) const
     auto* quoteFill           = subtleMarkdown ? host.GetSolidBrush(ResolveMarkdownQuoteFill(host.GetTheme(), style)) : nullptr;
     ID2D1Brush* diagramFill   = nullptr;
     ID2D1Brush* selectedDiagramFill = nullptr;
-    if (const auto* semantic = state.layout.SemanticGeometry(); semantic && (semantic->HasNativeObjects() || subtleMarkdown))
+    if (const auto* semantic = state.layout.SemanticGeometry(); semantic && (semantic->HasNativeObjects() || subtleMarkdown || semantic->HasMarkedText()))
     {
         auto opaque = style.fill;
         opaque.a    = 1.0f;
@@ -3387,6 +3387,11 @@ void RichTextEditor::Paint(ControlHost& host) const
                 context->FillRectangle(bounds, brush);
         }
         RichText::LinkDrawing links;
+        if (const auto* semantic = state.layout.SemanticGeometry(); semantic && semantic->HasMarkedText())
+        {
+            links.markedTextFill    = host.GetSolidBrush(ResolveMarkdownQuoteFill(host.GetTheme(), style));
+            links.outlineMarkedText = host.GetTheme().highContrast;
+        }
         links.brush     = appearance.useAccentLinkColor && IsEnabled() ? host.GetSolidBrush(host.GetTheme().accent) : nullptr;
         links.underline = state.linkUnderlinePolicy == RichTextLinkUnderlinePolicy::Always || host.GetTheme().highContrast;
         links.hover     = state.hoveredLink;
@@ -3419,7 +3424,8 @@ void RichTextEditor::Paint(ControlHost& host) const
             links.emphasisBrush     = textBrush;
             links.inactiveLinkBrush = subdued;
         }
-        const bool decorated = ! links.inkRanges.empty() || dimmed || (state.mode == RichText::ViewMode::Rich && (links.brush || ! links.underline));
+        const bool decorated =
+            links.markedTextFill || ! links.inkRanges.empty() || dimmed || (state.mode == RichText::ViewMode::Rich && (links.brush || ! links.underline));
         state.layout.Draw(context,
                           subdued,
                           dimmed ? subdued : semanticDecoration,
@@ -3465,7 +3471,8 @@ void RichTextEditor::Paint(ControlHost& host) const
         selectedLinks.emphasisBrush     = selectedTextBrush;
         selectedLinks.inactiveLinkBrush = selectedTextBrush;
         selectedLinks.inkBrushes.fill(selectedTextBrush);
-        bool selectionVisible = false;
+        selectedLinks.markedTextFill = selectedDiagramFill;
+        bool selectionVisible        = false;
         for (const auto& rectangle : rectangles)
         {
             const auto translated = D2D1::RectF(rectangle.left + origin.x, rectangle.top + origin.y, rectangle.right + origin.x, rectangle.bottom + origin.y);

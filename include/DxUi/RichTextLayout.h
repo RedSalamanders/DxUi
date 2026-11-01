@@ -74,6 +74,8 @@ struct LinkDrawing
     // True selection keeps ordinary base ink beneath its selected-text pass,
     // including antialiased edges over a translucent selection fill.
     std::optional<MarkdownRange> inkExclusion;
+    ID2D1Brush* markedTextFill = nullptr;
+    bool outlineMarkedText     = false;
 };
 struct Hit
 {

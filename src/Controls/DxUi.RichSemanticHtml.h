@@ -28,6 +28,7 @@ enum class NativeHtmlKind
     Pre,
     Kbd,
     Ins,
+    Mark,
     Comment
 };
 inline bool HtmlSpace(wchar_t value) noexcept
@@ -58,6 +59,7 @@ inline unsigned HtmlFlags(NativeHtmlKind kind) noexcept
         case NativeHtmlKind::Kbd:
         case NativeHtmlKind::Pre: return Code;
         case NativeHtmlKind::A: return Link;
+        case NativeHtmlKind::Mark: return Marked;
         case ::DxUi::RichText::Detail::NativeHtmlKind::Br:
         case ::DxUi::RichText::Detail::NativeHtmlKind::Div:
         case ::DxUi::RichText::Detail::NativeHtmlKind::H1:
@@ -132,8 +134,8 @@ inline bool ParseNativeHtmlTag(std::wstring_view value, NativeHtmlTag& tag)
         tag.kind = NativeHtmlKind::Comment;
         return true;
     }
-    constexpr std::wstring_view names[] = {L"b", L"strong", L"i",  L"em", L"u",  L"s",  L"del", L"code", L"span", L"a",   L"br",
-                                           L"p", L"div",    L"h1", L"h2", L"h3", L"h4", L"h5",  L"h6",   L"pre",  L"kbd", L"ins"};
+    constexpr std::wstring_view names[] = {L"b",   L"strong", L"i",  L"em", L"u",  L"s",  L"del", L"code", L"span", L"a",   L"br",  L"p",
+                                           L"div", L"h1",     L"h2", L"h3", L"h4", L"h5", L"h6",  L"pre",  L"kbd",  L"ins", L"mark"};
     if (value.size() < 3u || value.front() != L'<' || value.back() != L'>')
         return false;
     std::size_t at = 1u;

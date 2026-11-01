@@ -276,6 +276,7 @@ struct SemanticBox
 {
     PreparedLayout layout;
     std::vector<D2D1_RECT_F> codeChips{0u};
+    std::vector<D2D1_RECT_F> markChips{0u};
     SemanticParagraph paragraph;
     float x{}, y{}, width{}, height{}, codeGutter{};
     D2D1_RECT_F frame{};
@@ -472,6 +473,7 @@ struct PreparedSemanticGeometry::State
     float height{}, width{};
     std::size_t codeChipCount{};
     bool codeChipsAvailable = true;
+    bool markedText{};
     std::size_t reusedBoxes{};
     const SemanticBox& BoxAt(std::size_t position) const
     {
@@ -1453,11 +1455,12 @@ struct PreparedSemanticGeometry::Preparation
                 box->native         = native;
             }
         }
-        if (next.options.markdownPresentation == MarkdownPresentationStyle::Subtle && next.codeChipsAvailable &&
-            next.document->Elements()[content.element].role != SemanticRole::Code && ! caretOnly)
+        if (next.codeChipsAvailable && next.document->Elements()[content.element].role != SemanticRole::Code && ! caretOnly)
             for (const auto& run : box->layout.Content().runs)
             {
-                if ((run.flags & Code) == 0u || run.length == 0u)
+                const bool marked = (run.flags & Marked) != 0u;
+                next.markedText   = next.markedText || marked;
+                if ((! marked && ((run.flags & Code) == 0u || next.options.markdownPresentation != MarkdownPresentationStyle::Subtle)) || run.length == 0u)
                     continue;
                 const auto chips = box->layout.Range(run.start, run.start + run.length);
                 // Cosmetic chip storage is independent of source/geometry
@@ -1470,7 +1473,8 @@ struct PreparedSemanticGeometry::Preparation
                     break;
                 }
                 next.codeChipCount += chips.size();
-                box->codeChips.insert(box->codeChips.end(), chips.begin(), chips.end());
+                auto& destination = marked ? box->markChips : box->codeChips;
+                destination.insert(destination.end(), chips.begin(), chips.end());
             }
         box->height = box->layout.Height();
         box->frame  = D2D1::RectF(box->x, box->y, box->x + box->width, box->y + box->height);
@@ -2216,6 +2220,10 @@ float PreparedSemanticGeometry::Width() const noexcept
 {
     return state_ ? state_->width : 0.0f;
 }
+bool PreparedSemanticGeometry::HasMarkedText() const noexcept
+{
+    return state_ && state_->markedText;
+}
 std::size_t PreparedSemanticGeometry::BoxCount() const noexcept
 {
     return state_ ? state_->boxes.size() : 0u;
@@ -2694,6 +2702,18 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                             origin.x + box->x + chip.left, origin.y + box->y + chip.top, origin.x + box->x + chip.right, origin.y + box->y + chip.bottom);
                         if (rectangle.bottom > origin.y + top && rectangle.top < origin.y + bottom)
                             target->FillRoundedRectangle(D2D1::RoundedRect(rectangle, 2.0f, 2.0f), quoteFill);
+                    }
+                if (links && links->markedTextFill && state.codeChipsAvailable)
+                    for (const auto& chip : box->markChips)
+                    {
+                        const auto rectangle = D2D1::RectF(
+                            origin.x + box->x + chip.left, origin.y + box->y + chip.top, origin.x + box->x + chip.right, origin.y + box->y + chip.bottom);
+                        if (rectangle.bottom <= origin.y + top || rectangle.top >= origin.y + bottom)
+                            continue;
+                        if (links->outlineMarkedText)
+                            target->DrawRectangle(rectangle, text);
+                        else
+                            target->FillRectangle(rectangle, links->markedTextFill);
                     }
                 auto localLinks = links ? *links : LinkDrawing{};
                 localLinks.displayOrigin += box->paragraph.display.first;

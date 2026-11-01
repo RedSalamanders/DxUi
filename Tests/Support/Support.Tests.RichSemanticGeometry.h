@@ -1020,6 +1020,24 @@ inline void MarkdownSubtlePresentation()
             sawBody = ! colored;
     }
     Check(sawHeader && sawBody, "semantic header fill stays distinct from ordinary body cells");
+    const auto markDocument = RichSemanticDocumentTests::Build(L"before <mark>marked</mark> after\n");
+    PreparedSemanticGeometry markedGeometry;
+    LayoutOptions markedOptions;
+    markedOptions.widthDip = 520.0f;
+    markedGeometry.Begin(factory.get(), markDocument, markedOptions);
+    Complete(markedGeometry);
+    Check(markedGeometry.HasMarkedText(), "ordinary presentation retains marked text surface geometry");
+    LinkDrawing markedDrawing;
+    markedDrawing.markedTextFill = surfaceBrush.get();
+    target->BeginDraw();
+    target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+    markedGeometry.Draw(
+        target.get(), textBrush.get(), decorationBrush.get(), D2D1::Point2F(), 0.0f, static_cast<float>(rasterHeight), fillBrush.get(), 1.0f, &markedDrawing);
+    THROW_IF_FAILED(target->EndDraw());
+    THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(palettePixels.size()), palettePixels.data()));
+    const auto markRange = markedGeometry.SourceRange({13u, 19u});
+    Check(markRange.size() == 1u && isGreen((markRange.front().left + markRange.front().right) * .5f, markRange.front().top + 1.0f),
+          "HTML mark paints its retained background without requiring Subtle presentation");
 }
 inline void AtomicNavigationAndCancellation()
 {
