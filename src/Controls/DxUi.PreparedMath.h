@@ -239,6 +239,10 @@ class PreparedMath final
               horizontalConstructions(source->GetGlyphCount(), 0u),
               designUnits(units)
         {
+            DWRITE_FONT_METRICS metrics{};
+            source->GetMetrics(&metrics);
+            if (metrics.designUnitsPerEm && metrics.xHeight)
+                xHeightEm = static_cast<float>(metrics.xHeight) / static_cast<float>(metrics.designUnitsPerEm);
             const MathFontTable parsed(table);
             for (std::size_t offset = 8u; offset <= 152u; offset += 4u)
             {
@@ -275,6 +279,7 @@ class PreparedMath final
         std::array<MathFontTable::ValueRecord, 39u> constants{};
         std::array<bool, 39u> constantPresent{};
         std::uint16_t designUnits{};
+        float xHeightEm{.45f};
     };
     struct VariantGlyph
     {
@@ -1516,7 +1521,11 @@ class PreparedMath final
                     Stroke(left, bottom, left, top, stroke);
                 }
                 else if (node.text == L"sout")
-                    Stroke(left, (top + bottom) * .5f, right, (top + bottom) * .5f, stroke);
+                {
+                    const float xHeight = mathData ? mathData->xHeightEm : .45f;
+                    const float y = std::clamp(baseline - box.size * xHeight * .5f, top, bottom);
+                    Stroke(left, y, right, y, stroke);
+                }
                 else
                 {
                     if (node.text != L"bcancel")

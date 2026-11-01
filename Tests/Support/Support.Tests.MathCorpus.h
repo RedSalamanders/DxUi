@@ -179,6 +179,14 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         THROW_IF_FAILED(font->CreateFontFace(face.put()));
         DWRITE_FONT_METRICS fontMetrics{};
         face->GetMetrics(&fontMetrics);
+        const auto strikeExpression = std::make_shared<const MathExpression>(ParseMath(L"\\sout{x}"));
+        Detail::PreparedMath strike(factory, strikeExpression, 24.f);
+        while (! strike.Advance())
+        {
+        }
+        const auto expectedStrike = strike.Baseline() - 12.f * static_cast<float>(fontMetrics.xHeight) / fontMetrics.designUnitsPerEm;
+        check(strike.StrokeLayouts().size() == 1u && std::abs(strike.StrokeLayouts()[0].first.y - expectedStrike) < .01f,
+              "horizontal strike uses the actual SDK font x-height about its baseline");
         const UINT32 scalar = L'x';
         UINT16 glyph{};
         THROW_IF_FAILED(face->GetGlyphIndices(&scalar, 1u, &glyph));
