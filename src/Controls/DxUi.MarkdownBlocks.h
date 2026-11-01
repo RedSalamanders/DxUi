@@ -811,7 +811,8 @@ class MarkdownBlocks
         // Flatten only this bounded paragraph's prefix-stripped spelling, never
         // the document. The offset oracle keeps CRLF and container prefixes exact.
         const auto& original = nodes_[paragraph];
-        if (original.lines.empty() || source_[original.lines.front().source.first] != L'[')
+        if (original.lines.empty() || original.lines.front().source.first >= original.lines.front().source.last ||
+            original.lines.front().source.first >= source_.size() || source_[original.lines.front().source.first] != L'[')
             return;
         std::wstring text(0u, L' ');
         std::vector<std::size_t> offsets(0u);
