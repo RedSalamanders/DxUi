@@ -505,19 +505,49 @@ struct NativeFlowchartParser::Preparation
                              edgeStart,
                              std::min(end, at + (relationText.starts_with(L"<|..") ? 4u : 3u)),
                              FlowchartOutcome::Unsupported);
-            bool inlineLabel = false;
+            bool inlineLabel   = false;
+            const auto readEnd = [&](std::size_t start, FlowchartLineStyle style, std::size_t& finish, std::size_t& ranks, bool& arrow)
+            {
+                const wchar_t marker = style == FlowchartLineStyle::Dotted ? L'.' : style == FlowchartLineStyle::Thick ? L'=' : L'-';
+                auto cursor          = start;
+                while (cursor < end && Text()[cursor] == marker)
+                    ++cursor;
+                const auto count = cursor - start;
+                if (style == FlowchartLineStyle::Dotted)
+                {
+                    if (! count || cursor == end || Text()[cursor] != L'-')
+                        return false;
+                    ++cursor;
+                    ranks = count;
+                }
+                else
+                {
+                    if (count < 2u)
+                        return false;
+                    ranks = count - 1u;
+                }
+                arrow = cursor < end && Text()[cursor] == L'>';
+                if (arrow)
+                    ++cursor;
+                else if (style != FlowchartLineStyle::Dotted)
+                {
+                    if (count < 3u)
+                        return false;
+                    --ranks;
+                }
+                finish = cursor;
+                return true;
+            };
             if (model->family == NativeDiagramFamily::Flowchart)
             {
                 struct InlineOperator
                 {
                     std::wstring_view prefix;
-                    std::wstring_view arrow;
-                    std::wstring_view line;
                     FlowchartLineStyle style;
                 };
-                constexpr std::array operators{InlineOperator{L"--", L"-->", L"---", FlowchartLineStyle::Solid},
-                                               InlineOperator{L"-.", L".->", L".-", FlowchartLineStyle::Dotted},
-                                               InlineOperator{L"==", L"==>", L"===", FlowchartLineStyle::Thick}};
+                constexpr std::array operators{InlineOperator{L"--", FlowchartLineStyle::Solid},
+                                               InlineOperator{L"-.", FlowchartLineStyle::Dotted},
+                                               InlineOperator{L"==", FlowchartLineStyle::Thick}};
                 for (const auto& op : operators)
                 {
                     const auto labelStart = at + op.prefix.size();
@@ -526,25 +556,38 @@ struct NativeFlowchartParser::Preparation
                     auto begin = labelStart;
                     Skip(begin, end);
                     auto close = begin;
-                    while (close < end && ! Text().substr(close, op.arrow.size()).starts_with(op.arrow) &&
-                           ! Text().substr(close, op.line.size()).starts_with(op.line))
-                        ++close;
+                    std::size_t finish{}, ranks{};
+                    bool arrow{};
+                    while (close < end && ! readEnd(close, op.style, finish, ranks, arrow))
+                    {
+                        if (close - begin > MaximumLabelUnits)
+                            return Error(FlowchartIssue::LabelCapacity, begin, close, FlowchartOutcome::Capacity);
+                        const wchar_t marker = op.style == FlowchartLineStyle::Dotted ? L'.' : op.style == FlowchartLineStyle::Thick ? L'=' : L'-';
+                        if (Text()[close] == marker)
+                            while (close < end && Text()[close] == marker)
+                                ++close;
+                        else
+                            ++close;
+                    }
                     auto labelEnd = close;
                     while (labelEnd > begin && Space(Text()[labelEnd - 1u]))
                         --labelEnd;
                     if (close == end || labelEnd == begin)
                         return Error(FlowchartIssue::UnsupportedEdge, edgeStart, end, FlowchartOutcome::Unsupported);
+                    if (ranks > MaximumLinkRanks)
+                        return Error(FlowchartIssue::LinkRankCapacity, close, finish, FlowchartOutcome::Capacity);
                     const auto markup = Text().substr(begin, labelEnd - begin).find_first_of(L"\"|");
                     if (markup != std::wstring_view::npos)
                         return Error(FlowchartIssue::UnsupportedLabelMarkup, begin + markup, begin + markup + 1u, FlowchartOutcome::Unsupported);
                     auto labelAt = begin;
                     if (! PlainText(labelAt, labelEnd, edge.label))
                         return false;
-                    edge.arrow    = Text().substr(close, op.arrow.size()) == op.arrow;
-                    edge.relation = edge.arrow ? FlowchartRelation::Arrow : FlowchartRelation::Line;
-                    edge.style    = op.style;
-                    at            = close + (edge.arrow ? op.arrow.size() : op.line.size());
-                    inlineLabel   = true;
+                    edge.arrow        = arrow;
+                    edge.relation     = edge.arrow ? FlowchartRelation::Arrow : FlowchartRelation::Line;
+                    edge.style        = op.style;
+                    edge.minimumRanks = ranks;
+                    at                = finish;
+                    inlineLabel       = true;
                     break;
                 }
             }
@@ -562,29 +605,21 @@ struct NativeFlowchartParser::Preparation
             else
             {
                 std::size_t operatorLength{};
-                if (model->family == NativeDiagramFamily::Flowchart && Text().substr(at, 4u) == L"-.->")
+                std::size_t finish{}, ranks{};
+                bool arrow{};
+                const auto style        = Text().substr(at, 2u) == L"-."   ? FlowchartLineStyle::Dotted
+                                          : at < end && Text()[at] == L'=' ? FlowchartLineStyle::Thick
+                                                                           : FlowchartLineStyle::Solid;
+                const auto closingStart = at + (style == FlowchartLineStyle::Dotted ? 1u : 0u);
+                if (model->family == NativeDiagramFamily::Flowchart && readEnd(closingStart, style, finish, ranks, arrow))
                 {
-                    edge.arrow     = true;
-                    edge.relation  = FlowchartRelation::Arrow;
-                    edge.style     = FlowchartLineStyle::Dotted;
-                    operatorLength = 4u;
-                }
-                else if (model->family == NativeDiagramFamily::Flowchart && Text().substr(at, 3u) == L"-.-")
-                {
-                    edge.style     = FlowchartLineStyle::Dotted;
-                    operatorLength = 3u;
-                }
-                else if (model->family == NativeDiagramFamily::Flowchart && Text().substr(at, 3u) == L"==>")
-                {
-                    edge.arrow     = true;
-                    edge.relation  = FlowchartRelation::Arrow;
-                    edge.style     = FlowchartLineStyle::Thick;
-                    operatorLength = 3u;
-                }
-                else if (model->family == NativeDiagramFamily::Flowchart && Text().substr(at, 3u) == L"===")
-                {
-                    edge.style     = FlowchartLineStyle::Thick;
-                    operatorLength = 3u;
+                    if (ranks > MaximumLinkRanks)
+                        return Error(FlowchartIssue::LinkRankCapacity, at, finish, FlowchartOutcome::Capacity);
+                    edge.arrow        = arrow;
+                    edge.relation     = arrow ? FlowchartRelation::Arrow : FlowchartRelation::Line;
+                    edge.style        = style;
+                    edge.minimumRanks = ranks;
+                    operatorLength    = finish - at;
                 }
                 else if (model->family == NativeDiagramFamily::Flowchart && Text().substr(at, 3u) == L"~~~")
                 {

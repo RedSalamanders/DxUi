@@ -936,25 +936,25 @@
   },
   {
     "id": 86,
-    "outcome": "Unsupported",
-    "nodes": 0,
-    "edges": 0,
+    "outcome": "Prepared",
+    "nodes": 5,
+    "edges": 5,
     "direction": "TopBottom",
-    "reason": "expanded-edge-syntax",
-    "issue": "UnsupportedEdge",
-    "diagnosticFirst": 100,
-    "diagnosticLast": 104
+    "reason": "minimum-link-ranks",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 87,
-    "outcome": "Unsupported",
-    "nodes": 0,
-    "edges": 0,
+    "outcome": "Prepared",
+    "nodes": 5,
+    "edges": 5,
     "direction": "TopBottom",
-    "reason": "expanded-edge-syntax",
-    "issue": "UnsupportedEdge",
-    "diagnosticFirst": 46,
-    "diagnosticLast": 62
+    "reason": "minimum-link-ranks",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 88,

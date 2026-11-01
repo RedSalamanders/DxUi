@@ -68,7 +68,8 @@ enum class FlowchartIssue
     EdgeCapacity,
     StatementCapacity,
     LabelCapacity,
-    IdentifierCapacity
+    IdentifierCapacity,
+    LinkRankCapacity
 };
 struct FlowchartDiagnostic
 {
@@ -99,6 +100,7 @@ struct FlowchartEdge
     std::wstring label;
     FlowchartRelation relation{};
     FlowchartLineStyle style{};
+    std::size_t minimumRanks{1u};
     bool arrow{};
 };
 struct FlowchartModel
@@ -120,7 +122,7 @@ class NativeFlowchartParser
 {
 public:
     static constexpr std::size_t MaximumSourceUnits = 16384u, MaximumNodes = 256u, MaximumEdges = 512u, MaximumStatements = 1024u, MaximumLabelUnits = 1024u,
-                                 MaximumIdentifierUnits = 128u;
+                                 MaximumLinkRanks = 16u, MaximumIdentifierUnits = 128u;
     NativeFlowchartParser() noexcept;
     ~NativeFlowchartParser() noexcept;
     NativeFlowchartParser(const NativeFlowchartParser&)            = delete;

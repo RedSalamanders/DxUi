@@ -79,6 +79,15 @@ template <typename Check> inline void Geometry(Check&& check)
               styled->edges[2u].style == FlowchartLineStyle::Thick && styled->edges[3u].style == FlowchartLineStyle::Thick &&
               styled->edges[4u].style == FlowchartLineStyle::Invisible,
           "layout preserves all five edge styles, including the invisible ranking constraint");
+    const auto spaced = Place(Graph(L"flowchart TD;A---->B;B-->C;A-->C"), check);
+    check(spaced->issue == FlowchartLayoutIssue::None && spaced->nodes[0u].rank == 0u && spaced->nodes[1u].rank == 3u && spaced->nodes[2u].rank == 4u,
+          "minimum link length participates in longest-path ranks");
+    std::wstring excessive = L"flowchart TD;";
+    for (unsigned i = 0u; i < 17u; ++i)
+        excessive += L"N" + std::to_wstring(i) + L"----------------->N" + std::to_wstring(i + 1u) + L";";
+    const auto beyondRanks = Place(Graph(excessive), check);
+    check(beyondRanks->issue == FlowchartLayoutIssue::DiagramExtent && beyondRanks->nodes.empty() && beyondRanks->edges.empty(),
+          "accumulated rank constraints beyond bounded geometry fail without partial placement");
     const auto relations = Place(Graph(L"classDiagram\nBase <|-- Derived\nDerived --> Client\nClient -- Contract\n"), check);
     check(relations->edges.size() == 3u && relations->edges[0u].relation == FlowchartRelation::Inheritance && relations->edges[0u].hasArrow &&
               relations->edges[1u].relation == FlowchartRelation::Arrow && relations->edges[1u].hasArrow &&

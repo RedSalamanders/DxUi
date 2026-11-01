@@ -190,8 +190,8 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
             throw std::invalid_argument("Invalid flowchart node label/shape");
     for (const auto& edge : graph->edges)
         if (edge.label.size() > NativeFlowchartParser::MaximumLabelUnits || edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() ||
-            edge.relation < FlowchartRelation::Line || edge.relation > FlowchartRelation::Inheritance ||
-            edge.arrow != (edge.relation != FlowchartRelation::Line))
+            edge.minimumRanks == 0u || edge.minimumRanks > NativeFlowchartParser::MaximumLinkRanks || edge.relation < FlowchartRelation::Line ||
+            edge.relation > FlowchartRelation::Inheritance || edge.arrow != (edge.relation != FlowchartRelation::Line))
             throw std::invalid_argument("Invalid native flowchart edge");
     if (next_ && next_->state->Matches(write, drawing, graph, typography, resourceEpoch))
         return LayoutPreparationStatus::Pending;

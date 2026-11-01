@@ -3,6 +3,7 @@
 #include "Support.Tests.NativeFlowchartCorpus.h"
 #include <DxUi/MarkdownSyntax.h>
 #include <iostream>
+#include <tuple>
 namespace MarkdownBlockTests
 {
 using namespace DxUi::RichText;
@@ -421,7 +422,7 @@ template <typename Check> inline void CheckOriginalCorpus(Check&& check)
                       result->diagnostic.source.first < result->diagnostic.source.last && result->diagnostic.source.last <= result->source.size(),
                   "unsupported original family examples retain their independently classified diagnostic and exact source fallback");
     }
-    check(prepared == 25u && unsupported == 80u && std::size(NativeFlowchartCorpus::familyExamples) == 20u,
+    check(prepared == 27u && unsupported == 78u && std::size(NativeFlowchartCorpus::familyExamples) == 20u,
           "Mermaid corpus has no omitted examples/families and separates graph preparation from rejection");
     CheckFamilyGrammar(check);
     CheckFanout(check);
@@ -635,6 +636,28 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
                   result->source == source && result->nodes.empty() && result->edges.empty(),
               "inline edge markup is retained as source rather than displayed literally");
     }
+    for (const auto& [token, style, arrow] : {std::tuple{L"---->", FlowchartLineStyle::Solid, true},
+                                              std::tuple{L"-----", FlowchartLineStyle::Solid, false},
+                                              std::tuple{L"-...->", FlowchartLineStyle::Dotted, true},
+                                              std::tuple{L"-...-", FlowchartLineStyle::Dotted, false},
+                                              std::tuple{L"====>", FlowchartLineStyle::Thick, true},
+                                              std::tuple{L"=====", FlowchartLineStyle::Thick, false},
+                                              std::tuple{L"-- label ---->", FlowchartLineStyle::Solid, true},
+                                              std::tuple{L"-. label ...->", FlowchartLineStyle::Dotted, true},
+                                              std::tuple{L"== label ====>", FlowchartLineStyle::Thick, true}})
+    {
+        const auto source = L"flowchart LR\nA " + std::wstring(token) + L" B\n";
+        parser.Begin(source, 27u);
+        const auto result = Complete(parser);
+        check(result->outcome == FlowchartOutcome::Prepared && result->edges.size() == 1u && result->edges[0u].minimumRanks == 3u &&
+                  result->edges[0u].style == style && result->edges[0u].arrow == arrow,
+              "extended visible links retain three requested ranks with their style and arrow");
+    }
+    parser.Begin(L"flowchart LR\nA ------------------> B\n", 28u);
+    const auto excessiveRanks = Complete(parser);
+    check(excessiveRanks->outcome == FlowchartOutcome::Capacity && excessiveRanks->diagnostic.issue == FlowchartIssue::LinkRankCapacity &&
+              excessiveRanks->source == L"flowchart LR\nA ------------------> B\n" && excessiveRanks->nodes.empty(),
+          "link rank requests beyond the bounded profile retain exact source");
     std::wstring oversizedInline = L"flowchart LR\nA -- ";
     oversizedInline.append(NativeFlowchartParser::MaximumLabelUnits + 1u, L'x');
     oversizedInline += L" --> B\n";

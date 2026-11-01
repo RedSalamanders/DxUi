@@ -268,8 +268,14 @@ struct NativeFlowchartLayout::Preparation
         activeEdge      = next[edge];
         if (plan->edges[edge].route != FlowchartRoute::Forward)
             return;
-        const auto to = graph->edges[edge].to;
-        rank[to]      = std::max(rank[to], rank[active] + 1u);
+        const auto to     = graph->edges[edge].to;
+        const auto length = graph->edges[edge].minimumRanks;
+        if (length >= Nodes || rank[active] >= Nodes - length)
+        {
+            Fail(FlowchartLayoutIssue::DiagramExtent);
+            return;
+        }
+        rank[to] = std::max(rank[to], rank[active] + length);
         --indegree[to];
     }
     void Ports()
@@ -480,7 +486,8 @@ void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
         if (node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Bar)
             throw std::invalid_argument("Invalid flowchart layout shape");
     for (const auto& edge : graph->edges)
-        if (edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() || edge.relation < FlowchartRelation::Line ||
+        if (edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() || edge.minimumRanks == 0u ||
+            edge.minimumRanks > NativeFlowchartParser::MaximumLinkRanks || edge.relation < FlowchartRelation::Line ||
             edge.relation > FlowchartRelation::Inheritance || edge.style < FlowchartLineStyle::Solid || edge.style > FlowchartLineStyle::Invisible ||
             (edge.style == FlowchartLineStyle::Invisible && (edge.arrow || ! edge.label.empty())) || edge.arrow != (edge.relation != FlowchartRelation::Line))
             throw std::invalid_argument("Invalid flowchart layout edge");

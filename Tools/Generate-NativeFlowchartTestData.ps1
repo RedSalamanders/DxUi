@@ -10,7 +10,7 @@ $ErrorActionPreference='Stop'
 $pins=@{
     'collection.json'='157DEAF02EC36597EB5012AF8CE1EDF3CA710281CFC6E3E65493BD74A540799A'
     'syntax-inventory.json'='5CBAD5692330F513128C4D6CAF59A6ACE18A530073DEC9098208FC559FE48231'
-    'dxui-flowchart-expectations.json'='1ED9A30D2CE1A4387B5717752B3FF57E34122F46E3F220779F73AFCEB9366EFD'
+    'dxui-flowchart-expectations.json'='64AFF68DE8E3BC9641D086CAFC0BA1983A9800294CBF8B293EB76DD305BEF702'
     'dxui-family-matrix.json'='5A49B46D69193C2D0D911DEC1A0BC79210164F4F75C175E9F89589823475C3B5'
 }
 foreach($name in $pins.Keys){
@@ -98,4 +98,4 @@ $expected=$output.ToString().Replace("`r`n","`n").Replace("`n","`r`n")
 if($Check){
     if(-not(Test-Path -LiteralPath $OutputPath) -or [IO.File]::ReadAllText($OutputPath) -cne $expected){throw 'Native flowchart corpus output is missing or stale'}
 }else{[IO.File]::WriteAllText($OutputPath,$expected,[Text.UTF8Encoding]::new($false))}
-Write-Host 'Native flowchart vectors: 105 original examples, 25 admitted graphs, 80 unsupported; 20 original family examples (2 limited profiles, 18 unsupported families).'
+Write-Host 'Native flowchart vectors: 105 original examples, 27 admitted graphs, 78 unsupported; 20 original family examples (2 limited profiles, 18 unsupported families).'

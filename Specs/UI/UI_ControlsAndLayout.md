@@ -1688,6 +1688,11 @@ Quoted labels allow Unicode scalar text and `\"`, `\\`, `\n` escapes. Unquoted
 labels keep backslashes literally, trim surrounding horizontal whitespace and must quote delimiter/semicolon
 text. Literal ampersands are label text; HTML, Markdown labels, entity escapes, icon syntax and inline math labels
 are unsupported; they MUST NOT silently acquire a different label meaning.
+Visible solid, dotted and thick links admit up to 16 minimum ranks using Mermaid's
+extra dash, dot or equals syntax, including the right side of an inline label.
+The DAG ranking honors each forward constraint; a link above the bound or an
+accumulated rank outside the 256-rank layout limit fails without partial geometry.
+Back edges and self-loops do not constrain the DAG ranks.
 
 Admission limits are 16,384 source UTF-16 units, 256 nodes, 512 expanded edges, 1,024
 nonempty statements including the header, 1,024 decoded label units and 128 ID
