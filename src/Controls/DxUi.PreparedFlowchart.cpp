@@ -708,6 +708,9 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
     if (drawing.get() != state_->drawing.get())
         return false;
     if (palette && (! palette->Ready() || ! palette->Matches(state_->graph.get(), target))) return false;
+    // Contrast against a translucent surface depends on its unknown backdrop.
+    // Keep theme brushes until the caller supplies an opaque surface.
+    if (colors && colors->fill.a != 1.f) colors = nullptr;
     D2D1_MATRIX_3X2_F previous;
     target->GetTransform(&previous);
     const auto restore = wil::scope_exit([&]() noexcept { target->SetTransform(previous); });

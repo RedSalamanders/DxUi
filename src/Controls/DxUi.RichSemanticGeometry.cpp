@@ -391,6 +391,7 @@ struct SemanticBox
     D2D1_RECT_F frame{};
     std::optional<MarkdownEmptyLine> sourceCaret;
     bool caretOnly{}, markerOnly{}, markerLayout{};
+    bool authoredColorSurfaceKnown = true;
     const NativeDiagramPlacement* native{};
     const NativeImageGeometry* images{};
     CaretGeometry Caret(std::size_t local) const
@@ -1271,6 +1272,26 @@ struct PreparedSemanticGeometry::Preparation
         box->paragraph   = content;
         box->caretOnly   = caretOnly;
         box->sourceCaret = caretLine;
+        // The optional color context describes the document fill. Quote and
+        // header shading use another borrowed brush whose color is unknown to
+        // this layout; prepare the decision rather than walking during paint.
+        auto surfaceOwner = content.element;
+        for (unsigned depth = 0u; surfaceOwner != MarkdownNoNode; ++depth)
+        {
+            if (depth == 64u)
+            {
+                box->authoredColorSurfaceKnown = false;
+                break;
+            }
+            const auto& element = next.document->Elements()[surfaceOwner];
+            if (element.role == SemanticRole::Quote ||
+                (element.tableHeader && next.options.markdownPresentation == MarkdownPresentationStyle::Subtle))
+            {
+                box->authoredColorSurfaceKnown = false;
+                break;
+            }
+            surfaceOwner = element.parent;
+        }
         const auto& node = next.document->Syntax()->Nodes()[content.syntaxNode];
         if (content.emptyInsertion != MarkdownNoNode)
         {
@@ -3015,6 +3036,7 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                              [&](std::size_t i)
     {
         const auto& box       = state.boxes[i];
+        const auto* boxColors = box->authoredColorSurfaceKnown && box->markChips.empty() ? diagramColors : nullptr;
         const bool emphasized = links && links->emphasis && links->emphasisBrush && links->emphasis->first < box->paragraph.display.last &&
                                 box->paragraph.display.first < links->emphasis->last;
         auto* boxText         = emphasized ? links->emphasisBrush : text;
@@ -3062,7 +3084,7 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                                            decoration,
                                            fill,
                                            D2D1::Point2F(origin.x + box->x + box->native->bounds.left, origin.y + box->y + box->native->bounds.top),
-                                           box->native->palette.get(), diagramColors))
+                                           box->native->palette.get(), boxColors))
                 throw std::logic_error("Native diagram target/resources are incompatible");
             if (box->images)
                 for (const auto& image : box->images->placements)

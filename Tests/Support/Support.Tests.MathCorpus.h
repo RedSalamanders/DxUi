@@ -441,10 +441,13 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
           "duplicate, nested and missing tags are rejected");
     const auto ordinaryTag = ParseMath(L"x\\tag{Eq. 1}");
     const auto starredTag = ParseMath(L"x\\tag*{A}");
+    const auto escapedTag = ParseMath(L"x\\tag*{\\$5}");
     check(! ParseMath(L"x\\tag{$y$}") && ordinaryTag && ordinaryTag.root.children.size() == 2u &&
               ordinaryTag.root.children[1].children.size() == 3u && ordinaryTag.root.children[1].children[1].text == L"Eq. 1" &&
               starredTag && starredTag.root.children.size() == 2u && starredTag.root.children[1].text == L"A",
           "tag labels preserve text spaces and starred form while rejecting unsupported embedded math");
+    check(escapedTag && escapedTag.root.children.size() == 2u && escapedTag.root.children[1].text == L"$5",
+          "escaped tag dollars remain literal text without admitting raw math delimiters");
     std::size_t scenarioIndex{};
     for (const auto& scenario : prepared)
     {

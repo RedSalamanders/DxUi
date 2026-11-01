@@ -20,6 +20,10 @@ struct DiagramColorContext
 struct DiagramPalette
 {
     DiagramPalette(std::shared_ptr<const FlowchartModel> graph, ID2D1RenderTarget* target);
+    DiagramPalette(const DiagramPalette&) = delete;
+    DiagramPalette& operator=(const DiagramPalette&) = delete;
+    DiagramPalette(DiagramPalette&&) noexcept = default;
+    DiagramPalette& operator=(DiagramPalette&&) noexcept = default;
     bool Advance();
     bool Ready() const noexcept { return ready; }
     bool Matches(const FlowchartModel* value, ID2D1RenderTarget* raster) const noexcept { return graph.get() == value && target.get() == raster; }

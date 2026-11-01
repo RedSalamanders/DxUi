@@ -130,7 +130,7 @@ class Parser
         for (auto& child : node.children)
             Alphabet(child, alphabet);
     }
-    std::wstring GroupText(bool textMode = false)
+    std::wstring GroupText(bool textMode = false, bool rejectMathDelimiters = false)
     {
         Space();
         if (at == source.size() || source[at++] != L'{')
@@ -165,6 +165,8 @@ class Parser
                 while (at < source.size() && source[at] != L'\r' && source[at] != L'\n')
                     ++at;
             }
+            else if (rejectMathDelimiters && c == L'$')
+                Reject();
             else if (textMode && iswspace(c))
             {
                 // TeX source line endings/tabs are text-mode spaces, never
@@ -782,11 +784,9 @@ class Parser
                         Reject(MathIssue::MissingRequiredArgument);
                     if (source[at] == L'{')
                     {
-                        auto text = GroupText(true);
                         // This profile has no nested math inside text labels;
-                        // do not silently paint its delimiters as ordinary text.
-                        if (text.find(L'$') != std::wstring::npos)
-                            Reject();
+                        // escaped dollars are literal text, not delimiters.
+                        auto text = GroupText(true, true);
                         auto label = Make(MathKind::Text, std::move(text));
                         label.italic = false;
                         equationTag.emplace(std::move(label));

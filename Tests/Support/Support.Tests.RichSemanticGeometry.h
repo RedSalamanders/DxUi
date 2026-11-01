@@ -436,7 +436,7 @@ inline void MathWidthReflowAndTargetReplacement()
     Check(inlineTag->Map().Display().find(L"$x\\tag{A}$") != std::wstring_view::npos &&
               std::ranges::any_of(inlineTag->Diagnostics(), [](const auto& item) { return item.kind == SemanticDiagnosticKind::UnsupportedMath; }),
           "inline tagged equations retain exact source with an unsupported diagnostic");
-    const auto nestedTag = RichSemanticDocumentTests::Build(L"> $$x+1\\tag{Eq. 1}$$\n", MarkdownProfile::RichMarkdown);
+    const auto nestedTag = RichSemanticDocumentTests::Build(L"> $$\n> x+1\\tag{Eq. 1}\n> $$\n", MarkdownProfile::RichMarkdown);
     geometry.Clear();
     options.widthDip = 240.f;
     geometry.Begin(factory.get(), nestedTag, options, drawing.get(), {}, {}, target.get());

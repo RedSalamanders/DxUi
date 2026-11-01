@@ -859,7 +859,7 @@ template <typename Check, typename Observe = std::nullptr_t> inline void Palette
                   (darkTheme ? second[0u] < 40u && second[1u] < 40u && second[2u] < 40u
                              : second[0u] > 220u && second[1u] > 220u && second[2u] > 220u),
               "safe authored fill paints; low-contrast pair and forced theme fall back to the borrowed surface");
-        if (colors && ! darkTheme)
+        if (colors && colors->fill.a == 1.f && ! darkTheme)
         {
             const auto bounds = prepared.Geometry()->nodes[0u].bounds;
             const auto x = static_cast<std::size_t>(bounds.x + bounds.width / 2.0), y = static_cast<std::size_t>(bounds.y);
@@ -891,6 +891,9 @@ template <typename Check, typename Observe = std::nullptr_t> inline void Palette
     };
     raster(&context, true, false);
     raster(nullptr, false, false);
+    auto translucent = context;
+    translucent.fill.a = .5f;
+    raster(&translucent, false, false);
     const DiagramColorContext dark{D2D1::ColorF(D2D1::ColorF::White), D2D1::ColorF(D2D1::ColorF::White), D2D1::ColorF(D2D1::ColorF::Black)};
     raster(&dark, true, true);
     const auto badOutline = FlowchartLayoutTests::Graph(L"flowchart TD\nA[Alpha]\nstyle A fill:#000,color:#fff\n");

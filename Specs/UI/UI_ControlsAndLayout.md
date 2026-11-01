@@ -2446,7 +2446,10 @@ publication and recreated for a replacement render target. The chosen text and
 outline must contrast against the chosen fill by at least 4.5:1 and 3:1;
 edge strokes must contrast against the theme background by 3:1. Otherwise the
 corresponding theme colors are used. High contrast and selected/overlay text
-use the caller's theme brushes. Painting creates no palette resources and does
+use the caller's theme brushes. A translucent document fill or a differently
+shaded quote, table header or marked paragraph also uses theme brushes when the
+actual backdrop cannot be established by the prepared color context.
+Painting creates no palette resources and does
 not change borrowed brush attributes.
 
 Flowchart, state, class, sequence, pie, ER, Gantt and mind map diagrams accept one `accTitle: text` and one

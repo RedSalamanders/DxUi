@@ -1396,7 +1396,7 @@ have a trailing separator; gathered rows have one column and cases at most two.
 Inside an admitted math envelope, `align`, `align*` and `split` use aligned-row
 geometry; `gather`, `gather*`, `equation` and `equation*` use centered one-column
 geometry. Equation forms admit one row. These bounded aliases do not add numbering.
-`\substack{...}` provides up to 16 centered one-column rows, including inside
+`\substack{...}` provides up to 64 centered one-column rows, including inside
 operator scripts; a trailing row separator is accepted.
 `\not` admits ungrouped single relation glyphs `= < > ≤ ≥ ∈ ∋ ⊂ ⊃ ⊆ ⊇ ∼ ≡ ≈ ∣ ∥`
 and substitutes their Unicode negations; other operands retain exact source.
@@ -1566,6 +1566,8 @@ Flowchart node styles support `stroke-width:1px` through `3px`,
 classes are supported. `linkStyle N` or `linkStyle default` applies width, dash
 and stroke to existing edges. Author colors are used only when their text and
 outline contrast is sufficient; high contrast and selection use theme colors.
+Translucent or separately shaded surfaces also retain theme colors when their
+backdrop is not known to the prepared color context.
 Unsupported properties and colors preserve source with a diagnostic.
 
 Flowchart, state, class, sequence, pie, ER, Gantt and mind map diagrams accept one `accTitle: text` and one
