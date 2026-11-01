@@ -1795,7 +1795,7 @@ void TestRichTextSourceInkPreparationRolesAndCapacity()
                 "published source ink is bounded, sorted and disjoint");
         previous = range.display.last;
     }
-    const std::wstring nativeSyntax = L"www.example.com user@example.com \\(x\\) \\[y\\]\n";
+    const std::wstring nativeSyntax = L"www.example.com user@example.com \\(x\\)\n\n\\[\ny\n\\]\n";
     const auto nativeInkSyntax      = parse(nativeSyntax, MarkdownProfile::RichMarkdown);
     while (! ink.Advance(nativeInkSyntax, [](size_t value) { return value; }))
         Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn, "native source ink remains cooperatively prepared");
@@ -1811,9 +1811,18 @@ void TestRichTextSourceInkPreparationRolesAndCapacity()
         Require(roleAt(first) == TextInkRole::Subtle && roleAt(first + 1u) == TextInkRole::Subtle,
                 "escaped math source delimiters receive two-unit subtle ink");
     }
-    Require(! roleAt(nativeSyntax.find(L"x\\)")) && ! roleAt(nativeSyntax.find(L"y\\]")),
+    Require(! roleAt(nativeSyntax.find(L"x\\)")) && ! roleAt(nativeSyntax.find(L"y\n\\]")),
             "ordinary mathematical source retains its normal ink between delimiter pairs");
 
+    // Bracketed display delimiters embedded in a paragraph are ordinary source, not a math object.
+    const std::wstring literalBrackets = L"prose \\[y\\] remains literal\n";
+    const auto literalSyntax = parse(literalBrackets, MarkdownProfile::RichMarkdown);
+    while (! ink.Advance(literalSyntax, [](size_t value) { return value; }))
+        Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn, "literal bracket source ink remains cooperatively prepared");
+    const auto literalFirst = literalBrackets.find(L"\\[");
+    const auto literalLast = literalBrackets.find(L"\\]");
+    Require(! roleAt(literalFirst) && ! roleAt(literalFirst + 1u) && ! roleAt(literalLast) && ! roleAt(literalLast + 1u),
+            "inline bracket escapes remain literal instead of receiving display math ink");
     const std::wstring listFixture = L"- outer\n  - nested\n-\t- tab nested\n12. ordered\n> - quoted\n- [x] task\n";
     const auto listSyntax          = parse(listFixture);
     const std::array<std::wstring_view, 7> markers{L"-", L"-", L"-", L"-", L"12.", L"-", L"-"};

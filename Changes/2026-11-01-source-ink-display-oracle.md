@@ -1,0 +1,1 @@
+- Test source ink against supported inline and display math delimiters and literal inline bracket escapes.
