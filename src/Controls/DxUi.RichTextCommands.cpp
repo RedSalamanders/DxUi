@@ -246,8 +246,8 @@ std::optional<std::size_t> FindCodeLanguageTarget(const MarkdownSyntax& syntax, 
     {
         const auto& node = nodes[i];
         const auto range = node.block.source;
-        if (node.block.kind != MarkdownBlockKind::FencedCode || node.parent == MarkdownNoNode || nodes[node.parent].block.kind != MarkdownBlockKind::Document ||
-            selection.Start() < range.first || selection.End() > range.last ||
+        if (node.block.kind != MarkdownBlockKind::FencedCode || node.parent == MarkdownNoNode || selection.Start() < range.first ||
+            selection.End() > range.last ||
             ! (selection.Start() < range.last || (selection.Start() == range.last && range.last == text.size() && ! node.block.closed)))
             continue;
         if (node.block.fenceMarker == L'`' && language.find(L'`') != language.npos)

@@ -315,6 +315,7 @@ inline void ListsAndHeadings()
         Check(FindCodeLanguageTarget(*languageSyntax, {8u, 8u}, L"rust").has_value() && ! FindCodeLanguageTarget(*languageSyntax, {8u, 8u}, L"bad\nname"),
               "language-state predicate shares the planner source and input constraints");
         Exact(L"~~~cpp\nhello\n~~~\n", {8u, 8u}, request, L"~~~rust\nhello\n~~~\n", std::nullopt, profile);
+        Exact(L"> ~~~cpp\n> hello\n> ~~~\n", {12u, 12u}, request, L"> ~~~rust\n> hello\n> ~~~\n", std::nullopt, profile);
         request.command = MarkdownCommand::ExitCodeBlock;
         Document codeState(L"~~~\nx\n~~~\n");
         const auto codeSyntax = Parse(codeState, profile);

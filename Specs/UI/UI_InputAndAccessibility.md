@@ -1265,7 +1265,7 @@ trivia with representable prefixes. It declines lazy missing prefixes and
 selections containing unsupported blocks rather than partially rewriting them.
 SetCodeBlock wraps supported top-level paragraph lines in a tilde fence longer
 than any contained run, or unwraps a closed top-level fence. SetCodeLanguage
-replaces a current top-level fence info string. Nested container conversion and
+replaces a current fence info string, including one in a list or quote. Nested container conversion and
 unclosed-fence unwrapping are unavailable pending their source-prefix policy.
 Ctrl+Enter in a top-level fenced block exits to an empty following source line;
 an unclosed block receives its matching closing fence first, in one undo step.
