@@ -565,7 +565,17 @@ void ControlHost::ActivateNativeTextInputSession(Control* control, bool transfer
         return;
     }
 
-    TextInputState controlState;
+    std::optional<TextInputState> controlStateStorage;
+    try
+    {
+        controlStateStorage.emplace();
+    }
+    catch (const std::bad_alloc&)
+    {
+        DeactivateNativeTextInputSession();
+        return;
+    }
+    auto& controlState = controlStateStorage.value();
     try
     {
         if (! control->ExportTextInputState(controlState))
@@ -1017,7 +1027,17 @@ void ControlHost::SyncNativeTextInputSession(Control* control) noexcept
                IsControlInTree(_root.get(), control);
     };
 
-    TextInputState controlState;
+    std::optional<TextInputState> controlStateStorage;
+    try
+    {
+        controlStateStorage.emplace();
+    }
+    catch (const std::bad_alloc&)
+    {
+        SecureClearNativeTextInputStateCache();
+        return;
+    }
+    auto& controlState = controlStateStorage.value();
     try
     {
         if (! control->ExportTextInputState(controlState))
