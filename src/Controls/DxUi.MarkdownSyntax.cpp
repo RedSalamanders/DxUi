@@ -375,11 +375,10 @@ struct MarkdownParser::Preparation
             // Lexical constructs have a maximum 33-unit named reference (or a
             // two-unit escape/CRLF). Keep a safety margin on both edit edges.
             constexpr std::size_t margin = 34u;
-            lexicalPrefixLimit = commonFirst > margin ? commonFirst - margin : 0u;
-            const auto oldSafe = commonOldEnd + std::min(margin, a.size() - commonOldEnd);
-            const auto& lexemes = previous->Lexemes();
-            auto suffix = std::lower_bound(lexemes.begin(), lexemes.end(), oldSafe,
-                                           [](const auto& token, auto at) { return token.source.first < at; });
+            lexicalPrefixLimit           = commonFirst > margin ? commonFirst - margin : 0u;
+            const auto oldSafe           = commonOldEnd + std::min(margin, a.size() - commonOldEnd);
+            const auto& lexemes          = previous->Lexemes();
+            auto suffix = std::lower_bound(lexemes.begin(), lexemes.end(), oldSafe, [](const auto& token, auto at) { return token.source.first < at; });
             while (suffix != lexemes.end() && suffix->kind == MarkdownLexemeKind::Text)
                 ++suffix;
             if (suffix != lexemes.end())
@@ -522,14 +521,13 @@ struct MarkdownParser::Preparation
             return;
         const auto& source = blockSource;
         if (previous && change && change->kind == SourceChangeKind::TrackedEdits && previous->Extensions() == syntax->Extensions() &&
-            ! previous->sourceRegionRequest_ && ! syntax->sourceRegionRequest_ &&
-            cursor == lineFirst && blocks.CanImportClosedRoot())
+            ! previous->sourceRegionRequest_ && ! syntax->sourceRegionRequest_ && cursor == lineFirst && blocks.CanImportClosedRoot())
         {
             const bool prefix = cursor < commonFirst;
             const bool suffix = cursor >= commonNewEnd;
             if (prefix || suffix)
             {
-                const auto oldPosition = prefix ? cursor : commonOldEnd + (cursor - commonNewEnd);
+                const auto oldPosition    = prefix ? cursor : commonOldEnd + (cursor - commonNewEnd);
                 const auto& previousNodes = previous->Nodes();
                 if (reusableRootIndex < previousNodes.size())
                 {
@@ -543,15 +541,14 @@ struct MarkdownParser::Preparation
                     {
                         ++reusableRootIndex;
                         const auto& blanks = previous->EmptyLines();
-                        const auto blank = std::lower_bound(blanks.begin(), blanks.end(), old.block.source.last,
-                                                            [](const auto& line, auto position) { return line.source.first < position; });
+                        const auto blank   = std::lower_bound(
+                            blanks.begin(), blanks.end(), old.block.source.last, [](const auto& line, auto position) { return line.source.first < position; });
                         const bool separated = blank != blanks.end() && blank->owner == 0u && blank->source.first == old.block.source.last &&
-                                               blank->source.last > blank->source.first &&
-                                               (! prefix || blank->source.last <= commonFirst);
+                                               blank->source.last > blank->source.first && (! prefix || blank->source.last <= commonFirst);
                         const auto oldSource = previous->Source();
-                        const bool ordinary = old.block.kind == MarkdownBlockKind::Paragraph && old.firstChild == MarkdownNoNode &&
-                                              old.block.source.last > old.block.source.first && old.block.content.first < old.block.source.last &&
-                                              oldSource[old.block.content.first] != L'[';
+                        const bool ordinary  = old.block.kind == MarkdownBlockKind::Paragraph && old.firstChild == MarkdownNoNode &&
+                                               old.block.source.last > old.block.source.first && old.block.content.first < old.block.source.last &&
+                                               oldSource[old.block.content.first] != L'[';
                         if (separated && ordinary)
                         {
                             blocks.ImportClosedRootParagraph(old, cursor);
@@ -642,9 +639,9 @@ struct MarkdownParser::Preparation
             const auto& old = previous->Lexemes();
             if (lexicalSuffixIndex < old.size())
             {
-                auto token = old[lexicalSuffixIndex++];
+                auto token         = old[lexicalSuffixIndex++];
                 token.source.first = commonNewEnd + (token.source.first - commonOldEnd);
-                token.source.last = commonNewEnd + (token.source.last - commonOldEnd);
+                token.source.last  = commonNewEnd + (token.source.last - commonOldEnd);
                 syntax->lexemes_.push_back(token);
                 lexicalCursor = literalFirst = token.source.last;
                 return;

@@ -437,14 +437,15 @@ void RichTextEditor::TakePendingImageRequests(std::vector<RichText::RichImageReq
 }
 bool RichTextEditor::CompleteImageRequest(const RichText::RichImageRequest& request, std::shared_ptr<const RichText::RichImage> image)
 {
-    const auto document = GetSemanticDocument();
+    const auto document  = GetSemanticDocument();
     const bool suspended = _state->images.CanCompleteSuspended(_state->imageLocationRevision, _state->bindingRevision);
     if (! GetHost() || ! IsVisible() || ! _state->markdownRendering || _state->mode != RichText::ViewMode::Rich ||
         (! suspended && (! document || ! _state->images.CurrentForCompletion(document, _state->imageLocationRevision, _state->bindingRevision))))
         return false;
     const auto viewport = TextViewport();
     const auto* host    = GetHost();
-    if (document && _state->RejectsNativeGeometry(
+    if (document &&
+        _state->RejectsNativeGeometry(
             document, std::max(1.0f, viewport.right - viewport.left), IsRightToLeft(), host->GetTypographyRevision(), host->GetResourceGeneration()))
         return false;
     const bool alreadyDirty = _state->images.HasUnpublished();

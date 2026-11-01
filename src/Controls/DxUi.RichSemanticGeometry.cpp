@@ -1570,7 +1570,8 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
                                          state_->options.locale == options.locale && state_->options.readingDirection == options.readingDirection
                                      ? state_.get()
                                      : nullptr;
-    auto next = std::make_unique<Preparation>(std::move(document), factory, options, drawing, epochs, std::move(images), raster, previousImages, previous, previousNative);
+    auto next                  = std::make_unique<Preparation>(
+        std::move(document), factory, options, drawing, epochs, std::move(images), raster, previousImages, previous, previousNative);
     next_.swap(next);
     return LayoutPreparationStatus::Pending;
 }
