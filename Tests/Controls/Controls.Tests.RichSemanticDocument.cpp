@@ -814,6 +814,13 @@ void TestRichSemanticNativeMathematicsAndBroaderMermaid()
         Require(semantic->Map().Source() == sourceWithNote && diagram != semantic->Elements().end() && diagram->name.find(expected) != std::wstring::npos,
                 "class notes preserve exact source and expose their content in the diagram alternative");
     }
+    const std::wstring namespaceSource = L"```mermaid\nclassDiagram\nnamespace Domain {\nclass A\nclass B\nA --> B\n}\n```\n";
+    const auto namespaceDocument = RichSemanticDocumentTests::Build(namespaceSource, MarkdownProfile::RichMarkdown);
+    const auto namespaceDiagram = std::ranges::find(namespaceDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
+    Require(namespaceDocument->Map().Source() == namespaceSource && namespaceDiagram != namespaceDocument->Elements().end() &&
+                namespaceDiagram->name.find(L"Domain") != std::wstring::npos && namespaceDiagram->name.find(L"A") != std::wstring::npos &&
+                namespaceDiagram->name.find(L"B") != std::wstring::npos,
+            "class namespace semantic alternative exposes the namespace and members while retaining exact source");
 }
 void TestRichSemanticDocumentStructuralStyleValues()
 {

@@ -136,6 +136,21 @@ template <typename Check> inline void Geometry(Check&& check)
         check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == source && rejected->nodes.empty() && rejected->edges.empty(),
               "malformed class notes retain exact source without partial graph publication");
     }
+    const auto namespaced = Graph(L"classDiagram\nnamespace Domain {\nclass A\nclass B\nA --> B\n}\n");
+    const std::vector<FlowchartSize> namespaceNodes(namespaced->nodes.size(), {16.0, 12.0}), namespaceEdges(namespaced->edges.size()),
+        namespaceLabels(namespaced->groups.size(), {16.0, 12.0});
+    NativeFlowchartLayout namespaceLayout;
+    namespaceLayout.Begin(namespaced, namespaceNodes, namespaceEdges, {}, {}, namespaceLabels);
+    const auto namespacedPlan = Complete(namespaceLayout, check);
+    check(namespaced->groups.size() == 1u && namespaced->groups[0].title == L"Domain" && namespaced->nodes.size() == 2u &&
+              namespaced->nodes[0].groupMask == 1u && namespaced->nodes[1].groupMask == 1u && namespacedPlan->issue == FlowchartLayoutIssue::None &&
+              namespacedPlan->groups.size() == 1u, "class namespace owns its members and has bounded native group geometry");
+    for (const auto source : {L"classDiagram\nnamespace Empty {\n}\n", L"classDiagram\nnamespace A {\nclass B\n", L"classDiagram\nnamespace 2Bad {\nclass A\n}\n"})
+    {
+        const auto rejected = Graph(source);
+        check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == source && rejected->groups.empty(),
+              "invalid class namespace retains exact source without a partial model");
+    }
     const auto shapes = Place(Graph(L"graph TD;A[box];B(round);C((circle));D{diamond}"), check);
     check(Near(shapes->nodes[0u].bounds.width, 40.0) && Near(shapes->nodes[1u].bounds.width, 40.0) && Near(shapes->nodes[2u].bounds.width, std::sqrt(2624.0)) &&
               Near(shapes->nodes[2u].bounds.height, std::sqrt(2624.0)) && Near(shapes->nodes[3u].bounds.width, 80.0) &&

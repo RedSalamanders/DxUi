@@ -2228,9 +2228,12 @@ nonalphabetic or undefined-class annotations retain source.
 Class diagrams also accept `note "text"` and `note for Name "text"` with
 bounded quoted plain text. Standalone notes occupy their own node; attached notes
 use a dotted connection and expose their target and text in the graph alternative.
+Simple `namespace Name { ... }` groups, nested at most four levels, use the
+shared bounded group layout; identifiers remain globally unique, and group
+overlap or unsupported namespace syntax retains source with a diagnostic.
 State/class layouts use the deterministic native graph router; members are plain
 multiline node labels. Inheritance uses the native triangle arrow. This is not
-Mermaid coordinate compatibility. Advanced composite-state syntax, class namespaces/generics,
+Mermaid coordinate compatibility. Advanced composite-state syntax, class generics,
 class compartments, relationship multiplicities, other stereotypes, styling,
 interaction directives and other diagram families remain exact fenced source.
 Invisible edge labels remain unsupported. Other flowchart grammar and source-provenance rules remain unchanged.

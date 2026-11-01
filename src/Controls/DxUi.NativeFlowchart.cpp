@@ -594,6 +594,8 @@ struct NativeFlowchartParser::Preparation
             return CloseGroup(at, end);
         if (model->family == NativeDiagramFamily::State && statement == L"}")
             return CloseGroup(at, end);
+        if (model->family == NativeDiagramFamily::Class && ! classBlock && statement == L"}")
+            return CloseGroup(at, end);
         if (model->family == NativeDiagramFamily::Flowchart && statement.starts_with(L"subgraph") && statement.size() > 8u && Space(statement[8u]))
         {
             if (groupDepth == groupStack.size() || model->groups.size() == 16u)
@@ -688,6 +690,23 @@ struct NativeFlowchartParser::Preparation
                 return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
             return ClassAnnotation(node, start, close + 2u);
         }
+        if (model->family == NativeDiagramFamily::Class && statement.starts_with(L"namespace "))
+        {
+            const auto start = at;
+            at += 10u;
+            Skip(at, end);
+            const auto keyStart = at;
+            if (at == end || ! Letter(Text()[at]))
+                return Error(FlowchartIssue::InvalidIdentifier, at, end);
+            while (at < end && IdUnit(Text()[at])) ++at;
+            if (at - keyStart > MaximumIdentifierUnits)
+                return Error(FlowchartIssue::IdentifierCapacity, keyStart, at, FlowchartOutcome::Capacity);
+            const auto key = Text().substr(keyStart, at - keyStart);
+            Skip(at, end);
+            if (at + 1u != end || Text()[at] != L'{')
+                return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+            return OpenGroup(key, key, keyStart, start, end);
+        }
         if (model->family == NativeDiagramFamily::Class && statement.starts_with(L"note "))
         {
             const auto start = at;
@@ -723,6 +742,8 @@ struct NativeFlowchartParser::Preparation
             note.declaration = {start, end};
             note.shape = FlowchartShape::Note;
             note.noteTarget = MarkdownNoNode;
+            for (std::size_t depthIndex = 0u; depthIndex < groupDepth; ++depthIndex)
+                note.groupMask |= static_cast<std::uint16_t>(1u << groupStack[depthIndex]);
             note.label.swap(text);
             model->nodes.push_back(std::move(note));
             return true;

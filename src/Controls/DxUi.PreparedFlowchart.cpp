@@ -204,8 +204,9 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
         throw std::invalid_argument("Invalid native flowchart preparation admission");
     if (graph->direction < FlowchartDirection::TopBottom || graph->direction > FlowchartDirection::RightLeft)
         throw std::invalid_argument("Invalid native flowchart direction");
-    if (! graph->groups.empty() && graph->family != NativeDiagramFamily::Flowchart && graph->family != NativeDiagramFamily::State)
-        throw std::invalid_argument("Groups require a flowchart or state profile");
+    if (! graph->groups.empty() && graph->family != NativeDiagramFamily::Flowchart && graph->family != NativeDiagramFamily::State &&
+        graph->family != NativeDiagramFamily::Class)
+        throw std::invalid_argument("Groups require a supported diagram profile");
     for (std::size_t index = 0u; index < graph->groups.size(); ++index)
         if (graph->groups[index].title.empty() || graph->groups[index].title.size() > NativeFlowchartParser::MaximumLabelUnits ||
             graph->groups[index].parentMask >= (1u << index))
