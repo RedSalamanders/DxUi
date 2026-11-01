@@ -748,6 +748,20 @@ bool RichTextEditor::RemoteImagesEnabled() const noexcept
 {
     return _state->images.RemoteImagesEnabled();
 }
+void RichTextEditor::SetDataImagesEnabled(bool enabled)
+{
+    if (_state->images.DataImagesEnabled() == enabled)
+        return;
+    _state->images.SetDataImagesEnabled(enabled);
+    RetireSemanticAccessibility();
+    _state->nativeGeometryRejected.reset();
+    RetireLayout();
+    RequestInvalidate();
+}
+bool RichTextEditor::DataImagesEnabled() const noexcept
+{
+    return _state->images.DataImagesEnabled();
+}
 void RichTextEditor::TakePendingImageRequests(std::vector<RichText::RichImageRequest>& requests)
 {
     const auto* host    = GetHost();

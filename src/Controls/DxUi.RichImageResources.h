@@ -53,32 +53,7 @@ public:
         if (remoteEnabled_ == enabled)
             return;
         if (! enabled)
-        {
-            std::vector<Entry> local(0u);
-            std::vector<Binding> bindings(0u);
-            local.reserve(entries_.size());
-            bindings.reserve(bindings_.size());
-            for (const auto& binding : bindings_)
-            {
-                const auto& entry = entries_[binding.entry];
-                if (entry.request->sourceKind != RichImageSourceKind::LocalFile)
-                    continue;
-                auto found = std::ranges::find(local, entry.request, &Entry::request);
-                if (found == local.end())
-                {
-                    local.push_back(entry);
-                    found = std::prev(local.end());
-                }
-                bindings.push_back({binding.element, static_cast<std::size_t>(found - local.begin())});
-            }
-            auto snapshot = MakeSnapshot(local, bindings);
-            CancelPublishedExcept(local);
-            entries_.swap(local);
-            bindings_.swap(bindings);
-            snapshot_      = std::move(snapshot);
-            snapshotDirty_ = false;
-            UpdateDecodedBytes();
-        }
+            RetireSourceKind(RichImageSourceKind::RemoteHttp);
         // Staged jobs were not exposed to the application. Their ownership list
         // excludes retained published local jobs, so this retires remote work
         // without canceling a local decode already held by the application.
@@ -86,6 +61,22 @@ public:
         for (auto& entry : entries_)
             entry.failed = false;
         remoteEnabled_ = enabled;
+        policyChanged_ = true;
+    }
+    bool DataImagesEnabled() const noexcept
+    {
+        return dataEnabled_;
+    }
+    void SetDataImagesEnabled(bool enabled)
+    {
+        if (dataEnabled_ == enabled)
+            return;
+        if (! enabled)
+            RetireSourceKind(RichImageSourceKind::Data);
+        next_.reset();
+        for (auto& entry : entries_)
+            entry.failed = false;
+        dataEnabled_   = enabled;
         policyChanged_ = true;
     }
     // Retain only jobs with at least one source occurrence outside the tracked
@@ -163,7 +154,7 @@ public:
             return true;
         }
         const bool preserveLocal = (suspended_ || (policyChanged_ && document_ == document)) && location_ == location && binding_ == binding;
-        auto staging             = std::make_unique<Stage>(std::move(document), base, location, binding, remoteEnabled_);
+        auto staging             = std::make_unique<Stage>(std::move(document), base, location, binding, remoteEnabled_, dataEnabled_);
         if (preserveLocal)
             next_.reset();
         else
@@ -201,6 +192,12 @@ public:
                     // inside optional<wstring>'s noexcept move constructor.
                     if (local)
                         return std::optional<std::wstring>(std::in_place, local.value());
+                    if (stage.dataEnabled)
+                        if (const auto data = ResolveDataImageSource(destination))
+                        {
+                            kind = RichImageSourceKind::Data;
+                            return std::optional<std::wstring>(std::in_place, data.value());
+                        }
                     if (! stage.remoteEnabled)
                         return std::optional<std::wstring>{};
                     kind = RichImageSourceKind::RemoteHttp;
@@ -362,9 +359,36 @@ private:
     {
         std::size_t element{}, entry{};
     };
+    void RetireSourceKind(RichImageSourceKind kind)
+    {
+        std::vector<Entry> retained(0u);
+        std::vector<Binding> bindings(0u);
+        retained.reserve(entries_.size());
+        bindings.reserve(bindings_.size());
+        for (const auto& binding : bindings_)
+        {
+            const auto& entry = entries_[binding.entry];
+            if (entry.request->sourceKind == kind)
+                continue;
+            auto found = std::ranges::find(retained, entry.request, &Entry::request);
+            if (found == retained.end())
+            {
+                retained.push_back(entry);
+                found = std::prev(retained.end());
+            }
+            bindings.push_back({binding.element, static_cast<std::size_t>(found - retained.begin())});
+        }
+        auto snapshot = MakeSnapshot(retained, bindings);
+        CancelPublishedExcept(retained);
+        entries_.swap(retained);
+        bindings_.swap(bindings);
+        snapshot_      = std::move(snapshot);
+        snapshotDirty_ = false;
+        UpdateDecodedBytes();
+    }
     struct Stage
     {
-        Stage(std::shared_ptr<const SemanticDocument> value, std::wstring_view path, std::uint64_t location, std::uint64_t binding, bool remote)
+        Stage(std::shared_ptr<const SemanticDocument> value, std::wstring_view path, std::uint64_t location, std::uint64_t binding, bool remote, bool data)
             : document(std::move(value)),
               base(path),
               location(location),
@@ -372,7 +396,8 @@ private:
               entries(0u),
               bindings(0u),
               introduced(0u),
-              remoteEnabled(remote)
+              remoteEnabled(remote),
+              dataEnabled(data)
         {
             entries.reserve(MaximumSources);
             bindings.reserve(MaximumPlacements);
@@ -390,7 +415,7 @@ private:
         std::vector<Binding> bindings;
         std::vector<std::shared_ptr<RichImageRequestState>> introduced;
         std::size_t cursor{};
-        bool remoteEnabled{}, committed{};
+        bool remoteEnabled{}, dataEnabled{}, committed{};
     };
     static std::shared_ptr<const RichImageResourceSet> MakeSnapshot(const std::vector<Entry>& entries,
                                                                     const std::vector<Binding>& bindings,
@@ -435,6 +460,6 @@ private:
     std::unique_ptr<Stage> next_;
     std::uint64_t location_{}, binding_{}, nextId_{};
     std::size_t decodedBytes_{};
-    bool remoteEnabled_{}, policyChanged_{}, snapshotDirty_{}, suspended_{};
+    bool remoteEnabled_{}, dataEnabled_{}, policyChanged_{}, snapshotDirty_{}, suspended_{};
 };
 } // namespace DxUi::RichText::Detail

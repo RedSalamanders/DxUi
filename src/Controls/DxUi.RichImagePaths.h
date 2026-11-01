@@ -174,6 +174,24 @@ inline bool SameLocalImagePath(std::wstring_view left, std::wstring_view right) 
     }
     return left == right;
 }
+inline std::optional<std::wstring> ResolveDataImageSource(std::wstring_view source)
+{
+    // Opaque lexical admission only; the application owns media policy and decoding.
+    if (source.size() > Document::MaximumUnits || source.size() < 6u || ! IsValidUtf16(source) ||
+        ! EqualWindowsPathInsensitive(source.substr(0u, 5u), L"data:") || source.find(L',', 5u) == source.npos ||
+        std::ranges::any_of(source, [](wchar_t c) { return c <= 32 || c == 127 || c == L'\\'; }))
+        return std::nullopt;
+    const auto hex = [](wchar_t c) { return (c >= L'0' && c <= L'9') || (c >= L'a' && c <= L'f') || (c >= L'A' && c <= L'F'); };
+    for (std::size_t index = 5u; index < source.size(); ++index)
+        if (source[index] == L'%')
+        {
+            if (index + 2u >= source.size() || ! hex(source[index + 1u]) || ! hex(source[index + 2u]))
+                return std::nullopt;
+            index += 2u;
+        }
+    return std::optional<std::wstring>(std::in_place, source);
+}
+
 inline std::optional<std::wstring> ResolveRemoteImageSource(std::wstring_view source)
 {
     // Lexical admission only. The consumer owns anonymous transport, TLS,

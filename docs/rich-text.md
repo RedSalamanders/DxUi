@@ -604,7 +604,12 @@ off immediately cancels remote jobs and evicts their pixels while preserving
 local jobs, local completions, source, selection and history. A later opt-in
 creates new remote identities. The sample loader remains local-file-only; a
 consumer must provide its own explicit remote transport and failure policy.
-Data URIs, SVG and unavailable formats keep their alternative. The source parser still preserves every original
+
+`SetDataImagesEnabled(true)` independently admits bounded `data:` destinations.
+The caller receives their exact source as a `Data` request, validates and decodes
+it using its own media policy, and completes the existing bounded image request.
+Turning either remote or data admission off cancels only that kind of work.
+SVG and unavailable formats keep their alternative. The source parser still preserves every original
 destination. Limits are 16 MiB encoded, 4096 pixels per side, 4,194,304 decoded
 pixels, 32 unique sources, 128 native placements shared with diagrams and 64 MiB
 of unique retained CPU pixels. Shared images also share prepared GPU bitmaps.

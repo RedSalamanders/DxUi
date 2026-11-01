@@ -10,6 +10,11 @@ namespace RichImagePathTests
 template <typename Check> inline void Paths(Check&& check)
 {
     using namespace DxUi::RichText::Detail;
+    const auto data = ResolveDataImageSource(L"DATA:image/png;base64,AA%2fA");
+    check(data && *data == L"DATA:image/png;base64,AA%2fA", "data admission retains the exact opaque URI");
+    for (const auto* invalid : {L"data:image/png", L"data:,bad%2", L"data:,bad%xx", L"data:,a b", L"data:,a\\b"})
+        check(! ResolveDataImageSource(invalid), "malformed data destinations are refused before requesting consumer work");
+    check(! ResolveDataImageSource(std::wstring(DxUi::RichText::Document::MaximumUnits + 1u, L'x')), "oversized data destinations are refused");
     struct Case
     {
         const wchar_t* document;

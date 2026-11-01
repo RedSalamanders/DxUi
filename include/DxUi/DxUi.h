@@ -3326,6 +3326,10 @@ public:
     // remote requests and evicts their pixels, retaining local image resources.
     void SetRemoteImagesEnabled(bool enabled);
     [[nodiscard]] bool RemoteImagesEnabled() const noexcept;
+    // Data URI requests are independent of remote HTTP and disabled by default.
+    // The caller owns URI validation, decoding and transport policy.
+    void SetDataImagesEnabled(bool enabled);
+    [[nodiscard]] bool DataImagesEnabled() const noexcept;
     // Call after owner preparation. The application executes these bounded
     // source requests in its own worker service and marshals completion to
     // this owner thread. No worker may call a ControlHost or editor directly.

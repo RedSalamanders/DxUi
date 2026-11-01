@@ -234,6 +234,33 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
               "explicit remote opt-in exposes only an immutable caller-owned HTML request");
         editor.SetRemoteImagesEnabled(false);
     }
+    {
+        const std::wstring source = L"![data](data:image/png;base64,AAAA)\n\n![remote](https://example.invalid/a.png)\n";
+        editor.SetText(source);
+        prepare();
+        std::vector<RichImageRequest> jobs(0u);
+        editor.TakePendingImageRequests(jobs);
+        check(jobs.empty() && ! editor.DataImagesEnabled(), "data and remote images are independently disabled by default");
+        editor.SetDataImagesEnabled(true);
+        prepare();
+        editor.TakePendingImageRequests(jobs);
+        check(jobs.size() == 1u && jobs.front().SourceKind() == RichImageSourceKind::Data && jobs.front().Source() == L"data:image/png;base64,AAAA" &&
+                  jobs.front().FilePath().empty(),
+              "data opt-in exposes the exact opaque source without enabling remote transport");
+        const auto dataJob = jobs.front();
+        editor.SetRemoteImagesEnabled(true);
+        prepare();
+        editor.TakePendingImageRequests(jobs);
+        check(jobs.size() == 1u && jobs.front().SourceKind() == RichImageSourceKind::RemoteHttp && ! dataJob.Cancelled(),
+              "remote policy changes preserve a pending data request");
+        const auto remoteJob = jobs.front();
+        editor.SetDataImagesEnabled(false);
+        check(dataJob.Cancelled() && ! remoteJob.Cancelled() && ! editor.CompleteImageRequest(dataJob, Picture()),
+              "disabling data cancels only its own requests and rejects stale completions");
+        editor.SetRemoteImagesEnabled(false);
+        check(remoteJob.Cancelled() && editor.GetText() == source && ! editor.CanUndo(),
+              "policy changes preserve source and history while cancelling the corresponding request");
+    }
     const std::wstring source = L"before ![sample](image.png) after\n\n![same](image.png)\n";
     editor.SetText(source);
     editor.SetSelection({4u, 2u});
