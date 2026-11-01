@@ -565,11 +565,11 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
 #endif
 #if DXUI_ENABLE_DIAGNOSTICS
     {
-        auto formats = std::make_shared<Detail::MathTextFormats>(factory, L"Arial");
+        auto accentFormats = std::make_shared<Detail::MathTextFormats>(factory, L"Arial");
         for (const auto name : {L"hat", L"widehat"})
         {
             const auto expression = std::make_shared<const MathExpression>(ParseMath(L"\\" + std::wstring(name) + L"{x}"));
-            Detail::PreparedMath layout(factory, expression, 24.f, false, nullptr, 96.f, formats);
+            Detail::PreparedMath layout(factory, expression, 24.f, false, nullptr, 96.f, accentFormats);
             while (! layout.Advance())
             {
             }
