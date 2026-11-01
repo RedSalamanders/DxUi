@@ -1041,6 +1041,27 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     request.command = MarkdownCommand::SetTableCell;
     request.text    = L"new";
     exact(L"a | b\n- | -\nx | y", {16u, 16u}, request, L"a | b\n- | -\nx | new");
+    request = {};
+    request.command = MarkdownCommand::InsertTable;
+    request.tableInputFormat = MarkdownTableInputFormat::Tsv;
+    request.text = L"a\tb\nc\td";
+    exact(L"", {0u, 0u}, request, L"| a | b |\r\n| --- | --- |\r\n| c | d |");
+    request.text = L"head\tvalue\n\"a|b\"\t\"line\r\nnext\"";
+    exact(L"", {0u, 0u}, request, L"| head | value |\r\n| --- | --- |\r\n| a\\|b | line&#10;next |");
+    const auto tableDisplay = editor->GetSemanticDocument()->Map().Display();
+    Check(tableDisplay.find(L"a|b") != std::wstring_view::npos && tableDisplay.find(L"line\nnext") != std::wstring_view::npos,
+          "delimited table renders quoted separators and line endings as cell text");
+    request.text = L"a\tb\nc\td";
+    editor->SetText(L"");
+    prepare();
+    Check(editor->PrepareMarkdownCommandState(request), "delimited table request prepares exact command state");
+    const auto preparedTable = editor->QueryMarkdownCommandState(request);
+    auto otherTable = request;
+    otherTable.tableInputFormat = MarkdownTableInputFormat::Csv;
+    const auto otherState = editor->QueryMarkdownCommandState(otherTable);
+    Check(preparedTable && preparedTable->available == std::optional<bool>{true} &&
+              (! otherState || ! otherState->available.has_value()),
+          "prepared table state keys the delimiter format with its payload");
     request         = {};
     request.command = MarkdownCommand::DeleteTableColumn;
     exact(L"| a | b |\n| - | -: |\n| x |\n", {2u, 2u}, request, L"| b |\n| -: |\n| |\n", Selection{2u, 2u});

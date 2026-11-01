@@ -3215,8 +3215,93 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
     };
     if (request.command == MarkdownCommand::InsertTable)
     {
-        if (request.tableColumns == 0u || request.tableColumns > 64u || request.tableBodyRows > 256u ||
-            (request.tableBodyRows + 1u) * request.tableColumns > 4096u)
+        std::vector<std::vector<std::wstring>> rows(0u);
+        auto columns = request.tableColumns;
+        auto bodyRows = request.tableBodyRows;
+        if (request.tableInputFormat != MarkdownTableInputFormat::Empty)
+        {
+            if ((request.tableInputFormat != MarkdownTableInputFormat::Tsv && request.tableInputFormat != MarkdownTableInputFormat::Csv) ||
+                ! IsValidUtf16(request.text))
+                throw std::invalid_argument("Invalid delimited table input");
+            if (request.text.size() > 64u * 1024u)
+                throw std::length_error("Delimited table input capacity exceeded");
+            const wchar_t separator = request.tableInputFormat == MarkdownTableInputFormat::Tsv ? L'\t' : L',';
+            std::vector<std::wstring> row(0u);
+            // Keep Debug STL proxy allocation on fallible reserve/copy paths;
+            // vector growth must not move its noexcept string/vector elements.
+            rows.reserve(257u);
+            row.reserve(64u);
+            std::wstring field(0u, L' ');
+            bool quoted = false, closed = false, atStart = true;
+            const auto finishField = [&]
+            {
+                if (row.size() == 64u)
+                    throw std::length_error("Delimited table column capacity exceeded");
+                row.emplace_back(field);
+                field.clear();
+                closed = false;
+                atStart = true;
+            };
+            const auto finishRow = [&]
+            {
+                finishField();
+                if (rows.size() == 257u)
+                    throw std::length_error("Delimited table row capacity exceeded");
+                rows.emplace_back(row);
+                row.clear();
+            };
+            for (std::size_t i = 0u; i < request.text.size(); ++i)
+            {
+                const auto ch = request.text[i];
+                if (quoted)
+                {
+                    if (ch == L'"')
+                    {
+                        if (i + 1u < request.text.size() && request.text[i + 1u] == L'"')
+                        {
+                            field.push_back(L'"');
+                            ++i;
+                        }
+                        else
+                        {
+                            quoted = false;
+                            closed = true;
+                        }
+                    }
+                    else
+                        field.push_back(ch);
+                }
+                else if (ch == separator)
+                    finishField();
+                else if (ch == L'\r' || ch == L'\n')
+                {
+                    finishRow();
+                    if (ch == L'\r' && i + 1u < request.text.size() && request.text[i + 1u] == L'\n')
+                        ++i;
+                }
+                else if (ch == L'"' && atStart)
+                {
+                    quoted = true;
+                    atStart = false;
+                }
+                else
+                {
+                    if (closed || ch == L'"')
+                        throw std::invalid_argument("Malformed quoted table field");
+                    field.push_back(ch);
+                    atStart = false;
+                }
+            }
+            if (quoted)
+                throw std::invalid_argument("Unclosed quoted table field");
+            if (request.text.empty() || (request.text.back() != L'\r' && request.text.back() != L'\n'))
+                finishRow();
+            columns = 0u;
+            for (const auto& values : rows)
+                columns = (std::max)(columns, values.size());
+            bodyRows = rows.size() - 1u;
+        }
+        if (columns == 0u || columns > 64u || bodyRows > 256u || (bodyRows + 1u) * columns > 4096u)
             throw std::length_error("Structural table dimensions exceed command capacity");
         const auto& line = Line(plan.before_.Start());
         if (Line(plan.before_.End()).first != line.first)
@@ -3257,16 +3342,52 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
         }
         if (! NoteContinuation(prefix, line, plan.before_.Start()))
             return;
-        std::wstring value = emptyRow(request.tableColumns, false);
+        const auto rowSource = [&](std::size_t index)
+        {
+            if (rows.empty())
+                return emptyRow(columns, false);
+            std::wstring result(0u, L' ');
+            result.push_back(L'|');
+            for (std::size_t column = 0u; column < columns; ++column)
+            {
+                result.push_back(L' ');
+                if (column < rows[index].size())
+                    for (std::size_t at = 0u; at < rows[index][column].size(); ++at)
+                    {
+                        const auto ch = rows[index][column][at];
+                        if (ch == L' ') result += L"&#32;";
+                        else if (ch == L'\t') result += L"&#9;";
+                        else if (ch == L'\r')
+                        {
+                            result += L"&#10;";
+                            if (at + 1u < rows[index][column].size() && rows[index][column][at + 1u] == L'\n')
+                                ++at;
+                        }
+                        else if (ch == L'\n') result += L"&#10;";
+                        else
+                        {
+                            if ((ch >= L'!' && ch <= L'/') || (ch >= L':' && ch <= L'@') ||
+                                (ch >= L'[' && ch <= L'`') || (ch >= L'{' && ch <= L'~'))
+                                result.push_back(L'\\');
+                            result.push_back(ch);
+                        }
+                    }
+                result += L" |";
+            }
+            return std::wstring(result); // Keep allocation failure catchable when NRVO is disabled.
+        };
+        std::wstring value = rowSource(0u);
         value += Eol(line);
         value += prefix;
-        value += emptyRow(request.tableColumns, true);
-        for (std::size_t row = 0u; row < request.tableBodyRows; ++row)
+        value += emptyRow(columns, true);
+        for (std::size_t row = 0u; row < bodyRows; ++row)
         {
             value += Eol(line);
             value += prefix;
-            value += emptyRow(request.tableColumns, false);
+            value += rowSource(row + 1u);
         }
+        if (! rows.empty() && value.size() > 64u * 1024u)
+            throw std::length_error("Delimited table source capacity exceeded");
         Add(plan.before_.Start(), plan.before_.End(), value);
         plan.after_       = {plan.before_.Start() + 2u, plan.before_.Start() + 2u};
         explicitSelection = true;

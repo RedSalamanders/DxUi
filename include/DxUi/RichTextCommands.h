@@ -66,6 +66,12 @@ enum class MarkdownEnterPolicy
     RawNewline,
     NewParagraph
 };
+enum class MarkdownTableInputFormat
+{
+    Empty,
+    Tsv,
+    Csv
+};
 // Shared extension admission only; source and payload checks remain separate.
 bool IsCommandFeatureEnabled(const MarkdownSyntax& syntax, MarkdownCommand command, MarkdownTextStyle style, MarkdownListKind listKind) noexcept;
 // Resolved footnotes permit edits only inside their owned content.
@@ -122,6 +128,8 @@ struct MarkdownCommandRequest
     std::wstring_view text, destination, title;
     MarkdownAlignment tableAlignment = MarkdownAlignment::None;
     MarkdownEnterPolicy enterPolicy = MarkdownEnterPolicy::RawNewline;
+    // InsertTable may consume a quoted delimited Unicode payload in text.
+    MarkdownTableInputFormat tableInputFormat = MarkdownTableInputFormat::Empty;
 };
 struct MarkdownCommandEdit
 {

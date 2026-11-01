@@ -570,6 +570,56 @@ static void TestTableCommandPreparationAllocationFailures(GraphicsFixture& gpu)
         }
         Check(editor->PrepareMarkdownCommandState(request), "table command preparation retries after allocation failures");
     }
+    editor->SetText(L"");
+    editor->SetSelection({0u, 0u});
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare delimited table allocation fixture");
+    const auto emptySnapshot = editor->Snapshot();
+    MarkdownCommandRequest delimited;
+    delimited.command = MarkdownCommand::InsertTable;
+    delimited.tableInputFormat = MarkdownTableInputFormat::Csv;
+    delimited.text = L"header,value\n\"a,b\",\"line\nnext\"";
+    Check(editor->PrepareMarkdownCommandState(previous), "prepare prior delimited table state");
+    const auto previousState = editor->QueryMarkdownCommandState(previous);
+    size_t delimitedRequests{};
+    {
+        const auto oldCounting = countAllocations;
+        const auto oldCalls = allocations, oldBytes = allocationBytes;
+        const auto restore = wil::scope_exit([=] noexcept
+        {
+            countAllocations = oldCounting;
+            allocations = oldCalls;
+            allocationBytes = oldBytes;
+        });
+        allocations = allocationBytes = 0u;
+        countAllocations = true;
+        Check(editor->PrepareMarkdownCommandState(delimited), "measure delimited table command preparation");
+        countAllocations = false;
+        delimitedRequests = allocations;
+    }
+    Check(delimitedRequests > 0u && delimitedRequests < 2048u, "delimited table preparation has bounded allocation points");
+    for (size_t failure = 0u; failure < delimitedRequests; ++failure)
+    {
+        Check(editor->PrepareMarkdownCommandState(previous), "restore prior delimited table state");
+        bool failed = false;
+        {
+            const auto oldFailure = failAllocationAfter;
+            const auto restore = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+            failAllocationAfter = failure;
+            try
+            {
+                static_cast<void>(editor->PrepareMarkdownCommandState(delimited));
+            }
+            catch (const std::bad_alloc&)
+            {
+                failed = true;
+            }
+        }
+        const auto actual = editor->QueryMarkdownCommandState(previous);
+        Check(failed && previousState && actual && actual->available == previousState->available && editor->Snapshot().IsSameRevision(emptySnapshot) &&
+                  editor->GetSelection() == Selection{0u, 0u} && ! editor->CanUndo(),
+              "delimited table allocation failure preserves prior prepared state and document");
+    }
+    Check(editor->PrepareMarkdownCommandState(delimited), "delimited table preparation retries after every allocation failure");
 }
 
 static void TestRichFileDropTransactionAllocationFailures(GraphicsFixture& gpu)

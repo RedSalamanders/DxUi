@@ -804,6 +804,36 @@ inline void Tables()
     MarkdownCommandRequest request;
     request.command = MarkdownCommand::InsertTable;
     Exact(L"", {}, request, L"| | |\r\n| --- | --- |\r\n| | |", Selection{2u, 2u});
+    request.tableInputFormat = MarkdownTableInputFormat::Tsv;
+    request.text = L"Name\tValue\r\n\"a|b\"\t\"line\r\nnext\"";
+    Exact(L"", {}, request, L"| Name | Value |\r\n| --- | --- |\r\n| a\\|b | line&#10;next |", Selection{2u, 2u});
+    request.tableInputFormat = MarkdownTableInputFormat::Csv;
+    request.text = L"name,value\n\"a,b\",\"a\"\"b\"";
+    Exact(L"", {}, request, L"| name | value |\r\n| --- | --- |\r\n| a\\,b | a\\\"b |", Selection{2u, 2u});
+    Document invalidTable(L"");
+    const auto invalidTableSyntax = Parse(invalidTable);
+    request.text = L"\"unfinished";
+    Reject<std::invalid_argument>([&] {
+        static_cast<void>(BuildMarkdownCommand(invalidTable.Snapshot(), invalidTable.Revision(), invalidTableSyntax, {}, request));
+    }, "unterminated quoted field is rejected atomically");
+    std::wstring tooManyColumns(0u, L' ');
+    for (unsigned i = 0u; i < 64u; ++i)
+        tooManyColumns += L"x,";
+    tooManyColumns += L"x";
+    request.text = tooManyColumns;
+    Reject<std::length_error>([&] {
+        static_cast<void>(BuildMarkdownCommand(invalidTable.Snapshot(), invalidTable.Revision(), invalidTableSyntax, {}, request));
+    }, "delimited input rejects a 65th column before creating a source edit");
+    std::wstring tooManyRows(0u, L' ');
+    for (unsigned i = 0u; i < 258u; ++i)
+        tooManyRows += L"x\n";
+    request.text = tooManyRows;
+    Reject<std::length_error>([&] {
+        static_cast<void>(BuildMarkdownCommand(invalidTable.Snapshot(), invalidTable.Revision(), invalidTableSyntax, {}, request));
+    }, "delimited input rejects a 257th body row before creating a source edit");
+    Check(invalidTable.Text().empty() && ! invalidTable.CanUndo(), "invalid delimited input preserves source and history");
+    request.text = L"";
+    request.tableInputFormat = MarkdownTableInputFormat::Empty;
     request.command = MarkdownCommand::InsertTableRow;
     Exact(L"a | b\r\n:- | -:\r\nx | y", {0u, 0u}, request, L"a | b\r\n:- | -:\r\n| | |\r\nx | y");
     request.command = MarkdownCommand::DeleteTableRow;

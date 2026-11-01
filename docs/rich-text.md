@@ -1207,6 +1207,15 @@ throughout the table, materializing missing cells only when required. Selection
 follows moved content; boundary moves and selections outside the owned row or
 cell are unavailable. These operations are one undo transaction.
 
+For an explicit paste-as-table action, pass the clipboard's counted Unicode text
+in `MarkdownCommandRequest::text`, set `command` to `InsertTable`, and select
+`tableInputFormat` TSV or CSV. The first record is the header and short rows are
+padded. Quoted fields support embedded delimiters, line endings and doubled
+quotes. Malformed or oversized input is rejected before editing. Quoted CRLF and
+CR normalize to LF in the resulting cell text. The exact
+prepared command state includes both format and payload. Ordinary paste keeps
+its existing behavior.
+
 Table commands admit at most 64 columns, 256 body rows and 4,096 declared cells,
 within the existing 64 Ki UTF-16 source cap. `targetCell` is an optional index in
 the exact plan syntax, required to distinguish padded cells sharing an ACP.

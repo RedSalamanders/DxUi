@@ -1741,6 +1741,15 @@ and their delimiter alignment in every row; implicit empty cells are materialize
 only when needed. Boundary moves and selections outside the owned row or cell
 are unavailable. Directional selection follows the moved content. These commands
 use the same syntax-local `targetCell`, atomic source transaction and undo path.
+An application clipboard hook can pass counted Unicode text to `InsertTable`
+with `tableInputFormat` set to TSV or CSV. The first record becomes the header,
+short records are padded and a final record terminator does not add a row.
+Double-quoted fields allow separators, CR/LF and doubled quotes; malformed quoting
+is rejected atomically. Literal cell text is encoded as Markdown, including
+numeric character references for spaces and line breaks. Quoted CRLF and CR
+normalize to LF in the resulting cell text. The same table limits
+apply to input and generated source; preparation keys the format and exact text.
+Ordinary paste is unchanged unless the application invokes this command.
 
 Semantic visual deletion MUST remove empty owned Markdown/validated inline
 HTML wrappers only when their complete body is deleted, recursively. Block HTML

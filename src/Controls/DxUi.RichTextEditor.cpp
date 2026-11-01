@@ -397,7 +397,9 @@ struct RichTextEditor::State
                    request.quoteAction == value.quoteAction && request.mathDisplay == value.mathDisplay && request.headingLevel == value.headingLevel &&
                    request.listStart == value.listStart && request.targetCell == value.targetCell && request.tableColumns == value.tableColumns &&
                    request.tableBodyRows == value.tableBodyRows && request.tableAlignment == value.tableAlignment && request.enterPolicy == value.enterPolicy &&
-                   request.tableCellCaretOffset == value.tableCellCaretOffset && text == value.text && destination == value.destination && title == value.title;
+                   request.tableInputFormat == value.tableInputFormat &&
+                   request.tableCellCaretOffset == value.tableCellCaretOffset && text == value.text &&
+                   destination == value.destination && title == value.title;
         }
         RichText::MarkdownCommandRequest request;
         std::wstring text, destination, title;
