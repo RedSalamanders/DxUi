@@ -4739,7 +4739,7 @@ private:
     void StartExpanderAnimation(uint64_t itemId, bool fromExpanded, bool toExpanded) noexcept;
     [[nodiscard]] std::optional<size_t> FindNextTypeaheadMatch(std::wstring_view prefix) const noexcept;
     [[nodiscard]] float GetExpanderProgress(uint64_t itemId, bool expanded, uint64_t nowTickMs) const noexcept;
-    [[nodiscard]] std::vector<TreeItemData> CaptureVisibleItems() const;
+    [[nodiscard]] bool CaptureVisibleItems(std::vector<TreeItemData>& items) const;
     void BeginTreeExpansionAnimation(uint64_t itemId,
                                      bool toExpanded,
                                      std::vector<TreeItemData>&& beforeItems,
@@ -4795,6 +4795,11 @@ private:
     };
     struct TreeExpansionAnimationState final
     {
+        TreeExpansionAnimationState() : beforeItems(0u), afterItems(0u), beforeIndex(0u), afterIndex(0u)
+        {
+        }
+        TreeExpansionAnimationState(const TreeExpansionAnimationState&) = default;
+        TreeExpansionAnimationState& operator=(const TreeExpansionAnimationState&) = default;
         uint64_t itemId      = 0u;
         bool toExpanded      = false;
         bool active          = false;

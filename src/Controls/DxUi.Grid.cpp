@@ -1353,13 +1353,15 @@ void Grid::SetDelegate(IGridDelegate* delegate) noexcept
 
 void Grid::SetSelectionMode(GridSelectionMode mode) noexcept
 {
+    if (_selectionMode == mode)
+        return;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     IGridModel* const model           = _model;
     GridModelQueryGuard guard(*this, lifetime, model);
-    std::vector<uint64_t> previousSelection;
+    std::optional<std::vector<uint64_t>> previousSelection;
     try
     {
-        previousSelection.assign(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+        previousSelection.emplace(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
     }
     catch (const std::bad_alloc&)
     {
@@ -1383,11 +1385,13 @@ void Grid::SetSelectionMode(GridSelectionMode mode) noexcept
         }
     }
     // Collapsing a multi-selection keeps the focused row when it was selected, else moves the focus to the kept row.
-    if (! NotifySelectionAndFocusChanges(previousSelection, previousFocus) || ! guard.ResumeAfterCallback())
+    if (! NotifySelectionAndFocusChanges(previousSelection.value(), previousFocus) || ! guard.ResumeAfterCallback())
     {
         return;
     }
-    RefreshAccessibilitySnapshot();
+    RequestInvalidate();
+    if (! lifetime.expired() && guard.IsCurrent())
+        RefreshAccessibilitySnapshot();
 }
 
 void Grid::SetVisualMode(GridVisualMode mode) noexcept

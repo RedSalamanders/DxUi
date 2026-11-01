@@ -1081,7 +1081,8 @@ try
     {
         try
         {
-            beforeItems.emplace(CaptureVisibleItems());
+            beforeItems.emplace(0u);
+            animate = CaptureVisibleItems(beforeItems.value());
         }
         catch (const std::bad_alloc&)
         {
@@ -1144,7 +1145,8 @@ try
     {
         try
         {
-            afterItems.emplace(CaptureVisibleItems());
+            afterItems.emplace(0u);
+            animate = CaptureVisibleItems(afterItems.value());
         }
         catch (const std::bad_alloc&)
         {
@@ -3120,6 +3122,7 @@ void Tree::ReconcileSelectionWithModel()
 
 bool Tree::NotifySelectionSetChanged(const std::vector<uint64_t>& previous)
 {
+    const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
     TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const std::vector<uint64_t> current = GetSelectedItemIds();
     if (! _delegate || SameSelectedItems(previous, current))
@@ -3462,31 +3465,33 @@ float Tree::GetExpanderProgress(uint64_t itemId, bool expanded, uint64_t nowTick
     return ComputeExpanderProgress(itemId, expanded, nowTickMs);
 }
 
-std::vector<TreeItemData> Tree::CaptureVisibleItems() const
+bool Tree::CaptureVisibleItems(std::vector<TreeItemData>& items) const
 {
+#if DXUI_ENABLE_DIAGNOSTICS
     ++_debugExpansionCaptureCount;
+#endif
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
-    std::vector<TreeItemData> items;
+    items.clear();
     if (! model)
     {
-        return items;
+        return true;
     }
 
     const size_t itemCount = model->GetVisibleItemCount();
     if (! guard.IsCurrent())
-        return {};
+        return false;
     items.reserve(itemCount);
     TreeItemData item;
     for (size_t visibleIndex = 0u; visibleIndex < itemCount; ++visibleIndex)
     {
         item = {};
         if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
-            return {};
-        items.push_back(std::move(item));
+            return false;
+        items.push_back(item);
     }
 
-    return items;
+    return true;
 }
 
 void Tree::BeginTreeExpansionAnimation(uint64_t itemId,
@@ -3525,8 +3530,8 @@ try
     animation.toExpanded  = toExpanded;
     animation.active      = true;
     animation.startTickMs = host->GetAnimationTickMs();
-    animation.beforeItems = std::move(beforeItems);
-    animation.afterItems  = std::move(afterItems);
+    animation.beforeItems.swap(beforeItems);
+    animation.afterItems.swap(afterItems);
     animation.beforeIndex.reserve(animation.beforeItems.size());
     animation.afterIndex.reserve(animation.afterItems.size());
     for (size_t index = 0u; index < animation.beforeItems.size(); ++index)
@@ -3539,7 +3544,9 @@ try
     animation.afterParent  = FindIndexedItem(animation.afterIndex, itemId);
     if (animation.beforeParent)
         animation.beforeDescendants = CountDescendants(animation.beforeItems, animation.beforeParent.value());
-    _treeExpansionAnimation = std::move(animation);
+    // Copy construction is fallible in MSVC Debug; its vector move/default
+    // constructors allocate iterator proxies inside noexcept functions.
+    _treeExpansionAnimation.emplace(animation);
     // Every path that slides the rows asks for ticks, a UI Automation Expand included.
     host->RequestAnimation();
 }
