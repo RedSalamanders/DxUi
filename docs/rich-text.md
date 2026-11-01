@@ -100,6 +100,12 @@ to receive a source-backed link intent; the application chooses whether and how
 to open it. The library starts no browser or process. Without a handler, external
 links have no Invoke action. Local heading fragments navigate the current source.
 
+Authored link and image titles use the host's delayed tooltip when hovered in
+Rich view. Editable editors require Ctrl; read-only editors do not. A nested
+image title takes precedence over its enclosing link title. When no authored
+title is eligible, the control's consumer-supplied tooltip remains available.
+Scrolling, source replacement, hiding and detachment retire the old title.
+
 Temporary link and source-ink decoration follows the shared
 [transient raster contract](../Specs/Core/Core_PerformanceAndResources.md#transient-raster-decoration).
 

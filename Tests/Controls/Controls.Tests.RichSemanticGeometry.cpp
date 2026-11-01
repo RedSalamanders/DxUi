@@ -62,6 +62,25 @@ void TestRichSemanticNativeObjectSharedContract()
             window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare shared native object contract"); });
     });
 }
+#if DXUI_ENABLE_DIAGNOSTICS
+void TestRichSemanticNativeTitleTooltips()
+{
+    AttachedHostWindow window;
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    RichSemanticTests::Run([&]
+    {
+        RichSemanticEditorTests::TitleTooltipContract(
+            window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native title tooltip"); },
+            [&](D2D1_POINT_2F point, UINT modifiers)
+            {
+                const auto scale = static_cast<float>(window.Host().GetDpi()) / 96.f;
+                SendMessageW(window.Hwnd(), WM_MOUSEMOVE, modifiers,
+                             MAKELPARAM(static_cast<int>(std::lround(point.x * scale)), static_cast<int>(std::lround(point.y * scale))));
+            },
+            [&](bool down) { SendMessageW(window.Hwnd(), down ? WM_KEYDOWN : WM_KEYUP, VK_CONTROL, 0); });
+    });
+}
+#endif
 void TestRichSemanticNativeMathCaretMetrics()
 {
     using namespace DxUi;
@@ -265,6 +284,9 @@ void TestRichSemanticNativeRenderingAdmissionFallback()
 } // namespace
 void RunRichSemanticGeometryTests()
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+    DXUI_RUN_TEST(TestRichSemanticNativeTitleTooltips);
+#endif
     DXUI_RUN_TEST(TestRichSemanticNativeObjectFailureContainment);
     DXUI_RUN_TEST(TestRichSemanticNativeFallbackSyntaxOwnership);
     DXUI_RUN_TEST(TestRichSemanticNativeObjectSharedContract);

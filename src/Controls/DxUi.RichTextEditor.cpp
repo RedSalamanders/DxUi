@@ -655,6 +655,14 @@ RichTextEditor::~RichTextEditor() noexcept
 }
 void RichTextEditor::SetText(std::wstring text)
 {
+    auto* tooltipHost = GetHost();
+    const auto tooltipLifetime = GetLifetimeToken();
+    const auto tooltipRevision = Revision();
+    const auto tooltipBinding = _state->bindingRevision;
+    if (tooltipHost)
+        tooltipHost->InvalidateRichTitleTooltip(this);
+    if (tooltipLifetime.expired() || GetHost() != tooltipHost || Revision() != tooltipRevision || _state->bindingRevision != tooltipBinding)
+        return;
     _state->document.Reset(std::move(text));
     _state->highlights.clear();
     _state->decorations.clear();
@@ -1248,6 +1256,14 @@ void RichTextEditor::SetViewMode(RichText::ViewMode mode)
     if (mode != RichText::ViewMode::Source && mode != RichText::ViewMode::Rich)
         throw std::invalid_argument("Invalid rich-text view mode");
     if (_state->mode == mode)
+        return;
+    auto* tooltipHost = GetHost();
+    const auto tooltipLifetime = GetLifetimeToken();
+    const auto tooltipRevision = Revision();
+    const auto tooltipBinding = _state->bindingRevision;
+    if (tooltipHost)
+        tooltipHost->InvalidateRichTitleTooltip(this);
+    if (tooltipLifetime.expired() || GetHost() != tooltipHost || Revision() != tooltipRevision || _state->bindingRevision != tooltipBinding)
         return;
     _state->autoFormatRun.reset();
     _state->smartTypingSite.reset();
@@ -2097,6 +2113,14 @@ void RichTextEditor::UpdateSemanticSourceRegion() noexcept
 }
 void RichTextEditor::SetReadOnly(bool readOnly) noexcept
 {
+    auto* tooltipHost = GetHost();
+    const auto tooltipLifetime = GetLifetimeToken();
+    const auto tooltipRevision = Revision();
+    const auto tooltipBinding = _state->bindingRevision;
+    if (_state->readOnly != readOnly && tooltipHost)
+        tooltipHost->InvalidateRichTitleTooltip(this);
+    if (tooltipLifetime.expired() || GetHost() != tooltipHost || Revision() != tooltipRevision || _state->bindingRevision != tooltipBinding)
+        return;
     _state->autoFormatRun.reset();
     _state->smartTypingSite.reset();
     _state->readOnly = readOnly;
@@ -2680,6 +2704,9 @@ bool RichTextEditor::SetScrollOffsetDip(float offsetDip)
     ++_state->fileDropEpoch;
     const auto lifetime = GetLifetimeToken();
     const auto binding  = _state->bindingRevision;
+    host->InvalidateRichTitleTooltip(this);
+    if (lifetime.expired() || GetHost() != host || _state->bindingRevision != binding)
+        return true;
     host->NotifyTextInputLayoutChanged(this);
     if (lifetime.expired() || GetHost() != host || _state->bindingRevision != binding)
         return true;
@@ -2764,6 +2791,9 @@ bool RichTextEditor::SetHorizontalScrollOffsetDip(float offsetDip)
     const auto lifetime = GetLifetimeToken();
     const auto binding  = _state->bindingRevision;
     const auto revision = Revision();
+    host->InvalidateRichTitleTooltip(this);
+    if (lifetime.expired() || GetHost() != host || _state->bindingRevision != binding || Revision() != revision)
+        return true;
     host->NotifyTextInputLayoutChanged(this);
     if (lifetime.expired() || GetHost() != host || _state->bindingRevision != binding || Revision() != revision)
         return true;
@@ -2812,6 +2842,17 @@ void RichTextEditor::PublishSelectionChanged() noexcept
 }
 void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
 {
+    if (sourceChanged)
+    {
+        auto* host = GetHost();
+        const auto lifetime = GetLifetimeToken();
+        const auto revision = Revision();
+        const auto binding = _state->bindingRevision;
+        if (host)
+            host->InvalidateRichTitleTooltip(this);
+        if (lifetime.expired() || GetHost() != host || Revision() != revision || _state->bindingRevision != binding)
+            return;
+    }
     if (sourceChanged)
         _state->sourceInk.Clear();
     if (sourceChanged)
@@ -6081,6 +6122,30 @@ std::optional<RichText::MarkdownRange> RichTextEditor::HoveredLinkDisplayRange(C
             return element.display;
     return std::nullopt;
 }
+std::wstring_view RichTextEditor::HoveredTitle(ControlHost& host, D2D1_POINT_2F point, UINT modifiers) const
+{
+    if (! IsEnabled() || ! IsVisible() || (Editable() && ! ModifiersContainCtrl(modifiers)) || ! std::isfinite(point.x) || ! std::isfinite(point.y) ||
+        ! LayoutIsCurrent(host))
+        return {};
+    const auto* geometry = _state->layout.SemanticGeometry();
+    if (! geometry)
+        return {};
+    const auto viewport = TextViewport();
+    if (point.x < viewport.left || point.x >= viewport.right || point.y < viewport.top || point.y >= viewport.bottom)
+        return {};
+    const auto hit = geometry->HitTest(point.x - viewport.left - HorizontalTranslation(), point.y - viewport.top + _state->scrollDip);
+    if (! hit.inside)
+        return {};
+    const auto display = hit.trailing && hit.position > 0u ? hit.position - 1u : hit.position;
+    const auto elements = geometry->Document().Elements();
+    const RichText::SemanticElement* best{};
+    for (const auto& element : elements)
+        if ((element.role == RichText::SemanticRole::Link || element.role == RichText::SemanticRole::Image) && ! element.title.empty() &&
+            element.display.first <= display && display < element.display.last &&
+            (! best || element.display.last - element.display.first <= best->display.last - best->display.first))
+            best = &element;
+    return best ? std::wstring_view(best->title) : std::wstring_view{};
+}
 HRESULT RichTextEditor::PrepareCodeInk(const std::shared_ptr<const RichText::SemanticDocument>& document)
 {
     auto& state = *_state;
@@ -6453,17 +6518,29 @@ void RichTextEditor::OnBoundsChanged() noexcept
 void RichTextEditor::OnHostDpiChanged(ControlHost&) noexcept
 {
     RetireLayout();
+    if (auto* host = GetHost())
+        host->InvalidateRichTitleTooltip(this);
 }
 void RichTextEditor::OnFlowDirectionChanged() noexcept
 {
     RetireLayout();
+    if (auto* host = GetHost())
+        host->InvalidateRichTitleTooltip(this);
 }
 void RichTextEditor::OnDensityChanged() noexcept
 {
     RetireLayout();
+    if (auto* host = GetHost())
+        host->InvalidateRichTitleTooltip(this);
 }
 void RichTextEditor::OnEnabledChanged(bool) noexcept
 {
+    auto* tooltipHost = GetHost();
+    const auto tooltipLifetime = GetLifetimeToken();
+    if (tooltipHost)
+        tooltipHost->InvalidateRichTitleTooltip(this);
+    if (tooltipLifetime.expired() || GetHost() != tooltipHost)
+        return;
     _state->preparedCommand.reset();
     _state->pendingLeadSurrogate = 0;
     _state->dragging             = false;
@@ -6472,6 +6549,12 @@ void RichTextEditor::OnEnabledChanged(bool) noexcept
 }
 void RichTextEditor::OnHidden() noexcept
 {
+    auto* tooltipHost = GetHost();
+    const auto tooltipLifetime = GetLifetimeToken();
+    if (tooltipHost)
+        tooltipHost->InvalidateRichTitleTooltip(this);
+    if (tooltipLifetime.expired() || GetHost() != tooltipHost)
+        return;
     _state->images.Cancel();
     RetireLayout();
     _state->pendingLeadSurrogate = 0;

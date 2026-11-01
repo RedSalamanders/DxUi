@@ -496,24 +496,6 @@ template <typename... Args> void TraceWindowHostDiagnostics(std::wstring_view ev
     return std::abs(secondPointPx.x - firstPointPx.x) <= halfWidthPx && std::abs(secondPointPx.y - firstPointPx.y) <= halfHeightPx;
 }
 
-[[nodiscard]] Control* FindSupplementalTooltipTarget(Control* root, D2D1_POINT_2F pointDip) noexcept
-{
-    if (! root || ! root->IsVisible() || ! root->IsEnabled() || ! PointInRect(root->GetHitBounds(), pointDip))
-    {
-        return nullptr;
-    }
-
-    for (size_t childIndex = root->GetLogicalChildCount(); childIndex > 0u; --childIndex)
-    {
-        if (Control* const target = FindSupplementalTooltipTarget(root->GetLogicalChild(childIndex - 1u), pointDip))
-        {
-            return target;
-        }
-    }
-
-    return root->GetTooltipText().empty() ? nullptr : root;
-}
-
 [[nodiscard]] std::map<DWORD, SharedWindowHostGraphicsResources>& GetSharedWindowHostGraphicsResourcesByThread() noexcept
 {
     static auto* const resourcesByThread = []() noexcept
@@ -1713,7 +1695,7 @@ bool ControlHost::SetTooltipDelayed(std::wstring text, const D2D1_POINT_2F& orig
     // The host's animation clock: an idle native host reads the dispatcher's current time rather than its own stale
     // tick, and an embedded host its timeline, which its ticks advance.
     const uint64_t nowTickMs = GetAnimationTickMs();
-    const bool changed       = _tooltipLayer.SetTooltipDelayed(std::move(text), originDip, nowTickMs, ResolveTooltipShowDelayMs());
+    const bool changed       = _tooltipLayer.SetTooltipDelayed(std::wstring(text), originDip, nowTickMs, ResolveTooltipShowDelayMs());
     if (changed)
     {
         RequestAnimation();
@@ -3458,6 +3440,8 @@ try
             _supplementalTooltipControl = nullptr;
             _supplementalTooltipLifetime.reset();
             _supplementalTooltipText.clear();
+            _supplementalTooltipIsRichTitle = false;
+            _supplementalTooltipNeedsResolve = false;
             ClearTooltip();
             Invalidate();
             return 0;
@@ -5550,6 +5534,8 @@ void ControlHost::ResetRootInteractionState() noexcept
     _supplementalTooltipControl = nullptr;
     _supplementalTooltipLifetime.reset();
     _supplementalTooltipText.clear();
+    _supplementalTooltipIsRichTitle = false;
+    _supplementalTooltipNeedsResolve = false;
     ClearTooltip();
     ReleaseMouseCapture();
     if (_nativeTextInputSessionRevision == sessionRevision)
@@ -5628,6 +5614,8 @@ HCURSOR ControlHost::ResolveCursorHandle(WindowHostCursorKind cursorKind) const 
 
 void ControlHost::UpdateHover(D2D1_POINT_2F pointDip, UINT modifiers) noexcept
 {
+    _supplementalTooltipModifiers = modifiers;
+    _supplementalTooltipNeedsResolve = false;
     const auto interactionRevision = _interactionRevision;
     PruneStaleInteractionState();
     if (_interactionRevision != interactionRevision)
@@ -5685,42 +5673,116 @@ void ControlHost::UpdateHover(D2D1_POINT_2F pointDip, UINT modifiers) noexcept
     }
 }
 
-void ControlHost::UpdateSupplementalTooltipTarget(D2D1_POINT_2F pointDip) noexcept
+std::wstring_view ControlHost::SupplementalTooltipText(Control* target, D2D1_POINT_2F pointDip, bool* richTitle) noexcept
+{
+    if (richTitle)
+        *richTitle = false;
+    if (! target)
+        return {};
+    if (auto* editor = dynamic_cast<RichTextEditor*>(target))
+    {
+        try
+        {
+            const auto title = editor->HoveredTitle(*this, pointDip, _supplementalTooltipModifiers);
+            if (! title.empty())
+            {
+                if (richTitle)
+                    *richTitle = true;
+                return title;
+            }
+        }
+        catch (const std::bad_alloc&)
+        {
+            // A failed optional hit query falls back to the consumer tooltip.
+        }
+        catch (const std::exception&)
+        {
+            // Unavailable semantic geometry falls back to the consumer tooltip.
+        }
+    }
+    return target->GetTooltipText();
+}
+
+Control* ControlHost::FindSupplementalTooltipTarget(Control* root, D2D1_POINT_2F pointDip) noexcept
+{
+    if (! root || ! root->IsVisible() || ! root->IsEnabled() || ! PointInRect(root->GetHitBounds(), pointDip))
+        return nullptr;
+    for (size_t child = root->GetLogicalChildCount(); child > 0u; --child)
+        if (auto* target = FindSupplementalTooltipTarget(root->GetLogicalChild(child - 1u), pointDip))
+            return target;
+    return SupplementalTooltipText(root, pointDip).empty() ? nullptr : root;
+}
+
+void ControlHost::UpdateSupplementalTooltipTarget(D2D1_POINT_2F pointDip) noexcept try
 {
     Control* const target = FindSupplementalTooltipTarget(_root.get(), pointDip);
     // A copy that cannot be made (out of memory) shows no supplemental tooltip rather than leaving this noexcept path.
-    std::wstring targetText;
-    if (target && ! TryControlCallback([&] { targetText = std::wstring(target->GetTooltipText()); }))
+    std::wstring targetText(0u, L' ');
+    bool richTitle{};
+    if (target && ! TryControlCallback([&] { targetText.assign(SupplementalTooltipText(target, pointDip, &richTitle)); }))
         targetText.clear();
     const bool targetLifetimeExpired = _supplementalTooltipControl && _supplementalTooltipLifetime.expired();
-    const bool targetChanged         = target != _supplementalTooltipControl || targetLifetimeExpired || targetText != _supplementalTooltipText;
+    const bool targetChanged = target != _supplementalTooltipControl || targetLifetimeExpired || targetText != _supplementalTooltipText ||
+                               richTitle != _supplementalTooltipIsRichTitle;
     _supplementalTooltipPointDip     = pointDip;
     if (targetChanged)
     {
+        const auto lifetime = target ? target->GetLifetimeToken() : std::weak_ptr<int>{};
+        const auto interaction = _interactionRevision;
+        const auto tooltipRevision = _tooltipInspectionRevision;
         static_cast<void>(ClearTooltip());
+        if (_tooltipInspectionRevision != tooltipRevision + 1u || _interactionRevision != interaction ||
+            (target && (lifetime.expired() || ! IsControlInTree(_root.get(), target))))
+            return;
         _supplementalTooltipControl  = target;
-        _supplementalTooltipLifetime = target ? target->GetLifetimeToken() : std::weak_ptr<int>{};
-        _supplementalTooltipText     = targetText;
+        _supplementalTooltipLifetime = lifetime;
+        _supplementalTooltipText.swap(targetText);
+        _supplementalTooltipIsRichTitle = richTitle;
     }
 
-    if (target && ! targetText.empty())
+    if (target && ! _supplementalTooltipText.empty())
     {
-        static_cast<void>(SetTooltipDelayed(targetText, pointDip));
+        static_cast<void>(SetTooltipDelayed(std::wstring(_supplementalTooltipText), pointDip));
     }
+}
+catch (const std::bad_alloc&)
+{
+    // Tooltip presentation is optional; preserve its last coherent state.
+}
+catch (const std::exception&)
+{
+    // Failed hit testing or tooltip preparation leaves the previous state usable.
 }
 
 void ControlHost::ValidateSupplementalTooltipTarget() noexcept
 {
+    if (_supplementalTooltipNeedsResolve)
+    {
+        _supplementalTooltipNeedsResolve = false;
+        UpdateSupplementalTooltipTarget(_supplementalTooltipPointDip);
+        return;
+    }
     if (! _supplementalTooltipControl)
     {
         return;
     }
 
     if (_supplementalTooltipLifetime.expired() || FindSupplementalTooltipTarget(_root.get(), _supplementalTooltipPointDip) != _supplementalTooltipControl ||
-        _supplementalTooltipControl->GetTooltipText() != _supplementalTooltipText)
+        SupplementalTooltipText(_supplementalTooltipControl, _supplementalTooltipPointDip) != _supplementalTooltipText)
     {
         UpdateSupplementalTooltipTarget(_supplementalTooltipPointDip);
     }
+}
+
+void ControlHost::InvalidateRichTitleTooltip(const Control* owner) noexcept
+{
+    if (_supplementalTooltipControl != owner || ! _supplementalTooltipIsRichTitle)
+        return;
+    _supplementalTooltipControl = nullptr;
+    _supplementalTooltipLifetime.reset();
+    _supplementalTooltipText.clear();
+    _supplementalTooltipIsRichTitle = false;
+    static_cast<void>(ClearTooltip());
 }
 
 void ControlHost::SetInputModality(InputModality modality) noexcept
@@ -5766,6 +5828,12 @@ void ControlHost::UpdateModifierStateForKey(UINT virtualKey, bool keyDown, bool 
     else
     {
         _modifierState &= ~bit;
+    }
+    if (bit == MK_CONTROL && _hoveredControl)
+    {
+        _supplementalTooltipModifiers = (_supplementalTooltipModifiers & ~MK_CONTROL) | (_modifierState & MK_CONTROL);
+        _supplementalTooltipNeedsResolve = true;
+        RequestAnimation();
     }
 }
 

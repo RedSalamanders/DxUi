@@ -1334,6 +1334,74 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
           "find request callback can retire its editor without a stale continuation");
     prepare();
 }
+#if DXUI_ENABLE_DIAGNOSTICS
+template <typename Prepare, typename Move, typename Key> void TitleTooltipContract(ControlHost& host, Prepare&& prepare, Move&& move, Key&& key)
+{
+    const std::wstring source = L"[link](https://example.test \"Link title\") and [![alt](fixture.png \"Image title\")](https://example.test \"Outer title\")\n" +
+                                std::wstring(80u, L'\n') + L"end";
+    auto owner = std::make_unique<RichTextEditor>(source);
+    auto* editor = owner.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    editor->SetTooltipText(L"General tooltip");
+    host.SetRoot(std::move(owner));
+    prepare();
+    const auto semantic = editor->GetAcknowledgedSemanticDocument(host);
+    Check(semantic != nullptr, "title tooltip fixture has acknowledged semantic geometry");
+    const auto pointFor = [&](SemanticRole role, std::wstring_view title)
+    {
+        const auto elements = semantic->Elements();
+        const auto item = std::ranges::find_if(elements, [&](const auto& element) { return element.role == role && element.title == title; });
+        Check(item != elements.end(), "title tooltip fixture contains its source element");
+        const auto bounds = editor->GetSemanticElementBounds(host, static_cast<size_t>(item - elements.begin()));
+        Check(bounds && bounds->right > bounds->left && bounds->bottom > bounds->top, "title tooltip fixture has visible bounds");
+        return D2D1::Point2F((bounds->left + bounds->right) * .5f, (bounds->top + bounds->bottom) * .5f);
+    };
+    const auto link = pointFor(SemanticRole::Link, L"Link title");
+    const auto image = pointFor(SemanticRole::Image, L"Image title");
+    const auto selection = editor->GetSelection();
+    auto* focus = host.GetFocusControl();
+    move(link, 0u);
+    Check(host.DebugGetPendingTooltipText() == L"General tooltip", "editable hover without Ctrl retains the consumer tooltip");
+    key(true);
+    static_cast<void>(host.DebugAnimationTickForTest(host.GetAnimationTickMs() + 1u));
+    Check(host.DebugGetPendingTooltipText() == L"Link title", "stationary Ctrl press resolves the authored title");
+    key(false);
+    static_cast<void>(host.DebugAnimationTickForTest(host.GetAnimationTickMs() + 1u));
+    Check(host.DebugGetPendingTooltipText() == L"General tooltip", "stationary Ctrl release restores the consumer tooltip");
+    move(link, MK_CONTROL);
+    Check(host.DebugGetPendingTooltipText() == L"Link title", "Ctrl hover selects the authored link title");
+    move(image, MK_CONTROL);
+    Check(host.DebugGetPendingTooltipText() == L"Image title", "nested image title wins over its enclosing link title");
+    Check(editor->GetText() == source && editor->GetSelection() == selection && ! editor->CanUndo() && host.GetFocusControl() == focus,
+          "title hover preserves exact source, selection, history and focus");
+    editor->SetReadOnly(true);
+    prepare();
+    move(image, 0u);
+    Check(host.DebugGetPendingTooltipText() == L"Image title", "read-only title hover needs no Ctrl modifier");
+    Check(editor->SetScrollOffsetDip(100.f), "title tooltip fixture scrolls");
+    Check(host.DebugGetPendingTooltipText().empty() && ! host.HasTooltip(), "scroll retires the old title tooltip immediately");
+    editor->SetScrollOffsetDip(0.f);
+    prepare();
+    move(link, 0u);
+    Check(host.DebugGetPendingTooltipText() == L"Link title", "read-only link title can be shown after scroll returns");
+    editor->SetText(L"replacement");
+    Check(host.DebugGetPendingTooltipText().empty() && ! host.HasTooltip(), "source replacement retires title tooltip immediately");
+    Check(editor->GetTooltipText() == L"General tooltip", "source replacement preserves the consumer tooltip property");
+    editor->SetText(source);
+    prepare();
+    move(link, 0u);
+    Check(host.DebugGetPendingTooltipText() == L"Link title", "title returns after a new source is prepared");
+    editor->SetVisible(false);
+    Check(host.DebugGetPendingTooltipText().empty() && ! host.HasTooltip(), "hiding the editor retires its title tooltip");
+    editor->SetVisible(true);
+    prepare();
+    move(link, 0u);
+    Check(host.DebugGetPendingTooltipText() == L"Link title", "title returns after the editor is shown");
+    host.SetRoot(std::make_unique<Label>(L"replacement"));
+    Check(host.DebugGetPendingTooltipText().empty() && ! host.HasTooltip(), "retiring the editor clears its title tooltip");
+}
+#endif
 template <typename Prepare> void NativeObjectSourceContract(ControlHost& host, Prepare&& prepare)
 {
     for (const std::wstring source : {L"Before $x_i^2+\\frac{1}{2}$ after.\r\n\r\n$$\r\n\\begin{bmatrix}a&b\\\\c&d\\end{bmatrix}\r\n$$\r\n",

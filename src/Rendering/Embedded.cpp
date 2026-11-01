@@ -967,6 +967,12 @@ bool EmbeddedHost::DispatchKeyImpl(UINT key, bool down, UINT modifiers, Embedded
         receipt->_valid                  = true;
     }
 
+    if ((key == VK_CONTROL || key == VK_LCONTROL || key == VK_RCONTROL) && _host._hoveredControl)
+    {
+        _host._supplementalTooltipModifiers = down ? modifiers | MK_CONTROL : modifiers & ~MK_CONTROL;
+        _host._supplementalTooltipNeedsResolve = true;
+        _host.RequestAnimation();
+    }
     if (! KeyboardInputIsAvailable())
         return false;
     try

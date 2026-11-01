@@ -1502,6 +1502,16 @@ __declspec(noinline) static int RunFunctionalTests()
         Hr(view.Attach(graphics), "incremental embedded view");
         RichSemanticTests::Run([&]
         {
+#if DXUI_ENABLE_DIAGNOSTICS
+            RichSemanticEditorTests::TitleTooltipContract(
+                view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded title tooltip preparation"); },
+                [&](D2D1_POINT_2F point, UINT modifiers)
+                {
+                    const auto scale = static_cast<float>(view.Controls().GetDpi()) / 96.f;
+                    static_cast<void>(view.DispatchPointer({DxUi::PointerAction::Move, point.x * scale, point.y * scale, modifiers}));
+                },
+                [&](bool down) { static_cast<void>(view.DispatchKey(VK_CONTROL, down, down ? MK_CONTROL : 0u)); });
+#endif
             RichSemanticEditorTests::SemanticGeometryReuse(view.Controls(),
                                                            [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "incremental preparation"); });
             RichSemanticEditorTests::NativeObjectSourceContract(view.Controls(),
@@ -1736,6 +1746,16 @@ __declspec(noinline) static int RunFunctionalTests()
         Hr(transactionView.Attach(transactionGraphics), "transaction embedded view");
         RichSemanticTests::Run([&]
         {
+#if DXUI_ENABLE_DIAGNOSTICS
+            RichSemanticEditorTests::TitleTooltipContract(
+                transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded title tooltip preparation"); },
+                [&](D2D1_POINT_2F point, UINT modifiers)
+                {
+                    const auto scale = static_cast<float>(transactionView.Controls().GetDpi()) / 96.f;
+                    static_cast<void>(transactionView.DispatchPointer({DxUi::PointerAction::Move, point.x * scale, point.y * scale, modifiers}));
+                },
+                [&](bool down) { static_cast<void>(transactionView.DispatchKey(VK_CONTROL, down, down ? MK_CONTROL : 0u)); });
+#endif
             RichSemanticEditorTests::SemanticGeometryReuse(transactionView.Controls(),
                                                            [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic reuse"); });
             RichSemanticEditorTests::PendingSourceWindowTransport(transactionView.Controls());

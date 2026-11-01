@@ -1213,6 +1213,9 @@ void Control::PropagateHost(ControlHost* host) noexcept
     }
     if (previousHost)
     {
+        previousHost->InvalidateRichTitleTooltip(this);
+        if (lifetime.expired() || _host != previousHost)
+            return;
         ++previousHost->_interactionRevision;
         previousHost->Invalidate();
         if (lifetime.expired() || _host != previousHost)

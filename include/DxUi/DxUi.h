@@ -3589,6 +3589,7 @@ private:
     void PublishHorizontalScrollChanged() noexcept;
     HRESULT PrepareCodeInk(const std::shared_ptr<const RichText::SemanticDocument>& document);
     [[nodiscard]] std::optional<RichText::MarkdownRange> HoveredLinkDisplayRange(ControlHost& host, D2D1_POINT_2F point) const;
+    [[nodiscard]] std::wstring_view HoveredTitle(ControlHost& host, D2D1_POINT_2F point, UINT modifiers) const;
     [[nodiscard]] std::optional<RichText::MarkdownRange> ActiveParagraphDisplayRange() const;
     [[nodiscard]] bool Editable() const noexcept;
 };
@@ -6234,6 +6235,7 @@ public:
 
 private:
     friend class EmbeddedHost;
+    friend class RichTextEditor;
     bool CommitFileDropCore(D2D1_POINT_2F point, IDataObject& dataObject, bool (*validate)(void*) noexcept, void* context) noexcept;
     friend struct ControlModelQueryAccess;
     friend class PageHost;
@@ -6396,6 +6398,9 @@ private:
     void ResetRootInteractionState() noexcept;
     void UpdateSupplementalTooltipTarget(D2D1_POINT_2F pointDip) noexcept;
     void ValidateSupplementalTooltipTarget() noexcept;
+    void InvalidateRichTitleTooltip(const Control* owner) noexcept;
+    [[nodiscard]] Control* FindSupplementalTooltipTarget(Control* root, D2D1_POINT_2F pointDip) noexcept;
+    [[nodiscard]] std::wstring_view SupplementalTooltipText(Control* target, D2D1_POINT_2F pointDip, bool* richTitle = nullptr) noexcept;
     [[nodiscard]] bool HandleTabNavigation(bool reverse) noexcept;
     [[nodiscard]] bool RouteFocusedCharInput(wchar_t ch, UINT modifiers, const wchar_t* perfDetail) noexcept;
     void RecordNativeTextInputKeyToStateMetric(
@@ -6596,6 +6601,8 @@ private:
     std::weak_ptr<int> _supplementalTooltipLifetime;
     std::wstring _supplementalTooltipText      = std::wstring(0u, L' ');
     D2D1_POINT_2F _supplementalTooltipPointDip = D2D1::Point2F();
+    UINT _supplementalTooltipModifiers = 0u;
+    bool _supplementalTooltipIsRichTitle = false, _supplementalTooltipNeedsResolve = false;
     Button* _defaultButton                     = nullptr;
     Button* _cancelButton                      = nullptr;
     PointerDoubleClickCandidate _pendingPointerDoubleClick;
