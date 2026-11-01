@@ -1476,6 +1476,8 @@ retain source with a capacity diagnostic.
 Flowchart node and pipe-edge labels decode Mermaid decimal and named `#...;`
 references through the pinned Markdown reference table and accept `<br>`, `<br/>`
 and `<br />` line breaks. Other HTML and unsupported references retain source.
+Plain hashes, comparison characters and ordinary `fa:` substrings remain text;
+actual Font Awesome icon markers still retain the original diagram as source.
 This is not
 Mermaid coordinate compatibility. Composite states, class namespaces/generics,
 class compartments, relationship multiplicities, other stereotypes, styling,

@@ -689,6 +689,25 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
     check(entityCapacity->outcome == FlowchartOutcome::Capacity && entityCapacity->diagnostic.issue == FlowchartIssue::LabelCapacity &&
               entityCapacity->source == entityOverflow && entityCapacity->nodes.empty(),
           "supplementary decoded entities count both UTF-16 units before label admission");
+    for (const auto& [source, label] : {std::pair{L"flowchart LR\nA[\"C# app\"]\n", L"C# app"},
+                                        std::pair{L"flowchart LR\nA[\"Issue #12\"]\n", L"Issue #12"},
+                                        std::pair{L"flowchart LR\nA[\"x > 5\"]\n", L"x > 5"},
+                                        std::pair{L"flowchart LR\nA[\"x < 5\"]\n", L"x < 5"},
+                                        std::pair{L"flowchart LR\nA[\"Progress so far: 3/5\"]\n", L"Progress so far: 3/5"},
+                                        std::pair{L"flowchart LR\nA[\"Sofa: 3 seats\"]\n", L"Sofa: 3 seats"}})
+    {
+        parser.Begin(source, 39u);
+        const auto result = Complete(parser);
+        check(result->outcome == FlowchartOutcome::Prepared && result->source == source && result->nodes.size() == 1u && result->nodes[0u].label == label,
+              "ordinary hash, comparison and icon-like substrings remain plain text");
+    }
+    for (const auto source : {L"flowchart LR\nA[fa:fa-home]\n", L"flowchart LR\nA[\"<b>bold</b>\"]\n", L"flowchart LR\nA[#bogus;]\n"})
+    {
+        parser.Begin(source, 40u);
+        const auto result = Complete(parser);
+        check(result->outcome == FlowchartOutcome::Unsupported && result->source == source && result->nodes.empty(),
+              "real icon, HTML and unknown entity syntax retains exact source");
+    }
     std::wstring oversizedInline = L"flowchart LR\nA -- ";
     oversizedInline.append(NativeFlowchartParser::MaximumLabelUnits + 1u, L'x');
     oversizedInline += L" --> B\n";

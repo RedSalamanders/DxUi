@@ -79,10 +79,16 @@ struct NativeFlowchartParser::Preparation
         const auto entityEnd     = c == L'&' ? remaining.find(L';') : std::wstring_view::npos;
         const bool encodedEntity = c == L'&' && entityEnd != std::wstring_view::npos &&
                                    remaining.substr(1u, entityEnd - 1u).find_first_of(L" \t\r\n|[]{}()") == std::wstring_view::npos;
-        if (c == L'<' || c == L'>' || (c == L'&' && model->family != NativeDiagramFamily::Flowchart) || c == L'`' || c == L'#' || (classMember && c == L'~') ||
-            remaining.starts_with(L"$$") || remaining.starts_with(L"fa:") || remaining.starts_with(L"fab:") || remaining.starts_with(L"fas:") ||
-            remaining.starts_with(L"far:") || remaining.starts_with(L"fal:") || remaining.starts_with(L"fad:") || remaining.starts_with(L"fat:") ||
-            remaining.starts_with(L"fass:") || encodedEntity)
+        const bool html =
+            c == L'<' && (model->family != NativeDiagramFamily::Flowchart ||
+                          (remaining.size() > 1u && (Letter(remaining[1u]) || remaining[1u] == L'/' || remaining[1u] == L'!' || remaining[1u] == L'?') &&
+                           remaining.find(L'>') != std::wstring_view::npos));
+        const bool icon = remaining.starts_with(L"fa:fa-") || remaining.starts_with(L"fab:fa-") || remaining.starts_with(L"fas:fa-") ||
+                          remaining.starts_with(L"far:fa-") || remaining.starts_with(L"fal:fa-") || remaining.starts_with(L"fad:fa-") ||
+                          remaining.starts_with(L"fat:fa-") || remaining.starts_with(L"fass:fa-");
+        if (html || (c == L'>' && model->family != NativeDiagramFamily::Flowchart) || (c == L'&' && model->family != NativeDiagramFamily::Flowchart) ||
+            c == L'`' || (c == L'#' && model->family != NativeDiagramFamily::Flowchart) || (classMember && c == L'~') || remaining.starts_with(L"$$") || icon ||
+            encodedEntity)
             return Error(FlowchartIssue::UnsupportedLabelMarkup, at, at + 1u, FlowchartOutcome::Unsupported);
         if (quoted && c == L'\\')
         {
@@ -198,10 +204,16 @@ struct NativeFlowchartParser::Preparation
             {
                 const auto startReference = at;
                 auto finish               = at + 1u;
-                while (finish < end && finish - at < 33u && Text()[finish] != L';')
+                while (finish < end && finish - at < 33u && (Letter(Text()[finish]) || (Text()[finish] >= L'0' && Text()[finish] <= L'9')))
                     ++finish;
-                if (finish == end || Text()[finish] != L';')
-                    return Error(FlowchartIssue::UnsupportedLabelMarkup, at, std::min(end, finish + 1u), FlowchartOutcome::Unsupported);
+                if (finish == at + 1u || finish == end || Text()[finish] != L';')
+                {
+                    if (value.size() == MaximumLabelUnits)
+                        return Error(FlowchartIssue::LabelCapacity, at, at + 1u, FlowchartOutcome::Capacity);
+                    value.push_back(L'#');
+                    ++at;
+                    continue;
+                }
                 std::array<wchar_t, 35u> spelling{};
                 spelling[0u]        = L'&';
                 const bool numeric  = at + 1u < finish && Text()[at + 1u] >= L'0' && Text()[at + 1u] <= L'9';

@@ -1701,6 +1701,9 @@ text. In flowchart node and pipe-edge labels, Mermaid `#name;` and decimal
 controls other than tab/newline, and arbitrary HTML retain exact source. Literal
 ampersands are label text; Markdown labels, icon syntax and inline math labels
 remain unsupported; they MUST NOT silently acquire a different label meaning.
+Hash characters without a well-formed `#name;`/`#number;` reference, plain
+comparison characters and ordinary text containing `fa:` are literal; actual
+`fa:fa-` / variant-prefix icons and HTML-like tags remain unsupported.
 Visible solid, dotted and thick links admit up to 16 minimum ranks using Mermaid's
 extra dash, dot or equals syntax, including the right side of an inline label.
 The DAG ranking honors each forward constraint; a link above the bound or an
