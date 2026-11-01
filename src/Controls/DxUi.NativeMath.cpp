@@ -381,12 +381,23 @@ class Parser
                 name.push_back(L'.');
         }
     }
-    MathNode Matrix(std::wstring environment, unsigned depth)
+    static bool IsArrayEnvironment(std::wstring_view name) noexcept
     {
-#if DXUI_ENABLE_DIAGNOSTICS
-        ObserveStack();
-#endif
-        constexpr std::array names{L"matrix",
+        return name == L"array" || name == L"darray";
+    }
+    static bool IsAlignatEnvironment(std::wstring_view name) noexcept
+    {
+        return name == L"alignat" || name == L"alignat*" || name == L"alignedat";
+    }
+    struct MatrixHeader
+    {
+        std::wstring columnSpec = std::wstring(0u, L' ');
+        unsigned declaredColumns{};
+        wchar_t matrixAlignment{};
+    };
+    void InitializeMatrix(std::wstring_view environment, MatrixHeader& header)
+    {
+        static constexpr std::array names{L"matrix",
                                    L"pmatrix",
                                    L"bmatrix",
                                    L"Bmatrix",
@@ -406,10 +417,10 @@ class Parser
                                    L"array", L"darray", L"subarray", L"alignat", L"alignat*", L"alignedat", L"matrix*", L"pmatrix*", L"bmatrix*", L"Bmatrix*", L"vmatrix*", L"Vmatrix*"};
         if (std::ranges::find(names, environment) == names.end())
             Reject(MathIssue::UnsupportedEnvironment);
-        const wchar_t matrixAlignment = MatrixAlignment(environment);
-        std::wstring columnSpec(0u, L' ');
-        unsigned declaredColumns{};
-        if (environment == L"array" || environment == L"darray")
+        header.matrixAlignment = MatrixAlignment(environment);
+        auto& columnSpec = header.columnSpec;
+        auto& declaredColumns = header.declaredColumns;
+        if (IsArrayEnvironment(environment))
         {
             columnSpec.assign(ArraySpecification());
             const auto separator = columnSpec.find(L':');
@@ -423,7 +434,7 @@ class Parser
             columnSpec = alignment;
             declaredColumns = 1u;
         }
-        else if (environment == L"alignat" || environment == L"alignat*" || environment == L"alignedat")
+        else if (IsAlignatEnvironment(environment))
         {
             const auto argument = GroupText();
             unsigned pairs{};
@@ -439,6 +450,26 @@ class Parser
                 Reject(MathIssue::Capacity);
             declaredColumns = 2u * pairs;
         }
+    }
+    bool ConsumeEnvironmentEnd(std::wstring_view environment)
+    {
+        if (source.substr(at, 5u) != L"\\end{")
+            return false;
+        at += 4u;
+        if (GroupText() != environment)
+            Reject(MathIssue::MismatchedEnvironment);
+        return true;
+    }
+    MathNode Matrix(std::wstring environment, unsigned depth)
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
+        MatrixHeader header;
+        InitializeMatrix(environment, header);
+        const auto matrixAlignment = header.matrixAlignment;
+        auto& columnSpec = header.columnSpec;
+        const auto declaredColumns = header.declaredColumns;
         std::vector<MathNode> cells(0u);
         if (matrixRowWidths.empty())
             matrixRowWidths.resize((MathMaximumGroupDepth + 1u) * (MathMaximumRows + 1u));
@@ -478,7 +509,7 @@ class Parser
                 environment = L"alignat";
             else if (environment == L"subarray")
                 environment = L"subarray:" + columnSpec;
-            else if (environment == L"array" || environment == L"darray")
+            else if (IsArrayEnvironment(environment))
             {
                 environment = environment + L":" + columnSpec;
                 bool horizontal{};
@@ -516,27 +547,18 @@ class Parser
         while (at < source.size())
         {
             Space();
-            if ((environment == L"array" || environment == L"darray") && ! rowColumns && ConsumeArrayRule(rowWidths[rows]))
-                continue;            if (! rowColumns && ! cells.empty() && source.substr(at, 5) == L"\\end{")
-            {
-                at += 4;
-                if (GroupText() != environment)
-                    Reject(MathIssue::MismatchedEnvironment);
+            if ((IsArrayEnvironment(environment)) && ! rowColumns && ConsumeArrayRule(rowWidths[rows]))
+                continue;
+            if (! rowColumns && ! cells.empty() && ConsumeEnvironmentEnd(environment))
                 return finish();
-            }
             if (! rowColumns && ++rows > MathMaximumRows)
                 Reject(MathIssue::Capacity);
             if (rowColumns == MathMaximumColumns || cells.size() == MathMaximumMatrixCells)
                 Reject(MathIssue::Capacity);
             cells.push_back(Row(depth + 1, false, true));
             ++rowColumns;
-            if (source.substr(at, 5) == L"\\end{")
-            {
-                at += 4;
-                if (GroupText() != environment)
-                    Reject(MathIssue::MismatchedEnvironment);
+            if (ConsumeEnvironmentEnd(environment))
                 return finish();
-            }
             if (at < source.size() && source[at] == L'&')
             {
                 ++at;
@@ -750,6 +772,65 @@ class Parser
         }
         return result;
     }
+    MathNode RootCommand(unsigned depth)
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
+            Space();
+            MathNode index;
+            if (at < source.size() && source[at] == L'[')
+            {
+                ++at;
+                index = Row(depth + 1u, false, false, false, true);
+            }
+            return Make(MathKind::Root, L"", {Atom(depth + 1), std::move(index)});
+
+    }
+    MathNode FractionCommand(std::wstring_view name, unsigned depth)
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
+        if (name == L"cfrac")
+        {
+            Space();
+            if (at < source.size() && source[at] == L'[')
+                Reject(MathIssue::UnsupportedCommand);
+        }
+        return Make(MathKind::Fraction, std::wstring(name), {Atom(depth + 1u), Atom(depth + 1u)});
+    }
+    MathNode BinomialCommand(std::wstring_view name, unsigned depth)
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
+            auto binomial = Make(MathKind::Matrix, L"pmatrix", {Atom(depth + 1), Atom(depth + 1)}, 1u);
+            if (name == L"binom")
+                return binomial;
+            return Make(MathKind::Style, name == L"dbinom" ? L"displaystyle" : L"textstyle", {std::move(binomial)});
+
+    }
+    MathNode StackCommand(std::wstring_view name, unsigned depth)
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
+            auto annotation = Atom(depth + 1);
+            auto base       = Atom(depth + 1);
+            if (base.kind == MathKind::Row && base.children.size() == 1u)
+                base.atomClass = base.children[0u].atomClass;
+            if (name == L"stackrel")
+                base.atomClass = MathAtomClass::Relation;
+            base.limits = MathLimits::AboveBelow;
+            MathNode sub, super;
+            if (name == L"underset")
+                sub = std::move(annotation);
+            else
+                super = std::move(annotation);
+            return Make(MathKind::Scripts, L"", {std::move(base), std::move(sub), std::move(super)});
+
+    }
     MathNode StructuredCommand(std::wstring_view name, unsigned depth)
     {
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -784,48 +865,6 @@ class Parser
                 }
             Reject(MathIssue::UnsupportedCommand);
         }
-        if (name == L"cfrac")
-        {
-            Space();
-            if (at < source.size() && source[at] == L'[')
-                Reject(MathIssue::UnsupportedCommand);
-        }
-        if (name == L"frac" || name == L"dfrac" || name == L"tfrac" || name == L"cfrac")
-            return Make(MathKind::Fraction, std::wstring(name), {Atom(depth + 1), Atom(depth + 1)});
-        if (name == L"binom" || name == L"dbinom" || name == L"tbinom")
-        {
-            auto binomial = Make(MathKind::Matrix, L"pmatrix", {Atom(depth + 1), Atom(depth + 1)}, 1u);
-            if (name == L"binom")
-                return binomial;
-            return Make(MathKind::Style, name == L"dbinom" ? L"displaystyle" : L"textstyle", {std::move(binomial)});
-        }
-        if (name == L"overset" || name == L"underset" || name == L"stackrel")
-        {
-            auto annotation = Atom(depth + 1);
-            auto base       = Atom(depth + 1);
-            if (base.kind == MathKind::Row && base.children.size() == 1u)
-                base.atomClass = base.children[0u].atomClass;
-            if (name == L"stackrel")
-                base.atomClass = MathAtomClass::Relation;
-            base.limits = MathLimits::AboveBelow;
-            MathNode sub, super;
-            if (name == L"underset")
-                sub = std::move(annotation);
-            else
-                super = std::move(annotation);
-            return Make(MathKind::Scripts, L"", {std::move(base), std::move(sub), std::move(super)});
-        }
-        if (name == L"sqrt")
-        {
-            Space();
-            MathNode index;
-            if (at < source.size() && source[at] == L'[')
-            {
-                ++at;
-                index = Row(depth + 1u, false, false, false, true);
-            }
-            return Make(MathKind::Root, L"", {Atom(depth + 1), std::move(index)});
-        }
         if (name == L"begin")
             return Matrix(GroupText(), depth);
         Reject(MathIssue::UnsupportedCommand);
@@ -847,7 +886,7 @@ class Parser
             return false;
         return std::ranges::all_of(node.children, [](const MathNode& child) { return ScriptAlphabet(child); });
     }
-    MathNode MathStyle(std::wstring_view name, unsigned depth)
+    MathNode FinishMathStyle(std::wstring_view name, MathNode&& body)
     {
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
@@ -855,7 +894,6 @@ class Parser
         if (name == L"bold") name = L"mathbf";
         else if (name == L"frak") name = L"mathfrak";
         else if (name == L"Bbb") name = L"mathbb";
-            auto body = Atom(depth + 1);
             if (name == L"mathscr" && ! ScriptAlphabet(body))
                 Reject(MathIssue::UnsupportedCommand);
             if (name == L"mathbb" || name == L"mathcal" || name == L"mathfrak" || name == L"mathsf" || name == L"mathtt")
@@ -882,6 +920,14 @@ class Parser
                 result.atomClass = MathAtomClass::Inner;
             return result;
 
+    }
+    MathNode MathStyle(std::wstring_view name, unsigned depth)
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
+        auto body = Atom(depth + 1u);
+        return FinishMathStyle(name, std::move(body));
     }
     MathNode StyledCommand(std::wstring_view name, unsigned depth)
     {
@@ -1268,6 +1314,39 @@ class Parser
                            name == L"textup" ? std::wstring_view(L"mathrm") : name;
         return Make(MathKind::Style, std::wstring(style), {std::move(body)});
     }
+    static bool IsExtensibleArrowCommand(std::wstring_view value) noexcept
+    {
+        static constexpr std::wstring_view names[] = {L"xrightarrow", L"xleftarrow", L"xleftrightarrow", L"xRightarrow", L"xLeftarrow", L"xLeftrightarrow", L"xmapsto", L"xlongequal", L"xhookleftarrow", L"xhookrightarrow", L"xleftharpoonup", L"xleftharpoondown", L"xrightharpoonup", L"xrightharpoondown", L"xleftrightharpoons", L"xrightleftharpoons", L"xtwoheadleftarrow", L"xtwoheadrightarrow", L"xtofrom"};
+        return std::ranges::find(names, value) != std::end(names);
+    }
+    static bool IsTextStyleCommand(std::wstring_view value) noexcept
+    {
+        static constexpr std::wstring_view names[] = {L"text", L"textbf", L"textit", L"textup", L"textmd", L"textnormal", L"textrm", L"textsf", L"texttt", L"emph"};
+        return std::ranges::find(names, value) != std::end(names);
+    }
+    static bool IsColorCommand(std::wstring_view name) noexcept
+    {
+        return name == L"textcolor" || name == L"colorbox" || name == L"fcolorbox";
+    }
+    static bool IsFractionCommand(std::wstring_view name) noexcept
+    {
+        static constexpr std::wstring_view names[]{L"frac", L"dfrac", L"tfrac", L"cfrac"};
+        return std::ranges::find(names, name) != std::end(names);
+    }
+    MathNode BeginCommand(unsigned depth)
+    {
+        return Matrix(GroupText(), depth);
+    }
+    static bool IsBinomialCommand(std::wstring_view name) noexcept
+    {
+        static constexpr std::wstring_view names[]{L"binom", L"dbinom", L"tbinom"};
+        return std::ranges::find(names, name) != std::end(names);
+    }
+    static bool IsStackCommand(std::wstring_view name) noexcept
+    {
+        static constexpr std::wstring_view names[]{L"overset", L"underset", L"stackrel"};
+        return std::ranges::find(names, name) != std::end(names);
+    }
     MathNode Command(unsigned depth)
     {
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -1276,28 +1355,31 @@ class Parser
         const auto first = at;
         while (at < source.size() && Letter(source[at]))
             ++at;
-        const auto name = source.substr(first, at - first);
-        if (name == L"textcolor" || name == L"colorbox" || name == L"fcolorbox")
+        const auto name                                 = source.substr(first, at - first);
+        if (IsColorCommand(name))
             return ColorCommand(name, depth);
-        if (name == L"xrightarrow" || name == L"xleftarrow" || name == L"xleftrightarrow" || name == L"xRightarrow" || name == L"xLeftarrow" ||
-            name == L"xLeftrightarrow" || name == L"xmapsto" || name == L"xlongequal" ||
-            name == L"xhookleftarrow" || name == L"xhookrightarrow" || name == L"xleftharpoonup" || name == L"xleftharpoondown" ||
-            name == L"xrightharpoonup" || name == L"xrightharpoondown" || name == L"xleftrightharpoons" || name == L"xrightleftharpoons" ||
-            name == L"xtwoheadleftarrow" || name == L"xtwoheadrightarrow" || name == L"xtofrom")
+        if (IsExtensibleArrowCommand(name))
             return ExtensibleArrowCommand(name, depth);
-        if (name == L"text" || name == L"textbf" || name == L"textit" || name == L"textup" || name == L"textmd" ||
-            name == L"textnormal" || name == L"textrm" || name == L"textsf" || name == L"texttt" || name == L"emph")
+        if (IsTextStyleCommand(name))
             return TextStyleCommand(name, depth);
         if (MathStyleCommand(name))
             return MathStyle(name, depth);
         if (UnaryAccent(name))
             return UnaryAccentCommand(name, depth);
         if (name == L"begin")
-            return Matrix(GroupText(), depth);
+            return BeginCommand(depth);
+        if (name == L"sqrt")
+            return RootCommand(depth);
         if (name == L"substack")
             return Substack(depth);
         if (name == L"genfrac")
             return GeneralFraction(depth);
+        if (IsBinomialCommand(name))
+            return BinomialCommand(name, depth);
+        if (IsStackCommand(name))
+            return StackCommand(name, depth);
+        if (IsFractionCommand(name))
+            return FractionCommand(name, depth);
         static constexpr std::wstring_view structured[] = {
             L"not", L"frac", L"dfrac", L"tfrac", L"cfrac", L"binom", L"dbinom", L"tbinom", L"overset", L"underset", L"stackrel", L"sqrt"};
         if (std::ranges::find(structured, name) != std::end(structured))
@@ -1325,7 +1407,17 @@ class Parser
         if (c == L'{')
             return Row(depth + 1, true, false);
         if (c == L'\\')
+        {
+            // Environments are commonly nested at the admitted depth limit.
+            // Dispatch their exact command directly, avoiding the much larger
+            // general command frame on every container level.
+            if (source.substr(at, 5u) == L"begin" && (at + 5u == source.size() || ! Letter(source[at + 5u])))
+            {
+                at += 5u;
+                return BeginCommand(depth);
+            }
             return Command(depth);
+        }
         if (c == L'&')
             Reject(MathIssue::CellSeparatorOutsideEnvironment);
         if (std::wstring_view(L"}^_#$").find(c) != source.npos)
@@ -1426,15 +1518,8 @@ class Parser
             Reject(MathIssue::UnsupportedCommand);
         return std::wstring(dimension);
     }
-    MathNode InfixRow(
-        std::vector<MathNode>& children, std::wstring_view declaration, unsigned depth, bool grouped, bool cell, bool right, bool indexClose, bool stopBrace)
+    MathNode FinishInfix(std::wstring_view declaration, const std::wstring& dimension, MathNode&& numerator, MathNode&& denominator)
     {
-#if DXUI_ENABLE_DIAGNOSTICS
-        ObserveStack();
-#endif
-        const auto dimension = declaration == L"above" ? RuleDimensionSource() : std::wstring(0u, L' ');
-        auto numerator       = Make(MathKind::Row, L"", std::move(children));
-        auto denominator     = Row(depth, grouped, cell, right, indexClose, stopBrace, false);
         if (declaration == L"over" || declaration == L"atop" || declaration == L"above")
         {
             const auto kind = declaration == L"over" ? std::wstring(L"frac") : declaration == L"atop" ? std::wstring(L"atop") : L"rule:" + dimension;
@@ -1442,6 +1527,21 @@ class Parser
         }
         const auto environment = declaration == L"choose" ? L"pmatrix" : declaration == L"brace" ? L"Bmatrix" : L"bmatrix";
         return Make(MathKind::Matrix, environment, {std::move(numerator), std::move(denominator)}, 1u);
+    }
+    MathNode FinishRow(std::vector<MathNode>& children)
+    {
+        return Make(MathKind::Row, L"", std::move(children));
+    }
+    MathNode InfixRow(std::vector<MathNode>& children, std::wstring_view declaration, unsigned depth,
+                      bool grouped, bool cell, bool right, bool indexClose, bool stopBrace)
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
+        const auto dimension = declaration == L"above" ? RuleDimensionSource() : std::wstring(0u, L' ');
+        auto numerator = FinishRow(children);
+        auto denominator = Row(depth, grouped, cell, right, indexClose, stopBrace, false);
+        return FinishInfix(declaration, dimension, std::move(numerator), std::move(denominator));
     }
     void ParseTag(unsigned depth)
     {
@@ -1538,6 +1638,34 @@ class Parser
         else
             children.push_back(std::move(atom));
     }
+    static bool IsInfixDeclaration(std::wstring_view value) noexcept
+    {
+        static constexpr std::wstring_view names[] = {L"over", L"atop", L"above", L"choose", L"brace", L"brack"};
+        return std::ranges::find(names, value) != std::end(names);
+    }
+    static bool IsFontDeclaration(std::wstring_view value) noexcept
+    {
+        static constexpr std::wstring_view names[] = {L"bf", L"it", L"rm", L"sf", L"tt", L"cal"};
+        return std::ranges::find(names, value) != std::end(names);
+    }
+    static bool IsSizeDeclaration(std::wstring_view value) noexcept
+    {
+        static constexpr std::wstring_view names[] = {L"displaystyle", L"textstyle", L"scriptstyle", L"scriptscriptstyle", L"tiny", L"sixptsize",
+                                                       L"scriptsize", L"footnotesize", L"small", L"normalsize", L"large", L"Large", L"LARGE", L"huge", L"Huge"};
+        return std::ranges::find(names, value) != std::end(names);
+    }
+    MathNode ScopedRow(std::vector<MathNode>& children, std::wstring_view declaration, unsigned depth,
+                       bool grouped, bool cell, bool right, bool indexClose, bool stopBrace, bool infixAllowed)
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
+        if (declaration == L"color")
+            return ColorRow(children, depth, grouped, cell, right, indexClose, stopBrace, infixAllowed);
+        if (IsFontDeclaration(declaration))
+            return FontSwitchRow(children, declaration, depth, grouped, cell, right, indexClose, stopBrace, infixAllowed);
+        return StyleRow(children, declaration, depth, grouped, cell, right, indexClose, stopBrace, infixAllowed);
+    }
     MathNode Row(unsigned depth, bool grouped, bool cell, bool right = false, bool indexClose = false, bool stopBrace = false, bool infixAllowed = true)
     {
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -1552,7 +1680,7 @@ class Parser
             if (indexClose && source[at] == L']')
             {
                 ++at;
-                return Make(MathKind::Row, L"", std::move(children));
+                return FinishRow(children);
             }
             if (right && source.substr(at, 6) == L"\\right" && (at + 6 == source.size() || ! Letter(source[at + 6])))
                 break;
@@ -1565,7 +1693,7 @@ class Parser
                 if (! grouped)
                     Reject();
                 ++at;
-                return Make(MathKind::Row, L"", std::move(children));
+                return FinishRow(children);
             }
             if (source[at] == L'\\')
             {
@@ -1581,7 +1709,7 @@ class Parser
                     at = end;
                     continue;
                 }
-                if (declaration == L"over" || declaration == L"atop" || declaration == L"above" || declaration == L"choose" || declaration == L"brace" || declaration == L"brack")
+                if (IsInfixDeclaration(declaration))
                 {
                     if (! infixAllowed)
                         Reject(MathIssue::UnsupportedCommand);
@@ -1594,31 +1722,17 @@ class Parser
                     ParseTag(depth);
                     continue;
                 }
-                if (declaration == L"color")
+                if (declaration == L"color" || IsFontDeclaration(declaration) || IsSizeDeclaration(declaration))
                 {
                     at = end;
-                    return ColorRow(children, depth, grouped, cell, right, indexClose, stopBrace, infixAllowed);
-                }
-                if (declaration == L"bf" || declaration == L"it" || declaration == L"rm" || declaration == L"sf" ||
-                    declaration == L"tt" || declaration == L"cal")
-                {
-                    at = end;
-                    return FontSwitchRow(children, declaration, depth, grouped, cell, right, indexClose, stopBrace, infixAllowed);
-                }
-                if (declaration == L"displaystyle" || declaration == L"textstyle" || declaration == L"scriptstyle" || declaration == L"scriptscriptstyle" ||
-                    declaration == L"tiny" || declaration == L"sixptsize" || declaration == L"scriptsize" || declaration == L"footnotesize" ||
-                    declaration == L"small" || declaration == L"normalsize" || declaration == L"large" || declaration == L"Large" || declaration == L"LARGE" ||
-                    declaration == L"huge" || declaration == L"Huge")
-                {
-                    at = end;
-                    return StyleRow(children, declaration, depth, grouped, cell, right, indexClose, stopBrace, infixAllowed);
+                    return ScopedRow(children, declaration, depth, grouped, cell, right, indexClose, stopBrace, infixAllowed);
                 }
             }
             AppendRowAtom(children, depth);
         }
         if (grouped || indexClose)
             Reject(indexClose ? MathIssue::MissingRootIndexClose : MathIssue::MissingGroupClose);
-        return Make(MathKind::Row, L"", std::move(children));
+        return FinishRow(children);
     }
 
 public:

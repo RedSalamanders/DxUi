@@ -1197,6 +1197,29 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     for (unsigned i = 0u; i < MathMaximumGroupDepth; ++i)
         nestedArrays += L"\\end{array}";
     check(static_cast<bool>(ParseMath(nestedArrays)), "64 nested arrays fit the ordinary thread stack");
+#if DXUI_ENABLE_DIAGNOSTICS
+    {
+        const auto nestedArrayExpression = std::make_shared<const MathExpression>(ParseMath(nestedArrays));
+        Detail::PreparedMath nestedArrayGeometry(factory, nestedArrayExpression, 12.f);
+        while (! nestedArrayGeometry.Advance()) {}
+        check(nestedArrayGeometry.GlyphLayouts().size() == 1u, "64 nested arrays also prepare geometry on the ordinary stack");
+    }
+#endif
+    {
+        std::wstring nestedFractions(0u, L' ');
+        for (unsigned i = 0u; i < MathMaximumGroupDepth; ++i)
+            nestedFractions += L"\\frac";
+        nestedFractions += L" x";
+        nestedFractions.append(MathMaximumGroupDepth, L'y');
+        check(static_cast<bool>(ParseMath(nestedFractions)), "64 nested fractions fit the ordinary parser stack");
+#if DXUI_ENABLE_DIAGNOSTICS
+        const auto nestedFractionExpression = std::make_shared<const MathExpression>(ParseMath(nestedFractions));
+        Detail::PreparedMath nestedFractionGeometry(factory, nestedFractionExpression, 12.f);
+        while (! nestedFractionGeometry.Advance()) {}
+        check(nestedFractionGeometry.GlyphLayouts().size() == MathMaximumGroupDepth + 1u,
+              "64 nested fractions also prepare geometry on the ordinary stack");
+#endif
+    }
     for (const auto environment : {L"darray", L"subarray"})
     {
         std::wstring deep(0u, L' ');
@@ -1206,6 +1229,22 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         for (unsigned i = 0u; i < MathMaximumGroupDepth; ++i)
             deep += L"\\end{" + std::wstring(environment) + L"}";
         check(static_cast<bool>(ParseMath(deep)), "64 nested styled arrays fit the ordinary thread stack");
+    }
+    for (const auto command : {L"\\binom", L"\\overset"})
+    {
+        std::wstring nested(0u, L' ');
+        for (unsigned i = 0u; i < MathMaximumGroupDepth; ++i)
+            nested += command;
+        nested += L" x";
+        nested.append(MathMaximumGroupDepth, L'y');
+        check(static_cast<bool>(ParseMath(nested)), "64 nested structured binary commands fit the ordinary parser stack");
+#if DXUI_ENABLE_DIAGNOSTICS
+        const auto nestedExpression = std::make_shared<const MathExpression>(ParseMath(nested));
+        Detail::PreparedMath nestedGeometry(factory, nestedExpression, 12.f);
+        while (! nestedGeometry.Advance()) {}
+        check(nestedGeometry.GlyphLayouts().size() == MathMaximumGroupDepth + 1u,
+              "64 nested structured binary commands also prepare geometry on the ordinary stack");
+#endif
     }
     std::wstring nestedSwitches(0u, L' ');
     for (unsigned i = 0u; i < MathMaximumGroupDepth; ++i)

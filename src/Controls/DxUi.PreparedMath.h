@@ -1922,31 +1922,137 @@ class PreparedMath final
             return;
 
     }
-    void Place(std::size_t index, float x, float baseline)
+    static bool MatrixHasFences(std::wstring_view name) noexcept
     {
-        const auto& box          = boxes[index];
-        const auto& node         = *box.node;
-        const auto previousColor = activeColor;
-        activeColor              = box.color;
-        const auto restoreColor  = wil::scope_exit([&]() noexcept { activeColor = previousColor; });
-        x += box.leftOffset;
+        return name != L"matrix" && name != L"smallmatrix" && name != L"subarray" && name != L"aligned" &&
+               name != L"gathered" && name != L"alignat" && ! name.starts_with(L"array:");
+    }
+    static float MatrixCellOffset(std::wstring_view core, std::wstring_view name, unsigned col, float remaining) noexcept
+    {
+        const auto alignment = core.starts_with(L"array:") ? core[6u + col] : (name.size() != core.size() ? core.back() : L'c');
+        if (core == L"aligned" || core == L"alignat")
+            return col % 2u == 0u ? remaining : 0.f;
+        if (core == L"cases" || core == L"rcases" || core == L"dcases" || core == L"drcases" || alignment == L'l')
+            return 0.f;
+        return alignment == L'r' ? remaining : remaining * .5f;
+    }
+    void PlaceMatrixDecorations(std::size_t index, float x, float baseline, float y, const std::array<float, MathMaximumColumns>& widths)
+    {
+        const auto& box = boxes[index];
+        const auto& node = *box.node;
         const float stroke = std::max(.5f, box.size / 20.f);
-        using enum MathKind;
-        if (node.kind == Text)
-        {
-            if (node.text.empty())
-                return;
-            auto& glyph  = glyphs[box.glyph];
-            glyph.origin = {x, baseline - glyph.extent.above};
-            if (colored)
-                paintOperations.push_back({PaintKind::Glyph, box.glyph, activeBackground, activeColor, {}});
+        auto matrixCore = MatrixCore(node.text);
+        if (matrixCore.starts_with(L"darray:")) matrixCore.remove_prefix(1u);
+        const auto rows = static_cast<unsigned>(node.children.size() / node.columns);
+        const float top = baseline - box.extent.above, bottom = baseline + box.extent.below;
+        const auto horizontalStart = static_cast<std::size_t>(9u + 2u * node.columns);
+        const auto horizontal = matrixCore.starts_with(L"array:") && matrixCore.size() > horizontalStart
+                                    ? std::wstring_view(matrixCore).substr(horizontalStart) : std::wstring_view{};            if (! horizontal.empty() && horizontal[rows] != L'.')
+            {
+                if (horizontal[rows] == L'=')
+                    DashedLine(x, y - box.size * .15f, x + box.extent.width, y - box.size * .15f, stroke);
+                else
+                    Stroke(x, y - box.size * .15f, x + box.extent.width, y - box.size * .15f, stroke);
+            }
+            if (matrixCore.starts_with(L"array:") && matrixCore.size() > 6u + node.columns)
+            {
+                const auto rules = std::wstring_view(matrixCore).substr(7u + node.columns);
+                float boundary = x;
+                for (unsigned col = 0u; col <= node.columns; ++col)
+                {
+                    if (rules[col] == L'|' || rules[col] == L':')
+                    {
+                        const float ruleX = std::clamp(boundary - (col > 0u && col < node.columns ? box.size * .325f : 0.f),
+                                                       x, x + box.extent.width);
+                        if (rules[col] == L':')
+                            DashedLine(ruleX, top, ruleX, bottom, stroke);
+                        else
+                            Stroke(ruleX, top, ruleX, bottom, stroke);
+                    }
+                    if (col < node.columns)
+                        boundary += widths[col] + (col + 1u < node.columns ? box.size * .65f : 0.f);
+                }
+            }
+            const auto matrixName = MatrixBase(matrixCore);
+            if (matrixName != L"matrix" && matrixName != L"smallmatrix" && matrixName != L"subarray" && matrixName != L"aligned" && matrixName != L"gathered" && matrixName != L"alignat" && ! matrixName.starts_with(L"array:"))
+            {
+                const auto left  = matrixName == L"pmatrix"                            ? L'('
+                                   : matrixName == L"Bmatrix" || matrixCore == L"cases" || matrixCore == L"rcases" || matrixCore == L"dcases" || matrixCore == L"drcases" ? L'{'
+                                   : matrixName == L"vmatrix"                          ? L'|'
+                                   : matrixName == L"Vmatrix"                          ? L'‖'
+                                                                                      : L'[';
+                const auto right = left == L'(' ? L')' : left == L'{' ? L'}' : left == L'[' ? L']' : left;
+                if (matrixCore != L"rcases" && matrixCore != L"drcases")
+                    Fence(left, x + 2.f, top, bottom, box.size * .2f, stroke, box.size);
+                if (matrixCore != L"cases" && matrixCore != L"dcases")
+                    Fence(right, x + box.extent.width - box.size * .2f - 2.f, top, bottom, box.size * .2f, stroke, box.size);
+            }
+
+    }
+    void PlaceMatrix(std::size_t index, float x, float baseline)
+    {
+        const auto& box = boxes[index];
+        const auto& node = *box.node;
+        const float stroke = std::max(.5f, box.size / 20.f);
+            auto matrixCore = MatrixCore(node.text);
+            if (matrixCore.starts_with(L"darray:")) matrixCore.remove_prefix(1u);
+            std::array<float, MathMaximumColumns> widths{};
+            unsigned childColumn{};
+            for (auto child = box.firstChild; child < box.endChild; child = NextSibling(child))
+            {
+                widths[childColumn % node.columns] = std::max(widths[childColumn % node.columns], boxes[child].extent.width);
+                ++childColumn;
+            }
+            const auto rows = static_cast<unsigned>(node.children.size() / node.columns);
+            const float top = baseline - box.extent.above;
+            float y       = top + box.size * .15f;
+            auto rowFirst = box.firstChild;
+            const auto horizontalStart = static_cast<std::size_t>(9u + 2u * node.columns);
+            const auto horizontal = matrixCore.starts_with(L"array:") && matrixCore.size() > horizontalStart
+                                        ? std::wstring_view(matrixCore).substr(horizontalStart) : std::wstring_view{};
+            for (unsigned row = 0; row < rows; ++row)
+            {
+                if (! horizontal.empty() && horizontal[row] != L'.')
+                {
+                    if (horizontal[row] == L'=')
+                        DashedLine(x, y - box.size * .15f, x + box.extent.width, y - box.size * .15f, stroke);
+                    else
+                        Stroke(x, y - box.size * .15f, x + box.extent.width, y - box.size * .15f, stroke);
+                }
+                float above{}, below{};
+                auto cell = rowFirst;
+                for (unsigned col = 0; col < node.columns; ++col)
+                {
+                    above = std::max(above, boxes[cell].extent.above);
+                    below = std::max(below, boxes[cell].extent.below);
+                    cell  = NextSibling(cell);
+                }
+                above             = std::max(above, box.size * .8f);
+                const auto matrixName = MatrixBase(matrixCore);
+                const bool fenced = MatrixHasFences(matrixName);
+                float cellX       = x + (fenced && matrixCore != L"rcases" && matrixCore != L"drcases" ? box.size * .4f : 0.f);
+                cell              = rowFirst;
+                for (unsigned col = 0; col < node.columns; ++col)
+                {
+                    const float remaining = widths[col] - boxes[cell].extent.width;
+                    const float offset = MatrixCellOffset(matrixCore, matrixName, col, remaining);
+                    Place(cell, cellX + offset, y + above);
+                    cellX += widths[col] + (matrixCore == L"alignat" ? 0.f : box.size * .65f);
+                    cell = NextSibling(cell);
+                }
+                y += std::max(box.size, above + below) + box.size * .3f + MatrixGap(node.text, row, box.size);
+                rowFirst = cell;
+            }
+            PlaceMatrixDecorations(index, x, baseline, y, widths);
             return;
-        }
-        if (node.kind == Space)
-            return;
-        if (node.kind == Fraction && node.children.size() == 2u)
-        {
-            auto top          = boxes[ChildAt(index, 0u)].extent;
+
+    }
+    void PlaceFraction(std::size_t index, float x, float baseline)
+    {
+        const auto& box = boxes[index];
+        const auto& node = *box.node;
+
+            auto top = boxes[ChildAt(index, 0u)].extent;
             const auto bottom = boxes[ChildAt(index, 1u)].extent;
             if (node.text == L"cfrac")
             {
@@ -1969,9 +2075,13 @@ class PreparedMath final
             if (scaledRule > 0.f)
                 Stroke(x + 2.f, ruleY, x + box.extent.width - 2.f, ruleY, scaledRule);
             return;
-        }
-        if (node.kind == Root && node.children.size() == 2u)
-        {
+
+    }
+    void PlaceRoot(std::size_t index, float x, float baseline)
+    {
+        const auto& box = boxes[index];
+        const float stroke = std::max(.5f, box.size / 20.f);
+
             const auto indexBox = ChildAt(index, 1u);
             const auto lead     = x + boxes[indexBox].extent.width;
             Place(ChildAt(index, 0u), lead + box.size * .7f, baseline);
@@ -1982,9 +2092,13 @@ class PreparedMath final
             Stroke(lead + box.size * .35f, baseline + box.extent.below, lead + box.size * .62f, top, stroke);
             Stroke(lead + box.size * .62f, top, x + box.extent.width, top, stroke);
             return;
-        }
-        if (node.kind == Scripts && node.children.size() == 3u)
-        {
+
+    }
+    void PlaceScripts(std::size_t index, float x, float baseline)
+    {
+        const auto& box = boxes[index];
+        const auto& node = *box.node;
+
             const auto baseIndex = ChildAt(index, 0u), sub = ChildAt(index, 1u), super = ChildAt(index, 2u);
             const auto base      = boxes[baseIndex].extent;
             const auto& baseNode = node.children[0u];
@@ -2014,29 +2128,14 @@ class PreparedMath final
             Place(sub, baseX + ScriptBaseAdvance(baseIndex) + box.subKern, baseline + subShift + correction);
             Place(super, baseX + ScriptAnchor(baseIndex) + box.superKern, baseline - superShift - correction);
             return;
-        }
-        if (node.kind == Delimited && node.children.size() == 1u)
-        {
-            const float width      = box.size * .25f;
-            const bool leftVisible = VisibleDelimiter(node.text[0u]), rightVisible = VisibleDelimiter(node.text[1u]);
-            const float leftAdvance  = leftVisible ? box.size * .4f : 0.f;
-            const float rightAdvance = rightVisible ? box.size * .4f : 0.f;
-            const float top = baseline - box.extent.above, bottom = baseline + box.extent.below;
-            Place(ChildAt(index, 0u), x + leftAdvance, baseline);
-            if (leftVisible)
-                Fence(node.text[0u], x, top, bottom, width, stroke, box.size);
-            if (rightVisible)
-                Fence(node.text[1u], x + box.extent.width - rightAdvance, top, bottom, width, stroke, box.size);
-            return;
-        }
-        if (node.kind == Delimiter)
-        {
-            const auto width = box.extent.width;
-            Fence(node.text.empty() ? L'.' : node.text[0], x, baseline - box.extent.above, baseline + box.extent.below, width, stroke, box.size);
-            return;
-        }
-        if (node.kind == Accent && ExtensibleArrow(node.text) && node.children.size() == 2u)
-        {
+
+    }
+    void PlaceExtensibleArrow(std::size_t index, float x, float baseline)
+    {
+        const auto& box = boxes[index];
+        const auto& node = *box.node;
+        const float stroke = std::max(.5f, box.size / 20.f);
+
             const auto upper = ChildAt(index, 0u), lower = ChildAt(index, 1u);
             const auto center = x + box.extent.width * .5f;
             const auto y = baseline - MathConstantAt(12u, box.size, axis);
@@ -2100,6 +2199,69 @@ class PreparedMath final
             if (node.text == L"xmapsto")
                 Stroke(left, y - head, left, y + head, stroke);
             return;
+
+    }
+    void Place(std::size_t index, float x, float baseline)
+    {
+        const auto& box  = boxes[index];
+        const auto& node = *box.node;
+        const auto previousColor = activeColor;
+        activeColor = box.color;
+        const auto restoreColor = wil::scope_exit([&]() noexcept { activeColor = previousColor; });
+        x += box.leftOffset;
+        const float stroke = std::max(.5f, box.size / 20.f);
+        using enum MathKind;
+        if (node.kind == Text)
+        {
+            if (node.text.empty())
+                return;
+            auto& glyph  = glyphs[box.glyph];
+            glyph.origin = {x, baseline - glyph.extent.above};
+            if (colored)
+                paintOperations.push_back({PaintKind::Glyph, box.glyph, activeBackground, activeColor, {}});
+            return;
+        }
+        if (node.kind == Space)
+            return;
+        if (node.kind == Fraction && node.children.size() == 2u)
+        {
+            PlaceFraction(index, x, baseline);
+            return;
+        }
+        if (node.kind == Root && node.children.size() == 2u)
+        {
+            PlaceRoot(index, x, baseline);
+            return;
+        }
+        if (node.kind == Scripts && node.children.size() == 3u)
+        {
+            PlaceScripts(index, x, baseline);
+            return;
+        }
+        if (node.kind == Delimited && node.children.size() == 1u)
+        {
+            const float width      = box.size * .25f;
+            const bool leftVisible = VisibleDelimiter(node.text[0u]), rightVisible = VisibleDelimiter(node.text[1u]);
+            const float leftAdvance  = leftVisible ? box.size * .4f : 0.f;
+            const float rightAdvance = rightVisible ? box.size * .4f : 0.f;
+            const float top = baseline - box.extent.above, bottom = baseline + box.extent.below;
+            Place(ChildAt(index, 0u), x + leftAdvance, baseline);
+            if (leftVisible)
+                Fence(node.text[0u], x, top, bottom, width, stroke, box.size);
+            if (rightVisible)
+                Fence(node.text[1u], x + box.extent.width - rightAdvance, top, bottom, width, stroke, box.size);
+            return;
+        }
+        if (node.kind == Delimiter)
+        {
+            const auto width = box.extent.width;
+            Fence(node.text.empty() ? L'.' : node.text[0], x, baseline - box.extent.above, baseline + box.extent.below, width, stroke, box.size);
+            return;
+        }
+        if (node.kind == Accent && ExtensibleArrow(node.text) && node.children.size() == 2u)
+        {
+            PlaceExtensibleArrow(index, x, baseline);
+            return;
         }
         if (node.kind == Accent && node.children.size() == 1u)
         {
@@ -2111,97 +2273,7 @@ class PreparedMath final
         }
         if (node.kind == Matrix && node.columns > 0u)
         {
-            auto matrixCore = MatrixCore(node.text);
-            if (matrixCore.starts_with(L"darray:")) matrixCore.remove_prefix(1u);
-            std::array<float, MathMaximumColumns> widths{};
-            unsigned childColumn{};
-            for (auto child = box.firstChild; child < box.endChild; child = NextSibling(child))
-            {
-                widths[childColumn % node.columns] = std::max(widths[childColumn % node.columns], boxes[child].extent.width);
-                ++childColumn;
-            }
-            const auto rows = static_cast<unsigned>(node.children.size() / node.columns);
-            const float top = baseline - box.extent.above, bottom = baseline + box.extent.below;
-            float y                    = top + box.size * .15f;
-            auto rowFirst              = box.firstChild;
-            const auto horizontalStart = static_cast<std::size_t>(9u + 2u * node.columns);
-            const auto horizontal = matrixCore.starts_with(L"array:") && matrixCore.size() > horizontalStart
-                                        ? std::wstring_view(matrixCore).substr(horizontalStart) : std::wstring_view{};
-            for (unsigned row = 0; row < rows; ++row)
-            {
-                if (! horizontal.empty() && horizontal[row] != L'.')
-                {
-                    if (horizontal[row] == L'=')
-                        DashedLine(x, y - box.size * .15f, x + box.extent.width, y - box.size * .15f, stroke);
-                    else
-                        Stroke(x, y - box.size * .15f, x + box.extent.width, y - box.size * .15f, stroke);
-                }
-                float above{}, below{};
-                auto cell = rowFirst;
-                for (unsigned col = 0; col < node.columns; ++col)
-                {
-                    above = std::max(above, boxes[cell].extent.above);
-                    below = std::max(below, boxes[cell].extent.below);
-                    cell  = NextSibling(cell);
-                }
-                above             = std::max(above, box.size * .8f);
-                const auto matrixName = MatrixBase(matrixCore);
-                const bool fenced = matrixName != L"matrix" && matrixName != L"smallmatrix" && matrixName != L"subarray" && matrixName != L"aligned" && matrixName != L"gathered" && matrixName != L"alignat" && ! matrixName.starts_with(L"array:");
-                float cellX       = x + (fenced && matrixCore != L"rcases" && matrixCore != L"drcases" ? box.size * .4f : 0.f);
-                cell              = rowFirst;
-                for (unsigned col = 0; col < node.columns; ++col)
-                {
-                    const float remaining = widths[col] - boxes[cell].extent.width;
-                                        const auto alignment = matrixCore.starts_with(L"array:") ? matrixCore[6u + col] : (matrixName.size() != matrixCore.size() ? matrixCore.back() : L'c');
-                    const float offset = (matrixCore == L"aligned" || matrixCore == L"alignat") ? (col % 2u == 0u ? remaining : 0.f)
-                                         : (matrixCore == L"cases" || matrixCore == L"rcases" || matrixCore == L"dcases" || matrixCore == L"drcases") || alignment == L'l' ? 0.f
-                                         : alignment == L'r' ? remaining : remaining / 2.f;
-                    Place(cell, cellX + offset, y + above);
-                    cellX += widths[col] + (matrixCore == L"alignat" ? 0.f : box.size * .65f);
-                    cell = NextSibling(cell);
-                }
-                y += std::max(box.size, above + below) + box.size * .3f + MatrixGap(node.text, row, box.size);
-                rowFirst = cell;
-            }
-            if (! horizontal.empty() && horizontal[rows] != L'.')
-            {
-                if (horizontal[rows] == L'=')
-                    DashedLine(x, y - box.size * .15f, x + box.extent.width, y - box.size * .15f, stroke);
-                else
-                    Stroke(x, y - box.size * .15f, x + box.extent.width, y - box.size * .15f, stroke);
-            }
-            if (matrixCore.starts_with(L"array:") && matrixCore.size() > 6u + node.columns)
-            {
-                const auto rules = std::wstring_view(matrixCore).substr(7u + node.columns);
-                float boundary = x;
-                for (unsigned col = 0u; col <= node.columns; ++col)
-                {
-                    if (rules[col] == L'|' || rules[col] == L':')
-                    {
-                        const float ruleX = std::clamp(boundary - (col > 0u && col < node.columns ? box.size * .325f : 0.f), x, x + box.extent.width);
-                        if (rules[col] == L':')
-                            DashedLine(ruleX, top, ruleX, bottom, stroke);
-                        else
-                            Stroke(ruleX, top, ruleX, bottom, stroke);
-                    }
-                    if (col < node.columns)
-                        boundary += widths[col] + (col + 1u < node.columns ? box.size * .65f : 0.f);
-                }
-            }
-            const auto matrixName = MatrixBase(matrixCore);
-            if (matrixName != L"matrix" && matrixName != L"smallmatrix" && matrixName != L"subarray" && matrixName != L"aligned" && matrixName != L"gathered" && matrixName != L"alignat" && ! matrixName.starts_with(L"array:"))
-            {
-                const auto left  = matrixName == L"pmatrix"                            ? L'('
-                                   : matrixName == L"Bmatrix" || matrixCore == L"cases" || matrixCore == L"rcases" || matrixCore == L"dcases" || matrixCore == L"drcases" ? L'{'
-                                   : matrixName == L"vmatrix"                          ? L'|'
-                                   : matrixName == L"Vmatrix"                          ? L'‖'
-                                                                                      : L'[';
-                const auto right = left == L'(' ? L')' : left == L'{' ? L'}' : left == L'[' ? L']' : left;
-                if (matrixCore != L"rcases" && matrixCore != L"drcases")
-                    Fence(left, x + 2.f, top, bottom, box.size * .2f, stroke, box.size);
-                if (matrixCore != L"cases" && matrixCore != L"dcases")
-                    Fence(right, x + box.extent.width - box.size * .2f - 2.f, top, bottom, box.size * .2f, stroke, box.size);
-            }
+            PlaceMatrix(index, x, baseline);
             return;
         }
         if (node.kind == Row)
