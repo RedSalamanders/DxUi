@@ -1684,6 +1684,8 @@ __declspec(noinline) static int RunFunctionalTests()
 #endif
             RichSemanticEditorTests::SemanticGeometryReuse(view.Controls(),
                                                            [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "incremental preparation"); });
+            RichSemanticEditorTests::ImagePreparationWorkMetric(
+                view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare embedded image work metric"); });
             RichSemanticEditorTests::NativeObjectSourceContract(view.Controls(),
                                                                 [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "shared embedded object contract"); });
             RichSemanticEditorTests::PendingSourceWindowTransport(view.Controls());

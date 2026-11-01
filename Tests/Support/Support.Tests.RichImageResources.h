@@ -69,6 +69,15 @@ template <typename Check> inline void Admission(Check&& check)
         throw std::runtime_error("image resource preparation did not settle");
     };
     {
+        RichImageResources staged;
+        const auto document = Semantic(L"![a](a.png) ![b](b.png) ![c](c.png) ![d](d.png) ![e](e.png)");
+        check(! staged.Begin(document, L"C:\\docs\\note.md", 1u, 1u), "five image candidates require staged preparation");
+        std::size_t work = 99u;
+        check(! staged.Advance(&work) && work == 4u, "image preparation reports four actual candidate visits");
+        check(staged.Advance(&work) && work == 1u, "the final image preparation turn reports its one remaining candidate");
+        check(staged.Advance(&work) && work == 0u, "idle image preparation reports no work");
+    }
+    {
         constexpr std::wstring_view sourceText = L"![a](a.png) ![b](b.png)";
         Document text(sourceText);
         const auto original = text.Snapshot();

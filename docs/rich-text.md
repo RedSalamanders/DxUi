@@ -1659,6 +1659,8 @@ guarantee is implied. Text-only/v0 preparation ignores this image budget.
 `DebugGetState().activeStage` identifies pending Markdown, semantic, image,
 geometry, code-ink, source-ink or source-guide work. Optional overlay fallback
 dirtiness is reported separately from a ready content frame.
+`lastAdvanceImageWork` counts image candidates actually visited in the last
+owner turn, including rejected candidates, independently of geometry block steps.
 
 Limits are 16,384 source units, 4,096 staging/syntax nodes, 64 parsed nesting
 levels, 64 rows/columns and 1,024 cells per formula including generated padding.

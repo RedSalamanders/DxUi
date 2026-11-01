@@ -562,6 +562,7 @@ struct RichTextEditor::State
     bool requestActive         = false;
     size_t preparationAdvances = 0, cancelledPreparations = 0, lastAdvanceLayouts = 0, lastAdvanceBlockSteps = 0;
     size_t lastAdvanceUploadBytes{};
+    size_t lastAdvanceImageWork{};
     float layoutWidth                         = 0;
     float scrollDip                           = 0;
     bool revealCaret                          = true;
@@ -3470,6 +3471,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         return S_FALSE;
     state.lastAdvanceLayouts = state.lastAdvanceBlockSteps = 0u;
     state.lastAdvanceUploadBytes                           = 0u;
+    state.lastAdvanceImageWork                             = 0u;
     state.lastAdvanceMarkdownWork                          = 0u;
     state.lastAdvanceSemanticWork                          = 0u;
     const auto rejectNativeObjects                         = [&](std::span<const std::size_t> elements) -> HRESULT
@@ -3894,10 +3896,10 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             semanticDocument.reset();
         if (semanticDocument)
         {
-            if (! state.images.Begin(semanticDocument, state.documentFilePath, state.imageLocationRevision, state.bindingRevision) && ! state.images.Advance())
+            if (! state.images.Begin(semanticDocument, state.documentFilePath, state.imageLocationRevision, state.bindingRevision) &&
+                ! state.images.Advance(&state.lastAdvanceImageWork))
             {
                 ++state.preparationAdvances;
-                state.lastAdvanceBlockSteps = 4u;
                 return S_FALSE;
             }
         }
@@ -4224,6 +4226,7 @@ RichTextEditorDebugState RichTextEditor::DebugGetState() const noexcept
                                    : value.layoutReady                      ? RichTextPreparationStage::Ready
                                                                             : RichTextPreparationStage::Idle;
     value.lastAdvanceUploadBytes = _state->lastAdvanceUploadBytes;
+    value.lastAdvanceImageWork   = _state->lastAdvanceImageWork;
     return value;
 }
 size_t RichTextEditor::DebugGetListStateAncestorSteps() const noexcept

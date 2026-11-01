@@ -35,6 +35,34 @@ public:
     }
 };
 #pragma warning(pop)
+template <typename Prepare> void ImagePreparationWorkMetric(ControlHost& host, Prepare prepare)
+{
+    host.SetRoot(std::make_unique<Label>(L"initialize"));
+    prepare();
+    auto root    = std::make_unique<DirectPrepareRichTextEditor>(L"![a](a.png) ![b](b.png) ![c](c.png) ![d](d.png) ![e](e.png)");
+    auto* editor = root.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    host.SetRoot(std::move(root));
+    bool four = false, one = false;
+    for (std::size_t turn = 0u; turn < 1024u; ++turn)
+    {
+        const HRESULT result = editor->PrepareOnce(host);
+        Check(SUCCEEDED(result), "image metric preparation succeeds");
+        const auto state = editor->DebugGetState();
+        Check(state.lastAdvanceImageWork <= 4u, "image work reports no more than four visited candidates per turn");
+        if (state.lastAdvanceImageWork == 4u)
+        {
+            four = true;
+            Check(state.activeStage == RichTextPreparationStage::Images && state.lastAdvanceBlockSteps == 0u,
+                  "pending image work is not misreported as geometry block work");
+        }
+        one = one || state.lastAdvanceImageWork == 1u;
+        if (result == S_OK)
+            break;
+    }
+    Check(four && one, "editor debug state reports full and partial image-staging turns");
+}
 template <typename Prepare> void TransientPreviewRetainsChunks(ControlHost& host, Prepare prepare)
 {
     std::wstring source;

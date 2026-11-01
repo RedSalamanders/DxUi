@@ -178,9 +178,11 @@ public:
         next_.swap(staging);
         return false;
     }
-    bool Advance()
+    bool Advance(std::size_t* workUnits = nullptr)
     try
     {
+        if (workUnits)
+            *workUnits = 0u;
         if (! next_)
             return true;
         auto& stage       = *next_;
@@ -191,6 +193,8 @@ public:
         const auto count    = std::min(images.size(), MaximumPlacements - std::min(MaximumPlacements, diagrams));
         for (std::size_t work = 0u; stage.cursor < count && work < 4u; ++work, ++stage.cursor)
         {
+            if (workUnits)
+                ++*workUnits;
             const auto element       = images[stage.cursor];
             const auto& destination  = stage.document->Elements()[element].destination;
             RichImageSourceKind kind = RichImageSourceKind::LocalFile;

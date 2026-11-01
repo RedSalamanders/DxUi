@@ -3354,6 +3354,8 @@ struct RichTextEditorDebugState
     bool codeInkPreparationPending = false, sourceGuidesPreparationPending = false;
     RichTextPreparationStage activeStage = RichTextPreparationStage::Idle;
     size_t lastAdvanceUploadBytes        = 0u;
+    // Image candidates actually visited in the last owner preparation turn (0..4).
+    size_t lastAdvanceImageWork          = 0u;
 };
 
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.

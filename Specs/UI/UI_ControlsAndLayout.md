@@ -1187,6 +1187,7 @@ pixels MAY survive unrelated edits and device replacement. For a tracked edit, a
 completion MUST remain cached across unrelated source edits while preserving editable source/alternative. Explicit reload, document location or remote-image policy changes retry failed sources. Resource statistics count only actual failed completions as failed sources; canceled requests are neither pending nor failed while awaiting re-admission.
 Replacing accessibility labels without changing source retains eligible in-flight image requests and already-staged pixels privately until the new semantic document rebinds them. Resource-only completion MUST NOT edit source/history/selection or cancel IME. Multiple accepted image completions before the next owner preparation stage pixels privately and publish one immutable resource snapshot; allocation failure preserves the previous publication and leaves staged pixels retryable.
 Request preparation processes at most four image candidates per owner turn;
+the editor's image-work diagnostic counts actual visits separately from geometry block work.
 caller adapters MUST wake valid queued work when draining or cancel-pruning
 results frees a completion reservation; closure MUST serialize posting with
 owner retirement without joining a codec/filesystem call.
