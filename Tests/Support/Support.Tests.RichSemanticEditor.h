@@ -265,6 +265,32 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
         const auto actual = DxUi::RichText::Detail::PreparedDisplayWordRange(boundaryText.size(), position, [&](size_t at) { return boundaryText[at]; });
         Check(actual.first == first && actual.last == last, "windowed word boundaries agree with the canonical full-display Unicode oracle");
     }
+    const std::array<std::wstring_view, 12u> wordTokens{L"a", L"z", L" ", L"_", L"/", L".", L"\r\n", L"\u0301", L"\U0001f600",
+                                                       L"\U0001f469\u200d\U0001f4bb", L"\u0915\u094d\u0937", L"\U0001f1fa\U0001f1f8"};
+    unsigned wordSeed = 17u;
+    for (unsigned sample = 0u; sample < 16u; ++sample)
+    {
+        std::wstring corpus(0u, L' ');
+        for (unsigned token = 0u; token < 300u; ++token)
+        {
+            wordSeed = wordSeed * 1664525u + 1013904223u;
+            corpus += wordTokens[(wordSeed >> 16u) % wordTokens.size()];
+        }
+        for (size_t position = 0u; position <= corpus.size(); position += 7u)
+        {
+            if (! IsEditBoundary(corpus, position))
+                continue;
+            const auto expected = GetEnclosingAccessibilityTextUnitSpan(corpus, position, TextUnit_Word);
+            auto first = expected.start, last = expected.end;
+            if (first < last)
+            {
+                first = GetEnclosingAccessibilityTextUnitSpan(corpus, first, TextUnit_Character).start;
+                last = GetEnclosingAccessibilityTextUnitSpan(corpus, last - 1u, TextUnit_Character).end;
+            }
+            const auto actual = DxUi::RichText::Detail::PreparedDisplayWordRange(corpus.size(), position, [&](size_t at) { return corpus[at]; });
+            Check(actual.first == first && actual.last == last, "windowed word and grapheme boundaries match the complete Unicode oracle");
+        }
+    }
     std::cout << "prepared word displayUnits=" << manyWords.size() << " localReads=" << reads << " giantReads=" << giantReads << '\n';
     editor->SetMarkdownRenderingEnabled(true);
     editor->SetViewMode(ViewMode::Rich);
