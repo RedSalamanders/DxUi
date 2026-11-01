@@ -319,7 +319,8 @@ struct SemanticBox
                         (paragraph.display.first + local == image.display.first || paragraph.display.first + local == image.display.last))
                     {
                         if (image.math && image.hasMathCaret &&
-                            layout.LineBoundary(local, false) == layout.LineBoundary(image.display.first - paragraph.display.first, false))
+                            (layout.LineBoundary(local, false) == layout.LineBoundary(image.display.first - paragraph.display.first, false) ||
+                             (local == layout.Content().text.size() && image.display.last == paragraph.display.last)))
                         {
                             caret.y      = image.mathCaretTop;
                             caret.height = image.caretHeight;
