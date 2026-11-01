@@ -383,6 +383,27 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
     editor.TakePendingImageRequests(requests);
     check(requests.empty() && editor.GetImageResourceStatistics().readySources == 2u && editor.GetAcknowledgedSemanticDocument(host),
           "new semantic publication adopts both previously staged and newly completed image sources without redispatch");
+    editor.ReloadImages();
+    prepare();
+    editor.TakePendingImageRequests(requests);
+    check(requests.size() == 2u, "soft-break policy fixture dispatches two image requests");
+    check(editor.CompleteImageRequest(requests[0], picture), "first image completes before soft-break policy change");
+    const auto beforePolicy    = editor.DebugGetState();
+    auto appearance            = editor.GetAppearance();
+    appearance.softBreakPolicy = SoftBreakPolicy::LineBreak;
+    editor.SetAppearance(appearance);
+    check(! requests[1].Cancelled() && ! editor.GetSemanticDocument() && editor.CompleteImageRequest(requests[1], picture),
+          "soft-break policy change retains and accepts a pending image request");
+    const auto duringPolicy = editor.DebugGetState();
+    check(duringPolicy.preparationAdvances == beforePolicy.preparationAdvances && editor.Revision() == labelRevision &&
+              editor.GetSelection() == sourceSelection && editor.GetText() == labelSource && ! editor.CanUndo(),
+          "soft-break policy change preserves source, selection and history without synchronous preparation");
+    prepare();
+    editor.TakePendingImageRequests(requests);
+    check(requests.empty() && editor.GetImageResourceStatistics().readySources == 2u && editor.GetAcknowledgedSemanticDocument(host),
+          "new soft-break semantics rebind both images without duplicate requests");
+    appearance.softBreakPolicy = SoftBreakPolicy::Space;
+    editor.SetAppearance(appearance);
     editor.SetAccessibilityLabels(nullptr);
     editor.SetText(imageSourceBeforeLabels);
     prepare();
