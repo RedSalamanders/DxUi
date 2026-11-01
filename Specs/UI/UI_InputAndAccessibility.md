@@ -1289,6 +1289,8 @@ ownership and the unmatched opener remains literal.
 Math ownership lookahead uses a leaf-owned, source-bounded terminator index and
 bounded scheme inspection, so multiple openers and repeated invalid angle
 prefixes do not repeatedly scan the remaining leaf for the same terminator.
+The same index excludes escaped and ineligible closing delimiters before a
+failed opener scans; the over-capacity opaque-source fallback is preserved.
 InsertHardBreak preserves representable quote and nested-list prefixes, replacing
 each list marker on the split line with equal-width continuation indentation.
 Unrepresentable lazy prefixes remain unavailable.

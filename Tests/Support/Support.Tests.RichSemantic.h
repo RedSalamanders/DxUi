@@ -387,6 +387,23 @@ inline void ListsAndHeadings()
             const auto escapedTickSyntax = Parse(escapedTick, profile);
             Check(std::ranges::any_of(escapedTickSyntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
                   "an escaped backtick does not begin an opaque Markdown code span inside math");
+            Document escapedCloser(L"\\(x\\\\)y\\)");
+            const auto escapedCloserSyntax = Parse(escapedCloser, profile);
+            Check(std::ranges::any_of(escapedCloserSyntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
+                  "an escaped closer does not hide a later valid math closer");
+            for (const auto source : {std::wstring_view(L"\\[x\\]"), std::wstring_view(L"$$x$$")})
+            {
+                Document displayCloser{std::wstring(source)};
+                const auto displayCloserSyntax = Parse(displayCloser, profile);
+                Check(std::ranges::any_of(displayCloserSyntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
+                      "indexed display delimiters retain valid closing recognition");
+            }
+            std::wstring oversizedMath(L"\\(");
+            oversizedMath.append(MathMaximumSourceUnits + 1u, L'x');
+            Document oversizedMathSource(oversizedMath);
+            const auto oversizedMathSyntax = Parse(oversizedMathSource, profile);
+            Check(std::ranges::any_of(oversizedMathSyntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
+                  "unclosed notation beyond source capacity retains its opaque fallback");
 #if DXUI_ENABLE_DIAGNOSTICS
             for (const auto pattern : {std::wstring_view(L"<aa:a"), std::wstring_view(L"<!--")})
             {
@@ -422,20 +439,23 @@ inline void ListsAndHeadings()
                       "many separate math openers share one leaf terminator index with linear-scale work");
                 previousManyWork = work;
             }
-            std::size_t previousUnclosedWork{};
-            for (const size_t count : {size_t{600u}, size_t{1200u}})
+            for (const auto pattern : {std::wstring_view(L"\\("), std::wstring_view(L"\\(x\\\\)"), std::wstring_view(L"$a$1 ")})
             {
-                std::wstring unclosed(0u, L' ');
-                for (size_t i = 0u; i < count; ++i)
-                    unclosed += L"\\(";
-                Document candidate(unclosed);
-                DxUi::RichText::Detail::testMathOwnershipProbeWork = 0u;
-                const auto syntax                                  = Parse(candidate, profile);
-                const auto work                                    = DxUi::RichText::Detail::testMathOwnershipProbeWork;
-                Check(std::ranges::none_of(syntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }) &&
-                          (! previousUnclosedWork || work > previousUnclosedWork * 3u),
-                      "characterize repeated unclosed math-opener scan amplification below capacity fallback");
-                previousUnclosedWork = work;
+                std::size_t previousUnclosedWork{};
+                for (const size_t count : {size_t{300u}, size_t{600u}})
+                {
+                    std::wstring unclosed(0u, L' ');
+                    for (size_t i = 0u; i < count; ++i)
+                        unclosed += pattern;
+                    Document candidate(unclosed);
+                    DxUi::RichText::Detail::testMathOwnershipProbeWork = 0u;
+                    const auto syntax                                  = Parse(candidate, profile);
+                    const auto work                                    = DxUi::RichText::Detail::testMathOwnershipProbeWork;
+                    Check(std::ranges::none_of(syntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }) &&
+                              work <= unclosed.size() * 64u && (! previousUnclosedWork || work <= previousUnclosedWork * 3u),
+                          "unclosed and ineligible-closer math runs retain literal ownership with linear-scale scan work");
+                    previousUnclosedWork = work;
+                }
             }
             MarkdownParser cancelled;
             std::wstring oldSource(L"$x<y$ > ");

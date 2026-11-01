@@ -92,7 +92,7 @@ class MarkdownInlines
     std::vector<FootnoteVisit> footnoteWalk_;
     std::vector<std::size_t> reachableDefinitions_;
     std::vector<std::size_t> previous_, offsets_, backtickNext_;
-    std::vector<std::array<std::uint32_t, 4u>> htmlNext_;
+    std::vector<std::array<std::uint32_t, 9u>> htmlNext_;
     std::wstring text_;
     std::size_t blockCursor_{}, referenceCursor_{}, cursor_{}, root_ = MarkdownNoNode, tail_ = MarkdownNoNode;
     std::size_t delimiterTail_ = MarkdownNoNode, delimiterHead_ = MarkdownNoNode;
@@ -625,13 +625,38 @@ class MarkdownInlines
         // unmatched openers must never each search the remaining leaf anew.
         htmlNext_.clear();
         constexpr auto none = std::numeric_limits<std::uint32_t>::max();
-        std::array<std::uint32_t, 4u> next{none, none, none, none};
+        std::array<std::uint32_t, 9u> next{none, none, none, none, none, none, none, none, none};
         if (profile_ == MarkdownProfile::RichMarkdown && text_.find_first_of(L"$\\") != std::wstring::npos)
         {
             if (text_.size() >= none)
                 throw std::length_error("Markdown inline terminator index capacity exceeded");
             htmlNext_.resize(text_.size() + 1u);
             htmlNext_.back() = next;
+            std::size_t slashes{};
+            for (std::size_t i = 0u; i < text_.size(); ++i)
+            {
+                std::uint32_t flags{};
+                const bool escaped = slashes % 2u != 0u;
+                if (! escaped && text_[i] == L'\\' && i + 1u < text_.size())
+                {
+                    if (text_[i + 1u] == L')')
+                        flags |= 1u;
+                    if (text_[i + 1u] == L']')
+                        flags |= 2u;
+                }
+                if (! escaped && text_[i] == L'$')
+                {
+                    if (i && ! SourceSpace(text_[i - 1u]) && (i + 1u == text_.size() || ! Digit(text_[i + 1u])))
+                        flags |= 4u;
+                    if (i + 1u < text_.size() && text_[i + 1u] == L'$')
+                        flags |= 8u;
+                }
+                htmlNext_[i][4] = flags;
+                slashes         = text_[i] == L'\\' ? slashes + 1u : 0u;
+#if DXUI_ENABLE_DIAGNOSTICS
+                ++testMathOwnershipProbeWork;
+#endif
+            }
         }
         const auto indexTerminator = [&](std::size_t i)
         {
@@ -648,6 +673,12 @@ class MarkdownInlines
                 next[2] = static_cast<std::uint32_t>(i);
             if (i + 2u < text_.size() && text_[i] == L']' && text_[i + 1u] == L']' && text_[i + 2u] == L'>')
                 next[3] = static_cast<std::uint32_t>(i);
+            const auto flags = htmlNext_[i][4];
+            for (std::size_t bit = 0u; bit < 4u; ++bit)
+                if ((flags & (1u << bit)) != 0u)
+                    next[4u + bit] = static_cast<std::uint32_t>(i);
+            if (text_[i] == L'\n')
+                next[8] = static_cast<std::uint32_t>(i);
             htmlNext_[i] = next;
         };
         // Index equal-length backtick runs once, so unmatched runs cannot cause
@@ -1437,7 +1468,19 @@ class MarkdownInlines
 #if DXUI_ENABLE_DIAGNOSTICS
                 probeWork = &testMathOwnershipProbeWork;
 #endif
-                for (auto end = content; end < std::min(text_.size(), content + MathMaximumSourceUnits + 1u); ++end)
+                const auto limit         = std::min(text_.size(), content + MathMaximumSourceUnits + 1u);
+                const auto slot          = dollars ? (display ? 7u : 6u) : (display ? 5u : 4u);
+                const auto candidate     = htmlNext_[content + 1u][slot];
+                const auto newline       = htmlNext_[content][8];
+                const bool endsAtNewline = ! display && newline != std::numeric_limits<std::uint32_t>::max() && newline < limit;
+                const bool noCandidate =
+                    candidate == std::numeric_limits<std::uint32_t>::max() || candidate >= limit || (endsAtNewline && candidate >= newline);
+                // A failed opener below capacity, or before a physical newline,
+                // cannot own an opaque fallback. The shared index proves the
+                // absence of any eligible closer without rescanning its suffix.
+                if (noCandidate && (endsAtNewline || text_.size() - content <= MathMaximumSourceUnits))
+                    endedLine = true;
+                for (auto end = content; ! endedLine && end < limit; ++end)
                 {
                     if (probeWork)
                         ++*probeWork;
