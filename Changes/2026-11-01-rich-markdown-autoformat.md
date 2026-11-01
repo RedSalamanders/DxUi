@@ -1,0 +1,1 @@
+- Offer default-off Markdown marker and fenced-code auto-format triggers with atomic undo.

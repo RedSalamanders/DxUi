@@ -1519,7 +1519,8 @@ void MarkdownCommandPlanner::Quote(MarkdownQuoteAction action)
         --end;
     for (std::size_t i = 1u; i < nodes.size(); ++i)
     {
-        if (nodes[i].block.kind == Kind::FencedCode)
+        if (nodes[i].block.kind == Kind::FencedCode || nodes[i].block.kind == Kind::IndentedCode || nodes[i].block.kind == Kind::HtmlBlock ||
+            nodes[i].block.kind == Kind::Table || nodes[i].block.kind == Kind::ThematicBreak || nodes[i].block.kind == Kind::ReferenceDefinition)
         {
             const auto range      = nodes[i].block.source;
             const bool intersects = plan.before_.Start() == plan.before_.End()

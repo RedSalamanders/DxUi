@@ -183,6 +183,7 @@ static void TestRichFileDropTransactionAllocationFailures(GraphicsFixture& gpu)
 template <typename Parser = DxUi::RichText::MarkdownParser, typename Editor = DxUi::RichTextEditor, typename Snapshot = DxUi::RichText::SourceSnapshot>
 static void TestReadOnlyParsedSnapshotAllocationFailures()
 {
+    using namespace DxUi;
     using namespace DxUi::RichText;
     if constexpr (requires(Parser& parser, Editor& editor, const SourceSnapshot& source, const std::shared_ptr<const MarkdownSyntax>& syntax) {
                       parser.TryAdoptParsedSnapshot(source, 1u, syntax, MarkdownProfile::RichMarkdown);
@@ -301,6 +302,111 @@ static void TestReadOnlyParsedSnapshotAllocationFailures()
                       0u &&
                   countedEditor->GetMarkdownSyntax() == shared,
               "idempotent adoption performs no C++ allocation or publication replacement");
+        Document history(L"x");
+        Check(history.ReplaceSelection(L"y"), "seed a history ring before fault injection");
+        const auto before          = history.Snapshot();
+        const auto beforeSelection = history.GetSelection();
+        const auto beforeRevision  = history.Revision();
+        bool undoAllocationFailed{};
+        {
+            const auto previous = failAllocationAfter;
+            const auto restore  = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
+            failAllocationAfter = 0u;
+            try
+            {
+                static_cast<void>(history.Undo());
+            }
+            catch (const std::bad_alloc&)
+            {
+                undoAllocationFailed = true;
+            }
+        }
+        Check(undoAllocationFailed && history.Snapshot().IsSameRevision(before) && history.GetSelection() == beforeSelection &&
+                  history.Revision() == beforeRevision && history.CanUndo() && ! history.CanRedo(),
+              "failure to allocate the first redo ring leaves source, selection and both histories intact");
+        Check(history.Undo() && history.Text() == L"x" && history.Redo() && history.Snapshot().IsSameRevision(before),
+              "undo and redo remain usable after the rejected ring allocation");
+        bool cycled{};
+        const auto warmHistoryAllocations = observe([&] { cycled = history.Undo() && history.Redo(); });
+        Check(cycled && warmHistoryAllocations == 0u, "warm undo and redo reuse bounded history storage without allocating");
+        if constexpr (requires(Editor& editor) {
+                          editor.SetAutoPairEnabled(true);
+                          editor.SetSmartTypographyEnabled(true);
+                          editor.SetMarkdownAutoFormatEnabled(true);
+                      })
+        {
+            enum class TypingPolicy
+            {
+                Pair,
+                Typography,
+                Fence
+            };
+            for (const auto policy : {TypingPolicy::Pair, TypingPolicy::Typography, TypingPolicy::Fence})
+            {
+                bool sawFailure = false, sawSuccess = false;
+                for (size_t point = 0u; point < 128u; ++point)
+                {
+                    ControlHost host;
+                    auto root    = std::make_unique<Editor>();
+                    auto* editor = root.get();
+                    if (policy == TypingPolicy::Typography)
+                    {
+                        editor->SetText(L"..");
+                        editor->SetSelection({2u, 2u});
+                        editor->SetSmartTypographyEnabled(true);
+                    }
+                    else if (policy == TypingPolicy::Pair)
+                        editor->SetAutoPairEnabled(true);
+                    else
+                    {
+                        editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+                        editor->SetViewMode(ViewMode::Source);
+                        editor->SetReadOnly(true);
+                        Parser parser;
+                        const auto policySource = editor->Snapshot();
+                        parser.Begin(policySource, editor->Revision(), MarkdownProfile::RichMarkdown);
+                        finish(parser);
+                        Check(editor->TryAdoptReadOnlyMarkdownSyntax(policySource, parser.Published()) == S_OK, "prepare autoformat syntax without a window");
+                        editor->SetReadOnly(false);
+                        editor->SetViewMode(ViewMode::Rich);
+                        editor->SetMarkdownRenderingEnabled(true);
+                        editor->SetMarkdownAutoFormatEnabled(true);
+                        Check(editor->GetMarkdownSyntax() != nullptr, "autoformat starts with a current published syntax");
+                    }
+                    host.SetRoot(std::move(root));
+                    if (policy == TypingPolicy::Fence)
+                        Check(editor->OnChar(host, L'`', 0u) && editor->OnChar(host, L'`', 0u), "seed a pending fenced-code trigger");
+                    const auto policyBefore          = editor->Snapshot();
+                    const auto policyBeforeSelection = editor->GetSelection();
+                    const auto policyBeforeRevision  = editor->Revision();
+                    const bool beforeUndo = editor->CanUndo(), beforeRedo = editor->CanRedo();
+                    bool handled{};
+                    {
+                        const auto previous = failAllocationAfter;
+                        const auto restore  = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
+                        failAllocationAfter = point;
+                        handled             = editor->OnChar(host, policy == TypingPolicy::Pair ? L'(' : policy == TypingPolicy::Typography ? L'.' : L'`', 0u);
+                    }
+                    if (editor->Snapshot().IsSameRevision(policyBefore))
+                    {
+                        sawFailure = true;
+                        Check(! handled && editor->Revision() == policyBeforeRevision && editor->GetSelection() == policyBeforeSelection &&
+                                  editor->CanUndo() == beforeUndo && editor->CanRedo() == beforeRedo,
+                              "failed typing-policy allocation preserves source, selection and history before publication");
+                    }
+                    else
+                    {
+                        const auto expected = policy == TypingPolicy::Pair ? L"()" : policy == TypingPolicy::Typography ? L"\u2026" : L"```\r\n\r\n```";
+                        const auto restored = policy == TypingPolicy::Typography ? L".." : L"";
+                        Check(handled && editor->GetText() == expected && editor->Undo() && editor->GetText() == restored,
+                              "a published typing-policy transaction is handled and undoes atomically");
+                        sawSuccess = true;
+                        break;
+                    }
+                }
+                Check(sawFailure && sawSuccess, "typing-policy fault sweep reaches precommit failure and success");
+            }
+        }
         std::cout << "parsed snapshot allocation-failure sweep: parser=" << parserRequests << " editor=" << editorRequests << '\n';
     }
     else

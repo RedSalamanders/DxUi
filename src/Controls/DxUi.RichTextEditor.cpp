@@ -110,6 +110,43 @@ wchar_t AutoPairClosing(wchar_t character) noexcept
         default: return 0;
     }
 }
+enum class AutoFormatMatch
+{
+    None,
+    Prefix,
+    Marker,
+    Fence,
+    Rule
+};
+AutoFormatMatch MatchAutoFormat(std::wstring_view value) noexcept
+{
+    if (value.empty())
+        return AutoFormatMatch::None;
+    const auto complete = value.back() == L' ';
+    const auto marker   = complete ? value.substr(0u, value.size() - 1u) : value;
+    if (marker.empty())
+        return AutoFormatMatch::None;
+    if (marker.front() == L'#' && marker.size() <= 6u && marker.find_first_not_of(L'#') == marker.npos)
+        return complete ? AutoFormatMatch::Marker : AutoFormatMatch::Prefix;
+    if (marker == L"-" || marker == L"+" || marker == L"*" || marker == L">")
+        return complete ? AutoFormatMatch::Marker : AutoFormatMatch::Prefix;
+    if (! complete && marker == L"--")
+        return AutoFormatMatch::Prefix;
+    if (! complete && marker == L"---")
+        return AutoFormatMatch::Rule;
+    if (! complete && (marker.front() == L'`' || marker.front() == L'~') && marker.size() <= 3u && marker.find_first_not_of(marker.front()) == marker.npos)
+        return marker.size() == 3u ? AutoFormatMatch::Fence : AutoFormatMatch::Prefix;
+    auto digits = size_t{};
+    while (digits < marker.size() && digits < 9u && marker[digits] >= L'0' && marker[digits] <= L'9')
+        ++digits;
+    if (! digits)
+        return AutoFormatMatch::None;
+    if (digits == marker.size())
+        return complete ? AutoFormatMatch::None : AutoFormatMatch::Prefix;
+    if (digits + 1u == marker.size() && (marker[digits] == L'.' || marker[digits] == L')'))
+        return complete ? AutoFormatMatch::Marker : AutoFormatMatch::Prefix;
+    return AutoFormatMatch::None;
+}
 // Group complete UTF-16 text elements without splitting supplementary scalars
 // or combining sequences. Punctuation and whitespace still terminate a run.
 bool IsHistoryWordElement(std::wstring_view text) noexcept
@@ -256,8 +293,24 @@ struct RichTextEditor::State
     RichText::SourceSearchOptions searchOptions;
     bool searchShortcutsEnabled = false;
     std::shared_ptr<const std::function<void()>> onFindRequested;
-    bool markdownShortcutsEnabled = false;
-    bool autoPairEnabled          = false;
+    bool markdownShortcutsEnabled  = false;
+    bool autoPairEnabled           = false;
+    bool smartTypographyEnabled    = false;
+    bool markdownAutoFormatEnabled = false;
+    struct AutoFormatRun
+    {
+        uint64_t revision{}, selectionEpoch{}, lastTick{};
+        size_t caret{}, lineStart{};
+        bool nested{};
+        std::shared_ptr<const std::wstring> continuationPrefix;
+    };
+    std::optional<AutoFormatRun> autoFormatRun;
+    struct SmartTypingSite
+    {
+        uint64_t revision{};
+        size_t caret{};
+    };
+    std::optional<SmartTypingSite> smartTypingSite;
     std::shared_ptr<const std::function<void()>> onLinkEditRequested;
     struct HighlightRectangle
     {
@@ -899,6 +952,8 @@ void RichTextEditor::SetViewMode(RichText::ViewMode mode)
         throw std::invalid_argument("Invalid rich-text view mode");
     if (_state->mode == mode)
         return;
+    _state->autoFormatRun.reset();
+    _state->smartTypingSite.reset();
     RetireSemanticAccessibility();
     _state->mode = mode;
     _state->images.Cancel();
@@ -1270,6 +1325,8 @@ void RichTextEditor::SetMarkdownAnalysisProfile(std::optional<RichText::Markdown
         throw std::invalid_argument("Invalid Markdown analysis profile");
     if (_state->markdownProfile == profile)
         return;
+    _state->autoFormatRun.reset();
+    _state->smartTypingSite.reset();
     RetireSemanticAccessibility();
     _state->markdown.Clear();
     _state->images.Cancel();
@@ -1309,6 +1366,8 @@ void RichTextEditor::SetMarkdownRenderingEnabled(bool enabled)
     if (enabled && ! _state->accessibilityEpoch)
         _state->accessibilityEpoch = std::make_shared<RichText::Detail::AccessibilityEpoch>();
     RetireSemanticAccessibility();
+    _state->autoFormatRun.reset();
+    _state->smartTypingSite.reset();
     _state->markdownRendering = enabled;
     _state->images.Cancel();
     _state->sourceEditing.reset();
@@ -1576,6 +1635,8 @@ bool RichTextEditor::EndSemanticSourceEdit(ControlHost& host)
 }
 void RichTextEditor::SourcePresentationChanged(ControlHost& host)
 {
+    _state->autoFormatRun.reset();
+    _state->smartTypingSite.reset();
     _state->images.Cancel();
     RetireSemanticAccessibility();
     _state->sourceCaretSite = RichText::MarkdownNoNode;
@@ -1620,6 +1681,8 @@ void RichTextEditor::UpdateSemanticSourceRegion() noexcept
 }
 void RichTextEditor::SetReadOnly(bool readOnly) noexcept
 {
+    _state->autoFormatRun.reset();
+    _state->smartTypingSite.reset();
     _state->readOnly = readOnly;
     SelectionChanged();
 }
@@ -1682,11 +1745,31 @@ void RichTextEditor::SetMarkdownShortcutsEnabled(bool enabled) noexcept
 }
 void RichTextEditor::SetAutoPairEnabled(bool enabled) noexcept
 {
+    _state->autoFormatRun.reset();
+    _state->smartTypingSite.reset();
     _state->autoPairEnabled = enabled;
 }
 bool RichTextEditor::IsAutoPairEnabled() const noexcept
 {
     return _state->autoPairEnabled;
+}
+void RichTextEditor::SetSmartTypographyEnabled(bool enabled) noexcept
+{
+    _state->smartTypingSite.reset();
+    _state->smartTypographyEnabled = enabled;
+}
+bool RichTextEditor::IsSmartTypographyEnabled() const noexcept
+{
+    return _state->smartTypographyEnabled;
+}
+void RichTextEditor::SetMarkdownAutoFormatEnabled(bool enabled) noexcept
+{
+    _state->markdownAutoFormatEnabled = enabled;
+    _state->autoFormatRun.reset();
+}
+bool RichTextEditor::IsMarkdownAutoFormatEnabled() const noexcept
+{
+    return _state->markdownAutoFormatEnabled;
 }
 void RichTextEditor::SetOnLinkEditRequested(std::function<void()> callback)
 {
@@ -4139,6 +4222,123 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
             else
                 return false; // Tab is host traversal; control characters never enter the source.
         }
+        if (_state->markdownAutoFormatEnabled && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich && ! _state->sourceEditing &&
+            text.size() == 1u && GetSelection().Start() == GetSelection().End() && (_state->autoFormatRun || MatchAutoFormat(text) != AutoFormatMatch::None))
+        {
+            const auto selection  = GetSelection();
+            const auto source     = Snapshot();
+            const auto now        = GetTickCount64();
+            const auto previous   = _state->autoFormatRun;
+            const bool continuing = previous && previous->revision == Revision() && previous->selectionEpoch == _state->document.selectionEpoch_ &&
+                                    previous->caret == selection.caret && now >= previous->lastTick && now - previous->lastTick <= 1000u &&
+                                    _state->document.CanUndo();
+            const auto start      = continuing ? previous->lineStart : selection.caret;
+            auto candidate        = source.Slice(start, selection.caret);
+            candidate += text;
+            const auto match        = MatchAutoFormat(candidate);
+            bool allowed            = match != AutoFormatMatch::None;
+            bool nested             = continuing && previous->nested;
+            auto continuationPrefix = continuing ? previous->continuationPrefix : nullptr;
+            const bool focused      = host.GetFocusControl() == this;
+            const auto composition  = focused ? host.GetNativeTextCompositionActive(this) : std::optional<bool>{false};
+            allowed = allowed && (! focused || ! host.HasActiveNativeTextInputSession() || composition.has_value()) && ! composition.value_or(false);
+            if (allowed && ! continuing)
+            {
+                bool lineStart = selection.caret == 0u;
+                if (! lineStart && source.IsBoundary(selection.caret - 1u))
+                {
+                    const auto preceding = source.Slice(selection.caret - 1u, selection.caret);
+                    lineStart            = preceding == L"\r" || preceding == L"\n";
+                }
+                else if (! lineStart && selection.caret >= 2u && source.IsBoundary(selection.caret - 2u))
+                    lineStart = source.Slice(selection.caret - 2u, selection.caret) == L"\r\n";
+                bool lineEnd = selection.caret == source.Length();
+                if (! lineEnd && source.IsBoundary(selection.caret + 1u))
+                {
+                    const auto following = source.Slice(selection.caret, selection.caret + 1u);
+                    lineEnd              = following == L"\r" || following == L"\n";
+                }
+                else if (! lineEnd && selection.caret + 2u <= source.Length() && source.IsBoundary(selection.caret + 2u))
+                    lineEnd = source.Slice(selection.caret, selection.caret + 2u) == L"\r\n";
+                const auto syntax = GetMarkdownSyntax();
+                if (syntax)
+                    for (const auto& empty : syntax->EmptyLines())
+                        if (empty.insertion == selection.caret && empty.owner < syntax->Nodes().size())
+                        {
+                            const auto kind = syntax->Nodes()[empty.owner].block.kind;
+                            if (kind == RichText::MarkdownBlockKind::Document || kind == RichText::MarkdownBlockKind::BlockQuote ||
+                                kind == RichText::MarkdownBlockKind::ListItem)
+                            {
+                                lineStart = true;
+                                nested    = kind != RichText::MarkdownBlockKind::Document;
+                                if (nested)
+                                {
+                                    const auto raw = syntax->Source();
+                                    auto line      = selection.caret;
+                                    while (line && raw[line - 1u] != L'\r' && raw[line - 1u] != L'\n')
+                                        --line;
+                                    auto prefix = std::make_shared<std::wstring>(raw.substr(line, selection.caret - line));
+                                    for (auto owner = empty.owner; owner != RichText::MarkdownNoNode; owner = syntax->Nodes()[owner].parent)
+                                    {
+                                        const auto& item = syntax->Nodes()[owner];
+                                        if (item.block.kind != RichText::MarkdownBlockKind::ListItem || item.block.info.first < line ||
+                                            item.block.info.last > selection.caret)
+                                            continue;
+                                        for (auto at = item.block.info.first; at < item.block.info.last; ++at)
+                                            (*prefix)[at - line] = L' ';
+                                    }
+                                    continuationPrefix = std::move(prefix);
+                                }
+                            }
+                        }
+                allowed = lineStart && lineEnd && syntax != nullptr;
+                if (syntax)
+                    for (const auto& node : syntax->Nodes())
+                        if (node.block.kind != RichText::MarkdownBlockKind::Document && node.block.kind != RichText::MarkdownBlockKind::BlankLine &&
+                            node.block.kind != RichText::MarkdownBlockKind::BlockQuote && node.block.kind != RichText::MarkdownBlockKind::List &&
+                            node.block.kind != RichText::MarkdownBlockKind::ListItem && node.block.source.first <= selection.caret &&
+                            (selection.caret < node.block.source.last ||
+                             (selection.caret == node.block.source.last && selection.caret == source.Length() &&
+                              ((node.block.kind == RichText::MarkdownBlockKind::FencedCode && ! node.block.closed) ||
+                               node.block.kind == RichText::MarkdownBlockKind::HtmlBlock))))
+                            allowed = false;
+            }
+            if (allowed)
+            {
+                std::wstring insertion(text);
+                auto caret = selection.caret + insertion.size();
+                if (match == AutoFormatMatch::Fence)
+                {
+                    const auto all              = source.Text();
+                    const auto newline          = all.find_first_of(L"\r\n");
+                    const std::wstring_view eol = newline == all.npos ? std::wstring_view(L"\r\n")
+                                                  : all[newline] == L'\r' && newline + 1u < all.size() && all[newline + 1u] == L'\n'
+                                                      ? std::wstring_view(L"\r\n")
+                                                  : all[newline] == L'\r' ? std::wstring_view(L"\r")
+                                                                          : std::wstring_view(L"\n");
+                    insertion += eol;
+                    caret += eol.size();
+                    if (continuationPrefix)
+                    {
+                        insertion += *continuationPrefix;
+                        caret += continuationPrefix->size();
+                    }
+                    insertion += eol;
+                    if (continuationPrefix)
+                        insertion += *continuationPrefix;
+                    insertion += candidate;
+                }
+                _state->typingRun.reset();
+                const bool changed = _state->document.ReplaceImpl(selection.caret, selection.caret, insertion, {caret, caret}, true, continuing);
+                if (changed && match == AutoFormatMatch::Prefix)
+                    _state->autoFormatRun = State::AutoFormatRun{Revision(), _state->document.selectionEpoch_, now, caret, start, nested, continuationPrefix};
+                else
+                    _state->autoFormatRun.reset();
+                Changed(changed);
+                return true;
+            }
+            _state->autoFormatRun.reset();
+        }
         if (_state->markdownRendering && _state->mode == RichText::ViewMode::Rich && LayoutIsCurrent(host))
             if (const auto* geometry = _state->layout.SemanticGeometry(); geometry && geometry->IsCellSourceSite(GetSelection().caret, _state->sourceCaretSite))
             {
@@ -4187,6 +4387,87 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                 const bool changed = _state->document.ReplaceImpl(selection.Start(), selection.End(), replacement, after, true);
                 Changed(changed);
                 return true;
+            }
+        }
+        if (_state->smartTypographyEnabled && ! _state->sourceEditing && _state->mode == RichText::ViewMode::Rich && text.size() == 1u &&
+            selection.Start() == selection.End() && (text[0] == L'.' || text[0] == L'-' || text[0] == L'\'' || text[0] == L'"'))
+        {
+            const bool focused     = host.GetFocusControl() == this;
+            const auto composition = focused ? host.GetNativeTextCompositionActive(this) : std::optional<bool>{false};
+            bool permitted         = (! focused || ! host.HasActiveNativeTextInputSession() || composition.has_value()) && ! composition.value_or(false);
+            if (permitted && _state->markdownRendering)
+            {
+                const auto syntax = GetMarkdownSyntax();
+                permitted = syntax != nullptr ||
+                            (_state->smartTypingSite && _state->smartTypingSite->revision == Revision() && _state->smartTypingSite->caret == selection.caret);
+                if (syntax)
+                {
+                    for (const auto& node : syntax->Nodes())
+                        if ((node.block.kind == RichText::MarkdownBlockKind::FencedCode || node.block.kind == RichText::MarkdownBlockKind::IndentedCode ||
+                             node.block.kind == RichText::MarkdownBlockKind::HtmlBlock || node.block.kind == RichText::MarkdownBlockKind::FrontMatter) &&
+                            node.block.source.first <= selection.caret &&
+                            (selection.caret < node.block.source.last ||
+                             (selection.caret == node.block.source.last && selection.caret == syntax->Source().size() && ! node.block.closed)))
+                            permitted = false;
+                    for (const auto& node : syntax->Inlines())
+                        if ((node.kind == RichText::MarkdownInlineKind::Code || node.kind == RichText::MarkdownInlineKind::Html ||
+                             node.kind == RichText::MarkdownInlineKind::Math || node.kind == RichText::MarkdownInlineKind::Image ||
+                             node.kind == RichText::MarkdownInlineKind::Link) &&
+                            node.source.first < selection.caret && selection.caret < node.source.last)
+                            permitted = false;
+                }
+            }
+            if (permitted)
+            {
+                const auto source = Snapshot();
+                auto first        = selection.caret;
+                wchar_t replacement{};
+                if (text[0] == L'.' && first >= 2u && source.IsBoundary(first - 2u) && source.Slice(first - 2u, first) == L"..")
+                {
+                    first -= 2u;
+                    replacement = L'\u2026';
+                }
+                else if (text[0] == L'-' && first && source.IsBoundary(first - 1u))
+                {
+                    const auto previous = source.Slice(first - 1u, first);
+                    if (previous == L"-" || previous == L"\u2013")
+                    {
+                        --first;
+                        replacement = previous == L"-" ? L'\u2013' : L'\u2014';
+                    }
+                }
+                else if (text[0] == L'\'' || text[0] == L'"')
+                {
+                    bool opening = first == 0u;
+                    if (first && source.IsBoundary(first - 1u))
+                    {
+                        const auto previous = source.Slice(first - 1u, first);
+                        WORD type{};
+                        opening = previous[0] == L'(' || previous[0] == L'[' || previous[0] == L'{' ||
+                                  (GetStringTypeW(CT_CTYPE1, previous.data(), 1, &type) && (type & C1_SPACE) != 0u);
+                        if (previous[0] == L'\\')
+                            permitted = false;
+                    }
+                    replacement = text[0] == L'\'' ? (opening ? L'\u2018' : L'\u2019') : (opening ? L'\u201c' : L'\u201d');
+                }
+                if (permitted && replacement)
+                {
+                    _state->typingRun.reset();
+                    const auto end          = first + 1u;
+                    const bool changed      = _state->document.ReplaceImpl(first, selection.caret, std::wstring_view(&replacement, 1u), {end, end}, true);
+                    _state->smartTypingSite = changed ? std::optional{State::SmartTypingSite{Revision(), end}} : std::nullopt;
+                    Changed(changed);
+                    return true;
+                }
+                if (permitted)
+                {
+                    _state->typingRun.reset();
+                    const auto end          = selection.caret + text.size();
+                    const bool changed      = _state->document.ReplaceImpl(selection.caret, selection.caret, text, {end, end}, true);
+                    _state->smartTypingSite = changed ? std::optional{State::SmartTypingSite{Revision(), end}} : std::nullopt;
+                    Changed(changed);
+                    return true;
+                }
             }
         }
         const bool word = IsHistoryWordElement(text);
@@ -4242,8 +4523,13 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
             return false;
         _state->pendingLeadSurrogate = 0;
         const bool control = ModifiersContainCtrl(modifiers), shift = ModifiersContainShift(modifiers);
-        if (control || key == VK_ESCAPE || key == VK_RETURN || key == VK_TAB || key == VK_F2)
+        if (control || key == VK_ESCAPE || key == VK_RETURN || key == VK_TAB || key == VK_F2 || key == VK_LEFT || key == VK_RIGHT || key == VK_UP ||
+            key == VK_DOWN || key == VK_HOME || key == VK_END || key == VK_PRIOR || key == VK_NEXT)
+        {
             _state->typingRun.reset();
+            _state->autoFormatRun.reset();
+            _state->smartTypingSite.reset();
+        }
         if (_state->markdownShortcutsEnabled && Editable() && control && ! ModifiersContainAlt(modifiers) && shift && key >= '0' && key <= '6' &&
             _state->markdownRendering && _state->mode == RichText::ViewMode::Rich && ! _state->sourceEditing)
         {

@@ -1259,6 +1259,12 @@ Adjacent direct letter, digit, underscore, supplementary scalar, joiner and comb
 units and one second between input events. A selection move, command, punctuation,
 whitespace, or source revision change ends the group. IME transactions retain
 their native composition history policy.
+Undo and redo each retain at most 128 immutable source/selection snapshots in
+bounded rings. Storage needed for a first push is prepared before publishing an
+edit or moving history, so allocation failure preserves both histories and the
+current source and selection. Held source snapshots remain independently valid.
+Document copies retain independent histories; moving a document transfers both
+rings and leaves the moved-from history empty.
 Source-view and source-region Backspace/Delete runs on those same text elements
 coalesce in the same bounded way; direction or explicit word deletion ends a run.
 The default-off direct-typing auto-pair policy inserts matching parentheses,
@@ -1266,6 +1272,23 @@ brackets, braces, quotes, asterisks or underscores as one undo transaction,
 placing the caret between them or preserving the direction of a wrapped source
 selection. Native composition is never paired. Empty table-cell scaffolds use
 their structural cell-edit transaction and retain the interior caret.
+Default-off smart typography converts three periods to an ellipsis, two and
+three hyphens to en and em dashes, and direct straight quotes to contextual
+curly quotes. Each replacement is a single undo transaction. It declines code,
+opaque inline syntax, active source-region editing and native composition;
+pairing takes precedence when both policies are enabled.
+Default-off Markdown auto-format recognizes empty-line heading, bullet,
+ordered-list, quote, thematic-rule and triple-backtick/tilde fence triggers at
+top level and in parser-proven empty quote/list containers.
+A completed marker is one undo transaction; a fence trigger creates
+a closed block with the caret on its empty body line. Trigger recognition
+precedes auto-pair and smart typography, and declines code, nonempty lines,
+source-region editing and native composition. A new trigger requires current
+syntax; once started, its revision and selection guard allow completion while
+replacement syntax is still pending.
+Profile, view, source-presentation and read-only transitions retire pending
+typing-policy context even if the raw source revision is unchanged.
+Escape and editing/navigation command chords also end a pending trigger group.
 Rich-view deletion also groups adjacent single plain-source erasures; structural
 wrapper removal, transformed tokens and disjoint fragments remain separate
 transactions so their ownership is preserved.
@@ -1275,8 +1298,8 @@ lines with representable container prefixes. A mixed toggle quotes the
 unquoted lines while preserving existing quotes, including parsed empty-line
 trivia with representable prefixes. It declines lazy missing prefixes and
 selections containing unsupported blocks rather than partially rewriting them.
-An intersected fenced code block is quoted or unquoted as a whole, preserving
-its fence and body lines.
+An intersected code block, HTML block, table, thematic rule or reference
+definition is quoted or unquoted as a whole, preserving its physical lines.
 SetCodeBlock wraps supported top-level paragraph lines or a container-owned
 paragraph with representable physical prefixes in a tilde fence longer than any
 contained run, or unwraps a top-level or representable container fence, whether

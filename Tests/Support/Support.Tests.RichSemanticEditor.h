@@ -288,6 +288,114 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     editor->SetReadOnly(false);
     editor->SetAutoPairEnabled(false);
     editor->SetText(L"");
+    prepare();
+    Check(! editor->IsSmartTypographyEnabled(), "smart typography is disabled by default");
+    editor->SetSmartTypographyEnabled(true);
+    Check(editor->OnChar(host, L'.', 0u) && editor->OnChar(host, L'.', 0u) && editor->OnChar(host, L'.', 0u) && editor->GetText() == L"\u2026" &&
+              editor->Undo() && editor->GetText() == L"..",
+          "rapid ellipsis typing remains one replacement undo even before semantic analysis republishes");
+    editor->SetText(L"");
+    prepare();
+    Check(editor->OnChar(host, L'-', 0u) && editor->OnChar(host, L'-', 0u) && editor->OnChar(host, L'-', 0u) && editor->GetText() == L"\u2014" &&
+              editor->Undo() && editor->GetText() == L"\u2013",
+          "direct dash replacement is atomic and upgrades an en dash to an em dash");
+    editor->SetText(L"`x`");
+    prepare();
+    editor->SetSelection({2u, 2u});
+    Check(editor->OnChar(host, L'"', 0u) && editor->GetText() == L"`x\"`", "smart quotes leave inline code spelling literal");
+    editor->SetText(L"");
+    prepare();
+    Check(editor->OnChar(host, L'"', 0u) && editor->GetText() == L"\u201c", "smart quote opens at the start of prose");
+    editor->SetText(L"\\(x\\)");
+    prepare();
+    editor->SetSelection({3u, 3u});
+    Check(editor->OnChar(host, L'.', 0u), "seed a smart-typing site under the previous Markdown profile");
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    Check(editor->OnChar(host, L'"', 0u) && editor->GetText() == L"\\(x.\"\\)",
+          "a profile switch retires a cached prose site before the new math analysis publishes");
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+    editor->SetSmartTypographyEnabled(false);
+    editor->SetText(L"");
+    prepare();
+    Check(! editor->IsMarkdownAutoFormatEnabled() && editor->OnChar(host, L'#', 0u) && editor->OnChar(host, L' ', 0u) && editor->Undo() &&
+              editor->GetText() == L"#",
+          "Markdown trigger coalescing is disabled by default");
+    editor->SetMarkdownAutoFormatEnabled(true);
+    editor->SetText(L"");
+    prepare();
+    Check(editor->OnChar(host, L'#', 0u), "seed a pending Markdown trigger");
+    editor->SetViewMode(ViewMode::Source);
+    editor->SetViewMode(ViewMode::Rich);
+    Check(editor->OnChar(host, L' ', 0u) && editor->Undo() && editor->GetText() == L"#",
+          "view transitions retire pending trigger grouping even if the source revision is unchanged");
+    editor->SetText(L"");
+    prepare();
+    Check(editor->OnChar(host, L'#', 0u), "seed a trigger before an explicit command");
+    static_cast<void>(editor->OnKeyDown(host, VK_ESCAPE, 0u));
+    Check(editor->OnChar(host, L' ', 0u) && editor->Undo() && editor->GetText() == L"#",
+          "Escape ends pending trigger grouping without requiring a selection change");
+    for (const auto trigger :
+         {std::wstring_view(L"## "), std::wstring_view(L"- "), std::wstring_view(L"1. "), std::wstring_view(L"> "), std::wstring_view(L"---")})
+    {
+        editor->SetText(L"");
+        prepare();
+        for (const auto character : trigger)
+            Check(editor->OnChar(host, character, 0u), "direct Markdown trigger character is handled");
+        if (trigger == L"---")
+        {
+            prepare();
+            Check(
+                std::ranges::any_of(editor->GetMarkdownSyntax()->Nodes(), [](const auto& node) { return node.block.kind == MarkdownBlockKind::ThematicBreak; }),
+                "thematic trigger reparses to a real rule");
+        }
+        Check(editor->GetText() == trigger && editor->Undo() && editor->GetText().empty(),
+              "a complete top-level Markdown trigger is one source-exact undo transaction");
+    }
+    editor->SetText(L"");
+    prepare();
+    Check(editor->OnChar(host, L'`', 0u) && editor->OnChar(host, L'`', 0u) && editor->OnChar(host, L'`', 0u) && editor->GetText() == L"```\r\n\r\n```" &&
+              editor->GetSelection() == Selection{5u, 5u},
+          "a fenced-code trigger creates a closed editable block in one undo step");
+    prepare();
+    Check(std::ranges::any_of(editor->GetMarkdownSyntax()->Nodes(),
+                              [](const auto& node) { return node.block.kind == MarkdownBlockKind::FencedCode && node.block.closed; }) &&
+              editor->Undo() && editor->GetText().empty(),
+          "fence trigger publishes a closed code block and undoes atomically");
+    for (const auto source : {std::wstring_view(L"> \n"), std::wstring_view(L"- \n")})
+    {
+        editor->SetText(std::wstring(source));
+        prepare();
+        editor->SetSelection({2u, 2u});
+        Check(editor->OnChar(host, L'#', 0u) && editor->OnChar(host, L' ', 0u) && editor->GetText() == std::wstring(source.substr(0u, 2u)) + L"# \n" &&
+                  editor->Undo() && editor->GetText() == source,
+              "an empty quote or list item admits an atomic nested heading trigger");
+    }
+    for (const auto& sample : {std::pair{std::wstring_view(L"> \n"), std::wstring_view(L"> ```\n> \n> ```\n")},
+                               std::pair{std::wstring_view(L"- \n"), std::wstring_view(L"- ```\n  \n  ```\n")},
+                               std::pair{std::wstring_view(L"-\t\n"), std::wstring_view(L"-\t```\n \t\n \t```\n")},
+                               std::pair{std::wstring_view(L"12. \n"), std::wstring_view(L"12. ```\n    \n    ```\n")}})
+    {
+        editor->SetText(std::wstring(sample.first));
+        prepare();
+        const auto start = sample.first.find(L'\n');
+        editor->SetSelection({start, start});
+        const auto bodyCaret = sample.second.find(L'\n') + 1u + start;
+        Check(editor->OnChar(host, L'`', 0u) && editor->OnChar(host, L'`', 0u) && editor->OnChar(host, L'`', 0u) && editor->GetText() == sample.second &&
+                  editor->GetSelection() == Selection{bodyCaret, bodyCaret},
+              "nested fence trigger retains a proven continuation prefix and interior caret");
+        prepare();
+        Check(std::ranges::any_of(editor->GetMarkdownSyntax()->Nodes(),
+                                  [](const auto& node) { return node.block.kind == MarkdownBlockKind::FencedCode && node.block.closed; }) &&
+                  editor->Undo() && editor->GetText() == sample.first,
+              "nested generated fence reparses as closed and undoes in one transaction");
+    }
+    editor->SetText(L"~~~\n\n~~~");
+    prepare();
+    editor->SetSelection({4u, 4u});
+    Check(editor->OnChar(host, L'#', 0u) && editor->OnChar(host, L' ', 0u) && editor->Undo() && editor->GetText() == L"~~~\n#\n~~~",
+          "Markdown trigger policy does not transform fenced-code input");
+    editor->SetMarkdownAutoFormatEnabled(false);
+    editor->SetText(L"");
     Check(editor->OnChar(host, L'a', 0u) && editor->OnChar(host, L'b', 0u) && editor->OnChar(host, L'c', 0u) && editor->GetText() == L"abc" && editor->Undo() &&
               editor->GetText().empty(),
           "adjacent direct word typing coalesces into one undo");

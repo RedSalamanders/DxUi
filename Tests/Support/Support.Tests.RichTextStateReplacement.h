@@ -92,6 +92,32 @@ template <typename Check> inline void Core(Check&& check)
     reject(L"\U0001f600", {1u, 1u});
     reject(L"\r\n", {1u, 1u});
     reject(L"x", {2u, 2u});
+    Document ring;
+    for (size_t i = 0u; i < 10u; ++i)
+        ring.ReplaceSelection(L"x");
+    const auto retained = ring.Snapshot();
+    for (size_t i = 10u; i < Document::MaximumHistory + 20u; ++i)
+        ring.ReplaceSelection(L"x");
+    Document copy = ring;
+    size_t undos{};
+    while (ring.Undo())
+        ++undos;
+    check(undos == Document::MaximumHistory && ring.Text() == std::wstring(20u, L'x') && retained.Text() == std::wstring(10u, L'x') &&
+              copy.Text() == std::wstring(Document::MaximumHistory + 20u, L'x'),
+          "history eviction retains the last 128 states, held snapshots, and independent document copies");
+    size_t redos{};
+    while (ring.Redo())
+        ++redos;
+    check(redos == Document::MaximumHistory && ring.Text() == copy.Text(), "the wrapped history ring redoes every retained state in order");
+    check(ring.Undo() && ring.Undo() && ring.ReplaceSelection(L"y") && ! ring.CanRedo() && copy.CanUndo(),
+          "a new edit clears only its own redo ring after wraparound");
+    Document moved(std::move(copy));
+    check(! copy.CanUndo() && ! copy.CanRedo() && moved.CanUndo() && moved.Undo(),
+          "moving a populated document leaves its source history safely empty and transfers undo");
+    Document assigned;
+    assigned = std::move(moved);
+    check(! moved.CanUndo() && ! moved.CanRedo() && assigned.CanUndo() && assigned.CanRedo(),
+          "move assignment transfers both rings and leaves the moved-from history empty");
 }
 
 // The production adapter remains protected. Tests exercise service commits
