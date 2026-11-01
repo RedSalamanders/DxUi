@@ -33,7 +33,10 @@ HRESULT ReadUnicodeClipboardData(HANDLE data, std::wstring& text) noexcept
     const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(data); });
     return DecodeClipboardText(std::span(value, bytes / sizeof(wchar_t)), text);
 }
-class WindowsTextClipboard final : public TextClipboard, public StructuredTextClipboard, public SelectiveStructuredTextClipboard, public BitmapStructuredTextClipboard
+class WindowsTextClipboard final : public TextClipboard,
+                                   public StructuredTextClipboard,
+                                   public SelectiveStructuredTextClipboard,
+                                   public BitmapStructuredTextClipboard
 {
 public:
     HRESULT Read(HWND owner, std::wstring& text) noexcept override
@@ -423,7 +426,8 @@ HRESULT ReadTextClipboardContent(TextClipboard& clipboard, HWND owner, TextClipb
 {
     return ReadTextClipboardContent(clipboard, owner, content, includeFiles, includeHtml, false);
 }
-HRESULT ReadTextClipboardContent(TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml, bool includeBitmap) noexcept
+HRESULT ReadTextClipboardContent(
+    TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml, bool includeBitmap) noexcept
 try
 {
     if (includeBitmap)

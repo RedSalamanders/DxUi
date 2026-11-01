@@ -1420,7 +1420,7 @@ void TestRichMarkdownWikiLinks()
     parser.Begin(source, 1u, MarkdownProfile::RichMarkdown);
     const auto rich = CompleteMarkdown(parser, 1u);
     CheckInlineForest(*rich);
-    const auto link = std::ranges::find_if(rich->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Link && node.wiki; });
+    const auto link  = std::ranges::find_if(rich->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Link && node.wiki; });
     const auto image = std::ranges::find_if(rich->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Image && node.wiki; });
     Require(link != rich->Inlines().end() && link->destination == L"Folder/Page" && rich->Slice(link->source) == L"[[Folder/Page|alias]]" &&
                 image != rich->Inlines().end() && image->destination == L"image.png" && rich->Slice(image->source) == L"![[image.png]]",

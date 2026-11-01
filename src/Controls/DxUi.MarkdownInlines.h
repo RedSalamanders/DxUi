@@ -31,7 +31,7 @@ class MarkdownInlines
     std::wstring_view rawSource_;
     std::optional<MarkdownSourceRegion> sourceRegion_;
     bool sourceRegionEmitted_{};
-    std::size_t wikiClose_ = MarkdownNoNode;
+    std::size_t wikiClose_   = MarkdownNoNode;
     std::size_t wikiScanned_ = 0u;
     MarkdownProfile profile_;
     MarkdownExtensions extensions_;
@@ -586,7 +586,7 @@ class MarkdownInlines
     {
         const auto& block = blocks_[blockCursor_];
         text_.clear();
-        wikiClose_ = MarkdownNoNode;
+        wikiClose_   = MarkdownNoNode;
         wikiScanned_ = 0u;
         offsets_.clear();
         delimiters_.clear();
@@ -1633,7 +1633,7 @@ class MarkdownInlines
             return;
         }
         const bool wikiImage = c == L'!' && first + 2u < text_.size() && text_[first + 1u] == L'[' && text_[first + 2u] == L'[';
-        const bool wikiLink = c == L'[' && first + 1u < text_.size() && text_[first + 1u] == L'[';
+        const bool wikiLink  = c == L'[' && first + 1u < text_.size() && text_[first + 1u] == L'[';
         if ((wikiImage || wikiLink) && HasMarkdownExtension(extensions_, MarkdownExtensions::WikiLinks))
         {
             const auto body = first + (wikiImage ? 3u : 2u);
@@ -1643,7 +1643,7 @@ class MarkdownInlines
             if (wikiClose_ == MarkdownNoNode && wikiScanned_ < limit)
             {
                 const auto start = (std::max)(body, wikiScanned_ ? wikiScanned_ - 1u : 0u);
-                auto found = MarkdownNoNode;
+                auto found       = MarkdownNoNode;
                 for (auto at = start; at + 1u < limit; ++at)
                 {
                     ++wikiInspectionUnits_;
@@ -1655,7 +1655,7 @@ class MarkdownInlines
                 }
                 if (found != MarkdownNoNode)
                 {
-                    wikiClose_ = found;
+                    wikiClose_   = found;
                     wikiScanned_ = wikiClose_ + 2u;
                 }
                 else
@@ -1664,7 +1664,7 @@ class MarkdownInlines
             if (wikiClose_ != MarkdownNoNode && wikiClose_ >= body && wikiClose_ - body <= 4096u)
             {
                 auto separator = wikiClose_;
-                bool valid = body < wikiClose_;
+                bool valid     = body < wikiClose_;
                 for (auto at = body; valid && at < wikiClose_; ++at)
                 {
                     ++wikiInspectionUnits_;
@@ -1680,22 +1680,22 @@ class MarkdownInlines
                     }
                 }
                 const auto labelFirst = separator == wikiClose_ ? body : separator + 1u;
-                valid = valid && separator > body && labelFirst < wikiClose_ && separator - body <= 2048u && wikiClose_ - labelFirst <= 2048u;
+                valid                 = valid && separator > body && labelFirst < wikiClose_ && separator - body <= 2048u && wikiClose_ - labelFirst <= 2048u;
                 if (valid && sourceRegion_ && sourceRegion_->kind == MarkdownSourceRegionKind::Inline)
                 {
                     const auto envelope = Range(first, wikiClose_ + 2u);
-                    valid = envelope.last <= sourceRegion_->source.first || envelope.first >= sourceRegion_->source.last;
+                    valid               = envelope.last <= sourceRegion_->source.first || envelope.first >= sourceRegion_->source.last;
                 }
                 if (valid)
                 {
-                    const auto owner = Append(wikiImage ? Kind::Image : Kind::Link, first, wikiClose_ + 2u, {}, false);
+                    const auto owner   = Append(wikiImage ? Kind::Image : Kind::Link, first, wikiClose_ + 2u, {}, false);
                     nodes_[owner].wiki = true;
                     nodes_[owner].destination.assign(text_.data() + body, separator - body);
                     const auto child = Append(Kind::Text, labelFirst, wikiClose_, std::wstring_view(text_).substr(labelFirst, wikiClose_ - labelFirst), false);
                     Remove(child);
-                    previous_[child] = MarkdownNoNode;
+                    previous_[child]         = MarkdownNoNode;
                     nodes_[owner].firstChild = child;
-                    cursor_ = wikiClose_ + 2u;
+                    cursor_                  = wikiClose_ + 2u;
                     if (! wikiImage)
                         for (auto& earlier : brackets_)
                             if (! earlier.image)

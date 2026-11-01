@@ -11092,10 +11092,10 @@ bool ScrollPanel::DispatchPress(ControlHost& host, D2D1_POINT_2F point, bool rig
 {
     const auto forward = [&](Control& child, D2D1_POINT_2F contentPoint)
     {
-        return clickCount == 4u ? child.OnMouseMiddleDown(host, contentPoint, modifiers)
-             : clickCount == 3u ? child.OnMouseTripleClick(host, contentPoint, rightButton, modifiers)
-             : clickCount == 2u ? child.OnMouseDoubleClick(host, contentPoint, rightButton, modifiers)
-                                : child.OnMouseDown(host, contentPoint, rightButton, modifiers);
+        return clickCount == 4u   ? child.OnMouseMiddleDown(host, contentPoint, modifiers)
+               : clickCount == 3u ? child.OnMouseTripleClick(host, contentPoint, rightButton, modifiers)
+               : clickCount == 2u ? child.OnMouseDoubleClick(host, contentPoint, rightButton, modifiers)
+                                  : child.OnMouseDown(host, contentPoint, rightButton, modifiers);
     };
     if ((_innerCapturedChild || _dragThumb) && ! HostCaptureCarriesGesture(host))
     {

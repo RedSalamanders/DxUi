@@ -957,7 +957,8 @@ void TestRichSemanticDocumentNativeHtmlAndLinkPresentation()
 void TestRichSemanticDocumentFrontMatterLiteralFallback()
 {
     using namespace DxUi::RichText;
-    const auto document = RichSemanticDocumentTests::Build(L"\ufeff---\r\n# literal **&amp;**\r\ninvalid: [\r\n---\r\n# After\r\n", MarkdownProfile::RichMarkdown);
+    const auto document =
+        RichSemanticDocumentTests::Build(L"\ufeff---\r\n# literal **&amp;**\r\ninvalid: [\r\n---\r\n# After\r\n", MarkdownProfile::RichMarkdown);
     RichSemanticDocumentTests::CheckGraph(*document);
     Require(document->Map().Display() == L"\ufeff---\n# literal **&amp;**\ninvalid: [\n---\nAfter\n",
             "invalid metadata stays fully source-visible with no Markdown/entity decoding or fence loss");

@@ -10,7 +10,12 @@ namespace Detail
 {
 struct SemanticExtensions;
 struct SemanticExtensionAccess;
-struct DisclosureOverride { std::uint64_t identity{}; bool expanded{}; bool operator==(const DisclosureOverride&) const = default; };
+struct DisclosureOverride
+{
+    std::uint64_t identity{};
+    bool expanded{};
+    bool operator==(const DisclosureOverride&) const = default;
+};
 } // namespace Detail
 enum class SemanticRole
 {
@@ -76,8 +81,10 @@ struct SemanticParagraph
 // owner, `target` is the same source range used by fragment navigation.
 struct SemanticHeading
 {
-    SemanticHeading() : name(0u, L' '), slug(0u, L' ') {}
-    SemanticHeading(const SemanticHeading&) = default;
+    SemanticHeading() : name(0u, L' '), slug(0u, L' ')
+    {
+    }
+    SemanticHeading(const SemanticHeading&)            = default;
     SemanticHeading& operator=(const SemanticHeading&) = default;
     std::size_t element{};
     unsigned level{};
@@ -137,8 +144,14 @@ public:
     {
         return *map_;
     }
-    bool HasCallouts() const noexcept { return hasCallouts_; }
-    bool HasPropertiesBody() const noexcept { return hasPropertiesBody_; }
+    bool HasCallouts() const noexcept
+    {
+        return hasCallouts_;
+    }
+    bool HasPropertiesBody() const noexcept
+    {
+        return hasPropertiesBody_;
+    }
     std::span<const SemanticElement> Elements() const noexcept
     {
         return elements_;
@@ -147,7 +160,10 @@ public:
     {
         return paragraphs_;
     }
-    std::span<const SemanticHeading> Headings() const noexcept { return headings_; }
+    std::span<const SemanticHeading> Headings() const noexcept
+    {
+        return headings_;
+    }
     // Accepts a leading # and percent-encoded UTF-8; # alone addresses document start.
     std::optional<MarkdownRange> ResolveHeadingFragment(std::wstring_view fragment) const;
     std::span<const SemanticNavigation> Navigation() const noexcept
@@ -251,7 +267,9 @@ public:
 private:
     // Host-owned geometry rejection is presentation state for one layout key.
     // It never edits syntax and is not a consumer-authored source mask.
-    void BeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyntax> syntax, std::size_t sourceBlock, std::span<const MarkdownRange> sourceObjects,
+    void BeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyntax> syntax,
+                                  std::size_t sourceBlock,
+                                  std::span<const MarkdownRange> sourceObjects,
                                   std::span<const Detail::DisclosureOverride> disclosures = {});
     struct Preparation;
     std::unique_ptr<Preparation> next_;

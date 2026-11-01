@@ -131,12 +131,11 @@ static void TestRichTooltipReentrantTransitions(GraphicsFixture& gpu)
             state.editor->SetText(L"outer replacement");
         Check(state.called && ! state.failed && state.editor->IsReadOnly() && state.editor->GetViewMode() == RichText::ViewMode::Rich,
               "a newer setter in tooltip invalidation wins over the outer read-only, mode or source transition");
-        const std::wstring_view expected = action == 3u ? L"[new](https://example.test \"Current title\")" :
-                                                        L"[link](https://example.test \"Link title\")";
+        const std::wstring_view expected = action == 3u ? L"[new](https://example.test \"Current title\")" : L"[link](https://example.test \"Link title\")";
         Check(state.editor->GetText() == expected && ! state.editor->CanUndo(), "reentrant tooltip transitions preserve the newest source and history");
         Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "settle reentrant tooltip transition");
     }
-    auto root = std::make_unique<RichTextEditor>(L"[link](https://example.test \"Retired title\")");
+    auto root    = std::make_unique<RichTextEditor>(L"[link](https://example.test \"Retired title\")");
     state.editor = root.get();
     state.editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
     state.editor->SetMarkdownRenderingEnabled(true);
@@ -144,7 +143,7 @@ static void TestRichTooltipReentrantTransitions(GraphicsFixture& gpu)
     view.Controls().SetRoot(std::move(root));
     Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare generic-to-rich tooltip transition");
     const auto document = state.editor->GetAcknowledgedSemanticDocument(view.Controls());
-    const auto link = std::ranges::find_if(document->Elements(), [](const auto& element) { return element.role == RichText::SemanticRole::Link; });
+    const auto link     = std::ranges::find_if(document->Elements(), [](const auto& element) { return element.role == RichText::SemanticRole::Link; });
     Check(link != document->Elements().end(), "generic tooltip fixture has a link owner");
     const auto bounds = state.editor->GetSemanticElementBounds(view.Controls(), static_cast<std::size_t>(link - document->Elements().begin()));
     Check(bounds.has_value(), "generic tooltip fixture has prepared bounds");
@@ -156,7 +155,7 @@ static void TestRichTooltipReentrantTransitions(GraphicsFixture& gpu)
     Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "settle read-only generic tooltip fixture");
     Check(view.Controls().HasTooltip(), "generic tooltip remains visible before the rich target changes");
     state.called = state.failed = false;
-    state.action = 3u;
+    state.action                = 3u;
     view.DispatchPointer(move);
     Check(state.called && ! state.failed && state.editor->GetText() == L"[new](https://example.test \"Current title\")",
           "generic tooltip clear callback replaces the candidate rich document");
@@ -173,7 +172,7 @@ static void TestRichSourceDragGesture(GraphicsFixture& gpu)
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create source-drag graphics");
     EmbeddedHost view;
     Hr(view.Attach(graphics), "attach source-drag host");
-    auto root = std::make_unique<RichTextEditor>(L"one two three");
+    auto root    = std::make_unique<RichTextEditor>(L"one two three");
     auto* editor = root.get();
     view.Controls().SetRoot(std::move(root));
     view.Controls().SetFocusControl(editor);
@@ -183,13 +182,10 @@ static void TestRichSourceDragGesture(GraphicsFixture& gpu)
     Check(view.ReadTextInput(snapshot) == S_OK, "read source-drag text state");
     D2D1_RECT_F bounds{};
     bool clipped = true;
-    Check(view.GetTextInputRangeBounds(snapshot.revision, 4u, 7u, bounds, clipped) == S_OK && ! clipped,
-          "selected source has visible geometry");
+    Check(view.GetTextInputRangeBounds(snapshot.revision, 4u, 7u, bounds, clipped) == S_OK && ! clipped, "selected source has visible geometry");
     bool invoked = false;
     editor->SetOnSourceDragRequested([&](const RichTextSourceMove& move, std::wstring_view text)
-    {
-        invoked = text == L"two" && editor->MoveSelectedSource(move, 13u);
-    });
+    { invoked = text == L"two" && editor->MoveSelectedSource(move, 13u); });
     const float x = (bounds.left + bounds.right) * 0.5f, y = (bounds.top + bounds.bottom) * 0.5f;
     Check(view.DispatchPointer({PointerAction::Down, x, y}), "press inside selection begins a possible source drag");
     Check(editor->GetSelection() == RichText::Selection{4u, 7u}, "press preserves selection until drag threshold or release");
@@ -217,7 +213,7 @@ static void TestRichMiddleAutoScroll(GraphicsFixture& gpu)
     std::wstring source(0u, L' ');
     for (unsigned i = 0u; i != 100u; ++i)
         source.append(L"a long source line\n");
-    auto root = std::make_unique<RichTextEditor>(source);
+    auto root    = std::make_unique<RichTextEditor>(source);
     auto* editor = root.get();
     view.Controls().SetRoot(std::move(root));
     Hr(PrepareRichEmbeddedContent(view, 320u, 120u), "prepare auto-scroll text");
@@ -270,8 +266,7 @@ static void TestRichSourceMoveTransaction()
     const auto stale = editor.BeginSourceMove();
     editor.SetSelection({0u, 0u});
     editor.SetSelection({4u, 7u});
-    Check(stale && ! editor.MoveSelectedSource(*stale, 0u) && editor.GetText() == L"one two three",
-          "restoring the same selection cannot revive a stale move");
+    Check(stale && ! editor.MoveSelectedSource(*stale, 0u) && editor.GetText() == L"one two three", "restoring the same selection cannot revive a stale move");
     const auto cancelled = editor.BeginSourceMove();
     editor.CancelSourceMove();
     Check(cancelled && ! editor.MoveSelectedSource(*cancelled, 0u), "cancelling a gesture retires its token");
@@ -285,7 +280,8 @@ static void TestRichSourceMoveTransaction()
     editor.SetSelection({4u, 7u});
     const auto external = editor.BeginSourceMove();
     Check(external && editor.CompleteExternalSourceMove(*external) && editor.GetText() == L"one  three" && editor.Undo() &&
-              editor.GetText() == L"one two three", "confirmed external move deletes source in one undoable transaction");
+              editor.GetText() == L"one two three",
+          "confirmed external move deletes source in one undoable transaction");
     editor.SetSelection({4u, 7u});
     const auto staleExternal = editor.BeginSourceMove();
     editor.SetSelection({0u, 0u});
@@ -301,7 +297,7 @@ static void TestRichTripleClickParagraph(GraphicsFixture& gpu)
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create triple-click graphics");
     EmbeddedHost view;
     Hr(view.Attach(graphics), "attach triple-click host");
-    auto root = std::make_unique<RichTextEditor>(L"alpha beta\n\nsecond line");
+    auto root    = std::make_unique<RichTextEditor>(L"alpha beta\n\nsecond line");
     auto* editor = root.get();
     editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
     editor->SetMarkdownRenderingEnabled(true);
@@ -313,8 +309,7 @@ static void TestRichTripleClickParagraph(GraphicsFixture& gpu)
     Check(view.ReadTextInput(snapshot) == S_OK, "read triple-click text state");
     D2D1_RECT_F bounds{};
     bool clipped = true;
-    Check(view.GetTextInputRangeBounds(snapshot.revision, 0u, 5u, bounds, clipped) == S_OK && ! clipped,
-          "first word has visible geometry");
+    Check(view.GetTextInputRangeBounds(snapshot.revision, 0u, 5u, bounds, clipped) == S_OK && ! clipped, "first word has visible geometry");
     const float x = (bounds.left + bounds.right) * 0.5f, y = (bounds.top + bounds.bottom) * 0.5f;
     for (unsigned click = 0u; click != 3u; ++click)
     {
@@ -1765,9 +1760,12 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
             if (! source.starts_with(L"Term\n:") && ! source.starts_with(L"HTML document"))
                 return RichSemanticDocumentTests::Parse(source, MarkdownProfile::RichMarkdown);
             MarkdownParser parser;
-            parser.Begin(source, 1u, MarkdownProfile::RichMarkdown,
+            parser.Begin(source,
+                         1u,
+                         MarkdownProfile::RichMarkdown,
                          MarkdownExtensions::RichAll | MarkdownExtensions::DefinitionLists | MarkdownExtensions::Abbreviations);
-            while (parser.HasPendingPreparation()) parser.Advance(7u);
+            while (parser.HasPendingPreparation())
+                parser.Advance(7u);
             return parser.Published();
         }();
         const auto begin = [&](SemanticBuilder& builder)
@@ -1777,7 +1775,8 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
                 const std::array states{DxUi::RichText::Detail::DisclosureOverride{syntax->Nodes()[1u].identity, false}};
                 DxUi::RichText::Detail::SemanticExtensionAccess::BeginWithPresentation(builder, syntax, {}, states);
             }
-            else builder.Begin(syntax);
+            else
+                builder.Begin(syntax);
         };
         SemanticBuilder measured;
         measured.Begin(oldSyntax);
@@ -2506,7 +2505,7 @@ static void TestRichFrontMatterAllocationFailureAtomicity(bool trace = false)
         MarkdownParser parsed;
         parsed.Begin(source, 2u, MarkdownProfile::RichMarkdown);
         finish(parsed);
-        const auto syntax = parsed.Published();
+        const auto syntax          = parsed.Published();
         const auto beginProperties = [&](SemanticBuilder& builder)
         {
             if (syntax->Nodes()[1u].block.closed && syntax->Diagnostics().empty())
@@ -2514,7 +2513,8 @@ static void TestRichFrontMatterAllocationFailureAtomicity(bool trace = false)
                 const std::array states{DxUi::RichText::Detail::DisclosureOverride{syntax->Nodes()[1u].identity, true}};
                 DxUi::RichText::Detail::SemanticExtensionAccess::BeginWithPresentation(builder, syntax, {}, states);
             }
-            else builder.Begin(syntax);
+            else
+                builder.Begin(syntax);
         };
         std::size_t semanticRequests{};
         {
@@ -3060,13 +3060,13 @@ static void TestEmbeddedFileReferencePaste(GraphicsFixture& gpu)
     }
     std::cout << "mixed file paste allocation points=" << requests << '\n';
     BITMAPV5HEADER header{};
-    header.bV5Size = sizeof(header);
-    header.bV5Width = 2;
-    header.bV5Height = 2;
-    header.bV5Planes = 1u;
-    header.bV5BitCount = 32u;
+    header.bV5Size        = sizeof(header);
+    header.bV5Width       = 2;
+    header.bV5Height      = 2;
+    header.bV5Planes      = 1u;
+    header.bV5BitCount    = 32u;
     header.bV5Compression = BI_RGB;
-    header.bV5SizeImage = 16u;
+    header.bV5SizeImage   = 16u;
     TextClipboardContent bitmap;
     bitmap.bitmapV5 = true;
     bitmap.bitmapDib.resize(sizeof(header) + 16u);
@@ -3084,7 +3084,8 @@ static void TestEmbeddedFileReferencePaste(GraphicsFixture& gpu)
     });
     Check(view.ApplyClipboardBitmapPaste(snapshot.revision + 1u, snapshot.focusId, bitmap) == HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH) && bitmapCalls == 0u,
           "stale embedded bitmap paste refuses before the asset callback");
-    Check(view.ApplyClipboardBitmapPaste(snapshot.revision, snapshot.focusId, bitmap) == S_OK && editor->GetText() == L"![bitmap](bitmap.png)" && bitmapCalls == 1u,
+    Check(view.ApplyClipboardBitmapPaste(snapshot.revision, snapshot.focusId, bitmap) == S_OK && editor->GetText() == L"![bitmap](bitmap.png)" &&
+              bitmapCalls == 1u,
           "embedded bitmap paste commits a saved asset once without an HWND");
     Check(editor->Undo() && editor->GetText() == source && editor->GetSelection() == selection,
           "embedded bitmap paste restores exact source and selection in one undo");

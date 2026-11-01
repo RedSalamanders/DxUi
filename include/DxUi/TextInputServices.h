@@ -118,8 +118,8 @@ public:
 class TextClipboardBitmapPaste
 {
 public:
-    virtual ~TextClipboardBitmapPaste() = default;
-    virtual bool AcceptsBitmap(const EmbeddedTextInputSnapshot& snapshot) const noexcept = 0;
+    virtual ~TextClipboardBitmapPaste()                                                                                       = default;
+    virtual bool AcceptsBitmap(const EmbeddedTextInputSnapshot& snapshot) const noexcept                                      = 0;
     virtual HRESULT ApplyBitmapPaste(const EmbeddedTextInputSnapshot& snapshot, const TextClipboardContent& content) noexcept = 0;
 };
 

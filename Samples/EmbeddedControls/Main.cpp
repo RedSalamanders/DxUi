@@ -36,7 +36,7 @@ struct App
     std::shared_ptr<DxUi::RichFileDropReceiver> dropReceiver;
     wil::com_ptr_nothrow<IDataObject> textDragData;
     std::optional<DxUi::RichTextSourceMove> textDragMove;
-    bool textDragMoved = false;
+    bool textDragMoved     = false;
     using DropRegistration = wil::unique_any<HWND, decltype(&RevokeDragDrop), RevokeDragDrop>;
     DropRegistration dropRegistration;
     std::shared_ptr<EmbeddedTextClient> textClient;
@@ -432,7 +432,8 @@ struct App
                 }
                 bool PreviewText(POINTL screen) noexcept override
                 {
-                    if (! app->textDragMove || ! app->textDragData || ! app->textDragMove->IsOwnerAlive() || ! app->scene.rich || ! app->window || app->dpi <= 0.f)
+                    if (! app->textDragMove || ! app->textDragData || ! app->textDragMove->IsOwnerAlive() || ! app->scene.rich || ! app->window ||
+                        app->dpi <= 0.f)
                         return false;
                     POINT client{screen.x, screen.y};
                     if (! ScreenToClient(app->window.get(), &client))
@@ -492,9 +493,9 @@ struct App
                 wil::com_ptr_nothrow<IDropSource> source;
                 if (FAILED(DxUi::CreateRichTextDragData(text, data.put())) || FAILED(DxUi::CreateRichTextDragSource(source.put())))
                     return;
-                auto* editor = scene.rich;
-                textDragMove = move;
-                textDragData = data;
+                auto* editor  = scene.rich;
+                textDragMove  = move;
+                textDragData  = data;
                 textDragMoved = false;
                 DWORD effect{};
                 const HRESULT result = DoDragDrop(data.get(), source.get(), DROPEFFECT_MOVE, &effect);

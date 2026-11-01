@@ -23,11 +23,14 @@ namespace DxUi
 class RichTextDragData final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDataObject>
 {
 public:
-    explicit RichTextDragData(std::wstring_view text) : text_(text) {}
+    explicit RichTextDragData(std::wstring_view text) : text_(text)
+    {
+    }
     HRESULT STDMETHODCALLTYPE QueryGetData(FORMATETC* format) noexcept override
     {
-        return format && format->cfFormat == CF_UNICODETEXT && format->dwAspect == DVASPECT_CONTENT && format->lindex == -1 &&
-                       (format->tymed & TYMED_HGLOBAL) ? S_OK : DV_E_FORMATETC;
+        return format && format->cfFormat == CF_UNICODETEXT && format->dwAspect == DVASPECT_CONTENT && format->lindex == -1 && (format->tymed & TYMED_HGLOBAL)
+                   ? S_OK
+                   : DV_E_FORMATETC;
     }
     HRESULT STDMETHODCALLTYPE GetData(FORMATETC* format, STGMEDIUM* medium) noexcept override
     {
@@ -46,29 +49,48 @@ public:
             const auto unlock = wil::scope_exit([&] noexcept { static_cast<void>(GlobalUnlock(memory.get())); });
             std::memcpy(destination, text_.c_str(), (text_.size() + 1u) * sizeof(wchar_t));
         }
-        medium->tymed = TYMED_HGLOBAL;
+        medium->tymed   = TYMED_HGLOBAL;
         medium->hGlobal = memory.release();
         return S_OK;
     }
-    HRESULT STDMETHODCALLTYPE GetDataHere(FORMATETC*, STGMEDIUM*) noexcept override { return DATA_E_FORMATETC; }
+    HRESULT STDMETHODCALLTYPE GetDataHere(FORMATETC*, STGMEDIUM*) noexcept override
+    {
+        return DATA_E_FORMATETC;
+    }
     HRESULT STDMETHODCALLTYPE GetCanonicalFormatEtc(FORMATETC*, FORMATETC* output) noexcept override
     {
-        if (! output) return E_POINTER;
+        if (! output)
+            return E_POINTER;
         output->ptd = nullptr;
         return E_NOTIMPL;
     }
-    HRESULT STDMETHODCALLTYPE SetData(FORMATETC*, STGMEDIUM*, BOOL) noexcept override { return E_NOTIMPL; }
+    HRESULT STDMETHODCALLTYPE SetData(FORMATETC*, STGMEDIUM*, BOOL) noexcept override
+    {
+        return E_NOTIMPL;
+    }
     HRESULT STDMETHODCALLTYPE EnumFormatEtc(DWORD direction, IEnumFORMATETC** output) noexcept override
     {
-        if (! output) return E_POINTER;
+        if (! output)
+            return E_POINTER;
         *output = nullptr;
-        if (direction != DATADIR_GET) return E_NOTIMPL;
+        if (direction != DATADIR_GET)
+            return E_NOTIMPL;
         FORMATETC format{CF_UNICODETEXT, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL};
         return SHCreateStdEnumFmtEtc(1u, &format, output);
     }
-    HRESULT STDMETHODCALLTYPE DAdvise(FORMATETC*, DWORD, IAdviseSink*, DWORD*) noexcept override { return OLE_E_ADVISENOTSUPPORTED; }
-    HRESULT STDMETHODCALLTYPE DUnadvise(DWORD) noexcept override { return OLE_E_ADVISENOTSUPPORTED; }
-    HRESULT STDMETHODCALLTYPE EnumDAdvise(IEnumSTATDATA**) noexcept override { return OLE_E_ADVISENOTSUPPORTED; }
+    HRESULT STDMETHODCALLTYPE DAdvise(FORMATETC*, DWORD, IAdviseSink*, DWORD*) noexcept override
+    {
+        return OLE_E_ADVISENOTSUPPORTED;
+    }
+    HRESULT STDMETHODCALLTYPE DUnadvise(DWORD) noexcept override
+    {
+        return OLE_E_ADVISENOTSUPPORTED;
+    }
+    HRESULT STDMETHODCALLTYPE EnumDAdvise(IEnumSTATDATA**) noexcept override
+    {
+        return OLE_E_ADVISENOTSUPPORTED;
+    }
+
 private:
     std::wstring text_;
 };
@@ -79,30 +101,40 @@ public:
     {
         return escape ? DRAGDROP_S_CANCEL : (keys & MK_LBUTTON) ? S_OK : DRAGDROP_S_DROP;
     }
-    HRESULT STDMETHODCALLTYPE GiveFeedback(DWORD) noexcept override { return DRAGDROP_S_USEDEFAULTCURSORS; }
+    HRESULT STDMETHODCALLTYPE GiveFeedback(DWORD) noexcept override
+    {
+        return DRAGDROP_S_USEDEFAULTCURSORS;
+    }
 };
 #pragma warning(pop)
 
 HRESULT CreateRichTextDragData(std::wstring_view text, IDataObject** result) noexcept
 try
 {
-    if (! result) return E_POINTER;
+    if (! result)
+        return E_POINTER;
     *result = nullptr;
     if (text.empty() || text.size() > RichText::Document::MaximumUnits || text.find(L'\0') != std::wstring_view::npos || ! RichText::IsValidSourceUtf16(text))
         return E_INVALIDARG;
     auto data = Microsoft::WRL::Make<RichTextDragData>(text);
-    if (! data) return E_OUTOFMEMORY;
+    if (! data)
+        return E_OUTOFMEMORY;
     *result = data.Detach();
     return S_OK;
 }
-catch (const std::bad_alloc&) { return E_OUTOFMEMORY; }
+catch (const std::bad_alloc&)
+{
+    return E_OUTOFMEMORY;
+}
 
 HRESULT CreateRichTextDragSource(IDropSource** result) noexcept
 {
-    if (! result) return E_POINTER;
-    *result = nullptr;
+    if (! result)
+        return E_POINTER;
+    *result     = nullptr;
     auto source = Microsoft::WRL::Make<RichTextDragSource>();
-    if (! source) return E_OUTOFMEMORY;
+    if (! source)
+        return E_OUTOFMEMORY;
     *result = source.Detach();
     return S_OK;
 }
@@ -139,7 +171,7 @@ public:
         *effect             = DROPEFFECT_NONE;
         if (! OnThread())
             return RPC_E_WRONG_THREAD;
-        _state->offered = false;
+        _state->offered     = false;
         _state->offeredText = false;
         if (! _state->attached || _state->dropping || ! data)
             return S_OK;
@@ -188,7 +220,7 @@ public:
     {
         if (! OnThread())
             return RPC_E_WRONG_THREAD;
-        _state->offered = false;
+        _state->offered     = false;
         _state->offeredText = false;
         return S_OK;
     }
@@ -202,10 +234,9 @@ public:
             return RPC_E_WRONG_THREAD;
         if (! _state->attached || _state->dropping)
             return S_OK;
-        const bool offered = std::exchange(_state->offered, false);
-        const bool offeredText = std::exchange(_state->offeredText, false);
-        const bool textAccepted = offeredText && (allowed & DROPEFFECT_MOVE) && ! (keys & (MK_CONTROL | MK_RBUTTON)) &&
-                                  ! (GetKeyState(VK_MENU) & 0x8000);
+        const bool offered      = std::exchange(_state->offered, false);
+        const bool offeredText  = std::exchange(_state->offeredText, false);
+        const bool textAccepted = offeredText && (allowed & DROPEFFECT_MOVE) && ! (keys & (MK_CONTROL | MK_RBUTTON)) && ! (GetKeyState(VK_MENU) & 0x8000);
         if ((! offered || ! Accepts(keys, allowed)) && ! textAccepted)
             return S_OK;
         if (! data)
@@ -247,8 +278,8 @@ private:
     }
     HRESULT Preview(DWORD keys, POINTL point, DWORD allowed, DWORD* effect) noexcept
     {
-        const bool textAccepted = _state->offeredText && (allowed & DROPEFFECT_MOVE) && ! (keys & (MK_CONTROL | MK_RBUTTON)) &&
-                                  ! (GetKeyState(VK_MENU) & 0x8000);
+        const bool textAccepted =
+            _state->offeredText && (allowed & DROPEFFECT_MOVE) && ! (keys & (MK_CONTROL | MK_RBUTTON)) && ! (GetKeyState(VK_MENU) & 0x8000);
         if (! _state->attached || _state->dropping || ((! _state->offered || ! Accepts(keys, allowed)) && ! textAccepted))
             return S_OK;
         const auto generation = _state->generation;
@@ -311,8 +342,8 @@ void RichFileDropAdapter::Detach() noexcept
         return;
     if (_state)
     {
-        _state->attached = false;
-        _state->offered  = false;
+        _state->attached    = false;
+        _state->offered     = false;
         _state->offeredText = false;
         ++_state->generation;
         _state->receiver.reset();

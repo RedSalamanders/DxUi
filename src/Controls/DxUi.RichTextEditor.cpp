@@ -566,13 +566,13 @@ struct RichTextEditor::State
     bool revealCaret                          = true;
     bool readOnly                             = false;
     RichTextTaskTogglePolicy taskTogglePolicy = RichTextTaskTogglePolicy::EditableOnly;
-    bool suppressTaskSpace = false;
-    bool dragging          = false;
-    bool sourceMovePress   = false;
+    bool suppressTaskSpace                    = false;
+    bool dragging                             = false;
+    bool sourceMovePress                      = false;
     D2D1_POINT_2F sourceMoveOrigin{};
     RichText::Selection sourceMoveSelection{};
     uint64_t sourceMoveRevision = 0, sourceMoveSelectionEpoch = 0, sourceMoveBinding = 0;
-    bool middleAutoScroll  = false;
+    bool middleAutoScroll = false;
     D2D1_POINT_2F middleAutoScrollOrigin{}, middleAutoScrollPoint{};
     std::optional<uint64_t> middleAutoScrollTick;
     bool scrollbarDragging = false;
@@ -1089,11 +1089,11 @@ bool RichTextEditor::TryPrepareFileReferencesAt(const TextClipboardContent& cont
 }
 bool RichTextEditor::ApplyClipboardBitmapPaste(const TextClipboardContent& content)
 {
-    auto* host = GetHost();
+    auto* host           = GetHost();
     const auto selection = GetSelection();
-    const auto handler = _state->bitmapPasteHandler;
-    if (! host || host->GetFocusControl() != this || ! handler || content.bitmapDib.empty() ||
-        ! CanPasteMarkdownFileReferences(selection) || MarkdownCommandInputBlocked(host, this))
+    const auto handler   = _state->bitmapPasteHandler;
+    if (! host || host->GetFocusControl() != this || ! handler || content.bitmapDib.empty() || ! CanPasteMarkdownFileReferences(selection) ||
+        MarkdownCommandInputBlocked(host, this))
         return false;
     TextClipboardContent validated;
     if (DecodeClipboardBitmap(content.bitmapDib, content.bitmapV5, validated) != S_OK)
@@ -1118,10 +1118,10 @@ bool RichTextEditor::ApplyClipboardBitmapPaste(const TextClipboardContent& conte
         }
     };
     const auto path = invoke();
-    if (lifetime.expired() || GetHost() != host || host->GetFocusControl() != this || Revision() != revision ||
-        _state->bindingRevision != binding || _state->imageLocationRevision != location || _state->document.selectionEpoch_ != selectionEpoch ||
-        host->GetInteractionRevision() != interaction || GetSelection() != selection ||
-        _state->bitmapPasteHandler != handler || ! path || ! CanPasteMarkdownFileReferences(selection) || MarkdownCommandInputBlocked(host, this))
+    if (lifetime.expired() || GetHost() != host || host->GetFocusControl() != this || Revision() != revision || _state->bindingRevision != binding ||
+        _state->imageLocationRevision != location || _state->document.selectionEpoch_ != selectionEpoch || host->GetInteractionRevision() != interaction ||
+        GetSelection() != selection || _state->bitmapPasteHandler != handler || ! path || ! CanPasteMarkdownFileReferences(selection) ||
+        MarkdownCommandInputBlocked(host, this))
         return false;
     const auto reference = RichText::Detail::BuildMarkdownFileReference(_state->documentFilePath, *path);
     if (! reference || ! reference->starts_with(L"!["))
@@ -1723,14 +1723,17 @@ void RichTextEditor::SetMarkdownAnalysisExtensions(std::optional<RichText::Markd
 {
     if (extensions)
     {
-        if (! _state->markdownProfile) throw std::invalid_argument("Markdown extensions require an analysis profile");
+        if (! _state->markdownProfile)
+            throw std::invalid_argument("Markdown extensions require an analysis profile");
         const auto profile = *_state->markdownProfile;
-        const auto mask = profile == RichText::MarkdownProfile::RichMarkdown ? RichText::MarkdownExtensions::RichOptionalMask
-                         : profile == RichText::MarkdownProfile::Gfm029 ? RichText::MarkdownExtensions::All : RichText::MarkdownExtensions::None;
+        const auto mask    = profile == RichText::MarkdownProfile::RichMarkdown ? RichText::MarkdownExtensions::RichOptionalMask
+                             : profile == RichText::MarkdownProfile::Gfm029     ? RichText::MarkdownExtensions::All
+                                                                                : RichText::MarkdownExtensions::None;
         if ((static_cast<unsigned>(*extensions) & ~static_cast<unsigned>(mask)) != 0u)
             throw std::invalid_argument("Markdown extensions are not supported by this profile");
     }
-    if (_state->markdownExtensions == extensions) return;
+    if (_state->markdownExtensions == extensions)
+        return;
     _state->markdownExtensions = extensions;
     _state->autoFormatRun.reset();
     _state->smartTypingSite.reset();
@@ -2098,14 +2101,14 @@ bool RichTextEditor::SetSemanticDisclosure(ControlHost& host, const std::shared_
         return false;
     if (owner.disclosureExpanded == expanded)
         return true;
-    auto& values = _state->disclosureStates;
-    const auto found = std::lower_bound(values.begin(), values.end(), owner.blockIdentity,
-                                        [](const auto& value, auto key) { return value.identity < key; });
+    auto& values     = _state->disclosureStates;
+    const auto found = std::lower_bound(values.begin(), values.end(), owner.blockIdentity, [](const auto& value, auto key) { return value.identity < key; });
     if (found != values.end() && found->identity == owner.blockIdentity)
         found->expanded = expanded;
     else
     {
-        if (values.size() == 4096u) return false;
+        if (values.size() == 4096u)
+            return false;
         values.insert(found, {owner.blockIdentity, expanded});
     }
     _state->semantic.Clear();
@@ -2128,9 +2131,10 @@ bool RichTextEditor::BeginReferenceDefinitionSourceEdit(ControlHost& host, const
     if (! expected || ! semantic || semantic->Syntax() != expected || ! CanChangeSemanticSourcePresentation(host) || _state->sourceEditing ||
         node >= expected->Nodes().size())
         return false;
-    const bool reference = expected->Nodes()[node].block.kind == RichText::MarkdownBlockKind::ReferenceDefinition;
+    const bool reference    = expected->Nodes()[node].block.kind == RichText::MarkdownBlockKind::ReferenceDefinition;
     const bool abbreviation = std::ranges::binary_search(RichText::Detail::SemanticExtensionAccess::AbbreviationNodes(*semantic), node);
-    if (! reference && ! abbreviation) return false;
+    if (! reference && ! abbreviation)
+        return false;
     const auto source = expected->Nodes()[node].block.source;
     auto session      = _state->nextSourceEditingSession++;
     if (! session)
@@ -2247,14 +2251,14 @@ std::optional<RichTextSourceMove> RichTextEditor::BeginSourceMove() noexcept
     if (! Editable() || MarkdownCommandInputBlocked(GetHost(), this) || selection.Start() == selection.End())
         return std::nullopt;
     RichTextSourceMove move;
-    move.owner_ = this;
-    move.lifetime_ = GetLifetimeToken();
-    move.source_ = Snapshot();
-    move.selection_ = selection;
-    move.revision_ = Revision();
+    move.owner_          = this;
+    move.lifetime_       = GetLifetimeToken();
+    move.source_         = Snapshot();
+    move.selection_      = selection;
+    move.revision_       = Revision();
     move.selectionEpoch_ = _state->document.selectionEpoch_;
-    move.binding_ = _state->bindingRevision;
-    move.gestureEpoch_ = ++_state->sourceMoveEpoch;
+    move.binding_        = _state->bindingRevision;
+    move.gestureEpoch_   = ++_state->sourceMoveEpoch;
     return move;
 }
 void RichTextEditor::CancelSourceMove() noexcept
@@ -2269,27 +2273,26 @@ void RichTextEditor::SetOnSourceDragRequested(std::function<void(const RichTextS
 }
 bool RichTextEditor::MoveSelectedSource(const RichTextSourceMove& move, size_t destination)
 {
-    if (move.owner_ != this || move.lifetime_.expired() || ! Editable() || MarkdownCommandInputBlocked(GetHost(), this) ||
-        Revision() != move.revision_ || _state->bindingRevision != move.binding_ || _state->document.selectionEpoch_ != move.selectionEpoch_ ||
-        _state->sourceMoveEpoch != move.gestureEpoch_ ||
+    if (move.owner_ != this || move.lifetime_.expired() || ! Editable() || MarkdownCommandInputBlocked(GetHost(), this) || Revision() != move.revision_ ||
+        _state->bindingRevision != move.binding_ || _state->document.selectionEpoch_ != move.selectionEpoch_ || _state->sourceMoveEpoch != move.gestureEpoch_ ||
         ! Snapshot().IsSameRevision(move.source_) || GetSelection() != move.selection_)
         return false;
     const auto first = move.selection_.Start(), last = move.selection_.End();
-    if (first == last || destination > move.source_.Length() || (destination >= first && destination <= last) ||
-        ! move.source_.IsBoundary(first) || ! move.source_.IsBoundary(last) || ! move.source_.IsBoundary(destination))
+    if (first == last || destination > move.source_.Length() || (destination >= first && destination <= last) || ! move.source_.IsBoundary(first) ||
+        ! move.source_.IsBoundary(last) || ! move.source_.IsBoundary(destination))
         return false;
     const auto text = move.source_.Slice(first, last);
     const RichText::SourceEdit remove{{first, last}, {}};
     const RichText::SourceEdit insert{{destination, destination}, text};
     const std::array edits = destination < first ? std::array{insert, remove} : std::array{remove, insert};
-    const auto target = destination < first ? destination : destination - (last - first);
+    const auto target      = destination < first ? destination : destination - (last - first);
     return ApplySourceEdits(move.source_, move.revision_, edits, {target, target + text.size()});
 }
 bool RichTextEditor::CompleteExternalSourceMove(const RichTextSourceMove& move)
 {
-    if (move.owner_ != this || move.lifetime_.expired() || ! Editable() || MarkdownCommandInputBlocked(GetHost(), this) ||
-        Revision() != move.revision_ || _state->bindingRevision != move.binding_ || _state->document.selectionEpoch_ != move.selectionEpoch_ ||
-        _state->sourceMoveEpoch != move.gestureEpoch_ || ! Snapshot().IsSameRevision(move.source_) || GetSelection() != move.selection_)
+    if (move.owner_ != this || move.lifetime_.expired() || ! Editable() || MarkdownCommandInputBlocked(GetHost(), this) || Revision() != move.revision_ ||
+        _state->bindingRevision != move.binding_ || _state->document.selectionEpoch_ != move.selectionEpoch_ || _state->sourceMoveEpoch != move.gestureEpoch_ ||
+        ! Snapshot().IsSameRevision(move.source_) || GetSelection() != move.selection_)
         return false;
     const auto first = move.selection_.Start(), last = move.selection_.End();
     if (first == last || ! move.source_.IsBoundary(first) || ! move.source_.IsBoundary(last))
@@ -3479,22 +3482,25 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         const auto prepareSemanticBrushes = [&]
         {
             const auto document = GetSemanticDocument();
-            if (! document || host.GetTheme().highContrast) return;
-            const auto prepare = [&](const D2D1_COLOR_F color, wil::com_ptr<ID2D1SolidColorBrush>& saved, D2D1_COLOR_F& prior,
-                                     uint64_t& resources, uint64_t& binding)
+            if (! document || host.GetTheme().highContrast)
+                return;
+            const auto prepare =
+                [&](const D2D1_COLOR_F color, wil::com_ptr<ID2D1SolidColorBrush>& saved, D2D1_COLOR_F& prior, uint64_t& resources, uint64_t& binding)
             {
                 const bool same = prior.r == color.r && prior.g == color.g && prior.b == color.b && prior.a == color.a;
-                if (saved && same && resources == host.GetResourceGeneration() && binding == state.bindingRevision) return;
+                if (saved && same && resources == host.GetResourceGeneration() && binding == state.bindingRevision)
+                    return;
                 auto* brush = host.GetSolidBrush(color);
                 if (brush)
                 {
                     const auto actual = brush->GetColor();
-                    if (actual.r != color.r || actual.g != color.g || actual.b != color.b || actual.a != color.a) brush = nullptr;
+                    if (actual.r != color.r || actual.g != color.g || actual.b != color.b || actual.a != color.a)
+                        brush = nullptr;
                 }
-                saved = brush;
-                prior = color;
+                saved     = brush;
+                prior     = color;
                 resources = host.GetResourceGeneration();
-                binding = state.bindingRevision;
+                binding   = state.bindingRevision;
             };
             if (document->HasCallouts())
                 prepare(host.GetTheme().accent, state.calloutAccent, state.calloutAccentColor, state.calloutAccentResources, state.calloutAccentBinding);
@@ -3615,8 +3621,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                         node.block.kind == RichText::MarkdownBlockKind::FrontMatter)
                         identities.push_back(node.identity);
                 std::ranges::sort(identities);
-                std::erase_if(state.disclosureStates, [&](const auto& value)
-                { return ! std::ranges::binary_search(identities, value.identity); });
+                std::erase_if(state.disclosureStates, [&](const auto& value) { return ! std::ranges::binary_search(identities, value.identity); });
             }
             state.disclosureSyntax = currentSyntax;
             state.disclosureSource = currentSource;
@@ -3736,7 +3741,8 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                         richPreparationActive = true;
                         if (state.nativeObjectRejections || ! state.disclosureStates.empty())
                             RichText::Detail::SemanticExtensionAccess::BeginWithPresentation(
-                                state.semantic, syntax,
+                                state.semantic,
+                                syntax,
                                 state.nativeObjectRejections ? std::span<const RichText::MarkdownRange>(state.nativeObjectRejections->objects)
                                                              : std::span<const RichText::MarkdownRange>{},
                                 state.disclosureStates);
@@ -4595,15 +4601,18 @@ void RichTextEditor::Paint(ControlHost& host) const
                           decorated ? &links : nullptr,
                           quoteFill,
                           ! host.GetTheme().highContrast && ! dimmed ? &diagramColors : nullptr,
-                          ! host.GetTheme().highContrast && ! dimmed && state.calloutAccent &&
-                                  state.calloutAccentResources == host.GetResourceGeneration() && state.calloutAccentBinding == state.bindingRevision && state.calloutAccentColor.r == host.GetTheme().accent.r &&
+                          ! host.GetTheme().highContrast && ! dimmed && state.calloutAccent && state.calloutAccentResources == host.GetResourceGeneration() &&
+                                  state.calloutAccentBinding == state.bindingRevision && state.calloutAccentColor.r == host.GetTheme().accent.r &&
                                   state.calloutAccentColor.g == host.GetTheme().accent.g && state.calloutAccentColor.b == host.GetTheme().accent.b &&
-                                  state.calloutAccentColor.a == host.GetTheme().accent.a ? state.calloutAccent.get() : subdued,
-                          ! host.GetTheme().highContrast && ! dimmed && state.propertiesInk &&
-                                  state.propertiesInkResources == host.GetResourceGeneration() && state.propertiesInkBinding == state.bindingRevision &&
-                                  state.propertiesInkColor.r == host.GetTheme().subduedText.r && state.propertiesInkColor.g == host.GetTheme().subduedText.g &&
-                                  state.propertiesInkColor.b == host.GetTheme().subduedText.b && state.propertiesInkColor.a == host.GetTheme().subduedText.a
-                              ? state.propertiesInk.get() : nullptr);
+                                  state.calloutAccentColor.a == host.GetTheme().accent.a
+                              ? state.calloutAccent.get()
+                              : subdued,
+                          ! host.GetTheme().highContrast && ! dimmed && state.propertiesInk && state.propertiesInkResources == host.GetResourceGeneration() &&
+                                  state.propertiesInkBinding == state.bindingRevision && state.propertiesInkColor.r == host.GetTheme().subduedText.r &&
+                                  state.propertiesInkColor.g == host.GetTheme().subduedText.g && state.propertiesInkColor.b == host.GetTheme().subduedText.b &&
+                                  state.propertiesInkColor.a == host.GetTheme().subduedText.a
+                              ? state.propertiesInk.get()
+                              : nullptr);
         if (! state.overlayHighlightsDirty)
             state.decorationPaintIndex.ForEach(state.scrollDip,
                                                visibleBottom,
@@ -4745,17 +4754,17 @@ bool RichTextEditor::Tick(ControlHost& host, uint64_t nowTickMs)
     auto& state = *_state;
     if (state.middleAutoScroll && IsEnabled() && IsVisible())
     {
-        const auto info = GetScrollInfo();
-        const float delta = state.middleAutoScrollPoint.y - state.middleAutoScrollOrigin.y;
+        const auto info      = GetScrollInfo();
+        const float delta    = state.middleAutoScrollPoint.y - state.middleAutoScrollOrigin.y;
         const float velocity = std::abs(delta) <= 8.0f ? 0.0f : std::clamp(delta * 4.0f, -800.0f, 800.0f);
         if (! state.middleAutoScrollTick || nowTickMs < *state.middleAutoScrollTick)
             state.middleAutoScrollTick = nowTickMs;
-        const auto elapsed = std::min<uint64_t>(nowTickMs - *state.middleAutoScrollTick, 50u);
+        const auto elapsed         = std::min<uint64_t>(nowTickMs - *state.middleAutoScrollTick, 50u);
         state.middleAutoScrollTick = nowTickMs;
         if (info && velocity != 0.0f)
         {
-            const float next = std::clamp(info->offsetDip + velocity * static_cast<float>(elapsed) / 1000.0f,
-                                          0.0f, std::max(0.0f, info->contentHeightDip - info->viewportHeightDip));
+            const float next = std::clamp(
+                info->offsetDip + velocity * static_cast<float>(elapsed) / 1000.0f, 0.0f, std::max(0.0f, info->contentHeightDip - info->viewportHeightDip));
             if (next != info->offsetDip)
             {
                 static_cast<void>(SetScrollOffsetDip(next));
@@ -5617,7 +5626,7 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
             _state->sourceMovePress   = false;
             _state->middleAutoScroll  = false;
             _state->middleAutoScrollTick.reset();
-            _state->codePressGesture  = false;
+            _state->codePressGesture = false;
             _state->codePressDocument.reset();
             _state->taskPressPlan.reset();
             PublishSelectionChanged();
@@ -5883,12 +5892,12 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                             (available && (input.compositionStartIndex || input.compositionEndIndex)))
                             return true;
                     }
-                    const auto lifetime  = GetLifetimeToken();
-                    const auto revision  = Revision();
-                    const auto binding   = _state->bindingRevision;
-                    const auto location  = _state->imageLocationRevision;
-                    const auto selection = GetSelection();
-                    const auto focus     = host.GetFocusControl();
+                    const auto lifetime       = GetLifetimeToken();
+                    const auto revision       = Revision();
+                    const auto binding        = _state->bindingRevision;
+                    const auto location       = _state->imageLocationRevision;
+                    const auto selection      = GetSelection();
+                    const auto focus          = host.GetFocusControl();
                     const auto selectionEpoch = _state->document.selectionEpoch_, interaction = host.GetInteractionRevision();
                     if (shift)
                     {
@@ -5900,9 +5909,10 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                         return true;
                     }
                     TextClipboardContent content;
-                    const bool available = host.ReadClipboardContent(
-                        content, bool(_state->htmlPasteConverter) && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich,
-                        bool(_state->bitmapPasteHandler) && CanPasteMarkdownFileReferences(selection));
+                    const bool available =
+                        host.ReadClipboardContent(content,
+                                                  bool(_state->htmlPasteConverter) && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich,
+                                                  bool(_state->bitmapPasteHandler) && CanPasteMarkdownFileReferences(selection));
                     if (available && ! lifetime.expired() && GetHost() == &host && host.GetFocusControl() == focus && _state->bindingRevision == binding &&
                         Revision() == revision && _state->imageLocationRevision == location && _state->document.selectionEpoch_ == selectionEpoch &&
                         host.GetInteractionRevision() == interaction && GetSelection() == selection)
@@ -5918,7 +5928,8 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                             const bool transformed = TryPrepareClipboardPaste(content, replacement, &stalePaste);
                             if (stalePaste || lifetime.expired() || GetHost() != &host || host.GetFocusControl() != focus ||
                                 _state->bindingRevision != binding || Revision() != revision || _state->imageLocationRevision != location ||
-                                _state->document.selectionEpoch_ != selectionEpoch || host.GetInteractionRevision() != interaction || GetSelection() != selection)
+                                _state->document.selectionEpoch_ != selectionEpoch || host.GetInteractionRevision() != interaction ||
+                                GetSelection() != selection)
                                 return true;
                             if (transformed)
                                 static_cast<void>(ReplaceSelection(std::move(replacement)));
@@ -6270,7 +6281,7 @@ bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool ri
     {
         if (_state->middleAutoScroll)
         {
-            const auto lifetime = GetLifetimeToken();
+            const auto lifetime      = GetLifetimeToken();
             _state->middleAutoScroll = false;
             _state->middleAutoScrollTick.reset();
             host.ReleaseMouseCapture();
@@ -6311,8 +6322,8 @@ bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool ri
             if (const auto document = GetAcknowledgedSemanticDocument(host))
                 for (std::size_t index = 0u; index < document->Elements().size(); ++index)
                     if (document->Elements()[index].role == RichText::SemanticRole::Disclosure)
-                        if (const auto bounds = GetSemanticElementBounds(host, index); bounds && point.x >= bounds->left && point.x <= bounds->right &&
-                            point.y >= bounds->top && point.y <= bounds->bottom)
+                        if (const auto bounds = GetSemanticElementBounds(host, index);
+                            bounds && point.x >= bounds->left && point.x <= bounds->right && point.y >= bounds->top && point.y <= bounds->bottom)
                             return SetSemanticDisclosure(host, document, index, ! document->Elements()[index].disclosureExpanded);
         if (! ModifiersContainCtrl(modifiers) && ! ModifiersContainShift(modifiers) && ! ModifiersContainAlt(modifiers) && _state->onCodeCopyRequested &&
             _state->appearance.markdownPresentation == RichText::MarkdownPresentationStyle::Subtle)
@@ -6386,13 +6397,13 @@ bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool ri
         if (_state->onSourceDragRequested && Editable() && ! taskPlan && ! ModifiersContainShift(modifiers) && ! ModifiersContainCtrl(modifiers) &&
             ! ModifiersContainAlt(modifiers) && selection.Start() < source && source < selection.End())
         {
-            _state->sourceMovePress = true;
-            _state->sourceMoveOrigin = point;
-            _state->sourceMoveSelection = selection;
-            _state->sourceMoveRevision = Revision();
+            _state->sourceMovePress          = true;
+            _state->sourceMoveOrigin         = point;
+            _state->sourceMoveSelection      = selection;
+            _state->sourceMoveRevision       = Revision();
             _state->sourceMoveSelectionEpoch = _state->document.selectionEpoch_;
-            _state->sourceMoveBinding = _state->bindingRevision;
-            _state->dragging = true;
+            _state->sourceMoveBinding        = _state->bindingRevision;
+            _state->dragging                 = true;
             host.CaptureMouse(this);
             return true;
         }
@@ -6435,20 +6446,20 @@ bool RichTextEditor::OnMouseMiddleDown(ControlHost& host, D2D1_POINT_2F point, U
     // Do not overlay autoscroll on that gesture or steal another control's capture.
     if (_state->dragging || _state->sourceMovePress || _state->scrollbarDragging || host.GetCapturedControl())
         return false;
-    const auto info = GetScrollInfo();
+    const auto info     = GetScrollInfo();
     const auto viewport = TextViewport();
-    if (! IsEnabled() || ! IsVisible() || ! info || info->contentHeightDip <= info->viewportHeightDip ||
-        point.x < viewport.left || point.x >= viewport.right || point.y < viewport.top || point.y >= viewport.bottom)
+    if (! IsEnabled() || ! IsVisible() || ! info || info->contentHeightDip <= info->viewportHeightDip || point.x < viewport.left || point.x >= viewport.right ||
+        point.y < viewport.top || point.y >= viewport.bottom)
         return false;
     const auto lifetime = GetLifetimeToken();
     host.SetFocusControl(this);
     if (lifetime.expired() || GetHost() != &host || host.GetFocusControl() != this || ! IsEnabled() || ! IsVisible())
         return true;
     const auto currentInfo = GetScrollInfo();
-    if (! currentInfo || currentInfo->contentHeightDip <= currentInfo->viewportHeightDip ||
-        _state->dragging || _state->sourceMovePress || _state->scrollbarDragging || host.GetCapturedControl())
+    if (! currentInfo || currentInfo->contentHeightDip <= currentInfo->viewportHeightDip || _state->dragging || _state->sourceMovePress ||
+        _state->scrollbarDragging || host.GetCapturedControl())
         return false;
-    _state->middleAutoScroll = true;
+    _state->middleAutoScroll       = true;
     _state->middleAutoScrollOrigin = _state->middleAutoScrollPoint = point;
     _state->middleAutoScrollTick.reset();
     host.CaptureMouse(this);
@@ -6457,16 +6468,16 @@ bool RichTextEditor::OnMouseMiddleDown(ControlHost& host, D2D1_POINT_2F point, U
 
 bool RichTextEditor::OnMouseTripleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT) noexcept
 {
-    const auto inputLifetime = GetLifetimeToken();
-    const auto inputRevision = Revision();
-    const auto inputEpoch = _state->fileDropEpoch;
+    const auto inputLifetime  = GetLifetimeToken();
+    const auto inputRevision  = Revision();
+    const auto inputEpoch     = _state->fileDropEpoch;
     const auto inputSelection = GetSelection();
     try
     {
         if (! IsEnabled() || rightButton || ! LayoutIsCurrent(host))
             return false;
         const auto& projection = _state->layout;
-        const size_t caret = projection.ToDisplay(HitSource(host, point));
+        const size_t caret     = projection.ToDisplay(HitSource(host, point));
         size_t first = caret, last = caret;
         if (const auto* geometry = projection.SemanticGeometry())
         {
@@ -6476,7 +6487,7 @@ bool RichTextEditor::OnMouseTripleClick(ControlHost& host, D2D1_POINT_2F point, 
                     (caret < paragraph.display.last || (caret == paragraph.display.last && caret == projection.DisplayLength())))
                 {
                     first = paragraph.display.first;
-                    last = paragraph.display.last;
+                    last  = paragraph.display.last;
                     found = true;
                     break;
                 }
@@ -6585,10 +6596,9 @@ std::wstring_view RichTextEditor::HoveredTitle(ControlHost& host, D2D1_POINT_2F 
     {
         const auto& element = elements[index];
         if ((element.role == RichText::SemanticRole::Link || element.role == RichText::SemanticRole::Image ||
-             element.role == RichText::SemanticRole::Abbreviation) && ! element.title.empty() &&
-            ! geometry->Document().IsSourceEditingElement(index) &&
-            element.display.first <= display && display < element.display.last &&
-            (! best || element.display.last - element.display.first <= best->display.last - best->display.first))
+             element.role == RichText::SemanticRole::Abbreviation) &&
+            ! element.title.empty() && ! geometry->Document().IsSourceEditingElement(index) && element.display.first <= display &&
+            display < element.display.last && (! best || element.display.last - element.display.first <= best->display.last - best->display.first))
             best = &element;
     }
     return best ? std::wstring_view(best->title) : std::wstring_view{};
@@ -6778,22 +6788,21 @@ bool RichTextEditor::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT) n
                 host.ReleaseMouseCapture();
                 return true;
             }
-            const auto origin = _state->sourceMoveOrigin;
+            const auto origin      = _state->sourceMoveOrigin;
             const float thresholdX = std::max(1.0f, host.PixelsToDip(static_cast<float>(GetSystemMetrics(SM_CXDRAG))));
             const float thresholdY = std::max(1.0f, host.PixelsToDip(static_cast<float>(GetSystemMetrics(SM_CYDRAG))));
             if (std::abs(point.x - origin.x) < thresholdX && std::abs(point.y - origin.y) < thresholdY)
                 return true;
-            const auto lifetime = GetLifetimeToken();
-            const auto callback = _state->onSourceDragRequested;
-            const auto selection = GetSelection();
+            const auto lifetime       = GetLifetimeToken();
+            const auto callback       = _state->onSourceDragRequested;
+            const auto selection      = GetSelection();
             const auto selectionEpoch = _state->document.selectionEpoch_;
-            const auto revision = Revision();
-            const auto snapshot = Snapshot();
+            const auto revision       = Revision();
+            const auto snapshot       = Snapshot();
             _state->sourceMovePress = _state->dragging = false;
             host.ReleaseMouseCapture();
-            if (lifetime.expired() || GetHost() != &host || ! callback || _state->onSourceDragRequested != callback ||
-                Revision() != revision || _state->document.selectionEpoch_ != selectionEpoch || GetSelection() != selection ||
-                ! Snapshot().IsSameRevision(snapshot))
+            if (lifetime.expired() || GetHost() != &host || ! callback || _state->onSourceDragRequested != callback || Revision() != revision ||
+                _state->document.selectionEpoch_ != selectionEpoch || GetSelection() != selection || ! Snapshot().IsSameRevision(snapshot))
                 return true;
             const auto move = BeginSourceMove();
             if (! move)
@@ -6908,9 +6917,9 @@ bool RichTextEditor::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool righ
         return false;
     if (_state->sourceMovePress)
     {
-        const auto lifetime = GetLifetimeToken();
-        const bool current = Revision() == _state->sourceMoveRevision && _state->document.selectionEpoch_ == _state->sourceMoveSelectionEpoch &&
-                             _state->bindingRevision == _state->sourceMoveBinding && GetSelection() == _state->sourceMoveSelection && Editable();
+        const auto lifetime     = GetLifetimeToken();
+        const bool current      = Revision() == _state->sourceMoveRevision && _state->document.selectionEpoch_ == _state->sourceMoveSelectionEpoch &&
+                                  _state->bindingRevision == _state->sourceMoveBinding && GetSelection() == _state->sourceMoveSelection && Editable();
         _state->sourceMovePress = _state->dragging = false;
         if (! current || ! LayoutIsCurrent(host))
         {
@@ -7030,7 +7039,7 @@ void RichTextEditor::PropagateHost(ControlHost* host) noexcept
         _state->sourceMovePress      = false;
         _state->middleAutoScroll     = false;
         _state->middleAutoScrollTick.reset();
-        _state->scrollbarDragging    = false;
+        _state->scrollbarDragging = false;
         _state->blinkEpoch.reset();
     }
     Control::PropagateHost(host);
@@ -7067,9 +7076,9 @@ void RichTextEditor::OnDensityChanged() noexcept
 }
 void RichTextEditor::OnEnabledChanged(bool) noexcept
 {
-    auto* tooltipHost = GetHost();
+    auto* tooltipHost              = GetHost();
     const bool wasMiddleAutoScroll = _state->middleAutoScroll;
-    const auto tooltipLifetime = GetLifetimeToken();
+    const auto tooltipLifetime     = GetLifetimeToken();
     if (tooltipHost)
         tooltipHost->InvalidateRichTitleTooltip(this);
     if (tooltipLifetime.expired() || GetHost() != tooltipHost)
@@ -7080,16 +7089,16 @@ void RichTextEditor::OnEnabledChanged(bool) noexcept
     _state->sourceMovePress      = false;
     _state->middleAutoScroll     = false;
     _state->middleAutoScrollTick.reset();
-    _state->scrollbarDragging    = false;
+    _state->scrollbarDragging = false;
     _state->blinkEpoch.reset();
     if (wasMiddleAutoScroll && tooltipHost && ControlCaptureAccess::GestureOwner(*tooltipHost) == this)
         tooltipHost->ReleaseMouseCapture();
 }
 void RichTextEditor::OnHidden() noexcept
 {
-    auto* tooltipHost = GetHost();
+    auto* tooltipHost              = GetHost();
     const bool wasMiddleAutoScroll = _state->middleAutoScroll;
-    const auto tooltipLifetime = GetLifetimeToken();
+    const auto tooltipLifetime     = GetLifetimeToken();
     if (tooltipHost)
         tooltipHost->InvalidateRichTitleTooltip(this);
     if (tooltipLifetime.expired() || GetHost() != tooltipHost)
@@ -7101,7 +7110,7 @@ void RichTextEditor::OnHidden() noexcept
     _state->sourceMovePress      = false;
     _state->middleAutoScroll     = false;
     _state->middleAutoScrollTick.reset();
-    _state->scrollbarDragging    = false;
+    _state->scrollbarDragging = false;
     _state->blinkEpoch.reset();
     if (wasMiddleAutoScroll && tooltipHost && ControlCaptureAccess::GestureOwner(*tooltipHost) == this)
         tooltipHost->ReleaseMouseCapture();
@@ -7111,7 +7120,7 @@ void RichTextEditor::OnFocusChanged(ControlHost& host, bool focused)
     Control::OnFocusChanged(host, focused);
     if (! focused && _state->middleAutoScroll)
     {
-        const auto lifetime = GetLifetimeToken();
+        const auto lifetime      = GetLifetimeToken();
         _state->middleAutoScroll = false;
         _state->middleAutoScrollTick.reset();
         if (ControlCaptureAccess::GestureOwner(host) == this)
@@ -7133,7 +7142,7 @@ void RichTextEditor::OnFocusChanged(ControlHost& host, bool focused)
 void RichTextEditor::OnCaptureLost(ControlHost&)
 {
     ++_state->sourceMoveEpoch;
-    _state->sourceMovePress = false;
+    _state->sourceMovePress  = false;
     _state->middleAutoScroll = false;
     _state->middleAutoScrollTick.reset();
     _state->dragging          = false;

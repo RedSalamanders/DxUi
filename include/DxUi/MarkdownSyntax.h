@@ -16,21 +16,21 @@ enum class MarkdownProfile
 };
 enum class MarkdownExtensions : unsigned
 {
-    None          = 0u,
-    Tables        = 1u,
-    TaskLists     = 2u,
-    Strikethrough = 4u,
-    Autolinks     = 8u,
-    TagFilter     = 16u,
-    All           = 31u,
-    Highlight     = 32u,
-    Superscript   = 64u,
-    Subscript     = 128u,
-    Inserted      = 256u,
-    WikiLinks     = 512u,
-    RichAll       = 1023u,
-    DefinitionLists = 1024u,
-    Abbreviations = 2048u,
+    None             = 0u,
+    Tables           = 1u,
+    TaskLists        = 2u,
+    Strikethrough    = 4u,
+    Autolinks        = 8u,
+    TagFilter        = 16u,
+    All              = 31u,
+    Highlight        = 32u,
+    Superscript      = 64u,
+    Subscript        = 128u,
+    Inserted         = 256u,
+    WikiLinks        = 512u,
+    RichAll          = 1023u,
+    DefinitionLists  = 1024u,
+    Abbreviations    = 2048u,
     RichOptionalMask = 4095u
 };
 constexpr MarkdownExtensions operator|(MarkdownExtensions a, MarkdownExtensions b) noexcept

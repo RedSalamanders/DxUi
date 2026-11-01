@@ -14,7 +14,8 @@ HRESULT DecodeClipboardBitmap(std::span<const std::byte> buffer, bool v5, TextCl
 HRESULT ReadDataObjectFilePaths(IDataObject* dataObject, TextClipboardContent& content) noexcept;
 HRESULT ReadTextClipboardContent(TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles) noexcept;
 HRESULT ReadTextClipboardContent(TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml) noexcept;
-HRESULT ReadTextClipboardContent(TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml, bool includeBitmap) noexcept;
+HRESULT ReadTextClipboardContent(
+    TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml, bool includeBitmap) noexcept;
 [[nodiscard]] TextClipboard& SystemTextClipboard() noexcept;
 // Test-only override, borrowed on the calling UI thread. Production never installs this.
 #if DXUI_ENABLE_DIAGNOSTICS

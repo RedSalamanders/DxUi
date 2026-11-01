@@ -257,18 +257,19 @@ public:
         {
             case UIA_ControlTypePropertyId:
             {
-                const auto type = element.role == Disclosure ? UIA_ButtonControlTypeId
-                                  : element.role == Task                                                                            ? UIA_CheckBoxControlTypeId
+                const auto type = element.role == Disclosure                                                                      ? UIA_ButtonControlTypeId
+                                  : element.role == Task                                                                          ? UIA_CheckBoxControlTypeId
                                   : element.role == Link || element.role == FootnoteReference || element.role == FootnoteBacklink ? UIA_HyperlinkControlTypeId
                                   : element.role == Image || element.role == Diagram || element.role == Math                      ? UIA_ImageControlTypeId
                                   : element.role == Table                                                                         ? UIA_TableControlTypeId
-                                  : element.role == List || element.role == DefinitionList                                       ? UIA_ListControlTypeId
+                                  : element.role == List || element.role == DefinitionList                                        ? UIA_ListControlTypeId
                                   : element.role == ListItem                                                                      ? UIA_ListItemControlTypeId
                                   : element.role == Row                                                                           ? UIA_DataItemControlTypeId
                                   : element.role == Cell && element.tableHeader                                                   ? UIA_HeaderItemControlTypeId
-                                  : element.role == Quote || element.role == Callout || element.role == Metadata || element.role == Footnote                 ? UIA_GroupControlTypeId
-                                  : element.role == Rule                                                                          ? UIA_SeparatorControlTypeId
-                                                                                                                                  : UIA_TextControlTypeId;
+                                  : element.role == Quote || element.role == Callout || element.role == Metadata || element.role == Footnote
+                                      ? UIA_GroupControlTypeId
+                                  : element.role == Rule ? UIA_SeparatorControlTypeId
+                                                         : UIA_TextControlTypeId;
                 *result         = VariantFromInt(type);
                 return S_OK;
             }
@@ -585,12 +586,13 @@ public:
         if (! record)
             return UIA_E_ELEMENTNOTAVAILABLE;
         const auto& document = *record->RichSemantic();
-        const auto role = document.Elements()[element_].role;
+        const auto role      = document.Elements()[element_].role;
         if (codeCopy_ || (role != RichText::SemanticRole::Disclosure &&
                           ((role != RichText::SemanticRole::Link && role != RichText::SemanticRole::Image) || ! document.SourceEditingRange(element_))))
             return UIA_E_NOTSUPPORTED;
         *result = (role == RichText::SemanticRole::Disclosure ? document.Elements()[element_].disclosureExpanded : document.IsSourceEditingElement(element_))
-                    ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed;
+                      ? ExpandCollapseState_Expanded
+                      : ExpandCollapseState_Collapsed;
         return S_OK;
     }
     HRESULT STDMETHODCALLTYPE get_ToggleState(ToggleState* result) noexcept override

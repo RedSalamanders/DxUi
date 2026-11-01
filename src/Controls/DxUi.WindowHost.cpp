@@ -2360,7 +2360,7 @@ void ControlHost::RememberPointerDownDip(Control* target, D2D1_POINT_2F pointDip
     _pendingPointerDoubleClick.downMessage = WM_LBUTTONDOWN;
     _pendingPointerDoubleClick.pointPx =
         POINT{static_cast<LONG>(std::lround(DipsToPixels(pointDip.x))), static_cast<LONG>(std::lround(DipsToPixels(pointDip.y)))};
-    _pendingPointerDoubleClick.tickMs = GetTickCount64();
+    _pendingPointerDoubleClick.tickMs      = GetTickCount64();
     _pendingPointerDoubleClick.doubleClick = false;
 }
 
@@ -3456,8 +3456,8 @@ try
         {
             SetInputModality(InputModality::Pointer);
             const auto point = PointFromLParam(lp);
-            Control* target = _capturedControl ? _capturedControl : HitTestControl(point);
-            handled = target && target->OnMouseMiddleDown(*this, point, static_cast<UINT>(wp));
+            Control* target  = _capturedControl ? _capturedControl : HitTestControl(point);
+            handled          = target && target->OnMouseMiddleDown(*this, point, static_cast<UINT>(wp));
             if (handled)
                 return 0;
             break;
@@ -3508,9 +3508,9 @@ try
             const bool doubleClick                  = ! tripleClick && (IsPointerDoubleClickMessage(msg) || sameClickSequence);
             const std::weak_ptr<int> targetLifetime = target ? target->GetLifetimeToken() : std::weak_ptr<int>{};
             const uint64_t focusBeforeDispatch      = _focusRequestRevision;
-            const bool controlHandled               = target && (tripleClick ? target->OnMouseTripleClick(*this, point, rightButton, static_cast<UINT>(wp))
-                                                               : doubleClick ? target->OnMouseDoubleClick(*this, point, rightButton, static_cast<UINT>(wp))
-                                                                             : target->OnMouseDown(*this, point, rightButton, static_cast<UINT>(wp)));
+            const bool controlHandled               = target && (tripleClick   ? target->OnMouseTripleClick(*this, point, rightButton, static_cast<UINT>(wp))
+                                                                 : doubleClick ? target->OnMouseDoubleClick(*this, point, rightButton, static_cast<UINT>(wp))
+                                                                               : target->OnMouseDown(*this, point, rightButton, static_cast<UINT>(wp)));
             Control* liveControl                    = RevalidateInteractiveDispatchedControl(targetLifetime, _root.get(), target);
             if (IsContextMenuDiagnosticsEnabled())
             {

@@ -452,8 +452,8 @@ template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe obs
         for (const bool initiallyOpen : {false, true})
         {
             const std::wstring disclosureSource = initiallyOpen ? L"<details open>\n<summary><b>More</b></summary>\nBody text\n</details>\n\n**After**\n"
-                                                      : L"<details>\n<summary><b>More</b></summary>\nBody text\n</details>\n\n**After**\n";
-            const auto syntax = RichSemanticDocumentTests::Parse(disclosureSource, profile);
+                                                                : L"<details>\n<summary><b>More</b></summary>\nBody text\n</details>\n\n**After**\n";
+            const auto syntax                   = RichSemanticDocumentTests::Parse(disclosureSource, profile);
             SemanticBuilder builder;
             builder.Begin(syntax);
             const auto initial = RichSemanticDocumentTests::Complete(builder, *syntax);
@@ -465,39 +465,41 @@ template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe obs
             const std::array states{Detail::DisclosureOverride{summary->blockIdentity, ! initiallyOpen}};
             Detail::SemanticExtensionAccess::BeginWithPresentation(builder, syntax, {}, states);
             const auto toggled = RichSemanticDocumentTests::Complete(builder, *syntax);
-            const auto next = std::ranges::find(toggled->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
+            const auto next    = std::ranges::find(toggled->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
             Check(next != toggled->Elements().end() && next->disclosureExpanded != initiallyOpen && toggled->Map().Source() == disclosureSource &&
-                      (toggled->Map().Display().find(L"Body text") != std::wstring::npos) != initiallyOpen &&
-                      initial->Map().Source() == disclosureSource, "view-state override reverses presentation without changing immutable source/publication");
+                      (toggled->Map().Display().find(L"Body text") != std::wstring::npos) != initiallyOpen && initial->Map().Source() == disclosureSource,
+                  "view-state override reverses presentation without changing immutable source/publication");
             PreparedSemanticGeometry initialGeometry, toggledGeometry;
             initialGeometry.Begin(factory.get(), initial, options);
             toggledGeometry.Begin(factory.get(), toggled, options);
-            Complete(initialGeometry); Complete(toggledGeometry);
+            Complete(initialGeometry);
+            Complete(toggledGeometry);
             const auto initialIndex = static_cast<std::size_t>(summary - initial->Elements().begin());
             const auto toggledIndex = static_cast<std::size_t>(next - toggled->Elements().begin());
             Check(initialGeometry.ElementBounds(initialIndex).has_value() && toggledGeometry.ElementBounds(toggledIndex).has_value() &&
                       (initialGeometry.Height() > toggledGeometry.Height()) == initiallyOpen,
                   "disclosure summary has independently actionable bounds and its body changes actual native layout height");
             const auto wordPosition = disclosureSource.find(L"More");
-            const auto caret = initialGeometry.SourceCaret(wordPosition);
+            const auto caret        = initialGeometry.SourceCaret(wordPosition);
             Check(initialGeometry.HitTestSource(caret.x + .1f, caret.y + caret.height * .5f).position == wordPosition,
                   "summary caret and hit testing retain the exact authored source ACP");
             std::array<std::size_t, 2u> inkCounts{};
             for (std::size_t pass = 0u; pass < 2u; ++pass)
             {
-                target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+                target->BeginDraw();
+                target->Clear(D2D1::ColorF(D2D1::ColorF::White));
                 (pass ? toggledGeometry : initialGeometry).Draw(target.get(), ink.get(), ink.get(), {}, 0.f, 100.f);
                 THROW_IF_FAILED(target->EndDraw());
                 THROW_IF_FAILED(bitmap->CopyPixels(nullptr, 1600u, static_cast<UINT>(pixels.size()), pixels.data()));
                 for (std::size_t byte = 0u; byte < pixels.size(); byte += 4u)
                     inkCounts[pass] += pixels[byte] < 180u;
             }
-            const auto expandedInk = inkCounts[initiallyOpen ? 0u : 1u];
+            const auto expandedInk  = inkCounts[initiallyOpen ? 0u : 1u];
             const auto collapsedInk = inkCounts[initiallyOpen ? 1u : 0u];
             Check(collapsedInk > 10u && expandedInk > collapsedInk + 10u,
                   "actual offscreen pixels contain a summary in both states and additional visible body ink only when expanded");
             builder.Begin(syntax);
-            const auto restored = RichSemanticDocumentTests::Complete(builder, *syntax);
+            const auto restored        = RichSemanticDocumentTests::Complete(builder, *syntax);
             const auto restoredSummary = std::ranges::find(restored->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
             Check(restoredSummary != restored->Elements().end() && restoredSummary->disclosureExpanded == initiallyOpen,
                   "removing view overrides restores authored default even when syntax and native fallbacks are unchanged");
@@ -507,10 +509,10 @@ template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe obs
                                std::pair{std::wstring_view(L"> [!WARNING]\n>\n> separate body\n"), std::wstring_view(L"WARNING")}})
     {
         const auto calloutDoc = RichSemanticDocumentTests::Build(sample.first, MarkdownProfile::RichMarkdown);
-        const auto callout = std::ranges::find(calloutDoc->Elements(), SemanticRole::Callout, &SemanticElement::role);
-        const auto display = calloutDoc->Map().Display();
-        Check(calloutDoc->HasCallouts() && callout != calloutDoc->Elements().end() && callout->name == sample.second && calloutDoc->Map().Source() == sample.first &&
-                  display.find(L"[!") == std::wstring::npos &&
+        const auto callout    = std::ranges::find(calloutDoc->Elements(), SemanticRole::Callout, &SemanticElement::role);
+        const auto display    = calloutDoc->Map().Display();
+        Check(calloutDoc->HasCallouts() && callout != calloutDoc->Elements().end() && callout->name == sample.second &&
+                  calloutDoc->Map().Source() == sample.first && display.find(L"[!") == std::wstring::npos &&
                   (display.find(L"body") != std::wstring::npos || display.find(L"text bold") != std::wstring::npos),
               "callout semantics project a source-owned title and retain the authored body/inline styles");
         PreparedSemanticGeometry calloutGeometry;
@@ -518,7 +520,8 @@ template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe obs
         Complete(calloutGeometry);
         wil::com_ptr<ID2D1SolidColorBrush> accent;
         THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(1.f, 0.f, 0.f), accent.put()));
-        target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(D2D1::ColorF::White));
         calloutGeometry.Draw(target.get(), ink.get(), ink.get(), {}, 0.f, 100.f, nullptr, 1.f, nullptr, nullptr, nullptr, accent.get());
         THROW_IF_FAILED(target->EndDraw());
         THROW_IF_FAILED(bitmap->CopyPixels(nullptr, 1600u, static_cast<UINT>(pixels.size()), pixels.data()));
@@ -529,9 +532,10 @@ template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe obs
     }
     {
         const std::wstring calloutSource = L"> [!tip]- Closed title\n> hidden **body**\n";
-        const auto syntax = RichSemanticDocumentTests::Parse(calloutSource, MarkdownProfile::RichMarkdown);
-        SemanticBuilder builder; builder.Begin(syntax);
-        const auto collapsed = RichSemanticDocumentTests::Complete(builder, *syntax);
+        const auto syntax                = RichSemanticDocumentTests::Parse(calloutSource, MarkdownProfile::RichMarkdown);
+        SemanticBuilder builder;
+        builder.Begin(syntax);
+        const auto collapsed  = RichSemanticDocumentTests::Complete(builder, *syntax);
         const auto disclosure = std::ranges::find(collapsed->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
         Check(disclosure != collapsed->Elements().end() && ! disclosure->disclosureExpanded && disclosure->name == L"Closed title" &&
                   collapsed->Map().Display().find(L"hidden") == std::wstring::npos && collapsed->Map().Source() == calloutSource,
@@ -545,7 +549,8 @@ template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe obs
         for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029})
         {
             const auto standard = RichSemanticDocumentTests::Build(calloutSource, profile);
-            Check(! standard->HasCallouts() && std::ranges::none_of(standard->Elements(), [](const auto& element) { return element.role == SemanticRole::Callout; }) &&
+            Check(! standard->HasCallouts() &&
+                      std::ranges::none_of(standard->Elements(), [](const auto& element) { return element.role == SemanticRole::Callout; }) &&
                       standard->Map().Display().find(L"[!tip]") != std::wstring::npos,
                   "callout extensions do not change CommonMark or GFM quote behavior");
         }
@@ -554,7 +559,8 @@ template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe obs
     {
         const auto ordinary = RichSemanticDocumentTests::Build(sourceText, MarkdownProfile::RichMarkdown);
         Check(std::ranges::none_of(ordinary->Elements(), [](const auto& element) { return element.role == SemanticRole::Callout; }) &&
-                  ordinary->Map().Source() == sourceText, "unknown or unsupported callout headings retain ordinary quote semantics and exact source");
+                  ordinary->Map().Source() == sourceText,
+              "unknown or unsupported callout headings retain ordinary quote semantics and exact source");
     }
     for (const std::wstring_view propertiesSource : {L"---\nname: \u03b2\ncount: 2\n---\n\nAfter\n", L"+++\nname = \"\u03b2\"\ncount = 2\n+++\n\nAfter\n"})
     {
@@ -565,7 +571,8 @@ template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe obs
         const auto header = std::ranges::find(closed->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
         Check(syntax->Diagnostics().empty() && header != closed->Elements().end() && header->name == L"Properties" && ! header->disclosureExpanded &&
                   ! closed->HasPropertiesBody() && closed->Map().Source() == propertiesSource && closed->Map().Display().find(L"name") == std::wstring::npos &&
-                  closed->Map().Display().ends_with(L"After\n"), "validated YAML/TOML default to a local collapsed properties header");
+                  closed->Map().Display().ends_with(L"After\n"),
+              "validated YAML/TOML default to a local collapsed properties header");
         const std::array states{Detail::DisclosureOverride{header->blockIdentity, true}};
         Detail::SemanticExtensionAccess::BeginWithPresentation(builder, syntax, {}, states);
         const auto opened = RichSemanticDocumentTests::Complete(builder, *syntax);
@@ -576,13 +583,13 @@ template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe obs
         PreparedSemanticGeometry propertiesGeometry;
         propertiesGeometry.Begin(factory.get(), opened, options);
         Complete(propertiesGeometry);
-        const auto openHeader = std::ranges::find(opened->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
+        const auto openHeader   = std::ranges::find(opened->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
         const auto headerBounds = propertiesGeometry.ElementBounds(static_cast<std::size_t>(openHeader - opened->Elements().begin()));
         Check(headerBounds.has_value(), "properties header has prepared interactive geometry");
-        const auto headerHit = propertiesGeometry.HitTestSource((headerBounds->left + headerBounds->right) * .5f,
-                                                                 (headerBounds->top + headerBounds->bottom) * .5f);
-        const auto bodySource = propertiesSource.find(L"count");
-        const auto bodyCaret = propertiesGeometry.SourceCaret(bodySource);
+        const auto headerHit =
+            propertiesGeometry.HitTestSource((headerBounds->left + headerBounds->right) * .5f, (headerBounds->top + headerBounds->bottom) * .5f);
+        const auto bodySource        = propertiesSource.find(L"count");
+        const auto bodyCaret         = propertiesGeometry.SourceCaret(bodySource);
         const auto previousSiteCaret = propertiesGeometry.SourceCaret(bodySource, headerHit.site);
         Check(std::abs(bodyCaret.y - previousSiteCaret.y) < .01f && bodyCaret.y > headerBounds->top,
               "moving from the generated properties header into source text selects the body caret site");
@@ -591,9 +598,10 @@ template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe obs
         std::array<std::vector<BYTE>, 2u> rendered{std::vector<BYTE>(pixels.size()), std::vector<BYTE>(pixels.size())};
         for (std::size_t pass = 0u; pass < 2u; ++pass)
         {
-            target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
-            propertiesGeometry.Draw(target.get(), ink.get(), ink.get(), {}, 0.f, 100.f, nullptr, 1.f, nullptr, nullptr, nullptr, nullptr,
-                                    pass ? dim.get() : nullptr);
+            target->BeginDraw();
+            target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+            propertiesGeometry.Draw(
+                target.get(), ink.get(), ink.get(), {}, 0.f, 100.f, nullptr, 1.f, nullptr, nullptr, nullptr, nullptr, pass ? dim.get() : nullptr);
             THROW_IF_FAILED(target->EndDraw());
             THROW_IF_FAILED(bitmap->CopyPixels(nullptr, 1600u, static_cast<UINT>(rendered[pass].size()), rendered[pass].data()));
         }
@@ -609,42 +617,46 @@ template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe obs
     {
         const auto syntax = RichSemanticDocumentTests::Parse(L"---\nname: value\n---\n", MarkdownProfile::RichMarkdown);
         const std::array entries{AccessibilityTextOverride{AccessibilityTextId::Properties, L"Eigenschaften"}};
-        SemanticBuilder builder; builder.SetAccessibilityLabels(std::make_shared<AccessibilityLabels>(entries)); builder.Begin(syntax);
+        SemanticBuilder builder;
+        builder.SetAccessibilityLabels(std::make_shared<AccessibilityLabels>(entries));
+        builder.Begin(syntax);
         const auto localized = RichSemanticDocumentTests::Complete(builder, *syntax);
-        const auto header = std::ranges::find(localized->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
-        Check(header != localized->Elements().end() && header->name == L"Eigenschaften" && localized->Map().Display().find(L"Eigenschaften") != std::wstring::npos,
+        const auto header    = std::ranges::find(localized->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
+        Check(header != localized->Elements().end() && header->name == L"Eigenschaften" &&
+                  localized->Map().Display().find(L"Eigenschaften") != std::wstring::npos,
               "properties visible and accessibility text come from the same immutable per-document label set");
     }
     {
         const std::wstring definitionSource = L"Term\n: first description\n: second description\n";
         MarkdownParser parser;
-        parser.Begin(definitionSource, 1u, MarkdownProfile::RichMarkdown,
-                     MarkdownExtensions::RichAll | MarkdownExtensions::DefinitionLists);
-        while (parser.HasPendingPreparation()) parser.Advance(7u);
+        parser.Begin(definitionSource, 1u, MarkdownProfile::RichMarkdown, MarkdownExtensions::RichAll | MarkdownExtensions::DefinitionLists);
+        while (parser.HasPendingPreparation())
+            parser.Advance(7u);
         const auto syntax = parser.Published();
-        SemanticBuilder builder; builder.Begin(syntax);
+        SemanticBuilder builder;
+        builder.Begin(syntax);
         const auto definition = RichSemanticDocumentTests::Complete(builder, *syntax);
         PreparedSemanticGeometry definitionGeometry;
         definitionGeometry.Begin(factory.get(), definition, options);
         Complete(definitionGeometry);
         const auto term = definitionSource.find(L"Term"), description = definitionSource.find(L"second description");
-        const auto termCaret = definitionGeometry.SourceCaret(term);
-        const auto termHit = definitionGeometry.HitTestSource(termCaret.x + .1f, termCaret.y + termCaret.height * .5f);
-        const auto expected = definitionGeometry.SourceCaret(description);
+        const auto termCaret  = definitionGeometry.SourceCaret(term);
+        const auto termHit    = definitionGeometry.HitTestSource(termCaret.x + .1f, termCaret.y + termCaret.height * .5f);
+        const auto expected   = definitionGeometry.SourceCaret(description);
         const auto reusedSite = definitionGeometry.SourceCaret(description, termHit.site);
         Check(termHit.position == term && std::abs(expected.y - reusedSite.y) < .01f && expected.y > termCaret.y,
               "moving between source-owned definition paragraphs cannot reuse the prior term's caret site");
     }
-    for (const std::wstring disclosureSource : {L"<details><summary></summary>body</details>\n", L"<details><summary>x</summary><summary>y</summary></details>\n",
-                                      L"<details onclick=\"run()\"><summary>x</summary>body</details>\n",
-                                      L"<details><summary>x</summary><p>body</p></details>\n",
-                                      L"<details><summary><a href=\"x\">x</a></summary>body</details>\n"})
+    for (const std::wstring disclosureSource : {L"<details><summary></summary>body</details>\n",
+                                                L"<details><summary>x</summary><summary>y</summary></details>\n",
+                                                L"<details onclick=\"run()\"><summary>x</summary>body</details>\n",
+                                                L"<details><summary>x</summary><p>body</p></details>\n",
+                                                L"<details><summary><a href=\"x\">x</a></summary>body</details>\n"})
     {
         const auto literalDisclosure = RichSemanticDocumentTests::Build(disclosureSource, MarkdownProfile::RichMarkdown);
         Check(literalDisclosure->Map().Source() == disclosureSource && literalDisclosure->Map().Display() == disclosureSource,
               "unsupported disclosure syntax remains an exact literal HTML leaf");
     }
-
 }
 inline void HtmlBlockAlignment()
 {
@@ -938,8 +950,12 @@ inline void MathWidthReflowAndTargetReplacement()
     {
         Detail::PreparedMath regular(factory.get(), std::make_shared<const MathExpression>(ParseMath(L"\\mu")), 48.f);
         Detail::PreparedMath shadow(factory.get(), std::make_shared<const MathExpression>(ParseMath(L"\\pmb{\\mu}")), 48.f);
-        while (! regular.Advance()) {}
-        while (! shadow.Advance()) {}
+        while (! regular.Advance())
+        {
+        }
+        while (! shadow.Advance())
+        {
+        }
         wil::com_ptr<ID2D1SolidColorBrush> black;
         THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), black.put()));
         const auto pixelsFor = [&](const Detail::PreparedMath& value)
@@ -953,12 +969,16 @@ inline void MathWidthReflowAndTargetReplacement()
             return std::vector<BYTE>(pixels);
         };
         const auto regularPixels = pixelsFor(regular);
-        const auto shadowPixels = pixelsFor(shadow);
+        const auto shadowPixels  = pixelsFor(shadow);
         Check(regularPixels != shadowPixels, "poor-man bold's staged offset changes actual WIC raster pixels");
         Detail::PreparedMath colored(factory.get(), std::make_shared<const MathExpression>(ParseMath(L"\\textcolor{red}{x}")), 48.f);
         Detail::PreparedMath coloredShadow(factory.get(), std::make_shared<const MathExpression>(ParseMath(L"\\textcolor{red}{\\pmb{x}}")), 48.f);
-        while (! colored.Advance()) {}
-        while (! coloredShadow.Advance()) {}
+        while (! colored.Advance())
+        {
+        }
+        while (! coloredShadow.Advance())
+        {
+        }
         Check(pixelsFor(colored) != pixelsFor(coloredShadow), "colored paint operations retain the poor-man-bold overprint");
     }
     const auto tagged = RichSemanticDocumentTests::Build(L"$$\nx+1\\tag{Eq. 1}\n$$\n", MarkdownProfile::RichMarkdown);

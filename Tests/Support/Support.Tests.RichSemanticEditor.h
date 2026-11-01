@@ -1426,8 +1426,8 @@ template <typename Prepare, typename Move, typename Key> void TitleTooltipContra
     Check(abbreviation != abbreviationDocument->Elements().end(), "opt-in abbreviation has a source-owned element");
     const auto abbreviationBounds = editor->GetSemanticElementBounds(host, static_cast<size_t>(abbreviation - abbreviationDocument->Elements().begin()));
     Check(abbreviationBounds.has_value(), "abbreviation tooltip has a prepared target");
-    const auto abbreviationPoint = D2D1::Point2F((abbreviationBounds->left + abbreviationBounds->right) * .5f,
-                                                   (abbreviationBounds->top + abbreviationBounds->bottom) * .5f);
+    const auto abbreviationPoint =
+        D2D1::Point2F((abbreviationBounds->left + abbreviationBounds->right) * .5f, (abbreviationBounds->top + abbreviationBounds->bottom) * .5f);
     move(abbreviationPoint, 0u);
     Check(host.DebugGetPendingTooltipText() == L"Hyper Text Markup Language" && editor->GetText() == abbreviationSource && ! editor->CanUndo(),
           "read-only abbreviation hover uses the authored expansion without rewriting source");
@@ -1766,15 +1766,11 @@ template <typename Prepare> void SemanticDirection(ControlHost& host, Prepare&& 
               RichText::Detail::FirstStrongDirection(L"\u2067\u05e9\u2069ABC", rtl) == ltr &&
               RichText::Detail::FirstStrongDirection(L"\U0001ee00", ltr) == rtl && RichText::Detail::FirstStrongDirection(L"\U00010400", rtl) == ltr,
           "first-strong uses pinned bidi classes, skips isolates and handles supplementary scalars");
-    Check(RichText::Detail::FirstStrongDirection(L"\u0378\u05e9", rtl) == ltr &&
-              RichText::Detail::FirstStrongDirection(L"\u0590A", ltr) == rtl &&
-              RichText::Detail::FirstStrongDirection(L"\U00010d3fA", ltr) == rtl &&
-              RichText::Detail::FirstStrongDirection(L"\U0001ee04A", ltr) == rtl,
+    Check(RichText::Detail::FirstStrongDirection(L"\u0378\u05e9", rtl) == ltr && RichText::Detail::FirstStrongDirection(L"\u0590A", ltr) == rtl &&
+              RichText::Detail::FirstStrongDirection(L"\U00010d3fA", ltr) == rtl && RichText::Detail::FirstStrongDirection(L"\U0001ee04A", ltr) == rtl,
           "unassigned scalars use the Unicode L, Hebrew R and supplementary Arabic AL defaults");
-    Check(RichText::Detail::FirstStrongDirection(L"\u20c2\u05e9", ltr) == rtl &&
-              RichText::Detail::FirstStrongDirection(L"\u0605A", rtl) == ltr &&
-              RichText::Detail::FirstStrongDirection(L"\u2065\u05e9", ltr) == rtl &&
-              RichText::Detail::FirstStrongDirection(L"\ufdd0\u05e9", ltr) == rtl &&
+    Check(RichText::Detail::FirstStrongDirection(L"\u20c2\u05e9", ltr) == rtl && RichText::Detail::FirstStrongDirection(L"\u0605A", rtl) == ltr &&
+              RichText::Detail::FirstStrongDirection(L"\u2065\u05e9", ltr) == rtl && RichText::Detail::FirstStrongDirection(L"\ufdd0\u05e9", ltr) == rtl &&
               RichText::Detail::FirstStrongDirection(L"\U0010ffff\u05e9", ltr) == rtl &&
               RichText::Detail::FirstStrongDirection(L"\u2067\u0590\u2069A", rtl) == ltr,
           "currency defaults, explicit BN noncharacters and isolates do not become strong");
@@ -1955,7 +1951,7 @@ template <typename Prepare> void InlineExtensions(ControlHost& host, Prepare&& p
 template <typename Prepare> void WikiTargets(ControlHost& host, Prepare&& prepare)
 {
     const std::wstring source(L"[[Folder/Page|Label]] ![[Asset]]");
-    auto root = std::make_unique<RichTextEditor>(source);
+    auto root    = std::make_unique<RichTextEditor>(source);
     auto* editor = root.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
     editor->SetMarkdownRenderingEnabled(true);
@@ -1971,12 +1967,15 @@ template <typename Prepare> void WikiTargets(ControlHost& host, Prepare&& prepar
     const auto document = editor->GetAcknowledgedSemanticDocument(host);
     Check(document != nullptr, "wiki targets have acknowledged semantic geometry");
     const auto link = std::ranges::find_if(document->Elements(), [](const auto& element) { return element.role == SemanticRole::Link && element.wiki; });
-    Check(link != document->Elements().end() && editor->NavigateSemanticElement(host, document, static_cast<std::size_t>(link - document->Elements().begin())) &&
-              navigations == 1u && editor->GetText() == source, "wiki navigation is application-owned and does not edit source");
+    Check(link != document->Elements().end() &&
+              editor->NavigateSemanticElement(host, document, static_cast<std::size_t>(link - document->Elements().begin())) && navigations == 1u &&
+              editor->GetText() == source,
+          "wiki navigation is application-owned and does not edit source");
     std::vector<RichImageRequest> requests(0u);
     editor->TakePendingImageRequests(requests);
     Check(requests.size() == 1u && requests[0].SourceKind() == RichImageSourceKind::WikiTarget && requests[0].Source() == L"Asset" &&
-              requests[0].FilePath().empty(), "wiki embed exposes an unresolved application-owned image request");
+              requests[0].FilePath().empty(),
+          "wiki embed exposes an unresolved application-owned image request");
     Check(editor->CompleteImageRequest(requests[0], RichImageResourceTests::Picture()), "application resolves wiki embed pixels");
     prepare();
     editor->TakePendingImageRequests(requests);

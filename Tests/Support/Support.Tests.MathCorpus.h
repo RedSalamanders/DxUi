@@ -859,32 +859,38 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
 #endif
     }
 #if DXUI_ENABLE_DIAGNOSTICS
-    for (const auto& [source, expectedLines] : {
-             std::pair{L"\\xhookleftarrow{a}", 4u}, std::pair{L"\\xhookrightarrow{a}", 4u},
-             std::pair{L"\\xleftharpoonup{a}", 2u}, std::pair{L"\\xleftharpoondown{a}", 2u},
-             std::pair{L"\\xrightharpoonup{a}", 2u}, std::pair{L"\\xrightharpoondown{a}", 2u},
-             std::pair{L"\\xleftrightharpoons{a}", 4u}, std::pair{L"\\xrightleftharpoons{a}", 4u},
-             std::pair{L"\\xtwoheadleftarrow{a}", 5u}, std::pair{L"\\xtwoheadrightarrow{a}", 5u}, std::pair{L"\\xtofrom{a}", 6u}})
+    for (const auto& [source, expectedLines] : {std::pair{L"\\xhookleftarrow{a}", 4u},
+                                                std::pair{L"\\xhookrightarrow{a}", 4u},
+                                                std::pair{L"\\xleftharpoonup{a}", 2u},
+                                                std::pair{L"\\xleftharpoondown{a}", 2u},
+                                                std::pair{L"\\xrightharpoonup{a}", 2u},
+                                                std::pair{L"\\xrightharpoondown{a}", 2u},
+                                                std::pair{L"\\xleftrightharpoons{a}", 4u},
+                                                std::pair{L"\\xrightleftharpoons{a}", 4u},
+                                                std::pair{L"\\xtwoheadleftarrow{a}", 5u},
+                                                std::pair{L"\\xtwoheadrightarrow{a}", 5u},
+                                                std::pair{L"\\xtofrom{a}", 6u}})
     {
         const auto expression = std::make_shared<const MathExpression>(ParseMath(source));
         check(static_cast<bool>(*expression), "hook and harpoon relations parse");
         Detail::PreparedMath arrow(factory, expression, 24.f);
-        while (! arrow.Advance()) {}
+        while (! arrow.Advance())
+        {
+        }
         check(arrow.StrokeLayouts().size() == expectedLines && arrow.GlyphLayouts().size() == 1u,
               "hook and harpoon relations retain their bounded directed strokes and label");
         const auto& strokes = arrow.StrokeLayouts();
         for (const auto& line : strokes)
-            check(line.first.x >= 0.f && line.last.x >= 0.f && line.first.x <= arrow.Size().width && line.last.x <= arrow.Size().width &&
-                      line.first.y >= 0.f && line.last.y >= 0.f && line.first.y <= arrow.Size().height && line.last.y <= arrow.Size().height,
+            check(line.first.x >= 0.f && line.last.x >= 0.f && line.first.x <= arrow.Size().width && line.last.x <= arrow.Size().width && line.first.y >= 0.f &&
+                      line.last.y >= 0.f && line.first.y <= arrow.Size().height && line.last.y <= arrow.Size().height,
                   "directed arrow stroke endpoints remain in the prepared box");
         const std::wstring_view command(source);
         if (expectedLines == 2u && strokes.size() == 2u)
         {
             const auto& head = strokes[1u];
-            const bool left = command.find(L"leftharpoon") != command.npos;
-            const bool up = command.find(L"up") != command.npos;
-            check((left ? head.first.x > head.last.x : head.first.x < head.last.x) &&
-                      (up ? head.first.y < head.last.y : head.first.y > head.last.y),
+            const bool left  = command.find(L"leftharpoon") != command.npos;
+            const bool up    = command.find(L"up") != command.npos;
+            check((left ? head.first.x > head.last.x : head.first.x < head.last.x) && (up ? head.first.y < head.last.y : head.first.y > head.last.y),
                   "single harpoon endpoint independently identifies direction and barb orientation");
         }
         if (expectedLines == 4u && strokes.size() == 4u && command.find(L"harpoons") != command.npos)
@@ -898,28 +904,31 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     }
 #endif
 #if DXUI_ENABLE_DIAGNOSTICS
-    for (const auto& [name, count, below] : {
-             std::tuple{L"overleftarrow", 3u, false}, std::tuple{L"overrightarrow", 3u, false},
-             std::tuple{L"overleftrightarrow", 5u, false}, std::tuple{L"Overrightarrow", 4u, false},
-             std::tuple{L"underleftarrow", 3u, true}, std::tuple{L"underrightarrow", 3u, true},
-             std::tuple{L"underleftrightarrow", 5u, true}, std::tuple{L"overleftharpoon", 2u, false},
-             std::tuple{L"overrightharpoon", 2u, false}})
+    for (const auto& [name, count, below] : {std::tuple{L"overleftarrow", 3u, false},
+                                             std::tuple{L"overrightarrow", 3u, false},
+                                             std::tuple{L"overleftrightarrow", 5u, false},
+                                             std::tuple{L"Overrightarrow", 4u, false},
+                                             std::tuple{L"underleftarrow", 3u, true},
+                                             std::tuple{L"underrightarrow", 3u, true},
+                                             std::tuple{L"underleftrightarrow", 5u, true},
+                                             std::tuple{L"overleftharpoon", 2u, false},
+                                             std::tuple{L"overrightharpoon", 2u, false}})
     {
         const auto expression = std::make_shared<const MathExpression>(ParseMath(L"\\" + std::wstring(name) + L"{abc}"));
         check(static_cast<bool>(*expression), "arrow accent parses completely");
         Detail::PreparedMath accent(factory, expression, 24.f);
-        while (! accent.Advance()) {}
+        while (! accent.Advance())
+        {
+        }
         const auto& strokes = accent.StrokeLayouts();
-        const auto& glyphs = accent.GlyphLayouts();
-        check(strokes.size() == count && glyphs.size() == 1u &&
-                  (below ? strokes[0u].first.y > glyphs[0u].origin.y : strokes[0u].first.y < glyphs[0u].origin.y),
+        const auto& glyphs  = accent.GlyphLayouts();
+        check(strokes.size() == count && glyphs.size() == 1u && (below ? strokes[0u].first.y > glyphs[0u].origin.y : strokes[0u].first.y < glyphs[0u].origin.y),
               "directed accent keeps its distinct head and above/below placement");
         if (strokes.size() >= 2u)
         {
             const std::wstring_view accentName(name);
             const bool left = accentName.find(L"left") != accentName.npos;
-            check(left ? strokes[1u].first.x > strokes[1u].last.x : strokes[1u].first.x < strokes[1u].last.x,
-                  "accent head points in the authored direction");
+            check(left ? strokes[1u].first.x > strokes[1u].last.x : strokes[1u].first.x < strokes[1u].last.x, "accent head points in the authored direction");
         }
     }
 #endif
@@ -929,12 +938,14 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         const auto expression = std::make_shared<const MathExpression>(ParseMath(L"\\" + std::wstring(name) + L"{abc}"));
         check(static_cast<bool>(*expression), "line-segment accent parses completely");
         Detail::PreparedMath accent(factory, expression, 24.f);
-        while (! accent.Advance()) {}
+        while (! accent.Advance())
+        {
+        }
         const auto& lines = accent.StrokeLayouts();
-        check(lines.size() == 3u && lines[0u].first.y == lines[0u].last.y && lines[1u].first.x == lines[1u].last.x &&
-                  lines[2u].first.x == lines[2u].last.x && lines[1u].first.x < lines[2u].first.x &&
-                  ((std::wstring_view(name).starts_with(L"under")) ? lines[0u].first.y > accent.GlyphLayouts()[0u].origin.y :
-                                                                   lines[0u].first.y < accent.GlyphLayouts()[0u].origin.y),
+        check(lines.size() == 3u && lines[0u].first.y == lines[0u].last.y && lines[1u].first.x == lines[1u].last.x && lines[2u].first.x == lines[2u].last.x &&
+                  lines[1u].first.x < lines[2u].first.x &&
+                  ((std::wstring_view(name).starts_with(L"under")) ? lines[0u].first.y > accent.GlyphLayouts()[0u].origin.y
+                                                                   : lines[0u].first.y < accent.GlyphLayouts()[0u].origin.y),
               "line-segment accents stage a horizontal shaft with distinct bounded end bars");
     }
 #endif
@@ -943,14 +954,16 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     {
         const auto expression = std::make_shared<const MathExpression>(ParseMath(L"\\" + std::wstring(name) + L"{x}"));
         Detail::PreparedMath accent(factory, expression, 24.f);
-        while (! accent.Advance()) {}
+        while (! accent.Advance())
+        {
+        }
         const auto& marks = accent.StrokeLayouts();
-        check(marks.size() == count && std::ranges::all_of(marks, [](const auto& mark) {
-                  return mark.dot && mark.thickness > 0.f && mark.first.x == mark.last.x && mark.first.y == mark.last.y;
-              }), "dot accents stage filled circular marks instead of flat line strokes");
+        check(marks.size() == count && std::ranges::all_of(marks,
+                                                           [](const auto& mark)
+        { return mark.dot && mark.thickness > 0.f && mark.first.x == mark.last.x && mark.first.y == mark.last.y; }),
+              "dot accents stage filled circular marks instead of flat line strokes");
         if (marks.size() == 2u)
-            check(marks[0u].first.x < marks[1u].first.x && marks[0u].first.y == marks[1u].first.y,
-                  "double dots stage two horizontally ordered circles");
+            check(marks[0u].first.x < marks[1u].first.x && marks[0u].first.y == marks[1u].first.y, "double dots stage two horizontally ordered circles");
     }
 #endif
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -959,22 +972,28 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         check(static_cast<bool>(*expression), "text family and weight commands stack");
         check(static_cast<bool>(ParseMath(L"\\text{a$b}")), "ordinary text retains its existing literal dollar policy");
         const auto groupedExpression = std::make_shared<const MathExpression>(ParseMath(L"\\text{a { b}}"));
-        const auto flatExpression = std::make_shared<const MathExpression>(ParseMath(L"\\text{a b}"));
+        const auto flatExpression    = std::make_shared<const MathExpression>(ParseMath(L"\\text{a b}"));
         Detail::PreparedMath grouped(factory, groupedExpression, 24.f), flat(factory, flatExpression, 24.f);
-        while (! grouped.Advance()) {}
-        while (! flat.Advance()) {}
-        check(std::abs(grouped.Size().width - flat.Size().width) < .01f,
-              "plain grouped text collapses whitespace across group boundaries");
+        while (! grouped.Advance())
+        {
+        }
+        while (! flat.Advance())
+        {
+        }
+        check(std::abs(grouped.Size().width - flat.Size().width) < .01f, "plain grouped text collapses whitespace across group boundaries");
         const auto colorExpression = std::make_shared<const MathExpression>(ParseMath(L"\\text{a \\textcolor{red}{ b}}"));
-        const auto colorDollar = ParseMath(L"\\text{a \\textcolor{red}{$b}}");
+        const auto colorDollar     = ParseMath(L"\\text{a \\textcolor{red}{$b}}");
         check(static_cast<bool>(*colorExpression) && static_cast<bool>(colorDollar), "nested transparent color retains text policy");
         Detail::PreparedMath colorGrouped(factory, colorExpression, 24.f);
-        while (! colorGrouped.Advance()) {}
-        check(std::abs(colorGrouped.Size().width - flat.Size().width) < .01f,
-              "transparent text-color group preserves surrounding whitespace collapse");
+        while (! colorGrouped.Advance())
+        {
+        }
+        check(std::abs(colorGrouped.Size().width - flat.Size().width) < .01f, "transparent text-color group preserves surrounding whitespace collapse");
         auto textFormats = std::make_shared<Detail::MathTextFormats>(factory, L"Cambria Math", L"en-us", L"Arial", L"Consolas");
         Detail::PreparedMath layout(factory, expression, 24.f, false, nullptr, 96.f, textFormats);
-        while (! layout.Advance()) {}
+        while (! layout.Advance())
+        {
+        }
         const auto& glyphs = layout.GlyphLayouts();
         check(glyphs.size() == 1u, "nested text style retains one shaped leaf");
         if (glyphs.size() == 1u)
@@ -998,10 +1017,13 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
             const auto expression = std::make_shared<const MathExpression>(ParseMath(source));
             check(static_cast<bool>(*expression), "equation-number suppression parses as a declaration");
             Detail::PreparedMath original(factory, plain, 24.f), suppressed(factory, expression, 24.f);
-            while (! original.Advance()) {}
-            while (! suppressed.Advance()) {}
-            check(std::abs(original.Size().width - suppressed.Size().width) < .01f &&
-                      original.GlyphLayouts().size() == suppressed.GlyphLayouts().size(),
+            while (! original.Advance())
+            {
+            }
+            while (! suppressed.Advance())
+            {
+            }
+            check(std::abs(original.Size().width - suppressed.Size().width) < .01f && original.GlyphLayouts().size() == suppressed.GlyphLayouts().size(),
                   "number suppression adds no painted atom or spacing");
         }
         check(static_cast<bool>(ParseMath(L"\\begin{align}a&=b\\notag\\\\c&=d\\nonumber\\end{align}")),
@@ -1014,7 +1036,9 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         const auto expression = std::make_shared<const MathExpression>(ParseMath(L"\\mathscr{AB}"));
         check(static_cast<bool>(*expression), "mathematical script admits bounded uppercase alphabet");
         Detail::PreparedMath script(factory, expression, 24.f);
-        while (! script.Advance()) {}
+        while (! script.Advance())
+        {
+        }
         const auto& glyphs = script.GlyphLayouts();
         check(! glyphs.empty(), "script alphabet stages native glyphs");
         if (! glyphs.empty())
@@ -1026,12 +1050,15 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
             actual.resize(length);
             check(actual == L"Segoe Script", "script alphabet uses its distinct verified native face");
         }
-        auto missingFormats = std::make_shared<Detail::MathTextFormats>(factory, L"Cambria Math", L"en-us", L"Arial", L"Consolas", L"DxUi Missing Script Face 72A13");
+        auto missingFormats =
+            std::make_shared<Detail::MathTextFormats>(factory, L"Cambria Math", L"en-us", L"Arial", L"Consolas", L"DxUi Missing Script Face 72A13");
         bool missingRefused{};
         try
         {
             Detail::PreparedMath missing(factory, expression, 24.f, false, nullptr, 96.f, missingFormats);
-            while (! missing.Advance()) {}
+            while (! missing.Advance())
+            {
+            }
         }
         catch (const wil::ResultException& failure)
         {
@@ -1039,7 +1066,9 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         }
         check(missingRefused, "missing script face uses local unsupported-source fallback classification");
         Detail::PreparedMath recovered(factory, expression, 24.f);
-        while (! recovered.Advance()) {}
+        while (! recovered.Advance())
+        {
+        }
         check(! recovered.GlyphLayouts().empty(), "new format generation retries after script face becomes available");
         check(! ParseMath(L"\\mathscr{a}") && ! ParseMath(L"\\mathscr{1}") && ! ParseMath(L"\\mathscr{A+B}"),
               "unsupported script operands retain exact source");
@@ -1049,18 +1078,17 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     {
         const auto expression = std::make_shared<const MathExpression>(ParseMath(L"\\hat{f}"));
         Detail::PreparedMath accent(factory, expression, 24.f);
-        while (! accent.Advance()) {}
-        const auto& glyphs = accent.GlyphLayouts();
+        while (! accent.Advance())
+        {
+        }
+        const auto& glyphs  = accent.GlyphLayouts();
         const auto& strokes = accent.StrokeLayouts();
-        check(glyphs.size() == 1u && strokes.size() == 2u && glyphs[0u].italic,
-              "italic accent skew fixture retains its shaped base and triangular fallback");
+        check(glyphs.size() == 1u && strokes.size() == 2u && glyphs[0u].italic, "italic accent skew fixture retains its shaped base and triangular fallback");
         if (glyphs.size() == 1u && strokes.size() == 2u)
         {
-            const float actualCenter = (strokes[0u].first.x + strokes[1u].last.x) * .5f;
-            const float expectedCenter = glyphs[0u].origin.x + glyphs[0u].extent.width * .5f +
-                                         std::clamp(glyphs[0u].italicCorrection * .5f, 0.f, 6.f);
-            check(std::abs(actualCenter - expectedCenter) < .01f,
-                  "single italic glyph accent uses bounded shaped-font italic correction");
+            const float actualCenter   = (strokes[0u].first.x + strokes[1u].last.x) * .5f;
+            const float expectedCenter = glyphs[0u].origin.x + glyphs[0u].extent.width * .5f + std::clamp(glyphs[0u].italicCorrection * .5f, 0.f, 6.f);
+            check(std::abs(actualCenter - expectedCenter) < .01f, "single italic glyph accent uses bounded shaped-font italic correction");
         }
     }
 #endif
@@ -1068,7 +1096,8 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     {
         wil::com_ptr<IDWriteFontCollection> skewCollection;
         THROW_IF_FAILED(factory->GetSystemFontCollection(skewCollection.put()));
-        UINT32 skewIndex{}; BOOL exists{};
+        UINT32 skewIndex{};
+        BOOL exists{};
         THROW_IF_FAILED(skewCollection->FindFamilyName(L"Cambria Math", &skewIndex, &exists));
         check(exists != FALSE, "accent correction oracle has the system math face");
         wil::com_ptr<IDWriteFontFamily> skewFamily;
@@ -1077,34 +1106,50 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         THROW_IF_FAILED(skewCollection->GetFontFamily(skewIndex, skewFamily.put()));
         THROW_IF_FAILED(skewFamily->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, skewFont.put()));
         THROW_IF_FAILED(skewFont->CreateFontFace(skewFace.put()));
-        const UINT32 scalar = L'f'; UINT16 skewGlyph{}; DWRITE_FONT_METRICS skewMetrics{};
+        const UINT32 scalar = L'f';
+        UINT16 skewGlyph{};
+        DWRITE_FONT_METRICS skewMetrics{};
         THROW_IF_FAILED(skewFace->GetGlyphIndices(&scalar, 1u, &skewGlyph));
         skewFace->GetMetrics(&skewMetrics);
         std::array<std::uint8_t, 64u> skewTable{};
-        const auto put = [&](std::size_t offset, std::uint16_t value) { skewTable[offset] = static_cast<std::uint8_t>(value >> 8u); skewTable[offset + 1u] = static_cast<std::uint8_t>(value); };
-        put(0u, 1u); put(4u, 40u); put(6u, 10u); put(10u, 8u); put(18u, 8u); put(20u, 1u); put(22u, 300u);
-        put(26u, 1u); put(28u, 1u); put(30u, skewGlyph);
-        const auto previousTable = Detail::testRichMathTableOverride;
-        const auto restoreTable = wil::scope_exit([&]() noexcept { Detail::testRichMathTableOverride = previousTable; });
+        const auto put = [&](std::size_t offset, std::uint16_t value)
+        {
+            skewTable[offset]      = static_cast<std::uint8_t>(value >> 8u);
+            skewTable[offset + 1u] = static_cast<std::uint8_t>(value);
+        };
+        put(0u, 1u);
+        put(4u, 40u);
+        put(6u, 10u);
+        put(10u, 8u);
+        put(18u, 8u);
+        put(20u, 1u);
+        put(22u, 300u);
+        put(26u, 1u);
+        put(28u, 1u);
+        put(30u, skewGlyph);
+        const auto previousTable          = Detail::testRichMathTableOverride;
+        const auto restoreTable           = wil::scope_exit([&]() noexcept { Detail::testRichMathTableOverride = previousTable; });
         Detail::testRichMathTableOverride = skewTable;
-        const auto skewExpression = std::make_shared<const MathExpression>(ParseMath(L"\\hat{f}"));
+        const auto skewExpression         = std::make_shared<const MathExpression>(ParseMath(L"\\hat{f}"));
         Detail::PreparedMath skewAccent(factory, skewExpression, 24.f);
-        while (! skewAccent.Advance()) {}
-        const auto& skewGlyphs = skewAccent.GlyphLayouts(); const auto& skewStrokes = skewAccent.StrokeLayouts();
+        while (! skewAccent.Advance())
+        {
+        }
+        const auto& skewGlyphs  = skewAccent.GlyphLayouts();
+        const auto& skewStrokes = skewAccent.StrokeLayouts();
         check(skewGlyphs.size() == 1u && skewStrokes.size() == 2u && skewGlyph != 0u && skewMetrics.designUnitsPerEm != 0u,
               "SDK accent oracle resolves the real face and glyph");
         if (skewGlyphs.size() == 1u && skewStrokes.size() == 2u && skewMetrics.designUnitsPerEm != 0u)
         {
             const float skewCorrection = 300.f * 24.f / skewMetrics.designUnitsPerEm;
-            const float actualCenter = (skewStrokes[0u].first.x + skewStrokes[1u].last.x) * .5f;
+            const float actualCenter   = (skewStrokes[0u].first.x + skewStrokes[1u].last.x) * .5f;
             check(std::abs(skewGlyphs[0u].italicCorrection - skewCorrection) < .01f &&
                       std::abs(actualCenter - skewGlyphs[0u].origin.x - skewGlyphs[0u].extent.width * .5f - skewCorrection * .5f) < .01f,
                   "nonzero MATH correction positions the accent independently of right ink overhang");
         }
     }
 #endif
-    for (const auto source : {L"\\genfrac{(}{)}{-2pt}{0}{a}{b}", L"\\genfrac{(}{)}{}{4}{a}{b}", L"\\genfrac{?}{}{}{}{a}{b}",
-                              L"\\genfrac{}{}{}{}{a}"})
+    for (const auto source : {L"\\genfrac{(}{)}{-2pt}{0}{a}{b}", L"\\genfrac{(}{)}{}{4}{a}{b}", L"\\genfrac{?}{}{}{}{a}{b}", L"\\genfrac{}{}{}{}{a}"})
         check(! ParseMath(source), "unsupported general fraction dimensions, style and delimiters reject the whole source");
     {
         const auto expression = ParseMath(L"\\begin{alignat*}{2}a&b&c&d\\end{alignat*}");
@@ -1201,7 +1246,9 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     {
         const auto nestedArrayExpression = std::make_shared<const MathExpression>(ParseMath(nestedArrays));
         Detail::PreparedMath nestedArrayGeometry(factory, nestedArrayExpression, 12.f);
-        while (! nestedArrayGeometry.Advance()) {}
+        while (! nestedArrayGeometry.Advance())
+        {
+        }
         check(nestedArrayGeometry.GlyphLayouts().size() == 1u, "64 nested arrays also prepare geometry on the ordinary stack");
     }
 #endif
@@ -1215,9 +1262,10 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
 #if DXUI_ENABLE_DIAGNOSTICS
         const auto nestedFractionExpression = std::make_shared<const MathExpression>(ParseMath(nestedFractions));
         Detail::PreparedMath nestedFractionGeometry(factory, nestedFractionExpression, 12.f);
-        while (! nestedFractionGeometry.Advance()) {}
-        check(nestedFractionGeometry.GlyphLayouts().size() == MathMaximumGroupDepth + 1u,
-              "64 nested fractions also prepare geometry on the ordinary stack");
+        while (! nestedFractionGeometry.Advance())
+        {
+        }
+        check(nestedFractionGeometry.GlyphLayouts().size() == MathMaximumGroupDepth + 1u, "64 nested fractions also prepare geometry on the ordinary stack");
 #endif
     }
     for (const auto environment : {L"darray", L"subarray"})
@@ -1241,7 +1289,9 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
 #if DXUI_ENABLE_DIAGNOSTICS
         const auto nestedExpression = std::make_shared<const MathExpression>(ParseMath(nested));
         Detail::PreparedMath nestedGeometry(factory, nestedExpression, 12.f);
-        while (! nestedGeometry.Advance()) {}
+        while (! nestedGeometry.Advance())
+        {
+        }
         check(nestedGeometry.GlyphLayouts().size() == MathMaximumGroupDepth + 1u,
               "64 nested structured binary commands also prepare geometry on the ordinary stack");
 #endif
@@ -1302,7 +1352,9 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         check(! ParseMath(deepNot), "deep unsupported nested negation refuses without overflow");
 #if DXUI_ENABLE_DIAGNOSTICS
         Detail::PreparedMath delimitedGeometry(factory, delimited, 12.f);
-        while (! delimitedGeometry.Advance()) {}
+        while (! delimitedGeometry.Advance())
+        {
+        }
         check(delimitedGeometry.GlyphLayouts().size() == 1u, "64 nested paired delimiters prepare on the ordinary stack");
 #endif
     }
@@ -1380,17 +1432,20 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     }
 #if DXUI_ENABLE_DIAGNOSTICS
     {
-        const auto left = std::make_shared<const MathExpression>(ParseMath(L"\\begin{subarray}{l}a\\\\abcdef\\end{subarray}"));
+        const auto left     = std::make_shared<const MathExpression>(ParseMath(L"\\begin{subarray}{l}a\\\\abcdef\\end{subarray}"));
         const auto centered = std::make_shared<const MathExpression>(ParseMath(L"\\begin{subarray}{c}a\\\\abcdef\\end{subarray}"));
         check(static_cast<bool>(*left) && static_cast<bool>(*centered), "subarray admits its bounded single alignment column");
         Detail::PreparedMath leftLayout(factory, left, 24.f);
         Detail::PreparedMath centeredLayout(factory, centered, 24.f);
-        while (! leftLayout.Advance()) {}
-        while (! centeredLayout.Advance()) {}
-        const auto leftGlyphs = leftLayout.GlyphLayouts();
+        while (! leftLayout.Advance())
+        {
+        }
+        while (! centeredLayout.Advance())
+        {
+        }
+        const auto leftGlyphs   = leftLayout.GlyphLayouts();
         const auto centerGlyphs = centeredLayout.GlyphLayouts();
-        check(leftGlyphs.size() == 2u && centerGlyphs.size() == 2u &&
-                  std::abs(leftGlyphs[0u].origin.x - leftGlyphs[1u].origin.x) < .01f &&
+        check(leftGlyphs.size() == 2u && centerGlyphs.size() == 2u && std::abs(leftGlyphs[0u].origin.x - leftGlyphs[1u].origin.x) < .01f &&
                   centerGlyphs[0u].origin.x > centerGlyphs[1u].origin.x && leftGlyphs[0u].font < 24.f,
               "subarray stages script-size cells with independently verified left or centered alignment");
         check(! ParseMath(L"\\begin{subarray}{r}a\\end{subarray}") && ! ParseMath(L"\\begin{subarray}{l}a&b\\end{subarray}"),
@@ -1400,14 +1455,17 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
 #if DXUI_ENABLE_DIAGNOSTICS
     {
         const auto ordinary = std::make_shared<const MathExpression>(ParseMath(L"\\begin{array}{c}\\sum_{i}^{n}\\end{array}"));
-        const auto display = std::make_shared<const MathExpression>(ParseMath(L"\\begin{darray}{c}\\sum_{i}^{n}\\end{darray}"));
+        const auto display  = std::make_shared<const MathExpression>(ParseMath(L"\\begin{darray}{c}\\sum_{i}^{n}\\end{darray}"));
         check(static_cast<bool>(*ordinary) && static_cast<bool>(*display), "darray admits the array column grammar");
         Detail::PreparedMath ordinaryLayout(factory, ordinary, 24.f);
         Detail::PreparedMath displayLayout(factory, display, 24.f);
-        while (! ordinaryLayout.Advance()) {}
-        while (! displayLayout.Advance()) {}
-        check(displayLayout.Size().height > ordinaryLayout.Size().height &&
-                  displayLayout.GlyphLayouts().size() == ordinaryLayout.GlyphLayouts().size(),
+        while (! ordinaryLayout.Advance())
+        {
+        }
+        while (! displayLayout.Advance())
+        {
+        }
+        check(displayLayout.Size().height > ordinaryLayout.Size().height && displayLayout.GlyphLayouts().size() == ordinaryLayout.GlyphLayouts().size(),
               "darray uses display-style operator limits rather than array text style");
         check(! ParseMath(L"\\begin{darray}{z}a\\end{darray}"), "invalid darray columns retain source");
     }
@@ -1415,41 +1473,50 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
 #if DXUI_ENABLE_DIAGNOSTICS
     {
         const auto alignedat = std::make_shared<const MathExpression>(ParseMath(L"\\begin{alignedat}{2}a&b&c&d\\end{alignedat}"));
-        const auto alignat = std::make_shared<const MathExpression>(ParseMath(L"\\begin{alignat}{2}a&b&c&d\\end{alignat}"));
+        const auto alignat   = std::make_shared<const MathExpression>(ParseMath(L"\\begin{alignat}{2}a&b&c&d\\end{alignat}"));
         check(static_cast<bool>(*alignedat) && static_cast<bool>(*alignat), "alignedat accepts bounded explicit column pairs");
         Detail::PreparedMath embedded(factory, alignedat, 24.f);
         Detail::PreparedMath display(factory, alignat, 24.f);
-        while (! embedded.Advance()) {}
-        while (! display.Advance()) {}
+        while (! embedded.Advance())
+        {
+        }
+        while (! display.Advance())
+        {
+        }
         check(std::abs(embedded.Size().width - display.Size().width) < .01f && embedded.GlyphLayouts().size() == 4u,
               "alignedat shares explicit no-gap pair geometry");
         check(! ParseMath(L"\\begin{alignedat}{0}a\\end{alignedat}") && ! ParseMath(L"\\begin{alignedat}{1}a&b&c\\end{alignedat}"),
               "invalid alignedat pair bounds retain source");
     }
 #endif
-    for (const auto source : {L"\\begin{matrix}a\\\\[-1pt]b\\end{matrix}", L"\\substack{a\\\\[65pt]b}",
-                              L"\\begin{matrix}a\\\\[bogus]b\\end{matrix}", L"\\substack{a\\\\[2ptb}"})
+    for (const auto source :
+         {L"\\begin{matrix}a\\\\[-1pt]b\\end{matrix}", L"\\substack{a\\\\[65pt]b}", L"\\begin{matrix}a\\\\[bogus]b\\end{matrix}", L"\\substack{a\\\\[2ptb}"})
         check(! ParseMath(source), "invalid row-spacing dimensions retain complete source");
 #if DXUI_ENABLE_DIAGNOSTICS
-    for (const auto& [plainSource, spacedSource] : {
-             std::pair{L"\\begin{matrix}a\\\\b\\end{matrix}", L"\\begin{matrix}a\\\\[2pt]b\\end{matrix}"},
-             std::pair{L"\\substack{a\\\\b}", L"\\substack{a\\\\[2pt]b}"}})
+    for (const auto& [plainSource, spacedSource] : {std::pair{L"\\begin{matrix}a\\\\b\\end{matrix}", L"\\begin{matrix}a\\\\[2pt]b\\end{matrix}"},
+                                                    std::pair{L"\\substack{a\\\\b}", L"\\substack{a\\\\[2pt]b}"}})
     {
-        const auto plainExpression = std::make_shared<const MathExpression>(ParseMath(plainSource));
+        const auto plainExpression  = std::make_shared<const MathExpression>(ParseMath(plainSource));
         const auto spacedExpression = std::make_shared<const MathExpression>(ParseMath(spacedSource));
         check(static_cast<bool>(*plainExpression) && static_cast<bool>(*spacedExpression), "bounded matrix row spacing parses");
         Detail::PreparedMath plain(factory, plainExpression, 24.f);
         Detail::PreparedMath spaced(factory, spacedExpression, 24.f);
         Detail::PreparedMath zoomed(factory, spacedExpression, 24.f, false, nullptr, 96.f, {}, 2.f);
-        while (! plain.Advance()) {}
-        while (! spaced.Advance()) {}
-        while (! zoomed.Advance()) {}
-        const auto distance = [](const auto& layout) {
+        while (! plain.Advance())
+        {
+        }
+        while (! spaced.Advance())
+        {
+        }
+        while (! zoomed.Advance())
+        {
+        }
+        const auto distance = [](const auto& layout)
+        {
             const auto glyphs = layout.GlyphLayouts();
             return glyphs.size() == 2u ? glyphs[1u].origin.y - glyphs[0u].origin.y : -1000.f;
         };
-        check(std::abs(distance(spaced) - distance(plain) - 8.f / 3.f) < .01f &&
-                  std::abs(distance(zoomed) - distance(plain) - 16.f / 3.f) < .01f,
+        check(std::abs(distance(spaced) - distance(plain) - 8.f / 3.f) < .01f && std::abs(distance(zoomed) - distance(plain) - 16.f / 3.f) < .01f,
               "row-spacing point dimensions separate actual glyph origins and follow absolute zoom");
     }
 #endif
@@ -1587,7 +1654,9 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     {
         const auto expression = ParseMath(L"{\\sf x {\\rm y}}");
         Detail::PreparedMath layout(factory, std::make_shared<const MathExpression>(expression), 24.f);
-        while (! layout.Advance()) {}
+        while (! layout.Advance())
+        {
+        }
         const auto& glyphs = layout.GlyphLayouts();
         check(glyphs.size() == 2u && glyphs[0u].node->text != L"x" && glyphs[1u].node->text == L"y",
               "inner roman declaration overrides the enclosing sans alphabet");
@@ -1597,7 +1666,9 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     {
         const auto expression = ParseMath(L"\\bold{x}y");
         Detail::PreparedMath layout(factory, std::make_shared<const MathExpression>(expression), 24.f);
-        while (! layout.Advance()) {}
+        while (! layout.Advance())
+        {
+        }
         check(layout.GlyphLayouts().size() == 2u && layout.GlyphLayouts()[0u].bold && ! layout.GlyphLayouts()[1u].bold,
               "bold alias consumes one argument instead of styling the remaining row");
     }
@@ -1611,20 +1682,25 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         const auto expression = std::make_shared<const MathExpression>(ParseMath(source));
         check(static_cast<bool>(*expression), "text emphasis parses");
         Detail::PreparedMath layout(factory, expression, 24.f);
-        while (! layout.Advance()) {}
-        check(layout.GlyphLayouts().size() == 1u && layout.GlyphLayouts()[0u].italic == italic,
-              "text emphasis toggles inherited italic style");
+        while (! layout.Advance())
+        {
+        }
+        check(layout.GlyphLayouts().size() == 1u && layout.GlyphLayouts()[0u].italic == italic, "text emphasis toggles inherited italic style");
     }
 #endif
     check(static_cast<bool>(ParseMath(L"\\colorbox{red}{\\emph{x}}")), "colored text permits bounded emphasis");
 #if DXUI_ENABLE_DIAGNOSTICS
     {
-        const auto plainExpression = std::make_shared<const MathExpression>(ParseMath(L"\\mu"));
+        const auto plainExpression  = std::make_shared<const MathExpression>(ParseMath(L"\\mu"));
         const auto shadowExpression = std::make_shared<const MathExpression>(ParseMath(L"\\pmb{\\mu}"));
         check(static_cast<bool>(*shadowExpression), "poor-man bold parses without replacing the atom class");
         Detail::PreparedMath plain(factory, plainExpression, 24.f), shadow(factory, shadowExpression, 24.f);
-        while (! plain.Advance()) {}
-        while (! shadow.Advance()) {}
+        while (! plain.Advance())
+        {
+        }
+        while (! shadow.Advance())
+        {
+        }
         check(! plain.GlyphLayouts()[0u].pseudoBold && shadow.GlyphLayouts()[0u].pseudoBold && ! shadow.GlyphLayouts()[0u].bold &&
                   shadow.Size().width >= plain.Size().width,
               "poor-man bold reserves shadow ink without substituting a true bold font");

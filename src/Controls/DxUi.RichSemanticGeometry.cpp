@@ -655,7 +655,7 @@ struct PreparedSemanticGeometry::State
             return source == line.insertion || (source >= line.source.first && source < line.source.last);
         }
         const auto& owner = document->Elements()[box.paragraph.element];
-        const auto& node = document->Syntax()->Nodes()[box.paragraph.syntaxNode];
+        const auto& node  = document->Syntax()->Nodes()[box.paragraph.syntaxNode];
         if (owner.role == SemanticRole::DefinitionTerm || owner.role == SemanticRole::DefinitionDescription)
             return source >= owner.source.first && source <= owner.source.last;
         if (owner.role == SemanticRole::Disclosure)
@@ -2500,7 +2500,8 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 const auto index    = work.boundsIndex++;
                 const auto& element = elements[index];
                 if (element.role == SemanticRole::Link || element.role == SemanticRole::Image || element.role == SemanticRole::Math ||
-                    element.role == SemanticRole::Task || element.role == SemanticRole::Disclosure || element.role == SemanticRole::Abbreviation || element.role == SemanticRole::FootnoteReference || element.role == SemanticRole::FootnoteBacklink)
+                    element.role == SemanticRole::Task || element.role == SemanticRole::Disclosure || element.role == SemanticRole::Abbreviation ||
+                    element.role == SemanticRole::FootnoteReference || element.role == SemanticRole::FootnoteBacklink)
                     for (const auto& rectangle : RangeFromState(*work.state, element.display.first, element.display.last))
                         Union(work.state->bounds[index], rectangle);
             }
@@ -3092,8 +3093,10 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
         else if (elements[i].role == SemanticRole::Quote || elements[i].role == SemanticRole::Callout)
         {
             const float x = state.options.readingDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT ? rectangle.right + 8.0f : rectangle.left - 8.0f;
-            target->DrawLine(D2D1::Point2F(x, rectangle.top), D2D1::Point2F(x, rectangle.bottom),
-                             elements[i].role == SemanticRole::Callout && calloutAccent ? calloutAccent : decoration, 2.0f);
+            target->DrawLine(D2D1::Point2F(x, rectangle.top),
+                             D2D1::Point2F(x, rectangle.bottom),
+                             elements[i].role == SemanticRole::Callout && calloutAccent ? calloutAccent : decoration,
+                             2.0f);
         }
     });
     state.paintNumbers.ForEach(top,
@@ -3133,8 +3136,9 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
         const auto* boxColors = box->authoredColorSurfaceKnown && box->markChips.empty() ? diagramColors : nullptr;
         const bool emphasized = links && links->emphasis && links->emphasisBrush && links->emphasis->first < box->paragraph.display.last &&
                                 box->paragraph.display.first < links->emphasis->last;
-        auto* boxText         = elements[box->paragraph.element].role == SemanticRole::Metadata && propertiesInk
-                                    ? propertiesInk : emphasized ? links->emphasisBrush : text;
+        auto* boxText         = elements[box->paragraph.element].role == SemanticRole::Metadata && propertiesInk ? propertiesInk
+                                : emphasized                                                                     ? links->emphasisBrush
+                                                                                                                 : text;
         if (elements[box->paragraph.element].role == SemanticRole::Rule)
             target->DrawLine(D2D1::Point2F(origin.x + box->x, origin.y + box->y + box->height * .5f),
                              D2D1::Point2F(origin.x + box->x + box->width, origin.y + box->y + box->height * .5f),

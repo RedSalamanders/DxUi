@@ -846,10 +846,10 @@ HRESULT TextInputServices::Clipboard(TextClipboardCommand command, TextClipboard
         {
             auto* transform = dynamic_cast<TextClipboardPasteTransform*>(client.get());
             TextClipboardContent content;
-            const bool includeFiles = transform && transform->AcceptsFilePaths(snapshot);
-            auto* html              = dynamic_cast<TextClipboardHtmlPaste*>(client.get());
-            const bool includeHtml  = transform && html && html->AcceptsHtml(snapshot);
-            auto* bitmap = dynamic_cast<TextClipboardBitmapPaste*>(client.get());
+            const bool includeFiles  = transform && transform->AcceptsFilePaths(snapshot);
+            auto* html               = dynamic_cast<TextClipboardHtmlPaste*>(client.get());
+            const bool includeHtml   = transform && html && html->AcceptsHtml(snapshot);
+            auto* bitmap             = dynamic_cast<TextClipboardBitmapPaste*>(client.get());
             const bool includeBitmap = bitmap && bitmap->AcceptsBitmap(snapshot);
             if (client != _state->client)
                 return TF_E_DISCONNECTED;

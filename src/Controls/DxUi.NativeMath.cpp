@@ -30,7 +30,10 @@ class Parser
     std::wstring_view source;
     std::size_t at{}, nodes{};
     std::vector<unsigned> matrixRowWidths;
-    struct RowGap { std::size_t first{}, length{}; };
+    struct RowGap
+    {
+        std::size_t first{}, length{};
+    };
     std::optional<std::vector<RowGap>> matrixRowGaps;
     std::optional<MathNode> equationTag;
     bool starredTag{};
@@ -122,9 +125,9 @@ class Parser
         // An explicitly nested alphabet or text family owns its own glyphs;
         // an enclosing alphabet must not rewrite that override afterward.
         if (node.kind == MathKind::Style &&
-            (node.text == L"mathrm" || node.text == L"mathit" || node.text == L"mathnormal" || node.text == L"mathbb" || node.text == L"mathcal" || node.text == L"mathscr" ||
-             node.text == L"mathfrak" || node.text == L"mathsf" || node.text == L"mathtt" || node.text == L"textrm" || node.text == L"textsf" ||
-             node.text == L"texttt" || node.text == L"textnormal" || node.text == L"emph"))
+            (node.text == L"mathrm" || node.text == L"mathit" || node.text == L"mathnormal" || node.text == L"mathbb" || node.text == L"mathcal" ||
+             node.text == L"mathscr" || node.text == L"mathfrak" || node.text == L"mathsf" || node.text == L"mathtt" || node.text == L"textrm" ||
+             node.text == L"textsf" || node.text == L"texttt" || node.text == L"textnormal" || node.text == L"emph"))
             return;
         constexpr std::u32string_view blackboard   = U"𝔸𝔹ℂ𝔻𝔼𝔽𝔾ℍ𝕀𝕁𝕂𝕃𝕄ℕ𝕆ℙℚℝ𝕊𝕋𝕌𝕍𝕎𝕏𝕐ℤ";
         constexpr std::u32string_view calligraphic = U"𝒜ℬ𝒞𝒟ℰℱ𝒢ℋℐ𝒥𝒦ℒℳ𝒩𝒪𝒫𝒬ℛ𝒮𝒯𝒰𝒱𝒲𝒳𝒴𝒵";
@@ -397,41 +400,27 @@ class Parser
     };
     void InitializeMatrix(std::wstring_view environment, MatrixHeader& header)
     {
-        static constexpr std::array names{L"matrix",
-                                   L"pmatrix",
-                                   L"bmatrix",
-                                   L"Bmatrix",
-                                   L"vmatrix",
-                                   L"Vmatrix",
-                                   L"smallmatrix",
-                                   L"cases", L"rcases", L"dcases", L"drcases",
-                                   L"aligned",
-                                   L"gathered",
-                                   L"align",
-                                   L"align*",
-                                   L"split",
-                                   L"gather",
-                                   L"gather*",
-                                   L"equation",
-                                   L"equation*",
-                                   L"array", L"darray", L"subarray", L"alignat", L"alignat*", L"alignedat", L"matrix*", L"pmatrix*", L"bmatrix*", L"Bmatrix*", L"vmatrix*", L"Vmatrix*"};
+        static constexpr std::array names{L"matrix",   L"pmatrix",   L"bmatrix",  L"Bmatrix",   L"vmatrix",  L"Vmatrix",  L"smallmatrix", L"cases",
+                                          L"rcases",   L"dcases",    L"drcases",  L"aligned",   L"gathered", L"align",    L"align*",      L"split",
+                                          L"gather",   L"gather*",   L"equation", L"equation*", L"array",    L"darray",   L"subarray",    L"alignat",
+                                          L"alignat*", L"alignedat", L"matrix*",  L"pmatrix*",  L"bmatrix*", L"Bmatrix*", L"vmatrix*",    L"Vmatrix*"};
         if (std::ranges::find(names, environment) == names.end())
             Reject(MathIssue::UnsupportedEnvironment);
         header.matrixAlignment = MatrixAlignment(environment);
-        auto& columnSpec = header.columnSpec;
-        auto& declaredColumns = header.declaredColumns;
+        auto& columnSpec       = header.columnSpec;
+        auto& declaredColumns  = header.declaredColumns;
         if (IsArrayEnvironment(environment))
         {
             columnSpec.assign(ArraySpecification());
             const auto separator = columnSpec.find(L':');
-            declaredColumns = static_cast<unsigned>(separator == std::wstring::npos ? columnSpec.size() : separator);
+            declaredColumns      = static_cast<unsigned>(separator == std::wstring::npos ? columnSpec.size() : separator);
         }
         else if (environment == L"subarray")
         {
             const auto alignment = GroupText();
             if (alignment != L"l" && alignment != L"c")
                 Reject(MathIssue::UnsupportedCommand);
-            columnSpec = alignment;
+            columnSpec      = alignment;
             declaredColumns = 1u;
         }
         else if (IsAlignatEnvironment(environment))
@@ -468,7 +457,7 @@ class Parser
         MatrixHeader header;
         InitializeMatrix(environment, header);
         const auto matrixAlignment = header.matrixAlignment;
-        auto& columnSpec = header.columnSpec;
+        auto& columnSpec           = header.columnSpec;
         const auto declaredColumns = header.declaredColumns;
         std::vector<MathNode> cells(0u);
         if (matrixRowWidths.empty())
@@ -751,12 +740,46 @@ class Parser
     }
     static bool UnaryAccent(std::wstring_view name) noexcept
     {
-        static constexpr std::wstring_view names[] = {
-            L"overbrace", L"underbrace", L"overgroup", L"undergroup", L"boxed", L"cancel", L"bcancel", L"xcancel", L"sout", L"phase", L"angl",
-            L"overline", L"underline", L"bar", L"hat", L"widehat", L"vec", L"dot", L"ddot", L"tilde", L"widetilde", L"check", L"widecheck",
-            L"breve", L"acute", L"grave", L"mathring", L"underbar", L"utilde", L"overleftarrow", L"overrightarrow", L"overleftrightarrow",
-            L"Overrightarrow", L"underleftarrow", L"underrightarrow", L"underleftrightarrow", L"overleftharpoon", L"overrightharpoon",
-            L"overlinesegment", L"underlinesegment"};
+        static constexpr std::wstring_view names[] = {L"overbrace",
+                                                      L"underbrace",
+                                                      L"overgroup",
+                                                      L"undergroup",
+                                                      L"boxed",
+                                                      L"cancel",
+                                                      L"bcancel",
+                                                      L"xcancel",
+                                                      L"sout",
+                                                      L"phase",
+                                                      L"angl",
+                                                      L"overline",
+                                                      L"underline",
+                                                      L"bar",
+                                                      L"hat",
+                                                      L"widehat",
+                                                      L"vec",
+                                                      L"dot",
+                                                      L"ddot",
+                                                      L"tilde",
+                                                      L"widetilde",
+                                                      L"check",
+                                                      L"widecheck",
+                                                      L"breve",
+                                                      L"acute",
+                                                      L"grave",
+                                                      L"mathring",
+                                                      L"underbar",
+                                                      L"utilde",
+                                                      L"overleftarrow",
+                                                      L"overrightarrow",
+                                                      L"overleftrightarrow",
+                                                      L"Overrightarrow",
+                                                      L"underleftarrow",
+                                                      L"underrightarrow",
+                                                      L"underleftrightarrow",
+                                                      L"overleftharpoon",
+                                                      L"overrightharpoon",
+                                                      L"overlinesegment",
+                                                      L"underlinesegment"};
         return std::ranges::find(names, name) != std::end(names);
     }
     MathNode UnaryAccentCommand(std::wstring_view name, unsigned depth)
@@ -768,7 +791,7 @@ class Parser
         if (name == L"overbrace" || name == L"underbrace" || name == L"overgroup" || name == L"undergroup")
         {
             result.atomClass = MathAtomClass::Operator;
-            result.limits = MathLimits::AboveBelow;
+            result.limits    = MathLimits::AboveBelow;
         }
         return result;
     }
@@ -777,15 +800,14 @@ class Parser
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
 #endif
-            Space();
-            MathNode index;
-            if (at < source.size() && source[at] == L'[')
-            {
-                ++at;
-                index = Row(depth + 1u, false, false, false, true);
-            }
-            return Make(MathKind::Root, L"", {Atom(depth + 1), std::move(index)});
-
+        Space();
+        MathNode index;
+        if (at < source.size() && source[at] == L'[')
+        {
+            ++at;
+            index = Row(depth + 1u, false, false, false, true);
+        }
+        return Make(MathKind::Root, L"", {Atom(depth + 1), std::move(index)});
     }
     MathNode FractionCommand(std::wstring_view name, unsigned depth)
     {
@@ -805,64 +827,61 @@ class Parser
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
 #endif
-            auto binomial = Make(MathKind::Matrix, L"pmatrix", {Atom(depth + 1), Atom(depth + 1)}, 1u);
-            if (name == L"binom")
-                return binomial;
-            return Make(MathKind::Style, name == L"dbinom" ? L"displaystyle" : L"textstyle", {std::move(binomial)});
-
+        auto binomial = Make(MathKind::Matrix, L"pmatrix", {Atom(depth + 1), Atom(depth + 1)}, 1u);
+        if (name == L"binom")
+            return binomial;
+        return Make(MathKind::Style, name == L"dbinom" ? L"displaystyle" : L"textstyle", {std::move(binomial)});
     }
     MathNode StackCommand(std::wstring_view name, unsigned depth)
     {
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
 #endif
-            auto annotation = Atom(depth + 1);
-            auto base       = Atom(depth + 1);
-            if (base.kind == MathKind::Row && base.children.size() == 1u)
-                base.atomClass = base.children[0u].atomClass;
-            if (name == L"stackrel")
-                base.atomClass = MathAtomClass::Relation;
-            base.limits = MathLimits::AboveBelow;
-            MathNode sub, super;
-            if (name == L"underset")
-                sub = std::move(annotation);
-            else
-                super = std::move(annotation);
-            return Make(MathKind::Scripts, L"", {std::move(base), std::move(sub), std::move(super)});
-
+        auto annotation = Atom(depth + 1);
+        auto base       = Atom(depth + 1);
+        if (base.kind == MathKind::Row && base.children.size() == 1u)
+            base.atomClass = base.children[0u].atomClass;
+        if (name == L"stackrel")
+            base.atomClass = MathAtomClass::Relation;
+        base.limits = MathLimits::AboveBelow;
+        MathNode sub, super;
+        if (name == L"underset")
+            sub = std::move(annotation);
+        else
+            super = std::move(annotation);
+        return Make(MathKind::Scripts, L"", {std::move(base), std::move(sub), std::move(super)});
     }
     MathNode NotCommand(unsigned depth)
     {
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
 #endif
-            auto operand = Atom(depth + 1u);
-            if (operand.kind != MathKind::Text || operand.atomClass != MathAtomClass::Relation || operand.text.size() != 1u)
-                Reject(MathIssue::UnsupportedCommand);
-            static constexpr std::array pairs{std::pair{L'=', L'≠'},
-                                       std::pair{L'<', L'≮'},
-                                       std::pair{L'>', L'≯'},
-                                       std::pair{L'≤', L'≰'},
-                                       std::pair{L'≥', L'≱'},
-                                       std::pair{L'∈', L'∉'},
-                                       std::pair{L'∋', L'∌'},
-                                       std::pair{L'⊂', L'⊄'},
-                                       std::pair{L'⊃', L'⊅'},
-                                       std::pair{L'⊆', L'⊈'},
-                                       std::pair{L'⊇', L'⊉'},
-                                       std::pair{L'∼', L'≁'},
-                                       std::pair{L'≡', L'≢'},
-                                       std::pair{L'≈', L'≉'},
-                                       std::pair{L'∣', L'∤'},
-                                       std::pair{L'∥', L'∦'}};
-            for (const auto& [positive, negative] : pairs)
-                if (operand.text[0u] == positive)
-                {
-                    operand.text[0u] = negative;
-                    return operand;
-                }
+        auto operand = Atom(depth + 1u);
+        if (operand.kind != MathKind::Text || operand.atomClass != MathAtomClass::Relation || operand.text.size() != 1u)
             Reject(MathIssue::UnsupportedCommand);
-
+        static constexpr std::array pairs{std::pair{L'=', L'≠'},
+                                          std::pair{L'<', L'≮'},
+                                          std::pair{L'>', L'≯'},
+                                          std::pair{L'≤', L'≰'},
+                                          std::pair{L'≥', L'≱'},
+                                          std::pair{L'∈', L'∉'},
+                                          std::pair{L'∋', L'∌'},
+                                          std::pair{L'⊂', L'⊄'},
+                                          std::pair{L'⊃', L'⊅'},
+                                          std::pair{L'⊆', L'⊈'},
+                                          std::pair{L'⊇', L'⊉'},
+                                          std::pair{L'∼', L'≁'},
+                                          std::pair{L'≡', L'≢'},
+                                          std::pair{L'≈', L'≉'},
+                                          std::pair{L'∣', L'∤'},
+                                          std::pair{L'∥', L'∦'}};
+        for (const auto& [positive, negative] : pairs)
+            if (operand.text[0u] == positive)
+            {
+                operand.text[0u] = negative;
+                return operand;
+            }
+        Reject(MathIssue::UnsupportedCommand);
     }
     MathNode StructuredCommand(std::wstring_view name, unsigned depth)
     {
@@ -875,8 +894,9 @@ class Parser
     }
     static bool MathStyleCommand(std::wstring_view name) noexcept
     {
-        static constexpr std::wstring_view names[] = {
-            L"bold", L"frak", L"Bbb", L"mathrm", L"mathbf", L"mathit", L"mathnormal", L"boldsymbol", L"bm", L"mathbb", L"mathcal", L"mathscr", L"mathfrak", L"mathsf", L"mathtt", L"pmb", L"mathord", L"mathop", L"mathbin", L"mathrel", L"mathopen", L"mathclose", L"mathpunct", L"mathinner"};
+        static constexpr std::wstring_view names[] = {L"bold",    L"frak",   L"Bbb",     L"mathrm",  L"mathbf",   L"mathit",    L"mathnormal", L"boldsymbol",
+                                                      L"bm",      L"mathbb", L"mathcal", L"mathscr", L"mathfrak", L"mathsf",    L"mathtt",     L"pmb",
+                                                      L"mathord", L"mathop", L"mathbin", L"mathrel", L"mathopen", L"mathclose", L"mathpunct",  L"mathinner"};
         return std::ranges::find(names, name) != std::end(names);
     }
     static bool ScriptAlphabet(const MathNode& node) noexcept
@@ -895,35 +915,37 @@ class Parser
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
 #endif
-        if (name == L"bold") name = L"mathbf";
-        else if (name == L"frak") name = L"mathfrak";
-        else if (name == L"Bbb") name = L"mathbb";
-            if (name == L"mathscr" && ! ScriptAlphabet(body))
-                Reject(MathIssue::UnsupportedCommand);
-            if (name == L"mathbb" || name == L"mathcal" || name == L"mathfrak" || name == L"mathsf" || name == L"mathtt")
-                Alphabet(body, name);
-            auto result = Make(MathKind::Style, std::wstring(name), {std::move(body)});
-            if (name == L"mathord")
-                result.atomClass = MathAtomClass::Ordinary;
-            else if (name == L"mathop")
-            {
-                result.atomClass     = MathAtomClass::Operator;
-                result.displayLimits = true;
-            }
-            else if (name == L"mathbin")
-                result.atomClass = MathAtomClass::Binary;
-            else if (name == L"mathrel")
-                result.atomClass = MathAtomClass::Relation;
-            else if (name == L"mathopen")
-                result.atomClass = MathAtomClass::Opening;
-            else if (name == L"mathclose")
-                result.atomClass = MathAtomClass::Closing;
-            else if (name == L"mathpunct")
-                result.atomClass = MathAtomClass::Punctuation;
-            else if (name == L"mathinner")
-                result.atomClass = MathAtomClass::Inner;
-            return result;
-
+        if (name == L"bold")
+            name = L"mathbf";
+        else if (name == L"frak")
+            name = L"mathfrak";
+        else if (name == L"Bbb")
+            name = L"mathbb";
+        if (name == L"mathscr" && ! ScriptAlphabet(body))
+            Reject(MathIssue::UnsupportedCommand);
+        if (name == L"mathbb" || name == L"mathcal" || name == L"mathfrak" || name == L"mathsf" || name == L"mathtt")
+            Alphabet(body, name);
+        auto result = Make(MathKind::Style, std::wstring(name), {std::move(body)});
+        if (name == L"mathord")
+            result.atomClass = MathAtomClass::Ordinary;
+        else if (name == L"mathop")
+        {
+            result.atomClass     = MathAtomClass::Operator;
+            result.displayLimits = true;
+        }
+        else if (name == L"mathbin")
+            result.atomClass = MathAtomClass::Binary;
+        else if (name == L"mathrel")
+            result.atomClass = MathAtomClass::Relation;
+        else if (name == L"mathopen")
+            result.atomClass = MathAtomClass::Opening;
+        else if (name == L"mathclose")
+            result.atomClass = MathAtomClass::Closing;
+        else if (name == L"mathpunct")
+            result.atomClass = MathAtomClass::Punctuation;
+        else if (name == L"mathinner")
+            result.atomClass = MathAtomClass::Inner;
+        return result;
     }
     MathNode MathStyle(std::wstring_view name, unsigned depth)
     {
@@ -943,7 +965,7 @@ class Parser
         ObserveStack();
 #endif
         const auto left = Delimiter();
-        auto body = Row(depth + 1u, false, false, true);
+        auto body       = Row(depth + 1u, false, false, true);
         if (source.substr(at, 6u) != L"\\right")
             Reject(MathIssue::MissingRightDelimiter);
         at += 6u;
@@ -955,10 +977,14 @@ class Parser
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
 #endif
-        if (name == L"bold") name = L"mathbf";
-        else if (name == L"frak") name = L"mathfrak";
-        else if (name == L"Bbb") name = L"mathbb";
-        if (name == L"text" || name == L"textbf" || name == L"textit" || name == L"textup" || name == L"textmd" || name == L"textnormal" || name == L"textrm" || name == L"textsf" || name == L"texttt" || name == L"emph" || name == L"operatorname")
+        if (name == L"bold")
+            name = L"mathbf";
+        else if (name == L"frak")
+            name = L"mathfrak";
+        else if (name == L"Bbb")
+            name = L"mathbb";
+        if (name == L"text" || name == L"textbf" || name == L"textit" || name == L"textup" || name == L"textmd" || name == L"textnormal" || name == L"textrm" ||
+            name == L"textsf" || name == L"texttt" || name == L"emph" || name == L"operatorname")
         {
             const bool starred = name == L"operatorname" && at < source.size() && source[at] == L'*';
             if (starred)
@@ -967,7 +993,8 @@ class Parser
             result.italic        = false;
             result.atomClass     = name == L"operatorname" ? MathAtomClass::Operator : MathAtomClass::Ordinary;
             result.displayLimits = starred;
-            if (name == L"textup" || name == L"textmd" || name == L"textnormal" || name == L"textrm" || name == L"textsf" || name == L"texttt" || name == L"emph")
+            if (name == L"textup" || name == L"textmd" || name == L"textnormal" || name == L"textrm" || name == L"textsf" || name == L"texttt" ||
+                name == L"emph")
                 return Make(MathKind::Style, name == L"textup" ? std::wstring(L"mathrm") : std::wstring(name), {std::move(result)});
             if (name == L"textbf" || name == L"textit")
                 return Make(MathKind::Style, name == L"textbf" ? L"mathbf" : L"mathit", {std::move(result)});
@@ -1175,7 +1202,7 @@ class Parser
         std::wstring activeColor(0u, L' ');
         bool localSpace{};
         bool& previousSpace = sharedSpace ? *sharedSpace : localSpace;
-        const auto append = [&](MathNode&& node)
+        const auto append   = [&](MathNode&& node)
         {
             if (! activeColor.empty())
                 node = Make(MathKind::Style, std::wstring(activeColor), {std::move(node)});
@@ -1254,10 +1281,13 @@ class Parser
                     if (! transparent)
                         previousSpace = false;
                 }
-                else if (name == L"textbf" || name == L"textit" || name == L"textrm" || name == L"textsf" || name == L"texttt" ||
-                         name == L"textup" || name == L"textmd" || name == L"textnormal" || name == L"emph" || name == L"pmb")
-                    append(Make(MathKind::Style, name == L"textbf" ? std::wstring(L"mathbf") : name == L"textit" ? std::wstring(L"mathit") :
-                                                  name == L"textup" ? std::wstring(L"mathrm") : std::wstring(name),
+                else if (name == L"textbf" || name == L"textit" || name == L"textrm" || name == L"textsf" || name == L"texttt" || name == L"textup" ||
+                         name == L"textmd" || name == L"textnormal" || name == L"emph" || name == L"pmb")
+                    append(Make(MathKind::Style,
+                                name == L"textbf"   ? std::wstring(L"mathbf")
+                                : name == L"textit" ? std::wstring(L"mathit")
+                                : name == L"textup" ? std::wstring(L"mathrm")
+                                                    : std::wstring(name),
                                 {TextColorBody(depth + 1u, allowDollar, &previousSpace)}));
                 else
                     Reject(MathIssue::UnsupportedCommand);
@@ -1321,18 +1351,39 @@ class Parser
         auto body = TextColorBody(depth + 1u, true);
         if (name == L"text")
             return body;
-        const auto style = name == L"textbf" ? std::wstring_view(L"mathbf") : name == L"textit" ? std::wstring_view(L"mathit") :
-                           name == L"textup" ? std::wstring_view(L"mathrm") : name;
+        const auto style = name == L"textbf"   ? std::wstring_view(L"mathbf")
+                           : name == L"textit" ? std::wstring_view(L"mathit")
+                           : name == L"textup" ? std::wstring_view(L"mathrm")
+                                               : name;
         return Make(MathKind::Style, std::wstring(style), {std::move(body)});
     }
     static bool IsExtensibleArrowCommand(std::wstring_view value) noexcept
     {
-        static constexpr std::wstring_view names[] = {L"xrightarrow", L"xleftarrow", L"xleftrightarrow", L"xRightarrow", L"xLeftarrow", L"xLeftrightarrow", L"xmapsto", L"xlongequal", L"xhookleftarrow", L"xhookrightarrow", L"xleftharpoonup", L"xleftharpoondown", L"xrightharpoonup", L"xrightharpoondown", L"xleftrightharpoons", L"xrightleftharpoons", L"xtwoheadleftarrow", L"xtwoheadrightarrow", L"xtofrom"};
+        static constexpr std::wstring_view names[] = {L"xrightarrow",
+                                                      L"xleftarrow",
+                                                      L"xleftrightarrow",
+                                                      L"xRightarrow",
+                                                      L"xLeftarrow",
+                                                      L"xLeftrightarrow",
+                                                      L"xmapsto",
+                                                      L"xlongequal",
+                                                      L"xhookleftarrow",
+                                                      L"xhookrightarrow",
+                                                      L"xleftharpoonup",
+                                                      L"xleftharpoondown",
+                                                      L"xrightharpoonup",
+                                                      L"xrightharpoondown",
+                                                      L"xleftrightharpoons",
+                                                      L"xrightleftharpoons",
+                                                      L"xtwoheadleftarrow",
+                                                      L"xtwoheadrightarrow",
+                                                      L"xtofrom"};
         return std::ranges::find(names, value) != std::end(names);
     }
     static bool IsTextStyleCommand(std::wstring_view value) noexcept
     {
-        static constexpr std::wstring_view names[] = {L"text", L"textbf", L"textit", L"textup", L"textmd", L"textnormal", L"textrm", L"textsf", L"texttt", L"emph"};
+        static constexpr std::wstring_view names[] = {
+            L"text", L"textbf", L"textit", L"textup", L"textmd", L"textnormal", L"textrm", L"textsf", L"texttt", L"emph"};
         return std::ranges::find(names, value) != std::end(names);
     }
     static bool IsColorCommand(std::wstring_view name) noexcept
@@ -1366,7 +1417,7 @@ class Parser
         const auto first = at;
         while (at < source.size() && Letter(source[at]))
             ++at;
-        const auto name                                 = source.substr(first, at - first);
+        const auto name = source.substr(first, at - first);
         if (IsColorCommand(name))
             return ColorCommand(name, depth);
         if (IsExtensibleArrowCommand(name))
@@ -1399,11 +1450,14 @@ class Parser
             L"not", L"frac", L"dfrac", L"tfrac", L"cfrac", L"binom", L"dbinom", L"tbinom", L"overset", L"underset", L"stackrel", L"sqrt"};
         if (std::ranges::find(structured, name) != std::end(structured))
             return StructuredCommand(name, depth);
-        static constexpr std::wstring_view styled[] = {L"text",       L"textbf",     L"textit",   L"textup", L"textmd", L"textnormal", L"textrm", L"textsf", L"texttt", L"emph", L"pmb", L"operatorname", L"bold", L"frak", L"Bbb", L"mathrm",    L"mathbf",   L"mathit",
-                                                       L"mathnormal", L"boldsymbol", L"bm",       L"mathbb",       L"mathcal",   L"mathfrak", L"mathsf",
-                                                       L"mathtt",     L"mathord",    L"mathop",   L"mathbin",      L"mathrel",   L"mathopen", L"mathclose",
-                                                       L"mathpunct",  L"mathinner",  L"overline", L"underline",    L"bar",       L"hat",      L"widehat",
-                                                       L"vec",        L"dot",        L"ddot",     L"tilde",        L"widetilde", L"check", L"widecheck", L"breve", L"acute", L"grave", L"mathring", L"underbar", L"utilde", L"overbrace", L"underbrace", L"overgroup", L"undergroup", L"left", L"boxed", L"cancel", L"bcancel", L"xcancel", L"sout", L"phase", L"angl"};
+        static constexpr std::wstring_view styled[] = {
+            L"text",     L"textbf",       L"textit",    L"textup",     L"textmd",    L"textnormal", L"textrm",  L"textsf", L"texttt",     L"emph",
+            L"pmb",      L"operatorname", L"bold",      L"frak",       L"Bbb",       L"mathrm",     L"mathbf",  L"mathit", L"mathnormal", L"boldsymbol",
+            L"bm",       L"mathbb",       L"mathcal",   L"mathfrak",   L"mathsf",    L"mathtt",     L"mathord", L"mathop", L"mathbin",    L"mathrel",
+            L"mathopen", L"mathclose",    L"mathpunct", L"mathinner",  L"overline",  L"underline",  L"bar",     L"hat",    L"widehat",    L"vec",
+            L"dot",      L"ddot",         L"tilde",     L"widetilde",  L"check",     L"widecheck",  L"breve",   L"acute",  L"grave",      L"mathring",
+            L"underbar", L"utilde",       L"overbrace", L"underbrace", L"overgroup", L"undergroup", L"left",    L"boxed",  L"cancel",     L"bcancel",
+            L"xcancel",  L"sout",         L"phase",     L"angl"};
         if (std::ranges::find(styled, name) != std::end(styled))
             return StyledCommand(name);
         return SymbolCommand(name);
@@ -1547,15 +1601,15 @@ class Parser
     {
         return Make(MathKind::Row, L"", std::move(children));
     }
-    MathNode InfixRow(std::vector<MathNode>& children, std::wstring_view declaration, unsigned depth,
-                      bool grouped, bool cell, bool right, bool indexClose, bool stopBrace)
+    MathNode InfixRow(
+        std::vector<MathNode>& children, std::wstring_view declaration, unsigned depth, bool grouped, bool cell, bool right, bool indexClose, bool stopBrace)
     {
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
 #endif
         const auto dimension = declaration == L"above" ? RuleDimensionSource() : std::wstring(0u, L' ');
-        auto numerator = FinishRow(children);
-        auto denominator = Row(depth, grouped, cell, right, indexClose, stopBrace, false);
+        auto numerator       = FinishRow(children);
+        auto denominator     = Row(depth, grouped, cell, right, indexClose, stopBrace, false);
         return FinishInfix(declaration, dimension, std::move(numerator), std::move(denominator));
     }
     void ParseTag(unsigned depth)
@@ -1600,29 +1654,46 @@ class Parser
         AppendColored(children, label, Row(depth + 1u, grouped, cell, right, indexClose, stopBrace, infixAllowed));
         return Make(MathKind::Row, L"", std::move(children));
     }
-    MathNode FontSwitchRow(std::vector<MathNode>& children, std::wstring_view command, unsigned depth, bool grouped, bool cell, bool right,
-                           bool indexClose, bool stopBrace, bool infixAllowed)
+    MathNode FontSwitchRow(std::vector<MathNode>& children,
+                           std::wstring_view command,
+                           unsigned depth,
+                           bool grouped,
+                           bool cell,
+                           bool right,
+                           bool indexClose,
+                           bool stopBrace,
+                           bool infixAllowed)
     {
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
 #endif
         if (depth >= MathMaximumGroupDepth)
             Reject(MathIssue::Capacity);
-        const auto style = command == L"bf" ? L"mathbf" : command == L"it" ? L"mathit" : command == L"rm" ? L"mathrm" :
-                           command == L"sf" ? L"mathsf" : command == L"tt" ? L"mathtt" : L"mathcal";
+        const auto style = command == L"bf"   ? L"mathbf"
+                           : command == L"it" ? L"mathit"
+                           : command == L"rm" ? L"mathrm"
+                           : command == L"sf" ? L"mathsf"
+                           : command == L"tt" ? L"mathtt"
+                                              : L"mathcal";
 
         const auto first = at;
-        auto body = Row(depth + 1u, grouped, cell, right, indexClose, stopBrace, infixAllowed);
-        if ((command == L"sf" || command == L"tt" || command == L"cal") &&
-            source.substr(first, at - first).find(L"\\text") != std::wstring_view::npos)
+        auto body        = Row(depth + 1u, grouped, cell, right, indexClose, stopBrace, infixAllowed);
+        if ((command == L"sf" || command == L"tt" || command == L"cal") && source.substr(first, at - first).find(L"\\text") != std::wstring_view::npos)
             Reject(MathIssue::UnsupportedCommand);
         if (command == L"sf" || command == L"tt" || command == L"cal")
             Alphabet(body, style);
         children.push_back(Make(MathKind::Style, std::wstring(style), {std::move(body)}));
         return Make(MathKind::Row, L"", std::move(children));
     }
-    MathNode StyleRow(std::vector<MathNode>& children, std::wstring_view declaration, unsigned depth, bool grouped, bool cell, bool right,
-                      bool indexClose, bool stopBrace, bool infixAllowed)
+    MathNode StyleRow(std::vector<MathNode>& children,
+                      std::wstring_view declaration,
+                      unsigned depth,
+                      bool grouped,
+                      bool cell,
+                      bool right,
+                      bool indexClose,
+                      bool stopBrace,
+                      bool infixAllowed)
     {
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
@@ -1665,12 +1736,32 @@ class Parser
     }
     static bool IsSizeDeclaration(std::wstring_view value) noexcept
     {
-        static constexpr std::wstring_view names[] = {L"displaystyle", L"textstyle", L"scriptstyle", L"scriptscriptstyle", L"tiny", L"sixptsize",
-                                                       L"scriptsize", L"footnotesize", L"small", L"normalsize", L"large", L"Large", L"LARGE", L"huge", L"Huge"};
+        static constexpr std::wstring_view names[] = {L"displaystyle",
+                                                      L"textstyle",
+                                                      L"scriptstyle",
+                                                      L"scriptscriptstyle",
+                                                      L"tiny",
+                                                      L"sixptsize",
+                                                      L"scriptsize",
+                                                      L"footnotesize",
+                                                      L"small",
+                                                      L"normalsize",
+                                                      L"large",
+                                                      L"Large",
+                                                      L"LARGE",
+                                                      L"huge",
+                                                      L"Huge"};
         return std::ranges::find(names, value) != std::end(names);
     }
-    MathNode ScopedRow(std::vector<MathNode>& children, std::wstring_view declaration, unsigned depth,
-                       bool grouped, bool cell, bool right, bool indexClose, bool stopBrace, bool infixAllowed)
+    MathNode ScopedRow(std::vector<MathNode>& children,
+                       std::wstring_view declaration,
+                       unsigned depth,
+                       bool grouped,
+                       bool cell,
+                       bool right,
+                       bool indexClose,
+                       bool stopBrace,
+                       bool infixAllowed)
     {
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();

@@ -69,8 +69,10 @@ private:
         const auto htmlFormat = RegisterClipboardFormatW(L"HTML Format");
         _current->check(format == CF_UNICODETEXT || format == CF_HDROP || format == htmlFormat || format == CF_DIB || format == CF_DIBV5,
                         "transport reads supported clipboard formats");
-        return format == CF_HDROP ? _current->fileData.get() : format == CF_DIB ? _current->dibData.get() : format == CF_DIBV5 ? _current->dibV5Data.get()
-                                                                     : (format == htmlFormat ? _current->htmlData.get() : _current->data.get());
+        return format == CF_HDROP   ? _current->fileData.get()
+               : format == CF_DIB   ? _current->dibData.get()
+               : format == CF_DIBV5 ? _current->dibV5Data.get()
+                                    : (format == htmlFormat ? _current->htmlData.get() : _current->data.get());
     }
     static BOOL WINAPI Empty()
     {

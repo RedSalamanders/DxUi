@@ -393,8 +393,8 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
           "same-source extension change retains and accepts the in-flight image request");
     prepare();
     editor.TakePendingImageRequests(requests);
-    check(requests.empty() && editor.GetImageResourceStatistics().readySources == 2u && editor.GetText() == labelSource &&
-              editor.Revision() == labelRevision && editor.GetSelection() == sourceSelection && ! editor.CanUndo(),
+    check(requests.empty() && editor.GetImageResourceStatistics().readySources == 2u && editor.GetText() == labelSource && editor.Revision() == labelRevision &&
+              editor.GetSelection() == sourceSelection && ! editor.CanUndo(),
           "extension rebind adopts both completed image sources without redispatch or source/history changes");
     editor.SetMarkdownAnalysisExtensions(std::nullopt);
     prepare();

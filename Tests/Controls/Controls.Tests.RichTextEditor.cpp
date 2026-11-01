@@ -842,7 +842,7 @@ void TestRichTextEditorPointerGestureExclusion()
 {
     AttachedHostWindow window;
     auto editor = std::make_unique<RichTextEditor>(std::wstring(500u, L'\n'));
-    auto* raw = editor.get();
+    auto* raw   = editor.get();
     window.Host().SetRoot(std::move(editor));
     RenderEditor(window);
     const auto point = D2D1::Point2F(40.0f, 40.0f);
@@ -1708,13 +1708,13 @@ void TestRichTextEditorNativeFileReferencePaste()
             "native quoted text file path becomes a full-filename relative link");
     Require(editor->Undo() && editor->GetText() == L"replace", "native text file-path link is one undo transaction");
     BITMAPINFOHEADER header{};
-    header.biSize = sizeof(header);
-    header.biWidth = 2;
-    header.biHeight = 2;
-    header.biPlanes = 1u;
-    header.biBitCount = 32u;
+    header.biSize        = sizeof(header);
+    header.biWidth       = 2;
+    header.biHeight      = 2;
+    header.biPlanes      = 1u;
+    header.biBitCount    = 32u;
     header.biCompression = BI_RGB;
-    header.biSizeImage = 16u;
+    header.biSizeImage   = 16u;
     std::vector<std::byte> dib(sizeof(header) + 16u);
     std::memcpy(dib.data(), &header, sizeof(header));
     clipboard.dibData.reset(GlobalAlloc(GMEM_MOVEABLE, dib.size()));
@@ -1747,8 +1747,7 @@ void TestRichTextEditorNativeFileReferencePaste()
     std::memcpy(mixedFiles, bytes.data(), bytes.size());
     GlobalUnlock(clipboard.fileData.get());
     RenderEditor(window);
-    Require(editor->OnKeyDown(window.Host(), 'V', MK_CONTROL) &&
-                editor->GetText() == L"![a](a.png)\r\n\r\n[report\\.pdf](report.pdf)" && bitmapCalls == 1u,
+    Require(editor->OnKeyDown(window.Host(), 'V', MK_CONTROL) && editor->GetText() == L"![a](a.png)\r\n\r\n[report\\.pdf](report.pdf)" && bitmapCalls == 1u,
             "file list takes priority over a simultaneous bitmap");
     Require(editor->Undo() && editor->GetText() == L"replace", "mixed file-list paste remains one undo");
     RenderEditor(window);

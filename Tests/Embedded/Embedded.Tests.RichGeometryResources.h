@@ -434,11 +434,11 @@ static void TestHtmlClipboardFragment()
 {
     using namespace DxUi;
     BITMAPINFOHEADER dibHeader{};
-    dibHeader.biSize = sizeof(dibHeader);
-    dibHeader.biWidth = 2;
-    dibHeader.biHeight = 2;
-    dibHeader.biPlanes = 1u;
-    dibHeader.biBitCount = 32u;
+    dibHeader.biSize      = sizeof(dibHeader);
+    dibHeader.biWidth     = 2;
+    dibHeader.biHeight    = 2;
+    dibHeader.biPlanes    = 1u;
+    dibHeader.biBitCount  = 32u;
     dibHeader.biSizeImage = 16u;
     std::vector<std::byte> dib(sizeof(dibHeader) + 16u);
     std::memcpy(dib.data(), &dibHeader, sizeof(dibHeader));
@@ -449,22 +449,27 @@ static void TestHtmlClipboardFragment()
     {
         const auto oldCounting = countAllocations;
         const auto oldCalls = allocations, oldBytes = allocationBytes;
-        const auto restore = wil::scope_exit([=]() noexcept { countAllocations = oldCounting; allocations = oldCalls; allocationBytes = oldBytes; });
+        const auto restore = wil::scope_exit([=]() noexcept
+        {
+            countAllocations = oldCounting;
+            allocations      = oldCalls;
+            allocationBytes  = oldBytes;
+        });
         allocations = allocationBytes = 0u;
-        countAllocations = true;
+        countAllocations              = true;
         Check(DecodeClipboardBitmap(dib, false, decodedBitmap) == S_OK, "measure bitmap copy allocation points");
-        countAllocations = false;
+        countAllocations  = false;
         bitmapAllocations = allocations;
     }
     Check(bitmapAllocations > 0u && bitmapAllocations < 32u, "bitmap copy has a bounded allocation schedule");
     for (std::size_t point = 0u; point < bitmapAllocations; ++point)
     {
         TextClipboardContent output;
-        output.text = L"sentinel";
+        output.text           = L"sentinel";
         const auto oldFailure = failAllocationAfter;
-        failAllocationAfter = point;
-        const auto result = DecodeClipboardBitmap(dib, false, output);
-        failAllocationAfter = oldFailure;
+        failAllocationAfter   = point;
+        const auto result     = DecodeClipboardBitmap(dib, false, output);
+        failAllocationAfter   = oldFailure;
         Check(result == E_OUTOFMEMORY && output.text == L"sentinel" && output.bitmapDib.empty(), "bitmap allocation failure publishes no partial content");
     }
     const auto retainedBitmap = decodedBitmap.bitmapDib;

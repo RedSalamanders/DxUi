@@ -80,7 +80,9 @@ struct SemanticExtensionAccess
         const auto sourceBlock = syntax ? syntax->SourceRegionNode() : MarkdownNoNode;
         builder.BeginWithNativeFallbacks(std::move(syntax), sourceBlock, sourceObjects);
     }
-    static void BeginWithPresentation(SemanticBuilder& builder, std::shared_ptr<const MarkdownSyntax> syntax, std::span<const MarkdownRange> sourceObjects,
+    static void BeginWithPresentation(SemanticBuilder& builder,
+                                      std::shared_ptr<const MarkdownSyntax> syntax,
+                                      std::span<const MarkdownRange> sourceObjects,
                                       std::span<const DisclosureOverride> disclosures)
     {
         const auto sourceBlock = syntax ? syntax->SourceRegionNode() : MarkdownNoNode;

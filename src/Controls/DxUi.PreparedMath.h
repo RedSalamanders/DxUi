@@ -45,12 +45,21 @@ extern thread_local std::span<const std::uint8_t> testRichMathTableOverride;
 // Shared only by one owner-thread staging generation. Published formula glyphs
 // do not query or mutate this cache during paint. Fonts/formats survive through
 // the formula's lifetime; no process-global cache or factory identity is used.
-enum class MathTextFamily { Math, Sans, Monospace, Script };
+enum class MathTextFamily
+{
+    Math,
+    Sans,
+    Monospace,
+    Script
+};
 class MathTextFormats final
 {
 public:
-    explicit MathTextFormats(IDWriteFactory* factory, std::wstring_view family = L"Cambria Math", std::wstring_view locale = L"en-us",
-                             std::wstring_view sansFamily = L"Segoe UI", std::wstring_view monoFamily = L"Consolas",
+    explicit MathTextFormats(IDWriteFactory* factory,
+                             std::wstring_view family       = L"Cambria Math",
+                             std::wstring_view locale       = L"en-us",
+                             std::wstring_view sansFamily   = L"Segoe UI",
+                             std::wstring_view monoFamily   = L"Consolas",
                              std::wstring_view scriptFamily = L"Segoe Script")
         : factory_(factory),
           family_(ValidateName(family, false)),
@@ -113,7 +122,10 @@ public:
             scriptVerified_ = true;
         }
         wil::com_ptr<IDWriteTextFormat> format;
-        THROW_IF_FAILED(factory_->CreateTextFormat(textFamily == MathTextFamily::Sans ? sansFamily_.c_str() : textFamily == MathTextFamily::Monospace ? monoFamily_.c_str() : textFamily == MathTextFamily::Script ? scriptFamily_.c_str() : family_.c_str(),
+        THROW_IF_FAILED(factory_->CreateTextFormat(textFamily == MathTextFamily::Sans        ? sansFamily_.c_str()
+                                                   : textFamily == MathTextFamily::Monospace ? monoFamily_.c_str()
+                                                   : textFamily == MathTextFamily::Script    ? scriptFamily_.c_str()
+                                                                                             : family_.c_str(),
                                                    nullptr,
                                                    bold ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_NORMAL,
                                                    italic ? DWRITE_FONT_STYLE_ITALIC : DWRITE_FONT_STYLE_NORMAL,
@@ -337,17 +349,17 @@ class PreparedMath final
     }
     static bool ExtensibleArrow(std::wstring_view name) noexcept
     {
-        return name == L"xrightarrow" || name == L"xleftarrow" || name == L"xleftrightarrow" || name == L"xRightarrow" ||
-               name == L"xLeftarrow" || name == L"xLeftrightarrow" || name == L"xmapsto" || name == L"xlongequal" ||
-               name == L"xhookleftarrow" || name == L"xhookrightarrow" || name == L"xleftharpoonup" || name == L"xleftharpoondown" ||
-               name == L"xrightharpoonup" || name == L"xrightharpoondown" || name == L"xleftrightharpoons" || name == L"xrightleftharpoons" ||
-               name == L"xtwoheadleftarrow" || name == L"xtwoheadrightarrow" || name == L"xtofrom";
+        return name == L"xrightarrow" || name == L"xleftarrow" || name == L"xleftrightarrow" || name == L"xRightarrow" || name == L"xLeftarrow" ||
+               name == L"xLeftrightarrow" || name == L"xmapsto" || name == L"xlongequal" || name == L"xhookleftarrow" || name == L"xhookrightarrow" ||
+               name == L"xleftharpoonup" || name == L"xleftharpoondown" || name == L"xrightharpoonup" || name == L"xrightharpoondown" ||
+               name == L"xleftrightharpoons" || name == L"xrightleftharpoons" || name == L"xtwoheadleftarrow" || name == L"xtwoheadrightarrow" ||
+               name == L"xtofrom";
     }
     static bool ArrowAccent(std::wstring_view name) noexcept
     {
         return name == L"overleftarrow" || name == L"overrightarrow" || name == L"overleftrightarrow" || name == L"Overrightarrow" ||
-               name == L"underleftarrow" || name == L"underrightarrow" || name == L"underleftrightarrow" ||
-               name == L"overleftharpoon" || name == L"overrightharpoon" || name == L"overlinesegment" || name == L"underlinesegment";
+               name == L"underleftarrow" || name == L"underrightarrow" || name == L"underleftrightarrow" || name == L"overleftharpoon" ||
+               name == L"overrightharpoon" || name == L"overlinesegment" || name == L"underlinesegment";
     }
     static std::optional<std::uint32_t> ColorArgument(std::wstring_view text, std::wstring_view prefix) noexcept
     {
@@ -722,7 +734,9 @@ class PreparedMath final
                     if (node.columns == 0u || node.columns > MathMaximumColumns || node.children.empty() || node.children.size() > MathMaximumMatrixCells ||
                         node.children.size() % node.columns != 0u || node.children.size() / node.columns > MathMaximumRows ||
                         (MatrixCore(node.text) == L"alignat" && node.columns % 2u != 0u) ||
-                        ((MatrixCore(node.text) == L"cases" || MatrixCore(node.text) == L"rcases" || MatrixCore(node.text) == L"dcases" || MatrixCore(node.text) == L"drcases") && node.columns > 2u) ||
+                        ((MatrixCore(node.text) == L"cases" || MatrixCore(node.text) == L"rcases" || MatrixCore(node.text) == L"dcases" ||
+                          MatrixCore(node.text) == L"drcases") &&
+                         node.columns > 2u) ||
                         ! MatrixName(node.text, node.columns, node.children.size() / node.columns))
                         throw std::length_error("Mathematical matrix capacity exceeded");
                     break;
@@ -730,23 +744,25 @@ class PreparedMath final
                     if (node.text != L"overline" && node.text != L"underline" && node.text != L"bar" && node.text != L"hat" && node.text != L"widehat" &&
                         node.text != L"tilde" && node.text != L"widetilde" && node.text != L"vec" && node.text != L"dot" && node.text != L"ddot" &&
                         node.text != L"check" && node.text != L"widecheck" && node.text != L"breve" && node.text != L"acute" && node.text != L"grave" &&
-                        node.text != L"mathring" && node.text != L"underbar" && node.text != L"utilde" &&
-                        node.text != L"overbrace" && node.text != L"underbrace" && node.text != L"overgroup" && node.text != L"undergroup" &&
-                        node.text != L"boxed" && node.text != L"cancel" && node.text != L"bcancel" && node.text != L"xcancel" && node.text != L"sout" && node.text != L"phase" && node.text != L"angl" &&
-                        ! ColorBox(node.text) && ! ExtensibleArrow(node.text) && ! ArrowAccent(node.text))
+                        node.text != L"mathring" && node.text != L"underbar" && node.text != L"utilde" && node.text != L"overbrace" &&
+                        node.text != L"underbrace" && node.text != L"overgroup" && node.text != L"undergroup" && node.text != L"boxed" &&
+                        node.text != L"cancel" && node.text != L"bcancel" && node.text != L"xcancel" && node.text != L"sout" && node.text != L"phase" &&
+                        node.text != L"angl" && ! ColorBox(node.text) && ! ExtensibleArrow(node.text) && ! ArrowAccent(node.text))
                         throw std::length_error("Invalid mathematical accent");
                     if (node.children.size() != (ExtensibleArrow(node.text) ? 2u : 1u))
                         throw std::length_error("Invalid mathematical accent arguments");
                     break;
                 case MathKind::Style:
                     if (node.text != L"mathrm" && node.text != L"mathbf" && node.text != L"mathit" && node.text != L"mathnormal" &&
-                        node.text != L"boldsymbol" && node.text != L"bm" && node.text != L"mathbb" && node.text != L"mathcal" && node.text != L"mathscr" && node.text != L"mathfrak" &&
-                        node.text != L"mathsf" && node.text != L"mathtt" && node.text != L"mathord" && node.text != L"mathop" && node.text != L"mathbin" &&
-                        node.text != L"mathrel" && node.text != L"mathopen" && node.text != L"mathclose" && node.text != L"mathpunct" &&
-                        node.text != L"mathinner" && node.text != L"textsf" && node.text != L"texttt" && node.text != L"textrm" && node.text != L"textnormal" && node.text != L"textmd" && node.text != L"emph" && node.text != L"pmb" && node.text != L"displaystyle" && node.text != L"textstyle" && node.text != L"scriptstyle" &&
-                        node.text != L"scriptscriptstyle" && node.text != L"tiny" && node.text != L"sixptsize" && node.text != L"scriptsize" &&
-                        node.text != L"footnotesize" && node.text != L"small" && node.text != L"normalsize" && node.text != L"large" && node.text != L"Large" &&
-                        node.text != L"LARGE" && node.text != L"huge" && node.text != L"Huge" && ! ColorArgument(node.text, L"textcolor:"))
+                        node.text != L"boldsymbol" && node.text != L"bm" && node.text != L"mathbb" && node.text != L"mathcal" && node.text != L"mathscr" &&
+                        node.text != L"mathfrak" && node.text != L"mathsf" && node.text != L"mathtt" && node.text != L"mathord" && node.text != L"mathop" &&
+                        node.text != L"mathbin" && node.text != L"mathrel" && node.text != L"mathopen" && node.text != L"mathclose" &&
+                        node.text != L"mathpunct" && node.text != L"mathinner" && node.text != L"textsf" && node.text != L"texttt" && node.text != L"textrm" &&
+                        node.text != L"textnormal" && node.text != L"textmd" && node.text != L"emph" && node.text != L"pmb" && node.text != L"displaystyle" &&
+                        node.text != L"textstyle" && node.text != L"scriptstyle" && node.text != L"scriptscriptstyle" && node.text != L"tiny" &&
+                        node.text != L"sixptsize" && node.text != L"scriptsize" && node.text != L"footnotesize" && node.text != L"small" &&
+                        node.text != L"normalsize" && node.text != L"large" && node.text != L"Large" && node.text != L"LARGE" && node.text != L"huge" &&
+                        node.text != L"Huge" && ! ColorArgument(node.text, L"textcolor:"))
                         throw std::length_error("Invalid mathematical style");
                     if (node.children.size() != 1u)
                         throw std::length_error("Invalid mathematical unary node");
@@ -796,8 +812,17 @@ class PreparedMath final
     {
         return shape != L'.';
     }
-    std::size_t Flatten(const MathNode& node, float size, bool bold, bool italic, bool forceItalic, bool display, unsigned scriptLevel,
-                        int namedSizeIndex = -1, std::uint32_t foreground = NoColor, MathTextFamily textFamily = MathTextFamily::Math, bool pseudoBold = false)
+    std::size_t Flatten(const MathNode& node,
+                        float size,
+                        bool bold,
+                        bool italic,
+                        bool forceItalic,
+                        bool display,
+                        unsigned scriptLevel,
+                        int namedSizeIndex        = -1,
+                        std::uint32_t foreground  = NoColor,
+                        MathTextFamily textFamily = MathTextFamily::Math,
+                        bool pseudoBold           = false)
     {
         const auto index = boxes.size();
         boxes.push_back({&node, 0u, 0u, std::numeric_limits<std::size_t>::max(), {}, 0.f, node.atomClass, size, scriptLevel, display});
@@ -821,8 +846,7 @@ class PreparedMath final
         }
         if (node.kind == MathKind::Text)
         {
-            if (textFamily == MathTextFamily::Script &&
-                ! std::ranges::all_of(node.text, [](wchar_t ch) { return ch >= L'A' && ch <= L'Z'; }))
+            if (textFamily == MathTextFamily::Script && ! std::ranges::all_of(node.text, [](wchar_t ch) { return ch >= L'A' && ch <= L'Z'; }))
                 throw std::length_error("Unsupported mathematical script alphabet");
             if (node.text.empty())
             {
@@ -847,9 +871,9 @@ class PreparedMath final
             bool childBold = bold, childItalic = italic, childDisplay = display;
             bool childForceItalic = forceItalic;
             auto childLevel       = scriptLevel;
-            auto childNamedSize = namedSizeIndex;
-            auto childFamily = textFamily;
-            bool childPseudoBold = pseudoBold;
+            auto childNamedSize   = namedSizeIndex;
+            auto childFamily      = textFamily;
+            bool childPseudoBold  = pseudoBold;
             constexpr std::array<float, 11u> namedScales{.5f, .6f, .7f, .8f, .9f, 1.f, 1.2f, 1.44f, 1.728f, 2.074f, 2.488f};
             constexpr std::array<std::array<unsigned, 3u>, 11u> sizeStyle{
                 {{0, 0, 0}, {1, 0, 0}, {2, 0, 0}, {3, 1, 0}, {4, 1, 0}, {5, 2, 0}, {6, 3, 1}, {7, 5, 2}, {8, 6, 5}, {9, 7, 6}, {10, 9, 8}}};
@@ -860,11 +884,16 @@ class PreparedMath final
             };
             if (node.kind == MathKind::Style)
             {
-                if (node.text == L"pmb") childPseudoBold = true;
-                if (node.text == L"textsf") childFamily = MathTextFamily::Sans;
-                else if (node.text == L"texttt") childFamily = MathTextFamily::Monospace;
-                else if (node.text == L"mathscr") childFamily = MathTextFamily::Script;
-                else if (node.text == L"textrm" || node.text == L"textnormal") childFamily = MathTextFamily::Math;
+                if (node.text == L"pmb")
+                    childPseudoBold = true;
+                if (node.text == L"textsf")
+                    childFamily = MathTextFamily::Sans;
+                else if (node.text == L"texttt")
+                    childFamily = MathTextFamily::Monospace;
+                else if (node.text == L"mathscr")
+                    childFamily = MathTextFamily::Script;
+                else if (node.text == L"textrm" || node.text == L"textnormal")
+                    childFamily = MathTextFamily::Math;
                 if (node.text == L"mathbf")
                 {
                     childBold        = true;
@@ -881,15 +910,15 @@ class PreparedMath final
                     childItalic      = false;
                     childForceItalic = false;
                 }
-                if (node.text == L"mathrm" || node.text == L"mathbb" || node.text == L"mathcal" || node.text == L"mathscr" || node.text == L"mathfrak" || node.text == L"mathsf" ||
-                    node.text == L"mathtt")
+                if (node.text == L"mathrm" || node.text == L"mathbb" || node.text == L"mathcal" || node.text == L"mathscr" || node.text == L"mathfrak" ||
+                    node.text == L"mathsf" || node.text == L"mathtt")
                 {
                     childItalic      = false;
                     childForceItalic = true;
                 }
                 else if (node.text == L"emph")
                 {
-                    childItalic = ! italic;
+                    childItalic      = ! italic;
                     childForceItalic = true;
                 }
                 else if (node.text == L"mathit")
@@ -961,7 +990,8 @@ class PreparedMath final
             }
             else if (node.kind == MathKind::Delimiter)
                 childSize = size;
-            Flatten(child, childSize, childBold, childItalic, childForceItalic, childDisplay, childLevel, childNamedSize, foreground, childFamily, childPseudoBold);
+            Flatten(
+                child, childSize, childBold, childItalic, childForceItalic, childDisplay, childLevel, childNamedSize, foreground, childFamily, childPseudoBold);
         }
         boxes[index].firstChild = firstChild;
         boxes[index].endChild   = boxes.size();
@@ -1265,21 +1295,25 @@ class PreparedMath final
                     totalHeight += std::max(box.size, above + below) + box.size * .3f + MatrixGap(node.text, row / node.columns, box.size);
                 }
                 auto matrixName = MatrixBase(node.text);
-                if (matrixName.starts_with(L"darray:")) matrixName.remove_prefix(1u);
-                const bool fenced = matrixName != L"matrix" && matrixName != L"smallmatrix" && matrixName != L"subarray" && matrixName != L"aligned" && matrixName != L"gathered" && matrixName != L"alignat" && ! matrixName.starts_with(L"array:");
-                const bool rightCases = MatrixCore(node.text) == L"rcases" || MatrixCore(node.text) == L"drcases";
-                const bool leftCases = MatrixCore(node.text) == L"cases" || MatrixCore(node.text) == L"dcases";
+                if (matrixName.starts_with(L"darray:"))
+                    matrixName.remove_prefix(1u);
+                const bool fenced        = matrixName != L"matrix" && matrixName != L"smallmatrix" && matrixName != L"subarray" && matrixName != L"aligned" &&
+                                           matrixName != L"gathered" && matrixName != L"alignat" && ! matrixName.starts_with(L"array:");
+                const bool rightCases    = MatrixCore(node.text) == L"rcases" || MatrixCore(node.text) == L"drcases";
+                const bool leftCases     = MatrixCore(node.text) == L"cases" || MatrixCore(node.text) == L"dcases";
                 const float leftPadding  = fenced && ! rightCases ? box.size * .4f : 0.f;
                 const float rightPadding = fenced && ! leftCases ? box.size * .4f : 0.f;
                 const auto width         = std::accumulate(widths.begin(), widths.begin() + node.columns, 0.f) +
-                                           box.size * .65f * static_cast<float>(MatrixCore(node.text) == L"alignat" ? 0u : node.columns - 1u) + leftPadding + rightPadding;
+                                           box.size * .65f * static_cast<float>(MatrixCore(node.text) == L"alignat" ? 0u : node.columns - 1u) + leftPadding +
+                                           rightPadding;
                 box.extent               = {width, totalHeight * .5f + box.size * .25f, std::max(0.f, totalHeight * .5f - box.size * .25f)};
                 continue;
             }
             if (node.kind == Accent && ExtensibleArrow(node.text) && node.children.size() == 2u)
             {
                 const auto upper = child(0u), lower = child(1u);
-                const float gap = box.size * ((node.text == L"xleftrightharpoons" || node.text == L"xrightleftharpoons" || node.text == L"xtofrom") ? .35f : .2f);
+                const float gap =
+                    box.size * ((node.text == L"xleftrightharpoons" || node.text == L"xrightleftharpoons" || node.text == L"xtofrom") ? .35f : .2f);
                 const float axisAtSize = MathConstantAt(12u, box.size, axis);
                 box.extent.width       = std::max(box.size, std::max(upper.width, lower.width) + box.size * .8f);
                 box.extent.above       = axisAtSize + gap + upper.above + upper.below;
@@ -1306,8 +1340,8 @@ class PreparedMath final
                     box.extent.below += pad;
                     continue;
                 }
-                if (node.text == L"underline" || node.text == L"underbar" || node.text == L"utilde" || node.text == L"underbrace" || node.text == L"undergroup" ||
-                    (ArrowAccent(node.text) && node.text.starts_with(L"under")))
+                if (node.text == L"underline" || node.text == L"underbar" || node.text == L"utilde" || node.text == L"underbrace" ||
+                    node.text == L"undergroup" || (ArrowAccent(node.text) && node.text.starts_with(L"under")))
                     box.extent.below += box.size * .2f;
                 else
                     box.extent.above += box.size * .3f + (node.text == L"mathring" ? std::max(.5f, box.size / 20.f) : 0.f);
@@ -1398,7 +1432,7 @@ class PreparedMath final
                 return 0.f; // Immutable node admission proves the row count.
             gaps.remove_prefix(comma + 1u);
         }
-        const auto value = gaps.substr(0u, gaps.find(L','));
+        const auto value     = gaps.substr(0u, gaps.find(L','));
         const auto dimension = ParseMathDimension(value);
         return dimension ? DimensionDip(dimension.value(), size) : 0.f;
     }
@@ -1710,222 +1744,243 @@ class PreparedMath final
     }
     void PlaceUnaryAccent(std::size_t index, float x, float baseline)
     {
-        const auto& box = boxes[index];
-        const auto& node = *box.node;
+        const auto& box    = boxes[index];
+        const auto& node   = *box.node;
         const float stroke = std::max(.5f, box.size / 20.f);
-            if (ColorBox(node.text))
+        if (ColorBox(node.text))
+        {
+            const float pad       = std::max(1.f, box.size * .12f);
+            const bool framed     = node.text.starts_with(L"fcolorbox:");
+            const auto background = ParseNativeColor(std::wstring_view(node.text).substr(framed ? 17u : 9u, 6u)).value();
+            const auto fillIndex  = backgroundCount++;
+            paintOperations.push_back({PaintKind::Background,
+                                       fillIndex,
+                                       activeBackground,
+                                       background,
+                                       D2D1::RectF(x, baseline - box.extent.above, x + box.extent.width, baseline + box.extent.below),
+                                       activeColor});
+            const auto previousBackground = activeBackground;
+            activeBackground              = fillIndex;
+            Place(ChildAt(index, 0u), x + pad, baseline);
+            if (framed)
             {
-                const float pad = std::max(1.f, box.size * .12f);
-                const bool framed = node.text.starts_with(L"fcolorbox:");
-                const auto background = ParseNativeColor(std::wstring_view(node.text).substr(framed ? 17u : 9u, 6u)).value();
-                const auto fillIndex = backgroundCount++;
-                paintOperations.push_back({PaintKind::Background, fillIndex, activeBackground, background,
-                                           D2D1::RectF(x, baseline - box.extent.above, x + box.extent.width, baseline + box.extent.below), activeColor});
-                const auto previousBackground = activeBackground;
-                activeBackground = fillIndex;
-                Place(ChildAt(index, 0u), x + pad, baseline);
-                if (framed)
-                {
-                    activeColor = ParseNativeColor(std::wstring_view(node.text).substr(10u, 6u)).value();
-                    const float left = x + stroke * .5f, right = x + box.extent.width - stroke * .5f;
-                    const float top = baseline - box.extent.above + stroke * .5f, bottom = baseline + box.extent.below - stroke * .5f;
-                    Stroke(left, top, right, top, stroke);
-                    Stroke(right, top, right, bottom, stroke);
-                    Stroke(right, bottom, left, bottom, stroke);
-                    Stroke(left, bottom, left, top, stroke);
-                }
-                activeBackground = previousBackground;
-                return;
-            }
-            if (node.text == L"phase" || node.text == L"angl")
-            {
-                const float pad = std::max(1.f, box.size * .12f);
+                activeColor      = ParseNativeColor(std::wstring_view(node.text).substr(10u, 6u)).value();
                 const float left = x + stroke * .5f, right = x + box.extent.width - stroke * .5f;
                 const float top = baseline - box.extent.above + stroke * .5f, bottom = baseline + box.extent.below - stroke * .5f;
-                if (node.text == L"phase")
-                {
-                    const float corner = x + (box.extent.above + box.extent.below) * .5f;
-                    Place(ChildAt(index, 0u), corner + pad, baseline);
-                    Stroke(left, bottom, corner, top, stroke);
-                    Stroke(left, bottom, right, bottom, stroke);
-                }
-                else
-                {
-                    Place(ChildAt(index, 0u), x, baseline);
-                    Stroke(left, top, right, top, stroke);
-                    Stroke(right, top, right, bottom, stroke);
-                }
-                return;
+                Stroke(left, top, right, top, stroke);
+                Stroke(right, top, right, bottom, stroke);
+                Stroke(right, bottom, left, bottom, stroke);
+                Stroke(left, bottom, left, top, stroke);
             }
-            if (node.text == L"boxed" || node.text == L"cancel" || node.text == L"bcancel" || node.text == L"xcancel" || node.text == L"sout")
+            activeBackground = previousBackground;
+            return;
+        }
+        if (node.text == L"phase" || node.text == L"angl")
+        {
+            const float pad  = std::max(1.f, box.size * .12f);
+            const float left = x + stroke * .5f, right = x + box.extent.width - stroke * .5f;
+            const float top = baseline - box.extent.above + stroke * .5f, bottom = baseline + box.extent.below - stroke * .5f;
+            if (node.text == L"phase")
             {
-                const float pad = std::max(1.f, box.size * .12f);
-                const float left = x + stroke * .5f, right = x + box.extent.width - stroke * .5f;
-                const float top = baseline - box.extent.above + stroke * .5f, bottom = baseline + box.extent.below - stroke * .5f;
-                Place(ChildAt(index, 0u), x + pad, baseline);
-                if (node.text == L"boxed")
-                {
-                    Stroke(left, top, right, top, stroke);
-                    Stroke(right, top, right, bottom, stroke);
-                    Stroke(right, bottom, left, bottom, stroke);
-                    Stroke(left, bottom, left, top, stroke);
-                }
-                else if (node.text == L"sout")
-                {
-                    const float xHeight = mathData ? mathData->xHeightEm : .45f;
-                    const float y = std::clamp(baseline - box.size * xHeight * .5f, top, bottom);
-                    Stroke(left, y, right, y, stroke);
-                }
-                else
-                {
-                    if (node.text != L"bcancel")
-                        Stroke(left, bottom, right, top, stroke);
-                    if (node.text != L"cancel")
-                        Stroke(left, top, right, bottom, stroke);
-                }
-                return;
-            }
-            const bool below = node.text == L"underline" || node.text == L"underbar" || node.text == L"utilde" || node.text == L"underbrace" || node.text == L"undergroup" ||
-                               (ArrowAccent(node.text) && node.text.starts_with(L"under"));
-            const bool skewed = node.text == L"bar" || node.text == L"hat" || node.text == L"widehat" || node.text == L"check" ||
-                                node.text == L"widecheck" || node.text == L"breve" || node.text == L"acute" || node.text == L"grave" ||
-                                node.text == L"mathring" || node.text == L"dot" || node.text == L"ddot" || node.text == L"tilde" || node.text == L"widetilde" || node.text == L"vec";
-            if (skewed)
-            {
-                const auto child = ChildAt(index, 0u);
-                std::size_t single = (std::numeric_limits<std::size_t>::max)();
-                for (auto i = child; i < boxes[child].endChild; ++i)
-                    if (boxes[i].glyph != (std::numeric_limits<std::size_t>::max)())
-                    {
-                        if (single != (std::numeric_limits<std::size_t>::max)()) { single = (std::numeric_limits<std::size_t>::max)(); break; }
-                        single = boxes[i].glyph;
-                    }
-                if (single != (std::numeric_limits<std::size_t>::max)() && glyphs[single].italic)
-                {
-                    const auto& glyph = glyphs[single];
-                    x = glyph.origin.x + glyph.extent.width * .5f - box.extent.width * .5f +
-                        std::clamp(glyph.italicCorrection * .5f, 0.f, box.size * .25f);
-                }
-            }
-            const float y = below ? baseline + box.extent.below - (node.text == L"underline" ? 2.f : box.size * .1f)
-                                  : baseline - box.extent.above + (node.text == L"mathring" ? box.size * .14f + stroke * .5f : box.size * .1f);
-            const auto shape = node.text == L"widehat" ? L'\u0302' : node.text == L"widetilde" ? L'\u0303' : node.text == L"vec" ? L'\u20d7' : L'\0';
-            if (shape && AddHorizontalAccent(shape, x, baseline - box.extent.above, baseline - box.extent.above + box.size * .3f, box.extent.width, box.size))
-                return;
-            if (ArrowAccent(node.text))
-            {
-                const float left = x + stroke * .5f, right = std::max(left, x + box.extent.width - stroke * .5f);
-                const float head = std::min(box.size * .08f, (right - left) * .25f);
-                const bool leftArrow = node.text.find(L"leftarrow") != std::wstring::npos || node.text.find(L"leftrightarrow") != std::wstring::npos || node.text == L"overleftharpoon";
-                const bool rightArrow = node.text.find(L"rightarrow") != std::wstring::npos || node.text == L"Overrightarrow" || node.text == L"overrightharpoon";
-                Stroke(left, y, right, y, stroke);
-                if (leftArrow) { Stroke(left + head, y - head, left, y, stroke); if (node.text != L"overleftharpoon") Stroke(left, y, left + head, y + head, stroke); }
-                if (rightArrow) { Stroke(right - head, y - head, right, y, stroke); if (node.text != L"overrightharpoon") Stroke(right, y, right - head, y + head, stroke); }
-                if (node.text == L"Overrightarrow") Stroke(left, y + head, right, y + head, stroke);
-                if (node.text.ends_with(L"linesegment")) { Stroke(left, y - head, left, y + head, stroke); Stroke(right, y - head, right, y + head, stroke); }
-            }
-            else if (node.text == L"overbrace" || node.text == L"underbrace" || node.text == L"overgroup" || node.text == L"undergroup")
-            {
-                const bool group = node.text == L"overgroup" || node.text == L"undergroup";
-                const float direction = below ? -1.f : 1.f;
-                const float height = box.size * .15f * direction;
-                const float width = box.extent.width;
-                if (group)
-                {
-                    Stroke(x, y + height, x + width * .12f, y + height * .45f, stroke);
-                    Stroke(x + width * .12f, y + height * .45f, x + width * .3f, y + height * .1f, stroke);
-                    Stroke(x + width * .3f, y + height * .1f, x + width * .5f, y, stroke);
-                    Stroke(x + width * .5f, y, x + width * .7f, y + height * .1f, stroke);
-                    Stroke(x + width * .7f, y + height * .1f, x + width * .88f, y + height * .45f, stroke);
-                    Stroke(x + width * .88f, y + height * .45f, x + width, y + height, stroke);
-                }
-                else
-                {
-                    Stroke(x, y + height, x + width * .12f, y + height * .25f, stroke);
-                    Stroke(x + width * .12f, y + height * .25f, x + width * .38f, y + height * .25f, stroke);
-                    Stroke(x + width * .38f, y + height * .25f, x + width * .5f, y, stroke);
-                    Stroke(x + width * .5f, y, x + width * .62f, y + height * .25f, stroke);
-                    Stroke(x + width * .62f, y + height * .25f, x + width * .88f, y + height * .25f, stroke);
-                    Stroke(x + width * .88f, y + height * .25f, x + width, y + height, stroke);
-                }
-            }
-            else
-            if (node.text == L"hat" || node.text == L"widehat")
-            {
-                Stroke(x, y + box.size * .15f, x + box.extent.width / 2.f, y, stroke);
-                Stroke(x + box.extent.width / 2.f, y, x + box.extent.width, y + box.size * .15f, stroke);
-            }
-            else
-            if (node.text == L"check" || node.text == L"widecheck")
-            {
-                Stroke(x, y, x + box.extent.width / 2.f, y + box.size * .15f, stroke);
-                Stroke(x + box.extent.width / 2.f, y + box.size * .15f, x + box.extent.width, y, stroke);
-            }
-            else if (node.text == L"acute" || node.text == L"grave")
-            {
-                const float center = x + box.extent.width / 2.f;
-                const float half = std::min(box.extent.width * .35f, box.size * .1f);
-                Stroke(center - half, y + (node.text == L"acute" ? box.size * .12f : 0.f),
-                       center + half, y + (node.text == L"grave" ? box.size * .12f : 0.f), stroke);
-            }
-            else if (node.text == L"breve" || node.text == L"mathring")
-            {
-                const float left = x + box.extent.width * .25f, right = x + box.extent.width * .75f;
-                const float width = right - left, height = box.size * .14f;
-                Stroke(left, y, left + width * .2f, y + height * .7f, stroke);
-                Stroke(left + width * .2f, y + height * .7f, left + width * .5f, y + height, stroke);
-                Stroke(left + width * .5f, y + height, left + width * .8f, y + height * .7f, stroke);
-                Stroke(left + width * .8f, y + height * .7f, right, y, stroke);
-                if (node.text == L"mathring")
-                {
-                    Stroke(right, y, left + width * .8f, y - height * .7f, stroke);
-                    Stroke(left + width * .8f, y - height * .7f, left + width * .5f, y - height, stroke);
-                    Stroke(left + width * .5f, y - height, left + width * .2f, y - height * .7f, stroke);
-                    Stroke(left + width * .2f, y - height * .7f, left, y, stroke);
-                }
-            }            else if (node.text == L"tilde" || node.text == L"widetilde" || node.text == L"utilde")
-            {
-                constexpr unsigned segments = 6u;
-                const float amplitude       = box.size * .055f;
-                auto previousX              = x;
-                auto previousY              = y + amplitude;
-                for (unsigned segment = 1u; segment <= segments; ++segment)
-                {
-                    const float nextX = x + box.extent.width * static_cast<float>(segment) / static_cast<float>(segments);
-                    const float nextY = y + ((segment & 1u) ? -amplitude : amplitude);
-                    Stroke(previousX, previousY, nextX, nextY, stroke);
-                    previousX = nextX;
-                    previousY = nextY;
-                }
-            }
-            else if (node.text == L"dot" || node.text == L"ddot")
-            {
-                const float radius = std::max(stroke * .5f, box.size * .035f);
-                const float center = x + box.extent.width / 2.f;
-                if (node.text == L"ddot")
-                {
-                    Dot(center - box.size * .14f, y, radius);
-                    Dot(center + box.size * .14f, y, radius);
-                }
-                else
-                    Dot(center, y, radius);
+                const float corner = x + (box.extent.above + box.extent.below) * .5f;
+                Place(ChildAt(index, 0u), corner + pad, baseline);
+                Stroke(left, bottom, corner, top, stroke);
+                Stroke(left, bottom, right, bottom, stroke);
             }
             else
             {
-                Stroke(x, y, x + box.extent.width, y, stroke);
-                if (node.text == L"vec")
-                {
-                    Stroke(x + box.extent.width - 4.f, y - 3.f, x + box.extent.width, y, stroke);
-                    Stroke(x + box.extent.width - 4.f, y + 3.f, x + box.extent.width, y, stroke);
-                }
+                Place(ChildAt(index, 0u), x, baseline);
+                Stroke(left, top, right, top, stroke);
+                Stroke(right, top, right, bottom, stroke);
             }
             return;
-
+        }
+        if (node.text == L"boxed" || node.text == L"cancel" || node.text == L"bcancel" || node.text == L"xcancel" || node.text == L"sout")
+        {
+            const float pad  = std::max(1.f, box.size * .12f);
+            const float left = x + stroke * .5f, right = x + box.extent.width - stroke * .5f;
+            const float top = baseline - box.extent.above + stroke * .5f, bottom = baseline + box.extent.below - stroke * .5f;
+            Place(ChildAt(index, 0u), x + pad, baseline);
+            if (node.text == L"boxed")
+            {
+                Stroke(left, top, right, top, stroke);
+                Stroke(right, top, right, bottom, stroke);
+                Stroke(right, bottom, left, bottom, stroke);
+                Stroke(left, bottom, left, top, stroke);
+            }
+            else if (node.text == L"sout")
+            {
+                const float xHeight = mathData ? mathData->xHeightEm : .45f;
+                const float y       = std::clamp(baseline - box.size * xHeight * .5f, top, bottom);
+                Stroke(left, y, right, y, stroke);
+            }
+            else
+            {
+                if (node.text != L"bcancel")
+                    Stroke(left, bottom, right, top, stroke);
+                if (node.text != L"cancel")
+                    Stroke(left, top, right, bottom, stroke);
+            }
+            return;
+        }
+        const bool below  = node.text == L"underline" || node.text == L"underbar" || node.text == L"utilde" || node.text == L"underbrace" ||
+                            node.text == L"undergroup" || (ArrowAccent(node.text) && node.text.starts_with(L"under"));
+        const bool skewed = node.text == L"bar" || node.text == L"hat" || node.text == L"widehat" || node.text == L"check" || node.text == L"widecheck" ||
+                            node.text == L"breve" || node.text == L"acute" || node.text == L"grave" || node.text == L"mathring" || node.text == L"dot" ||
+                            node.text == L"ddot" || node.text == L"tilde" || node.text == L"widetilde" || node.text == L"vec";
+        if (skewed)
+        {
+            const auto child   = ChildAt(index, 0u);
+            std::size_t single = (std::numeric_limits<std::size_t>::max)();
+            for (auto i = child; i < boxes[child].endChild; ++i)
+                if (boxes[i].glyph != (std::numeric_limits<std::size_t>::max)())
+                {
+                    if (single != (std::numeric_limits<std::size_t>::max)())
+                    {
+                        single = (std::numeric_limits<std::size_t>::max)();
+                        break;
+                    }
+                    single = boxes[i].glyph;
+                }
+            if (single != (std::numeric_limits<std::size_t>::max)() && glyphs[single].italic)
+            {
+                const auto& glyph = glyphs[single];
+                x = glyph.origin.x + glyph.extent.width * .5f - box.extent.width * .5f + std::clamp(glyph.italicCorrection * .5f, 0.f, box.size * .25f);
+            }
+        }
+        const float y    = below ? baseline + box.extent.below - (node.text == L"underline" ? 2.f : box.size * .1f)
+                                 : baseline - box.extent.above + (node.text == L"mathring" ? box.size * .14f + stroke * .5f : box.size * .1f);
+        const auto shape = node.text == L"widehat" ? L'\u0302' : node.text == L"widetilde" ? L'\u0303' : node.text == L"vec" ? L'\u20d7' : L'\0';
+        if (shape && AddHorizontalAccent(shape, x, baseline - box.extent.above, baseline - box.extent.above + box.size * .3f, box.extent.width, box.size))
+            return;
+        if (ArrowAccent(node.text))
+        {
+            const float left = x + stroke * .5f, right = std::max(left, x + box.extent.width - stroke * .5f);
+            const float head      = std::min(box.size * .08f, (right - left) * .25f);
+            const bool leftArrow  = node.text.find(L"leftarrow") != std::wstring::npos || node.text.find(L"leftrightarrow") != std::wstring::npos ||
+                                    node.text == L"overleftharpoon";
+            const bool rightArrow = node.text.find(L"rightarrow") != std::wstring::npos || node.text == L"Overrightarrow" || node.text == L"overrightharpoon";
+            Stroke(left, y, right, y, stroke);
+            if (leftArrow)
+            {
+                Stroke(left + head, y - head, left, y, stroke);
+                if (node.text != L"overleftharpoon")
+                    Stroke(left, y, left + head, y + head, stroke);
+            }
+            if (rightArrow)
+            {
+                Stroke(right - head, y - head, right, y, stroke);
+                if (node.text != L"overrightharpoon")
+                    Stroke(right, y, right - head, y + head, stroke);
+            }
+            if (node.text == L"Overrightarrow")
+                Stroke(left, y + head, right, y + head, stroke);
+            if (node.text.ends_with(L"linesegment"))
+            {
+                Stroke(left, y - head, left, y + head, stroke);
+                Stroke(right, y - head, right, y + head, stroke);
+            }
+        }
+        else if (node.text == L"overbrace" || node.text == L"underbrace" || node.text == L"overgroup" || node.text == L"undergroup")
+        {
+            const bool group      = node.text == L"overgroup" || node.text == L"undergroup";
+            const float direction = below ? -1.f : 1.f;
+            const float height    = box.size * .15f * direction;
+            const float width     = box.extent.width;
+            if (group)
+            {
+                Stroke(x, y + height, x + width * .12f, y + height * .45f, stroke);
+                Stroke(x + width * .12f, y + height * .45f, x + width * .3f, y + height * .1f, stroke);
+                Stroke(x + width * .3f, y + height * .1f, x + width * .5f, y, stroke);
+                Stroke(x + width * .5f, y, x + width * .7f, y + height * .1f, stroke);
+                Stroke(x + width * .7f, y + height * .1f, x + width * .88f, y + height * .45f, stroke);
+                Stroke(x + width * .88f, y + height * .45f, x + width, y + height, stroke);
+            }
+            else
+            {
+                Stroke(x, y + height, x + width * .12f, y + height * .25f, stroke);
+                Stroke(x + width * .12f, y + height * .25f, x + width * .38f, y + height * .25f, stroke);
+                Stroke(x + width * .38f, y + height * .25f, x + width * .5f, y, stroke);
+                Stroke(x + width * .5f, y, x + width * .62f, y + height * .25f, stroke);
+                Stroke(x + width * .62f, y + height * .25f, x + width * .88f, y + height * .25f, stroke);
+                Stroke(x + width * .88f, y + height * .25f, x + width, y + height, stroke);
+            }
+        }
+        else if (node.text == L"hat" || node.text == L"widehat")
+        {
+            Stroke(x, y + box.size * .15f, x + box.extent.width / 2.f, y, stroke);
+            Stroke(x + box.extent.width / 2.f, y, x + box.extent.width, y + box.size * .15f, stroke);
+        }
+        else if (node.text == L"check" || node.text == L"widecheck")
+        {
+            Stroke(x, y, x + box.extent.width / 2.f, y + box.size * .15f, stroke);
+            Stroke(x + box.extent.width / 2.f, y + box.size * .15f, x + box.extent.width, y, stroke);
+        }
+        else if (node.text == L"acute" || node.text == L"grave")
+        {
+            const float center = x + box.extent.width / 2.f;
+            const float half   = std::min(box.extent.width * .35f, box.size * .1f);
+            Stroke(
+                center - half, y + (node.text == L"acute" ? box.size * .12f : 0.f), center + half, y + (node.text == L"grave" ? box.size * .12f : 0.f), stroke);
+        }
+        else if (node.text == L"breve" || node.text == L"mathring")
+        {
+            const float left = x + box.extent.width * .25f, right = x + box.extent.width * .75f;
+            const float width = right - left, height = box.size * .14f;
+            Stroke(left, y, left + width * .2f, y + height * .7f, stroke);
+            Stroke(left + width * .2f, y + height * .7f, left + width * .5f, y + height, stroke);
+            Stroke(left + width * .5f, y + height, left + width * .8f, y + height * .7f, stroke);
+            Stroke(left + width * .8f, y + height * .7f, right, y, stroke);
+            if (node.text == L"mathring")
+            {
+                Stroke(right, y, left + width * .8f, y - height * .7f, stroke);
+                Stroke(left + width * .8f, y - height * .7f, left + width * .5f, y - height, stroke);
+                Stroke(left + width * .5f, y - height, left + width * .2f, y - height * .7f, stroke);
+                Stroke(left + width * .2f, y - height * .7f, left, y, stroke);
+            }
+        }
+        else if (node.text == L"tilde" || node.text == L"widetilde" || node.text == L"utilde")
+        {
+            constexpr unsigned segments = 6u;
+            const float amplitude       = box.size * .055f;
+            auto previousX              = x;
+            auto previousY              = y + amplitude;
+            for (unsigned segment = 1u; segment <= segments; ++segment)
+            {
+                const float nextX = x + box.extent.width * static_cast<float>(segment) / static_cast<float>(segments);
+                const float nextY = y + ((segment & 1u) ? -amplitude : amplitude);
+                Stroke(previousX, previousY, nextX, nextY, stroke);
+                previousX = nextX;
+                previousY = nextY;
+            }
+        }
+        else if (node.text == L"dot" || node.text == L"ddot")
+        {
+            const float radius = std::max(stroke * .5f, box.size * .035f);
+            const float center = x + box.extent.width / 2.f;
+            if (node.text == L"ddot")
+            {
+                Dot(center - box.size * .14f, y, radius);
+                Dot(center + box.size * .14f, y, radius);
+            }
+            else
+                Dot(center, y, radius);
+        }
+        else
+        {
+            Stroke(x, y, x + box.extent.width, y, stroke);
+            if (node.text == L"vec")
+            {
+                Stroke(x + box.extent.width - 4.f, y - 3.f, x + box.extent.width, y, stroke);
+                Stroke(x + box.extent.width - 4.f, y + 3.f, x + box.extent.width, y, stroke);
+            }
+        }
+        return;
     }
     static bool MatrixHasFences(std::wstring_view name) noexcept
     {
-        return name != L"matrix" && name != L"smallmatrix" && name != L"subarray" && name != L"aligned" &&
-               name != L"gathered" && name != L"alignat" && ! name.starts_with(L"array:");
+        return name != L"matrix" && name != L"smallmatrix" && name != L"subarray" && name != L"aligned" && name != L"gathered" && name != L"alignat" &&
+               ! name.starts_with(L"array:");
     }
     static float MatrixCellOffset(std::wstring_view core, std::wstring_view name, unsigned col, float remaining) noexcept
     {
@@ -1938,276 +1993,305 @@ class PreparedMath final
     }
     void PlaceMatrixDecorations(std::size_t index, float x, float baseline, float y, const std::array<float, MathMaximumColumns>& widths)
     {
-        const auto& box = boxes[index];
-        const auto& node = *box.node;
+        const auto& box    = boxes[index];
+        const auto& node   = *box.node;
         const float stroke = std::max(.5f, box.size / 20.f);
-        auto matrixCore = MatrixCore(node.text);
-        if (matrixCore.starts_with(L"darray:")) matrixCore.remove_prefix(1u);
+        auto matrixCore    = MatrixCore(node.text);
+        if (matrixCore.starts_with(L"darray:"))
+            matrixCore.remove_prefix(1u);
         const auto rows = static_cast<unsigned>(node.children.size() / node.columns);
         const float top = baseline - box.extent.above, bottom = baseline + box.extent.below;
         const auto horizontalStart = static_cast<std::size_t>(9u + 2u * node.columns);
-        const auto horizontal = matrixCore.starts_with(L"array:") && matrixCore.size() > horizontalStart
-                                    ? std::wstring_view(matrixCore).substr(horizontalStart) : std::wstring_view{};            if (! horizontal.empty() && horizontal[rows] != L'.')
+        const auto horizontal = matrixCore.starts_with(L"array:") && matrixCore.size() > horizontalStart ? std::wstring_view(matrixCore).substr(horizontalStart)
+                                                                                                         : std::wstring_view{};
+        if (! horizontal.empty() && horizontal[rows] != L'.')
+        {
+            if (horizontal[rows] == L'=')
+                DashedLine(x, y - box.size * .15f, x + box.extent.width, y - box.size * .15f, stroke);
+            else
+                Stroke(x, y - box.size * .15f, x + box.extent.width, y - box.size * .15f, stroke);
+        }
+        if (matrixCore.starts_with(L"array:") && matrixCore.size() > 6u + node.columns)
+        {
+            const auto rules = std::wstring_view(matrixCore).substr(7u + node.columns);
+            float boundary   = x;
+            for (unsigned col = 0u; col <= node.columns; ++col)
             {
-                if (horizontal[rows] == L'=')
+                if (rules[col] == L'|' || rules[col] == L':')
+                {
+                    const float ruleX = std::clamp(boundary - (col > 0u && col < node.columns ? box.size * .325f : 0.f), x, x + box.extent.width);
+                    if (rules[col] == L':')
+                        DashedLine(ruleX, top, ruleX, bottom, stroke);
+                    else
+                        Stroke(ruleX, top, ruleX, bottom, stroke);
+                }
+                if (col < node.columns)
+                    boundary += widths[col] + (col + 1u < node.columns ? box.size * .65f : 0.f);
+            }
+        }
+        const auto matrixName = MatrixBase(matrixCore);
+        if (matrixName != L"matrix" && matrixName != L"smallmatrix" && matrixName != L"subarray" && matrixName != L"aligned" && matrixName != L"gathered" &&
+            matrixName != L"alignat" && ! matrixName.starts_with(L"array:"))
+        {
+            const auto left =
+                matrixName == L"pmatrix"                                                                                                               ? L'('
+                : matrixName == L"Bmatrix" || matrixCore == L"cases" || matrixCore == L"rcases" || matrixCore == L"dcases" || matrixCore == L"drcases" ? L'{'
+                : matrixName == L"vmatrix"                                                                                                             ? L'|'
+                : matrixName == L"Vmatrix"                                                                                                             ? L'‖'
+                                                                                                                                                       : L'[';
+            const auto right = left == L'(' ? L')' : left == L'{' ? L'}' : left == L'[' ? L']' : left;
+            if (matrixCore != L"rcases" && matrixCore != L"drcases")
+                Fence(left, x + 2.f, top, bottom, box.size * .2f, stroke, box.size);
+            if (matrixCore != L"cases" && matrixCore != L"dcases")
+                Fence(right, x + box.extent.width - box.size * .2f - 2.f, top, bottom, box.size * .2f, stroke, box.size);
+        }
+    }
+    void PlaceMatrix(std::size_t index, float x, float baseline)
+    {
+        const auto& box    = boxes[index];
+        const auto& node   = *box.node;
+        const float stroke = std::max(.5f, box.size / 20.f);
+        auto matrixCore    = MatrixCore(node.text);
+        if (matrixCore.starts_with(L"darray:"))
+            matrixCore.remove_prefix(1u);
+        std::array<float, MathMaximumColumns> widths{};
+        unsigned childColumn{};
+        for (auto child = box.firstChild; child < box.endChild; child = NextSibling(child))
+        {
+            widths[childColumn % node.columns] = std::max(widths[childColumn % node.columns], boxes[child].extent.width);
+            ++childColumn;
+        }
+        const auto rows            = static_cast<unsigned>(node.children.size() / node.columns);
+        const float top            = baseline - box.extent.above;
+        float y                    = top + box.size * .15f;
+        auto rowFirst              = box.firstChild;
+        const auto horizontalStart = static_cast<std::size_t>(9u + 2u * node.columns);
+        const auto horizontal = matrixCore.starts_with(L"array:") && matrixCore.size() > horizontalStart ? std::wstring_view(matrixCore).substr(horizontalStart)
+                                                                                                         : std::wstring_view{};
+        for (unsigned row = 0; row < rows; ++row)
+        {
+            if (! horizontal.empty() && horizontal[row] != L'.')
+            {
+                if (horizontal[row] == L'=')
                     DashedLine(x, y - box.size * .15f, x + box.extent.width, y - box.size * .15f, stroke);
                 else
                     Stroke(x, y - box.size * .15f, x + box.extent.width, y - box.size * .15f, stroke);
             }
-            if (matrixCore.starts_with(L"array:") && matrixCore.size() > 6u + node.columns)
+            float above{}, below{};
+            auto cell = rowFirst;
+            for (unsigned col = 0; col < node.columns; ++col)
             {
-                const auto rules = std::wstring_view(matrixCore).substr(7u + node.columns);
-                float boundary = x;
-                for (unsigned col = 0u; col <= node.columns; ++col)
-                {
-                    if (rules[col] == L'|' || rules[col] == L':')
-                    {
-                        const float ruleX = std::clamp(boundary - (col > 0u && col < node.columns ? box.size * .325f : 0.f),
-                                                       x, x + box.extent.width);
-                        if (rules[col] == L':')
-                            DashedLine(ruleX, top, ruleX, bottom, stroke);
-                        else
-                            Stroke(ruleX, top, ruleX, bottom, stroke);
-                    }
-                    if (col < node.columns)
-                        boundary += widths[col] + (col + 1u < node.columns ? box.size * .65f : 0.f);
-                }
+                above = std::max(above, boxes[cell].extent.above);
+                below = std::max(below, boxes[cell].extent.below);
+                cell  = NextSibling(cell);
             }
+            above                 = std::max(above, box.size * .8f);
             const auto matrixName = MatrixBase(matrixCore);
-            if (matrixName != L"matrix" && matrixName != L"smallmatrix" && matrixName != L"subarray" && matrixName != L"aligned" && matrixName != L"gathered" && matrixName != L"alignat" && ! matrixName.starts_with(L"array:"))
+            const bool fenced     = MatrixHasFences(matrixName);
+            float cellX           = x + (fenced && matrixCore != L"rcases" && matrixCore != L"drcases" ? box.size * .4f : 0.f);
+            cell                  = rowFirst;
+            for (unsigned col = 0; col < node.columns; ++col)
             {
-                const auto left  = matrixName == L"pmatrix"                            ? L'('
-                                   : matrixName == L"Bmatrix" || matrixCore == L"cases" || matrixCore == L"rcases" || matrixCore == L"dcases" || matrixCore == L"drcases" ? L'{'
-                                   : matrixName == L"vmatrix"                          ? L'|'
-                                   : matrixName == L"Vmatrix"                          ? L'‖'
-                                                                                      : L'[';
-                const auto right = left == L'(' ? L')' : left == L'{' ? L'}' : left == L'[' ? L']' : left;
-                if (matrixCore != L"rcases" && matrixCore != L"drcases")
-                    Fence(left, x + 2.f, top, bottom, box.size * .2f, stroke, box.size);
-                if (matrixCore != L"cases" && matrixCore != L"dcases")
-                    Fence(right, x + box.extent.width - box.size * .2f - 2.f, top, bottom, box.size * .2f, stroke, box.size);
+                const float remaining = widths[col] - boxes[cell].extent.width;
+                const float offset    = MatrixCellOffset(matrixCore, matrixName, col, remaining);
+                Place(cell, cellX + offset, y + above);
+                cellX += widths[col] + (matrixCore == L"alignat" ? 0.f : box.size * .65f);
+                cell = NextSibling(cell);
             }
-
-    }
-    void PlaceMatrix(std::size_t index, float x, float baseline)
-    {
-        const auto& box = boxes[index];
-        const auto& node = *box.node;
-        const float stroke = std::max(.5f, box.size / 20.f);
-            auto matrixCore = MatrixCore(node.text);
-            if (matrixCore.starts_with(L"darray:")) matrixCore.remove_prefix(1u);
-            std::array<float, MathMaximumColumns> widths{};
-            unsigned childColumn{};
-            for (auto child = box.firstChild; child < box.endChild; child = NextSibling(child))
-            {
-                widths[childColumn % node.columns] = std::max(widths[childColumn % node.columns], boxes[child].extent.width);
-                ++childColumn;
-            }
-            const auto rows = static_cast<unsigned>(node.children.size() / node.columns);
-            const float top = baseline - box.extent.above;
-            float y       = top + box.size * .15f;
-            auto rowFirst = box.firstChild;
-            const auto horizontalStart = static_cast<std::size_t>(9u + 2u * node.columns);
-            const auto horizontal = matrixCore.starts_with(L"array:") && matrixCore.size() > horizontalStart
-                                        ? std::wstring_view(matrixCore).substr(horizontalStart) : std::wstring_view{};
-            for (unsigned row = 0; row < rows; ++row)
-            {
-                if (! horizontal.empty() && horizontal[row] != L'.')
-                {
-                    if (horizontal[row] == L'=')
-                        DashedLine(x, y - box.size * .15f, x + box.extent.width, y - box.size * .15f, stroke);
-                    else
-                        Stroke(x, y - box.size * .15f, x + box.extent.width, y - box.size * .15f, stroke);
-                }
-                float above{}, below{};
-                auto cell = rowFirst;
-                for (unsigned col = 0; col < node.columns; ++col)
-                {
-                    above = std::max(above, boxes[cell].extent.above);
-                    below = std::max(below, boxes[cell].extent.below);
-                    cell  = NextSibling(cell);
-                }
-                above             = std::max(above, box.size * .8f);
-                const auto matrixName = MatrixBase(matrixCore);
-                const bool fenced = MatrixHasFences(matrixName);
-                float cellX       = x + (fenced && matrixCore != L"rcases" && matrixCore != L"drcases" ? box.size * .4f : 0.f);
-                cell              = rowFirst;
-                for (unsigned col = 0; col < node.columns; ++col)
-                {
-                    const float remaining = widths[col] - boxes[cell].extent.width;
-                    const float offset = MatrixCellOffset(matrixCore, matrixName, col, remaining);
-                    Place(cell, cellX + offset, y + above);
-                    cellX += widths[col] + (matrixCore == L"alignat" ? 0.f : box.size * .65f);
-                    cell = NextSibling(cell);
-                }
-                y += std::max(box.size, above + below) + box.size * .3f + MatrixGap(node.text, row, box.size);
-                rowFirst = cell;
-            }
-            PlaceMatrixDecorations(index, x, baseline, y, widths);
-            return;
-
+            y += std::max(box.size, above + below) + box.size * .3f + MatrixGap(node.text, row, box.size);
+            rowFirst = cell;
+        }
+        PlaceMatrixDecorations(index, x, baseline, y, widths);
+        return;
     }
     void PlaceFraction(std::size_t index, float x, float baseline)
     {
-        const auto& box = boxes[index];
+        const auto& box  = boxes[index];
         const auto& node = *box.node;
 
-            auto top = boxes[ChildAt(index, 0u)].extent;
-            const auto bottom = boxes[ChildAt(index, 1u)].extent;
-            if (node.text == L"cfrac")
-            {
-                top.above = std::max(top.above, box.size * .85f);
-                top.below = std::max(top.below, box.size * .35f);
-            }
-            const float axisAtSize = MathConstantAt(12u, box.size, axis);
-            const float scaledRule = FractionRule(node.text, box.size);
-            const float topGap     = MathConstantAt(box.display ? 140u : 136u, box.size, box.display ? fractionNumeratorDisplayGap : fractionNumeratorGap);
-            const float bottomGap  = MathConstantAt(box.display ? 152u : 148u, box.size, box.display ? fractionDenominatorDisplayGap : fractionDenominatorGap);
-            const float topShift =
-                std::max(MathConstantAt(box.display ? 124u : 120u, box.size, box.display ? fractionNumeratorDisplayShift : fractionNumeratorShift),
-                         axisAtSize + top.below + topGap + scaledRule * .5f);
-            const float bottomShift =
-                std::max(MathConstantAt(box.display ? 132u : 128u, box.size, box.display ? fractionDenominatorDisplayShift : fractionDenominatorShift),
-                         bottom.above + bottomGap + scaledRule * .5f - axisAtSize);
-            const float ruleY = baseline - axisAtSize;
-            Place(ChildAt(index, 0u), x + (box.extent.width - top.width) / 2.f, baseline - topShift);
-            Place(ChildAt(index, 1u), x + (box.extent.width - bottom.width) / 2.f, baseline + bottomShift);
-            if (scaledRule > 0.f)
-                Stroke(x + 2.f, ruleY, x + box.extent.width - 2.f, ruleY, scaledRule);
-            return;
-
+        auto top          = boxes[ChildAt(index, 0u)].extent;
+        const auto bottom = boxes[ChildAt(index, 1u)].extent;
+        if (node.text == L"cfrac")
+        {
+            top.above = std::max(top.above, box.size * .85f);
+            top.below = std::max(top.below, box.size * .35f);
+        }
+        const float axisAtSize = MathConstantAt(12u, box.size, axis);
+        const float scaledRule = FractionRule(node.text, box.size);
+        const float topGap     = MathConstantAt(box.display ? 140u : 136u, box.size, box.display ? fractionNumeratorDisplayGap : fractionNumeratorGap);
+        const float bottomGap  = MathConstantAt(box.display ? 152u : 148u, box.size, box.display ? fractionDenominatorDisplayGap : fractionDenominatorGap);
+        const float topShift =
+            std::max(MathConstantAt(box.display ? 124u : 120u, box.size, box.display ? fractionNumeratorDisplayShift : fractionNumeratorShift),
+                     axisAtSize + top.below + topGap + scaledRule * .5f);
+        const float bottomShift =
+            std::max(MathConstantAt(box.display ? 132u : 128u, box.size, box.display ? fractionDenominatorDisplayShift : fractionDenominatorShift),
+                     bottom.above + bottomGap + scaledRule * .5f - axisAtSize);
+        const float ruleY = baseline - axisAtSize;
+        Place(ChildAt(index, 0u), x + (box.extent.width - top.width) / 2.f, baseline - topShift);
+        Place(ChildAt(index, 1u), x + (box.extent.width - bottom.width) / 2.f, baseline + bottomShift);
+        if (scaledRule > 0.f)
+            Stroke(x + 2.f, ruleY, x + box.extent.width - 2.f, ruleY, scaledRule);
+        return;
     }
     void PlaceRoot(std::size_t index, float x, float baseline)
     {
-        const auto& box = boxes[index];
+        const auto& box    = boxes[index];
         const float stroke = std::max(.5f, box.size / 20.f);
 
-            const auto indexBox = ChildAt(index, 1u);
-            const auto lead     = x + boxes[indexBox].extent.width;
-            Place(ChildAt(index, 0u), lead + box.size * .7f, baseline);
-            Place(indexBox, x, baseline - box.size * .5f);
-            const auto top = baseline - box.extent.above + 2.f;
-            Stroke(lead, baseline - box.size * .2f, lead + box.size * .18f, baseline - box.size * .3f, stroke);
-            Stroke(lead + box.size * .18f, baseline - box.size * .3f, lead + box.size * .35f, baseline + box.extent.below, stroke);
-            Stroke(lead + box.size * .35f, baseline + box.extent.below, lead + box.size * .62f, top, stroke);
-            Stroke(lead + box.size * .62f, top, x + box.extent.width, top, stroke);
-            return;
-
+        const auto indexBox = ChildAt(index, 1u);
+        const auto lead     = x + boxes[indexBox].extent.width;
+        Place(ChildAt(index, 0u), lead + box.size * .7f, baseline);
+        Place(indexBox, x, baseline - box.size * .5f);
+        const auto top = baseline - box.extent.above + 2.f;
+        Stroke(lead, baseline - box.size * .2f, lead + box.size * .18f, baseline - box.size * .3f, stroke);
+        Stroke(lead + box.size * .18f, baseline - box.size * .3f, lead + box.size * .35f, baseline + box.extent.below, stroke);
+        Stroke(lead + box.size * .35f, baseline + box.extent.below, lead + box.size * .62f, top, stroke);
+        Stroke(lead + box.size * .62f, top, x + box.extent.width, top, stroke);
+        return;
     }
     void PlaceScripts(std::size_t index, float x, float baseline)
     {
-        const auto& box = boxes[index];
+        const auto& box  = boxes[index];
         const auto& node = *box.node;
 
-            const auto baseIndex = ChildAt(index, 0u), sub = ChildAt(index, 1u), super = ChildAt(index, 2u);
-            const auto base      = boxes[baseIndex].extent;
-            const auto& baseNode = node.children[0u];
-            const bool limitsAboveBelow =
-                (baseNode.limits == MathLimits::AboveBelow) || (baseNode.limits == MathLimits::Automatic && baseNode.displayLimits && box.display);
-            if (limitsAboveBelow)
-            {
-                const float center           = x + box.extent.width / 2.f;
-                const float baseX            = center - base.width / 2.f;
-                const float baseAboveShift   = base.above + MathConstantAt(64u, box.size, upperLimitGap);
-                const float baseBelowShift   = base.below + MathConstantAt(72u, box.size, lowerLimitGap);
-                const float italicCorrection = ItalicCorrection(baseIndex) * .75f;
-                Place(baseIndex, baseX, baseline);
-                if (boxes[super].extent.width > 0.f)
-                    Place(super, center - boxes[super].extent.width / 2.f + italicCorrection / 2.f, baseline - baseAboveShift - boxes[super].extent.below);
-                if (boxes[sub].extent.width > 0.f)
-                    Place(sub, center - boxes[sub].extent.width / 2.f - italicCorrection / 2.f, baseline + baseBelowShift + boxes[sub].extent.above);
-                return;
-            }
-            const float subShift   = std::max(MathConstantAt(24u, box.size, subscriptShift), base.below + box.size * .12f);
-            const float superShift = std::max(MathConstantAt(36u, box.size, superscriptShift), base.above - box.size * .08f);
-            const float gapNeed =
-                MathConstantAt(52u, box.size, scriptGapMinimum) - (superShift + subShift - boxes[super].extent.below - boxes[sub].extent.above);
-            const float correction = std::max(0.f, gapNeed / 2.f);
-            const auto baseX       = x + box.scriptLeftPad;
+        const auto baseIndex = ChildAt(index, 0u), sub = ChildAt(index, 1u), super = ChildAt(index, 2u);
+        const auto base      = boxes[baseIndex].extent;
+        const auto& baseNode = node.children[0u];
+        const bool limitsAboveBelow =
+            (baseNode.limits == MathLimits::AboveBelow) || (baseNode.limits == MathLimits::Automatic && baseNode.displayLimits && box.display);
+        if (limitsAboveBelow)
+        {
+            const float center           = x + box.extent.width / 2.f;
+            const float baseX            = center - base.width / 2.f;
+            const float baseAboveShift   = base.above + MathConstantAt(64u, box.size, upperLimitGap);
+            const float baseBelowShift   = base.below + MathConstantAt(72u, box.size, lowerLimitGap);
+            const float italicCorrection = ItalicCorrection(baseIndex) * .75f;
             Place(baseIndex, baseX, baseline);
-            Place(sub, baseX + ScriptBaseAdvance(baseIndex) + box.subKern, baseline + subShift + correction);
-            Place(super, baseX + ScriptAnchor(baseIndex) + box.superKern, baseline - superShift - correction);
+            if (boxes[super].extent.width > 0.f)
+                Place(super, center - boxes[super].extent.width / 2.f + italicCorrection / 2.f, baseline - baseAboveShift - boxes[super].extent.below);
+            if (boxes[sub].extent.width > 0.f)
+                Place(sub, center - boxes[sub].extent.width / 2.f - italicCorrection / 2.f, baseline + baseBelowShift + boxes[sub].extent.above);
             return;
-
+        }
+        const float subShift   = std::max(MathConstantAt(24u, box.size, subscriptShift), base.below + box.size * .12f);
+        const float superShift = std::max(MathConstantAt(36u, box.size, superscriptShift), base.above - box.size * .08f);
+        const float gapNeed = MathConstantAt(52u, box.size, scriptGapMinimum) - (superShift + subShift - boxes[super].extent.below - boxes[sub].extent.above);
+        const float correction = std::max(0.f, gapNeed / 2.f);
+        const auto baseX       = x + box.scriptLeftPad;
+        Place(baseIndex, baseX, baseline);
+        Place(sub, baseX + ScriptBaseAdvance(baseIndex) + box.subKern, baseline + subShift + correction);
+        Place(super, baseX + ScriptAnchor(baseIndex) + box.superKern, baseline - superShift - correction);
+        return;
     }
     void PlaceExtensibleArrow(std::size_t index, float x, float baseline)
     {
-        const auto& box = boxes[index];
-        const auto& node = *box.node;
+        const auto& box    = boxes[index];
+        const auto& node   = *box.node;
         const float stroke = std::max(.5f, box.size / 20.f);
 
-            const auto upper = ChildAt(index, 0u), lower = ChildAt(index, 1u);
-            const auto center = x + box.extent.width * .5f;
-            const auto y = baseline - MathConstantAt(12u, box.size, axis);
-            const auto gap = box.size * ((node.text == L"xleftrightharpoons" || node.text == L"xrightleftharpoons" || node.text == L"xtofrom") ? .35f : .2f);
-            Place(upper, center - boxes[upper].extent.width * .5f, y - gap - boxes[upper].extent.below);
-            Place(lower, center - boxes[lower].extent.width * .5f, y + gap + boxes[lower].extent.above);
-            const float left = x + stroke, right = x + box.extent.width - stroke;
-            const float head = std::min(box.size * .2f, box.extent.width * .2f);
-            const bool hookLeft = node.text == L"xhookleftarrow", hookRight = node.text == L"xhookrightarrow";
-            const bool leftUp = node.text == L"xleftharpoonup", leftDown = node.text == L"xleftharpoondown";
-            const bool rightUp = node.text == L"xrightharpoonup", rightDown = node.text == L"xrightharpoondown";
-            const bool leftRight = node.text == L"xleftrightharpoons", rightLeft = node.text == L"xrightleftharpoons";
-            const bool twoLeft = node.text == L"xtwoheadleftarrow", twoRight = node.text == L"xtwoheadrightarrow";
-            const bool toFrom = node.text == L"xtofrom";
-            if (hookLeft || hookRight || leftUp || leftDown || rightUp || rightDown || leftRight || rightLeft || twoLeft || twoRight || toFrom)
+        const auto upper = ChildAt(index, 0u), lower = ChildAt(index, 1u);
+        const auto center = x + box.extent.width * .5f;
+        const auto y      = baseline - MathConstantAt(12u, box.size, axis);
+        const auto gap    = box.size * ((node.text == L"xleftrightharpoons" || node.text == L"xrightleftharpoons" || node.text == L"xtofrom") ? .35f : .2f);
+        Place(upper, center - boxes[upper].extent.width * .5f, y - gap - boxes[upper].extent.below);
+        Place(lower, center - boxes[lower].extent.width * .5f, y + gap + boxes[lower].extent.above);
+        const float left = x + stroke, right = x + box.extent.width - stroke;
+        const float head    = std::min(box.size * .2f, box.extent.width * .2f);
+        const bool hookLeft = node.text == L"xhookleftarrow", hookRight = node.text == L"xhookrightarrow";
+        const bool leftUp = node.text == L"xleftharpoonup", leftDown = node.text == L"xleftharpoondown";
+        const bool rightUp = node.text == L"xrightharpoonup", rightDown = node.text == L"xrightharpoondown";
+        const bool leftRight = node.text == L"xleftrightharpoons", rightLeft = node.text == L"xrightleftharpoons";
+        const bool twoLeft = node.text == L"xtwoheadleftarrow", twoRight = node.text == L"xtwoheadrightarrow";
+        const bool toFrom = node.text == L"xtofrom";
+        if (hookLeft || hookRight || leftUp || leftDown || rightUp || rightDown || leftRight || rightLeft || twoLeft || twoRight || toFrom)
+        {
+            const auto leftHead  = [&](float shaft, bool upper) { Stroke(left + head, shaft + (upper ? -head : head), left, shaft, stroke); };
+            const auto rightHead = [&](float shaft, bool upper) { Stroke(right - head, shaft + (upper ? -head : head), right, shaft, stroke); };
+            if (leftRight || rightLeft || toFrom)
             {
-                const auto leftHead = [&](float shaft, bool upper) { Stroke(left + head, shaft + (upper ? -head : head), left, shaft, stroke); };
-                const auto rightHead = [&](float shaft, bool upper) { Stroke(right - head, shaft + (upper ? -head : head), right, shaft, stroke); };
-                if (leftRight || rightLeft || toFrom)
+                const float separation = std::max(stroke, box.size * .08f);
+                Stroke(left, y - separation, right, y - separation, stroke);
+                Stroke(left, y + separation, right, y + separation, stroke);
+                if (leftRight)
                 {
-                    const float separation = std::max(stroke, box.size * .08f);
-                    Stroke(left, y - separation, right, y - separation, stroke);
-                    Stroke(left, y + separation, right, y + separation, stroke);
-                    if (leftRight) { leftHead(y - separation, true); rightHead(y + separation, false); }
-                    else { rightHead(y - separation, true); leftHead(y + separation, false); }
-                    if (toFrom) { rightHead(y - separation, false); leftHead(y + separation, true); }
+                    leftHead(y - separation, true);
+                    rightHead(y + separation, false);
                 }
                 else
                 {
-                    Stroke(left, y, right, y, stroke);
-                    if (hookLeft || leftUp || leftDown || twoLeft) leftHead(y, ! leftDown);
-                    if (hookRight || rightUp || rightDown || twoRight) rightHead(y, ! rightDown);
-                    if (hookLeft) { leftHead(y, false); Stroke(right, y, right, y - head, stroke); }
-                    if (hookRight) { rightHead(y, false); Stroke(left, y, left, y - head, stroke); }
-                    if (twoLeft) { leftHead(y, false); Stroke(left + 2.f * head, y - head, left + head, y, stroke); Stroke(left + head, y, left + 2.f * head, y + head, stroke); }
-                    if (twoRight) { rightHead(y, false); Stroke(right - 2.f * head, y - head, right - head, y, stroke); Stroke(right - head, y, right - 2.f * head, y + head, stroke); }
+                    rightHead(y - separation, true);
+                    leftHead(y + separation, false);
                 }
-                return;
-            }
-            const bool leftArrow = node.text == L"xleftarrow" || node.text == L"xleftrightarrow" || node.text == L"xLeftarrow" || node.text == L"xLeftrightarrow";
-            const bool rightArrow = node.text != L"xleftarrow" && node.text != L"xLeftarrow" && node.text != L"xlongequal";
-            const bool doubled    = node.text == L"xRightarrow" || node.text == L"xLeftarrow" || node.text == L"xLeftrightarrow" || node.text == L"xlongequal";
-            if (doubled)
-            {
-                const float separation = std::max(stroke, box.size * .05f);
-                Stroke(left, y - separation, right, y - separation, stroke);
-                Stroke(left, y + separation, right, y + separation, stroke);
+                if (toFrom)
+                {
+                    rightHead(y - separation, false);
+                    leftHead(y + separation, true);
+                }
             }
             else
+            {
                 Stroke(left, y, right, y, stroke);
-            if (leftArrow)
-            {
-                Stroke(left + head, y - head, left, y, stroke);
-                Stroke(left, y, left + head, y + head, stroke);
+                if (hookLeft || leftUp || leftDown || twoLeft)
+                    leftHead(y, ! leftDown);
+                if (hookRight || rightUp || rightDown || twoRight)
+                    rightHead(y, ! rightDown);
+                if (hookLeft)
+                {
+                    leftHead(y, false);
+                    Stroke(right, y, right, y - head, stroke);
+                }
+                if (hookRight)
+                {
+                    rightHead(y, false);
+                    Stroke(left, y, left, y - head, stroke);
+                }
+                if (twoLeft)
+                {
+                    leftHead(y, false);
+                    Stroke(left + 2.f * head, y - head, left + head, y, stroke);
+                    Stroke(left + head, y, left + 2.f * head, y + head, stroke);
+                }
+                if (twoRight)
+                {
+                    rightHead(y, false);
+                    Stroke(right - 2.f * head, y - head, right - head, y, stroke);
+                    Stroke(right - head, y, right - 2.f * head, y + head, stroke);
+                }
             }
-            if (rightArrow)
-            {
-                Stroke(right - head, y - head, right, y, stroke);
-                Stroke(right, y, right - head, y + head, stroke);
-            }
-            if (node.text == L"xmapsto")
-                Stroke(left, y - head, left, y + head, stroke);
             return;
-
+        }
+        const bool leftArrow  = node.text == L"xleftarrow" || node.text == L"xleftrightarrow" || node.text == L"xLeftarrow" || node.text == L"xLeftrightarrow";
+        const bool rightArrow = node.text != L"xleftarrow" && node.text != L"xLeftarrow" && node.text != L"xlongequal";
+        const bool doubled    = node.text == L"xRightarrow" || node.text == L"xLeftarrow" || node.text == L"xLeftrightarrow" || node.text == L"xlongequal";
+        if (doubled)
+        {
+            const float separation = std::max(stroke, box.size * .05f);
+            Stroke(left, y - separation, right, y - separation, stroke);
+            Stroke(left, y + separation, right, y + separation, stroke);
+        }
+        else
+            Stroke(left, y, right, y, stroke);
+        if (leftArrow)
+        {
+            Stroke(left + head, y - head, left, y, stroke);
+            Stroke(left, y, left + head, y + head, stroke);
+        }
+        if (rightArrow)
+        {
+            Stroke(right - head, y - head, right, y, stroke);
+            Stroke(right, y, right - head, y + head, stroke);
+        }
+        if (node.text == L"xmapsto")
+            Stroke(left, y - head, left, y + head, stroke);
+        return;
     }
     void Place(std::size_t index, float x, float baseline)
     {
-        const auto& box  = boxes[index];
-        const auto& node = *box.node;
+        const auto& box          = boxes[index];
+        const auto& node         = *box.node;
         const auto previousColor = activeColor;
-        activeColor = box.color;
-        const auto restoreColor = wil::scope_exit([&]() noexcept { activeColor = previousColor; });
+        activeColor              = box.color;
+        const auto restoreColor  = wil::scope_exit([&]() noexcept { activeColor = previousColor; });
         x += box.leftOffset;
         const float stroke = std::max(.5f, box.size / 20.f);
         using enum MathKind;
@@ -2265,8 +2349,8 @@ class PreparedMath final
         }
         if (node.kind == Accent && node.children.size() == 1u)
         {
-            if (! ColorBox(node.text) && node.text != L"phase" && node.text != L"angl" && node.text != L"boxed" &&
-                node.text != L"cancel" && node.text != L"bcancel" && node.text != L"xcancel" && node.text != L"sout")
+            if (! ColorBox(node.text) && node.text != L"phase" && node.text != L"angl" && node.text != L"boxed" && node.text != L"cancel" &&
+                node.text != L"bcancel" && node.text != L"xcancel" && node.text != L"sout")
                 Place(ChildAt(index, 0u), x, baseline);
             PlaceUnaryAccent(index, x, baseline);
             return;
@@ -2333,7 +2417,8 @@ class PreparedMath final
             left   = std::min(left, glyph.origin.x - glyph.leftOverhang);
             right  = std::max(right, glyph.origin.x + glyph.extent.width + glyph.rightOverhang + (glyph.pseudoBold ? glyph.font * .02f : 0.f));
             top    = std::min(top, glyph.origin.y - glyph.topOverhang);
-            bottom = std::max(bottom, glyph.origin.y + glyph.extent.above + glyph.extent.below + glyph.bottomOverhang + (glyph.pseudoBold ? glyph.font * .01f : 0.f));
+            bottom = std::max(bottom,
+                              glyph.origin.y + glyph.extent.above + glyph.extent.below + glyph.bottomOverhang + (glyph.pseudoBold ? glyph.font * .01f : 0.f));
         }
         for (const auto& variant : variants)
         {
@@ -2667,8 +2752,12 @@ public:
         if (glyph.pseudoBold)
             target->DrawTextLayout(D2D1::Point2F(glyph.origin.x + glyph.font * .02f, glyph.origin.y + glyph.font * .01f), glyph.layout.get(), brush);
     }
-    void Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, float scale,
-              const NativeColorPalette* palette = nullptr, const MathColorContext* context = nullptr) const noexcept
+    void Draw(ID2D1RenderTarget* target,
+              ID2D1Brush* brush,
+              D2D1_POINT_2F origin,
+              float scale,
+              const NativeColorPalette* palette = nullptr,
+              const MathColorContext* context   = nullptr) const noexcept
     {
         D2D1_MATRIX_3X2_F previous;
         target->GetTransform(&previous);

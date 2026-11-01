@@ -16,9 +16,9 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
-#include <cstddef>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -1589,7 +1589,11 @@ struct DesiredSize
 class RichTextSourceMove final
 {
 public:
-    [[nodiscard]] bool IsOwnerAlive() const noexcept { return owner_ && ! lifetime_.expired(); }
+    [[nodiscard]] bool IsOwnerAlive() const noexcept
+    {
+        return owner_ && ! lifetime_.expired();
+    }
+
 private:
     friend class RichTextEditor;
     const RichTextEditor* owner_ = nullptr;
@@ -6642,7 +6646,7 @@ private:
         Control* target  = nullptr;
         UINT downMessage = 0u;
         POINT pointPx{};
-        uint64_t tickMs = 0u;
+        uint64_t tickMs  = 0u;
         bool doubleClick = false;
     };
 

@@ -30,15 +30,30 @@ void TestRichTextOleSourceMove()
         RichTextEditor editor{L"one two three"};
         std::optional<RichTextSourceMove> move;
         IDataObject* expected = nullptr;
-        bool Preview(POINTL) noexcept override { return false; }
-        bool Drop(POINTL, IDataObject&, RichFileDropGuard) noexcept override { return false; }
-        bool PreviewText(POINTL) noexcept override { return move.has_value(); }
+        bool Preview(POINTL) noexcept override
+        {
+            return false;
+        }
+        bool Drop(POINTL, IDataObject&, RichFileDropGuard) noexcept override
+        {
+            return false;
+        }
+        bool PreviewText(POINTL) noexcept override
+        {
+            return move.has_value();
+        }
         bool DropText(POINTL, IDataObject& data, RichFileDropGuard guard) noexcept override
         {
             if (&data != expected || ! move || (guard.current && ! guard.current(guard.context)))
                 return false;
-            try { return editor.MoveSelectedSource(*move, 13u); }
-            catch (const std::exception&) { return false; }
+            try
+            {
+                return editor.MoveSelectedSource(*move, 13u);
+            }
+            catch (const std::exception&)
+            {
+                return false;
+            }
         }
     };
     auto receiver = std::make_shared<Receiver>();
@@ -56,7 +71,7 @@ void TestRichTextOleSourceMove()
     FORMATETC format{CF_UNICODETEXT, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL};
     STGMEDIUM medium{};
     Require(data->GetData(&format, &medium) == S_OK, "text data supplies an owned Unicode medium");
-    const auto release = wil::scope_exit([&] { ReleaseStgMedium(&medium); });
+    const auto release   = wil::scope_exit([&] { ReleaseStgMedium(&medium); });
     const auto* contents = static_cast<const wchar_t*>(GlobalLock(medium.hGlobal));
     Require(contents && std::wstring_view(contents) == L"two", "OLE Unicode payload preserves exact selected text");
     static_cast<void>(GlobalUnlock(medium.hGlobal));
@@ -65,15 +80,14 @@ void TestRichTextOleSourceMove()
     RichFileDropAdapter adapter;
     RequireSucceeded(adapter.Attach(receiver), "attach combined file and text target");
     DWORD effect = DROPEFFECT_MOVE;
-    Require(adapter.Target()->DragEnter(data.get(), 0u, {}, &effect) == S_OK && effect == DROPEFFECT_MOVE,
-            "target admits the same-editor text move");
+    Require(adapter.Target()->DragEnter(data.get(), 0u, {}, &effect) == S_OK && effect == DROPEFFECT_MOVE, "target admits the same-editor text move");
     effect = DROPEFFECT_MOVE;
-    Require(adapter.Target()->Drop(data.get(), 0u, {}, &effect) == S_OK && effect == DROPEFFECT_MOVE &&
-                receiver->editor.GetText() == L"one  threetwo" && receiver->editor.Undo() && receiver->editor.GetText() == L"one two three",
+    Require(adapter.Target()->Drop(data.get(), 0u, {}, &effect) == S_OK && effect == DROPEFFECT_MOVE && receiver->editor.GetText() == L"one  threetwo" &&
+                receiver->editor.Undo() && receiver->editor.GetText() == L"one two three",
             "OLE drop commits one exact undoable transaction");
     receiver->editor.SetSelection({4u, 7u});
     receiver->move = receiver->editor.BeginSourceMove();
-    effect = DROPEFFECT_MOVE;
+    effect         = DROPEFFECT_MOVE;
     Require(adapter.Target()->DragEnter(data.get(), 0u, {}, &effect) == S_OK && effect == DROPEFFECT_MOVE, "new move is offered");
     receiver->editor.CancelSourceMove();
     effect = DROPEFFECT_MOVE;
@@ -985,29 +999,41 @@ void TestRichTextApplicationImageClipboard()
     class BitmapClipboard final : public TextClipboard, public BitmapStructuredTextClipboard
     {
     public:
-        BitmapClipboard() : bytes(0u) {}
-        HRESULT Read(HWND, std::wstring&) noexcept override { return E_UNEXPECTED; }
-        HRESULT Write(HWND, std::wstring_view) noexcept override { return E_NOTIMPL; }
+        BitmapClipboard() : bytes(0u)
+        {
+        }
+        HRESULT Read(HWND, std::wstring&) noexcept override
+        {
+            return E_UNEXPECTED;
+        }
+        HRESULT Write(HWND, std::wstring_view) noexcept override
+        {
+            return E_NOTIMPL;
+        }
         HRESULT ReadSelectedBitmapContent(HWND, TextClipboardContent& output, bool files, bool html, bool bitmap) noexcept override
         try
         {
-            if (! files || html || ! bitmap) return E_INVALIDARG;
+            if (! files || html || ! bitmap)
+                return E_INVALIDARG;
             TextClipboardContent staged;
             staged.bitmapDib.assign(bytes.begin(), bytes.end());
             output.Swap(staged);
             ++reads;
             return S_OK;
         }
-        catch (const std::bad_alloc&) { return E_OUTOFMEMORY; }
+        catch (const std::bad_alloc&)
+        {
+            return E_OUTOFMEMORY;
+        }
         std::vector<std::byte> bytes;
         unsigned reads{};
     } bitmapClipboard;
     BITMAPINFOHEADER bitmapHeader{};
-    bitmapHeader.biSize = sizeof(bitmapHeader);
-    bitmapHeader.biWidth = 2;
-    bitmapHeader.biHeight = 2;
-    bitmapHeader.biPlanes = 1u;
-    bitmapHeader.biBitCount = 32u;
+    bitmapHeader.biSize      = sizeof(bitmapHeader);
+    bitmapHeader.biWidth     = 2;
+    bitmapHeader.biHeight    = 2;
+    bitmapHeader.biPlanes    = 1u;
+    bitmapHeader.biBitCount  = 32u;
     bitmapHeader.biSizeImage = 16u;
     bitmapClipboard.bytes.resize(sizeof(bitmapHeader) + 16u);
     std::memcpy(bitmapClipboard.bytes.data(), &bitmapHeader, sizeof(bitmapHeader));

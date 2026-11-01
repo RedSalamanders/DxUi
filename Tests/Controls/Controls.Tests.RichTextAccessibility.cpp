@@ -2539,7 +2539,7 @@ void SemanticWikiActivation(bool embedded)
     fixture.editor->SetText(L"[[#application|wiki label]]");
     fixture.Publish();
     auto simple = fixture.Simple();
-    auto link = FindNamedSemanticPart(*simple.get(), L"wiki label");
+    auto link   = FindNamedSemanticPart(*simple.get(), L"wiki label");
     wil::com_ptr_nothrow<IUnknown> pattern;
     Require(link && SUCCEEDED(link->GetPatternProvider(UIA_InvokePatternId, pattern.put())) && ! pattern,
             "unresolved wiki fragment has no implicit heading Invoke");
@@ -2577,7 +2577,8 @@ void SemanticDisclosure(bool embedded)
     Require(pattern && SUCCEEDED(pattern.query_to(expansion.put())), "summary exposes ExpandCollapse");
     ExpandCollapseState state{};
     RequireSucceeded(expansion->get_ExpandCollapseState(&state), "read collapsed disclosure");
-    Require(state == ExpandCollapseState_Collapsed && fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls)->Map().Display().find(L"Body text") == std::wstring::npos,
+    Require(state == ExpandCollapseState_Collapsed &&
+                fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls)->Map().Display().find(L"Body text") == std::wstring::npos,
             "collapsed disclosure omits only its body from presentation");
     const auto revision = fixture.editor->Revision();
     RequireSucceeded(expansion->Expand(), "expand disclosure");
@@ -2587,7 +2588,8 @@ void SemanticDisclosure(bool embedded)
                 fixture.editor->Revision() == revision && fixture.editor->GetSelection() == Selection{3u, 3u} && ! fixture.editor->CanUndo(),
             "expansion reveals body without changing source, selection, revision or history");
     part = FindNamedSemanticPart(*root.get(), L"More");
-    pattern.reset(); expansion.reset();
+    pattern.reset();
+    expansion.reset();
     Require(part && SUCCEEDED(part->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put())) && pattern && SUCCEEDED(pattern.query_to(expansion.put())),
             "expanded disclosure has a fresh action provider");
     RequireSucceeded(expansion->get_ExpandCollapseState(&state), "read expanded disclosure");
@@ -2600,11 +2602,12 @@ void SemanticDisclosure(bool embedded)
             "keyboard navigation and Space expand the summary without foreground input");
     fixture.Publish();
     Require(fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls)->Map().Display().find(L"Body text") != std::wstring::npos &&
-                fixture.editor->GetText() == source && ! fixture.editor->CanUndo(), "keyboard disclosure remains a view-only transition");
-    opened = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+                fixture.editor->GetText() == source && ! fixture.editor->CanUndo(),
+            "keyboard disclosure remains a view-only transition");
+    opened             = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
     const auto summary = std::ranges::find(opened->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
     Require(summary != opened->Elements().end(), "expanded summary owns mouse target");
-    const auto index = static_cast<std::size_t>(summary - opened->Elements().begin());
+    const auto index  = static_cast<std::size_t>(summary - opened->Elements().begin());
     const auto bounds = fixture.editor->GetSemanticElementBounds(*fixture.controls, index);
     Require(bounds && fixture.editor->OnMouseDown(*fixture.controls, {(bounds->left + bounds->right) * .5f, (bounds->top + bounds->bottom) * .5f}, false, 0u),
             "mouse hit on authored summary activates disclosure");
@@ -2617,9 +2620,11 @@ void SemanticDisclosure(bool embedded)
     fixture.Publish();
     const auto replaced = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
     Require(replaced && replaced->Map().Display().find(L"Replacement body") != std::wstring::npos && fixture.editor->GetText() == replacement &&
-                ! fixture.editor->CanUndo(), "a full source replacement retires old disclosure view state and honors the new open attribute");
+                ! fixture.editor->CanUndo(),
+            "a full source replacement retires old disclosure view state and honors the new open attribute");
     part = FindNamedSemanticPart(*root.get(), L"More");
-    pattern.reset(); expansion.reset();
+    pattern.reset();
+    expansion.reset();
     Require(part && SUCCEEDED(part->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put())) && pattern && SUCCEEDED(pattern.query_to(expansion.put())),
             "replacement summary exposes disclosure action");
     RequireSucceeded(expansion->Collapse(), "collapse replacement before independent edit");
@@ -2644,7 +2649,7 @@ void SemanticOptionalDefinitionsAndAbbreviations(bool embedded)
     const auto document = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
     Require(document && document->Map().Source() == source && document->Map().Display().find(L"*[HTML]:") == std::wstring::npos,
             "optional semantic extensions retain the exact source while hiding the abbreviation declaration");
-    auto root = fixture.Simple();
+    auto root         = fixture.Simple();
     auto abbreviation = FindNamedSemanticPart(*root.get(), L"HTML");
     Require(abbreviation && ReadProviderStringProperty(*abbreviation.get(), UIA_HelpTextPropertyId, "abbreviation expansion") == L"Hyper Text Markup Language",
             "native and embedded UIA expose authored abbreviation expansion as help");
@@ -2684,8 +2689,14 @@ void SemanticOptionalDefinitionsAndAbbreviations(bool embedded)
     fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
     Require(! fixture.editor->GetMarkdownAnalysisExtensions(), "changing profiles resets the explicit extension mask");
     bool invalid = false;
-    try { fixture.editor->SetMarkdownAnalysisExtensions(MarkdownExtensions::Abbreviations); }
-    catch (const std::invalid_argument&) { invalid = true; }
+    try
+    {
+        fixture.editor->SetMarkdownAnalysisExtensions(MarkdownExtensions::Abbreviations);
+    }
+    catch (const std::invalid_argument&)
+    {
+        invalid = true;
+    }
     Require(invalid && fixture.editor->GetMarkdownAnalysisProfile() == MarkdownProfile::Gfm029 && ! fixture.editor->GetMarkdownAnalysisExtensions(),
             "non-RichMarkdown profiles refuse rich-only extension bits atomically");
 }
@@ -2699,7 +2710,7 @@ void SemanticProperties(bool embedded)
         fixture.editor->SetText(source);
         fixture.editor->SetSelection({2u, 2u});
         fixture.Publish();
-        auto root = fixture.Simple();
+        auto root   = fixture.Simple();
         auto header = FindNamedSemanticPart(*root.get(), L"Properties");
         wil::com_ptr_nothrow<IUnknown> pattern;
         Require(header && SUCCEEDED(header->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put())) && pattern,
@@ -2710,7 +2721,8 @@ void SemanticProperties(bool embedded)
         RequireSucceeded(expansion->get_ExpandCollapseState(&state), "read properties state");
         const auto original = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
         Require(state == ExpandCollapseState_Collapsed && original && original->Map().Display().find(L"name") == std::wstring::npos &&
-                    original->Map().Display().ends_with(L"After\n"), "validated properties start collapsed without hiding adjacent content");
+                    original->Map().Display().ends_with(L"After\n"),
+                "validated properties start collapsed without hiding adjacent content");
         const auto revision = fixture.editor->Revision();
         RequireSucceeded(expansion->Expand(), "expand validated properties");
         fixture.Publish();
@@ -2738,7 +2750,7 @@ void SemanticCallouts(bool embedded)
     fixture.editor->SetText(source);
     fixture.editor->SetSelection({2u, 2u});
     fixture.Publish();
-    auto root = fixture.Simple();
+    auto root  = fixture.Simple();
     auto group = FindNamedSemanticPart(*root.get(), L"Closed title");
     wil::unique_variant role;
     Require(group && SUCCEEDED(group->GetPropertyValue(UIA_ControlTypePropertyId, &role)) && role.vt == VT_I4 && role.lVal == UIA_GroupControlTypeId,
@@ -2751,7 +2763,8 @@ void SemanticCallouts(bool embedded)
     Require(SUCCEEDED(pattern.query_to(expansion.put())), "callout summary offers ExpandCollapse");
     ExpandCollapseState state{};
     RequireSucceeded(expansion->get_ExpandCollapseState(&state), "read callout state");
-    Require(state == ExpandCollapseState_Collapsed && fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls)->Map().Display().find(L"hidden") == std::wstring::npos,
+    Require(state == ExpandCollapseState_Collapsed &&
+                fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls)->Map().Display().find(L"hidden") == std::wstring::npos,
             "minus callout starts collapsed");
     const auto revision = fixture.editor->Revision();
     RequireSucceeded(expansion->Expand(), "expand callout");
@@ -2760,10 +2773,12 @@ void SemanticCallouts(bool embedded)
     Require(opened && opened->Map().Display().find(L"hidden body") != std::wstring::npos && fixture.editor->GetText() == source &&
                 fixture.editor->Revision() == revision && fixture.editor->GetSelection() == Selection{2u, 2u} && ! fixture.editor->CanUndo(),
             "callout expansion reveals rich content without changing source or history");
-    group = FindNamedSemanticPart(*root.get(), L"Closed title");
+    group   = FindNamedSemanticPart(*root.get(), L"Closed title");
     summary = FindNamedSemanticPart(*group.get(), L"Closed title");
-    pattern.reset(); expansion.reset();
-    Require(summary && SUCCEEDED(summary->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put())) && pattern && SUCCEEDED(pattern.query_to(expansion.put())),
+    pattern.reset();
+    expansion.reset();
+    Require(summary && SUCCEEDED(summary->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put())) && pattern &&
+                SUCCEEDED(pattern.query_to(expansion.put())),
             "expanded callout exposes a fresh summary provider");
     RequireSucceeded(expansion->Collapse(), "collapse callout");
     fixture.Publish();
@@ -2771,7 +2786,8 @@ void SemanticCallouts(bool embedded)
             "callout supports keyboard navigation and expansion");
     fixture.Publish();
     Require(fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls)->Map().Display().find(L"hidden body") != std::wstring::npos &&
-                fixture.editor->GetText() == source && ! fixture.editor->CanUndo(), "keyboard callout action retains source and history");
+                fixture.editor->GetText() == source && ! fixture.editor->CanUndo(),
+            "keyboard callout action retains source and history");
 }
 #if DXUI_ENABLE_DIAGNOSTICS
 void SemanticHtmlScriptFallback(bool embedded)
@@ -2782,8 +2798,8 @@ void SemanticHtmlScriptFallback(bool embedded)
     const std::wstring source = L"# Before\n\n<p>x<sup>emoji</sup></p>\n\n**After**\n";
     fixture.editor->SetText(source);
     fixture.editor->SetSelection({2u, 2u});
-    const auto previous = RichText::Detail::testRichScriptTargetUnsupported;
-    const auto restore = wil::scope_exit([=]() noexcept { RichText::Detail::testRichScriptTargetUnsupported = previous; });
+    const auto previous                               = RichText::Detail::testRichScriptTargetUnsupported;
+    const auto restore                                = wil::scope_exit([=]() noexcept { RichText::Detail::testRichScriptTargetUnsupported = previous; });
     RichText::Detail::testRichScriptTargetUnsupported = true;
     fixture.Publish();
     const auto fallback = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
@@ -2793,15 +2809,16 @@ void SemanticHtmlScriptFallback(bool embedded)
     const auto advances = fixture.editor->DebugGetState().preparationAdvances;
     fixture.Publish();
     Require(fixture.editor->DebugGetState().preparationAdvances == advances && fixture.editor->GetSelection() == Selection{2u, 2u} &&
-                ! fixture.editor->CanUndo(), "unsupported HTML fallback is idle and preserves selection/history");
+                ! fixture.editor->CanUndo(),
+            "unsupported HTML fallback is idle and preserves selection/history");
     RichText::Detail::testRichScriptTargetUnsupported = false;
-    auto appearance = fixture.editor->GetAppearance();
+    auto appearance                                   = fixture.editor->GetAppearance();
     appearance.bodyFontSizeDip += 1.f;
     fixture.editor->SetAppearance(appearance);
     fixture.Publish();
     const auto recovered = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
-    Require(recovered && recovered != fallback && recovered->Map().Display().find(L"xemoji") != std::wstring::npos &&
-                fixture.editor->GetText() == source && fixture.editor->GetSelection() == Selection{2u, 2u} && ! fixture.editor->CanUndo(),
+    Require(recovered && recovered != fallback && recovered->Map().Display().find(L"xemoji") != std::wstring::npos && fixture.editor->GetText() == source &&
+                fixture.editor->GetSelection() == Selection{2u, 2u} && ! fixture.editor->CanUndo(),
             "typography-key change retries and restores native HTML scripts");
 }
 #endif

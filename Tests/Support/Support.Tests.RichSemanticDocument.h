@@ -20,8 +20,9 @@ inline std::shared_ptr<const SemanticDocument> Complete(SemanticBuilder& builder
     const bool nativeCandidates = syntax.Profile() == MarkdownProfile::RichMarkdown && std::ranges::any_of(syntax.Nodes(), [&](const auto& node) {
         return node.block.kind == MarkdownBlockKind::FencedCode && syntax.Slice(node.block.info).starts_with(L"mermaid");
     });
-    const auto bound            = 4u * (syntax.Nodes().size() + syntax.Inlines().size()) + 1u + (nativeCandidates ? 8u * syntax.Source().size() + 32u : 0u) +
-                                  (HasMarkdownExtension(syntax.Extensions(), MarkdownExtensions::Abbreviations) ? syntax.Nodes().size() + syntax.Source().size() / 128u + 32u : 0u);
+    const auto bound =
+        4u * (syntax.Nodes().size() + syntax.Inlines().size()) + 1u + (nativeCandidates ? 8u * syntax.Source().size() + 32u : 0u) +
+        (HasMarkdownExtension(syntax.Extensions(), MarkdownExtensions::Abbreviations) ? syntax.Nodes().size() + syntax.Source().size() / 128u + 32u : 0u);
     while (builder.HasPendingPreparation())
     {
         const auto step = builder.Advance(7u);
@@ -183,35 +184,38 @@ static_assert(static_cast<unsigned>(MarkdownExtensions::RichOptionalMask) == 409
 inline void HeadingOutlineAndFragments()
 {
     const std::wstring source = L"# Hello *world*\n\n## Hello world\n\n# Hello world-1\n\n# Hello world\n\n# Caf\u00e9\n\n# A &amp; B\n";
-    const auto document = Build(source, MarkdownProfile::RichMarkdown);
-    const auto headings = document->Headings();
-    Check(headings.size() == 6u && headings[0].level == 1u && headings[1].level == 2u &&
-              headings[0].name == L"Hello world" && headings[0].slug == L"hello-world" && headings[1].slug == L"hello-world-1" &&
-              headings[2].slug == L"hello-world-1-1" && headings[3].slug == L"hello-world-2" && headings[4].slug == L"caf\u00e9" && headings[5].name == L"A & B",
+    const auto document       = Build(source, MarkdownProfile::RichMarkdown);
+    const auto headings       = document->Headings();
+    Check(headings.size() == 6u && headings[0].level == 1u && headings[1].level == 2u && headings[0].name == L"Hello world" &&
+              headings[0].slug == L"hello-world" && headings[1].slug == L"hello-world-1" && headings[2].slug == L"hello-world-1-1" &&
+              headings[3].slug == L"hello-world-2" && headings[4].slug == L"caf\u00e9" && headings[5].name == L"A & B",
           "outline retains heading order, levels, formatted names and collision-safe fragment ids");
-    Check(headings[0].source.first == 0u && headings[0].target.first == 2u &&
-              document->ResolveHeadingFragment(L"#hello-world-2") == headings[3].target &&
-              document->ResolveHeadingFragment(L"#caf%C3%A9") == headings[4].target &&
-              ! document->ResolveHeadingFragment(L"#caf%ZZ") && ! document->ResolveHeadingFragment(L"https://example.test"),
+    Check(headings[0].source.first == 0u && headings[0].target.first == 2u && document->ResolveHeadingFragment(L"#hello-world-2") == headings[3].target &&
+              document->ResolveHeadingFragment(L"#caf%C3%A9") == headings[4].target && ! document->ResolveHeadingFragment(L"#caf%ZZ") &&
+              ! document->ResolveHeadingFragment(L"https://example.test"),
           "fragment resolution shares exact source targets and rejects malformed external references");
     const auto toc = BuildHeadingTableOfContents(*document);
-    Check(toc == L"- [Hello world](#hello-world)\n  - [Hello world](#hello-world-1)\n- [Hello world-1](#hello-world-1-1)\n- [Hello world](#hello-world-2)\n- [Caf\u00e9](#caf%C3%A9)\n- [A &amp; B](#a--b)\n",
+    Check(toc == L"- [Hello world](#hello-world)\n  - [Hello world](#hello-world-1)\n- [Hello world-1](#hello-world-1-1)\n- [Hello world](#hello-world-2)\n- "
+                 L"[Caf\u00e9](#caf%C3%A9)\n- [A &amp; B](#a--b)\n",
           "generated Markdown outline escapes and percent-encodes stable heading references");
     Check(document->Map().Source() == source, "outline generation leaves source intact");
 }
 inline void OptionalDefinitionsAndAbbreviations()
 {
-    const std::wstring source = L"HTML and HTML5 and html. `HTML`\n\n*[HTML]: Hyper Text Markup Language\n\nTerm\n: first **description**\n: second description\n\nAfter\n";
+    const std::wstring source =
+        L"HTML and HTML5 and html. `HTML`\n\n*[HTML]: Hyper Text Markup Language\n\nTerm\n: first **description**\n: second description\n\nAfter\n";
     const auto defaults = Build(source, MarkdownProfile::RichMarkdown);
-    Check(std::ranges::none_of(defaults->Elements(), [](const auto& element)
-          { return element.role == SemanticRole::DefinitionList || element.role == SemanticRole::Abbreviation; }),
+    Check(std::ranges::none_of(defaults->Elements(),
+                               [](const auto& element) { return element.role == SemanticRole::DefinitionList || element.role == SemanticRole::Abbreviation; }),
           "definition and abbreviation extensions are off by default");
     MarkdownParser parser;
     const auto extensions = MarkdownExtensions::RichAll | MarkdownExtensions::DefinitionLists | MarkdownExtensions::Abbreviations;
     parser.Begin(source, 1u, MarkdownProfile::RichMarkdown, extensions);
-    while (parser.HasPendingPreparation()) parser.Advance(7u);
+    while (parser.HasPendingPreparation())
+        parser.Advance(7u);
     const auto syntax = parser.Published();
-    SemanticBuilder builder; builder.Begin(syntax);
+    SemanticBuilder builder;
+    builder.Begin(syntax);
     const auto document = Complete(builder, *syntax);
     CheckGraph(*document);
     Check(document->Map().Source() == source && document->Map().Display().find(L"*[HTML]:") == std::wstring::npos &&
@@ -226,8 +230,9 @@ inline void OptionalDefinitionsAndAbbreviations()
               std::ranges::count(document->Elements(), SemanticRole::DefinitionDescription, &SemanticElement::role) == 2u,
           "one term and two descriptions receive distinct source-owned list roles");
     const auto strongOffset = document->Map().Display().find(L"description");
-    Check(strongOffset != std::wstring::npos && std::ranges::any_of(document->Runs(), [&](const auto& run)
-          { return run.start <= strongOffset && strongOffset < run.start + run.length && (run.flags & Bold); }),
+    Check(strongOffset != std::wstring::npos &&
+              std::ranges::any_of(document->Runs(),
+                                  [&](const auto& run) { return run.start <= strongOffset && strongOffset < run.start + run.length && (run.flags & Bold); }),
           "Markdown inline emphasis inside a description retains native semantic styling");
     for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029})
     {
@@ -237,7 +242,8 @@ inline void OptionalDefinitionsAndAbbreviations()
     }
     const std::wstring malformed = L"*[X]: First\n\n*[X]: Second\n\nBad term\n: <formatted>\n\nX Xray\n";
     parser.Begin(malformed, 3u, MarkdownProfile::RichMarkdown, extensions);
-    while (parser.HasPendingPreparation()) parser.Advance(7u);
+    while (parser.HasPendingPreparation())
+        parser.Advance(7u);
     const auto malformedSyntax = parser.Published();
     builder.Begin(malformedSyntax);
     const auto rejected = Complete(builder, *malformedSyntax);
@@ -249,7 +255,8 @@ inline void OptionalDefinitionsAndAbbreviations()
     for (unsigned index = 0u; index < 129u; ++index)
         capped.append(L"*[K").append(std::to_wstring(index)).append(L"]: expansion\n\n");
     parser.Begin(capped, 4u, MarkdownProfile::RichMarkdown, extensions);
-    while (parser.HasPendingPreparation()) parser.Advance(7u);
+    while (parser.HasPendingPreparation())
+        parser.Advance(7u);
     const auto cappedSyntax = parser.Published();
     builder.Begin(cappedSyntax);
     const auto cappedDocument = Complete(builder, *cappedSyntax);
@@ -265,10 +272,11 @@ inline void OptionalDefinitionsAndAbbreviations()
         manyLists.append(L"\n");
     }
     parser.Begin(manyLists, 5u, MarkdownProfile::RichMarkdown, extensions);
-    while (parser.HasPendingPreparation()) parser.Advance(7u);
+    while (parser.HasPendingPreparation())
+        parser.Advance(7u);
     const auto manySyntax = parser.Published();
     builder.Begin(manySyntax);
-    const auto many = Complete(builder, *manySyntax);
+    const auto many  = Complete(builder, *manySyntax);
     const auto lists = std::ranges::count(many->Elements(), SemanticRole::DefinitionList, &SemanticElement::role);
     Check(many->Map().Source() == manyLists && many->Paragraphs().size() <= SemanticDocument::MaximumParagraphs && lists > 0 && lists < 242 &&
               many->Map().Display().find(L"term-241") != std::wstring::npos,
@@ -277,7 +285,8 @@ inline void OptionalDefinitionsAndAbbreviations()
     lengthy.append(8192u, L'a');
     lengthy.append(L"\n\n*[HTML]: Hyper Text\n");
     parser.Begin(lengthy, 6u, MarkdownProfile::RichMarkdown, extensions);
-    while (parser.HasPendingPreparation()) parser.Advance(7u);
+    while (parser.HasPendingPreparation())
+        parser.Advance(7u);
     const auto lengthySyntax = parser.Published();
     builder.Begin(lengthySyntax);
     const auto first = builder.Advance(1u);

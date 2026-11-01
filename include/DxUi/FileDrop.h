@@ -6,9 +6,9 @@
 #define NOMINMAX
 #endif
 #include <memory>
-#include <string_view>
 #include <objidl.h>
 #include <oleidl.h>
+#include <string_view>
 #include <wil/com.h>
 #include <windows.h>
 
@@ -36,8 +36,14 @@ public:
     virtual bool Preview(POINTL screenPoint) noexcept                                                = 0;
     virtual bool Drop(POINTL screenPoint, IDataObject& dataObject, RichFileDropGuard guard) noexcept = 0;
     // Optional text route. The default keeps existing file-only receivers inert.
-    virtual bool PreviewText(POINTL) noexcept { return false; }
-    virtual bool DropText(POINTL, IDataObject&, RichFileDropGuard) noexcept { return false; }
+    virtual bool PreviewText(POINTL) noexcept
+    {
+        return false;
+    }
+    virtual bool DropText(POINTL, IDataObject&, RichFileDropGuard) noexcept
+    {
+        return false;
+    }
 };
 
 // Explicitly owned by the receiving application. Target() can be registered
