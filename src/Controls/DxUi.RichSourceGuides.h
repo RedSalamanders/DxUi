@@ -50,7 +50,13 @@ public:
     {
         return ! next_ && revision_ == revision && generation_ == generation && numbersEnabled_ == numbers && marksEnabled_ == marks;
     }
-    void Begin(const SourceSnapshot& source, std::uint64_t revision, std::uint64_t generation, bool numbers, bool marks, const LayoutOptions& options)
+    void Begin(const SourceSnapshot& source,
+               std::uint64_t revision,
+               std::uint64_t generation,
+               bool numbers,
+               bool marks,
+               const LayoutOptions& options,
+               float gutterWidth)
     {
         if (next_ && next_->revision == revision && next_->generation == generation && next_->numbers == numbers && next_->marks == marks)
             return;
@@ -61,7 +67,7 @@ public:
         staged->numbers               = numbers;
         staged->marks                 = marks;
         staged->options               = options;
-        staged->options.widthDip      = 36.0f;
+        staged->options.widthDip      = std::max(1.0f, gutterWidth - 8.0f);
         staged->options.textAlignment = DWRITE_TEXT_ALIGNMENT_TRAILING;
         staged->options.wrap          = false;
         next_.swap(staged);

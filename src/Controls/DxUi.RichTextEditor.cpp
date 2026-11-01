@@ -2167,6 +2167,22 @@ void RichTextEditor::PublishHorizontalScrollChanged() noexcept
         Debug::Warning(L"DxUi::RichTextEditor: horizontal scroll notification failed; committed offset retained.");
     }
 }
+float RichTextEditor::SourceGutterWidth() const noexcept
+{
+    const auto& appearance = _state->appearance;
+    auto size              = appearance.bodyFontSizeDip > 0.0f ? appearance.bodyFontSizeDip : 18.0f;
+    if (appearance.sourceMonospace && appearance.codeFontSizeDip > 0.0f)
+        size = appearance.codeFontSizeDip;
+    size            = std::clamp(size * appearance.zoom, 1.0f, 512.0f);
+    auto remaining  = Snapshot().Length() + 1u;
+    unsigned digits = 1u;
+    while (remaining >= 10u)
+    {
+        remaining /= 10u;
+        ++digits;
+    }
+    return std::max(44.0f, static_cast<float>(digits) * size * 0.75f + 12.0f);
+}
 float RichTextEditor::HorizontalTranslation() const noexcept
 {
     return _state->mode == RichText::ViewMode::Source && IsRightToLeft() ? _state->horizontalScrollDip : -_state->horizontalScrollDip;
@@ -2380,7 +2396,7 @@ D2D1_RECT_F RichTextEditor::TextViewport() const noexcept
     }
     if (_state->mode == RichText::ViewMode::Source && appearance.sourceLineNumbers)
     {
-        const float lane = std::min(44.0f, std::max(0.0f, result.right - result.left - 1.0f));
+        const float lane = std::min(SourceGutterWidth(), std::max(0.0f, (result.right - result.left - 1.0f) * 0.5f));
         if (IsRightToLeft())
             result.right -= lane;
         else
@@ -3703,9 +3719,10 @@ void RichTextEditor::Paint(ControlHost& host) const
     if (state.mode == RichText::ViewMode::Source && appearance.sourceLineNumbers &&
         state.sourceGuides.Current(Revision(), state.layout.Generation(), true, appearance.sourceWhitespaceMarks))
     {
-        const auto outer  = GetBounds();
-        const auto gutter = IsRightToLeft() ? D2D1::RectF(viewport.right, viewport.top, std::min(outer.right, viewport.right + 44.0f), viewport.bottom)
-                                            : D2D1::RectF(std::max(outer.left, viewport.left - 44.0f), viewport.top, viewport.left, viewport.bottom);
+        const auto outer       = GetBounds();
+        const auto gutterWidth = std::min(SourceGutterWidth(), std::max(0.0f, viewport.right - viewport.left - 1.0f));
+        const auto gutter = IsRightToLeft() ? D2D1::RectF(viewport.right, viewport.top, std::min(outer.right, viewport.right + gutterWidth), viewport.bottom)
+                                            : D2D1::RectF(std::max(outer.left, viewport.left - gutterWidth), viewport.top, viewport.left, viewport.bottom);
         context->PushAxisAlignedClip(gutter, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
         const auto restoreGutter = wil::scope_exit([context]() noexcept { context->PopAxisAlignedClip(); });
         auto* brush              = host.GetSolidBrush(host.GetTheme().highContrast ? style.text : host.GetTheme().subduedText);
@@ -5137,7 +5154,9 @@ bool RichTextEditor::PrepareSourceGuides(ControlHost& host)
     const auto revision = Revision(), generation = state.layout.Generation();
     if (state.sourceGuides.Current(revision, generation, numbers, marks))
         return true;
-    state.sourceGuides.Begin(Snapshot(), revision, generation, numbers, marks, state.sourceGuideOptions);
+    const auto viewport    = TextViewport();
+    const auto gutterWidth = numbers ? std::min(SourceGutterWidth(), std::max(0.0f, viewport.right - viewport.left - 1.0f)) : 0.0f;
+    state.sourceGuides.Begin(Snapshot(), revision, generation, numbers, marks, state.sourceGuideOptions, gutterWidth);
     static_cast<void>(host.GetSolidBrush(host.GetTheme().subduedText));
     return state.sourceGuides.Advance(host.GetWriteFactory(), state.layout);
 }

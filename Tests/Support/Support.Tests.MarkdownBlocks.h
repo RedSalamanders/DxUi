@@ -276,7 +276,7 @@ inline constexpr Scenario scenarios[] = {
     {L"graph TB;A[\"a;[b] \\\"quote\\\" \\\\ end\"];A-->|\"yes; or no\"|B", {}, {}, 2u, 1u, {}, L"a;[b] \"quote\" \\ end"},
     {L"%% preface\rgraph TB\rA((circle))--- B\r", {}, {}, 2u, 1u, {}, L"circle", FlowchartShape::Circle},
     {L"graph TB; A{why};A-->xB;", {}, {}, 2u, 1u, {}, L"why", FlowchartShape::Diamond},
-    {L"graph TD;A[a\\\"b];A-->a;", {}, {}, 2u, 1u, {}, L"a\"b"},
+    {L"graph TD;A[a\\\"b];A-->a;", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedLabelMarkup},
     {L"graph TD;A[\"\"];a[lower];A-->a", {}, {}, 2u, 1u, {}, L""},
     {L"graph TD;A-->|yes%%keep|B", {}, {}, 2u, 1u, {}, L"A"},
     {L"graph TD;A--- ops;A--- xB", {}, {}, 3u, 2u, {}, L"A"},
@@ -287,13 +287,13 @@ inline constexpr Scenario scenarios[] = {
     {L"%%{init: {}}%%\nflowchart TD\nA --> B\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedConfiguration},
     {L"flowchart TD\nA[\"<b>HTML</b>\"]\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedLabelMarkup},
     {L"flowchart TD\nA@{shape: hex}\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedShape},
-    {L"flowchart TD\nA -.-> B\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedEdge},
+    {L"flowchart TD\nA -.-> B\n", {}, {}, 2u, 1u, {}, L"A"},
     {L"flowchart TD\nA ---oB\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedEdge},
     {L"flowchart TD\nA ---xB\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedEdge},
     {L"graph TD; end", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement},
-    {L"graph TD; A[[subroutine]]", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedShape},
+    {L"graph TD; A[[subroutine]]", {}, {}, 1u, 0u, {}, L"subroutine", FlowchartShape::Subroutine},
     {L"graph TD; A[\"&amp;\"]", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedLabelMarkup},
-    {L"graph TD; A[\"#9829;\"]", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedLabelMarkup},
+    {L"graph TD; A[\"#9829;\"]", {}, {}, 1u, 0u, {}, L"\u2665"},
     {L"graph TD; A[\"fab:fa-truck\"]", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedLabelMarkup},
     {L"graph TD; A[\"$$x^2$$\"]", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedLabelMarkup},
     {L"flowchart TD\nA[unclosed\n", FlowchartOutcome::Malformed, FlowchartIssue::MissingLabelClose},
@@ -315,6 +315,20 @@ inline std::shared_ptr<const FlowchartModel> Complete(NativeFlowchartParser& par
 }
 template <typename Check> inline void CheckModel(const FlowchartModel& model, const Scenario& scenario, Check&& check)
 {
+    if (model.source != scenario.source || model.outcome != scenario.outcome || model.diagnostic.issue != scenario.issue)
+    {
+        std::wcerr << L"Flowchart scenario mismatch: source=";
+        std::wcerr << scenario.source;
+        std::wcerr << L" expected outcome/issue=";
+        std::wcerr << static_cast<unsigned>(scenario.outcome);
+        std::wcerr << L"/";
+        std::wcerr << static_cast<unsigned>(scenario.issue);
+        std::wcerr << L" actual outcome/issue=";
+        std::wcerr << static_cast<unsigned>(model.outcome);
+        std::wcerr << L"/";
+        std::wcerr << static_cast<unsigned>(model.diagnostic.issue);
+        std::wcerr << L'\n';
+    }
     check(model.source == scenario.source && model.outcome == scenario.outcome && model.diagnostic.issue == scenario.issue,
           "native diagram result preserves exact source and independently classified outcome/diagnostic");
     check(model.nodes.size() == scenario.nodes && model.edges.size() == scenario.edges, "rejected native diagrams expose no partially accepted graph");

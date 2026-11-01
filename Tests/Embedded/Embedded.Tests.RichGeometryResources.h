@@ -354,13 +354,13 @@ static void TestSourceGuideAllocationAtomicity()
     const auto seed = [&]
     {
         auto guides = std::make_unique<RichSourceGuides>();
-        guides->Begin(source.Snapshot(), 1u, geometry.Generation(), true, true, options);
+        guides->Begin(source.Snapshot(), 1u, geometry.Generation(), true, true, options, 44.0f);
         finish(*guides);
         return guides;
     };
     const auto stage = [&](RichSourceGuides& guides)
     {
-        guides.Begin(source.Snapshot(), 2u, geometry.Generation(), true, true, options);
+        guides.Begin(source.Snapshot(), 2u, geometry.Generation(), true, true, options, 44.0f);
         finish(guides);
     };
     auto measured          = seed();
@@ -475,16 +475,21 @@ static void TestEmbeddedCodeLineNumberPixels(GraphicsFixture& gpu)
     view.Controls().SetRoot(std::move(owned));
     view.Controls().SetFocusControl(editor);
     auto site = std::make_shared<TestEmbeddedAccessibilitySite>();
-    Hr(view.AttachAccessibility(site, 0x434f5059u, {{0, 0, 480, 240}, true}), "attach code copy accessibility");
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> uiaRoot;
-    Hr(view.GetAccessibilityProvider(uiaRoot.put()), "code copy accessibility root");
-    site->root = uiaRoot.get();
     wil::com_ptr_nothrow<IInvokeProvider> staleCopy;
     Hr(gpu.Resize(480u, 240u), "code gutter raster size");
     for (const auto direction : {FlowDirection::LeftToRight, FlowDirection::RightToLeft})
     {
         editor->SetFlowDirection(direction);
         Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare code gutter");
+        if (! uiaRoot)
+        {
+            Check(view.AttachAccessibility(site, 0x434f5059u, {{0, 0, 480, 240}, true}) == S_OK, "attach prepared code copy accessibility");
+            Check(view.GetAccessibilityProvider(uiaRoot.put()) == S_OK && bool(uiaRoot), "prepared code copy accessibility root");
+            site->root = uiaRoot.get();
+        }
+        else
+            Check(view.UpdateAccessibility({{0, 0, 480, 240}, true}) == S_OK, "publish directional code accessibility");
         const auto document = editor->GetAcknowledgedSemanticDocument(view.Controls());
         Check(static_cast<bool>(document), "code gutter has current semantics");
         const auto element = std::ranges::find(document->Elements(), RichText::SemanticRole::Code, &RichText::SemanticElement::role);
@@ -566,7 +571,8 @@ static void TestEmbeddedCodeLineNumberPixels(GraphicsFixture& gpu)
               "Ctrl+Shift+C requests the current code block from the keyboard");
     }
     Check(editor->OnMouseWheel(view.Controls(), {}, -WHEEL_DELTA, 0u), "scroll code copy action offscreen");
-    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "publish scrolled code accessibility");
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare scrolled code accessibility");
+    Check(view.UpdateAccessibility({{0, 0, 480, 240}, true}) == S_OK, "publish scrolled code accessibility");
     wil::com_ptr_nothrow<IRawElementProviderSimple> offscreen;
     Hr(staleCopy.query_to(offscreen.put()), "offscreen copy simple provider");
     VARIANT offscreenValue{};

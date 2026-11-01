@@ -1968,17 +1968,32 @@ void SemanticMathLiteralFallback(bool embedded)
     using namespace RichText;
     RichAccessibilityFixture fixture(embedded, true, true);
     fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
-    const auto verify = [&](const std::wstring& source, std::wstring_view expression, std::wstring_view helpText, std::wstring_view linkTitle)
+    const auto verify =
+        [&](const std::wstring& source, std::wstring_view expression, std::wstring_view helpText, std::wstring_view linkTitle, bool unsupportedSyntax)
     {
         fixture.editor->SetText(source);
         fixture.Publish();
         auto simple = fixture.Simple();
         auto math   = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
-        Require(math != nullptr &&
-                    ReadProviderLongProperty(*math.get(), UIA_ControlTypePropertyId, "literal math UIA control type") == UIA_ImageControlTypeId &&
-                    ReadProviderStringProperty(*math.get(), UIA_NamePropertyId, "literal math UIA name") == expression &&
-                    ReadProviderStringProperty(*math.get(), UIA_HelpTextPropertyId, "literal math UIA help") == helpText,
-                "literal math retains its logical Image role, TeX interior name and failure-specific help text");
+        Require(math != nullptr, "literal math has an Image child");
+        const auto actualType = ReadProviderLongProperty(*math.get(), UIA_ControlTypePropertyId, "literal math UIA control type");
+        const auto actualName = ReadProviderStringProperty(*math.get(), UIA_NamePropertyId, "literal math UIA name");
+        const auto actualHelp = ReadProviderStringProperty(*math.get(), UIA_HelpTextPropertyId, "literal math UIA help");
+        if (actualType != UIA_ImageControlTypeId || actualName != expression || actualHelp != helpText)
+        {
+            std::wcerr << L"literal math provider actual type=";
+            std::wcerr << actualType;
+            std::wcerr << L" name=";
+            std::wcerr << std::wstring_view(actualName).substr(0u, 120u);
+            std::wcerr << L" help=";
+            std::wcerr << actualHelp;
+            std::wcerr << L" expected help=";
+            std::wcerr << helpText;
+            std::wcerr << L'\n';
+        }
+        Require(actualType == UIA_ImageControlTypeId, "literal math retains its Image role");
+        Require(actualName == expression, "literal math retains its TeX interior name");
+        Require(actualHelp == helpText, "literal math retains failure-specific help text");
         const auto delimiter = source.find(expression);
         Require(delimiter != std::wstring::npos, "literal math source has the expected TeX interior");
         const auto delimiterUnits = delimiter >= 2u && source[delimiter - 1u] == L'$' && source[delimiter - 2u] == L'$' ? 4u : 2u;
@@ -1990,6 +2005,10 @@ void SemanticMathLiteralFallback(bool embedded)
                    element.source.last - element.source.first == expression.size() + delimiterUnits;
         }),
                 "literal math remains a semantic Math element over its complete source envelope");
+        if (unsupportedSyntax)
+            Require(
+                std::ranges::any_of(semantic->Diagnostics(), [](const auto& diagnostic) { return diagnostic.kind == SemanticDiagnosticKind::UnsupportedMath; }),
+                "unknown math command has an independent unsupported-syntax diagnostic");
         auto text = TextProvider(fixture);
         wil::com_ptr_nothrow<ITextRangeProvider> raw;
         RequireSucceeded(text->RangeFromChild(math.get(), raw.put()), "literal math exact raw source range");
@@ -2006,14 +2025,14 @@ void SemanticMathLiteralFallback(bool embedded)
 
     const std::wstring unsupportedExpression = L"\\unknown{x}";
     const std::wstring unsupportedSource     = L"before $" + unsupportedExpression + L"$ and [link](https://example.test \"original title\") after\r\n";
-    verify(unsupportedSource, unsupportedExpression, L"Unsupported or oversized native equation. Exact source is preserved.", L"original title");
+    verify(unsupportedSource, unsupportedExpression, L"Unsupported native equation. Exact source is preserved.", L"original title", true);
 
     const std::wstring capacityExpression = L"\\text{" + std::wstring(1400u, L'm') + L"}";
     const std::wstring capacitySource     = L"before $$" + capacityExpression + L"$$ after [link](https://example.test \"capacity title\")\r\n";
     auto appearance                       = fixture.editor->GetAppearance();
     appearance.bodyFontSizeDip            = 96.f;
     fixture.editor->SetAppearance(appearance);
-    verify(capacitySource, capacityExpression, L"Equation cannot be prepared natively for this view. Exact source is preserved.", L"capacity title");
+    verify(capacitySource, capacityExpression, L"Equation cannot be prepared natively for this view. Exact source is preserved.", L"capacity title", false);
 }
 void SemanticDecodedImages(bool embedded)
 {

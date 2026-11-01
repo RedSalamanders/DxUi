@@ -1311,6 +1311,21 @@ public:
                 if (message.find(marker) != std::wstring_view::npos)
                 {
                     _active->Ui(phase);
+                    if (std::wstring_view(marker) == L"menu.dismiss-cause-activation" && _active->_owner)
+                    {
+                        const HWND foreground = GetForegroundWindow();
+                        DWORD foregroundProcess{};
+                        const DWORD foregroundThread = foreground ? GetWindowThreadProcessId(foreground, &foregroundProcess) : 0u;
+                        const HWND active            = GetActiveWindow();
+                        const size_t flags = (foreground ? 1u : 0u) | (foreground == _active->_owner ? 2u : 0u) |
+                                             (foregroundProcess == GetCurrentProcessId() ? 4u : 0u) | (foregroundThread == GetCurrentThreadId() ? 8u : 0u) |
+                                             (active == _active->_owner ? 16u : 0u) | (active && GetWindow(active, GW_OWNER) == _active->_owner ? 32u : 0u);
+                        const size_t kind  = message.find(L"msg=WM_ACTIVATEAPP") != std::wstring_view::npos  ? WM_ACTIVATEAPP
+                                             : message.find(L"msg=WM_NCACTIVATE") != std::wstring_view::npos ? WM_NCACTIVATE
+                                             : message.find(L"msg=WM_ACTIVATE") != std::wstring_view::npos   ? WM_ACTIVATE
+                                                                                                             : 0u;
+                        _active->Ui("dismiss.activation-context", flags, kind);
+                    }
                     if (std::wstring_view(marker) == L"menu.dismiss-cause-cancel" && _active->_owner)
                     {
                         // Observe before Dismiss changes the chain. Bits describe the
@@ -2921,7 +2936,7 @@ void RunStationaryMenuCaptureKeyboardSelection(bool submenu, bool postedMove)
         return request;
     };
     const ThemePalette theme = MakeAnimatedTestThemePalette(true);
-    auto trace               = std::make_unique<MenuHoverTraceForTest>(true);
+    auto trace               = std::make_unique<MenuHoverTraceForTest>(true, false, ownerWindow.Hwnd());
     POINT stationaryPoint{};
 
     const auto runPhase = [&](bool measure)
@@ -3050,6 +3065,21 @@ void RunStationaryMenuCaptureKeyboardSelection(bool submenu, bool postedMove)
         failure = runPhase(true);
         if (! failure.empty())
             return;
+        // The probe is a complete, separately activated menu session. Drain its
+        // teardown messages and establish the owner again before the measured
+        // session, rather than racing the previous popup's activation handoff.
+        ownerWindow.PumpMessages();
+        if (! TryActivateDxUiTestWindow(ownerWindow.Hwnd()))
+        {
+            failure = "stationary-capture owner reactivates after the geometry probe";
+            return;
+        }
+        ownerWindow.PumpMessages();
+        if (GetForegroundWindow() != ownerWindow.Hwnd())
+        {
+            failure = "stationary-capture measured session starts with its owner in the foreground";
+            return;
+        }
         ScopedMenuPointerFixture parkedPointer(ownerWindow.Hwnd());
         Require(parkedPointer.AlignCursor(stationaryPoint), "park the physical pointer before opening the initial menu");
         DrainPendingMouseMessagesForMenuSuite();
