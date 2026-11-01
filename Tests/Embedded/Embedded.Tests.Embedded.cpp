@@ -1519,6 +1519,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestUnicodeGraphemeForwardWalkAllocationBudget();
     TestUnicodeBulkMovementAndDeletionAllocationBudget();
     TestRichTextUtf8RejectionAllocationBudget();
+    TestRichInputAllocationFailureAtomicity();
     TestRichDocumentFragmentedHistoryStorageBudget();
     RichTextStateReplacementTests::Core(Check);
     TestRichRecordedWholeTextStorageBudget();

@@ -3466,6 +3466,7 @@ private:
     [[nodiscard]] uint64_t FileDropEpoch() const noexcept;
     bool CommitFileDrop(FileDropPosition position, const TextClipboardContent& content);
     void Changed(bool sourceChanged, bool synchronizeTextInput = true);
+    [[nodiscard]] bool InputFailureHandled(const std::weak_ptr<int>& lifetime, uint64_t revision, uint64_t epoch) const noexcept;
     void SelectionChanged(bool synchronizeTextInput = true, bool preservePreferredCaretX = false, bool publishSelection = true, bool revealCaret = true);
     void PrepareOverlayGeometry(ControlHost& host);
     [[nodiscard]] D2D1_RECT_F ScrollbarTrack() const noexcept;

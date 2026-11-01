@@ -14,6 +14,71 @@
 #include <DxUi/RichSemanticDocument.h>
 #include <type_traits>
 
+static void TestRichInputAllocationFailureAtomicity()
+{
+    using namespace DxUi;
+    using namespace DxUi::RichText;
+    for (unsigned operation = 0u; operation < 4u; ++operation)
+    {
+        const auto exercise = [&](size_t failure, bool measure)
+        {
+            ControlHost host;
+            RichTextEditor editor(L"alpha beta");
+            editor.SetViewMode(ViewMode::Source);
+            editor.SetSelection({5u, 5u});
+            unsigned notifications = 0u;
+            editor.SetOnTextChanged([&] { ++notifications; });
+            if (operation == 3u)
+                Check(editor.OnChar(host, wchar_t(0xd83d), 0u), "input fault fixture retains the pending lead surrogate");
+            const auto revision  = editor.Revision();
+            const auto selection = editor.GetSelection();
+            const auto act       = [&]
+            {
+                switch (operation)
+                {
+                    case 0u: return editor.OnChar(host, L'X', 0u);
+                    case 1u: return editor.OnKeyDown(host, L'B', MK_CONTROL);
+                    case 2u: return editor.OnKeyDown(host, VK_BACK, 0u);
+                    default: return editor.OnChar(host, wchar_t(0xde00), 0u);
+                }
+            };
+            size_t observed{};
+            bool handled{};
+            {
+                const auto oldCounting = countAllocations;
+                const auto oldCalls = allocations, oldBytes = allocationBytes, oldFailure = failAllocationAfter;
+                const auto restore = wil::scope_exit([=]() noexcept
+                {
+                    countAllocations    = oldCounting;
+                    allocations         = oldCalls;
+                    allocationBytes     = oldBytes;
+                    failAllocationAfter = oldFailure;
+                });
+                allocations = allocationBytes = 0u;
+                countAllocations              = measure;
+                if (! measure)
+                    failAllocationAfter = failure;
+                handled  = act();
+                observed = allocations;
+            }
+            if (! measure)
+            {
+                Check(! handled && editor.GetText() == L"alpha beta" && editor.GetSelection() == selection && editor.Revision() == revision &&
+                          ! editor.CanUndo() && notifications == 0u,
+                      "every observed precommit input allocation failure declines atomically");
+                Check(act(), "an input can retry after allocation failure, including its pending surrogate pair");
+            }
+            Check((! measure || handled) && editor.Revision() != revision && editor.CanUndo() && notifications == 1u && IsValidSourceUtf16(editor.GetText()),
+                  "successful input commits one complete Unicode transaction");
+            Check(editor.Undo() && editor.GetText() == L"alpha beta" && ! editor.CanUndo(), "one undo restores the complete input transaction");
+            return observed;
+        };
+        const auto observed = exercise(0u, true);
+        Check(observed > 0u && observed < 2048u, "native input has a bounded observed allocation schedule");
+        for (size_t failure = 0u; failure < observed; ++failure)
+            static_cast<void>(exercise(failure, false));
+    }
+}
 static void TestRichFileDropTransportAllocationFailures()
 {
     using namespace DxUi;

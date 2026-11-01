@@ -1326,6 +1326,15 @@ Grid SelectionItem AddToSelection and RemoveFromSelection report successful acce
 
 Native text-store layout notifications include focused text-control bounds and typography changes, window moves, DPI changes, and publication of changed prepared content. Locked TSF notifications use the existing coalesced deferred path; callbacks are lifetime and session guarded.
 
+RichTextEditor native input boundaries decline precommit allocation failure
+without changing document source, revision, selection or undo history. A failed
+trail-surrogate insertion retains the pending lead for a retry. Once source or
+selection publication, capture, or a binding change has occurred, the owned input
+remains handled and must not fall through to an unrelated application command.
+Lifetime tokens guard the failure continuation itself. Allocation failure in
+application observer callbacks retains the explicit fatal observer policy;
+ordinary observer exceptions are contained after the committed change.
+
 RichTextEditor exposes prepared `RichTextScrollInfo` and finite, clamped
 `SetScrollOffsetDip` requests. Pending/hidden/detached geometry refuses; disabled
 controls refuse changes, while read-only controls allow navigation. Scrolling

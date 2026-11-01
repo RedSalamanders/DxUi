@@ -3438,8 +3438,18 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
     Changed(changed);
     return changed;
 }
+bool RichTextEditor::InputFailureHandled(const std::weak_ptr<int>& lifetime, uint64_t revision, uint64_t epoch) const noexcept
+{
+    // Once publication/cancellation has crossed a callback boundary, a native
+    // input remains handled even if its follow-up work failed. Precommit OOM
+    // declines with the document's atomic transaction intact.
+    return lifetime.expired() || Revision() != revision || _state->fileDropEpoch != epoch || _state->dragging || _state->scrollbarDragging;
+}
 bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers) noexcept
 {
+    const auto inputLifetime = GetLifetimeToken();
+    const auto inputRevision = Revision(), inputEpoch = _state->fileDropEpoch;
+    const auto pendingLead = _state->pendingLeadSurrogate;
     try
     {
         // AltGr arrives as Ctrl+Alt on Windows. Its Unicode WM_CHAR must remain
@@ -3543,13 +3553,22 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
         }
         return true;
     }
+    catch (const std::bad_alloc&)
+    {
+        const bool handled = InputFailureHandled(inputLifetime, inputRevision, inputEpoch);
+        if (! handled)
+            _state->pendingLeadSurrogate = pendingLead;
+        return handled;
+    }
     catch (const std::exception&)
     {
-        return false;
+        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch);
     }
 }
 bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noexcept
 {
+    const auto inputLifetime = GetLifetimeToken();
+    const auto inputRevision = Revision(), inputEpoch = _state->fileDropEpoch;
     try
     {
         if (! IsEnabled())
@@ -3950,16 +3969,17 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
     }
     catch (const std::bad_alloc&)
     {
-        // Allocation failure is fatal at this native key input boundary.
-        std::terminate();
+        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch);
     }
     catch (const std::exception&)
     {
-        return false;
+        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch);
     }
 }
 bool RichTextEditor::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F point) noexcept
 {
+    const auto inputLifetime = GetLifetimeToken();
+    const auto inputRevision = Revision(), inputEpoch = _state->fileDropEpoch;
     try
     {
         if (! IsEnabled() || ! IsVisible())
@@ -4014,12 +4034,11 @@ bool RichTextEditor::OnContextMenu(ControlHost& host, bool keyboardInvocation, D
     }
     catch (const std::bad_alloc&)
     {
-        // The native input boundary cannot propagate allocation failure.
-        std::terminate();
+        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch);
     }
     catch (const std::exception&)
     {
-        return false;
+        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch);
     }
 }
 bool RichTextEditor::OnCopy(ControlHost& host) noexcept
@@ -4056,6 +4075,8 @@ bool RichTextEditor::OnSelectAll(ControlHost&) noexcept
 }
 bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) noexcept
 {
+    const auto inputLifetime = GetLifetimeToken();
+    const auto inputRevision = Revision(), inputEpoch = _state->fileDropEpoch;
     try
     {
         if (! IsEnabled() || rightButton)
@@ -4142,16 +4163,17 @@ bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool ri
     }
     catch (const std::bad_alloc&)
     {
-        // Allocation failure is fatal at this native pointer input boundary.
-        std::terminate();
+        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch);
     }
     catch (const std::exception&)
     {
-        return false;
+        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch);
     }
 }
 bool RichTextEditor::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT) noexcept
 {
+    const auto inputLifetime = GetLifetimeToken();
+    const auto inputRevision = Revision(), inputEpoch = _state->fileDropEpoch;
     try
     {
         if (! IsEnabled() || rightButton)
@@ -4175,9 +4197,13 @@ bool RichTextEditor::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, 
         SetSelection({projection.ToSource(anchor.value_or(caret)), projection.ToSource(caret, true)});
         return true;
     }
+    catch (const std::bad_alloc&)
+    {
+        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch);
+    }
     catch (const std::exception&)
     {
-        return false;
+        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch);
     }
 }
 std::optional<RichText::MarkdownRange> RichTextEditor::HoveredLinkDisplayRange(ControlHost& host, D2D1_POINT_2F point) const
@@ -4231,6 +4257,8 @@ std::optional<RichText::MarkdownRange> RichTextEditor::ActiveParagraphDisplayRan
 }
 bool RichTextEditor::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT) noexcept
 {
+    const auto inputLifetime = GetLifetimeToken();
+    const auto inputRevision = Revision(), inputEpoch = _state->fileDropEpoch;
     try
     {
         if (_state->scrollbarDragging)
@@ -4281,12 +4309,11 @@ bool RichTextEditor::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT) n
     }
     catch (const std::bad_alloc&)
     {
-        // Fatal allocation failure must not be swallowed at this native input boundary.
-        std::terminate();
+        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch);
     }
     catch (const std::exception&)
     {
-        return false;
+        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch);
     }
 }
 bool RichTextEditor::OnMouseLeave(ControlHost&) noexcept
@@ -4322,8 +4349,8 @@ bool RichTextEditor::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool righ
         }
         catch (const std::bad_alloc&)
         {
-            // Allocation failure is fatal at this native input boundary.
-            std::terminate();
+            // The release already ended the gesture. The document transaction
+            // itself is atomic; report the owned release as handled below.
         }
         catch (const std::exception&)
         { /* Stale/rebound gestures make no source edit. */
