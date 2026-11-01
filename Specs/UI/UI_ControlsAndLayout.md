@@ -2147,8 +2147,9 @@ symbols and their atom classes; vertical delimiter commands retain the paired na
 In math mode ASCII minus and asterisk shape as U+2212 and U+2217; tilde supplies
 spacing, and a run of primes becomes a superscript of the preceding atom. A
 second explicit superscript on that atom is rejected with the original source.
-Math in a heading uses that run's heading size, and a caret beside a formula
-uses the surrounding text line's DirectWrite caret geometry.
+Math uses the enclosing run's effective body, code or heading size before the
+shared 1.15 native-math scale; explicit heading size overrides take precedence.
+A caret beside a formula uses the surrounding text line's DirectWrite geometry.
 Native `overset`, `underset` and `stackrel` center bounded annotations above or below their base while retaining its atom class; `stackrel` is relational.
 
 Limits are 4,096 source units, 512 syntax nodes, nesting 24, 16 rows/columns and 128

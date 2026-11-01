@@ -1341,8 +1341,9 @@ Font lookup and glyph-query HRESULT failures remain retryable; only a known
 unsupported font operation or absent/invalid font data uses the vector fallback.
 ASCII minus and asterisk use mathematical operator glyphs, tilde supplies spacing,
 and successive primes are raised as one superscript. A second explicit superscript
-on the same atom remains source with a diagnostic. Heading formulas follow the
-heading font size; the caret at a formula edge follows its text line.
+on the same atom remains source with a diagnostic. Formula preparation uses the enclosing run's effective body, code or
+heading font size with the shared 1.15 math scale; the caret at a formula edge
+follows its text line.
 
 Limits are 4,096 source units, 512 syntax nodes, nesting 24, 16 rows/columns and 128
 cells per formula, 4,096 total mathematical records and 128 combined native objects.

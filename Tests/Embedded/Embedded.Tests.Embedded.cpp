@@ -1718,6 +1718,11 @@ __declspec(noinline) static int RunFunctionalTests()
             RichSemanticEditorTests::MathAndBroaderDiagrams(transactionView.Controls(), [&] {
                 Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded in-document math and broader diagrams");
             });
+            for (const UINT dpi : {96u, 144u, 192u})
+                RichSemanticEditorTests::MathRunFontSize(transactionView.Controls(), [&] {
+                    Hr(PrepareRichEmbeddedContent(transactionView, 480u * dpi / 96u, 240u * dpi / 96u, static_cast<float>(dpi)),
+                       "prepare styled embedded math at the requested DPI");
+                });
             RichSemanticEditorTests::InlineMathSourceEditing(
                 transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded inline math source session"); });
             RichSemanticEditorTests::NativeObjectFailureContainment(

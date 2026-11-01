@@ -187,11 +187,15 @@ struct NativeImageGeometry
             if (run != runs.begin())
             {
                 const auto& candidate = *std::prev(run);
-                if (placement.display.first - candidate.start < candidate.length && candidate.heading > 0u &&
-                    candidate.heading <= options.headingFontSizeDip.size())
+                if (placement.display.first - candidate.start < candidate.length)
                 {
-                    const float overrideSize = options.headingFontSizeDip[candidate.heading - 1u];
-                    font = overrideSize > 0.0f ? overrideSize : font * (1.0f + options.headingScaleStep * static_cast<float>(7u - candidate.heading));
+                    if ((candidate.flags & Code) && options.codeFontSizeDip > 0.0f)
+                        font = options.codeFontSizeDip;
+                    if (candidate.heading > 0u && candidate.heading <= options.headingFontSizeDip.size())
+                    {
+                        const float overrideSize = options.headingFontSizeDip[candidate.heading - 1u];
+                        font = overrideSize > 0.0f ? overrideSize : font * (1.0f + options.headingScaleStep * static_cast<float>(7u - candidate.heading));
+                    }
                 }
             }
             // PreparedMath construction validates bounded AST storage and reads

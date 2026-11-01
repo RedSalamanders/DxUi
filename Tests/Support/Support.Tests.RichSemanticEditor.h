@@ -868,6 +868,45 @@ template <typename Prepare> void MathAndBroaderDiagrams(ControlHost& host, Prepa
               "the caret beside a tall equation stays aligned to its text line");
     }
 }
+template <typename Prepare> void MathRunFontSize(ControlHost& host, Prepare&& prepare)
+{
+    {
+        const std::wstring source = L"Body $x$ and $\\frac{1}{2}$\n\n<code>$x$</code>\n\n## <code>$x$</code>";
+        auto root = std::make_unique<RichTextEditor>(source);
+        auto* editor = root.get();
+        editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        auto appearance = editor->GetAppearance();
+        appearance.bodyFontSizeDip = 16.f;
+        appearance.codeFontSizeDip = 32.f;
+        appearance.headingFontSizeDip[1u] = 48.f;
+        editor->SetAppearance(appearance);
+        host.SetRoot(std::move(root));
+        prepare();
+        const auto semantic = editor->GetAcknowledgedSemanticDocument(host);
+        Check(semantic != nullptr, "mixed-style math geometry is acknowledged");
+        std::array<std::size_t, 4u> maths{};
+        std::size_t count{};
+        for (std::size_t index = 0u; index < semantic->Elements().size(); ++index)
+            if (semantic->Elements()[index].role == SemanticRole::Math && count < maths.size())
+                maths[count++] = index;
+        Check(count == maths.size(), "body, tall, code and code-heading formulas are independently prepared");
+        const auto body = editor->GetSemanticElementBounds(host, maths[0]);
+        const auto code = editor->GetSemanticElementBounds(host, maths[2]);
+        const auto heading = editor->GetSemanticElementBounds(host, maths[3]);
+        Check(body && code && heading, "each styled formula has measured owner geometry");
+        const auto bodyHeight = body->bottom - body->top;
+        const auto codeHeight = code->bottom - code->top;
+        const auto headingHeight = heading->bottom - heading->top;
+        Check(codeHeight > bodyHeight * 1.8f && codeHeight < bodyHeight * 2.2f &&
+                  headingHeight > codeHeight * 1.35f && headingHeight < codeHeight * 1.65f,
+              "math uses the enclosing body, code and explicit heading sizes before the shared math scale");
+        const auto adjacent = editor->TryGetTextInputCaretRect(host, 1u);
+        const auto edge = editor->TryGetTextInputCaretRect(host, semantic->Elements()[maths[1]].source.first);
+        Check(adjacent && edge && std::abs(adjacent->top - edge->top) < 0.1f && std::abs(adjacent->bottom - edge->bottom) < 0.1f,
+              "caret beside a tall formula follows its text line at the current DPI");
+    }
+}
 template <typename Prepare> void InlineMathSourceEditing(ControlHost& host, Prepare&& prepare)
 {
     const std::wstring original = L"Before **bold $x$ end** after";
