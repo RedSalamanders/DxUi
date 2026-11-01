@@ -275,6 +275,41 @@ inline void MathWidthReflowAndTargetReplacement()
     Complete(geometry);
     Check(DxUi::RichText::Detail::testRichMathPreparations == preparations + 8u && DxUi::RichText::Detail::testRichMathConstantReads == reads + 4u,
           "the configured mathematical family still reuses finalized geometry across width-only reflow");
+    const auto tagged = RichSemanticDocumentTests::Build(L"$$\nx+1\\tag{Eq. 1}\n$$\n", MarkdownProfile::RichMarkdown);
+    geometry.Clear();
+    const auto beforeTagged = DxUi::RichText::Detail::testRichMathPreparations;
+    wil::com_ptr<ID2D1SolidColorBrush> ink;
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), ink.put()));
+    for (const float width : {240.f, 360.f})
+    {
+        options.widthDip = width;
+        geometry.Begin(factory.get(), tagged, options, drawing.get(), {}, {}, target.get());
+        Complete(geometry);
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        geometry.Draw(target.get(), ink.get(), ink.get(), D2D1::Point2F(0.f, 0.f), 0.f, 512.f);
+        THROW_IF_FAILED(target->EndDraw());
+        constexpr UINT stride = 512u * 4u;
+        std::vector<BYTE> pixels(stride * 512u);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+        unsigned centerInk{}, trailingInk{};
+        for (UINT y = 0; y < 120u; ++y)
+            for (UINT x = 0; x < static_cast<UINT>(width); ++x)
+                if (pixels[y * stride + x * 4u] < 240u)
+                {
+                    if (x > width * .35f && x < width * .65f)
+                        ++centerInk;
+                    if (x > width - 60.f)
+                        ++trailingInk;
+                }
+        Check(centerInk && trailingInk, "tagged display paints centered body and independent trailing label at both widths");
+    }
+    Check(DxUi::RichText::Detail::testRichMathPreparations == beforeTagged + 2u,
+          "tagged body and label both retain their immutable shapes across width reflow");
+    const auto inlineTag = RichSemanticDocumentTests::Build(L"Before $x\\tag{A}$ after", MarkdownProfile::RichMarkdown);
+    Check(inlineTag->Map().Display().find(L"$x\\tag{A}$") != std::wstring_view::npos &&
+              std::ranges::any_of(inlineTag->Diagnostics(), [](const auto& item) { return item.kind == SemanticDiagnosticKind::UnsupportedMath; }),
+          "inline tagged equations retain exact source with an unsupported diagnostic");
     const auto diagram = RichSemanticDocumentTests::Build(L"```mermaid\nflowchart LR\nA[Start] --> B[Finish]\n```\n", MarkdownProfile::RichMarkdown);
     geometry.Clear();
     geometry.Begin(factory.get(), diagram, options, nullptr, {}, {}, target.get());

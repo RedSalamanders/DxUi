@@ -465,15 +465,16 @@ struct SemanticBuilder::Preparation
                 return result;
             };
             const auto records = expression ? count(count, expression->root) : 0u;
-            if (expression && *expression && extensions.CanAdmitRecords(records) && extensions.CanAdmitObject())
+            const auto raw = document->syntax_->Slice(node.source);
+            const bool display = raw.starts_with(L"$$") || raw.starts_with(L"\\[");
+            if (expression && *expression && (display || expression->root.text != L"tag") && extensions.CanAdmitRecords(records) && extensions.CanAdmitObject())
             {
                 output.Emit(L"\ufffc", node.source, DisplaySpanKind::Object, flags, visit.heading);
                 auto& formula        = document->elements_[element];
                 formula.display.last = output.text.size();
                 formula.name         = node.value;
                 formula.title        = Label(AccessibilityTextId::Equation);
-                const auto raw       = document->syntax_->Slice(node.source);
-                extensions.maths.push_back({element, std::move(expression), raw.starts_with(L"$$") || raw.starts_with(L"\\[")});
+                extensions.maths.push_back({element, std::move(expression), display});
                 extensions.records += records;
             }
             else

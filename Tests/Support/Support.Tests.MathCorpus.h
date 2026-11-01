@@ -363,6 +363,30 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
                   std::abs(glyphs[1].font - 24.f * 2.074f) < .001f && std::abs(glyphs[2].font - 24.f) < .001f,
               "named size uses the pinned script map and ends at the group boundary");
     }
+    for (const auto source : {L"x+1\\tag{A}", L"\\tag*{2}x+1"})
+    {
+        const auto tagged = ParseMath(source);
+        check(static_cast<bool>(tagged) && tagged.root.kind == MathKind::Style && tagged.root.text == L"tag" && tagged.root.children.size() == 2u,
+              "one root tag retains independent body and label syntax");
+        bool rejectedDirect = false;
+        try
+        {
+            Detail::PreparedMath direct(factory, std::make_shared<const MathExpression>(tagged), 24.f, false);
+        }
+        catch (const std::length_error&)
+        {
+            rejectedDirect = true;
+        }
+        check(rejectedDirect, "tagged root cannot be silently prepared as an inline formula");
+    }
+    check(! ParseMath(L"x\\tag{a}\\tag{b}") && ! ParseMath(L"{x\\tag{a}}") && ! ParseMath(L"x\\tag"),
+          "duplicate, nested and missing tags are rejected");
+    const auto ordinaryTag = ParseMath(L"x\\tag{Eq. 1}");
+    const auto starredTag = ParseMath(L"x\\tag*{A}");
+    check(! ParseMath(L"x\\tag{$y$}") && ordinaryTag && ordinaryTag.root.children.size() == 2u &&
+              ordinaryTag.root.children[1].children.size() == 3u && ordinaryTag.root.children[1].children[1].text == L"Eq. 1" &&
+              starredTag && starredTag.root.children.size() == 2u && starredTag.root.children[1].text == L"A",
+          "tag labels preserve text spaces and starred form while rejecting unsupported embedded math");
     std::size_t scenarioIndex{};
     for (const auto& scenario : prepared)
     {

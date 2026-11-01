@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <cwctype>
+#include <optional>
 #include <stdexcept>
 
 namespace DxUi::RichText
@@ -18,6 +19,8 @@ class Parser
 {
     std::wstring_view source;
     std::size_t at{}, nodes{};
+    std::optional<MathNode> equationTag;
+    bool starredTag{};
     static bool Letter(wchar_t c) noexcept
     {
         return (c >= L'a' && c <= L'z') || (c >= L'A' && c <= L'Z');
@@ -766,6 +769,36 @@ class Parser
                 while (end < source.size() && Letter(source[end]))
                     ++end;
                 const auto declaration = source.substr(first, end - first);
+                if (declaration == L"tag")
+                {
+                    if (depth != 0u || equationTag)
+                        Reject();
+                    at = end;
+                    starredTag = at < source.size() && source[at] == L'*';
+                    if (starredTag)
+                        ++at;
+                    Space();
+                    if (at == source.size())
+                        Reject(MathIssue::MissingRequiredArgument);
+                    if (source[at] == L'{')
+                    {
+                        auto text = GroupText(true);
+                        // This profile has no nested math inside text labels;
+                        // do not silently paint its delimiters as ordinary text.
+                        if (text.find(L'$') != std::wstring::npos)
+                            Reject();
+                        auto label = Make(MathKind::Text, std::move(text));
+                        label.italic = false;
+                        equationTag.emplace(std::move(label));
+                    }
+                    else
+                    {
+                        auto label = Atom(depth + 1);
+                        label.italic = false;
+                        equationTag.emplace(std::move(label));
+                    }
+                    continue;
+                }
                 if (declaration == L"displaystyle" || declaration == L"textstyle" || declaration == L"scriptstyle" || declaration == L"scriptscriptstyle" ||
                     declaration == L"tiny" || declaration == L"sixptsize" || declaration == L"scriptsize" || declaration == L"footnotesize" ||
                     declaration == L"small" || declaration == L"normalsize" || declaration == L"large" || declaration == L"Large" ||
@@ -857,7 +890,23 @@ public:
     }
     MathNode Parse()
     {
-        return Row(0, false, false);
+        auto body = Row(0, false, false);
+        if (! equationTag)
+            return body;
+        auto tag = std::move(equationTag.value());
+        if (! starredTag)
+        {
+            std::vector<MathNode> children(0u);
+            auto left = Make(MathKind::Text, L"(");
+            left.italic = false;
+            children.push_back(std::move(left));
+            children.push_back(std::move(tag));
+            auto right = Make(MathKind::Text, L")");
+            right.italic = false;
+            children.push_back(std::move(right));
+            tag = Make(MathKind::Row, L"", std::move(children));
+        }
+        return Make(MathKind::Style, L"tag", {std::move(body), std::move(tag)});
     }
 };
 } // namespace

@@ -139,13 +139,23 @@ struct NativeImagePlacement
     std::shared_ptr<const RichImage> pixels;
     wil::com_ptr<ID2D1Bitmap> bitmap;
     std::shared_ptr<PreparedMath> math;
+    std::shared_ptr<PreparedMath> tag;
+    bool bodyReady{};
+    float tagScale{1.f};
     D2D1_SIZE_F Size() const noexcept
     {
-        return math ? math->Size() : D2D1::SizeF(static_cast<float>(pixels->Width()), static_cast<float>(pixels->Height()));
+        if (! math)
+            return D2D1::SizeF(static_cast<float>(pixels->Width()), static_cast<float>(pixels->Height()));
+        if (! tag)
+            return math->Size();
+        const auto body = math->Size(), label = tag->Size();
+        const float baseline = std::max(math->Baseline(), tag->Baseline());
+        return D2D1::SizeF(body.width + 2.f * (label.width + 8.f),
+                           baseline + std::max(body.height - math->Baseline(), label.height - tag->Baseline()));
     }
     float Baseline() const noexcept
     {
-        return math ? math->Baseline() : Size().height;
+        return math ? (tag ? std::max(math->Baseline(), tag->Baseline()) : math->Baseline()) : Size().height;
     }
     D2D1_RECT_F bounds{};
     const SemanticBox* owner{};
@@ -231,14 +241,29 @@ struct NativeImageGeometry
                         return value.element < element;
                     });
                     if (prior != previous->placements.end() && prior->element == placement.element)
+                    {
                         placement.math = prior->math;
+                        placement.tag = prior->tag;
+                        placement.bodyReady = prior->bodyReady;
+                    }
                 }
                 if (! placement.math)
                 {
                     if (! textFormats)
                         textFormats = std::make_shared<MathTextFormats>(write, options.mathFontFamily, options.locale);
-                    placement.math =
-                        std::make_shared<PreparedMath>(write, maths[index].expression, font * 1.15f, maths[index].display, constants, options.dpi, textFormats);
+                    const auto& expression = maths[index].expression;
+                    if (expression->root.kind == MathKind::Style && expression->root.text == L"tag")
+                    {
+                        if (! maths[index].display || expression->root.children.size() != 2u)
+                            throw std::length_error("Tagged equations require display mode");
+                        const std::wstring empty(0u, L' ');
+                        const auto body = std::make_shared<const MathExpression>(expression->root.children[0], empty);
+                        const auto label = std::make_shared<const MathExpression>(expression->root.children[1], empty);
+                        placement.math = std::make_shared<PreparedMath>(write, body, font * 1.15f, true, constants, options.dpi, textFormats);
+                        placement.tag = std::make_shared<PreparedMath>(write, label, font * 1.15f, false, placement.math.get(), options.dpi, textFormats);
+                    }
+                    else
+                        placement.math = std::make_shared<PreparedMath>(write, expression, font * 1.15f, maths[index].display, constants, options.dpi, textFormats);
                 }
                 if (! constants)
                     constants = placement.math.get();
@@ -320,7 +345,15 @@ struct NativeImageGeometry
     {
         try
         {
-            return placements[index].math->Advance();
+            auto& placement = placements[index];
+            if (! placement.tag)
+                return placement.math->Advance();
+            if (! placement.bodyReady)
+            {
+                placement.bodyReady = placement.math->Advance();
+                return false;
+            }
+            return placement.tag->Advance();
         }
         catch (const wil::ResultException& failure)
         {
@@ -1414,7 +1447,7 @@ struct PreparedSemanticGeometry::Preparation
                     {
                         const auto size  = image.Size();
                         const auto scale = std::min(1.0f, options.widthDip / size.width);
-                        const auto width = size.width * scale, height = size.height * scale;
+                        const auto width = image.tag ? options.widthDip : size.width * scale, height = size.height * scale;
                         const auto object =
                             Microsoft::WRL::Make<SemanticObjectPlaceholder>(DWRITE_INLINE_OBJECT_METRICS{width, height, image.Baseline() * scale, FALSE});
                         if (! object)
@@ -1582,7 +1615,8 @@ struct PreparedSemanticGeometry::Preparation
                                 const auto scale    = std::min(1.0f, options.widthDip / size.width);
                                 image.bounds.top    = lineTop + line.baseline - image.Baseline() * scale;
                                 image.bounds.bottom = image.bounds.top + size.height * scale;
-                                image.bounds.right  = image.bounds.left + size.width * scale;
+                                image.bounds.right  = image.bounds.left + (image.tag ? options.widthDip : size.width * scale);
+                                image.tagScale      = scale;
                                 located             = true;
                                 break;
                             }
@@ -2994,6 +3028,18 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                     {
                         if (image.math)
                         {
+                            if (image.tag)
+                            {
+                                const float scale = image.tagScale;
+                                const float baseline = origin.y + box->y + image.bounds.top + image.Baseline() * scale;
+                                const float left = origin.x + box->x + image.bounds.left;
+                                const float width = image.bounds.right - image.bounds.left;
+                                const float bodyX = left + (width - image.math->Size().width * scale) * .5f;
+                                const float tagX = left + width - image.tag->Size().width * scale;
+                                image.math->Draw(target, boxText, D2D1::Point2F(bodyX, baseline - image.math->Baseline() * scale), scale);
+                                image.tag->Draw(target, boxText, D2D1::Point2F(tagX, baseline - image.tag->Baseline() * scale), scale);
+                                continue;
+                            }
                             image.math->Draw(target,
                                              boxText,
                                              D2D1::Point2F(origin.x + box->x + image.bounds.left, origin.y + box->y + image.bounds.top),
