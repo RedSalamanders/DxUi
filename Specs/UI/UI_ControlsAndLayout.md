@@ -1747,7 +1747,11 @@ keep the complete measured label inside their straight middle band. Their center
 ports lie on the capsule boundary in all four flow directions. Direction changes
 flow without rotating text. An unlabeled forward edge between adjacent single-node
 ranks uses their common centerline when its source has one outgoing and target one
-incoming edge. Other edges use exterior lanes sized for their own labels and minimum
+incoming edge. A complete matching of equal-width nodes in two adjacent ranks
+also orders targets by their source and uses separate direct centerlines when the
+source nodes precede the targets in model order and all edges are unlabeled, without
+groups, notes or cardinality; model identities and
+source order remain intact. Other edges use exterior lanes sized for their own labels and minimum
 separation; unlabeled lanes may be shared only when their inclusive rank intervals
 do not intersect. Labeled lanes remain exclusive. Endpoint
 corridors remain outside full rank rows, including for skipped-rank edges,

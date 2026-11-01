@@ -65,6 +65,7 @@ struct NativeFlowchartLayout::Preparation
     std::array<FlowchartSize, Edges> fromCardinalities{}, toCardinalities{};
     std::array<FlowchartSize, 16u> groupLabels{};
     std::array<std::size_t, Nodes> head{}, tail{}, rank{}, indegree{}, before{}, after{}, color{}, incoming{}, outgoing{}, rowCount{};
+    std::array<std::size_t, Nodes> pairTargets{};
     std::array<bool, Nodes> ranked{};
     std::array<std::size_t, Edges> next{}, startPort{}, endPort{};
     std::array<double, Edges> laneOffset{}, laneWidth{};
@@ -79,7 +80,7 @@ struct NativeFlowchartLayout::Preparation
     double minX{}, minY{}, maxX{}, maxY{};
     FlowchartPoint shift;
     Stage stage{};
-    bool horizontal{}, bounded{}, done{}, hasCardinality{}, hasNotes{};
+    bool horizontal{}, bounded{}, done{}, hasCardinality{}, hasNotes{}, alignedPairs{};
 
     Preparation(std::shared_ptr<const FlowchartModel> value, std::span<const FlowchartSize> nodes, std::span<const FlowchartSize> edges,
                 std::span<const FlowchartSize> from, std::span<const FlowchartSize> to, std::span<const FlowchartSize> groups)
@@ -274,6 +275,24 @@ struct NativeFlowchartLayout::Preparation
             {
                 for (std::size_t node = 0u; node < graph->nodes.size(); ++node)
                     ++rowCount[rank[node]];
+                // A matching of two equal-width ranks can use parallel direct
+                // routes after ordering targets by their source. Restrict this
+                // to complete, isolated pairs so no unrelated route or group
+                // can be crossed by the reordered nodes.
+                const auto count = graph->edges.size();
+                alignedPairs = count > 1u && graph->nodes.size() == 2u * count && graph->groups.empty() && ! hasNotes && ! hasCardinality;
+                for (std::size_t node = 0u; alignedPairs && node < graph->nodes.size(); ++node)
+                    alignedPairs = rank[node] == (node < count ? 0u : 1u) &&
+                                   plan->nodes[node].bounds.width == plan->nodes[0].bounds.width &&
+                                   (node < count ? outgoing[node] == 1u && incoming[node] == 0u : incoming[node] == 1u && outgoing[node] == 0u);
+                for (std::size_t source = 0u; alignedPairs && source < count; ++source)
+                {
+                    const auto edge = head[source];
+                    alignedPairs = edge != NoIndex && graph->edges[edge].to >= count && graph->edges[edge].label.empty() &&
+                                   plan->edges[edge].route == FlowchartRoute::Forward;
+                    if (alignedPairs)
+                        pairTargets[source] = graph->edges[edge].to;
+                }
                 Then(Stage::Ports);
                 return;
             }
@@ -323,8 +342,8 @@ struct NativeFlowchartLayout::Preparation
         const auto back  = plan->edges[index].route == FlowchartRoute::Back;
         startPort[index] = back ? ++before[rank[edge.from]] : ++after[rank[edge.from]];
         endPort[index]   = back ? ++after[rank[edge.to]] : ++before[rank[edge.to]];
-        direct[index]    = plan->edges[index].route == FlowchartRoute::Forward && edge.label.empty() && rank[edge.to] == rank[edge.from] + 1u &&
-                           rowCount[rank[edge.from]] == 1u && rowCount[rank[edge.to]] == 1u && outgoing[edge.from] == 1u && incoming[edge.to] == 1u;
+        direct[index]    = alignedPairs || (plan->edges[index].route == FlowchartRoute::Forward && edge.label.empty() && rank[edge.to] == rank[edge.from] + 1u &&
+                           rowCount[rank[edge.from]] == 1u && rowCount[rank[edge.to]] == 1u && outgoing[edge.from] == 1u && incoming[edge.to] == 1u);
         if (direct[index])
             return;
         laneWidth[index] = edge.label.empty() ? PortGap : std::max(PortGap, Cross(edgeLabels[index]) + Margin);
@@ -403,7 +422,8 @@ struct NativeFlowchartLayout::Preparation
             Then(hasNotes ? Stage::NotePositions : Stage::GroupPositions);
             return;
         }
-        const auto index = cursor++;
+        const auto position = cursor++;
+        const auto index = alignedPairs && position >= graph->edges.size() ? pairTargets[position - graph->edges.size()] : position;
         auto& node       = plan->nodes[index];
         node.rank        = rank[index];
         node.bounds.x    = rowCursor[node.rank];

@@ -63,6 +63,31 @@ template <typename Check> inline void Geometry(Check&& check)
               "unambiguous adjacent ranks use the independent direct centerline oracle");
     check(plan->edges[0u].hasArrow && Near(plan->edges[0u].arrow[1u].x, 24.0) && Near(plan->edges[0u].arrow[1u].y, 88.0),
           "arrow head ends on the target shape boundary");
+    for (const auto direction : {L"TD", L"BT", L"LR", L"RL"})
+    {
+        const auto pairs = Place(Graph(std::wstring(L"graph ") + direction + L";A;B;C;Z;Y;X;A-->X;B-->Y;C-->Z"), check);
+        check(pairs->issue == FlowchartLayoutIssue::None && pairs->edges.size() == 3u, "three disconnected pairs are placed");
+        const bool vertical = direction[0] == L'T' || direction[0] == L'B';
+        for (std::size_t index = 0u; index < pairs->edges.size(); ++index)
+        {
+            const auto& edge = pairs->edges[index];
+            for (const auto& point : edge.path)
+                check(vertical ? Near(point.x, edge.path[0].x) : Near(point.y, edge.path[0].y),
+                      "independent pair routes have straight, noncrossing centerlines");
+            const auto& target = pairs->nodes[5u - index].bounds;
+            check(vertical ? Near(edge.path.back().x, target.x + target.width / 2.0)
+                           : Near(edge.path.back().y, target.y + target.height / 2.0),
+                  "reordered route still terminates at its original target");
+        }
+        for (std::size_t first = 0u; first < pairs->edges.size(); ++first)
+            for (std::size_t second = first + 1u; second < pairs->edges.size(); ++second)
+                check(vertical ? ! Near(pairs->edges[first].path[0].x, pairs->edges[second].path[0].x)
+                               : ! Near(pairs->edges[first].path[0].y, pairs->edges[second].path[0].y),
+                      "independent routes occupy distinct columns while preserving edge identity");
+    }
+    const auto labeledPairs = Place(Graph(L"graph TD;A;B;D;C;A-->|label|C;B-->D"), check);
+    check(labeledPairs->edges[0].hasLabel && ! Near(labeledPairs->edges[0].path[1].x, labeledPairs->edges[0].path[2].x),
+          "labeled pairs retain the exterior label lane");
     for (const auto& [direction, horizontal] : {std::pair{L"TB", false}, std::pair{L"BT", false}, std::pair{L"LR", true}, std::pair{L"RL", true}})
     {
         const auto forkGraph = Graph(L"stateDiagram-v2\ndirection " + std::wstring(direction) + L"\nstate F <<fork>>\nA --> F\nF --> B\n");
