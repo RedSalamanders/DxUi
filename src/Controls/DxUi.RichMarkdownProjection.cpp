@@ -1,4 +1,5 @@
 #include <DxUi/RichMarkdown.h>
+#include "DxUi.RichProjectionWindow.h"
 #include <stdexcept>
 namespace DxUi::RichText
 {
@@ -180,6 +181,10 @@ std::shared_ptr<const Projection> ProjectBlock(std::wstring&& text, ViewMode mod
     return staged;
 }
 } // namespace
+std::shared_ptr<const Projection> Detail::ProjectRichSourceWindow(std::wstring&& source)
+{
+    return ProjectBlock(std::move(source), ViewMode::Rich);
+}
 Projection Project(SourceSnapshot source, std::uint64_t revision, ViewMode mode)
 {
     auto result = MakeEmptyProjection();

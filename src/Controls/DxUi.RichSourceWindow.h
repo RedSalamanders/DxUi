@@ -1,6 +1,7 @@
 #pragma once
 #include "DxUi.Internal.h"
 #include "DxUi.TextElements.h"
+#include "DxUi.RichProjectionWindow.h"
 #include <DxUi/RichDocument.h>
 
 // A proven ASCII-to-ASCII break is independent of any preceding Unicode 17
@@ -60,7 +61,9 @@ enum class SourceWindowOperation
     PreviousWord,
     NextWord,
     DeleteBackward,
-    DeleteForward
+    DeleteForward,
+    Home,
+    End
 };
 inline TextElementRange SourceWindowRange(const SourceSnapshot& source, size_t caret, SourceWindowOperation operation)
 {
@@ -81,6 +84,8 @@ inline TextElementRange SourceWindowRange(const SourceSnapshot& source, size_t c
             case SourceWindowOperation::NextWord: range = {position, FindNextWordBoundary(text, position)}; break;
             case SourceWindowOperation::DeleteBackward: range = GetTextElementDeletionRange(text, position, true); break;
             case SourceWindowOperation::DeleteForward: range = GetTextElementDeletionRange(text, position, false); break;
+            case SourceWindowOperation::Home: return {0u, 0u};
+            case SourceWindowOperation::End: return {length, length};
         }
         const bool previousWord       = operation == SourceWindowOperation::PreviousWord;
         const bool nextWord           = operation == SourceWindowOperation::NextWord;
@@ -98,6 +103,87 @@ inline TextElementRange SourceWindowRange(const SourceSnapshot& source, size_t c
             continue;
         }
         return {first + range.first, first + range.last};
+    }
+}
+// Physical-line boundaries are hard grapheme boundaries and v0 Markdown's
+// grammar is line-local. Include the preceding line so trailing mapping at a
+// hidden heading/marker boundary remains identical to a full projection.
+inline size_t SourceLineStart(const SourceSnapshot& source, size_t position)
+{
+    auto last = (std::min)(position, source.Length());
+    while (last && ! source.IsBoundary(last)) --last;
+    while (last)
+    {
+        auto first = last > 256u ? last - 256u : 0u;
+        while (first && ! source.IsBoundary(first)) --first;
+        const auto text = source.Slice(first, last);
+        for (auto i = text.size(); i > 0u; --i)
+            if (text[i - 1u] == L'\r' || text[i - 1u] == L'\n')
+                return first + i;
+        last = first;
+    }
+    return 0u;
+}
+inline size_t SourceLineEnd(const SourceSnapshot& source, size_t position)
+{
+    const auto length = source.Length();
+    auto first = (std::min)(position, length);
+    while (first && ! source.IsBoundary(first)) --first;
+    while (first < length)
+    {
+        auto last = first + (std::min)(size_t{256u}, length - first);
+        while (last < length && ! source.IsBoundary(last)) ++last;
+        const auto text = source.Slice(first, last);
+        for (size_t i = 0u; i < text.size(); ++i)
+            if (text[i] == L'\r' || text[i] == L'\n')
+                return first + i + (text[i] == L'\r' && i + 1u < text.size() && text[i + 1u] == L'\n' ? 2u : 1u);
+        first = last;
+    }
+    return length;
+}
+inline TextElementRange RichSourceWindowRange(const SourceSnapshot& source, size_t caret, SourceWindowOperation operation, bool forDeletion = false)
+{
+    const auto length = source.Length();
+    caret = (std::min)(caret, length);
+    const auto line = SourceLineStart(source, caret);
+    auto first = line ? SourceLineStart(source, line - 1u) : 0u;
+    auto last = SourceLineEnd(source, caret);
+    if (last < length) last = SourceLineEnd(source, last);
+    if (operation == SourceWindowOperation::Home) first = 0u;
+    if (operation == SourceWindowOperation::End) last = length;
+    for (;;)
+    {
+        const auto projection = ProjectRichSourceWindow(source.Slice(first, last));
+        const auto position = projection->ToDisplay(caret - first);
+        const auto& text = projection->text;
+        TextElementRange display{};
+        switch (operation)
+        {
+            case SourceWindowOperation::Previous: display = {StepToPreviousTextElement(text, position), position}; break;
+            case SourceWindowOperation::Next: display = {position, StepToNextTextElement(text, position)}; break;
+            case SourceWindowOperation::PreviousWord: display = {FindPreviousWordBoundary(text, position), position}; break;
+            case SourceWindowOperation::NextWord: display = {position, FindNextWordBoundary(text, position)}; break;
+            case SourceWindowOperation::DeleteBackward: display = GetTextElementDeletionRange(text, position, true); break;
+            case SourceWindowOperation::DeleteForward: display = GetTextElementDeletionRange(text, position, false); break;
+            case SourceWindowOperation::Home: display = {0u, 0u}; break;
+            case SourceWindowOperation::End: display = {text.size(), text.size()}; break;
+        }
+        const bool rootDriveAmbiguous = operation == SourceWindowOperation::PreviousWord && first && display.first == 2u &&
+                                        text.size() >= 2u && text[1] == L':';
+        const auto span = last - first;
+        if (first && (display.first == 0u || rootDriveAmbiguous))
+        {
+            first = SourceLineStart(source, first > span ? first - span : 0u);
+            continue;
+        }
+        if (last < length && display.last == text.size())
+        {
+            last = SourceLineEnd(source, last + (std::min)(span, length - last));
+            continue;
+        }
+        if (forDeletion && display.first == display.last)
+            return {caret, caret};
+        return {first + projection->ToSource(display.first), first + projection->ToSource(display.last, true)};
     }
 }
 } // namespace DxUi::RichText::Detail

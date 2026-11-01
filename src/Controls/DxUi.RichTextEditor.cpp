@@ -4099,17 +4099,12 @@ void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool by
             SetSelection({extend ? selection.anchor : next, next});
             return;
         }
-        const auto projection = RichText::Project(Snapshot(), Revision(), _state->markdownRendering ? RichText::ViewMode::Source : _state->mode);
-        const auto position   = projection.ToDisplay(selection.caret);
-        size_t next;
-        switch (key)
-        {
-            case VK_LEFT: next = byWord ? FindPreviousWordBoundary(projection.text, position) : StepToPreviousTextElement(projection.text, position); break;
-            case VK_RIGHT: next = byWord ? FindNextWordBoundary(projection.text, position) : StepToNextTextElement(projection.text, position); break;
-            case VK_HOME: next = 0u; break;
-            default: next = projection.text.size(); break;
-        }
-        const auto source = projection.ToSource(next, key == VK_RIGHT || key == VK_END);
+        using Operation = RichText::Detail::SourceWindowOperation;
+        const auto operation = key == VK_HOME ? Operation::Home : key == VK_END ? Operation::End
+                             : key == VK_LEFT ? (byWord ? Operation::PreviousWord : Operation::Previous)
+                                              : (byWord ? Operation::NextWord : Operation::Next);
+        const auto range = RichText::Detail::RichSourceWindowRange(Snapshot(), selection.caret, operation);
+        const auto source = key == VK_LEFT || key == VK_HOME ? range.first : range.last;
         SetSelection({extend ? selection.anchor : source, source});
         return;
     }
@@ -4369,15 +4364,13 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
             Changed(changed);
             return changed;
         }
-        const auto projection = RichText::Project(Snapshot(), Revision(), _state->markdownRendering ? RichText::ViewMode::Source : _state->mode);
-        const auto position   = projection.ToDisplay(selection.caret);
-        const auto range      = byWord ? (backwards ? TextElementRange{FindPreviousWordBoundary(projection.text, position), position}
-                                                    : TextElementRange{position, FindNextWordBoundary(projection.text, position)})
-                                       : GetTextElementDeletionRange(projection.text, position, backwards);
+        using Operation = RichText::Detail::SourceWindowOperation;
+        const auto operation = byWord ? (backwards ? Operation::PreviousWord : Operation::NextWord)
+                                      : (backwards ? Operation::DeleteBackward : Operation::DeleteForward);
+        const auto range = RichText::Detail::RichSourceWindowRange(Snapshot(), selection.caret, operation, true);
         if (range.first == range.last)
             return false;
-        const auto first = projection.ToSource(range.first), last = projection.ToSource(range.last, true);
-        const bool changed = _state->document.ReplaceImpl(first, last, {}, {first, first}, true, coalesceHistory);
+        const bool changed = _state->document.ReplaceImpl(range.first, range.last, {}, {range.first, range.first}, true, coalesceHistory);
         Changed(changed);
         return changed;
     }

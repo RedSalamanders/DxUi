@@ -27,7 +27,9 @@ void TestRichSemanticNativeRetainedTransactions()
     {
         RichSemanticEditorTests::SemanticGeometryReuse(window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare semantic reuse"); });
         RichSemanticEditorTests::SourceWindowUnicodeParity();
+        RichSemanticEditorTests::RichSourceWindowParity();
         RichSemanticEditorTests::PendingSourceWindowTransport(window.Host());
+        RichSemanticEditorTests::PendingRichSourceWindowTransport(window.Host());
         RichSemanticEditorTests::UrlOnSelectionPaste(window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare URL paste"); });
         RichSemanticEditorTests::SourceHorizontalAndGuides(window.Host(),
                                                            [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare source guides"); });

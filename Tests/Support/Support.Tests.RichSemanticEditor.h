@@ -2133,6 +2133,8 @@ inline void SourceWindowUnicodeParity()
                     case SourceWindowOperation::NextWord: expected = {caret, FindNextWordBoundary(text, caret)}; break;
                     case SourceWindowOperation::DeleteBackward: expected = GetTextElementDeletionRange(text, caret, true); break;
                     case SourceWindowOperation::DeleteForward: expected = GetTextElementDeletionRange(text, caret, false); break;
+                    case SourceWindowOperation::Home: expected = {0u, 0u}; break;
+                    case SourceWindowOperation::End: expected = {text.size(), text.size()}; break;
                 }
                 const auto actual = SourceWindowRange(source, caret, operation);
                 Check(actual.first == expected.first && actual.last == expected.last, "source window preserves full Unicode and word boundary results");
@@ -2146,6 +2148,90 @@ inline void SourceWindowUnicodeParity()
     Check(last - first <= 258u, "ordinary source caret obtains a bounded local context");
     const auto wholeWord = SourceWindowRange(snapshot, 32768u, SourceWindowOperation::PreviousWord);
     Check(wholeWord.first == 0u && wholeWord.last == 32768u, "unbroken long words expand safely to their true boundary");
+}
+inline void RichSourceWindowParity()
+{
+    using namespace DxUi::RichText::Detail;
+    std::vector<std::wstring> cases = {
+        L"# **heading**\r\nplain *italic* `code`\n## **next**\rfinal\n",
+        L"first\nC:\\folder\\word\nlast *item*\n",
+        L"C:\\folder\\word\n# hidden\n",
+        L"# \n# \r\n# **a**\n# ",
+        std::wstring(300u, L'a') + L"\n# **hidden** end\r\n" + std::wstring(300u, L'b'),
+        L"# \U0001f469\u200d\U0001f4bb\n**\u0915\u094d\u0915**\n\U0001f1e6\U0001f1e7\U0001f1e8\n"};
+    std::wstring manyLines(0u, L' ');
+    for (unsigned line = 0u; line < 45u; ++line)
+        manyLines += line == 20u ? L"C:\\folder\\word\r\n" : L"# **hidden** a `code`\r\n";
+    cases.push_back(manyLines);
+    for (const auto& text : cases)
+    {
+        Document document(text);
+        const auto snapshot = document.Snapshot();
+        const auto full = Project(snapshot, document.Revision(), ViewMode::Rich);
+        for (size_t caret = 0u; caret <= text.size(); ++caret)
+        {
+            if (! snapshot.IsBoundary(caret)) continue;
+            const auto position = full.ToDisplay(caret);
+            for (const auto operation : {SourceWindowOperation::Previous, SourceWindowOperation::Next, SourceWindowOperation::PreviousWord,
+                                         SourceWindowOperation::NextWord, SourceWindowOperation::Home, SourceWindowOperation::End})
+            {
+                size_t display{};
+                switch (operation)
+                {
+                    case SourceWindowOperation::Previous: display = StepToPreviousTextElement(full.text, position); break;
+                    case SourceWindowOperation::Next: display = StepToNextTextElement(full.text, position); break;
+                    case SourceWindowOperation::PreviousWord: display = FindPreviousWordBoundary(full.text, position); break;
+                    case SourceWindowOperation::NextWord: display = FindNextWordBoundary(full.text, position); break;
+                    case SourceWindowOperation::Home: display = 0u; break;
+                    case SourceWindowOperation::End: display = full.text.size(); break;
+                    case SourceWindowOperation::DeleteBackward:
+                    case SourceWindowOperation::DeleteForward: break;
+                }
+                const bool trailing = operation == SourceWindowOperation::Next || operation == SourceWindowOperation::NextWord || operation == SourceWindowOperation::End;
+                const auto expected = full.ToSource(display, trailing);
+                const auto actual = RichSourceWindowRange(snapshot, caret, operation);
+                Check((trailing ? actual.last : actual.first) == expected, "v0 rich local projection preserves full caret mapping");
+            }
+            for (const bool backwards : {true, false})
+                for (const bool byWord : {true, false})
+                {
+                    const auto display = byWord ? (backwards ? TextElementRange{FindPreviousWordBoundary(full.text, position), position}
+                                                             : TextElementRange{position, FindNextWordBoundary(full.text, position)})
+                                                : GetTextElementDeletionRange(full.text, position, backwards);
+                    const auto operation = byWord ? (backwards ? SourceWindowOperation::PreviousWord : SourceWindowOperation::NextWord)
+                                                  : (backwards ? SourceWindowOperation::DeleteBackward : SourceWindowOperation::DeleteForward);
+                    const auto actual = RichSourceWindowRange(snapshot, caret, operation, true);
+                    if (display.first == display.last)
+                        Check(actual.first == actual.last, "v0 rich empty display deletion is a no-op");
+                    else
+                        Check(actual.first == full.ToSource(display.first) && actual.last == full.ToSource(display.last, true),
+                              "v0 rich local projection preserves full deletion mapping");
+                }
+        }
+    }
+}
+inline void PendingRichSourceWindowTransport(ControlHost& host)
+{
+    const std::wstring source = L"# **heading**\r\nnormal *word*\n";
+    auto owned = std::make_unique<RichTextEditor>(source);
+    auto* editor = owned.get();
+    editor->SetViewMode(ViewMode::Rich);
+    host.SetRoot(std::move(owned));
+    host.SetFocusControl(editor, false);
+    const auto caret = source.find(L"heading") + 7u;
+    editor->SetSelection({caret, caret});
+    const auto projection = Project(editor->Snapshot(), editor->Revision(), ViewMode::Rich);
+    const auto position = projection.ToDisplay(caret);
+    const auto previous = projection.ToSource(StepToPreviousTextElement(projection.text, position));
+    Check(editor->OnKeyDown(host, VK_LEFT, 0u) && editor->GetSelection() == Selection{previous, previous},
+          "pending v0 Rich caret uses full-projection mapping across hidden markup");
+    editor->SetSelection({caret, caret});
+    const auto deletion = GetTextElementDeletionRange(projection.text, position, true);
+    const auto first = projection.ToSource(deletion.first), last = projection.ToSource(deletion.last, true);
+    auto expected = source;
+    expected.erase(first, last - first);
+    Check(editor->OnKeyDown(host, VK_BACK, 0u) && editor->GetText() == expected && editor->Undo() && editor->GetText() == source,
+          "pending v0 Rich erase retains hidden-marker source mapping and undo");
 }
 inline void PendingSourceWindowTransport(ControlHost& host)
 {
