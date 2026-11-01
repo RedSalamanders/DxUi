@@ -95,6 +95,7 @@ constexpr GUID kMenuGaussianBlurEffectId = {0x1feb6d69, 0x2fe6, 0x4ac9, {0x8c, 0
 
 struct MenuController;
 struct MenuPopup;
+void TakeKeyboardOwnership(MenuController& controller) noexcept;
 
 #if DXUI_MENU_SINK_DIAGNOSTICS || DXUI_ENABLE_DIAGNOSTICS
 [[nodiscard]] const wchar_t* TraceMenuMessageName(UINT message) noexcept
@@ -1131,6 +1132,7 @@ struct MenuPopup
     UINT_PTR hoverTimerId                = 0;
     SubmenuHoverTimerKind hoverTimerKind = SubmenuHoverTimerKind::None;
     size_t hoverTimerItemIndex           = SIZE_MAX;
+    uint64_t hoverOwnershipRevision      = 0u;
 
     [[nodiscard]] float DipToPixel(float dip) const noexcept
     {
@@ -1403,6 +1405,7 @@ struct MenuController
 #endif
 
     // Cascade stack: [0] = root menu, [1..N] = submenus
+    uint64_t keyboardOwnershipRevision = 0u;
     std::vector<std::unique_ptr<MenuPopup>> popups;
 
     // Root items (owned copy)
@@ -3081,11 +3084,16 @@ protected:
     void OnFocusChanged(ControlHost& host, bool focused) override
     {
         Base::OnFocusChanged(host, focused);
-        if (focused && _popup.keyboardIndex != _index)
+        if (focused)
         {
+            if (_popup.controller)
+                TakeKeyboardOwnership(*_popup.controller);
+            const bool changed = _popup.keyboardIndex != _index || _popup.hoveredIndex.has_value();
             _popup.keyboardIndex = _index;
+            _popup.hoveredIndex.reset();
             _popup.EnsureItemVisible(_index);
-            PostMenuAccessibilityRequest(_popup.hwnd, WndMsg::MenuPopupAccessibleFocus(), _index);
+            if (changed)
+                PostMenuAccessibilityRequest(_popup.hwnd, WndMsg::MenuPopupAccessibleFocus(), _index);
         }
     }
 
@@ -3909,6 +3917,12 @@ void DestroyMenuPopupWindow(MenuPopup& popup) noexcept
     return popup.hoveredIndex.has_value() && PopupOwnsOpenChildFromItem(controller, popupIndex, popup.hoveredIndex.value());
 }
 
+void TakeKeyboardOwnership(MenuController& controller) noexcept
+{
+    ++controller.keyboardOwnershipRevision;
+    for (const auto& popup : controller.popups)
+        CancelSubmenuHoverTimer(*popup);
+}
 void ScheduleSubmenuCloseTimer(MenuPopup& popup) noexcept
 {
     if (! popup.hwnd)
@@ -3926,6 +3940,7 @@ void ScheduleSubmenuCloseTimer(MenuPopup& popup) noexcept
 
     CancelSubmenuHoverTimer(popup);
     popup.hoverTimerId        = SetTimer(popup.hwnd, kSubmenuHoverTimerId, static_cast<UINT>(kCascadeHoverDelayMs), nullptr);
+    popup.hoverOwnershipRevision = popup.controller ? popup.controller->keyboardOwnershipRevision : 0u;
     popup.hoverTimerKind      = MenuPopup::SubmenuHoverTimerKind::PendingClose;
     popup.hoverTimerItemIndex = SIZE_MAX;
 }
@@ -3940,6 +3955,7 @@ void ScheduleSubmenuOpenTimer(MenuPopup& popup, size_t itemIndex) noexcept
 
     CancelSubmenuHoverTimer(popup);
     popup.hoverTimerId        = SetTimer(popup.hwnd, kSubmenuHoverTimerId, static_cast<UINT>(kCascadeHoverDelayMs), nullptr);
+    popup.hoverOwnershipRevision = popup.controller ? popup.controller->keyboardOwnershipRevision : 0u;
     popup.hoverTimerKind      = MenuPopup::SubmenuHoverTimerKind::PendingOpen;
     popup.hoverTimerItemIndex = itemIndex;
 }
@@ -3968,6 +3984,12 @@ void HandleSubmenuHoverTimer(MenuController& controller, MenuPopup& popup)
 {
     if (popup.hoverTimerId == 0 || popup.hoverTimerKind == MenuPopup::SubmenuHoverTimerKind::None)
     {
+        return;
+    }
+
+    if (popup.hoverOwnershipRevision != controller.keyboardOwnershipRevision)
+    {
+        CancelSubmenuHoverTimer(popup);
         return;
     }
 
@@ -4917,6 +4939,9 @@ void TraceMenuPointerRoute(MenuController& controller,
         return MenuInputDisposition::Ignored;
     }
 
+    if (event.kind == MenuKeyboardKind::Alt && (HIWORD(static_cast<DWORD>(event.lParam)) & KF_EXTENDED) != 0u && GetKeyState(VK_CONTROL) < 0)
+        return MenuInputDisposition::Consumed;
+
     const auto focusedIndex = [&]() noexcept -> std::optional<size_t>
     {
         auto idx = topmost->keyboardIndex.has_value() ? topmost->keyboardIndex : topmost->hoveredIndex;
@@ -4943,6 +4968,7 @@ void TraceMenuPointerRoute(MenuController& controller,
         {
             return true;
         }
+        TakeKeyboardOwnership(controller);
         controller.InvokeItem(commandId);
         return true;
     };
@@ -4971,6 +4997,7 @@ void TraceMenuPointerRoute(MenuController& controller,
             auto next = (cur == SIZE_MAX) ? topmost->FindLastNavigableItem() : topmost->FindNextNavigableItem(cur, false);
             if (next.has_value())
             {
+                TakeKeyboardOwnership(controller);
                 topmost->keyboardIndex = next;
                 topmost->hoveredIndex.reset();
                 topmost->EnsureItemVisible(next.value());
@@ -4984,6 +5011,7 @@ void TraceMenuPointerRoute(MenuController& controller,
             auto next = (cur == SIZE_MAX) ? topmost->FindFirstNavigableItem() : topmost->FindNextNavigableItem(cur, true);
             if (next.has_value())
             {
+                TakeKeyboardOwnership(controller);
                 topmost->keyboardIndex = next;
                 topmost->hoveredIndex.reset();
                 topmost->EnsureItemVisible(next.value());
@@ -5000,6 +5028,7 @@ void TraceMenuPointerRoute(MenuController& controller,
             auto first = topmost->FindFirstNavigableItem();
             if (first.has_value())
             {
+                TakeKeyboardOwnership(controller);
                 topmost->keyboardIndex = first;
                 topmost->hoveredIndex.reset();
                 topmost->EnsureItemVisible(first.value());
@@ -5022,6 +5051,7 @@ void TraceMenuPointerRoute(MenuController& controller,
             auto last = topmost->FindLastNavigableItem();
             if (last.has_value())
             {
+                TakeKeyboardOwnership(controller);
                 topmost->keyboardIndex = last;
                 topmost->hoveredIndex.reset();
                 topmost->EnsureItemVisible(last.value());
@@ -5043,10 +5073,12 @@ void TraceMenuPointerRoute(MenuController& controller,
                 }
                 if (! item.children.empty() && item.enabled)
                 {
+                    TakeKeyboardOwnership(controller);
                     OpenSubmenu(controller, *topmost, idx.value(), true);
                 }
                 else if (IsInvokableMenuItem(item))
                 {
+                    TakeKeyboardOwnership(controller);
                     controller.InvokeItem(item.commandId);
                     return MenuInputDisposition::Invoked;
                 }
@@ -5054,6 +5086,7 @@ void TraceMenuPointerRoute(MenuController& controller,
             return MenuInputDisposition::Consumed;
         }
         case MenuKeyboardKind::Escape:
+            TakeKeyboardOwnership(controller);
             if (controller.popups.size() > 1)
             {
                 controller.CloseTopmostSubmenu();
@@ -5063,7 +5096,9 @@ void TraceMenuPointerRoute(MenuController& controller,
             return MenuInputDisposition::Dismissed;
         case MenuKeyboardKind::Tab:
         case MenuKeyboardKind::F10:
-        case MenuKeyboardKind::Alt: controller.Dismiss(); return MenuInputDisposition::Dismissed;
+        case MenuKeyboardKind::Alt:
+            TakeKeyboardOwnership(controller);
+            controller.Dismiss(); return MenuInputDisposition::Dismissed;
         case MenuKeyboardKind::Right:
         {
             if (invokeFocusedSliderDelta(1))
@@ -5073,6 +5108,7 @@ void TraceMenuPointerRoute(MenuController& controller,
             auto idx = topmost->keyboardIndex.has_value() ? topmost->keyboardIndex : topmost->hoveredIndex;
             if (idx.has_value() && idx.value() < topmost->itemCount && ! topmost->items[idx.value()].children.empty() && topmost->items[idx.value()].enabled)
             {
+                TakeKeyboardOwnership(controller);
                 OpenSubmenu(controller, *topmost, idx.value(), true);
                 return MenuInputDisposition::Consumed;
             }
@@ -5081,6 +5117,7 @@ void TraceMenuPointerRoute(MenuController& controller,
             {
                 if (auto request = controller.sessionCallbacks.switchRootFromDirection(true); request.has_value())
                 {
+                    TakeKeyboardOwnership(controller);
                     if (SwitchRootPopup(controller, std::move(request.value()), L"root-switch-keyboard", true))
                     {
                         RememberKeyboardRootSwitchMessageTime(controller, event.messageTime);
@@ -5098,12 +5135,14 @@ void TraceMenuPointerRoute(MenuController& controller,
             }
             if (controller.popups.size() > 1)
             {
+                TakeKeyboardOwnership(controller);
                 controller.CloseTopmostSubmenu();
             }
             else if (controller.sessionCallbacks.switchRootFromDirection)
             {
                 if (auto request = controller.sessionCallbacks.switchRootFromDirection(false); request.has_value())
                 {
+                    TakeKeyboardOwnership(controller);
                     if (SwitchRootPopup(controller, std::move(request.value()), L"root-switch-keyboard", true))
                     {
                         RememberKeyboardRootSwitchMessageTime(controller, event.messageTime);
@@ -5118,6 +5157,7 @@ void TraceMenuPointerRoute(MenuController& controller,
             auto match = topmost->FindMnemonicItem(event.mnemonic);
             if (match.has_value())
             {
+                TakeKeyboardOwnership(controller);
                 const auto& item = topmost->items[match.value()];
                 if (! item.children.empty() && item.enabled)
                 {

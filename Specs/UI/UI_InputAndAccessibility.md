@@ -22,6 +22,8 @@ order; full-value access must not require duplicate hidden announcements. Repeat
 does not produce repeated notifications. Application navigation supplies its own stable target and
 stale-completion policy; the library does not choose the destination or steal focus on completion.
 
+A menu keyboard action that changes the logical target, invokes, opens or closes a popup, or changes the active root, and explicit UIA focus, cancel pending pointer cascade timers across the session. Already queued old timer delivery must not undo the new owner. Unmatched characters, inert keys and AltGr preserve pointer ownership and pending hover; genuine later pointer movement may take ownership again.
+
 Described native menus expose full per-entry names and MenuItem roles, exact command invocation
 and acknowledged checked state. Modal and asynchronous menu tracking both activate the root popup
 for native keyboard dispatch; submenus never activate. Dismissal restores the previously focused

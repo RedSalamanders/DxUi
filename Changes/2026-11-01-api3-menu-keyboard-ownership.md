@@ -1,0 +1,1 @@
+- Preserve keyboard and accessibility focus against stale menu hover timers in the API 3 compatibility branch.
