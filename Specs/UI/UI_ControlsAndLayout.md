@@ -936,6 +936,9 @@ Tooltip selection does not mutate source, selection, history or focus. Source
 changes, scrolling, hiding and control detachment retire the previous title.
 Editor setters commit before clearing a visible title tooltip; synchronous
 embedded invalidation may call a newer setter, and that newer state wins.
+After clearing visible tooltip content, the host resolves the hovered target and
+text again before publication. This also applies when a generic consumer tooltip
+was visible: its invalidation callback may replace the candidate rich document.
 An expanded inline source owner's edit help is not an authored hover title.
 
 ## Retained RichTextEditor v0 preview (D2c)

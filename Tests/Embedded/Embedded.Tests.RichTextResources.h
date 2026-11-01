@@ -86,8 +86,10 @@ static void TestRichTooltipReentrantTransitions(GraphicsFixture& gpu)
         {
             if (action == 1u)
                 current.editor->SetReadOnly(true);
-            else
+            else if (action == 2u)
                 current.editor->SetViewMode(RichText::ViewMode::Rich);
+            else
+                current.editor->SetText(L"[new](https://example.test \"Current title\")");
         }
         catch (const std::bad_alloc&)
         {
@@ -100,7 +102,7 @@ static void TestRichTooltipReentrantTransitions(GraphicsFixture& gpu)
         }
     };
     Hr(view.Attach(graphics, callbacks), "attach tooltip transition host");
-    for (const unsigned action : {1u, 2u})
+    for (const unsigned action : {1u, 2u, 3u})
     {
         auto root    = std::make_unique<RichTextEditor>(L"[link](https://example.test \"Link title\")");
         state.editor = root.get();
@@ -123,14 +125,45 @@ static void TestRichTooltipReentrantTransitions(GraphicsFixture& gpu)
         state.action                = action;
         if (action == 1u)
             state.editor->SetReadOnly(false);
-        else
+        else if (action == 2u)
             state.editor->SetViewMode(RichText::ViewMode::Source);
+        else
+            state.editor->SetText(L"outer replacement");
         Check(state.called && ! state.failed && state.editor->IsReadOnly() && state.editor->GetViewMode() == RichText::ViewMode::Rich,
-              "a newer setter in tooltip invalidation wins over the outer read-only or mode transition");
-        Check(state.editor->GetText() == L"[link](https://example.test \"Link title\")" && ! state.editor->CanUndo(),
-              "reentrant tooltip transitions preserve source and history");
+              "a newer setter in tooltip invalidation wins over the outer read-only, mode or source transition");
+        const std::wstring_view expected = action == 3u ? L"[new](https://example.test \"Current title\")" :
+                                                        L"[link](https://example.test \"Link title\")";
+        Check(state.editor->GetText() == expected && ! state.editor->CanUndo(), "reentrant tooltip transitions preserve the newest source and history");
         Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "settle reentrant tooltip transition");
     }
+    auto root = std::make_unique<RichTextEditor>(L"[link](https://example.test \"Retired title\")");
+    state.editor = root.get();
+    state.editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
+    state.editor->SetMarkdownRenderingEnabled(true);
+    state.editor->SetTooltipText(L"General tooltip");
+    view.Controls().SetRoot(std::move(root));
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare generic-to-rich tooltip transition");
+    const auto document = state.editor->GetAcknowledgedSemanticDocument(view.Controls());
+    const auto link = std::ranges::find_if(document->Elements(), [](const auto& element) { return element.role == RichText::SemanticRole::Link; });
+    Check(link != document->Elements().end(), "generic tooltip fixture has a link owner");
+    const auto bounds = state.editor->GetSemanticElementBounds(view.Controls(), static_cast<std::size_t>(link - document->Elements().begin()));
+    Check(bounds.has_value(), "generic tooltip fixture has prepared bounds");
+    const PointerEvent move{PointerAction::Move, (bounds->left + bounds->right) * .5f, (bounds->top + bounds->bottom) * .5f};
+    view.DispatchPointer(move);
+    Check(view.Controls().DebugGetPendingTooltipText() == L"General tooltip", "editable hover starts with the generic tooltip");
+    Check(view.Controls().DebugAdvanceTooltipDelayForTest(), "make the generic tooltip visible before transition");
+    state.editor->SetReadOnly(true);
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "settle read-only generic tooltip fixture");
+    Check(view.Controls().HasTooltip(), "generic tooltip remains visible before the rich target changes");
+    state.called = state.failed = false;
+    state.action = 3u;
+    view.DispatchPointer(move);
+    Check(state.called && ! state.failed && state.editor->GetText() == L"[new](https://example.test \"Current title\")",
+          "generic tooltip clear callback replaces the candidate rich document");
+    Check(view.Controls().DebugGetPendingTooltipText() != L"Retired title", "post-clear resolution never publishes the retired candidate title");
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "settle replacement after tooltip clear");
+    view.DispatchPointer(move);
+    Check(view.Controls().DebugGetPendingTooltipText() == L"Current title", "subsequent hover resolves the current document's authored title");
 }
 
 static void TestRichPreparedWordFailureAtomicity(GraphicsFixture& gpu)

@@ -5716,7 +5716,7 @@ Control* ControlHost::FindSupplementalTooltipTarget(Control* root, D2D1_POINT_2F
 void ControlHost::UpdateSupplementalTooltipTarget(D2D1_POINT_2F pointDip) noexcept
 try
 {
-    Control* const target = FindSupplementalTooltipTarget(_root.get(), pointDip);
+    Control* target = FindSupplementalTooltipTarget(_root.get(), pointDip);
     // A copy that cannot be made (out of memory) shows no supplemental tooltip rather than leaving this noexcept path.
     std::wstring targetText(0u, L' ');
     bool richTitle{};
@@ -5735,8 +5735,17 @@ try
         if (_tooltipInspectionRevision != tooltipRevision + 1u || _interactionRevision != interaction ||
             (target && (lifetime.expired() || ! IsControlInTree(_root.get(), target))))
             return;
+        // Clearing a visible tooltip can synchronously notify an embedded
+        // client. That callback may replace a rich document without changing
+        // the hovered control or the former generic tooltip's owner. Resolve
+        // again after the callback instead of publishing the copied old title.
+        target = FindSupplementalTooltipTarget(_root.get(), pointDip);
+        targetText.clear();
+        richTitle = false;
+        if (target && ! TryControlCallback([&] { targetText.assign(SupplementalTooltipText(target, pointDip, &richTitle)); }))
+            targetText.clear();
         _supplementalTooltipControl  = target;
-        _supplementalTooltipLifetime = lifetime;
+        _supplementalTooltipLifetime = target ? target->GetLifetimeToken() : std::weak_ptr<int>{};
         _supplementalTooltipText.swap(targetText);
         _supplementalTooltipIsRichTitle = richTitle;
     }
