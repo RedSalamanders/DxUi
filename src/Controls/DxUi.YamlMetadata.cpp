@@ -451,7 +451,7 @@ std::string YamlScalarKey(const YamlNode& node)
         result.push_back(':');
         result.append(node.tag);
         result.append(node.scalar);
-        return result;
+        return std::string(std::string_view(result));
     }
     return "s" + node.scalar;
 }
@@ -492,7 +492,7 @@ std::string CanonicalYamlNode(const YamlGraph& graph, std::size_t index, std::ve
         std::vector<std::unique_ptr<std::string>> pairs(0u);
         for (std::size_t i = 0u; i < node.children.size(); i += 2u)
         {
-            auto pair = std::make_unique<std::string>();
+            auto pair = std::make_unique<std::string>(0u, '\0');
             AppendYamlPart(*pair, CanonicalYamlNode(graph, node.children[i], active, depth + 1u, budget), budget);
             AppendYamlPart(*pair, CanonicalYamlNode(graph, node.children[i + 1u], active, depth + 1u, budget), budget);
             pairs.push_back(std::move(pair));
@@ -505,7 +505,7 @@ std::string CanonicalYamlNode(const YamlGraph& graph, std::size_t index, std::ve
         for (const auto child : node.children)
             AppendYamlPart(result, CanonicalYamlNode(graph, child, active, depth + 1u, budget), budget);
     active[index] = 0u;
-    return result;
+    return std::string(std::string_view(result));
 }
 
 MetadataIssue CheckYamlKeys(const YamlGraph& graph)
@@ -532,7 +532,8 @@ MetadataIssue CheckYamlKeys(const YamlGraph& graph)
         std::vector<std::unique_ptr<std::string>> keys(0u);
         for (std::size_t i = 0u; i < node->children.size(); i += 2u)
         {
-            auto key = std::make_unique<std::string>(CanonicalYamlNode(graph, node->children[i], active, 0u, budget));
+            const auto canonical = CanonicalYamlNode(graph, node->children[i], active, 0u, budget);
+            auto key = std::make_unique<std::string>(canonical);
             if (key->size() > 8u * 1024u * 1024u - budget.bytes)
                 throw YamlCapacityError{};
             budget.bytes += key->size();

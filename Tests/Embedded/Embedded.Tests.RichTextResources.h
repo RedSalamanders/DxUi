@@ -1212,7 +1212,9 @@ static void TestRichFrontMatterAllocationFailureAtomicity(bool trace = false)
                                            L"---\nkey: [\n",
                                            L"+++\nkey = [\n",
                                            L"+++\nx = 1\nx = 2\n+++\n",
-                                           L"---\na: 1\na: 2\n---\n"})
+                                           L"---\na: 1\na: 2\n---\n",
+                                           L"+++\nnested = [{ x = [1, 2], text = \"long value\" }]\n+++\n",
+                                           L"---\na: &anchor [one, two]\nb: *anchor\n? {x: 1, y: 2}\n: value\n---\n"})
     {
         std::size_t requests{};
         {

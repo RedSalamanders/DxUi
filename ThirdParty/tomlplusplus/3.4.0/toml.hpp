@@ -7189,7 +7189,11 @@ TOML_NAMESPACE_START
 	  public:
 
 		TOML_NODISCARD_CTOR
-		key() noexcept = default;
+		key() : key_(0u, '\0') {}
+		key(const key&) = default;
+		key(key&& other) : key_(other.key_), source_(std::move(other.source_)) {}
+		key& operator=(const key&) = default;
+		key& operator=(key&& other) { key_ = other.key_; source_ = std::move(other.source_); return *this; }
 
 		TOML_NODISCARD_CTOR
 		explicit key(std::string_view k, source_region&& src = {}) //
@@ -7204,14 +7208,14 @@ TOML_NAMESPACE_START
 		{}
 
 		TOML_NODISCARD_CTOR
-		explicit key(std::string&& k, source_region&& src = {}) noexcept //
-			: key_{ std::move(k) },
+		explicit key(std::string&& k, source_region&& src = {}) //
+			: key_{ std::string_view{k} },
 			  source_{ std::move(src) }
 		{}
 
 		TOML_NODISCARD_CTOR
-		explicit key(std::string&& k, const source_region& src) noexcept //
-			: key_{ std::move(k) },
+		explicit key(std::string&& k, const source_region& src) //
+			: key_{ std::string_view{k} },
 			  source_{ src }
 		{}
 
@@ -11667,7 +11671,7 @@ TOML_PUSH_WARNINGS;
 TOML_NAMESPACE_START
 {
 	TOML_EXTERNAL_LINKAGE
-	array::array()
+	array::array() : elems_(0u)
 	{
 #if TOML_LIFETIME_HOOKS
 		TOML_ARRAY_CREATED;
@@ -11683,7 +11687,7 @@ TOML_NAMESPACE_START
 	}
 
 	TOML_EXTERNAL_LINKAGE
-	array::array(const impl::array_init_elem* b, const impl::array_init_elem* e)
+	array::array(const impl::array_init_elem* b, const impl::array_init_elem* e) : elems_(0u)
 	{
 #if TOML_LIFETIME_HOOKS
 		TOML_ARRAY_CREATED;
@@ -11715,7 +11719,7 @@ TOML_NAMESPACE_START
 
 	TOML_EXTERNAL_LINKAGE
 	array::array(const array& other) //
-		: node(other)
+		: node(other), elems_(0u)
 	{
 		elems_.reserve(other.elems_.size());
 		for (const auto& elem : other)
@@ -11729,8 +11733,9 @@ TOML_NAMESPACE_START
 	TOML_EXTERNAL_LINKAGE
 	array::array(array && other) //
 		: node(std::move(other)),
-		  elems_(std::move(other.elems_))
+		  elems_(0u)
 	{
+		elems_.swap(other.elems_);
 #if TOML_LIFETIME_HOOKS
 		TOML_ARRAY_CREATED;
 #endif
@@ -13298,6 +13303,8 @@ TOML_ANON_NAMESPACE_START
 
 	struct parse_key_buffer
 	{
+		parse_key_buffer() : buffer(0u, '\0'), segments(0u), starts(0u), ends(0u) {}
+
 		std::string buffer;
 		std::vector<std::pair<size_t, size_t>> segments;
 		std::vector<source_position> starts;
@@ -15974,7 +15981,8 @@ TOML_IMPL_NAMESPACE_START
 
 	  public:
 		parser(utf8_reader_interface&& reader_) //
-			: reader{ reader_ }
+			: reader{ reader_ }, implicit_tables(0u), dotted_key_tables(0u), open_inline_tables(0u), table_arrays(0u),
+			  string_buffer(0u, '\0'), recording_buffer(0u, '\0')
 		{
 			root.source_ = { prev_pos, prev_pos, reader.source_path() };
 

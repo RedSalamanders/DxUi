@@ -60,7 +60,7 @@ bool MetadataUtf8(std::wstring_view source, std::string& utf8)
 
 MetadataIssue ValidateTomlMetadata(std::wstring_view source)
 {
-    std::string utf8;
+    std::string utf8(0u, '\0');
     if (! MetadataUtf8(source, utf8))
         return MetadataIssue::Invalid;
     try
