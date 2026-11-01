@@ -50,7 +50,15 @@ void TestRichDocumentPrototypeContracts()
     const std::string utf8 = "\xef\xbb\xbf# caf\xc3\xa9\r\n\xf0\x9f\x98\x80";
     Require(EncodeUtf8(DecodeUtf8(utf8)) == utf8, "UTF-8 BOM line endings byte identity");
     Reject([] { DecodeUtf8("\xc0\x80"); }, "overlong UTF-8 rejected");
-    Reject([] { DecodeUtf8(std::string(1, '\0')); }, "embedded NUL rejected");
+    const std::string countedUtf8("a\0b\0", 4u);
+    const auto countedUtf16 = DecodeUtf8(countedUtf8);
+    Require(countedUtf16 == std::wstring(L"a\0b\0", 4u) && EncodeUtf8(countedUtf16) == countedUtf8,
+            "source codecs preserve counted NUL and all following bytes");
+    Require(IsValidSourceUtf16(countedUtf16) && ! IsValidUtf16(countedUtf16), "source admission is independent of strict Win32 string validation");
+    Document countedDocument(countedUtf16);
+    countedDocument.SetSelection({2u, 2u});
+    Require(countedDocument.Length() == 4u && countedDocument.ReplaceSelection(L"X") && countedDocument.Undo() && countedDocument.Text() == countedUtf16,
+            "counted source edits and undo retain the entire NUL-containing document");
     Document full(std::wstring(Document::MaximumUnits, L'x'));
     Reject([&] { full.ReplaceSelection(L"x"); }, "prototype size limit");
     Require(full.Length() == Document::MaximumUnits, "limit atomic");
