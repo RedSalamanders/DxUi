@@ -378,6 +378,10 @@ inline void ListsAndHeadings()
                           std::ranges::none_of(protectedSyntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
                       "unmatched math opener cannot consume a closer owned by later code, HTML or angle autolink");
             }
+            Document mathComparison(L"$x < y$");
+            const auto comparisonSyntax = Parse(mathComparison, profile);
+            Check(std::ranges::any_of(comparisonSyntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
+                  "a literal comparison operator does not masquerade as an HTML ownership boundary");
             request.mathDisplay = false;
         }
         else
