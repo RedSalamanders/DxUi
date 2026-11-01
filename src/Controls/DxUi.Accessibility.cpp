@@ -5458,14 +5458,14 @@ HRESULT SetDoubleArray(SAFEARRAY** outArray, std::span<const double> values) noe
 }
 
 HRESULT SetScreenRectDoubleArray(
-    SAFEARRAY** outArray, WindowHostAccessibilityTarget* target, HWND hwnd, std::span<const D2D1_RECT_F> boundsDip, float dipToPixelScale) noexcept
+    SAFEARRAY** outArray, WindowHostAccessibilityTarget* target, HWND hwnd, std::span<const D2D1_RECT_F> boundsDip, float dipToPixelScale)
 {
     if (! std::isfinite(dipToPixelScale) || dipToPixelScale <= 0.0f)
     {
         dipToPixelScale = 1.0f;
     }
 
-    std::vector<double> values;
+    std::vector<double> values(0u);
     values.reserve(boundsDip.size() * 4u);
     const auto snapshot = CaptureAccessibilitySnapshot(target, hwnd);
     if (target && target->embedded && (! snapshot || ! snapshot->alive))
