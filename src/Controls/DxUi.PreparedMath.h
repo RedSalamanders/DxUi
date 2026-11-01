@@ -313,6 +313,7 @@ class PreparedMath final
         bool bold{};
         bool italic{};
         MathTextFamily textFamily = MathTextFamily::Math;
+        bool pseudoBold{};
         wil::com_ptr<IDWriteTextLayout> layout;
         Extent extent;
         D2D1_POINT_2F origin{};
@@ -681,7 +682,7 @@ class PreparedMath final
                         node.text != L"boldsymbol" && node.text != L"bm" && node.text != L"mathbb" && node.text != L"mathcal" && node.text != L"mathfrak" &&
                         node.text != L"mathsf" && node.text != L"mathtt" && node.text != L"mathord" && node.text != L"mathop" && node.text != L"mathbin" &&
                         node.text != L"mathrel" && node.text != L"mathopen" && node.text != L"mathclose" && node.text != L"mathpunct" &&
-                        node.text != L"mathinner" && node.text != L"textsf" && node.text != L"texttt" && node.text != L"textrm" && node.text != L"textnormal" && node.text != L"textmd" && node.text != L"emph" && node.text != L"displaystyle" && node.text != L"textstyle" && node.text != L"scriptstyle" &&
+                        node.text != L"mathinner" && node.text != L"textsf" && node.text != L"texttt" && node.text != L"textrm" && node.text != L"textnormal" && node.text != L"textmd" && node.text != L"emph" && node.text != L"pmb" && node.text != L"displaystyle" && node.text != L"textstyle" && node.text != L"scriptstyle" &&
                         node.text != L"scriptscriptstyle" && node.text != L"tiny" && node.text != L"sixptsize" && node.text != L"scriptsize" &&
                         node.text != L"footnotesize" && node.text != L"small" && node.text != L"normalsize" && node.text != L"large" && node.text != L"Large" &&
                         node.text != L"LARGE" && node.text != L"huge" && node.text != L"Huge" && ! ColorArgument(node.text, L"textcolor:"))
@@ -734,16 +735,8 @@ class PreparedMath final
     {
         return shape != L'.';
     }
-    std::size_t Flatten(const MathNode& node,
-                        float size,
-                        bool bold,
-                        bool italic,
-                        bool forceItalic,
-                        bool display,
-                        unsigned scriptLevel,
-                        int namedSizeIndex        = -1,
-                        std::uint32_t foreground  = NoColor,
-                        MathTextFamily textFamily = MathTextFamily::Math)
+    std::size_t Flatten(const MathNode& node, float size, bool bold, bool italic, bool forceItalic, bool display, unsigned scriptLevel,
+                        int namedSizeIndex = -1, std::uint32_t foreground = NoColor, MathTextFamily textFamily = MathTextFamily::Math, bool pseudoBold = false)
     {
         const auto index = boxes.size();
         boxes.push_back({&node, 0u, 0u, std::numeric_limits<std::size_t>::max(), {}, 0.f, node.atomClass, size, scriptLevel, display});
@@ -775,7 +768,7 @@ class PreparedMath final
             if (node.largeOperator && display)
                 size = std::max(size, font * displayOperatorMinimum);
             const auto glyphIndex = glyphs.size();
-            glyphs.push_back({&node, index, size, bold, forceItalic ? italic : italic || node.italic, textFamily, {}, {}, {}});
+            glyphs.push_back({&node, index, size, bold, forceItalic ? italic : italic || node.italic, textFamily, pseudoBold, {}, {}, {}});
             boxes[index].glyph    = glyphIndex;
             boxes[index].endChild = boxes.size();
             return index;
@@ -790,8 +783,9 @@ class PreparedMath final
             bool childBold = bold, childItalic = italic, childDisplay = display;
             bool childForceItalic = forceItalic;
             auto childLevel       = scriptLevel;
-            auto childNamedSize   = namedSizeIndex;
-            auto childFamily      = textFamily;
+            auto childNamedSize = namedSizeIndex;
+            auto childFamily = textFamily;
+            bool childPseudoBold = pseudoBold;
             constexpr std::array<float, 11u> namedScales{.5f, .6f, .7f, .8f, .9f, 1.f, 1.2f, 1.44f, 1.728f, 2.074f, 2.488f};
             constexpr std::array<std::array<unsigned, 3u>, 11u> sizeStyle{
                 {{0, 0, 0}, {1, 0, 0}, {2, 0, 0}, {3, 1, 0}, {4, 1, 0}, {5, 2, 0}, {6, 3, 1}, {7, 5, 2}, {8, 6, 5}, {9, 7, 6}, {10, 9, 8}}};
@@ -802,12 +796,10 @@ class PreparedMath final
             };
             if (node.kind == MathKind::Style)
             {
-                if (node.text == L"textsf")
-                    childFamily = MathTextFamily::Sans;
-                else if (node.text == L"texttt")
-                    childFamily = MathTextFamily::Monospace;
-                else if (node.text == L"textrm" || node.text == L"textnormal")
-                    childFamily = MathTextFamily::Math;
+                if (node.text == L"pmb") childPseudoBold = true;
+                if (node.text == L"textsf") childFamily = MathTextFamily::Sans;
+                else if (node.text == L"texttt") childFamily = MathTextFamily::Monospace;
+                else if (node.text == L"textrm" || node.text == L"textnormal") childFamily = MathTextFamily::Math;
                 if (node.text == L"mathbf")
                 {
                     childBold        = true;
@@ -904,7 +896,7 @@ class PreparedMath final
             }
             else if (node.kind == MathKind::Delimiter)
                 childSize = size;
-            Flatten(child, childSize, childBold, childItalic, childForceItalic, childDisplay, childLevel, childNamedSize, foreground, childFamily);
+            Flatten(child, childSize, childBold, childItalic, childForceItalic, childDisplay, childLevel, childNamedSize, foreground, childFamily, childPseudoBold);
         }
         boxes[index].firstChild = firstChild;
         boxes[index].endChild   = boxes.size();
@@ -1114,9 +1106,9 @@ class PreparedMath final
                 }
                 const auto& glyph = glyphs[box.glyph];
                 box.extent        = glyph.extent;
-                box.extent.width += box.leftOffset + glyph.rightOverhang;
+                box.extent.width += box.leftOffset + glyph.rightOverhang + (glyph.pseudoBold ? glyph.font * .02f : 0.f);
                 box.extent.above += glyph.topOverhang;
-                box.extent.below += glyph.bottomOverhang;
+                box.extent.below += glyph.bottomOverhang + (glyph.pseudoBold ? glyph.font * .01f : 0.f);
                 continue;
             }
             if (node.kind == Space)
@@ -2108,9 +2100,9 @@ class PreparedMath final
         for (const auto& glyph : glyphs)
         {
             left   = std::min(left, glyph.origin.x - glyph.leftOverhang);
-            right  = std::max(right, glyph.origin.x + glyph.extent.width + glyph.rightOverhang);
+            right  = std::max(right, glyph.origin.x + glyph.extent.width + glyph.rightOverhang + (glyph.pseudoBold ? glyph.font * .02f : 0.f));
             top    = std::min(top, glyph.origin.y - glyph.topOverhang);
-            bottom = std::max(bottom, glyph.origin.y + glyph.extent.above + glyph.extent.below + glyph.bottomOverhang);
+            bottom = std::max(bottom, glyph.origin.y + glyph.extent.above + glyph.extent.below + glyph.bottomOverhang + (glyph.pseudoBold ? glyph.font * .01f : 0.f));
         }
         for (const auto& variant : variants)
         {
@@ -2423,7 +2415,7 @@ public:
             }
             switch (operation.kind)
             {
-                case PaintKind::Glyph: target->DrawTextLayout(glyphs[operation.index].origin, glyphs[operation.index].layout.get(), selected); break;
+                case PaintKind::Glyph: DrawGlyph(target, glyphs[operation.index], selected); break;
                 case PaintKind::Line:
                     target->DrawLine(lines[operation.index].first, lines[operation.index].last, selected, lines[operation.index].thickness);
                     break;
@@ -2432,12 +2424,14 @@ public:
             }
         }
     }
-    void Draw(ID2D1RenderTarget* target,
-              ID2D1Brush* brush,
-              D2D1_POINT_2F origin,
-              float scale,
-              const NativeColorPalette* palette = nullptr,
-              const MathColorContext* context   = nullptr) const noexcept
+    static void DrawGlyph(ID2D1RenderTarget* target, const Glyph& glyph, ID2D1Brush* brush) noexcept
+    {
+        target->DrawTextLayout(glyph.origin, glyph.layout.get(), brush);
+        if (glyph.pseudoBold)
+            target->DrawTextLayout(D2D1::Point2F(glyph.origin.x + glyph.font * .02f, glyph.origin.y + glyph.font * .01f), glyph.layout.get(), brush);
+    }
+    void Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, float scale,
+              const NativeColorPalette* palette = nullptr, const MathColorContext* context = nullptr) const noexcept
     {
         D2D1_MATRIX_3X2_F previous;
         target->GetTransform(&previous);
@@ -2454,7 +2448,7 @@ public:
         if (! colored)
         {
             for (const auto& glyph : glyphs)
-                target->DrawTextLayout(glyph.origin, glyph.layout.get(), brush);
+                DrawGlyph(target, glyph, brush);
             for (const auto& line : lines)
                 target->DrawLine(line.first, line.last, brush, line.thickness);
             for (const auto& variant : variants)

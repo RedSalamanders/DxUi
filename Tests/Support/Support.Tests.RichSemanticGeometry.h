@@ -935,6 +935,32 @@ inline void MathWidthReflowAndTargetReplacement()
     geometry.Begin(factory.get(), document, options, drawing.get(), {}, {}, replacement.get());
     Complete(geometry);
     Check(DxUi::RichText::Detail::testRichMathPreparations == beforeScale + 2u, "width-only reflow still reuses the new math scale");
+    {
+        Detail::PreparedMath regular(factory.get(), std::make_shared<const MathExpression>(ParseMath(L"\\mu")), 48.f);
+        Detail::PreparedMath shadow(factory.get(), std::make_shared<const MathExpression>(ParseMath(L"\\pmb{\\mu}")), 48.f);
+        while (! regular.Advance()) {}
+        while (! shadow.Advance()) {}
+        wil::com_ptr<ID2D1SolidColorBrush> black;
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), black.put()));
+        const auto pixelsFor = [&](const Detail::PreparedMath& value)
+        {
+            target->BeginDraw();
+            target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+            value.Draw(target.get(), black.get(), D2D1::Point2F(20.f, 20.f), 1.f);
+            THROW_IF_FAILED(target->EndDraw());
+            std::vector<BYTE> pixels(512u * 512u * 4u, 0u);
+            THROW_IF_FAILED(bitmap->CopyPixels(nullptr, 512u * 4u, static_cast<UINT>(pixels.size()), pixels.data()));
+            return std::vector<BYTE>(pixels);
+        };
+        const auto regularPixels = pixelsFor(regular);
+        const auto shadowPixels = pixelsFor(shadow);
+        Check(regularPixels != shadowPixels, "poor-man bold's staged offset changes actual WIC raster pixels");
+        Detail::PreparedMath colored(factory.get(), std::make_shared<const MathExpression>(ParseMath(L"\\textcolor{red}{x}")), 48.f);
+        Detail::PreparedMath coloredShadow(factory.get(), std::make_shared<const MathExpression>(ParseMath(L"\\textcolor{red}{\\pmb{x}}")), 48.f);
+        while (! colored.Advance()) {}
+        while (! coloredShadow.Advance()) {}
+        Check(pixelsFor(colored) != pixelsFor(coloredShadow), "colored paint operations retain the poor-man-bold overprint");
+    }
     const auto tagged = RichSemanticDocumentTests::Build(L"$$\nx+1\\tag{Eq. 1}\n$$\n", MarkdownProfile::RichMarkdown);
     geometry.Clear();
     const auto beforeTagged = DxUi::RichText::Detail::testRichMathPreparations;

@@ -1189,6 +1189,20 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     }
 #endif
     check(static_cast<bool>(ParseMath(L"\\colorbox{red}{\\emph{x}}")), "colored text permits bounded emphasis");
+#if DXUI_ENABLE_DIAGNOSTICS
+    {
+        const auto plainExpression = std::make_shared<const MathExpression>(ParseMath(L"\\mu"));
+        const auto shadowExpression = std::make_shared<const MathExpression>(ParseMath(L"\\pmb{\\mu}"));
+        check(static_cast<bool>(*shadowExpression), "poor-man bold parses without replacing the atom class");
+        Detail::PreparedMath plain(factory, plainExpression, 24.f), shadow(factory, shadowExpression, 24.f);
+        while (! plain.Advance()) {}
+        while (! shadow.Advance()) {}
+        check(! plain.GlyphLayouts()[0u].pseudoBold && shadow.GlyphLayouts()[0u].pseudoBold && ! shadow.GlyphLayouts()[0u].bold &&
+                  shadow.Size().width >= plain.Size().width,
+              "poor-man bold reserves shadow ink without substituting a true bold font");
+        check(static_cast<bool>(ParseMath(L"\\colorbox{red}{\\pmb{x}}")), "colored text accepts bounded poor-man bold");
+    }
+#endif
     const auto binomial = ParseMath(L"\\binom{n}{k}");
     check(binomial && binomial.root.children.size() == 1u && binomial.root.children[0u].kind == MathKind::Matrix &&
               binomial.root.children[0u].text == L"pmatrix" && binomial.root.children[0u].columns == 1u && binomial.root.children[0u].children.size() == 2u,

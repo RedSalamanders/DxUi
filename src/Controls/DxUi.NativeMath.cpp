@@ -758,7 +758,7 @@ class Parser
             return result;
         }
         if (name == L"mathrm" || name == L"mathbf" || name == L"mathit" || name == L"mathnormal" || name == L"boldsymbol" || name == L"bm" ||
-            name == L"mathbb" || name == L"mathcal" || name == L"mathfrak" || name == L"mathsf" || name == L"mathtt" || name == L"mathord" ||
+            name == L"mathbb" || name == L"mathcal" || name == L"mathfrak" || name == L"mathsf" || name == L"mathtt" || name == L"pmb" || name == L"mathord" ||
             name == L"mathop" || name == L"mathbin" || name == L"mathrel" || name == L"mathopen" || name == L"mathclose" || name == L"mathpunct" ||
             name == L"mathinner")
         {
@@ -1077,7 +1077,7 @@ class Parser
                 else if (name == L"textcolor" || name == L"colorbox" || name == L"fcolorbox")
                     append(ColorCommand(name, depth, true));
                 else if (name == L"textbf" || name == L"textit" || name == L"textrm" || name == L"textsf" || name == L"texttt" ||
-                         name == L"textup" || name == L"textmd" || name == L"textnormal" || name == L"emph")
+                         name == L"textup" || name == L"textmd" || name == L"textnormal" || name == L"emph" || name == L"pmb")
                     append(Make(MathKind::Style, name == L"textbf" ? std::wstring(L"mathbf") : name == L"textit" ? std::wstring(L"mathit") :
                                                   name == L"textup" ? std::wstring(L"mathrm") : std::wstring(name),
                                 {TextColorBody(depth + 1u)}));
@@ -1153,7 +1153,7 @@ class Parser
             L"not", L"frac", L"dfrac", L"tfrac", L"cfrac", L"binom", L"dbinom", L"tbinom", L"overset", L"underset", L"stackrel", L"sqrt", L"substack"};
         if (std::ranges::find(structured, name) != std::end(structured))
             return StructuredCommand(name, depth);
-        static constexpr std::wstring_view styled[] = {L"text",       L"textbf",     L"textit",   L"textup", L"textmd", L"textnormal", L"textrm", L"textsf", L"texttt", L"emph", L"operatorname", L"bold", L"frak", L"Bbb", L"mathrm",    L"mathbf",   L"mathit",
+        static constexpr std::wstring_view styled[] = {L"text",       L"textbf",     L"textit",   L"textup", L"textmd", L"textnormal", L"textrm", L"textsf", L"texttt", L"emph", L"pmb", L"operatorname", L"bold", L"frak", L"Bbb", L"mathrm",    L"mathbf",   L"mathit",
                                                        L"mathnormal", L"boldsymbol", L"bm",       L"mathbb",       L"mathcal",   L"mathfrak", L"mathsf",
                                                        L"mathtt",     L"mathord",    L"mathop",   L"mathbin",      L"mathrel",   L"mathopen", L"mathclose",
                                                        L"mathpunct",  L"mathinner",  L"overline", L"underline",    L"bar",       L"hat",      L"widehat",
