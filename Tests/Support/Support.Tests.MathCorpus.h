@@ -269,6 +269,15 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     check(sizedNorm && sizedNorm.root.children.size() == 1u && sizedNorm.root.children[0u].kind == MathKind::Delimiter &&
               sizedNorm.root.children[0u].text == L"‖" && sizedNorm.root.children[0u].delimiterSize == 1u,
           "sized norm delimiter preserves its double-bar glyph and requested size");
+    for (const auto& [source, glyphs] : {std::pair{L"\\left\\lparen x\\right\\rparen", L"()"},
+                                         std::pair{L"\\left\\lt x\\right\\gt", L"<>"},
+                                         std::pair{L"\\left/ x\\right\\backslash", L"/\\"}})
+    {
+        const auto delimited = ParseMath(source);
+        check(delimited && delimited.root.children.size() == 1u && delimited.root.children[0u].kind == MathKind::Delimited &&
+                  delimited.root.children[0u].text == glyphs,
+              "parenthesis aliases, relation-shaped and slash delimiters retain exact glyph identity");
+    }
     const auto binomial = ParseMath(L"\\binom{n}{k}");
     check(binomial && binomial.root.children.size() == 1u && binomial.root.children[0u].kind == MathKind::Matrix &&
               binomial.root.children[0u].text == L"pmatrix" && binomial.root.children[0u].columns == 1u && binomial.root.children[0u].children.size() == 2u,

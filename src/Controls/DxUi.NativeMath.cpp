@@ -259,6 +259,16 @@ class Parser
                 return L'[';
             if (name == L"rbrack")
                 return L']';
+            if (name == L"lparen")
+                return L'(';
+            if (name == L"rparen")
+                return L')';
+            if (name == L"lt")
+                return L'<';
+            if (name == L"gt")
+                return L'>';
+            if (name == L"backslash")
+                return L'\\';
             if (name == L"lfloor")
                 return L'⌊';
             if (name == L"rfloor")
@@ -270,7 +280,7 @@ class Parser
             Reject();
         }
         const auto value = source[at++];
-        if (std::wstring_view(L"()[]{}|.⌊⌋⌈⌉⟨⟩‖").find(value) == source.npos)
+        if (std::wstring_view(L"()[]{}|.⌊⌋⌈⌉⟨⟩‖/<>").find(value) == source.npos)
             Reject();
         return value;
     }

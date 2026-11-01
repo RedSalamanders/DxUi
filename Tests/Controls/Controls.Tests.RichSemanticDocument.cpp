@@ -290,6 +290,10 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
     const auto raggedMatrix = prepare(L"\\begin{matrix}a&b\\\\c\\end{matrix}");
     Require(raggedMatrix->GlyphLayouts().size() == 3u && raggedMatrix->Size().width > 0.f && raggedMatrix->Size().height > 0.f,
             "a ragged matrix prepares visible cells and an implicit empty cell");
+    const auto slashFences = prepare(L"\\left/\\frac{x}{y}\\right\\backslash");
+    Require(slashFences->Size().width > 0.f && slashFences->Size().height > 0.f &&
+                slashFences->VariantLayouts().size() + slashFences->StrokeLayouts().size() >= 2u,
+            "slash and backslash fences have retained native geometry");
 
     const auto big = prepare(L"\\big("), Big = prepare(L"\\Big("), bigg = prepare(L"\\bigg("), Bigg = prepare(L"\\Bigg(");
     Require(big->Size().height < Big->Size().height && Big->Size().height < bigg->Size().height && bigg->Size().height < Bigg->Size().height,

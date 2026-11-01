@@ -315,15 +315,15 @@ class PreparedMath final
                     break;
                 case MathKind::Delimited:
                     if (node.kind == MathKind::Delimited &&
-                        (node.text.size() != 2u || std::wstring_view(L"()[]{}|.⟨⟩‖⌊⌋⌈⌉").find(node.text[0]) == std::wstring_view::npos ||
-                         std::wstring_view(L"()[]{}|.⟨⟩‖⌊⌋⌈⌉").find(node.text[1]) == std::wstring_view::npos))
+                        (node.text.size() != 2u || std::wstring_view(L"()[]{}|.⟨⟩‖⌊⌋⌈⌉/<>\\").find(node.text[0]) == std::wstring_view::npos ||
+                         std::wstring_view(L"()[]{}|.⟨⟩‖⌊⌋⌈⌉/<>\\").find(node.text[1]) == std::wstring_view::npos))
                         throw std::length_error("Invalid mathematical fence pair");
                     if (node.children.size() != 1u)
                         throw std::length_error("Invalid mathematical unary node");
                     break;
                 case MathKind::Delimiter:
                     if (! node.children.empty() || node.text.size() != 1u ||
-                        std::wstring_view(L"()[]{}|.⟨⟩‖⌊⌋⌈⌉").find(node.text[0]) == std::wstring_view::npos || node.delimiterSize < 1u ||
+                        std::wstring_view(L"()[]{}|.⟨⟩‖⌊⌋⌈⌉/<>\\").find(node.text[0]) == std::wstring_view::npos || node.delimiterSize < 1u ||
                         node.delimiterSize > 4u)
                         throw std::length_error("Invalid sized mathematical delimiter");
                     break;
@@ -845,7 +845,7 @@ class PreparedMath final
             return;
         if (AddVerticalVariant(shape, x, top, bottom, width, size))
             return;
-        const bool right  = shape == L')' || shape == L']' || shape == L'}' || shape == L'⟩' || shape == L'⌋' || shape == L'⌉';
+        const bool right  = shape == L')' || shape == L']' || shape == L'}' || shape == L'⟩' || shape == L'⌋' || shape == L'⌉' || shape == L'>';
         const auto outer  = right ? x + width : x;
         const auto inner  = right ? x : x + width;
         const auto middle = (top + bottom) / 2.f;
@@ -864,11 +864,13 @@ class PreparedMath final
             Stroke(outer, middle, outer, bottom - (bottom - top) * .15f, thickness);
             Stroke(outer, bottom - (bottom - top) * .15f, inner, bottom, thickness);
         }
-        else if (shape == L'⟨' || shape == L'⟩')
+        else if (shape == L'⟨' || shape == L'⟩' || shape == L'<' || shape == L'>')
         {
             Stroke(inner, top, outer, middle, thickness);
             Stroke(outer, middle, inner, bottom, thickness);
         }
+        else if (shape == L'/' || shape == L'\\')
+            Stroke(shape == L'/' ? x + width : x, top, shape == L'/' ? x : x + width, bottom, thickness);
         else if (shape == L'⌊' || shape == L'⌋' || shape == L'⌈' || shape == L'⌉')
         {
             Stroke(outer, top, outer, bottom, thickness);

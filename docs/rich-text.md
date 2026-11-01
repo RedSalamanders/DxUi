@@ -1407,8 +1407,9 @@ text groups and named operators are upright. Binary atoms at unary positions use
 ordinary spacing. Explicit math atom wrappers, display/text/script declarations,
 `limits`/`nolimits`, starred `operatorname`, sized `big`/`Big`/`bigg`/`Bigg` delimiters,
 and `tilde`/`widetilde` are admitted. Escaped `\|` produces a double vertical bar
-as an ordinary atom and as a scalable or sized delimiter. Text groups collapse
-source whitespace and remove grouping braces while retaining escaped literal braces. Matrix rows may
+as an ordinary atom and as a scalable or sized delimiter. Paired and sized
+delimiters also accept `\lparen`, `\rparen`, `\lt`, `\gt`, `/` and `\backslash`.
+Text groups collapse source whitespace and remove grouping braces while retaining escaped literal braces. Matrix rows may
 have a trailing separator; gathered rows have one column and cases at most two.
 `\not` admits ungrouped single relation glyphs `= < > ≤ ≥ ∈ ∋ ⊂ ⊃ ⊆ ⊇ ∼ ≡ ≈ ∣ ∥`
 and substitutes their Unicode negations; other operands retain exact source.
