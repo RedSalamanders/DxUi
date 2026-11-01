@@ -8,6 +8,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <numeric>
 #include <stdexcept>
@@ -16,6 +17,10 @@
 #include <wil/com.h>
 #include <wil/resource.h>
 #include <wil/result.h>
+#pragma warning(push)
+#pragma warning(disable : 4746)
+#include <wrl/implements.h>
+#pragma warning(pop)
 
 namespace DxUi::RichText::Detail
 {
@@ -102,6 +107,80 @@ private:
     std::wstring family_, locale_;
     std::vector<Entry> formats_;
 };
+// DWrite supplies the actual shaped face and glyph. Source-codepoint lookup is
+// not sufficient for font fallback, substitutions or surrogate-pair shaping.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
+class MathGlyphProbe final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDWriteTextRenderer>
+{
+public:
+    HRESULT STDMETHODCALLTYPE IsPixelSnappingDisabled(void*, BOOL* value) noexcept override
+    {
+        if (! value)
+            return E_POINTER;
+        *value = TRUE;
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE GetCurrentTransform(void*, DWRITE_MATRIX* value) noexcept override
+    {
+        if (! value)
+            return E_POINTER;
+        *value = {1, 0, 0, 1, 0, 0};
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE GetPixelsPerDip(void*, FLOAT* value) noexcept override
+    {
+        if (! value)
+            return E_POINTER;
+        *value = 1.f;
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE
+    DrawGlyphRun(void*, FLOAT, FLOAT, DWRITE_MEASURING_MODE, const DWRITE_GLYPH_RUN* run, const DWRITE_GLYPH_RUN_DESCRIPTION*, IUnknown*) noexcept override
+    {
+        ++runs;
+        if (run && run->glyphCount == 1u && run->glyphIndices && run->fontFace && ! run->isSideways)
+        {
+            face  = run->fontFace;
+            glyph = run->glyphIndices[0];
+        }
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE DrawUnderline(void*, FLOAT, FLOAT, const DWRITE_UNDERLINE*, IUnknown*) noexcept override
+    {
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE DrawStrikethrough(void*, FLOAT, FLOAT, const DWRITE_STRIKETHROUGH*, IUnknown*) noexcept override
+    {
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE DrawInlineObject(void*, FLOAT, FLOAT, IDWriteInlineObject*, BOOL, BOOL, IUnknown*) noexcept override
+    {
+        ++runs;
+        return S_OK;
+    }
+    wil::com_ptr<IDWriteFontFace> face;
+    UINT16 glyph{};
+    unsigned runs{};
+};
+#pragma warning(pop)
+inline bool SameMathFontFile(IDWriteFontFace* left, IDWriteFontFace* right) noexcept
+{
+    if (! left || ! right || left->GetType() != right->GetType() || left->GetIndex() != right->GetIndex())
+        return false;
+    UINT32 leftCount{}, rightCount{};
+    if (FAILED(left->GetFiles(&leftCount, nullptr)) || FAILED(right->GetFiles(&rightCount, nullptr)) || leftCount != 1u || rightCount != 1u)
+        return false;
+    wil::com_ptr<IDWriteFontFile> a, b;
+    if (FAILED(left->GetFiles(&leftCount, a.put())) || FAILED(right->GetFiles(&rightCount, b.put())))
+        return false;
+    wil::com_ptr<IDWriteFontFileLoader> aLoader, bLoader;
+    const void *aKey{}, *bKey{};
+    UINT32 aSize{}, bSize{};
+    return SUCCEEDED(a->GetLoader(aLoader.put())) && SUCCEEDED(b->GetLoader(bLoader.put())) && aLoader.get() == bLoader.get() &&
+           SUCCEEDED(a->GetReferenceKey(&aKey, &aSize)) && SUCCEEDED(b->GetReferenceKey(&bKey, &bSize)) && aSize == bSize &&
+           (! aSize || (aKey && bKey && std::memcmp(aKey, bKey, aSize) == 0));
+}
 // PreparedMath owns all shaping and geometry. The syntax tree is admitted and
 // indexed once; Advance shapes one text leaf per call and finalizes from cached
 // child boxes. Draw is read-only and performs no layout or allocation.
@@ -123,6 +202,9 @@ class PreparedMath final
         D2D1_POINT_2F origin{};
         float italicCorrection{};
         float leftOverhang{}, topOverhang{}, rightOverhang{}, bottomOverhang{};
+        UINT16 mathGlyph{};
+        float inkAbove{}, inkBelow{};
+        bool needsKern{};
     };
     struct MathFontData
     {
@@ -189,6 +271,7 @@ class PreparedMath final
         std::size_t firstChild{}, endChild{}, glyph{};
         Extent extent;
         float leftOffset{};
+        float subKern{}, superKern{}, scriptLeftPad{};
         MathAtomClass atomClass{MathAtomClass::Ordinary};
         float size{};
         unsigned scriptLevel{};
@@ -663,6 +746,30 @@ class PreparedMath final
         const auto scaled = MathFontTable(mathData->table).AdjustedValue(record, size, dpi, mathData->designUnits);
         return scaled && std::abs(scaled.value()) <= size * 2.f ? scaled : std::nullopt;
     }
+    float ScriptKern(std::size_t baseIndex, std::size_t scriptIndex, float shift, bool superscript) const noexcept
+    {
+        if (! mathData || boxes[baseIndex].glyph == std::numeric_limits<std::size_t>::max() ||
+            boxes[scriptIndex].glyph == std::numeric_limits<std::size_t>::max())
+            return 0.f;
+        const auto& base   = glyphs[boxes[baseIndex].glyph];
+        const auto& script = glyphs[boxes[scriptIndex].glyph];
+        if (! base.mathGlyph || ! script.mathGlyph)
+            return 0.f;
+        const MathFontTable table(mathData->table);
+        using Corner            = MathFontTable::KernCorner;
+        const auto baseCorner   = superscript ? Corner::TopRight : Corner::BottomRight;
+        const auto scriptCorner = superscript ? Corner::BottomLeft : Corner::TopLeft;
+        const auto value        = [&](const Glyph& glyph, Corner corner, float height)
+        { return table.MathKern(glyph.mathGlyph, corner, height, glyph.font, dpi, mathData->designUnits).value_or(0.f); };
+        const float baseHeight1   = superscript ? shift - script.inkBelow : script.inkAbove - shift;
+        const float scriptHeight1 = superscript ? -script.inkBelow : script.inkAbove;
+        const float baseHeight2   = superscript ? base.inkAbove : -base.inkBelow;
+        const float scriptHeight2 = superscript ? base.inkAbove - shift : shift - base.inkBelow;
+        const float first         = value(base, baseCorner, baseHeight1) + value(script, scriptCorner, scriptHeight1);
+        const float second        = value(base, baseCorner, baseHeight2) + value(script, scriptCorner, scriptHeight2);
+        const float result        = std::min(first, second);
+        return std::isfinite(result) && std::abs(result) <= base.font * 2.f ? result : 0.f;
+    }
     float ItalicCorrection(std::size_t index) const noexcept
     {
         const auto& box = boxes[index];
@@ -847,10 +954,16 @@ class PreparedMath final
                 const float availableGap = superShift + subShift - super.below - sub.above;
                 const float extra        = std::max(0.f, (scriptGap - availableGap) / 2.f);
                 const auto baseIndex     = ChildAt(reverse, 0u);
-                const auto scriptAnchor  = ScriptAnchor(baseIndex);
-                box.extent               = {std::max({base.width, ScriptBaseAdvance(baseIndex) + sub.width, scriptAnchor + super.width}),
-                                            std::max(base.above, super.above + superShift + extra),
-                                            std::max(base.below, sub.below + subShift + extra)};
+                const auto subIndex = ChildAt(reverse, 1u), superIndex = ChildAt(reverse, 2u);
+                box.subKern        = sub.width > 0.f ? ScriptKern(baseIndex, subIndex, subShift + extra, false) : 0.f;
+                box.superKern      = super.width > 0.f ? ScriptKern(baseIndex, superIndex, superShift + extra, true) : 0.f;
+                const float subX   = ScriptBaseAdvance(baseIndex) + box.subKern;
+                const float superX = ScriptAnchor(baseIndex) + box.superKern;
+                const float left   = std::min({0.f, sub.width > 0.f ? subX : 0.f, super.width > 0.f ? superX : 0.f});
+                box.scriptLeftPad  = -left;
+                box.extent         = {std::max({base.width, sub.width > 0.f ? subX + sub.width : 0.f, super.width > 0.f ? superX + super.width : 0.f}) - left,
+                                      std::max(base.above, super.above + superShift + extra),
+                                      std::max(base.below, sub.below + subShift + extra)};
                 continue;
             }
             if (node.kind == Matrix && node.columns > 0u)
@@ -1286,9 +1399,10 @@ class PreparedMath final
             const float gapNeed =
                 MathConstantAt(52u, box.size, scriptGapMinimum) - (superShift + subShift - boxes[super].extent.below - boxes[sub].extent.above);
             const float correction = std::max(0.f, gapNeed / 2.f);
-            Place(baseIndex, x, baseline);
-            Place(sub, x + ScriptBaseAdvance(baseIndex), baseline + subShift + correction);
-            Place(super, x + ScriptAnchor(baseIndex), baseline - superShift - correction);
+            const auto baseX       = x + box.scriptLeftPad;
+            Place(baseIndex, baseX, baseline);
+            Place(sub, baseX + ScriptBaseAdvance(baseIndex) + box.subKern, baseline + subShift + correction);
+            Place(super, baseX + ScriptAnchor(baseIndex) + box.superKern, baseline - superShift - correction);
             return;
         }
         if (node.kind == Delimited && node.children.size() == 1u)
@@ -1537,6 +1651,16 @@ public:
         else
             ReadMathConstants(write);
         Flatten(expression->root, font, false, false, false, displayStyle, 0u);
+        // Only direct single-glyph script operands can use MATH corner data.
+        // Compound boxes use the OpenType zero-kern fallback.
+        for (std::size_t i = 0u; i < boxes.size(); ++i)
+            if (boxes[i].node->kind == MathKind::Scripts && boxes[i].node->children.size() == 3u)
+                for (std::size_t child = 0u; child < 3u; ++child)
+                {
+                    const auto index = ChildAt(i, child);
+                    if (boxes[index].glyph != std::numeric_limits<std::size_t>::max())
+                        glyphs[boxes[index].glyph].needsKern = true;
+                }
     }
     bool Advance()
     {
@@ -1583,6 +1707,26 @@ public:
             const float rightOverhang =
                 std::isfinite(overhang.right) ? std::max(0.f, layoutWidth + overhang.right - metrics.widthIncludingTrailingWhitespace) : 0.f;
             const float italicCorrection = leaf.italic ? FontItalicCorrection(leaf.node->text, leaf.font).value_or(rightOverhang) : 0.f;
+            if (leaf.needsKern && mathData)
+            {
+                auto probe = Microsoft::WRL::Make<MathGlyphProbe>();
+                if (! probe)
+                    throw std::bad_alloc();
+                THROW_IF_FAILED(layout->Draw(nullptr, probe.Get(), 0.f, 0.f));
+                if (probe->runs == 1u && probe->glyph && SameMathFontFile(probe->face.get(), mathData->face.get()))
+                {
+                    DWRITE_GLYPH_METRICS ink{};
+                    if (OptionalFontOperation(probe->face->GetDesignGlyphMetrics(&probe->glyph, 1u, &ink, FALSE)))
+                    {
+                        const float scale = leaf.font / static_cast<float>(mathData->designUnits);
+                        leaf.mathGlyph    = probe->glyph;
+                        leaf.inkAbove     = static_cast<float>(static_cast<std::int32_t>(ink.verticalOriginY) - ink.topSideBearing) * scale;
+                        leaf.inkBelow     = static_cast<float>(static_cast<std::int32_t>(ink.advanceHeight) - static_cast<std::int32_t>(ink.verticalOriginY) -
+                                                               ink.bottomSideBearing) *
+                                            scale;
+                    }
+                }
+            }
             const Extent shapedExtent{metrics.widthIncludingTrailingWhitespace, line.baseline, metrics.height - line.baseline};
             leaf.layout                       = std::move(layout);
             leaf.extent                       = shapedExtent;

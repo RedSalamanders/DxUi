@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <span>
 
@@ -142,6 +143,58 @@ public:
     {
         const auto record = ItalicCorrectionRecord(glyph);
         return record ? std::optional<std::int16_t>(record->value) : std::nullopt;
+    }
+    enum class KernCorner : unsigned
+    {
+        TopRight,
+        TopLeft,
+        BottomRight,
+        BottomLeft
+    };
+    // OpenType MATH 1.9: use the first range whose upper correction height
+    // exceeds the requested baseline-relative height. Missing or malformed
+    // subtables return no correction. All offsets are relative to their owner.
+    [[nodiscard]] std::optional<float> MathKern(
+        std::uint16_t glyph, KernCorner corner, float heightDip, float sizeDip, float dpi, std::uint16_t unitsPerEm) const noexcept
+    {
+        if (static_cast<unsigned>(corner) > 3u || ! std::isfinite(heightDip))
+            return std::nullopt;
+        const auto glyphInfo = HeaderOffset(6u);
+        if (! glyphInfo)
+            return std::nullopt;
+        const auto relative = U16(glyphInfo.value() + 6u);
+        if (! relative || ! relative.value() || relative.value() > bytes.size() - glyphInfo.value())
+            return std::nullopt;
+        const auto info     = glyphInfo.value() + relative.value();
+        const auto coverage = U16(info), count = U16(info + 2u);
+        if (! coverage || ! coverage.value() || ! count || info > bytes.size() || bytes.size() - info < 4u || count.value() > (bytes.size() - info - 4u) / 8u ||
+            coverage.value() > bytes.size() - info)
+            return std::nullopt;
+        const auto item = Coverage(info + coverage.value(), glyph);
+        if (! item || item.value() >= count.value())
+            return std::nullopt;
+        const auto relativeKern = U16(info + 4u + item.value() * 8u + static_cast<unsigned>(corner) * 2u);
+        if (! relativeKern || ! relativeKern.value() || relativeKern.value() > bytes.size() - info)
+            return std::nullopt;
+        const auto table   = info + relativeKern.value();
+        const auto heights = U16(table);
+        if (! heights || heights.value() > 256u || table > bytes.size() || bytes.size() - table < 2u ||
+            (static_cast<std::size_t>(heights.value()) * 2u + 1u) > (bytes.size() - table - 2u) / 4u)
+            return std::nullopt;
+        std::size_t selected{};
+        float previous = -std::numeric_limits<float>::infinity();
+        for (std::size_t i = 0u; i < heights.value(); ++i)
+        {
+            const auto record   = Value(table, 2u + i * 4u);
+            const auto boundary = record ? AdjustedValue(*record, sizeDip, dpi, unitsPerEm) : std::nullopt;
+            if (! boundary || boundary.value() < previous)
+                return std::nullopt;
+            previous = boundary.value();
+            if (heightDip >= boundary.value())
+                ++selected;
+        }
+        const auto value = Value(table, 2u + static_cast<std::size_t>(heights.value()) * 4u + selected * 4u);
+        return value ? AdjustedValue(*value, sizeDip, dpi, unitsPerEm) : std::nullopt;
     }
     struct Variant
     {

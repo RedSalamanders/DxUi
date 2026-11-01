@@ -8,6 +8,45 @@ namespace MathFontTableTests
 {
 template <typename Check> void Run(Check&& check)
 {
+    {
+        std::array<std::uint8_t, 96u> kernBytes{};
+        const auto write = [&](std::size_t at, std::uint16_t value)
+        {
+            kernBytes[at]      = static_cast<std::uint8_t>(value >> 8u);
+            kernBytes[at + 1u] = static_cast<std::uint8_t>(value);
+        };
+        write(0u, 1u);
+        write(6u, 10u);
+        write(16u, 16u); // glyph info and kern info
+        write(26u, 20u);
+        write(28u, 1u);
+        write(30u, 28u); // coverage, count, top-right corner
+        write(46u, 1u);
+        write(48u, 1u);
+        write(50u, 5u); // format-1 glyph coverage
+        write(54u, 2u);
+        write(56u, 0xff9cu);
+        write(60u, 200u); // -100, +200 design heights
+        write(64u, 0xffecu);
+        write(68u, 50u);
+        write(72u, 100u); // -20, +50, +100 design kerns
+        using Table = DxUi::RichText::Detail::MathFontTable;
+        const Table font(kernBytes);
+        using Corner    = Table::KernCorner;
+        const auto kern = [&](float height) { return font.MathKern(5u, Corner::TopRight, height, 10.f, 96.f, 1000u); };
+        check(kern(-2.f).value_or(99.f) == -.2f && kern(-1.f).value_or(99.f) == .5f && kern(1.9f).value_or(99.f) == .5f && kern(2.f).value_or(99.f) == 1.f,
+              "MATH kern selects signed height bands with exact-boundary promotion");
+        check(! font.MathKern(6u, Corner::TopRight, 0.f, 10.f, 96.f, 1000u) && ! font.MathKern(5u, Corner::BottomLeft, 0.f, 10.f, 96.f, 1000u),
+              "missing glyph and absent corner decline to zero-kern fallback");
+        for (std::size_t length = 0u; length < 76u; ++length)
+            check(! Table(std::span(kernBytes.data(), length)).MathKern(5u, Corner::TopRight, 0.f, 10.f, 96.f, 1000u),
+                  "truncated MATH kern tables are rejected without out-of-range reads");
+        write(60u, 0xff38u); // descending correction heights
+        check(! kern(0.f), "unsorted MATH kern heights decline safely");
+        write(60u, 200u);
+        write(54u, 257u);
+        check(! kern(0.f), "oversized MATH kern interval count declines before scanning");
+    }
     std::array<std::uint8_t, 80u> bytes{};
     const auto set = [&](std::size_t offset, std::uint16_t value)
     {
