@@ -823,7 +823,8 @@ class PreparedMath final
             for (std::size_t i = 0u; i < node.children.size(); ++i)
             {
                 const auto matrixName = MatrixBase(node.text);
-                const bool rowCell = node.kind == MathKind::Matrix && node.columns && i % node.columns == 0u &&
+                const bool rootMatrix = current.depth == 0u || (current.depth == 1u && root.kind == MathKind::Row);
+                const bool rowCell = rootMatrix && node.kind == MathKind::Matrix && node.columns && i % node.columns == 0u &&
                                      (matrixName == L"aligned" || matrixName == L"alignat" || matrixName == L"gathered");
                 pending[top++] = {&node.children[i], current.depth + 1u, rowCell};
             }

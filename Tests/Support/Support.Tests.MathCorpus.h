@@ -1184,6 +1184,15 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
             try { Detail::PreparedMath invalid(factory, invalidLabel, 24.f, true); }
             catch (const std::length_error&) { invalidRefused = true; }
             check(invalidRefused, "direct row-tag data rejects unsupported non-text label shapes");
+            auto nestedTag = std::make_shared<MathExpression>(*taggedRows);
+            auto wrapper = nestedTag->root;
+            wrapper.children.clear();
+            wrapper.children.push_back(nestedTag->root.children[0u]);
+            nestedTag->root.children[0u] = std::move(wrapper);
+            bool nestedRefused{};
+            try { Detail::PreparedMath invalid(factory, nestedTag, 24.f, true); }
+            catch (const std::length_error&) { nestedRefused = true; }
+            check(nestedRefused, "direct nested matrix data cannot introduce row tags outside a root environment");
         }
         std::wstring fullTags(L"\\begin{gather}");
         for (unsigned row = 0u; row < MathMaximumRows; ++row)
