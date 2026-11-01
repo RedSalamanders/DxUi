@@ -118,8 +118,10 @@ foreach ($moduleName in @('NativeModuleA','NativeModuleB','NativeModuleDriver'))
     if ($LASTEXITCODE -ne 0) { throw "The native module consumer $moduleName failed to build." }
     Assert-NativeBuildDiagnostics -LogPath $moduleBuildLog
 }
-& (Join-Path $consumer 'bin/NativeModuleDriver.exe')
-if ($LASTEXITCODE -ne 0) { throw 'Native DxUi dispatch or animation crossed static module ownership.' }
+$moduleOutput = @(& (Join-Path $consumer 'bin/NativeModuleDriver.exe'))
+$moduleExit = $LASTEXITCODE
+$moduleOutput | ForEach-Object { Write-Host $_ }
+$moduleResult = Set-ConsumerNativeModuleResult -Progress $progress -Lines $moduleOutput -ExitCode $moduleExit
 if (-not (Test-Path (Join-Path $output "$Platform/$Configuration/DxUi.lib")) -or (Test-Path (Join-Path $checkout ".build/$Platform/$Configuration/DxUi.lib"))) { throw 'Consumer outputs are not isolated.' }
 $validator=Join-Path $checkout 'Tools/validate_consumer.ps1'
 function Require-Rejection([string] $scenario) {
@@ -150,8 +152,8 @@ $reports=Join-Path $PSScriptRoot '.build/reports';New-Item -ItemType Directory -
 Assert-ConsumerQualificationChecks -Progress $progress
 @{suite='ExternalConsumer';commit=$revision;configuration=$Configuration;platform=$Platform;
     nativeArchitecture=[System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString();
-    disableStlAnnotations=$DisableStlAnnotations.IsPresent;buildIdentity=$buildIdentity;exitCode=0;fixture=$root;negativeChecks=10;
-    nativeModuleChecks=12;executableSha256=(Get-FileHash (Join-Path $consumer 'bin/ExternalConsumer.exe')).Hash;
+    disableStlAnnotations=$DisableStlAnnotations.IsPresent;buildIdentity=$buildIdentity;exitCode=0;fixture=$root;negativeChecks=$progress.Record.negativeChecks;
+    nativeModuleExecuted=$moduleResult.Executed;nativeModuleChecks=$moduleResult.Passed;executableSha256=(Get-FileHash (Join-Path $consumer 'bin/ExternalConsumer.exe')).Hash;
     richTextCaptureSha256=(Get-FileHash (Join-Path $consumer 'rich-text-consumer.png')).Hash;
     librarySha256=(Get-FileHash (Join-Path $output "$Platform/$Configuration/DxUi.lib")).Hash;
     completedUtc=[DateTime]::UtcNow.ToString('o')} | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $reports "ExternalConsumer-$Platform-$Configuration-annotationsDisabled$annotationsXml.json") -Encoding utf8

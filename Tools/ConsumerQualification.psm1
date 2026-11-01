@@ -100,7 +100,7 @@ function New-ConsumerQualificationProgress {
     [CmdletBinding()]param([Parameter(Mandatory)][string]$Path,[Parameter(Mandatory)][hashtable]$Context)
     if(Test-Path -LiteralPath $Path){throw 'Consumer progress must have a fresh owned path.'}
     [void][IO.Directory]::CreateDirectory((Split-Path -Parent $Path))
-    $progress=[pscustomobject]@{Path=$Path;Owner=$PID;Record=[ordered]@{schema=1;suite='ConsumerProgress';status='incomplete';startedUtc=[DateTime]::UtcNow.ToString('o');context=$Context;activePhase=$null;negativeChecks=0;phases=[Collections.Generic.List[object]]::new()}}
+    $progress=[pscustomobject]@{Path=$Path;Owner=$PID;Record=[ordered]@{schema=1;suite='ConsumerProgress';status='incomplete';startedUtc=[DateTime]::UtcNow.ToString('o');context=$Context;activePhase=$null;negativeChecks=0;nativeModuleExecuted=0;nativeModuleChecks=0;phases=[Collections.Generic.List[object]]::new()}}
     Save-ConsumerQualificationProgress $progress -Initial
     return $progress
 }
@@ -124,7 +124,20 @@ function Invoke-ConsumerQualificationPhase {
         Write-Host "[DXUI_CONSUMER_PHASE] phase=$Name state=$($phase.state) elapsedMs=$($phase.elapsedMs.ToString('F3',[Globalization.CultureInfo]::InvariantCulture))"
     }
 }
-function Assert-ConsumerQualificationChecks {
+function Set-ConsumerNativeModuleResult {
+    [CmdletBinding()]param([Parameter(Mandatory)]$Progress,[AllowEmptyCollection()][string[]]$Lines,[int]$ExitCode)
+    if($Progress.Owner-ne $PID -or $Progress.Record.status-ne 'incomplete' -or $Progress.Record.nativeModuleExecuted-ne 0){throw 'Consumer native module result ownership/state mismatch.'}
+    $records=@($Lines|Where-Object { $_ -cmatch '^DXUI_NATIVE_MODULE_PROBES(?:\s|$)' })
+    if($ExitCode-ne 0 -or $records.Count-ne 1 -or $records[0] -cnotmatch '^DXUI_NATIVE_MODULE_PROBES executed=(0|[1-9][0-9]{0,7}) passed=(0|[1-9][0-9]{0,7})$'){
+        throw 'Native module driver failed or did not emit one valid probe record.'
+    }
+    $executed=[int]$Matches[1];$passed=[int]$Matches[2]
+    if($executed-ne 12 -or $passed-ne $executed){throw "Native module driver completed $executed probes with $passed successes; 12 are required."}
+    $Progress.Record.nativeModuleExecuted=$executed
+    $Progress.Record.nativeModuleChecks=$passed
+    Save-ConsumerQualificationProgress $Progress
+    return [pscustomobject]@{Executed=$executed;Passed=$passed}
+}function Assert-ConsumerQualificationChecks {
     [CmdletBinding()]param([Parameter(Mandatory)]$Progress)
     if($Progress.Owner-ne $PID -or $Progress.Record.status-ne 'incomplete' -or $Progress.Record.activePhase -or $Progress.Record.negativeChecks-ne 10 -or @($Progress.Record.phases|Where-Object state -NE 'passed').Count){throw 'Consumer progress cannot complete before all ten negative checks pass.'}
 }
@@ -132,8 +145,8 @@ function Complete-ConsumerQualificationProgress {
     [CmdletBinding()]param([Parameter(Mandatory)]$Progress,[Parameter(Mandatory)][string]$FinalReceipt)
     Assert-ConsumerQualificationChecks $Progress
     $receipt=Get-Content -LiteralPath $FinalReceipt -Raw|ConvertFrom-Json
-    if($receipt.suite-ne 'ExternalConsumer' -or $receipt.exitCode-ne 0 -or $receipt.negativeChecks-ne 10 -or $receipt.nativeModuleChecks-ne 12 -or $receipt.commit-cne $Progress.Record.context.commit){throw 'A genuine matching completed consumer receipt is required.'}
+    if($receipt.suite-ne 'ExternalConsumer' -or $receipt.exitCode-ne 0 -or $receipt.negativeChecks-ne $Progress.Record.negativeChecks -or $receipt.nativeModuleExecuted-ne $Progress.Record.nativeModuleExecuted -or $receipt.nativeModuleChecks-ne $Progress.Record.nativeModuleChecks -or $receipt.nativeModuleExecuted-ne 12 -or $receipt.nativeModuleChecks-ne 12 -or $receipt.commit-cne $Progress.Record.context.commit){throw 'A genuine matching completed consumer receipt is required.'}
     $Progress.Record.status='completed';$Progress.Record.finalReceiptSha256=(Get-FileHash -LiteralPath $FinalReceipt -Algorithm SHA256).Hash
     Save-ConsumerQualificationProgress $Progress
 }
-Export-ModuleMember -Function New-ConsumerQualificationProgress,Invoke-ConsumerQualificationPhase,Assert-ConsumerQualificationChecks,Complete-ConsumerQualificationProgress
+Export-ModuleMember -Function New-ConsumerQualificationProgress,Invoke-ConsumerQualificationPhase,Set-ConsumerNativeModuleResult,Assert-ConsumerQualificationChecks,Complete-ConsumerQualificationProgress

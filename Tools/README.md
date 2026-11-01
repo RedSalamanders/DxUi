@@ -148,3 +148,5 @@ The shared [Changes workflow](../Changes/README.md) uses Test-Changelog.ps1 for 
 Dependency metadata validation checks the independently pinned ports baseline and vcpkg executable checkout as nonzero full revisions. It changes neither pin; actual compatibility remains native qualification.
 
 PrePush requires changelog and fragment inputs to match the candidate commit; uncommitted note changes fail before the changelog gate rather than being attributed to the pushed commit.
+
+The relocated consumer receipt derives negative checks from its completed phase ledger and native-module totals from the driver's single validated observed-probe record; a missing or inconsistent record fails qualification.

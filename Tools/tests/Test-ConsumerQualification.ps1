@@ -19,6 +19,21 @@ function Read-ConsumerProgressSnapshot([string] $Path) {
     try { return Read-ConsumerProgressFromHeldStream $stream } finally { $stream.Dispose() }
 }
 
+Invoke-FixtureCase 'native module counts require one complete successful driver record' {
+    param($fixture)
+    $p=New-ConsumerQualificationProgress (Join-Path $fixture 'progress.json') @{commit='a'*40}
+    Assert-Throws { Set-ConsumerNativeModuleResult $p @() 0 } 'missing record fails'
+    Assert-Throws { Set-ConsumerNativeModuleResult $p @('DXUI_NATIVE_MODULE_PROBES executed=12 passed=12','DXUI_NATIVE_MODULE_PROBES executed=12 passed=12') 0 } 'duplicate records fail'
+    Assert-Throws { Set-ConsumerNativeModuleResult $p @('DXUI_NATIVE_MODULE_PROBES executed=12 passed=12 extra') 0 } 'malformed record fails'
+    Assert-Throws { Set-ConsumerNativeModuleResult $p @('DXUI_NATIVE_MODULE_PROBES executed=11 passed=11') 0 } 'short successful record fails'
+    Assert-Throws { Set-ConsumerNativeModuleResult $p @('DXUI_NATIVE_MODULE_PROBES executed=12 passed=11') 0 } 'failed probe fails'
+    Assert-Throws { Set-ConsumerNativeModuleResult $p @('DXUI_NATIVE_MODULE_PROBES executed=12 passed=12') 7 } 'nonzero process cannot spoof success'
+    Assert-Equal 0 $p.Record.nativeModuleExecuted 'refusals do not mutate observed counts'
+    $result=Set-ConsumerNativeModuleResult $p @('other diagnostic','DXUI_NATIVE_MODULE_PROBES executed=12 passed=12') 0
+    Assert-Equal 12 $result.Executed 'actual executed probes recorded'
+    Assert-Equal 12 $result.Passed 'actual successes recorded'
+    Assert-Throws { Set-ConsumerNativeModuleResult $p @('DXUI_NATIVE_MODULE_PROBES executed=12 passed=12') 0 } 'result cannot be counted twice'
+}
 Invoke-FixtureCase 'pending case, measured completion and final receipt are distinct' {
     param($fixture)
     $path=Join-Path $fixture 'progress.json'
@@ -36,8 +51,15 @@ Invoke-FixtureCase 'pending case, measured completion and final receipt are dist
     Assert-Equal 10 ([int]$record.negativeChecks) 'all ten actual cases were counted'
     Assert-Throws {Invoke-ConsumerQualificationPhase $p 'negative-1' {} -NegativeCheck} 'duplicate cases cannot inflate completion'
     Assert-Throws {Complete-ConsumerQualificationProgress $p (Join-Path $fixture 'missing.json')} 'missing final receipt cannot complete progress'
+    [void](Set-ConsumerNativeModuleResult $p @('DXUI_NATIVE_MODULE_PROBES executed=12 passed=12') 0)
     $receipt=Join-Path $fixture 'ExternalConsumer.json'
-    @{suite='ExternalConsumer';exitCode=0;negativeChecks=10;nativeModuleChecks=12;commit='a'*40}|ConvertTo-Json|Set-Content $receipt
+    @{suite='ExternalConsumer';exitCode=0;negativeChecks=9;nativeModuleExecuted=12;nativeModuleChecks=12;commit='a'*40}|ConvertTo-Json|Set-Content $receipt
+    Assert-Throws {Complete-ConsumerQualificationProgress $p $receipt} 'receipt cannot invent the negative count'
+    @{suite='ExternalConsumer';exitCode=0;negativeChecks=10;nativeModuleExecuted=11;nativeModuleChecks=12;commit='a'*40}|ConvertTo-Json|Set-Content $receipt
+    Assert-Throws {Complete-ConsumerQualificationProgress $p $receipt} 'receipt cannot invent the native executed count'
+    @{suite='ExternalConsumer';exitCode=0;negativeChecks=10;nativeModuleExecuted=12;nativeModuleChecks=11;commit='a'*40}|ConvertTo-Json|Set-Content $receipt
+    Assert-Throws {Complete-ConsumerQualificationProgress $p $receipt} 'receipt cannot invent the native passed count'
+    @{suite='ExternalConsumer';exitCode=0;negativeChecks=10;nativeModuleExecuted=12;nativeModuleChecks=12;commit='a'*40}|ConvertTo-Json|Set-Content $receipt
     Complete-ConsumerQualificationProgress $p $receipt
     Assert-Equal 'completed' ((Get-Content $path -Raw|ConvertFrom-Json).status) 'only matching final receipt completes progress'
     Assert-Throws {Invoke-ConsumerQualificationPhase $p 'late' {}} 'a completed progress record is immutable'
@@ -57,7 +79,7 @@ Invoke-FixtureCase 'missing conformance cases and another source cannot complete
     param($fixture)
     $p=New-ConsumerQualificationProgress (Join-Path $fixture 'progress.json') @{commit='c'*40}
     $receipt=Join-Path $fixture 'ExternalConsumer.json'
-    @{suite='ExternalConsumer';exitCode=0;negativeChecks=10;nativeModuleChecks=12;commit='d'*40}|ConvertTo-Json|Set-Content $receipt
+    @{suite='ExternalConsumer';exitCode=0;negativeChecks=10;nativeModuleExecuted=12;nativeModuleChecks=12;commit='d'*40}|ConvertTo-Json|Set-Content $receipt
     Assert-Throws {Complete-ConsumerQualificationProgress $p $receipt} 'missing cases cannot be hidden by a final-looking file'
     foreach($case in 1..10){Invoke-ConsumerQualificationPhase $p "negative-$case" {} -NegativeCheck}
     Assert-Throws {Complete-ConsumerQualificationProgress $p $receipt} 'receipt must bind the current source'
