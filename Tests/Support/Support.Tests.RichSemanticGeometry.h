@@ -980,6 +980,41 @@ inline void MathWidthReflowAndTargetReplacement()
         {
         }
         Check(pixelsFor(colored) != pixelsFor(coloredShadow), "colored paint operations retain the poor-man-bold overprint");
+        Detail::PreparedMath fraction(factory.get(), std::make_shared<const MathExpression>(ParseMath(L"\\frac{x}{y}")), 48.f);
+        while (! fraction.Advance())
+        {
+        }
+        Check(fraction.GlyphLayouts().size() == 2u && fraction.StrokeLayouts().size() == 1u && fraction.VariantLayouts().empty(),
+              "fraction oracle contains exactly two text layouts and one rule");
+        for (const float dpi : {120.f, 144.f, 168.f})
+        {
+            target->SetDpi(dpi, dpi);
+            const auto fractionPixels = [&](bool sdkReference)
+            {
+                const auto origin = D2D1::Point2F(20.375f, 20.625f);
+                target->BeginDraw();
+                target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+                if (sdkReference)
+                {
+                    target->SetTransform(D2D1::Matrix3x2F::Translation(origin.x, origin.y));
+                    for (const auto& glyph : fraction.GlyphLayouts())
+                        target->DrawTextLayout(glyph.origin, glyph.layout.get(), black.get());
+                    for (const auto& line : fraction.StrokeLayouts())
+                        target->DrawLine(line.first, line.last, black.get(), line.thickness);
+                    target->SetTransform(D2D1::Matrix3x2F::Identity());
+                }
+                else
+                    fraction.Draw(target.get(), black.get(), origin, 1.f);
+                THROW_IF_FAILED(target->EndDraw());
+                std::vector<BYTE> pixels(512u * 512u * 4u);
+                THROW_IF_FAILED(bitmap->CopyPixels(nullptr, 512u * 4u, static_cast<UINT>(pixels.size()), pixels.data()));
+                return pixels;
+            };
+            const auto preparedPixels = fractionPixels(false);
+            Check(preparedPixels == fractionPixels(true) && std::ranges::any_of(preparedPixels, [](BYTE value) { return value < 200u; }),
+                  "fraction glyph and rule pixels match direct Direct2D at fractional origin and each DPI");
+        }
+        target->SetDpi(96.f, 96.f);
     }
     const auto tagged = RichSemanticDocumentTests::Build(L"$$\nx+1\\tag{Eq. 1}\n$$\n", MarkdownProfile::RichMarkdown);
     geometry.Clear();
@@ -1083,12 +1118,26 @@ inline void MathWidthReflowAndTargetReplacement()
                 ++blue;
         return blue;
     };
-    const auto authoredBlue = countBlue(&authorContext);
-    Check(authoredBlue > 0u && countBlue(nullptr) == 0u, "math authored color paints in ordinary mode and yields to selection/high-contrast ink");
     auto unknownBackdrop   = authorContext;
     unknownBackdrop.fill.a = .5f;
-    Check(countBlue(&unknownBackdrop) == 0u, "math author color falls back when backdrop opacity is unknown");
-    const auto quotedColor = RichSemanticDocumentTests::Build(L"> $a\\textcolor{blue}{+}b$\n", MarkdownProfile::RichMarkdown);
+    for (const auto direction : {DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT})
+    {
+        for (const float dpi : {120.f, 144.f, 168.f})
+        {
+            target->SetDpi(dpi, dpi);
+            options.dpi              = dpi;
+            options.readingDirection = direction;
+            geometry.Begin(factory.get(), coloredDocument, options, drawing.get(), {}, {}, target.get());
+            Complete(geometry);
+            Check(countBlue(&authorContext) > 0u && countBlue(nullptr) == 0u,
+                  "math author color raster follows the palette gate at each DPI and text direction");
+            Check(countBlue(&unknownBackdrop) == 0u, "math color raster falls back for translucent backdrop at each DPI");
+        }
+    }
+    target->SetDpi(96.f, 96.f);
+    options.dpi              = 96.f;
+    options.readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
+    const auto quotedColor   = RichSemanticDocumentTests::Build(L"> $a\\textcolor{blue}{+}b$\n", MarkdownProfile::RichMarkdown);
     geometry.Clear();
     geometry.Begin(factory.get(), quotedColor, options, drawing.get(), {}, {}, target.get());
     Complete(geometry);
@@ -1816,7 +1865,7 @@ inline void MarkdownSubtlePresentation()
     THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
     wil::com_ptr<ID2D1Factory> drawing;
     THROW_IF_FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, drawing.put()));
-    constexpr UINT rasterWidth = 520u, rasterHeight = 360u, stride = rasterWidth * 4u;
+    constexpr UINT rasterWidth = 520u, rasterHeight = 700u, stride = rasterWidth * 4u;
     wil::com_ptr<IWICBitmap> bitmap;
     THROW_IF_FAILED(imaging->CreateBitmap(rasterWidth, rasterHeight, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
     wil::com_ptr<ID2D1RenderTarget> target;
@@ -1886,6 +1935,26 @@ inline void MarkdownSubtlePresentation()
     const auto firstRow      = subtle->ElementBounds(cellIndices[0u]).value();
     const auto secondRowCell = subtle->ElementBounds(cellIndices[1u]).value();
     Check(ruleCount(subtlePixels, firstRow) > 100u, "subtle table raster draws its horizontal row separator");
+    for (const float dpi : {120.f, 144.f, 168.f})
+    {
+        target->SetDpi(dpi, dpi);
+        const auto pixels = raster(MarkdownPresentationStyle::Subtle);
+        const auto ruleY  = static_cast<long>(std::lround((firstRow.bottom - 1.f) * dpi / 96.f));
+        unsigned columns{};
+        for (UINT x = 8u; x + 8u < rasterWidth; ++x)
+        {
+            bool red{};
+            for (long y = std::max(0l, ruleY - 3l); y <= std::min(static_cast<long>(rasterHeight - 1u), ruleY + 3l); ++y)
+            {
+                const auto offset = static_cast<std::size_t>(y) * stride + static_cast<std::size_t>(x) * 4u;
+                red               = red || (static_cast<unsigned>(pixels[offset + 2u]) > static_cast<unsigned>(pixels[offset + 1u]) + 40u &&
+                                            static_cast<unsigned>(pixels[offset + 2u]) > static_cast<unsigned>(pixels[offset]) + 40u);
+            }
+            columns += red ? 1u : 0u;
+        }
+        Check(columns > 100u, "subtle table separator reaches actual pixels at fractional DPI");
+    }
+    target->SetDpi(96.f, 96.f);
     const auto separatorX = static_cast<UINT>(std::clamp(std::lround((firstRow.right + secondRowCell.left) * 0.5f), 0l, static_cast<long>(rasterWidth - 1u)));
     const auto verticalY  = static_cast<UINT>(std::clamp(std::lround((firstRow.top + firstRow.bottom) * 0.5f), 0l, static_cast<long>(rasterHeight - 1u)));
     Check(! isRed(subtlePixels, separatorX, verticalY), "subtle table raster has no vertical grid line between intrinsic columns");

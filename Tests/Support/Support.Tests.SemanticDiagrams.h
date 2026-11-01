@@ -391,7 +391,7 @@ template <typename Check> inline void PositionedRaster(Check&& check)
         PreparedFlowchart reference;
         reference.Begin(write.get(), drawing.get(), object.graph, options, {1u, 1u});
         PreparedFlowchartTests::Complete(reference, check);
-        for (const auto dpi : {96.0f, 144.0f, 192.0f})
+        for (const auto dpi : {96.0f, 120.0f, 144.0f, 168.0f, 192.0f})
         {
             const auto render = [&](bool direct)
             {

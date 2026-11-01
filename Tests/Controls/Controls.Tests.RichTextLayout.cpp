@@ -1028,7 +1028,6 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
     THROW_IF_FAILED(context->EndDraw());
     const bool observedColorFont = std::ranges::any_of(colorDiagnostic->Runs(), [](const SourceInkRunDiagnostic& run) { return run.colorFont; });
     Require(observedColorFont, "emoji fixture is shaped by an actual DirectWrite color font");
-
     wil::com_ptr<ID2D1DeviceContext7> colorContext;
     const HRESULT colorContextQuery = context->QueryInterface(IID_PPV_ARGS(colorContext.put()));
     std::cerr << std::format("[SOURCE INK COLOR FIXTURE] colorFont={} deviceContext7={}\n", observedColorFont, SUCCEEDED(colorContextQuery));

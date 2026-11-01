@@ -931,6 +931,33 @@ template <typename Check, typename Observe = std::nullptr_t> inline void Palette
     raster(&translucent, false, false);
     const DiagramColorContext dark{D2D1::ColorF(D2D1::ColorF::White), D2D1::ColorF(D2D1::ColorF::White), D2D1::ColorF(D2D1::ColorF::Black)};
     raster(&dark, true, true);
+    for (const float dpi : {120.f, 144.f, 168.f})
+    {
+        target->SetDpi(dpi, dpi);
+        const auto bounds = prepared.Geometry()->nodes[0u].bounds;
+        const float scale = dpi / 96.f;
+        const auto x      = static_cast<std::size_t>((bounds.x + 5.0) * scale);
+        const auto y      = static_cast<std::size_t>((bounds.y + bounds.height / 2.0) * scale);
+        check(x < width && y < height, "scaled palette sample stays inside the target");
+        if (x >= width || y >= height)
+            continue;
+        const auto sample = [&](const DiagramColorContext* selected)
+        {
+            target->BeginDraw();
+            target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+            check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}, &palette, selected), "scaled diagram palette draws");
+            THROW_IF_FAILED(target->EndDraw());
+            std::vector<BYTE> pixels(stride * height);
+            THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+            const auto offset = y * stride + x * 4u;
+            return std::array<BYTE, 3u>{pixels[offset], pixels[offset + 1u], pixels[offset + 2u]};
+        };
+        const auto authored = sample(&context), highContrast = sample(nullptr), unknown = sample(&translucent);
+        check(authored[0] < 40u && authored[1] < 40u && authored[2] < 40u && highContrast[0] > 220u && highContrast[1] > 220u && highContrast[2] > 220u &&
+                  unknown[0] > 220u && unknown[1] > 220u && unknown[2] > 220u,
+              "diagram palette preserves authored and theme-fallback pixels at each DPI");
+    }
+    target->SetDpi(96.f, 96.f);
     const auto badOutline = FlowchartLayoutTests::Graph(L"flowchart TD\nA[Alpha]\nstyle A fill:#000,color:#fff\n");
     PreparedFlowchart unsafePrepared;
     unsafePrepared.Begin(write.get(), drawing.get(), badOutline, {}, {1u, 1u});
