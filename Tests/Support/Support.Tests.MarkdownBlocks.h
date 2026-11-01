@@ -571,6 +571,16 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
               nestedGroups->groups[0].title == L"Outer" && nestedGroups->groups[1].title == L"Inner" &&
               nestedGroups->groups[1].parentMask == 1u && nestedGroups->nodes[0].groupMask == 3u && nestedGroups->nodes[1].groupMask == 3u,
           "nested group titles and source membership retain their parent relationship");
+    parser.Begin(L"stateDiagram-v2\nstate First {\n[*]-->A\nA-->[*]\n}\nstate Second {\n[*]-->B\nB-->[*]\n}\n", 1u);
+    const auto scopedTerminals = Complete(parser);
+    check(scopedTerminals->outcome == FlowchartOutcome::Prepared && scopedTerminals->groups.size() == 2u && scopedTerminals->nodes.size() == 6u &&
+              scopedTerminals->edges.size() == 4u && scopedTerminals->nodes[0].key != scopedTerminals->nodes[3].key,
+          "initial and final pseudostates have distinct identities in separate composites");
+    parser.Begin(L"stateDiagram-v2\nstate \"Outer title\" as O {\nstate I {\nA-->B\n}\n}\n", 1u);
+    const auto nestedStates = Complete(parser);
+    check(nestedStates->outcome == FlowchartOutcome::Prepared && nestedStates->groups.size() == 2u &&
+              nestedStates->groups[0].title == L"Outer title" && nestedStates->groups[1].parentMask == 1u,
+          "state composites retain quoted titles and nested membership");
     for (const auto source : {L"graph TD\nsubgraph G\nA\n", L"graph TD\nsubgraph A\nend\n",
                               L"graph TD\nsubgraph A\nX\nend\nsubgraph B\nX\nend\n"})
     {

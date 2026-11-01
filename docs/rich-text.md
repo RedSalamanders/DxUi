@@ -1387,7 +1387,7 @@ and `<br />` line breaks. Other HTML and unsupported references retain source.
 Plain hashes, comparison characters and ordinary `fa:` substrings remain text;
 actual Font Awesome icon markers still retain the original diagram as source.
 This is not
-Mermaid coordinate compatibility. Composite states, class namespaces/generics,
+Mermaid coordinate compatibility. Advanced composite-state syntax, class namespaces/generics,
 class compartments, relationship multiplicities, other stereotypes, styling,
 interaction directives and other diagram families remain exact fenced source.
 Unsupported shape productions retain the complete fence instead of becoming plain
@@ -1475,3 +1475,13 @@ are exposed in the accessible graph alternative. Native geometry measures titles
 paints nested containers and fails closed when unrelated groups, nodes or labels
 cannot fit without overlap. This is a limited flowchart subset, not unrestricted
 Mermaid subgraph compatibility.
+
+State diagrams admit nested `state ID { ... }` composites and
+`state "title" as ID { ... }` composites under the same 16-container and
+four-level limits as flowchart groups. Initial and final `[*]` pseudostates are
+scoped to the enclosing composite, so separate regions do not share a terminal.
+Composite boxes, titles and membership are rendered and included in the
+accessible graph alternative. Empty/unclosed composites, transitions to a
+composite endpoint, overlapping unrelated boxes and unsupported region syntax
+retain source with a diagnostic. This profile does not claim unrestricted
+Mermaid state-machine support.

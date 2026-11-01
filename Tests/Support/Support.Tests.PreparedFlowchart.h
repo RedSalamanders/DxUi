@@ -624,9 +624,12 @@ template <typename Check> inline void GroupRaster(Check&& check)
     const auto write = WriteFactory();
     wil::com_ptr<IWICImagingFactory> imaging;
     THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    for (const auto stateDiagram : {false, true})
     for (const auto direction : {L"TD", L"BT", L"LR", L"RL"})
     {
-        const auto source = std::wstring(L"graph ") + direction + L"\nsubgraph O[Outer]\nsubgraph I[Inner]\nA-->B\nend\nend\n";
+        const auto source = stateDiagram ? std::wstring(L"stateDiagram-v2\ndirection ") + direction +
+                                               L"\nstate Outer {\nstate Inner {\nA-->B\n}\n}\n"
+                                         : std::wstring(L"graph ") + direction + L"\nsubgraph O[Outer]\nsubgraph I[Inner]\nA-->B\nend\nend\n";
         const auto graph = FlowchartLayoutTests::Graph(source);
         PreparedFlowchart prepared;
         prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});

@@ -132,6 +132,12 @@ template <typename Check> inline void Core(Check&& check)
         check(diagrams.size() == 1u && doc->Elements()[diagrams.front().element].name.find(L"Groups: Outer: A; B; Inner: A; B;") != std::wstring::npos,
               "nested group titles and memberships occur in the accessible graph alternative");
     }
+    {
+        const auto doc = Build(L"```mermaid\nstateDiagram-v2\nstate Outer {\nstate Inner {\nA-->B\n}\n}\n```", check);
+        const auto diagrams = SemanticExtensionAccess::Diagrams(*doc);
+        check(diagrams.size() == 1u && doc->Elements()[diagrams.front().element].name.find(L"Groups: Outer: A; B; Inner: A; B;") != std::wstring::npos,
+              "state composite hierarchy appears in the accessible graph alternative");
+    }
     for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029})
     {
         const auto doc = Build(scenarios[0u].source, check, profile);

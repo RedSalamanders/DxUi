@@ -2190,7 +2190,7 @@ or inside its block and displayed as `«annotation»` above the class name; repe
 nonalphabetic or undefined-class annotations retain source.
 State/class layouts use the deterministic native graph router; members are plain
 multiline node labels. Inheritance uses the native triangle arrow. This is not
-Mermaid coordinate compatibility. Composite states, class namespaces/generics,
+Mermaid coordinate compatibility. Advanced composite-state syntax, class namespaces/generics,
 class compartments, relationship multiplicities, other stereotypes, styling,
 interaction directives and other diagram families remain exact fenced source.
 Invisible edge labels remain unsupported. Other flowchart grammar and source-provenance rules remain unchanged.
@@ -2238,3 +2238,13 @@ are exposed in the accessible graph alternative. Native geometry measures titles
 paints nested containers and fails closed when unrelated groups, nodes or labels
 cannot fit without overlap. This is a limited flowchart subset, not unrestricted
 Mermaid subgraph compatibility.
+
+State diagrams admit nested `state ID { ... }` composites and
+`state "title" as ID { ... }` composites under the same 16-container and
+four-level limits as flowchart groups. Initial and final `[*]` pseudostates are
+scoped to the enclosing composite, so separate regions do not share a terminal.
+Composite boxes, titles and membership are rendered and included in the
+accessible graph alternative. Empty/unclosed composites, transitions to a
+composite endpoint, overlapping unrelated boxes and unsupported region syntax
+retain source with a diagnostic. This profile does not claim unrestricted
+Mermaid state-machine support.
