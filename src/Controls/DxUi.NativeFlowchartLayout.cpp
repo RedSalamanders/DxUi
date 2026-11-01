@@ -28,6 +28,7 @@ void Shift(FlowchartRect& rect, FlowchartPoint delta) noexcept
 struct NativeFlowchartLayout::Preparation
 {
     static constexpr auto Nodes = NativeFlowchartParser::MaximumNodes, Edges = NativeFlowchartParser::MaximumEdges;
+    static constexpr auto RankWords = (Nodes + 63u) / 64u;
     enum class Stage
     {
         Measure,
@@ -60,9 +61,12 @@ struct NativeFlowchartLayout::Preparation
     std::array<std::size_t, Edges> next{}, startPort{}, endPort{};
     std::array<double, Edges> laneOffset{}, laneWidth{};
     std::array<bool, Edges> direct{};
+    std::array<std::array<std::uint64_t, RankWords>, Edges> laneRanks{};
+    std::array<double, Edges> laneSlotOffset{};
+    std::array<bool, Edges> laneSlotBack{}, laneSlotReusable{};
     std::array<DfsFrame, Nodes> stack{};
     std::array<double, Nodes> rowWidth{}, rowHeight{}, rowTop{}, rowCursor{};
-    std::size_t cursor{}, roots{}, depth{}, rankedCount{}, active{}, activeEdge{}, maximumRank{};
+    std::size_t cursor{}, roots{}, depth{}, rankedCount{}, active{}, activeEdge{}, maximumRank{}, laneCount{};
     double bandWidth{}, bandLeft{}, rowY{Margin}, leftWidth{}, rightWidth{};
     double minX{}, minY{}, maxX{}, maxY{};
     FlowchartPoint shift;
@@ -303,9 +307,35 @@ struct NativeFlowchartLayout::Preparation
                            rowCount[rank[edge.from]] == 1u && rowCount[rank[edge.to]] == 1u && outgoing[edge.from] == 1u && incoming[edge.to] == 1u;
         if (direct[index])
             return;
-        laneWidth[index]  = edge.label.empty() ? PortGap : std::max(PortGap, Cross(edgeLabels[index]) + Margin);
-        auto& sideWidth   = back ? leftWidth : rightWidth;
-        laneOffset[index] = sideWidth;
+        laneWidth[index] = edge.label.empty() ? PortGap : std::max(PortGap, Cross(edgeLabels[index]) + Margin);
+        std::array<std::uint64_t, RankWords> occupied{};
+        if (edge.label.empty())
+        {
+            const auto first = std::min(rank[edge.from], rank[edge.to]);
+            const auto last  = std::max(rank[edge.from], rank[edge.to]);
+            for (auto row = first; row <= last; ++row)
+                occupied[row / 64u] |= std::uint64_t{1u} << (row % 64u);
+            for (std::size_t slot = 0u; slot < laneCount; ++slot)
+            {
+                if (! laneSlotReusable[slot] || laneSlotBack[slot] != back)
+                    continue;
+                bool overlap{};
+                for (std::size_t word = 0u; word < RankWords; ++word)
+                    overlap = overlap || (laneRanks[slot][word] & occupied[word]) != 0u;
+                if (overlap)
+                    continue;
+                for (std::size_t word = 0u; word < RankWords; ++word)
+                    laneRanks[slot][word] |= occupied[word];
+                laneOffset[index] = laneSlotOffset[slot];
+                return;
+            }
+        }
+        auto& sideWidth             = back ? leftWidth : rightWidth;
+        laneOffset[index]           = sideWidth;
+        laneSlotOffset[laneCount]   = sideWidth;
+        laneSlotBack[laneCount]     = back;
+        laneSlotReusable[laneCount] = edge.label.empty();
+        laneRanks[laneCount++]      = occupied;
         sideWidth += laneWidth[index];
     }
     void Rows()

@@ -164,7 +164,8 @@ other expanded shapes/edges, subgraphs, styling, icons and executable directives
 unsupported. The pinned original corpus distinguishes accepted graphs from
 rejected definitions. Source-independent cooperative CPU geometry passes focused
 x64 Debug checks, with stable ranks, four orientations, direct unambiguous adjacent
-edges and separate exterior lanes for other forward/back/self/parallel edges. It accepts measured label sizes and creates
+edges and exterior lanes for other forward/back/self/parallel edges. Unlabeled
+nonoverlapping rank intervals can share a lane; labeled lanes remain exclusive. It accepts measured label sizes and creates
 no SDK resources; complete extents are capped at 65,536 DIP per axis. DWrite
 shaping and reusable native paint resources pass focused Debug checks, with intercepted
 SDK-call budgets, independent Unicode/bidi/multiline raster checks, separate

@@ -1731,8 +1731,9 @@ keep the complete measured label inside their straight middle band. Their center
 ports lie on the capsule boundary in all four flow directions. Direction changes
 flow without rotating text. An unlabeled forward edge between adjacent single-node
 ranks uses their common centerline when its source has one outgoing and target one
-incoming edge. Other edges retain distinct exterior lanes sized for their own
-labels and minimum separation, rather than the widest label in the graph; endpoint
+incoming edge. Other edges use exterior lanes sized for their own labels and minimum
+separation; unlabeled lanes may be shared only when their inclusive rank intervals
+do not intersect. Labeled lanes remain exclusive. Endpoint
 corridors remain outside full rank rows, including for skipped-rank edges,
 cycles, self-loops and parallel edges. Crossings are permitted; optimal routing
 and upstream Mermaid coordinate compatibility are not claimed.

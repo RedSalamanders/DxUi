@@ -141,6 +141,15 @@ template <typename Check> inline void Geometry(Check&& check)
               variableLanes->edges[0u].label.x + variableLanes->edges[0u].label.width < variableLanes->edges[1u].path[2u].x &&
               variableLanes->edges[3u].label.x + variableLanes->edges[3u].label.width < variableLanes->nodes[0u].bounds.x,
           "wide labels reserve only their own lane, on both sides of the graph");
+    const auto sharedLanes = Place(Graph(L"flowchart TD;A-->B;B-->C;C-->D;D-->E;E-->F;A-->C;D-->F;B-->D"), check);
+    check(sharedLanes->issue == FlowchartLayoutIssue::None && sharedLanes->edges.size() == 8u &&
+              Near(sharedLanes->edges[5u].path[2u].x, sharedLanes->edges[6u].path[2u].x) &&
+              ! Near(sharedLanes->edges[5u].path[2u].x, sharedLanes->edges[7u].path[2u].x),
+          "disjoint exterior rank intervals share a lane while intersecting intervals remain separate");
+    const auto sharedBack = Place(Graph(L"flowchart TD;A-->B;B-->C;C-->D;B-->A;D-->C"), check);
+    check(sharedBack->issue == FlowchartLayoutIssue::None && sharedBack->edges[3u].route == FlowchartRoute::Back &&
+              sharedBack->edges[4u].route == FlowchartRoute::Back && Near(sharedBack->edges[3u].path[2u].x, sharedBack->edges[4u].path[2u].x),
+          "disjoint back-edge intervals share a left-side lane");
     for (const auto direction : {std::wstring_view(L"BT"), std::wstring_view(L"LR"), std::wstring_view(L"RL")})
     {
         const auto oriented = Place(Graph(std::wstring(L"graph ") + std::wstring(direction) + L";A-->B"), check);
