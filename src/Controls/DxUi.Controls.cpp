@@ -3075,14 +3075,23 @@ void Button::PrepareVisualContent(ControlHost& host) noexcept
         return;
     }
 
-    const FlowDirection flow    = GetFlowDirection();
-    const uint64_t revision     = _iconTextInputRevision;
-    const uint64_t resources    = host.GetResourceGeneration();
-    const uint64_t typography   = host.GetTypographyRevision();
-    const FontRole role         = host.HasFluentIconFont() ? FontRole::Icon : FontRole::Body;
+    const FlowDirection flow  = GetFlowDirection();
+    const uint64_t revision   = _iconTextInputRevision;
+    const uint64_t resources  = host.GetResourceGeneration();
+    const uint64_t typography = host.GetTypographyRevision();
+    const FontRole role       = host.HasFluentIconFont() ? FontRole::Icon : FontRole::Body;
+    if (! hostStillCurrent())
+        return;
     const auto contentFontSize  = _contentFontSizeDip;
     const auto readingDirection = ResolveReadingDirection(flow);
-    auto* rawFormat             = host.GetTextFormat(role, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, readingDirection);
+    const bool sameKey          = _preparedIconTextKeyValid && _preparedIconTextHost == &host && _preparedIconTextRevision == revision &&
+                                  _preparedIconTextResources == resources && _preparedIconTextTypography == typography && _preparedIconTextFlow == flow &&
+                                  _preparedIconTextWidthDip == widthDip && _preparedIconTextHeightDip == heightDip && _preparedIconTextLength == length &&
+                                  _preparedIconText[0] == text[0] && _preparedIconText[1] == text[1];
+    // The retained format represents this complete configured key even after the host evicts its cache entry.
+    if (sameKey && (_preparedIconTextLayout || _preparedIconTextFailed))
+        return;
+    auto* rawFormat = host.GetTextFormat(role, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, readingDirection);
     if (! hostStillCurrent())
         return;
     wil::com_ptr<IDWriteTextFormat> format = rawFormat;
@@ -3118,16 +3127,6 @@ void Button::PrepareVisualContent(ControlHost& host) noexcept
     };
     if (! stillCurrent())
         return;
-
-    const bool sameKey = _preparedIconTextKeyValid && _preparedIconTextHost == &host && _preparedIconTextRevision == revision &&
-                         _preparedIconTextResources == resources && _preparedIconTextTypography == typography && _preparedIconTextFlow == flow &&
-                         _preparedIconTextWidthDip == widthDip && _preparedIconTextHeightDip == heightDip && _preparedIconTextLength == length &&
-                         _preparedIconText[0] == text[0] && _preparedIconText[1] == text[1] && _preparedIconTextFormat.get() == format.get();
-    if (sameKey && (_preparedIconTextLayout || _preparedIconTextFailed))
-        return;
-
-    // The exact configured format pointer is part of the key. After current inputs are revalidated, a warm pass needs
-    // neither the factory accessor nor another tree-membership walk after that COM boundary.
 
 #if DXUI_ENABLE_DIAGNOSTICS
     ++_debugPreparedIconTextLayoutFactoryLookupCount;

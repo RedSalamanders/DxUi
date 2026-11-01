@@ -660,8 +660,7 @@ void TestButtonPreparedIconTextLayoutMatchesDrawTextW()
         Require(button->DebugGetPreparedIconTextLayoutFactoryLookupCount() == factoryLookupsBeforeSizeChange + 1u,
                 "a changed content-size key takes the DirectWrite factory path once");
 
-        // Clearing the bounded format map produces a new exact format identity. The retained layout must rebuild
-        // once for that identity, then the verified warm key must avoid another factory lookup.
+        // Evicting a configured format does not change its inputs. The retained layout owns its format and remains valid.
         for (int role = 0;
              role <= static_cast<int>(FontRole::Small) && host.DebugGetConfiguredTextFormatCount() <= ControlHost::kConfiguredTextFormatCacheLimit;
              ++role)
@@ -685,10 +684,10 @@ void TestButtonPreparedIconTextLayoutMatchesDrawTextW()
         requireFallbackParity();
         Require(host.DebugGetConfiguredTextFormatCount() <= ControlHost::kConfiguredTextFormatCacheLimit,
                 "the next paint trims the configured-format cache to its bound");
-        Require(button->DebugGetPreparedIconTextLayoutBuildCount() == buildsBeforeFormatTrim + 1u,
-                "format-cache eviction creates one replacement layout for the new exact format identity");
-        Require(button->DebugGetPreparedIconTextLayoutFactoryLookupCount() == factoryLookupsBeforeFormatTrim + 1u,
-                "format-cache eviction takes the DirectWrite factory path once for its replacement layout");
+        Require(button->DebugGetPreparedIconTextLayoutBuildCount() == buildsBeforeFormatTrim,
+                "format-cache eviction retains the layout for the same configured inputs");
+        Require(button->DebugGetPreparedIconTextLayoutFactoryLookupCount() == factoryLookupsBeforeFormatTrim,
+                "format-cache eviction avoids another DirectWrite factory lookup");
         const uint64_t warmFactoryLookups = button->DebugGetPreparedIconTextLayoutFactoryLookupCount();
         const uint64_t warmLayoutBuilds   = button->DebugGetPreparedIconTextLayoutBuildCount();
         static_cast<void>(capture());
