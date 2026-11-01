@@ -1,5 +1,6 @@
 #include "DxUi.Internal.h"
 #include "DxUi.MarkdownLabels.h"
+#include "DxUi.PaintIndex.h"
 #include "DxUi.RichAccessibilityEpoch.h"
 #include "DxUi.RichCodeInk.h"
 #include "DxUi.RichEditorLayout.h"
@@ -432,7 +433,7 @@ struct RichTextEditor::State
     std::vector<HighlightRectangle> highlightRectangles{0u};
     std::vector<float> highlightBottoms{0u};
     std::vector<DecorationRectangle> decorationRectangles{0u};
-    std::vector<float> decorationBottoms{0u}, decorationTops{0u};
+    RichText::Detail::PaintIndex decorationPaintIndex;
     RichTextDecorationStatus decorationStatus = RichTextDecorationStatus::None;
     size_t decorationRectangleLimit           = 4096u;
     std::vector<D2D1_RECT_F> compositionRectangles{0u}, conversionRectangles{0u};
@@ -2948,22 +2949,9 @@ void RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
         }
         state.highlightRectangles.swap(rectangles);
         state.highlightBottoms.swap(bottoms);
-        std::vector<float> decorationBottoms(0u), decorationTops(decorations.size(), 0.0f);
-        decorationBottoms.reserve(decorations.size());
-        float maximumBottom = -std::numeric_limits<float>::infinity();
-        for (const auto& entry : decorations)
-        {
-            maximumBottom = std::max(maximumBottom, entry.rectangle.bottom);
-            decorationBottoms.push_back(maximumBottom);
-        }
-        float minimumTop = std::numeric_limits<float>::infinity();
-        for (size_t i = decorations.size(); i > 0u; --i)
-        {
-            minimumTop             = std::min(minimumTop, decorations[i - 1u].rectangle.top);
-            decorationTops[i - 1u] = minimumTop;
-        }
-        state.decorationBottoms.swap(decorationBottoms);
-        state.decorationTops.swap(decorationTops);
+        RichText::Detail::PaintIndex decorationIndex;
+        decorationIndex.Build(decorations.size(), [&](size_t i) { return decorations[i].rectangle; });
+        state.decorationPaintIndex.Swap(decorationIndex);
         state.decorationRectangles.swap(decorations);
         state.decorationStatus       = state.decorations.empty()    ? RichTextDecorationStatus::None
                                        : decorationCapacityExceeded ? RichTextDecorationStatus::CapacityExceeded
@@ -3980,28 +3968,26 @@ void RichTextEditor::Paint(ControlHost& host) const
                                                                             ? std::span<const State::DecorationRectangle>{}
                                                                             : std::span<const State::DecorationRectangle>(state.decorationRectangles);
         const float visibleBottom                                     = state.scrollDip + viewport.bottom - viewport.top;
-        const auto firstDecoration =
-            state.overlayHighlightsDirty
-                ? 0u
-                : static_cast<size_t>(std::upper_bound(state.decorationBottoms.begin(), state.decorationBottoms.end(), state.scrollDip) -
-                                      state.decorationBottoms.begin());
-        for (size_t index = firstDecoration; index < decorations.size() && state.decorationTops[index] < visibleBottom; ++index)
-        {
-            const auto& decoration = decorations[index];
-            if (decoration.rectangle.bottom <= state.scrollDip || decoration.rectangle.top >= visibleBottom ||
-                decoration.kind != RichTextDecorationKind::Background)
-                continue;
-            auto color = DecorationColor(host.GetTheme(), decoration.role);
-            if (! host.GetTheme().highContrast)
-                color.a *= .18f;
-            auto* brush           = host.GetSolidBrush(color);
-            const auto& rectangle = decoration.rectangle;
-            const auto bounds     = D2D1::RectF(rectangle.left + origin.x, rectangle.top + origin.y, rectangle.right + origin.x, rectangle.bottom + origin.y);
-            if (host.GetTheme().highContrast)
-                context->DrawRectangle(bounds, brush);
-            else
-                context->FillRectangle(bounds, brush);
-        }
+        if (! state.overlayHighlightsDirty)
+            state.decorationPaintIndex.ForEach(state.scrollDip,
+                                               visibleBottom,
+                                               [&](size_t index)
+            {
+                const auto& decoration = decorations[index];
+                if (decoration.rectangle.bottom <= state.scrollDip || decoration.rectangle.top >= visibleBottom ||
+                    decoration.kind != RichTextDecorationKind::Background)
+                    return;
+                auto color = DecorationColor(host.GetTheme(), decoration.role);
+                if (! host.GetTheme().highContrast)
+                    color.a *= .18f;
+                auto* brush           = host.GetSolidBrush(color);
+                const auto& rectangle = decoration.rectangle;
+                const auto bounds = D2D1::RectF(rectangle.left + origin.x, rectangle.top + origin.y, rectangle.right + origin.x, rectangle.bottom + origin.y);
+                if (host.GetTheme().highContrast)
+                    context->DrawRectangle(bounds, brush);
+                else
+                    context->FillRectangle(bounds, brush);
+            });
         const std::span<const State::HighlightRectangle> highlights =
             state.overlayHighlightsDirty ? std::span<const State::HighlightRectangle>{} : std::span<const State::HighlightRectangle>(state.highlightRectangles);
         const auto firstHighlight = state.overlayHighlightsDirty
@@ -4098,37 +4084,40 @@ void RichTextEditor::Paint(ControlHost& host) const
                           1.0f,
                           decorated ? &links : nullptr,
                           quoteFill);
-        for (size_t index = firstDecoration; index < decorations.size() && state.decorationTops[index] < visibleBottom; ++index)
-        {
-            const auto& decoration = decorations[index];
-            if (decoration.kind == RichTextDecorationKind::Background)
-                continue;
-            const auto& rectangle = decoration.rectangle;
-            const auto bounds     = D2D1::RectF(rectangle.left + origin.x, rectangle.top + origin.y, rectangle.right + origin.x, rectangle.bottom + origin.y);
-            if (bounds.bottom <= viewport.top || bounds.top >= viewport.bottom || bounds.right <= viewport.left || bounds.left >= viewport.right)
-                continue;
-            auto* brush = host.GetSolidBrush(DecorationColor(host.GetTheme(), decoration.role));
-            if (decoration.kind == RichTextDecorationKind::Foreground)
+        if (! state.overlayHighlightsDirty)
+            state.decorationPaintIndex.ForEach(state.scrollDip,
+                                               visibleBottom,
+                                               [&](size_t index)
             {
-                context->PushAxisAlignedClip(bounds, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
-                const auto restoreDecorationClip = wil::scope_exit([context]() noexcept { context->PopAxisAlignedClip(); });
-                state.layout.Draw(context, brush, brush, origin, rectangle.top, rectangle.bottom, diagramFill, 1.0f, nullptr, quoteFill);
-            }
-            else if (decoration.kind == RichTextDecorationKind::Underline)
-                context->DrawLine(D2D1::Point2F(bounds.left, bounds.bottom - 1.0f), D2D1::Point2F(bounds.right, bounds.bottom - 1.0f), brush, 1.0f);
-            else
-            {
-                const float first = std::max(bounds.left, viewport.left), last = std::min(bounds.right, viewport.right);
-                const float step = std::max(3.0f, (last - first) / 1024.0f);
-                for (unsigned i = 0u; i < 1024u; ++i)
+                const auto& decoration = decorations[index];
+                if (decoration.kind == RichTextDecorationKind::Background)
+                    return;
+                const auto& rectangle = decoration.rectangle;
+                const auto bounds = D2D1::RectF(rectangle.left + origin.x, rectangle.top + origin.y, rectangle.right + origin.x, rectangle.bottom + origin.y);
+                if (bounds.bottom <= viewport.top || bounds.top >= viewport.bottom || bounds.right <= viewport.left || bounds.left >= viewport.right)
+                    return;
+                auto* brush = host.GetSolidBrush(DecorationColor(host.GetTheme(), decoration.role));
+                if (decoration.kind == RichTextDecorationKind::Foreground)
                 {
-                    const float x = first + static_cast<float>(i) * step;
-                    if (x >= last)
-                        break;
-                    context->DrawLine(D2D1::Point2F(x, bounds.bottom - 1.0f), D2D1::Point2F(std::min(last, x + step), bounds.bottom - 3.0f), brush, 1.0f);
+                    context->PushAxisAlignedClip(bounds, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+                    const auto restoreDecorationClip = wil::scope_exit([context]() noexcept { context->PopAxisAlignedClip(); });
+                    state.layout.Draw(context, brush, brush, origin, rectangle.top, rectangle.bottom, diagramFill, 1.0f, nullptr, quoteFill);
                 }
-            }
-        }
+                else if (decoration.kind == RichTextDecorationKind::Underline)
+                    context->DrawLine(D2D1::Point2F(bounds.left, bounds.bottom - 1.0f), D2D1::Point2F(bounds.right, bounds.bottom - 1.0f), brush, 1.0f);
+                else
+                {
+                    const float first = std::max(bounds.left, viewport.left), last = std::min(bounds.right, viewport.right);
+                    const float step = std::max(3.0f, (last - first) / 1024.0f);
+                    for (unsigned i = 0u; i < 1024u; ++i)
+                    {
+                        const float x = first + static_cast<float>(i) * step;
+                        if (x >= last)
+                            break;
+                        context->DrawLine(D2D1::Point2F(x, bounds.bottom - 1.0f), D2D1::Point2F(std::min(last, x + step), bounds.bottom - 3.0f), brush, 1.0f);
+                    }
+                }
+            });
         auto selectedLinks              = links;
         selectedLinks.brush             = selectedTextBrush;
         selectedLinks.emphasisBrush     = selectedTextBrush;

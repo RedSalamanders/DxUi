@@ -1,5 +1,6 @@
 #include "DxUi.RichSemanticGeometry.h"
 #include "DxUi.PreparedLayoutAccess.h"
+#include "DxUi.PaintIndex.h"
 #include "DxUi.PreparedMath.h"
 #include "DxUi.RichImageResources.h"
 #include "DxUi.SemanticExtensions.h"
@@ -346,39 +347,6 @@ struct SemanticBox
         const auto caretHeight = std::min(native->caretHeight, bounds.bottom - bounds.top);
         const bool after       = local > object;
         return {after != native->rtl ? bounds.right : bounds.left, after ? bounds.bottom - caretHeight : bounds.top, caretHeight};
-    }
-};
-// An immutable interval tree retains original paint order even when semantic
-// bounds overlap. It is staged a node at a time and queried without allocation.
-struct PaintIndex
-{
-    struct Node
-    {
-        float top = std::numeric_limits<float>::infinity(), bottom = -std::numeric_limits<float>::infinity();
-    };
-    PaintIndex() : nodes(0u)
-    {
-    }
-    std::vector<Node> nodes;
-    std::size_t leaves{};
-    template <typename Visit> void ForEach(float top, float bottom, Visit&& visit) const
-    {
-        if (! leaves)
-            return;
-        const auto walk = [&](const auto& self, std::size_t index) -> void
-        {
-            const auto& node = nodes[index];
-            if (node.bottom <= top || node.top >= bottom)
-                return;
-            if (index >= leaves)
-            {
-                visit(index - leaves);
-                return;
-            }
-            self(self, index * 2u);
-            self(self, index * 2u + 1u);
-        };
-        walk(walk, 1u);
     }
 };
 struct MarkdownDecorations

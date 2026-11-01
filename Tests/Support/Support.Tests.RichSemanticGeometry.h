@@ -1,5 +1,6 @@
 #pragma once
 #include "Controls/DxUi.PreparedLayoutAccess.h"
+#include "Controls/DxUi.PaintIndex.h"
 #include "Controls/DxUi.PreparedMath.h"
 #include "Controls/DxUi.RichSemanticGeometry.h"
 #include "Support.Tests.RichSemanticDocument.h"
@@ -837,6 +838,15 @@ inline void PaddedCodePresentation()
 }
 inline void MarkdownSubtlePresentation()
 {
+    const std::array<D2D1_RECT_F, 6> alternating{{{0, 0, 10, 10}, {0, 100, 10, 110}, {0, 5, 10, 25}, {0, 120, 10, 130}, {0, 8, 10, 15}, {0, 90, 10, 100}}};
+    DxUi::RichText::Detail::PaintIndex paintIndex;
+    paintIndex.Build(alternating.size(), [&](size_t i) { return alternating[i]; });
+    std::vector<size_t> visited(0u);
+    paintIndex.ForEach(9.0f, 20.0f, [&](size_t i) { visited.push_back(i); });
+    Check(visited == std::vector<size_t>({0u, 2u, 4u}), "viewport index preserves original order for interleaved overlapping intervals");
+    visited.clear();
+    paintIndex.ForEach(40.0f, 50.0f, [&](size_t i) { visited.push_back(i); });
+    Check(visited.empty(), "viewport index excludes alternating offscreen intervals");
     const auto factory        = Factory();
     const std::wstring source = L"# Main title\n\n## Section\n\n### Plain heading\n\n| tiny | a much wider second column |\n| --- | --- |\n| x | content |\n";
     const auto document       = RichSemanticDocumentTests::Build(source);
