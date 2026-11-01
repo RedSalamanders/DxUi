@@ -1569,10 +1569,53 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                     }
                     else
                         continue;
-                    const bool math = std::ranges::any_of(
-                        currentSyntax->Inlines(), [&](const auto& item) { return item.kind == RichText::MarkdownInlineKind::Math && item.source == range; });
-                    const auto oldNodes   = rejected.syntax->Nodes();
-                    const auto newNodes   = currentSyntax->Nodes();
+                    const auto oldNodes       = rejected.syntax->Nodes();
+                    const auto newNodes       = currentSyntax->Nodes();
+                    const auto containingLeaf = [](const auto& nodes, RichText::MarkdownRange object)
+                    {
+                        auto best = RichText::MarkdownNoNode;
+                        for (std::size_t i = 1u; i < nodes.size(); ++i)
+                        {
+                            const auto kind = nodes[i].block.kind;
+                            if (kind != RichText::MarkdownBlockKind::Paragraph && kind != RichText::MarkdownBlockKind::AtxHeading &&
+                                kind != RichText::MarkdownBlockKind::SetextHeading && kind != RichText::MarkdownBlockKind::TableCell)
+                                continue;
+                            const auto source = nodes[i].block.source;
+                            if (source.first <= object.first && object.last <= source.last &&
+                                (best == RichText::MarkdownNoNode ||
+                                 source.last - source.first < nodes[best].block.source.last - nodes[best].block.source.first))
+                                best = i;
+                        }
+                        return best;
+                    };
+                    const auto sameContext = [&](std::size_t before, std::size_t after)
+                    {
+                        while (before != RichText::MarkdownNoNode && after != RichText::MarkdownNoNode)
+                        {
+                            const auto& left  = oldNodes[before];
+                            const auto& right = newNodes[after];
+                            if (left.block.kind != right.block.kind || left.block.heading != right.block.heading || left.contentIndent != right.contentIndent ||
+                                left.listStart != right.listStart || left.listMarker != right.listMarker || left.alignment != right.alignment)
+                                return false;
+                            before = left.parent;
+                            after  = right.parent;
+                        }
+                        return before == after;
+                    };
+                    bool math = std::ranges::any_of(currentSyntax->Inlines(),
+                                                    [&](const auto& item) { return item.kind == RichText::MarkdownInlineKind::Math && item.source == range; });
+                    if (math)
+                    {
+                        const auto oldLeaf = containingLeaf(oldNodes, previousRange);
+                        const auto newLeaf = containingLeaf(newNodes, range);
+                        math               = oldLeaf != RichText::MarkdownNoNode && newLeaf != RichText::MarkdownNoNode && sameContext(oldLeaf, newLeaf);
+                        if (math)
+                        {
+                            const auto oldBlock = oldNodes[oldLeaf].block.source;
+                            const auto newBlock = newNodes[newLeaf].block.source;
+                            math                = rejected.syntax->Slice(oldBlock) == currentSyntax->Slice(newBlock);
+                        }
+                    }
                     const auto oldDiagram = std::ranges::find_if(oldNodes, [&](const auto& item) {
                         return item.block.kind == RichText::MarkdownBlockKind::FencedCode && item.block.source == previousRange;
                     });
@@ -1583,18 +1626,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                     {
                         const auto info = currentSyntax->Slice(newDiagram->block.info);
                         diagram         = info.starts_with(L"mermaid") && (info.size() == 7u || info[7u] == L' ' || info[7u] == L'\t');
-                        auto before = oldDiagram->parent, after = newDiagram->parent;
-                        while (diagram && before != RichText::MarkdownNoNode && after != RichText::MarkdownNoNode)
-                        {
-                            const auto& oldParent = oldNodes[before];
-                            const auto& newParent = newNodes[after];
-                            diagram               = oldParent.block.kind == newParent.block.kind && oldParent.contentIndent == newParent.contentIndent &&
-                                                    oldParent.listStart == newParent.listStart && oldParent.listMarker == newParent.listMarker &&
-                                                    oldParent.alignment == newParent.alignment;
-                            before                = oldParent.parent;
-                            after                 = newParent.parent;
-                        }
-                        diagram = diagram && before == after;
+                        diagram         = diagram && sameContext(oldDiagram->parent, newDiagram->parent);
                     }
                     if (math || diagram)
                         retained.push_back(range);

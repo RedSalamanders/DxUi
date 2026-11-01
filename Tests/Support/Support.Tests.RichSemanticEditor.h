@@ -1256,6 +1256,21 @@ inline void NativeMathHRESULTFailureContainment(ControlHost& host)
     }
 
     {
+        auto* editor = install(L"$x$\n");
+        SemanticWriteFactoryOverride override(host);
+        auto* calls                    = override.Get();
+        calls->failLayoutText          = L"x";
+        calls->layoutFailure           = DWRITE_E_UNSUPPORTEDOPERATION;
+        calls->failMatchingLayoutCount = 1u;
+        Check(PrepareUntilSettled(*editor, host) == S_OK && editor->GetAcknowledgedSemanticDocument(host)->Diagnostics().size() == 1u,
+              "seed font-local formula rejection");
+        const auto attempts = calls->matchingLayouts;
+        editor->SetSelection({0u, 0u});
+        Check(editor->ReplaceSelection(L"# ") && PrepareUntilSettled(*editor, host) == S_OK && calls->matchingLayouts > attempts &&
+                  editor->GetAcknowledgedSemanticDocument(host)->Diagnostics().empty(),
+              "changing the surrounding paragraph into a heading retries the unchanged formula");
+    }
+    {
         constexpr std::wstring_view source = L"$x$ and $x$\n";
         auto* editor                       = install(std::wstring(source));
         SemanticWriteFactoryOverride override(host);
