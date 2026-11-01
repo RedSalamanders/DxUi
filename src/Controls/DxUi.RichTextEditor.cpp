@@ -431,6 +431,12 @@ struct RichTextEditor::State
     std::shared_ptr<const std::function<void(const RichTextLinkActivation&)>> onLinkActivated;
     std::weak_ptr<const RichText::SemanticDocument> keyboardNavigationDocument;
     size_t keyboardNavigationElement = RichText::MarkdownNoNode;
+    struct TaskFocusIntent
+    {
+        RichText::MarkdownRange marker;
+        uint64_t revision{}, selectionEpoch{};
+    };
+    std::optional<TaskFocusIntent> taskFocusIntent;
     std::vector<RichTextSourceHighlight> highlights;
     std::vector<RichTextDecoration> decorations;
     std::shared_ptr<const RichTextContextMenuLabels> contextMenuLabels;
@@ -1869,6 +1875,9 @@ void RichTextEditor::SetTaskTogglePolicy(RichTextTaskTogglePolicy policy)
         return;
     _state->taskTogglePolicy = policy;
     _state->taskPressPlan.reset();
+    _state->taskFocusIntent.reset();
+    _state->keyboardNavigationDocument.reset();
+    _state->keyboardNavigationElement = RichText::MarkdownNoNode;
     RetireSemanticAccessibility();
     RequestInvalidate();
 }
@@ -5219,6 +5228,24 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
         _state->pendingLeadSurrogate = 0;
         const bool control = ModifiersContainCtrl(modifiers), shift = ModifiersContainShift(modifiers);
         _state->suppressTaskSpace = false;
+        if (_state->taskFocusIntent)
+        {
+            const auto intent = *_state->taskFocusIntent;
+            if (Revision() != intent.revision || _state->document.selectionEpoch_ != intent.selectionEpoch ||
+                (! Editable() && _state->taskTogglePolicy != RichTextTaskTogglePolicy::AlwaysInteractive))
+                _state->taskFocusIntent.reset();
+            else if (const auto document = GetAcknowledgedSemanticDocument(host))
+            {
+                _state->taskFocusIntent.reset();
+                for (std::size_t element = 0u; element < document->Elements().size(); ++element)
+                    if (document->Elements()[element].role == RichText::SemanticRole::Task && document->Elements()[element].taskMarker == intent.marker)
+                    {
+                        _state->keyboardNavigationDocument = document;
+                        _state->keyboardNavigationElement = element;
+                        break;
+                    }
+            }
+        }
         if (! ModifiersContainAlt(modifiers))
         {
             if (key == VK_INSERT && control && ! shift)
@@ -5419,6 +5446,9 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                 (Editable() || (IsEnabled() && _state->taskTogglePolicy == RichTextTaskTogglePolicy::AlwaysInteractive)))
             {
                 _state->suppressTaskSpace = true;
+                if (Revision() != std::numeric_limits<uint64_t>::max())
+                    _state->taskFocusIntent = State::TaskFocusIntent{document->Elements()[element].taskMarker, Revision() + 1u,
+                                                                     _state->document.selectionEpoch_};
                 return ToggleSemanticTask(host, document, element);
             }
         }

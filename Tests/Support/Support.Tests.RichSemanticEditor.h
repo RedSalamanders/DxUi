@@ -2011,8 +2011,19 @@ template <typename Prepare> void TaskCheckboxAlignment(ControlHost& host, Prepar
     Check(editor->OnKeyDown(host, VK_TAB, MK_CONTROL) && editor->OnKeyDown(host, VK_SPACE, 0u) && editor->OnChar(host, L' ', 0u) &&
               editor->GetText() == L"- [x] An unchecked task\r\n- [x] A checked task\r\n",
           "opt-in read-only task accepts focused Space without inserting the character");
+    prepare();
+    Check(editor->OnKeyDown(host, VK_SPACE, 0u) && editor->OnChar(host, L' ', 0u) && editor->GetText() == source,
+          "read-only task focus rebinds after preparation for a second Space");
     editor->SetReadOnly(false);
-    Check(editor->Undo() && editor->GetText() == source, "read-only focused task toggle records one undo");
+    Check(editor->Undo() && editor->GetText() != source && editor->Undo() && editor->GetText() == source,
+          "each read-only focused task toggle records one undo");
+    prepare();
+    Check(editor->OnKeyDown(host, VK_TAB, MK_CONTROL) && editor->OnKeyDown(host, VK_SPACE, 0u) && editor->OnChar(host, L' ', 0u),
+          "editable task accepts focused Space");
+    prepare();
+    Check(editor->OnKeyDown(host, VK_SPACE, 0u) && editor->OnChar(host, L' ', 0u) && editor->GetText() == source,
+          "editable task focus rebinds after preparation for a second Space");
+    Check(editor->Undo() && editor->Undo() && editor->GetText() == source, "editable focused toggles retain separate undo entries");
     editor->SetReadOnly(true);
     prepare();
     const auto readOnlyBounds = editor->TryGetTextInputRangeRects(host, 2u, 5u);
@@ -2023,6 +2034,19 @@ template <typename Prepare> void TaskCheckboxAlignment(ControlHost& host, Prepar
           "opt-in read-only task accepts a captured pointer gesture");
     editor->SetReadOnly(false);
     Check(editor->Undo() && editor->GetText() == source, "read-only pointer task toggle records one undo");
+    prepare();
+    Check(editor->OnKeyDown(host, VK_TAB, MK_CONTROL), "task focus returns for selection-change guard");
+    editor->SetOnTextChanged([&] { editor->SetSelection({source.size(), source.size()}); });
+    Check(editor->OnKeyDown(host, VK_SPACE, 0u), "task toggle may notify a selection-changing application");
+    editor->SetOnTextChanged({});
+    prepare();
+    Check(! editor->OnKeyDown(host, VK_SPACE, 0u), "a callback selection change prevents old task focus resurrection");
+    Check(editor->Undo() && editor->GetText() == source, "callback selection change leaves the task edit undoable");
+    prepare();
+    Check(editor->OnKeyDown(host, VK_TAB, MK_CONTROL), "task focus returns for owner retirement guard");
+    editor->SetOnTextChanged([&host] { host.SetRoot(std::make_unique<Label>(L"replacement")); });
+    Check(editor->OnKeyDown(host, VK_SPACE, 0u) && dynamic_cast<Label*>(host.GetRoot()),
+          "task notification may replace its owner without resuming the old editor");
 }
 template <typename Prepare> void HangingMarkersLinksAndHtml(ControlHost& host, Prepare&& prepare)
 {
