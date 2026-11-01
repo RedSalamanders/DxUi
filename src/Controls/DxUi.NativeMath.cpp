@@ -341,6 +341,371 @@ class Parser
             Reject();
         return value;
     }
+    // Keep recursive parser frames small in unoptimized MSVC builds. Literal
+    // symbol tables and unrelated command temporaries belong in separate frames.
+    MathNode StructuredCommand(std::wstring_view name, unsigned depth)
+    {
+        if (name == L"not")
+        {
+            auto operand = Atom(depth + 1u);
+            if (operand.kind != MathKind::Text || operand.atomClass != MathAtomClass::Relation || operand.text.size() != 1u)
+                Reject(MathIssue::UnsupportedCommand);
+            constexpr std::array pairs{std::pair{L'=', L'≠'},
+                                       std::pair{L'<', L'≮'},
+                                       std::pair{L'>', L'≯'},
+                                       std::pair{L'≤', L'≰'},
+                                       std::pair{L'≥', L'≱'},
+                                       std::pair{L'∈', L'∉'},
+                                       std::pair{L'∋', L'∌'},
+                                       std::pair{L'⊂', L'⊄'},
+                                       std::pair{L'⊃', L'⊅'},
+                                       std::pair{L'⊆', L'⊈'},
+                                       std::pair{L'⊇', L'⊉'},
+                                       std::pair{L'∼', L'≁'},
+                                       std::pair{L'≡', L'≢'},
+                                       std::pair{L'≈', L'≉'},
+                                       std::pair{L'∣', L'∤'},
+                                       std::pair{L'∥', L'∦'}};
+            for (const auto& [positive, negative] : pairs)
+                if (operand.text[0u] == positive)
+                {
+                    operand.text[0u] = negative;
+                    return operand;
+                }
+            Reject(MathIssue::UnsupportedCommand);
+        }
+        if (name == L"frac" || name == L"dfrac" || name == L"tfrac")
+            return Make(MathKind::Fraction, std::wstring(name), {Atom(depth + 1), Atom(depth + 1)});
+        if (name == L"binom" || name == L"dbinom" || name == L"tbinom")
+        {
+            auto binomial = Make(MathKind::Matrix, L"pmatrix", {Atom(depth + 1), Atom(depth + 1)}, 1u);
+            if (name == L"binom")
+                return binomial;
+            return Make(MathKind::Style, name == L"dbinom" ? L"displaystyle" : L"textstyle", {std::move(binomial)});
+        }
+        if (name == L"overset" || name == L"underset" || name == L"stackrel")
+        {
+            auto annotation = Atom(depth + 1);
+            auto base       = Atom(depth + 1);
+            if (base.kind == MathKind::Row && base.children.size() == 1u)
+                base.atomClass = base.children[0u].atomClass;
+            if (name == L"stackrel")
+                base.atomClass = MathAtomClass::Relation;
+            base.limits = MathLimits::AboveBelow;
+            MathNode sub, super;
+            if (name == L"underset")
+                sub = std::move(annotation);
+            else
+                super = std::move(annotation);
+            return Make(MathKind::Scripts, L"", {std::move(base), std::move(sub), std::move(super)});
+        }
+        if (name == L"sqrt")
+        {
+            Space();
+            MathNode index;
+            if (at < source.size() && source[at] == L'[')
+            {
+                ++at;
+                index = Row(depth + 1u, false, false, false, true);
+            }
+            return Make(MathKind::Root, L"", {Atom(depth + 1), std::move(index)});
+        }
+        if (name == L"substack")
+        {
+            Space();
+            if (at == source.size() || source[at++] != L'{')
+                Reject(MathIssue::MissingRequiredArgument);
+            std::vector<MathNode> rows(0u);
+            while (true)
+            {
+                if (rows.size() == MathMaximumRows)
+                    Reject(MathIssue::Capacity);
+                rows.push_back(Row(depth + 1u, false, true, false, false, true));
+                if (source.substr(at, 2u) == L"\\\\")
+                {
+                    at += 2u;
+                    Space();
+                    if (at < source.size() && source[at] == L'}')
+                    {
+                        ++at;
+                        break;
+                    }
+                    continue;
+                }
+                if (at < source.size() && source[at] == L'}')
+                {
+                    ++at;
+                    break;
+                }
+                Reject();
+            }
+            return Make(MathKind::Matrix, L"gathered", std::move(rows), 1u);
+        }
+        if (name == L"begin")
+            return Matrix(GroupText(), depth);
+        Reject(MathIssue::UnsupportedCommand);
+    }
+    MathNode StyledCommand(std::wstring_view name, unsigned depth)
+    {
+        if (name == L"text" || name == L"textbf" || name == L"textit" || name == L"operatorname")
+        {
+            const bool starred = name == L"operatorname" && at < source.size() && source[at] == L'*';
+            if (starred)
+                ++at;
+            auto result          = Make(MathKind::Text, GroupText(true));
+            result.italic        = false;
+            result.atomClass     = name == L"operatorname" ? MathAtomClass::Operator : MathAtomClass::Ordinary;
+            result.displayLimits = starred;
+            if (name == L"textbf" || name == L"textit")
+                return Make(MathKind::Style, name == L"textbf" ? L"mathbf" : L"mathit", {std::move(result)});
+            return result;
+        }
+        if (name == L"mathrm" || name == L"mathbf" || name == L"mathit" || name == L"mathnormal" || name == L"boldsymbol" || name == L"bm" ||
+            name == L"mathbb" || name == L"mathcal" || name == L"mathfrak" || name == L"mathsf" || name == L"mathtt" || name == L"mathord" ||
+            name == L"mathop" || name == L"mathbin" || name == L"mathrel" || name == L"mathopen" || name == L"mathclose" || name == L"mathpunct" ||
+            name == L"mathinner")
+        {
+            auto body = Atom(depth + 1);
+            if (name == L"mathbb" || name == L"mathcal" || name == L"mathfrak" || name == L"mathsf" || name == L"mathtt")
+                Alphabet(body, name);
+            auto result = Make(MathKind::Style, std::wstring(name), {std::move(body)});
+            if (name == L"mathord")
+                result.atomClass = MathAtomClass::Ordinary;
+            else if (name == L"mathop")
+            {
+                result.atomClass     = MathAtomClass::Operator;
+                result.displayLimits = true;
+            }
+            else if (name == L"mathbin")
+                result.atomClass = MathAtomClass::Binary;
+            else if (name == L"mathrel")
+                result.atomClass = MathAtomClass::Relation;
+            else if (name == L"mathopen")
+                result.atomClass = MathAtomClass::Opening;
+            else if (name == L"mathclose")
+                result.atomClass = MathAtomClass::Closing;
+            else if (name == L"mathpunct")
+                result.atomClass = MathAtomClass::Punctuation;
+            else if (name == L"mathinner")
+                result.atomClass = MathAtomClass::Inner;
+            return result;
+        }
+        if (name == L"overline" || name == L"underline" || name == L"bar" || name == L"hat" || name == L"widehat" || name == L"vec" || name == L"dot" ||
+            name == L"ddot" || name == L"tilde" || name == L"widetilde")
+            return Make(MathKind::Accent, std::wstring(name), {Atom(depth + 1)});
+        if (name == L"left")
+        {
+            const auto left = Delimiter();
+            auto body       = Row(depth + 1, false, false, true);
+            if (source.substr(at, 6) != L"\\right")
+                Reject(MathIssue::MissingRightDelimiter);
+            at += 6;
+            const auto right = Delimiter();
+            return Make(MathKind::Delimited, std::wstring{left, right}, {std::move(body)});
+        }
+        Reject(MathIssue::UnsupportedCommand);
+    }
+    MathNode SymbolCommand(std::wstring_view name)
+    {
+        auto sizeName = name;
+        if (sizeName.ends_with(L"l") || sizeName.ends_with(L"r"))
+            sizeName.remove_suffix(1u);
+        if (sizeName == L"big" || sizeName == L"Big" || sizeName == L"bigg" || sizeName == L"Bigg")
+        {
+            const auto delimiter = Delimiter();
+            auto result          = Make(MathKind::Delimiter, std::wstring(1, delimiter));
+            result.delimiterSize = sizeName == L"big" ? 1u : sizeName == L"Big" ? 2u : sizeName == L"bigg" ? 3u : 4u;
+            result.atomClass     = Classify(result.text);
+            return result;
+        }
+        if (name == L"quad" || name == L"qquad")
+            return Make(MathKind::Space, std::wstring(name));
+        const auto symbol = std::lower_bound(std::begin(Detail::NativeMathSymbols),
+                                             std::end(Detail::NativeMathSymbols),
+                                             name,
+                                             [](const Detail::NativeMathSymbol& entry, std::wstring_view key) { return entry.name < key; });
+        if (symbol != std::end(Detail::NativeMathSymbols) && symbol->name == name)
+        {
+            auto result      = Make(MathKind::Text, std::wstring(1u, symbol->glyph));
+            result.atomClass = symbol->atom;
+            result.italic    = symbol->italic;
+            return result;
+        }
+        constexpr std::pair<std::wstring_view, std::wstring_view> symbols[]{{L"alpha", L"α"},
+                                                                            {L"beta", L"β"},
+                                                                            {L"gamma", L"γ"},
+                                                                            {L"delta", L"δ"},
+                                                                            {L"epsilon", L"ϵ"},
+                                                                            {L"varepsilon", L"ε"},
+                                                                            {L"zeta", L"ζ"},
+                                                                            {L"eta", L"η"},
+                                                                            {L"theta", L"θ"},
+                                                                            {L"vartheta", L"ϑ"},
+                                                                            {L"iota", L"ι"},
+                                                                            {L"kappa", L"κ"},
+                                                                            {L"varkappa", L"ϰ"},
+                                                                            {L"lambda", L"λ"},
+                                                                            {L"mu", L"μ"},
+                                                                            {L"nu", L"ν"},
+                                                                            {L"xi", L"ξ"},
+                                                                            {L"omicron", L"ο"},
+                                                                            {L"pi", L"π"},
+                                                                            {L"varpi", L"ϖ"},
+                                                                            {L"rho", L"ρ"},
+                                                                            {L"varrho", L"ϱ"},
+                                                                            {L"sigma", L"σ"},
+                                                                            {L"varsigma", L"ς"},
+                                                                            {L"tau", L"τ"},
+                                                                            {L"upsilon", L"υ"},
+                                                                            {L"phi", L"ϕ"},
+                                                                            {L"varphi", L"φ"},
+                                                                            {L"chi", L"χ"},
+                                                                            {L"psi", L"ψ"},
+                                                                            {L"omega", L"ω"},
+                                                                            {L"Gamma", L"Γ"},
+                                                                            {L"Delta", L"Δ"},
+                                                                            {L"Theta", L"Θ"},
+                                                                            {L"Lambda", L"Λ"},
+                                                                            {L"Xi", L"Ξ"},
+                                                                            {L"Pi", L"Π"},
+                                                                            {L"Sigma", L"Σ"},
+                                                                            {L"Upsilon", L"Υ"},
+                                                                            {L"Phi", L"Φ"},
+                                                                            {L"Psi", L"Ψ"},
+                                                                            {L"Omega", L"Ω"},
+                                                                            {L"sum", L"∑"},
+                                                                            {L"prod", L"∏"},
+                                                                            {L"coprod", L"∐"},
+                                                                            {L"bigcup", L"⋃"},
+                                                                            {L"bigcap", L"⋂"},
+                                                                            {L"int", L"∫"},
+                                                                            {L"iint", L"∬"},
+                                                                            {L"iiint", L"∭"},
+                                                                            {L"oint", L"∮"},
+                                                                            {L"infty", L"∞"},
+                                                                            {L"times", L"×"},
+                                                                            {L"cdot", L"⋅"},
+                                                                            {L"div", L"÷"},
+                                                                            {L"pm", L"±"},
+                                                                            {L"mp", L"∓"},
+                                                                            {L"le", L"≤"},
+                                                                            {L"leq", L"≤"},
+                                                                            {L"ge", L"≥"},
+                                                                            {L"geq", L"≥"},
+                                                                            {L"ne", L"≠"},
+                                                                            {L"neq", L"≠"},
+                                                                            {L"approx", L"≈"},
+                                                                            {L"equiv", L"≡"},
+                                                                            {L"sim", L"∼"},
+                                                                            {L"propto", L"∝"},
+                                                                            {L"rightarrow", L"→"},
+                                                                            {L"leftarrow", L"←"},
+                                                                            {L"leftrightarrow", L"↔"},
+                                                                            {L"Rightarrow", L"⇒"},
+                                                                            {L"Leftarrow", L"⇐"},
+                                                                            {L"Leftrightarrow", L"⇔"},
+                                                                            {L"to", L"→"},
+                                                                            {L"mapsto", L"↦"},
+                                                                            {L"partial", L"∂"},
+                                                                            {L"nabla", L"∇"},
+                                                                            {L"ell", L"ℓ"},
+                                                                            {L"hbar", L"ℏ"},
+                                                                            {L"ldots", L"…"},
+                                                                            {L"cdots", L"⋯"},
+                                                                            {L"vdots", L"⋮"},
+                                                                            {L"ddots", L"⋱"},
+                                                                            {L"in", L"∈"},
+                                                                            {L"notin", L"∉"},
+                                                                            {L"subset", L"⊂"},
+                                                                            {L"subseteq", L"⊆"},
+                                                                            {L"supset", L"⊃"},
+                                                                            {L"supseteq", L"⊇"},
+                                                                            {L"cup", L"∪"},
+                                                                            {L"cap", L"∩"},
+                                                                            {L"emptyset", L"∅"},
+                                                                            {L"forall", L"∀"},
+                                                                            {L"exists", L"∃"},
+                                                                            {L"neg", L"¬"},
+                                                                            {L"land", L"∧"},
+                                                                            {L"lor", L"∨"},
+                                                                            {L"langle", L"⟨"},
+                                                                            {L"rangle", L"⟩"},
+                                                                            {L"lbrace", L"{"},
+                                                                            {L"rbrace", L"}"},
+                                                                            {L"vert", L"|"},
+                                                                            {L"Vert", L"‖"},
+                                                                            {L"lvert", L"|"},
+                                                                            {L"rvert", L"|"},
+                                                                            {L"lVert", L"‖"},
+                                                                            {L"rVert", L"‖"},
+                                                                            {L"lfloor", L"⌊"},
+                                                                            {L"rfloor", L"⌋"},
+                                                                            {L"lceil", L"⌈"},
+                                                                            {L"rceil", L"⌉"},
+                                                                            {L"sin", L"sin"},
+                                                                            {L"cos", L"cos"},
+                                                                            {L"tan", L"tan"},
+                                                                            {L"cot", L"cot"},
+                                                                            {L"sec", L"sec"},
+                                                                            {L"csc", L"csc"},
+                                                                            {L"sinh", L"sinh"},
+                                                                            {L"cosh", L"cosh"},
+                                                                            {L"log", L"log"},
+                                                                            {L"ln", L"ln"},
+                                                                            {L"exp", L"exp"},
+                                                                            {L"lim", L"lim"},
+                                                                            {L"max", L"max"},
+                                                                            {L"min", L"min"},
+                                                                            {L"det", L"det"},
+                                                                            {L"gcd", L"gcd"}};
+        for (const auto& [key, value] : symbols)
+            if (key == name)
+            {
+                auto result = Make(MathKind::Text, std::wstring(value));
+                constexpr std::array operators{L"sum", L"prod", L"coprod", L"bigcup", L"bigcap", L"int", L"iint", L"iiint", L"oint",
+                                               L"sin", L"cos",  L"tan",    L"cot",    L"sec",    L"csc", L"sinh", L"cosh",  L"log",
+                                               L"ln",  L"exp",  L"lim",    L"max",    L"min",    L"det", L"gcd"};
+                if (std::ranges::find(operators, name) != operators.end())
+                {
+                    result.atomClass     = MathAtomClass::Operator;
+                    result.italic        = false;
+                    result.largeOperator = value.size() == 1u;
+                    result.displayLimits = result.largeOperator ? name != L"int" && name != L"iint" && name != L"iiint" && name != L"oint"
+                                                                : name == L"lim" || name == L"max" || name == L"min";
+                }
+                return result;
+            }
+        if (name.empty() && at < source.size())
+        {
+            const auto escaped = source[at++];
+            if (std::wstring_view(L",;:! ").find(escaped) != source.npos)
+                return Make(MathKind::Space, std::wstring(1, escaped));
+            if (escaped == L'|')
+                return Make(MathKind::Text, L"‖");
+            if (std::wstring_view(L"{}%_$&#").find(escaped) != source.npos)
+                return Make(MathKind::Text, std::wstring(1, escaped));
+        }
+        Reject(MathIssue::UnsupportedCommand);
+    }
+    MathNode Command(unsigned depth)
+    {
+        const auto first = at;
+        while (at < source.size() && Letter(source[at]))
+            ++at;
+        const auto name                                 = source.substr(first, at - first);
+        static constexpr std::wstring_view structured[] = {
+            L"not", L"frac", L"dfrac", L"tfrac", L"binom", L"dbinom", L"tbinom", L"overset", L"underset", L"stackrel", L"sqrt", L"substack", L"begin"};
+        if (std::ranges::find(structured, name) != std::end(structured))
+            return StructuredCommand(name, depth);
+        static constexpr std::wstring_view styled[] = {L"text",       L"textbf",     L"textit",   L"operatorname", L"mathrm",    L"mathbf",   L"mathit",
+                                                       L"mathnormal", L"boldsymbol", L"bm",       L"mathbb",       L"mathcal",   L"mathfrak", L"mathsf",
+                                                       L"mathtt",     L"mathord",    L"mathop",   L"mathbin",      L"mathrel",   L"mathopen", L"mathclose",
+                                                       L"mathpunct",  L"mathinner",  L"overline", L"underline",    L"bar",       L"hat",      L"widehat",
+                                                       L"vec",        L"dot",        L"ddot",     L"tilde",        L"widetilde", L"left"};
+        if (std::ranges::find(styled, name) != std::end(styled))
+            return StyledCommand(name, depth);
+        return SymbolCommand(name);
+    }
     MathNode Atom(unsigned depth)
     {
         if (depth > MathMaximumGroupDepth)
@@ -352,345 +717,7 @@ class Parser
         if (c == L'{')
             return Row(depth + 1, true, false);
         if (c == L'\\')
-        {
-            const auto first = at;
-            while (at < source.size() && Letter(source[at]))
-                ++at;
-            const auto name = source.substr(first, at - first);
-            if (name == L"not")
-            {
-                auto operand = Atom(depth + 1u);
-                if (operand.kind != MathKind::Text || operand.atomClass != MathAtomClass::Relation || operand.text.size() != 1u)
-                    Reject(MathIssue::UnsupportedCommand);
-                constexpr std::array pairs{std::pair{L'=', L'≠'},
-                                           std::pair{L'<', L'≮'},
-                                           std::pair{L'>', L'≯'},
-                                           std::pair{L'≤', L'≰'},
-                                           std::pair{L'≥', L'≱'},
-                                           std::pair{L'∈', L'∉'},
-                                           std::pair{L'∋', L'∌'},
-                                           std::pair{L'⊂', L'⊄'},
-                                           std::pair{L'⊃', L'⊅'},
-                                           std::pair{L'⊆', L'⊈'},
-                                           std::pair{L'⊇', L'⊉'},
-                                           std::pair{L'∼', L'≁'},
-                                           std::pair{L'≡', L'≢'},
-                                           std::pair{L'≈', L'≉'},
-                                           std::pair{L'∣', L'∤'},
-                                           std::pair{L'∥', L'∦'}};
-                for (const auto& [positive, negative] : pairs)
-                    if (operand.text[0u] == positive)
-                    {
-                        operand.text[0u] = negative;
-                        return operand;
-                    }
-                Reject(MathIssue::UnsupportedCommand);
-            }
-            if (name == L"frac" || name == L"dfrac" || name == L"tfrac")
-                return Make(MathKind::Fraction, std::wstring(name), {Atom(depth + 1), Atom(depth + 1)});
-            if (name == L"binom" || name == L"dbinom" || name == L"tbinom")
-            {
-                auto binomial = Make(MathKind::Matrix, L"pmatrix", {Atom(depth + 1), Atom(depth + 1)}, 1u);
-                if (name == L"binom")
-                    return binomial;
-                return Make(MathKind::Style, name == L"dbinom" ? L"displaystyle" : L"textstyle", {std::move(binomial)});
-            }
-            if (name == L"overset" || name == L"underset" || name == L"stackrel")
-            {
-                auto annotation = Atom(depth + 1);
-                auto base       = Atom(depth + 1);
-                if (base.kind == MathKind::Row && base.children.size() == 1u)
-                    base.atomClass = base.children[0u].atomClass;
-                if (name == L"stackrel")
-                    base.atomClass = MathAtomClass::Relation;
-                base.limits = MathLimits::AboveBelow;
-                MathNode sub, super;
-                if (name == L"underset")
-                    sub = std::move(annotation);
-                else
-                    super = std::move(annotation);
-                return Make(MathKind::Scripts, L"", {std::move(base), std::move(sub), std::move(super)});
-            }
-            if (name == L"sqrt")
-            {
-                Space();
-                MathNode index;
-                if (at < source.size() && source[at] == L'[')
-                {
-                    ++at;
-                    index = Row(depth + 1u, false, false, false, true);
-                }
-                return Make(MathKind::Root, L"", {Atom(depth + 1), std::move(index)});
-            }
-            if (name == L"substack")
-            {
-                Space();
-                if (at == source.size() || source[at++] != L'{')
-                    Reject(MathIssue::MissingRequiredArgument);
-                std::vector<MathNode> rows(0u);
-                while (true)
-                {
-                    if (rows.size() == MathMaximumRows)
-                        Reject(MathIssue::Capacity);
-                    rows.push_back(Row(depth + 1u, false, true, false, false, true));
-                    if (source.substr(at, 2u) == L"\\\\")
-                    {
-                        at += 2u;
-                        Space();
-                        if (at < source.size() && source[at] == L'}')
-                        {
-                            ++at;
-                            break;
-                        }
-                        continue;
-                    }
-                    if (at < source.size() && source[at] == L'}')
-                    {
-                        ++at;
-                        break;
-                    }
-                    Reject();
-                }
-                return Make(MathKind::Matrix, L"gathered", std::move(rows), 1u);
-            }
-            if (name == L"begin")
-                return Matrix(GroupText(), depth);
-            if (name == L"text" || name == L"textbf" || name == L"textit" || name == L"operatorname")
-            {
-                const bool starred = name == L"operatorname" && at < source.size() && source[at] == L'*';
-                if (starred)
-                    ++at;
-                auto result          = Make(MathKind::Text, GroupText(true));
-                result.italic        = false;
-                result.atomClass     = name == L"operatorname" ? MathAtomClass::Operator : MathAtomClass::Ordinary;
-                result.displayLimits = starred;
-                if (name == L"textbf" || name == L"textit")
-                    return Make(MathKind::Style, name == L"textbf" ? L"mathbf" : L"mathit", {std::move(result)});
-                return result;
-            }
-            if (name == L"mathrm" || name == L"mathbf" || name == L"mathit" || name == L"mathnormal" || name == L"boldsymbol" || name == L"bm" ||
-                name == L"mathbb" || name == L"mathcal" || name == L"mathfrak" || name == L"mathsf" || name == L"mathtt" || name == L"mathord" ||
-                name == L"mathop" || name == L"mathbin" || name == L"mathrel" || name == L"mathopen" || name == L"mathclose" || name == L"mathpunct" ||
-                name == L"mathinner")
-            {
-                auto body = Atom(depth + 1);
-                if (name == L"mathbb" || name == L"mathcal" || name == L"mathfrak" || name == L"mathsf" || name == L"mathtt")
-                    Alphabet(body, name);
-                auto result = Make(MathKind::Style, std::wstring(name), {std::move(body)});
-                if (name == L"mathord")
-                    result.atomClass = MathAtomClass::Ordinary;
-                else if (name == L"mathop")
-                {
-                    result.atomClass     = MathAtomClass::Operator;
-                    result.displayLimits = true;
-                }
-                else if (name == L"mathbin")
-                    result.atomClass = MathAtomClass::Binary;
-                else if (name == L"mathrel")
-                    result.atomClass = MathAtomClass::Relation;
-                else if (name == L"mathopen")
-                    result.atomClass = MathAtomClass::Opening;
-                else if (name == L"mathclose")
-                    result.atomClass = MathAtomClass::Closing;
-                else if (name == L"mathpunct")
-                    result.atomClass = MathAtomClass::Punctuation;
-                else if (name == L"mathinner")
-                    result.atomClass = MathAtomClass::Inner;
-                return result;
-            }
-            if (name == L"overline" || name == L"underline" || name == L"bar" || name == L"hat" || name == L"widehat" || name == L"vec" || name == L"dot" ||
-                name == L"ddot" || name == L"tilde" || name == L"widetilde")
-                return Make(MathKind::Accent, std::wstring(name), {Atom(depth + 1)});
-            if (name == L"left")
-            {
-                const auto left = Delimiter();
-                auto body       = Row(depth + 1, false, false, true);
-                if (source.substr(at, 6) != L"\\right")
-                    Reject(MathIssue::MissingRightDelimiter);
-                at += 6;
-                const auto right = Delimiter();
-                return Make(MathKind::Delimited, std::wstring{left, right}, {std::move(body)});
-            }
-            auto sizeName = name;
-            if (sizeName.ends_with(L"l") || sizeName.ends_with(L"r"))
-                sizeName.remove_suffix(1u);
-            if (sizeName == L"big" || sizeName == L"Big" || sizeName == L"bigg" || sizeName == L"Bigg")
-            {
-                const auto delimiter = Delimiter();
-                auto result          = Make(MathKind::Delimiter, std::wstring(1, delimiter));
-                result.delimiterSize = sizeName == L"big" ? 1u : sizeName == L"Big" ? 2u : sizeName == L"bigg" ? 3u : 4u;
-                result.atomClass     = Classify(result.text);
-                return result;
-            }
-            if (name == L"quad" || name == L"qquad")
-                return Make(MathKind::Space, std::wstring(name));
-            const auto symbol = std::lower_bound(std::begin(Detail::NativeMathSymbols),
-                                                 std::end(Detail::NativeMathSymbols),
-                                                 name,
-                                                 [](const Detail::NativeMathSymbol& entry, std::wstring_view key) { return entry.name < key; });
-            if (symbol != std::end(Detail::NativeMathSymbols) && symbol->name == name)
-            {
-                auto result      = Make(MathKind::Text, std::wstring(1u, symbol->glyph));
-                result.atomClass = symbol->atom;
-                result.italic    = symbol->italic;
-                return result;
-            }
-            constexpr std::pair<std::wstring_view, std::wstring_view> symbols[]{{L"alpha", L"α"},
-                                                                                {L"beta", L"β"},
-                                                                                {L"gamma", L"γ"},
-                                                                                {L"delta", L"δ"},
-                                                                                {L"epsilon", L"ϵ"},
-                                                                                {L"varepsilon", L"ε"},
-                                                                                {L"zeta", L"ζ"},
-                                                                                {L"eta", L"η"},
-                                                                                {L"theta", L"θ"},
-                                                                                {L"vartheta", L"ϑ"},
-                                                                                {L"iota", L"ι"},
-                                                                                {L"kappa", L"κ"},
-                                                                                {L"varkappa", L"ϰ"},
-                                                                                {L"lambda", L"λ"},
-                                                                                {L"mu", L"μ"},
-                                                                                {L"nu", L"ν"},
-                                                                                {L"xi", L"ξ"},
-                                                                                {L"omicron", L"ο"},
-                                                                                {L"pi", L"π"},
-                                                                                {L"varpi", L"ϖ"},
-                                                                                {L"rho", L"ρ"},
-                                                                                {L"varrho", L"ϱ"},
-                                                                                {L"sigma", L"σ"},
-                                                                                {L"varsigma", L"ς"},
-                                                                                {L"tau", L"τ"},
-                                                                                {L"upsilon", L"υ"},
-                                                                                {L"phi", L"ϕ"},
-                                                                                {L"varphi", L"φ"},
-                                                                                {L"chi", L"χ"},
-                                                                                {L"psi", L"ψ"},
-                                                                                {L"omega", L"ω"},
-                                                                                {L"Gamma", L"Γ"},
-                                                                                {L"Delta", L"Δ"},
-                                                                                {L"Theta", L"Θ"},
-                                                                                {L"Lambda", L"Λ"},
-                                                                                {L"Xi", L"Ξ"},
-                                                                                {L"Pi", L"Π"},
-                                                                                {L"Sigma", L"Σ"},
-                                                                                {L"Upsilon", L"Υ"},
-                                                                                {L"Phi", L"Φ"},
-                                                                                {L"Psi", L"Ψ"},
-                                                                                {L"Omega", L"Ω"},
-                                                                                {L"sum", L"∑"},
-                                                                                {L"prod", L"∏"},
-                                                                                {L"coprod", L"∐"},
-                                                                                {L"bigcup", L"⋃"},
-                                                                                {L"bigcap", L"⋂"},
-                                                                                {L"int", L"∫"},
-                                                                                {L"iint", L"∬"},
-                                                                                {L"iiint", L"∭"},
-                                                                                {L"oint", L"∮"},
-                                                                                {L"infty", L"∞"},
-                                                                                {L"times", L"×"},
-                                                                                {L"cdot", L"⋅"},
-                                                                                {L"div", L"÷"},
-                                                                                {L"pm", L"±"},
-                                                                                {L"mp", L"∓"},
-                                                                                {L"le", L"≤"},
-                                                                                {L"leq", L"≤"},
-                                                                                {L"ge", L"≥"},
-                                                                                {L"geq", L"≥"},
-                                                                                {L"ne", L"≠"},
-                                                                                {L"neq", L"≠"},
-                                                                                {L"approx", L"≈"},
-                                                                                {L"equiv", L"≡"},
-                                                                                {L"sim", L"∼"},
-                                                                                {L"propto", L"∝"},
-                                                                                {L"rightarrow", L"→"},
-                                                                                {L"leftarrow", L"←"},
-                                                                                {L"leftrightarrow", L"↔"},
-                                                                                {L"Rightarrow", L"⇒"},
-                                                                                {L"Leftarrow", L"⇐"},
-                                                                                {L"Leftrightarrow", L"⇔"},
-                                                                                {L"to", L"→"},
-                                                                                {L"mapsto", L"↦"},
-                                                                                {L"partial", L"∂"},
-                                                                                {L"nabla", L"∇"},
-                                                                                {L"ell", L"ℓ"},
-                                                                                {L"hbar", L"ℏ"},
-                                                                                {L"ldots", L"…"},
-                                                                                {L"cdots", L"⋯"},
-                                                                                {L"vdots", L"⋮"},
-                                                                                {L"ddots", L"⋱"},
-                                                                                {L"in", L"∈"},
-                                                                                {L"notin", L"∉"},
-                                                                                {L"subset", L"⊂"},
-                                                                                {L"subseteq", L"⊆"},
-                                                                                {L"supset", L"⊃"},
-                                                                                {L"supseteq", L"⊇"},
-                                                                                {L"cup", L"∪"},
-                                                                                {L"cap", L"∩"},
-                                                                                {L"emptyset", L"∅"},
-                                                                                {L"forall", L"∀"},
-                                                                                {L"exists", L"∃"},
-                                                                                {L"neg", L"¬"},
-                                                                                {L"land", L"∧"},
-                                                                                {L"lor", L"∨"},
-                                                                                {L"langle", L"⟨"},
-                                                                                {L"rangle", L"⟩"},
-                                                                                {L"lbrace", L"{"},
-                                                                                {L"rbrace", L"}"},
-                                                                                {L"vert", L"|"},
-                                                                                {L"Vert", L"‖"},
-                                                                                {L"lvert", L"|"},
-                                                                                {L"rvert", L"|"},
-                                                                                {L"lVert", L"‖"},
-                                                                                {L"rVert", L"‖"},
-                                                                                {L"lfloor", L"⌊"},
-                                                                                {L"rfloor", L"⌋"},
-                                                                                {L"lceil", L"⌈"},
-                                                                                {L"rceil", L"⌉"},
-                                                                                {L"sin", L"sin"},
-                                                                                {L"cos", L"cos"},
-                                                                                {L"tan", L"tan"},
-                                                                                {L"cot", L"cot"},
-                                                                                {L"sec", L"sec"},
-                                                                                {L"csc", L"csc"},
-                                                                                {L"sinh", L"sinh"},
-                                                                                {L"cosh", L"cosh"},
-                                                                                {L"log", L"log"},
-                                                                                {L"ln", L"ln"},
-                                                                                {L"exp", L"exp"},
-                                                                                {L"lim", L"lim"},
-                                                                                {L"max", L"max"},
-                                                                                {L"min", L"min"},
-                                                                                {L"det", L"det"},
-                                                                                {L"gcd", L"gcd"}};
-            for (const auto& [key, value] : symbols)
-                if (key == name)
-                {
-                    auto result = Make(MathKind::Text, std::wstring(value));
-                    constexpr std::array operators{L"sum", L"prod", L"coprod", L"bigcup", L"bigcap", L"int", L"iint", L"iiint", L"oint",
-                                                   L"sin", L"cos",  L"tan",    L"cot",    L"sec",    L"csc", L"sinh", L"cosh",  L"log",
-                                                   L"ln",  L"exp",  L"lim",    L"max",    L"min",    L"det", L"gcd"};
-                    if (std::ranges::find(operators, name) != operators.end())
-                    {
-                        result.atomClass     = MathAtomClass::Operator;
-                        result.italic        = false;
-                        result.largeOperator = value.size() == 1u;
-                        result.displayLimits = result.largeOperator ? name != L"int" && name != L"iint" && name != L"iiint" && name != L"oint"
-                                                                    : name == L"lim" || name == L"max" || name == L"min";
-                    }
-                    return result;
-                }
-            if (name.empty() && at < source.size())
-            {
-                const auto escaped = source[at++];
-                if (std::wstring_view(L",;:! ").find(escaped) != source.npos)
-                    return Make(MathKind::Space, std::wstring(1, escaped));
-                if (escaped == L'|')
-                    return Make(MathKind::Text, L"‖");
-                if (std::wstring_view(L"{}%_$&#").find(escaped) != source.npos)
-                    return Make(MathKind::Text, std::wstring(1, escaped));
-            }
-            Reject(MathIssue::UnsupportedCommand);
-        }
+            return Command(depth);
         if (c == L'&')
             Reject(MathIssue::CellSeparatorOutsideEnvironment);
         if (std::wstring_view(L"}^_#$").find(c) != source.npos)

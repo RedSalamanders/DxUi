@@ -431,6 +431,23 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     check(nested && ! overDepth && overDepth.issue == MathIssue::Capacity, "64 parsed group levels are distinct from bounded terminal and script AST wrappers");
     Detail::PreparedMath nestedGeometry(factory, std::make_shared<const MathExpression>(nested), 12.f);
     check(! nestedGeometry.Advance() && nestedGeometry.Advance(), "the exact group-depth boundary also prepares its terminal glyph");
+    for (const std::wstring_view command : {L"\\hat ", L"\\sqrt ", L"\\scriptstyle "})
+    {
+        std::wstring source(0u, L' ');
+        for (unsigned level = 0u; level < 64u; ++level)
+            source.append(command);
+        const auto expression = std::make_shared<const MathExpression>(ParseMath(source + L"x"));
+        check(static_cast<bool>(*expression), "maximum recursive command nesting fits the ordinary unoptimized thread stack");
+        Detail::PreparedMath geometry(factory, expression, 12.f);
+        std::size_t turns{};
+        while (! geometry.Advance())
+            check(++turns == 1u, "maximum unary command nesting prepares its single terminal glyph");
+        check(geometry.GlyphLayouts().size() == 1u && std::isfinite(geometry.Size().width) && std::isfinite(geometry.Size().height),
+              "maximum recursive commands retain complete finite geometry on the ordinary thread stack");
+        const auto excess = ParseMath(source + std::wstring(command) + L"x");
+        check(! excess && excess.issue == MathIssue::Capacity && excess.root.children.empty(),
+              "the first excess command nesting returns capacity instead of entering an oversized recursive frame");
+    }
     check(static_cast<bool>(ParseMath(L"\\text{" + std::wstring(MathMaximumSourceUnits - 7u, L'x') + L"}")) &&
               ! ParseMath(L"\\text{" + std::wstring(MathMaximumSourceUnits - 6u, L'x') + L"}"),
           "equation source admission accepts its exact UTF-16 limit and rejects the next unit");
