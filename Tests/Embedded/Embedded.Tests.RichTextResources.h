@@ -80,16 +80,40 @@ static void TestRichPreparedWordFailureAtomicity(GraphicsFixture& gpu)
         const auto source = editor->Snapshot();
         const auto selection = editor->GetSelection();
         const auto revision = editor->Revision();
-        std::optional<std::vector<RichText::MarkdownRange>> failed;
+        const auto undo = editor->CanUndo(), redo = editor->CanRedo();
+        size_t requests{};
         {
-            const auto previous = failAllocationAfter;
-            const auto restore = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
-            failAllocationAfter = 0u;
-            failed = editor->GetPreparedCaretWordSourceRanges(view.Controls());
+            const auto oldCounting = countAllocations;
+            const auto oldCalls = allocations, oldBytes = allocationBytes;
+            const auto restore = wil::scope_exit([=] noexcept
+            {
+                countAllocations = oldCounting;
+                allocations = oldCalls;
+                allocationBytes = oldBytes;
+            });
+            allocations = allocationBytes = 0u;
+            countAllocations = true;
+            const auto result = editor->GetPreparedCaretWordSourceRanges(view.Controls());
+            countAllocations = false;
+            requests = allocations;
+            Check(result.has_value(), "prepared caret-word query succeeds when allocation is available");
         }
-        Check(! failed && editor->Snapshot().IsSameRevision(source) && editor->GetSelection() == selection && editor->Revision() == revision,
-              "caret-word allocation refusal preserves source, selection and revision in each presentation mode");
+        Check(requests > 0u && requests < 64u, "caret-word query has a bounded set of allocation points");
+        for (size_t failure = 0u; failure < requests; ++failure)
+        {
+            std::optional<std::vector<RichText::MarkdownRange>> failed;
+            {
+                const auto previous = failAllocationAfter;
+                const auto restore = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
+                failAllocationAfter = failure;
+                failed = editor->GetPreparedCaretWordSourceRanges(view.Controls());
+            }
+            Check(! failed && editor->Snapshot().IsSameRevision(source) && editor->GetSelection() == selection && editor->Revision() == revision &&
+                      editor->CanUndo() == undo && editor->CanRedo() == redo,
+                  "every caret-word allocation refusal preserves source, selection, revision and history");
+        }
         Check(editor->GetPreparedCaretWordSourceRanges(view.Controls()).has_value(), "caret-word query succeeds after allocation recovery");
+        std::cout << "caret-word allocation sweep mode=" << (mode == RichText::ViewMode::Source ? "source" : "rich") << " requests=" << requests << '\n';
     }
 }
 
