@@ -178,7 +178,9 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     };
     compareColoredSpacing(L"a\\textcolor{blue}{+}b", L"a+b");
     compareColoredSpacing(L"a\\textcolor{blue}{{+}}b", L"a{{+}}b");
-    compareColoredSpacing(L"\\color{blue}{2+}3", L"2+3");
+    compareColoredSpacing(L"\\color{blue}{2+}3", L"{2+}3");
+    compareColoredSpacing(L"a\\color{blue}{+}b", L"a{+}b");
+    compareColoredSpacing(L"a\\color{blue}{{+}}b", L"a{{+}}b");
     std::wstring nestedColor(0u, L' ');
     for (std::size_t depth = 0u; depth < MathMaximumGroupDepth; ++depth)
         nestedColor.append(L"\\colorbox{white}{");
