@@ -75,10 +75,11 @@ struct Symbol
     std::wstring_view command, value;
 };
 inline constexpr Symbol symbols[] = {
-    {L"alpha", L"α"},    {L"beta", L"β"},   {L"gamma", L"γ"},  {L"delta", L"δ"},   {L"epsilon", L"ϵ"}, {L"varepsilon", L"ε"}, {L"theta", L"θ"},
-    {L"vartheta", L"ϑ"}, {L"phi", L"ϕ"},    {L"varphi", L"φ"}, {L"Upsilon", L"Υ"}, {L"cdot", L"⋅"},    {L"ell", L"ℓ"},        {L"hbar", L"ℏ"},
-    {L"lvert", L"|"},    {L"rvert", L"|"},  {L"lVert", L"‖"},  {L"rVert", L"‖"},   {L"lfloor", L"⌊"},  {L"rfloor", L"⌋"},     {L"lceil", L"⌈"},
-    {L"rceil", L"⌉"},    {L"coprod", L"∐"}, {L"bigcup", L"⋃"}, {L"bigcap", L"⋂"},  {L"sec", L"sec"},   {L"csc", L"csc"},
+    {L"alpha", L"α"},    {L"beta", L"β"},    {L"gamma", L"γ"},  {L"delta", L"δ"},   {L"epsilon", L"ϵ"},  {L"varepsilon", L"ε"}, {L"theta", L"θ"},
+    {L"vartheta", L"ϑ"}, {L"phi", L"ϕ"},     {L"varphi", L"φ"}, {L"Upsilon", L"Υ"}, {L"cdot", L"⋅"},     {L"ell", L"ℓ"},        {L"hbar", L"ℏ"},
+    {L"varkappa", L"ϰ"}, {L"omicron", L"ο"}, {L"varpi", L"ϖ"},  {L"varrho", L"ϱ"},  {L"varsigma", L"ς"}, {L"lvert", L"|"},      {L"rvert", L"|"},
+    {L"lVert", L"‖"},    {L"rVert", L"‖"},   {L"lfloor", L"⌊"}, {L"rfloor", L"⌋"},  {L"lceil", L"⌈"},    {L"rceil", L"⌉"},      {L"coprod", L"∐"},
+    {L"bigcup", L"⋃"},   {L"bigcap", L"⋂"},  {L"sec", L"sec"},  {L"csc", L"csc"},
 };
 // Canonical structural oracle: retain every node, ordered child, payload and matrix width.
 inline std::wstring Shape(const MathNode& node)
