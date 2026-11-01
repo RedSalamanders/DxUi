@@ -120,6 +120,26 @@ bool CanInsertThematicBreak(const MarkdownSyntax& syntax, Selection selection) n
 {
     return InspectThematicBreak(syntax, selection).has_value();
 }
+std::optional<std::size_t> FindJoinLeaf(const MarkdownSyntax& syntax, Selection selection, bool backwards) noexcept
+{
+    if (! CanJoinSelection(selection))
+        return std::nullopt;
+    const auto& nodes = syntax.Nodes();
+    auto best = MarkdownNoNode;
+    for (const auto kind : {MarkdownBlockKind::Paragraph, MarkdownBlockKind::AtxHeading, MarkdownBlockKind::SetextHeading, MarkdownBlockKind::TableCell})
+    {
+        const auto node = CommandNodeAt(syntax, kind, selection.caret);
+        if (node != MarkdownNoNode && (best == MarkdownNoNode || nodes[node].block.source.last - nodes[node].block.source.first <
+                                                                     nodes[best].block.source.last - nodes[best].block.source.first))
+            best = node;
+    }
+    if (best == MarkdownNoNode || nodes[best].lines.empty())
+        return std::nullopt;
+    const auto kind = nodes[best].block.kind;
+    if (kind != MarkdownBlockKind::Paragraph && ! (backwards && (kind == MarkdownBlockKind::AtxHeading || kind == MarkdownBlockKind::SetextHeading)))
+        return std::nullopt;
+    return best;
+}
 static std::optional<size_t> FindInlineInsertionSite(const MarkdownSyntax& syntax, Selection selection) noexcept
 {
     const auto text  = syntax.Source();
@@ -2120,11 +2140,10 @@ void MarkdownCommandPlanner::Task()
 }
 void MarkdownCommandPlanner::Join(bool backwards)
 {
-    if (! CanJoinSelection(plan.before_))
+    const auto found = FindJoinLeaf(*plan.syntax_, plan.before_, backwards);
+    if (! found)
         return;
-    const auto current = LeafAt(plan.before_.caret);
-    if (current == MarkdownNoNode || nodes[current].lines.empty())
-        return;
+    const auto current = found.value();
     const auto visible = VisibleBody(current);
     if (backwards && (nodes[current].block.kind == Kind::AtxHeading || nodes[current].block.kind == Kind::SetextHeading))
     {

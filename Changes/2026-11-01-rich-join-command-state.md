@@ -1,1 +1,1 @@
-- Report structural joins unavailable for noncollapsed selections using the planner's shared admission check; full caret-site applicability and native qualification remain pending.
+- Report structural joins unavailable for noncollapsed selections or unsupported leaves using the planner's shared admission checks; full caret-site applicability and native qualification remain pending.

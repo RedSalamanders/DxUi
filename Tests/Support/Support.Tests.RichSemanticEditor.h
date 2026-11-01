@@ -484,6 +484,11 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     editor->SetText(L"~~~\nx\n~~~\n");
     prepare();
     editor->SetSelection({4u, 4u});
+    stateRequest.command = MarkdownCommand::JoinBackward;
+    const auto codeJoin = editor->QueryMarkdownCommandState(stateRequest);
+    Check(codeJoin && codeJoin->available == std::optional<bool>{false} &&
+              editor->ExecuteMarkdownCommand(stateRequest) == MarkdownCommandStatus::Unavailable,
+          "join state and execution both reject a caret in fenced code");
     stateRequest.command = MarkdownCommand::ExitCodeBlock;
     const auto exitState = editor->QueryMarkdownCommandState(stateRequest);
     Check(exitState && exitState->available == std::optional<bool>{true} && editor->ExecuteMarkdownCommand(stateRequest) == MarkdownCommandStatus::Changed &&
