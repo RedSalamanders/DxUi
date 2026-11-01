@@ -187,11 +187,21 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         const auto expectedStrike = strike.Baseline() - 12.f * static_cast<float>(fontMetrics.xHeight) / static_cast<float>(fontMetrics.designUnitsPerEm);
         check(strike.StrokeLayouts().size() == 1u && std::abs(strike.StrokeLayouts()[0].first.y - expectedStrike) < .01f,
               "horizontal strike uses the actual SDK font x-height about its baseline");
-        const UINT32 scalar = L'x';
+        const UINT32 scalar = L'1';
         UINT16 glyph{};
         THROW_IF_FAILED(face->GetGlyphIndices(&scalar, 1u, &glyph));
         check(glyph != 0u && fontMetrics.designUnitsPerEm != 0u, "SDK reports the actual math glyph and design scale");
         check(Detail::SameMathFontFile(face.get(), face.get()), "same real SDK font identity accepts its own MATH table");
+        UINT32 sourceFileCount{};
+        THROW_IF_FAILED(face->GetFiles(&sourceFileCount, nullptr));
+        check(sourceFileCount == 1u, "math font identity fixture has exactly one source file");
+        wil::com_ptr<IDWriteFontFile> sourceFile;
+        THROW_IF_FAILED(face->GetFiles(&sourceFileCount, sourceFile.put()));
+        auto* sourceFilePointer = sourceFile.get();
+        wil::com_ptr<IDWriteFontFace> simulated;
+        THROW_IF_FAILED(factory->CreateFontFace(face->GetType(), 1u, &sourceFilePointer, face->GetIndex(), DWRITE_FONT_SIMULATIONS_OBLIQUE, simulated.put()));
+        check(! Detail::SameMathFontFile(face.get(), simulated.get()),
+              "the same SDK font file with synthetic oblique cannot borrow normal-face MATH kerning");
         wil::com_ptr<IDWriteTextFormat> fallbackFormat;
         THROW_IF_FAILED(factory->CreateTextFormat(
             L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 24.f, L"en-us", fallbackFormat.put()));
@@ -223,7 +233,7 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         const auto previous               = Detail::testRichMathTableOverride;
         const auto restore                = wil::scope_exit([&]() noexcept { Detail::testRichMathTableOverride = previous; });
         Detail::testRichMathTableOverride = data;
-        const auto expression             = std::make_shared<const MathExpression>(ParseMath(L"x_x^x"));
+        const auto expression             = std::make_shared<const MathExpression>(ParseMath(L"1_1^1"));
         const auto prepare                = [&]
         {
             auto result = std::make_unique<Detail::PreparedMath>(factory, expression, 24.f);

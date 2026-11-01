@@ -49,7 +49,7 @@ static void TestMathKernPreparationAllocationFailures()
 {
     using namespace DxUi::RichText;
     const auto factory    = RichGeometryFactory();
-    const auto expression = std::make_shared<const MathExpression>(ParseMath(L"x_x^x"));
+    const auto expression = std::make_shared<const MathExpression>(ParseMath(L"1_1^1"));
     Check(static_cast<bool>(*expression), "math kern allocation fixture has an admitted formula");
     const auto prepare = [&]
     {

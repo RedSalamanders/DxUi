@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <dwrite_3.h>
 #include <limits>
 #include <numeric>
 #include <stdexcept>
@@ -173,8 +174,29 @@ inline bool OptionalMathFontOperation(HRESULT result)
 }
 inline bool SameMathFontFile(IDWriteFontFace* left, IDWriteFontFace* right)
 {
-    if (! left || ! right || left->GetType() != right->GetType() || left->GetIndex() != right->GetIndex())
+    if (! left || ! right || left->GetType() != right->GetType() || left->GetIndex() != right->GetIndex() ||
+        left->GetSimulations() != right->GetSimulations())
         return false;
+    // The same file and face index can still be different variable-font instances.
+    // If instance identity cannot be inspected, decline optional kerning safely.
+    wil::com_ptr<IDWriteFontFace5> left5, right5;
+    const auto leftQuery = left->QueryInterface(IID_PPV_ARGS(left5.put()));
+    if (leftQuery == E_NOINTERFACE || ! OptionalMathFontOperation(leftQuery))
+        return false;
+    const auto rightQuery = right->QueryInterface(IID_PPV_ARGS(right5.put()));
+    if (rightQuery == E_NOINTERFACE || ! OptionalMathFontOperation(rightQuery))
+        return false;
+    constexpr UINT32 maximumAxes = 64u;
+    const auto axisCount = left5->GetFontAxisValueCount();
+    if (axisCount != right5->GetFontAxisValueCount() || axisCount > maximumAxes)
+        return false;
+    std::array<DWRITE_FONT_AXIS_VALUE, maximumAxes> leftAxes{}, rightAxes{};
+    if (axisCount && (! OptionalMathFontOperation(left5->GetFontAxisValues(leftAxes.data(), axisCount)) ||
+                      ! OptionalMathFontOperation(right5->GetFontAxisValues(rightAxes.data(), axisCount))))
+        return false;
+    for (UINT32 i = 0; i < axisCount; ++i)
+        if (leftAxes[i].axisTag != rightAxes[i].axisTag || leftAxes[i].value != rightAxes[i].value)
+            return false;
     UINT32 leftCount{}, rightCount{};
     if (! OptionalMathFontOperation(left->GetFiles(&leftCount, nullptr)))
         return false;
