@@ -434,7 +434,7 @@ class Parser
             }
             if (name == L"begin")
                 return Matrix(GroupText(), depth);
-            if (name == L"text" || name == L"operatorname")
+            if (name == L"text" || name == L"textbf" || name == L"textit" || name == L"operatorname")
             {
                 const bool starred = name == L"operatorname" && at < source.size() && source[at] == L'*';
                 if (starred)
@@ -443,6 +443,8 @@ class Parser
                 result.italic        = false;
                 result.atomClass     = name == L"operatorname" ? MathAtomClass::Operator : MathAtomClass::Ordinary;
                 result.displayLimits = starred;
+                if (name == L"textbf" || name == L"textit")
+                    return Make(MathKind::Style, name == L"textbf" ? L"mathbf" : L"mathit", {std::move(result)});
                 return result;
             }
             if (name == L"mathrm" || name == L"mathbf" || name == L"mathit" || name == L"mathnormal" || name == L"boldsymbol" || name == L"bm" ||

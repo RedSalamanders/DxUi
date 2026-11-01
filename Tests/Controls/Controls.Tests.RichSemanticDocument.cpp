@@ -151,6 +151,14 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
             "variables use math italics while numeric runs and named operators stay upright");
     const auto upright = prepare(L"\\mathrm{x}");
     Require(upright->GlyphLayouts().size() == 1u && ! upright->GlyphLayouts()[0u].italic, "upright style overrides the ordinary-variable italic metadata");
+    const auto boldText = prepare(L"\\textbf{bold text}");
+    const auto italicText = prepare(L"\\textit{italic text}");
+    Require(boldText->GlyphLayouts().size() == 1u && boldText->GlyphLayouts()[0u].node->text == L"bold text" &&
+                boldText->GlyphLayouts()[0u].bold && ! boldText->GlyphLayouts()[0u].italic &&
+                italicText->GlyphLayouts().size() == 1u && italicText->GlyphLayouts()[0u].node->text == L"italic text" &&
+                ! italicText->GlyphLayouts()[0u].bold && italicText->GlyphLayouts()[0u].italic,
+            "text style commands retain their text and select the requested native font style");
+    Require(! ParseMath(L"\\textbf{unclosed"), "malformed styled text rejects the entire formula");
 
     for (const auto& [source, annotation, above] :
          {std::tuple{L"\\overset{a}{=}", L"a", true}, std::tuple{L"\\underset{b}{=}", L"b", false}, std::tuple{L"\\stackrel{c}{=}", L"c", true}})

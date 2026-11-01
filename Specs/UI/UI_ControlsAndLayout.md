@@ -2125,7 +2125,8 @@ native display position and a `SemanticRole::Math` child named with its TeX nota
 
 `RichMath.h` exposes the data-only `ParseMath` model. Supported notation includes
 fractions (`frac`, `dfrac`, `tfrac`), indexed roots, simultaneous scripts, Greek and
-operator symbols, named functions, text/operator names, roman/bold/italic and
+operator symbols, named functions, text/operator names (including bold and italic
+text commands), roman/bold/italic and
 blackboard, script, Fraktur, sans-serif and monospace mathematical alphabets, accents,
 scalable paired delimiters, matrices, cases, aligned and gathered rows. Alphabet
 mapping covers ASCII letters; blackboard, sans-serif and monospace also map ASCII
