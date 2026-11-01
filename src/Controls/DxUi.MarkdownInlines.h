@@ -485,7 +485,12 @@ class MarkdownInlines
                 closer = close.next;
                 continue;
             }
-            const auto marker   = close.marker == L'*' ? 0u : close.marker == L'_' ? 1u : close.marker == L'~' ? 2u : close.marker == L'^' ? 3u : close.marker == L'=' ? 4u : 5u;
+            const auto marker   = close.marker == L'*'   ? 0u
+                                  : close.marker == L'_' ? 1u
+                                  : close.marker == L'~' ? 2u
+                                  : close.marker == L'^' ? 3u
+                                  : close.marker == L'=' ? 4u
+                                                         : 5u;
             const auto category = (close.open ? 3u : 0u) + close.originalLength % 3u;
             auto opener         = close.previous;
             while (opener != bottom && opener != MarkdownNoNode)
@@ -496,10 +501,9 @@ class MarkdownInlines
                     break;
                 }
                 const auto& open = delimiters_[opener];
-                const bool odd   = (close.marker == L'*' || close.marker == L'_') && (close.open || open.close) && (close.originalLength + open.originalLength) % 3u == 0u &&
-                                   (close.originalLength % 3u != 0u || open.originalLength % 3u != 0u);
-                if (open.marker == close.marker && open.open && ! odd &&
-                    ((close.marker == L'*' || close.marker == L'_') || open.length == close.length))
+                const bool odd = (close.marker == L'*' || close.marker == L'_') && (close.open || open.close) &&
+                                 (close.originalLength + open.originalLength) % 3u == 0u && (close.originalLength % 3u != 0u || open.originalLength % 3u != 0u);
+                if (open.marker == close.marker && open.open && ! odd && ((close.marker == L'*' || close.marker == L'_') || open.length == close.length))
                     break;
                 opener = open.previous;
             }
@@ -521,10 +525,12 @@ class MarkdownInlines
                 throw std::length_error("Markdown emphasis node capacity exceeded");
             nodes_.emplace_back();
             previous_.push_back(openNode);
-            nodes_[wrapper].kind         = close.marker == L'~' ? (use == 2u ? Kind::Strikethrough : Kind::Subscript)
+            nodes_[wrapper].kind         = close.marker == L'~'   ? (use == 2u ? Kind::Strikethrough : Kind::Subscript)
                                            : close.marker == L'^' ? Kind::Superscript
                                            : close.marker == L'=' ? Kind::Highlight
-                                           : close.marker == L'+' ? Kind::Inserted : use == 2u ? Kind::Strong : Kind::Emphasis;
+                                           : close.marker == L'+' ? Kind::Inserted
+                                           : use == 2u            ? Kind::Strong
+                                                                  : Kind::Emphasis;
             nodes_[wrapper].source       = {nodes_[openNode].source.last - use, nodes_[closeNode].source.first + use};
             nodes_[wrapper].firstChild   = first;
             nodes_[wrapper].nextSibling  = closeNode;
@@ -1632,8 +1638,9 @@ class MarkdownInlines
         }
         if (c == L']' && CloseBracket())
             return;
-        if (c == L'*' || c == L'_' || (c == L'~' && (HasMarkdownExtension(extensions_, MarkdownExtensions::Strikethrough) ||
-                                                      HasMarkdownExtension(extensions_, MarkdownExtensions::Subscript))) ||
+        if (c == L'*' || c == L'_' ||
+            (c == L'~' &&
+             (HasMarkdownExtension(extensions_, MarkdownExtensions::Strikethrough) || HasMarkdownExtension(extensions_, MarkdownExtensions::Subscript))) ||
             (c == L'^' && HasMarkdownExtension(extensions_, MarkdownExtensions::Superscript)) ||
             (c == L'=' && HasMarkdownExtension(extensions_, MarkdownExtensions::Highlight)) ||
             (c == L'+' && HasMarkdownExtension(extensions_, MarkdownExtensions::Inserted)))
@@ -1643,7 +1650,7 @@ class MarkdownInlines
             const auto length = cursor_ - first;
             const auto node   = Append(Kind::Text, first, cursor_, std::wstring_view(text_).substr(first, length), false);
             if ((c == L'~' && ! ((length == 2u && HasMarkdownExtension(extensions_, MarkdownExtensions::Strikethrough)) ||
-                                  (length == 1u && HasMarkdownExtension(extensions_, MarkdownExtensions::Subscript)))) ||
+                                 (length == 1u && HasMarkdownExtension(extensions_, MarkdownExtensions::Subscript)))) ||
                 (c == L'^' && length != 1u) || ((c == L'=' || c == L'+') && length != 2u))
                 return;
             const auto before = first ? Scalar(text_, StepToPreviousCodePoint(text_, first)) : 0u;
@@ -1860,8 +1867,8 @@ public:
                     }
                     if (next != MarkdownNoNode)
                         autolinkWalk_.push_back({next, visit.parent});
-                    if (child != MarkdownNoNode && (kind == Kind::Emphasis || kind == Kind::Strong || kind == Kind::Strikethrough ||
-                                                     kind == Kind::Highlight || kind == Kind::Superscript || kind == Kind::Subscript || kind == Kind::Inserted))
+                    if (child != MarkdownNoNode && (kind == Kind::Emphasis || kind == Kind::Strong || kind == Kind::Strikethrough || kind == Kind::Highlight ||
+                                                    kind == Kind::Superscript || kind == Kind::Subscript || kind == Kind::Inserted))
                         autolinkWalk_.push_back({child, visit.node});
                 }
                 else

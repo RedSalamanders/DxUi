@@ -4,7 +4,12 @@
 
 namespace DxUi::RichText::Detail
 {
-enum class MathDimensionUnit { Em, Ex, Point };
+enum class MathDimensionUnit
+{
+    Em,
+    Ex,
+    Point
+};
 struct MathDimension
 {
     float value{};
@@ -20,10 +25,14 @@ inline std::optional<MathDimension> ParseMathDimension(std::wstring_view text) n
         return std::nullopt;
     const auto unitText = text.substr(text.size() - 2u);
     MathDimensionUnit unit;
-    if (unitText == L"em") unit = MathDimensionUnit::Em;
-    else if (unitText == L"ex") unit = MathDimensionUnit::Ex;
-    else if (unitText == L"pt") unit = MathDimensionUnit::Point;
-    else return std::nullopt;
+    if (unitText == L"em")
+        unit = MathDimensionUnit::Em;
+    else if (unitText == L"ex")
+        unit = MathDimensionUnit::Ex;
+    else if (unitText == L"pt")
+        unit = MathDimensionUnit::Point;
+    else
+        return std::nullopt;
     const auto number = text.substr(0u, text.size() - 2u);
     double value{}, fraction = .1;
     bool dot{}, digit{};

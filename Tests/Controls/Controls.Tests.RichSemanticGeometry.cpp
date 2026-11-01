@@ -46,23 +46,23 @@ void TestRichSemanticNativeFallbackSyntaxOwnership()
             const auto htmlSyntax = RichSemanticDocumentTests::Parse(source, profile);
             builder.Begin(htmlSyntax);
             const auto htmlOriginal = RichSemanticDocumentTests::Complete(builder, *htmlSyntax);
-            const auto owner = std::ranges::find_if(htmlOriginal->Elements(), [](const auto& element) { return element.nativeHtml; });
+            const auto owner        = std::ranges::find_if(htmlOriginal->Elements(), [](const auto& element) { return element.nativeHtml; });
             Require(owner != htmlOriginal->Elements().end(), "HTML fallback fixture has an admitted native owner");
             const std::array htmlRanges{owner->source};
             Detail::SemanticExtensionAccess::BeginWithNativeFallbacks(builder, htmlSyntax, htmlRanges);
             const auto htmlFallback = RichSemanticDocumentTests::Complete(builder, *htmlSyntax);
             Require(htmlFallback->Map().Source() == source && htmlFallback->Map().Display().find(source) != std::wstring::npos &&
-                        htmlFallback->Diagnostics().empty(), "exact HTML leaf falls back without a diagram diagnostic");
+                        htmlFallback->Diagnostics().empty(),
+                    "exact HTML leaf falls back without a diagram diagnostic");
             builder.Begin(htmlSyntax);
             const auto htmlRetry = RichSemanticDocumentTests::Complete(builder, *htmlSyntax);
             Require(htmlRetry->Map().Display() == htmlOriginal->Map().Display(), "clearing the target rejection retries native HTML");
         }
     const std::wstring markdownScript = L"a ^script^ b\n\nother text\n";
-    const auto scriptSyntax = RichSemanticDocumentTests::Parse(markdownScript, MarkdownProfile::RichMarkdown);
+    const auto scriptSyntax           = RichSemanticDocumentTests::Parse(markdownScript, MarkdownProfile::RichMarkdown);
     builder.Begin(scriptSyntax);
     const auto scriptOriginal = RichSemanticDocumentTests::Complete(builder, *scriptSyntax);
-    const auto scriptOwner = std::ranges::find_if(scriptOriginal->Elements(), [&](const auto& element)
-    {
+    const auto scriptOwner    = std::ranges::find_if(scriptOriginal->Elements(), [&](const auto& element) {
         return element.role == SemanticRole::Paragraph && scriptSyntax->Slice(element.source).find(L"^script^") != std::wstring_view::npos;
     });
     Require(scriptOwner != scriptOriginal->Elements().end(), "Markdown script has an exact owning paragraph");
@@ -104,15 +104,17 @@ void TestRichSemanticNativeTitleTooltips()
     ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
     RichSemanticTests::Run([&]
     {
-        RichSemanticEditorTests::TitleTooltipContract(
-            window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native title tooltip"); },
-            [&](D2D1_POINT_2F point, UINT modifiers)
-            {
-                const auto scale = static_cast<float>(window.Host().GetDpi()) / 96.f;
-                SendMessageW(window.Hwnd(), WM_MOUSEMOVE, modifiers,
-                             MAKELPARAM(static_cast<int>(std::lround(point.x * scale)), static_cast<int>(std::lround(point.y * scale))));
-            },
-            [&](bool down) { SendMessageW(window.Hwnd(), down ? WM_KEYDOWN : WM_KEYUP, VK_CONTROL, 0); });
+        RichSemanticEditorTests::TitleTooltipContract(window.Host(),
+                                                      [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native title tooltip"); },
+                                                      [&](D2D1_POINT_2F point, UINT modifiers)
+        {
+            const auto scale = static_cast<float>(window.Host().GetDpi()) / 96.f;
+            SendMessageW(window.Hwnd(),
+                         WM_MOUSEMOVE,
+                         modifiers,
+                         MAKELPARAM(static_cast<int>(std::lround(point.x * scale)), static_cast<int>(std::lround(point.y * scale))));
+        },
+                                                      [&](bool down) { SendMessageW(window.Hwnd(), down ? WM_KEYDOWN : WM_KEYUP, VK_CONTROL, 0); });
     });
 }
 #endif

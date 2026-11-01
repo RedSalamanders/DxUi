@@ -799,7 +799,7 @@ void TestRichTextEditorClipboardAtomicityAndSourceContract()
     Require(raw->OnKeyDown(window.Host(), VK_INSERT, MK_SHIFT) && raw->GetText() == L"hello", "Shift+Insert pastes the copied source");
     raw->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
     raw->SetMarkdownRenderingEnabled(true);
-    auto appearance = raw->GetAppearance();
+    auto appearance                = raw->GetAppearance();
     appearance.pasteUrlOnSelection = true;
     raw->SetAppearance(appearance);
     raw->SetSelection({0u, 5u});

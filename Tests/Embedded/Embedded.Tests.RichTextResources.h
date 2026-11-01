@@ -74,10 +74,10 @@ static void TestRichTooltipReentrantTransitions(GraphicsFixture& gpu)
         bool called{}, failed{};
     } state;
     EmbeddedCallbacks callbacks{};
-    callbacks.context = &state;
+    callbacks.context            = &state;
     callbacks.requestPreparation = [](void* context) noexcept
     {
-        auto& current = *static_cast<CallbackState*>(context);
+        auto& current     = *static_cast<CallbackState*>(context);
         const auto action = std::exchange(current.action, 0u);
         if (! action)
             return;
@@ -89,7 +89,10 @@ static void TestRichTooltipReentrantTransitions(GraphicsFixture& gpu)
             else
                 current.editor->SetViewMode(RichText::ViewMode::Rich);
         }
-        catch (const std::bad_alloc&) { std::terminate(); }
+        catch (const std::bad_alloc&)
+        {
+            std::terminate();
+        }
         catch (const std::exception&)
         {
             // ABI callback records failure for the owning test to report.
@@ -99,7 +102,7 @@ static void TestRichTooltipReentrantTransitions(GraphicsFixture& gpu)
     Hr(view.Attach(graphics, callbacks), "attach tooltip transition host");
     for (const unsigned action : {1u, 2u})
     {
-        auto root = std::make_unique<RichTextEditor>(L"[link](https://example.test \"Link title\")");
+        auto root    = std::make_unique<RichTextEditor>(L"[link](https://example.test \"Link title\")");
         state.editor = root.get();
         state.editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
         state.editor->SetMarkdownRenderingEnabled(true);
@@ -107,7 +110,7 @@ static void TestRichTooltipReentrantTransitions(GraphicsFixture& gpu)
         view.Controls().SetRoot(std::move(root));
         Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare tooltip transition fixture");
         const auto document = state.editor->GetAcknowledgedSemanticDocument(view.Controls());
-        const auto link = std::ranges::find_if(document->Elements(), [](const auto& element) { return element.role == RichText::SemanticRole::Link; });
+        const auto link     = std::ranges::find_if(document->Elements(), [](const auto& element) { return element.role == RichText::SemanticRole::Link; });
         Check(link != document->Elements().end(), "tooltip transition has a link owner");
         const auto bounds = state.editor->GetSemanticElementBounds(view.Controls(), static_cast<std::size_t>(link - document->Elements().begin()));
         Check(bounds.has_value(), "tooltip transition has prepared link bounds");
@@ -117,7 +120,7 @@ static void TestRichTooltipReentrantTransitions(GraphicsFixture& gpu)
         Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "settle visible tooltip before callback");
         Check(view.Controls().HasTooltip(), "tooltip transition starts with visible content");
         state.called = state.failed = false;
-        state.action = action;
+        state.action                = action;
         if (action == 1u)
             state.editor->SetReadOnly(false);
         else
@@ -644,9 +647,9 @@ static void TestTableCommandPreparationAllocationFailures(GraphicsFixture& gpu)
     Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare delimited table allocation fixture");
     const auto emptySnapshot = editor->Snapshot();
     MarkdownCommandRequest delimited;
-    delimited.command = MarkdownCommand::InsertTable;
+    delimited.command          = MarkdownCommand::InsertTable;
     delimited.tableInputFormat = MarkdownTableInputFormat::Csv;
-    delimited.text = L"header,value\n\"a,b\",\"line\nnext\"";
+    delimited.text             = L"header,value\n\"a,b\",\"line\nnext\"";
     Check(editor->PrepareMarkdownCommandState(previous), "prepare prior delimited table state");
     const auto previousState = editor->QueryMarkdownCommandState(previous);
     size_t delimitedRequests{};
@@ -656,13 +659,13 @@ static void TestTableCommandPreparationAllocationFailures(GraphicsFixture& gpu)
         const auto restore = wil::scope_exit([=] noexcept
         {
             countAllocations = oldCounting;
-            allocations = oldCalls;
-            allocationBytes = oldBytes;
+            allocations      = oldCalls;
+            allocationBytes  = oldBytes;
         });
         allocations = allocationBytes = 0u;
-        countAllocations = true;
+        countAllocations              = true;
         Check(editor->PrepareMarkdownCommandState(delimited), "measure delimited table command preparation");
-        countAllocations = false;
+        countAllocations  = false;
         delimitedRequests = allocations;
     }
     Check(delimitedRequests > 0u && delimitedRequests < 2048u, "delimited table preparation has bounded allocation points");
@@ -672,8 +675,8 @@ static void TestTableCommandPreparationAllocationFailures(GraphicsFixture& gpu)
         bool failed = false;
         {
             const auto oldFailure = failAllocationAfter;
-            const auto restore = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-            failAllocationAfter = failure;
+            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+            failAllocationAfter   = failure;
             try
             {
                 static_cast<void>(editor->PrepareMarkdownCommandState(delimited));
@@ -1620,9 +1623,8 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
     const auto oldDocument = SemanticDiagramTests::Build(L"previous", Check);
     for (std::size_t scenario = 0u; scenario < 5u; ++scenario)
     {
-        const auto document = SemanticDiagramTests::Build(scenario == 4u ? L"<p>x<sup>hello</sup> y<sub>world</sub></p>\n"
-                                                                           : SemanticDiagramTests::scenarios[scenario == 3u ? 0u : scenario].source,
-                                                          Check);
+        const auto document = SemanticDiagramTests::Build(
+            scenario == 4u ? L"<p>x<sup>hello</sup> y<sub>world</sub></p>\n" : SemanticDiagramTests::scenarios[scenario == 3u ? 0u : scenario].source, Check);
         LayoutOptions options;
         options.widthDip = scenario == 3u ? 40.0f : 1024.0f;
         LayoutOptions previousOptions;
@@ -1702,7 +1704,8 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
         }
         geometryRequests += requests;
     }
-    std::cout << "semantic diagram/math/HTML failure scenarios=14 sweptRequests=" << semanticRequests << " geometryScenarios=5 sweptRequests=" << geometryRequests
+    std::cout << "semantic diagram/math/HTML failure scenarios=14 sweptRequests=" << semanticRequests
+              << " geometryScenarios=5 sweptRequests=" << geometryRequests
               << " preservedPublication=1 preservedPendingBegin=1 explicitRetry=1 retirementAllocations=0\n";
 }
 
@@ -1859,22 +1862,42 @@ static void TestPreparedFlowchartAllocationFailures(bool trace = false)
         {
             const auto oldCounting = countAllocations;
             const auto oldCalls = allocations, oldBytes = allocationBytes;
-            const auto restore = wil::scope_exit([=] noexcept { countAllocations = oldCounting; allocations = oldCalls; allocationBytes = oldBytes; });
-            allocations = allocationBytes = 0u; countAllocations = true;
+            const auto restore = wil::scope_exit([=] noexcept
+            {
+                countAllocations = oldCounting;
+                allocations      = oldCalls;
+                allocationBytes  = oldBytes;
+            });
+            allocations = allocationBytes = 0u;
+            countAllocations              = true;
             DiagramPalette palette(graph, target.get());
-            while (! palette.Advance()) {}
-            countAllocations = false; requests = allocations;
+            while (! palette.Advance())
+            {
+            }
+            countAllocations = false;
+            requests         = allocations;
         }
         for (std::size_t failure = 0u; failure < requests; ++failure)
         {
             bool rejected{};
             failAllocationAfter = failure;
-            try { DiagramPalette palette(graph, target.get()); while (! palette.Advance()) {} }
-            catch (const std::bad_alloc&) { rejected = true; }
+            try
+            {
+                DiagramPalette palette(graph, target.get());
+                while (! palette.Advance())
+                {
+                }
+            }
+            catch (const std::bad_alloc&)
+            {
+                rejected = true;
+            }
             failAllocationAfter = std::numeric_limits<size_t>::max();
             Check(rejected, "each palette allocation failure propagates without fatal termination");
             DiagramPalette retry(graph, target.get());
-            while (! retry.Advance()) {}
+            while (! retry.Advance())
+            {
+            }
             Check(retry.Ready(), "palette staging succeeds on explicit retry");
         }
         total += requests;
@@ -1899,19 +1922,20 @@ static void TestPreparedFlowchartAllocationFailures(bool trace = false)
         }
     });
     Check(! drawAllocated, "actual borrowed-target native drawing creates zero tracked C++ allocations");
-    PaletteRaster(Check, [](bool before) noexcept
+    PaletteRaster(Check,
+                  [](bool before) noexcept
     {
         if (before)
         {
-            drawOldCounting = countAllocations;
-            drawOldCalls = allocations;
+            drawOldCounting  = countAllocations;
+            drawOldCalls     = allocations;
             countAllocations = true;
         }
         else
         {
-            drawAllocated = drawAllocated || allocations != drawOldCalls;
+            drawAllocated    = drawAllocated || allocations != drawOldCalls;
             countAllocations = drawOldCounting;
-            allocations = drawOldCalls;
+            allocations      = drawOldCalls;
         }
     });
     Check(! drawAllocated, "palette drawing creates zero tracked C++ allocations");
@@ -2046,28 +2070,30 @@ static void TestNativeFlowchartLayoutAllocationFailureAtomicity(bool trace = fal
 static void TestNativeFlowchartAllocationFailureAtomicity(bool trace = false)
 {
     using namespace NativeFlowchartTests;
-    const std::wstring sources[] = {L"graph LR;A[\"Unicode \u03b2 \U0001f600\"]-->|yes|B((Second));B-->A;A-->A",
-                                    L"graph TD;A[staged];B[another];A-->B;style A fill:red",
-                                    L"graph TD;A[staged];B[another];A-->|\"incomplete label",
-                                    L"graph TD;A[\"" + std::wstring(NativeFlowchartParser::MaximumLabelUnits + 1u, L'x') + L"\"]",
-                                    L"flowchart LR;A & B-->|group|C & D-->E",
-                                    L"flowchart LR;A-.->B;B==>C;C~~~D",
-                                    L"stateDiagram-v2;state \"Ready\" as S;S : Running;S-->T : go",
-                                    L"stateDiagram-v2;state C <<choice>>;A-->C;C-->B : yes",
-                                    L"stateDiagram-v2;state F <<fork>>;state J <<join>>;A-->F;F-->J;J-->B",
-                                    L"classDiagram;Base <|-- Derived;Derived : member",
-                                    L"classDiagram\nclass Animal {\n+name: String\n+run()\n}\nAnimal -- Pond\n",
-                                    L"sequenceDiagram\nparticipant Alice as Client\nparticipant Bob\nBob->>Alice: request\nAlice-->>Bob: response\nAlice-)Alice: retry\n",
-                                    L"pie showData\ntitle Pets\n\"Dogs\": 3\n\"Cats\": 2\n\"Birds\": 1\n",
-                                    L"erDiagram\nCUSTOMER ||--o{ ORDER : places\nCUSTOMER {\n string name\n int age\n}\nORDER ||--|{ ITEM : contains\n",
-                                    L"gantt\ntitle Release\nsection Build\nCompile : 2024-02-27, 3d\nTest : 2024-03-01, 2d\n",
-                                    L"mindmap\n  root((Central))\n    First\n      Leaf\n    Second\n",
-                                    L"flowchart TD\nA:::heavy --> B\nclassDef heavy stroke-width:3px\n",
-                                    L"flowchart TD\nA[\"<b>Bold</b> <i>It</i>\"]-->|<u>go</u>|B\n",
-                                    L"flowchart TD\nclassDef default font-weight:bold\nA-->B\nlinkStyle 0 stroke-width:2px,stroke-dasharray:5 5\n",
-                                    L"classDiagram\nnote \"a long standalone note\"\nclass A {\n+first: int\n+second: string\n}\n",
-                                    L"mindmap\n root\n  child\n ::icon(bad)\n", L"pie\n\"one\": 1\n\"one\": 2\n",
-                                    L"sequenceDiagram\nAlice->>Bob: hello\nAlice->>Missing: bad\n"};
+    const std::wstring sources[] = {
+        L"graph LR;A[\"Unicode \u03b2 \U0001f600\"]-->|yes|B((Second));B-->A;A-->A",
+        L"graph TD;A[staged];B[another];A-->B;style A fill:red",
+        L"graph TD;A[staged];B[another];A-->|\"incomplete label",
+        L"graph TD;A[\"" + std::wstring(NativeFlowchartParser::MaximumLabelUnits + 1u, L'x') + L"\"]",
+        L"flowchart LR;A & B-->|group|C & D-->E",
+        L"flowchart LR;A-.->B;B==>C;C~~~D",
+        L"stateDiagram-v2;state \"Ready\" as S;S : Running;S-->T : go",
+        L"stateDiagram-v2;state C <<choice>>;A-->C;C-->B : yes",
+        L"stateDiagram-v2;state F <<fork>>;state J <<join>>;A-->F;F-->J;J-->B",
+        L"classDiagram;Base <|-- Derived;Derived : member",
+        L"classDiagram\nclass Animal {\n+name: String\n+run()\n}\nAnimal -- Pond\n",
+        L"sequenceDiagram\nparticipant Alice as Client\nparticipant Bob\nBob->>Alice: request\nAlice-->>Bob: response\nAlice-)Alice: retry\n",
+        L"pie showData\ntitle Pets\n\"Dogs\": 3\n\"Cats\": 2\n\"Birds\": 1\n",
+        L"erDiagram\nCUSTOMER ||--o{ ORDER : places\nCUSTOMER {\n string name\n int age\n}\nORDER ||--|{ ITEM : contains\n",
+        L"gantt\ntitle Release\nsection Build\nCompile : 2024-02-27, 3d\nTest : 2024-03-01, 2d\n",
+        L"mindmap\n  root((Central))\n    First\n      Leaf\n    Second\n",
+        L"flowchart TD\nA:::heavy --> B\nclassDef heavy stroke-width:3px\n",
+        L"flowchart TD\nA[\"<b>Bold</b> <i>It</i>\"]-->|<u>go</u>|B\n",
+        L"flowchart TD\nclassDef default font-weight:bold\nA-->B\nlinkStyle 0 stroke-width:2px,stroke-dasharray:5 5\n",
+        L"classDiagram\nnote \"a long standalone note\"\nclass A {\n+first: int\n+second: string\n}\n",
+        L"mindmap\n root\n  child\n ::icon(bad)\n",
+        L"pie\n\"one\": 1\n\"one\": 2\n",
+        L"sequenceDiagram\nAlice->>Bob: hello\nAlice->>Missing: bad\n"};
     std::size_t total{};
     for (const auto& source : sources)
     {

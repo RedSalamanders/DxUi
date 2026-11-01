@@ -1,6 +1,6 @@
 #include "DxUi.PreparedLayoutAccess.h"
-#include "DxUi.RichTextSourceInkRenderer.h"
 #include "DxUi.RichTextScriptRenderer.h"
+#include "DxUi.RichTextSourceInkRenderer.h"
 #include "DxUi.TextElements.h"
 #include <DxUi/RichTextLayout.h>
 #include <algorithm>
@@ -197,9 +197,10 @@ void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
         options.tabStopDip > 4096.0f || (options.tabStopDip > 0.0f && options.tabStopDip < 1.0f) ||
         (options.lineHeightMultiplier != 0.0f && (options.lineHeightMultiplier < 1.0f || options.lineHeightMultiplier > 4.0f)) ||
         ! std::isfinite(options.headingScaleStep) || options.headingScaleStep < 0.0f || options.headingScaleStep > 1.0f || ! validName(options.fontFamily) ||
-        ! validName(options.codeFontFamily) || (semanticDisplay && (! validName(options.mathFontFamily) || ! std::isfinite(options.mathAbsoluteUnitScale) ||
-                             options.mathAbsoluteUnitScale <= 0.f || options.mathAbsoluteUnitScale > 16.f)) || options.locale.size() > 255 ||
-        ! IsValidUtf16(options.locale) ||
+        ! validName(options.codeFontFamily) ||
+        (semanticDisplay && (! validName(options.mathFontFamily) || ! std::isfinite(options.mathAbsoluteUnitScale) || options.mathAbsoluteUnitScale <= 0.f ||
+                             options.mathAbsoluteUnitScale > 16.f)) ||
+        options.locale.size() > 255 || ! IsValidUtf16(options.locale) ||
         (options.readingDirection != DWRITE_READING_DIRECTION_LEFT_TO_RIGHT && options.readingDirection != DWRITE_READING_DIRECTION_RIGHT_TO_LEFT) ||
         (options.textAlignment != DWRITE_TEXT_ALIGNMENT_LEADING && options.textAlignment != DWRITE_TEXT_ALIGNMENT_TRAILING &&
          options.textAlignment != DWRITE_TEXT_ALIGNMENT_CENTER) ||
@@ -333,10 +334,12 @@ void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
             auto size = (run.flags & Code) && options.codeFontSizeDip > 0.0f ? options.codeFontSizeDip : fontSize;
             if (run.heading)
                 size = options.headingFontSizeDip[run.heading - 1u] > 0.0f ? options.headingFontSizeDip[run.heading - 1u]
-                                                                          : size * (1.0f + options.headingScaleStep * static_cast<float>(7u - run.heading));
+                                                                           : size * (1.0f + options.headingScaleStep * static_cast<float>(7u - run.heading));
             Check(layout->SetFontSize(size * .75f, range), "Set HTML script font size");
-            if (run.flags & Superscript) scriptTopOutset = std::max(scriptTopOutset, size * .30f);
-            if (run.flags & Subscript) scriptBottomOutset = std::max(scriptBottomOutset, size * .20f);
+            if (run.flags & Superscript)
+                scriptTopOutset = std::max(scriptTopOutset, size * .30f);
+            if (run.flags & Subscript)
+                scriptBottomOutset = std::max(scriptBottomOutset, size * .20f);
         }
     }
     if (marker)
@@ -416,7 +419,7 @@ void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
     std::vector<std::size_t> lines{0};
     for (const auto& line : lineMetrics)
         lines.push_back(lines.back() + line.length);
-    auto next               = std::make_unique<PreparedLayout::State>();
+    auto next        = std::make_unique<PreparedLayout::State>();
     next->hasScripts = scripts;
     if (scripts)
     {
@@ -428,8 +431,9 @@ void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
             next->scripts.unsupported = true;
         else
             Check(collector.Result(), "Prepare HTML script callbacks");
-        std::sort(next->scripts.decorations.begin(), next->scripts.decorations.end(), [](const auto& a, const auto& b)
-        { return a.baseline < b.baseline || (a.baseline == b.baseline && a.left < b.left); });
+        std::sort(next->scripts.decorations.begin(), next->scripts.decorations.end(), [](const auto& a, const auto& b) {
+            return a.baseline < b.baseline || (a.baseline == b.baseline && a.left < b.left);
+        });
     }
     owner.projection_       = std::move(projection);
     next->layout            = std::move(layout);
@@ -605,14 +609,20 @@ std::pair<std::size_t, std::size_t> PreparedLayout::VisibleRange(float top, floa
 }
 bool Detail::PreparedLayoutAccess::ScriptTargetSupported(const PreparedLayout& owner, ID2D1RenderTarget* target)
 {
-    if (! owner.state_) return false;
-    if (! owner.state_->hasScripts) return true;
-    if (owner.state_->scripts.unsupported) return false;
-    if (! owner.state_->scripts.requiresColor) return true;
-    if (! target) return false;
+    if (! owner.state_)
+        return false;
+    if (! owner.state_->hasScripts)
+        return true;
+    if (owner.state_->scripts.unsupported)
+        return false;
+    if (! owner.state_->scripts.requiresColor)
+        return true;
+    if (! target)
+        return false;
     wil::com_ptr<ID2D1DeviceContext7> color;
     const auto result = target->QueryInterface(IID_PPV_ARGS(color.put()));
-    if (result == E_NOINTERFACE) return false;
+    if (result == E_NOINTERFACE)
+        return false;
     Check(result, "Validate HTML script color target");
     return true;
 }
@@ -629,7 +639,8 @@ void PreparedLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POI
         return;
     }
     const LinkDrawing defaultDrawing{};
-    if (! links) links = &defaultDrawing;
+    if (! links)
+        links = &defaultDrawing;
     if (! scripts && links->directSourceInkPreview &&
         Detail::DrawSourceInkIfSupported(target, brush, state_->layout.get(), state_->positioning.get(), state_->textOffset, projection_, *links, origin) ==
             Detail::SourceInkDrawResult::Drawn)

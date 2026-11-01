@@ -9,7 +9,11 @@ namespace DxUi::RichText::Detail
 {
 // Opaque CSS named colors; values mirror the Windows SDK D2D color constants,
 // including CSS grey aliases and rebeccapurple. No locale-dependent folding.
-struct NativeNamedColor { std::wstring_view name; std::uint32_t rgb; };
+struct NativeNamedColor
+{
+    std::wstring_view name;
+    std::uint32_t rgb;
+};
 inline constexpr NativeNamedColor NativeNamedColors[] = {
     {L"aliceblue", 0xF0F8FFu},
     {L"antiquewhite", 0xFAEBD7u},
@@ -173,7 +177,11 @@ inline std::optional<std::uint32_t> ParseNativeColor(std::wstring_view text) noe
             for (std::size_t i = 0; i < text.size(); ++i)
             {
                 const auto unit = text[i] >= L'A' && text[i] <= L'Z' ? text[i] + (L'a' - L'A') : text[i];
-                if (unit != candidate.name[i]) { equal = false; break; }
+                if (unit != candidate.name[i])
+                {
+                    equal = false;
+                    break;
+                }
             }
             if (equal)
                 return candidate.rgb;
@@ -185,16 +193,17 @@ inline std::optional<std::uint32_t> ParseNativeColor(std::wstring_view text) noe
     std::uint32_t value{};
     for (const auto unit : text)
     {
-        const auto digit = unit >= L'0' && unit <= L'9' ? unit - L'0'
-                         : unit >= L'a' && unit <= L'f' ? unit - L'a' + 10
-                         : unit >= L'A' && unit <= L'F' ? unit - L'A' + 10 : -1;
+        const auto digit = unit >= L'0' && unit <= L'9'   ? unit - L'0'
+                           : unit >= L'a' && unit <= L'f' ? unit - L'a' + 10
+                           : unit >= L'A' && unit <= L'F' ? unit - L'A' + 10
+                                                          : -1;
         if (digit < 0)
             return std::nullopt;
         value = (value << 4u) | static_cast<std::uint32_t>(digit);
     }
     if (text.size() == 3u)
-        value = ((value & 0xf00u) << 12u) | ((value & 0xf00u) << 8u) | ((value & 0x0f0u) << 8u) |
-                ((value & 0x0f0u) << 4u) | ((value & 0x00fu) << 4u) | (value & 0x00fu);
+        value = ((value & 0xf00u) << 12u) | ((value & 0xf00u) << 8u) | ((value & 0x0f0u) << 8u) | ((value & 0x0f0u) << 4u) | ((value & 0x00fu) << 4u) |
+                (value & 0x00fu);
     return value;
 }
 inline std::wstring EncodeNativeColor(std::uint32_t rgb)

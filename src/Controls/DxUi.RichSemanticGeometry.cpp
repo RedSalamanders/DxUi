@@ -1,8 +1,8 @@
 #include "DxUi.RichSemanticGeometry.h"
-#include "DxUi.RichBidi.h"
 #include "DxUi.PaintIndex.h"
 #include "DxUi.PreparedLayoutAccess.h"
 #include "DxUi.PreparedMath.h"
+#include "DxUi.RichBidi.h"
 #include "DxUi.RichImageResources.h"
 #include "DxUi.RichLayoutOptions.h"
 #include "DxUi.SemanticExtensions.h"
@@ -45,9 +45,8 @@ DWRITE_READING_DIRECTION ParagraphDirection(const SemanticDocument& document, co
     if (! options.autoParagraphDirection)
         return options.readingDirection;
     const auto text = document.Map().Display();
-    const auto first = paragraph.markerEnd > paragraph.display.first && paragraph.markerEnd <= paragraph.display.last
-                           ? paragraph.markerEnd
-                           : paragraph.display.first;
+    const auto first =
+        paragraph.markerEnd > paragraph.display.first && paragraph.markerEnd <= paragraph.display.last ? paragraph.markerEnd : paragraph.display.first;
     if (first > paragraph.display.last || paragraph.display.last > text.size())
         return options.readingDirection;
     return FirstStrongDirection(text.substr(first, paragraph.display.last - first), options.readingDirection);
@@ -130,7 +129,9 @@ struct NativeDiagramGeometry
     NativeDiagramGeometry(std::size_t count, ID2D1Factory* factory, FlowchartResourceEpoch inputEpochs, ID2D1RenderTarget* raster, bool needsPalette)
         : drawing(factory),
           epochs(inputEpochs),
-          placements(count), targetIdentity(raster), targetBound(needsPalette)
+          placements(count),
+          targetIdentity(raster),
+          targetBound(needsPalette)
     {
     }
     wil::com_ptr<ID2D1Factory> drawing;
@@ -168,8 +169,7 @@ struct NativeImagePlacement
             return math->Size();
         const auto body = math->Size(), label = tag->Size();
         const float baseline = std::max(math->Baseline(), tag->Baseline());
-        return D2D1::SizeF(body.width + 2.f * (label.width + 8.f),
-                           baseline + std::max(body.height - math->Baseline(), label.height - tag->Baseline()));
+        return D2D1::SizeF(body.width + 2.f * (label.width + 8.f), baseline + std::max(body.height - math->Baseline(), label.height - tag->Baseline()));
     }
     float Baseline() const noexcept
     {
@@ -260,30 +260,34 @@ struct NativeImageGeometry
                     });
                     if (prior != previous->placements.end() && prior->element == placement.element)
                     {
-                        placement.math = prior->math;
-                        placement.tag = prior->tag;
+                        placement.math        = prior->math;
+                        placement.tag         = prior->tag;
                         placement.mathPalette = prior->mathPalette;
-                        placement.bodyReady = prior->bodyReady;
-                        placement.tagReady = prior->tagReady;
+                        placement.bodyReady   = prior->bodyReady;
+                        placement.tagReady    = prior->tagReady;
                     }
                 }
                 if (! placement.math)
                 {
                     if (! textFormats)
-                        textFormats = std::make_shared<MathTextFormats>(write, options.mathFontFamily, options.locale, options.fontFamily, options.codeFontFamily);
+                        textFormats =
+                            std::make_shared<MathTextFormats>(write, options.mathFontFamily, options.locale, options.fontFamily, options.codeFontFamily);
                     const auto& expression = maths[index].expression;
                     if (expression->root.kind == MathKind::Style && expression->root.text == L"tag")
                     {
                         if (! maths[index].display || expression->root.children.size() != 2u)
                             throw std::length_error("Tagged equations require display mode");
                         const std::wstring empty(0u, L' ');
-                        const auto body = std::make_shared<const MathExpression>(expression->root.children[0], empty);
+                        const auto body  = std::make_shared<const MathExpression>(expression->root.children[0], empty);
                         const auto label = std::make_shared<const MathExpression>(expression->root.children[1], empty);
-                        placement.math = std::make_shared<PreparedMath>(write, body, font * 1.15f, true, constants, options.dpi, textFormats, options.mathAbsoluteUnitScale);
-                        placement.tag = std::make_shared<PreparedMath>(write, label, font * 1.15f, false, placement.math.get(), options.dpi, textFormats, options.mathAbsoluteUnitScale);
+                        placement.math =
+                            std::make_shared<PreparedMath>(write, body, font * 1.15f, true, constants, options.dpi, textFormats, options.mathAbsoluteUnitScale);
+                        placement.tag = std::make_shared<PreparedMath>(
+                            write, label, font * 1.15f, false, placement.math.get(), options.dpi, textFormats, options.mathAbsoluteUnitScale);
                     }
                     else
-                        placement.math = std::make_shared<PreparedMath>(write, expression, font * 1.15f, maths[index].display, constants, options.dpi, textFormats, options.mathAbsoluteUnitScale);
+                        placement.math = std::make_shared<PreparedMath>(
+                            write, expression, font * 1.15f, maths[index].display, constants, options.dpi, textFormats, options.mathAbsoluteUnitScale);
                 }
                 if (! constants)
                     constants = placement.math.get();
@@ -361,7 +365,12 @@ struct NativeImageGeometry
         }
         return {placement.uploadedY == height, true, false, static_cast<std::size_t>(columns) * rows * 4u};
     }
-    enum class MathProgress { Complete, Layout, Resource };
+    enum class MathProgress
+    {
+        Complete,
+        Layout,
+        Resource
+    };
     MathProgress PrepareMath(std::size_t index, ID2D1RenderTarget* target)
     {
         try
@@ -553,9 +562,10 @@ struct PreparedSemanticGeometry::State
           bounds(document->Elements().size()),
           sourceLines(0u) // Fallible size constructor: MSVC Debug's noexcept default allocates an iterator proxy.
     {
-        width = options.widthDip;
+        width      = options.widthDip;
         hasScripts = std::ranges::any_of(document->Runs(), [](const auto& run) { return (run.flags & (Superscript | Subscript)) != 0u; });
-        if (hasScripts) scriptTarget = raster;
+        if (hasScripts)
+            scriptTarget = raster;
         if (options.markdownPresentation == MarkdownPresentationStyle::Subtle)
         {
             decorations = std::make_unique<MarkdownDecorations>();
@@ -572,7 +582,7 @@ struct PreparedSemanticGeometry::State
         if (! diagrams.empty())
         {
             const bool needsPalette = std::ranges::any_of(diagrams, [](const auto& diagram) { return DiagramPalette::Needed(*diagram.graph); });
-            native = std::make_unique<NativeDiagramGeometry>(diagrams.size(), drawing, epochs, raster, needsPalette);
+            native                  = std::make_unique<NativeDiagramGeometry>(diagrams.size(), drawing, epochs, raster, needsPalette);
             for (std::size_t index = 0u; index < diagrams.size(); ++index)
             {
                 native->placements[index].element = diagrams[index].element;
@@ -1051,7 +1061,7 @@ struct PreparedSemanticGeometry::Preparation
         box->markerLayout           = true;
         box->paragraph.display.last = content.markerEnd;
         auto options                = state->options;
-        options.readingDirection = ParagraphDirection(*state->document, content, state->options);
+        options.readingDirection    = ParagraphDirection(*state->document, content, state->options);
         // Native no-wrap measurement is separate from the body's width. Its
         // cached metrics retain the natural advance even for an unusual font.
         options.widthDip      = std::max(options.widthDip, options.fontSizeDip * 32.0f);
@@ -1151,10 +1161,10 @@ struct PreparedSemanticGeometry::Preparation
         }
         if (sizing->columns != content.columns)
             throw std::logic_error("Inconsistent semantic table column count");
-        LayoutOptions options = state->options;
+        LayoutOptions options    = state->options;
         options.readingDirection = ParagraphDirection(*state->document, content, state->options);
-        options.widthDip      = std::max(state->options.widthDip, 1048576.0f);
-        options.textAlignment = DWRITE_TEXT_ALIGNMENT_LEADING;
+        options.widthDip         = std::max(state->options.widthDip, 1048576.0f);
+        options.textAlignment    = DWRITE_TEXT_ALIGNMENT_LEADING;
         PreparedLayoutAccess::SemanticInput projection;
         SemanticDisplayInput(*state->document, content.display, projection);
         PreparedLayout measured;
@@ -1333,8 +1343,7 @@ struct PreparedSemanticGeometry::Preparation
                 break;
             }
             const auto& element = next.document->Elements()[surfaceOwner];
-            if (element.role == SemanticRole::Quote ||
-                (element.tableHeader && next.options.markdownPresentation == MarkdownPresentationStyle::Subtle))
+            if (element.role == SemanticRole::Quote || (element.tableHeader && next.options.markdownPresentation == MarkdownPresentationStyle::Subtle))
             {
                 box->authoredColorSurfaceKnown = false;
                 break;
@@ -1367,9 +1376,9 @@ struct PreparedSemanticGeometry::Preparation
             }
         }
         const auto paragraphDirection = ParagraphDirection(*next.document, content, next.options);
-        const bool localRtl = paragraphDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT;
-        const bool rtl = table ? next.options.readingDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : localRtl;
-        box->rtl = localRtl;
+        const bool localRtl           = paragraphDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT;
+        const bool rtl                = table ? next.options.readingDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : localRtl;
+        box->rtl                      = localRtl;
         if (HasSpacingPolicy() && ! rowActive)
         {
             // Empty source sites fill the requested margin. A second source
@@ -1378,11 +1387,11 @@ struct PreparedSemanticGeometry::Preparation
         }
         const float baseIndent =
             static_cast<float>(std::min(content.indent, 64u)) * (next.options.semanticSpacing ? next.options.semanticSpacing->containerIndentDip : 16.0f);
-        const float indent    = std::min(next.options.widthDip - 1.0f, baseIndent + Gutter(content));
-        box->x                = rtl ? 0.0f : indent;
-        box->y                = y;
-        box->width            = next.options.widthDip - indent;
-        LayoutOptions options = next.options;
+        const float indent       = std::min(next.options.widthDip - 1.0f, baseIndent + Gutter(content));
+        box->x                   = rtl ? 0.0f : indent;
+        box->y                   = y;
+        box->width               = next.options.widthDip - indent;
+        LayoutOptions options    = next.options;
         options.readingDirection = paragraphDirection;
         if (table)
         {
@@ -1746,8 +1755,8 @@ struct PreparedSemanticGeometry::Preparation
             }
         bool scriptSupported = PreparedLayoutAccess::ScriptTargetSupported(box->layout, raster.get());
 #if DXUI_ENABLE_DIAGNOSTICS
-        if (testRichScriptTargetUnsupported && std::ranges::any_of(box->layout.Content().runs, [](const auto& run)
-            { return (run.flags & (Superscript | Subscript)) != 0u; }))
+        if (testRichScriptTargetUnsupported &&
+            std::ranges::any_of(box->layout.Content().runs, [](const auto& run) { return (run.flags & (Superscript | Subscript)) != 0u; }))
             scriptSupported = false;
 #endif
         if (! scriptSupported)
@@ -1892,9 +1901,8 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
         ! std::isfinite(options.dpi) || options.dpi <= 0.0f || options.dpi > 4096.0f || options.fontSizeDip <= 0.0f ||
         ! std::isfinite(options.mathAbsoluteUnitScale) || options.mathAbsoluteUnitScale <= 0.f || options.mathAbsoluteUnitScale > 16.f ||
         ! std::isfinite(options.diagramLabelWidthDip) || options.diagramLabelWidthDip < 0.f || options.diagramLabelWidthDip > 4096.f ||
-        (options.diagramLabelWidthDip > 0.f && options.diagramLabelWidthDip < 1.f) ||
-        ! validSpacing(options.paragraphSpacingAfterLines, 4.0f) || ! validSpacing(options.listItemSpacingDip, 256.0f) ||
-        (options.semanticSpacing && ! options.semanticSpacing->IsValid()) ||
+        (options.diagramLabelWidthDip > 0.f && options.diagramLabelWidthDip < 1.f) || ! validSpacing(options.paragraphSpacingAfterLines, 4.0f) ||
+        ! validSpacing(options.listItemSpacingDip, 256.0f) || (options.semanticSpacing && ! options.semanticSpacing->IsValid()) ||
         (options.markdownPresentation != MarkdownPresentationStyle::Default && options.markdownPresentation != MarkdownPresentationStyle::Subtle))
         throw std::invalid_argument("Invalid semantic geometry request");
     const auto diagrams    = SemanticExtensionAccess::Diagrams(*document);
@@ -2155,7 +2163,8 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 }
                 if (placement.paint->Pending())
                 {
-                    const auto advance = placement.paint->Advance({budget.maximumLayouts - result.layoutsPrepared, budget.maximumBlockSteps - result.blockSteps});
+                    const auto advance =
+                        placement.paint->Advance({budget.maximumLayouts - result.layoutsPrepared, budget.maximumBlockSteps - result.blockSteps});
                     result.layoutsPrepared += advance.layoutsPrepared;
                     result.blockSteps += advance.blockSteps;
                     if (advance.status == LayoutPreparationStatus::Complete && ! placement.paint->Ready())
@@ -2164,7 +2173,8 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                         placement.paint.reset();
                         ++work.nativeIndex;
                     }
-                    if (! advance.blockSteps && ! advance.layoutsPrepared) break;
+                    if (! advance.blockSteps && ! advance.layoutsPrepared)
+                        break;
                     continue;
                 }
                 const auto& graph = diagrams[work.nativeIndex].graph;
@@ -2335,14 +2345,14 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                     if (result.layoutsPrepared == budget.maximumLayouts)
                         break;
                     ::DxUi::RichText::Document labelSource{std::to_wstring(work.codeNumberValue)};
-                    auto projection       = Project(labelSource.Snapshot(), labelSource.Revision(), ViewMode::Source);
-                    auto options          = work.state->options;
-                    options.widthDip      = box.codeGutter - 8.0f;
-                    options.fontFamily    = options.codeFontFamily;
-                    options.fontSizeDip   = options.codeFontSizeDip > 0.0f ? options.codeFontSizeDip : options.fontSizeDip;
-                    options.textAlignment = DWRITE_TEXT_ALIGNMENT_TRAILING;
+                    auto projection          = Project(labelSource.Snapshot(), labelSource.Revision(), ViewMode::Source);
+                    auto options             = work.state->options;
+                    options.widthDip         = box.codeGutter - 8.0f;
+                    options.fontFamily       = options.codeFontFamily;
+                    options.fontSizeDip      = options.codeFontSizeDip > 0.0f ? options.codeFontSizeDip : options.fontSizeDip;
+                    options.textAlignment    = DWRITE_TEXT_ALIGNMENT_TRAILING;
                     options.readingDirection = box.rtl ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
-                    auto layout           = std::make_unique<PreparedLayout>();
+                    auto layout              = std::make_unique<PreparedLayout>();
                     layout->Prepare(work.state->factory.get(), std::move(projection), options);
                     const bool rtl = box.rtl;
                     const float x  = rtl ? box.x + box.width + 4.0f : box.x - box.codeGutter + 4.0f;
@@ -3152,7 +3162,8 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                                            decoration,
                                            fill,
                                            D2D1::Point2F(origin.x + box->x + box->native->bounds.left, origin.y + box->y + box->native->bounds.top),
-                                           box->native->palette.get(), boxColors))
+                                           box->native->palette.get(),
+                                           boxColors))
                 throw std::logic_error("Native diagram target/resources are incompatible");
             if (box->images)
                 for (const auto& image : box->images->placements)
@@ -3160,26 +3171,31 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                     {
                         if (image.math)
                         {
-                            const MathColorContext mathColors{boxColors ? boxColors->text : D2D1_COLOR_F{},
-                                                              boxColors ? boxColors->fill : D2D1_COLOR_F{}};
+                            const MathColorContext mathColors{boxColors ? boxColors->text : D2D1_COLOR_F{}, boxColors ? boxColors->fill : D2D1_COLOR_F{}};
                             const auto* colorContext = boxColors ? &mathColors : nullptr;
                             if (image.tag)
                             {
-                                const float scale = image.tagScale;
+                                const float scale    = image.tagScale;
                                 const float baseline = origin.y + box->y + image.bounds.top + image.Baseline() * scale;
-                                const float left = origin.x + box->x + image.bounds.left;
-                                const float width = image.bounds.right - image.bounds.left;
-                                const float bodyX = left + (width - image.math->Size().width * scale) * .5f;
-                                const float tagX = left + width - image.tag->Size().width * scale;
-                                image.math->Draw(target, boxText, D2D1::Point2F(bodyX, baseline - image.math->Baseline() * scale), scale,
-                                                 image.mathPalette.get(), colorContext);
+                                const float left     = origin.x + box->x + image.bounds.left;
+                                const float width    = image.bounds.right - image.bounds.left;
+                                const float bodyX    = left + (width - image.math->Size().width * scale) * .5f;
+                                const float tagX     = left + width - image.tag->Size().width * scale;
+                                image.math->Draw(target,
+                                                 boxText,
+                                                 D2D1::Point2F(bodyX, baseline - image.math->Baseline() * scale),
+                                                 scale,
+                                                 image.mathPalette.get(),
+                                                 colorContext);
                                 image.tag->Draw(target, boxText, D2D1::Point2F(tagX, baseline - image.tag->Baseline() * scale), scale);
                                 continue;
                             }
                             image.math->Draw(target,
                                              boxText,
                                              D2D1::Point2F(origin.x + box->x + image.bounds.left, origin.y + box->y + image.bounds.top),
-                                             (image.bounds.right - image.bounds.left) / image.Size().width, image.mathPalette.get(), colorContext);
+                                             (image.bounds.right - image.bounds.left) / image.Size().width,
+                                             image.mathPalette.get(),
+                                             colorContext);
                             continue;
                         }
                         target->DrawBitmap(image.bitmap.get(),

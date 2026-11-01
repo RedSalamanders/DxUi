@@ -19,8 +19,7 @@ inline bool SameLayoutOptions(const LayoutOptions& a, const LayoutOptions& b, La
            a.listItemSpacingDip == b.listItemSpacingDip && a.semanticSpacing == b.semanticSpacing && a.locale == b.locale &&
            a.readingDirection == b.readingDirection && a.textAlignment == b.textAlignment && a.wrap == b.wrap &&
            (use == LayoutOptionsUse::Text ||
-            (a.autoParagraphDirection == b.autoParagraphDirection && a.markdownPresentation == b.markdownPresentation &&
-             a.codeCopyAction == b.codeCopyAction && a.mathFontFamily == b.mathFontFamily &&
-             a.diagramLabelWidthDip == b.diagramLabelWidthDip && a.mathAbsoluteUnitScale == b.mathAbsoluteUnitScale));
+            (a.autoParagraphDirection == b.autoParagraphDirection && a.markdownPresentation == b.markdownPresentation && a.codeCopyAction == b.codeCopyAction &&
+             a.mathFontFamily == b.mathFontFamily && a.diagramLabelWidthDip == b.diagramLabelWidthDip && a.mathAbsoluteUnitScale == b.mathAbsoluteUnitScale));
 }
 } // namespace DxUi::RichText::Detail

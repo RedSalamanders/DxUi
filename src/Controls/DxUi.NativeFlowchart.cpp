@@ -41,9 +41,24 @@ struct NativeFlowchartParser::Preparation
     std::array<std::uint8_t, MaximumNodes> pseudoKinds{};
     std::array<std::size_t, 4u> groupStack{};
     std::array<std::size_t, 9u> mindIndent{}, mindStack{};
-    struct NodeStyle { unsigned width{1u}; unsigned fontFlags{}, mask{}; bool dashed{}; std::uint32_t fill{NoDiagramColor}, stroke{NoDiagramColor}, text{NoDiagramColor}; };
-    struct WidthClass { std::wstring_view name; NodeStyle style; };
-    struct WidthAssignment { std::size_t node{}; std::wstring_view name; MarkdownRange source; };
+    struct NodeStyle
+    {
+        unsigned width{1u};
+        unsigned fontFlags{}, mask{};
+        bool dashed{};
+        std::uint32_t fill{NoDiagramColor}, stroke{NoDiagramColor}, text{NoDiagramColor};
+    };
+    struct WidthClass
+    {
+        std::wstring_view name;
+        NodeStyle style;
+    };
+    struct WidthAssignment
+    {
+        std::size_t node{};
+        std::wstring_view name;
+        MarkdownRange source;
+    };
     std::array<WidthClass, 64u> widthClasses{};
     std::array<WidthAssignment, MaximumEdges> widthAssignments{};
     std::array<bool, MaximumNodes> directWidth{};
@@ -107,60 +122,113 @@ struct NativeFlowchartParser::Preparation
         while (! properties.empty())
         {
             const auto comma = properties.find(L',');
-            auto property = properties.substr(0u, comma);
-            while (! property.empty() && Space(property.front())) property.remove_prefix(1u);
-            while (! property.empty() && Space(property.back())) property.remove_suffix(1u);
+            auto property    = properties.substr(0u, comma);
+            while (! property.empty() && Space(property.front()))
+                property.remove_prefix(1u);
+            while (! property.empty() && Space(property.back()))
+                property.remove_suffix(1u);
             unsigned bit{};
             if (property == L"stroke-width:1px" || property == L"stroke-width:2px" || property == L"stroke-width:3px")
             {
-                bit = 1u;
+                bit         = 1u;
                 style.width = static_cast<unsigned>(property[property.size() - 3u] - L'0');
             }
-            else if (property == L"stroke-dasharray:5 5") { bit = 2u; style.dashed = true; }
-            else if (property == L"stroke-dasharray:0") { bit = 2u; style.dashed = false; }
-            else if (property == L"font-weight:bold") { bit = 4u; style.fontFlags |= LabelBold; }
-            else if (property == L"font-weight:normal") { bit = 4u; style.fontFlags &= ~LabelBold; }
-            else if (property == L"font-style:italic") { bit = 8u; style.fontFlags |= LabelItalic; }
-            else if (property == L"font-style:normal") { bit = 8u; style.fontFlags &= ~LabelItalic; }
+            else if (property == L"stroke-dasharray:5 5")
+            {
+                bit          = 2u;
+                style.dashed = true;
+            }
+            else if (property == L"stroke-dasharray:0")
+            {
+                bit          = 2u;
+                style.dashed = false;
+            }
+            else if (property == L"font-weight:bold")
+            {
+                bit = 4u;
+                style.fontFlags |= LabelBold;
+            }
+            else if (property == L"font-weight:normal")
+            {
+                bit = 4u;
+                style.fontFlags &= ~LabelBold;
+            }
+            else if (property == L"font-style:italic")
+            {
+                bit = 8u;
+                style.fontFlags |= LabelItalic;
+            }
+            else if (property == L"font-style:normal")
+            {
+                bit = 8u;
+                style.fontFlags &= ~LabelItalic;
+            }
             else if (property.starts_with(L"fill:") || property.starts_with(L"stroke:") || property.starts_with(L"color:"))
             {
                 const auto colon = property.find(L':');
                 const auto value = property.substr(colon + 1u);
-                const auto hex = [](wchar_t c) noexcept -> int
-                { return c >= L'0' && c <= L'9' ? c - L'0' : c >= L'a' && c <= L'f' ? c - L'a' + 10 : c >= L'A' && c <= L'F' ? c - L'A' + 10 : -1; };
-                if (value.empty() || value.front() != L'#' || (value.size() != 4u && value.size() != 7u)) return false;
+                const auto hex   = [](wchar_t c) noexcept -> int
+                {
+                    return c >= L'0' && c <= L'9' ? c - L'0' : c >= L'a' && c <= L'f' ? c - L'a' + 10 : c >= L'A' && c <= L'F' ? c - L'A' + 10 : -1;
+                };
+                if (value.empty() || value.front() != L'#' || (value.size() != 4u && value.size() != 7u))
+                    return false;
                 std::uint32_t color{};
                 for (std::size_t i = 1u; i < value.size(); ++i)
                 {
                     const auto digit = hex(value[i]);
-                    if (digit < 0) return false;
+                    if (digit < 0)
+                        return false;
                     color = color * 16u + static_cast<std::uint32_t>(digit);
                 }
                 if (value.size() == 4u)
                     color = ((color >> 8u) & 15u) * 0x110000u + ((color >> 4u) & 15u) * 0x001100u + (color & 15u) * 0x000011u;
-                if (property.starts_with(L"fill:")) { bit = 16u; style.fill = color; }
-                else if (property.starts_with(L"stroke:")) { bit = 32u; style.stroke = color; }
-                else { bit = 64u; style.text = color; }
+                if (property.starts_with(L"fill:"))
+                {
+                    bit        = 16u;
+                    style.fill = color;
+                }
+                else if (property.starts_with(L"stroke:"))
+                {
+                    bit          = 32u;
+                    style.stroke = color;
+                }
+                else
+                {
+                    bit        = 64u;
+                    style.text = color;
+                }
             }
-            else return false;
-            if (seen & bit) return false;
+            else
+                return false;
+            if (seen & bit)
+                return false;
             seen |= bit;
-            if (comma == std::wstring_view::npos) break;
+            if (comma == std::wstring_view::npos)
+                break;
             properties.remove_prefix(comma + 1u);
-            if (properties.empty()) return false;
+            if (properties.empty())
+                return false;
         }
         style.mask = seen;
         return seen != 0u;
     }
     static void MergeStyle(NodeStyle& destination, const NodeStyle& source) noexcept
     {
-        if (source.mask & 1u) destination.width = source.width;
-        if (source.mask & 2u) destination.dashed = source.dashed;
-        if (source.mask & 4u) destination.fontFlags = (destination.fontFlags & ~LabelBold) | (source.fontFlags & LabelBold);
-        if (source.mask & 8u) destination.fontFlags = (destination.fontFlags & ~LabelItalic) | (source.fontFlags & LabelItalic);
-        if (source.mask & 16u) destination.fill = source.fill;
-        if (source.mask & 32u) destination.stroke = source.stroke;
-        if (source.mask & 64u) destination.text = source.text;
+        if (source.mask & 1u)
+            destination.width = source.width;
+        if (source.mask & 2u)
+            destination.dashed = source.dashed;
+        if (source.mask & 4u)
+            destination.fontFlags = (destination.fontFlags & ~LabelBold) | (source.fontFlags & LabelBold);
+        if (source.mask & 8u)
+            destination.fontFlags = (destination.fontFlags & ~LabelItalic) | (source.fontFlags & LabelItalic);
+        if (source.mask & 16u)
+            destination.fill = source.fill;
+        if (source.mask & 32u)
+            destination.stroke = source.stroke;
+        if (source.mask & 64u)
+            destination.text = source.text;
         destination.mask |= source.mask;
     }
     bool AssignWidthClass(std::size_t node, std::wstring_view name, std::size_t firstUnit, std::size_t lastUnit)
@@ -722,9 +790,12 @@ struct NativeFlowchartParser::Preparation
             while (true)
             {
                 const auto nameStart = at;
-                while (at < end && IdUnit(Text()[at])) ++at;
-                if (! AssignWidthClass(index, Text().substr(nameStart, at - nameStart), declarationStart, at)) return false;
-                if (at == end || Text()[at] != L',') break;
+                while (at < end && IdUnit(Text()[at]))
+                    ++at;
+                if (! AssignWidthClass(index, Text().substr(nameStart, at - nameStart), declarationStart, at))
+                    return false;
+                if (at == end || Text()[at] != L',')
+                    break;
                 ++at;
             }
         }
@@ -1522,7 +1593,8 @@ struct NativeFlowchartParser::Preparation
             std::size_t index{};
             while (at < end && Text()[at] >= L'0' && Text()[at] <= L'9')
             {
-                if (index > MaximumEdges) return Error(FlowchartIssue::UnsupportedStatement, statementStart, end, FlowchartOutcome::Unsupported);
+                if (index > MaximumEdges)
+                    return Error(FlowchartIssue::UnsupportedStatement, statementStart, end, FlowchartOutcome::Unsupported);
                 index = index * 10u + static_cast<std::size_t>(Text()[at++] - L'0');
             }
             if (at == digits || at == end || ! Space(Text()[at]) || index >= model->edges.size())
@@ -1532,9 +1604,15 @@ struct NativeFlowchartParser::Preparation
             if (! ParseStyle(Text().substr(at, end - at), style) || (style.mask & ~(1u | 2u | 32u)))
                 return Error(FlowchartIssue::UnsupportedStatement, statementStart, end, FlowchartOutcome::Unsupported);
             directEdgeStyle[index] |= style.mask;
-            if (style.mask & 1u) model->edges[index].strokeWidth = style.width;
-            if (style.mask & 2u) { model->edges[index].dashed = style.dashed; model->edges[index].dashSpecified = true; }
-            if (style.mask & 32u) model->edges[index].strokeColor = style.stroke;
+            if (style.mask & 1u)
+                model->edges[index].strokeWidth = style.width;
+            if (style.mask & 2u)
+            {
+                model->edges[index].dashed        = style.dashed;
+                model->edges[index].dashSpecified = true;
+            }
+            if (style.mask & 32u)
+                model->edges[index].strokeColor = style.stroke;
             return true;
         }
         if (model->family == NativeDiagramFamily::Flowchart && Text().substr(at, 8u) == L"classDef" && at + 8u < end && Space(Text()[at + 8u]))
@@ -1547,12 +1625,14 @@ struct NativeFlowchartParser::Preparation
             while (true)
             {
                 const auto nameStart = at;
-                while (at < end && IdUnit(Text()[at])) ++at;
+                while (at < end && IdUnit(Text()[at]))
+                    ++at;
                 const auto name = Text().substr(nameStart, at - nameStart);
                 if (name.empty() || ! Letter(name.front()) || name.size() > MaximumIdentifierUnits || count == names.size())
                     return Error(FlowchartIssue::UnsupportedStatement, statementStart, end, FlowchartOutcome::Unsupported);
                 names[count++] = name;
-                if (at == end || Text()[at] != L',') break;
+                if (at == end || Text()[at] != L',')
+                    break;
                 ++at;
             }
             Skip(at, end);
@@ -1561,15 +1641,17 @@ struct NativeFlowchartParser::Preparation
                 return Error(FlowchartIssue::UnsupportedStatement, statementStart, end, FlowchartOutcome::Unsupported);
             if (count == 1u && names[0u] == L"default")
             {
-                if (hasDefaultStyle) return Error(FlowchartIssue::UnsupportedStatement, statementStart, end, FlowchartOutcome::Unsupported);
+                if (hasDefaultStyle)
+                    return Error(FlowchartIssue::UnsupportedStatement, statementStart, end, FlowchartOutcome::Unsupported);
                 hasDefaultStyle = true;
-                defaultStyle = style;
+                defaultStyle    = style;
                 return true;
             }
             for (std::size_t index = 0u; index < count; ++index)
             {
                 const auto name = names[index];
-                if (name == L"default") return Error(FlowchartIssue::UnsupportedStatement, statementStart, end, FlowchartOutcome::Unsupported);
+                if (name == L"default")
+                    return Error(FlowchartIssue::UnsupportedStatement, statementStart, end, FlowchartOutcome::Unsupported);
                 for (std::size_t i = 0u; i < widthClassCount; ++i)
                     if (widthClasses[i].name == name)
                         return Error(FlowchartIssue::UnsupportedStatement, statementStart, end, FlowchartOutcome::Unsupported);
@@ -1589,18 +1671,21 @@ struct NativeFlowchartParser::Preparation
             while (true)
             {
                 const auto keyStart = at;
-                while (at < end && IdUnit(Text()[at])) ++at;
-                const auto key = Text().substr(keyStart, at - keyStart);
+                while (at < end && IdUnit(Text()[at]))
+                    ++at;
+                const auto key   = Text().substr(keyStart, at - keyStart);
                 const auto found = std::ranges::find(model->nodes, key, &FlowchartNode::key);
                 if (key.empty() || found == model->nodes.end() || count == targets.size())
                     return Error(FlowchartIssue::UnsupportedStatement, statementStart, end, FlowchartOutcome::Unsupported);
                 targets[count++] = static_cast<std::size_t>(found - model->nodes.begin());
-                if (at == end || Text()[at] != L',') break;
+                if (at == end || Text()[at] != L',')
+                    break;
                 ++at;
             }
             Skip(at, end);
             for (std::size_t i = 0u; i < count; ++i)
-                if (! AssignWidthClass(targets[i], Text().substr(at, end - at), statementStart, end)) return false;
+                if (! AssignWidthClass(targets[i], Text().substr(at, end - at), statementStart, end))
+                    return false;
             return true;
         }
         if (model->family == NativeDiagramFamily::Flowchart && Text().substr(at, 5u) == L"style" && at + 5u < end && Space(Text()[at + 5u]))
@@ -1615,11 +1700,12 @@ struct NativeFlowchartParser::Preparation
             Skip(at, end);
             const auto property = Text().substr(at, end - at);
             NodeStyle style;
-            if (! ParseStyle(property, style)) return Error(FlowchartIssue::UnsupportedStatement, statementStart, end, FlowchartOutcome::Unsupported);
+            if (! ParseStyle(property, style))
+                return Error(FlowchartIssue::UnsupportedStatement, statementStart, end, FlowchartOutcome::Unsupported);
             const auto found = std::ranges::find(model->nodes, key, &FlowchartNode::key);
             if (found == model->nodes.end())
                 return Error(FlowchartIssue::UnsupportedStatement, statementStart, end, FlowchartOutcome::Unsupported);
-            const auto index = static_cast<std::size_t>(found - model->nodes.begin());
+            const auto index   = static_cast<std::size_t>(found - model->nodes.begin());
             directWidth[index] = true;
             MergeStyle(directStyles[index], style);
             return true;
@@ -2006,7 +2092,8 @@ struct NativeFlowchartParser::Preparation
             std::array<NodeStyle, MaximumNodes> resolved{};
             for (std::size_t i = 0u; i < model->nodes.size(); ++i)
             {
-                if (hasDefaultStyle) MergeStyle(resolved[i], defaultStyle);
+                if (hasDefaultStyle)
+                    MergeStyle(resolved[i], defaultStyle);
             }
             for (std::size_t i = 0u; i < widthAssignmentCount; ++i)
             {
@@ -2023,12 +2110,13 @@ struct NativeFlowchartParser::Preparation
             for (std::size_t i = 0u; i < model->nodes.size(); ++i)
             {
                 auto& node = model->nodes[i];
-                if (directWidth[i]) MergeStyle(resolved[i], directStyles[i]);
-                node.strokeWidth = resolved[i].width;
+                if (directWidth[i])
+                    MergeStyle(resolved[i], directStyles[i]);
+                node.strokeWidth  = resolved[i].width;
                 node.borderDashed = resolved[i].dashed;
-                node.fillColor = resolved[i].fill;
-                node.strokeColor = resolved[i].stroke;
-                node.textColor = resolved[i].text;
+                node.fillColor    = resolved[i].fill;
+                node.strokeColor  = resolved[i].stroke;
+                node.textColor    = resolved[i].text;
                 if (resolved[i].fontFlags && ! node.label.empty())
                 {
                     if (node.styles.count == node.styles.spans.size())
@@ -2043,9 +2131,15 @@ struct NativeFlowchartParser::Preparation
                 for (std::size_t i = 0u; i < model->edges.size(); ++i)
                 {
                     auto& edge = model->edges[i];
-                    if ((defaultEdgeStyle.mask & 1u) && ! (directEdgeStyle[i] & 1u)) edge.strokeWidth = defaultEdgeStyle.width;
-                    if ((defaultEdgeStyle.mask & 2u) && ! (directEdgeStyle[i] & 2u)) { edge.dashed = defaultEdgeStyle.dashed; edge.dashSpecified = true; }
-                    if ((defaultEdgeStyle.mask & 32u) && ! (directEdgeStyle[i] & 32u)) edge.strokeColor = defaultEdgeStyle.stroke;
+                    if ((defaultEdgeStyle.mask & 1u) && ! (directEdgeStyle[i] & 1u))
+                        edge.strokeWidth = defaultEdgeStyle.width;
+                    if ((defaultEdgeStyle.mask & 2u) && ! (directEdgeStyle[i] & 2u))
+                    {
+                        edge.dashed        = defaultEdgeStyle.dashed;
+                        edge.dashSpecified = true;
+                    }
+                    if ((defaultEdgeStyle.mask & 32u) && ! (directEdgeStyle[i] & 32u))
+                        edge.strokeColor = defaultEdgeStyle.stroke;
                 }
             done = true;
             return;

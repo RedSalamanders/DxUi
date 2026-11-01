@@ -96,8 +96,7 @@ static void TestMathPreparationAllocationFailures(const wchar_t* source)
         Check(failed && retained->Size().width == original.width && retained->Size().height == original.height,
               "math preparation allocation failure preserves the prior complete formula");
         const auto retried = prepare();
-        Check(retried->Size().width == original.width && retried->Size().height == original.height,
-              "math preparation retries after each allocation failure");
+        Check(retried->Size().width == original.width && retried->Size().height == original.height, "math preparation retries after each allocation failure");
     }
 }
 static void TestMathKernPreparationAllocationFailures()

@@ -731,42 +731,53 @@ template <typename Check> inline void GroupRaster(Check&& check)
 template <typename Check> inline void ConfiguredLabelWidth(Check&& check)
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) THROW_IF_FAILED(initialized);
-    const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
-    const auto graph = FlowchartLayoutTests::Graph(L"graph TD;A[\"Unicode αβ שלום words and several more words for wrapping\"]");
-    const auto write = WriteFactory();
-    const auto drawing = DrawingFactory();
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    const auto graph     = FlowchartLayoutTests::Graph(L"graph TD;A[\"Unicode αβ שלום words and several more words for wrapping\"]");
+    const auto write     = WriteFactory();
+    const auto drawing   = DrawingFactory();
     for (const auto direction : {DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT})
     {
         LayoutOptions options;
-        options.readingDirection = direction;
+        options.readingDirection     = direction;
         options.diagramLabelWidthDip = 100.f;
         PreparedFlowchart prepared;
         prepared.Begin(write.get(), drawing.get(), graph, options, {1u, 1u});
         Complete(prepared, check);
         const auto first = prepared.Geometry();
         wil::com_ptr<IDWriteTextFormat> format;
-        THROW_IF_FAILED(write->CreateTextFormat(options.fontFamily.c_str(), nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
-                                                DWRITE_FONT_STRETCH_NORMAL, options.fontSizeDip, options.locale.c_str(), format.put()));
+        THROW_IF_FAILED(write->CreateTextFormat(options.fontFamily.c_str(),
+                                                nullptr,
+                                                DWRITE_FONT_WEIGHT_NORMAL,
+                                                DWRITE_FONT_STYLE_NORMAL,
+                                                DWRITE_FONT_STRETCH_NORMAL,
+                                                options.fontSizeDip,
+                                                options.locale.c_str(),
+                                                format.put()));
         THROW_IF_FAILED(format->SetWordWrapping(DWRITE_WORD_WRAPPING_WRAP));
         THROW_IF_FAILED(format->SetReadingDirection(direction));
         THROW_IF_FAILED(format->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING));
         wil::com_ptr<IDWriteTextLayout> layout;
-        THROW_IF_FAILED(write->CreateTextLayout(graph->nodes[0u].label.c_str(), static_cast<UINT32>(graph->nodes[0u].label.size()), format.get(),
-                                                100.f, 65536.f, layout.put()));
+        THROW_IF_FAILED(write->CreateTextLayout(
+            graph->nodes[0u].label.c_str(), static_cast<UINT32>(graph->nodes[0u].label.size()), format.get(), 100.f, 65536.f, layout.put()));
         DWRITE_TEXT_METRICS metrics{};
         DWRITE_OVERHANG_METRICS ink{};
         THROW_IF_FAILED(layout->GetMetrics(&metrics));
         THROW_IF_FAILED(layout->GetOverhangMetrics(&ink));
-        const auto expectedWidth = std::max(metrics.left + metrics.widthIncludingTrailingWhitespace, metrics.layoutWidth + ink.right) -
-                                   std::min(metrics.left, -ink.left);
+        const auto expectedWidth =
+            std::max(metrics.left + metrics.widthIncludingTrailingWhitespace, metrics.layoutWidth + ink.right) - std::min(metrics.left, -ink.left);
         const auto expectedHeight = std::max(metrics.top + metrics.height, metrics.layoutHeight + ink.bottom) - std::min(metrics.top, -ink.top);
         check(FlowchartLayoutTests::Near(first->nodes[0u].label.width, expectedWidth) &&
                   FlowchartLayoutTests::Near(first->nodes[0u].label.height, expectedHeight) && expectedHeight > 35.f,
               "configured Unicode/bidi label wrapping matches independent DirectWrite width and ink metrics");
         const auto generation = prepared.Generation();
-        check(prepared.Begin(write.get(), drawing.get(), graph, options, {1u, 1u}) == LayoutPreparationStatus::Complete &&
-                  prepared.Generation() == generation, "unchanged explicit label width reuses its prepared geometry");
+        check(prepared.Begin(write.get(), drawing.get(), graph, options, {1u, 1u}) == LayoutPreparationStatus::Complete && prepared.Generation() == generation,
+              "unchanged explicit label width reuses its prepared geometry");
         options.diagramLabelWidthDip = 300.f;
         check(prepared.Begin(write.get(), drawing.get(), graph, options, {1u, 1u}) == LayoutPreparationStatus::Pending,
               "changing explicit label width retires prepared diagram geometry");
@@ -777,8 +788,14 @@ template <typename Check> inline void ConfiguredLabelWidth(Check&& check)
         {
             options.diagramLabelWidthDip = invalid;
             bool rejected{};
-            try { prepared.Begin(write.get(), drawing.get(), graph, options, {1u, 1u}); }
-            catch (const std::invalid_argument&) { rejected = true; }
+            try
+            {
+                prepared.Begin(write.get(), drawing.get(), graph, options, {1u, 1u});
+            }
+            catch (const std::invalid_argument&)
+            {
+                rejected = true;
+            }
             check(rejected && prepared.Ready(), "invalid label width leaves prior prepared geometry intact");
         }
     }
@@ -786,17 +803,25 @@ template <typename Check> inline void ConfiguredLabelWidth(Check&& check)
 template <typename Check, typename Observe = std::nullptr_t> inline void PaletteRaster(Check&& check, Observe observe = nullptr)
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) THROW_IF_FAILED(initialized);
-    const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
-    const auto graph = FlowchartLayoutTests::Graph(
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    const auto graph     = FlowchartLayoutTests::Graph(
         L"flowchart TD\nA[Alpha]-->B[Beta]\nstyle A fill:#000,stroke:#ff0,color:#fff\nstyle B fill:#fff,color:#fff\nlinkStyle 0 stroke:#f00\n");
-    check(graph->outcome == FlowchartOutcome::Prepared && graph->nodes.size() == 2u && graph->edges.size() == 1u &&
-              graph->nodes[0u].fillColor == 0u && graph->nodes[0u].strokeColor == 0xffff00u && graph->nodes[0u].textColor == 0xffffffu &&
-              graph->edges[0u].strokeColor == 0xff0000u, "authored RGB colors have independently expected values");
-    if (graph->outcome != FlowchartOutcome::Prepared || graph->nodes.size() != 2u || graph->edges.size() != 1u) return;
-    const auto write = WriteFactory(); const auto drawing = DrawingFactory();
+    check(graph->outcome == FlowchartOutcome::Prepared && graph->nodes.size() == 2u && graph->edges.size() == 1u && graph->nodes[0u].fillColor == 0u &&
+              graph->nodes[0u].strokeColor == 0xffff00u && graph->nodes[0u].textColor == 0xffffffu && graph->edges[0u].strokeColor == 0xff0000u,
+          "authored RGB colors have independently expected values");
+    if (graph->outcome != FlowchartOutcome::Prepared || graph->nodes.size() != 2u || graph->edges.size() != 1u)
+        return;
+    const auto write   = WriteFactory();
+    const auto drawing = DrawingFactory();
     PreparedFlowchart prepared;
-    prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u}); Complete(prepared, check);
+    prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
+    Complete(prepared, check);
     wil::com_ptr<IWICImagingFactory> imaging;
     THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
     constexpr UINT width = 400u, height = 300u, stride = width * 4u;
@@ -812,23 +837,32 @@ template <typename Check, typename Observe = std::nullptr_t> inline void Palette
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
     DiagramPalette palette(graph, target.get());
     std::size_t steps{};
-    while (! palette.Advance()) check(++steps < 16u, "palette stages at most one target brush per bounded step");
+    while (! palette.Advance())
+        check(++steps < 16u, "palette stages at most one target brush per bounded step");
     check(palette.Ready() && palette.Matches(graph.get(), target.get()) && ! palette.Matches(graph.get(), other.get()),
           "palette is bound to the exact graph and raster target");
     check(steps == 6u && palette.texts[0].get() == palette.fills[1].get() && palette.fills[1].get() == palette.texts[1].get(),
           "repeated diagram colors share one SDK brush while every authored slot consumes a staging step");
 #if DXUI_ENABLE_DIAGNOSTICS
     DiagramPalette pending(graph, target.get());
-    const auto oldFailure = testNativeColorPaletteBrushFailure;
-    const auto restoreFailure = wil::scope_exit([&]() noexcept { testNativeColorPaletteBrushFailure = oldFailure; });
+    const auto oldFailure              = testNativeColorPaletteBrushFailure;
+    const auto restoreFailure          = wil::scope_exit([&]() noexcept { testNativeColorPaletteBrushFailure = oldFailure; });
     testNativeColorPaletteBrushFailure = E_OUTOFMEMORY;
     bool rejected{};
-    try { static_cast<void>(pending.Advance()); }
-    catch (const wil::ResultException& error) { rejected = error.GetErrorCode() == E_OUTOFMEMORY; }
+    try
+    {
+        static_cast<void>(pending.Advance());
+    }
+    catch (const wil::ResultException& error)
+    {
+        rejected = error.GetErrorCode() == E_OUTOFMEMORY;
+    }
     testNativeColorPaletteBrushFailure = S_OK;
     check(rejected && ! pending.Ready() && pending.cursor == 0u && palette.Ready(),
           "diagram color creation failure retains its pending slot and prior publication");
-    while (! pending.Advance()) {}
+    while (! pending.Advance())
+    {
+    }
     check(pending.Ready() && pending.texts[0].get() == pending.texts[1].get(), "diagram palette retries and still shares duplicate resources");
 #endif
     const DiagramColorContext context{D2D1::ColorF(D2D1::ColorF::Black), D2D1::ColorF(D2D1::ColorF::Blue), D2D1::ColorF(D2D1::ColorF::White)};
@@ -839,10 +873,13 @@ template <typename Check, typename Observe = std::nullptr_t> inline void Palette
             text->SetColor(D2D1::ColorF(D2D1::ColorF::White));
             fill->SetColor(D2D1::ColorF(D2D1::ColorF::Black));
         }
-        target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
-        if constexpr (! std::is_same_v<Observe, std::nullptr_t>) observe(true);
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        if constexpr (! std::is_same_v<Observe, std::nullptr_t>)
+            observe(true);
         const auto drawn = prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}, &palette, colors);
-        if constexpr (! std::is_same_v<Observe, std::nullptr_t>) observe(false);
+        if constexpr (! std::is_same_v<Observe, std::nullptr_t>)
+            observe(false);
         check(drawn, "palette draws on its owning target");
         THROW_IF_FAILED(target->EndDraw());
         std::vector<BYTE> pixels(stride * height);
@@ -856,8 +893,7 @@ template <typename Check, typename Observe = std::nullptr_t> inline void Palette
         };
         const auto first = pixel(0u), second = pixel(1u);
         check((firstBlack ? first[0u] < 40u && first[1u] < 40u && first[2u] < 40u : first[0u] > 220u && first[1u] > 220u && first[2u] > 220u) &&
-                  (darkTheme ? second[0u] < 40u && second[1u] < 40u && second[2u] < 40u
-                             : second[0u] > 220u && second[1u] > 220u && second[2u] > 220u),
+                  (darkTheme ? second[0u] < 40u && second[1u] < 40u && second[2u] < 40u : second[0u] > 220u && second[1u] > 220u && second[2u] > 220u),
               "safe authored fill paints; low-contrast pair and forced theme fall back to the borrowed surface");
         if (colors && colors->fill.a == 1.f && ! darkTheme)
         {
@@ -871,17 +907,16 @@ template <typename Check, typename Observe = std::nullptr_t> inline void Palette
             for (std::size_t part = 1u; part < edge.size(); ++part)
                 if (FlowchartLayoutTests::Near(edge[part - 1u].x, edge[part].x))
                 {
-                    const auto edgeX = static_cast<std::size_t>(edge[part].x);
+                    const auto edgeX  = static_cast<std::size_t>(edge[part].x);
                     const auto firstY = static_cast<std::size_t>(std::ceil(std::min(edge[part - 1u].y, edge[part].y) + 2.0));
-                    const auto lastY = static_cast<std::size_t>(std::floor(std::max(edge[part - 1u].y, edge[part].y) - 2.0));
+                    const auto lastY  = static_cast<std::size_t>(std::floor(std::max(edge[part - 1u].y, edge[part].y) - 2.0));
                     for (auto edgeY = firstY; edgeY < lastY && edgeY < height && edgeX < width; ++edgeY)
                     {
                         const auto route = edgeY * stride + edgeX * 4u;
                         redInk += pixels[route] < 180u && pixels[route + 1u] < 180u && pixels[route + 2u] > 200u;
                     }
                 }
-            check(redInk > 0u,
-                  "contrast-safe authored red link reaches actual pixels");
+            check(redInk > 0u, "contrast-safe authored red link reaches actual pixels");
         }
         if (darkTheme)
         {
@@ -891,7 +926,7 @@ template <typename Check, typename Observe = std::nullptr_t> inline void Palette
     };
     raster(&context, true, false);
     raster(nullptr, false, false);
-    auto translucent = context;
+    auto translucent   = context;
     translucent.fill.a = .5f;
     raster(&translucent, false, false);
     const DiagramColorContext dark{D2D1::ColorF(D2D1::ColorF::White), D2D1::ColorF(D2D1::ColorF::White), D2D1::ColorF(D2D1::ColorF::Black)};
@@ -901,7 +936,9 @@ template <typename Check, typename Observe = std::nullptr_t> inline void Palette
     unsafePrepared.Begin(write.get(), drawing.get(), badOutline, {}, {1u, 1u});
     Complete(unsafePrepared, check);
     DiagramPalette unsafePalette(badOutline, target.get());
-    while (! unsafePalette.Advance()) {}
+    while (! unsafePalette.Advance())
+    {
+    }
     target->BeginDraw();
     target->Clear(D2D1::ColorF(D2D1::ColorF::White));
     check(unsafePrepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}, &unsafePalette, &context),
@@ -910,8 +947,8 @@ template <typename Check, typename Observe = std::nullptr_t> inline void Palette
     std::vector<BYTE> unsafePixels(stride * height);
     THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(unsafePixels.size()), unsafePixels.data()));
     const auto unsafeBounds = unsafePrepared.Geometry()->nodes[0u].bounds;
-    const auto unsafeOffset = static_cast<std::size_t>(unsafeBounds.y + unsafeBounds.height / 2.0) * stride +
-                              static_cast<std::size_t>(unsafeBounds.x + 5.0) * 4u;
+    const auto unsafeOffset =
+        static_cast<std::size_t>(unsafeBounds.y + unsafeBounds.height / 2.0) * stride + static_cast<std::size_t>(unsafeBounds.x + 5.0) * 4u;
     check(unsafePixels[unsafeOffset] > 220u && unsafePixels[unsafeOffset + 1u] > 220u && unsafePixels[unsafeOffset + 2u] > 220u,
           "a dark authored fill falls back when the unchanged blue theme outline would be illegible");
     check(! prepared.Draw(other.get(), text.get(), stroke.get(), fill.get(), {}, &palette, &context), "a palette cannot paint onto a different target");
@@ -921,33 +958,41 @@ template <typename Check, typename Observe = std::nullptr_t> inline void Palette
 template <typename Check> inline void ThemeStyleRaster(Check&& check)
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) THROW_IF_FAILED(initialized);
-    const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
-    const auto graph = FlowchartLayoutTests::Graph(
-        L"flowchart TD\nclassDef default font-weight:bold,font-style:italic\nclassDef heavy stroke-width:2px,stroke-dasharray:5 5\n"
-        L"A[Alpha]:::heavy --> B[Beta]\nlinkStyle 0 stroke-width:2px,stroke-dasharray:5 5\n");
-    check(graph->outcome == FlowchartOutcome::Prepared && graph->nodes.size() == 2u && graph->edges.size() == 1u &&
-              graph->nodes[0u].strokeWidth == 2u && graph->nodes[0u].borderDashed && graph->nodes[1u].strokeWidth == 1u &&
-              graph->nodes[0u].styles.count == 1u && graph->nodes[0u].styles.spans[0u].flags == (LabelBold | LabelItalic) &&
-              graph->nodes[1u].styles.count == 1u && graph->edges[0u].strokeWidth == 2u && graph->edges[0u].dashed,
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    const auto graph =
+        FlowchartLayoutTests::Graph(L"flowchart TD\nclassDef default font-weight:bold,font-style:italic\nclassDef heavy stroke-width:2px,stroke-dasharray:5 5\n"
+                                    L"A[Alpha]:::heavy --> B[Beta]\nlinkStyle 0 stroke-width:2px,stroke-dasharray:5 5\n");
+    check(graph->outcome == FlowchartOutcome::Prepared && graph->nodes.size() == 2u && graph->edges.size() == 1u && graph->nodes[0u].strokeWidth == 2u &&
+              graph->nodes[0u].borderDashed && graph->nodes[1u].strokeWidth == 1u && graph->nodes[0u].styles.count == 1u &&
+              graph->nodes[0u].styles.spans[0u].flags == (LabelBold | LabelItalic) && graph->nodes[1u].styles.count == 1u &&
+              graph->edges[0u].strokeWidth == 2u && graph->edges[0u].dashed,
           "default and named classes merge bounded font and outline properties; link style targets one edge");
-    if (graph->outcome != FlowchartOutcome::Prepared || graph->nodes.size() != 2u || graph->edges.size() != 1u) return;
-    const auto write = WriteFactory();
+    if (graph->outcome != FlowchartOutcome::Prepared || graph->nodes.size() != 2u || graph->edges.size() != 1u)
+        return;
+    const auto write   = WriteFactory();
     const auto drawing = DrawingFactory();
     PreparedFlowchart prepared;
     prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
     Complete(prepared, check);
     wil::com_ptr<IDWriteTextFormat> expectedFormat;
-    THROW_IF_FAILED(write->CreateTextFormat(L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
-                                           DWRITE_FONT_STRETCH_NORMAL, 18.f, L"en-us", expectedFormat.put()));
+    THROW_IF_FAILED(write->CreateTextFormat(
+        L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 18.f, L"en-us", expectedFormat.put()));
     wil::com_ptr<IDWriteTextLayout> expectedLabel;
     THROW_IF_FAILED(write->CreateTextLayout(L"Alpha", 5u, expectedFormat.get(), 225.f, 65536.f, expectedLabel.put()));
     THROW_IF_FAILED(expectedLabel->SetFontWeight(DWRITE_FONT_WEIGHT_BOLD, {0u, 5u}));
     THROW_IF_FAILED(expectedLabel->SetFontStyle(DWRITE_FONT_STYLE_ITALIC, {0u, 5u}));
-    DWRITE_TEXT_METRICS metrics{}; DWRITE_OVERHANG_METRICS overhang{};
-    THROW_IF_FAILED(expectedLabel->GetMetrics(&metrics)); THROW_IF_FAILED(expectedLabel->GetOverhangMetrics(&overhang));
-    const auto expectedWidth = std::max(metrics.left + metrics.widthIncludingTrailingWhitespace, metrics.layoutWidth + overhang.right) -
-                               std::min(metrics.left, -overhang.left);
+    DWRITE_TEXT_METRICS metrics{};
+    DWRITE_OVERHANG_METRICS overhang{};
+    THROW_IF_FAILED(expectedLabel->GetMetrics(&metrics));
+    THROW_IF_FAILED(expectedLabel->GetOverhangMetrics(&overhang));
+    const auto expectedWidth =
+        std::max(metrics.left + metrics.widthIncludingTrailingWhitespace, metrics.layoutWidth + overhang.right) - std::min(metrics.left, -overhang.left);
     check(FlowchartLayoutTests::Near(prepared.Geometry()->nodes[0u].label.width, expectedWidth),
           "default bold italic class uses independently measured DirectWrite metrics");
     wil::com_ptr<IWICImagingFactory> imaging;
@@ -961,7 +1006,8 @@ template <typename Check> inline void ThemeStyleRaster(Check&& check)
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
-    target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+    target->BeginDraw();
+    target->Clear(D2D1::ColorF(D2D1::ColorF::White));
     check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}), "theme styles paint using the caller's brushes");
     THROW_IF_FAILED(target->EndDraw());
     std::vector<BYTE> pixels(stride * height);
@@ -972,13 +1018,15 @@ template <typename Check> inline void ThemeStyleRaster(Check&& check)
     for (UINT x = static_cast<UINT>(std::ceil(bounds.x + 4.0)); x < static_cast<UINT>(std::floor(bounds.x + bounds.width - 4.0)); ++x)
     {
         const auto offset = static_cast<std::size_t>(y) * stride + static_cast<std::size_t>(x) * 4u;
-        if (pixels[offset] > 150u && pixels[offset + 1u] < 180u && pixels[offset + 2u] < 180u) ++ink;
-        else ++gaps;
+        if (pixels[offset] > 150u && pixels[offset + 1u] < 180u && pixels[offset + 2u] < 180u)
+            ++ink;
+        else
+            ++gaps;
     }
     const auto strokeColor = stroke->GetColor(), textColor = text->GetColor(), fillColor = fill->GetColor();
-    check(ink > 0u && gaps > 0u && stroke->GetOpacity() == 1.f && text->GetOpacity() == 1.f && fill->GetOpacity() == 1.f &&
-              strokeColor.b == 1.f && strokeColor.r == 0.f && strokeColor.g == 0.f && textColor.r == 0.f && textColor.g == 0.f && textColor.b == 0.f &&
-              fillColor.r == 1.f && fillColor.g == 1.f && fillColor.b == 1.f,
+    check(ink > 0u && gaps > 0u && stroke->GetOpacity() == 1.f && text->GetOpacity() == 1.f && fill->GetOpacity() == 1.f && strokeColor.b == 1.f &&
+              strokeColor.r == 0.f && strokeColor.g == 0.f && textColor.r == 0.f && textColor.g == 0.f && textColor.b == 0.f && fillColor.r == 1.f &&
+              fillColor.g == 1.f && fillColor.b == 1.f,
           "node outline alternates dash and gap while preserving borrowed colors and opacity");
     const auto& path = prepared.Geometry()->edges[0u].path;
     std::size_t segment{};
@@ -992,23 +1040,25 @@ template <typename Check> inline void ThemeStyleRaster(Check&& check)
     std::size_t edgeInk{}, edgeGaps{};
     if (segment && longest > 12.0)
     {
-        const auto x = static_cast<UINT>(path[segment].x);
+        const auto x     = static_cast<UINT>(path[segment].x);
         const auto first = static_cast<UINT>(std::ceil(std::min(path[segment - 1u].y, path[segment].y) + 3.0));
-        const auto last = static_cast<UINT>(std::floor(std::max(path[segment - 1u].y, path[segment].y) - 3.0));
+        const auto last  = static_cast<UINT>(std::floor(std::max(path[segment - 1u].y, path[segment].y) - 3.0));
         for (auto row = first; row < last && row < height && x < width; ++row)
         {
             const auto offset = static_cast<std::size_t>(row) * stride + static_cast<std::size_t>(x) * 4u;
-            if (pixels[offset] > 150u && pixels[offset + 1u] < 180u && pixels[offset + 2u] < 180u) ++edgeInk;
-            else ++edgeGaps;
+            if (pixels[offset] > 150u && pixels[offset + 1u] < 180u && pixels[offset + 2u] < 180u)
+                ++edgeInk;
+            else
+                ++edgeGaps;
         }
     }
     check(edgeInk > 0u && edgeGaps > 0u, "link style visibly alternates dash and gap along its routed edge");
     const auto invalid = FlowchartLayoutTests::Graph(L"flowchart TD\nA-->B\nlinkStyle 1 stroke-width:2px\n");
     check(invalid->outcome == FlowchartOutcome::Unsupported && invalid->nodes.empty(), "out-of-range link styling retains source");
-    const auto classes = FlowchartLayoutTests::Graph(
-        L"flowchart TD\nclassDef one,two stroke-width:3px\nclassDef normal font-weight:normal\n"
-        L"A:::one,two --> B\nclass A,B normal\nstyle A stroke-width:2px\nlinkStyle default stroke:#000,stroke-dasharray:5 5\n"
-        L"linkStyle 0 stroke-dasharray:0\n");
+    const auto classes =
+        FlowchartLayoutTests::Graph(L"flowchart TD\nclassDef one,two stroke-width:3px\nclassDef normal font-weight:normal\n"
+                                    L"A:::one,two --> B\nclass A,B normal\nstyle A stroke-width:2px\nlinkStyle default stroke:#000,stroke-dasharray:5 5\n"
+                                    L"linkStyle 0 stroke-dasharray:0\n");
     check(classes->outcome == FlowchartOutcome::Prepared && classes->nodes.size() == 2u && classes->edges.size() == 1u &&
               classes->nodes[0u].strokeWidth == 2u && classes->nodes[1u].strokeWidth == 1u && classes->edges[0u].strokeColor == 0u &&
               classes->edges[0u].dashSpecified && ! classes->edges[0u].dashed,

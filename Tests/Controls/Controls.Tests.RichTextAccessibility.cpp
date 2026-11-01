@@ -909,8 +909,8 @@ void NativeHtmlAndMarkersClient(bool embedded)
     fixture.editor->SetText(scripts);
     fixture.Publish();
     const auto superInfo = client.InspectTextRange(editor, L"hello", {UIA_IsSuperscriptAttributeId, UIA_IsSubscriptAttributeId, UIA_FontSizeAttributeId});
-    const auto subInfo = client.InspectTextRange(editor, L"world", {UIA_IsSuperscriptAttributeId, UIA_IsSubscriptAttributeId, UIA_FontSizeAttributeId});
-    const auto bodyInfo = client.InspectTextRange(editor, L"x", {UIA_FontSizeAttributeId});
+    const auto subInfo   = client.InspectTextRange(editor, L"world", {UIA_IsSuperscriptAttributeId, UIA_IsSubscriptAttributeId, UIA_FontSizeAttributeId});
+    const auto bodyInfo  = client.InspectTextRange(editor, L"x", {UIA_FontSizeAttributeId});
     Require(superInfo.attributes[0].type == VT_BOOL && superInfo.attributes[0].number == 1.0 && superInfo.attributes[1].number == 0.0 &&
                 subInfo.attributes[0].number == 0.0 && subInfo.attributes[1].type == VT_BOOL && subInfo.attributes[1].number == 1.0 &&
                 std::abs(superInfo.attributes[2].number / bodyInfo.attributes[0].number - .75) < .001 &&

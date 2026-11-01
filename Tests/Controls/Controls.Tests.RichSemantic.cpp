@@ -33,8 +33,10 @@ void TestRichSemanticNativeRetainedTransactions()
         RichSemanticEditorTests::UrlOnSelectionPaste(window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare URL paste"); });
         RichSemanticEditorTests::SemanticWords(window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare semantic word viewport"); });
         RichSemanticEditorTests::SemanticDirection(window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare paragraph direction"); });
-        RichSemanticEditorTests::InlineExtensions(window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare inline extension styles"); });
-        RichSemanticEditorTests::InlineScriptFallback(window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare inline script fallback"); });
+        RichSemanticEditorTests::InlineExtensions(window.Host(),
+                                                  [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare inline extension styles"); });
+        RichSemanticEditorTests::InlineScriptFallback(window.Host(),
+                                                      [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare inline script fallback"); });
         RichSemanticEditorTests::SourceHorizontalAndGuides(window.Host(),
                                                            [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare source guides"); });
         RichSemanticEditorTests::RichTableHorizontalOverflow(window.Host(),

@@ -1,13 +1,13 @@
 #pragma once
 #include <DxUi/Configuration.h>
-#include <d2d1.h>
-#include <wil/com.h>
-#include <wil/result.h>
 #include <algorithm>
 #include <cstdint>
+#include <d2d1.h>
 #include <span>
 #include <stdexcept>
 #include <vector>
+#include <wil/com.h>
+#include <wil/result.h>
 
 namespace DxUi::RichText::Detail
 {
@@ -51,9 +51,8 @@ public:
             throw std::invalid_argument("Color was not admitted to the native palette");
         if (! entry->brush)
         {
-            const D2D1_COLOR_F color{static_cast<float>((rgb >> 16u) & 255u) / 255.f,
-                                     static_cast<float>((rgb >> 8u) & 255u) / 255.f,
-                                     static_cast<float>(rgb & 255u) / 255.f, 1.f};
+            const D2D1_COLOR_F color{
+                static_cast<float>((rgb >> 16u) & 255u) / 255.f, static_cast<float>((rgb >> 8u) & 255u) / 255.f, static_cast<float>(rgb & 255u) / 255.f, 1.f};
 #if DXUI_ENABLE_DIAGNOSTICS
             THROW_IF_FAILED(testNativeColorPaletteBrushFailure);
 #endif
@@ -73,8 +72,14 @@ public:
         }
         return Ready();
     }
-    bool Ready() const noexcept { return created_ == entries_.size(); }
-    bool Matches(ID2D1RenderTarget* target) const noexcept { return target_.get() == target; }
+    bool Ready() const noexcept
+    {
+        return created_ == entries_.size();
+    }
+    bool Matches(ID2D1RenderTarget* target) const noexcept
+    {
+        return target_.get() == target;
+    }
     ID2D1SolidColorBrush* Brush(std::uint32_t color) const noexcept
     {
         if (! Ready())

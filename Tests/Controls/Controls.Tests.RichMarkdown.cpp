@@ -1411,8 +1411,7 @@ void TestRichMarkdownInlineExtensions()
     CheckInlineForest(*nested);
     Require(MarkdownHtmlTests::Html(*nested) == L"<p><mark><strong>bold</strong></mark> <a href=\"dest\"><ins>label</ins></a> <code>^literal^</code></p>\n",
             "extension nesting respects Markdown link and code ownership");
-    Reject([&] { parser.Begin(input, 5u, MarkdownProfile::Gfm029, MarkdownExtensions::Highlight); },
-           "RichMarkdown delimiter flags cannot change GFM parsing");
+    Reject([&] { parser.Begin(input, 5u, MarkdownProfile::Gfm029, MarkdownExtensions::Highlight); }, "RichMarkdown delimiter flags cannot change GFM parsing");
 }
 } // namespace
 

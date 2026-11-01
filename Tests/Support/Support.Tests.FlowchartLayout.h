@@ -316,7 +316,7 @@ template <typename Check> inline void Geometry(Check&& check)
     std::vector<FlowchartSize> laneLabels(lanesGraph->edges.size(), FlowchartSize{});
     laneLabels[0u] = {100.0, 12.0};
     laneLabels[1u] = laneLabels[2u] = {8.0, 12.0};
-    laneLabels[3u] = {80.0, 12.0};
+    laneLabels[3u]                  = {80.0, 12.0};
     NativeFlowchartLayout laneLayout;
     laneLayout.Begin(lanesGraph, laneNodes, laneLabels);
     const auto variableLanes = Complete(laneLayout, check);
@@ -443,11 +443,11 @@ template <typename Check> inline void CrossingReduction(Check&& check)
     // has one adjacent-rank inversion and two proper routed crossings.
     for (const auto direction : {L"TD", L"BT", L"LR", L"RL"})
     {
-        const auto graph = Graph(std::wstring(L"graph ") + direction + L";A;B;C;X;Y;Z;A-->X;A-->Y;B-->X");
+        const auto graph  = Graph(std::wstring(L"graph ") + direction + L";A;B;C;X;Y;Z;A-->X;A-->Y;B-->X");
         const auto single = Place(graph, check, 1u), batched = Place(graph, check, 113u);
         Invariants(*single, check);
         const bool vertical = direction[0] == L'T' || direction[0] == L'B';
-        const auto center = [&](const FlowchartLayoutPlan& plan, std::size_t node)
+        const auto center   = [&](const FlowchartLayoutPlan& plan, std::size_t node)
         {
             const auto& box = plan.nodes[node].bounds;
             return vertical ? box.x + box.width / 2.0 : box.y + box.height / 2.0;
@@ -458,12 +458,12 @@ template <typename Check> inline void CrossingReduction(Check&& check)
             {
                 const auto& a = graph->edges[edge];
                 const auto& b = graph->edges[prior];
-                if (a.from == b.from || a.to == b.to) continue;
+                if (a.from == b.from || a.to == b.to)
+                    continue;
                 sourceCrossings += (a.from < b.from) != (a.to < b.to);
                 actualCrossings += (center(*single, a.from) < center(*single, b.from)) != (center(*single, a.to) < center(*single, b.to));
             }
-        check(sourceCrossings == 1u && actualCrossings == 0u,
-              "general stable rank ordering eliminates the independently counted inversion");
+        check(sourceCrossings == 1u && actualCrossings == 0u, "general stable rank ordering eliminates the independently counted inversion");
         // Count only strict interior intersections of orthogonal segments;
         // touching endpoints and coincident segments are not proper crossings.
         std::size_t routedCrossings{};
@@ -475,11 +475,11 @@ template <typename Check> inline void CrossingReduction(Check&& check)
                         const auto p = single->edges[edge].path[a - 1u], q = single->edges[edge].path[a];
                         const auto r = single->edges[prior].path[b - 1u], t = single->edges[prior].path[b];
                         const bool verticalA = Near(p.x, q.x), verticalB = Near(r.x, t.x);
-                        if (verticalA == verticalB) continue;
+                        if (verticalA == verticalB)
+                            continue;
                         const auto v = verticalA ? p : r, ve = verticalA ? q : t;
                         const auto h = verticalA ? r : p, he = verticalA ? t : q;
-                        routedCrossings += v.x > std::min(h.x, he.x) && v.x < std::max(h.x, he.x) &&
-                                           h.y > std::min(v.y, ve.y) && h.y < std::max(v.y, ve.y);
+                        routedCrossings += v.x > std::min(h.x, he.x) && v.x < std::max(h.x, he.x) && h.y > std::min(v.y, ve.y) && h.y < std::max(v.y, ve.y);
                     }
         check(routedCrossings == 1u, "the independently counted proper routed crossings fall from two to one");
         check(single->nodes.size() == 6u && single->edges.size() == 3u && batched->nodes.size() == 6u && batched->edges.size() == 3u,
@@ -488,7 +488,7 @@ template <typename Check> inline void CrossingReduction(Check&& check)
         {
             const auto& source = single->nodes[graph->edges[edge].from].bounds;
             const auto& target = single->nodes[graph->edges[edge].to].bounds;
-            const auto& path = single->edges[edge].path;
+            const auto& path   = single->edges[edge].path;
             check(vertical ? Near(path.front().x, source.x + source.width / 2.0) && Near(path.back().x, target.x + target.width / 2.0)
                            : Near(path.front().y, source.y + source.height / 2.0) && Near(path.back().y, target.y + target.height / 2.0),
                   "reordered routes remain attached to their original endpoints");
@@ -496,8 +496,7 @@ template <typename Check> inline void CrossingReduction(Check&& check)
                   "unlabeled adjacent-rank route takes the direct corridor elbow rather than an exterior lane");
         }
         for (std::size_t node = 0u; node < single->nodes.size(); ++node)
-            check(Near(single->nodes[node].bounds.x, batched->nodes[node].bounds.x) &&
-                      Near(single->nodes[node].bounds.y, batched->nodes[node].bounds.y),
+            check(Near(single->nodes[node].bounds.x, batched->nodes[node].bounds.x) && Near(single->nodes[node].bounds.y, batched->nodes[node].bounds.y),
                   "single-event and batched sweeps publish identical node placement");
     }
     // The first rank contains a tall circle beside a short rectangle. Each
@@ -513,13 +512,13 @@ template <typename Check> inline void CrossingReduction(Check&& check)
         Invariants(*plan, check);
         for (const auto& edge : plan->edges)
         {
-            const auto point = edge.path[1u];
-            const auto& circle = plan->nodes[0u].bounds;
+            const auto point      = edge.path[1u];
+            const auto& circle    = plan->nodes[0u].bounds;
             const auto& rectangle = plan->nodes[1u].bounds;
-            const bool outside = direction[0] == L'T' ? point.y >= std::max(circle.y + circle.height, rectangle.y + rectangle.height)
-                                 : direction[0] == L'B' ? point.y <= std::min(circle.y, rectangle.y)
-                                 : direction[0] == L'L' ? point.x >= std::max(circle.x + circle.width, rectangle.x + rectangle.width)
-                                                        : point.x <= std::min(circle.x, rectangle.x);
+            const bool outside    = direction[0] == L'T'   ? point.y >= std::max(circle.y + circle.height, rectangle.y + rectangle.height)
+                                    : direction[0] == L'B' ? point.y <= std::min(circle.y, rectangle.y)
+                                    : direction[0] == L'L' ? point.x >= std::max(circle.x + circle.width, rectangle.x + rectangle.width)
+                                                           : point.x <= std::min(circle.x, rectangle.x);
             check(outside, "direct elbow begins beyond the complete unequal-height rank band");
         }
     }
@@ -539,11 +538,11 @@ template <typename Check> inline void CrossingReduction(Check&& check)
                     const auto p = guarded->edges[edge].path[a - 1u], q = guarded->edges[edge].path[a];
                     const auto r = guarded->edges[prior].path[b - 1u], t = guarded->edges[prior].path[b];
                     const bool verticalA = Near(p.x, q.x), verticalB = Near(r.x, t.x);
-                    if (verticalA == verticalB) continue;
+                    if (verticalA == verticalB)
+                        continue;
                     const auto v = verticalA ? p : r, ve = verticalA ? q : t;
                     const auto h = verticalA ? r : p, he = verticalA ? t : q;
-                    guardedCrossings += v.x > std::min(h.x, he.x) && v.x < std::max(h.x, he.x) &&
-                                        h.y > std::min(v.y, ve.y) && h.y < std::max(v.y, ve.y);
+                    guardedCrossings += v.x > std::min(h.x, he.x) && v.x < std::max(h.x, he.x) && h.y > std::min(v.y, ve.y) && h.y < std::max(v.y, ve.y);
                 }
     check(guardedCrossings == 2u, "route guard retains the independently counted original crossing count");
     std::wstring maximum = L"graph TD;";
@@ -570,8 +569,7 @@ template <typename Check> inline void CrossingReduction(Check&& check)
         for (std::size_t step = 0u; step < steps && layout.HasPendingPreparation(); ++step)
             check(layout.Advance(1u).workUnits == 1u, "crossing staging consumes one bounded event");
         layout.Cancel();
-        check(! layout.HasPendingPreparation() && layout.Published() == prior,
-              "cancelling ordering or route evaluation preserves the previous publication");
+        check(! layout.HasPendingPreparation() && layout.Published() == prior, "cancelling ordering or route evaluation preserves the previous publication");
     }
 }
 template <typename Check> inline void Corpus(Check&& check)

@@ -397,8 +397,7 @@ struct RichTextEditor::State
                    request.quoteAction == value.quoteAction && request.mathDisplay == value.mathDisplay && request.headingLevel == value.headingLevel &&
                    request.listStart == value.listStart && request.targetCell == value.targetCell && request.tableColumns == value.tableColumns &&
                    request.tableBodyRows == value.tableBodyRows && request.tableAlignment == value.tableAlignment && request.enterPolicy == value.enterPolicy &&
-                   request.tableInputFormat == value.tableInputFormat &&
-                   request.tableCellCaretOffset == value.tableCellCaretOffset && text == value.text &&
+                   request.tableInputFormat == value.tableInputFormat && request.tableCellCaretOffset == value.tableCellCaretOffset && text == value.text &&
                    destination == value.destination && title == value.title;
         }
         RichText::MarkdownCommandRequest request;
@@ -625,14 +624,14 @@ struct RichTextEditor::State
     bool requestActive         = false;
     size_t preparationAdvances = 0, cancelledPreparations = 0, lastAdvanceLayouts = 0, lastAdvanceBlockSteps = 0;
     size_t lastAdvanceUploadBytes{};
-    float layoutWidth      = 0;
-    float scrollDip        = 0;
-    bool revealCaret       = true;
-    bool readOnly          = false;
+    float layoutWidth                         = 0;
+    float scrollDip                           = 0;
+    bool revealCaret                          = true;
+    bool readOnly                             = false;
     RichTextTaskTogglePolicy taskTogglePolicy = RichTextTaskTogglePolicy::EditableOnly;
-    bool suppressTaskSpace = false;
-    bool dragging          = false;
-    bool scrollbarDragging = false;
+    bool suppressTaskSpace                    = false;
+    bool dragging                             = false;
+    bool scrollbarDragging                    = false;
     float scrollbarDragY = 0.0f, scrollbarDragOffset = 0.0f;
     bool caretVisible            = true;
     wchar_t pendingLeadSurrogate = 0;
@@ -675,10 +674,10 @@ void RichTextEditor::SetText(std::wstring text)
     _state->horizontalScrollDip = 0;
     // Commit before clearing the tooltip: embedded invalidation can call a
     // newer setter, whose state must win over this outer transition.
-    auto* tooltipHost = GetHost();
+    auto* tooltipHost          = GetHost();
     const auto tooltipLifetime = GetLifetimeToken();
     const auto tooltipRevision = Revision();
-    const auto tooltipBinding = _state->bindingRevision;
+    const auto tooltipBinding  = _state->bindingRevision;
     if (tooltipHost)
         tooltipHost->InvalidateRichTitleTooltip(this);
     if (tooltipLifetime.expired() || GetHost() != tooltipHost || Revision() != tooltipRevision || _state->bindingRevision != tooltipBinding)
@@ -1271,11 +1270,11 @@ void RichTextEditor::SetViewMode(RichText::ViewMode mode)
     _state->mode = mode;
     _state->images.Cancel();
     _state->sourceEditing.reset();
-    _state->sourceCaretSite = RichText::MarkdownNoNode;
-    auto* tooltipHost = GetHost();
+    _state->sourceCaretSite    = RichText::MarkdownNoNode;
+    auto* tooltipHost          = GetHost();
     const auto tooltipLifetime = GetLifetimeToken();
     const auto tooltipRevision = Revision();
-    const auto tooltipBinding = _state->bindingRevision;
+    const auto tooltipBinding  = _state->bindingRevision;
     if (tooltipHost)
         tooltipHost->InvalidateRichTitleTooltip(this);
     if (tooltipLifetime.expired() || GetHost() != tooltipHost || Revision() != tooltipRevision || _state->bindingRevision != tooltipBinding ||
@@ -1320,11 +1319,11 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
     auto next            = appearance; // Stage all owned strings before publishing any option.
     const auto& previous = _state->appearance;
     const bool geometryChanged =
-        previous.tableOverflow != next.tableOverflow || previous.autoParagraphDirection != next.autoParagraphDirection || previous.zoom != next.zoom || previous.tabStopDip != next.tabStopDip ||
-        previous.sourceMonospace != next.sourceMonospace || previous.sourceWrap != next.sourceWrap || previous.sourceLineNumbers != next.sourceLineNumbers ||
-        previous.sourceWhitespaceMarks != next.sourceWhitespaceMarks || previous.showVerticalScrollbar != next.showVerticalScrollbar ||
-        previous.maximumTextWidthDip != next.maximumTextWidthDip || previous.paddingDip != next.paddingDip ||
-        previous.bodyFontSizeDip != next.bodyFontSizeDip || previous.codeFontSizeDip != next.codeFontSizeDip ||
+        previous.tableOverflow != next.tableOverflow || previous.autoParagraphDirection != next.autoParagraphDirection || previous.zoom != next.zoom ||
+        previous.tabStopDip != next.tabStopDip || previous.sourceMonospace != next.sourceMonospace || previous.sourceWrap != next.sourceWrap ||
+        previous.sourceLineNumbers != next.sourceLineNumbers || previous.sourceWhitespaceMarks != next.sourceWhitespaceMarks ||
+        previous.showVerticalScrollbar != next.showVerticalScrollbar || previous.maximumTextWidthDip != next.maximumTextWidthDip ||
+        previous.paddingDip != next.paddingDip || previous.bodyFontSizeDip != next.bodyFontSizeDip || previous.codeFontSizeDip != next.codeFontSizeDip ||
         previous.diagramLabelWidthDip != next.diagramLabelWidthDip ||
 
         previous.lineHeightMultiplier != next.lineHeightMultiplier || previous.headingScaleStep != next.headingScaleStep ||
@@ -1866,7 +1865,7 @@ bool RichTextEditor::ToggleSemanticTask(ControlHost& host, const std::shared_ptr
     }
     const wchar_t value = task.task == MarkdownTask::Checked ? L' ' : L'x';
     const SourceEdit edit{{task.taskMarker.first + 1u, task.taskMarker.first + 2u}, std::wstring_view(&value, 1u)};
-    const bool changed = RichText::ApplySourceEdits(_state->document, Snapshot(), Revision(), std::span(&edit, 1u), GetSelection());
+    const bool changed      = RichText::ApplySourceEdits(_state->document, Snapshot(), Revision(), std::span(&edit, 1u), GetSelection());
     _state->sourceCaretSite = MarkdownNoNode;
     Changed(changed);
     return changed;
@@ -2061,16 +2060,14 @@ bool RichTextEditor::EndSemanticSourceEdit(ControlHost& host)
     SourcePresentationChanged(host);
     return true;
 }
-bool RichTextEditor::BeginReferenceDefinitionSourceEdit(ControlHost& host,
-                                                        const std::shared_ptr<const RichText::MarkdownSyntax>& expected,
-                                                        size_t node)
+bool RichTextEditor::BeginReferenceDefinitionSourceEdit(ControlHost& host, const std::shared_ptr<const RichText::MarkdownSyntax>& expected, size_t node)
 {
     const auto semantic = GetAcknowledgedSemanticDocument(host);
     if (! expected || ! semantic || semantic->Syntax() != expected || ! CanChangeSemanticSourcePresentation(host) || _state->sourceEditing ||
         node >= expected->Nodes().size() || expected->Nodes()[node].block.kind != RichText::MarkdownBlockKind::ReferenceDefinition)
         return false;
     const auto source = expected->Nodes()[node].block.source;
-    auto session = _state->nextSourceEditingSession++;
+    auto session      = _state->nextSourceEditingSession++;
     if (! session)
         session = _state->nextSourceEditingSession++;
     _state->sourceEditing.emplace(State::SourceEditingSession{{source, session, RichText::MarkdownSourceRegionKind::Block}, Snapshot()});
@@ -2129,11 +2126,11 @@ void RichTextEditor::SetReadOnly(bool readOnly) noexcept
     const bool changed = _state->readOnly != readOnly;
     _state->autoFormatRun.reset();
     _state->smartTypingSite.reset();
-    _state->readOnly = readOnly;
-    auto* tooltipHost = GetHost();
+    _state->readOnly           = readOnly;
+    auto* tooltipHost          = GetHost();
     const auto tooltipLifetime = GetLifetimeToken();
     const auto tooltipRevision = Revision();
-    const auto tooltipBinding = _state->bindingRevision;
+    const auto tooltipBinding  = _state->bindingRevision;
     if (changed && tooltipHost)
         tooltipHost->InvalidateRichTitleTooltip(this);
     if (tooltipLifetime.expired() || GetHost() != tooltipHost || Revision() != tooltipRevision || _state->bindingRevision != tooltipBinding ||
@@ -2859,10 +2856,10 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
 {
     if (sourceChanged)
     {
-        auto* host = GetHost();
+        auto* host          = GetHost();
         const auto lifetime = GetLifetimeToken();
         const auto revision = Revision();
-        const auto binding = _state->bindingRevision;
+        const auto binding  = _state->bindingRevision;
         if (host)
             host->InvalidateRichTitleTooltip(this);
         if (lifetime.expired() || GetHost() != host || Revision() != revision || _state->bindingRevision != binding)
@@ -3240,17 +3237,20 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 std::vector<RichText::MarkdownRange> objects(0u);
                 if (state.nativeObjectRejections)
                     objects = state.nativeObjectRejections->objects;
-                bool added = false;
+                bool added           = false;
                 const auto hasScript = [&](std::size_t index)
                 {
-                    if (index >= value->Elements().size()) return false;
+                    if (index >= value->Elements().size())
+                        return false;
                     const auto& owner = value->Elements()[index];
-                    if (owner.syntaxNode >= value->Syntax()->Nodes().size()) return false;
+                    if (owner.syntaxNode >= value->Syntax()->Nodes().size())
+                        return false;
                     const auto kind = value->Syntax()->Nodes()[owner.syntaxNode].block.kind;
                     if (kind != RichText::MarkdownBlockKind::Paragraph && kind != RichText::MarkdownBlockKind::AtxHeading &&
                         kind != RichText::MarkdownBlockKind::SetextHeading && kind != RichText::MarkdownBlockKind::TableCell)
                         return false;
-                    return std::ranges::any_of(value->Runs(), [&](const auto& run)
+                    return std::ranges::any_of(value->Runs(),
+                                               [&](const auto& run)
                     {
                         return (run.flags & (RichText::Superscript | RichText::Subscript)) != 0u && run.start < owner.display.last &&
                                run.start + run.length > owner.display.first;
@@ -3259,8 +3259,8 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 for (const auto element : elements)
                 {
                     if (element >= value->Elements().size() ||
-                        (value->Elements()[element].role != RichText::SemanticRole::Math && value->Elements()[element].role != RichText::SemanticRole::Diagram &&
-                         ! value->Elements()[element].nativeHtml && ! hasScript(element)))
+                        (value->Elements()[element].role != RichText::SemanticRole::Math &&
+                         value->Elements()[element].role != RichText::SemanticRole::Diagram && ! value->Elements()[element].nativeHtml && ! hasScript(element)))
                         break;
                     const auto source = value->Elements()[element].source;
                     if (std::ranges::find(objects, source) == objects.end())
@@ -3273,13 +3273,12 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                     std::ranges::all_of(elements,
                                         [&](const auto element)
                 {
-                    return element < value->Elements().size() && (value->Elements()[element].role == RichText::SemanticRole::Math ||
-                                                                  value->Elements()[element].role == RichText::SemanticRole::Diagram ||
-                                                                  value->Elements()[element].nativeHtml || hasScript(element));
+                    return element < value->Elements().size() &&
+                           (value->Elements()[element].role == RichText::SemanticRole::Math ||
+                            value->Elements()[element].role == RichText::SemanticRole::Diagram || value->Elements()[element].nativeHtml || hasScript(element));
                 }))
                 {
-                    std::ranges::sort(objects, [](const auto& a, const auto& b)
-                    { return a.first < b.first || (a.first == b.first && a.last > b.last); });
+                    std::ranges::sort(objects, [](const auto& a, const auto& b) { return a.first < b.first || (a.first == b.first && a.last > b.last); });
                     // A script-bearing HTML leaf can enclose a previously
                     // rejected inline formula. One literal leaf subsumes that
                     // smaller object; keep fallback ranges disjoint.
@@ -3289,7 +3288,8 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                     {
                         if (! disjoint.empty() && range.first < disjoint.back().last)
                         {
-                            if (range.last <= disjoint.back().last) continue;
+                            if (range.last <= disjoint.back().last)
+                                continue;
                             return E_INVALIDARG;
                         }
                         disjoint.push_back(range);
@@ -3672,14 +3672,14 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             for (auto& headingSize : options.headingFontSizeDip)
                 if (headingSize > 0.0f)
                     headingSize = scale(headingSize);
-            options.mathAbsoluteUnitScale = appearance.zoom;
-            options.diagramLabelWidthDip = appearance.diagramLabelWidthDip;
-            options.tabStopDip           = appearance.tabStopDip;
-            options.tableOverflow        = appearance.tableOverflow;
+            options.mathAbsoluteUnitScale  = appearance.zoom;
+            options.diagramLabelWidthDip   = appearance.diagramLabelWidthDip;
+            options.tabStopDip             = appearance.tabStopDip;
+            options.tableOverflow          = appearance.tableOverflow;
             options.autoParagraphDirection = appearance.autoParagraphDirection;
-            options.readingDirection     = IsRightToLeft() ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
-            state.sourceGuideOptions     = options;
-            richPreparationActive        = semanticDocument != nullptr;
+            options.readingDirection       = IsRightToLeft() ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
+            state.sourceGuideOptions       = options;
+            richPreparationActive          = semanticDocument != nullptr;
             state.layout.BeginPreparation(factory,
                                           state.document.Snapshot(),
                                           revision,
@@ -4088,7 +4088,7 @@ std::optional<RichText::MarkdownRange> RichTextEditor::GetVisibleSemanticDisplay
     try
     {
         const auto viewport = TextViewport();
-        const auto range = _state->layout.VisibleRange(_state->scrollDip, _state->scrollDip + viewport.bottom - viewport.top);
+        const auto range    = _state->layout.VisibleRange(_state->scrollDip, _state->scrollDip + viewport.bottom - viewport.top);
         return RichText::MarkdownRange{range.first, range.second};
     }
     catch (const std::exception&)
@@ -5297,7 +5297,7 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                     if (document->Elements()[element].role == RichText::SemanticRole::Task && document->Elements()[element].taskMarker == intent.marker)
                     {
                         _state->keyboardNavigationDocument = document;
-                        _state->keyboardNavigationElement = element;
+                        _state->keyboardNavigationElement  = element;
                         break;
                     }
             }
@@ -5329,7 +5329,8 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
         }
         if (ModifiersContainAlt(modifiers) && ! control && ! shift && (key == VK_UP || key == VK_DOWN) && Editable() && ! _state->sourceEditing)
         {
-            if (_state->markdownRendering && _state->mode == RichText::ViewMode::Rich && GetMarkdownRenderingStatus() != MarkdownRenderingStatus::SourceFallback)
+            if (_state->markdownRendering && _state->mode == RichText::ViewMode::Rich &&
+                GetMarkdownRenderingStatus() != MarkdownRenderingStatus::SourceFallback)
             {
                 RichText::MarkdownCommandRequest request;
                 request.command = key == VK_UP ? RichText::MarkdownCommand::MoveLineUp : RichText::MarkdownCommand::MoveLineDown;
@@ -5337,11 +5338,11 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
             }
             if (MarkdownCommandInputBlocked(&host, this))
                 return false;
-            const auto source = Snapshot();
-            const auto text = source.Text();
+            const auto source    = Snapshot();
+            const auto text      = source.Text();
             const auto selection = GetSelection();
-            const auto start = selection.Start() == 0u ? 0u : text.find_last_of(L"\r\n", selection.Start() - 1u) + 1u;
-            const auto lineEnd = [&](size_t at)
+            const auto start     = selection.Start() == 0u ? 0u : text.find_last_of(L"\r\n", selection.Start() - 1u) + 1u;
+            const auto lineEnd   = [&](size_t at)
             {
                 const auto found = text.find_first_of(L"\r\n", at);
                 return found == std::wstring_view::npos ? text.size() : found;
@@ -5363,9 +5364,9 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                 auto boundary = start - 1u;
                 if (text[boundary] == L'\n' && boundary > 0u && text[boundary - 1u] == L'\r')
                     --boundary;
-                first = boundary == 0u ? 0u : text.find_last_of(L"\r\n", boundary - 1u) + 1u;
-                firstBody = boundary;
-                second = start;
+                first      = boundary == 0u ? 0u : text.find_last_of(L"\r\n", boundary - 1u) + 1u;
+                firstBody  = boundary;
+                second     = start;
                 secondBody = currentBody;
             }
             else
@@ -5496,15 +5497,15 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
         if (key == VK_SPACE && ! control && ! shift && ! ModifiersContainAlt(modifiers) && _state->keyboardNavigationElement != RichText::MarkdownNoNode)
         {
             const auto document = _state->keyboardNavigationDocument.lock();
-            const auto element = _state->keyboardNavigationElement;
+            const auto element  = _state->keyboardNavigationElement;
             if (document && GetAcknowledgedSemanticDocument(host) == document && element < document->Elements().size() &&
                 document->Elements()[element].role == RichText::SemanticRole::Task &&
                 (Editable() || (IsEnabled() && _state->taskTogglePolicy == RichTextTaskTogglePolicy::AlwaysInteractive)))
             {
                 _state->suppressTaskSpace = true;
                 if (Revision() != std::numeric_limits<uint64_t>::max())
-                    _state->taskFocusIntent = State::TaskFocusIntent{document->Elements()[element].taskMarker, Revision() + 1u,
-                                                                     _state->document.selectionEpoch_};
+                    _state->taskFocusIntent =
+                        State::TaskFocusIntent{document->Elements()[element].taskMarker, Revision() + 1u, _state->document.selectionEpoch_};
                 return ToggleSemanticTask(host, document, element);
             }
         }
@@ -6222,15 +6223,14 @@ std::wstring_view RichTextEditor::HoveredTitle(ControlHost& host, D2D1_POINT_2F 
     const auto hit = geometry->HitTest(point.x - viewport.left - HorizontalTranslation(), point.y - viewport.top + _state->scrollDip);
     if (! hit.inside)
         return {};
-    const auto display = hit.trailing && hit.position > 0u ? hit.position - 1u : hit.position;
+    const auto display  = hit.trailing && hit.position > 0u ? hit.position - 1u : hit.position;
     const auto elements = geometry->Document().Elements();
     const RichText::SemanticElement* best{};
     for (std::size_t index = 0u; index < elements.size(); ++index)
     {
         const auto& element = elements[index];
         if ((element.role == RichText::SemanticRole::Link || element.role == RichText::SemanticRole::Image) && ! element.title.empty() &&
-            ! geometry->Document().IsSourceEditingElement(index) &&
-            element.display.first <= display && display < element.display.last &&
+            ! geometry->Document().IsSourceEditingElement(index) && element.display.first <= display && display < element.display.last &&
             (! best || element.display.last - element.display.first <= best->display.last - best->display.first))
             best = &element;
     }
@@ -6522,10 +6522,10 @@ bool RichTextEditor::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool righ
         point.y >= rect.top && point.y <= rect.bottom)
         try
         {
-            if (! Editable() && IsEnabled() && _state->taskTogglePolicy == RichTextTaskTogglePolicy::AlwaysInteractive &&
-                ! _state->sourceEditing && GetMarkdownSyntax() == plan->Syntax() && ! MarkdownCommandInputBlocked(&host, this) && plan->IsApplicable())
+            if (! Editable() && IsEnabled() && _state->taskTogglePolicy == RichTextTaskTogglePolicy::AlwaysInteractive && ! _state->sourceEditing &&
+                GetMarkdownSyntax() == plan->Syntax() && ! MarkdownCommandInputBlocked(&host, this) && plan->IsApplicable())
             {
-                const bool changed = RichText::ApplyMarkdownCommand(_state->document, *plan);
+                const bool changed      = RichText::ApplyMarkdownCommand(_state->document, *plan);
                 _state->sourceCaretSite = RichText::MarkdownNoNode;
                 Changed(changed);
             }
@@ -6625,7 +6625,7 @@ void RichTextEditor::OnDensityChanged() noexcept
 }
 void RichTextEditor::OnEnabledChanged(bool) noexcept
 {
-    auto* tooltipHost = GetHost();
+    auto* tooltipHost          = GetHost();
     const auto tooltipLifetime = GetLifetimeToken();
     if (tooltipHost)
         tooltipHost->InvalidateRichTitleTooltip(this);
@@ -6639,7 +6639,7 @@ void RichTextEditor::OnEnabledChanged(bool) noexcept
 }
 void RichTextEditor::OnHidden() noexcept
 {
-    auto* tooltipHost = GetHost();
+    auto* tooltipHost          = GetHost();
     const auto tooltipLifetime = GetLifetimeToken();
     if (tooltipHost)
         tooltipHost->InvalidateRichTitleTooltip(this);

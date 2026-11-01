@@ -1,6 +1,6 @@
 #include "DxUi.RichSemanticHtml.h"
-#include "DxUi.SemanticExtensions.h"
 #include "DxUi.RichSourceWindow.h"
+#include "DxUi.SemanticExtensions.h"
 #include <algorithm>
 #include <atomic>
 #include <optional>
@@ -14,10 +14,10 @@ std::size_t VisitSemanticWords(const SemanticDocument& document, MarkdownRange d
         throw std::out_of_range("Invalid semantic word display interval");
     if (display.first == display.last)
         return 0u;
-    const auto requested = display;
-    const auto unitAt = [&](std::size_t index) { return text[index]; };
-    display.first = Detail::PreparedDisplayWordRange(text.size(), display.first, unitAt).first;
-    display.last = Detail::PreparedDisplayWordRange(text.size(), display.last - 1u, unitAt).last;
+    const auto requested     = display;
+    const auto unitAt        = [&](std::size_t index) { return text[index]; };
+    display.first            = Detail::PreparedDisplayWordRange(text.size(), display.first, unitAt).first;
+    display.last             = Detail::PreparedDisplayWordRange(text.size(), display.last - 1u, unitAt).last;
     const auto tokenBoundary = [](wchar_t ch)
     {
         WORD kind{};
@@ -31,7 +31,7 @@ std::size_t VisitSemanticWords(const SemanticDocument& document, MarkdownRange d
     const auto exclude = [&](MarkdownRange range)
     {
         range.first = (std::max)(range.first, display.first);
-        range.last = (std::min)(range.last, display.last);
+        range.last  = (std::min)(range.last, display.last);
         if (range.first < range.last)
             excluded.push_back(range);
     };
@@ -50,8 +50,8 @@ std::size_t VisitSemanticWords(const SemanticDocument& document, MarkdownRange d
         {
             const auto label = text.substr(element.display.first, element.display.last - element.display.first);
             const auto colon = label.find(L':');
-            const bool scheme = colon != label.npos && colon > 0u &&
-                                ((label.front() >= L'a' && label.front() <= L'z') || (label.front() >= L'A' && label.front() <= L'Z'));
+            const bool scheme =
+                colon != label.npos && colon > 0u && ((label.front() >= L'a' && label.front() <= L'z') || (label.front() >= L'A' && label.front() <= L'Z'));
             if ((label == element.destination && scheme) || (label.starts_with(L"www.") && element.destination.starts_with(L"http")) ||
                 (element.destination.starts_with(L"mailto:") && label == std::wstring_view(element.destination).substr(7u)))
                 exclude(element.display);
@@ -65,7 +65,7 @@ std::size_t VisitSemanticWords(const SemanticDocument& document, MarkdownRange d
         else
             excluded[compact++] = range;
     excluded.resize(compact);
-    const auto spans = document.Map().Spans();
+    const auto spans  = document.Map().Spans();
     std::size_t count = 0u, spanIndex = 0u;
     auto visitSegment = [&](std::size_t first, std::size_t last)
     {
@@ -229,10 +229,9 @@ bool SemanticDocument::IsSourceEditingElement(std::size_t element) const noexcep
     if (! range || ! region)
         return false;
     if (region->kind == MarkdownSourceRegionKind::Inline)
-        return *range == region->source &&
-               ((region->inlineKind == MarkdownInlineSourceKind::Math && elements_[element].role == SemanticRole::Math) ||
-                (region->inlineKind == MarkdownInlineSourceKind::Link && elements_[element].role == SemanticRole::Link) ||
-                (region->inlineKind == MarkdownInlineSourceKind::Image && elements_[element].role == SemanticRole::Image));
+        return *range == region->source && ((region->inlineKind == MarkdownInlineSourceKind::Math && elements_[element].role == SemanticRole::Math) ||
+                                            (region->inlineKind == MarkdownInlineSourceKind::Link && elements_[element].role == SemanticRole::Link) ||
+                                            (region->inlineKind == MarkdownInlineSourceKind::Image && elements_[element].role == SemanticRole::Image));
     const auto node = SourceEditingNode(element);
     return node && *node == SourceBlock();
 }
@@ -610,13 +609,13 @@ struct SemanticBuilder::Preparation
         auto flags = markdownFlags | html.flags;
         if ((flags & (Superscript | Subscript)) == (Superscript | Subscript))
             flags &= (markdownFlags & Subscript) != 0u ? ~Superscript : ~Subscript;
-        auto parent      = visit.parent;
+        auto parent = visit.parent;
         if (node.kind == MarkdownInlineKind::SourceEditor)
         {
-            const auto region = document->syntax_->SourceRegion();
-            const auto role = region && region->inlineKind == MarkdownInlineSourceKind::Link    ? SemanticRole::Link
-                              : region && region->inlineKind == MarkdownInlineSourceKind::Image ? SemanticRole::Image
-                                                                                                 : SemanticRole::Math;
+            const auto region  = document->syntax_->SourceRegion();
+            const auto role    = region && region->inlineKind == MarkdownInlineSourceKind::Link    ? SemanticRole::Link
+                                 : region && region->inlineKind == MarkdownInlineSourceKind::Image ? SemanticRole::Image
+                                                                                                   : SemanticRole::Math;
             const auto element = Element(role, node.source, parent);
             output.Emit(document->syntax_->Slice(node.source), node.source, DisplaySpanKind::Source, flags | Code, visit.heading);
             auto& formula        = document->elements_[element];
@@ -639,7 +638,7 @@ struct SemanticBuilder::Preparation
                 return result;
             };
             const auto records = expression ? count(count, expression->root) : 0u;
-            const auto raw = document->syntax_->Slice(node.source);
+            const auto raw     = document->syntax_->Slice(node.source);
             const bool display = raw.starts_with(L"$$") || raw.starts_with(L"\\[");
             if (expression && *expression && (display || expression->root.text != L"tag") && extensions.CanAdmitRecords(records) && extensions.CanAdmitObject())
             {
@@ -735,19 +734,20 @@ struct SemanticBuilder::Preparation
         if (document->paragraphs_.size() == SemanticDocument::MaximumParagraphs)
             throw std::length_error("Semantic paragraph capacity exceeded");
         const auto index = document->paragraphs_.size();
-        document->paragraphs_.push_back({{output.text.size(), output.text.size()},
-                                         element,
-                                         visit.node,
-                                         visit.table,
-                                         visit.row,
-                                         visit.column,
-                                         visit.columns,
-                                         visit.indent,
-                                         visit.flags,
-                                         visit.heading,
-                                         document->syntax_->Nodes()[visit.node].block.kind == MarkdownBlockKind::HtmlBlock && document->elements_[element].nativeHtml
-                                             ? document->elements_[element].alignment
-                                                                                  : document->syntax_->Nodes()[visit.node].alignment});
+        document->paragraphs_.push_back(
+            {{output.text.size(), output.text.size()},
+             element,
+             visit.node,
+             visit.table,
+             visit.row,
+             visit.column,
+             visit.columns,
+             visit.indent,
+             visit.flags,
+             visit.heading,
+             document->syntax_->Nodes()[visit.node].block.kind == MarkdownBlockKind::HtmlBlock && document->elements_[element].nativeHtml
+                 ? document->elements_[element].alignment
+                 : document->syntax_->Nodes()[visit.node].alignment});
         return index;
     }
     static std::size_t FirstVisibleChild(const std::vector<MarkdownNode>& nodes, const MarkdownNode& owner)
@@ -1702,27 +1702,32 @@ void SemanticBuilder::BeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyn
         if (! inlineMath && ! diagram)
         {
             const auto& nodes = syntax->Nodes();
-            const auto leaf = std::ranges::find_if(nodes, [&](const auto& node)
+            const auto leaf   = std::ranges::find_if(nodes,
+                                                     [&](const auto& node)
             {
                 return node.block.source == range && (node.block.kind == MarkdownBlockKind::HtmlBlock || node.block.kind == MarkdownBlockKind::Paragraph ||
-                       node.block.kind == MarkdownBlockKind::AtxHeading || node.block.kind == MarkdownBlockKind::SetextHeading ||
-                       node.block.kind == MarkdownBlockKind::TableCell);
+                                                      node.block.kind == MarkdownBlockKind::AtxHeading || node.block.kind == MarkdownBlockKind::SetextHeading ||
+                                                      node.block.kind == MarkdownBlockKind::TableCell);
             });
             if (leaf != nodes.end())
             {
-                scriptMarkdown = std::ranges::any_of(syntax->Inlines(), [&](const auto& node)
+                scriptMarkdown = std::ranges::any_of(syntax->Inlines(),
+                                                     [&](const auto& node)
                 {
-                    return (node.kind == MarkdownInlineKind::Superscript || node.kind == MarkdownInlineKind::Subscript) &&
-                           node.source.first >= range.first && node.source.last <= range.last;
+                    return (node.kind == MarkdownInlineKind::Superscript || node.kind == MarkdownInlineKind::Subscript) && node.source.first >= range.first &&
+                           node.source.last <= range.last;
                 });
                 Detail::SemanticValue normalized;
                 const auto index = static_cast<std::size_t>(leaf - nodes.begin());
                 Detail::NormalizeSemanticLeaf(*syntax, index, normalized);
                 Detail::NativeHtmlPlan plan;
-                if (leaf->block.kind == MarkdownBlockKind::HtmlBlock) plan.Block(normalized);
-                else plan.Inline(*syntax, *leaf, normalized);
-                scriptHtml = plan.valid && std::ranges::any_of(plan.tags, [](const auto& tag)
-                { return tag.kind == Detail::NativeHtmlKind::Sup || tag.kind == Detail::NativeHtmlKind::Sub; });
+                if (leaf->block.kind == MarkdownBlockKind::HtmlBlock)
+                    plan.Block(normalized);
+                else
+                    plan.Inline(*syntax, *leaf, normalized);
+                scriptHtml = plan.valid && std::ranges::any_of(plan.tags, [](const auto& tag) {
+                    return tag.kind == Detail::NativeHtmlKind::Sup || tag.kind == Detail::NativeHtmlKind::Sub;
+                });
             }
         }
         if (! scriptHtml && ! scriptMarkdown && (syntax->Profile() != MarkdownProfile::RichMarkdown || (! inlineMath && ! diagram)))

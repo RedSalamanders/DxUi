@@ -1042,10 +1042,10 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     request.command = MarkdownCommand::SetTableCell;
     request.text    = L"new";
     exact(L"a | b\n- | -\nx | y", {16u, 16u}, request, L"a | b\n- | -\nx | new");
-    request = {};
-    request.command = MarkdownCommand::InsertTable;
+    request                  = {};
+    request.command          = MarkdownCommand::InsertTable;
     request.tableInputFormat = MarkdownTableInputFormat::Tsv;
-    request.text = L"a\tb\nc\td";
+    request.text             = L"a\tb\nc\td";
     exact(L"", {0u, 0u}, request, L"| a | b |\r\n| --- | --- |\r\n| c | d |");
     request.text = L"head\tvalue\n\"a|b\"\t\"line\r\nnext\"";
     exact(L"", {0u, 0u}, request, L"| head | value |\r\n| --- | --- |\r\n| a\\|b | line&#10;next |");
@@ -1056,24 +1056,23 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     editor->SetText(L"");
     prepare();
     Check(editor->PrepareMarkdownCommandState(request), "delimited table request prepares exact command state");
-    const auto preparedTable = editor->QueryMarkdownCommandState(request);
-    auto otherTable = request;
+    const auto preparedTable    = editor->QueryMarkdownCommandState(request);
+    auto otherTable             = request;
     otherTable.tableInputFormat = MarkdownTableInputFormat::Csv;
-    const auto otherState = editor->QueryMarkdownCommandState(otherTable);
-    Check(preparedTable && preparedTable->available == std::optional<bool>{true} &&
-              (! otherState || ! otherState->available.has_value()),
+    const auto otherState       = editor->QueryMarkdownCommandState(otherTable);
+    Check(preparedTable && preparedTable->available == std::optional<bool>{true} && (! otherState || ! otherState->available.has_value()),
           "prepared table state keys the delimiter format with its payload");
     editor->SetText(L"- a\n  - nested\n- b");
     prepare();
     editor->SetSelection({17u, 17u});
-    Check(editor->OnKeyDown(host, VK_UP, kModifierAlt) && editor->GetText() == L"- b\n- a\n  - nested" &&
-              editor->GetSelection() == Selection{2u, 2u} && editor->Undo() && editor->GetText() == L"- a\n  - nested\n- b",
+    Check(editor->OnKeyDown(host, VK_UP, kModifierAlt) && editor->GetText() == L"- b\n- a\n  - nested" && editor->GetSelection() == Selection{2u, 2u} &&
+              editor->Undo() && editor->GetText() == L"- a\n  - nested\n- b",
           "Alt+Up moves a complete sibling list item and preserves one-step undo");
     prepare();
     editor->SetSelection({2u, 2u});
     Check(! editor->OnKeyDown(host, VK_UP, kModifierAlt), "Alt+Up at the list boundary is unavailable");
     MarkdownCommandRequest renumber;
-    renumber.command = MarkdownCommand::RenumberList;
+    renumber.command   = MarkdownCommand::RenumberList;
     renumber.listStart = 9u;
     exact(L"4. first\n4. second\n   tail\n", {3u, 3u}, renumber, L"9. first\n10. second\n    tail\n");
     Check(editor->PrepareMarkdownCommandState(renumber), "ordered list renumber state prepares through the planner");
@@ -1082,8 +1081,8 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     editor->SetViewMode(ViewMode::Source);
     editor->SetText(L"one\r\ntwo");
     editor->SetSelection({1u, 3u});
-    Check(editor->OnKeyDown(host, VK_DOWN, kModifierAlt) && editor->GetText() == L"two\r\none" &&
-              editor->GetSelection() == Selection{6u, 8u} && editor->Undo() && editor->GetText() == L"one\r\ntwo",
+    Check(editor->OnKeyDown(host, VK_DOWN, kModifierAlt) && editor->GetText() == L"two\r\none" && editor->GetSelection() == Selection{6u, 8u} &&
+              editor->Undo() && editor->GetText() == L"one\r\ntwo",
           "Alt+Down moves a raw source line with CRLF and preserves directional selection and undo");
     editor->SetViewMode(ViewMode::Rich);
     request         = {};
@@ -1338,9 +1337,10 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
 #if DXUI_ENABLE_DIAGNOSTICS
 template <typename Prepare, typename Move, typename Key> void TitleTooltipContract(ControlHost& host, Prepare&& prepare, Move&& move, Key&& key)
 {
-    const std::wstring source = L"[link](https://example.test \"Link title\") and [![alt](fixture.png \"Image title\")](https://example.test \"Outer title\")\n" +
-                                std::wstring(80u, L'\n') + L"end";
-    auto owner = std::make_unique<RichTextEditor>(source);
+    const std::wstring source =
+        L"[link](https://example.test \"Link title\") and [![alt](fixture.png \"Image title\")](https://example.test \"Outer title\")\n" +
+        std::wstring(80u, L'\n') + L"end";
+    auto owner   = std::make_unique<RichTextEditor>(source);
     auto* editor = owner.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
     editor->SetMarkdownRenderingEnabled(true);
@@ -1352,16 +1352,16 @@ template <typename Prepare, typename Move, typename Key> void TitleTooltipContra
     const auto pointFor = [&](SemanticRole role, std::wstring_view title)
     {
         const auto elements = semantic->Elements();
-        const auto item = std::ranges::find_if(elements, [&](const auto& element) { return element.role == role && element.title == title; });
+        const auto item     = std::ranges::find_if(elements, [&](const auto& element) { return element.role == role && element.title == title; });
         Check(item != elements.end(), "title tooltip fixture contains its source element");
         const auto bounds = editor->GetSemanticElementBounds(host, static_cast<size_t>(item - elements.begin()));
         Check(bounds && bounds->right > bounds->left && bounds->bottom > bounds->top, "title tooltip fixture has visible bounds");
         return D2D1::Point2F((bounds->left + bounds->right) * .5f, (bounds->top + bounds->bottom) * .5f);
     };
-    const auto link = pointFor(SemanticRole::Link, L"Link title");
-    const auto image = pointFor(SemanticRole::Image, L"Image title");
+    const auto link      = pointFor(SemanticRole::Link, L"Link title");
+    const auto image     = pointFor(SemanticRole::Image, L"Image title");
     const auto selection = editor->GetSelection();
-    auto* focus = host.GetFocusControl();
+    auto* focus          = host.GetFocusControl();
     move(link, 0u);
     Check(host.DebugGetPendingTooltipText() == L"General tooltip", "editable hover without Ctrl retains the consumer tooltip");
     key(true);
@@ -1376,16 +1376,16 @@ template <typename Prepare, typename Move, typename Key> void TitleTooltipContra
     Check(host.DebugGetPendingTooltipText() == L"Image title", "nested image title wins over its enclosing link title");
     Check(editor->GetText() == source && editor->GetSelection() == selection && ! editor->CanUndo() && host.GetFocusControl() == focus,
           "title hover preserves exact source, selection, history and focus");
-    const auto titleLink = std::ranges::find_if(semantic->Elements(), [](const auto& item) { return item.role == SemanticRole::Link && item.title == L"Link title"; });
-    Check(titleLink != semantic->Elements().end() && editor->BeginSemanticSourceEdit(host, semantic, static_cast<std::size_t>(titleLink - semantic->Elements().begin())),
+    const auto titleLink =
+        std::ranges::find_if(semantic->Elements(), [](const auto& item) { return item.role == SemanticRole::Link && item.title == L"Link title"; });
+    Check(titleLink != semantic->Elements().end() &&
+              editor->BeginSemanticSourceEdit(host, semantic, static_cast<std::size_t>(titleLink - semantic->Elements().begin())),
           "title fixture opens its inline link source");
     prepare();
     const auto editing = editor->GetAcknowledgedSemanticDocument(host);
     Check(editing != nullptr, "expanded link source has an acknowledged document");
-    const auto sourceElement = std::ranges::find_if(editing->Elements(), [&](const auto& item)
-    {
-        return editing->IsSourceEditingElement(static_cast<std::size_t>(&item - editing->Elements().data()));
-    });
+    const auto sourceElement = std::ranges::find_if(
+        editing->Elements(), [&](const auto& item) { return editing->IsSourceEditingElement(static_cast<std::size_t>(&item - editing->Elements().data())); });
     Check(sourceElement != editing->Elements().end(), "title fixture has an expanded source owner");
     const auto sourceBounds = editor->GetSemanticElementBounds(host, static_cast<std::size_t>(sourceElement - editing->Elements().begin()));
     Check(sourceBounds.has_value(), "expanded link source has prepared bounds");
@@ -1689,8 +1689,8 @@ template <typename Prepare> void InlineMathSourceEditing(ControlHost& host, Prep
         editor->SetText(std::wstring(example.first));
         prepare();
         editor->SetSelection({boundary, boundary});
-        Check(editor->OnKeyDown(host, VK_F2, 0u) && editor->GetSemanticSourceRegion() &&
-                  editor->GetSemanticSourceRegion()->inlineKind == example.second && editor->GetSemanticSourceRegion()->source.first == boundary,
+        Check(editor->OnKeyDown(host, VK_F2, 0u) && editor->GetSemanticSourceRegion() && editor->GetSemanticSourceRegion()->inlineKind == example.second &&
+                  editor->GetSemanticSourceRegion()->source.first == boundary,
               "at adjacent inline objects the leading envelope wins regardless of relative size");
         Check(editor->OnKeyDown(host, VK_ESCAPE, 0u), "adjacent source session exits");
     }
@@ -1707,7 +1707,7 @@ template <typename Prepare> void InlineMathSourceEditing(ControlHost& host, Prep
     editor->SetText(definition);
     prepare();
     const auto syntax = editor->GetMarkdownSyntax();
-    auto reference = MarkdownNoNode;
+    auto reference    = MarkdownNoNode;
     for (std::size_t node = 0u; node < syntax->Nodes().size(); ++node)
         if (syntax->Nodes()[node].block.kind == MarkdownBlockKind::ReferenceDefinition)
             reference = node;
@@ -1726,7 +1726,7 @@ template <typename Prepare> void InlineMathSourceEditing(ControlHost& host, Prep
     Check(editor->OnKeyDown(host, VK_ESCAPE, 0u), "reference source session exits");
     prepare();
     Check(! editor->BeginReferenceDefinitionSourceEdit(host, syntax, reference), "stale reference syntax cannot reopen a different revision");
-    const auto current = editor->GetMarkdownSyntax();
+    const auto current    = editor->GetMarkdownSyntax();
     auto currentReference = MarkdownNoNode;
     for (std::size_t node = 0u; node < current->Nodes().size(); ++node)
         if (current->Nodes()[node].block.kind == MarkdownBlockKind::ReferenceDefinition)
@@ -1746,21 +1746,21 @@ template <typename Prepare> void SemanticDirection(ControlHost& host, Prepare&& 
               RichText::Detail::FirstStrongDirection(L"\U0001ee00", ltr) == rtl && RichText::Detail::FirstStrongDirection(L"\U00010400", rtl) == ltr,
           "first-strong uses pinned bidi classes, skips isolates and handles supplementary scalars");
     const std::wstring source(L"English\n\n\u05e9\u05dc\u05d5\u05dd\n\n| A | B |\n| - | - |\n| alpha | \u05e9\u05dc\u05d5\u05dd |\n");
-    auto root = std::make_unique<RichTextEditor>(source);
+    auto root    = std::make_unique<RichTextEditor>(source);
     auto* editor = root.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
     editor->SetMarkdownRenderingEnabled(true);
     host.SetRoot(std::move(root));
     prepare();
-    const auto hebrew = source.find(L"\u05e9\u05dc\u05d5\u05dd");
-    const auto before = editor->TryGetTextInputCaretRect(host, hebrew);
+    const auto hebrew   = source.find(L"\u05e9\u05dc\u05d5\u05dd");
+    const auto before   = editor->TryGetTextInputCaretRect(host, hebrew);
     const auto document = editor->GetAcknowledgedSemanticDocument(host);
     std::vector<D2D1_RECT_F> cells(0u);
     for (std::size_t index = 0u; index < document->Elements().size(); ++index)
         if (document->Elements()[index].role == SemanticRole::Cell)
             if (const auto bounds = editor->GetSemanticElementBounds(host, index))
                 cells.push_back(*bounds);
-    auto appearance = editor->GetAppearance();
+    auto appearance                   = editor->GetAppearance();
     appearance.autoParagraphDirection = true;
     editor->SetAppearance(appearance);
     Check(! editor->GetAcknowledgedSemanticDocument(host), "direction change retires old geometry before reflow");
@@ -1768,14 +1768,14 @@ template <typename Prepare> void SemanticDirection(ControlHost& host, Prepare&& 
     const auto after = editor->TryGetTextInputCaretRect(host, hebrew);
     Check(before && after && after->left > before->left + 20.0f && editor->GetText() == source,
           "opt-in first-strong moves a Hebrew paragraph's leading caret without changing source");
-    const auto ltrFirst = editor->TryGetTextInputCaretRect(host, 0u);
-    const auto ltrLast = editor->TryGetTextInputCaretRect(host, 7u);
-    const auto rtlLast = editor->TryGetTextInputCaretRect(host, hebrew + 4u);
+    const auto ltrFirst  = editor->TryGetTextInputCaretRect(host, 0u);
+    const auto ltrLast   = editor->TryGetTextInputCaretRect(host, 7u);
+    const auto rtlLast   = editor->TryGetTextInputCaretRect(host, hebrew + 4u);
     const auto selection = editor->TryGetTextInputRangeRects(host, hebrew, hebrew + 4u);
     Check(ltrFirst && ltrLast && rtlLast && ltrFirst->left < ltrLast->left && after->left > rtlLast->left && selection && ! selection->empty(),
           "mixed paragraph caret order and selection geometry follow each paragraph direction");
     const auto refreshed = editor->GetAcknowledgedSemanticDocument(host);
-    std::size_t cell = 0u;
+    std::size_t cell     = 0u;
     for (std::size_t index = 0u; index < refreshed->Elements().size(); ++index)
         if (refreshed->Elements()[index].role == SemanticRole::Cell)
             if (const auto bounds = editor->GetSemanticElementBounds(host, index))
@@ -1786,17 +1786,17 @@ template <typename Prepare> void SemanticDirection(ControlHost& host, Prepare&& 
             }
     Check(cell == cells.size() && cell == 4u, "all table cells retain their physical columns");
     const auto cellHebrew = source.rfind(L"\u05e9\u05dc\u05d5\u05dd");
-    const auto cellStart = editor->TryGetTextInputCaretRect(host, cellHebrew);
-    const auto cellEnd = editor->TryGetTextInputCaretRect(host, cellHebrew + 4u);
+    const auto cellStart  = editor->TryGetTextInputCaretRect(host, cellHebrew);
+    const auto cellEnd    = editor->TryGetTextInputCaretRect(host, cellHebrew + 4u);
     Check(cellStart && cellEnd && cellStart->left > cellEnd->left, "right-to-left cell caret order follows its text independently");
     editor->SetFlowDirection(FlowDirection::RightToLeft);
     prepare();
     const auto hostRtlLtrFirst = editor->TryGetTextInputCaretRect(host, 0u);
-    const auto hostRtlLtrLast = editor->TryGetTextInputCaretRect(host, 7u);
+    const auto hostRtlLtrLast  = editor->TryGetTextInputCaretRect(host, 7u);
     Check(hostRtlLtrFirst && hostRtlLtrLast && hostRtlLtrFirst->left < hostRtlLtrLast->left,
           "a left-to-right paragraph remains left-to-right under a right-to-left host");
     editor->SetFlowDirection(FlowDirection::LeftToRight);
-    appearance.markdownPresentation = MarkdownPresentationStyle::Subtle;
+    appearance.markdownPresentation   = MarkdownPresentationStyle::Subtle;
     appearance.autoParagraphDirection = false;
     editor->SetAppearance(appearance);
     prepare();
@@ -1821,7 +1821,7 @@ template <typename Prepare> void SemanticDirection(ControlHost& host, Prepare&& 
                 ++subtleCell;
             }
     const auto subtleStart = editor->TryGetTextInputCaretRect(host, cellHebrew);
-    const auto subtleEnd = editor->TryGetTextInputCaretRect(host, cellHebrew + 4u);
+    const auto subtleEnd   = editor->TryGetTextInputCaretRect(host, cellHebrew + 4u);
     Check(subtleCell == 4u && subtleStart && subtleEnd && subtleStart->left > subtleEnd->left,
           "Subtle table preserves columns and applies right-to-left cell caret order");
     editor->SetDocumentFilePath(L"C:\\docs\\example.md");
@@ -1830,7 +1830,7 @@ template <typename Prepare> void SemanticDirection(ControlHost& host, Prepare&& 
     std::vector<RichImageRequest> images(0u);
     editor->TakePendingImageRequests(images);
     Check(images.size() == 1u, "direction-reflow fixture has an in-flight image");
-    const auto request = images.front();
+    const auto request                = images.front();
     appearance.autoParagraphDirection = false;
     editor->SetAppearance(appearance);
     Check(! request.Cancelled() && editor->CompleteImageRequest(request, RichImageResourceTests::Picture()),
@@ -1841,7 +1841,7 @@ template <typename Prepare> void SemanticDirection(ControlHost& host, Prepare&& 
 }
 template <typename Prepare> void SemanticWords(ControlHost& host, Prepare&& prepare)
 {
-    auto root = std::make_unique<RichTextEditor>(L"Alpha **bravo** <em>charlie</em> `skip` $x$ [label](dest) https://example.test");
+    auto root    = std::make_unique<RichTextEditor>(L"Alpha **bravo** <em>charlie</em> `skip` $x$ [label](dest) https://example.test");
     auto* editor = root.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
     editor->SetMarkdownRenderingEnabled(true);
@@ -1849,11 +1849,14 @@ template <typename Prepare> void SemanticWords(ControlHost& host, Prepare&& prep
     Check(! editor->GetVisibleSemanticDisplayRange(host), "unprepared semantic viewport has no word interval");
     prepare();
     const auto document = editor->GetAcknowledgedSemanticDocument(host);
-    const auto visible = editor->GetVisibleSemanticDisplayRange(host);
-    Check(document && visible && CountWords(*document) == 4u, "semantic statistics count prose, including supported inline HTML text, but exclude code math and URLs");
+    const auto visible  = editor->GetVisibleSemanticDisplayRange(host);
+    Check(document && visible && CountWords(*document) == 4u,
+          "semantic statistics count prose, including supported inline HTML text, but exclude code math and URLs");
     struct Words
     {
-        Words() : values(0u) {}
+        Words() : values(0u)
+        {
+        }
         std::vector<std::wstring> values;
         bool mapped = true;
     } words;
@@ -1865,13 +1868,12 @@ template <typename Prepare> void SemanticWords(ControlHost& host, Prepare&& prep
         return true;
     };
     const auto seen = VisitSemanticWords(*document, *visible, visitor, &words);
-    Check(seen == 4u && words.mapped &&
-              words.values == std::vector<std::wstring>{L"Alpha", L"bravo", L"charlie", L"label"},
+    Check(seen == 4u && words.mapped && words.values == std::vector<std::wstring>{L"Alpha", L"bravo", L"charlie", L"label"},
           "visible prose words preserve source fragments and omit hidden syntax");
     Words partial;
     const auto bravo = document->Map().Display().find(L"bravo");
-    Check(VisitSemanticWords(*document, {bravo + 2u, bravo + 3u}, visitor, &partial) == 1u &&
-              partial.values == std::vector<std::wstring>{L"bravo"}, "a clipped viewport returns the complete intersecting word");
+    Check(VisitSemanticWords(*document, {bravo + 2u, bravo + 3u}, visitor, &partial) == 1u && partial.values == std::vector<std::wstring>{L"bravo"},
+          "a clipped viewport returns the complete intersecting word");
     editor->SetText(L"changed");
     Check(! editor->GetVisibleSemanticDisplayRange(host) && CountWords(*document) == 4u,
           "pending publication is refused while the immutable old document remains stable");
@@ -1888,7 +1890,7 @@ template <typename Prepare> void SemanticWords(ControlHost& host, Prepare&& prep
 template <typename Prepare> void InlineExtensions(ControlHost& host, Prepare&& prepare)
 {
     const std::wstring source(L"==marked== ++inserted++ ^up^ ~down~");
-    auto root = std::make_unique<RichTextEditor>(source);
+    auto root    = std::make_unique<RichTextEditor>(source);
     auto* editor = root.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
     editor->SetMarkdownRenderingEnabled(true);
@@ -1900,29 +1902,30 @@ template <typename Prepare> void InlineExtensions(ControlHost& host, Prepare&& p
     const auto flagAt = [&](std::wstring_view text, unsigned flag)
     {
         const auto position = document->Map().Display().find(text);
-        return position != std::wstring_view::npos && std::ranges::any_of(document->Runs(), [&](const auto& run)
-        { return run.start <= position && position < run.start + run.length && (run.flags & flag) != 0u; });
+        return position != std::wstring_view::npos && std::ranges::any_of(document->Runs(), [&](const auto& run) {
+            return run.start <= position && position < run.start + run.length && (run.flags & flag) != 0u;
+        });
     };
     Check(flagAt(L"marked", Marked) && flagAt(L"inserted", Underline) && flagAt(L"up", Superscript) && flagAt(L"down", Subscript),
           "extension source maps into highlight, insertion and native script styles");
     const auto up = source.find(L"up");
     editor->SetSelection({up, up + 2u});
-    Check(editor->ReplaceSelection(L"x") && editor->Undo() && editor->GetText() == source,
-          "edits inside a script retain source spelling and undo");
+    Check(editor->ReplaceSelection(L"x") && editor->Undo() && editor->GetText() == source, "edits inside a script retain source spelling and undo");
     prepare();
     editor->SetSelection({2u, 8u});
     MarkdownCommandRequest clear;
     clear.command = MarkdownCommand::ClearFormatting;
-    Check(editor->ExecuteMarkdownCommand(clear) == MarkdownCommandStatus::Changed && editor->GetText().starts_with(L"marked ") &&
-              editor->Undo() && editor->GetText() == source, "clear formatting owns and restores a highlighted envelope");
+    Check(editor->ExecuteMarkdownCommand(clear) == MarkdownCommandStatus::Changed && editor->GetText().starts_with(L"marked ") && editor->Undo() &&
+              editor->GetText() == source,
+          "clear formatting owns and restores a highlighted envelope");
 }
 template <typename Prepare> void InlineScriptFallback(ControlHost& host, Prepare&& prepare)
 {
 #if DXUI_ENABLE_DIAGNOSTICS
     const auto previous = RichText::Detail::testRichScriptTargetUnsupported;
-    const auto restore = wil::scope_exit([=]() noexcept { RichText::Detail::testRichScriptTargetUnsupported = previous; });
+    const auto restore  = wil::scope_exit([=]() noexcept { RichText::Detail::testRichScriptTargetUnsupported = previous; });
     const std::wstring source(L"# Before\n\nprose ^script^ tail\n\n**After**\n");
-    auto root = std::make_unique<RichTextEditor>(source);
+    auto root    = std::make_unique<RichTextEditor>(source);
     auto* editor = root.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
     editor->SetMarkdownRenderingEnabled(true);
@@ -1931,12 +1934,12 @@ template <typename Prepare> void InlineScriptFallback(ControlHost& host, Prepare
     RichText::Detail::testRichScriptTargetUnsupported = true;
     prepare();
     const auto fallback = editor->GetAcknowledgedSemanticDocument(host);
-    Check(fallback && fallback->Map().Display().find(L"prose ^script^ tail") != std::wstring_view::npos &&
-              fallback->Map().Display().ends_with(L"After\n") && editor->GetText() == source,
+    Check(fallback && fallback->Map().Display().find(L"prose ^script^ tail") != std::wstring_view::npos && fallback->Map().Display().ends_with(L"After\n") &&
+              editor->GetText() == source,
           "unsupported Markdown script target retains the exact paragraph and neighboring semantics");
     RichText::Detail::testRichScriptTargetUnsupported = false;
-    auto appearance = editor->GetAppearance();
-    appearance.bodyFontSizeDip = 19.f;
+    auto appearance                                   = editor->GetAppearance();
+    appearance.bodyFontSizeDip                        = 19.f;
     editor->SetAppearance(appearance);
     prepare();
     const auto retry = editor->GetAcknowledgedSemanticDocument(host);
@@ -2380,8 +2383,8 @@ template <typename Prepare> void HangingMarkersLinksAndHtml(ControlHost& host, P
 template <typename Prepare> void DiagramLabelWidthAppearance(ControlHost& host, Prepare&& prepare)
 {
     const std::wstring source = L"```mermaid\ngraph TD;A[\"Unicode αβ words and several more words for wrapping\"]\n```\n";
-    auto root = std::make_unique<SourceCaretEditorFixture>(source);
-    auto* editor = root.get();
+    auto root                 = std::make_unique<SourceCaretEditorFixture>(source);
+    auto* editor              = root.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
     editor->SetMarkdownRenderingEnabled(true);
     host.SetRoot(std::move(root));
@@ -2389,24 +2392,24 @@ template <typename Prepare> void DiagramLabelWidthAppearance(ControlHost& host, 
     const auto document = editor->GetAcknowledgedSemanticDocument(host);
     Check(document != nullptr, "diagram appearance fixture publishes semantics");
     const auto elements = document->Elements();
-    const auto found = std::ranges::find_if(elements, [](const auto& element) { return element.role == SemanticRole::Diagram; });
+    const auto found    = std::ranges::find_if(elements, [](const auto& element) { return element.role == SemanticRole::Diagram; });
     Check(found != elements.end(), "diagram appearance fixture retains its native owner");
-    const auto index = static_cast<std::size_t>(found - elements.begin());
-    const auto before = editor->GetSemanticElementBounds(host, index);
+    const auto index      = static_cast<std::size_t>(found - elements.begin());
+    const auto before     = editor->GetSemanticElementBounds(host, index);
     const auto generation = editor->DebugGetState().layoutGeneration;
     editor->SetSelection({0u, 0u});
-    auto appearance = editor->GetAppearance();
+    auto appearance                 = editor->GetAppearance();
     appearance.diagramLabelWidthDip = 100.f;
     editor->SetAppearance(appearance);
     prepare();
     const auto after = editor->GetSemanticElementBounds(host, index);
-    Check(before && after && after->right - after->left < before->right - before->left &&
-              after->bottom - after->top > before->bottom - before->top && editor->DebugGetState().layoutGeneration > generation &&
-              editor->GetText() == source && editor->GetSelection() == Selection{0u, 0u} && ! editor->CanUndo(),
+    Check(before && after && after->right - after->left < before->right - before->left && after->bottom - after->top > before->bottom - before->top &&
+              editor->DebugGetState().layoutGeneration > generation && editor->GetText() == source && editor->GetSelection() == Selection{0u, 0u} &&
+              ! editor->CanUndo(),
           "both hosts publish rewrapped diagram geometry without changing source, selection or history");
     for (float invalid : {-1.f, .5f, 4097.f, std::numeric_limits<float>::quiet_NaN()})
     {
-        auto rejected = appearance;
+        auto rejected                 = appearance;
         rejected.diagramLabelWidthDip = invalid;
         RichSemanticTests::Reject<std::invalid_argument>([&] { editor->SetAppearance(rejected); }, "invalid diagram width is rejected atomically");
         Check(editor->GetAppearance() == appearance && editor->GetText() == source && editor->GetSelection() == Selection{0u, 0u},
@@ -2870,8 +2873,8 @@ template <typename Prepare> void NativeObjectFailureContainment(ControlHost& hos
 #if DXUI_ENABLE_DIAGNOSTICS
     {
         const auto previousUnsupported = RichText::Detail::testRichScriptTargetUnsupported;
-        const auto resetUnsupported = wil::scope_exit([=]() noexcept { RichText::Detail::testRichScriptTargetUnsupported = previousUnsupported; });
-        const std::wstring htmlSource = L"# Before\n\n<p>x<sup>emoji</sup></p>\n\n**After**\n";
+        const auto resetUnsupported    = wil::scope_exit([=]() noexcept { RichText::Detail::testRichScriptTargetUnsupported = previousUnsupported; });
+        const std::wstring htmlSource  = L"# Before\n\n<p>x<sup>emoji</sup></p>\n\n**After**\n";
         editor->SetText(htmlSource);
         editor->SetSelection({2u, 2u});
         RichText::Detail::testRichScriptTargetUnsupported = true;
@@ -2889,8 +2892,8 @@ template <typename Prepare> void NativeObjectFailureContainment(ControlHost& hos
         editor->SetAppearance(appearance);
         prepare();
         const auto retry = editor->GetAcknowledgedSemanticDocument(host);
-        Check(retry && retry != fallback && retry->Map().Display().find(L"xemoji") != std::wstring::npos &&
-                  editor->GetText() == htmlSource && editor->GetSelection() == Selection{2u, 2u} && ! editor->CanUndo(),
+        Check(retry && retry != fallback && retry->Map().Display().find(L"xemoji") != std::wstring::npos && editor->GetText() == htmlSource &&
+                  editor->GetSelection() == Selection{2u, 2u} && ! editor->CanUndo(),
               "a changed typography key retries the unchanged HTML source and restores native script presentation");
     }
 #endif

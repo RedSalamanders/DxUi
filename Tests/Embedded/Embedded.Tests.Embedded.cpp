@@ -1503,14 +1503,14 @@ __declspec(noinline) static int RunFunctionalTests()
         RichSemanticTests::Run([&]
         {
 #if DXUI_ENABLE_DIAGNOSTICS
-            RichSemanticEditorTests::TitleTooltipContract(
-                view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded title tooltip preparation"); },
-                [&](D2D1_POINT_2F point, UINT modifiers)
-                {
-                    const auto scale = static_cast<float>(view.Controls().GetDpi()) / 96.f;
-                    static_cast<void>(view.DispatchPointer({DxUi::PointerAction::Move, point.x * scale, point.y * scale, modifiers}));
-                },
-                [&](bool down) { static_cast<void>(view.DispatchKey(VK_CONTROL, down, down ? MK_CONTROL : 0u)); });
+            RichSemanticEditorTests::TitleTooltipContract(view.Controls(),
+                                                          [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded title tooltip preparation"); },
+                                                          [&](D2D1_POINT_2F point, UINT modifiers)
+            {
+                const auto scale = static_cast<float>(view.Controls().GetDpi()) / 96.f;
+                static_cast<void>(view.DispatchPointer({DxUi::PointerAction::Move, point.x * scale, point.y * scale, modifiers}));
+            },
+                                                          [&](bool down) { static_cast<void>(view.DispatchKey(VK_CONTROL, down, down ? MK_CONTROL : 0u)); });
 #endif
             RichSemanticEditorTests::SemanticGeometryReuse(view.Controls(),
                                                            [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "incremental preparation"); });
@@ -1735,13 +1735,25 @@ __declspec(noinline) static int RunFunctionalTests()
     {
         bool allocated{};
         std::size_t calls{};
-        const auto wasCounting = countAllocations;
+        const auto wasCounting   = countAllocations;
         const auto originalCalls = allocations;
-        const auto restore = wil::scope_exit([&]() noexcept { countAllocations = wasCounting; allocations = originalCalls; });
+        const auto restore       = wil::scope_exit([&]() noexcept
+        {
+            countAllocations = wasCounting;
+            allocations      = originalCalls;
+        });
         RichSemanticGeometryTests::HtmlScripts([&](bool before) noexcept
         {
-            if (before) { calls = allocations; countAllocations = true; }
-            else { allocated = allocated || allocations != calls; countAllocations = wasCounting; }
+            if (before)
+            {
+                calls            = allocations;
+                countAllocations = true;
+            }
+            else
+            {
+                allocated        = allocated || allocations != calls;
+                countAllocations = wasCounting;
+            }
         });
         Check(! allocated, "script native and RTL linked drawing performs zero tracked C++ allocations");
     });
@@ -1767,12 +1779,13 @@ __declspec(noinline) static int RunFunctionalTests()
         {
 #if DXUI_ENABLE_DIAGNOSTICS
             RichSemanticEditorTests::TitleTooltipContract(
-                transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded title tooltip preparation"); },
+                transactionView.Controls(),
+                [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded title tooltip preparation"); },
                 [&](D2D1_POINT_2F point, UINT modifiers)
-                {
-                    const auto scale = static_cast<float>(transactionView.Controls().GetDpi()) / 96.f;
-                    static_cast<void>(transactionView.DispatchPointer({DxUi::PointerAction::Move, point.x * scale, point.y * scale, modifiers}));
-                },
+            {
+                const auto scale = static_cast<float>(transactionView.Controls().GetDpi()) / 96.f;
+                static_cast<void>(transactionView.DispatchPointer({DxUi::PointerAction::Move, point.x * scale, point.y * scale, modifiers}));
+            },
                 [&](bool down) { static_cast<void>(transactionView.DispatchKey(VK_CONTROL, down, down ? MK_CONTROL : 0u)); });
 #endif
             RichSemanticEditorTests::SemanticGeometryReuse(transactionView.Controls(),

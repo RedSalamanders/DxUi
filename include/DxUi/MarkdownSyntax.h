@@ -245,7 +245,7 @@ struct MarkdownSourceRegion
     MarkdownRange source;
     std::uint64_t session{};
     MarkdownSourceRegionKind kind                      = MarkdownSourceRegionKind::Block;
-    MarkdownInlineSourceKind inlineKind                 = MarkdownInlineSourceKind::Math;
+    MarkdownInlineSourceKind inlineKind                = MarkdownInlineSourceKind::Math;
     bool operator==(const MarkdownSourceRegion&) const = default;
 };
 // Context-free lexical candidates. Inline precedence (code, HTML, links,

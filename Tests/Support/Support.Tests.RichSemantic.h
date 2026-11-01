@@ -805,14 +805,14 @@ inline void Tables()
     request.command = MarkdownCommand::InsertTable;
     Exact(L"", {}, request, L"| | |\r\n| --- | --- |\r\n| | |", Selection{2u, 2u});
     request.tableInputFormat = MarkdownTableInputFormat::Tsv;
-    request.text = L"Name\tValue\r\n\"a|b\"\t\"line\r\nnext\"";
+    request.text             = L"Name\tValue\r\n\"a|b\"\t\"line\r\nnext\"";
     Exact(L"", {}, request, L"| Name | Value |\r\n| --- | --- |\r\n| a\\|b | line&#10;next |", Selection{2u, 2u});
     request.tableInputFormat = MarkdownTableInputFormat::Csv;
-    request.text = L"name,value\n\"a,b\",\"a\"\"b\"";
+    request.text             = L"name,value\n\"a,b\",\"a\"\"b\"";
     Exact(L"", {}, request, L"| name | value |\r\n| --- | --- |\r\n| a\\,b | a\\\"b |", Selection{2u, 2u});
     Document invalidTable(L"");
     const auto invalidTableSyntax = Parse(invalidTable);
-    request.text = L"\"unfinished";
+    request.text                  = L"\"unfinished";
     Reject<std::invalid_argument>([&] {
         static_cast<void>(BuildMarkdownCommand(invalidTable.Snapshot(), invalidTable.Revision(), invalidTableSyntax, {}, request));
     }, "unterminated quoted field is rejected atomically");
@@ -832,9 +832,9 @@ inline void Tables()
         static_cast<void>(BuildMarkdownCommand(invalidTable.Snapshot(), invalidTable.Revision(), invalidTableSyntax, {}, request));
     }, "delimited input rejects a 257th body row before creating a source edit");
     Check(invalidTable.Text().empty() && ! invalidTable.CanUndo(), "invalid delimited input preserves source and history");
-    request.text = L"";
+    request.text             = L"";
     request.tableInputFormat = MarkdownTableInputFormat::Empty;
-    request.command = MarkdownCommand::InsertTableRow;
+    request.command          = MarkdownCommand::InsertTableRow;
     Exact(L"a | b\r\n:- | -:\r\nx | y", {0u, 0u}, request, L"a | b\r\n:- | -:\r\n| | |\r\nx | y");
     request.command = MarkdownCommand::DeleteTableRow;
     Exact(L"a | b\n- | -\nx | y\nz | q\n", {12u, 12u}, request, L"a | b\n- | -\nz | q\n");
@@ -963,9 +963,8 @@ inline void MoveLinesAndItems()
     Document overflow(L"999999999. a\n1. b\n");
     const auto syntax = Parse(overflow);
     request.listStart.reset();
-    Reject<std::length_error>([&] {
-        static_cast<void>(BuildMarkdownCommand(overflow.Snapshot(), overflow.Revision(), syntax, {11u, 11u}, request));
-    }, "renumbering rejects overflow before publishing edits");
+    Reject<std::length_error>([&] { static_cast<void>(BuildMarkdownCommand(overflow.Snapshot(), overflow.Revision(), syntax, {11u, 11u}, request)); },
+                              "renumbering rejects overflow before publishing edits");
     Check(overflow.Text() == L"999999999. a\n1. b\n" && ! overflow.CanUndo(), "renumber overflow preserves source and history");
 }
 inline void GuardsAndDeletion()

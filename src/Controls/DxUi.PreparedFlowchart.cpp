@@ -11,8 +11,8 @@ namespace
 {
 D2D1_COLOR_F DiagramColor(std::uint32_t color) noexcept
 {
-    return D2D1::ColorF(static_cast<float>((color >> 16u) & 255u) / 255.f, static_cast<float>((color >> 8u) & 255u) / 255.f,
-                        static_cast<float>(color & 255u) / 255.f);
+    return D2D1::ColorF(
+        static_cast<float>((color >> 16u) & 255u) / 255.f, static_cast<float>((color >> 8u) & 255u) / 255.f, static_cast<float>(color & 255u) / 255.f);
 }
 double Contrast(D2D1_COLOR_F a, D2D1_COLOR_F b) noexcept
 {
@@ -27,7 +27,8 @@ double Contrast(D2D1_COLOR_F a, D2D1_COLOR_F b) noexcept
 D2D1_COLOR_F Composite(D2D1_COLOR_F foreground, D2D1_COLOR_F background) noexcept
 {
     const auto alpha = std::clamp(foreground.a, 0.f, 1.f);
-    return D2D1::ColorF(foreground.r * alpha + background.r * (1.f - alpha), foreground.g * alpha + background.g * (1.f - alpha),
+    return D2D1::ColorF(foreground.r * alpha + background.r * (1.f - alpha),
+                        foreground.g * alpha + background.g * (1.f - alpha),
                         foreground.b * alpha + background.b * (1.f - alpha));
 }
 struct FlowchartLabel
@@ -108,7 +109,8 @@ wil::com_ptr<ID2D1PathGeometry> PiePath(ID2D1Factory* factory, FlowchartRect cir
 }
 } // namespace
 DiagramPalette::DiagramPalette(std::shared_ptr<const FlowchartModel> input, ID2D1RenderTarget* raster)
-    : graph(std::move(input)), target(raster),
+    : graph(std::move(input)),
+      target(raster),
       fills(graph && graph->nodes.size() <= NativeFlowchartParser::MaximumNodes ? graph->nodes.size() : 0u),
       strokes(graph && graph->nodes.size() <= NativeFlowchartParser::MaximumNodes ? graph->nodes.size() : 0u),
       texts(graph && graph->nodes.size() <= NativeFlowchartParser::MaximumNodes ? graph->nodes.size() : 0u),
@@ -120,7 +122,8 @@ DiagramPalette::DiagramPalette(std::shared_ptr<const FlowchartModel> input, ID2D
         if (! ValidDiagramColor(node.fillColor) || ! ValidDiagramColor(node.strokeColor) || ! ValidDiagramColor(node.textColor))
             throw std::invalid_argument("Invalid native diagram node color");
     for (const auto& edge : graph->edges)
-        if (! ValidDiagramColor(edge.strokeColor)) throw std::invalid_argument("Invalid native diagram edge color");
+        if (! ValidDiagramColor(edge.strokeColor))
+            throw std::invalid_argument("Invalid native diagram edge color");
     std::vector<std::uint32_t> colors(0u);
     colors.reserve(graph->nodes.size() * 3u + graph->edges.size());
     for (const auto& node : graph->nodes)
@@ -134,14 +137,14 @@ DiagramPalette::DiagramPalette(std::shared_ptr<const FlowchartModel> input, ID2D
 }
 bool DiagramPalette::Needed(const FlowchartModel& graph) noexcept
 {
-    return std::ranges::any_of(graph.nodes, [](const auto& node)
-    { return node.fillColor != NoDiagramColor || node.strokeColor != NoDiagramColor || node.textColor != NoDiagramColor; }) ||
-           std::ranges::any_of(graph.edges, [](const auto& edge) { return edge.strokeColor != NoDiagramColor; });
+    return std::ranges::any_of(graph.nodes, [](const auto& node) {
+        return node.fillColor != NoDiagramColor || node.strokeColor != NoDiagramColor || node.textColor != NoDiagramColor;
+    }) || std::ranges::any_of(graph.edges, [](const auto& edge) { return edge.strokeColor != NoDiagramColor; });
 }
 bool DiagramPalette::Advance()
 {
     const auto nodeSlots = graph->nodes.size() * 3u;
-    const auto total = nodeSlots + graph->edges.size();
+    const auto total     = nodeSlots + graph->edges.size();
     while (cursor < total)
     {
         const auto current = cursor;
@@ -156,8 +159,8 @@ bool DiagramPalette::Advance()
         else
         {
             const auto edge = current - nodeSlots;
-            color = graph->edges[edge].strokeColor;
-            brush = std::addressof(edgeStrokes[edge]);
+            color           = graph->edges[edge].strokeColor;
+            brush           = std::addressof(edgeStrokes[edge]);
         }
         if (color == NoDiagramColor)
         {
@@ -253,8 +256,8 @@ struct PreparedFlowchart::State
         if (std::ranges::any_of(graph->nodes, [](const auto& node) { return node.borderDashed; }) ||
             std::ranges::any_of(graph->edges, [](const auto& edge) { return edge.dashed; }))
         {
-            const auto properties = D2D1::StrokeStyleProperties(D2D1_CAP_STYLE_FLAT, D2D1_CAP_STYLE_FLAT, D2D1_CAP_STYLE_FLAT,
-                                                                D2D1_LINE_JOIN_MITER, 10.f, D2D1_DASH_STYLE_CUSTOM, 0.f);
+            const auto properties = D2D1::StrokeStyleProperties(
+                D2D1_CAP_STYLE_FLAT, D2D1_CAP_STYLE_FLAT, D2D1_CAP_STYLE_FLAT, D2D1_LINE_JOIN_MITER, 10.f, D2D1_DASH_STYLE_CUSTOM, 0.f);
             constexpr std::array<FLOAT, 2u> dashes{5.f, 5.f};
             THROW_IF_FAILED(drawing->CreateStrokeStyle(properties, dashes.data(), static_cast<UINT32>(dashes.size()), dashedStyle.put()));
         }
@@ -263,7 +266,8 @@ struct PreparedFlowchart::State
     {
         wil::com_ptr<IDWriteTextLayout> layout;
         constexpr auto maximum = static_cast<float>(NativeFlowchartLayout::MaximumExtent);
-        const auto labelWidth  = options.diagramLabelWidthDip > 0.f ? options.diagramLabelWidthDip : std::min(maximum, std::max(1.f, options.fontSizeDip * 12.5f));
+        const auto labelWidth =
+            options.diagramLabelWidthDip > 0.f ? options.diagramLabelWidthDip : std::min(maximum, std::max(1.f, options.fontSizeDip * 12.5f));
         THROW_IF_FAILED(write->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format.get(), labelWidth, maximum, layout.put()));
         if (styles)
             for (std::size_t index = 0u; index < styles->count; ++index)
@@ -370,13 +374,16 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
         throw std::invalid_argument("Invalid native mindmap hierarchy model");
     for (const auto& node : graph->nodes)
         if (node.strokeWidth < 1u || node.strokeWidth > 3u || ! ValidDiagramColor(node.fillColor) || ! ValidDiagramColor(node.strokeColor) ||
-            ! ValidDiagramColor(node.textColor) || (graph->family != NativeDiagramFamily::Flowchart &&
-            (node.strokeWidth != 1u || node.borderDashed || node.fillColor != NoDiagramColor || node.strokeColor != NoDiagramColor || node.textColor != NoDiagramColor)) ||
+            ! ValidDiagramColor(node.textColor) ||
+            (graph->family != NativeDiagramFamily::Flowchart && (node.strokeWidth != 1u || node.borderDashed || node.fillColor != NoDiagramColor ||
+                                                                 node.strokeColor != NoDiagramColor || node.textColor != NoDiagramColor)) ||
             ! ValidLabelStyles(node.styles, node.label.size(), graph->family == NativeDiagramFamily::Flowchart))
             throw std::invalid_argument("Invalid native node stroke width");
     for (const auto& edge : graph->edges)
         if (! ValidLabelStyles(edge.styles, edge.label.size(), graph->family == NativeDiagramFamily::Flowchart) || edge.strokeWidth > 3u ||
-            ! ValidDiagramColor(edge.strokeColor) || (graph->family != NativeDiagramFamily::Flowchart && (edge.strokeWidth || edge.dashed || edge.dashSpecified || edge.strokeColor != NoDiagramColor)) ||
+            ! ValidDiagramColor(edge.strokeColor) ||
+            (graph->family != NativeDiagramFamily::Flowchart &&
+             (edge.strokeWidth || edge.dashed || edge.dashSpecified || edge.strokeColor != NoDiagramColor)) ||
             (edge.dashed && ! edge.dashSpecified))
             throw std::invalid_argument("Invalid native edge label styles");
     if (! graph->groups.empty() && graph->family != NativeDiagramFamily::Flowchart && graph->family != NativeDiagramFamily::State &&
@@ -698,8 +705,13 @@ std::shared_ptr<const FlowchartLayoutPlan> PreparedFlowchart::Geometry() const n
 {
     return state_ ? state_->geometry : nullptr;
 }
-bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1Brush* stroke, ID2D1Brush* fill, D2D1_POINT_2F origin,
-                             const DiagramPalette* palette, const DiagramColorContext* colors) const noexcept
+bool PreparedFlowchart::Draw(ID2D1RenderTarget* target,
+                             ID2D1Brush* text,
+                             ID2D1Brush* stroke,
+                             ID2D1Brush* fill,
+                             D2D1_POINT_2F origin,
+                             const DiagramPalette* palette,
+                             const DiagramColorContext* colors) const noexcept
 {
     if (! Ready() || ! target || ! text || ! stroke || ! fill || ! std::isfinite(origin.x) || ! std::isfinite(origin.y))
         return false;
@@ -707,10 +719,12 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
     target->GetFactory(drawing.put());
     if (drawing.get() != state_->drawing.get())
         return false;
-    if (palette && (! palette->Ready() || ! palette->Matches(state_->graph.get(), target))) return false;
+    if (palette && (! palette->Ready() || ! palette->Matches(state_->graph.get(), target)))
+        return false;
     // Contrast against a translucent surface depends on its unknown backdrop.
     // Keep theme brushes until the caller supplies an opaque surface.
-    if (colors && colors->fill.a != 1.f) colors = nullptr;
+    if (colors && colors->fill.a != 1.f)
+        colors = nullptr;
     D2D1_MATRIX_3X2_F previous;
     target->GetTransform(&previous);
     const auto restore = wil::scope_exit([&]() noexcept { target->SetTransform(previous); });
@@ -779,12 +793,13 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
         if (edge.style == FlowchartLineStyle::Invisible)
             continue;
         const auto& authored = state.graph->edges[index];
-        auto* edgeStroke = stroke;
+        auto* edgeStroke     = stroke;
         if (palette && colors && authored.strokeColor != NoDiagramColor && Contrast(DiagramColor(authored.strokeColor), colors->fill) >= 3.0)
             edgeStroke = palette->edgeStrokes[index].get();
         const float lineWidth = authored.strokeWidth ? static_cast<float>(authored.strokeWidth) : edge.style == FlowchartLineStyle::Thick ? 3.f : 1.f;
-        auto* lineStyle = authored.dashSpecified ? (authored.dashed ? state.dashedStyle.get() : nullptr)
-                                                : edge.style == FlowchartLineStyle::Dotted ? state.dottedStyle.get() : nullptr;
+        auto* lineStyle       = authored.dashSpecified                     ? (authored.dashed ? state.dashedStyle.get() : nullptr)
+                                : edge.style == FlowchartLineStyle::Dotted ? state.dottedStyle.get()
+                                                                           : nullptr;
         for (std::size_t point = 1u; point < edge.path.size(); ++point)
         {
             auto end = edge.path[point];
@@ -856,29 +871,32 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
     }
     for (std::size_t index = 0u; index < plan.nodes.size(); ++index)
     {
-        const auto& node           = plan.nodes[index];
+        const auto& node = plan.nodes[index];
         auto* nodeStroke = stroke;
-        auto* nodeFill = fill;
-        auto* nodeText = text;
+        auto* nodeFill   = fill;
+        auto* nodeText   = text;
         if (palette && colors)
         {
-            const auto& authoredNode = state.graph->nodes[index];
-            const auto candidateFill = authoredNode.fillColor == NoDiagramColor ? colors->fill : DiagramColor(authoredNode.fillColor);
-            const auto candidateText = authoredNode.textColor == NoDiagramColor ? colors->text : DiagramColor(authoredNode.textColor);
+            const auto& authoredNode   = state.graph->nodes[index];
+            const auto candidateFill   = authoredNode.fillColor == NoDiagramColor ? colors->fill : DiagramColor(authoredNode.fillColor);
+            const auto candidateText   = authoredNode.textColor == NoDiagramColor ? colors->text : DiagramColor(authoredNode.textColor);
             const auto candidateStroke = authoredNode.strokeColor == NoDiagramColor ? colors->stroke : DiagramColor(authoredNode.strokeColor);
             if (Contrast(candidateFill, Composite(candidateText, candidateFill)) >= 4.5 &&
                 Contrast(candidateFill, Composite(candidateStroke, candidateFill)) >= 3.0)
             {
-                if (authoredNode.fillColor != NoDiagramColor) nodeFill = palette->fills[index].get();
-                if (authoredNode.textColor != NoDiagramColor) nodeText = palette->texts[index].get();
-                if (authoredNode.strokeColor != NoDiagramColor) nodeStroke = palette->strokes[index].get();
+                if (authoredNode.fillColor != NoDiagramColor)
+                    nodeFill = palette->fills[index].get();
+                if (authoredNode.textColor != NoDiagramColor)
+                    nodeText = palette->texts[index].get();
+                if (authoredNode.strokeColor != NoDiagramColor)
+                    nodeStroke = palette->strokes[index].get();
             }
             else if (authoredNode.strokeColor != NoDiagramColor && Contrast(DiagramColor(authoredNode.strokeColor), colors->fill) >= 3.0)
                 nodeStroke = palette->strokes[index].get();
         }
         const auto bounds          = Rect(node.bounds);
         const auto nodeStrokeWidth = static_cast<float>(state.graph->nodes[index].strokeWidth);
-        auto* nodeStrokeStyle = state.graph->nodes[index].borderDashed ? state.dashedStyle.get() : nullptr;
+        auto* nodeStrokeStyle      = state.graph->nodes[index].borderDashed ? state.dashedStyle.get() : nullptr;
         if (node.shape == FlowchartShape::Bar)
         {
             target->FillRectangle(bounds, nodeStroke);
@@ -903,8 +921,10 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
         {
             target->FillGeometry(state.nodePaths[index].get(), nodeFill);
             target->DrawGeometry(state.nodePaths[index].get(), nodeStroke, nodeStrokeWidth, nodeStrokeStyle);
-            target->DrawEllipse(D2D1::Ellipse(D2D1::Point2F((bounds.left + bounds.right) / 2.f, bounds.top + 8.f),
-                                               (bounds.right - bounds.left) / 2.f, 8.f), nodeStroke, nodeStrokeWidth, nodeStrokeStyle);
+            target->DrawEllipse(D2D1::Ellipse(D2D1::Point2F((bounds.left + bounds.right) / 2.f, bounds.top + 8.f), (bounds.right - bounds.left) / 2.f, 8.f),
+                                nodeStroke,
+                                nodeStrokeWidth,
+                                nodeStrokeStyle);
         }
         else if (node.shape == FlowchartShape::Rounded)
         {

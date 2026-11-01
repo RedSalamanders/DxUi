@@ -130,7 +130,7 @@ struct MarkdownCommandRequest
     // destination/title are semantic Unicode values serialized by the planner.
     std::wstring_view text, destination, title;
     MarkdownAlignment tableAlignment = MarkdownAlignment::None;
-    MarkdownEnterPolicy enterPolicy = MarkdownEnterPolicy::RawNewline;
+    MarkdownEnterPolicy enterPolicy  = MarkdownEnterPolicy::RawNewline;
     // InsertTable may consume a quoted delimited Unicode payload in text.
     MarkdownTableInputFormat tableInputFormat = MarkdownTableInputFormat::Empty;
 };

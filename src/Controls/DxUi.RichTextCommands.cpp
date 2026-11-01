@@ -1,5 +1,5 @@
-#include "DxUi.MarkdownTableCells.h"
 #include "DxUi.MarkdownLabels.h"
+#include "DxUi.MarkdownTableCells.h"
 #include "DxUi.RichFileReferenceContext.h"
 #include "DxUi.RichImagePaths.h"
 #include "DxUi.RichSemanticHtml.h"
@@ -145,20 +145,19 @@ std::optional<RuleAdmission> InspectThematicBreak(const MarkdownSyntax& syntax, 
 std::optional<std::size_t> FindCommandFootnoteOwner(const MarkdownSyntax& syntax, Selection selection) noexcept
 {
     const auto& nodes = syntax.Nodes();
-    auto note = MarkdownNoNode;
-    const auto caretNote = selection.Start() == selection.End()
-                               ? CommandNodeAt(syntax, MarkdownBlockKind::FootnoteDefinition, selection.Start())
-                               : MarkdownNoNode;
+    auto note         = MarkdownNoNode;
+    const auto caretNote =
+        selection.Start() == selection.End() ? CommandNodeAt(syntax, MarkdownBlockKind::FootnoteDefinition, selection.Start()) : MarkdownNoNode;
     for (size_t index = 0u; index < nodes.size(); ++index)
     {
         const auto& node = nodes[index];
         if (node.block.kind != MarkdownBlockKind::FootnoteDefinition ||
             ! (selection.Start() == selection.End() ? caretNote == index
-                                                     : node.block.source.first < selection.End() && selection.Start() < node.block.source.last))
+                                                    : node.block.source.first < selection.End() && selection.Start() < node.block.source.last))
             continue;
         const auto resolved = std::ranges::find(syntax.Footnotes(), index, &MarkdownFootnote::definition);
-        if (note != MarkdownNoNode || resolved == syntax.Footnotes().end() || ! resolved->ordinal ||
-            selection.Start() < node.block.content.first || selection.End() > node.block.source.last)
+        if (note != MarkdownNoNode || resolved == syntax.Footnotes().end() || ! resolved->ordinal || selection.Start() < node.block.content.first ||
+            selection.End() > node.block.source.last)
             return std::nullopt;
         note = index;
     }
@@ -316,8 +315,7 @@ static std::optional<size_t> FindInlineInsertionSite(const MarkdownSyntax& synta
     {
         if (node.kind == MarkdownInlineKind::Text || node.source.last <= first || node.source.first >= last)
             continue;
-        const bool style =
-            InlineStyleDelimiterWidth(node.kind) != 0u;
+        const bool style   = InlineStyleDelimiterWidth(node.kind) != 0u;
         const size_t count = InlineStyleDelimiterWidth(node.kind);
         if (! style || node.source.last - node.source.first < count * 2u || first < node.source.first + count || last > node.source.last - count)
             return std::nullopt;
@@ -327,8 +325,7 @@ static std::optional<size_t> FindInlineInsertionSite(const MarkdownSyntax& synta
         {
             if (node.kind == MarkdownInlineKind::Text || node.source.first >= first || node.source.last <= first)
                 continue;
-            const bool style =
-                InlineStyleDelimiterWidth(node.kind) != 0u;
+            const bool style       = InlineStyleDelimiterWidth(node.kind) != 0u;
             const size_t delimiter = InlineStyleDelimiterWidth(node.kind);
             if (! style || node.source.last - node.source.first < delimiter * 2u || first < node.source.first + delimiter ||
                 first > node.source.last - delimiter)
@@ -610,11 +607,8 @@ static PhysicalLine PhysicalAt(std::wstring_view text, std::size_t at) noexcept
     return {first, bodyEnd, end};
 }
 // Consumes only container prefixes proven by the syntax tree.
-static bool CommandOuterOffset(std::wstring_view text,
-                               const std::vector<MarkdownNode>& nodes,
-                               std::size_t node,
-                               const PhysicalLine& line,
-                               std::size_t& at) noexcept
+static bool CommandOuterOffset(
+    std::wstring_view text, const std::vector<MarkdownNode>& nodes, std::size_t node, const PhysicalLine& line, std::size_t& at) noexcept
 {
     auto firstContent = line.first;
     while (firstContent < line.bodyEnd && Space(text[firstContent]))
@@ -1467,8 +1461,7 @@ struct MarkdownCommandPlanner
         std::wstring inserted(Eol(line));
         inserted += prefix;
         const auto leaf = LeafAt(first);
-        if (policy == MarkdownEnterPolicy::NewParagraph && item == MarkdownNoNode && leaf != MarkdownNoNode &&
-            nodes[leaf].block.kind == Kind::Paragraph)
+        if (policy == MarkdownEnterPolicy::NewParagraph && item == MarkdownNoNode && leaf != MarkdownNoNode && nodes[leaf].block.kind == Kind::Paragraph)
         {
             inserted += Eol(line);
             inserted += prefix;
@@ -1882,7 +1875,7 @@ void MarkdownCommandPlanner::Renumber(const MarkdownCommandRequest& request)
         if (! Prefix(node, prefix))
             return;
         wchar_t digits[9]{};
-        auto current = number;
+        auto current       = number;
         std::size_t length = 0u;
         do
         {
@@ -1893,7 +1886,7 @@ void MarkdownCommandPlanner::Renumber(const MarkdownCommandRequest& request)
         for (std::size_t i = 0u; i < length; ++i)
             marker[i] = digits[length - i - 1u];
         const auto oldLength = prefix.markerEnd - prefix.first - 1u;
-        const auto delta = static_cast<int>(length) - static_cast<int>(oldLength);
+        const auto delta     = static_cast<int>(length) - static_cast<int>(oldLength);
         if (! ShiftFollowing(node, Line(nodes[node].block.source.first), delta))
             return;
         Add(prefix.first, prefix.markerEnd - 1u, marker);
@@ -1912,7 +1905,7 @@ void MarkdownCommandPlanner::MoveLine(bool up)
         if (adjacent == MarkdownNoNode || nodes[adjacent].block.kind != Kind::ListItem)
             return;
         current = nodes[item].block.source;
-        other = nodes[adjacent].block.source;
+        other   = nodes[adjacent].block.source;
     }
     else
     {
@@ -1927,17 +1920,19 @@ void MarkdownCommandPlanner::MoveLine(bool up)
         if (NodeAt(Kind::Paragraph, adjacent.first) != paragraph || NodeAt(Kind::ListItem, adjacent.first) != MarkdownNoNode)
             return;
         current = {line.first, line.end};
-        other = {adjacent.first, adjacent.end};
+        other   = {adjacent.first, adjacent.end};
     }
-    const auto first = up ? other : current;
+    const auto first  = up ? other : current;
     const auto second = up ? current : other;
     if (first.last != second.first || first.first == first.last || second.first == second.last)
         return;
     const auto bodyEnd = [&](MarkdownRange range)
     {
         auto end = range.last;
-        if (end > range.first && text[end - 1u] == L'\n') --end;
-        if (end > range.first && text[end - 1u] == L'\r') --end;
+        if (end > range.first && text[end - 1u] == L'\n')
+            --end;
+        if (end > range.first && text[end - 1u] == L'\r')
+            --end;
         return end;
     };
     const auto firstBody = bodyEnd(first), secondBody = bodyEnd(second);
@@ -1950,7 +1945,7 @@ void MarkdownCommandPlanner::MoveLine(bool up)
     value += Slice(first.first, firstBody);
     value += Slice(secondBody, second.last);
     const auto target = up ? first.first : first.first + secondBody - second.first + first.last - firstBody;
-    plan.after_ = {target + selection.anchor - current.first, target + selection.caret - current.first};
+    plan.after_       = {target + selection.anchor - current.first, target + selection.caret - current.first};
     explicitSelection = true;
     Add(first.first, second.last, value);
     plan.applicable_ = true;
@@ -2234,9 +2229,8 @@ void MarkdownCommandPlanner::HardBreak()
         const bool intersects = first == last ? node.source.first < first && first < node.source.last : node.source.first < last && node.source.last > first;
         if (node.kind == MarkdownInlineKind::Text || ! intersects)
             continue;
-        const bool style =
-            InlineStyleDelimiterWidth(node.kind) != 0u;
-        const auto body = style ? InlineBody(node) : std::nullopt;
+        const bool style = InlineStyleDelimiterWidth(node.kind) != 0u;
+        const auto body  = style ? InlineBody(node) : std::nullopt;
         if (! body || first < body->first || last > body->last)
             return;
     }
@@ -2378,8 +2372,7 @@ void MarkdownCommandPlanner::ClearFormatting()
     {
         if (node.source.first >= last || node.source.last <= first || node.kind == MarkdownInlineKind::Text)
             continue;
-        if (! InlineStyleDelimiterWidth(node.kind) &&
-            node.kind != MarkdownInlineKind::Link)
+        if (! InlineStyleDelimiterWidth(node.kind) && node.kind != MarkdownInlineKind::Link)
             return;
         if (node.kind == MarkdownInlineKind::Link && text[node.source.first] != L'[')
             return; // Bare/autolinks would become links again without escaping.
@@ -2927,9 +2920,8 @@ void MarkdownCommandPlanner::Image(const MarkdownCommandRequest& request)
         const bool intersects = first == last ? node.source.first < first && first < node.source.last : node.source.first < last && node.source.last > first;
         if (node.kind == MarkdownInlineKind::Text || ! intersects)
             continue;
-        const bool style =
-            InlineStyleDelimiterWidth(node.kind) != 0u;
-        const auto body = style ? InlineBody(node) : std::nullopt;
+        const bool style = InlineStyleDelimiterWidth(node.kind) != 0u;
+        const auto body  = style ? InlineBody(node) : std::nullopt;
         if (! body || first < body->first || last > body->last)
             return;
     }
@@ -3065,9 +3057,8 @@ void MarkdownCommandPlanner::Style(MarkdownTextStyle style)
         if (node.kind != MarkdownInlineKind::Text && node.source.first < plan.before_.End() && node.source.last > plan.before_.Start() &&
             (plan.before_.Start() > node.source.first || plan.before_.End() < node.source.last))
         {
-            const bool eligibleAncestorStyle =
-                InlineStyleDelimiterWidth(node.kind) != 0u;
-            const auto body = eligibleAncestorStyle ? InlineBody(node) : std::nullopt;
+            const bool eligibleAncestorStyle = InlineStyleDelimiterWidth(node.kind) != 0u;
+            const auto body                  = eligibleAncestorStyle ? InlineBody(node) : std::nullopt;
             // Nested formatting may be applied to a complete source selection
             // inside an existing style body (including entity source spelling).
             // Crossing the style delimiters or any other non-text token remains
@@ -3344,7 +3335,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
     if (request.command == MarkdownCommand::InsertTable)
     {
         std::vector<std::vector<std::wstring>> rows(0u);
-        auto columns = request.tableColumns;
+        auto columns  = request.tableColumns;
         auto bodyRows = request.tableBodyRows;
         if (request.tableInputFormat != MarkdownTableInputFormat::Empty)
         {
@@ -3367,7 +3358,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
                     throw std::length_error("Delimited table column capacity exceeded");
                 row.emplace_back(field);
                 field.clear();
-                closed = false;
+                closed  = false;
                 atStart = true;
             };
             const auto finishRow = [&]
@@ -3409,7 +3400,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
                 }
                 else if (ch == L'"' && atStart)
                 {
-                    quoted = true;
+                    quoted  = true;
                     atStart = false;
                 }
                 else
@@ -3483,19 +3474,21 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
                     for (std::size_t at = 0u; at < rows[index][column].size(); ++at)
                     {
                         const auto ch = rows[index][column][at];
-                        if (ch == L' ') result += L"&#32;";
-                        else if (ch == L'\t') result += L"&#9;";
+                        if (ch == L' ')
+                            result += L"&#32;";
+                        else if (ch == L'\t')
+                            result += L"&#9;";
                         else if (ch == L'\r')
                         {
                             result += L"&#10;";
                             if (at + 1u < rows[index][column].size() && rows[index][column][at + 1u] == L'\n')
                                 ++at;
                         }
-                        else if (ch == L'\n') result += L"&#10;";
+                        else if (ch == L'\n')
+                            result += L"&#10;";
                         else
                         {
-                            if ((ch >= L'!' && ch <= L'/') || (ch >= L':' && ch <= L'@') ||
-                                (ch >= L'[' && ch <= L'`') || (ch >= L'{' && ch <= L'~'))
+                            if ((ch >= L'!' && ch <= L'/') || (ch >= L':' && ch <= L'@') || (ch >= L'[' && ch <= L'`') || (ch >= L'{' && ch <= L'~'))
                                 result.push_back(L'\\');
                             result.push_back(ch);
                         }

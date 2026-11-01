@@ -3141,7 +3141,7 @@ struct RichTextEditorAppearance
     float diagramLabelWidthDip                               = 0.0f;                   // Zero uses 12.5 times the font size; otherwise 1..4096 DIP.
     RichText::SoftBreakPolicy softBreakPolicy                = RichText::SoftBreakPolicy::Space;
     RichText::MarkdownEnterPolicy enterPolicy                = RichText::MarkdownEnterPolicy::RawNewline;
-    bool autoParagraphDirection = false; // Opt in to first-strong semantic paragraphs.
+    bool autoParagraphDirection                              = false; // Opt in to first-strong semantic paragraphs.
 };
 struct RichTextSourceHighlight
 {
@@ -6604,10 +6604,10 @@ private:
     std::weak_ptr<int> _supplementalTooltipLifetime;
     std::wstring _supplementalTooltipText      = std::wstring(0u, L' ');
     D2D1_POINT_2F _supplementalTooltipPointDip = D2D1::Point2F();
-    UINT _supplementalTooltipModifiers = 0u;
+    UINT _supplementalTooltipModifiers         = 0u;
     bool _supplementalTooltipIsRichTitle = false, _supplementalTooltipNeedsResolve = false;
-    Button* _defaultButton                     = nullptr;
-    Button* _cancelButton                      = nullptr;
+    Button* _defaultButton = nullptr;
+    Button* _cancelButton  = nullptr;
     PointerDoubleClickCandidate _pendingPointerDoubleClick;
     std::shared_ptr<const std::function<bool(bool reverse)>> _onTabBoundary;
     std::shared_ptr<const std::function<bool()>> _onEscape;

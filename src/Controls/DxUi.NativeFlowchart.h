@@ -98,7 +98,10 @@ struct FlowchartLabelStyles
     std::size_t count{};
 };
 inline constexpr std::uint32_t NoDiagramColor = 0x01000000u;
-inline bool ValidDiagramColor(std::uint32_t color) noexcept { return color <= NoDiagramColor; }
+inline bool ValidDiagramColor(std::uint32_t color) noexcept
+{
+    return color <= NoDiagramColor;
+}
 inline bool ValidLabelStyles(const FlowchartLabelStyles& styles, std::size_t length, bool admitted) noexcept
 {
     if (styles.count > styles.spans.size() || (! admitted && styles.count))
@@ -196,7 +199,7 @@ struct FlowchartEdge
     FlowchartLineStyle style{};
     std::size_t minimumRanks{1u};
     bool arrow{};
-    bool openArrow{}; // Sequence asynchronous messages use an open arrowhead.
+    bool openArrow{};       // Sequence asynchronous messages use an open arrowhead.
     unsigned strokeWidth{}; // Zero preserves the edge syntax's normal/thick width.
     bool dashed{};
     bool dashSpecified{};

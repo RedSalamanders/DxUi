@@ -578,11 +578,11 @@ public:
         if (! result)
             return E_POINTER;
         const auto snapshot = CaptureSnapshot();
-        const auto* record = Record(snapshot);
+        const auto* record  = Record(snapshot);
         if (! record)
             return UIA_E_ELEMENTNOTAVAILABLE;
         const auto& document = *record->RichSemantic();
-        const auto role = document.Elements()[element_].role;
+        const auto role      = document.Elements()[element_].role;
         if (codeCopy_ || (role != RichText::SemanticRole::Link && role != RichText::SemanticRole::Image) || ! document.SourceEditingRange(element_))
             return UIA_E_NOTSUPPORTED;
         *result = document.IsSourceEditingElement(element_) ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed;

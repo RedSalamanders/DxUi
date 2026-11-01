@@ -3440,7 +3440,7 @@ try
             _supplementalTooltipControl = nullptr;
             _supplementalTooltipLifetime.reset();
             _supplementalTooltipText.clear();
-            _supplementalTooltipIsRichTitle = false;
+            _supplementalTooltipIsRichTitle  = false;
             _supplementalTooltipNeedsResolve = false;
             ClearTooltip();
             Invalidate();
@@ -5534,7 +5534,7 @@ void ControlHost::ResetRootInteractionState() noexcept
     _supplementalTooltipControl = nullptr;
     _supplementalTooltipLifetime.reset();
     _supplementalTooltipText.clear();
-    _supplementalTooltipIsRichTitle = false;
+    _supplementalTooltipIsRichTitle  = false;
     _supplementalTooltipNeedsResolve = false;
     ClearTooltip();
     ReleaseMouseCapture();
@@ -5614,9 +5614,9 @@ HCURSOR ControlHost::ResolveCursorHandle(WindowHostCursorKind cursorKind) const 
 
 void ControlHost::UpdateHover(D2D1_POINT_2F pointDip, UINT modifiers) noexcept
 {
-    _supplementalTooltipModifiers = modifiers;
+    _supplementalTooltipModifiers    = modifiers;
     _supplementalTooltipNeedsResolve = false;
-    const auto interactionRevision = _interactionRevision;
+    const auto interactionRevision   = _interactionRevision;
     PruneStaleInteractionState();
     if (_interactionRevision != interactionRevision)
         return;
@@ -5713,7 +5713,8 @@ Control* ControlHost::FindSupplementalTooltipTarget(Control* root, D2D1_POINT_2F
     return SupplementalTooltipText(root, pointDip).empty() ? nullptr : root;
 }
 
-void ControlHost::UpdateSupplementalTooltipTarget(D2D1_POINT_2F pointDip) noexcept try
+void ControlHost::UpdateSupplementalTooltipTarget(D2D1_POINT_2F pointDip) noexcept
+try
 {
     Control* const target = FindSupplementalTooltipTarget(_root.get(), pointDip);
     // A copy that cannot be made (out of memory) shows no supplemental tooltip rather than leaving this noexcept path.
@@ -5722,13 +5723,13 @@ void ControlHost::UpdateSupplementalTooltipTarget(D2D1_POINT_2F pointDip) noexce
     if (target && ! TryControlCallback([&] { targetText.assign(SupplementalTooltipText(target, pointDip, &richTitle)); }))
         targetText.clear();
     const bool targetLifetimeExpired = _supplementalTooltipControl && _supplementalTooltipLifetime.expired();
-    const bool targetChanged = target != _supplementalTooltipControl || targetLifetimeExpired || targetText != _supplementalTooltipText ||
-                               richTitle != _supplementalTooltipIsRichTitle;
+    const bool targetChanged         = target != _supplementalTooltipControl || targetLifetimeExpired || targetText != _supplementalTooltipText ||
+                                       richTitle != _supplementalTooltipIsRichTitle;
     _supplementalTooltipPointDip     = pointDip;
     if (targetChanged)
     {
-        const auto lifetime = target ? target->GetLifetimeToken() : std::weak_ptr<int>{};
-        const auto interaction = _interactionRevision;
+        const auto lifetime        = target ? target->GetLifetimeToken() : std::weak_ptr<int>{};
+        const auto interaction     = _interactionRevision;
         const auto tooltipRevision = _tooltipInspectionRevision;
         static_cast<void>(ClearTooltip());
         if (_tooltipInspectionRevision != tooltipRevision + 1u || _interactionRevision != interaction ||
@@ -5831,7 +5832,7 @@ void ControlHost::UpdateModifierStateForKey(UINT virtualKey, bool keyDown, bool 
     }
     if (bit == MK_CONTROL && _hoveredControl)
     {
-        _supplementalTooltipModifiers = (_supplementalTooltipModifiers & ~MK_CONTROL) | (_modifierState & MK_CONTROL);
+        _supplementalTooltipModifiers    = (_supplementalTooltipModifiers & ~MK_CONTROL) | (_modifierState & MK_CONTROL);
         _supplementalTooltipNeedsResolve = true;
         RequestAnimation();
     }

@@ -20,7 +20,7 @@ inline DWRITE_READING_DIRECTION FirstStrongDirection(std::wstring_view text, DWR
     for (std::size_t at = 0u; at < text.size();)
     {
         const auto scalar = ReadCodePointAt(text, at);
-        at = scalar.end;
+        at                = scalar.end;
         if (scalar.value >= 0x2066u && scalar.value <= 0x2068u)
         {
             ++depth;

@@ -618,7 +618,7 @@ struct AccessibilityRichTextSnapshot
     }
     std::wstring bodyFont, codeFont, copyName;
     bool externalLinkActivationEnabled = false;
-    bool readOnlyTasksInteractive = false;
+    bool readOnlyTasksInteractive      = false;
     double fontSizePoints              = 0.0;
     double codeFontSizePoints          = 0.0;
     double headingScaleStep            = 0.15;
@@ -2316,7 +2316,7 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
                     readFamily(host.GetTextFormat(FontRole::Monospace), rich->codeFont);
                     rich->fontSizePoints                = static_cast<double>(body->GetFontSize()) * 72.0 / 96.0;
                     rich->externalLinkActivationEnabled = editor->HasLinkActivationHandler();
-                    rich->readOnlyTasksInteractive = editor->GetTaskTogglePolicy() == RichTextTaskTogglePolicy::AlwaysInteractive;
+                    rich->readOnlyTasksInteractive      = editor->GetTaskTogglePolicy() == RichTextTaskTogglePolicy::AlwaysInteractive;
                     const auto& appearance              = editor->GetAppearance();
                     if (! appearance.bodyFontFamily.empty())
                         rich->bodyFont = appearance.bodyFontFamily;
@@ -13522,11 +13522,11 @@ bool TryHandleWindowHostAccessibilityMessage(HWND hwnd, UINT msg, WPARAM wp, LPA
 
     if (request.semanticProvider)
     {
-        request.result = request.kind == AccessibilityUiActionKind::Toggle   ? request.semanticProvider->Toggle()
-                         : request.kind == AccessibilityUiActionKind::Invoke ? request.semanticProvider->Invoke()
-                         : request.kind == AccessibilityUiActionKind::Expand ? request.semanticProvider->Expand()
+        request.result = request.kind == AccessibilityUiActionKind::Toggle     ? request.semanticProvider->Toggle()
+                         : request.kind == AccessibilityUiActionKind::Invoke   ? request.semanticProvider->Invoke()
+                         : request.kind == AccessibilityUiActionKind::Expand   ? request.semanticProvider->Expand()
                          : request.kind == AccessibilityUiActionKind::Collapse ? request.semanticProvider->Collapse()
-                                                                             : static_cast<HRESULT>(UIA_E_NOTSUPPORTED);
+                                                                               : static_cast<HRESULT>(UIA_E_NOTSUPPORTED);
         return true;
     }
     if (request.provider)

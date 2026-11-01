@@ -344,8 +344,7 @@ template <typename Check> inline void CheckModel(const FlowchartModel& model, co
     {
         const auto& node = model.nodes.front();
         check(node.identifier.first == 13u && node.identifier.last == 14u && node.declaration.first == 13u && node.declaration.last == 29u &&
-                  node.styles.count == 1u && node.styles.spans[0u].first == 0u && node.styles.spans[0u].last == 4u &&
-                  node.styles.spans[0u].flags == LabelBold,
+                  node.styles.count == 1u && node.styles.spans[0u].first == 0u && node.styles.spans[0u].last == 4u && node.styles.spans[0u].flags == LabelBold,
               "bold HTML fixture preserves the exact declaration and bold text interval");
     }
     for (const auto& node : model.nodes)
@@ -480,8 +479,8 @@ template <typename Check> inline void CheckOriginalCorpus(Check&& check)
                   "declined original Mermaid fences retain bounded diagnostics and expose no partial model");
     }
     check(std::size(NativeFlowchartCorpus::allFences) == 342u, "all pinned Mermaid fences run, including every family and example collection");
-    std::cout << "Pinned Mermaid fences: " << std::size(NativeFlowchartCorpus::allFences) << "; prepared=" << outcomes[0u]
-              << "; malformed=" << outcomes[1u] << "; unsupported=" << outcomes[2u] << "; capacity=" << outcomes[3u] << '\n';
+    std::cout << "Pinned Mermaid fences: " << std::size(NativeFlowchartCorpus::allFences) << "; prepared=" << outcomes[0u] << "; malformed=" << outcomes[1u]
+              << "; unsupported=" << outcomes[2u] << "; capacity=" << outcomes[3u] << '\n';
     CheckFamilyGrammar(check);
     CheckFanout(check);
 }

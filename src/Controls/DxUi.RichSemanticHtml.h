@@ -143,8 +143,8 @@ inline bool ParseNativeHtmlTag(std::wstring_view value, NativeHtmlTag& tag)
         tag.kind = NativeHtmlKind::Comment;
         return true;
     }
-    constexpr std::wstring_view names[] = {L"b",  L"strong", L"i",  L"em", L"u",  L"s",  L"del", L"code", L"span", L"a",    L"br",  L"p", L"div",
-                                           L"h1", L"h2",     L"h3", L"h4", L"h5", L"h6", L"pre", L"kbd",  L"ins",  L"mark", L"img", L"hr", L"sup", L"sub"};
+    constexpr std::wstring_view names[] = {L"b",  L"strong", L"i",  L"em", L"u",  L"s",   L"del", L"code", L"span", L"a",   L"br", L"p",   L"div", L"h1",
+                                           L"h2", L"h3",     L"h4", L"h5", L"h6", L"pre", L"kbd", L"ins",  L"mark", L"img", L"hr", L"sup", L"sub"};
     if (value.size() < 3u || value.front() != L'<' || value.back() != L'>')
         return false;
     std::size_t at = 1u;
@@ -172,16 +172,16 @@ inline bool ParseNativeHtmlTag(std::wstring_view value, NativeHtmlTag& tag)
         if (value[at] == L'/')
             return ! tag.closing && (tag.kind == NativeHtmlKind::Br || tag.kind == NativeHtmlKind::Img || tag.kind == NativeHtmlKind::Hr) && complete() &&
                    at + 1u == value.size() - 1u;
-        if (at == before || tag.closing || (tag.kind != NativeHtmlKind::A && tag.kind != NativeHtmlKind::Img &&
-                                             tag.kind != NativeHtmlKind::P && tag.kind != NativeHtmlKind::Div))
+        if (at == before || tag.closing ||
+            (tag.kind != NativeHtmlKind::A && tag.kind != NativeHtmlKind::Img && tag.kind != NativeHtmlKind::P && tag.kind != NativeHtmlKind::Div))
             return false;
         const auto nameFirst = at;
         while (at < value.size() && HtmlLower(value[at]) >= L'a' && HtmlLower(value[at]) <= L'z')
             ++at;
-        const auto name    = value.substr(nameFirst, at - nameFirst);
-        const bool isImage = tag.kind == NativeHtmlKind::Img;
+        const auto name     = value.substr(nameFirst, at - nameFirst);
+        const bool isImage  = tag.kind == NativeHtmlKind::Img;
         const bool isAnchor = tag.kind == NativeHtmlKind::A;
-        const bool isHref = (isImage || isAnchor) && HtmlName(name, isImage ? L"src" : L"href");
+        const bool isHref   = (isImage || isAnchor) && HtmlName(name, isImage ? L"src" : L"href");
         const bool isTitle = (isImage || isAnchor) && HtmlName(name, L"title"), isAlternative = isImage && HtmlName(name, L"alt");
         const bool isAlignment = (tag.kind == NativeHtmlKind::P || tag.kind == NativeHtmlKind::Div) && HtmlName(name, L"align");
         if ((! isHref && ! isTitle && ! isAlternative && ! isAlignment) || (isHref ? href : isTitle ? title : isAlternative ? alternative : alignment))
@@ -221,10 +221,14 @@ inline bool ParseNativeHtmlTag(std::wstring_view value, NativeHtmlTag& tag)
         }
         else
         {
-            if (HtmlName(decoded, L"left")) tag.alignment = MarkdownAlignment::Left;
-            else if (HtmlName(decoded, L"center")) tag.alignment = MarkdownAlignment::Center;
-            else if (HtmlName(decoded, L"right")) tag.alignment = MarkdownAlignment::Right;
-            else return false;
+            if (HtmlName(decoded, L"left"))
+                tag.alignment = MarkdownAlignment::Left;
+            else if (HtmlName(decoded, L"center"))
+                tag.alignment = MarkdownAlignment::Center;
+            else if (HtmlName(decoded, L"right"))
+                tag.alignment = MarkdownAlignment::Right;
+            else
+                return false;
             alignment = true;
         }
     }
@@ -364,9 +368,10 @@ struct NativeHtmlPlan
             if ((tag.kind == NativeHtmlKind::Sup || tag.kind == NativeHtmlKind::Sub) && ! tag.closing)
             {
                 const auto last = tags[tag.mate].source.last;
-                const auto next = std::lower_bound(inlineObjects.begin(), inlineObjects.end(), tag.source.first,
-                                                   [](auto range, auto first) { return range.last <= first; });
-                if (next != inlineObjects.end() && next->first < last) return;
+                const auto next =
+                    std::lower_bound(inlineObjects.begin(), inlineObjects.end(), tag.source.first, [](auto range, auto first) { return range.last <= first; });
+                if (next != inlineObjects.end() && next->first < last)
+                    return;
             }
         // Markdown and native anchors must not overlap. Sorting keeps admission
         // O(n log n), rather than comparing every tag with every source link.
