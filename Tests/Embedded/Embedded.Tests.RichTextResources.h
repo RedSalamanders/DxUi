@@ -196,6 +196,15 @@ static void TestRichSourceDragGesture(GraphicsFixture& gpu)
     Check(view.DispatchPointer({PointerAction::Move, x + 40.0f, y}), "crossing threshold invokes source-drag transport");
     Check(invoked && editor->GetText() == L"one  threetwo" && editor->Undo() && editor->GetText() == L"one two three",
           "transport performs one exact undoable move");
+    editor->SetSelection({4u, 7u});
+    Hr(PrepareRichEmbeddedContent(view, 320u, 120u), "prepare stale source-drag gesture");
+    invoked = false;
+    Check(view.DispatchPointer({PointerAction::Down, x, y}), "begin another possible source drag");
+    editor->SetSelection({0u, 0u});
+    editor->SetSelection({4u, 7u});
+    Hr(PrepareRichEmbeddedContent(view, 320u, 120u), "prepare after restoring selection");
+    Check(view.DispatchPointer({PointerAction::Move, x + 40.0f, y}) && ! invoked && editor->GetText() == L"one two three",
+          "selection changed away and back cancels the original press");
 }
 
 static void TestRichMiddleAutoScroll(GraphicsFixture& gpu)

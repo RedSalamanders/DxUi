@@ -636,6 +636,8 @@ struct RichTextEditor::State
     bool dragging          = false;
     bool sourceMovePress   = false;
     D2D1_POINT_2F sourceMoveOrigin{};
+    RichText::Selection sourceMoveSelection{};
+    uint64_t sourceMoveRevision = 0, sourceMoveSelectionEpoch = 0, sourceMoveBinding = 0;
     bool middleAutoScroll  = false;
     D2D1_POINT_2F middleAutoScrollOrigin{}, middleAutoScrollPoint{};
     std::optional<uint64_t> middleAutoScrollTick;
@@ -6308,6 +6310,10 @@ bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool ri
         {
             _state->sourceMovePress = true;
             _state->sourceMoveOrigin = point;
+            _state->sourceMoveSelection = selection;
+            _state->sourceMoveRevision = Revision();
+            _state->sourceMoveSelectionEpoch = _state->document.selectionEpoch_;
+            _state->sourceMoveBinding = _state->bindingRevision;
             _state->dragging = true;
             host.CaptureMouse(this);
             return true;
@@ -6677,6 +6683,13 @@ bool RichTextEditor::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT) n
         }
         if (_state->sourceMovePress)
         {
+            if (Revision() != _state->sourceMoveRevision || _state->document.selectionEpoch_ != _state->sourceMoveSelectionEpoch ||
+                _state->bindingRevision != _state->sourceMoveBinding || GetSelection() != _state->sourceMoveSelection || ! Editable())
+            {
+                _state->sourceMovePress = _state->dragging = false;
+                host.ReleaseMouseCapture();
+                return true;
+            }
             const auto origin = _state->sourceMoveOrigin;
             const float thresholdX = std::max(1.0f, host.PixelsToDip(static_cast<float>(GetSystemMetrics(SM_CXDRAG))));
             const float thresholdY = std::max(1.0f, host.PixelsToDip(static_cast<float>(GetSystemMetrics(SM_CYDRAG))));
@@ -6808,8 +6821,10 @@ bool RichTextEditor::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool righ
     if (_state->sourceMovePress)
     {
         const auto lifetime = GetLifetimeToken();
+        const bool current = Revision() == _state->sourceMoveRevision && _state->document.selectionEpoch_ == _state->sourceMoveSelectionEpoch &&
+                             _state->bindingRevision == _state->sourceMoveBinding && GetSelection() == _state->sourceMoveSelection && Editable();
         _state->sourceMovePress = _state->dragging = false;
-        if (! LayoutIsCurrent(host))
+        if (! current || ! LayoutIsCurrent(host))
         {
             host.ReleaseMouseCapture();
             return true;
