@@ -1,0 +1,1 @@
+- Report literal Markdown insertion availability from the same bounded source predicate used by its planner, including opaque inline and payload capacity checks.

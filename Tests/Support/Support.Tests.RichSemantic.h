@@ -370,6 +370,14 @@ inline void ListsAndHeadings()
         Exact(L"`word`", {1u, 5u}, request, L"word", Selection{0u, 4u}, profile);
         request.command = MarkdownCommand::InsertEscapedText;
         request.text    = L"[x]*";
+        Document escapedState(L"[link](https://example.invalid)");
+        const auto escapedSyntax = Parse(escapedState, profile);
+        Check(! CanInsertEscapedText(*escapedSyntax, {2u, 2u}, request.text), "literal insertion refuses the interior of an opaque link");
+        Document emptyEscapedState(L"");
+        const auto emptyEscapedSyntax = Parse(emptyEscapedState, profile);
+        Check(CanInsertEscapedText(*emptyEscapedSyntax, {}, request.text) && ! CanInsertEscapedText(*emptyEscapedSyntax, {}, {}),
+              "literal insertion admission distinguishes usable and empty payloads");
+        Unavailable(L"[link](https://example.invalid)", {2u, 2u}, request, profile);
         Exact(L"", {}, request, L"\\[x\\]\\*", Selection{7u, 7u}, profile);
         request.text        = {};
         request.destination = {};

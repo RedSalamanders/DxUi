@@ -120,23 +120,23 @@ bool CanInsertThematicBreak(const MarkdownSyntax& syntax, Selection selection) n
 {
     return InspectThematicBreak(syntax, selection).has_value();
 }
-bool CanInsertMath(const MarkdownSyntax& syntax, Selection selection, std::wstring_view requested, bool display) noexcept
+static std::optional<size_t> FindInlineInsertionSite(const MarkdownSyntax& syntax, Selection selection) noexcept
 {
     const auto text  = syntax.Source();
     const auto first = selection.Start(), last = selection.End();
-    if (syntax.Profile() != MarkdownProfile::RichMarkdown || syntax.SourceRegion() || ! IsEditBoundary(text, first) || ! IsEditBoundary(text, last))
-        return false;
+    if (syntax.SourceRegion() || ! IsEditBoundary(text, first) || ! IsEditBoundary(text, last))
+        return std::nullopt;
     const auto& nodes = syntax.Nodes();
     const auto nodeAt = [&](MarkdownBlockKind kind, size_t at) noexcept { return CommandNodeAt(syntax, kind, at); };
     if (first == last)
     {
         if (nodeAt(MarkdownBlockKind::FootnoteDefinition, first) != MarkdownNoNode)
-            return false;
+            return std::nullopt;
     }
     else
         for (const auto& node : nodes)
             if (node.block.kind == MarkdownBlockKind::FootnoteDefinition && node.block.source.first < last && first < node.block.source.last)
-                return false;
+                return std::nullopt;
     size_t leaf = MarkdownNoNode;
     for (const auto kind : {MarkdownBlockKind::Paragraph, MarkdownBlockKind::AtxHeading, MarkdownBlockKind::SetextHeading, MarkdownBlockKind::TableCell})
     {
@@ -149,13 +149,13 @@ bool CanInsertMath(const MarkdownSyntax& syntax, Selection selection, std::wstri
     {
         if (first != last || (first != 0u && text[first - 1u] != L'\r' && text[first - 1u] != L'\n') ||
             (first != text.size() && text[first] != L'\r' && text[first] != L'\n'))
-            return false;
+            return std::nullopt;
         for (const auto kind : {MarkdownBlockKind::FencedCode, MarkdownBlockKind::IndentedCode, MarkdownBlockKind::HtmlBlock, MarkdownBlockKind::FrontMatter})
             if (nodeAt(kind, first) != MarkdownNoNode)
-                return false;
+                return std::nullopt;
     }
     else if (last > nodes[leaf].block.content.last)
-        return false;
+        return std::nullopt;
     for (const auto& node : syntax.Inlines())
     {
         if (node.kind == MarkdownInlineKind::Text || node.source.last <= first || node.source.first >= last)
@@ -164,12 +164,25 @@ bool CanInsertMath(const MarkdownSyntax& syntax, Selection selection, std::wstri
             node.kind == MarkdownInlineKind::Strong || node.kind == MarkdownInlineKind::Emphasis || node.kind == MarkdownInlineKind::Strikethrough;
         const size_t count = node.kind == MarkdownInlineKind::Emphasis ? 1u : 2u;
         if (! style || node.source.last - node.source.first < count * 2u || first < node.source.first + count || last > node.source.last - count)
-            return false;
+            return std::nullopt;
     }
     if (first == last)
         for (const auto& node : syntax.Inlines())
             if ((node.kind == MarkdownInlineKind::Code || node.kind == MarkdownInlineKind::Html) && node.source.first < first && first < node.source.last)
-                return false;
+                return std::nullopt;
+    return leaf;
+}
+bool CanInsertMath(const MarkdownSyntax& syntax, Selection selection, std::wstring_view requested, bool display) noexcept
+{
+    if (syntax.Profile() != MarkdownProfile::RichMarkdown)
+        return false;
+    const auto site = FindInlineInsertionSite(syntax, selection);
+    if (! site)
+        return false;
+    const auto leaf   = site.value();
+    const auto text   = syntax.Source();
+    const auto& nodes = syntax.Nodes();
+    const auto first = selection.Start(), last = selection.End();
     const auto payload = first == last ? requested : text.substr(first, last - first);
     const auto closer  = display ? std::wstring_view(L"\\]") : std::wstring_view(L"\\)");
     if (payload.empty() || payload.size() > MathMaximumSourceUnits || ! IsValidUtf16(payload) || payload.find(closer) != payload.npos ||
@@ -195,6 +208,37 @@ bool CanInsertMath(const MarkdownSyntax& syntax, Selection selection, std::wstri
         }
     }
     return true;
+}
+bool CanInsertEscapedText(const MarkdownSyntax& syntax, Selection selection, std::wstring_view requested) noexcept
+{
+    if (! FindInlineInsertionSite(syntax, selection))
+        return false;
+    const auto text  = syntax.Source();
+    const auto first = selection.Start(), last = selection.End();
+    if (first == last)
+        for (const auto& node : syntax.Inlines())
+        {
+            if (node.kind == MarkdownInlineKind::Text || node.source.first >= first || node.source.last <= first)
+                continue;
+            const bool style =
+                node.kind == MarkdownInlineKind::Strong || node.kind == MarkdownInlineKind::Emphasis || node.kind == MarkdownInlineKind::Strikethrough;
+            const size_t delimiter = node.kind == MarkdownInlineKind::Emphasis ? 1u : 2u;
+            if (! style || node.source.last - node.source.first < delimiter * 2u || first < node.source.first + delimiter ||
+                first > node.source.last - delimiter)
+                return false;
+        }
+    const auto payload = first == last ? requested : text.substr(first, last - first);
+    if (payload.empty() || ! IsValidUtf16(payload) || payload.find_first_of(L"\r\n") != payload.npos || payload.size() > Document::MaximumUnits)
+        return false;
+    auto units = payload.size();
+    for (const auto c : payload)
+        if ((c >= L'!' && c <= L'/') || (c >= L':' && c <= L'@') || (c >= L'[' && c <= L'`') || (c >= L'{' && c <= L'~'))
+        {
+            if (units == Document::MaximumUnits)
+                return false;
+            ++units;
+        }
+    return units <= Document::MaximumUnits - (text.size() - (last - first));
 }
 std::optional<std::size_t> FindCodeLanguageTarget(const MarkdownSyntax& syntax, Selection selection, std::wstring_view language) noexcept
 {
@@ -2065,24 +2109,10 @@ std::wstring AttributeSource(std::wstring_view value, bool markdown = true)
 } // namespace
 void MarkdownCommandPlanner::EscapedText(const MarkdownCommandRequest& request)
 {
-    std::size_t leaf{};
-    if (! InlineSelection(leaf))
+    if (! CanInsertEscapedText(*plan.syntax_, plan.before_, request.text))
         return;
     const auto first = plan.before_.Start(), last = plan.before_.End();
-    for (const auto& node : plan.syntax_->Inlines())
-    {
-        const bool intersects = first == last ? node.source.first < first && first < node.source.last : node.source.first < last && node.source.last > first;
-        if (node.kind == MarkdownInlineKind::Text || ! intersects)
-            continue;
-        const bool style =
-            node.kind == MarkdownInlineKind::Strong || node.kind == MarkdownInlineKind::Emphasis || node.kind == MarkdownInlineKind::Strikethrough;
-        const auto body = style ? InlineBody(node) : std::nullopt;
-        if (! body || first < body->first || last > body->last)
-            return;
-    }
-    const auto payload = first == last ? request.text : Slice(first, last);
-    if (payload.empty() || ! IsValidUtf16(payload) || payload.find_first_of(L"\r\n") != payload.npos)
-        return;
+    const auto payload   = first == last ? request.text : Slice(first, last);
     const auto insertion = LiteralMarkdown(payload);
     Add(first, last, insertion);
     const auto end    = first + insertion.size();
