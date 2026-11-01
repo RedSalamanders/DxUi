@@ -965,6 +965,13 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         while (! flat.Advance()) {}
         check(std::abs(grouped.Size().width - flat.Size().width) < .01f,
               "plain grouped text collapses whitespace across group boundaries");
+        const auto colorExpression = std::make_shared<const MathExpression>(ParseMath(L"\\text{a \\textcolor{red}{ b}}"));
+        const auto colorDollar = ParseMath(L"\\text{a \\textcolor{red}{$b}}");
+        check(static_cast<bool>(*colorExpression) && static_cast<bool>(colorDollar), "nested transparent color retains text policy");
+        Detail::PreparedMath colorGrouped(factory, colorExpression, 24.f);
+        while (! colorGrouped.Advance()) {}
+        check(std::abs(colorGrouped.Size().width - flat.Size().width) < .01f,
+              "transparent text-color group preserves surrounding whitespace collapse");
         auto textFormats = std::make_shared<Detail::MathTextFormats>(factory, L"Cambria Math", L"en-us", L"Arial", L"Consolas");
         Detail::PreparedMath layout(factory, expression, 24.f, false, nullptr, 96.f, textFormats);
         while (! layout.Advance()) {}

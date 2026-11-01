@@ -1178,7 +1178,12 @@ class Parser
                     activeColor.append(Detail::EncodeNativeColor(color.value()));
                 }
                 else if (name == L"textcolor" || name == L"colorbox" || name == L"fcolorbox")
-                    append(ColorCommand(name, depth, true));
+                {
+                    const bool transparent = name == L"textcolor";
+                    append(ColorCommand(name, depth, true, transparent ? &previousSpace : nullptr, allowDollar));
+                    if (! transparent)
+                        previousSpace = false;
+                }
                 else if (name == L"textbf" || name == L"textit" || name == L"textrm" || name == L"textsf" || name == L"texttt" ||
                          name == L"textup" || name == L"textmd" || name == L"textnormal" || name == L"emph" || name == L"pmb")
                     append(Make(MathKind::Style, name == L"textbf" ? std::wstring(L"mathbf") : name == L"textit" ? std::wstring(L"mathit") :
@@ -1202,7 +1207,7 @@ class Parser
         }
         Reject(MathIssue::MissingGroupClose);
     }
-    MathNode ColorCommand(std::wstring_view name, unsigned depth, bool textMode = false)
+    MathNode ColorCommand(std::wstring_view name, unsigned depth, bool textMode = false, bool* sharedSpace = nullptr, bool allowDollar = false)
     {
         const auto color = Detail::ParseNativeColor(GroupText());
         if (! color)
@@ -1219,8 +1224,8 @@ class Parser
             label += Detail::EncodeNativeColor(background.value());
         }
         if (name == L"textcolor")
-            return Make(MathKind::Style, std::move(label), {textMode ? TextColorBody(depth + 1u) : Atom(depth + 1u)});
-        return Make(MathKind::Accent, std::move(label), {TextColorBody(depth + 1u)});
+            return Make(MathKind::Style, std::move(label), {textMode ? TextColorBody(depth + 1u, allowDollar, sharedSpace) : Atom(depth + 1u)});
+        return Make(MathKind::Accent, std::move(label), {TextColorBody(depth + 1u, allowDollar, sharedSpace)});
     }
     void AppendColored(std::vector<MathNode>& output, std::wstring_view label, MathNode&& body)
     {
