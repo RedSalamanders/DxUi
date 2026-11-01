@@ -3354,6 +3354,7 @@ public:
     // Replace every non-overlapping source match in one undo transaction.
     // Returns the match count when text changed, otherwise zero.
     size_t ReplaceAllSourceMatches(std::wstring_view query, std::wstring_view replacement, RichText::SourceSearchOptions options = {});
+    bool ReplaceSelectedSourceMatch(std::wstring_view query, std::wstring_view replacement, RichText::SourceSearchOptions options = {});
     // Select the next/previous source match, wrapping once at the document edge.
     bool SelectSourceMatch(std::wstring_view query, bool backwards = false, RichText::SourceSearchOptions options = {});
     bool ToggleFormatting(std::wstring_view marker);

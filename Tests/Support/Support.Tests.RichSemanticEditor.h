@@ -199,6 +199,9 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
               editor->SelectSourceMatch(L"one", false, {.wholeWord = true}) && editor->GetSelection() == Selection{0u, 3u} &&
               editor->SelectSourceMatch(L"one", true, {.wholeWord = true}) && editor->GetSelection() == Selection{4u, 7u},
           "source match navigation wraps in both directions");
+    Check(editor->ReplaceSelectedSourceMatch(L"one", L"two", {.wholeWord = true}) && editor->GetText() == L"One two only" && editor->Undo() &&
+              editor->GetText() == L"One one only",
+          "replace selected match is one source-exact undo transaction");
     Check(editor->ReplaceAllSourceMatches(L"one", L"x", {.wholeWord = true}) == 2u && editor->GetText() == L"x x only" && editor->Undo() &&
               editor->GetText() == L"One one only",
           "editor replace-all is case-insensitive and one undo transaction");

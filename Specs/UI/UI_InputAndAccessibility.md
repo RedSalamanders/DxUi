@@ -1199,6 +1199,8 @@ underscore, combining marks and surrogate units as word characters. Consumers
 can highlight matches and apply replacements in one revision-checked edit.
 `ReplaceAllSourceMatches` supplies that atomic transaction directly, rejecting
 active native composition and read-only editing, with one undo for all matches.
+`ReplaceSelectedSourceMatch` replaces the current selection only when it is an
+exact current match, also as one composition-safe undo transaction.
 `SelectSourceMatch` navigates those exact matches in either direction and wraps
 at the source boundary; selection and scrolling use the ordinary editor policy.
 `SetSearchMatches` revision-checks ordered, non-overlapping source matches and
