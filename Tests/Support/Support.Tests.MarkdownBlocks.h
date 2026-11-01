@@ -551,6 +551,16 @@ inline constexpr FamilyGrammarExpectation familyGrammarExpectations[] = {
 template <typename Check> inline void CheckFamilyGrammar(Check&& check)
 {
     NativeFlowchartParser parser;
+    for (const auto& [source, from, to] : {std::tuple{L"classDiagram\nInterface <|.. Implementation\n", 1u, 0u},
+                                           std::tuple{L"classDiagram\nImplementation ..|> Interface\n", 0u, 1u}})
+    {
+        parser.Begin(source, 1u);
+        const auto model = Complete(parser);
+        check(model->outcome == FlowchartOutcome::Prepared && model->edges.size() == 1u && model->edges[0].from == from &&
+                  model->edges[0].to == to && model->edges[0].relation == FlowchartRelation::Inheritance &&
+                  model->edges[0].style == FlowchartLineStyle::Dotted,
+              "class realization uses a dotted line and hollow inheritance endpoint in either spelling");
+    }
     for (const auto& expected : familyGrammarExpectations)
     {
         parser.Begin(expected.source, 1u);

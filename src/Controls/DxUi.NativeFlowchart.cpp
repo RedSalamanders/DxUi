@@ -671,10 +671,11 @@ struct NativeFlowchartParser::Preparation
             bool reverse{};
             const auto relationText = Text().substr(at, end - at);
             if (model->family == NativeDiagramFamily::Class &&
-                (relationText.starts_with(L"--*") || relationText.starts_with(L"--o") || relationText.starts_with(L"..") || relationText.starts_with(L"<|..")))
+                (relationText.starts_with(L"--*") || relationText.starts_with(L"--o") ||
+                 (relationText.starts_with(L"..") && ! relationText.starts_with(L"..|>"))))
                 return Error(FlowchartIssue::UnsupportedEdge,
                              edgeStart,
-                             std::min(end, at + (relationText.starts_with(L"<|..") ? 4u : 3u)),
+                             std::min(end, at + 3u),
                              FlowchartOutcome::Unsupported);
             bool inlineLabel   = false;
             const auto readEnd = [&](std::size_t start, FlowchartLineStyle style, std::size_t& finish, std::size_t& ranks, bool& arrow)
@@ -766,11 +767,14 @@ struct NativeFlowchartParser::Preparation
             {
                 // The operator and its bounded plain-text label are already consumed.
             }
-            else if (model->family == NativeDiagramFamily::Class && (Text().substr(at, 4u) == L"<|--" || Text().substr(at, 4u) == L"--|>"))
+            else if (model->family == NativeDiagramFamily::Class &&
+                     (Text().substr(at, 4u) == L"<|--" || Text().substr(at, 4u) == L"--|>" ||
+                      Text().substr(at, 4u) == L"<|.." || Text().substr(at, 4u) == L"..|>"))
             {
                 reverse       = Text()[at] == L'<';
                 edge.arrow    = true;
                 edge.relation = FlowchartRelation::Inheritance;
+                edge.style    = Text()[at + (reverse ? 2u : 0u)] == L'.' ? FlowchartLineStyle::Dotted : FlowchartLineStyle::Solid;
                 at += 4u;
             }
             else
