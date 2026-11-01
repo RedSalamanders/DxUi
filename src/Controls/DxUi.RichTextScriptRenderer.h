@@ -9,6 +9,15 @@
 
 namespace DxUi::RichText::Detail
 {
+struct ScriptFont final { wil::com_ptr<IDWriteFontFace> face; bool color{}; };
+struct ScriptDecoration final { float left{}, right{}, baseline{}, offset{}; };
+struct ScriptMetadata final
+{
+    ScriptMetadata() : fonts(0u), decorations(0u) {}
+    std::vector<ScriptFont> fonts;
+    std::vector<ScriptDecoration> decorations;
+    bool requiresColor{}, unsupported{};
+};
 // The layout and every effect brush are borrowed for one synchronous draw.
 // No Direct2D resource or glyph buffer is created here.
 // Existing identity/RAII/reference traits intentionally delete implicit operations.
@@ -19,8 +28,8 @@ class ScriptTextRenderer final : public IDWriteTextRenderer
 {
 public:
     ScriptTextRenderer(ID2D1RenderTarget* target, ID2D1Brush* brush, IDWriteTextLayout* layout, const Projection& projection,
-                       UINT32 textOffset, D2D1_POINT_2F origin) noexcept
-        : target_(target), brush_(brush), layout_(layout), projection_(projection), textOffset_(textOffset), origin_(origin)
+                       UINT32 textOffset, D2D1_POINT_2F origin, ScriptMetadata& metadata, bool staging) noexcept
+        : target_(target), brush_(brush), layout_(layout), projection_(projection), textOffset_(textOffset), origin_(origin), metadata_(metadata), staging_(staging)
     {
         if (target_)
         {
@@ -88,17 +97,29 @@ public:
             }
         y += Offset(flags, glyphs->fontEmSize);
         if (! glyphs->fontFace) { result_ = E_INVALIDARG; return S_OK; }
-        wil::com_ptr<IDWriteFontFace2> face;
-        const auto faceResult = glyphs->fontFace->QueryInterface(IID_PPV_ARGS(face.put()));
-        if (faceResult == E_NOINTERFACE) { if (SUCCEEDED(result_)) result_ = DWRITE_E_UNSUPPORTEDOPERATION; return S_OK; }
-        if (FAILED(faceResult)) { result_ = faceResult; return S_OK; }
-        const bool colorFont = face->IsColorFont();
-        if (colorFont && ! color_) { if (SUCCEEDED(result_)) result_ = DWRITE_E_UNSUPPORTEDOPERATION; return S_OK; }
-        if (! painting_) return S_OK;
+        if (staging_)
+        {
+            const auto found = std::find_if(metadata_.fonts.begin(), metadata_.fonts.end(), [&](const auto& entry) { return entry.face.get() == glyphs->fontFace; });
+            if (found != metadata_.fonts.end()) return S_OK;
+            wil::com_ptr<IDWriteFontFace2> face;
+            const auto faceResult = glyphs->fontFace->QueryInterface(IID_PPV_ARGS(face.put()));
+            if (faceResult == E_NOINTERFACE) { if (SUCCEEDED(result_)) result_ = DWRITE_E_UNSUPPORTEDOPERATION; return S_OK; }
+            if (FAILED(faceResult)) { result_ = faceResult; return S_OK; }
+            try
+            {
+                ScriptFont entry;
+                entry.face = glyphs->fontFace;
+                entry.color = face->IsColorFont();
+                metadata_.requiresColor |= entry.color;
+                metadata_.fonts.push_back(std::move(entry));
+            }
+            catch (const std::bad_alloc&) { result_ = E_OUTOFMEMORY; }
+            return S_OK;
+        }
         if (flags & (Superscript | Subscript)) y = SnapY(y);
         auto* ink = Brush(effect);
         if (! ink) { result_ = E_INVALIDARG; return S_OK; }
-        if (colorFont)
+        if (color_)
             color_->DrawGlyphRunWithColorSupport({x, y}, glyphs, description, ink, nullptr, 0u, mode, D2D1_COLOR_BITMAP_GLYPH_SNAP_OPTION_DEFAULT);
         else
             target_->DrawGlyphRun({x, y}, glyphs, ink, mode);
@@ -107,36 +128,31 @@ public:
     HRESULT STDMETHODCALLTYPE DrawUnderline(void*, FLOAT x, FLOAT y, const DWRITE_UNDERLINE* line, IUnknown* effect) noexcept override
     {
         if (! line) return E_INVALIDARG;
-        if (! painting_) return S_OK;
+        if (staging_) { StageDecoration(x, y, line->width); return S_OK; }
         auto* ink = Brush(effect); if (! ink) { result_ = E_INVALIDARG; return S_OK; }
-        float size{};
-        const auto flags = FlagsAtPoint(x, y, size);
-        y += Offset(flags, size);
+        y += DecorationOffset(x, y);
         Stroke(x, y + line->offset, line->width, line->thickness, ink);
         return S_OK;
     }
     HRESULT STDMETHODCALLTYPE DrawStrikethrough(void*, FLOAT x, FLOAT y, const DWRITE_STRIKETHROUGH* line, IUnknown* effect) noexcept override
     {
         if (! line) return E_INVALIDARG;
-        if (! painting_) return S_OK;
+        if (staging_) { StageDecoration(x, y, line->width); return S_OK; }
         auto* ink = Brush(effect); if (! ink) { result_ = E_INVALIDARG; return S_OK; }
-        float size{};
-        const auto flags = FlagsAtPoint(x, y, size);
-        y += Offset(flags, size);
-        Stroke(x, y + line->offset, line->width, line->thickness, ink);
+        y = SnapY(y) + DecorationOffset(x, y);
+        target_->FillRectangle(D2D1::RectF(x, y + line->offset, x + line->width, y + line->offset + line->thickness), ink);
         return S_OK;
     }
     HRESULT STDMETHODCALLTYPE DrawInlineObject(void* context, FLOAT x, FLOAT y, IDWriteInlineObject* object, BOOL sideways,
                                                BOOL rtl, IUnknown* effect) noexcept override
     {
         if (! object) return E_INVALIDARG;
-        if (! painting_) return S_OK;
+        if (staging_) return S_OK;
         const auto result = object->Draw(context, this, x, y, sideways, rtl, effect);
         if (FAILED(result)) result_ = result;
         return S_OK;
     }
     HRESULT Result() const noexcept { return result_; }
-    void BeginPaint() noexcept { painting_ = true; }
 private:
     unsigned Flags(UINT32 position) const noexcept
     {
@@ -148,12 +164,39 @@ private:
         const auto& run = *std::prev(found);
         return index - run.start < run.length ? run.flags : 0u;
     }
-    unsigned FlagsAtPoint(float x, float y, float& size) const noexcept
+    void StageDecoration(float x, float y, float width) noexcept
     {
         BOOL trailing{}, inside{}; DWRITE_HIT_TEST_METRICS metrics{};
-        if (FAILED(layout_->HitTestPoint(x - origin_.x + .01f, y - origin_.y, &trailing, &inside, &metrics))) return 0u;
-        static_cast<void>(layout_->GetFontSize(metrics.textPosition, &size, nullptr));
-        return Flags(metrics.textPosition);
+        const auto hit = layout_->HitTestPoint(x - origin_.x + .01f, y - origin_.y, &trailing, &inside, &metrics);
+        if (FAILED(hit)) { result_ = hit; return; }
+        float size{};
+        const auto sized = layout_->GetFontSize(metrics.textPosition, &size, nullptr);
+        if (FAILED(sized)) { result_ = sized; return; }
+        try { metadata_.decorations.push_back({x - origin_.x, x - origin_.x + width, y - origin_.y, Offset(Flags(metrics.textPosition), size)}); }
+        catch (const std::bad_alloc&) { result_ = E_OUTOFMEMORY; }
+    }
+    float DecorationOffset(float x, float y) const noexcept
+    {
+        x -= origin_.x; y -= origin_.y;
+        auto line = std::lower_bound(metadata_.decorations.begin(), metadata_.decorations.end(), y - 2.f,
+                                     [](const auto& span, float baseline) { return span.baseline < baseline; });
+        const ScriptDecoration* best = nullptr;
+        while (line != metadata_.decorations.end() && line->baseline < y + 2.f)
+        {
+            const auto end = std::upper_bound(line, metadata_.decorations.end(), line->baseline,
+                                              [](float baseline, const auto& span) { return baseline < span.baseline; });
+            const auto candidate = std::upper_bound(line, end, x + .02f,
+                                                    [](float position, const auto& span) { return position < span.left; });
+            if (candidate != line)
+            {
+                const auto& span = *std::prev(candidate);
+                if (x < span.right - .01f && (! best || std::abs(span.baseline - y) < std::abs(best->baseline - y)))
+                    best = &span;
+            }
+            line = end;
+        }
+        if (best) return best->offset;
+        return 0.f;
     }
     static float Offset(unsigned flags, float scriptSize) noexcept
     {
@@ -203,7 +246,8 @@ private:
     wil::com_ptr<ID2D1Brush> effectBrush_;
     ULONG references_{1u};
     HRESULT result_{S_OK};
-    bool painting_{};
+    ScriptMetadata& metadata_;
+    bool staging_{};
 };
 #pragma warning(pop)
 } // namespace DxUi::RichText::Detail

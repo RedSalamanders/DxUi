@@ -82,6 +82,8 @@ struct PreparedLayout::State
     {
     }
     Projection retirement;
+    Detail::ScriptMetadata scripts;
+    bool hasScripts{};
     wil::com_ptr<IDWriteTextLayout> layout;
     wil::com_ptr<IDWriteInlineObject> positioning;
     std::vector<std::size_t> clusters, lines;
@@ -414,6 +416,20 @@ void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
     for (const auto& line : lineMetrics)
         lines.push_back(lines.back() + line.length);
     auto next               = std::make_unique<PreparedLayout::State>();
+    next->hasScripts = scripts;
+    if (scripts)
+    {
+        Detail::ScriptTextRenderer collector(nullptr, nullptr, layout.get(), projection, textOffset, {}, next->scripts, true);
+        Check(layout->Draw(nullptr, &collector, 0.f, 0.f), "Prepare HTML script metadata");
+        if (collector.Result() == E_OUTOFMEMORY)
+            throw std::bad_alloc();
+        if (collector.Result() == DWRITE_E_UNSUPPORTEDOPERATION)
+            next->scripts.unsupported = true;
+        else
+            Check(collector.Result(), "Prepare HTML script callbacks");
+        std::sort(next->scripts.decorations.begin(), next->scripts.decorations.end(), [](const auto& a, const auto& b)
+        { return a.baseline < b.baseline || (a.baseline == b.baseline && a.left < b.left); });
+    }
     owner.projection_       = std::move(projection);
     next->layout            = std::move(layout);
     next->positioning       = std::move(positioning);
@@ -588,21 +604,24 @@ std::pair<std::size_t, std::size_t> PreparedLayout::VisibleRange(float top, floa
 }
 bool Detail::PreparedLayoutAccess::ScriptTargetSupported(const PreparedLayout& owner, ID2D1RenderTarget* target)
 {
-    if (! std::ranges::any_of(owner.projection_.runs, [](const auto& run) { return (run.flags & (Superscript | Subscript)) != 0u; }))
-        return true;
     if (! owner.state_) return false;
-    ScriptTextRenderer renderer(target, nullptr, owner.state_->layout.get(), owner.projection_, owner.state_->textOffset, {});
-    const auto result = owner.state_->layout->Draw(nullptr, &renderer, 0.f, 0.f);
-    Check(result, "Preflight HTML script target");
-    if (renderer.Result() == DWRITE_E_UNSUPPORTEDOPERATION) return false;
-    Check(renderer.Result(), "Preflight HTML script callbacks");
+    if (! owner.state_->hasScripts) return true;
+    if (owner.state_->scripts.unsupported) return false;
+    if (! owner.state_->scripts.requiresColor) return true;
+    if (! target) return false;
+    wil::com_ptr<ID2D1DeviceContext7> color;
+    const auto result = target->QueryInterface(IID_PPV_ARGS(color.put()));
+    if (result == E_NOINTERFACE) return false;
+    Check(result, "Validate HTML script color target");
     return true;
 }
 void PreparedLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, const LinkDrawing* links) const
 {
     if (! target || ! brush || ! state_)
         throw std::invalid_argument("Unprepared drawing");
-    const bool scripts = std::ranges::any_of(projection_.runs, [](const auto& run) { return (run.flags & (Superscript | Subscript)) != 0u; });
+    const bool scripts = state_->hasScripts;
+    if (scripts && ! Detail::PreparedLayoutAccess::ScriptTargetSupported(*this, target))
+        THROW_HR_MSG(DWRITE_E_UNSUPPORTEDOPERATION, "Unsupported HTML script color target");
     if (! links && ! scripts)
     {
         target->DrawTextLayout(origin, state_->layout.get(), brush, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
@@ -692,10 +711,7 @@ void PreparedLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POI
         }
     if (scripts)
     {
-        Detail::ScriptTextRenderer renderer(target, brush, state_->layout.get(), projection_, state_->textOffset, origin);
-        Check(state_->layout->Draw(nullptr, &renderer, origin.x, origin.y), "Preflight HTML script rendering");
-        Check(renderer.Result(), "Preflight HTML script callbacks");
-        renderer.BeginPaint();
+        Detail::ScriptTextRenderer renderer(target, brush, state_->layout.get(), projection_, state_->textOffset, origin, state_->scripts, false);
         Check(state_->layout->Draw(nullptr, &renderer, origin.x, origin.y), "Draw HTML script rendering");
         Check(renderer.Result(), "Draw HTML script callbacks");
     }

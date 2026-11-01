@@ -277,7 +277,7 @@ template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe obs
       for (const auto direction : {DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT})
         for (const float dpi : {96.f, 144.f, 192.f})
     {
-        const auto sample = RichSemanticDocumentTests::Build(mode == 0u ? L"<p><sup><u>abc</u></sup></p>\n" : L"<p><sub><u>abc</u></sub></p>\n",
+        const auto sample = RichSemanticDocumentTests::Build(mode == 0u ? L"<p><sup><s><u>abc</u></s></sup></p>\n" : L"<p><sub><s><u>abc</u></s></sub></p>\n",
                                                               MarkdownProfile::RichMarkdown);
         PreparedSemanticGeometry sampleGeometry;
         auto sampleOptions = options;
@@ -296,7 +296,14 @@ template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe obs
             THROW_IF_FAILED(raster->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
             raster->BeginDraw(); raster->Clear(D2D1::ColorF(D2D1::ColorF::White));
             if (! pass)
-                sampleGeometry.Draw(raster.get(), text.get(), text.get(), {}, 0.f, 100.f);
+            {
+                // A transient ink effect splits the underline without changing its prepared shift.
+                const std::array<TextInkRange, 1u> splitInk = {{{{1u, 2u}, TextInkRole::Accent}}};
+                LinkDrawing linkDrawing;
+                linkDrawing.inkRanges = splitInk;
+                linkDrawing.inkBrushes[static_cast<std::size_t>(TextInkRole::Accent)] = text.get();
+                sampleGeometry.Draw(raster.get(), text.get(), text.get(), {}, 0.f, 100.f, nullptr, 1.f, &linkDrawing);
+            }
             else
             {
                 wil::com_ptr<IDWriteTextFormat> format;
@@ -306,6 +313,7 @@ template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe obs
                 wil::com_ptr<IDWriteTextLayout> reference;
                 THROW_IF_FAILED(factory->CreateTextLayout(L"abc", 3u, format.get(), 400.f, 1000.f, reference.put()));
                 THROW_IF_FAILED(reference->SetUnderline(TRUE, {0u, 3u}));
+                THROW_IF_FAILED(reference->SetStrikethrough(TRUE, {0u, 3u}));
                 DWRITE_LINE_METRICS line{}; UINT32 count{};
                 THROW_IF_FAILED(reference->GetLineMetrics(&line, 1u, &count));
                 const float pixelsPerDip = dpi / 96.f;
@@ -325,7 +333,7 @@ template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe obs
         }
         if (disagreement) std::cerr << "script reference mode=" << mode << " dir=" << static_cast<unsigned>(direction) << " dpi=" << dpi << " differing=" << disagreement << '\n';
         Check(inkPixels > 0u && disagreement == 0u,
-              "script glyph and underline pixels match independently positioned DirectWrite reference ink at each DPI");
+              "script glyph, underline and strike pixels match independently positioned DirectWrite reference ink at each DPI");
     }
     const std::wstring rtlSource = L"<p>אב <a href=\"local\"><sup><u>דהו</u></sup></a> ז</p>\n";
     const auto rtlDocument = RichSemanticDocumentTests::Build(rtlSource, MarkdownProfile::RichMarkdown);
