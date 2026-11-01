@@ -2000,6 +2000,8 @@ template <typename Prepare> void WikiTargets(ControlHost& host, Prepare&& prepar
     editor->TakePendingImageRequests(requests);
     Check(requests.empty() && editor->GetImageResourceStatistics().readySources == 1u && editor->GetText() == source,
           "resolved wiki pixels publish without changing Markdown source");
+    host.SetFocusControl(editor);
+    prepare();
     const auto ready      = editor->GetAcknowledgedSemanticDocument(host);
     const auto readyImage = std::ranges::find(ready->Elements(), SemanticRole::Image, &SemanticElement::role);
     Check(readyImage != ready->Elements().end(), "resolved image remains in the current semantic publication");
