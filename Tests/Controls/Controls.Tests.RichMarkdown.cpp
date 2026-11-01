@@ -1,6 +1,11 @@
 #include "Controls.Tests.RichMarkdown.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.MarkdownCorpus.h"
+#include "Controls.Tests.MetadataCorpus.h"
+#pragma warning(push)
+#pragma warning(disable : 4464)
+#include "../../src/Controls/DxUi.MarkdownMetadata.h"
+#pragma warning(pop)
 #include "Support.Tests.FlowchartLayout.h"
 #include "Support.Tests.Footnotes.h"
 #include "Support.Tests.MarkdownBlocks.h"
@@ -924,6 +929,44 @@ void TestYamlFrontMatterValidationAndSourcePreservation()
     Require(bounded->Diagnostics().size() == 1u && bounded->Diagnostics()[0].code == MarkdownDiagnosticCode::YamlFrontMatterCapacity,
             "large YAML graphs report capacity instead of invalid content");
 }
+void TestMetadataIndependentValidityCorpora()
+{
+    using DxUi::RichText::Detail::MetadataIssue;
+    std::size_t tomlCount = 0u, yamlCount = 0u, skipped = 0u;
+    const auto check = [&](const MetadataCorpus::Case& item, bool yaml)
+    {
+        if (item.expected == MetadataCorpus::Expected::MultiDocument)
+        {
+            ++skipped;
+            return;
+        }
+        const int length           = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, item.bytes.data(), static_cast<int>(item.bytes.size()), nullptr, 0);
+        const bool invalidEncoding = length == 0 && ! item.bytes.empty();
+        std::wstring source(static_cast<std::size_t>(length), L'\0');
+        if (length > 0)
+            Require(MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, item.bytes.data(), static_cast<int>(item.bytes.size()), source.data(), length) == length,
+                    "metadata corpus UTF-8 conversion succeeds");
+        const auto actual  = invalidEncoding
+                                 ? MetadataIssue::Invalid
+                                 : (yaml ? DxUi::RichText::Detail::ValidateYamlMetadata(source) : DxUi::RichText::Detail::ValidateTomlMetadata(source));
+        const bool correct = item.expected == MetadataCorpus::Expected::Valid       ? actual == MetadataIssue::None
+                             : item.expected == MetadataCorpus::Expected::Duplicate ? actual == MetadataIssue::DuplicateKey
+                                                                                    : actual != MetadataIssue::None && actual != MetadataIssue::Capacity;
+        if (! correct)
+            std::cerr << "Metadata corpus failure " << item.name << " actual=" << static_cast<int>(actual) << '\n';
+        Require(correct, "independent metadata validity expectation");
+        if (yaml)
+            ++yamlCount;
+        else
+            ++tomlCount;
+    };
+    for (const auto& item : MetadataCorpus::Toml)
+        check(item, false);
+    for (const auto& item : MetadataCorpus::Yaml)
+        check(item, true);
+    Require(tomlCount == 717u && yamlCount == 382u && skipped == 20u, "all pinned single-document metadata cases were exercised");
+}
+
 void TestTomlFrontMatterValidationAndSourcePreservation()
 {
     struct Case
@@ -1380,6 +1423,7 @@ void RunRichMarkdownTests()
     DXUI_RUN_TEST(TestLosslessMarkdownFrontMatterFencesAndProfileIsolation);
     DXUI_RUN_TEST(TestYamlFrontMatterValidationAndSourcePreservation);
     DXUI_RUN_TEST(TestTomlFrontMatterValidationAndSourcePreservation);
+    DXUI_RUN_TEST(TestMetadataIndependentValidityCorpora);
     DXUI_RUN_TEST(TestNativeFlowchartGrammarAndGraphValues);
     DXUI_RUN_TEST(TestNativeFlowchartDeterministicGeometry);
     DXUI_RUN_TEST(TestNativeFlowchartLayoutIndependentCorpusAndRouting);

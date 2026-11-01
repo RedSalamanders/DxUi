@@ -533,7 +533,7 @@ MetadataIssue CheckYamlKeys(const YamlGraph& graph)
         for (std::size_t i = 0u; i < node->children.size(); i += 2u)
         {
             const auto canonical = CanonicalYamlNode(graph, node->children[i], active, 0u, budget);
-            auto key = std::make_unique<std::string>(canonical);
+            auto key             = std::make_unique<std::string>(canonical);
             if (key->size() > 8u * 1024u * 1024u - budget.bytes)
                 throw YamlCapacityError{};
             budget.bytes += key->size();

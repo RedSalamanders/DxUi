@@ -1,3 +1,5 @@
 # Selected independent TOML corpus case
 
 `single-open-bracket.toml` is the exact [toml-test input](https://github.com/toml-lang/toml-test/blob/96fd088448ec0f4d9f061c730ed7854399c46faf/tests/invalid/key/single-open-bracket.toml) from commit `96fd088448ec0f4d9f061c730ed7854399c46faf`, SHA-256 `95d2b1934931691669cc35a87619518015336213dda0a60fe1b09f9b8e3e993d`; [MIT notice](../../../../docs/licenses/toml-test.txt). It reproduced a Debug assertion and is now expected to produce an invalid-content diagnostic. A separate isolated x64 Debug validity-only driver matched all 717 TOML 1.0 input outcomes at that commit with zero skips; it did not compare decoded values and does not replace native profile, allocation, SDK or performance qualification.
+
+The exact upstream commit tree is retained as `source.tar` (SHA-256 `746d1d8b07805b20ce2c0612dc8b7a6fed9653e7d03939da325fd44b55fc2433`). `Tools/Generate-MetadataCorpus.ps1` verifies it and emits all 717 TOML 1.0 validity inputs into the native test. Validity alone does not check decoded values.
