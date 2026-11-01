@@ -137,7 +137,8 @@ struct NativeImagePlacement
     }
     D2D1_RECT_F bounds{};
     const SemanticBox* owner{};
-    float caretHeight{};
+    float caretHeight{}, mathCaretTop{};
+    bool hasMathCaret{};
 };
 #pragma warning(pop)
 struct NativeImageGeometry
@@ -317,9 +318,13 @@ struct SemanticBox
                     if (image.owner == this &&
                         (paragraph.display.first + local == image.display.first || paragraph.display.first + local == image.display.last))
                     {
-                        // DirectWrite's line caret is baseline-aligned with adjacent text.  Preserve it for math,
-                        // whose descent can extend below the text baseline; bitmap images keep their existing rule.
-                        if (! image.math)
+                        if (image.math && image.hasMathCaret &&
+                            layout.LineBoundary(local, false) == layout.LineBoundary(image.display.first - paragraph.display.first, false))
+                        {
+                            caret.y      = image.mathCaretTop;
+                            caret.height = image.caretHeight;
+                        }
+                        else if (! image.math)
                         {
                             caret.height = std::min(image.caretHeight, image.bounds.bottom - image.bounds.top);
                             caret.y      = image.bounds.bottom - caret.height;
@@ -1459,6 +1464,32 @@ struct PreparedSemanticGeometry::Preparation
                                 // Paint the image at its actual inline baseline
                                 // and pixel aspect ratio, never stretched to
                                 // that larger SDK selection rectangle.
+                                if (image.math)
+                                {
+                                    const auto lineEnd  = lineStart + line.length;
+                                    const auto inObject = [&](std::size_t position)
+                                    {
+                                        const auto global = content.display.first + position;
+                                        return std::ranges::any_of(next.images->placements, [&](const auto& item) {
+                                            return item.display.first <= global && global < item.display.last;
+                                        });
+                                    };
+                                    const auto usable = [&](std::size_t position)
+                                    {
+                                        return position >= lineStart && position < lineEnd && position < box->layout.Content().text.size() &&
+                                               box->layout.Content().text[position] != L'\n' && ! inObject(position);
+                                    };
+                                    const auto after    = image.display.last - content.display.first;
+                                    const auto before   = local > lineStart ? box->layout.PreviousCluster(local) : lineEnd;
+                                    const auto neighbor = usable(before) ? before : usable(after) ? after : lineEnd;
+                                    if (neighbor < lineEnd)
+                                    {
+                                        const auto textCaret = box->layout.Caret(neighbor);
+                                        image.mathCaretTop   = textCaret.y;
+                                        image.caretHeight    = textCaret.height;
+                                        image.hasMathCaret   = true;
+                                    }
+                                }
                                 const auto size     = image.Size();
                                 const auto scale    = std::min(1.0f, options.widthDip / size.width);
                                 image.bounds.top    = lineTop + line.baseline - image.Baseline() * scale;
@@ -1472,9 +1503,10 @@ struct PreparedSemanticGeometry::Preparation
                         }
                         if (! located)
                             throw std::logic_error("Prepared image has no SDK line baseline");
-                        image.owner       = box.get();
-                        image.caretHeight = options.fontSizeDip;
-                        box->images       = next.images.get();
+                        image.owner = box.get();
+                        if (! image.hasMathCaret)
+                            image.caretHeight = options.fontSizeDip;
+                        box->images = next.images.get();
                     }
             if (native)
             {
