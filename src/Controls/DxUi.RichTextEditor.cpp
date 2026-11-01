@@ -720,8 +720,22 @@ bool RichTextEditor::TryPrepareClipboardPaste(const TextClipboardContent& conten
 {
     if (stale)
         *stale = false;
+    const auto prepareFileReference = [&]() {
+        try
+        {
+            return TryPrepareFileReferencesAt(content, GetSelection(), replacement);
+        }
+        catch (const std::invalid_argument&)
+        {
+            return false; // Invalid external file text never publishes a partial plan.
+        }
+        catch (const std::length_error&)
+        {
+            return false; // Capacity rejection retains the caller's result.
+        }
+    };
     if (! content.filePaths.empty())
-        return TryPrepareFileReferencesAt(content, GetSelection(), replacement);
+        return prepareFileReference();
     const auto selection = GetSelection();
     if (Editable() && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich && content.hasHtmlFragment && content.htmlFragment.size() <= RichText::Document::MaximumUnits &&
         RichText::IsValidUtf16(content.htmlFragment) && _state->htmlPasteConverter)
@@ -763,7 +777,7 @@ bool RichTextEditor::TryPrepareClipboardPaste(const TextClipboardContent& conten
     }
     if (! Editable() || ! _state->appearance.pasteUrlOnSelection || ! _state->markdownRendering ||
         _state->mode != RichText::ViewMode::Rich || selection.Start() == selection.End())
-        return false;
+        return prepareFileReference();
     const std::wstring_view url(content.text);
     const auto startsScheme = [&](std::wstring_view prefix) noexcept {
         if (url.size() <= prefix.size())
@@ -779,10 +793,10 @@ bool RichTextEditor::TryPrepareClipboardPaste(const TextClipboardContent& conten
         return true;
     };
     if (! (startsScheme(L"https://") || startsScheme(L"http://") || startsScheme(L"mailto:")))
-        return false;
+        return prepareFileReference();
     const auto syntax = GetMarkdownSyntax();
     if (! syntax)
-        return false;
+        return prepareFileReference();
     RichText::MarkdownCommandRequest request;
     request.command = RichText::MarkdownCommand::SetLink;
     request.destination = url;
@@ -791,17 +805,17 @@ bool RichTextEditor::TryPrepareClipboardPaste(const TextClipboardContent& conten
         const auto plan = RichText::BuildMarkdownCommand(Snapshot(), Revision(), syntax, selection, request);
         const auto edits = plan.Edits();
         if (! plan.IsApplicable() || edits.size() != 1u || edits[0].source.first != selection.Start() || edits[0].source.last != selection.End())
-            return false;
+            return prepareFileReference();
         replacement = edits[0].replacement;
         return true;
     }
     catch (const std::invalid_argument&)
     {
-        return false; // Ineligible destination retains ordinary paste.
+        return prepareFileReference(); // Ineligible destination retains ordinary paste.
     }
     catch (const std::length_error&)
     {
-        return false;
+        return prepareFileReference();
     }
 }
 bool RichTextEditor::TryPrepareFileReferencesAt(const TextClipboardContent& content,

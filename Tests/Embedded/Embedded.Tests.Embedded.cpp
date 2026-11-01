@@ -1284,6 +1284,7 @@ __declspec(noinline) static int RunFunctionalTests()
         {
             GraphicsFixture gpu;
             Hr(gpu.Create(), "file reference isolated WARP device");
+            TestEmbeddedImagePathPaste(gpu);
             TestEmbeddedFileReferencePaste(gpu);
             TestRichImagePathAllocationFailures();
         }

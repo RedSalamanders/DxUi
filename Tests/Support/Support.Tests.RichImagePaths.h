@@ -92,7 +92,9 @@ template <typename Check> inline void Paths(Check&& check)
     check(cellEnd && cellEnd->table, "unique nonempty cell endpoint retains table context");
     const auto lastColumn = contextAt(L"a | b\n- | -\nx | y\n", L"y");
     check(lastColumn && lastColumn->table, "complete table row admits its final cell endpoint");
-    const auto paddedEnd = contextAt(L"a | b | c\n- | - | -\nx\n", L"x");
+    const auto uniqueBeforePadding = contextAt(L"a | b | c\n- | - | -\n| x\n", L"x");
+    check(uniqueBeforePadding && uniqueBeforePadding->table, "nonempty cell end before padded row boundary is unique");
+    const auto paddedEnd = contextAt(L"a | b | c\n- | - | -\n| x\n", L"\n");
     check(! paddedEnd, "shared row-end ACP refuses table insertion without a geometry site");
     try
     {
@@ -194,15 +196,8 @@ template <typename Prepare, typename Check> inline void RetainedFileReferences(D
     content.filePaths = {L"C:\\docs\\a.png", L"relative.txt"};
     replacement       = L"sentinel";
     content.filePaths.back().assign(1u, wchar_t(0xd800));
-    try
-    {
-        static_cast<void>(editor.TryPrepareClipboardPaste(content, replacement));
-        check(false, "malformed file references must fail");
-    }
-    catch (const std::invalid_argument&)
-    {
-        check(replacement == L"sentinel" && editor.GetText() == L"ok" && ! editor.CanUndo(), "malformed list fails before partial output or history");
-    }
+    check(! editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"sentinel" && editor.GetText() == L"ok" && ! editor.CanUndo(),
+          "malformed list declines before partial output or history");
     content.filePaths = {L"relative*[x].txt"};
     check(editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"\"relative\\*\\[x\\]\\.txt\"",
           "unrepresentable rich-mode paths remain inert literal source");
@@ -213,16 +208,7 @@ template <typename Prepare, typename Check> inline void RetainedFileReferences(D
     {
         content.filePaths = {invalid};
         replacement       = L"sentinel";
-        bool rejected     = false;
-        try
-        {
-            static_cast<void>(editor.TryPrepareClipboardPaste(content, replacement));
-        }
-        catch (const std::invalid_argument&)
-        {
-            rejected = true;
-        }
-        check(rejected && replacement == L"sentinel", "quote and line-break paths reject atomically");
+        check(! editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"sentinel", "quote and line-break paths decline atomically");
     }
     content.filePaths = {L"C:\\docs\\report.pdf"};
     for (const auto invalid : {L"C:\\docs\\bad\"![image](x).png", L"C:\\docs\\line\n![image](x).png", L"C:\\docs\\line\rbreak.pdf"})
@@ -231,18 +217,24 @@ template <typename Prepare, typename Check> inline void RetainedFileReferences(D
         replacement                = L"sentinel";
         const auto beforeRevision  = editor.Revision();
         const auto beforeSelection = editor.GetSelection();
-        try
-        {
-            static_cast<void>(editor.TryPrepareClipboardPaste(content, replacement));
-            check(false, "invalid quoted file spellings reject the complete paste batch");
-        }
-        catch (const std::invalid_argument&)
-        {
-            check(replacement == L"sentinel" && editor.GetText() == L"ok" && editor.Revision() == beforeRevision && editor.GetSelection() == beforeSelection &&
-                      ! editor.CanUndo(),
-                  "invalid file paths publish neither a representable prefix nor active Markdown fallback");
-        }
+        check(! editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"sentinel" && editor.GetText() == L"ok" &&
+                  editor.Revision() == beforeRevision && editor.GetSelection() == beforeSelection && ! editor.CanUndo(),
+              "invalid file paths decline without publishing a prefix, selection or history");
     }
+    content.filePaths = {L"C:\\docs\\report.pdf"};
+    content.filePaths.assign(TextClipboardContent::MaximumFiles + 1u, L"C:\\docs\\a.png");
+    replacement = L"sentinel";
+    check(! editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"sentinel" && editor.GetText() == L"ok" && ! editor.CanUndo(),
+          "over-count file paste declines atomically without throwing");
+    content.filePaths = {std::wstring(TextClipboardContent::MaximumFileUnits + 1u, L'x')};
+    check(! editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"sentinel" && editor.GetText() == L"ok" && ! editor.CanUndo(),
+          "overlong file paste declines atomically without throwing");
+    auto countedPath = std::wstring(L"C:\\docs\\a");
+    countedPath.push_back(L'\0');
+    countedPath += L".png";
+    content.filePaths = {countedPath};
+    check(! editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"sentinel" && editor.GetText() == L"ok" && ! editor.CanUndo(),
+          "counted NUL in a file path is refused without truncation or source mutation");
     content.filePaths = {L"C:\\docs\\report.pdf"};
     editor.SetViewMode(ViewMode::Source);
     check(editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"\"C:\\docs\\report.pdf\"", "source mode keeps structured paths literal");

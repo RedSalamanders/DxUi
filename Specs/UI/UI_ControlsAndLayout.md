@@ -2279,3 +2279,5 @@ Structured rich-text clipboard reads may independently request file lists and a 
 During pending Source or semantic layout, logical caret and erase operations use a local source window anchored only at proven Unicode-independent boundaries. Context expands across uninterrupted grapheme and word runs and may reach the document edge; CRLF, regional-indicator parity, Indic conjuncts and emoji ZWJ sequences retain the same boundaries as the full source. Legacy v0 Rich projection continues to use its mapped fallback.
 
 At the end of a nonempty table cell, file-reference paste can infer the table context when the cell uniquely owns that source position. Row-end positions shared with synthetic padded cells require the retained geometry-site identity; a source-only ambiguous request is declined.
+
+Rich clipboard paste preparation declines malformed or over-budget file lists with false and leaves the caller's replacement, source, selection, and undo history unchanged. Allocation failures remain distinguishable from content refusal.
