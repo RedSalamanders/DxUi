@@ -182,6 +182,9 @@ static void TestRichSourceMoveTransaction()
     editor.SetSelection({4u, 7u});
     Check(stale && ! editor.MoveSelectedSource(*stale, 0u) && editor.GetText() == L"one two three",
           "restoring the same selection cannot revive a stale move");
+    const auto cancelled = editor.BeginSourceMove();
+    editor.CancelSourceMove();
+    Check(cancelled && ! editor.MoveSelectedSource(*cancelled, 0u), "cancelling a gesture retires its token");
     const auto current = editor.BeginSourceMove();
     Check(current && ! editor.MoveSelectedSource(*current, 5u), "a destination inside the source selection is a no-op");
     Check(editor.MoveSelectedSource(*current, 0u) && editor.GetText() == L"twoone  three", "move to an earlier source position");

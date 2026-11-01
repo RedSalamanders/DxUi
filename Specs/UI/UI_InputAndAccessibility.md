@@ -279,7 +279,9 @@ nonempty editable selection. `MoveSelectedSource` accepts a source-coordinate
 destination outside that selection and performs one source-exact undoable
 transaction, selecting the moved text. Intervening source or selection changes,
 including selection changes later restored, and active composition refuse the
-move. This primitive alone does not initiate or route an OLE drag gesture.
+move. Starting another gesture, explicit cancellation, focus/capture loss and a
+read-only policy change retire the token. This primitive alone does not initiate
+or route an OLE drag gesture.
 
 Bulk Character movement snaps once using the existing nearest/forward-tie
 policy, then walks established boundaries. Negative movement counts the bounded

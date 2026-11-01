@@ -612,6 +612,7 @@ struct RichTextEditor::State
     uint64_t appearanceRevision         = 0;
     uint64_t bindingRevision            = 0;
     uint64_t fileDropEpoch              = 0;
+    uint64_t sourceMoveEpoch            = 0;
     uint64_t resourceGeneration         = 0;
     struct LayoutKey
     {
@@ -2170,6 +2171,8 @@ void RichTextEditor::SetReadOnly(bool readOnly) noexcept
     const bool changed = _state->readOnly != readOnly;
     _state->autoFormatRun.reset();
     _state->smartTypingSite.reset();
+    if (changed)
+        ++_state->sourceMoveEpoch;
     _state->readOnly           = readOnly;
     auto* tooltipHost          = GetHost();
     const auto tooltipLifetime = GetLifetimeToken();
@@ -2218,7 +2221,7 @@ bool RichTextEditor::ApplySourceEdits(const RichText::SourceSnapshot& expectedSo
     Changed(changed);
     return changed;
 }
-std::optional<RichTextSourceMove> RichTextEditor::BeginSourceMove() const noexcept
+std::optional<RichTextSourceMove> RichTextEditor::BeginSourceMove() noexcept
 {
     const auto selection = GetSelection();
     if (! Editable() || MarkdownCommandInputBlocked(GetHost(), this) || selection.Start() == selection.End())
@@ -2231,12 +2234,18 @@ std::optional<RichTextSourceMove> RichTextEditor::BeginSourceMove() const noexce
     move.revision_ = Revision();
     move.selectionEpoch_ = _state->document.selectionEpoch_;
     move.binding_ = _state->bindingRevision;
+    move.gestureEpoch_ = ++_state->sourceMoveEpoch;
     return move;
+}
+void RichTextEditor::CancelSourceMove() noexcept
+{
+    ++_state->sourceMoveEpoch;
 }
 bool RichTextEditor::MoveSelectedSource(const RichTextSourceMove& move, size_t destination)
 {
     if (move.owner_ != this || move.lifetime_.expired() || ! Editable() || MarkdownCommandInputBlocked(GetHost(), this) ||
         Revision() != move.revision_ || _state->bindingRevision != move.binding_ || _state->document.selectionEpoch_ != move.selectionEpoch_ ||
+        _state->sourceMoveEpoch != move.gestureEpoch_ ||
         ! Snapshot().IsSameRevision(move.source_) || GetSelection() != move.selection_)
         return false;
     const auto first = move.selection_.Start(), last = move.selection_.End();
@@ -6806,6 +6815,7 @@ void RichTextEditor::OnHidden() noexcept
 void RichTextEditor::OnFocusChanged(ControlHost& host, bool focused)
 {
     Control::OnFocusChanged(host, focused);
+    ++_state->sourceMoveEpoch;
     _state->dragging          = false;
     _state->scrollbarDragging = false;
     _state->taskPressPlan.reset();
@@ -6815,6 +6825,7 @@ void RichTextEditor::OnFocusChanged(ControlHost& host, bool focused)
 }
 void RichTextEditor::OnCaptureLost(ControlHost&)
 {
+    ++_state->sourceMoveEpoch;
     _state->dragging          = false;
     _state->scrollbarDragging = false;
     _state->taskPressPlan.reset();
