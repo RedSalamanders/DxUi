@@ -358,6 +358,8 @@ host preserve the other window's keyboard focus; text-service retirement has no 
 If a host focus notification removes its newly focused editor, the setter retires its native session, TSF document
 and cached text before returning, even if the notification throws. A returned live child acknowledges lost focus.
 Restoring a retiring TSF document's HWND association preserves a different document that already owns TSF focus.
+If a nested activation captures an outer staged document as its previous association, unwinding the outer activation
+removes that staged link so retiring the successor restores the earlier association rather than the popped document.
 After the association callback, a newer host transition or a different callback-selected document takes precedence.
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending

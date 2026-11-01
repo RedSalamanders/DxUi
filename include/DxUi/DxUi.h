@@ -53,6 +53,7 @@
 struct IRawElementProviderFragmentRoot;
 struct ITextStoreACP;
 struct ITfThreadMgrEventSink;
+struct ITfDocumentMgr;
 struct IDataObject;
 
 namespace DxUi
@@ -6347,6 +6348,7 @@ public:
     [[nodiscard]] HRESULT DebugUnadviseNativeTextInputThreadMgrEventSinkForTest(DWORD cookie) noexcept;
     [[nodiscard]] HRESULT DebugCreateFocusedNativeTextInputDocumentForTest(IUnknown** documentMgr) noexcept;
     [[nodiscard]] HRESULT DebugGetFocusedNativeTextInputDocumentForTest(IUnknown** documentMgr) noexcept;
+    [[nodiscard]] HRESULT DebugSwapNativeTextInputAssociationForTest(ITfDocumentMgr* replacement, ITfDocumentMgr** previous) noexcept;
     void DebugDeactivateNativeTextInputTsfForTest() noexcept;
 #endif
 

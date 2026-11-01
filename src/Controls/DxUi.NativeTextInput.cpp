@@ -834,6 +834,14 @@ bool ControlHost::ActivateNativeTextInputTsf(Control* control) noexcept
         [this, &threadMgr, &documentMgr, &pushed, &associated, &previousFocusDocumentMgr, &releaseUncommittedStore, activationRevision]() noexcept
     {
         // Unwind only this staged document. A callback may already have installed a newer host session.
+        // If that session captured our staged association as its predecessor,
+        // splice it out before this document is popped. Preserve unrelated
+        // associations installed by application or TSF callbacks.
+        if (_nativeTextInputTsfActive && documentMgr &&
+            Internal::HasSameComIdentity(_nativeTextInputTsfPreviousFocusDocumentMgr.get(), documentMgr.get()))
+        {
+            _nativeTextInputTsfPreviousFocusDocumentMgr = previousFocusDocumentMgr.get();
+        }
         ClearThreadManagerFocusIfOwnedBy(threadMgr.get(), documentMgr.get());
         if (associated && activationRevision == _nativeTextInputTsfTransitionRevision && ! _nativeTextInputTsfActive && _hwnd)
         {
@@ -2275,6 +2283,18 @@ HRESULT ControlHost::DebugGetFocusedNativeTextInputDocumentForTest(IUnknown** ou
 void ControlHost::DebugDeactivateNativeTextInputTsfForTest() noexcept
 {
     DeactivateNativeTextInputTsf();
+}
+
+HRESULT ControlHost::DebugSwapNativeTextInputAssociationForTest(ITfDocumentMgr* replacement, ITfDocumentMgr** previous) noexcept
+{
+    if (! previous || ! _hwnd)
+        return E_INVALIDARG;
+    *previous = nullptr;
+    wil::com_ptr_nothrow<ITfThreadMgr> threadMgr;
+    TfClientId clientId{};
+    if (! EnsureNativeTextInputThreadManager(threadMgr, clientId))
+        return E_FAIL;
+    return threadMgr->AssociateFocus(_hwnd, replacement, previous);
 }
 
 void ControlHost::DebugSetNativeTextInputImePayloadForTest(NativeTextInputImePayload payload)

@@ -990,6 +990,8 @@ void VerifyNativeTextInputTsfCallbacksPreserveReentrantSameControlSession(Native
     ReentrantNativeTextInputThreadMgrSink sink;
     bool pushCallbackRan                     = false;
     bool pushedSessionStayedActive           = false;
+    bool setFocusReentered                   = false;
+    bool retiredStagedAssociationAbsent      = false;
     bool popCallbackRan                      = false;
     bool poppedSessionStayedActive           = false;
     bool initialSessionActive                = false;
@@ -1061,6 +1063,41 @@ void VerifyNativeTextInputTsfCallbacksPreserveReentrantSameControlSession(Native
                                     window.Host().DebugHasActiveNativeTextInputTsfDocument() &&
                                     afterOuterActivation.tsfActivationSuccessCount == beforeOuterActivation.tsfActivationSuccessCount + 1u &&
                                     afterOuterActivation.tsfActivationFailureCount == beforeOuterActivation.tsfActivationFailureCount + 1u;
+
+        // Reenter from SetFocus, after the outer document was associated. The
+        // successor must not restore that abandoned staged document on retirement.
+        sink.pushCallbackEnabled = false;
+        window.Host().SetFocusControl(nullptr);
+        wil::com_ptr_nothrow<IUnknown> sentinelUnknown;
+        RequireSucceeded(window.Host().DebugCreateFocusedNativeTextInputDocumentForTest(sentinelUnknown.put()), "create an external association sentinel");
+        wil::com_ptr_nothrow<ITfDocumentMgr> sentinel;
+        RequireSucceeded(sentinelUnknown.query_to(sentinel.put()), "query the external association sentinel");
+        wil::com_ptr_nothrow<ITfDocumentMgr> oldAssociation;
+        RequireSucceeded(window.Host().DebugSwapNativeTextInputAssociationForTest(sentinel.get(), oldAssociation.put()), "install the external association sentinel");
+        wil::com_ptr_nothrow<IUnknown> stagedDocument;
+        setFocusReentered = false;
+        sink.onSetFocus = [&]
+        {
+            if (setFocusReentered || window.Host().GetFocusControl() != requested)
+                return;
+            wil::com_ptr_nothrow<IUnknown> focused;
+            if (window.Host().DebugGetFocusedNativeTextInputDocumentForTest(focused.put()) != S_OK || ! focused || focused.get() == sentinelUnknown.get())
+                return;
+            setFocusReentered = true;
+            stagedDocument = focused;
+            window.Host().SetFocusControl(requested);
+        };
+        window.Host().SetFocusControl(requested);
+        sink.onSetFocus = {};
+        window.Host().DebugDeactivateNativeTextInputTsfForTest();
+        wil::com_ptr_nothrow<ITfDocumentMgr> afterNestedRetirement;
+        RequireSucceeded(window.Host().DebugSwapNativeTextInputAssociationForTest(sentinel.get(), afterNestedRetirement.put()),
+                         "observe the association restored after nested retirement");
+        retiredStagedAssociationAbsent = setFocusReentered && stagedDocument && afterNestedRetirement.get() == sentinel.get();
+        wil::com_ptr_nothrow<ITfDocumentMgr> replacedSentinel;
+        RequireSucceeded(window.Host().DebugSwapNativeTextInputAssociationForTest(oldAssociation.get(), replacedSentinel.put()),
+                         "restore the original test-window association");
+        window.Host().SetFocusControl(requested);
 
         popCallbackRan           = false;
         sink.pushCallbackEnabled = false;
@@ -1242,6 +1279,7 @@ void VerifyNativeTextInputTsfCallbacksPreserveReentrantSameControlSession(Native
     Require(initialSessionActive, "initial field has an active TSF document before the sink is advised");
     Require(pushCallbackRan, "pushing a TSF context synchronously raises OnPushContext");
     Require(pushedSessionStayedActive, "a same-control nested activation wins over the outer staged TSF context");
+    Require(retiredStagedAssociationAbsent, "nested SetFocus retirement never restores the abandoned staged TSF document");
     Require(popCallbackRan, "popping the active TSF document synchronously raises OnPopContext");
     Require(poppedSessionStayedActive, "deactivation preserves the same-control TSF session installed by OnPopContext");
     Require(parentSetterPreservedCallbackEditor, "a parent focus setter cannot overwrite the different editor selected by its TSF Pop callback");
