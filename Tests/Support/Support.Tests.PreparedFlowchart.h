@@ -230,8 +230,11 @@ template <typename Check> inline void RasterOracle(Check&& check)
     THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
     const auto drawing = DrawingFactory();
     const auto write   = WriteFactory();
-    for (const auto source :
-         {L"graph TD;A[label]", L"graph TD;A[\"Unicode \u03b2 \U0001f600\"]", L"graph TD;A[\"\u05d0\u05d1\u05d2\"]", L"graph TD;A[\"first\\nsecond\"]"})
+    for (const auto source : {L"graph TD;A[label]",
+                              L"graph TD;A[\"Unicode \u03b2 \U0001f600\"]",
+                              L"graph TD;A[\"\u05d0\u05d1\u05d2\"]",
+                              L"graph TD;A[\"first\\nsecond\"]",
+                              L"graph TD;A[one<br>two #9829;]"})
         for (const auto direction : {DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT})
         {
             const auto graph = FlowchartLayoutTests::Graph(source);

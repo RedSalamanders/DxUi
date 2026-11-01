@@ -969,14 +969,14 @@
   },
   {
     "id": 89,
-    "outcome": "Unsupported",
-    "nodes": 0,
-    "edges": 0,
-    "direction": "TopBottom",
-    "reason": "entities-html-or-icons",
-    "issue": "UnsupportedLabelMarkup",
-    "diagnosticFirst": 43,
-    "diagnosticLast": 44
+    "outcome": "Prepared",
+    "nodes": 2,
+    "edges": 1,
+    "direction": "LeftRight",
+    "reason": "bounded-mermaid-entities",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 90,

@@ -422,7 +422,7 @@ template <typename Check> inline void CheckOriginalCorpus(Check&& check)
                       result->diagnostic.source.first < result->diagnostic.source.last && result->diagnostic.source.last <= result->source.size(),
                   "unsupported original family examples retain their independently classified diagnostic and exact source fallback");
     }
-    check(prepared == 27u && unsupported == 78u && std::size(NativeFlowchartCorpus::familyExamples) == 20u,
+    check(prepared == 28u && unsupported == 77u && std::size(NativeFlowchartCorpus::familyExamples) == 20u,
           "Mermaid corpus has no omitted examples/families and separates graph preparation from rejection");
     CheckFamilyGrammar(check);
     CheckFanout(check);
@@ -658,6 +658,35 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
     check(excessiveRanks->outcome == FlowchartOutcome::Capacity && excessiveRanks->diagnostic.issue == FlowchartIssue::LinkRankCapacity &&
               excessiveRanks->source == L"flowchart LR\nA ------------------> B\n" && excessiveRanks->nodes.empty(),
           "link rank requests beyond the bounded profile retain exact source");
+    for (const auto& [source, label] : {std::pair{L"flowchart LR\nA[\"#quot;#9829;#NotEqualTilde;\"]\n", L"\"♥≂̸"},
+                                        std::pair{L"flowchart LR\nA[one<br>two<br/>three<br />four]\n", L"one\ntwo\nthree\nfour"},
+                                        std::pair{L"flowchart LR\nA[#128512;]\n", L"😀"}})
+    {
+        parser.Begin(source, 29u);
+        const auto result = Complete(parser);
+        check(result->outcome == FlowchartOutcome::Prepared && result->source == source && result->nodes.size() == 1u && result->nodes[0u].label == label,
+              "Mermaid decimal and named entities and supported line breaks decode into exact label scalars");
+    }
+    parser.Begin(L"flowchart LR\nA -->|#quot;<br>#9829;| B\n", 30u);
+    const auto entityEdge = Complete(parser);
+    check(entityEdge->outcome == FlowchartOutcome::Prepared && entityEdge->edges.size() == 1u && entityEdge->edges[0u].label == L"\"\n♥",
+          "pipe edge labels decode semicolon-terminated entities without splitting the statement");
+    for (const auto source : {L"flowchart LR\nA[#bogus;]\n", L"flowchart LR\nA[#1;]\n", L"flowchart LR\nA[#128;]\n", L"flowchart LR\nA[<b>text</b>]\n"})
+    {
+        parser.Begin(source, 31u);
+        const auto result = Complete(parser);
+        check(result->outcome == FlowchartOutcome::Unsupported && result->diagnostic.issue == FlowchartIssue::UnsupportedLabelMarkup &&
+                  result->source == source && result->nodes.empty() && result->edges.empty(),
+              "unknown entities, unsupported controls and arbitrary HTML preserve exact source");
+    }
+    std::wstring entityOverflow = L"flowchart LR\nA[";
+    entityOverflow.append(NativeFlowchartParser::MaximumLabelUnits - 1u, L'a');
+    entityOverflow += L"#128512;]\n";
+    parser.Begin(entityOverflow, 32u);
+    const auto entityCapacity = Complete(parser);
+    check(entityCapacity->outcome == FlowchartOutcome::Capacity && entityCapacity->diagnostic.issue == FlowchartIssue::LabelCapacity &&
+              entityCapacity->source == entityOverflow && entityCapacity->nodes.empty(),
+          "supplementary decoded entities count both UTF-16 units before label admission");
     std::wstring oversizedInline = L"flowchart LR\nA -- ";
     oversizedInline.append(NativeFlowchartParser::MaximumLabelUnits + 1u, L'x');
     oversizedInline += L" --> B\n";

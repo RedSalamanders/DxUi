@@ -1,0 +1,1 @@
+- Render bounded Mermaid label entities and explicit line breaks.

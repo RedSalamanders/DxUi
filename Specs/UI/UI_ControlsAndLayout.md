@@ -1686,8 +1686,12 @@ is unsupported. In particular `A---oB`/`A---xB` MUST NOT be silently
 treated as edges to IDs `oB`/`xB`; use whitespace before such IDs for a plain line.
 Quoted labels allow Unicode scalar text and `\"`, `\\`, `\n` escapes. Unquoted
 labels keep backslashes literally, trim surrounding horizontal whitespace and must quote delimiter/semicolon
-text. Literal ampersands are label text; HTML, Markdown labels, entity escapes, icon syntax and inline math labels
-are unsupported; they MUST NOT silently acquire a different label meaning.
+text. In flowchart node and pipe-edge labels, Mermaid `#name;` and decimal
+`#number;` references use the pinned Markdown character-reference decoder;
+`<br>`, `<br/>` and `<br />` insert line breaks. Unsupported references, decoded
+controls other than tab/newline, and arbitrary HTML retain exact source. Literal
+ampersands are label text; Markdown labels, icon syntax and inline math labels
+remain unsupported; they MUST NOT silently acquire a different label meaning.
 Visible solid, dotted and thick links admit up to 16 minimum ranks using Mermaid's
 extra dash, dot or equals syntax, including the right side of an inline label.
 The DAG ranking honors each forward constraint; a link above the bound or an

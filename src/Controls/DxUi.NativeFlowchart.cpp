@@ -1,4 +1,5 @@
 #include "DxUi.NativeFlowchart.h"
+#include "DxUi.MarkdownCharacterReference.h"
 #include <algorithm>
 #include <array>
 #include <stdexcept>
@@ -155,6 +156,46 @@ struct NativeFlowchartParser::Preparation
                     return Error(FlowchartIssue::MissingLabelClose, start, at);
                 ++at;
                 return true;
+            }
+            if (model->family == NativeDiagramFamily::Flowchart && c == L'<')
+            {
+                const auto rest   = Text().substr(at, end - at);
+                const auto length = rest.starts_with(L"<br>") ? 4u : rest.starts_with(L"<br/>") ? 5u : rest.starts_with(L"<br />") ? 6u : 0u;
+                if (length)
+                {
+                    if (value.size() == MaximumLabelUnits)
+                        return Error(FlowchartIssue::LabelCapacity, at, at + length, FlowchartOutcome::Capacity);
+                    value.push_back(L'\n');
+                    at += length;
+                    continue;
+                }
+            }
+            if (model->family == NativeDiagramFamily::Flowchart && c == L'#')
+            {
+                const auto startReference = at;
+                auto finish               = at + 1u;
+                while (finish < end && finish - at < 33u && Text()[finish] != L';')
+                    ++finish;
+                if (finish == end || Text()[finish] != L';')
+                    return Error(FlowchartIssue::UnsupportedLabelMarkup, at, std::min(end, finish + 1u), FlowchartOutcome::Unsupported);
+                std::array<wchar_t, 35u> spelling{};
+                spelling[0u]        = L'&';
+                const bool numeric  = at + 1u < finish && Text()[at + 1u] >= L'0' && Text()[at + 1u] <= L'9';
+                const auto copyFrom = at + (numeric ? 0u : 1u);
+                const auto length   = finish + 1u - copyFrom;
+                std::copy_n(Text().data() + copyFrom, length, spelling.data() + 1u);
+                MarkdownLexeme decoded;
+                if (! DecodeMarkdownCharacterReference(std::wstring_view(spelling.data(), length + 1u), 0u, decoded) || decoded.source.last != length + 1u)
+                    return Error(FlowchartIssue::UnsupportedLabelMarkup, startReference, finish + 1u, FlowchartOutcome::Unsupported);
+                for (std::size_t i = 0u; i < decoded.valueLength; ++i)
+                    if ((decoded.value[i] < L' ' && decoded.value[i] != L'\n' && decoded.value[i] != L'\t') ||
+                        (decoded.value[i] >= 0x7f && decoded.value[i] <= 0x9f))
+                        return Error(FlowchartIssue::UnsupportedLabelMarkup, startReference, finish + 1u, FlowchartOutcome::Unsupported);
+                if (decoded.valueLength > MaximumLabelUnits - value.size())
+                    return Error(FlowchartIssue::LabelCapacity, startReference, finish + 1u, FlowchartOutcome::Capacity);
+                value.append(decoded.value.data(), decoded.valueLength);
+                at = finish + 1u;
+                continue;
             }
             if (! quoted && (c == L'[' || c == L']' || c == L'(' || c == L')' || c == L'{' || c == L'}' || c == L';' || c == L'"'))
                 return Error(FlowchartIssue::UnsupportedLabelMarkup, at, at + 1u, FlowchartOutcome::Unsupported);
@@ -735,7 +776,7 @@ struct NativeFlowchartParser::Preparation
                 return;
             comment = true;
         }
-        if (newline || (! comment && ! quote && ! depth && c == L';'))
+        if (newline || (! comment && ! quote && ! depth && ! pipe && c == L';'))
         {
             if (! comment && ! Statement(scan))
                 return;

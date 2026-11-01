@@ -1455,6 +1455,9 @@ Visible links can request up to 16 minimum ranks by adding dashes, dots or equal
 signs, including after inline edge text. Forward links constrain the DAG ranking;
 back edges and self-loops do not. Requests outside the link or 256-rank bounds
 retain source with a capacity diagnostic.
+Flowchart node and pipe-edge labels decode Mermaid decimal and named `#...;`
+references through the pinned Markdown reference table and accept `<br>`, `<br/>`
+and `<br />` line breaks. Other HTML and unsupported references retain source.
 This is not
 Mermaid coordinate compatibility. Composite states, class namespaces/generics,
 class compartments, relationship multiplicities, stereotypes, styling,
