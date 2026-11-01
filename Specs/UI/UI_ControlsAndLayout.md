@@ -2176,6 +2176,14 @@ partition; generated backlink-only rows add no raw line units. Reordered note
 data MUST remain optional, without enlarging ordinary inline records.
 
 Resolved footnote body selections use the ordinary structural planners with note-aware opening-marker and continuation prefixes. Every staged edit must preserve the definition label and existing continuation ownership; inserted physical lines retain the enclosing note and outer containers. Unresolved literal definitions remain guarded. F8 and Shift+F8 select the next or previous exact source diagnostic, wrapping in source order. Selection requires a current syntax/layout, no composition, and a live unchanged host; it changes neither source/history nor focus. The same source selection is exposed through UIA TextPattern.
+`InsertFootnote` accepts an exact raw valid label through `request.text` in
+RichMarkdown and requires a collapsed, proven inline insertion site. It rejects
+an existing definition or reference with the same normalized identity, including
+unresolved references, so insertion cannot retarget existing source. It inserts
+the reference at the caret and a top-level empty definition at document end in
+one source transaction, using the existing EOL policy and placing the caret at
+the new definition. Unclosed terminal fences or metadata, terminal HTML blocks,
+unmatched inline brackets and a preceding odd escape run are unavailable.
 
 Retained selection remains one source-contiguous anchor/caret pair. A selection
 crossing main text and a footer may highlight disjoint visual fragments. Copy,

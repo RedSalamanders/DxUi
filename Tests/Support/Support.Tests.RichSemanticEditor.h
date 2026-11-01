@@ -904,6 +904,20 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     Check(centered && centered->available == std::optional<bool>{true} && notPrepared && ! notPrepared->available &&
               editor->ExecuteMarkdownCommand(tableState) == MarkdownCommandStatus::Changed && editor->Undo() && editor->GetText() == stateTable,
           "prepared table alignment keys its payload and executes as one exact undo transaction");
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetText(L"alpha");
+    prepare();
+    editor->SetSelection({5u, 5u});
+    MarkdownCommandRequest noteRequest;
+    noteRequest.command = MarkdownCommand::InsertFootnote;
+    noteRequest.text    = L"id";
+    Check(editor->PrepareMarkdownCommandState(noteRequest), "prepare footnote insertion state");
+    const auto noteAvailable = editor->QueryMarkdownCommandState(noteRequest);
+    Check(noteAvailable && noteAvailable->available == std::optional<bool>{true} &&
+              editor->ExecuteMarkdownCommand(noteRequest) == MarkdownCommandStatus::Changed && editor->GetText() == L"alpha[^id]\r\n\r\n[^id]: " &&
+              editor->Undo() && editor->GetText() == L"alpha",
+          "prepared footnote insertion commits an exact reference and definition in one undo");
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
     editor->SetText(L"[link](https://example.invalid)");
     prepare();
     editor->SetSelection({2u, 2u});

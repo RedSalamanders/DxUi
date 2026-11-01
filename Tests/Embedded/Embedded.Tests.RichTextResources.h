@@ -513,7 +513,8 @@ static void TestTableCommandPreparationAllocationFailures(GraphicsFixture& gpu)
                                MarkdownCommand::MoveTableRowUp,
                                MarkdownCommand::MoveTableRowDown,
                                MarkdownCommand::MoveTableColumnLeft,
-                               MarkdownCommand::MoveTableColumnRight})
+                               MarkdownCommand::MoveTableColumnRight,
+                               MarkdownCommand::InsertFootnote})
     {
         const auto selected = command == MarkdownCommand::MoveTableColumnRight ? source.find(L"x") : caret;
         editor->SetSelection({selected, selected});
@@ -524,6 +525,7 @@ static void TestTableCommandPreparationAllocationFailures(GraphicsFixture& gpu)
         MarkdownCommandRequest request;
         request.command        = command;
         request.tableAlignment = MarkdownAlignment::Center;
+        request.text           = L"note";
         size_t requests{};
         {
             const auto oldCounting = countAllocations;

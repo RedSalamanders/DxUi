@@ -754,6 +754,45 @@ inline void InlineTasksLinks()
     request.command     = MarkdownCommand::SetLink;
     request.destination = L"next";
     Exact(L"<a href='old' title='tip'>word</a>", {28u, 28u}, request, L"<a href='next'>word</a>", Selection{17u, 17u});
+
+    request         = {};
+    request.command = MarkdownCommand::InsertFootnote;
+    request.text    = L"note";
+    const std::wstring insertedNote(L"hello[^note]\r\n\r\n[^note]: ");
+    Exact(L"hello", {5u, 5u}, request, insertedNote, Selection{insertedNote.size(), insertedNote.size()}, MarkdownProfile::RichMarkdown);
+    const std::wstring emptyNote(L"[^note]\r\n\r\n[^note]: ");
+    Exact(L"", {0u, 0u}, request, emptyNote, Selection{emptyNote.size(), emptyNote.size()}, MarkdownProfile::RichMarkdown);
+    const std::wstring styledNote(L"**he[^note]llo**\r\n\r\n[^note]: ");
+    Exact(L"**hello**", {4u, 4u}, request, styledNote, Selection{styledNote.size(), styledNote.size()}, MarkdownProfile::RichMarkdown);
+    const std::wstring mixedNote(L"a[^note]\r\nb\r\n\r\n[^note]: ");
+    Exact(L"a\r\nb", {1u, 1u}, request, mixedNote, Selection{mixedNote.size(), mixedNote.size()}, MarkdownProfile::RichMarkdown);
+    Document insertedDocument(insertedNote);
+    const auto insertedSyntax = Parse(insertedDocument, MarkdownProfile::RichMarkdown);
+    Check(insertedSyntax->Footnotes().size() == 1u && insertedSyntax->Footnotes()[0].ordinal == 1u && insertedSyntax->Footnotes()[0].references.size() == 1u,
+          "inserted footnote has a resolved reference and one owned definition");
+    for (const auto& spelling : {emptyNote, styledNote})
+    {
+        Document result(spelling);
+        const auto syntax = Parse(result, MarkdownProfile::RichMarkdown);
+        Check(syntax->Footnotes().size() == 1u && syntax->Footnotes()[0].ordinal == 1u && syntax->Footnotes()[0].references.size() == 1u,
+              "empty and styled insertion sites produce a resolved note");
+    }
+    Unavailable(L"hello", {0u, 1u}, request, MarkdownProfile::RichMarkdown);
+    Unavailable(L"[open", {5u, 5u}, request, MarkdownProfile::RichMarkdown);
+    Unavailable(L"\\", {1u, 1u}, request, MarkdownProfile::RichMarkdown);
+    Unavailable(L"x[^NOTE]", {1u, 1u}, request, MarkdownProfile::RichMarkdown);
+    Unavailable(L"x\n\n[^NOTE]: existing", {1u, 1u}, request, MarkdownProfile::RichMarkdown);
+    Unavailable(L"before\n\n```\nopen", {2u, 2u}, request, MarkdownProfile::RichMarkdown);
+    Unavailable(L"before\n\n```\nopen\n", {2u, 2u}, request, MarkdownProfile::RichMarkdown);
+    Unavailable(L"before\n\n<script>\nopen", {2u, 2u}, request, MarkdownProfile::RichMarkdown);
+    Unavailable(L"hello", {5u, 5u}, request, MarkdownProfile::Gfm029);
+    Document invalidFootnote(L"hello");
+    const auto invalidFootnoteSyntax = Parse(invalidFootnote, MarkdownProfile::RichMarkdown);
+    request.text                     = L"bad\nlabel";
+    Reject<std::invalid_argument>([&] {
+        static_cast<void>(BuildMarkdownCommand(invalidFootnote.Snapshot(), invalidFootnote.Revision(), invalidFootnoteSyntax, {5u, 5u}, request));
+    }, "footnote insertion rejects an invalid raw label");
+    Check(invalidFootnote.Text() == L"hello" && ! invalidFootnote.CanUndo(), "invalid footnote label leaves source and history intact");
 }
 inline void Tables()
 {

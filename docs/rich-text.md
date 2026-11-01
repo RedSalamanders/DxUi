@@ -1324,6 +1324,14 @@ pending; this does not establish YAML/TOML conformance or complete M5 support.
 
 ## Footnote rendering and navigation (M5b preview)
 
+`InsertFootnote` takes a valid raw label in `request.text`, inserts its reference
+at a collapsed safe RichMarkdown caret and appends an empty top-level definition
+as one undoable transaction. The caret moves to the new definition. A matching
+normalized definition or existing reference is unavailable, as are terminal
+unclosed fences/metadata, terminal HTML blocks, unmatched inline brackets and
+an odd backslash escape immediately before the caret. Existing source and EOL
+spelling are retained; the new definition uses the document's EOL policy.
+
 Select `MarkdownProfile::RichMarkdown` and enable semantic rendering for the
 `DxUiFootnotes1` extension. CommonMark0312 and Gfm029 keep their pinned grammar.
 Definitions use `[^label]: body`, with four-column body continuation. Unicode

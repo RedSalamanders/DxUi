@@ -1,4 +1,5 @@
 #include "DxUi.MarkdownTableCells.h"
+#include "DxUi.MarkdownLabels.h"
 #include "DxUi.RichFileReferenceContext.h"
 #include "DxUi.RichImagePaths.h"
 #include "DxUi.RichSemanticHtml.h"
@@ -1551,6 +1552,7 @@ struct MarkdownCommandPlanner
     void Image(const MarkdownCommandRequest& request);
     void ClearFormatting();
     void EscapedText(const MarkdownCommandRequest& request);
+    void Footnote(const MarkdownCommandRequest& request);
     void Join(bool backwards);
     void Style(MarkdownTextStyle style);
     void Link(const MarkdownCommandRequest& request, bool remove);
@@ -2686,6 +2688,94 @@ void MarkdownCommandPlanner::EscapedText(const MarkdownCommandRequest& request)
     explicitSelection = true;
     plan.applicable_  = true;
 }
+void MarkdownCommandPlanner::Footnote(const MarkdownCommandRequest& request)
+{
+    if (plan.syntax_->Profile() != MarkdownProfile::RichMarkdown || plan.before_.anchor != plan.before_.caret)
+        return;
+    if (! ValidFootnoteLabel(request.text))
+        throw std::invalid_argument("Invalid footnote label");
+    const auto site = FindInlineInsertionSite(*plan.syntax_, plan.before_);
+    if (! site)
+        return;
+    const auto identity = NormalizeMarkdownLabel(request.text, MarkdownProfile::RichMarkdown);
+    for (const auto& existing : plan.syntax_->Footnotes())
+        if (existing.label == identity)
+            return;
+    for (const auto& existing : plan.syntax_->Inlines())
+        if (existing.kind == MarkdownInlineKind::FootnoteReference)
+        {
+            const auto raw = Slice(existing.source.first, existing.source.last);
+            if (raw.size() >= 4u && raw.starts_with(L"[^") && raw.back() == L']' &&
+                NormalizeMarkdownLabel(raw.substr(2u, raw.size() - 3u), MarkdownProfile::RichMarkdown) == identity)
+                return;
+        }
+    // Appending a definition cannot escape an unclosed fence or metadata
+    // envelope. A terminal HTML block is conservatively left source-exact.
+    for (const auto& node : nodes)
+        if (node.block.source.last == text.size() && ((node.block.kind == Kind::FencedCode && ! node.block.closed) ||
+                                                      (node.block.kind == Kind::FrontMatter && ! node.block.closed) || node.block.kind == Kind::HtmlBlock))
+            return;
+    const auto caret         = plan.before_.caret;
+    const auto first         = site.value() == MarkdownNoNode ? caret : nodes[site.value()].block.content.first;
+    std::size_t openBrackets = 0u;
+    for (auto at = first; at < caret; ++at)
+    {
+        if (text[at] == L'\\' && at + 1u < caret)
+        {
+            ++at;
+            continue;
+        }
+        if (text[at] == L'[')
+            ++openBrackets;
+        else if (text[at] == L']' && openBrackets)
+            --openBrackets;
+    }
+    if (openBrackets)
+        return;
+    std::size_t escapes = 0u;
+    for (auto at = caret; at > first && text[at - 1u] == L'\\'; --at)
+        ++escapes;
+    if ((escapes % 2u) != 0u)
+        return; // The new opening bracket would otherwise be escaped.
+    std::wstring reference(L"[^");
+    reference.append(request.text);
+    reference += L']';
+    const auto eol          = Eol(Line(text.size()));
+    unsigned trailingBreaks = 0u;
+    if (caret != text.size())
+        for (auto at = text.size(); at && trailingBreaks < 2u; ++trailingBreaks)
+        {
+            if (text[at - 1u] == L'\n')
+            {
+                --at;
+                if (at && text[at - 1u] == L'\r')
+                    --at;
+            }
+            else if (text[at - 1u] == L'\r')
+                --at;
+            else
+                break;
+        }
+    std::wstring definition(0u, L' ');
+    for (unsigned count = trailingBreaks; count < 2u; ++count)
+        definition.append(eol);
+    definition.append(reference);
+    definition += L": ";
+    if (caret == text.size())
+    {
+        reference.append(definition);
+        Add(caret, caret, reference);
+    }
+    else
+    {
+        Add(caret, caret, reference);
+        Add(text.size(), text.size(), definition);
+    }
+    const auto destination = text.size() + reference.size() + (caret == text.size() ? 0u : definition.size());
+    plan.after_            = {destination, destination};
+    explicitSelection      = true;
+    plan.applicable_       = true;
+}
 void MarkdownCommandPlanner::Image(const MarkdownCommandRequest& request)
 {
     const bool relative = NativeHtmlDestination(request.destination) && request.destination.find(L':') == request.destination.npos;
@@ -3632,6 +3722,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
         case ::DxUi::RichText::MarkdownCommand::ExitCodeBlock:
         case ::DxUi::RichText::MarkdownCommand::ClearFormatting:
         case ::DxUi::RichText::MarkdownCommand::InsertEscapedText:
+        case ::DxUi::RichText::MarkdownCommand::InsertFootnote:
         default: return;
     }
     plan.applicable_ = true;
@@ -3873,7 +3964,7 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
 {
     if (request.text.size() > Document::MaximumUnits || request.destination.size() > Document::MaximumUnits || request.title.size() > Document::MaximumUnits)
         throw std::length_error("Structural request text exceeds source capacity");
-    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::MoveTableColumnRight))
+    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::InsertFootnote))
         throw std::invalid_argument("Invalid Markdown command");
     Detail::MarkdownCommandPlanner builder(source, revision, std::move(syntax), selection);
     // Footnote labels and unresolved definitions are protected source.
@@ -3903,6 +3994,7 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
         case MarkdownCommand::ExitCodeBlock: builder.ExitCode(); break;
         case MarkdownCommand::ClearFormatting: builder.ClearFormatting(); break;
         case MarkdownCommand::InsertEscapedText: builder.EscapedText(request); break;
+        case MarkdownCommand::InsertFootnote: builder.Footnote(request); break;
         case MarkdownCommand::InsertTable:
         case MarkdownCommand::InsertTableRow:
         case MarkdownCommand::DeleteTableRow:

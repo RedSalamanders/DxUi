@@ -38,7 +38,8 @@ enum class MarkdownCommand
     MoveTableRowUp,
     MoveTableRowDown,
     MoveTableColumnLeft,
-    MoveTableColumnRight
+    MoveTableColumnRight,
+    InsertFootnote
 };
 enum class MarkdownQuoteAction
 {
@@ -111,6 +112,7 @@ struct MarkdownCommandRequest
     // Optional UTF-16 caret offset in SetTableCell's replacement text.
     std::optional<std::size_t> tableCellCaretOffset;
     // Borrowed only while building. Cell text is raw single-line Markdown;
+    // InsertFootnote uses text as the exact raw footnote label.
     // destination/title are semantic Unicode values serialized by the planner.
     std::wstring_view text, destination, title;
     MarkdownAlignment tableAlignment = MarkdownAlignment::None;
