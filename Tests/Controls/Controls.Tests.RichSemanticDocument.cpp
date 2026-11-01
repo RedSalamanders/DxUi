@@ -287,6 +287,9 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
     Require(matrixSum != normalMatrix->GlyphLayouts().end() && smallMatrixSum != smallMatrix->GlyphLayouts().end() &&
                 matrixSum->font < displayOperator->GlyphLayouts()[0u].font && smallMatrixSum->font < matrixSum->font,
             "matrix cells use text-style operators and smallmatrix applies a smaller cell style");
+    const auto raggedMatrix = prepare(L"\\begin{matrix}a&b\\\\c\\end{matrix}");
+    Require(raggedMatrix->GlyphLayouts().size() == 3u && raggedMatrix->Size().width > 0.f && raggedMatrix->Size().height > 0.f,
+            "a ragged matrix prepares visible cells and an implicit empty cell");
 
     const auto big = prepare(L"\\big("), Big = prepare(L"\\Big("), bigg = prepare(L"\\bigg("), Bigg = prepare(L"\\Bigg(");
     Require(big->Size().height < Big->Size().height && Big->Size().height < bigg->Size().height && bigg->Size().height < Bigg->Size().height,
@@ -419,12 +422,13 @@ void TestRichSemanticNativeMathematicsAndBroaderMermaid()
                                L"\\sqrt[3]{x}",
                                L"\\overline{AB}+\\vec{v}",
                                L"\\begin{aligned}a&=b\\\\c&=d\\end{aligned}",
+                               L"\\begin{matrix}a&b\\\\c\\end{matrix}",
                                L"\\text{speed in m/s}",
                                L"\\int_0^1 x dx",
                                L"\\left( a \\rightarrow b \\right)",
                                L"\\mathbb{R}+\\mathcal{F}"})
         Require(static_cast<bool>(ParseMath(formula)), "documented mathematical notation parses");
-    for (const auto formula : {L"\\input{file}", L"\\frac{a}", L"x^2^3", L"\\begin{matrix}a&b\\\\c\\end{matrix}", L"\\begin{matrix}x\\end{cases}"})
+    for (const auto formula : {L"\\input{file}", L"\\frac{a}", L"x^2^3", L"\\begin{matrix}x\\end{cases}"})
         Require(! ParseMath(formula), "malformed, unsafe or unsupported equations reject the complete formula");
     const auto fallback = RichSemanticDocumentTests::Build(L"$\\input{private}$", MarkdownProfile::RichMarkdown);
     Require(fallback->Map().Display().find(L"$\\input{private}$") != std::wstring::npos && ! fallback->Diagnostics().empty(),

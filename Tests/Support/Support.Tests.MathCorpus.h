@@ -249,6 +249,15 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     check(binomial && binomial.root.children.size() == 1u && binomial.root.children[0u].kind == MathKind::Matrix &&
               binomial.root.children[0u].text == L"pmatrix" && binomial.root.children[0u].columns == 1u && binomial.root.children[0u].children.size() == 2u,
           "binomial is a two-row parenthesized construct with no fraction rule");
+    for (const auto source : {L"\\begin{matrix}a&b\\\\c\\end{matrix}", L"\\begin{matrix}a\\\\b&c\\\\\\end{matrix}"})
+    {
+        const auto ragged = ParseMath(source);
+        check(ragged && ragged.root.children.size() == 1u && ragged.root.children[0u].kind == MathKind::Matrix && ragged.root.children[0u].columns == 2u &&
+                  ragged.root.children[0u].children.size() == 4u,
+              "short matrix rows are padded to the widest row, including before a trailing separator");
+    }
+    check(! ParseMath(L"\\begin{matrix}a&b&c&d&e&f&g&h&i&j&k&l&m&n&o&p\\\\a\\\\a\\\\a\\\\a\\\\a\\\\a\\\\a\\\\a\\end{matrix}"),
+          "implicit empty matrix cells count toward the 128-cell admission bound");
     for (const auto& [source, style] : {std::pair{L"\\dbinom{n}{k}", L"displaystyle"}, std::pair{L"\\tbinom{n}{k}", L"textstyle"}})
     {
         const auto expression = ParseMath(source);

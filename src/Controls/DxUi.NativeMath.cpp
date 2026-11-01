@@ -160,18 +160,40 @@ class Parser
         if (std::ranges::find(names, environment) == names.end())
             Reject(MathIssue::UnsupportedEnvironment);
         std::vector<MathNode> cells(0u);
+        std::array<unsigned, 16u> rowWidths{};
         unsigned columns{}, rowColumns{}, rows{};
+        const auto finish = [&]() -> MathNode
+        {
+            if (rowColumns)
+            {
+                rowWidths[rows - 1u] = rowColumns;
+                columns              = std::max(columns, rowColumns);
+            }
+            if ((environment == L"gathered" && columns != 1u) || (environment == L"cases" && columns > 2u) || rows * columns > 128u)
+                Reject();
+            if (cells.size() == static_cast<std::size_t>(rows) * columns)
+                return Make(MathKind::Matrix, std::move(environment), std::move(cells), columns);
+            std::vector<MathNode> rectangular(0u);
+            rectangular.reserve(static_cast<std::size_t>(rows) * columns);
+            std::size_t index{};
+            for (unsigned row = 0u; row < rows; ++row)
+            {
+                for (unsigned column = 0u; column < rowWidths[row]; ++column)
+                    rectangular.push_back(std::move(cells[index++]));
+                for (unsigned column = rowWidths[row]; column < columns; ++column)
+                    rectangular.push_back(Make(MathKind::Row));
+            }
+            return Make(MathKind::Matrix, std::move(environment), std::move(rectangular), columns);
+        };
         while (at < source.size())
         {
             Space();
             if (! rowColumns && ! cells.empty() && source.substr(at, 5) == L"\\end{")
             {
-                if ((environment == L"gathered" && columns != 1u) || (environment == L"cases" && columns > 2u))
-                    Reject();
                 at += 4;
                 if (GroupText() != environment)
                     Reject(MathIssue::MismatchedEnvironment);
-                return Make(MathKind::Matrix, std::move(environment), std::move(cells), columns);
+                return finish();
             }
             if (! rowColumns && ++rows > 16u)
                 Reject();
@@ -184,11 +206,7 @@ class Parser
                 at += 4;
                 if (GroupText() != environment)
                     Reject(MathIssue::MismatchedEnvironment);
-                if (! columns)
-                    columns = rowColumns;
-                if (columns != rowColumns || (environment == L"gathered" && columns != 1u) || (environment == L"cases" && columns > 2u))
-                    Reject();
-                return Make(MathKind::Matrix, std::move(environment), std::move(cells), columns);
+                return finish();
             }
             if (at < source.size() && source[at] == L'&')
             {
@@ -198,11 +216,9 @@ class Parser
             if (source.substr(at, 2) != L"\\\\")
                 Reject();
             at += 2;
-            if (! columns)
-                columns = rowColumns;
-            if (columns != rowColumns)
-                Reject();
-            rowColumns = 0;
+            rowWidths[rows - 1u] = rowColumns;
+            columns              = std::max(columns, rowColumns);
+            rowColumns           = 0;
         }
         Reject();
     }

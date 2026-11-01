@@ -1396,8 +1396,8 @@ native display position and a `SemanticRole::Math` child named with its TeX nota
 fractions (`frac`, `dfrac`, `tfrac`), parenthesized two-row binomials (`binom`, `dbinom`, `tbinom`), indexed roots, simultaneous scripts, above/below annotations (`overset`, `underset`, `stackrel`), Greek and
 operator symbols, named functions, text/operator names, roman/bold/italic and
 blackboard/script alphabets, accents, scalable paired delimiters, matrices, cases,
-aligned and gathered rows. Matrix rows use `\\` and cells use `&`; rows must have
-consistent columns. User macros, packages, file input, evaluation and full LaTeX
+aligned and gathered rows. Matrix rows use `\\` and cells use `&`; shorter rows
+are padded with empty cells to the widest row, within the total-cell limit. User macros, packages, file input, evaluation and full LaTeX
 compatibility are unsupported. Rejection retains the complete literal equation with
 a source-ranged diagnostic, rather than drawing a misleading partial expression.
 
