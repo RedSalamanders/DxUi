@@ -49,6 +49,15 @@ decline. It reports observed outcome counts without promoting those observations
 to independent conformance expectations. The separately reviewed 105 flowchart
 and 20 family vectors continue to assert their independent semantic outcomes.
 
+The math corpus executes all 1,135 rows of the pinned KaTeX 0.16.11 support
+table. It uses each row's original rendered math sample when present (995 rows)
+and otherwise its unescaped command label (140 rows, explicitly marked as
+command-only and potentially missing arguments). These are exhaustive safety
+probes for bounded parsing, diagnostic-only rejection and finite preparation of
+admitted expressions. Observed counts are reported, never used as independent
+support expectations. Directed syntax, atom, SDK metric and raster oracles remain
+the evidence for the bounded native profile's actual semantics.
+
 Intrinsic measurement, opt-in Flex and reusable forms run in the nonactivating Controls suite. The form fixtures
 cover localized labels at multiple DPI/density/flow/column/placement/width combinations; finite bounds and overflow;
 unsupported and growing custom minima; shared text budgets and cache invalidation; exact fractional geometry;

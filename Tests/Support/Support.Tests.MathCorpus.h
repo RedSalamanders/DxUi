@@ -2,6 +2,7 @@
 #include "Controls/DxUi.NativeMathSymbols.h"
 #include "Controls/DxUi.PreparedMath.h"
 #include "Support.Tests.MathFontTable.h"
+#include "Support.Tests.NativeMathSupportRows.h"
 #include <DxUi/RichMath.h>
 #include <array>
 #include <cmath>
@@ -22,6 +23,37 @@ extern thread_local std::uintptr_t testRichMathLowestStackAddress;
 namespace NativeMathCorpusTests
 {
 using namespace DxUi::RichText;
+template <typename Check> inline void PinnedSupportRows(IDWriteFactory* factory, Check&& check)
+{
+    std::size_t parsed{}, declined{}, samples{}, previousLine{};
+    for (const auto& row : NativeMathSupportRows::rows)
+    {
+        check(row.line > previousLine && ! row.label.empty() && ! row.source.empty(), "pinned KaTeX rows have complete ordered inventory identities");
+        previousLine = row.line;
+        samples += row.originalSample ? 1u : 0u;
+        auto expression = std::make_shared<const MathExpression>(ParseMath(row.source));
+        if (! *expression)
+        {
+            check(expression->issue != MathIssue::None && ! expression->diagnostic.empty() && expression->root.kind == MathKind::Row &&
+                      expression->root.text.empty() && expression->root.children.empty(),
+                  "declined pinned KaTeX rows publish diagnostics without a partial expression");
+            ++declined;
+            continue;
+        }
+        check(expression->issue == MathIssue::None, "admitted pinned KaTeX rows have no fallback diagnostic");
+        Detail::PreparedMath layout(factory, expression, 24.f);
+        std::size_t turns{};
+        while (! layout.Advance())
+            check(++turns <= MathMaximumNodes + 1u, "each admitted pinned KaTeX row finishes finite cooperative preparation");
+        const auto size = layout.Size();
+        check(std::isfinite(size.width) && std::isfinite(size.height) && size.width >= 1.f && size.height >= 1.f,
+              "each admitted pinned KaTeX row publishes finite prepared bounds");
+        ++parsed;
+    }
+    check(std::size(NativeMathSupportRows::rows) == 1135u && samples == 995u && parsed + declined == 1135u,
+          "every pinned KaTeX support row runs, including 140 explicitly identified command-only probes");
+    std::cout << "Pinned KaTeX support rows: 1135; original samples=" << samples << "; parsed=" << parsed << "; declined=" << declined << '\n';
+}
 struct Scenario
 {
     std::wstring_view id, source;
@@ -158,6 +190,7 @@ inline std::wstring Matrix(unsigned rows, unsigned columns)
 }
 template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
 {
+    PinnedSupportRows(factory, check);
     MathFontTableTests::Run(check);
     check(Detail::ParseNativeColor(L"#AbC") == 0xaabbccu && Detail::ParseNativeColor(L"rebeccaPurple") == 0x663399u &&
               Detail::ParseNativeColor(L"DarkGrey") == 0xa9a9a9u && ! Detail::ParseNativeColor(L"#xyz") &&

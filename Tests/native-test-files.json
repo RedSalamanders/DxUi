@@ -134,6 +134,7 @@
   "Tests/Support/Support.Tests.MathCorpus.h",
   "Tests/Support/Support.Tests.MathFontTable.h",
   "Tests/Support/Support.Tests.NativeFlowchartCorpus.h",
+  "Tests/Support/Support.Tests.NativeMathSupportRows.h",
   "Tests/Support/Support.Tests.PerformanceCapture.h",
   "Tests/Support/Support.Tests.PreparedFlowchart.h",
   "Tests/Support/Support.Tests.PreparedTreeSemanticFixture.h",

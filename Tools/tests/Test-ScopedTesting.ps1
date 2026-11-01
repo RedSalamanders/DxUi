@@ -158,7 +158,8 @@ try {
                               'src/Controls/DxUi.NativeFlowchartLayout.h','src/Controls/DxUi.PreparedFlowchart.cpp','src/Controls/DxUi.SemanticExtensions.h',
                               'src/Controls/DxUi.RichTextScriptRenderer.h','src/Controls/DxUi.RichBidi.h',
                               'Tests/Support/Support.Tests.RichSemanticEditor.h','Tests/Support/Support.Tests.MarkdownBlocks.h',
-                              'Tests/Support/Support.Tests.FlowchartLayout.h','Tests/Support/Support.Tests.PreparedFlowchart.h')) {
+                              'Tests/Support/Support.Tests.FlowchartLayout.h','Tests/Support/Support.Tests.PreparedFlowchart.h',
+                              'Tests/Support/Support.Tests.NativeMathSupportRows.h')) {
                 $plan=Get-ScopedTestPlan $manifest @($path)
                 Assert-Scope (-not $plan.full) "Rich presentation input unexpectedly fell through to an unmapped full plan: $path"
                 foreach($scope in @('EditorControls','Embedded','Accessibility')) {
