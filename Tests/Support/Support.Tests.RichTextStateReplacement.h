@@ -151,8 +151,8 @@ public:
 template <typename Check> inline void Service(ServiceEditor& editor, ControlHost& host, Check&& check)
 {
     editor.SetText(L"a\r\nb\U0001f600");
-    editor.SetSelection({0u, 6u});
-    check(editor.GetSourceCaretLocation() == SourceLocation{1u, 3u},
+    editor.SetSelection({6u, 3u});
+    check(editor.GetSourceCaretLocation() == SourceLocation{1u, 0u},
           "editor reports the logical source location of the caret, including reversed selections");
     for (const auto& example : examples)
     {
