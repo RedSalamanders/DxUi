@@ -3132,6 +3132,27 @@ struct RichTextLinkActivation
     // Borrowed for the callback; the immutable semantic publication stays alive.
     std::wstring_view destination, title;
 };
+enum class RichTextDecorationKind
+{
+    Background,
+    Underline,
+    Squiggle,
+    Foreground
+};
+enum class RichTextDecorationRole
+{
+    Accent,
+    Subdued,
+    Warning,
+    Error
+};
+struct RichTextDecoration
+{
+    size_t start{}, length{};
+    RichTextDecorationKind kind                               = RichTextDecorationKind::Background;
+    RichTextDecorationRole role                               = RichTextDecorationRole::Accent;
+    bool operator==(const RichTextDecoration&) const noexcept = default;
+};
 struct RichTextEditorDebugState
 {
     bool layoutReady                   = false;
@@ -3161,7 +3182,8 @@ struct RichTextEditorDebugState
     bool sourceInkPreparationPending   = false;
     size_t sourceInkRangeCount         = 0;
     size_t preparedSelectionRectangles = 0, preparedHighlightRectangles = 0;
-    bool overlayGeometryPending = false;
+    size_t preparedDecorationRectangles = 0;
+    bool overlayGeometryPending         = false;
 };
 
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
@@ -3233,6 +3255,9 @@ public:
     void SetSourceHighlights(std::span<const RichTextSourceHighlight> highlights);
     void ClearSourceHighlights() noexcept;
     [[nodiscard]] std::span<const RichTextSourceHighlight> GetSourceHighlights() const noexcept;
+    // Revision-guarded source annotations. Source changes retire them.
+    void SetDecorations(const RichText::SourceSnapshot& expectedSource, std::span<const RichTextDecoration> decorations);
+    [[nodiscard]] std::span<const RichTextDecoration> GetDecorations() const noexcept;
     void SetFocusModeEnabled(bool enabled) noexcept;
     [[nodiscard]] bool IsFocusModeEnabled() const noexcept;
     // Opt-in lossless block/lexical analysis on the host's preparation turns.

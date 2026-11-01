@@ -1202,6 +1202,11 @@ at the source boundary; selection and scrolling use the ordinary editor policy.
 Selection, source-highlight and native composition rectangles are staged with
 current layout before painting; selection or highlight changes retire their
 prepared geometry until the host prepares the replacement.
+Revision-guarded source decorations support background, underline, squiggle and
+foreground using accent, subdued, warning and error roles; source edits retire
+them. At most 256 decorations and 4096 prepared decoration rectangles are
+admitted; exceeding the rectangle limit reports insufficient buffer during
+preparation. High contrast uses the theme text color and outlines backgrounds.
 An editor context-menu callback receives focus first. Keyboard invocation retains
 the selection; a pointer invocation outside it moves the caret to the hit source
 position. Selection callback reentry that changes the target cancels the menu.

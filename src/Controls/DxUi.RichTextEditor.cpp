@@ -103,6 +103,19 @@ D2D1_COLOR_F ResolveMarkdownQuoteFill(const ThemePalette& theme, const TextField
     ink.a *= .08f;
     return CompositeOverBackground(ink, style.fill);
 }
+D2D1_COLOR_F DecorationColor(const ThemePalette& theme, RichTextDecorationRole role) noexcept
+{
+    if (theme.highContrast)
+        return theme.text;
+    switch (role)
+    {
+        case RichTextDecorationRole::Accent: return theme.accent;
+        case RichTextDecorationRole::Subdued: return theme.subduedText;
+        case RichTextDecorationRole::Warning: return theme.warningText;
+        case RichTextDecorationRole::Error: return theme.errorText;
+    }
+    return theme.text;
+}
 } // namespace
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
 // Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
@@ -134,13 +147,21 @@ struct RichTextEditor::State
     std::weak_ptr<const RichText::SemanticDocument> keyboardNavigationDocument;
     size_t keyboardNavigationElement = RichText::MarkdownNoNode;
     std::vector<RichTextSourceHighlight> highlights;
+    std::vector<RichTextDecoration> decorations;
     struct HighlightRectangle
     {
         D2D1_RECT_F rectangle{};
         bool current{};
     };
+    struct DecorationRectangle
+    {
+        D2D1_RECT_F rectangle{};
+        RichTextDecorationKind kind{};
+        RichTextDecorationRole role{};
+    };
     std::vector<D2D1_RECT_F> selectionRectangles{0u};
     std::vector<HighlightRectangle> highlightRectangles{0u};
+    std::vector<DecorationRectangle> decorationRectangles{0u};
     std::vector<D2D1_RECT_F> compositionRectangles{0u}, conversionRectangles{0u};
     bool overlaySelectionDirty = true, overlayHighlightsDirty = true;
     bool focusMode = false;
@@ -264,6 +285,7 @@ void RichTextEditor::SetText(std::wstring text)
 {
     _state->document.Reset(std::move(text));
     _state->highlights.clear();
+    _state->decorations.clear();
     _state->images.Cancel();
     _state->sourceEditing.reset();
     _state->markdownCapacityRejected.reset();
@@ -297,6 +319,7 @@ bool RichTextEditor::SynchronizeReadOnlySourceSnapshot(const RichText::SourceSna
     if (sourceChanged)
     {
         _state->highlights.clear();
+        _state->decorations.clear();
         _state->images.Cancel();
         _state->sourceEditing.reset();
         _state->markdownCapacityRejected.reset();
@@ -903,6 +926,32 @@ std::span<const RichTextSourceHighlight> RichTextEditor::GetSourceHighlights() c
 {
     return _state->highlights;
 }
+void RichTextEditor::SetDecorations(const RichText::SourceSnapshot& expectedSource, std::span<const RichTextDecoration> decorations)
+{
+    if (! Snapshot().IsSameRevision(expectedSource))
+        throw std::invalid_argument("Stale rich decoration source");
+    if (decorations.size() > 256u)
+        throw std::length_error("Too many rich decorations");
+    for (const auto& item : decorations)
+        if (item.start > expectedSource.Length() || item.length > expectedSource.Length() - item.start || ! expectedSource.IsBoundary(item.start) ||
+            ! expectedSource.IsBoundary(item.start + item.length) ||
+            static_cast<unsigned>(item.kind) > static_cast<unsigned>(RichTextDecorationKind::Foreground) ||
+            static_cast<unsigned>(item.role) > static_cast<unsigned>(RichTextDecorationRole::Error))
+            throw std::invalid_argument("Invalid rich decoration");
+    if (std::ranges::equal(_state->decorations, decorations))
+        return;
+    std::vector<RichTextDecoration> staged(decorations.begin(), decorations.end());
+    _state->decorations.swap(staged);
+    _state->overlayHighlightsDirty = true;
+    const auto lifetime            = GetLifetimeToken();
+    RequestContentPreparation(false);
+    if (! lifetime.expired())
+        RequestInvalidate();
+}
+std::span<const RichTextDecoration> RichTextEditor::GetDecorations() const noexcept
+{
+    return _state->decorations;
+}
 void RichTextEditor::SetFocusModeEnabled(bool enabled) noexcept
 {
     if (_state->focusMode == enabled)
@@ -1491,6 +1540,8 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
     if (sourceChanged)
         _state->highlights.clear();
     if (sourceChanged)
+        _state->decorations.clear();
+    if (sourceChanged)
     {
         _state->images.Cancel();
         _state->hoveredLink.reset();
@@ -1671,9 +1722,28 @@ void RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
     if (state.overlayHighlightsDirty)
     {
         std::vector<State::HighlightRectangle> rectangles(0u);
+        std::vector<State::DecorationRectangle> decorations(0u);
         for (const auto& highlight : state.highlights)
             for (const auto& rectangle : layout.SourceRange(highlight.start, highlight.start + highlight.length))
                 rectangles.push_back({rectangle, highlight.current});
+        for (const auto& decoration : state.decorations)
+            for (const auto& rectangle : layout.SourceRange(decoration.start, decoration.start + decoration.length))
+            {
+                if (decorations.size() == 4096u)
+                    THROW_HR(HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER));
+                decorations.push_back({rectangle, decoration.kind, decoration.role});
+            }
+        for (const auto role :
+             {RichTextDecorationRole::Accent, RichTextDecorationRole::Subdued, RichTextDecorationRole::Warning, RichTextDecorationRole::Error})
+        {
+            auto color = DecorationColor(host.GetTheme(), role);
+            static_cast<void>(host.GetSolidBrush(color));
+            if (! host.GetTheme().highContrast)
+            {
+                color.a *= .18f;
+                static_cast<void>(host.GetSolidBrush(color));
+            }
+        }
         for (const bool current : {false, true})
         {
             auto color = host.GetTheme().selectionFill;
@@ -1681,6 +1751,7 @@ void RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
             static_cast<void>(host.GetSolidBrush(color));
         }
         state.highlightRectangles.swap(rectangles);
+        state.decorationRectangles.swap(decorations);
         state.overlayHighlightsDirty = false;
     }
 }
@@ -2222,6 +2293,7 @@ RichTextEditorDebugState RichTextEditor::DebugGetState() const noexcept
             _state->sourceInk.Ranges().size(),
             _state->selectionRectangles.size(),
             _state->highlightRectangles.size(),
+            _state->decorationRectangles.size(),
             _state->overlaySelectionDirty || _state->overlayHighlightsDirty};
 }
 bool RichTextEditor::SupportsTextInput() const noexcept
@@ -2464,6 +2536,7 @@ bool RichTextEditor::ImportTextInputState(ControlHost& host, const TextInputStat
         if (changed)
         {
             _state->highlights.clear();
+            _state->decorations.clear();
             _state->images.Cancel();
             UpdateSemanticSourceRegion();
             RetireSemanticAccessibility();
@@ -2535,6 +2608,23 @@ void RichTextEditor::Paint(ControlHost& host) const
     const auto origin = D2D1::Point2F(viewport.left, viewport.top - state.scrollDip);
     context->PushAxisAlignedClip(viewport, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
     const auto restoreClip = wil::scope_exit([context]() noexcept { context->PopAxisAlignedClip(); });
+    const std::span<const State::DecorationRectangle> decorations =
+        state.overlayHighlightsDirty ? std::span<const State::DecorationRectangle>{} : std::span<const State::DecorationRectangle>(state.decorationRectangles);
+    for (const auto& decoration : decorations)
+    {
+        if (decoration.kind != RichTextDecorationKind::Background)
+            continue;
+        auto color = DecorationColor(host.GetTheme(), decoration.role);
+        if (! host.GetTheme().highContrast)
+            color.a *= .18f;
+        auto* brush           = host.GetSolidBrush(color);
+        const auto& rectangle = decoration.rectangle;
+        const auto bounds     = D2D1::RectF(rectangle.left + origin.x, rectangle.top + origin.y, rectangle.right + origin.x, rectangle.bottom + origin.y);
+        if (host.GetTheme().highContrast)
+            context->DrawRectangle(bounds, brush);
+        else
+            context->FillRectangle(bounds, brush);
+    }
     const std::span<const State::HighlightRectangle> highlights =
         state.overlayHighlightsDirty ? std::span<const State::HighlightRectangle>{} : std::span<const State::HighlightRectangle>(state.highlightRectangles);
     for (const auto& highlight : highlights)
@@ -2585,6 +2675,36 @@ void RichTextEditor::Paint(ControlHost& host) const
                       1.0f,
                       decorated ? &links : nullptr,
                       quoteFill);
+    for (const auto& decoration : decorations)
+    {
+        if (decoration.kind == RichTextDecorationKind::Background)
+            continue;
+        const auto& rectangle = decoration.rectangle;
+        const auto bounds     = D2D1::RectF(rectangle.left + origin.x, rectangle.top + origin.y, rectangle.right + origin.x, rectangle.bottom + origin.y);
+        if (bounds.bottom <= viewport.top || bounds.top >= viewport.bottom || bounds.right <= viewport.left || bounds.left >= viewport.right)
+            continue;
+        auto* brush = host.GetSolidBrush(DecorationColor(host.GetTheme(), decoration.role));
+        if (decoration.kind == RichTextDecorationKind::Foreground)
+        {
+            context->PushAxisAlignedClip(bounds, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+            const auto restoreDecorationClip = wil::scope_exit([context]() noexcept { context->PopAxisAlignedClip(); });
+            state.layout.Draw(context, brush, brush, origin, rectangle.top, rectangle.bottom, diagramFill, 1.0f, nullptr, quoteFill);
+        }
+        else if (decoration.kind == RichTextDecorationKind::Underline)
+            context->DrawLine(D2D1::Point2F(bounds.left, bounds.bottom - 1.0f), D2D1::Point2F(bounds.right, bounds.bottom - 1.0f), brush, 1.0f);
+        else
+        {
+            const float first = std::max(bounds.left, viewport.left), last = std::min(bounds.right, viewport.right);
+            const float step = std::max(3.0f, (last - first) / 1024.0f);
+            for (unsigned i = 0u; i < 1024u; ++i)
+            {
+                const float x = first + static_cast<float>(i) * step;
+                if (x >= last)
+                    break;
+                context->DrawLine(D2D1::Point2F(x, bounds.bottom - 1.0f), D2D1::Point2F(std::min(last, x + step), bounds.bottom - 3.0f), brush, 1.0f);
+            }
+        }
+    }
     auto selectedLinks              = links;
     selectedLinks.brush             = selectedTextBrush;
     selectedLinks.emphasisBrush     = selectedTextBrush;

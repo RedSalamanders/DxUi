@@ -61,8 +61,8 @@ populated gallery tile and static component preview show resolved styles and a
 Unicode table, measured hanging list columns and underlined inert links. The
 validated native HTML text subset reuses existing styles; unsupported markup
 keeps literal monospaced leaf contents. Link underlining inherits body/disabled/
-selected text ink by default. Document-surface appearance may opt into accent link ink and hover/caret underlines; explicit underline and high contrast remain persistent. Source highlights use theme selection ink below selection, and optional paragraph focus dimming uses subdued text outside high contrast. Public appearance options own border, background, bounded text column and typography. Table/code/image outlines, quote strokes and rules reuse the caret
-ink role in the default presentation; selection keeps the existing selected-text/fill roles in every theme.
+selected text ink by default. Document-surface appearance may opt into accent link ink and hover/caret underlines; explicit underline and high contrast remain persistent. Source highlights use theme selection ink below selection, and optional paragraph focus dimming uses subdued text outside high contrast. Public appearance options own border, background, bounded text column and typography. Table/code/image outlines, quote strokes and rules reuse the caret ink role in the default presentation; selection keeps the existing selected-text/fill roles in every theme.
+Revision-guarded source decorations resolve accent, subdued, warning and error roles through the active theme. Backgrounds are translucent in ordinary contrast and outlined in high contrast; selected text retains selection ink.
 Opt-in `MarkdownPresentationStyle::Subtle` uses neutral `borderDefault` decoration,
 H1/H2 separators, content-sized horizontal-rule tables, centered standalone display
 objects and a neutral eight-percent text-ink blend over the document fill for quotes. High contrast uses the resolved text/surface

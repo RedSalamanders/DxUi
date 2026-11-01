@@ -188,15 +188,25 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     editor->SetSelection({0u, 4u});
     const std::array highlights{RichTextSourceHighlight{0u, 2u, true}};
     editor->SetSourceHighlights(highlights);
+    const auto decorationSource = editor->Snapshot();
+    const std::array decorations{RichTextDecoration{0u, 4u, RichTextDecorationKind::Background, RichTextDecorationRole::Accent},
+                                 RichTextDecoration{0u, 4u, RichTextDecorationKind::Squiggle, RichTextDecorationRole::Error}};
+    editor->SetDecorations(decorationSource, decorations);
+    const std::vector<RichTextDecoration> tooManyDecorations(257u);
+    RichSemanticTests::Reject<std::length_error>([&] { editor->SetDecorations(decorationSource, tooManyDecorations); },
+                                                 "decoration count is bounded before staging");
+    Check(editor->GetDecorations().size() == decorations.size(), "rejected decoration replacement preserves current state");
     Check(editor->DebugGetState().overlayGeometryPending, "selection and highlight changes invalidate prepared overlay geometry");
     prepare();
     Check(! editor->DebugGetState().overlayGeometryPending && editor->DebugGetState().preparedSelectionRectangles != 0u &&
-              editor->DebugGetState().preparedHighlightRectangles != 0u,
+              editor->DebugGetState().preparedHighlightRectangles != 0u && editor->DebugGetState().preparedDecorationRectangles >= 2u,
           "selection and search rectangles are prepared before composition");
     editor->ClearSourceHighlights();
     prepare();
     Check(editor->DebugGetState().preparedHighlightRectangles == 0u, "cleared highlights retire their prepared rectangles");
     editor->SetText(L"");
+    Check(editor->GetDecorations().empty(), "source replacement retires revision-local decorations");
+    RichSemanticTests::Reject<std::invalid_argument>([&] { editor->SetDecorations(decorationSource, decorations); }, "stale decoration source is rejected");
     Check(editor->OnChar(host, L'a', 0u) && editor->OnChar(host, L'b', 0u) && editor->OnChar(host, L'c', 0u) && editor->GetText() == L"abc" && editor->Undo() &&
               editor->GetText().empty(),
           "adjacent direct word typing coalesces into one undo");

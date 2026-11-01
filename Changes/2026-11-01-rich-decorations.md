@@ -1,0 +1,1 @@
+- Add revision-guarded rich source background, underline, squiggle and foreground decorations with prepared geometry and theme roles; native and performance qualification remain pending.
