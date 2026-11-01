@@ -1522,7 +1522,7 @@ explicit in the WIP plan; this opt-in does not close M4 as a whole.
 
 RichTextEditor analysis is opt-in through `SetMarkdownAnalysisProfile`; null
 disables it. The default and formatted pixels retain their v0 behavior. Analysis
-uses ControlHost turns before geometry, with a 4,096-operation default per turn.
+uses ControlHost turns before geometry, with a shared 4,096-operation parser and semantic-builder budget per turn. The semantic builder may start in the parser completion turn only with its remaining budget.
 `GetMarkdownSyntax` never advances preparation and returns only a completed current
 source/revision/profile, or null. Source edits invalidate current-result access
 immediately, cancel pending analysis and preserve held immutable revisions.

@@ -1,0 +1,14 @@
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations"><ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration></ItemGroup>
+  <PropertyGroup Label="Globals"><ProjectGuid>{9B64DAF2-3E18-4A6C-90C8-429459313019}</ProjectGuid><Keyword>Win32Proj</Keyword><WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion></PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration"><ConfigurationType>Application</ConfigurationType><PlatformToolset>v145</PlatformToolset><UseDebugLibraries>false</UseDebugLibraries></PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ItemDefinitionGroup>
+    <ClCompile><AdditionalOptions>/external:I"$(TargetRoot)\.build\vcpkg_installed\x64\x64-windows\include" /external:W0 %(AdditionalOptions)</AdditionalOptions><AdditionalIncludeDirectories>$(TargetRoot)\include;$(TargetRoot)\.build\vcpkg_installed\x64\x64-windows\include;$(TargetRoot)\Samples\EmbeddedControls;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories></ClCompile>
+    <Link><SubSystem>Console</SubSystem><AdditionalDependencies>$(TargetRoot)\.build\x64\Release\DxUi.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>
+  </ItemDefinitionGroup>
+  <Target Name="RequireTargetRoot" BeforeTargets="PrepareForBuild"><Error Condition="'$(TargetRoot)'==''" Text="Pass TargetRoot for the exact test-enabled x64 Release producer." /></Target>
+  <ItemGroup><ClCompile Include="Embedded.Tests.RichPreparationBenchmark.cpp" /></ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

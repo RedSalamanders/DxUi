@@ -1281,6 +1281,32 @@ template <typename Prepare> void NativeObjectFailureContainment(ControlHost& hos
 inline void NativeMathHRESULTFailureContainment(ControlHost& host)
 {
 #if DXUI_ENABLE_DIAGNOSTICS
+    {
+        std::wstring source;
+        for (unsigned i = 0u; i < 150u; ++i)
+            source += L"A paragraph with **styled** text.\n\n";
+        auto root    = std::make_unique<DirectPrepareRichTextEditor>(source);
+        auto* editor = root.get();
+        editor->SetBounds(D2D1::RectF(0.f, 0.f, 480.f, 240.f));
+        editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        host.SetRoot(std::move(root));
+        bool sharedTurn = false;
+        for (unsigned turn = 0u; turn < 1024u; ++turn)
+        {
+            const auto status = editor->PrepareOnce(host);
+            const auto state  = editor->DebugGetState();
+            Check(state.lastAdvanceMarkdownWork + state.lastAdvanceSemanticWork <= 4096u, "parser and semantic builder share the owner-turn work budget");
+            sharedTurn = sharedTurn || (state.lastAdvanceMarkdownWork && state.lastAdvanceSemanticWork);
+            if (status != S_FALSE)
+            {
+                Check(status == S_OK && sharedTurn && editor->GetAcknowledgedSemanticDocument(host),
+                      "completed parser starts semantic preparation in the same turn when budget remains");
+                break;
+            }
+            Check(turn != 1023u, "shared-budget preparation settles");
+        }
+    }
     const auto install = [&](std::wstring source)
     {
         auto root    = std::make_unique<DirectPrepareRichTextEditor>(std::move(source));

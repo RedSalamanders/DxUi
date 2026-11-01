@@ -107,6 +107,8 @@
   "Tests/Embedded/Embedded.Tests.RichSemanticDocumentResources.h",
   "Tests/Embedded/Embedded.Tests.RichSemanticGeometryResources.h",
   "Tests/Embedded/Embedded.Tests.RichSemanticResources.h",
+  "Tests/Embedded/Embedded.Tests.RichPreparationBenchmark.cpp",
+  "Tests/Embedded/Embedded.Tests.RichPreparationBenchmark.h",
   "Tests/Embedded/Embedded.Tests.RichTextResources.h",
   "Tests/Foundation/Foundation.Tests.Foundation.cpp",
   "Tests/Foundation/Foundation.Tests.PublicHelpers.cpp",

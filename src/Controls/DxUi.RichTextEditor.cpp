@@ -1886,7 +1886,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                     // Exact bounded source admission/copy is still indivisible.
                     // Parsing resumes its own cursors, without DirectWrite or a
                     // per-control worker. Semantic preparation consumes only a
-                    // completed current tree on a later bounded stage.
+                    // completed current tree within the remaining owner-turn budget.
                     if (state.sourceEditing)
                         state.markdown.BeginSourceRegion(Snapshot(), Revision(), state.sourceEditing->region, *state.markdownProfile);
                     else
@@ -2026,6 +2026,9 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             {
                 try
                 {
+                    constexpr std::size_t sharedWorkBudget = 4096u;
+                    if (state.lastAdvanceMarkdownWork >= sharedWorkBudget)
+                        return S_FALSE;
                     if (! state.semantic.HasPendingPreparation())
                     {
                         if (state.nativeObjectRejections)
@@ -2034,7 +2037,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                             state.semantic.Begin(syntax);
                     }
                     ++state.semanticAdvances;
-                    const auto advance            = state.semantic.Advance();
+                    const auto advance            = state.semantic.Advance(sharedWorkBudget - state.lastAdvanceMarkdownWork);
                     state.lastAdvanceSemanticWork = advance.workUnits;
                     if (advance.status == RichText::MarkdownPreparationStatus::Pending)
                         return S_FALSE;
