@@ -29,7 +29,8 @@ enum class MarkdownCommand
     SetCodeLanguage,
     InsertHardBreak,
     InsertMath,
-    InsertThematicBreak
+    InsertThematicBreak,
+    InsertImage
 };
 enum class MarkdownQuoteAction
 {

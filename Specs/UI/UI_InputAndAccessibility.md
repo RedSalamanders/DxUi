@@ -1236,6 +1236,10 @@ opaque inline interiors and expressions beyond native math source capacity.
 InsertThematicBreak inserts a separated rule at a top-level caret, retaining
 the existing text and line-ending convention; unsupported container positions
 decline rather than rewriting a prefix.
+InsertImage creates an inert Markdown image with escaped alt/title and a
+validated remote or local destination. Absolute local paths use the same
+document-relative URI builder as file paste. A selected plain source range can
+supply the alt text; opaque inline intersections decline the command.
 
 A task press MUST stage an immutable current source plan without editing text.
 Only matching release inside its checkbox can apply it. Leaving the rectangle,

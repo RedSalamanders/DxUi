@@ -220,6 +220,19 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
           "selection moves break a typing group even when returning to its caret");
     editor->SetText(L"word");
     prepare();
+    editor->SetDocumentFilePath(L"C:\\docs\\guide.md");
+    editor->SetText(L"");
+    prepare();
+    MarkdownCommandRequest imageRequest;
+    imageRequest.command     = MarkdownCommand::InsertImage;
+    imageRequest.text        = L"photo";
+    imageRequest.destination = L"C:\\docs\\pics\\photo.png";
+    Check(editor->ExecuteMarkdownCommand(imageRequest) == MarkdownCommandStatus::Changed && editor->GetText() == L"![photo](<pics/photo.png>)" &&
+              editor->Undo() && editor->GetText().empty(),
+          "image command reuses document-relative file destination and one undo");
+    editor->SetDocumentFilePath(L"");
+    editor->SetText(L"word");
+    prepare();
     std::size_t notifications = 0u;
     editor->SetOnTextChanged([&] { ++notifications; });
     const auto exact = [&](std::wstring_view source,

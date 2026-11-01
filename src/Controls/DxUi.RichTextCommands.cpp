@@ -1,5 +1,6 @@
 #include "DxUi.MarkdownTableCells.h"
 #include "DxUi.RichFileReferenceContext.h"
+#include "DxUi.RichImagePaths.h"
 #include "DxUi.RichSemanticHtml.h"
 #include <DxUi/RichMath.h>
 #include <DxUi/RichTextCommands.h>
@@ -845,6 +846,7 @@ struct MarkdownCommandPlanner
     void HardBreak();
     void Math(const MarkdownCommandRequest& request);
     void ThematicBreak();
+    void Image(const MarkdownCommandRequest& request);
     void Join(bool backwards);
     void Style(MarkdownTextStyle style);
     void Link(const MarkdownCommandRequest& request, bool remove);
@@ -1777,6 +1779,43 @@ std::wstring AttributeSource(std::wstring_view value, bool markdown = true)
     return std::wstring(result);
 }
 } // namespace
+void MarkdownCommandPlanner::Image(const MarkdownCommandRequest& request)
+{
+    const bool relative = NativeHtmlDestination(request.destination) && request.destination.find(L':') == request.destination.npos;
+    if (request.destination.empty() || (! relative && ! ResolveRemoteImageSource(request.destination) && ! ResolveLocalImagePath({}, request.destination)))
+        throw std::invalid_argument("Ineligible image destination");
+    std::size_t leaf{};
+    if (! InlineSelection(leaf))
+        return;
+    const auto first = plan.before_.Start(), last = plan.before_.End();
+    for (const auto& node : plan.syntax_->Inlines())
+        if (node.kind != MarkdownInlineKind::Text && node.source.first < last && node.source.last > first)
+            return;
+    if (first == last)
+        for (const auto& node : plan.syntax_->Inlines())
+            if (node.kind != MarkdownInlineKind::Text && node.source.first < first && first < node.source.last)
+                return;
+    const auto alt = request.text.empty() ? Slice(first, last) : request.text;
+    if (! IsValidUtf16(alt) || alt.find_first_of(L"\r\n") != alt.npos)
+        return;
+    std::wstring insertion(L"![");
+    insertion += LiteralMarkdown(alt);
+    insertion += L"](<";
+    insertion += AttributeSource(request.destination);
+    insertion += L'>';
+    if (! request.title.empty())
+    {
+        insertion += L" \"";
+        insertion += AttributeSource(request.title);
+        insertion += L'\"';
+    }
+    insertion += L')';
+    Add(first, last, insertion);
+    const auto end    = first + insertion.size();
+    plan.after_       = {end, end};
+    explicitSelection = true;
+    plan.applicable_  = true;
+}
 void MarkdownCommandPlanner::Style(MarkdownTextStyle style)
 {
     if (style != MarkdownTextStyle::Strong && style != MarkdownTextStyle::Emphasis && style != MarkdownTextStyle::Strikethrough &&
@@ -2719,7 +2758,7 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
 {
     if (request.text.size() > Document::MaximumUnits || request.destination.size() > Document::MaximumUnits || request.title.size() > Document::MaximumUnits)
         throw std::length_error("Structural request text exceeds source capacity");
-    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::InsertThematicBreak))
+    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::InsertImage))
         throw std::invalid_argument("Invalid Markdown command");
     Detail::MarkdownCommandPlanner builder(source, revision, std::move(syntax), selection);
     // Resolved definitions own editable content, while the label and
@@ -2757,6 +2796,7 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
         case MarkdownCommand::InsertHardBreak: builder.HardBreak(); break;
         case MarkdownCommand::InsertMath: builder.Math(request); break;
         case MarkdownCommand::InsertThematicBreak: builder.ThematicBreak(); break;
+        case MarkdownCommand::InsertImage: builder.Image(request); break;
         case MarkdownCommand::InsertTable:
         case MarkdownCommand::InsertTableRow:
         case MarkdownCommand::DeleteTableRow:

@@ -1481,6 +1481,16 @@ RichText::MarkdownCommandStatus RichTextEditor::ExecuteMarkdownCommand(const Ric
     if (! syntax)
         return MarkdownCommandStatus::Unavailable;
     auto resolved = request;
+    std::wstring imageDestination(0u, L' ');
+    if (request.command == MarkdownCommand::InsertImage)
+        if (const auto reference = RichText::Detail::BuildMarkdownFileReference(_state->documentFilePath, request.destination))
+        {
+            const auto marker = reference->rfind(L"](");
+            if (marker == reference->npos || reference->empty() || reference->back() != L')')
+                throw std::logic_error("Invalid generated file reference");
+            imageDestination.assign(*reference, marker + 2u, reference->size() - marker - 3u);
+            resolved.destination = imageDestination;
+        }
     if (resolved.targetCell == MarkdownNoNode && request.command >= MarkdownCommand::InsertTableRow && request.command <= MarkdownCommand::PreviousTableCell)
         if (auto* host = GetHost(); host && LayoutIsCurrent(*host))
             if (const auto* geometry = _state->layout.SemanticGeometry())

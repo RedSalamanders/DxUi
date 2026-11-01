@@ -323,8 +323,16 @@ inline void ListsAndHeadings()
         Exact(L"", {}, request, L"---", Selection{3u, 3u}, profile);
         Exact(L"hello\n", {2u, 2u}, request, L"he\n\n---\n\nllo\n", Selection{9u, 9u}, profile);
         Unavailable(L"- item\n", {3u, 3u}, request, profile);
-        request.text    = {};
-        request.command = MarkdownCommand::InsertParagraph;
+        request.command     = MarkdownCommand::InsertImage;
+        request.text        = L"sun";
+        request.destination = L"https://example.invalid/a.png";
+        request.title       = L"A";
+        Exact(L"", {}, request, L"![sun](<https://example.invalid/a.png> \"A\")", std::nullopt, profile);
+        request.text        = {};
+        request.destination = {};
+        request.title       = {};
+        request.text        = {};
+        request.command     = MarkdownCommand::InsertParagraph;
         Exact(L"> 9) alpha\r\n", {10u, 10u}, request, L"> 9) alpha\r\n> 10) \r\n", Selection{18u, 18u}, profile);
         Exact(L"9. abc\n   tail\n", {4u, 4u}, request, L"9. a\n10. bc\n    tail\n", std::nullopt, profile);
         Exact(L"9.\titem\n\tmore\n", {7u, 7u}, request, L"9.\titem\n10.\t\n\tmore\n", std::nullopt, profile);
