@@ -1319,8 +1319,9 @@ At the start of a heading's visible content, `JoinBackward` removes its ATX or
 setext heading spelling through the same structural heading conversion; inside
 the heading it remains unavailable. The operation is a single undo transaction.
 At the first paragraph of a quote, a backward join outdents the entire quote
-only when every owned line has a proven editable prefix; otherwise it leaves
-the source intact. A containing list retains its own outdent precedence.
+only when its outer prefixes are proven; parser-owned lazy continuation lines
+remain exact. Otherwise it leaves the source intact. A containing list retains
+its own outdent precedence.
 `SourceSnapshot::LocationAt` and `RichTextEditor::GetSourceCaretLocation` return
 zero-based logical source line and UTF-16 column, treating CRLF as one break.
 They visit immutable source pieces without allocating or flattening, in time

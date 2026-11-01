@@ -2147,7 +2147,7 @@ void MarkdownCommandPlanner::Join(bool backwards)
                 while (at < line.bodyEnd && Space(text[at]))
                     ++at;
                 if (at == line.bodyEnd || text[at] != L'>')
-                    return std::nullopt;
+                    return MarkdownRange{at, at}; // Parser-owned lazy continuation has no marker to remove.
                 auto last = at + 1u;
                 if (last < line.bodyEnd && Space(text[last]))
                     ++last;
@@ -2156,11 +2156,15 @@ void MarkdownCommandPlanner::Join(bool backwards)
             const auto first = std::ranges::lower_bound(lines, Line(nodes[quote].block.source.first).first, {}, &PhysicalLine::first);
             const auto last = std::ranges::lower_bound(lines, nodes[quote].block.source.last, {}, &PhysicalLine::first);
             if (first == last || std::ranges::any_of(first, last, [&](const auto& line) { return ! markerFor(line); }))
-                return; // A lazy or unproven line cannot be outdented safely.
+                return; // An unproven outer prefix cannot be outdented safely.
+            const auto opening = markerFor(*first).value();
+            if (opening.first == opening.last)
+                return;
             for (auto line = first; line != last; ++line)
             {
                 const auto marker = markerFor(*line).value();
-                Add(marker.first, marker.last, L"");
+                if (marker.first != marker.last)
+                    Add(marker.first, marker.last, L"");
             }
             plan.applicable_ = true;
             return;

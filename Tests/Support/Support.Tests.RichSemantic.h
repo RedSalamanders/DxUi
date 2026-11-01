@@ -569,6 +569,7 @@ inline void ListsAndHeadings()
         Unavailable(L"## title\n", {4u, 4u}, request, profile);
         Exact(L"> one\n> two\n", {2u, 2u}, request, L"one\ntwo\n", Selection{0u, 0u}, profile);
         Exact(L"> > one\n> > two\n", {4u, 4u}, request, L"> one\n> two\n", Selection{2u, 2u}, profile);
+        Exact(L"> one\ncontinuation\n", {2u, 2u}, request, L"one\ncontinuation\n", Selection{0u, 0u}, profile);
         request.command = MarkdownCommand::JoinForward;
         Exact(L"a\r\n\r\nb", {1u, 1u}, request, L"a b", Selection{1u, 1u}, profile);
         request.command      = MarkdownCommand::SetHeading;
