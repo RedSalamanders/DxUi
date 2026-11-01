@@ -1047,7 +1047,10 @@ TIFF codecs and first static frame; GIF canvas placement/transparency/background
 and JPEG/TIFF EXIF orientation MUST be preserved. Unsupported resources MUST keep
 the source-exact alternative. Admission is at most 16 MiB encoded, 4096 per side,
 4,194,304 decoded pixels, 32 unique active image sources and 64 MiB unique retained
-CPU pixels. Native image placements plus diagrams MUST stay within 128 objects.
+CPU pixels. Admitted image placements, mathematical expressions and diagrams
+share a source-ordered limit of 128 objects. An image beyond that limit retains
+its text alternative and authored title, and reports an ImageCapacity diagnostic
+over its original source. Rejected objects do not consume an admitted slot.
 Shared immutable pixel objects MUST be counted/uploaded once. Other source/format
 capacity contracts are unchanged; process/driver and transient staging overhead
 require separate measurement.
@@ -1830,8 +1833,9 @@ explanation and an exact selectable source diagnostic. Diagnostics MUST contain
 whole UTF-16 scalars and original CRLF pairs.
 
 Semantic preparation MUST advance graph parsing and alternative construction
-cooperatively. A document admits at most 128 candidates and 32,768 combined native
-node/edge records before adding the next graph. Prepared graphs use one atomic
+cooperatively. A document processes at most 128 diagram candidates and 32,768 combined native
+node/edge records before adding the next graph; the candidate bound is separate
+from the shared admitted-object limit. Prepared graphs use one atomic
 object display character owning the complete original fence. Optional document
 state retains the CPU model and code-body provenance, including removed container
 prefixes, virtual indentation and normalized EOLs. Source spelling and source

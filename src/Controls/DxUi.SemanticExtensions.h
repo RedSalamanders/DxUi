@@ -50,6 +50,10 @@ struct SemanticExtensions
     std::vector<std::size_t> images;
     std::vector<MarkdownRange> sourceObjects;
     std::size_t candidates{}, records{}, mathRecords{};
+    bool CanAdmitObject() const noexcept
+    {
+        return images.size() + maths.size() + diagrams.size() < MaximumObjects;
+    }
 };
 struct SemanticExtensionAccess
 {

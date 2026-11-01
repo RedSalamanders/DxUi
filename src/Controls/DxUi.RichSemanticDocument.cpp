@@ -333,8 +333,10 @@ struct SemanticBuilder::Preparation
         image.display.last = output.text.size();
         image.name         = alternative;
         auto& extensions   = Extensions();
-        if (extensions.images.size() + extensions.maths.size() + extensions.diagrams.size() < Detail::SemanticExtensions::MaximumObjects)
+        if (extensions.CanAdmitObject())
             extensions.images.push_back(element);
+        else
+            extensions.diagnostics.push_back({SemanticDiagnosticKind::ImageCapacity, source, element});
     }
     void HtmlTag(const Detail::NativeHtmlTag& tag, std::size_t parent, unsigned flags, unsigned heading)
     {
@@ -452,8 +454,7 @@ struct SemanticBuilder::Preparation
                 return result;
             };
             const auto records = expression ? count(count, expression->root) : 0u;
-            if (expression && *expression && records <= 4096u - extensions.mathRecords &&
-                extensions.maths.size() + extensions.diagrams.size() + extensions.images.size() < Detail::SemanticExtensions::MaximumObjects)
+            if (expression && *expression && records <= 4096u - extensions.mathRecords && extensions.CanAdmitObject())
             {
                 output.Emit(L"\ufffc", node.source, DisplaySpanKind::Object, flags, visit.heading);
                 auto& formula        = document->elements_[element];
@@ -467,9 +468,7 @@ struct SemanticBuilder::Preparation
             else
             {
                 const bool capacity = expression && (expression->issue == MathIssue::Capacity ||
-                                                     (*expression && (records > 4096u - extensions.mathRecords ||
-                                                                      extensions.maths.size() + extensions.diagrams.size() + extensions.images.size() >=
-                                                                          Detail::SemanticExtensions::MaximumObjects)));
+                                                     (*expression && (records > 4096u - extensions.mathRecords || ! extensions.CanAdmitObject())));
                 extensions.diagnostics.push_back(
                     {capacity ? SemanticDiagnosticKind::MathCapacity : SemanticDiagnosticKind::UnsupportedMath, node.source, element});
                 auto& formula = document->elements_[element];
@@ -866,7 +865,7 @@ struct SemanticBuilder::Preparation
             return;
         }
         auto& extensions = Extensions();
-        if (extensions.diagrams.size() + extensions.maths.size() + extensions.images.size() >= Detail::SemanticExtensions::MaximumObjects)
+        if (! extensions.CanAdmitObject())
         {
             RejectDiagram(SemanticDiagnosticKind::DiagramCapacity, node.block.source, L"Native object capacity exceeded. Source is preserved.");
             return;

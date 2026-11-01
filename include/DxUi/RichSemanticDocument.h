@@ -80,7 +80,8 @@ enum class SemanticDiagnosticKind
     UnclosedDiagram,
     EmptyDiagram,
     UnsupportedMath,
-    MathCapacity
+    MathCapacity,
+    ImageCapacity
 };
 struct SemanticDiagnostic
 {
