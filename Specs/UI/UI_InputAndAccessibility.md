@@ -1177,7 +1177,9 @@ For a native HWND host, a foreign-thread `GetItem` that needs an uncached row di
 to the window thread, which must pump messages. In an embedded host, snapshot-backed requests for rows
 already present may be read from any thread; materializing a new offscreen row is owner-thread-only and
 returns `RPC_E_WRONG_THREAD` from another thread. The embedded owner-thread request publishes to the live target only
-while its attached root, Grid control lifetime, and viewport placement still match the request snapshot. Neither path
+while its attached root, Grid control lifetime, viewport placement, and prepared surface remain coherent with the request.
+A dirty or superseded embedded surface rejects uncached materialization with `UIA_E_ELEMENTNOTAVAILABLE` until a
+successful preparation; already cached snapshot reads remain available. Neither path
 creates a full-model snapshot.
 
 A Tree with `SetMultiSelectEnabled(true)` reports `CanSelectMultiple`, lists every selected visible item from

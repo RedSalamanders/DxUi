@@ -107,6 +107,7 @@ public:
 class EmbeddedGridGetItemModel final : public DxUi::IGridModel
 {
 public:
+    mutable DxUi::EmbeddedHost* invalidateOnRowId{};
     [[nodiscard]] size_t GetRowCount() const noexcept override
     {
         return 2000u;
@@ -125,6 +126,8 @@ public:
     }
     [[nodiscard]] uint64_t GetStableRowId(size_t rowIndex) const noexcept override
     {
+        if (auto* view = std::exchange(invalidateOnRowId, nullptr))
+            view->MarkDirty();
         return static_cast<uint64_t>(rowIndex) + 1u;
     }
     [[nodiscard]] std::optional<size_t> FindRowByStableId(uint64_t rowId) const noexcept override
@@ -180,6 +183,25 @@ static void TestEmbeddedGridOffscreenGetItem(GraphicsFixture& gpu)
     Hr(gridItem->get_Row(&row), "embedded GridItem row");
     Hr(gridItem->get_Column(&column), "embedded GridItem column");
     Check(row == 1500 && column == 1, "embedded GridItem coordinates match GetItem");
+
+    // A cache miss must not publish live Grid geometry while the embedded surface is dirty.
+    view.MarkDirty();
+    wil::com_ptr_nothrow<IRawElementProviderSimple> pendingCell;
+    Hr(gridPattern->GetItem(1500, 1, pendingCell.put()), "cached Grid.GetItem remains snapshot-backed while the surface is dirty");
+    Check(bool(pendingCell), "dirty surface retains the previously published cell");
+    pendingCell.reset();
+    Check(gridPattern->GetItem(1502, 0, pendingCell.put()) == UIA_E_ELEMENTNOTAVAILABLE && ! pendingCell,
+          "dirty embedded geometry refuses uncached Grid.GetItem publication");
+    Hr(view.Prepare(720, 510, 96), "reprepare embedded grid after invalidation");
+    Hr(gridPattern->GetItem(1502, 0, pendingCell.put()), "coherent embedded grid permits the same uncached request");
+    Check(bool(pendingCell), "successful retry publishes the requested cell");
+    pendingCell.reset();
+    model.invalidateOnRowId = &view;
+    Check(gridPattern->GetItem(1503, 0, pendingCell.put()) == UIA_E_ELEMENTNOTAVAILABLE && ! pendingCell,
+          "model callback invalidation aborts an in-flight uncached Grid.GetItem before publication");
+    Hr(view.Prepare(720, 510, 96), "reprepare after model callback invalidation");
+    Hr(gridPattern->GetItem(1503, 0, pendingCell.put()), "retry callback-invalidated cell after preparation");
+    Check(bool(pendingCell), "callback-invalidated cell can be materialized after coherent preparation");
 
     // This intentionally calls the provider pointer directly from another initialized thread: it is an implementation
     // concurrency probe for the embedded adapter's early owner-thread rejection, not a marshaled UI Automation client.

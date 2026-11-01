@@ -51,6 +51,10 @@ struct EmbeddedAccessibilityAccess
     {
         return host._embeddedAccessibilityTarget;
     }
+    [[nodiscard]] static bool Coherent(EmbeddedHost& host) noexcept
+    {
+        return host.InputIsCoherent(false);
+    }
 
     // Who reports the focus move a window host just published; focusResolutions is how many calls of the fragment
     // root's GetFocus had begun once the snapshot was stored.
@@ -1090,6 +1094,7 @@ struct WindowHostAccessibilityTarget final
     // Decided once: only a menu popup's snapshots count for DebugGetContextMenuResources.
     const bool menuPopup = IsNativeMenuPopupWindow(hwnd);
     bool embedded        = false;
+    EmbeddedHost* embeddedOwner = nullptr; // Borrowed on the owner thread; cleared before disconnect.
     DWORD threadId       = GetCurrentThreadId();
     uint64_t runtimeId   = 0;
     uint64_t preparation = 0;
@@ -11281,6 +11286,8 @@ HRESULT AccessibilityProvider::ExecuteGetGridItemOnWindowThread(AccessibilityUiA
             {
                 return UIA_E_ELEMENTNOTAVAILABLE;
             }
+            if (! _target->embeddedOwner || ! EmbeddedAccessibilityAccess::Coherent(*_target->embeddedOwner))
+                return UIA_E_ELEMENTNOTAVAILABLE;
         }
         const AccessibilityControlIdentity identity{record->controlLifetime, record->controlIdentity};
         std::optional<BorrowedControlModelGuard<Grid, IGridModel>> modelGuard;
@@ -11329,6 +11336,8 @@ HRESULT AccessibilityProvider::ExecuteGetGridItemOnWindowThread(AccessibilityUiA
             return UIA_E_ELEMENTNOTAVAILABLE;
         }
 
+        if (_target->embedded && (! _target->embeddedOwner || ! EmbeddedAccessibilityAccess::Coherent(*_target->embeddedOwner)))
+            return UIA_E_ELEMENTNOTAVAILABLE;
         RememberRequestedGridRow(*_target, request.gridControlPath, request.gridControlIdentity, model, request.gridModelAssignmentGeneration, rowId);
         request.gridRowId = rowId;
         if (_target->embedded)
@@ -14204,6 +14213,7 @@ HRESULT EmbeddedHost::AttachAccessibility(std::shared_ptr<EmbeddedAccessibilityS
     if (! target)
         return E_OUTOFMEMORY;
     target->embedded                           = true;
+    target->embeddedOwner                      = this;
     target->runtimeId                          = runtimeId;
     target->rootLifetime                       = GetControlLifetimeToken(*_host.GetRoot());
     target->site                               = std::move(site);
@@ -14283,6 +14293,7 @@ void EmbeddedHost::DisconnectAccessibility() noexcept
     if (! target || target->threadId != GetCurrentThreadId())
         return;
     EmbeddedAccessibilityAccess::Target(_host) = nullptr;
+    target->embeddedOwner = nullptr;
     target->host.store(nullptr, std::memory_order_release);
     target->snapshot.store(nullptr, std::memory_order_release);
     target->site.reset();

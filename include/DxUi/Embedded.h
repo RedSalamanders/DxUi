@@ -211,6 +211,7 @@ public:
     [[nodiscard]] EmbeddedStatistics GetStatistics() const noexcept;
 
 private:
+    friend struct EmbeddedAccessibilityAccess;
     struct State;
     std::unique_ptr<State> _state;
     ControlHost _host;
