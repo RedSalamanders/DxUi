@@ -679,6 +679,46 @@ struct NativeFlowchartParser::Preparation
                 return Error(FlowchartIssue::UnsupportedStatement, groupStart, end, FlowchartOutcome::Unsupported);
             return OpenGroup(key, title, keyStart, groupStart, end);
         }
+        if (model->family == NativeDiagramFamily::State && (statement.starts_with(L"note right of ") || statement.starts_with(L"note left of ")))
+        {
+            const auto noteStart = at;
+            const bool left = statement.starts_with(L"note left of ");
+            at += left ? 13u : 14u;
+            std::size_t target{};
+            if (! Node(at, end, target))
+                return false;
+            Skip(at, end);
+            if (at == end || Text()[at++] != L':')
+                return Error(FlowchartIssue::UnsupportedStatement, noteStart, end, FlowchartOutcome::Unsupported);
+            Skip(at, end);
+            if (at == end)
+                return Error(FlowchartIssue::UnsupportedStatement, noteStart, end, FlowchartOutcome::Unsupported);
+            if (model->nodes.size() == MaximumNodes)
+                return Error(FlowchartIssue::NodeCapacity, noteStart, end, FlowchartOutcome::Capacity);
+            if (model->edges.size() == MaximumEdges)
+                return Error(FlowchartIssue::EdgeCapacity, noteStart, end, FlowchartOutcome::Capacity);
+            FlowchartNode note;
+            note.key.assign(L"@note");
+            note.key.append(std::to_wstring(model->nodes.size()));
+            note.identifier = {noteStart, noteStart + 4u};
+            note.declaration = {noteStart, end};
+            note.shape = FlowchartShape::Note;
+            note.noteTarget = target;
+            note.noteLeft = left;
+            note.groupMask = model->nodes[target].groupMask;
+            if (! PlainText(at, end, note.label))
+                return false;
+            const auto noteIndex = model->nodes.size();
+            model->nodes.push_back(note);
+            FlowchartEdge edge;
+            edge.from = target;
+            edge.to = noteIndex;
+            edge.source = {noteStart, end};
+            edge.relation = FlowchartRelation::Note;
+            edge.style = FlowchartLineStyle::Dotted;
+            model->edges.push_back(edge);
+            return true;
+        }
         if (model->family != NativeDiagramFamily::Flowchart && Text().substr(at, 9u) == L"direction" && (at + 9u == end || Space(Text()[at + 9u])))
         {
             auto token = at + 9u;

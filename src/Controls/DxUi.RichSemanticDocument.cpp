@@ -794,6 +794,8 @@ struct SemanticBuilder::Preparation
                 return;
             }
             const auto index = work.cursor++;
+            if (graph.nodes[index].shape == Detail::FlowchartShape::Note)
+                return;
             DiagramAlternative({id(index), L" = ", graph.nodes[index].label, L"; "});
             return;
         }
@@ -812,8 +814,12 @@ struct SemanticBuilder::Preparation
                 return;
             const auto mask = static_cast<std::uint16_t>(1u << index);
             for (std::size_t member = 0u; member < graph.nodes.size(); ++member)
-                if ((graph.nodes[member].groupMask & mask) && ! DiagramAlternative({id(member), L"; "}))
-                    return;
+                if (graph.nodes[member].groupMask & mask)
+                {
+                    const auto name = graph.nodes[member].shape == Detail::FlowchartShape::Note ? std::wstring_view(graph.nodes[member].label) : id(member);
+                    if (! DiagramAlternative({name, L"; "}))
+                        return;
+                }
             return;
         }
         if (work.phase == Phase::Edges)
@@ -824,6 +830,11 @@ struct SemanticBuilder::Preparation
                 return;
             }
             const auto& edge = graph.edges[work.cursor++];
+            if (edge.relation == Detail::FlowchartRelation::Note)
+            {
+                DiagramAlternative({id(edge.from), L" note: ", graph.nodes[edge.to].label, L"; "});
+                return;
+            }
             if (! edge.fromCardinality.empty() || ! edge.toCardinality.empty())
             {
                 const auto action = edge.relation == Detail::FlowchartRelation::Realization ? L" implements "

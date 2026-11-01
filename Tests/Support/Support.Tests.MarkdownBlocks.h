@@ -475,6 +475,7 @@ inline wchar_t ShapeCode(FlowchartShape shape) noexcept
         case FlowchartShape::Bar: return L'B';
         case FlowchartShape::Hexagon: return L'H';
         case FlowchartShape::Subroutine: return L'U';
+        case FlowchartShape::Note: return L'N';
     }
     return L'?';
 }
@@ -581,6 +582,17 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
     check(nestedStates->outcome == FlowchartOutcome::Prepared && nestedStates->groups.size() == 2u &&
               nestedStates->groups[0].title == L"Outer title" && nestedStates->groups[1].parentMask == 1u,
           "state composites retain quoted titles and nested membership");
+    parser.Begin(L"stateDiagram-v2\nstate O {\nS\nnote left of S: Review this state\n}\n", 1u);
+    const auto stateNote = Complete(parser);
+    check(stateNote->outcome == FlowchartOutcome::Prepared && stateNote->nodes.size() == 2u && stateNote->edges.size() == 1u &&
+              stateNote->nodes[1].shape == FlowchartShape::Note && stateNote->nodes[1].noteTarget == 0u && stateNote->nodes[1].noteLeft &&
+              stateNote->nodes[1].groupMask == 1u && stateNote->nodes[1].label == L"Review this state" &&
+              stateNote->edges[0].relation == FlowchartRelation::Note && stateNote->edges[0].style == FlowchartLineStyle::Dotted,
+          "state note retains its target, requested side, text and composite membership");
+    parser.Begin(L"stateDiagram-v2\nnote right of S\nmultiline\nend note\n", 1u);
+    const auto multilineNote = Complete(parser);
+    check(multilineNote->outcome == FlowchartOutcome::Unsupported && multilineNote->nodes.empty(),
+          "unsupported multiline notes retain source without a partial graph");
     for (const auto source : {L"graph TD\nsubgraph G\nA\n", L"graph TD\nsubgraph A\nend\n",
                               L"graph TD\nsubgraph A\nX\nend\nsubgraph B\nX\nend\n"})
     {

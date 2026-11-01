@@ -41,6 +41,8 @@ struct NativeFlowchartLayout::Preparation
         Rows,
         RowPositions,
         NodesPosition,
+        NotePositions,
+        NoteCollision,
         GroupPositions,
         Routes,
         TransformNodes,
@@ -77,7 +79,7 @@ struct NativeFlowchartLayout::Preparation
     double minX{}, minY{}, maxX{}, maxY{};
     FlowchartPoint shift;
     Stage stage{};
-    bool horizontal{}, bounded{}, done{}, hasCardinality{};
+    bool horizontal{}, bounded{}, done{}, hasCardinality{}, hasNotes{};
 
     Preparation(std::shared_ptr<const FlowchartModel> value, std::span<const FlowchartSize> nodes, std::span<const FlowchartSize> edges,
                 std::span<const FlowchartSize> from, std::span<const FlowchartSize> to, std::span<const FlowchartSize> groups)
@@ -97,6 +99,8 @@ struct NativeFlowchartLayout::Preparation
         plan->groups.resize(graph->groups.size());
         for (const auto& edge : graph->edges)
             hasCardinality = hasCardinality || ! edge.fromCardinality.empty() || ! edge.toCardinality.empty();
+        for (const auto& node : graph->nodes)
+            hasNotes = hasNotes || node.shape == FlowchartShape::Note;
         horizontal = graph->direction == FlowchartDirection::LeftRight || graph->direction == FlowchartDirection::RightLeft;
     }
     void Fail(FlowchartLayoutIssue issue) noexcept
@@ -314,6 +318,8 @@ struct NativeFlowchartLayout::Preparation
         }
         const auto index = cursor++;
         const auto& edge = graph->edges[index];
+        if (edge.relation == FlowchartRelation::Note)
+            return;
         const auto back  = plan->edges[index].route == FlowchartRoute::Back;
         startPort[index] = back ? ++before[rank[edge.from]] : ++after[rank[edge.from]];
         endPort[index]   = back ? ++after[rank[edge.to]] : ++before[rank[edge.to]];
@@ -394,7 +400,7 @@ struct NativeFlowchartLayout::Preparation
     {
         if (cursor == plan->nodes.size())
         {
-            Then(Stage::GroupPositions);
+            Then(hasNotes ? Stage::NotePositions : Stage::GroupPositions);
             return;
         }
         const auto index = cursor++;
@@ -407,6 +413,57 @@ struct NativeFlowchartLayout::Preparation
                       node.bounds.y + (node.bounds.height - Major(nodeLabels[index])) / 2.0,
                       Cross(nodeLabels[index]),
                       Major(nodeLabels[index])};
+    }
+    void NotePositions()
+    {
+        if (cursor == graph->nodes.size())
+        {
+            Then(Stage::NoteCollision);
+            return;
+        }
+        const auto index = cursor++;
+        const auto& source = graph->nodes[index];
+        if (source.shape != FlowchartShape::Note)
+            return;
+        auto& note = plan->nodes[index];
+        const auto& target = plan->nodes[source.noteTarget];
+        if (! horizontal)
+        {
+            note.bounds.x = source.noteLeft ? target.bounds.x - note.bounds.width - 12.0 : target.bounds.x + target.bounds.width + 12.0;
+            note.bounds.y = target.bounds.y + (target.bounds.height - note.bounds.height) / 2.0;
+        }
+        else
+        {
+            const bool forward = (graph->direction == FlowchartDirection::LeftRight) != source.noteLeft;
+            note.bounds.y = forward ? target.bounds.y + target.bounds.height + 12.0 : target.bounds.y - note.bounds.height - 12.0;
+            note.bounds.x = target.bounds.x + (target.bounds.width - note.bounds.width) / 2.0;
+        }
+        note.label = {note.bounds.x + (note.bounds.width - Cross(nodeLabels[index])) / 2.0,
+                      note.bounds.y + (note.bounds.height - Major(nodeLabels[index])) / 2.0,
+                      Cross(nodeLabels[index]), Major(nodeLabels[index])};
+    }
+    void NoteCollision()
+    {
+        if (cursor == graph->nodes.size())
+        {
+            Then(Stage::GroupPositions);
+            return;
+        }
+        const auto index = cursor++;
+        if (graph->nodes[index].shape != FlowchartShape::Note)
+            return;
+        const auto& note = plan->nodes[index].bounds;
+        for (std::size_t other = 0u; other < plan->nodes.size(); ++other)
+        {
+            if (other == index)
+                continue;
+            const auto& bounds = plan->nodes[other].bounds;
+            if (note.x < bounds.x + bounds.width && bounds.x < note.x + note.width && note.y < bounds.y + bounds.height && bounds.y < note.y + note.height)
+            {
+                Fail(FlowchartLayoutIssue::DiagramExtent);
+                return;
+            }
+        }
     }
     void GroupPositions()
     {
@@ -479,6 +536,26 @@ struct NativeFlowchartLayout::Preparation
         const auto& edge = graph->edges[index];
         const auto& from = plan->nodes[edge.from];
         const auto& to   = plan->nodes[edge.to];
+        if (edge.relation == FlowchartRelation::Note)
+        {
+            const auto left = graph->nodes[edge.to].noteLeft;
+            FlowchartPoint first{}, last{};
+            if (! horizontal)
+            {
+                first = {left ? from.bounds.x : from.bounds.x + from.bounds.width, from.bounds.y + from.bounds.height / 2.0};
+                last = {left ? to.bounds.x + to.bounds.width : to.bounds.x, to.bounds.y + to.bounds.height / 2.0};
+            }
+            else
+            {
+                const bool forward = (graph->direction == FlowchartDirection::LeftRight) != left;
+                first = {from.bounds.x + from.bounds.width / 2.0, forward ? from.bounds.y + from.bounds.height : from.bounds.y};
+                last = {to.bounds.x + to.bounds.width / 2.0, forward ? to.bounds.y : to.bounds.y + to.bounds.height};
+            }
+            placed.path = {first, first, first, last, last, last};
+            placed.relation = edge.relation;
+            placed.style = edge.style;
+            return;
+        }
         const auto back  = placed.route == FlowchartRoute::Back;
         const auto start = back ? from.bounds.y : from.bounds.y + from.bounds.height;
         const auto end   = back ? to.bounds.y + to.bounds.height : to.bounds.y;
@@ -633,6 +710,8 @@ struct NativeFlowchartLayout::Preparation
             case Stage::Rows: Rows(); break;
             case Stage::RowPositions: RowPositions(); break;
             case Stage::NodesPosition: NodesPosition(); break;
+            case Stage::NotePositions: NotePositions(); break;
+            case Stage::NoteCollision: NoteCollision(); break;
             case Stage::GroupPositions: GroupPositions(); break;
             case Stage::Routes: Routes(); break;
             case Stage::TransformNodes: TransformNodes(); break;
@@ -693,13 +772,17 @@ void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
     if (graph->direction < FlowchartDirection::TopBottom || graph->direction > FlowchartDirection::RightLeft)
         throw std::invalid_argument("Invalid flowchart layout direction");
     for (const auto& node : graph->nodes)
-        if (node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Subroutine)
+        if (node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Note ||
+            (node.shape == FlowchartShape::Note && (graph->family != NativeDiagramFamily::State || node.noteTarget >= graph->nodes.size() ||
+                                                    graph->nodes[node.noteTarget].shape == FlowchartShape::Note)))
             throw std::invalid_argument("Invalid flowchart layout shape");
     for (const auto& edge : graph->edges)
         if (edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() || edge.minimumRanks == 0u ||
             edge.minimumRanks > NativeFlowchartParser::MaximumLinkRanks || edge.relation < FlowchartRelation::Line ||
-            edge.relation > FlowchartRelation::Realization || edge.style < FlowchartLineStyle::Solid || edge.style > FlowchartLineStyle::Invisible ||
-            (edge.style == FlowchartLineStyle::Invisible && (edge.arrow || ! edge.label.empty())) || edge.arrow != (edge.relation != FlowchartRelation::Line))
+            edge.relation > FlowchartRelation::Note || edge.style < FlowchartLineStyle::Solid || edge.style > FlowchartLineStyle::Invisible ||
+            (edge.style == FlowchartLineStyle::Invisible && (edge.arrow || ! edge.label.empty())) ||
+            edge.arrow != (edge.relation != FlowchartRelation::Line && edge.relation != FlowchartRelation::Note) ||
+            (edge.relation == FlowchartRelation::Note && (graph->nodes[edge.to].shape != FlowchartShape::Note || graph->nodes[edge.to].noteTarget != edge.from)))
             throw std::invalid_argument("Invalid flowchart layout edge");
     for (const auto value : nodeLabels)
         if (! Valid(value))

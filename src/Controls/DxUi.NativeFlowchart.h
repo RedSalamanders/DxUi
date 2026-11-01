@@ -35,14 +35,16 @@ enum class FlowchartShape
     Stadium,
     Bar,
     Hexagon,
-    Subroutine
+    Subroutine,
+    Note
 };
 enum class FlowchartRelation
 {
     Line,
     Arrow,
     Inheritance,
-    Realization
+    Realization,
+    Note
 };
 enum class FlowchartLineStyle
 {
@@ -96,6 +98,8 @@ struct FlowchartNode
     std::size_t compartmentCount{};
     bool lastCompartmentMethod{};
     std::uint16_t groupMask{};
+    std::size_t noteTarget{};
+    bool noteLeft{};
     FlowchartShape shape{};
 };
 struct FlowchartGroup

@@ -138,6 +138,12 @@ template <typename Check> inline void Core(Check&& check)
         check(diagrams.size() == 1u && doc->Elements()[diagrams.front().element].name.find(L"Groups: Outer: A; B; Inner: A; B;") != std::wstring::npos,
               "state composite hierarchy appears in the accessible graph alternative");
     }
+    {
+        const auto doc = Build(L"```mermaid\nstateDiagram-v2\nS\nnote right of S: Review this state\n```", check);
+        const auto diagrams = SemanticExtensionAccess::Diagrams(*doc);
+        check(diagrams.size() == 1u && doc->Elements()[diagrams.front().element].name.find(L"S note: Review this state") != std::wstring::npos,
+              "state notes expose their target and text in the accessible graph alternative");
+    }
     for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029})
     {
         const auto doc = Build(scenarios[0u].source, check, profile);

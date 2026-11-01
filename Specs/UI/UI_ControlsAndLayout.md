@@ -2248,3 +2248,10 @@ accessible graph alternative. Empty/unclosed composites, transitions to a
 composite endpoint, overlapping unrelated boxes and unsupported region syntax
 retain source with a diagnostic. This profile does not claim unrestricted
 Mermaid state-machine support.
+
+State diagrams admit single-line `note left of ID: text` and `note right of
+ID: text`. Notes retain their state and composite membership, use the bounded
+plain-label grammar, and render a folded-corner box on the requested physical
+side with a dotted attachment. Their target and text are included in the
+accessible graph alternative. Notes that collide with another node fail closed
+to exact source; multiline notes and other note forms remain unsupported.

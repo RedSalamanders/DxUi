@@ -682,6 +682,71 @@ template <typename Check> inline void GroupRaster(Check&& check)
               rejected.Geometry()->groups.empty(),
           "overlapping unrelated groups fail without publishing partial geometry");
 }
+template <typename Check> inline void StateNoteRaster(Check&& check)
+{
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
+    const auto drawing = DrawingFactory();
+    const auto write = WriteFactory();
+    wil::com_ptr<IWICImagingFactory> imaging;
+    THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    for (const auto direction : {L"TD", L"BT", L"LR", L"RL"})
+        for (const bool left : {false, true})
+        {
+            const auto source = std::wstring(L"stateDiagram-v2\ndirection ") + direction + L"\nS\n" +
+                                (left ? L"note left of S: hello\n" : L"note right of S: hello\n");
+            const auto graph = FlowchartLayoutTests::Graph(source);
+            PreparedFlowchart prepared;
+            prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
+            Complete(prepared, check);
+            const auto geometry = prepared.Geometry();
+            check(prepared.Ready() && geometry && geometry->nodes.size() == 2u && geometry->edges.size() == 1u,
+                  "state note prepares in every orientation");
+            if (! geometry || geometry->nodes.size() != 2u || geometry->edges.size() != 1u)
+                continue;
+            const auto state = geometry->nodes[0].bounds, note = geometry->nodes[1].bounds;
+            check(left ? note.x + note.width < state.x : note.x > state.x + state.width,
+                  "state note is on the authored physical side of its state");
+            check(geometry->edges[0].relation == FlowchartRelation::Note && geometry->edges[0].style == FlowchartLineStyle::Dotted,
+                  "state note has a dotted attachment");
+            constexpr UINT width = 600u, height = 300u, stride = width * 4u;
+            wil::com_ptr<IWICBitmap> bitmap;
+            THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+            wil::com_ptr<ID2D1RenderTarget> target;
+            const auto properties = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
+                                                                   D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+            THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
+            target->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
+            wil::com_ptr<ID2D1SolidColorBrush> text, stroke, fill;
+            THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
+            THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
+            THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
+            target->BeginDraw();
+            target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+            check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}), "state note fixture paints");
+            THROW_IF_FAILED(target->EndDraw());
+            std::vector<BYTE> pixels(stride * height);
+            THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+            const auto label = geometry->nodes[1].label;
+            std::size_t ink{};
+            for (UINT y = static_cast<UINT>(label.y); y < std::min(height, static_cast<UINT>(std::ceil(label.y + label.height))); ++y)
+                for (UINT x = static_cast<UINT>(label.x); x < std::min(width, static_cast<UINT>(std::ceil(label.x + label.width))); ++x)
+                {
+                    const auto at = static_cast<std::size_t>(y) * stride + x * 4u;
+                    ink += pixels[at] < 80u && pixels[at + 1u] < 80u && pixels[at + 2u] < 80u;
+                }
+            check(ink != 0u, "state note contains visible text ink");
+        }
+    const auto crowded = FlowchartLayoutTests::Graph(L"stateDiagram-v2\nS\nnote right of S: one\nnote right of S: two\n");
+    PreparedFlowchart rejected;
+    rejected.Begin(write.get(), drawing.get(), crowded, {}, {1u, 1u});
+    Complete(rejected, check);
+    check(! rejected.Ready() && rejected.Geometry() && rejected.Geometry()->issue == FlowchartLayoutIssue::DiagramExtent &&
+              rejected.Geometry()->nodes.empty(),
+          "colliding notes fail without publishing partial geometry");
+}
 template <typename Check> inline void LineStyleRasterOracle(Check&& check)
 {
     wil::com_ptr<IWICImagingFactory> imaging;

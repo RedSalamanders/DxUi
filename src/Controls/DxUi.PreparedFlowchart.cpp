@@ -212,8 +212,10 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
             throw std::invalid_argument("Invalid flowchart group");
     for (const auto& node : graph->nodes)
     {
-        if (node.label.size() > NativeFlowchartParser::MaximumLabelUnits || node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Subroutine ||
-            node.groupMask >= (1u << graph->groups.size()))
+        if (node.label.size() > NativeFlowchartParser::MaximumLabelUnits || node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Note ||
+            node.groupMask >= (1u << graph->groups.size()) ||
+            (node.shape == FlowchartShape::Note && (graph->family != NativeDiagramFamily::State || node.noteTarget >= graph->nodes.size() ||
+                                                    graph->nodes[node.noteTarget].shape == FlowchartShape::Note)))
             throw std::invalid_argument("Invalid flowchart node label/shape");
         if (node.compartmentCount > node.compartmentStarts.size() || (node.compartmentCount && graph->family != NativeDiagramFamily::Class))
             throw std::invalid_argument("Invalid class compartment count");
@@ -231,7 +233,8 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
             ((! edge.fromCardinality.empty() || ! edge.toCardinality.empty()) && graph->family != NativeDiagramFamily::Class) ||
             edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() ||
             edge.minimumRanks == 0u || edge.minimumRanks > NativeFlowchartParser::MaximumLinkRanks || edge.relation < FlowchartRelation::Line ||
-            edge.relation > FlowchartRelation::Realization || edge.arrow != (edge.relation != FlowchartRelation::Line))
+            edge.relation > FlowchartRelation::Note || edge.arrow != (edge.relation != FlowchartRelation::Line && edge.relation != FlowchartRelation::Note) ||
+            (edge.relation == FlowchartRelation::Note && (graph->nodes[edge.to].shape != FlowchartShape::Note || graph->nodes[edge.to].noteTarget != edge.from)))
             throw std::invalid_argument("Invalid native flowchart edge");
     if (next_ && next_->state->Matches(write, drawing, graph, typography, resourceEpoch))
         return LayoutPreparationStatus::Pending;
@@ -528,6 +531,14 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
             target->DrawRectangle(bounds, stroke);
             target->DrawLine(D2D1::Point2F(bounds.left + 8.f, bounds.top), D2D1::Point2F(bounds.left + 8.f, bounds.bottom), stroke);
             target->DrawLine(D2D1::Point2F(bounds.right - 8.f, bounds.top), D2D1::Point2F(bounds.right - 8.f, bounds.bottom), stroke);
+        }
+        else if (node.shape == FlowchartShape::Note)
+        {
+            target->FillRectangle(bounds, fill);
+            target->DrawRectangle(bounds, stroke);
+            target->DrawLine(D2D1::Point2F(bounds.right - 8.f, bounds.top), D2D1::Point2F(bounds.right - 8.f, bounds.top + 8.f), stroke);
+            target->DrawLine(D2D1::Point2F(bounds.right - 8.f, bounds.top + 8.f), D2D1::Point2F(bounds.right, bounds.top + 8.f), stroke);
+            target->DrawLine(D2D1::Point2F(bounds.right - 8.f, bounds.top), D2D1::Point2F(bounds.right, bounds.top + 8.f), stroke);
         }
         else
         {
