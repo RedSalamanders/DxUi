@@ -120,11 +120,14 @@ std::optional<std::size_t> FindCommandFootnoteOwner(const MarkdownSyntax& syntax
 {
     const auto& nodes = syntax.Nodes();
     auto note = MarkdownNoNode;
+    const auto caretNote = selection.Start() == selection.End()
+                               ? CommandNodeAt(syntax, MarkdownBlockKind::FootnoteDefinition, selection.Start())
+                               : MarkdownNoNode;
     for (size_t index = 0u; index < nodes.size(); ++index)
     {
         const auto& node = nodes[index];
         if (node.block.kind != MarkdownBlockKind::FootnoteDefinition ||
-            ! (selection.Start() == selection.End() ? CommandNodeAt(syntax, MarkdownBlockKind::FootnoteDefinition, selection.Start()) == index
+            ! (selection.Start() == selection.End() ? caretNote == index
                                                      : node.block.source.first < selection.End() && selection.Start() < node.block.source.last))
             continue;
         const auto resolved = std::ranges::find(syntax.Footnotes(), index, &MarkdownFootnote::definition);
