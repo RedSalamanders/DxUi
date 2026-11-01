@@ -298,7 +298,8 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
 #endif
     for (const auto& [source, count, rising, falling] : std::array{
              std::tuple{L"\\boxed{x}", 4u, false, false}, std::tuple{L"\\cancel{x}", 1u, true, false},
-             std::tuple{L"\\bcancel{x}", 1u, false, true}, std::tuple{L"\\xcancel{x}", 2u, true, true}, std::tuple{L"\\sout{x}", 1u, false, false}})
+             std::tuple{L"\\bcancel{x}", 1u, false, true}, std::tuple{L"\\xcancel{x}", 2u, true, true}, std::tuple{L"\\sout{x}", 1u, false, false},
+             std::tuple{L"\\phase{x}", 2u, true, false}, std::tuple{L"\\angl{x}", 2u, false, false}})
     {
         const auto expression = std::make_shared<const MathExpression>(ParseMath(source));
         check(static_cast<bool>(*expression), "bounded annotation parses without losing its child");
@@ -319,6 +320,19 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
                   "annotation strokes remain in the published extent");
         }
         check(hasRising == rising && hasFalling == falling, "annotation orientation matches the authored command");
+        if (std::wstring_view(source) == L"\\phase{x}" || std::wstring_view(source) == L"\\angl{x}")
+        {
+            const auto& first = strokes[0];
+            const auto& second = strokes[1];
+            if (std::wstring_view(source) == L"\\phase{x}")
+                check(first.first.y > first.last.y && first.first.x == second.first.x && first.first.y == second.first.y &&
+                          second.first.y == second.last.y,
+                      "phase has the independently specified rising left leg and bottom bar");
+            else
+                check(first.first.y == first.last.y && first.last.x == second.first.x && first.last.y == second.first.y &&
+                          second.first.x == second.last.x && second.first.y < second.last.y,
+                      "actuarial angle has a top bar and right leg");
+        }
     }
     check(static_cast<bool>(ParseMath(L"\\boxed{\\xcancel{a+b}}")) && ! ParseMath(L"\\boxed") && ! ParseMath(L"\\cancel{"),
           "nested annotations parse and incomplete operands fail closed");

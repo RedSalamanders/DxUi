@@ -542,7 +542,7 @@ class PreparedMath final
                 case MathKind::Accent:
                     if (node.text != L"overline" && node.text != L"underline" && node.text != L"bar" && node.text != L"hat" && node.text != L"widehat" &&
                         node.text != L"tilde" && node.text != L"widetilde" && node.text != L"vec" && node.text != L"dot" && node.text != L"ddot" &&
-                        node.text != L"boxed" && node.text != L"cancel" && node.text != L"bcancel" && node.text != L"xcancel" && node.text != L"sout")
+                        node.text != L"boxed" && node.text != L"cancel" && node.text != L"bcancel" && node.text != L"xcancel" && node.text != L"sout" && node.text != L"phase" && node.text != L"angl")
                         throw std::length_error("Invalid mathematical accent");
                     if (node.children.size() != 1u)
                         throw std::length_error("Invalid mathematical unary node");
@@ -1016,6 +1016,14 @@ class PreparedMath final
             if (node.kind == Accent && node.children.size() == 1u)
             {
                 box.extent = child(0u);
+                if (node.text == L"phase" || node.text == L"angl")
+                {
+                    const float pad = std::max(1.f, box.size * .12f);
+                    box.extent.above += pad;
+                    box.extent.below += pad;
+                    box.extent.width += node.text == L"phase" ? (box.extent.above + box.extent.below) * .5f + pad : pad;
+                    continue;
+                }
                 if (node.text == L"boxed" || node.text == L"cancel" || node.text == L"bcancel" || node.text == L"xcancel" || node.text == L"sout")
                 {
                     const float pad = std::max(1.f, box.size * .12f);
@@ -1454,6 +1462,26 @@ class PreparedMath final
         }
         if (node.kind == Accent && node.children.size() == 1u)
         {
+            if (node.text == L"phase" || node.text == L"angl")
+            {
+                const float pad = std::max(1.f, box.size * .12f);
+                const float left = x + stroke * .5f, right = x + box.extent.width - stroke * .5f;
+                const float top = baseline - box.extent.above + stroke * .5f, bottom = baseline + box.extent.below - stroke * .5f;
+                if (node.text == L"phase")
+                {
+                    const float corner = x + (box.extent.above + box.extent.below) * .5f;
+                    Place(ChildAt(index, 0u), corner + pad, baseline);
+                    Stroke(left, bottom, corner, top, stroke);
+                    Stroke(left, bottom, right, bottom, stroke);
+                }
+                else
+                {
+                    Place(ChildAt(index, 0u), x, baseline);
+                    Stroke(left, top, right, top, stroke);
+                    Stroke(right, top, right, bottom, stroke);
+                }
+                return;
+            }
             if (node.text == L"boxed" || node.text == L"cancel" || node.text == L"bcancel" || node.text == L"xcancel" || node.text == L"sout")
             {
                 const float pad = std::max(1.f, box.size * .12f);
