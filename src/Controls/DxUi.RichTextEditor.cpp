@@ -114,6 +114,12 @@ struct RichTextEditor::State
     {
     }
     RichText::Document document;
+    struct TypingRun
+    {
+        uint64_t revision{}, selectionEpoch{}, lastTick{};
+        size_t caret{}, units{};
+    };
+    std::optional<TypingRun> typingRun;
     RichTextEditorAppearance appearance;
     RichTextLinkUnderlinePolicy linkUnderlinePolicy = RichTextLinkUnderlinePolicy::Always;
     std::optional<RichText::MarkdownRange> hoveredLink;
@@ -2924,7 +2930,31 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                 if (ExecuteMarkdownCommand(request) != RichText::MarkdownCommandStatus::Unavailable)
                     return true;
             }
-        static_cast<void>(ReplaceSelection(std::move(text)));
+        const auto selection = GetSelection();
+        WORD characterType   = 0u;
+        const bool word = text.size() == 1u &&
+                          (text[0] == L'_' || (GetStringTypeW(CT_CTYPE1, text.data(), 1, &characterType) && (characterType & (C1_ALPHA | C1_DIGIT)) != 0u));
+        if (word && selection.Start() == selection.End())
+        {
+            const auto now      = GetTickCount64();
+            const auto previous = _state->typingRun;
+            const bool merge    = previous && previous->revision == Revision() && previous->selectionEpoch == _state->document.selectionEpoch_ &&
+                                  previous->caret == selection.caret && now >= previous->lastTick && now - previous->lastTick <= 1000u &&
+                                  previous->units + text.size() <= 64u && _state->document.CanUndo();
+            const auto end      = selection.caret + text.size();
+            const bool changed  = _state->document.ReplaceImpl(selection.caret, selection.caret, text, {end, end}, true, merge);
+            if (changed)
+                _state->typingRun =
+                    State::TypingRun{Revision(), _state->document.selectionEpoch_, now, end, merge ? previous->units + text.size() : text.size()};
+            else
+                _state->typingRun.reset();
+            Changed(changed);
+        }
+        else
+        {
+            _state->typingRun.reset();
+            static_cast<void>(ReplaceSelection(std::move(text)));
+        }
         return true;
     }
     catch (const std::exception&)
@@ -2940,6 +2970,8 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
             return false;
         _state->pendingLeadSurrogate = 0;
         const bool control = ModifiersContainCtrl(modifiers), shift = ModifiersContainShift(modifiers);
+        if (control || key == VK_BACK || key == VK_DELETE || key == VK_ESCAPE || key == VK_RETURN || key == VK_TAB || key == VK_F2)
+            _state->typingRun.reset();
         if (ModifiersContainAlt(modifiers))
             return false;
         if (_state->sourceEditing && (key == VK_ESCAPE || (control && key == VK_RETURN && ! shift) || (key == VK_F2 && ! control && ! shift)))

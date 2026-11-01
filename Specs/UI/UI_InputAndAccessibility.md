@@ -1205,6 +1205,10 @@ position. Selection callback reentry that changes the target cancels the menu.
 Ctrl+Backspace and Ctrl+Delete erase to the preceding or following word boundary;
 rich-view deletion maps visible fragments through the structural source planner.
 An active source-edit session bounds word deletion to its own interval.
+Adjacent direct BMP letter, digit or underscore typing is one undo group for at most 64 UTF-16
+units and one second between input events. A selection move, command, punctuation,
+whitespace, or source revision change ends the group. IME transactions retain
+their native composition history policy.
 
 A task press MUST stage an immutable current source plan without editing text.
 Only matching release inside its checkbox can apply it. Leaving the rectangle,

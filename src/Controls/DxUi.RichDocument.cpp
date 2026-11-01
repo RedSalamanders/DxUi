@@ -601,6 +601,8 @@ bool Document::AdoptReadOnlySourceSnapshot(const SourceSnapshot& source, Selecti
         return false;
     if (source_.IsSameRevision(source))
     {
+        if (selection_ != selection)
+            ++selectionEpoch_;
         selection_ = selection; // Same-text selection updates match SetSelection and preserve local revision/history.
         return true;
     }
@@ -635,6 +637,7 @@ void Document::SetSelection(Selection selection)
     if (! source_.IsBoundary(selection.anchor) || ! source_.IsBoundary(selection.caret))
         throw std::out_of_range("Selection splits a Unicode scalar or CRLF");
     selection_ = selection;
+    ++selectionEpoch_;
 }
 void Document::Push(std::vector<History>& history, History entry)
 {
@@ -705,7 +708,7 @@ bool Document::ReplaceWholeTextImpl(std::wstring_view text, Selection selection,
     return ReplaceImpl(prefix, length - suffix, text.substr(prefix, text.size() - prefix - suffix), selection, recordHistory);
 }
 
-bool Document::ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view text, Selection after, bool recordHistory)
+bool Document::ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view text, Selection after, bool recordHistory, bool coalesceHistory)
 {
     Validate(text);
     const auto length = source_.Length();
@@ -747,6 +750,8 @@ bool Document::ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view
         });
     if (equal)
     {
+        if (selection_ != after)
+            ++selectionEpoch_;
         selection_ = after;
         return false;
     }
@@ -763,7 +768,7 @@ bool Document::ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view
     // allocation failure; an unused default Debug STL container would also
     // allocate an iterator proxy inside its noexcept constructor.
     std::optional<std::vector<History>> nextUndo;
-    if (recordHistory)
+    if (recordHistory && ! coalesceHistory)
     {
         nextUndo.emplace(undo_);
         Push(*nextUndo, {source_, selection_});
@@ -771,7 +776,8 @@ bool Document::ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view
     source_ = std::move(candidate);
     if (recordHistory)
     {
-        undo_.swap(*nextUndo);
+        if (nextUndo)
+            undo_.swap(*nextUndo);
         redo_.clear();
     }
     selection_ = after;

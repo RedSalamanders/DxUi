@@ -185,6 +185,20 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
           "editor replace-all is case-insensitive and one undo transaction");
     editor->SetText(L"word");
     prepare();
+    editor->SetText(L"");
+    Check(editor->OnChar(host, L'a', 0u) && editor->OnChar(host, L'b', 0u) && editor->OnChar(host, L'c', 0u) && editor->GetText() == L"abc" && editor->Undo() &&
+              editor->GetText().empty(),
+          "adjacent direct word typing coalesces into one undo");
+    Check(editor->OnChar(host, L'a', 0u) && editor->OnChar(host, L' ', 0u) && editor->OnChar(host, L'b', 0u) && editor->Undo() && editor->GetText() == L"a ",
+          "whitespace ends a typing undo group");
+    editor->SetText(L"");
+    Check(editor->OnChar(host, L'a', 0u) && editor->OnChar(host, L'b', 0u), "typing fixture starts a group");
+    editor->SetSelection({0u, 0u});
+    editor->SetSelection({2u, 2u});
+    Check(editor->OnChar(host, L'c', 0u) && editor->Undo() && editor->GetText() == L"ab",
+          "selection moves break a typing group even when returning to its caret");
+    editor->SetText(L"word");
+    prepare();
     std::size_t notifications = 0u;
     editor->SetOnTextChanged([&] { ++notifications; });
     const auto exact = [&](std::wstring_view source,

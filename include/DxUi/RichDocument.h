@@ -149,11 +149,12 @@ private:
     SourceSnapshot source_;
     Selection selection_{};
     std::uint64_t revision_{};
+    std::uint64_t selectionEpoch_{}; // Detect selection moves even when a later move returns to the same ACP.
     friend class ::DxUi::RichTextEditor;
     [[nodiscard]] bool AdoptReadOnlySourceSnapshot(const SourceSnapshot& source, Selection selection) noexcept;
     std::vector<History> undo_, redo_;
     static void Push(std::vector<History>& history, History entry);
-    bool ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view text, Selection after, bool recordHistory);
+    bool ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view text, Selection after, bool recordHistory, bool coalesceHistory = false);
     bool ReplaceWholeTextImpl(std::wstring_view text, Selection after, bool recordHistory);
 };
 } // namespace DxUi::RichText
