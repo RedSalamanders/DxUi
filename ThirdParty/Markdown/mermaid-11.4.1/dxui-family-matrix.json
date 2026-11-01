@@ -138,10 +138,10 @@
     "file": "mindmap.md.txt",
     "gitBlob": "07face7f3e40797b3c2b90069139060f236c836c",
     "sha256": "4F222FB2853EE051F0FF778753A286D3EB39A983E1028EC47E8A0E20ABC4385F",
-    "support": "unsupported-family",
+    "support": "limited-mindmap",
     "firstExample": {
-      "reason": "unsupported-diagram-family",
-      "issue": "UnsupportedFamily",
+      "reason": "first-example-uses-unsupported-icon",
+      "issue": "UnsupportedStatement",
       "direction": "TopBottom",
       "outcome": "Unsupported",
       "edges": 0,

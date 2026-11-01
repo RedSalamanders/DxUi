@@ -763,6 +763,7 @@ struct SemanticBuilder::Preparation
                 RejectDiagram(SemanticDiagnosticKind::EmptyDiagram, node.block.content,
                               graph.family == Detail::NativeDiagramFamily::Pie ? L"Empty pie chart. Source is preserved."
                               : graph.family == Detail::NativeDiagramFamily::Gantt ? L"Empty Gantt chart. Source is preserved."
+                              : graph.family == Detail::NativeDiagramFamily::Mindmap ? L"Empty mind map. Source is preserved."
                               : graph.family == Detail::NativeDiagramFamily::Sequence ? L"Empty sequence diagram. Source is preserved."
                                                                                      : L"Empty flowchart. Source is preserved.");
                 return;
@@ -788,6 +789,8 @@ struct SemanticBuilder::Preparation
                                          ? DiagramAlternative({L"Pie chart: ", graph.pieTitle, L". Slices: "})
                                      : graph.family == Detail::NativeDiagramFamily::Gantt
                                          ? DiagramAlternative({L"Gantt chart: ", graph.ganttTitle, L". Tasks: "})
+                                     : graph.family == Detail::NativeDiagramFamily::Mindmap
+                                         ? DiagramAlternative({L"Mind map. Nodes: "})
                                          : DiagramAlternative({family, direction, L". Nodes: "});
             if (! initialized)
                 return;
@@ -831,6 +834,11 @@ struct SemanticBuilder::Preparation
                 DiagramAlternative({graph.nodes[index].label, L": ", std::wstring_view(graph.source).substr(value.first, value.last - value.first), L"; "});
                 return;
             }
+            if (graph.family == Detail::NativeDiagramFamily::Mindmap)
+            {
+                DiagramAlternative({graph.nodes[index].label, L"; "});
+                return;
+            }
             if (graph.nodes[index].shape == Detail::FlowchartShape::Note)
             {
                 if (graph.nodes[index].noteTarget == MarkdownNoNode)
@@ -871,6 +879,11 @@ struct SemanticBuilder::Preparation
                 return;
             }
             const auto& edge = graph.edges[work.cursor++];
+            if (graph.family == Detail::NativeDiagramFamily::Mindmap)
+            {
+                DiagramAlternative({graph.nodes[edge.from].label, L" → ", graph.nodes[edge.to].label, L"; "});
+                return;
+            }
             if (graph.family == Detail::NativeDiagramFamily::Sequence)
             {
                 DiagramAlternative({id(edge.from),
@@ -944,6 +957,7 @@ struct SemanticBuilder::Preparation
                          : graph.family == Detail::NativeDiagramFamily::Pie ? L"Pie chart. Source is available as document text."
                          : graph.family == Detail::NativeDiagramFamily::EntityRelationship ? L"Entity relationship diagram. Source is available as document text."
                          : graph.family == Detail::NativeDiagramFamily::Gantt ? L"Gantt chart. Source is available as document text."
+                         : graph.family == Detail::NativeDiagramFamily::Mindmap ? L"Mind map. Source is available as document text."
                                                                               : L"Flowchart. Source is available as document text.";
         if (! graph.accessibleTitle.empty())
         {

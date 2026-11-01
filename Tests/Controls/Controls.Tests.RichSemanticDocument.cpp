@@ -856,6 +856,14 @@ void TestRichSemanticNativeMathematicsAndBroaderMermaid()
     Require(ganttDocument->Map().Source() == ganttSource && ganttDiagram != ganttDocument->Elements().end() &&
                 ganttDiagram->name.starts_with(L"Gantt chart: Release") && ganttDiagram->name.find(L"Build / Compile: 2024-02-27, 3d") != std::wstring::npos,
             "Gantt semantic alternative preserves title, section, dates and exact source");
+    const std::wstring mindSource = L"```mermaid\nmindmap\n  root((Central))\n    First\n      Leaf\n    Second\n```\n";
+    const auto mindDocument = RichSemanticDocumentTests::Build(mindSource, MarkdownProfile::RichMarkdown);
+    const auto mindDiagram = std::ranges::find(mindDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
+    Require(mindDocument->Map().Source() == mindSource && mindDiagram != mindDocument->Elements().end() &&
+                mindDiagram->name.starts_with(L"Mind map. Nodes: ") && mindDiagram->name.find(L"Central") != std::wstring::npos &&
+                mindDiagram->name.find(L"First") != std::wstring::npos && mindDiagram->name.find(L"Leaf") != std::wstring::npos &&
+                mindDiagram->name.find(L"Second") != std::wstring::npos,
+            "Mind map semantic alternative preserves hierarchy labels and exact source");
 }
 void TestRichSemanticDocumentStructuralStyleValues()
 {

@@ -36,6 +36,8 @@ struct NativeFlowchartLayout::Preparation
         SequenceEdges,
         PieNodes,
         GanttNodes,
+        MindNodes,
+        MindEdges,
         Adjacency,
         Dfs,
         Indegree,
@@ -71,6 +73,7 @@ struct NativeFlowchartLayout::Preparation
     std::array<std::size_t, Nodes> head{}, tail{}, rank{}, indegree{}, before{}, after{}, color{}, incoming{}, outgoing{}, rowCount{};
     std::array<std::size_t, Nodes> pairTargets{};
     std::array<std::size_t, Nodes> groupColumns{};
+    std::array<int, Nodes> mindSide{};
     std::array<double, 16u> groupColumnWidth{};
     std::array<bool, Nodes> ranked{};
     std::array<std::size_t, Edges> next{}, startPort{}, endPort{};
@@ -88,6 +91,7 @@ struct NativeFlowchartLayout::Preparation
     double pieTotal{}, pieAngle{}, pieLegendY{}, pieWidth{}, pieDiameter{};
     double ganttY{}, ganttLabelWidth{}, ganttScale{};
     std::int64_t ganttMinimum{}, ganttMaximum{};
+    double mindWidth{}, mindHeight{}, mindColumn{}, mindRow{}, mindCenterX{}, mindCenterY{};
     FlowchartPoint shift;
     Stage stage{};
     bool horizontal{}, bounded{}, done{}, hasCardinality{}, hasNotes{}, alignedPairs{}, alignedGroups{};
@@ -179,7 +183,27 @@ struct NativeFlowchartLayout::Preparation
     {
         if (cursor == graph->nodes.size())
         {
-            if (graph->family == NativeDiagramFamily::Gantt)
+            if (graph->family == NativeDiagramFamily::Mindmap)
+            {
+                double maximumWidth{}, maximumHeight{};
+                for (const auto& node : plan->nodes) { maximumWidth = std::max(maximumWidth, node.bounds.width); maximumHeight = std::max(maximumHeight, node.bounds.height); }
+                unsigned leftDepth{}, rightDepth{}, branches{};
+                for (std::size_t index = 1u; index < graph->nodes.size(); ++index)
+                {
+                    const auto& node = graph->nodes[index];
+                    mindSide[index] = node.mindDepth == 1u ? (++branches % 2u ? 1 : -1) : mindSide[node.mindParent];
+                    if (mindSide[index] < 0) leftDepth = std::max(leftDepth, node.mindDepth);
+                    else rightDepth = std::max(rightDepth, node.mindDepth);
+                }
+                mindColumn = maximumWidth + 32.0; mindRow = maximumHeight + 16.0;
+                mindCenterX = Margin + static_cast<double>(leftDepth) * mindColumn + maximumWidth / 2.0;
+                mindCenterY = Margin + maximumHeight / 2.0 + (graph->nodes.size() > 2u ? static_cast<double>(graph->nodes.size() - 2u) * mindRow / 2.0 : 0.0);
+                mindWidth = 2.0 * Margin + static_cast<double>(leftDepth + rightDepth) * mindColumn + maximumWidth;
+                mindHeight = 2.0 * Margin + maximumHeight + (graph->nodes.size() > 1u ? static_cast<double>(graph->nodes.size() - 2u) * mindRow : 0.0);
+                if (mindWidth > MaximumExtent || mindHeight > MaximumExtent) { Fail(FlowchartLayoutIssue::DiagramExtent); return; }
+                Then(Stage::MindNodes);
+            }
+            else if (graph->family == NativeDiagramFamily::Gantt)
             {
                 ganttMinimum = graph->nodes.front().ganttStart;
                 ganttMaximum = graph->nodes.front().ganttEnd;
@@ -304,6 +328,40 @@ struct NativeFlowchartLayout::Preparation
                        static_cast<double>(graph->nodes[index].ganttEnd - graph->nodes[index].ganttStart) * ganttScale, 12.0};
         ganttY += height + 8.0;
         if (ganttY + Margin > MaximumExtent) Fail(FlowchartLayoutIssue::DiagramExtent);
+    }
+    void MindNodes()
+    {
+        if (cursor == plan->nodes.size()) { Then(Stage::MindEdges); return; }
+        const auto index = cursor++;
+        auto& node = plan->nodes[index];
+        const auto& model = graph->nodes[index];
+        const auto centerX = mindCenterX + static_cast<double>(mindSide[index]) * static_cast<double>(model.mindDepth) * mindColumn;
+        const auto centerY = index == 0u ? mindCenterY : Margin + mindRow * static_cast<double>(index - 1u) + (mindRow - 16.0) / 2.0;
+        node.bounds.x = centerX - node.bounds.width / 2.0;
+        node.bounds.y = centerY - node.bounds.height / 2.0;
+        node.label = {node.bounds.x + (node.bounds.width - nodeLabels[index].width) / 2.0,
+                      node.bounds.y + (node.bounds.height - nodeLabels[index].height) / 2.0, nodeLabels[index].width, nodeLabels[index].height};
+    }
+    void MindEdges()
+    {
+        if (cursor == graph->edges.size())
+        {
+            plan->extent = {mindWidth, mindHeight};
+            Then(Stage::Finish);
+            return;
+        }
+        const auto index = cursor++;
+        const auto& edge = graph->edges[index];
+        const auto& from = plan->nodes[edge.from].bounds;
+        const auto& to = plan->nodes[edge.to].bounds;
+        const bool right = mindSide[edge.to] > 0;
+        const FlowchartPoint first{right ? from.x + from.width : from.x, from.y + from.height / 2.0};
+        const FlowchartPoint last{right ? to.x : to.x + to.width, to.y + to.height / 2.0};
+        const auto middle = (first.x + last.x) / 2.0;
+        FlowchartPlacedEdge placed;
+        placed.relation = FlowchartRelation::Line;
+        placed.path = {{first, first, {middle, first.y}, {middle, last.y}, last, last}};
+        plan->edges.push_back(placed);
     }
     void SequenceNodes()
     {
@@ -948,6 +1006,8 @@ struct NativeFlowchartLayout::Preparation
             case Stage::SequenceEdges: SequenceEdges(); break;
             case Stage::PieNodes: PieNodes(); break;
             case Stage::GanttNodes: GanttNodes(); break;
+            case Stage::MindNodes: MindNodes(); break;
+            case Stage::MindEdges: MindEdges(); break;
             case Stage::Adjacency: Adjacency(); break;
             case Stage::Dfs: Dfs(); break;
             case Stage::Indegree:
@@ -1028,6 +1088,8 @@ void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
         throw std::invalid_argument("Invalid entity relationship model");
     if (! ValidGanttModel(*graph))
         throw std::invalid_argument("Invalid Gantt timeline model");
+    if (! ValidMindmapModel(*graph))
+        throw std::invalid_argument("Invalid mindmap hierarchy model");
     for (const auto& node : graph->nodes)
         if (node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Note ||
             (node.shape == FlowchartShape::Note &&

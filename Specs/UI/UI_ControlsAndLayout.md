@@ -1897,14 +1897,14 @@ remain accounted for. Independent subset expectations distinguish 32 admitted
 graphs from 73 unsupported definitions and record each issue and exact UTF-16 diagnostic range, including the documented stadium and
 the original endpoint-group fan-out examples.
 The family matrix separately identifies the limited flowchart, state, class and
-sequence, pie, ER and Gantt profiles, the example collection, and 14 unsupported diagram families. Generated
+sequence, pie, ER, Gantt and mind map profiles, the example collection, and 13 unsupported diagram families. Generated
 first-example fixtures specify the exact expected outcome and diagnostic for all
 20 diagram-family documents: the state example prepares five nodes and six
 transitions; the class example prepares six nodes and four relationships, and
 the sequence example prepares two participants and three messages, and the pie
 example prepares three slices, and the ER example prepares four entities and three
 relationships. The Gantt reference example retains source because it uses task
-identifiers and dependencies. The remaining 14 examples are unsupported-family fallbacks. These cases measure
+identifiers and dependencies; the mind map example retains source because it uses an icon. The remaining 13 examples are unsupported-family fallbacks. These cases measure
 local subset coverage, not complete Mermaid family conformance. Original reference
 bytes and MIT notice remain under `ThirdParty/Markdown/mermaid-11.4.1`.
 
@@ -2364,7 +2364,15 @@ show section, task and source date/duration text; the accessible alternative
 retains the same data in source order. Task identifiers, dependencies, status
 tags, exclusions and other directives retain the complete fence with a diagnostic.
 
-Flowchart, state, class, sequence, pie, ER and Gantt diagrams accept one `accTitle: text` and one
+The bounded `mindmap` profile accepts one root and up to 127 descendants, with
+space-indented levels through depth eight and consistent indentation for each
+level. Plain labels and rectangular, rounded and circular label forms are
+supported. Native layout places alternating root branches around the central
+node, connects descendants to their parents, and preserves source order in the
+accessible alternative. Icons, unsupported shapes, tabs and malformed indentation
+retain the complete fence with a diagnostic.
+
+Flowchart, state, class, sequence, pie, ER, Gantt and mind map diagrams accept one `accTitle: text` and one
 `accDescr: text` or multiline `accDescr {` / `accDescr{` block closed by a
 standalone `}`. Values are plain text, each bounded to 1024 UTF-16 units;
 multiline descriptions join trimmed physical lines with LF, retaining empty

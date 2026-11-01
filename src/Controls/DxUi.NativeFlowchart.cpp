@@ -40,10 +40,12 @@ struct NativeFlowchartParser::Preparation
     std::array<bool, MaximumNodes> classAnnotations{};
     std::array<std::uint8_t, MaximumNodes> pseudoKinds{};
     std::array<std::size_t, 4u> groupStack{};
+    std::array<std::size_t, 9u> mindIndent{}, mindStack{};
     std::size_t groupDepth{};
     bool quote{}, escaped{}, pipe{}, comment{}, header{}, done{}, classBlock{}, titleSeen{}, descriptionSeen{}, descriptionBlock{}, descriptionHasLine{};
     bool noteBlock{}, noteBlockLeft{}, noteBlockHasLine{}, erBlock{};
-    bool pieTitleSeen{}, ganttTitleSeen{}, ganttDateFormatSeen{}, ganttHasTask{};
+    bool pieTitleSeen{}, ganttTitleSeen{}, ganttDateFormatSeen{}, ganttHasTask{}, mindHaveRoot{};
+    std::size_t mindLevel{};
     double pieTotal{};
     std::int64_t ganttMinimum{}, ganttMaximum{};
     explicit Preparation(std::wstring_view source, std::uint64_t revision)
@@ -620,12 +622,13 @@ struct NativeFlowchartParser::Preparation
                 header = true;
                 return true;
             }
-            if (line == L"stateDiagram-v2" || line == L"stateDiagram" || line == L"classDiagram" || line == L"sequenceDiagram" || line == L"erDiagram" || line == L"gantt")
+            if (line == L"stateDiagram-v2" || line == L"stateDiagram" || line == L"classDiagram" || line == L"sequenceDiagram" || line == L"erDiagram" || line == L"gantt" || line == L"mindmap")
             {
                 model->family    = line == L"classDiagram" ? NativeDiagramFamily::Class
                                    : line == L"sequenceDiagram" ? NativeDiagramFamily::Sequence
                                    : line == L"erDiagram" ? NativeDiagramFamily::EntityRelationship
-                                   : line == L"gantt" ? NativeDiagramFamily::Gantt : NativeDiagramFamily::State;
+                                   : line == L"gantt" ? NativeDiagramFamily::Gantt
+                                   : line == L"mindmap" ? NativeDiagramFamily::Mindmap : NativeDiagramFamily::State;
                 model->direction = FlowchartDirection::TopBottom;
                 header           = true;
                 return true;
@@ -735,6 +738,57 @@ struct NativeFlowchartParser::Preparation
                 seen = true;
                 return true;
             }
+        if (model->family == NativeDiagramFamily::Mindmap)
+        {
+            const auto start = at;
+            for (auto pos = first; pos < at; ++pos)
+                if (Text()[pos] != L' ') return Error(FlowchartIssue::UnsupportedStatement, first, at, FlowchartOutcome::Unsupported);
+            const auto indent = at - first;
+            if (! mindHaveRoot) { mindIndent[0u] = indent; mindLevel = 0u; mindHaveRoot = true; }
+            else if (indent > mindIndent[mindLevel])
+            {
+                if (mindLevel == 8u) return Error(FlowchartIssue::NodeCapacity, first, end, FlowchartOutcome::Capacity);
+                mindIndent[++mindLevel] = indent;
+            }
+            else
+            {
+                while (mindLevel && indent < mindIndent[mindLevel]) --mindLevel;
+                if (! mindLevel || indent != mindIndent[mindLevel])
+                    return Error(FlowchartIssue::UnsupportedStatement, first, end, FlowchartOutcome::Unsupported);
+            }
+            if (Text().substr(at, 2u) == L"::") return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+            FlowchartNode node;
+            node.declaration = {start, end};
+            node.mindDepth = static_cast<unsigned>(mindLevel);
+            node.mindParent = mindLevel ? mindStack[mindLevel - 1u] : MarkdownNoNode;
+            auto labelFirst = at, labelLast = end;
+            auto marker = at;
+            while (marker < end && IdUnit(Text()[marker])) ++marker;
+            if (marker > at && marker < end && (Text()[marker] == L'(' || Text()[marker] == L'['))
+            {
+                const bool circle = Text().substr(marker, 2u) == L"((";
+                const auto close = circle ? std::wstring_view(L"))") : Text()[marker] == L'(' ? std::wstring_view(L")") : std::wstring_view(L"]");
+                if (! Text().substr(at, end - at).ends_with(close))
+                    return Error(FlowchartIssue::UnsupportedShape, marker, end, FlowchartOutcome::Unsupported);
+                node.shape = circle ? FlowchartShape::Circle : Text()[marker] == L'(' ? FlowchartShape::Rounded : FlowchartShape::Rectangle;
+                labelFirst = marker + (circle ? 2u : 1u); labelLast = end - close.size();
+            }
+            node.identifier = {labelFirst, labelLast};
+            auto labelAt = labelFirst;
+            if (labelAt == labelLast) return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+            if (! PlainText(labelAt, labelLast, node.label)) return false;
+            if (model->nodes.size() == 128u) return Error(FlowchartIssue::NodeCapacity, start, end, FlowchartOutcome::Capacity);
+            const auto nodeIndex = model->nodes.size();
+            model->nodes.push_back(node);
+            if (mindLevel)
+            {
+                FlowchartEdge edge;
+                edge.from = node.mindParent; edge.to = nodeIndex; edge.source = {start, end};
+                model->edges.push_back(edge);
+            }
+            mindStack[mindLevel] = nodeIndex;
+            return true;
+        }
         if (model->family == NativeDiagramFamily::Gantt)
         {
             const auto start = at;

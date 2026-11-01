@@ -32,7 +32,8 @@ enum class NativeDiagramFamily
     Sequence,
     Pie,
     EntityRelationship,
-    Gantt
+    Gantt,
+    Mindmap
 };
 enum class ErMultiplicity { None, One, ZeroOrOne, OneOrMany, ZeroOrMany };
 enum class FlowchartShape
@@ -105,6 +106,8 @@ struct FlowchartNode
     MarkdownRange ganttStartSource, ganttEndSource;
     double pieValue{};
     std::int64_t ganttStart{}, ganttEnd{};
+    std::size_t mindParent{MarkdownNoNode};
+    unsigned mindDepth{};
     std::wstring label;
     std::wstring key;
     std::wstring ganttSection;
@@ -303,6 +306,30 @@ inline bool ValidGanttModel(const FlowchartModel& graph) noexcept
         else { minimum = std::min(minimum, first); maximum = std::max(maximum, last); }
     }
     return maximum - minimum <= 366;
+}
+inline bool ValidMindmapModel(const FlowchartModel& graph) noexcept
+{
+    if (graph.family != NativeDiagramFamily::Mindmap) return true;
+    if (graph.direction != FlowchartDirection::TopBottom || graph.nodes.empty() || graph.nodes.size() > 128u || ! graph.groups.empty() ||
+        graph.edges.size() + 1u != graph.nodes.size()) return false;
+    for (std::size_t index = 0u; index < graph.nodes.size(); ++index)
+    {
+        const auto& node = graph.nodes[index];
+        if ((node.shape != FlowchartShape::Rectangle && node.shape != FlowchartShape::Rounded && node.shape != FlowchartShape::Circle) ||
+            node.groupMask || node.compartmentCount || node.label.empty() || node.identifier.first >= node.identifier.last || node.identifier.last > graph.source.size() ||
+            (index == 0u ? node.mindParent != MarkdownNoNode || node.mindDepth != 0u
+                         : node.mindParent >= index || node.mindDepth != graph.nodes[node.mindParent].mindDepth + 1u || node.mindDepth > 8u))
+            return false;
+        if (index)
+        {
+            const auto& edge = graph.edges[index - 1u];
+            if (edge.from != node.mindParent || edge.to != index || edge.relation != FlowchartRelation::Line || edge.arrow || edge.openArrow ||
+                edge.style != FlowchartLineStyle::Solid || edge.minimumRanks != 1u || ! edge.label.empty() || ! edge.fromCardinality.empty() ||
+                ! edge.toCardinality.empty() || edge.erFrom != ErMultiplicity::None || edge.erTo != ErMultiplicity::None ||
+                edge.source.first >= edge.source.last || edge.source.last > graph.source.size()) return false;
+        }
+    }
+    return true;
 }
 class NativeFlowchartParser
 {

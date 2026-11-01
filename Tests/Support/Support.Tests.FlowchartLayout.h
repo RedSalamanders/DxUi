@@ -146,6 +146,24 @@ template <typename Check> inline void Geometry(Check&& check)
         check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == invalid && rejected->nodes.empty(),
               "invalid or unsupported Gantt task retains exact source without partial schedule");
     }
+    const auto mind = Graph(L"mindmap\n  root((Central))\n    First\n      Leaf\n    Second\n");
+    const auto mindPlan = Place(mind, check);
+    check(mind->outcome == FlowchartOutcome::Prepared && mind->family == NativeDiagramFamily::Mindmap && mind->nodes.size() == 4u &&
+              mind->nodes[0u].shape == FlowchartShape::Circle && mind->nodes[0u].label == L"Central" && mind->nodes[1u].mindParent == 0u &&
+              mind->nodes[2u].mindParent == 1u && mind->nodes[2u].mindDepth == 2u && mind->nodes[3u].mindParent == 0u,
+          "mindmap model preserves root, branch hierarchy, shape and source order");
+    check(mindPlan->issue == FlowchartLayoutIssue::None && mindPlan->nodes.size() == 4u && mindPlan->edges.size() == 3u &&
+              mindPlan->nodes[1u].bounds.x > mindPlan->nodes[0u].bounds.x + mindPlan->nodes[0u].bounds.width &&
+              mindPlan->nodes[2u].bounds.x > mindPlan->nodes[1u].bounds.x + mindPlan->nodes[1u].bounds.width &&
+              mindPlan->nodes[3u].bounds.x + mindPlan->nodes[3u].bounds.width < mindPlan->nodes[0u].bounds.x,
+          "mindmap lays out alternating branches on both sides of the central root");
+    for (const auto invalid : {L"mindmap\n  Root\n  Other root\n", L"mindmap\n  Root\n    Child\n   Bad indent\n",
+                               L"mindmap\n  Root\n    ::icon(fa fa-book)\n"})
+    {
+        const auto rejected = Graph(invalid);
+        check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == invalid && rejected->nodes.empty(),
+              "unsupported or inconsistent mindmap indentation retains exact source without partial hierarchy");
+    }
     for (const auto direction : {L"TD", L"BT", L"LR", L"RL"})
     {
         const auto pairs = Place(Graph(std::wstring(L"graph ") + direction + L";A;B;C;Z;Y;X;A-->X;B-->Y;C-->Z"), check);

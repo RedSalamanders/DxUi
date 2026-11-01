@@ -237,6 +237,8 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
         throw std::invalid_argument("Invalid native entity relationship model");
     if (! ValidGanttModel(*graph))
         throw std::invalid_argument("Invalid native Gantt timeline model");
+    if (! ValidMindmapModel(*graph))
+        throw std::invalid_argument("Invalid native mindmap hierarchy model");
     if (! graph->groups.empty() && graph->family != NativeDiagramFamily::Flowchart && graph->family != NativeDiagramFamily::State &&
         graph->family != NativeDiagramFamily::Class)
         throw std::invalid_argument("Groups require a supported diagram profile");

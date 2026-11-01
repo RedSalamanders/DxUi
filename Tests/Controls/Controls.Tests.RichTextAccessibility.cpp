@@ -2027,6 +2027,18 @@ void SemanticDiagramAlternatives(bool embedded)
     wil::com_ptr_nothrow<ITextRangeProvider> ganttRange;
     RequireSucceeded(text->RangeFromChild(ganttImage.get(), ganttRange.put()), "Gantt source range");
     Require(ReadTextRangeText(*ganttRange.get(), -1, "Gantt exact raw fence") == gantt, "Gantt UIA range owns the original fence");
+    const std::wstring mind = L"```mermaid\nmindmap\n  root((Central))\n    First\n      Leaf\n    Second\n```\n";
+    fixture.editor->SetText(mind);
+    fixture.Publish();
+    const auto mindImage = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
+    Require(mindImage != nullptr, "Mind map is exposed as an acknowledged native image provider");
+    const auto mindName = ReadProviderStringProperty(*mindImage.get(), UIA_NamePropertyId, "Mind map alternative");
+    Require(mindName.starts_with(L"Mind map. Nodes: ") && mindName.find(L"Central") != std::wstring::npos &&
+                mindName.find(L"Leaf") != std::wstring::npos && mindName.find(L"Second") != std::wstring::npos,
+            "Mind map provider exposes hierarchy labels");
+    wil::com_ptr_nothrow<ITextRangeProvider> mindRange;
+    RequireSucceeded(text->RangeFromChild(mindImage.get(), mindRange.put()), "Mind map source range");
+    Require(ReadTextRangeText(*mindRange.get(), -1, "Mind map exact raw fence") == mind, "Mind map UIA range owns the original fence");
 }
 void SemanticMathLiteralFallback(bool embedded)
 {
