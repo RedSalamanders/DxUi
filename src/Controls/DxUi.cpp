@@ -1121,6 +1121,7 @@ void Control::InvalidateMeasure() noexcept
         ++control->_measureRevision;
         if (control->_intrinsicLayoutEnabled)
         {
+            control->_intrinsicAllocationRetryUsed = false;
             control->_intrinsicLayoutPending = true;
             hasLayoutOwner                   = true;
         }
@@ -1145,6 +1146,7 @@ void Control::RequestIntrinsicLayout() noexcept
 {
     if (_intrinsicLayoutEnabled)
     {
+        _intrinsicAllocationRetryUsed = false;
         _intrinsicLayoutPending = true;
         if (_host)
         {

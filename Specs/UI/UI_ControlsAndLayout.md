@@ -151,7 +151,7 @@ Intrinsic owners request work through the shared pending-layout traversal used b
 that changed the tree mid-pass) prevents the host from publishing that preparation and requests another one. A
 layout that fails (text beyond the shaping budget, an unsupported child without an explicit size, arithmetic
 overflow) keeps the owner's previous geometry, which the frame paints, and is reported once through the diagnostics
-sink; the owner is laid out again when its content, constraints or bounds change. A failure never blanks the
+sink; the owner is laid out again when its content, constraints or bounds change. An `E_OUTOFMEMORY` result receives one cooperative retry per layout request; a second failure remains latched until a new request. A failure never blanks the
 window. Measure invalidation moves no geometry until that preparation, so it leaves the interaction revision alone:
 pending layout neither drops input nor cancels a press. After a successful deferred pass the native host
 republishes the UI Automation snapshot, whose bounds an earlier publication may have read before the pass. The

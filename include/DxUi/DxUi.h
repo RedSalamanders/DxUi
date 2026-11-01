@@ -1825,6 +1825,7 @@ private:
     uint64_t _measureRevision               = 0u;
     bool _intrinsicLayoutEnabled            = false;
     bool _intrinsicLayoutPending            = false;
+    bool _intrinsicAllocationRetryUsed       = false;
     bool _contentPreparationEnabled         = false;
     mutable bool _contentPreparationPending = false;
     bool _visualPreparationEnabled          = false;

@@ -2366,6 +2366,13 @@ bool ControlHost::PreparePendingPageLayout() noexcept
                 // Layout fails before it commits geometry: the control keeps what it last arranged, this frame paints
                 // that, and the control is laid out again once its content, constraints or bounds change. Content the
                 // layout cannot take (an oversized paste, an unsupported child) never blanks the window.
+                // Retry one transient allocation failure on a later preparation turn. A new explicit
+                // layout request resets the allowance; repeated OOM must not keep the host busy.
+                if (hr == E_OUTOFMEMORY && ! control._intrinsicLayoutPending && ! control._intrinsicAllocationRetryUsed)
+                {
+                    control._intrinsicAllocationRetryUsed = true;
+                    control._intrinsicLayoutPending = true;
+                }
                 ++_intrinsicLayoutFailureCount;
                 if (_reportedLayoutFailureControl != &control || _reportedLayoutFailure != hr)
                 {
@@ -2516,7 +2523,7 @@ bool ControlHost::PreparePendingPageLayout() noexcept
         ClearPendingPointerDoubleClick();
     }
     const bool layoutComplete    = complete && (! root || rootCurrent()) && ! _pendingPageLayout && ! _pendingIntrinsicLayout;
-    _contentPreparationContinues = layoutComplete && _pendingContentPreparation;
+    _contentPreparationContinues = _pendingIntrinsicLayout || (layoutComplete && _pendingContentPreparation);
     if (layoutComplete)
     {
         _preparedContentResources  = GetResourceGeneration();

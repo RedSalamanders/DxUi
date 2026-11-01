@@ -2034,6 +2034,58 @@ void TestRadioButtonMeasuresTheChromeItPaints()
 
 // A layout that fails (here an unsupported child without an explicit size) keeps its previous geometry and the frame
 // still paints; the layout applies once the content is fixed.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
+class AllocationRetryLayout final : public Control
+{
+public:
+    AllocationRetryLayout() { EnableIntrinsicLayout(); }
+    unsigned failures = 0u;
+    unsigned attempts = 0u;
+    void RetryNewRequest() { RequestIntrinsicLayout(); }
+    void Paint(ControlHost&) const override {}
+protected:
+    HRESULT PrepareIntrinsicLayout(const MeasureContext&) noexcept override
+    {
+        ++attempts;
+        if (failures != 0u)
+        {
+            --failures;
+            return E_OUTOFMEMORY;
+        }
+        return S_OK;
+    }
+};
+#pragma warning(pop)
+
+void TestIntrinsicLayoutAllocationRetryIsBounded()
+{
+    GraphicsFixture graphics;
+    RequireSucceeded(graphics.Create(), "allocation retry WARP fixture");
+    std::shared_ptr<GraphicsDevice> device;
+    RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "allocation retry graphics");
+    EmbeddedHost view;
+    RequireSucceeded(view.Attach(device), "allocation retry attach");
+    auto owned = std::make_unique<AllocationRetryLayout>();
+    auto* layout = owned.get();
+    layout->failures = 1u;
+    view.Controls().SetRoot(std::move(owned));
+    Require(view.Prepare(240u, 200u, 96.0f) == S_FALSE && layout->attempts == 1u, "first allocation failure requests one cooperative retry");
+    RequireSucceeded(view.Prepare(240u, 200u, 96.0f), "transient allocation retry succeeds");
+    Require(layout->attempts == 2u && ! view.NeedsPreparation(), "successful retry settles without an idle loop");
+    const auto previousBounds = layout->GetBounds();
+    layout->failures = 4u;
+    layout->RetryNewRequest();
+    Require(view.Prepare(240u, 200u, 96.0f) == S_FALSE, "new request gets a fresh retry allowance");
+    RequireSucceeded(view.Prepare(240u, 200u, 96.0f), "persistent failure retains previous geometry and paints");
+    Require(layout->attempts == 4u && ! view.NeedsPreparation() && SameBounds(layout->GetBounds(), previousBounds), "persistent allocation failure stops after two attempts and keeps geometry");
+    RequireSucceeded(view.Prepare(240u, 200u, 96.0f), "idle preparation remains safe");
+    Require(layout->attempts == 4u, "idle frames do not retry persistent allocation failure");
+    layout->failures = 0u;
+    layout->RetryNewRequest();
+    RequireSucceeded(view.Prepare(240u, 200u, 96.0f), "later explicit request can recover");
+    Require(layout->attempts == 5u, "later request performs a new layout");
+}
 void TestIntrinsicLayoutFailureKeepsPaintingThePreviousGeometry()
 {
     GraphicsFixture graphics;
@@ -2259,6 +2311,7 @@ void RunIntrinsicLayoutTests()
     DXUI_RUN_TEST(TestIntrinsicReflowPreservesTextDraftAndCancelsMovedPress);
     DXUI_RUN_TEST(TestFlexFixedExtentsArrangeAtInexactOrigins);
     DXUI_RUN_TEST(TestRadioButtonMeasuresTheChromeItPaints);
+    DXUI_RUN_TEST(TestIntrinsicLayoutAllocationRetryIsBounded);
     DXUI_RUN_TEST(TestIntrinsicLayoutFailureKeepsPaintingThePreviousGeometry);
     DXUI_RUN_TEST(TestIntrinsicLayoutReachesOwnersUnderAShownContainer);
     DXUI_RUN_TEST(TestWrappedTextIgnoresTheSpaceThatEndsEachLine);
