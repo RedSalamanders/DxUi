@@ -3284,6 +3284,12 @@ public:
     [[nodiscard]] float GetZoom() const noexcept;
     // Optional owner-thread code coloring; an empty callback restores ordinary ink.
     void SetCodeTokenizer(RichText::CodeTokenizer tokenizer);
+    // Borrowed rendered code text is valid only during the owner-thread callback.
+    void SetOnCodeCopyRequested(std::function<void(std::wstring_view)> callback, std::wstring accessibleName = L"Copy code");
+    [[nodiscard]] std::wstring_view GetCodeCopyAccessibleName() const noexcept;
+    HRESULT InvokeSemanticCodeCopy(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& document, size_t element) noexcept;
+    // Unclipped host-DIP bounds; may lie outside the viewport.
+    [[nodiscard]] std::optional<D2D1_RECT_F> GetSemanticCodeCopyBounds(const ControlHost& host, size_t element) const noexcept;
     void SetLinkUnderlinePolicy(RichTextLinkUnderlinePolicy policy);
     [[nodiscard]] RichTextLinkUnderlinePolicy GetLinkUnderlinePolicy() const noexcept;
     // Current semantic source style; source mode/pending geometry returns false.

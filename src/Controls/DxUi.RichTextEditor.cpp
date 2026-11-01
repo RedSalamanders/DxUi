@@ -13,6 +13,7 @@
 #include "Support/Diagnostics.h"
 #include "TextClipboard.h"
 #include <DxUi/RichTextLayout.h>
+#include <UIAutomation.h>
 #include <cmath>
 #include <set>
 #include <stdexcept>
@@ -119,6 +120,13 @@ bool IsHistoryWordElement(std::wstring_view text) noexcept
             return false;
     }
     return true;
+}
+std::wstring_view CodeCopyText(const RichText::SemanticDocument& document, const RichText::SemanticElement& element) noexcept
+{
+    const auto& nodes = document.Syntax()->Nodes();
+    if (element.syntaxNode < nodes.size() && nodes[element.syntaxNode].lines.empty())
+        return {}; // The geometry's synthetic empty caret is not copied code.
+    return element.name;
 }
 D2D1_COLOR_F ResolveMarkdownQuoteFill(const ThemePalette& theme, const TextFieldVisualStyle& style) noexcept
 {
@@ -268,6 +276,8 @@ struct RichTextEditor::State
     RichText::SemanticBuilder semantic;
     RichText::Detail::RichSourceInk sourceInk;
     std::shared_ptr<const RichText::CodeTokenizer> codeTokenizer;
+    std::shared_ptr<const std::function<void(std::wstring_view)>> onCodeCopyRequested;
+    std::wstring codeCopyAccessibleName;
     std::shared_ptr<const RichText::SemanticDocument> codeInkDocument;
     std::vector<RichText::TextInkRange> codeInk, codeInkStaged;
     size_t codeInkCursor{};
@@ -373,6 +383,10 @@ struct RichTextEditor::State
     size_t sourceCaretSite = RichText::MarkdownNoNode;
     std::shared_ptr<const RichText::MarkdownCommandPlan> taskPressPlan;
     D2D1_RECT_F taskPressRect{};
+    std::shared_ptr<const RichText::SemanticDocument> codePressDocument;
+    size_t codePressElement = RichText::MarkdownNoNode;
+    D2D1_RECT_F codePressRect{};
+    bool codePressGesture{};
 };
 #pragma warning(pop)
 
@@ -435,6 +449,7 @@ bool RichTextEditor::SynchronizeReadOnlySourceSnapshot(const RichText::SourceSna
         _state->hoveredLink.reset();
         _state->caretLink.reset();
         _state->taskPressPlan.reset();
+        _state->codePressDocument.reset();
         ++_state->fileDropEpoch;
         if (_state->layout.HasPendingPreparation())
             ++_state->cancelledPreparations;
@@ -1920,6 +1935,78 @@ void RichTextEditor::SetCodeTokenizer(RichText::CodeTokenizer tokenizer)
     _state->codeInkComplete = false;
     RequestContentPreparation();
 }
+void RichTextEditor::SetOnCodeCopyRequested(std::function<void(std::wstring_view)> callback, std::wstring accessibleName)
+{
+    if (callback && (accessibleName.empty() || accessibleName.size() > 1024u || ! RichText::IsValidUtf16(accessibleName)))
+        throw std::invalid_argument("Invalid code copy accessible name");
+    auto next = callback ? std::make_shared<const std::function<void(std::wstring_view)>>(std::move(callback)) : nullptr;
+    const bool visibilityChanged = bool(next) != bool(_state->onCodeCopyRequested);
+    const bool labelChanged = _state->codeCopyAccessibleName != accessibleName;
+    _state->onCodeCopyRequested.swap(next);
+    _state->codeCopyAccessibleName.swap(accessibleName);
+    _state->codePressDocument.reset();
+    if (visibilityChanged || labelChanged)
+    {
+        RetireSemanticAccessibility();
+        if (visibilityChanged)
+            RetireLayout();
+        RequestInvalidate(); // Scheduling may retire the owner; no member access follows.
+    }
+}
+std::wstring_view RichTextEditor::GetCodeCopyAccessibleName() const noexcept
+{
+    return _state->onCodeCopyRequested ? std::wstring_view(_state->codeCopyAccessibleName) : std::wstring_view{};
+}
+std::optional<D2D1_RECT_F> RichTextEditor::GetSemanticCodeCopyBounds(const ControlHost& host, size_t element) const noexcept
+{
+    const auto document = GetAcknowledgedSemanticDocument(host);
+    if (! document || ! _state->onCodeCopyRequested || _state->appearance.markdownPresentation != RichText::MarkdownPresentationStyle::Subtle ||
+        document->Syntax()->SourceRegion() || element >= document->Elements().size())
+        return std::nullopt;
+    const auto& value = document->Elements()[element];
+    const auto& nodes = document->Syntax()->Nodes();
+    if (value.role != RichText::SemanticRole::Code || value.syntaxNode >= nodes.size() ||
+        (nodes[value.syntaxNode].block.kind != RichText::MarkdownBlockKind::FencedCode &&
+         nodes[value.syntaxNode].block.kind != RichText::MarkdownBlockKind::IndentedCode))
+        return std::nullopt;
+    const auto frame = _state->layout.SemanticGeometry()->ElementBounds(element);
+    auto bounds = frame ? RichText::Detail::CodeCopyBounds(*frame, IsRightToLeft()) : std::nullopt;
+    if (! bounds)
+        return std::nullopt;
+    const auto viewport = TextViewport();
+    bounds->left += viewport.left;
+    bounds->right += viewport.left;
+    bounds->top += viewport.top - _state->scrollDip;
+    bounds->bottom += viewport.top - _state->scrollDip;
+    return bounds;
+}
+HRESULT RichTextEditor::InvokeSemanticCodeCopy(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& document, size_t element) noexcept
+{
+    try
+    {
+        if (! IsEnabled() || ! IsVisible() || ! _state->onCodeCopyRequested ||
+            _state->appearance.markdownPresentation != RichText::MarkdownPresentationStyle::Subtle ||
+            ! document || GetAcknowledgedSemanticDocument(host) != document || document->Syntax()->SourceRegion() || element >= document->Elements().size())
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        const auto& value = document->Elements()[element];
+        const auto& nodes = document->Syntax()->Nodes();
+        if (value.role != RichText::SemanticRole::Code || value.syntaxNode >= nodes.size() ||
+            (nodes[value.syntaxNode].block.kind != RichText::MarkdownBlockKind::FencedCode &&
+             nodes[value.syntaxNode].block.kind != RichText::MarkdownBlockKind::IndentedCode))
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        const auto callback = _state->onCodeCopyRequested;
+        (*callback)(CodeCopyText(*document, value));
+        return S_OK; // The callback may retire this owner.
+    }
+    catch (const std::bad_alloc&)
+    {
+        return E_OUTOFMEMORY;
+    }
+    catch (const std::exception&)
+    {
+        return E_FAIL; // Callback failure does not edit source.
+    }
+}
 void RichTextEditor::SetOnTextChanged(std::function<void()> callback)
 {
     _state->onTextChanged = callback ? std::make_shared<const std::function<void()>>(std::move(callback)) : nullptr;
@@ -2055,6 +2142,7 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
         UpdateSemanticSourceRegion();
         RetireSemanticAccessibility();
         _state->taskPressPlan.reset();
+        _state->codePressDocument.reset();
         _state->sourceCaretSite = RichText::MarkdownNoNode;
         // Reject stale queries immediately, but retain bounded immutable chunks
         // for the next owner-thread preparation. Host/font/visibility retirement
@@ -2205,6 +2293,7 @@ void RichTextEditor::RetireLayout(bool retainGeometry) const noexcept
     _state->keyboardNavigationDocument.reset();
     _state->keyboardNavigationElement = RichText::MarkdownNoNode;
     _state->taskPressPlan.reset();
+    _state->codePressDocument.reset();
     if (_state->layout.HasPendingPreparation())
         ++_state->cancelledPreparations;
     if (retainGeometry)
@@ -2736,6 +2825,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             options.listItemSpacingDip          = appearance.listItemSpacingDip;
             options.semanticSpacing             = appearance.semanticSpacing;
             options.markdownPresentation        = appearance.markdownPresentation;
+            options.codeCopyAction               = bool(state.onCodeCopyRequested);
             if (! appearance.bodyFontFamily.empty())
                 options.fontFamily = appearance.bodyFontFamily;
             if (! appearance.codeFontFamily.empty())
@@ -3935,6 +4025,8 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
             const auto release        = ReleaseUnchangedCaptureOnExit(host, *this);
             _state->scrollbarDragging = false;
             _state->dragging          = false;
+            _state->codePressGesture = false;
+            _state->codePressDocument.reset();
             _state->taskPressPlan.reset();
             PublishSelectionChanged();
             return true;
@@ -4003,6 +4095,26 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                 static_cast<void>(SelectSourceMatch(_state->searchQuery, shift, _state->searchOptions));
                 return true;
             }
+        }
+        if (control && shift && key == 'C' && _state->onCodeCopyRequested && _state->appearance.markdownPresentation == RichText::MarkdownPresentationStyle::Subtle)
+        {
+            if (const auto document = GetAcknowledgedSemanticDocument(host); document && ! document->Syntax()->SourceRegion())
+            {
+                const auto caret = GetSelection().caret;
+                const auto& nodes = document->Syntax()->Nodes();
+                for (const auto& element : document->Elements())
+                    if (element.role == RichText::SemanticRole::Code && element.syntaxNode < nodes.size() &&
+                        (nodes[element.syntaxNode].block.kind == RichText::MarkdownBlockKind::FencedCode ||
+                         nodes[element.syntaxNode].block.kind == RichText::MarkdownBlockKind::IndentedCode) &&
+                        element.source.first <= caret && caret < element.source.last)
+                    {
+                        const auto callback = _state->onCodeCopyRequested;
+                        (*callback)(CodeCopyText(*document, element));
+                        return true; // Callback may retire the owner.
+                    }
+            }
+            return false;
+
         }
         if (_state->sourceEditing && (key == VK_ESCAPE || (control && key == VK_RETURN && ! shift) || (key == VK_F2 && ! control && ! shift)))
             return EndSemanticSourceEdit(host);
@@ -4344,6 +4456,8 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                 if (! _state->dragging)
                     return false;
                 _state->dragging = false;
+                _state->codePressGesture = false;
+                _state->codePressDocument.reset();
                 _state->taskPressPlan.reset();
                 const auto lifetime = GetLifetimeToken();
                 host.ReleaseMouseCapture();
@@ -4519,6 +4633,31 @@ bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool ri
                 return SetScrollOffsetDip(info->offsetDip + (point.y < thumb.top ? -step : step));
             }
         }
+        if (! ModifiersContainCtrl(modifiers) && ! ModifiersContainShift(modifiers) && ! ModifiersContainAlt(modifiers) &&
+            _state->onCodeCopyRequested && _state->appearance.markdownPresentation == RichText::MarkdownPresentationStyle::Subtle)
+            if (const auto document = GetAcknowledgedSemanticDocument(host); document && ! document->Syntax()->SourceRegion())
+                for (std::size_t index = 0u; index < document->Elements().size(); ++index)
+                {
+                    const auto& element = document->Elements()[index];
+                    const auto& nodes = document->Syntax()->Nodes();
+                    if (element.role != RichText::SemanticRole::Code || element.syntaxNode >= nodes.size() ||
+                        (nodes[element.syntaxNode].block.kind != RichText::MarkdownBlockKind::FencedCode &&
+                         nodes[element.syntaxNode].block.kind != RichText::MarkdownBlockKind::IndentedCode))
+                        continue;
+                    const auto copy = GetSemanticCodeCopyBounds(host, index);
+                    const auto viewport = TextViewport();
+                    if (copy && point.x >= viewport.left && point.x < viewport.right && point.y >= viewport.top && point.y < viewport.bottom &&
+                        point.x >= copy->left && point.x <= copy->right && point.y >= copy->top && point.y <= copy->bottom)
+                    {
+                        _state->codePressDocument = document;
+                        _state->codePressElement = index;
+                        _state->codePressRect = *copy;
+                        _state->codePressGesture = _state->dragging = true;
+                        host.CaptureMouse(this);
+                        return true;
+                    }
+                }
+
         const auto source = HitSource(host, point);
         if (ModifiersContainCtrl(modifiers) && ! ModifiersContainShift(modifiers))
             if (const auto document = GetAcknowledgedSemanticDocument(host))
@@ -4814,6 +4953,13 @@ bool RichTextEditor::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT) n
         }
         if (! _state->dragging || ! IsEnabled())
             return false;
+        if (_state->codePressGesture)
+        {
+            const auto rect = _state->codePressRect;
+            if (point.x < rect.left || point.x > rect.right || point.y < rect.top || point.y > rect.bottom)
+                _state->codePressDocument.reset();
+            return true;
+        }
         if (_state->taskPressPlan)
         {
             const auto rect = _state->taskPressRect;
@@ -4863,6 +5009,34 @@ bool RichTextEditor::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool righ
     }
     if (rightButton || ! _state->dragging)
         return false;
+    if (_state->codePressGesture)
+    {
+        _state->dragging = _state->codePressGesture = false;
+        auto document = std::move(_state->codePressDocument);
+        const auto element = _state->codePressElement;
+        const auto rect = _state->codePressRect;
+        const auto lifetime = GetLifetimeToken();
+        const auto interaction = host.GetInteractionRevision();
+        const auto callback = _state->onCodeCopyRequested;
+        host.ReleaseMouseCapture();
+        if (! lifetime.expired() && GetHost() == &host && host.GetInteractionRevision() == interaction && document && callback &&
+            _state->onCodeCopyRequested == callback && GetAcknowledgedSemanticDocument(host) == document && element < document->Elements().size() &&
+            point.x >= rect.left && point.x <= rect.right && point.y >= rect.top && point.y <= rect.bottom)
+            try
+            {
+                (*callback)(CodeCopyText(*document, document->Elements()[element]));
+            }
+            catch (const std::bad_alloc&)
+            {
+                // This native input boundary cannot propagate allocation failure.
+                std::terminate();
+            }
+            catch (const std::exception&)
+            {
+                // A failed application copy handler does not edit source.
+            }
+        return true; // The callback may retire the control.
+    }
     _state->dragging       = false;
     const auto lifetime    = GetLifetimeToken();
     const auto plan        = std::exchange(_state->taskPressPlan, {});
@@ -4973,6 +5147,8 @@ void RichTextEditor::OnFocusChanged(ControlHost& host, bool focused)
     _state->dragging          = false;
     _state->scrollbarDragging = false;
     _state->taskPressPlan.reset();
+    _state->codePressDocument.reset();
+    _state->codePressGesture = false;
     SelectionChanged();
 }
 void RichTextEditor::OnCaptureLost(ControlHost&)
@@ -4980,6 +5156,8 @@ void RichTextEditor::OnCaptureLost(ControlHost&)
     _state->dragging          = false;
     _state->scrollbarDragging = false;
     _state->taskPressPlan.reset();
+    _state->codePressDocument.reset();
+    _state->codePressGesture = false;
     PublishSelectionChanged();
 }
 } // namespace DxUi

@@ -1,6 +1,7 @@
 #include "DxUi.AccessibilityTextUnits.h"
 #include "DxUi.Internal.h"
 #include "DxUi.RichAccessibilityEpoch.h"
+#include "DxUi.RichSemanticGeometry.h"
 #include "Support/Diagnostics.h"
 #include "Support/LiveResourceCount.h"
 #include "Support/WindowMessages.h"
@@ -580,17 +581,19 @@ struct AccessibilityRichTextSnapshot
         : document(std::move(source)),
           epoch(std::move(currentEpoch)),
           bounds(0u),
+          copyBounds(0u),
           underlinedLinks(0u),
           bodyFont(0u, L' '),
           codeFont(0u, L' '),
+          copyName(0u, L' '),
           semanticRevision(capturedRevision)
     {
     }
     std::shared_ptr<const RichText::SemanticDocument> document;
     std::shared_ptr<const RichText::Detail::AccessibilityEpoch> epoch;
-    std::vector<std::optional<D2D1_RECT_F>> bounds;
+    std::vector<std::optional<D2D1_RECT_F>> bounds, copyBounds;
     std::vector<RichText::MarkdownRange> underlinedLinks;
-    std::wstring bodyFont, codeFont;
+    std::wstring bodyFont, codeFont, copyName;
     double fontSizePoints     = 0.0;
     double codeFontSizePoints = 0.0;
     double headingScaleStep   = 0.15;
@@ -2301,8 +2304,25 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
                         if ((run.flags & RichText::Link) && editor->IsLinkUnderlineVisible(run.start))
                             rich->underlinedLinks.push_back({run.start, run.start + run.length});
                     rich->bounds.reserve(document->Elements().size());
+                    const auto copyName = editor->GetCodeCopyAccessibleName();
+                    const bool copyEnabled = ! copyName.empty() && appearance.markdownPresentation == RichText::MarkdownPresentationStyle::Subtle &&
+                                             ! document->Syntax()->SourceRegion();
+                    if (copyEnabled)
+                    {
+                        rich->copyName.assign(copyName);
+                        rich->copyBounds.resize(document->Elements().size());
+                    }
                     for (size_t element = 0u; element < document->Elements().size(); ++element)
-                        rich->bounds.push_back(editor->GetSemanticElementBounds(host, element));
+                    {
+                        auto bounds = editor->GetSemanticElementBounds(host, element);
+                        rich->bounds.push_back(bounds);
+                        const auto& value = document->Elements()[element];
+                        const auto& nodes = document->Syntax()->Nodes();
+                        if (copyEnabled && value.role == RichText::SemanticRole::Code && value.syntaxNode < nodes.size() &&
+                            (nodes[value.syntaxNode].block.kind == RichText::MarkdownBlockKind::FencedCode ||
+                             nodes[value.syntaxNode].block.kind == RichText::MarkdownBlockKind::IndentedCode))
+                            rich->copyBounds[element] = editor->GetSemanticCodeCopyBounds(host, element);
+                    }
                     record.controlRichText = std::move(rich);
                 }
             }
@@ -9211,7 +9231,10 @@ HRESULT AccessibilityProvider::ElementProviderFromPoint(double x, double y, IRaw
         for (size_t index = hitRecord->controlRichText->bounds.size(); index > 1u; --index)
             if (const auto& bounds = hitRecord->controlRichText->bounds[index - 1u]; bounds && PointInRect(*bounds, pointDip))
             {
-                auto peer = RichSemanticElementProvider::Create(_target, _hwnd, *hitRecord, index - 1u);
+                const auto element = index - 1u;
+                const bool copy = element < hitRecord->controlRichText->copyBounds.size() && hitRecord->controlRichText->copyBounds[element] &&
+                                  PointInRect(*hitRecord->controlRichText->copyBounds[element], pointDip);
+                auto peer = RichSemanticElementProvider::Create(_target, _hwnd, *hitRecord, element, copy);
                 return peer ? peer.query_to(outProvider) : S_OK;
             }
 

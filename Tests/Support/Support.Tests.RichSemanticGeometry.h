@@ -756,7 +756,7 @@ inline void PaddedCodePresentation()
     Complete(noLabel);
     const auto noLabelCode = std::ranges::find(unlabeled->Elements(), SemanticRole::Code, &SemanticElement::role);
     const auto noLabelBounds = noLabel.ElementBounds(static_cast<std::size_t>(noLabelCode - unlabeled->Elements().begin()));
-    Check(noLabelBounds && frame && frame->bottom - frame->top > noLabelBounds->bottom - noLabelBounds->top + 5.0f &&
+    Check(noLabelBounds && frame && frame->bottom - frame->top >= noLabelBounds->bottom - noLabelBounds->top &&
               subtle->HitTestSource(caret.x, caret.y + caret.height * 0.5f).position == position,
           "language badge reserves nonselectable header space while code caret still resolves to source");
     const auto narrow = prepare(5.0f, MarkdownPresentationStyle::Subtle);

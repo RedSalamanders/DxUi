@@ -329,7 +329,8 @@ bool SameOptions(const LayoutOptions& a, const LayoutOptions& b) noexcept
            a.codeFontFamily == b.codeFontFamily && a.headingFontSizeDip == b.headingFontSizeDip &&
            a.headingLineHeightMultiplier == b.headingLineHeightMultiplier && a.paragraphSpacingAfterLines == b.paragraphSpacingAfterLines &&
            a.listItemSpacingDip == b.listItemSpacingDip && a.semanticSpacing == b.semanticSpacing && a.locale == b.locale &&
-           a.readingDirection == b.readingDirection && a.textAlignment == b.textAlignment && a.markdownPresentation == b.markdownPresentation;
+           a.readingDirection == b.readingDirection && a.textAlignment == b.textAlignment && a.markdownPresentation == b.markdownPresentation &&
+           a.codeCopyAction == b.codeCopyAction;
 }
 void Union(std::optional<D2D1_RECT_F>& bounds, const D2D1_RECT_F& rectangle) noexcept
 {
@@ -1185,7 +1186,7 @@ struct PreparedSemanticGeometry::Preparation
                                 (node.block.kind == MarkdownBlockKind::FencedCode || node.block.kind == MarkdownBlockKind::IndentedCode) &&
                                 next.document->Elements()[content.element].role == SemanticRole::Code;
         const auto* label = paddedCode && next.codeLabels ? (*next.codeLabels)[content.element].get() : nullptr;
-        const float codeHeader = label ? label->Height() + 3.0f : 0.0f;
+        const float codeHeader = paddedCode ? std::max(label ? label->Height() + 3.0f : 0.0f, next.options.codeCopyAction && box->width >= 96.0f ? 18.0f : 0.0f) : 0.0f;
         const float codeInset = paddedCode ? std::min(6.0f, std::max(0.0f, (box->width - 1.0f) * 0.5f)) : 0.0f;
         if (paddedCode)
         {
@@ -1907,7 +1908,8 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                         ++result.layoutsPrepared;
                     }
                 }
-            }            else if (work.phase == Preparation::Phase::MarkerLayouts)
+            }
+            else if (work.phase == Preparation::Phase::MarkerLayouts)
             {
                 if (result.layoutsPrepared == budget.maximumLayouts)
                     break;
@@ -1970,7 +1972,8 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 work.codeNumberOffset = end;
                 work.codeNumberY += line.height;
                 ++work.codeNumberLine;
-            }            else if (work.phase == Preparation::Phase::RowPlacement)
+            }
+            else if (work.phase == Preparation::Phase::RowPlacement)
                 work.PlaceRowOne();
             else if (work.phase == Preparation::Phase::IndexSourceBoxes)
             {
@@ -2543,11 +2546,27 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                                  state.document->Syntax()->Nodes()[nodeIndex].block.kind == MarkdownBlockKind::IndentedCode);
         if ((elements[i].role == SemanticRole::Quote || styledCode) && quoteFill)
             target->FillRectangle(rectangle, quoteFill);
+        const auto copy = styledCode && state.options.codeCopyAction ? CodeCopyBounds(rectangle, state.options.readingDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT) : std::nullopt;
         if (styledCode && state.codeLabels && (*state.codeLabels)[i])
         {
-            target->PushAxisAlignedClip(rectangle, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+            auto clip = rectangle;
+            if (copy)
+            {
+                if (state.options.readingDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT)
+                    clip.left = copy->right + 2.0f;
+                else
+                    clip.right = copy->left - 2.0f;
+            }
+            target->PushAxisAlignedClip(clip, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
             const auto restore = wil::scope_exit([&]() noexcept { target->PopAxisAlignedClip(); });
-            (*state.codeLabels)[i]->Draw(target, decoration, D2D1::Point2F(rectangle.left + 6.0f, rectangle.top + 3.0f));
+            (*state.codeLabels)[i]->Draw(target, decoration, D2D1::Point2F(clip.left + 6.0f, clip.top + 3.0f));
+        }
+        if (copy)
+        {
+            target->DrawRectangle(*copy, decoration);
+            target->DrawRectangle(D2D1::RectF(copy->left + 5.0f, copy->top + 4.0f, copy->left + 12.0f, copy->top + 13.0f), decoration);
+            target->DrawLine(D2D1::Point2F(copy->left + 7.0f, copy->top + 15.0f), D2D1::Point2F(copy->left + 14.0f, copy->top + 15.0f), decoration);
+            target->DrawLine(D2D1::Point2F(copy->left + 14.0f, copy->top + 15.0f), D2D1::Point2F(copy->left + 14.0f, copy->top + 6.0f), decoration);
         }
         if (elements[i].role == SemanticRole::Image && state.images && state.images->Placed(i))
             continue;
@@ -2569,7 +2588,8 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
             target->PushAxisAlignedClip(clip, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
             const auto restore = wil::scope_exit([&]() noexcept { target->PopAxisAlignedClip(); });
             number.layout->Draw(target, decoration, D2D1::Point2F(number.origin.x + origin.x, number.origin.y + origin.y));
-        }    if (const auto* decorations = state.decorations.get())
+        }
+    if (const auto* decorations = state.decorations.get())
     {
         for (const auto& rule : decorations->headingRules)
             if (rule.bottom > top && rule.top < bottom)
