@@ -85,6 +85,32 @@ void TestRichSemanticNativeMathCaretMetrics()
         std::cout << "math caret dpi=" << dpi << " textTop=" << adjacent->top << " edgeTop=" << edge->top << " height=" << text.height
                   << " standaloneBaseline=" << line.baseline << '\n';
     }
+    const std::wstring isolated = L"$\\frac{1}{2}$";
+    editor->SetText(isolated);
+    Require(PrepareNativeContentForTests(window.Host()), "prepare isolated formula caret");
+    const auto isolatedStart = editor->TryGetTextInputCaretRect(window.Host(), 0u);
+    const auto isolatedEnd   = editor->TryGetTextInputCaretRect(window.Host(), isolated.size());
+    Require(isolatedStart && isolatedEnd && std::isfinite(isolatedStart->top) && std::isfinite(isolatedEnd->top) &&
+                isolatedStart->bottom > isolatedStart->top && isolatedEnd->bottom > isolatedEnd->top,
+            "an isolated formula without a neighboring text glyph retains usable caret geometry");
+    std::cout << "isolated math caret start=" << isolatedStart->top << "," << isolatedStart->bottom << " end=" << isolatedEnd->top << "," << isolatedEnd->bottom
+              << '\n';
+    auto appearance                = editor->GetAppearance();
+    appearance.maximumTextWidthDip = 80.f;
+    editor->SetAppearance(appearance);
+    const std::wstring wrapped = L"prefix words before $\\frac{1}{2}$ followed by more words";
+    editor->SetText(wrapped);
+    Require(PrepareNativeContentForTests(window.Host()), "prepare wrapped formula caret");
+    const auto mathStart    = wrapped.find(L'$');
+    const auto mathEnd      = wrapped.find(L'$', mathStart + 1u) + 1u;
+    const auto wrappedStart = editor->TryGetTextInputCaretRect(window.Host(), mathStart);
+    const auto wrappedEnd   = editor->TryGetTextInputCaretRect(window.Host(), mathEnd);
+    const auto after        = editor->TryGetTextInputCaretRect(window.Host(), mathEnd + 1u);
+    Require(wrappedStart && wrappedEnd && after && wrappedStart->bottom > wrappedStart->top && wrappedEnd->bottom > wrappedEnd->top &&
+                after->bottom > after->top && editor->GetText() == wrapped,
+            "wrapped formula edges and following text retain valid source caret geometry");
+    std::cout << "wrapped math caret start=" << wrappedStart->top << "," << wrappedStart->bottom << " end=" << wrappedEnd->top << "," << wrappedEnd->bottom
+              << " following=" << after->top << "," << after->bottom << '\n';
 }
 void TestRichSemanticNativeMathAndBroaderDiagrams()
 {
