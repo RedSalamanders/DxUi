@@ -401,7 +401,7 @@ Button variants. Null preserves the existing role defaults (Body 13 DIP, Icon 12
 for a normalized no-op and `S_OK` for a change. The getter returns the normalized optional value. Intrinsic
 measurement, wrapping, glyph painting and hyperlink underline width MUST use the same requested size while
 retaining the host role's UI/icon family, fallback, weight, alignment and flow direction. Internal dropdown,
-selector, split and acknowledged disclosure chevrons retain their original chrome metrics. Consumers can
+selector, split and acknowledged disclosure chevrons retain their original chrome metrics. Selector buttons reserve an empty leading lane to balance the trailing chevron; leading icons and shortcut text are not rendered or measured for this variant. Consumers can
 request 14-DIP chrome labels and 18-DIP line icons without changing global typography or creating local controls.
 Reuse the host's bounded configured-format cache and common drawing/measurement helpers; stable painting MUST
 not allocate new formats per frame. A changed override invalidates intrinsic measurement before requesting

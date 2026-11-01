@@ -1,0 +1,1 @@
+- Preserve nested ScrollPanel hover when a child extraction is refused by a reentrant focus decision.

@@ -2140,6 +2140,7 @@ struct ScrollPanelDetachProbeState
     size_t captureLostCount = 0u;
     // Runs last in OnCaptureLost, so it may destroy the probe.
     std::function<void()> onCaptureLost;
+    std::function<void()> onHoverLeave;
 };
 
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
@@ -2189,6 +2190,11 @@ protected:
             ++_state->hoverLeaveCount;
         }
         Control::OnHoverChanged(host, hovered);
+        if (! hovered)
+        {
+            if (ScrollPanelDetachProbeState* const state = _state; state->onHoverLeave)
+                state->onHoverLeave();
+        }
     }
 
     void OnCaptureLost(DxUi::ControlHost& host) override
@@ -2204,6 +2210,68 @@ private:
 };
 #pragma warning(pop)
 
+void TestScrollPanelPreservesHoverWhenNestedExtractionIsRefused()
+{
+    using namespace DxUi;
+    WindowHost host;
+    auto root = std::make_unique<Panel>();
+    auto* scroll = root->AddChild<ScrollPanel>();
+    scroll->SetBounds(D2D1::RectF(0, 0, 300, 200));
+    scroll->SetContentHeight(200);
+    auto* list = scroll->AddChild<Panel>();
+    list->SetBounds(D2D1::RectF(0, 0, 300, 100));
+    ScrollPanelDetachProbeState state;
+    auto* row = list->AddChild<ScrollPanelDetachProbe>(state);
+    row->SetBounds(D2D1::RectF(0, 0, 200, 40));
+    row->SetFocusable(true);
+    host.SetRoot(std::move(root));
+    host.GetRoot()->SetBounds(D2D1::RectF(0, 0, 320, 240));
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(50, 20), handled));
+    Require(row->IsHovered(), "the nested row is hovered before extraction");
+    host.SetFocusControl(row, false);
+    bool restored = false;
+    host.SetOnFocusChanged([&](Control* focused)
+    {
+        if (! restored && focused != row)
+        {
+            restored = true;
+            host.SetFocusControl(row, false);
+        }
+    });
+    auto refused = list->TakeChild(0u);
+    Require(restored && ! refused && host.GetFocusControl() == row && row->IsHovered(),
+            "refused extraction preserves callback-restored focus and the existing hover");
+    Require(state.hoverLeaveCount == 0u && state.mouseLeaveCount == 0u,
+            "refused extraction sends no spurious hover departure");
+    host.SetOnFocusChanged({});
+    auto taken = list->TakeChild(0u);
+    Require(taken.get() == row && ! row->IsHovered() && state.hoverLeaveCount == 1u && state.mouseLeaveCount == 1u,
+            "successful extraction ends the hover exactly once");
+}
+void TestScrollPanelCommittedHoverCallbackCanRetireHostRoot()
+{
+    using namespace DxUi;
+    WindowHost host;
+    auto root = std::make_unique<Panel>();
+    auto* scroll = root->AddChild<ScrollPanel>();
+    scroll->SetBounds(D2D1::RectF(0, 0, 300, 200));
+    scroll->SetContentHeight(200);
+    auto* list = scroll->AddChild<Panel>();
+    list->SetBounds(D2D1::RectF(0, 0, 300, 100));
+    ScrollPanelDetachProbeState state;
+    auto* row = list->AddChild<ScrollPanelDetachProbe>(state);
+    row->SetBounds(D2D1::RectF(0, 0, 200, 40));
+    host.SetRoot(std::move(root));
+    host.GetRoot()->SetBounds(D2D1::RectF(0, 0, 320, 240));
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(50, 20), handled));
+    Require(row->IsHovered(), "the row is hovered before its committed removal");
+    state.onHoverLeave = [&] { host.SetRoot({}); };
+    auto taken = list->TakeChild(0u);
+    Require(taken.get() == row && host.GetRoot() == nullptr && state.hoverLeaveCount == 1u,
+            "committed hover callback may retire the host root while the detached child survives");
+}
 void TestScrollPanelEndsHoverOfARowTakenFromIt()
 {
     using namespace DxUi;
@@ -3654,6 +3722,8 @@ void RunControlTests()
     DXUI_RUN_TEST(TestScrollPanelOverlayDismissalCanRetireItsOwner);
     DXUI_RUN_TEST(TestMeasuredActionsFailureAndDirectionContracts);
     DXUI_RUN_TEST(TestScrollPanelChildCallbacksCanClearChildrenSafely);
+    DXUI_RUN_TEST(TestScrollPanelPreservesHoverWhenNestedExtractionIsRefused);
+    DXUI_RUN_TEST(TestScrollPanelCommittedHoverCallbackCanRetireHostRoot);
     DXUI_RUN_TEST(TestScrollPanelEndsHoverOfARowTakenFromIt);
     DXUI_RUN_TEST(TestScrollPanelEndsTheGestureOfAPressedRowTakenFromIt);
     DXUI_RUN_TEST(TestScrollPanelEndsTheGestureOfANestedRowItsPanelTakes);

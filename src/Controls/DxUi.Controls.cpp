@@ -1279,15 +1279,28 @@ void Panel::OnDescendantDetaching(Control& /*subtree*/) noexcept
 {
 }
 
-void Panel::NotifyContainersOfDetaching(Control& subtree) noexcept
+void Panel::OnDescendantDetached(Control& /*subtree*/) noexcept
+{
+}
+
+void Panel::NotifyContainersOfDetaching(Control& subtree, DescendantDetachPhase phase) noexcept
 {
     const std::weak_ptr<int> subtreeLifetime = subtree.GetLifetimeToken();
+    const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
+    ControlHost* const ownerHost = GetHost();
+    Control* const ownerParent = _parent;
     for (Control* ancestor = this; ancestor && ! subtreeLifetime.expired();)
     {
         const std::weak_ptr<int> ancestorLifetime = ancestor->GetLifetimeToken();
         if (auto* const container = dynamic_cast<Panel*>(ancestor))
-            container->OnDescendantDetaching(subtree);
-        if (ancestorLifetime.expired() || subtreeLifetime.expired() || subtree._parent != this)
+        {
+            if (phase == DescendantDetachPhase::Detaching)
+                container->OnDescendantDetaching(subtree);
+            else
+                container->OnDescendantDetached(subtree);
+        }
+        if (ownerLifetime.expired() || ancestorLifetime.expired() || subtreeLifetime.expired() || GetHost() != ownerHost || _parent != ownerParent ||
+            (phase == DescendantDetachPhase::Detaching ? subtree._parent != this : subtree._parent != nullptr))
             return;
         ancestor = ancestor->_parent;
     }
@@ -1301,14 +1314,19 @@ std::unique_ptr<Control> Panel::TakeChild(size_t index) noexcept
     const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
     Control* const requested               = _children[index].get();
     const std::weak_ptr<int> childLifetime = requested->GetLifetimeToken();
-    // Every enclosing container ends its own observers inside the subtree (inner hover, inner capture) while the child is
-    // still attached.
-    NotifyContainersOfDetaching(*requested);
+    ControlHost* const initialHost = GetHost();
+    const uint64_t focusBeforeObservers = initialHost ? initialHost->_focusRequestRevision : 0u;
+    // Capture callbacks run while the child is still attached.
+    NotifyContainersOfDetaching(*requested, DescendantDetachPhase::Detaching);
     if (ownerLifetime.expired() || childLifetime.expired())
         return {};
     ControlHost* const host = GetHost();
+    if (host != initialHost)
+        return {};
     if (host)
     {
+        if (Control* focused = host->GetFocusControl(); host->_focusRequestRevision != focusBeforeObservers && focused && IsControlInTree(requested, focused))
+            return {};
         const uint64_t focusBeforeCancellation = host->_focusRequestRevision;
         if (Control* captured = host->GetCapturedControl(); captured && IsControlInTree(requested, captured))
             host->CancelCapturedControlInteraction();
@@ -1337,7 +1355,16 @@ std::unique_ptr<Control> Panel::TakeChild(size_t index) noexcept
         if (slot.get() != requested)
             continue;
         auto child = std::move(slot);
+        // Detach before callbacks so they cannot restore focus to a departing subtree.
         DetachChildPreservingInheritance(*child);
+        if (childLifetime.expired())
+        {
+            static_cast<void>(child.release());
+            return {};
+        }
+        if (ownerLifetime.expired())
+            return child;
+        NotifyContainersOfDetaching(*child, DescendantDetachPhase::Detached);
         if (childLifetime.expired())
         {
             static_cast<void>(child.release());
@@ -1348,7 +1375,7 @@ std::unique_ptr<Control> Panel::TakeChild(size_t index) noexcept
             InvalidateMeasure();
             if (ownerLifetime.expired())
                 return child;
-            if (host)
+            if (host && GetHost() == host)
                 host->RefreshAccessibilitySnapshot();
             if (! ownerLifetime.expired())
                 RequestInvalidate();
@@ -8601,16 +8628,22 @@ bool TabControl::RemoveTabByIdentity(Control* page, const std::weak_ptr<int>& pa
     {
         return false;
     }
-    // Enclosing containers end their own observers inside the page (inner hover, inner capture) while it is attached.
-    NotifyContainersOfDetaching(*page);
+    ControlHost* const initialHost = GetHost();
+    const uint64_t focusBeforeObservers = initialHost ? initialHost->_focusRequestRevision : 0u;
+    // Cancel forwarded capture while the page is still attached.
+    NotifyContainersOfDetaching(*page, DescendantDetachPhase::Detaching);
     if (controlLifetime.expired())
         return false;
     currentIndex = FindTabIndex(page, pageLifetime);
     if (! currentIndex)
         return false;
 
+    if (GetHost() != initialHost)
+        return false;
     if (ControlHost* host = GetHost())
     {
+        if (Control* focused = host->GetFocusControl(); host->_focusRequestRevision != focusBeforeObservers && focused && IsControlInTree(page, focused))
+            return false;
         if (Control* captured = host->GetCapturedControl(); captured && IsControlInTree(page, captured))
         {
             const uint64_t focusBeforeCancellation = host->_focusRequestRevision;
@@ -8691,9 +8724,17 @@ bool TabControl::RemoveTabByIdentity(Control* page, const std::weak_ptr<int>& pa
         }
     }
 
+    // Detach before hover callbacks so the removed page cannot regain focus.
+    DetachChildPreservingInheritance(*removedPage);
+    if (pageLifetime.expired())
+    {
+        static_cast<void>(removedPage.release());
+        return false;
+    }
+    if (! controlLifetime.expired())
+        NotifyContainersOfDetaching(*removedPage, DescendantDetachPhase::Detached);
     if (takenPage)
     {
-        DetachChildPreservingInheritance(*removedPage);
         if (pageLifetime.expired())
         {
             static_cast<void>(removedPage.release());
@@ -10803,7 +10844,6 @@ void ScrollPanel::OnDescendantDetaching(Control& subtree) noexcept
 {
     ControlHost* const host                  = GetHost();
     const std::weak_ptr<int> selfLifetime    = GetLifetimeToken();
-    const std::weak_ptr<int> subtreeLifetime = subtree.GetLifetimeToken();
     if (Control* const captured = LiveInnerCaptured(); captured && IsControlInTree(&subtree, captured))
     {
         SetInnerCaptured(nullptr);
@@ -10816,11 +10856,16 @@ void ScrollPanel::OnDescendantDetaching(Control& subtree) noexcept
                 host->ReleaseMouseCapture();
         }
     }
-    // The capture callback may have retired the subtree itself (and with it the inner hover inside it): membership is
-    // only asked of a live subtree.
+}
+
+void ScrollPanel::OnDescendantDetached(Control& subtree) noexcept
+{
+    ControlHost* const host                  = GetHost();
+    const std::weak_ptr<int> selfLifetime    = GetLifetimeToken();
+    const std::weak_ptr<int> subtreeLifetime = subtree.GetLifetimeToken();
     if (selfLifetime.expired() || subtreeLifetime.expired())
         return;
-    if (Control* const hovered = LiveInnerHovered(); hovered && IsControlInTree(&subtree, hovered))
+    if (Control* const hovered = _innerHoveredChild; hovered && ! _innerHoveredLifetime.expired() && IsControlInTree(&subtree, hovered))
     {
         SetInnerHovered(nullptr);
         if (host)

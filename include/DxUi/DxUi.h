@@ -1914,14 +1914,13 @@ public:
 protected:
     void NotifyChildTreeChanged() noexcept;
     static void DetachChildPreservingInheritance(Control& child) noexcept;
-    // TakeChild and TabControl's tab removal call this on the panel and on each enclosing panel, across non-panel
-    // containers such as PageHost, while `subtree` is still attached, before it leaves the tree. A container that keeps
-    // its own observers inside the subtree (inner hover, inner capture) ends them here. It may run control callbacks,
-    // which can retire the subtree or this panel; the caller revalidates afterwards.
+    // Capture cancellation runs while the subtree is attached and may refuse extraction through a newer focus or capture.
+    // The committed notification runs after the subtree leaves the host, so hover callbacks cannot restore its focus.
+    // Either callback may retire this panel or the subtree; the ancestor walk checks lifetimes after each callback.
     virtual void OnDescendantDetaching(Control& subtree) noexcept;
-    // Runs OnDescendantDetaching up the ancestor chain of this panel, a direct parent of `subtree`. The walk stops once
-    // a callback retired the subtree or a container, or moved the subtree to another parent.
-    void NotifyContainersOfDetaching(Control& subtree) noexcept;
+    virtual void OnDescendantDetached(Control& subtree) noexcept;
+    enum class DescendantDetachPhase { Detaching, Detached };
+    void NotifyContainersOfDetaching(Control& subtree, DescendantDetachPhase phase) noexcept;
     [[nodiscard]] Control* HitTest(D2D1_POINT_2F point) override;
     [[nodiscard]] const Control* HitTest(D2D1_POINT_2F point) const override;
     [[nodiscard]] Control* HitTestOverlay(D2D1_POINT_2F point) override;
@@ -4702,8 +4701,9 @@ public:
     void OnCaptureLost(ControlHost& host) override;
 
 protected:
-    // Ends the inner hover and the forwarded gesture of a subtree leaving the panel; a derived panel chains to it.
+    // End the forwarded gesture before refusal checks and hover after committed removal.
     void OnDescendantDetaching(Control& subtree) noexcept override;
+    void OnDescendantDetached(Control& subtree) noexcept override;
 
 private:
     float _contentHeightDip        = 0.0f;
