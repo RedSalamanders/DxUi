@@ -93,10 +93,10 @@
     "file": "gantt.md.txt",
     "gitBlob": "01a9f041dd4fbf4c35aabb4d18dbe22f31ee81be",
     "sha256": "44A648CBAC13709BFC45127D52DC1FA1894402BB286C602C500CE69DD32A4F02",
-    "support": "unsupported-family",
+    "support": "limited-gantt",
     "firstExample": {
-      "reason": "unsupported-diagram-family",
-      "issue": "UnsupportedFamily",
+      "reason": "first-example-uses-task-identifiers-and-dependencies",
+      "issue": "UnsupportedStatement",
       "direction": "TopBottom",
       "outcome": "Unsupported",
       "edges": 0,

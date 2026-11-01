@@ -452,6 +452,7 @@ inline wchar_t FamilyCode(NativeDiagramFamily family) noexcept
         case NativeDiagramFamily::Sequence: return L'Q';
         case NativeDiagramFamily::Pie: return L'P';
         case NativeDiagramFamily::EntityRelationship: return L'E';
+        case NativeDiagramFamily::Gantt: return L'G';
     }
     return L'?';
 }

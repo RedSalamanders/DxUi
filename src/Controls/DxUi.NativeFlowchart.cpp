@@ -33,7 +33,7 @@ bool Trail(wchar_t c) noexcept
 struct NativeFlowchartParser::Preparation
 {
     std::shared_ptr<FlowchartModel> model;
-    std::wstring noteBlockText;
+    std::wstring noteBlockText, ganttSection;
     std::size_t scan{}, first{}, depth{}, statements{}, classBlockNode{}, classBlockStart{}, descriptionBlockStart{};
     std::size_t noteBlockStart{}, noteBlockTarget{}, erBlockNode{}, erBlockStart{};
     std::array<bool, MaximumNodes> stateDescriptions{};
@@ -43,9 +43,11 @@ struct NativeFlowchartParser::Preparation
     std::size_t groupDepth{};
     bool quote{}, escaped{}, pipe{}, comment{}, header{}, done{}, classBlock{}, titleSeen{}, descriptionSeen{}, descriptionBlock{}, descriptionHasLine{};
     bool noteBlock{}, noteBlockLeft{}, noteBlockHasLine{}, erBlock{};
-    bool pieTitleSeen{};
+    bool pieTitleSeen{}, ganttTitleSeen{}, ganttDateFormatSeen{}, ganttHasTask{};
     double pieTotal{};
-    explicit Preparation(std::wstring_view source, std::uint64_t revision) : model(std::make_shared<FlowchartModel>(source, revision)), noteBlockText(0u, L' ')
+    std::int64_t ganttMinimum{}, ganttMaximum{};
+    explicit Preparation(std::wstring_view source, std::uint64_t revision)
+        : model(std::make_shared<FlowchartModel>(source, revision)), noteBlockText(0u, L' '), ganttSection(0u, L' ')
     {
         if (source.size() > MaximumSourceUnits)
             Fail(FlowchartOutcome::Capacity, FlowchartIssue::SourceCapacity, {0u, source.size()});
@@ -618,11 +620,12 @@ struct NativeFlowchartParser::Preparation
                 header = true;
                 return true;
             }
-            if (line == L"stateDiagram-v2" || line == L"stateDiagram" || line == L"classDiagram" || line == L"sequenceDiagram" || line == L"erDiagram")
+            if (line == L"stateDiagram-v2" || line == L"stateDiagram" || line == L"classDiagram" || line == L"sequenceDiagram" || line == L"erDiagram" || line == L"gantt")
             {
                 model->family    = line == L"classDiagram" ? NativeDiagramFamily::Class
                                    : line == L"sequenceDiagram" ? NativeDiagramFamily::Sequence
-                                   : line == L"erDiagram" ? NativeDiagramFamily::EntityRelationship : NativeDiagramFamily::State;
+                                   : line == L"erDiagram" ? NativeDiagramFamily::EntityRelationship
+                                   : line == L"gantt" ? NativeDiagramFamily::Gantt : NativeDiagramFamily::State;
                 model->direction = FlowchartDirection::TopBottom;
                 header           = true;
                 return true;
@@ -732,6 +735,62 @@ struct NativeFlowchartParser::Preparation
                 seen = true;
                 return true;
             }
+        if (model->family == NativeDiagramFamily::Gantt)
+        {
+            const auto start = at;
+            if (statement.starts_with(L"dateFormat "))
+            {
+                if (ganttDateFormatSeen || statement != L"dateFormat YYYY-MM-DD")
+                    return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+                ganttDateFormatSeen = true;
+                return true;
+            }
+            if (statement.starts_with(L"title ") || statement.starts_with(L"section "))
+            {
+                const bool title = statement.starts_with(L"title ");
+                if (title && ganttTitleSeen) return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+                at += title ? 6u : 8u;
+                Skip(at, end);
+                if (at == end) return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+                std::wstring value(0u, L' ');
+                if (! PlainText(at, end, value)) return false;
+                if (title) { model->ganttTitle.swap(value); ganttTitleSeen = true; }
+                else ganttSection.swap(value);
+                return true;
+            }
+            const auto colon = Text().find(L':', at);
+            if (colon == std::wstring_view::npos || colon >= end)
+                return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+            auto labelEnd = colon;
+            while (labelEnd > at && Space(Text()[labelEnd - 1u])) --labelEnd;
+            if (labelEnd == at) return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+            FlowchartNode task;
+            task.identifier = {at, labelEnd}; task.declaration = {start, end}; task.ganttSection = ganttSection;
+            if (! PlainText(at, labelEnd, task.label)) return false;
+            at = colon + 1u;
+            Skip(at, end);
+            const auto startDate = at;
+            while (at < end && Text()[at] != L',' && ! Space(Text()[at])) ++at;
+            task.ganttStartSource = {startDate, at};
+            Skip(at, end);
+            if (at == end || Text()[at++] != L',') return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+            Skip(at, end);
+            const auto endDate = at;
+            while (at < end && ! Space(Text()[at]) && Text()[at] != L',') ++at;
+            task.ganttEndSource = {endDate, at};
+            Skip(at, end);
+            if (at != end || ! ParseGanttSpan(Text().substr(task.ganttStartSource.first, task.ganttStartSource.last - task.ganttStartSource.first),
+                                              Text().substr(task.ganttEndSource.first, task.ganttEndSource.last - task.ganttEndSource.first),
+                                              task.ganttStart, task.ganttEnd))
+                return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+            if (model->nodes.size() == 32u) return Error(FlowchartIssue::NodeCapacity, start, end, FlowchartOutcome::Capacity);
+            const auto minimum = ganttHasTask ? std::min(ganttMinimum, task.ganttStart) : task.ganttStart;
+            const auto maximum = ganttHasTask ? std::max(ganttMaximum, task.ganttEnd) : task.ganttEnd;
+            if (maximum - minimum > 366) return Error(FlowchartIssue::NodeCapacity, start, end, FlowchartOutcome::Capacity);
+            ganttMinimum = minimum; ganttMaximum = maximum; ganttHasTask = true;
+            model->nodes.push_back(task);
+            return true;
+        }
         if (model->family == NativeDiagramFamily::EntityRelationship)
         {
             const auto start = at;

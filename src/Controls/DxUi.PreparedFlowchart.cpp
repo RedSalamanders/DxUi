@@ -91,12 +91,12 @@ struct PreparedFlowchart::State
           edgeLabels(graph->edges.size()),
           fromCardinalities(hasCardinality ? graph->edges.size() : 0u),
           toCardinalities(hasCardinality ? graph->edges.size() : 0u),
-          groupLabels(graph->family == NativeDiagramFamily::Pie ? 1u : graph->groups.size()),
+          groupLabels(graph->family == NativeDiagramFamily::Pie || graph->family == NativeDiagramFamily::Gantt ? 1u : graph->groups.size()),
           nodeSizes(graph->nodes.size()),
           edgeSizes(graph->edges.size()),
           fromCardinalitySizes(hasCardinality ? graph->edges.size() : 0u),
           toCardinalitySizes(hasCardinality ? graph->edges.size() : 0u),
-          groupSizes(graph->family == NativeDiagramFamily::Pie ? 1u : graph->groups.size()),
+          groupSizes(graph->family == NativeDiagramFamily::Pie || graph->family == NativeDiagramFamily::Gantt ? 1u : graph->groups.size()),
           nodePaths(graph->nodes.size()),
           arrowPaths(graph->edges.size())
     {
@@ -235,6 +235,8 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
         throw std::invalid_argument("Invalid native pie topology");
     if (! ValidErModel(*graph))
         throw std::invalid_argument("Invalid native entity relationship model");
+    if (! ValidGanttModel(*graph))
+        throw std::invalid_argument("Invalid native Gantt timeline model");
     if (! graph->groups.empty() && graph->family != NativeDiagramFamily::Flowchart && graph->family != NativeDiagramFamily::State &&
         graph->family != NativeDiagramFamily::Class)
         throw std::invalid_argument("Groups require a supported diagram profile");
@@ -330,7 +332,17 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                         auto& measuredSize = node ? state.nodeSizes[index]
                                              : group == 0u ? state.edgeSizes[index]
                                              : group == 1u ? state.fromCardinalitySizes[index] : state.toCardinalitySizes[index];
-                        if (node && state.graph->family == NativeDiagramFamily::Pie && state.graph->pieShowData)
+                        if (node && state.graph->family == NativeDiagramFamily::Gantt)
+                        {
+                            const auto& task = state.graph->nodes[index];
+                            const auto source = std::wstring_view(state.graph->source);
+                            std::wstring legend(0u, L' ');
+                            if (! task.ganttSection.empty()) legend.append(task.ganttSection).append(L" / ");
+                            legend.append(label).append(L" (").append(source.substr(task.ganttStartSource.first, task.ganttStartSource.last - task.ganttStartSource.first))
+                                  .append(L", ").append(source.substr(task.ganttEndSource.first, task.ganttEndSource.last - task.ganttEndSource.first)).append(L")");
+                            state.Label(legend, preparedLabel, measuredSize);
+                        }
+                        else if (node && state.graph->family == NativeDiagramFamily::Pie && state.graph->pieShowData)
                         {
                             const auto source = state.graph->nodes[index].valueSource;
                             std::wstring legend(0u, L' ');
@@ -365,7 +377,8 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                         work.stage = Preparation::Stage::BeginGeometry;
                         break;
                     }
-                    if (state.graph->family == NativeDiagramFamily::Pie && state.graph->pieTitle.empty())
+                    if ((state.graph->family == NativeDiagramFamily::Pie && state.graph->pieTitle.empty()) ||
+                        (state.graph->family == NativeDiagramFamily::Gantt && state.graph->ganttTitle.empty()))
                     {
                         ++work.cursor;
                         break;
@@ -374,7 +387,8 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                         return result;
                     ++result.layoutsPrepared;
                     state.Label(state.graph->family == NativeDiagramFamily::Pie ? std::wstring_view(state.graph->pieTitle)
-                                                                               : std::wstring_view(state.graph->groups[work.cursor].title),
+                                : state.graph->family == NativeDiagramFamily::Gantt ? std::wstring_view(state.graph->ganttTitle)
+                                                                                   : std::wstring_view(state.graph->groups[work.cursor].title),
                                 state.groupLabels[work.cursor], state.groupSizes[work.cursor]);
                     ++work.cursor;
                     break;
@@ -524,6 +538,18 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
                                    text,
                                    D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
     };
+    if (state.graph->family == NativeDiagramFamily::Gantt)
+    {
+        label(state.groupLabels[0u], plan.ganttTitle);
+        target->DrawLine(D2D1::Point2F(static_cast<float>(plan.ganttAxis.x), static_cast<float>(plan.ganttAxis.y)),
+                         D2D1::Point2F(static_cast<float>(plan.ganttAxis.x + plan.ganttAxis.width), static_cast<float>(plan.ganttAxis.y)), stroke);
+        for (std::size_t index = 0u; index < plan.nodes.size(); ++index)
+        {
+            target->FillRectangle(Rect(plan.nodes[index].bounds), stroke);
+            label(state.nodeLabels[index], plan.nodes[index].label);
+        }
+        return true;
+    }
     if (state.graph->family == NativeDiagramFamily::Pie)
     {
         const auto originalOpacity = stroke->GetOpacity();

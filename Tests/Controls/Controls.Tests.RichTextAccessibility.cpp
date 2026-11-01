@@ -2016,6 +2016,17 @@ void SemanticDiagramAlternatives(bool embedded)
     wil::com_ptr_nothrow<ITextRangeProvider> erRange;
     RequireSucceeded(text->RangeFromChild(erImage.get(), erRange.put()), "ER source range");
     Require(ReadTextRangeText(*erRange.get(), -1, "ER exact raw fence") == er, "ER UIA range owns the original fence");
+    const std::wstring gantt = L"```mermaid\ngantt\ntitle Release\nsection Build\nCompile : 2024-02-27, 3d\n```\n";
+    fixture.editor->SetText(gantt);
+    fixture.Publish();
+    const auto ganttImage = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
+    Require(ganttImage != nullptr, "Gantt chart is exposed as an acknowledged native image provider");
+    const auto ganttName = ReadProviderStringProperty(*ganttImage.get(), UIA_NamePropertyId, "Gantt alternative");
+    Require(ganttName.starts_with(L"Gantt chart: Release") && ganttName.find(L"Build / Compile: 2024-02-27, 3d") != std::wstring::npos,
+            "Gantt provider exposes section and source dates");
+    wil::com_ptr_nothrow<ITextRangeProvider> ganttRange;
+    RequireSucceeded(text->RangeFromChild(ganttImage.get(), ganttRange.put()), "Gantt source range");
+    Require(ReadTextRangeText(*ganttRange.get(), -1, "Gantt exact raw fence") == gantt, "Gantt UIA range owns the original fence");
 }
 void SemanticMathLiteralFallback(bool embedded)
 {

@@ -1897,13 +1897,14 @@ remain accounted for. Independent subset expectations distinguish 32 admitted
 graphs from 73 unsupported definitions and record each issue and exact UTF-16 diagnostic range, including the documented stadium and
 the original endpoint-group fan-out examples.
 The family matrix separately identifies the limited flowchart, state, class and
-sequence, pie and ER profiles, the example collection, and 15 unsupported diagram families. Generated
+sequence, pie, ER and Gantt profiles, the example collection, and 14 unsupported diagram families. Generated
 first-example fixtures specify the exact expected outcome and diagnostic for all
 20 diagram-family documents: the state example prepares five nodes and six
 transitions; the class example prepares six nodes and four relationships, and
 the sequence example prepares two participants and three messages, and the pie
 example prepares three slices, and the ER example prepares four entities and three
-relationships. The remaining 15 examples are unsupported-family fallbacks. These cases measure
+relationships. The Gantt reference example retains source because it uses task
+identifiers and dependencies. The remaining 14 examples are unsupported-family fallbacks. These cases measure
 local subset coverage, not complete Mermaid family conformance. Original reference
 bytes and MIT notice remain under `ThirdParty/Markdown/mermaid-11.4.1`.
 
@@ -2354,7 +2355,16 @@ geometry and are named in the accessible alternative. Unsupported forms retain
 the complete source with a diagnostic; diagram source, node, edge, label and
 extent budgets apply.
 
-Flowchart, state, class, sequence, pie and ER diagrams accept one `accTitle: text` and one
+The bounded `gantt` profile accepts `dateFormat YYYY-MM-DD`, an optional plain
+title and sections, and up to 32 tasks of the form `label : YYYY-MM-DD, Nd` or
+`label : YYYY-MM-DD, YYYY-MM-DD`. Dates are checked Gregorian dates; durations
+are positive whole days and intervals are half-open. A task and the complete
+chart may span at most 366 days. Native bars use the shared calendar scale and
+show section, task and source date/duration text; the accessible alternative
+retains the same data in source order. Task identifiers, dependencies, status
+tags, exclusions and other directives retain the complete fence with a diagnostic.
+
+Flowchart, state, class, sequence, pie, ER and Gantt diagrams accept one `accTitle: text` and one
 `accDescr: text` or multiline `accDescr {` / `accDescr{` block closed by a
 standalone `}`. Values are plain text, each bounded to 1024 UTF-16 units;
 multiline descriptions join trimmed physical lines with LF, retaining empty

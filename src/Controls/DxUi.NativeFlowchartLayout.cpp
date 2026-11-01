@@ -35,6 +35,7 @@ struct NativeFlowchartLayout::Preparation
         SequenceNodes,
         SequenceEdges,
         PieNodes,
+        GanttNodes,
         Adjacency,
         Dfs,
         Indegree,
@@ -85,6 +86,8 @@ struct NativeFlowchartLayout::Preparation
     double minX{}, minY{}, maxX{}, maxY{};
     double sequenceX{Margin}, sequenceY{}, sequenceWidth{}, sequenceHeader{}, sequenceGap{};
     double pieTotal{}, pieAngle{}, pieLegendY{}, pieWidth{}, pieDiameter{};
+    double ganttY{}, ganttLabelWidth{}, ganttScale{};
+    std::int64_t ganttMinimum{}, ganttMaximum{};
     FlowchartPoint shift;
     Stage stage{};
     bool horizontal{}, bounded{}, done{}, hasCardinality{}, hasNotes{}, alignedPairs{}, alignedGroups{};
@@ -176,7 +179,26 @@ struct NativeFlowchartLayout::Preparation
     {
         if (cursor == graph->nodes.size())
         {
-            if (graph->family == NativeDiagramFamily::Pie)
+            if (graph->family == NativeDiagramFamily::Gantt)
+            {
+                ganttMinimum = graph->nodes.front().ganttStart;
+                ganttMaximum = graph->nodes.front().ganttEnd;
+                for (std::size_t index = 0u; index < graph->nodes.size(); ++index)
+                {
+                    ganttMinimum = std::min(ganttMinimum, graph->nodes[index].ganttStart);
+                    ganttMaximum = std::max(ganttMaximum, graph->nodes[index].ganttEnd);
+                    ganttLabelWidth = std::max(ganttLabelWidth, nodeLabels[index].width);
+                }
+                const auto title = groupLabels[0u];
+                plan->ganttTitle = {Margin, Margin, title.width, title.height};
+                const double axisX = Margin + ganttLabelWidth + 24.0;
+                const double axisY = Margin + title.height + (title.height ? 12.0 : 0.0) + 8.0;
+                plan->ganttAxis = {axisX, axisY, 320.0, 0.0};
+                ganttScale = 320.0 / static_cast<double>(ganttMaximum - ganttMinimum);
+                ganttY = axisY + 12.0;
+                Then(Stage::GanttNodes);
+            }
+            else if (graph->family == NativeDiagramFamily::Pie)
             {
                 for (std::size_t index = 0u; index < graph->nodes.size(); ++index)
                     pieTotal += graph->nodes[index].pieValue;
@@ -262,6 +284,26 @@ struct NativeFlowchartLayout::Preparation
         pieWidth = std::max(pieWidth, slice.label.x + slice.label.width);
         if (pieWidth + Margin > MaximumExtent || pieLegendY + Margin > MaximumExtent || pieDiameter > MaximumExtent)
             Fail(FlowchartLayoutIssue::DiagramExtent);
+    }
+    void GanttNodes()
+    {
+        if (cursor == plan->nodes.size())
+        {
+            plan->extent = {std::max(plan->ganttAxis.x + plan->ganttAxis.width, plan->ganttTitle.x + plan->ganttTitle.width) + Margin, ganttY + Margin};
+            if (! Valid(plan->extent)) { Fail(FlowchartLayoutIssue::DiagramExtent); return; }
+            Then(Stage::Finish);
+            return;
+        }
+        const auto index = cursor++;
+        auto& task = plan->nodes[index];
+        const auto label = nodeLabels[index];
+        const double height = std::max(20.0, label.height + 8.0);
+        task.label = {Margin, ganttY + (height - label.height) / 2.0, label.width, label.height};
+        task.bounds = {plan->ganttAxis.x + static_cast<double>(graph->nodes[index].ganttStart - ganttMinimum) * ganttScale,
+                       ganttY + (height - 12.0) / 2.0,
+                       static_cast<double>(graph->nodes[index].ganttEnd - graph->nodes[index].ganttStart) * ganttScale, 12.0};
+        ganttY += height + 8.0;
+        if (ganttY + Margin > MaximumExtent) Fail(FlowchartLayoutIssue::DiagramExtent);
     }
     void SequenceNodes()
     {
@@ -905,6 +947,7 @@ struct NativeFlowchartLayout::Preparation
             case Stage::SequenceNodes: SequenceNodes(); break;
             case Stage::SequenceEdges: SequenceEdges(); break;
             case Stage::PieNodes: PieNodes(); break;
+            case Stage::GanttNodes: GanttNodes(); break;
             case Stage::Adjacency: Adjacency(); break;
             case Stage::Dfs: Dfs(); break;
             case Stage::Indegree:
@@ -983,6 +1026,8 @@ void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
         throw std::invalid_argument("Invalid pie chart topology");
     if (! ValidErModel(*graph))
         throw std::invalid_argument("Invalid entity relationship model");
+    if (! ValidGanttModel(*graph))
+        throw std::invalid_argument("Invalid Gantt timeline model");
     for (const auto& node : graph->nodes)
         if (node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Note ||
             (node.shape == FlowchartShape::Note &&
@@ -1019,7 +1064,8 @@ void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
     for (const auto& value : toCardinalities)
         if (! Valid(value))
             throw std::invalid_argument("Invalid target cardinality measurement");
-    if (graph->groups.size() > 16u || groupLabels.size() != (graph->family == NativeDiagramFamily::Pie ? 1u : graph->groups.size()))
+    if (graph->groups.size() > 16u || groupLabels.size() !=
+        ((graph->family == NativeDiagramFamily::Pie || graph->family == NativeDiagramFamily::Gantt) ? 1u : graph->groups.size()))
         throw std::invalid_argument("Invalid flowchart group measurements");
     for (const auto& value : groupLabels)
         if (! Valid(value))

@@ -37,7 +37,7 @@ inline std::shared_ptr<const FlowchartLayoutPlan> Place(std::shared_ptr<const Fl
     std::vector<FlowchartSize> edges(graph->edges.size(), FlowchartSize{});
     const bool cardinality = std::ranges::any_of(graph->edges, [](const auto& edge) { return ! edge.fromCardinality.empty() || ! edge.toCardinality.empty(); });
     const std::vector<FlowchartSize> endpointLabels(cardinality ? graph->edges.size() : 0u, {16.0, 12.0});
-    const std::vector<FlowchartSize> groups(graph->family == NativeDiagramFamily::Pie ? 1u : graph->groups.size(), {16.0, 12.0});
+    const std::vector<FlowchartSize> groups(graph->family == NativeDiagramFamily::Pie || graph->family == NativeDiagramFamily::Gantt ? 1u : graph->groups.size(), {16.0, 12.0});
     for (std::size_t index = 0u; index < edges.size(); ++index)
         if (! graph->edges[index].label.empty())
             edges[index] = {20.0, 12.0};
@@ -127,6 +127,24 @@ template <typename Check> inline void Geometry(Check&& check)
         const auto rejected = Graph(invalid);
         check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == invalid && rejected->nodes.empty(),
               "unsupported ER syntax retains exact source without partial entities");
+    }
+    const auto gantt = Graph(L"gantt\ndateFormat YYYY-MM-DD\ntitle Release\nsection Build\nCompile : 2024-02-27, 3d\nShip : 2024-03-01, 2024-03-03\n");
+    const auto ganttPlan = Place(gantt, check);
+    check(gantt->outcome == FlowchartOutcome::Prepared && gantt->family == NativeDiagramFamily::Gantt && gantt->ganttTitle == L"Release" &&
+              gantt->nodes.size() == 2u && gantt->nodes[0u].ganttSection == L"Build" && gantt->nodes[0u].ganttEnd - gantt->nodes[0u].ganttStart == 3 &&
+              gantt->nodes[1u].ganttStart == gantt->nodes[0u].ganttEnd && gantt->nodes[1u].ganttEnd - gantt->nodes[1u].ganttStart == 2,
+          "Gantt model preserves sections, leap-day dates and half-open task durations");
+    check(ganttPlan->issue == FlowchartLayoutIssue::None && ganttPlan->nodes.size() == 2u &&
+              Near(ganttPlan->nodes[0u].bounds.width, 192.0) && Near(ganttPlan->nodes[1u].bounds.width, 128.0) &&
+              Near(ganttPlan->nodes[0u].bounds.x + ganttPlan->nodes[0u].bounds.width, ganttPlan->nodes[1u].bounds.x) &&
+              ganttPlan->nodes[0u].bounds.y < ganttPlan->nodes[1u].bounds.y,
+          "Gantt task bars follow independently calculated dates, durations and source order");
+    for (const auto invalid : {L"gantt\nBad : 2023-02-29, 1d\n", L"gantt\nBad : 2024-01-01, 0d\n",
+                               L"gantt\nBad : after task, 3d\n", L"gantt\nBad : 2024-01-01, 367d\n"})
+    {
+        const auto rejected = Graph(invalid);
+        check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == invalid && rejected->nodes.empty(),
+              "invalid or unsupported Gantt task retains exact source without partial schedule");
     }
     for (const auto direction : {L"TD", L"BT", L"LR", L"RL"})
     {

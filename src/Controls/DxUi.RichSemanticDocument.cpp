@@ -762,6 +762,7 @@ struct SemanticBuilder::Preparation
             {
                 RejectDiagram(SemanticDiagnosticKind::EmptyDiagram, node.block.content,
                               graph.family == Detail::NativeDiagramFamily::Pie ? L"Empty pie chart. Source is preserved."
+                              : graph.family == Detail::NativeDiagramFamily::Gantt ? L"Empty Gantt chart. Source is preserved."
                               : graph.family == Detail::NativeDiagramFamily::Sequence ? L"Empty sequence diagram. Source is preserved."
                                                                                      : L"Empty flowchart. Source is preserved.");
                 return;
@@ -785,6 +786,8 @@ struct SemanticBuilder::Preparation
                                                                                      : L"Flowchart, ";
             const bool initialized = graph.family == Detail::NativeDiagramFamily::Pie
                                          ? DiagramAlternative({L"Pie chart: ", graph.pieTitle, L". Slices: "})
+                                     : graph.family == Detail::NativeDiagramFamily::Gantt
+                                         ? DiagramAlternative({L"Gantt chart: ", graph.ganttTitle, L". Tasks: "})
                                          : DiagramAlternative({family, direction, L". Nodes: "});
             if (! initialized)
                 return;
@@ -801,7 +804,7 @@ struct SemanticBuilder::Preparation
         {
             if (work.cursor == graph.nodes.size())
             {
-                if (graph.family == Detail::NativeDiagramFamily::Pie)
+                if (graph.family == Detail::NativeDiagramFamily::Pie || graph.family == Detail::NativeDiagramFamily::Gantt)
                 {
                     work.phase = Phase::Publish;
                     return;
@@ -813,6 +816,15 @@ struct SemanticBuilder::Preparation
                 return;
             }
             const auto index = work.cursor++;
+            if (graph.family == Detail::NativeDiagramFamily::Gantt)
+            {
+                const auto& task = graph.nodes[index];
+                const auto source = std::wstring_view(graph.source);
+                DiagramAlternative({task.ganttSection, task.ganttSection.empty() ? L"" : L" / ", task.label, L": ",
+                                    source.substr(task.ganttStartSource.first, task.ganttStartSource.last - task.ganttStartSource.first), L", ",
+                                    source.substr(task.ganttEndSource.first, task.ganttEndSource.last - task.ganttEndSource.first), L"; "});
+                return;
+            }
             if (graph.family == Detail::NativeDiagramFamily::Pie)
             {
                 const auto value = graph.nodes[index].valueSource;
@@ -931,6 +943,7 @@ struct SemanticBuilder::Preparation
                          : graph.family == Detail::NativeDiagramFamily::Sequence ? L"Sequence diagram. Source is available as document text."
                          : graph.family == Detail::NativeDiagramFamily::Pie ? L"Pie chart. Source is available as document text."
                          : graph.family == Detail::NativeDiagramFamily::EntityRelationship ? L"Entity relationship diagram. Source is available as document text."
+                         : graph.family == Detail::NativeDiagramFamily::Gantt ? L"Gantt chart. Source is available as document text."
                                                                               : L"Flowchart. Source is available as document text.";
         if (! graph.accessibleTitle.empty())
         {

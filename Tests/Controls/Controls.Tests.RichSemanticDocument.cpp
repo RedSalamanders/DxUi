@@ -850,6 +850,12 @@ void TestRichSemanticNativeMathematicsAndBroaderMermaid()
                 erDiagram->name.starts_with(L"Entity relationship diagram") && erDiagram->name.find(L"CUSTOMER [1]") != std::wstring::npos &&
                 erDiagram->name.find(L"ORDER [0..*]") != std::wstring::npos,
             "ER semantic alternative exposes both multiplicities with exact source");
+    const std::wstring ganttSource = L"```mermaid\ngantt\ntitle Release\nsection Build\nCompile : 2024-02-27, 3d\n```\n";
+    const auto ganttDocument = RichSemanticDocumentTests::Build(ganttSource, MarkdownProfile::RichMarkdown);
+    const auto ganttDiagram = std::ranges::find(ganttDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
+    Require(ganttDocument->Map().Source() == ganttSource && ganttDiagram != ganttDocument->Elements().end() &&
+                ganttDiagram->name.starts_with(L"Gantt chart: Release") && ganttDiagram->name.find(L"Build / Compile: 2024-02-27, 3d") != std::wstring::npos,
+            "Gantt semantic alternative preserves title, section, dates and exact source");
 }
 void TestRichSemanticDocumentStructuralStyleValues()
 {

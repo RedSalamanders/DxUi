@@ -1,7 +1,10 @@
 #pragma once
 #include <DxUi/MarkdownSyntax.h>
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <chrono>
+#include <cstdint>
 
 namespace DxUi::RichText::Detail
 {
@@ -28,7 +31,8 @@ enum class NativeDiagramFamily
     Class,
     Sequence,
     Pie,
-    EntityRelationship
+    EntityRelationship,
+    Gantt
 };
 enum class ErMultiplicity { None, One, ZeroOrOne, OneOrMany, ZeroOrMany };
 enum class FlowchartShape
@@ -91,16 +95,19 @@ struct FlowchartDiagnostic
 };
 struct FlowchartNode
 {
-    FlowchartNode() : label(0u, L' '), key(0u, L' ')
+    FlowchartNode() : label(0u, L' '), key(0u, L' '), ganttSection(0u, L' ')
     {
     }
     FlowchartNode(const FlowchartNode&)            = default;
     FlowchartNode& operator=(const FlowchartNode&) = default;
     MarkdownRange identifier, declaration;
     MarkdownRange valueSource;
+    MarkdownRange ganttStartSource, ganttEndSource;
     double pieValue{};
+    std::int64_t ganttStart{}, ganttEnd{};
     std::wstring label;
     std::wstring key;
+    std::wstring ganttSection;
     // Text offsets at which class member compartments begin. Alternating
     // attribute/method groups retain source order and have bounded separators.
     std::array<std::size_t, 16u> compartmentStarts{};
@@ -141,13 +148,14 @@ struct FlowchartEdge
 struct FlowchartModel
 {
     explicit FlowchartModel(std::wstring_view text, std::uint64_t value)
-        : source(text), revision(value), accessibleTitle(0u, L' '), accessibleDescription(0u, L' '), pieTitle(0u, L' '), nodes(0u), edges(0u), groups(0u)
+        : source(text), revision(value), accessibleTitle(0u, L' '), accessibleDescription(0u, L' '), pieTitle(0u, L' '), ganttTitle(0u, L' '), nodes(0u), edges(0u), groups(0u)
     {
     }
     std::wstring source;
     std::uint64_t revision{};
     std::wstring accessibleTitle, accessibleDescription;
     std::wstring pieTitle;
+    std::wstring ganttTitle;
     FlowchartDirection direction{};
     NativeDiagramFamily family{};
     FlowchartOutcome outcome{};
@@ -242,6 +250,59 @@ inline bool ValidErModel(const FlowchartModel& graph) noexcept
             edge.toCardinality != ErMultiplicityLabel(edge.erTo) || edge.source.first >= edge.source.last || edge.source.last > graph.source.size())
             return false;
     return true;
+}
+inline bool ParseGanttDate(std::wstring_view value, std::int64_t& day) noexcept
+{
+    if (value.size() != 10u || value[4u] != L'-' || value[7u] != L'-') return false;
+    const auto digit = [&](std::size_t index) noexcept { return value[index] >= L'0' && value[index] <= L'9'; };
+    for (const auto index : {0u, 1u, 2u, 3u, 5u, 6u, 8u, 9u}) if (! digit(index)) return false;
+    const int year = (value[0] - L'0') * 1000 + (value[1] - L'0') * 100 + (value[2] - L'0') * 10 + value[3] - L'0';
+    const unsigned month = static_cast<unsigned>((value[5] - L'0') * 10 + value[6] - L'0');
+    const unsigned date = static_cast<unsigned>((value[8] - L'0') * 10 + value[9] - L'0');
+    if (year < 1) return false;
+    const std::chrono::year_month_day parsed{std::chrono::year{year}, std::chrono::month{month}, std::chrono::day{date}};
+    if (! parsed.ok()) return false;
+    day = std::chrono::sys_days{parsed}.time_since_epoch().count();
+    return true;
+}
+inline bool ParseGanttSpan(std::wstring_view start, std::wstring_view finish, std::int64_t& first, std::int64_t& last) noexcept
+{
+    if (! ParseGanttDate(start, first)) return false;
+    if (finish.size() >= 2u && finish.size() <= 4u && finish.back() == L'd')
+    {
+        unsigned duration{};
+        for (const auto unit : finish.substr(0u, finish.size() - 1u))
+        {
+            if (unit < L'0' || unit > L'9') return false;
+            duration = duration * 10u + static_cast<unsigned>(unit - L'0');
+        }
+        if (! duration || duration > 366u) return false;
+        last = first + duration;
+    }
+    else if (! ParseGanttDate(finish, last)) return false;
+    return last > first && last - first <= 366;
+}
+inline bool ValidGanttModel(const FlowchartModel& graph) noexcept
+{
+    if (graph.family != NativeDiagramFamily::Gantt) return true;
+    if (graph.direction != FlowchartDirection::TopBottom || graph.nodes.empty() || graph.nodes.size() > 32u || ! graph.groups.empty() || ! graph.edges.empty() ||
+        graph.ganttTitle.size() > 1024u) return false;
+    std::int64_t minimum{}, maximum{};
+    bool firstNode = true;
+    for (const auto& node : graph.nodes)
+    {
+        if (node.shape != FlowchartShape::Rectangle || node.groupMask || node.compartmentCount || node.label.empty() || node.ganttSection.size() > 1024u ||
+            node.identifier.first >= node.identifier.last || node.identifier.last > graph.source.size() || node.ganttStartSource.first >= node.ganttStartSource.last ||
+            node.ganttStartSource.last > graph.source.size() || node.ganttEndSource.first >= node.ganttEndSource.last || node.ganttEndSource.last > graph.source.size())
+            return false;
+        std::int64_t first{}, last{};
+        if (! ParseGanttSpan(std::wstring_view(graph.source).substr(node.ganttStartSource.first, node.ganttStartSource.last - node.ganttStartSource.first),
+                             std::wstring_view(graph.source).substr(node.ganttEndSource.first, node.ganttEndSource.last - node.ganttEndSource.first), first, last) ||
+            first != node.ganttStart || last != node.ganttEnd) return false;
+        if (firstNode) { minimum = first; maximum = last; firstNode = false; }
+        else { minimum = std::min(minimum, first); maximum = std::max(maximum, last); }
+    }
+    return maximum - minimum <= 366;
 }
 class NativeFlowchartParser
 {
