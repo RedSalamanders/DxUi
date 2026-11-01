@@ -2947,6 +2947,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             if (! factory || ! format || ! codeFormat)
                 THROW_HR(E_UNEXPECTED);
             RichText::LayoutOptions options;
+            options.dpi         = host.GetDpi();
             options.widthDip    = width;
             options.fontSizeDip = format->GetFontSize();
             options.fontFamily.resize(static_cast<size_t>(format->GetFontFamilyNameLength()) + 1u);

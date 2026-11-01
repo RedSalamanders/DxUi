@@ -40,6 +40,9 @@ struct LayoutOptions
     bool wrap                                      = true;
     bool codeCopyAction                            = false; // Host supplies an explicit copy-intent callback.
     bool tableOverflow                             = false; // Subtle tables retain minimum widths beyond the viewport.
+    // Effective device DPI for ppem-dependent native math font corrections.
+    // Standalone layout callers without a device use the 96-DPI default.
+    float dpi = 96.0f;
 };
 struct CaretGeometry
 {

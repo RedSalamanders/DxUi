@@ -246,6 +246,39 @@ template <typename Check> inline void Geometry(Check&& check)
             check(source == doc->Map().Source().size(), "native visual line units cover every original source unit");
         }
     }
+    const auto mathDocument = Build(L"$x^2$", check);
+    LayoutOptions mathOptions;
+    mathOptions.widthDip = 480.f;
+    PreparedSemanticGeometry mathGeometry;
+    check(mathGeometry.Begin(real.get(), mathDocument, mathOptions, drawing.get(), {1u, 1u}) == LayoutPreparationStatus::Pending,
+          "initial native math geometry prepares asynchronously");
+    while (mathGeometry.Pending())
+        static_cast<void>(mathGeometry.Advance());
+    check(mathGeometry.Begin(real.get(), mathDocument, mathOptions, drawing.get(), {1u, 1u}) == LayoutPreparationStatus::Complete,
+          "identical math geometry reuses its publication");
+    mathOptions.dpi = 192.f;
+    check(mathGeometry.Begin(real.get(), mathDocument, mathOptions, drawing.get(), {1u, 1u}) == LayoutPreparationStatus::Pending,
+          "a DPI change retires math geometry that may contain device corrections");
+    while (mathGeometry.Pending())
+        static_cast<void>(mathGeometry.Advance());
+    check(mathGeometry.Begin(real.get(), mathDocument, mathOptions, drawing.get(), {1u, 1u}) == LayoutPreparationStatus::Complete,
+          "the new DPI reuses only its own completed geometry");
+    for (const auto invalidDpi : {0.f, 4097.f})
+    {
+        auto invalid = mathOptions;
+        invalid.dpi = invalidDpi;
+        bool rejected{};
+        try
+        {
+            mathGeometry.Begin(real.get(), mathDocument, invalid, drawing.get(), {1u, 1u});
+        }
+        catch (const std::invalid_argument&)
+        {
+            rejected = true;
+        }
+        check(rejected && mathGeometry.Begin(real.get(), mathDocument, mathOptions, drawing.get(), {1u, 1u}) == LayoutPreparationStatus::Complete,
+              "invalid DPI preserves the previous published native geometry");
+    }
 }
 template <typename Check> inline void PositionedRaster(Check&& check)
 {

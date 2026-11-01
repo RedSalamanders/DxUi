@@ -219,6 +219,51 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
     Require(scalableFence->VariantLayouts().size() * 3u + scalableFence->StrokeLayouts().size() >= 8u,
             "scalable parentheses use font variants when available or deterministic vector fallback");
     const auto isolatedFence = prepare(L"\\Big(");
+#if DXUI_ENABLE_DIAGNOSTICS
+    if (! isolatedFence->VariantLayouts().empty())
+    {
+        std::array<std::uint8_t, 232u> fixture{};
+        const auto setValue = [&](std::size_t offset, std::uint16_t value)
+        {
+            fixture[offset] = static_cast<std::uint8_t>(value >> 8u);
+            fixture[offset + 1u] = static_cast<std::uint8_t>(value & 0xffu);
+        };
+        setValue(0u, 1u); setValue(4u, 10u); // version and MathConstants parent
+        setValue(46u, 3200u); setValue(48u, 190u); // superscript shift and relative Device table
+        setValue(200u, 24u); setValue(202u, 48u); setValue(204u, 3u); // 8-bit deltas over ppem 24..48
+        setValue(206u, 0x0100u); setValue(230u, 0xff00u); // +1 pixel at 24, -1 pixel at 48
+        const auto priorTable = DxUi::RichText::Detail::testRichMathTableOverride;
+        const auto restoreTable = wil::scope_exit([priorTable]() noexcept { DxUi::RichText::Detail::testRichMathTableOverride = priorTable; });
+        DxUi::RichText::Detail::testRichMathTableOverride = fixture;
+        const auto value = std::make_shared<const MathExpression>(ParseMath(L"\\mathrm{x}^2"));
+        const auto beforeReads = DxUi::RichText::Detail::testRichMathConstantReads;
+        DxUi::RichText::Detail::PreparedMath lowDpi(factory.get(), value, 24.f, false, nullptr, 96.f);
+        while (! lowDpi.Advance()) {}
+        DxUi::RichText::Detail::PreparedMath highDpi(factory.get(), value, 24.f, false, &lowDpi, 192.f);
+        while (! highDpi.Advance()) {}
+        const auto& lowGlyphs = lowDpi.GlyphLayouts();
+        const auto& highGlyphs = highDpi.GlyphLayouts();
+        Require(lowGlyphs.size() == 2u && highGlyphs.size() == 2u, "device-corrected script fixture retains both source glyphs");
+        const auto lowShift = lowGlyphs[1u].origin.y - lowGlyphs[0u].origin.y;
+        const auto highShift = highGlyphs[1u].origin.y - highGlyphs[0u].origin.y;
+        Require(std::abs(highShift - lowShift - 1.5f) < .02f,
+                "actual script placement converts independent ppem device deltas at 96 and 192 DPI");
+        const auto nestedExpression = std::make_shared<const MathExpression>(ParseMath(L"\\mathrm{x}^{\\mathrm{y}^2}"));
+        DxUi::RichText::Detail::PreparedMath nestedLow(factory.get(), nestedExpression, 24.f, false, &lowDpi, 96.f);
+        DxUi::RichText::Detail::PreparedMath nestedHigh(factory.get(), nestedExpression, 24.f, false, &lowDpi, 192.f);
+        while (! nestedLow.Advance()) {}
+        while (! nestedHigh.Advance()) {}
+        const auto& nestedLowGlyphs = nestedLow.GlyphLayouts();
+        const auto& nestedHighGlyphs = nestedHigh.GlyphLayouts();
+        Require(nestedLowGlyphs.size() == 3u && nestedHighGlyphs.size() == 3u, "nested device fixture retains all three glyphs");
+        const auto nestedDelta = (nestedHighGlyphs[2u].origin.y - nestedHighGlyphs[1u].origin.y) -
+                                 (nestedLowGlyphs[2u].origin.y - nestedLowGlyphs[1u].origin.y);
+        Require(std::abs(nestedDelta) < .02f,
+                "nested scripts use their own ppem instead of scaling the root's unrelated device delta");
+        Require(DxUi::RichText::Detail::testRichMathConstantReads == beforeReads + 1u,
+                "DPI-specific math values reuse one owned font-table snapshot");
+    }
+#endif
     if (! isolatedFence->VariantLayouts().empty())
     {
 #if DXUI_ENABLE_DIAGNOSTICS

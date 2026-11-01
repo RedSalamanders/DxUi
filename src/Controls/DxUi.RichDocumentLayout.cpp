@@ -63,7 +63,7 @@ bool SameStyles(const std::vector<ProjectionBlock>& blocks, const Projection& ri
 bool SameOptions(const LayoutOptions& left, const LayoutOptions& right) noexcept
 {
     return left.tableOverflow == right.tableOverflow && left.tabStopDip == right.tabStopDip && left.widthDip == right.widthDip &&
-           left.fontSizeDip == right.fontSizeDip && left.codeFontSizeDip == right.codeFontSizeDip && left.lineHeightMultiplier == right.lineHeightMultiplier &&
+           left.fontSizeDip == right.fontSizeDip && left.dpi == right.dpi && left.codeFontSizeDip == right.codeFontSizeDip && left.lineHeightMultiplier == right.lineHeightMultiplier &&
            left.headingScaleStep == right.headingScaleStep && left.fontFamily == right.fontFamily && left.headingFontSizeDip == right.headingFontSizeDip &&
            left.headingLineHeightMultiplier == right.headingLineHeightMultiplier && left.paragraphSpacingAfterLines == right.paragraphSpacingAfterLines &&
            left.listItemSpacingDip == right.listItemSpacingDip && left.semanticSpacing == right.semanticSpacing &&

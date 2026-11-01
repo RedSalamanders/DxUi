@@ -2137,7 +2137,7 @@ operator scripts; a trailing row separator is accepted.
 `\not` admits ungrouped single relation glyphs `= < > ≤ ≥ ∈ ∋ ⊂ ⊃ ⊆ ⊇ ∼ ≡ ≈ ∣ ∥`
 and substitutes their Unicode negations; other operands retain exact source.
 Unsupported commands remain local exact source. This is a named native profile,
-not a claim of all KaTeX functions or identical TeX font metrics. The Cambria Math face supplies bounded OpenType MATH italic corrections and precomposed vertical delimiter variants when available; larger delimiters use up to 32 distinct part records and 64 total compatible vertical glyph parts per delimiter, with 512 per formula. Connector overlap follows the [OpenType MATH format](https://learn.microsoft.com/en-us/typography/opentype/spec/math); part origins whose ink metrics do not match their advance within two design units use vector fallback. Missing, malformed or oversized font data also falls back. For `\widehat`, `\widetilde` and `\vec`, bounded horizontal variants or assemblies are used when their metrics fit the reserved accent envelope; missing, malformed or incompatible data retains vector fallback. Device-table and variable-font corrections are not implemented. The at-most-4-MiB font snapshot and bounded glyph-indexed tables are shared per geometry generation.
+not a claim of all KaTeX functions or identical TeX font metrics. The Cambria Math face supplies bounded OpenType MATH italic corrections and precomposed vertical delimiter variants when available; larger delimiters use up to 32 distinct part records and 64 total compatible vertical glyph parts per delimiter, with 512 per formula. Connector overlap follows the [OpenType MATH format](https://learn.microsoft.com/en-us/typography/opentype/spec/math); part origins whose ink metrics do not match their advance within two design units use vector fallback. Missing, malformed or oversized font data also falls back. For `\widehat`, `\widetilde` and `\vec`, bounded horizontal variants or assemblies are used when their metrics fit the reserved accent envelope; missing, malformed or incompatible data retains vector fallback. Validated OpenType Device-table deltas for the supported math constants and italic corrections are applied at the formula ppem and converted from pixels to DIP using the effective DPI. Missing or malformed records fall back to the unadjusted design value; variable-font VariationIndex corrections remain unsupported. The at-most-4-MiB font snapshot and bounded glyph-indexed tables are shared per geometry generation.
 Font lookup and glyph-query HRESULT failures remain retryable; only a known
 unsupported font operation or absent/invalid font data uses the vector fallback.
 Native `binom`, `dbinom` and `tbinom` form a two-row parenthesized matrix with
@@ -2261,3 +2261,10 @@ aggregation (`o--`, `--o`, `o..`, `..o`). The diamond remains attached to the
 whole in either spelling; composition paints a filled diamond and aggregation a
 hollow one. Dot variants use dotted lines. The accessible graph alternative
 describes the part-to-whole relationship and preserves any endpoint cardinalities.
+
+`LayoutOptions::dpi` is the effective device DPI for native math positioning,
+defaulting to 96 for standalone callers. It must be finite, greater than zero and
+at most 4096. Native and embedded editor hosts supply their current host DPI;
+DPI changes invalidate reusable math geometry. Shared immutable MATH bytes
+remain reusable, but device adjustments are evaluated again for each math style's
+font size and DPI.

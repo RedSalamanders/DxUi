@@ -40,6 +40,11 @@ template <typename Check> void Run(Check&& check)
     const DxUi::RichText::Detail::MathFontTable table(bytes);
     check(table.ItalicCorrection(5u).value_or(0) == 125 && table.ItalicCorrection(9u).value_or(0) == -50 && ! table.ItalicCorrection(6u),
           "MATH italic correction follows coverage order and signed design units");
+    set(24u, 42u);
+    const auto italicDevice = table.ItalicCorrectionRecord(5u);
+    check(italicDevice && italicDevice->value == 125 && italicDevice->device == 60u,
+          "italic correction resolves a Device table relative to its correction-info parent");
+    set(24u, 0u);
     const auto first = table.VerticalVariant(5u, 800u), second = table.VerticalVariant(5u, 1500u);
     check(first && first.value().glyph == 11u && first.value().advance == 1000u && second && second.value().glyph == 12u && second.value().advance == 2000u &&
               ! table.VerticalVariant(5u, 2001u) && ! table.VerticalVariant(9u, 1u),
@@ -137,5 +142,43 @@ template <typename Check> void Run(Check&& check)
         check(! partial || ! truncated.HorizontalVariantAt(partial.value(), 1500u),
               "truncated horizontal variants never read beyond the supplied table");
     }
+    std::array<std::uint8_t, 64u> deviceBytes{};
+    const auto setDevice = [&](std::size_t offset, std::uint16_t value)
+    {
+        deviceBytes[offset] = static_cast<std::uint8_t>(value >> 8u);
+        deviceBytes[offset + 1u] = static_cast<std::uint8_t>(value & 0xffu);
+    };
+    setDevice(0u, 1u);
+    setDevice(4u, 40u);
+    setDevice(10u, 11u); setDevice(12u, 15u); setDevice(14u, 1u); setDevice(16u, 0x5540u);
+    setDevice(20u, 8u); setDevice(22u, 11u); setDevice(24u, 2u); setDevice(26u, 0x123fu);
+    setDevice(30u, 9u); setDevice(32u, 10u); setDevice(34u, 3u); setDevice(36u, 0x807fu);
+    setDevice(48u, 200u); setDevice(50u, 20u); // constants parent 40 + relative device offset 20
+    const DxUi::RichText::Detail::MathFontTable devices(deviceBytes);
+    const auto constant = devices.MathConstant(8u);
+    check(constant && constant->value == 200 && constant->device == 60u, "MATH value records resolve device offsets from their parent table");
+    check(devices.DeviceDelta(10u, 11u).value_or(0) == 1 && devices.DeviceDelta(10u, 15u).value_or(0) == 1 &&
+              devices.DeviceDelta(10u, 16u).value_or(1) == 0,
+          "two-bit device values and out-of-range sizes follow the OpenType packed example");
+    check(devices.DeviceDelta(20u, 8u).value_or(0) == 1 && devices.DeviceDelta(20u, 10u).value_or(0) == 3 &&
+              devices.DeviceDelta(20u, 11u).value_or(0) == -1,
+          "four-bit device deltas preserve signed high-to-low nibble order");
+    check(devices.DeviceDelta(30u, 9u).value_or(0) == -128 && devices.DeviceDelta(30u, 10u).value_or(0) == 127,
+          "eight-bit device deltas preserve signed extremes");
+    const DxUi::RichText::Detail::MathFontTable::ValueRecord deviceValue{200, 10u};
+    check(std::abs(devices.AdjustedValue(deviceValue, 12.f, 96.f, 1000u).value_or(0.f) - 3.4f) < .001f &&
+              std::abs(devices.AdjustedValue(deviceValue, 6.f, 192.f, 1000u).value_or(0.f) - 1.7f) < .001f &&
+              std::abs(devices.AdjustedValue(deviceValue, 16.f, 96.f, 1000u).value_or(0.f) - 3.2f) < .001f,
+          "device pixels convert to DIP at the requested DPI and only apply within the authored ppem range");
+    check(! devices.AdjustedValue(deviceValue, 12.f, 0.f, 1000u) && ! devices.AdjustedValue(deviceValue, 12.f, 96.f, 0u),
+          "invalid DPI or font units cannot produce a native math value");
+    check(std::abs(devices.AdjustedValue({200, 600u}, 12.f, 96.f, 1000u).value_or(0.f) - 2.4f) < .001f,
+          "malformed Device offsets retain the unadjusted design value");
+    for (std::size_t length = 10u; length < 18u; ++length)
+        check(! DxUi::RichText::Detail::MathFontTable(std::span(deviceBytes.data(), length)).DeviceDelta(10u, 11u),
+              "truncated device tables are ignored without out-of-bounds reads");
+    setDevice(34u, 0x8000u);
+    check(! devices.DeviceDelta(30u, 9u) && std::abs(devices.AdjustedValue({200, 30u}, 9.f, 96.f, 1000u).value_or(0.f) - 1.8f) < .001f,
+          "variable-font VariationIndex is not misread and retains the default design value");
 }
 } // namespace MathFontTableTests

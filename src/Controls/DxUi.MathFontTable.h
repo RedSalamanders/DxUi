@@ -1,6 +1,7 @@
 #pragma once
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -62,7 +63,65 @@ public:
     explicit MathFontTable(std::span<const std::uint8_t> source) noexcept : bytes(source)
     {
     }
-    [[nodiscard]] std::optional<std::int16_t> ItalicCorrection(std::uint16_t glyph) const noexcept
+    struct ValueRecord
+    {
+        std::int16_t value{};
+        std::size_t device{}; // Absolute table offset, zero when no device correction exists.
+    };
+    [[nodiscard]] std::optional<ValueRecord> Value(std::size_t parent, std::size_t offset) const noexcept
+    {
+        if (offset > bytes.size() || parent > bytes.size() - offset)
+            return std::nullopt;
+        if (bytes.size() - (parent + offset) < 4u)
+            return std::nullopt;
+        const auto value = U16(parent + offset), device = U16(parent + offset + 2u);
+        if (! value || ! device)
+            return std::nullopt;
+        const auto absolute = device.value() ? (device.value() > bytes.size() - parent ? bytes.size() : parent + device.value()) : 0u;
+        return ValueRecord{static_cast<std::int16_t>(value.value()), absolute};
+    }
+    [[nodiscard]] std::optional<ValueRecord> MathConstant(std::size_t offset) const noexcept
+    {
+        const auto parent = HeaderOffset(4u);
+        return parent ? Value(parent.value(), offset) : std::nullopt;
+    }
+    [[nodiscard]] std::optional<std::int16_t> DeviceDelta(std::size_t offset, std::uint32_t ppem) const noexcept
+    {
+        if (! offset)
+            return std::int16_t{0};
+        if (offset > bytes.size() || bytes.size() - offset < 6u)
+            return std::nullopt;
+        const auto first = U16(offset), last = U16(offset + 2u), format = U16(offset + 4u);
+        if (! first || ! last || ! format || first.value() > last.value() || format.value() < 1u || format.value() > 3u)
+            return std::nullopt; // Includes VariationIndex; it needs a separate variable-font store.
+        const auto bits = 1u << format.value();
+        const auto perWord = 16u / bits;
+        const auto count = static_cast<std::size_t>(last.value() - first.value()) + 1u;
+        const auto words = (count + perWord - 1u) / perWord;
+        if (words > (bytes.size() - offset - 6u) / 2u)
+            return std::nullopt;
+        if (ppem < first.value() || ppem > last.value())
+            return std::int16_t{0};
+        const auto index = ppem - first.value();
+        const auto word = U16(offset + 6u + static_cast<std::size_t>(index / perWord) * 2u);
+        if (! word)
+            return std::nullopt;
+        const auto shift = 16u - bits * (index % perWord + 1u);
+        const auto raw = (word.value() >> shift) & ((1u << bits) - 1u);
+        return static_cast<std::int16_t>((raw & (1u << (bits - 1u))) ? static_cast<int>(raw) - static_cast<int>(1u << bits) : static_cast<int>(raw));
+    }
+    [[nodiscard]] std::optional<float> AdjustedValue(ValueRecord record, float fontSizeDip, float dpi, std::uint16_t unitsPerEm) const noexcept
+    {
+        if (! std::isfinite(fontSizeDip) || fontSizeDip <= 0.f || fontSizeDip > 4096.f || ! std::isfinite(dpi) || dpi <= 0.f || dpi > 4096.f || ! unitsPerEm)
+            return std::nullopt;
+        const auto ppem = static_cast<std::uint32_t>(std::round(fontSizeDip * dpi / 96.f));
+        auto value = fontSizeDip * static_cast<float>(record.value) / static_cast<float>(unitsPerEm);
+        const auto delta = DeviceDelta(record.device, ppem);
+        if (delta)
+            value += static_cast<float>(delta.value()) * 96.f / dpi;
+        return std::isfinite(value) ? std::optional<float>(value) : std::nullopt;
+    }
+    [[nodiscard]] std::optional<ValueRecord> ItalicCorrectionRecord(std::uint16_t glyph) const noexcept
     {
         const auto info = HeaderOffset(6u);
         if (! info)
@@ -77,11 +136,12 @@ public:
         const auto index = Coverage(table + coverage.value(), glyph);
         if (! index || index.value() >= count.value())
             return std::nullopt;
-        const auto value  = U16(table + 4u + index.value() * 4u);
-        const auto device = U16(table + 6u + index.value() * 4u);
-        if (! value || ! device)
-            return std::nullopt;
-        return static_cast<std::int16_t>(value.value());
+        return Value(table, 4u + index.value() * 4u);
+    }
+    [[nodiscard]] std::optional<std::int16_t> ItalicCorrection(std::uint16_t glyph) const noexcept
+    {
+        const auto record = ItalicCorrectionRecord(glyph);
+        return record ? std::optional<std::int16_t>(record->value) : std::nullopt;
     }
     struct Variant
     {

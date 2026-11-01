@@ -27,6 +27,7 @@ thread_local HRESULT testRichMathGlyphMetricsFailure{S_OK};
 thread_local HRESULT testRichMathGlyphIndexFailure{S_OK};
 thread_local std::size_t testRichMathConstantReads{};
 thread_local std::size_t testRichMathPreparations{};
+thread_local std::span<const std::uint8_t> testRichMathTableOverride{};
 #endif
 namespace
 {
@@ -210,7 +211,7 @@ struct NativeImageGeometry
                         placement.math = prior->math;
                 }
                 if (! placement.math)
-                    placement.math = std::make_shared<PreparedMath>(write, maths[index].expression, font * 1.15f, maths[index].display, constants);
+                    placement.math = std::make_shared<PreparedMath>(write, maths[index].expression, font * 1.15f, maths[index].display, constants, options.dpi);
                 if (! constants)
                     constants = placement.math.get();
             }
@@ -329,7 +330,7 @@ struct MarkdownDecorations
 bool SameOptions(const LayoutOptions& a, const LayoutOptions& b) noexcept
 {
     return a.tableOverflow == b.tableOverflow && a.tabStopDip == b.tabStopDip && a.widthDip == b.widthDip && a.fontSizeDip == b.fontSizeDip &&
-           a.codeFontSizeDip == b.codeFontSizeDip && a.lineHeightMultiplier == b.lineHeightMultiplier && a.headingScaleStep == b.headingScaleStep &&
+           a.dpi == b.dpi && a.codeFontSizeDip == b.codeFontSizeDip && a.lineHeightMultiplier == b.lineHeightMultiplier && a.headingScaleStep == b.headingScaleStep &&
            a.fontFamily == b.fontFamily && a.codeFontFamily == b.codeFontFamily && a.headingFontSizeDip == b.headingFontSizeDip &&
            a.headingLineHeightMultiplier == b.headingLineHeightMultiplier && a.paragraphSpacingAfterLines == b.paragraphSpacingAfterLines &&
            a.listItemSpacingDip == b.listItemSpacingDip && a.semanticSpacing == b.semanticSpacing && a.locale == b.locale &&
@@ -1622,6 +1623,7 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
     const auto validSpacing = [](const std::optional<float>& value, float maximum) noexcept
     { return ! value || (std::isfinite(value.value()) && value.value() >= 0.0f && value.value() <= maximum); };
     if (! factory || ! document || ! std::isfinite(options.widthDip) || options.widthDip <= 0.0f || ! std::isfinite(options.fontSizeDip) ||
+        ! std::isfinite(options.dpi) || options.dpi <= 0.0f || options.dpi > 4096.0f ||
         options.fontSizeDip <= 0.0f || ! validSpacing(options.paragraphSpacingAfterLines, 4.0f) || ! validSpacing(options.listItemSpacingDip, 256.0f) ||
         (options.semanticSpacing && ! options.semanticSpacing->IsValid()) ||
         (options.markdownPresentation != MarkdownPresentationStyle::Default && options.markdownPresentation != MarkdownPresentationStyle::Subtle))

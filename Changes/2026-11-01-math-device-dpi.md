@@ -1,0 +1,1 @@
+- Apply bounded OpenType MATH device corrections at the actual host DPI and invalidate geometry when DPI changes.

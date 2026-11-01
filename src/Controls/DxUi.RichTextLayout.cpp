@@ -177,7 +177,8 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
     const auto validHeadingHeight = [](float value) noexcept { return std::isfinite(value) && (value == 0.0f || (value >= 1.0f && value <= 4.0f)); };
     const auto validSpacing       = [](const std::optional<float>& value, float maximum) noexcept
     { return ! value || (std::isfinite(value.value()) && value.value() >= 0.0f && value.value() <= maximum); };
-    if (! factory || ! std::isfinite(width) || width <= 0 || ! std::isfinite(fontSize) || fontSize <= 0 || ! std::isfinite(options.codeFontSizeDip) ||
+    if (! factory || ! std::isfinite(width) || width <= 0 || ! std::isfinite(fontSize) || fontSize <= 0 ||
+        ! std::isfinite(options.dpi) || options.dpi <= 0.0f || options.dpi > 4096.0f || ! std::isfinite(options.codeFontSizeDip) ||
         options.codeFontSizeDip < 0.0f || options.codeFontSizeDip > 512.0f || ! std::isfinite(options.lineHeightMultiplier) ||
         ! std::isfinite(options.tabStopDip) || options.tabStopDip < 0.0f || options.tabStopDip > 4096.0f ||
         (options.tabStopDip > 0.0f && options.tabStopDip < 1.0f) ||

@@ -24,6 +24,7 @@ extern thread_local HRESULT testRichMathGlyphMetricsFailure;
 extern thread_local HRESULT testRichMathGlyphIndexFailure;
 extern thread_local std::size_t testRichMathConstantReads;
 extern thread_local std::size_t testRichMathPreparations;
+extern thread_local std::span<const std::uint8_t> testRichMathTableOverride;
 #endif
 // PreparedMath owns all shaping and geometry. The syntax tree is admitted and
 // indexed once; Advance shapes one text leaf per call and finalizes from cached
@@ -54,17 +55,30 @@ class PreparedMath final
             : face(source),
               table(bytes.begin(), bytes.end()),
               corrections(source->GetGlyphCount(), MissingCorrection),
+              correctionDevices(source->GetGlyphCount(), 0u),
               constructions(source->GetGlyphCount(), 0u),
               horizontalConstructions(source->GetGlyphCount(), 0u),
               designUnits(units)
         {
             const MathFontTable parsed(table);
+            for (std::size_t offset = 8u; offset <= 152u; offset += 4u)
+            {
+                const auto value = parsed.MathConstant(offset);
+                if (value)
+                {
+                    constants[offset / 4u] = value.value();
+                    constantPresent[offset / 4u] = true;
+                }
+            }
             for (std::size_t index = 0u; index < corrections.size(); ++index)
             {
                 const auto glyph      = static_cast<std::uint16_t>(index);
-                const auto correction = parsed.ItalicCorrection(glyph);
+                const auto correction = parsed.ItalicCorrectionRecord(glyph);
                 if (correction)
-                    corrections[index] = correction.value();
+                {
+                    corrections[index] = correction->value;
+                    correctionDevices[index] = static_cast<std::uint32_t>(correction->device);
+                }
                 const auto construction = parsed.VerticalConstruction(glyph);
                 if (construction)
                     constructions[index] = static_cast<std::uint32_t>(construction.value());
@@ -76,8 +90,11 @@ class PreparedMath final
         wil::com_ptr<IDWriteFontFace> face;
         std::vector<std::uint8_t> table;
         std::vector<std::int32_t> corrections;
+        std::vector<std::uint32_t> correctionDevices;
         std::vector<std::uint32_t> constructions;
         std::vector<std::uint32_t> horizontalConstructions;
+        std::array<MathFontTable::ValueRecord, 39u> constants{};
+        std::array<bool, 39u> constantPresent{};
         std::uint16_t designUnits{};
     };
     struct VariantGlyph
@@ -109,7 +126,7 @@ class PreparedMath final
     std::vector<Line> lines;
     std::vector<VariantGlyph> variants;
     std::size_t cursor{};
-    float font{}, axis{};
+    float font{}, axis{}, dpi{96.f};
     float scriptScale{.7f}, scriptScriptScale{.5f};
     float delimitedMinimum{1.5f}, displayOperatorMinimum{1.4f};
     float subscriptShift{.35f}, superscriptShift{.55f}, scriptGapMinimum{.18f};
@@ -204,43 +221,61 @@ class PreparedMath final
             return;
         auto release      = wil::scope_exit([&] { face->ReleaseFontTable(context); });
         const auto* bytes = static_cast<const BYTE*>(table);
+#if DXUI_ENABLE_DIAGNOSTICS
+        if (! testRichMathTableOverride.empty())
+        {
+            if (testRichMathTableOverride.size() > 4u * 1024u * 1024u)
+                return;
+            bytes = testRichMathTableOverride.data();
+            size = static_cast<UINT32>(testRichMathTableOverride.size());
+        }
+#endif
         if (! bytes || size < 26 || bytes[0] != 0 || bytes[1] != 1)
             return;
         const auto offset = static_cast<unsigned>((bytes[4] << 8u) | bytes[5]);
         if (offset == 0 || offset > size || size - offset < 16u)
             return;
+        DWRITE_FONT_METRICS metrics{};
+        face->GetMetrics(&metrics);
+        if (metrics.designUnitsPerEm == 0u || size > 4u * 1024u * 1024u)
+            return;
+        mathData = std::make_shared<MathFontData>(face.get(), std::span(bytes, static_cast<std::size_t>(size)), metrics.designUnitsPerEm);
+        ApplyMathConstants();
+    }
+    void ApplyMathConstants() noexcept
+    {
+        if (! mathData || mathData->table.size() < 16u || mathData->designUnits == 0u)
+            return;
+        const auto* bytes = mathData->table.data();
+        const auto size = mathData->table.size();
+        const auto offset = static_cast<unsigned>((bytes[4] << 8u) | bytes[5]);
+        if (offset == 0u || offset > size || size - offset < 16u)
+            return;
         // MathConstants starts with the two percentage scales, two unsigned
         // heights, then MathValueRecords. AxisHeight follows MathLeading.
         const auto* constants     = bytes + offset;
-        const auto constantsSize  = size - offset;
         const auto first          = Signed16(constants);
         const auto second         = Signed16(constants + 2);
         const auto delimitedUnits = static_cast<unsigned>((constants[4] << 8u) | constants[5]);
         const auto operatorUnits  = static_cast<unsigned>((constants[6] << 8u) | constants[7]);
-        const auto axisUnits      = Signed16(constants + 12);
-        DWRITE_FONT_METRICS metrics{};
-        face->GetMetrics(&metrics);
-        if (metrics.designUnitsPerEm != 0u && size <= 4u * 1024u * 1024u)
-            mathData = std::make_shared<MathFontData>(face.get(), std::span(bytes, static_cast<std::size_t>(size)), metrics.designUnitsPerEm);
-        if (metrics.designUnitsPerEm == 0)
-            return;
         if (first >= 30 && first <= 100)
             scriptScale = static_cast<float>(first) / 100.f;
         if (second >= 20 && second <= 100)
             scriptScriptScale = static_cast<float>(second) / 100.f;
-        const auto delimitedScale = static_cast<float>(delimitedUnits) / static_cast<float>(metrics.designUnitsPerEm);
-        const auto operatorScale  = static_cast<float>(operatorUnits) / static_cast<float>(metrics.designUnitsPerEm);
+        const auto delimitedScale = static_cast<float>(delimitedUnits) / static_cast<float>(mathData->designUnits);
+        const auto operatorScale  = static_cast<float>(operatorUnits) / static_cast<float>(mathData->designUnits);
         if (std::isfinite(delimitedScale) && delimitedScale >= 1.f && delimitedScale <= 4.f)
             delimitedMinimum = delimitedScale;
         if (std::isfinite(operatorScale) && operatorScale >= 1.f && operatorScale <= 4.f)
             displayOperatorMinimum = operatorScale;
+        const MathFontTable table(mathData->table);
         const auto readDesignValue = [&](unsigned valueOffset, float fallback)
         {
-            if (valueOffset + 2u > constantsSize)
+            const auto index = valueOffset / 4u;
+            if (index >= mathData->constants.size() || ! mathData->constantPresent[index])
                 return fallback;
-            const auto value  = Signed16(constants + valueOffset);
-            const auto scaled = font * static_cast<float>(value) / static_cast<float>(metrics.designUnitsPerEm);
-            return std::isfinite(scaled) && scaled >= 0.f && scaled <= font * 2.f ? scaled : fallback;
+            const auto scaled = table.AdjustedValue(mathData->constants[index], font, dpi, mathData->designUnits);
+            return scaled && scaled.value() >= 0.f && scaled.value() <= font * 2.f ? scaled.value() : fallback;
         };
         subscriptShift                  = readDesignValue(24u, subscriptShift);
         superscriptShift                = readDesignValue(36u, superscriptShift);
@@ -256,35 +291,25 @@ class PreparedMath final
         fractionRuleThickness           = readDesignValue(144u, fractionRuleThickness);
         fractionDenominatorGap          = readDesignValue(148u, fractionDenominatorGap);
         fractionDenominatorDisplayGap   = readDesignValue(152u, fractionDenominatorDisplayGap);
-        const auto candidateAxis        = font * static_cast<float>(axisUnits) / static_cast<float>(metrics.designUnitsPerEm);
+        const auto candidateAxis = readDesignValue(12u, axis);
         if (std::isfinite(candidateAxis) && candidateAxis > 0 && candidateAxis < font)
             axis = candidateAxis;
     }
-    // The source belongs to this same factory/generation and uses the same Cambria Math face.
-    // Dimensional constants are em-relative; retain the shared COM font face, and parsed bounded table, never a borrowed table pointer.
+    // Share owned font bytes, but recalculate ppem-specific values for this formula's size and DPI.
     void CopyMathConstants(const PreparedMath& source) noexcept
     {
-        mathData                        = source.mathData;
-        const float ratio               = font / source.font;
-        scriptScale                     = source.scriptScale;
-        scriptScriptScale               = source.scriptScriptScale;
-        delimitedMinimum                = source.delimitedMinimum;
-        displayOperatorMinimum          = source.displayOperatorMinimum;
-        axis                            = source.axis * ratio;
-        subscriptShift                  = source.subscriptShift * ratio;
-        superscriptShift                = source.superscriptShift * ratio;
-        scriptGapMinimum                = source.scriptGapMinimum * ratio;
-        fractionNumeratorShift          = source.fractionNumeratorShift * ratio;
-        fractionDenominatorShift        = source.fractionDenominatorShift * ratio;
-        fractionNumeratorGap            = source.fractionNumeratorGap * ratio;
-        fractionDenominatorGap          = source.fractionDenominatorGap * ratio;
-        fractionNumeratorDisplayShift   = source.fractionNumeratorDisplayShift * ratio;
-        fractionDenominatorDisplayShift = source.fractionDenominatorDisplayShift * ratio;
-        fractionNumeratorDisplayGap     = source.fractionNumeratorDisplayGap * ratio;
-        fractionDenominatorDisplayGap   = source.fractionDenominatorDisplayGap * ratio;
-        fractionRuleThickness           = source.fractionRuleThickness * ratio;
-        upperLimitGap                   = source.upperLimitGap * ratio;
-        lowerLimitGap                   = source.lowerLimitGap * ratio;
+        mathData = source.mathData;
+        ApplyMathConstants();
+    }
+    [[nodiscard]] float MathConstantAt(unsigned valueOffset, float size, float rootValue) const noexcept
+    {
+        const auto fallback = rootValue * size / font;
+        const auto index = valueOffset / 4u;
+        if (! mathData || size == font || index >= mathData->constants.size() || ! mathData->constantPresent[index] ||
+            ! mathData->constants[index].device)
+            return fallback;
+        const auto adjusted = MathFontTable(mathData->table).AdjustedValue(mathData->constants[index], size, dpi, mathData->designUnits);
+        return adjusted && adjusted.value() >= 0.f && adjusted.value() <= size * 2.f ? adjusted.value() : fallback;
     }
     static std::size_t CountAndValidate(const MathNode& root)
     {
@@ -556,8 +581,9 @@ class PreparedMath final
         const auto correction = mathData->corrections[glyph];
         if (correction == MathFontData::MissingCorrection)
             return std::nullopt;
-        const auto scaled = static_cast<float>(correction) * size / static_cast<float>(mathData->designUnits);
-        return std::isfinite(scaled) && std::abs(scaled) <= size * 2.f ? std::optional<float>(scaled) : std::nullopt;
+        const MathFontTable::ValueRecord record{static_cast<std::int16_t>(correction), mathData->correctionDevices[glyph]};
+        const auto scaled = MathFontTable(mathData->table).AdjustedValue(record, size, dpi, mathData->designUnits);
+        return scaled && std::abs(scaled.value()) <= size * 2.f ? scaled : std::nullopt;
     }
     float ItalicCorrection(std::size_t index) const noexcept
     {
@@ -702,14 +728,15 @@ class PreparedMath final
             if (node.kind == Fraction && node.children.size() == 2u)
             {
                 const auto top = child(0u), bottom = child(1u);
-                const float scale     = box.size / font;
-                const float rule      = std::max(1.f, fractionRuleThickness * scale);
-                const float topGap    = (box.display ? fractionNumeratorDisplayGap : fractionNumeratorGap) * scale;
-                const float bottomGap = (box.display ? fractionDenominatorDisplayGap : fractionDenominatorGap) * scale;
+                const float axisAtSize = MathConstantAt(12u, box.size, axis);
+                const float rule      = std::max(1.f, MathConstantAt(144u, box.size, fractionRuleThickness));
+                const float topGap    = MathConstantAt(box.display ? 140u : 136u, box.size, box.display ? fractionNumeratorDisplayGap : fractionNumeratorGap);
+                const float bottomGap = MathConstantAt(box.display ? 152u : 148u, box.size, box.display ? fractionDenominatorDisplayGap : fractionDenominatorGap);
                 const float topShift =
-                    std::max((box.display ? fractionNumeratorDisplayShift : fractionNumeratorShift) * scale, axis * scale + top.below + topGap + rule * .5f);
-                const float bottomShift = std::max((box.display ? fractionDenominatorDisplayShift : fractionDenominatorShift) * scale,
-                                                   bottom.above + bottomGap + rule * .5f - axis * scale);
+                    std::max(MathConstantAt(box.display ? 124u : 120u, box.size, box.display ? fractionNumeratorDisplayShift : fractionNumeratorShift),
+                             axisAtSize + top.below + topGap + rule * .5f);
+                const float bottomShift = std::max(MathConstantAt(box.display ? 132u : 128u, box.size, box.display ? fractionDenominatorDisplayShift : fractionDenominatorShift),
+                                                   bottom.above + bottomGap + rule * .5f - axisAtSize);
                 box.extent              = {std::max(top.width, bottom.width) + box.size * .4f, topShift + top.above, bottomShift + bottom.below};
                 continue;
             }
@@ -729,16 +756,14 @@ class PreparedMath final
                     (baseNode.limits == MathLimits::AboveBelow) || (baseNode.limits == MathLimits::Automatic && baseNode.displayLimits && box.display);
                 if (limitsAboveBelow)
                 {
-                    const float scale = box.size / font;
                     box.extent        = {std::max({base.width, sub.width, super.width}) + box.size * .1f,
-                                         base.above + (super.width > 0.f ? super.below + super.above + upperLimitGap * scale : 0.f),
-                                         base.below + (sub.width > 0.f ? sub.above + sub.below + lowerLimitGap * scale : 0.f)};
+                                         base.above + (super.width > 0.f ? super.below + super.above + MathConstantAt(64u, box.size, upperLimitGap) : 0.f),
+                                         base.below + (sub.width > 0.f ? sub.above + sub.below + MathConstantAt(72u, box.size, lowerLimitGap) : 0.f)};
                     continue;
                 }
-                const float scale        = box.size / font;
-                const float scriptGap    = scriptGapMinimum * scale;
-                const float subShift     = std::max(subscriptShift * scale, base.below + box.size * .12f);
-                const float superShift   = std::max(superscriptShift * scale, base.above - box.size * .08f);
+                const float scriptGap    = MathConstantAt(52u, box.size, scriptGapMinimum);
+                const float subShift     = std::max(MathConstantAt(24u, box.size, subscriptShift), base.below + box.size * .12f);
+                const float superShift   = std::max(MathConstantAt(36u, box.size, superscriptShift), base.above - box.size * .08f);
                 const float availableGap = superShift + subShift - super.below - sub.above;
                 const float extra        = std::max(0.f, (scriptGap - availableGap) / 2.f);
                 const auto baseIndex     = ChildAt(reverse, 0u);
@@ -791,7 +816,7 @@ class PreparedMath final
                 if (leftVisible || rightVisible)
                 {
                     const float minimumHeight = box.size * delimitedMinimum;
-                    const float axisOffset    = axis * box.size / font;
+                    const float axisOffset    = MathConstantAt(12u, box.size, axis);
                     box.extent.above          = std::max(box.extent.above, minimumHeight * .5f + axisOffset);
                     box.extent.below          = std::max(box.extent.below, std::max(0.f, minimumHeight * .5f - axisOffset));
                 }
@@ -805,7 +830,7 @@ class PreparedMath final
                     continue;
                 }
                 const float height     = box.size * (0.9f + 0.3f * static_cast<float>(node.delimiterSize));
-                const float axisOffset = axis * box.size / font;
+                const float axisOffset = MathConstantAt(12u, box.size, axis);
                 box.extent             = {box.size * (node.delimiterSize == 1u   ? .45f
                                                       : node.delimiterSize == 2u ? .65f
                                                       : node.delimiterSize == 3u ? .8f
@@ -1096,15 +1121,16 @@ class PreparedMath final
         if (node.kind == Fraction && node.children.size() == 2u)
         {
             const auto top = boxes[ChildAt(index, 0u)].extent, bottom = boxes[ChildAt(index, 1u)].extent;
-            const float scale      = box.size / font;
-            const float scaledRule = std::max(1.f, fractionRuleThickness * scale);
-            const float topGap     = (box.display ? fractionNumeratorDisplayGap : fractionNumeratorGap) * scale;
-            const float bottomGap  = (box.display ? fractionDenominatorDisplayGap : fractionDenominatorGap) * scale;
+            const float axisAtSize = MathConstantAt(12u, box.size, axis);
+            const float scaledRule = std::max(1.f, MathConstantAt(144u, box.size, fractionRuleThickness));
+            const float topGap = MathConstantAt(box.display ? 140u : 136u, box.size, box.display ? fractionNumeratorDisplayGap : fractionNumeratorGap);
+            const float bottomGap = MathConstantAt(box.display ? 152u : 148u, box.size, box.display ? fractionDenominatorDisplayGap : fractionDenominatorGap);
             const float topShift =
-                std::max((box.display ? fractionNumeratorDisplayShift : fractionNumeratorShift) * scale, axis * scale + top.below + topGap + scaledRule * .5f);
-            const float bottomShift = std::max((box.display ? fractionDenominatorDisplayShift : fractionDenominatorShift) * scale,
-                                               bottom.above + bottomGap + scaledRule * .5f - axis * scale);
-            const float ruleY       = baseline - axis * scale;
+                std::max(MathConstantAt(box.display ? 124u : 120u, box.size, box.display ? fractionNumeratorDisplayShift : fractionNumeratorShift),
+                         axisAtSize + top.below + topGap + scaledRule * .5f);
+            const float bottomShift = std::max(MathConstantAt(box.display ? 132u : 128u, box.size, box.display ? fractionDenominatorDisplayShift : fractionDenominatorShift),
+                                               bottom.above + bottomGap + scaledRule * .5f - axisAtSize);
+            const float ruleY = baseline - axisAtSize;
             Place(ChildAt(index, 0u), x + (box.extent.width - top.width) / 2.f, baseline - topShift);
             Place(ChildAt(index, 1u), x + (box.extent.width - bottom.width) / 2.f, baseline + bottomShift);
             Stroke(x + 2.f, ruleY, x + box.extent.width - 2.f, ruleY, scaledRule);
@@ -1134,9 +1160,8 @@ class PreparedMath final
             {
                 const float center           = x + box.extent.width / 2.f;
                 const float baseX            = center - base.width / 2.f;
-                const float scale            = box.size / font;
-                const float baseAboveShift   = base.above + upperLimitGap * scale;
-                const float baseBelowShift   = base.below + lowerLimitGap * scale;
+                const float baseAboveShift   = base.above + MathConstantAt(64u, box.size, upperLimitGap);
+                const float baseBelowShift   = base.below + MathConstantAt(72u, box.size, lowerLimitGap);
                 const float italicCorrection = ItalicCorrection(baseIndex) * .75f;
                 Place(baseIndex, baseX, baseline);
                 if (boxes[super].extent.width > 0.f)
@@ -1145,10 +1170,10 @@ class PreparedMath final
                     Place(sub, center - boxes[sub].extent.width / 2.f - italicCorrection / 2.f, baseline + baseBelowShift + boxes[sub].extent.above);
                 return;
             }
-            const float scale      = box.size / font;
-            const float subShift   = std::max(subscriptShift * scale, base.below + box.size * .12f);
-            const float superShift = std::max(superscriptShift * scale, base.above - box.size * .08f);
-            const float gapNeed    = scriptGapMinimum * scale - (superShift + subShift - boxes[super].extent.below - boxes[sub].extent.above);
+            const float subShift   = std::max(MathConstantAt(24u, box.size, subscriptShift), base.below + box.size * .12f);
+            const float superShift = std::max(MathConstantAt(36u, box.size, superscriptShift), base.above - box.size * .08f);
+            const float gapNeed = MathConstantAt(52u, box.size, scriptGapMinimum) -
+                                  (superShift + subShift - boxes[super].extent.below - boxes[sub].extent.above);
             const float correction = std::max(0.f, gapNeed / 2.f);
             Place(baseIndex, x, baseline);
             Place(sub, x + ScriptBaseAdvance(baseIndex), baseline + subShift + correction);
@@ -1363,7 +1388,8 @@ class PreparedMath final
     }
 
 public:
-    PreparedMath(IDWriteFactory* write, std::shared_ptr<const MathExpression> value, float size, bool display = false, const PreparedMath* constants = nullptr)
+    PreparedMath(IDWriteFactory* write, std::shared_ptr<const MathExpression> value, float size, bool display = false,
+                 const PreparedMath* constants = nullptr, float deviceDpi = 96.f)
         : expression(std::move(value)),
           factory(write),
           glyphs(0u),
@@ -1371,9 +1397,11 @@ public:
           lines(0u),
           variants(0u),
           font(size),
+          dpi(deviceDpi),
           displayStyle(display)
     {
-        if (! expression || ! *expression || ! std::isfinite(size) || size <= 0.f || size > 4096.f || ! write)
+        if (! expression || ! *expression || ! std::isfinite(size) || size <= 0.f || size > 4096.f ||
+            ! std::isfinite(deviceDpi) || deviceDpi <= 0.f || deviceDpi > 4096.f || ! write)
             throw std::invalid_argument("Invalid mathematical preparation request");
 #if DXUI_ENABLE_DIAGNOSTICS
         ++testRichMathPreparations;
