@@ -961,7 +961,23 @@ class MarkdownInlines
                                                 std::optional<std::size_t> knownEnd = std::nullopt,
                                                 std::size_t* work                   = nullptr) const noexcept
     {
-        const auto end = knownEnd ? knownEnd.value() : text_.find(L'>', start + 1u);
+        auto end = knownEnd.value_or(std::wstring::npos);
+        if (! knownEnd)
+        {
+            for (auto i = start + 1u; i < text_.size(); ++i)
+            {
+                if (work)
+                    ++*work;
+                const auto c = text_[i];
+                if (c == L'>')
+                {
+                    end = i;
+                    break;
+                }
+                if (c <= L' ' || c == L'<' || c == 127)
+                    return std::nullopt;
+            }
+        }
         if (end == std::wstring::npos)
             return std::nullopt;
         const auto content = std::wstring_view(text_).substr(start + 1u, end - start - 1u);
@@ -999,7 +1015,7 @@ class MarkdownInlines
     }
     bool AngleAutolink()
     {
-        const auto found = AngleAutolinkEnd(cursor_);
+        const auto found = AngleAutolinkEnd(cursor_, std::nullopt, &autolinkInspectionUnits_);
         if (! found)
             return false;
         const auto end           = found.value();

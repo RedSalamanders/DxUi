@@ -112,6 +112,20 @@ template <typename Check> inline void ParserBounds(Check&& check)
         check(static_cast<std::size_t>(std::ranges::count(syntax->Inlines(), MarkdownInlineKind::Link, &MarkdownInline::kind)) == expectedLinks[index],
               "bounded autolink preparation preserves the independently specified rejected-host and final-email results");
     }
+    std::wstring angles(L"x ");
+    for (std::size_t index = 0u; index < 16000u; ++index)
+        angles.append(L"<a ");
+    angles.append(L"<https://example.invalid>");
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+    {
+        parser.Begin(angles, 20u, profile);
+        const auto syntax = Complete(parser, check);
+        check(syntax->InlineStatistics().autolinkInspectionUnits >= 32000u &&
+                  syntax->InlineStatistics().autolinkInspectionUnits <= angles.size() * 8u,
+              "rejected angle autolinks inspect only their own invalid prefix");
+        check(std::ranges::count(syntax->Inlines(), MarkdownInlineKind::Link, &MarkdownInline::kind) == 1,
+              "bounded angle search still recognizes a following valid autolink");
+    }
 }
 template <typename Editor, typename Host, typename Prepare, typename Check>
 inline void EditorFallback(Editor& editor, Host& host, Prepare&& prepare, Check&& check)

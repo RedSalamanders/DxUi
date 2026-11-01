@@ -1029,6 +1029,8 @@ checks or provide generated-object/footnote semantic anchors.
 
 In a GFM table cell, an escaped pipe is one displayed character whose inline
 source range includes both the backslash and the pipe, including inside code spans.
+Angle-autolink recognition stops at the first forbidden whitespace, control, or
+nested angle opener, so repeated rejected prefixes do not rescan the remaining leaf.
 
 RichMarkdown additionally enables `==highlight==`, `^superscript^`,
 `~subscript~` and `++inserted++`; `~~strike~~` remains GFM strikethrough.
