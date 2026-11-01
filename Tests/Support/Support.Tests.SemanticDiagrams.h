@@ -190,7 +190,7 @@ template <typename Check> inline void Core(Check&& check)
         for (std::size_t index = 0u; index < 126u; ++index)
             source.append(L"$x$ ");
         source.append(L"\n\n").append(scenarios[0u].source).append(L"\n![one](one.png) ![extra](extra.png \"Caption\") <img src='other.png' alt='other'>\n");
-        const auto mixed = Build(source, check);
+        const auto mixed  = Build(source, check);
         const auto images = SemanticExtensionAccess::Images(*mixed);
         check(SemanticExtensionAccess::Maths(*mixed).size() == 126u && SemanticExtensionAccess::Diagrams(*mixed).size() == 1u && images.size() == 1u &&
                   mixed->Diagnostics().size() == 2u && mixed->Map().Source() == source,
@@ -199,7 +199,8 @@ template <typename Check> inline void Core(Check&& check)
             check(diagnostic.kind == SemanticDiagnosticKind::ImageCapacity && diagnostic.element < mixed->Elements().size() &&
                       mixed->Elements()[diagnostic.element].role == SemanticRole::Image && diagnostic.source.first < diagnostic.source.last,
                   "each over-capacity image reports its own source-ranged image diagnostic");
-        const auto extra = std::ranges::find_if(mixed->Elements(), [](const auto& element) { return element.role == SemanticRole::Image && element.name == L"extra"; });
+        const auto extra =
+            std::ranges::find_if(mixed->Elements(), [](const auto& element) { return element.role == SemanticRole::Image && element.name == L"extra"; });
         check(extra != mixed->Elements().end() && extra->title == L"Caption" && mixed->Map().Display().find(L"[image: extra]") != std::wstring::npos,
               "over-capacity image preserves its authored title and visible alternative");
     }
@@ -208,9 +209,8 @@ template <typename Check> inline void Core(Check&& check)
         for (std::size_t index = 0u; index < SemanticExtensions::MaximumObjects; ++index)
             source.append(L"![x](x.png) ");
         const auto mixed = Build(source, check);
-        check(SemanticExtensionAccess::Images(*mixed).size() == SemanticExtensions::MaximumObjects &&
-                  SemanticExtensionAccess::Maths(*mixed).empty() && mixed->Diagnostics().size() == 1u &&
-                  mixed->Diagnostics()[0u].kind == SemanticDiagnosticKind::UnsupportedMath,
+        check(SemanticExtensionAccess::Images(*mixed).size() == SemanticExtensions::MaximumObjects && SemanticExtensionAccess::Maths(*mixed).empty() &&
+                  mixed->Diagnostics().size() == 1u && mixed->Diagnostics()[0u].kind == SemanticDiagnosticKind::UnsupportedMath,
               "rejected math consumes no admitted-object slot");
     }
     const auto large = Build(L"```mermaid\n" + std::wstring(NativeFlowchartParser::MaximumSourceUnits + 1u, L' ') + L"\n```\n", check);

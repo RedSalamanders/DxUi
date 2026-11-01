@@ -639,8 +639,9 @@ template <typename Check> inline void GroupRaster(Check&& check)
         for (const auto direction : {L"TD", L"BT", L"LR", L"RL"})
         {
             const auto source = family == 1u ? std::wstring(L"stateDiagram-v2\ndirection ") + direction + L"\nstate Outer {\nstate Inner {\nA-->B\n}\n}\n"
-                                : family == 2u ? std::wstring(L"classDiagram\ndirection ") + direction + L"\nnamespace Outer {\nnamespace Inner {\nA-->B\n}\n}\n"
-                                               : std::wstring(L"graph ") + direction + L"\nsubgraph O[Outer]\nsubgraph I[Inner]\nA-->B\nend\nend\n";
+                                : family == 2u
+                                    ? std::wstring(L"classDiagram\ndirection ") + direction + L"\nnamespace Outer {\nnamespace Inner {\nA-->B\n}\n}\n"
+                                    : std::wstring(L"graph ") + direction + L"\nsubgraph O[Outer]\nsubgraph I[Inner]\nA-->B\nend\nend\n";
             const auto graph  = FlowchartLayoutTests::Graph(source);
             PreparedFlowchart prepared;
             prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
@@ -695,13 +696,14 @@ template <typename Check> inline void GroupRaster(Check&& check)
         wil::com_ptr<IWICBitmap> bitmap;
         THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
         wil::com_ptr<ID2D1RenderTarget> target;
-        const auto properties = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
-                                                               D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+        const auto properties =
+            D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
         THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
         wil::com_ptr<ID2D1SolidColorBrush> brush, fill;
         THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), brush.put()));
         THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
-        target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(D2D1::ColorF::White));
         check(gridPaint.Draw(target.get(), brush.get(), brush.get(), fill.get(), {}), "group grid paints");
         THROW_IF_FAILED(target->EndDraw());
         std::vector<BYTE> pixels(stride * height);
@@ -729,10 +731,16 @@ template <typename Check> inline void GroupRaster(Check&& check)
 template <typename Check> inline void SequenceRaster(Check&& check)
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) THROW_IF_FAILED(initialized);
-    const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
-    const auto graph = FlowchartLayoutTests::Graph(L"sequenceDiagram\nparticipant A as Alpha\nparticipant B as Beta\nA->>B: hello\nB-->>A: reply\nA-)A: later\n");
-    const auto write = WriteFactory();
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    const auto graph =
+        FlowchartLayoutTests::Graph(L"sequenceDiagram\nparticipant A as Alpha\nparticipant B as Beta\nA->>B: hello\nB-->>A: reply\nA-)A: later\n");
+    const auto write   = WriteFactory();
     const auto drawing = DrawingFactory();
     PreparedFlowchart prepared;
     prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
@@ -740,21 +748,23 @@ template <typename Check> inline void SequenceRaster(Check&& check)
     const auto geometry = prepared.Geometry();
     check(prepared.Ready() && geometry && geometry->nodes.size() == 2u && geometry->edges.size() == 3u,
           "sequence participants and messages prepare as a native timeline");
-    if (! prepared.Ready() || ! geometry || geometry->nodes.size() != 2u || geometry->edges.size() != 3u) return;
+    if (! prepared.Ready() || ! geometry || geometry->nodes.size() != 2u || geometry->edges.size() != 3u)
+        return;
     wil::com_ptr<IWICImagingFactory> imaging;
     THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
     constexpr UINT width = 600u, height = 400u, stride = width * 4u;
     wil::com_ptr<IWICBitmap> bitmap;
     THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
     wil::com_ptr<ID2D1RenderTarget> target;
-    const auto properties = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
-                                                           D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+    const auto properties =
+        D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
     THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
     wil::com_ptr<ID2D1SolidColorBrush> text, stroke, fill;
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
-    target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+    target->BeginDraw();
+    target->Clear(D2D1::ColorF(D2D1::ColorF::White));
     check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}), "native sequence timeline paints");
     THROW_IF_FAILED(target->EndDraw());
     std::vector<BYTE> pixels(stride * height);
@@ -767,7 +777,8 @@ template <typename Check> inline void SequenceRaster(Check&& check)
                 if (x + dx >= 0 && y + dy >= 0 && x + dx < static_cast<int>(width) && y + dy < static_cast<int>(height))
                 {
                     const auto offset = static_cast<std::size_t>(y + dy) * stride + static_cast<std::size_t>(x + dx) * 4u;
-                    if (pixels[offset] > 150u && pixels[offset + 1u] < 100u && pixels[offset + 2u] < 100u) return true;
+                    if (pixels[offset] > 150u && pixels[offset + 1u] < 100u && pixels[offset + 2u] < 100u)
+                        return true;
                 }
         return false;
     };
@@ -777,7 +788,7 @@ template <typename Check> inline void SequenceRaster(Check&& check)
     check(loop.openArrow && blueNear((loop.arrow[0u].x + loop.arrow[1u].x) / 2.0, (loop.arrow[0u].y + loop.arrow[1u].y) / 2.0),
           "open asynchronous self-message arrowhead has visible raster ink");
     const auto& participant = geometry->nodes[0u].bounds;
-    const auto lifelineX = participant.x + participant.width / 2.0;
+    const auto lifelineX    = participant.x + participant.width / 2.0;
     std::size_t lifelineInk{};
     for (double y = participant.y + participant.height + 2.0; y < participant.y + participant.height + 18.0; y += 2.0)
         lifelineInk += blueNear(lifelineX, y);
@@ -805,9 +816,18 @@ template <typename Check> inline void SequenceRaster(Check&& check)
             const std::vector<FlowchartSize> groups(invalid->groups.size());
             layout.Begin(invalid, nodeSizes, edgeSizes, {}, {}, groups);
         }
-        catch (const std::invalid_argument&) { layoutRejected = true; }
-        try { prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u}); }
-        catch (const std::invalid_argument&) { paintRejected = true; }
+        catch (const std::invalid_argument&)
+        {
+            layoutRejected = true;
+        }
+        try
+        {
+            prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u});
+        }
+        catch (const std::invalid_argument&)
+        {
+            paintRejected = true;
+        }
         check(layoutRejected && paintRejected && prepared.Ready() && prepared.Geometry() == published,
               "layout and paint reject forged sequence models while preserving the prior publication");
     }
@@ -828,52 +848,53 @@ template <typename Check> inline void StateNoteRaster(Check&& check)
     THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
     for (const auto direction : {L"TD", L"BT", L"LR", L"RL"})
         for (const bool left : {false, true})
-          for (const bool classNote : {false, true})
-        {
-            if (classNote && ! left) continue;
-            const auto source = classNote ? std::wstring(L"classDiagram\ndirection ") + direction + L"\nclass S\nnote for S \"hello\"\n"
-                                          : std::wstring(L"stateDiagram-v2\ndirection ") + direction + L"\nS\n" +
-                                                (left ? L"note left of S\nhello\nworld\nend note\n" : L"note right of S: hello\n");
-            const auto graph = FlowchartLayoutTests::Graph(source);
-            PreparedFlowchart prepared;
-            prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
-            Complete(prepared, check);
-            const auto geometry = prepared.Geometry();
-            check(prepared.Ready() && geometry && geometry->nodes.size() == 2u && geometry->edges.size() == 1u, "state note prepares in every orientation");
-            if (! geometry || geometry->nodes.size() != 2u || geometry->edges.size() != 1u)
-                continue;
-            const auto state = geometry->nodes[0].bounds, note = geometry->nodes[1].bounds;
-            check(left ? note.x + note.width < state.x : note.x > state.x + state.width, "state note is on the authored physical side of its state");
-            check(geometry->edges[0].relation == FlowchartRelation::Note && geometry->edges[0].style == FlowchartLineStyle::Dotted,
-                  "state note has a dotted attachment");
-            constexpr UINT width = 600u, height = 300u, stride = width * 4u;
-            wil::com_ptr<IWICBitmap> bitmap;
-            THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
-            wil::com_ptr<ID2D1RenderTarget> target;
-            const auto properties =
-                D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
-            THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
-            target->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
-            wil::com_ptr<ID2D1SolidColorBrush> text, stroke, fill;
-            THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
-            THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
-            THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
-            target->BeginDraw();
-            target->Clear(D2D1::ColorF(D2D1::ColorF::White));
-            check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}), "state note fixture paints");
-            THROW_IF_FAILED(target->EndDraw());
-            std::vector<BYTE> pixels(stride * height);
-            THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
-            const auto label = geometry->nodes[1].label;
-            std::size_t ink{};
-            for (UINT y = static_cast<UINT>(label.y); y < std::min(height, static_cast<UINT>(std::ceil(label.y + label.height))); ++y)
-                for (UINT x = static_cast<UINT>(label.x); x < std::min(width, static_cast<UINT>(std::ceil(label.x + label.width))); ++x)
-                {
-                    const auto at = static_cast<std::size_t>(y) * stride + x * 4u;
-                    ink += pixels[at] < 80u && pixels[at + 1u] < 80u && pixels[at + 2u] < 80u;
-                }
-            check(ink != 0u, "state note contains visible text ink");
-        }
+            for (const bool classNote : {false, true})
+            {
+                if (classNote && ! left)
+                    continue;
+                const auto source = classNote ? std::wstring(L"classDiagram\ndirection ") + direction + L"\nclass S\nnote for S \"hello\"\n"
+                                              : std::wstring(L"stateDiagram-v2\ndirection ") + direction + L"\nS\n" +
+                                                    (left ? L"note left of S\nhello\nworld\nend note\n" : L"note right of S: hello\n");
+                const auto graph  = FlowchartLayoutTests::Graph(source);
+                PreparedFlowchart prepared;
+                prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
+                Complete(prepared, check);
+                const auto geometry = prepared.Geometry();
+                check(prepared.Ready() && geometry && geometry->nodes.size() == 2u && geometry->edges.size() == 1u, "state note prepares in every orientation");
+                if (! geometry || geometry->nodes.size() != 2u || geometry->edges.size() != 1u)
+                    continue;
+                const auto state = geometry->nodes[0].bounds, note = geometry->nodes[1].bounds;
+                check(left ? note.x + note.width < state.x : note.x > state.x + state.width, "state note is on the authored physical side of its state");
+                check(geometry->edges[0].relation == FlowchartRelation::Note && geometry->edges[0].style == FlowchartLineStyle::Dotted,
+                      "state note has a dotted attachment");
+                constexpr UINT width = 600u, height = 300u, stride = width * 4u;
+                wil::com_ptr<IWICBitmap> bitmap;
+                THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+                wil::com_ptr<ID2D1RenderTarget> target;
+                const auto properties = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
+                                                                     D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+                THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
+                target->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
+                wil::com_ptr<ID2D1SolidColorBrush> text, stroke, fill;
+                THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
+                THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
+                THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
+                target->BeginDraw();
+                target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+                check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}), "state note fixture paints");
+                THROW_IF_FAILED(target->EndDraw());
+                std::vector<BYTE> pixels(stride * height);
+                THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+                const auto label = geometry->nodes[1].label;
+                std::size_t ink{};
+                for (UINT y = static_cast<UINT>(label.y); y < std::min(height, static_cast<UINT>(std::ceil(label.y + label.height))); ++y)
+                    for (UINT x = static_cast<UINT>(label.x); x < std::min(width, static_cast<UINT>(std::ceil(label.x + label.width))); ++x)
+                    {
+                        const auto at = static_cast<std::size_t>(y) * stride + x * 4u;
+                        ink += pixels[at] < 80u && pixels[at + 1u] < 80u && pixels[at + 2u] < 80u;
+                    }
+                check(ink != 0u, "state note contains visible text ink");
+            }
     const auto standalone = FlowchartLayoutTests::Graph(L"classDiagram\nnote \"Visible standalone note\"\n");
     PreparedFlowchart note;
     note.Begin(write.get(), drawing.get(), standalone, {}, {1u, 1u});
@@ -886,8 +907,8 @@ template <typename Check> inline void StateNoteRaster(Check&& check)
         wil::com_ptr<IWICBitmap> bitmap;
         THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
         wil::com_ptr<ID2D1RenderTarget> target;
-        const auto properties = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
-                                                               D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+        const auto properties =
+            D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
         THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
         wil::com_ptr<ID2D1SolidColorBrush> brush, fill;
         THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), brush.put()));

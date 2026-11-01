@@ -441,8 +441,8 @@ static void TestRichImageRasterFailureAndBudgets()
         }
     Check(measured == 129u, "native placement capacity never removes source images");
     const auto unsupportedBefore = calls.uploads;
-    calls.failure = D2DERR_UNSUPPORTED_OPERATION;
-    calls.failAt = calls.uploads;
+    calls.failure                = D2DERR_UNSUPPORTED_OPERATION;
+    calls.failAt                 = calls.uploads;
     geometry.Begin(write.get(), maximum, options, drawing.get(), {++epoch, epoch}, resources.Snapshot(), target.get());
     finish();
     Check(calls.uploads - unsupportedBefore == 1u && maximum->Map().Source() == source,

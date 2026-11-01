@@ -142,14 +142,15 @@ void TestRichSemanticNativeRenderingAdmissionFallback()
     AttachedHostWindow window;
     RichSemanticTests::Run([&]
     {
-        RichSemanticEditorTests::RenderingAdmissionFallback(
-            window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native semantic admission fallback"); },
-            [&](UINT dpi)
-            {
-                bool handled{};
-                static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_DPICHANGED, MAKEWPARAM(dpi, dpi), 0, handled));
-                Require(handled && PrepareNativeContentForTests(window.Host()), "prepare native fallback at changed DPI");
-            });
+        RichSemanticEditorTests::RenderingAdmissionFallback(window.Host(),
+                                                            [&]
+        { Require(PrepareNativeContentForTests(window.Host()), "prepare native semantic admission fallback"); },
+                                                            [&](UINT dpi)
+        {
+            bool handled{};
+            static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_DPICHANGED, MAKEWPARAM(dpi, dpi), 0, handled));
+            Require(handled && PrepareNativeContentForTests(window.Host()), "prepare native fallback at changed DPI");
+        });
     });
 }
 } // namespace

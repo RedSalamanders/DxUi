@@ -224,52 +224,66 @@ struct NativeFlowchartLayout::Preparation
         if (cursor == plan->nodes.size())
         {
             sequenceWidth = sequenceX - (plan->nodes.empty() ? 0.0 : sequenceGap);
-            sequenceY = Margin + sequenceHeader + 24.0;
+            sequenceY     = Margin + sequenceHeader + 24.0;
             Then(Stage::SequenceEdges);
             return;
         }
         const auto index = cursor++;
-        auto& node = plan->nodes[index];
-        node.bounds.x = sequenceX;
-        node.bounds.y = Margin + (sequenceHeader - node.bounds.height) / 2.0;
-        node.label = {node.bounds.x + (node.bounds.width - nodeLabels[index].width) / 2.0,
-                      node.bounds.y + (node.bounds.height - nodeLabels[index].height) / 2.0,
-                      nodeLabels[index].width, nodeLabels[index].height};
+        auto& node       = plan->nodes[index];
+        node.bounds.x    = sequenceX;
+        node.bounds.y    = Margin + (sequenceHeader - node.bounds.height) / 2.0;
+        node.label       = {node.bounds.x + (node.bounds.width - nodeLabels[index].width) / 2.0,
+                            node.bounds.y + (node.bounds.height - nodeLabels[index].height) / 2.0,
+                            nodeLabels[index].width,
+                            nodeLabels[index].height};
         sequenceX += node.bounds.width + sequenceGap;
-        if (sequenceX > MaximumExtent) Fail(FlowchartLayoutIssue::DiagramExtent);
+        if (sequenceX > MaximumExtent)
+            Fail(FlowchartLayoutIssue::DiagramExtent);
     }
     void SequenceEdges()
     {
         if (cursor == graph->edges.size())
         {
             plan->extent = {sequenceWidth + Margin, sequenceY + Margin};
-            if (! Valid(plan->extent)) { Fail(FlowchartLayoutIssue::DiagramExtent); return; }
+            if (! Valid(plan->extent))
+            {
+                Fail(FlowchartLayoutIssue::DiagramExtent);
+                return;
+            }
             Then(Stage::Finish);
             return;
         }
-        const auto index = cursor++;
-        const auto& edge = graph->edges[index];
-        const auto& from = plan->nodes[edge.from].bounds;
-        const auto& to = plan->nodes[edge.to].bounds;
+        const auto index   = cursor++;
+        const auto& edge   = graph->edges[index];
+        const auto& from   = plan->nodes[edge.from].bounds;
+        const auto& to     = plan->nodes[edge.to].bounds;
         const double fromX = from.x + from.width / 2.0, toX = to.x + to.width / 2.0;
-        const auto label = edgeLabels[index];
+        const auto label   = edgeLabels[index];
         const double lineY = sequenceY + label.height + 6.0;
-        const bool self = edge.from == edge.to;
+        const bool self    = edge.from == edge.to;
         FlowchartPlacedEdge placed;
-        placed.route = self ? FlowchartRoute::Self : FlowchartRoute::Forward;
-        placed.relation = edge.relation; placed.style = edge.style; placed.hasArrow = true; placed.hasLabel = true; placed.openArrow = edge.openArrow;
+        placed.route      = self ? FlowchartRoute::Self : FlowchartRoute::Forward;
+        placed.relation   = edge.relation;
+        placed.style      = edge.style;
+        placed.hasArrow   = true;
+        placed.hasLabel   = true;
+        placed.openArrow  = edge.openArrow;
         const double endY = self ? lineY + 20.0 : lineY;
         if (self)
             placed.path = {{{fromX, lineY}, {fromX + 24.0, lineY}, {fromX + 24.0, endY}, {toX, endY}, {toX, endY}, {toX, endY}}};
         else
             placed.path = {{{fromX, lineY}, {fromX, lineY}, {fromX, lineY}, {toX, lineY}, {toX, lineY}, {toX, lineY}}};
         const double arrowBase = toX + (self || toX < fromX ? 8.0 : -8.0);
-        placed.arrow = {{{toX, endY}, {arrowBase, endY - 4.0}, {arrowBase, endY + 4.0}}};
-        const double labelX = self ? fromX + 8.0 : (fromX + toX - label.width) / 2.0;
-        placed.label = {labelX, sequenceY, label.width, label.height};
-        sequenceWidth = std::max(sequenceWidth, std::max(labelX + label.width, self ? fromX + 24.0 : toX));
-        sequenceY = endY + 24.0;
-        if (sequenceWidth + Margin > MaximumExtent || sequenceY + Margin > MaximumExtent) { Fail(FlowchartLayoutIssue::DiagramExtent); return; }
+        placed.arrow           = {{{toX, endY}, {arrowBase, endY - 4.0}, {arrowBase, endY + 4.0}}};
+        const double labelX    = self ? fromX + 8.0 : (fromX + toX - label.width) / 2.0;
+        placed.label           = {labelX, sequenceY, label.width, label.height};
+        sequenceWidth          = std::max(sequenceWidth, std::max(labelX + label.width, self ? fromX + 24.0 : toX));
+        sequenceY              = endY + 24.0;
+        if (sequenceWidth + Margin > MaximumExtent || sequenceY + Margin > MaximumExtent)
+        {
+            Fail(FlowchartLayoutIssue::DiagramExtent);
+            return;
+        }
         plan->edges.push_back(placed);
     }
     void Adjacency()
@@ -368,25 +382,26 @@ struct NativeFlowchartLayout::Preparation
                 // independent group can align its columns without merging
                 // unrelated group bounds. Model indices remain unchanged.
                 const auto groupCount = graph->groups.size();
-                alignedGroups = groupCount > 1u && graph->nodes.size() == 2u * groupCount && ! hasNotes &&
-                                rowCount[0u] == groupCount && rowCount[1u] == groupCount;
+                alignedGroups =
+                    groupCount > 1u && graph->nodes.size() == 2u * groupCount && ! hasNotes && rowCount[0u] == groupCount && rowCount[1u] == groupCount;
                 groupColumns.fill(NoIndex);
                 for (std::size_t group = 0u; alignedGroups && group < groupCount; ++group)
                 {
-                    alignedGroups = graph->groups[group].parentMask == 0u;
+                    alignedGroups           = graph->groups[group].parentMask == 0u;
                     groupColumnWidth[group] = Cross(groupLabels[group]);
                 }
                 for (std::size_t node = 0u; alignedGroups && node < graph->nodes.size(); ++node)
                 {
                     const auto mask = graph->nodes[node].groupMask;
                     std::size_t group{};
-                    while (group < groupCount && mask != static_cast<std::uint16_t>(1u << group)) ++group;
+                    while (group < groupCount && mask != static_cast<std::uint16_t>(1u << group))
+                        ++group;
                     alignedGroups = group < groupCount && rank[node] < 2u;
                     if (alignedGroups)
                     {
-                        const auto slot = rank[node] * groupCount + group;
-                        alignedGroups = groupColumns[slot] == NoIndex;
-                        groupColumns[slot] = node;
+                        const auto slot         = rank[node] * groupCount + group;
+                        alignedGroups           = groupColumns[slot] == NoIndex;
+                        groupColumns[slot]      = node;
                         groupColumnWidth[group] = std::max(groupColumnWidth[group], plan->nodes[node].bounds.width);
                     }
                 }
@@ -528,12 +543,13 @@ struct NativeFlowchartLayout::Preparation
             return;
         }
         const auto position = cursor++;
-        const auto index = alignedGroups ? groupColumns[position]
-                           : alignedPairs && position >= graph->edges.size() ? pairTargets[position - graph->edges.size()] : position;
-        auto& node       = plan->nodes[index];
-        node.rank        = rank[index];
-        node.bounds.x    = rowCursor[node.rank];
-        node.bounds.y    = rowTop[node.rank] + (rowHeight[node.rank] - node.bounds.height) / 2.0;
+        const auto index    = alignedGroups                                     ? groupColumns[position]
+                              : alignedPairs && position >= graph->edges.size() ? pairTargets[position - graph->edges.size()]
+                                                                                : position;
+        auto& node          = plan->nodes[index];
+        node.rank           = rank[index];
+        node.bounds.x       = rowCursor[node.rank];
+        node.bounds.y       = rowTop[node.rank] + (rowHeight[node.rank] - node.bounds.height) / 2.0;
         rowCursor[node.rank] += (alignedGroups ? groupColumnWidth[position % graph->groups.size()] : node.bounds.width) + NodeGap;
         node.label = {node.bounds.x + (node.bounds.width - Cross(nodeLabels[index])) / 2.0,
                       node.bounds.y + (node.bounds.height - Major(nodeLabels[index])) / 2.0,
@@ -921,7 +937,7 @@ void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
             (node.shape == FlowchartShape::Note &&
              ((graph->family != NativeDiagramFamily::State && graph->family != NativeDiagramFamily::Class) ||
               (node.noteTarget == MarkdownNoNode ? graph->family != NativeDiagramFamily::Class
-                                                : node.noteTarget >= graph->nodes.size() || graph->nodes[node.noteTarget].shape == FlowchartShape::Note))))
+                                                 : node.noteTarget >= graph->nodes.size() || graph->nodes[node.noteTarget].shape == FlowchartShape::Note))))
             throw std::invalid_argument("Invalid flowchart layout shape");
     for (const auto& edge : graph->edges)
         if (edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() || edge.minimumRanks == 0u ||

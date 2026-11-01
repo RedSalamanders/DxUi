@@ -1,7 +1,7 @@
 #pragma once
 #include "DxUi.Internal.h"
-#include "DxUi.TextElements.h"
 #include "DxUi.RichProjectionWindow.h"
+#include "DxUi.TextElements.h"
 #include <DxUi/RichDocument.h>
 
 // A proven ASCII-to-ASCII break is independent of any preceding Unicode 17
@@ -111,11 +111,13 @@ inline TextElementRange SourceWindowRange(const SourceSnapshot& source, size_t c
 inline size_t SourceLineStart(const SourceSnapshot& source, size_t position)
 {
     auto last = (std::min)(position, source.Length());
-    while (last && ! source.IsBoundary(last)) --last;
+    while (last && ! source.IsBoundary(last))
+        --last;
     while (last)
     {
         auto first = last > 256u ? last - 256u : 0u;
-        while (first && ! source.IsBoundary(first)) --first;
+        while (first && ! source.IsBoundary(first))
+            --first;
         const auto text = source.Slice(first, last);
         for (auto i = text.size(); i > 0u; --i)
             if (text[i - 1u] == L'\r' || text[i - 1u] == L'\n')
@@ -127,12 +129,14 @@ inline size_t SourceLineStart(const SourceSnapshot& source, size_t position)
 inline size_t SourceLineEnd(const SourceSnapshot& source, size_t position)
 {
     const auto length = source.Length();
-    auto first = (std::min)(position, length);
-    while (first && ! source.IsBoundary(first)) --first;
+    auto first        = (std::min)(position, length);
+    while (first && ! source.IsBoundary(first))
+        --first;
     while (first < length)
     {
         auto last = first + (std::min)(size_t{256u}, length - first);
-        while (last < length && ! source.IsBoundary(last)) ++last;
+        while (last < length && ! source.IsBoundary(last))
+            ++last;
         const auto text = source.Slice(first, last);
         for (size_t i = 0u; i < text.size(); ++i)
             if (text[i] == L'\r' || text[i] == L'\n')
@@ -144,18 +148,21 @@ inline size_t SourceLineEnd(const SourceSnapshot& source, size_t position)
 inline TextElementRange RichSourceWindowRange(const SourceSnapshot& source, size_t caret, SourceWindowOperation operation, bool forDeletion = false)
 {
     const auto length = source.Length();
-    caret = (std::min)(caret, length);
-    const auto line = SourceLineStart(source, caret);
-    auto first = line ? SourceLineStart(source, line - 1u) : 0u;
-    auto last = SourceLineEnd(source, caret);
-    if (last < length) last = SourceLineEnd(source, last);
-    if (operation == SourceWindowOperation::Home) first = 0u;
-    if (operation == SourceWindowOperation::End) last = length;
+    caret             = (std::min)(caret, length);
+    const auto line   = SourceLineStart(source, caret);
+    auto first        = line ? SourceLineStart(source, line - 1u) : 0u;
+    auto last         = SourceLineEnd(source, caret);
+    if (last < length)
+        last = SourceLineEnd(source, last);
+    if (operation == SourceWindowOperation::Home)
+        first = 0u;
+    if (operation == SourceWindowOperation::End)
+        last = length;
     for (;;)
     {
         const auto projection = ProjectRichSourceWindow(source.Slice(first, last));
-        const auto position = projection->ToDisplay(caret - first);
-        const auto& text = projection->text;
+        const auto position   = projection->ToDisplay(caret - first);
+        const auto& text      = projection->text;
         TextElementRange display{};
         switch (operation)
         {
@@ -168,8 +175,8 @@ inline TextElementRange RichSourceWindowRange(const SourceSnapshot& source, size
             case SourceWindowOperation::Home: display = {0u, 0u}; break;
             case SourceWindowOperation::End: display = {text.size(), text.size()}; break;
         }
-        const bool rootDriveAmbiguous = operation == SourceWindowOperation::PreviousWord && first && display.first == 2u &&
-                                        text.size() >= 2u && text[1] == L':';
+        const bool rootDriveAmbiguous =
+            operation == SourceWindowOperation::PreviousWord && first && display.first == 2u && text.size() >= 2u && text[1] == L':';
         const auto span = last - first;
         if (first && (display.first == 0u || rootDriveAmbiguous))
         {

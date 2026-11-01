@@ -477,7 +477,7 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     editor->SetText(L"- a\n\n1. b\n\n- c\n");
     prepare();
     editor->SetSelection({0u, 15u});
-    stateRequest.command = MarkdownCommand::SetList;
+    stateRequest.command  = MarkdownCommand::SetList;
     stateRequest.listKind = MarkdownListKind::Unordered;
     const auto mixedLists = editor->QueryMarkdownCommandState(stateRequest);
     Check(mixedLists && mixedLists->mixed && ! mixedLists->listKind && ! mixedLists->active,
@@ -517,7 +517,7 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     editor->SetText(wrappedLists);
     prepare();
     editor->SetSelection({0u, wrappedLists.size()});
-    const auto wrappedState = editor->QueryMarkdownCommandState(stateRequest);
+    const auto wrappedState  = editor->QueryMarkdownCommandState(stateRequest);
     const auto ancestorSteps = editor->DebugGetListStateAncestorSteps();
     Check(wrappedState && ! wrappedState->mixed && wrappedState->listKind == MarkdownListKind::Unordered && ancestorSteps >= 240u,
           "deep nested sibling lists exercise parent-link recovery through repeated quote wrappers");
@@ -531,12 +531,10 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     prepare();
     editor->SetSelection({0u, 2u});
     const auto prefixState = editor->QueryMarkdownCommandState(stateRequest);
-    Check(prefixState && ! prefixState->mixed && prefixState->listKind == MarkdownListKind::Unordered,
-          "list state includes the raw item prefix");
+    Check(prefixState && ! prefixState->mixed && prefixState->listKind == MarkdownListKind::Unordered, "list state includes the raw item prefix");
     editor->SetSelection({6u, 6u});
     const auto eofState = editor->QueryMarkdownCommandState(stateRequest);
-    Check(eofState && ! eofState->mixed && eofState->listKind == MarkdownListKind::Unordered,
-          "caret at source EOF retains the final list item's state");
+    Check(eofState && ! eofState->mixed && eofState->listKind == MarkdownListKind::Unordered, "caret at source EOF retains the final list item's state");
     editor->SetText(L"**word** plain");
     prepare();
     editor->SetSelection({2u, 14u});
@@ -560,7 +558,7 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     editor->SetText(L"alone");
     prepare();
     editor->SetSelection({0u, 0u});
-    stateRequest.command = MarkdownCommand::JoinBackward;
+    stateRequest.command    = MarkdownCommand::JoinBackward;
     const auto isolatedJoin = editor->QueryMarkdownCommandState(stateRequest);
     Check(isolatedJoin && isolatedJoin->available == std::optional<bool>{false} &&
               editor->ExecuteMarkdownCommand(stateRequest) == MarkdownCommandStatus::Unavailable,
@@ -569,9 +567,8 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     prepare();
     editor->SetSelection({3u, 3u});
     const auto plainJoin = editor->QueryMarkdownCommandState(stateRequest);
-    Check(plainJoin && plainJoin->available == std::optional<bool>{true} &&
-              editor->ExecuteMarkdownCommand(stateRequest) == MarkdownCommandStatus::Changed && editor->GetText() == L"a b" && editor->Undo() &&
-              editor->GetText() == L"a\n\nb",
+    Check(plainJoin && plainJoin->available == std::optional<bool>{true} && editor->ExecuteMarkdownCommand(stateRequest) == MarkdownCommandStatus::Changed &&
+              editor->GetText() == L"a b" && editor->Undo() && editor->GetText() == L"a\n\nb",
           "join state and execution admit a plain paragraph boundary and undo it atomically");
     editor->SetText(L"## title\n");
     prepare();
@@ -584,9 +581,8 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     prepare();
     editor->SetSelection({4u, 4u});
     stateRequest.command = MarkdownCommand::JoinBackward;
-    const auto codeJoin = editor->QueryMarkdownCommandState(stateRequest);
-    Check(codeJoin && codeJoin->available == std::optional<bool>{false} &&
-              editor->ExecuteMarkdownCommand(stateRequest) == MarkdownCommandStatus::Unavailable,
+    const auto codeJoin  = editor->QueryMarkdownCommandState(stateRequest);
+    Check(codeJoin && codeJoin->available == std::optional<bool>{false} && editor->ExecuteMarkdownCommand(stateRequest) == MarkdownCommandStatus::Unavailable,
           "join state and execution both reject a caret in fenced code");
     stateRequest.command = MarkdownCommand::ExitCodeBlock;
     const auto exitState = editor->QueryMarkdownCommandState(stateRequest);
@@ -1777,26 +1773,27 @@ template <typename Prepare, typename PrepareDpi> void RenderingAdmissionFallback
     static_cast<void>(prepareDpi);
 #endif
 #if DXUI_ENABLE_DIAGNOSTICS
-    const auto previousFailure = RichText::Detail::testRichPreparationFailure;
+    const auto previousFailure  = RichText::Detail::testRichPreparationFailure;
     const auto previousAttempts = RichText::Detail::testRichPreparationFailureAttempts;
-    const auto restoreFailure = wil::scope_exit([&]() noexcept {
-        RichText::Detail::testRichPreparationFailure = previousFailure;
+    const auto restoreFailure   = wil::scope_exit([&]() noexcept
+    {
+        RichText::Detail::testRichPreparationFailure         = previousFailure;
         RichText::Detail::testRichPreparationFailureAttempts = previousAttempts;
     });
     for (const unsigned stage : {1u, 2u})
     {
-        RichText::Detail::testRichPreparationFailure = stage;
+        RichText::Detail::testRichPreparationFailure         = stage;
         RichText::Detail::testRichPreparationFailureAttempts = 0u;
-        const std::wstring original = L"**retained** and $x$\n";
-        auto root = std::make_unique<RichTextEditor>(original);
-        auto* editor = root.get();
+        const std::wstring original                          = L"**retained** and $x$\n";
+        auto root                                            = std::make_unique<RichTextEditor>(original);
+        auto* editor                                         = root.get();
         editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
         editor->SetMarkdownRenderingEnabled(true);
         editor->SetSelection({2u, 5u});
         host.SetRoot(std::move(root));
         prepare();
-        Check(editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::SourceFallback && editor->DebugGetState().layoutReady && ! editor->GetSemanticDocument() &&
-                  editor->GetText() == original && editor->GetSelection() == Selection{2u, 5u} && ! editor->CanUndo() &&
+        Check(editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::SourceFallback && editor->DebugGetState().layoutReady &&
+                  ! editor->GetSemanticDocument() && editor->GetText() == original && editor->GetSelection() == Selection{2u, 5u} && ! editor->CanUndo() &&
                   editor->GetViewMode() == ViewMode::Rich && RichText::Detail::testRichPreparationFailureAttempts == 1u,
               "deterministic rich failure falls back once without changing source, selection, history or requested mode");
         prepare();
@@ -1806,8 +1803,7 @@ template <typename Prepare, typename PrepareDpi> void RenderingAdmissionFallback
                   editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::SourceFallback,
               "changed DPI retries the deterministic preparation key");
         prepareDpi(96u);
-        Check(host.GetDpi() == 96.f && RichText::Detail::testRichPreparationFailureAttempts == 3u,
-              "restored DPI is a distinct preparation request");
+        Check(host.GetDpi() == 96.f && RichText::Detail::testRichPreparationFailureAttempts == 3u, "restored DPI is a distinct preparation request");
         auto appearance = editor->GetAppearance();
         appearance.zoom = 1.25f;
         editor->SetAppearance(appearance);
@@ -1818,7 +1814,8 @@ template <typename Prepare, typename PrepareDpi> void RenderingAdmissionFallback
         editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
         prepare();
         Check(editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic && editor->GetText() == original &&
-                  editor->GetSelection() == Selection{2u, 5u} && ! editor->CanUndo(), "changed profile recovers semantic presentation with source/history intact");
+                  editor->GetSelection() == Selection{2u, 5u} && ! editor->CanUndo(),
+              "changed profile recovers semantic presentation with source/history intact");
         RichText::Detail::testRichPreparationFailure = stage;
         editor->SetText(L"new **source**\n");
         prepare();
@@ -2264,13 +2261,12 @@ inline void SourceWindowUnicodeParity()
 inline void RichSourceWindowParity()
 {
     using namespace DxUi::RichText::Detail;
-    std::vector<std::wstring> cases = {
-        L"# **heading**\r\nplain *italic* `code`\n## **next**\rfinal\n",
-        L"first\nC:\\folder\\word\nlast *item*\n",
-        L"C:\\folder\\word\n# hidden\n",
-        L"# \n# \r\n# **a**\n# ",
-        std::wstring(300u, L'a') + L"\n# **hidden** end\r\n" + std::wstring(300u, L'b'),
-        L"# \U0001f469\u200d\U0001f4bb\n**\u0915\u094d\u0915**\n\U0001f1e6\U0001f1e7\U0001f1e8\n"};
+    std::vector<std::wstring> cases = {L"# **heading**\r\nplain *italic* `code`\n## **next**\rfinal\n",
+                                       L"first\nC:\\folder\\word\nlast *item*\n",
+                                       L"C:\\folder\\word\n# hidden\n",
+                                       L"# \n# \r\n# **a**\n# ",
+                                       std::wstring(300u, L'a') + L"\n# **hidden** end\r\n" + std::wstring(300u, L'b'),
+                                       L"# \U0001f469\u200d\U0001f4bb\n**\u0915\u094d\u0915**\n\U0001f1e6\U0001f1e7\U0001f1e8\n"};
     std::wstring manyLines(0u, L' ');
     for (unsigned line = 0u; line < 45u; ++line)
         manyLines += line == 20u ? L"C:\\folder\\word\r\n" : L"# **hidden** a `code`\r\n";
@@ -2279,13 +2275,18 @@ inline void RichSourceWindowParity()
     {
         Document document(text);
         const auto snapshot = document.Snapshot();
-        const auto full = Project(snapshot, document.Revision(), ViewMode::Rich);
+        const auto full     = Project(snapshot, document.Revision(), ViewMode::Rich);
         for (size_t caret = 0u; caret <= text.size(); ++caret)
         {
-            if (! snapshot.IsBoundary(caret)) continue;
+            if (! snapshot.IsBoundary(caret))
+                continue;
             const auto position = full.ToDisplay(caret);
-            for (const auto operation : {SourceWindowOperation::Previous, SourceWindowOperation::Next, SourceWindowOperation::PreviousWord,
-                                         SourceWindowOperation::NextWord, SourceWindowOperation::Home, SourceWindowOperation::End})
+            for (const auto operation : {SourceWindowOperation::Previous,
+                                         SourceWindowOperation::Next,
+                                         SourceWindowOperation::PreviousWord,
+                                         SourceWindowOperation::NextWord,
+                                         SourceWindowOperation::Home,
+                                         SourceWindowOperation::End})
             {
                 size_t display{};
                 switch (operation)
@@ -2299,20 +2300,21 @@ inline void RichSourceWindowParity()
                     case SourceWindowOperation::DeleteBackward:
                     case SourceWindowOperation::DeleteForward: break;
                 }
-                const bool trailing = operation == SourceWindowOperation::Next || operation == SourceWindowOperation::NextWord || operation == SourceWindowOperation::End;
+                const bool trailing =
+                    operation == SourceWindowOperation::Next || operation == SourceWindowOperation::NextWord || operation == SourceWindowOperation::End;
                 const auto expected = full.ToSource(display, trailing);
-                const auto actual = RichSourceWindowRange(snapshot, caret, operation);
+                const auto actual   = RichSourceWindowRange(snapshot, caret, operation);
                 Check((trailing ? actual.last : actual.first) == expected, "v0 rich local projection preserves full caret mapping");
             }
             for (const bool backwards : {true, false})
                 for (const bool byWord : {true, false})
                 {
-                    const auto display = byWord ? (backwards ? TextElementRange{FindPreviousWordBoundary(full.text, position), position}
-                                                             : TextElementRange{position, FindNextWordBoundary(full.text, position)})
-                                                : GetTextElementDeletionRange(full.text, position, backwards);
+                    const auto display   = byWord ? (backwards ? TextElementRange{FindPreviousWordBoundary(full.text, position), position}
+                                                               : TextElementRange{position, FindNextWordBoundary(full.text, position)})
+                                                  : GetTextElementDeletionRange(full.text, position, backwards);
                     const auto operation = byWord ? (backwards ? SourceWindowOperation::PreviousWord : SourceWindowOperation::NextWord)
                                                   : (backwards ? SourceWindowOperation::DeleteBackward : SourceWindowOperation::DeleteForward);
-                    const auto actual = RichSourceWindowRange(snapshot, caret, operation, true);
+                    const auto actual    = RichSourceWindowRange(snapshot, caret, operation, true);
                     if (display.first == display.last)
                         Check(actual.first == actual.last, "v0 rich empty display deletion is a no-op");
                     else
@@ -2325,16 +2327,16 @@ inline void RichSourceWindowParity()
 inline void PendingRichSourceWindowTransport(ControlHost& host)
 {
     const std::wstring source = L"# **heading**\r\nnormal *word*\n";
-    auto owned = std::make_unique<RichTextEditor>(source);
-    auto* editor = owned.get();
+    auto owned                = std::make_unique<RichTextEditor>(source);
+    auto* editor              = owned.get();
     editor->SetViewMode(ViewMode::Rich);
     host.SetRoot(std::move(owned));
     host.SetFocusControl(editor, false);
     const auto caret = source.find(L"heading") + 7u;
     editor->SetSelection({caret, caret});
     const auto projection = Project(editor->Snapshot(), editor->Revision(), ViewMode::Rich);
-    const auto position = projection.ToDisplay(caret);
-    const auto previous = projection.ToSource(StepToPreviousTextElement(projection.text, position));
+    const auto position   = projection.ToDisplay(caret);
+    const auto previous   = projection.ToSource(StepToPreviousTextElement(projection.text, position));
     Check(editor->OnKeyDown(host, VK_LEFT, 0u) && editor->GetSelection() == Selection{previous, previous},
           "pending v0 Rich caret uses full-projection mapping across hidden markup");
     editor->SetSelection({caret, caret});

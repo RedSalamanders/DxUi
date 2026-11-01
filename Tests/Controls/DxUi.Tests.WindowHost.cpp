@@ -1588,9 +1588,9 @@ void TestWindowHostCaptureDiscardsFrameWhenPaintMutatesTheChildTree()
     using namespace DxUi;
     struct PaintState final
     {
-        size_t firstPaints   = 0u;
-        size_t secondPaints  = 0u;
-        size_t callbackCount = 0u;
+        size_t firstPaints                 = 0u;
+        size_t secondPaints                = 0u;
+        size_t callbackCount               = 0u;
         uint64_t invalidatesBeforeMutation = 0u;
         std::function<void()> onNextPaint;
     };

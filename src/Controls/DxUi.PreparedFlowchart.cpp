@@ -113,7 +113,8 @@ struct PreparedFlowchart::State
         THROW_IF_FAILED(format->SetReadingDirection(options.readingDirection));
         THROW_IF_FAILED(format->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING));
         THROW_IF_FAILED(format->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR));
-        if (graph->family == NativeDiagramFamily::Sequence || std::ranges::any_of(graph->edges, [](const auto& edge) { return edge.style == FlowchartLineStyle::Dotted; }))
+        if (graph->family == NativeDiagramFamily::Sequence ||
+            std::ranges::any_of(graph->edges, [](const auto& edge) { return edge.style == FlowchartLineStyle::Dotted; }))
         {
             const auto properties = D2D1::StrokeStyleProperties(
                 D2D1_CAP_STYLE_ROUND, D2D1_CAP_STYLE_ROUND, D2D1_CAP_STYLE_ROUND, D2D1_LINE_JOIN_ROUND, 10.f, D2D1_DASH_STYLE_CUSTOM, 0.f);
@@ -220,7 +221,7 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
             (node.shape == FlowchartShape::Note &&
              ((graph->family != NativeDiagramFamily::State && graph->family != NativeDiagramFamily::Class) ||
               (node.noteTarget == MarkdownNoNode ? graph->family != NativeDiagramFamily::Class
-                                                : node.noteTarget >= graph->nodes.size() || graph->nodes[node.noteTarget].shape == FlowchartShape::Note))))
+                                                 : node.noteTarget >= graph->nodes.size() || graph->nodes[node.noteTarget].shape == FlowchartShape::Note))))
             throw std::invalid_argument("Invalid flowchart node label/shape");
         if (node.compartmentCount > node.compartmentStarts.size() || (node.compartmentCount && graph->family != NativeDiagramFamily::Class))
             throw std::invalid_argument("Invalid class compartment count");
@@ -236,10 +237,12 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
         if (edge.label.size() > NativeFlowchartParser::MaximumLabelUnits || edge.fromCardinality.size() > 32u || edge.toCardinality.size() > 32u ||
             ((! edge.fromCardinality.empty() || ! edge.toCardinality.empty()) && graph->family != NativeDiagramFamily::Class) ||
             edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() ||
-            (edge.openArrow && (graph->family != NativeDiagramFamily::Sequence || ! edge.arrow)) ||
-            edge.minimumRanks == 0u || edge.minimumRanks > NativeFlowchartParser::MaximumLinkRanks || edge.relation < FlowchartRelation::Line ||
-            edge.relation > FlowchartRelation::Composition || edge.arrow != (edge.relation != FlowchartRelation::Line && edge.relation != FlowchartRelation::Note) ||
-            (edge.relation == FlowchartRelation::Note && (graph->nodes[edge.to].shape != FlowchartShape::Note || graph->nodes[edge.to].noteTarget != edge.from)))
+            (edge.openArrow && (graph->family != NativeDiagramFamily::Sequence || ! edge.arrow)) || edge.minimumRanks == 0u ||
+            edge.minimumRanks > NativeFlowchartParser::MaximumLinkRanks || edge.relation < FlowchartRelation::Line ||
+            edge.relation > FlowchartRelation::Composition ||
+            edge.arrow != (edge.relation != FlowchartRelation::Line && edge.relation != FlowchartRelation::Note) ||
+            (edge.relation == FlowchartRelation::Note &&
+             (graph->nodes[edge.to].shape != FlowchartShape::Note || graph->nodes[edge.to].noteTarget != edge.from)))
             throw std::invalid_argument("Invalid native flowchart edge");
     if (next_ && next_->state->Matches(write, drawing, graph, typography, resourceEpoch))
         return LayoutPreparationStatus::Pending;
@@ -483,7 +486,10 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
         {
             const auto x = static_cast<float>(node.bounds.x + node.bounds.width / 2.0);
             target->DrawLine(D2D1::Point2F(x, static_cast<float>(node.bounds.y + node.bounds.height)),
-                             D2D1::Point2F(x, static_cast<float>(plan.extent.height - 8.0)), stroke, 1.f, state.dottedStyle.get());
+                             D2D1::Point2F(x, static_cast<float>(plan.extent.height - 8.0)),
+                             stroke,
+                             1.f,
+                             state.dottedStyle.get());
         }
     for (std::size_t index = 0u; index < plan.edges.size(); ++index)
     {

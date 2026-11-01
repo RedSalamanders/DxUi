@@ -6,9 +6,9 @@
 #include <array>
 #include <cmath>
 #include <limits>
+#include <map>
 #include <stdexcept>
 #include <tuple>
-#include <map>
 #include <wil/resource.h>
 #include <wil/result.h>
 // Windows SDK WRL owns its interlocked/volatile implementation and target semantics.
@@ -236,7 +236,7 @@ struct NativeImageGeometry
     ID2D1RenderTarget* targetIdentity; // Identity only after staging; never dereferenced here.
     bool PrepareOne(std::size_t index, ID2D1RenderTarget* target, bool& unsupported)
     {
-        auto& placement  = placements[index];
+        auto& placement = placements[index];
         if (std::ranges::find(unsupportedPixels, placement.pixels.get()) != unsupportedPixels.end())
         {
             unsupported = true;
@@ -250,12 +250,12 @@ struct NativeImageGeometry
             return false;
         }
         const auto properties = D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.0f, 96.0f);
-        const auto result = UploadImageBitmap(target,
-                                              D2D1::SizeU(placement.pixels->Width(), placement.pixels->Height()),
-                                              placement.pixels->Pixels().data(),
-                                              placement.pixels->Stride(),
-                                              properties,
-                                              placement.bitmap.put());
+        const auto result     = UploadImageBitmap(target,
+                                                  D2D1::SizeU(placement.pixels->Width(), placement.pixels->Height()),
+                                                  placement.pixels->Pixels().data(),
+                                                  placement.pixels->Stride(),
+                                                  properties,
+                                                  placement.bitmap.put());
         if (result == D2DERR_UNSUPPORTED_OPERATION)
         {
             unsupportedPixels.push_back(placement.pixels.get());

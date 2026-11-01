@@ -158,7 +158,7 @@ std::optional<std::size_t> FindJoinLeaf(const MarkdownSyntax& syntax, Selection 
     if (! CanJoinSelection(selection))
         return std::nullopt;
     const auto& nodes = syntax.Nodes();
-    auto best = MarkdownNoNode;
+    auto best         = MarkdownNoNode;
     for (const auto kind : {MarkdownBlockKind::Paragraph, MarkdownBlockKind::AtxHeading, MarkdownBlockKind::SetextHeading, MarkdownBlockKind::TableCell})
     {
         const auto node = CommandNodeAt(syntax, kind, selection.caret);
@@ -183,8 +183,8 @@ std::optional<std::size_t> FindJoinLeaf(const MarkdownSyntax& syntax, Selection 
         while (nearest != MarkdownNoNode && nodes[nearest].block.kind != MarkdownBlockKind::ListItem &&
                nodes[nearest].block.kind != MarkdownBlockKind::BlockQuote)
             nearest = nodes[nearest].parent;
-        const bool quoteOutdent = backwards && nearest != MarkdownNoNode && nodes[nearest].block.kind == MarkdownBlockKind::BlockQuote &&
-                                  nodes[nearest].firstChild == best;
+        const bool quoteOutdent =
+            backwards && nearest != MarkdownNoNode && nodes[nearest].block.kind == MarkdownBlockKind::BlockQuote && nodes[nearest].firstChild == best;
         // List joins and quote outdents need additional prefix admission. A
         // plain paragraph can reject missing or non-paragraph siblings here.
         bool insideList = false;
@@ -192,7 +192,7 @@ std::optional<std::size_t> FindJoinLeaf(const MarkdownSyntax& syntax, Selection 
             insideList |= nodes[parent].block.kind == MarkdownBlockKind::ListItem;
         if (! insideList && ! quoteOutdent)
         {
-            auto previous = MarkdownNoNode;
+            auto previous     = MarkdownNoNode;
             const auto parent = nodes[best].parent;
             if (parent != MarkdownNoNode)
                 for (auto sibling = nodes[parent].firstChild; sibling != MarkdownNoNode && sibling != best; sibling = nodes[sibling].nextSibling)

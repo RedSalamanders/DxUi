@@ -449,7 +449,13 @@ inline void LocalizedAccessibilityLabels()
                              AccessibilityTextOverride{LabelId::FlowchartHeader, L"Diagramme, "},
                              AccessibilityTextOverride{LabelId::DirectionLeftRight, L"vers la droite"},
                              AccessibilityTextOverride{LabelId::DiagramNodes, L". Sommets: "},
-                             AccessibilityTextOverride{LabelId::DiagramConnections, L" Liens: "}};
+                             AccessibilityTextOverride{LabelId::DiagramConnections, L" Liens: "},
+                             AccessibilityTextOverride{LabelId::SequenceDiagramHeader, L"Séquence, "},
+                             AccessibilityTextOverride{LabelId::SequenceSends, L" envoie "},
+                             AccessibilityTextOverride{LabelId::SequenceAsyncSends, L" envoie plus tard "},
+                             AccessibilityTextOverride{LabelId::SequenceTo, L" vers "},
+                             AccessibilityTextOverride{LabelId::SequenceDottedEnd, L" (pointillé); "},
+                             AccessibilityTextOverride{LabelId::StandaloneDiagramNote, L"Remarque: "}};
     const auto labels = std::make_shared<const AccessibilityLabels>(entries);
     borrowed.assign(L"caller storage changed");
     SemanticBuilder builder;
@@ -480,6 +486,25 @@ inline void LocalizedAccessibilityLabels()
     }
     Check(std::ranges::any_of(previous->Elements(), [](const auto& element) { return element.name == L"Footnote 1"; }),
           "a held earlier document retains its original English labels");
+    const auto sequence =
+        Build(L"```mermaid\nsequenceDiagram\nparticipant A as Authored sends alias\nA->>B: first\nB--)A: second\n```\n", MarkdownProfile::RichMarkdown);
+    builder.Begin(sequence->Syntax());
+    const auto translatedSequence = Complete(builder, *sequence->Syntax());
+    Check(translatedSequence->Map().Display() == sequence->Map().Display() && std::ranges::any_of(translatedSequence->Elements(),
+                                                                                                  [](const auto& element)
+    {
+        return element.role == SemanticRole::Diagram && element.name.starts_with(L"Séquence, ") &&
+               element.name.find(L"Authored sends alias") != element.name.npos && element.name.find(L"A envoie first vers B;") != element.name.npos &&
+               element.name.find(L"B envoie plus tard second vers A (pointillé);") != element.name.npos;
+    }),
+          "sequence message vocabulary localizes without rewriting aliases, message text or display");
+    const auto notes = Build(L"```mermaid\nclassDiagram\nclass A\nnote \"Authored Note: body\"\n```\n", MarkdownProfile::RichMarkdown);
+    builder.Begin(notes->Syntax());
+    const auto translatedNotes = Complete(builder, *notes->Syntax());
+    Check(std::ranges::any_of(translatedNotes->Elements(),
+                              [](const auto& element)
+    { return element.role == SemanticRole::Diagram && element.name.find(L"Remarque: Authored Note: body;") != element.name.npos; }),
+          "standalone class-note vocabulary localizes while authored note text remains literal");
     for (const auto pattern : {L"missing", L"{0}{0}", L"{1}", L"{0:02}", L"}{0}"})
     {
         const std::array invalid{AccessibilityTextOverride{LabelId::FootnoteName, pattern}};

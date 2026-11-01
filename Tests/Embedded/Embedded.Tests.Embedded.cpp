@@ -1483,7 +1483,7 @@ __declspec(noinline) static int RunFunctionalTests()
         MarkdownSourceCorrelationTests::ClosedRootCancellation(Check);
         RichSemanticTests::Run(RichSemanticGeometryTests::PaddedCodePresentation);
         RichSemanticTests::Run(RichSemanticEditorTests::SourceWindowUnicodeParity);
-    RichSemanticTests::Run(RichSemanticEditorTests::RichSourceWindowParity);
+        RichSemanticTests::Run(RichSemanticEditorTests::RichSourceWindowParity);
         TestEmbeddedSemanticReusePixels(gpu);
         TestEmbeddedCodeLineNumberPixels(gpu);
         TestEmbeddedSourceGuidesPixels(gpu);
@@ -1752,13 +1752,12 @@ __declspec(noinline) static int RunFunctionalTests()
                 transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded local native object fallback"); });
             RichSemanticEditorTests::Rendering(transactionView.Controls(),
                                                [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic rendering preparation"); });
-            RichSemanticEditorTests::RenderingAdmissionFallback(
-                transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic fallback preparation"); },
-                [&](UINT dpi)
-                {
-                    Hr(PrepareRichEmbeddedContent(transactionView, 480u * dpi / 96u, 240u * dpi / 96u, static_cast<float>(dpi)),
-                       "embedded semantic fallback at changed DPI");
-                });
+            RichSemanticEditorTests::RenderingAdmissionFallback(transactionView.Controls(), [&] {
+                Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic fallback preparation");
+            }, [&](UINT dpi) {
+                Hr(PrepareRichEmbeddedContent(transactionView, 480u * dpi / 96u, 240u * dpi / 96u, static_cast<float>(dpi)),
+                   "embedded semantic fallback at changed DPI");
+            });
             RichSemanticEditorTests::SourceCaretSites(
                 transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded source caret site preparation"); });
             RichSemanticEditorTests::HangingMarkersLinksAndHtml(transactionView.Controls(), [&] {

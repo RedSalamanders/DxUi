@@ -34,9 +34,9 @@ bool MarkdownCommandInputBlocked(const ControlHost* host, const Control* control
     return (host->HasActiveNativeTextInputSession() && ! composition) || composition.value_or(false);
 }
 std::optional<RichText::MarkdownListKind> UniformListKind(const RichText::MarkdownSyntax& syntax,
-                                                         std::size_t first,
-                                                         std::size_t last,
-                                                         std::size_t& ancestorSteps) noexcept
+                                                          std::size_t first,
+                                                          std::size_t last,
+                                                          std::size_t& ancestorSteps) noexcept
 {
     using namespace RichText;
     const auto& nodes = syntax.Nodes();
@@ -46,7 +46,7 @@ std::optional<RichText::MarkdownListKind> UniformListKind(const RichText::Markdo
     std::size_t depth = 0u, cursor = first;
     std::size_t active = MarkdownNoNode;
     std::optional<MarkdownListKind> result;
-    bool mixed = false;
+    bool mixed           = false;
     const auto kindAtTop = [&]() noexcept
     {
         if (! depth)
@@ -70,7 +70,7 @@ std::optional<RichText::MarkdownListKind> UniformListKind(const RichText::Markdo
         cursor = end;
     };
     std::size_t node = 0u;
-    bool entering = true;
+    bool entering    = true;
     while (node != MarkdownNoNode && ! mixed && cursor < last)
     {
         const auto& current = nodes[node];
@@ -110,12 +110,12 @@ std::optional<RichText::MarkdownListKind> UniformListKind(const RichText::Markdo
         }
         if (current.nextSibling != MarkdownNoNode)
         {
-            node = current.nextSibling;
+            node     = current.nextSibling;
             entering = true;
         }
         else
         {
-            node = current.parent;
+            node     = current.parent;
             entering = false;
         }
     }
@@ -513,17 +513,22 @@ struct RichTextEditor::State
                      uint64_t nextBinding,
                      uint64_t nextAppearance) const noexcept
         {
-            return (! value || syntax == value) && width == nextWidth && dpi == nextDpi && rtl == nextRtl && typography == nextTypography && resources == nextResources &&
-                   binding == nextBinding && appearance == nextAppearance;
+            return (! value || syntax == value) && width == nextWidth && dpi == nextDpi && rtl == nextRtl && typography == nextTypography &&
+                   resources == nextResources && binding == nextBinding && appearance == nextAppearance;
         }
     };
     std::optional<NativeObjectRejections> nativeObjectRejections;
-    bool RejectsNativeGeometry(
-        const std::shared_ptr<const RichText::SemanticDocument>& value, float width, float dpi, bool rtl, uint64_t typography, uint64_t resources) const noexcept
+    bool RejectsNativeGeometry(const std::shared_ptr<const RichText::SemanticDocument>& value,
+                               float width,
+                               float dpi,
+                               bool rtl,
+                               uint64_t typography,
+                               uint64_t resources) const noexcept
     {
-        return nativeGeometryRejected && nativeGeometryRejected->document == value && nativeGeometryRejected->width == width && nativeGeometryRejected->dpi == dpi &&
-               nativeGeometryRejected->rtl == rtl && nativeGeometryRejected->typography == typography && nativeGeometryRejected->resources == resources &&
-               nativeGeometryRejected->binding == bindingRevision && nativeGeometryRejected->appearance == appearanceRevision;
+        return nativeGeometryRejected && nativeGeometryRejected->document == value && nativeGeometryRejected->width == width &&
+               nativeGeometryRejected->dpi == dpi && nativeGeometryRejected->rtl == rtl && nativeGeometryRejected->typography == typography &&
+               nativeGeometryRejected->resources == resources && nativeGeometryRejected->binding == bindingRevision &&
+               nativeGeometryRejected->appearance == appearanceRevision;
     }
     struct MarkdownCapacityRejection
     {
@@ -754,12 +759,15 @@ bool RichTextEditor::CompleteImageRequest(const RichText::RichImageRequest& requ
         return false;
     const auto viewport = TextViewport();
     const auto* host    = GetHost();
-    if (_state->RejectsPreparation(std::max(1.0f, viewport.right - viewport.left), host->GetDpi(), IsRightToLeft(),
-                                   host->GetTypographyRevision(), host->GetResourceGeneration()))
+    if (_state->RejectsPreparation(
+            std::max(1.0f, viewport.right - viewport.left), host->GetDpi(), IsRightToLeft(), host->GetTypographyRevision(), host->GetResourceGeneration()))
         return false;
-    if (document &&
-        _state->RejectsNativeGeometry(
-            document, std::max(1.0f, viewport.right - viewport.left), host->GetDpi(), IsRightToLeft(), host->GetTypographyRevision(), host->GetResourceGeneration()))
+    if (document && _state->RejectsNativeGeometry(document,
+                                                  std::max(1.0f, viewport.right - viewport.left),
+                                                  host->GetDpi(),
+                                                  IsRightToLeft(),
+                                                  host->GetTypographyRevision(),
+                                                  host->GetResourceGeneration()))
         return false;
     const bool alreadyDirty = _state->images.HasUnpublished();
     if (! _state->images.Complete(request, std::move(image)))
@@ -1652,8 +1660,8 @@ MarkdownRenderingStatus RichTextEditor::GetMarkdownRenderingStatus() const noexc
     if (const auto* host = GetHost())
     {
         const auto viewport = TextViewport();
-        if (_state->RejectsPreparation(std::max(1.0f, viewport.right - viewport.left), host->GetDpi(), IsRightToLeft(),
-                                       host->GetTypographyRevision(), host->GetResourceGeneration()))
+        if (_state->RejectsPreparation(
+                std::max(1.0f, viewport.right - viewport.left), host->GetDpi(), IsRightToLeft(), host->GetTypographyRevision(), host->GetResourceGeneration()))
             return MarkdownRenderingStatus::SourceFallback;
         if (_state->RejectsNativeGeometry(GetSemanticDocument(),
                                           std::max(1.0f, viewport.right - viewport.left),
@@ -2192,12 +2200,12 @@ std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownComma
     const auto document = GetSemanticDocument();
     if (! document)
         return std::nullopt;
-    const auto selection = GetSelection();
+    const auto selection    = GetSelection();
     const bool inputBlocked = MarkdownCommandInputBlocked(GetHost(), this);
     if (request.command == MarkdownCommand::JoinBackward || request.command == MarkdownCommand::JoinForward)
     {
         bool simpleApplicable = false;
-        const auto leaf = FindJoinLeaf(*document->Syntax(), selection, request.command == MarkdownCommand::JoinBackward, &simpleApplicable);
+        const auto leaf       = FindJoinLeaf(*document->Syntax(), selection, request.command == MarkdownCommand::JoinBackward, &simpleApplicable);
         if (! leaf)
             result.available = false;
         else if (simpleApplicable)
@@ -2249,9 +2257,9 @@ std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownComma
         else if (flag)
             no = true;
     }
-    result.headingLevel = mixedHeading ? 0u : heading;
+    result.headingLevel                = mixedHeading ? 0u : heading;
     _state->lastListStateAncestorSteps = 0u;
-    result.listKind = UniformListKind(*document->Syntax(), first, last, _state->lastListStateAncestorSteps);
+    result.listKind                    = UniformListKind(*document->Syntax(), first, last, _state->lastListStateAncestorSteps);
     if (request.command == MarkdownCommand::SetHeading)
     {
         result.active = seen && ! mixedHeading && heading == request.headingLevel;
@@ -2935,7 +2943,7 @@ void RichTextEditor::CancelContentPreparation() noexcept
 }
 HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
 {
-    auto& state = *_state;
+    auto& state                = *_state;
     bool richPreparationActive = false;
     if (state.codeCallbackActive)
         return S_FALSE;
@@ -3122,7 +3130,8 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         }
         const auto currentSyntax = GetMarkdownSyntax();
         if (state.nativeObjectRejections &&
-            ! state.nativeObjectRejections->Matches(nullptr, width, host.GetDpi(), IsRightToLeft(), typography, resources, state.bindingRevision, state.appearanceRevision))
+            ! state.nativeObjectRejections->Matches(
+                nullptr, width, host.GetDpi(), IsRightToLeft(), typography, resources, state.bindingRevision, state.appearanceRevision))
         {
             state.nativeObjectRejections.reset();
             RetireSemanticAccessibility();
@@ -3248,7 +3257,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                     }
 #endif
                     const auto advance            = state.semantic.Advance(sharedWorkBudget - state.lastAdvanceMarkdownWork);
-                    richPreparationActive = false;
+                    richPreparationActive         = false;
                     state.lastAdvanceSemanticWork = advance.workUnits;
                     if (advance.status == RichText::MarkdownPreparationStatus::Pending)
                         return S_FALSE;
@@ -3353,7 +3362,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             options.tableOverflow    = appearance.tableOverflow;
             options.readingDirection = IsRightToLeft() ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
             state.sourceGuideOptions = options;
-            richPreparationActive = semanticDocument != nullptr;
+            richPreparationActive    = semanticDocument != nullptr;
             state.layout.BeginPreparation(factory,
                                           state.document.Snapshot(),
                                           revision,
@@ -3364,7 +3373,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                                           {typography, resources},
                                           state.images.Snapshot(),
                                           host.GetDeviceContext());
-            richPreparationActive = false;
+            richPreparationActive   = false;
             state.requestRevision   = revision;
             state.requestBinding    = binding;
             state.requestTypography = typography;
@@ -3386,7 +3395,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             }
 #endif
             const auto advance          = state.layout.AdvancePreparation();
-            richPreparationActive = false;
+            richPreparationActive       = false;
             state.lastAdvanceLayouts    = advance.layoutsPrepared;
             state.lastAdvanceBlockSteps = advance.blockSteps;
             if (advance.status == RichText::LayoutPreparationStatus::Pending)
@@ -3482,17 +3491,18 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         if (richPreparationActive && GetHost() == &host && state.markdownRendering && state.mode == RichText::ViewMode::Rich)
         {
             const auto viewport = TextViewport();
-            auto& rejected = state.preparationRejected.emplace();
-            rejected.source = Snapshot();
-            rejected.profile = state.markdownProfile;
-            if (state.sourceEditing) rejected.region = state.sourceEditing->region;
-            rejected.mode = state.mode;
-            rejected.width = std::max(1.0f, viewport.right - viewport.left);
-            rejected.dpi = host.GetDpi();
-            rejected.rtl = IsRightToLeft();
+            auto& rejected      = state.preparationRejected.emplace();
+            rejected.source     = Snapshot();
+            rejected.profile    = state.markdownProfile;
+            if (state.sourceEditing)
+                rejected.region = state.sourceEditing->region;
+            rejected.mode       = state.mode;
+            rejected.width      = std::max(1.0f, viewport.right - viewport.left);
+            rejected.dpi        = host.GetDpi();
+            rejected.rtl        = IsRightToLeft();
             rejected.typography = host.GetTypographyRevision();
-            rejected.resources = host.GetResourceGeneration();
-            rejected.binding = state.bindingRevision;
+            rejected.resources  = host.GetResourceGeneration();
+            rejected.binding    = state.bindingRevision;
             rejected.appearance = state.appearanceRevision;
             state.images.Cancel();
             state.semantic.Clear();
@@ -4205,12 +4215,13 @@ void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool by
             SetSelection({extend ? selection.anchor : next, next});
             return;
         }
-        using Operation = RichText::Detail::SourceWindowOperation;
-        const auto operation = key == VK_HOME ? Operation::Home : key == VK_END ? Operation::End
-                             : key == VK_LEFT ? (byWord ? Operation::PreviousWord : Operation::Previous)
-                                              : (byWord ? Operation::NextWord : Operation::Next);
-        const auto range = RichText::Detail::RichSourceWindowRange(Snapshot(), selection.caret, operation);
-        const auto source = key == VK_LEFT || key == VK_HOME ? range.first : range.last;
+        using Operation      = RichText::Detail::SourceWindowOperation;
+        const auto operation = key == VK_HOME   ? Operation::Home
+                               : key == VK_END  ? Operation::End
+                               : key == VK_LEFT ? (byWord ? Operation::PreviousWord : Operation::Previous)
+                                                : (byWord ? Operation::NextWord : Operation::Next);
+        const auto range     = RichText::Detail::RichSourceWindowRange(Snapshot(), selection.caret, operation);
+        const auto source    = key == VK_LEFT || key == VK_HOME ? range.first : range.last;
         SetSelection({extend ? selection.anchor : source, source});
         return;
     }
@@ -4471,8 +4482,8 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
             return changed;
         }
         using Operation = RichText::Detail::SourceWindowOperation;
-        const auto operation = byWord ? (backwards ? Operation::PreviousWord : Operation::NextWord)
-                                      : (backwards ? Operation::DeleteBackward : Operation::DeleteForward);
+        const auto operation =
+            byWord ? (backwards ? Operation::PreviousWord : Operation::NextWord) : (backwards ? Operation::DeleteBackward : Operation::DeleteForward);
         const auto range = RichText::Detail::RichSourceWindowRange(Snapshot(), selection.caret, operation, true);
         if (range.first == range.last)
             return false;

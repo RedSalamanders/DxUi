@@ -1068,10 +1068,10 @@ class PreparedMath final
         if (shape == L'↑' || shape == L'↓' || shape == L'↕' || shape == L'⇑' || shape == L'⇓' || shape == L'⇕')
         {
             const bool doubled = shape == L'⇑' || shape == L'⇓' || shape == L'⇕';
-            const bool up = shape == L'↑' || shape == L'↕' || shape == L'⇑' || shape == L'⇕';
-            const bool down = shape == L'↓' || shape == L'↕' || shape == L'⇓' || shape == L'⇕';
+            const bool up      = shape == L'↑' || shape == L'↕' || shape == L'⇑' || shape == L'⇕';
+            const bool down    = shape == L'↓' || shape == L'↕' || shape == L'⇓' || shape == L'⇕';
             const float center = x + width * .5f;
-            const float head = std::min((bottom - top) * .25f, width * .7f);
+            const float head   = std::min((bottom - top) * .25f, width * .7f);
             if (doubled)
             {
                 Stroke(x + width / 3.f, top + (up ? head * .35f : 0.f), x + width / 3.f, bottom - (down ? head * .35f : 0.f), thickness);

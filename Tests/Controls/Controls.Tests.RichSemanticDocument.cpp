@@ -158,14 +158,14 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
                 italicText->GlyphLayouts()[0u].node->text == L"italic text" && ! italicText->GlyphLayouts()[0u].bold && italicText->GlyphLayouts()[0u].italic,
             "text style commands retain their text and select the requested native font style");
     Require(! ParseMath(L"\\textbf{unclosed"), "malformed styled text rejects the entire formula");
-    for (const auto& [source, left, right] :
-         {std::tuple{L"\\left\\uparrow x\\right\\downarrow", L'↑', L'↓'},
-          std::tuple{L"\\left\\updownarrow x\\right\\Updownarrow", L'↕', L'⇕'},
-          std::tuple{L"\\left\\Uparrow x\\right\\Downarrow", L'⇑', L'⇓'}})
+    for (const auto& [source, left, right] : {std::tuple{L"\\left\\uparrow x\\right\\downarrow", L'↑', L'↓'},
+                                              std::tuple{L"\\left\\updownarrow x\\right\\Updownarrow", L'↕', L'⇕'},
+                                              std::tuple{L"\\left\\Uparrow x\\right\\Downarrow", L'⇑', L'⇓'}})
     {
         const auto expression = ParseMath(source);
         Require(expression && expression.root.children.size() == 1u && expression.root.children[0u].kind == MathKind::Delimited &&
-                    expression.root.children[0u].text == std::wstring{left, right}, "vertical arrow delimiters retain exact independent symbols");
+                    expression.root.children[0u].text == std::wstring{left, right},
+                "vertical arrow delimiters retain exact independent symbols");
         const auto arrows = prepare(source);
         Require(arrows->Size().width > 0.f && arrows->Size().height > 0.f, "vertical arrow fences have measured native geometry");
     }
@@ -174,21 +174,22 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
 #if DXUI_ENABLE_DIAGNOSTICS
     {
         const auto previousTable = Detail::testRichMathTableOverride;
-        const auto restoreTable = wil::scope_exit([previousTable]() noexcept { Detail::testRichMathTableOverride = previousTable; });
+        const auto restoreTable  = wil::scope_exit([previousTable]() noexcept { Detail::testRichMathTableOverride = previousTable; });
         const std::array<std::uint8_t, 1u> missingTable{0u};
         Detail::testRichMathTableOverride = missingTable;
-        for (const auto& [source, shafts, up, down] :
-             {std::tuple{L"\\Big\\uparrow", 1u, true, false}, std::tuple{L"\\Big\\downarrow", 1u, false, true},
-              std::tuple{L"\\Big\\updownarrow", 1u, true, true}, std::tuple{L"\\Big\\Uparrow", 2u, true, false},
-              std::tuple{L"\\Big\\Downarrow", 2u, false, true}, std::tuple{L"\\Big\\Updownarrow", 2u, true, true}})
+        for (const auto& [source, shafts, up, down] : {std::tuple{L"\\Big\\uparrow", 1u, true, false},
+                                                       std::tuple{L"\\Big\\downarrow", 1u, false, true},
+                                                       std::tuple{L"\\Big\\updownarrow", 1u, true, true},
+                                                       std::tuple{L"\\Big\\Uparrow", 2u, true, false},
+                                                       std::tuple{L"\\Big\\Downarrow", 2u, false, true},
+                                                       std::tuple{L"\\Big\\Updownarrow", 2u, true, true}})
         {
             const auto fallback = prepare(source);
-            const auto& lines = fallback->StrokeLayouts();
+            const auto& lines   = fallback->StrokeLayouts();
             Require(fallback->VariantLayouts().empty() && lines.size() == shafts + (up ? 2u : 0u) + (down ? 2u : 0u),
                     "missing MATH table draws the correct number of arrow shafts and heads");
             for (std::size_t index = 0u; index < shafts; ++index)
-                Require(lines[index].first.x == lines[index].last.x && lines[index].first.y < lines[index].last.y,
-                        "arrow fallback has vertical shafts");
+                Require(lines[index].first.x == lines[index].last.x && lines[index].first.y < lines[index].last.y, "arrow fallback has vertical shafts");
             if (up)
                 Require(lines[shafts].first.y > lines[shafts].last.y && lines[shafts + 1u].first.y < lines[shafts + 1u].last.y &&
                             lines[shafts].last.x == lines[shafts + 1u].first.x && lines[shafts].last.y == lines[shafts + 1u].first.y,
@@ -809,27 +810,27 @@ void TestRichSemanticNativeMathematicsAndBroaderMermaid()
                                          std::pair{L"classDiagram\nclass A\nnote for A \"Attached note\"\n", L"A note: Attached note"}})
     {
         const auto sourceWithNote = L"```mermaid\n" + std::wstring(body) + L"```\n";
-        const auto semantic = RichSemanticDocumentTests::Build(sourceWithNote, MarkdownProfile::RichMarkdown);
-        const auto diagram = std::ranges::find(semantic->Elements(), SemanticRole::Diagram, &SemanticElement::role);
+        const auto semantic       = RichSemanticDocumentTests::Build(sourceWithNote, MarkdownProfile::RichMarkdown);
+        const auto diagram        = std::ranges::find(semantic->Elements(), SemanticRole::Diagram, &SemanticElement::role);
         Require(semantic->Map().Source() == sourceWithNote && diagram != semantic->Elements().end() && diagram->name.find(expected) != std::wstring::npos,
                 "class notes preserve exact source and expose their content in the diagram alternative");
     }
     const std::wstring namespaceSource = L"```mermaid\nclassDiagram\nnamespace Domain {\nclass A\nclass B\nA --> B\n}\n```\n";
-    const auto namespaceDocument = RichSemanticDocumentTests::Build(namespaceSource, MarkdownProfile::RichMarkdown);
-    const auto namespaceDiagram = std::ranges::find(namespaceDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
+    const auto namespaceDocument       = RichSemanticDocumentTests::Build(namespaceSource, MarkdownProfile::RichMarkdown);
+    const auto namespaceDiagram        = std::ranges::find(namespaceDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
     Require(namespaceDocument->Map().Source() == namespaceSource && namespaceDiagram != namespaceDocument->Elements().end() &&
                 namespaceDiagram->name.find(L"Domain") != std::wstring::npos && namespaceDiagram->name.find(L"A") != std::wstring::npos &&
                 namespaceDiagram->name.find(L"B") != std::wstring::npos,
             "class namespace semantic alternative exposes the namespace and members while retaining exact source");
     const std::wstring genericSource = L"```mermaid\nclassDiagram\nclass Box {\n+List~int~ values\n}\n```\n";
-    const auto genericDocument = RichSemanticDocumentTests::Build(genericSource, MarkdownProfile::RichMarkdown);
-    const auto genericDiagram = std::ranges::find(genericDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
+    const auto genericDocument       = RichSemanticDocumentTests::Build(genericSource, MarkdownProfile::RichMarkdown);
+    const auto genericDiagram        = std::ranges::find(genericDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
     Require(genericDocument->Map().Source() == genericSource && genericDiagram != genericDocument->Elements().end() &&
                 genericDiagram->name.find(L"List<int>") != std::wstring::npos,
             "class generic semantic alternative exposes the displayed type and preserves exact source");
     const std::wstring sequenceSource = L"```mermaid\nsequenceDiagram\nparticipant A as Alpha\nparticipant B as Beta\nA->>B: hello\nB-->>A: reply\n```\n";
-    const auto sequenceDocument = RichSemanticDocumentTests::Build(sequenceSource, MarkdownProfile::RichMarkdown);
-    const auto sequenceDiagram = std::ranges::find(sequenceDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
+    const auto sequenceDocument       = RichSemanticDocumentTests::Build(sequenceSource, MarkdownProfile::RichMarkdown);
+    const auto sequenceDiagram        = std::ranges::find(sequenceDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
     Require(sequenceDocument->Map().Source() == sequenceSource && sequenceDiagram != sequenceDocument->Elements().end() &&
                 sequenceDiagram->name.starts_with(L"Sequence diagram") && sequenceDiagram->name.find(L"Alpha") != std::wstring::npos &&
                 sequenceDiagram->name.find(L"Beta") != std::wstring::npos && sequenceDiagram->name.find(L"hello") != std::wstring::npos &&

@@ -1,5 +1,5 @@
-#include <DxUi/RichMarkdown.h>
 #include "DxUi.RichProjectionWindow.h"
+#include <DxUi/RichMarkdown.h>
 #include <stdexcept>
 namespace DxUi::RichText
 {

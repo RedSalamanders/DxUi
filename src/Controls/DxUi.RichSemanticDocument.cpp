@@ -775,10 +775,10 @@ struct SemanticBuilder::Preparation
                 direction = Label(AccessibilityTextId::DirectionLeftRight);
             else if (graph.direction == Detail::FlowchartDirection::RightLeft)
                 direction = Label(AccessibilityTextId::DirectionRightLeft);
-            const auto family = graph.family == Detail::NativeDiagramFamily::State   ? Label(AccessibilityTextId::StateDiagramHeader)
-                                : graph.family == Detail::NativeDiagramFamily::Class ? Label(AccessibilityTextId::ClassDiagramHeader)
+            const auto family = graph.family == Detail::NativeDiagramFamily::State      ? Label(AccessibilityTextId::StateDiagramHeader)
+                                : graph.family == Detail::NativeDiagramFamily::Class    ? Label(AccessibilityTextId::ClassDiagramHeader)
                                 : graph.family == Detail::NativeDiagramFamily::Sequence ? Label(AccessibilityTextId::SequenceDiagramHeader)
-                                                                                     : Label(AccessibilityTextId::FlowchartHeader);
+                                                                                        : Label(AccessibilityTextId::FlowchartHeader);
             if (! DiagramAlternative({family, direction, Label(AccessibilityTextId::DiagramNodes)}))
                 return;
             work.phase = Phase::Nodes;
@@ -843,8 +843,11 @@ struct SemanticBuilder::Preparation
             const auto& edge = graph.edges[work.cursor++];
             if (graph.family == Detail::NativeDiagramFamily::Sequence)
             {
-                DiagramAlternative({id(edge.from), edge.openArrow ? Label(AccessibilityTextId::SequenceAsyncSends) : Label(AccessibilityTextId::SequenceSends),
-                                    edge.label, Label(AccessibilityTextId::SequenceTo), id(edge.to),
+                DiagramAlternative({id(edge.from),
+                                    edge.openArrow ? Label(AccessibilityTextId::SequenceAsyncSends) : Label(AccessibilityTextId::SequenceSends),
+                                    edge.label,
+                                    Label(AccessibilityTextId::SequenceTo),
+                                    id(edge.to),
                                     edge.style == Detail::FlowchartLineStyle::Dotted ? Label(AccessibilityTextId::SequenceDottedEnd) : L"; "});
                 return;
             }
@@ -898,10 +901,10 @@ struct SemanticBuilder::Preparation
         extensions.records += graph.nodes.size() + graph.edges.size() + graph.groups.size();
         auto& element = document->elements_[work.visit.element];
         element.role  = SemanticRole::Diagram;
-        element.title = graph.family == Detail::NativeDiagramFamily::State   ? Label(AccessibilityTextId::StateDiagramHelp)
-                        : graph.family == Detail::NativeDiagramFamily::Class ? Label(AccessibilityTextId::ClassDiagramHelp)
+        element.title = graph.family == Detail::NativeDiagramFamily::State      ? Label(AccessibilityTextId::StateDiagramHelp)
+                        : graph.family == Detail::NativeDiagramFamily::Class    ? Label(AccessibilityTextId::ClassDiagramHelp)
                         : graph.family == Detail::NativeDiagramFamily::Sequence ? Label(AccessibilityTextId::SequenceDiagramHelp)
-                                                                             : Label(AccessibilityTextId::FlowchartHelp);
+                                                                                : Label(AccessibilityTextId::FlowchartHelp);
         if (! graph.accessibleTitle.empty())
         {
             if (graph.accessibleDescription.empty())

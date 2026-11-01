@@ -138,8 +138,7 @@ template <typename Check> inline void Geometry(Check&& check)
           "class inheritance, directed association and plain association retain distinct edge kinds through layout");
     const auto genericClass = Graph(L"classDiagram\nclass A {\n+List~int~ values\n+find(Key~T~ key) Result~T~\n}\n");
     check(genericClass->outcome == FlowchartOutcome::Prepared && genericClass->nodes.size() == 1u &&
-              genericClass->nodes[0u].label == L"A\n+List<int> values\n+find(Key<T> key) Result<T>" &&
-              genericClass->nodes[0u].compartmentCount == 2u,
+              genericClass->nodes[0u].label == L"A\n+List<int> values\n+find(Key<T> key) Result<T>" && genericClass->nodes[0u].compartmentCount == 2u,
           "bounded class generic notation becomes readable angle brackets in its original member compartments");
     for (const auto source : {L"classDiagram\nA : List~int\n", L"classDiagram\nA : List~~\n"})
     {
@@ -173,7 +172,8 @@ template <typename Check> inline void Geometry(Check&& check)
     const auto namespacedPlan = Complete(namespaceLayout, check);
     check(namespaced->groups.size() == 1u && namespaced->groups[0].title == L"Domain" && namespaced->nodes.size() == 2u &&
               namespaced->nodes[0].groupMask == 1u && namespaced->nodes[1].groupMask == 1u && namespacedPlan->issue == FlowchartLayoutIssue::None &&
-              namespacedPlan->groups.size() == 1u, "class namespace owns its members and has bounded native group geometry");
+              namespacedPlan->groups.size() == 1u,
+          "class namespace owns its members and has bounded native group geometry");
     const auto grid = Graph(L"graph TD\nC1-->A2\nsubgraph One\nA1-->A2\nend\nsubgraph Two\nB1-->B2\nend\nsubgraph Three\nC1-->C2\nend\n");
     const std::vector<FlowchartSize> gridNodes(grid->nodes.size(), {16.0, 12.0}), gridEdges(grid->edges.size()), gridLabels(grid->groups.size(), {16.0, 12.0});
     NativeFlowchartLayout gridLayout;
@@ -187,7 +187,8 @@ template <typename Check> inline void Geometry(Check&& check)
                 check(gridPlan->groups[group].bounds.x + gridPlan->groups[group].bounds.width <= gridPlan->groups[other].bounds.x ||
                           gridPlan->groups[other].bounds.x + gridPlan->groups[other].bounds.width <= gridPlan->groups[group].bounds.x,
                       "group columns have disjoint independently checked bounds");
-    for (const auto source : {L"classDiagram\nnamespace Empty {\n}\n", L"classDiagram\nnamespace A {\nclass B\n", L"classDiagram\nnamespace 2Bad {\nclass A\n}\n"})
+    for (const auto source :
+         {L"classDiagram\nnamespace Empty {\n}\n", L"classDiagram\nnamespace A {\nclass B\n", L"classDiagram\nnamespace 2Bad {\nclass A\n}\n"})
     {
         const auto rejected = Graph(source);
         check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == source && rejected->groups.empty(),
@@ -342,9 +343,8 @@ template <typename Check> inline void Corpus(Check&& check)
         const auto first = Place(graph, check, 1u), batched = Place(graph, check, 113u);
         if (example.number == 91u)
         {
-            check(first->issue == FlowchartLayoutIssue::DiagramExtent && batched->issue == FlowchartLayoutIssue::DiagramExtent &&
-                      first->nodes.empty() && first->edges.empty() && first->groups.empty() &&
-                      batched->nodes.empty() && batched->edges.empty() && batched->groups.empty(),
+            check(first->issue == FlowchartLayoutIssue::DiagramExtent && batched->issue == FlowchartLayoutIssue::DiagramExtent && first->nodes.empty() &&
+                      first->edges.empty() && first->groups.empty() && batched->nodes.empty() && batched->edges.empty() && batched->groups.empty(),
                   "known overlapping reference subgraphs reject complete geometry identically for both budgets");
             ++admitted;
             continue;

@@ -157,8 +157,10 @@ struct FlowchartModel
 };
 inline bool ValidSequenceModel(const FlowchartModel& graph) noexcept
 {
-    if (graph.family != NativeDiagramFamily::Sequence) return true;
-    if (graph.direction != FlowchartDirection::TopBottom || ! graph.groups.empty()) return false;
+    if (graph.family != NativeDiagramFamily::Sequence)
+        return true;
+    if (graph.direction != FlowchartDirection::TopBottom || ! graph.groups.empty())
+        return false;
     for (const auto& node : graph.nodes)
         if (node.shape != FlowchartShape::Rectangle || node.groupMask || node.compartmentCount || node.label.empty() ||
             node.identifier.first >= node.identifier.last || node.identifier.last > graph.source.size())
