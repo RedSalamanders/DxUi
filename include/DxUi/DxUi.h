@@ -3292,7 +3292,8 @@ public:
                           std::optional<size_t> activeIndex = std::nullopt);
     void ClearSourceHighlights() noexcept;
     [[nodiscard]] std::span<const RichTextSourceHighlight> GetSourceHighlights() const noexcept;
-    // Revision-guarded source annotations. Source changes retire them.
+    // Revision-guarded source annotations. Source changes retire them. Before
+    // current layout they remain Pending; check status after preparation.
     void SetDecorations(const RichText::SourceSnapshot& expectedSource, std::span<const RichTextDecoration> decorations);
     [[nodiscard]] std::span<const RichTextDecoration> GetDecorations() const noexcept;
     [[nodiscard]] RichTextDecorationStatus GetDecorationStatus() const noexcept;

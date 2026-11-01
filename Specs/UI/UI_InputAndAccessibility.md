@@ -1223,8 +1223,10 @@ prepared geometry until the host prepares the replacement.
 Revision-guarded source decorations support background, underline, squiggle and
 foreground using accent, subdued, warning and error roles; source edits retire
 them. At most 256 decorations and 4096 prepared decoration rectangles are
-admitted. A nonempty setter requires current geometry and rejects an oversized
-replacement before changing the previous request. If later reflow exceeds the
+admitted. With current geometry, the setter rejects an oversized replacement
+before changing the previous request. Without current geometry, it retains the
+request as Pending for admission at the next preparation. If that preparation
+or later reflow exceeds the
 rectangle ceiling, requested decorations remain available through the getter,
 status reports CapacityExceeded, stale annotation geometry is withheld, and
 the document continues to prepare and paint. Clients inspect status after

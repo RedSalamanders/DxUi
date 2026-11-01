@@ -218,14 +218,17 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
               editor->GetText() == L"One one only",
           "editor replace-all is case-insensitive and one undo transaction");
     editor->SetText(L"word");
-    prepare();
-    editor->SetSelection({0u, 4u});
-    const std::array highlights{RichTextSourceHighlight{0u, 2u, true}};
-    editor->SetSourceHighlights(highlights);
     const auto decorationSource = editor->Snapshot();
     const std::array decorations{RichTextDecoration{0u, 4u, RichTextDecorationKind::Background, RichTextDecorationRole::Accent},
                                  RichTextDecoration{0u, 4u, RichTextDecorationKind::Squiggle, RichTextDecorationRole::Error}};
     editor->SetDecorations(decorationSource, decorations);
+    Check(editor->GetDecorationStatus() == RichTextDecorationStatus::Pending && editor->GetDecorations().size() == decorations.size(),
+          "revision-local annotations can be supplied before the first current layout");
+    prepare();
+    Check(editor->GetDecorationStatus() == RichTextDecorationStatus::Ready, "pending annotations publish after current layout preparation");
+    editor->SetSelection({0u, 4u});
+    const std::array highlights{RichTextSourceHighlight{0u, 2u, true}};
+    editor->SetSourceHighlights(highlights);
     const std::vector<RichTextDecoration> tooManyDecorations(257u);
     RichSemanticTests::Reject<std::length_error>([&] { editor->SetDecorations(decorationSource, tooManyDecorations); },
                                                  "decoration count is bounded before staging");

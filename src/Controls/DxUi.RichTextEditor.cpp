@@ -1066,15 +1066,16 @@ void RichTextEditor::SetDecorations(const RichText::SourceSnapshot& expectedSour
     if (! decorations.empty())
     {
         const auto* host = GetHost();
-        if (! host || ! LayoutIsCurrent(*host))
-            throw std::logic_error("Rich decoration geometry is not current");
-        size_t rectangleCount = 0u;
-        for (const auto& item : decorations)
+        if (host && LayoutIsCurrent(*host))
         {
-            const auto rectangles = _state->layout.SourceRange(item.start, item.start + item.length);
-            if (rectangles.size() > _state->decorationRectangleLimit - rectangleCount)
-                throw std::length_error("Rich decoration rectangle capacity exceeded");
-            rectangleCount += rectangles.size();
+            size_t rectangleCount = 0u;
+            for (const auto& item : decorations)
+            {
+                const auto rectangles = _state->layout.SourceRange(item.start, item.start + item.length);
+                if (rectangles.size() > _state->decorationRectangleLimit - rectangleCount)
+                    throw std::length_error("Rich decoration rectangle capacity exceeded");
+                rectangleCount += rectangles.size();
+            }
         }
     }
     std::vector<RichTextDecoration> staged(decorations.begin(), decorations.end());
