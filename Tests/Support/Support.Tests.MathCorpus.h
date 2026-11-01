@@ -889,6 +889,15 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
 #endif
     check(! ParseMath(L"\\begin{matrix}a\\\\[2pt]b\\end{matrix}") && ! ParseMath(L"\\substack{a\\\\[2pt]b}"),
           "unsupported row spacing retains the complete source instead of becoming literal cell text");
+    {
+        const auto rows = ParseMath(L"\\begin{matrix}a\\cr b\\end{matrix}");
+        const auto substack = ParseMath(L"\\substack{a\\cr b}");
+        check(rows && rows.root.children[0u].children.size() == 2u && substack && substack.root.children[0u].children.size() == 2u,
+              "cr separates rows in matrices and substacks");
+        check(! ParseMath(L"a\\cr b") && ! ParseMath(L"\\begin{matrix}a\\cr[2pt]b\\end{matrix}") &&
+                  ! ParseMath(L"\\begin{matrix}a\\crammed b\\end{matrix}"),
+              "row separator remains scoped, refuses unsupported spacing and cannot consume longer commands");
+    }
     const auto binomial = ParseMath(L"\\binom{n}{k}");
     check(binomial && binomial.root.children.size() == 1u && binomial.root.children[0u].kind == MathKind::Matrix &&
               binomial.root.children[0u].text == L"pmatrix" && binomial.root.children[0u].columns == 1u && binomial.root.children[0u].children.size() == 2u,

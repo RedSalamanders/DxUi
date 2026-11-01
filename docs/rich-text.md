@@ -1471,7 +1471,7 @@ fractions (`frac`, `dfrac`, `tfrac`), parenthesized two-row binomials (`binom`, 
 operator symbols, named functions, text/operator names (including `\textbf` and
 `\textit`), roman/bold/italic and blackboard, script, Fraktur, sans-serif and
 monospace alphabets, accents, scalable paired delimiters, matrices, cases,
-aligned and gathered rows. Matrix rows use `\\` and cells use `&`; shorter rows
+aligned and gathered rows. Matrix and substack rows use `\\` or `\cr` and matrix cells use `&`; shorter rows
 are padded with empty cells to the widest row, within the total-cell limit. User macros, packages, file input, evaluation and full LaTeX
 compatibility are unsupported. Rejection retains the complete literal equation with
 a source-ranged diagnostic, rather than drawing a misleading partial expression.

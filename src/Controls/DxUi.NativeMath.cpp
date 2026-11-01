@@ -41,6 +41,14 @@ class Parser
         }
 #endif
     }
+    std::size_t RowSeparatorLength() const noexcept
+    {
+        if (source.substr(at, 2u) == L"\\\\")
+            return 2u;
+        if (source.substr(at, 3u) == L"\\cr" && (at + 3u == source.size() || ! Letter(source[at + 3u])))
+            return 3u;
+        return 0u;
+    }
     static bool Letter(wchar_t c) noexcept
     {
         return (c >= L'a' && c <= L'z') || (c >= L'A' && c <= L'Z');
@@ -417,9 +425,9 @@ class Parser
                 ++at;
                 continue;
             }
-            if (source.substr(at, 2) != L"\\\\")
+            if (! RowSeparatorLength())
                 Reject();
-            at += 2;
+            at += RowSeparatorLength();
             Space();
             if (at < source.size() && source[at] == L'[')
                 Reject(MathIssue::UnsupportedCommand);
@@ -644,9 +652,9 @@ class Parser
                 if (rows.size() == MathMaximumRows)
                     Reject(MathIssue::Capacity);
                 rows.push_back(Row(depth + 1u, false, true, false, false, true));
-                if (source.substr(at, 2u) == L"\\\\")
+                if (RowSeparatorLength())
                 {
-                    at += 2u;
+                    at += RowSeparatorLength();
                     Space();
                     if (at < source.size() && source[at] == L'[')
                         Reject(MathIssue::UnsupportedCommand);
@@ -1291,7 +1299,7 @@ class Parser
             }
             if (right && source.substr(at, 6) == L"\\right" && (at + 6 == source.size() || ! Letter(source[at + 6])))
                 break;
-            if (cell && (source[at] == L'&' || source.substr(at, 2) == L"\\\\" || source.substr(at, 5) == L"\\end{"))
+            if (cell && (source[at] == L'&' || RowSeparatorLength() != 0u || source.substr(at, 5) == L"\\end{"))
                 break;
             if (stopBrace && source[at] == L'}')
                 break;
