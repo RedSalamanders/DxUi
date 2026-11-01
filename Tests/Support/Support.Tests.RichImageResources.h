@@ -361,7 +361,8 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
     editor.SetSelection({destination, destination + 1u});
     check(editor.ReplaceSelection(L"x") && affected.Cancelled() && ! editor.CompleteImageRequest(affected, picture),
           "editing the image source cancels and rejects the old request");
-    const std::wstring labelSource = L"![first](first.png) and ![second](second.png)";
+    const auto imageSourceBeforeLabels = editor.GetText();
+    const std::wstring labelSource     = L"![first](first.png) and ![second](second.png)";
     editor.SetText(labelSource);
     editor.SetSelection({2u, 2u});
     prepare();
@@ -383,5 +384,7 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
     check(requests.empty() && editor.GetImageResourceStatistics().readySources == 2u && editor.GetAcknowledgedSemanticDocument(host),
           "new semantic publication adopts both previously staged and newly completed image sources without redispatch");
     editor.SetAccessibilityLabels(nullptr);
+    editor.SetText(imageSourceBeforeLabels);
+    prepare();
 }
 } // namespace RichImageResourceTests
