@@ -1825,6 +1825,88 @@ inline void NativeMathHRESULTFailureContainment(ControlHost& host)
 #endif
 }
 
+template <typename Prepare> void SourceHorizontalAndGuides(ControlHost& host, Prepare&& prepare)
+{
+    std::wstring source(180u, L'x');
+    source += L" space\tend\r\nsecond line\n";
+    auto root = std::make_unique<RichTextEditor>(source);
+    auto* editor = root.get();
+    editor->SetViewMode(ViewMode::Source);
+    auto appearance = editor->GetAppearance();
+    appearance.sourceMonospace = true;
+    appearance.sourceWrap = false;
+    appearance.sourceLineNumbers = true;
+    appearance.sourceWhitespaceMarks = true;
+    editor->SetAppearance(appearance);
+    host.SetRoot(std::move(root));
+    prepare();
+    const auto initial = editor->GetHorizontalScrollInfo();
+    Check(initial && initial->contentWidthDip > initial->viewportWidthDip + 100.0f, "unwrapped source exposes horizontal overflow");
+    const auto before = editor->TryGetTextInputCaretRect(host, 30u);
+    Check(before.has_value(), "source guide fixture has a prepared caret");
+    const auto sourceRevision = editor->Revision();
+    const auto selection = editor->GetSelection();
+    unsigned events{};
+    editor->SetOnHorizontalScrollChanged([&](float) { ++events; });
+    Check(editor->SetHorizontalScrollOffsetDip(80.0f), "source horizontal scrolling accepts a bounded offset");
+    const auto after = editor->TryGetTextInputCaretRect(host, 30u);
+    Check(after && std::abs((before->left - after->left) - 80.0f) < 0.1f && events == 1u,
+          "horizontal scroll translates TSF/UIA caret geometry and sends one event");
+    const auto hit = editor->TryHitTestTextInputPoint(host, D2D1::Point2F(after->left + 0.1f, (after->top + after->bottom) * 0.5f));
+    Check(hit && *hit == 30u && editor->Revision() == sourceRevision && editor->GetSelection() == selection,
+          "horizontal source hit testing preserves source, selection and revision");
+    appearance.sourceWrap = true;
+    editor->SetAppearance(appearance);
+    prepare();
+    const auto wrapped = editor->GetHorizontalScrollInfo();
+    Check(wrapped && wrapped->offsetDip == 0.0f && wrapped->contentWidthDip <= wrapped->viewportWidthDip + 0.1f,
+          "reenabling wrapping retires overflow and clamps the horizontal offset");
+    appearance.sourceWrap = false;
+    editor->SetAppearance(appearance);
+    editor->SetFlowDirection(FlowDirection::RightToLeft);
+    prepare();
+    Check(editor->SetHorizontalScrollOffsetDip(0.0f), "reset RTL horizontal position");
+    const auto rtlBefore = editor->TryGetTextInputCaretRect(host, 30u);
+    Check(rtlBefore && editor->SetHorizontalScrollOffsetDip(80.0f), "RTL source admits horizontal scrolling");
+    const auto rtlAfter = editor->TryGetTextInputCaretRect(host, 30u);
+    Check(rtlAfter && std::abs((rtlAfter->left - rtlBefore->left) - 80.0f) < 0.1f,
+          "RTL source moves caret geometry toward the opposite overflow edge");
+    const auto viewport = editor->TryGetTextInputViewportRect();
+    Check(viewport.has_value(), "RTL source has a viewport");
+    bool resolved = false;
+    for (std::size_t at = 0u; at < 180u && ! resolved; ++at)
+        if (const auto caret = editor->TryGetTextInputCaretRect(host, at);
+            caret && caret->left >= viewport->left && caret->left + 1.0f < viewport->right)
+        {
+            const auto point = D2D1::Point2F(caret->left + 0.1f, (caret->top + caret->bottom) * 0.5f);
+            const auto rtlHit = editor->TryHitTestTextInputPoint(host, point);
+            resolved = rtlHit && *rtlHit == at;
+        }
+    Check(resolved, "a visible RTL caret and hit test resolve the same source ACP after horizontal scrolling");
+}
+template <typename Prepare> void RichTableHorizontalOverflow(ControlHost& host, Prepare&& prepare)
+{
+    std::wstring source = L"| first | second |\n| --- | --- |\n| ";
+    source += std::wstring(120u, L'w');
+    source += L" | end |\n";
+    auto root = std::make_unique<RichTextEditor>(source);
+    auto* editor = root.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    auto appearance = editor->GetAppearance();
+    appearance.markdownPresentation = MarkdownPresentationStyle::Subtle;
+    appearance.tableOverflow = true;
+    editor->SetAppearance(appearance);
+    host.SetRoot(std::move(root));
+    prepare();
+    const auto info = editor->GetHorizontalScrollInfo();
+    Check(info && info->contentWidthDip > info->viewportWidthDip + 100.0f, "intrinsic table exposes its retained horizontal extent");
+    const auto before = editor->TryGetTextInputCaretRect(host, source.find(L"ww"));
+    Check(before && editor->SetHorizontalScrollOffsetDip(80.0f), "overflow table accepts horizontal offset");
+    const auto after = editor->TryGetTextInputCaretRect(host, source.find(L"ww"));
+    Check(after && std::abs((before->left - after->left) - 80.0f) < 0.1f && editor->GetText() == source,
+          "overflow scrolling translates table source geometry without editing source");
+}
 template <typename Prepare> void SemanticGeometryReuse(ControlHost& host, Prepare&& prepare)
 {
     std::wstring source;

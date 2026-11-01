@@ -241,7 +241,7 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
                                     options.locale.c_str(),
                                     format.put()),
           "CreateTextFormat");
-    Check(format->SetWordWrapping(marker || object ? DWRITE_WORD_WRAPPING_NO_WRAP : DWRITE_WORD_WRAPPING_WRAP), "SetWordWrapping");
+    Check(format->SetWordWrapping(marker || object || ! options.wrap ? DWRITE_WORD_WRAPPING_NO_WRAP : DWRITE_WORD_WRAPPING_WRAP), "SetWordWrapping");
     Check(format->SetReadingDirection(options.readingDirection), "SetReadingDirection");
     Check(format->SetTextAlignment(options.textAlignment), "SetTextAlignment");
     if (options.tabStopDip > 0.0f)

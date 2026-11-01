@@ -131,6 +131,22 @@ services, selection and history are unchanged. Preparation publishes complete
 disjoint ranges; drawing never parses. High contrast uses the ordinary text
 pair. The 65,536-event presentation bound falls back to the complete uncolored
 source view rather than publishing partial syntax or repeatedly retrying it. `directSourceInkPreview` separately enables an experimental direct renderer; it defaults off and remains performance-unqualified. Source coloring still uses the canonical DirectWrite path when it is off.
+Source view also supports `sourceWrap=false`, `sourceLineNumbers=true`, and
+`sourceWhitespaceMarks=true`. The gutter and guides are prepared from exact
+source; they do not change ACPs, selections or clipboard text. Horizontal offset
+is available through `GetHorizontalScrollInfo`, `SetHorizontalScrollOffsetDip`,
+and `SetOnHorizontalScrollChanged`; Shift+wheel scrolls overflowing content.
+Rich tables with `tableOverflow=true` use the same horizontal offset. Native
+input, hit testing and accessibility geometry follow the painted position.
+
+For opt-in Subtle code blocks, applications can register `SetCodeTokenizer`
+and use `TokenizeBuiltinCode` for JSON, C-like languages, PowerShell or diff.
+Prepared bounded token spans change ink only. The Subtle frame shows a language
+badge and physical line numbers within the documented bounds. Register
+`SetOnCodeCopyRequested` with a localized accessible name to expose pointer,
+keyboard and UIA copy intent; the callback receives counted rendered code and
+owns clipboard transport. All of these features still require the project's
+complete platform, allocation and performance qualification before plan closeout.
 List marker ink uses the parser's exact source token range, so nested, ordered,
 quoted and task-list prefixes stay aligned with their original UTF-16 offsets.
 Each owner preparation advance uses at most 256 work steps shared across block

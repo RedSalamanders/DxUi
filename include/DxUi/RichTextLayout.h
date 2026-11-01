@@ -37,8 +37,9 @@ struct LayoutOptions
     std::optional<float> listItemSpacingDip;         // Finite 0..256 DIP between items.
     std::optional<SemanticSpacing> semanticSpacing;
     MarkdownPresentationStyle markdownPresentation = MarkdownPresentationStyle::Default;
-    bool codeCopyAction                            = false; // Host supplies an explicit copy-intent callback.
-    bool tableOverflow                             = false; // Subtle tables retain minimum widths beyond the viewport.
+    bool wrap = true;
+    bool codeCopyAction = false; // Host supplies an explicit copy-intent callback.
+    bool tableOverflow = false; // Subtle tables retain minimum widths beyond the viewport.
 };
 struct CaretGeometry
 {
@@ -226,6 +227,7 @@ public:
     void Clear() noexcept;
     bool Ready() const noexcept;
     float Height() const noexcept;
+    float Width() const noexcept;
     std::uint64_t Generation() const noexcept;
     std::uint64_t Revision() const noexcept;
     LayoutPreparation LastPreparation() const noexcept;

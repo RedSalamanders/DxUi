@@ -1,4 +1,5 @@
 #pragma once
+#include "Controls/DxUi.RichSourceGuides.h"
 #include <DxUi/RichTextLayout.h>
 static wil::com_ptr<IDWriteFactory> RichGeometryFactory()
 {
@@ -332,6 +333,106 @@ static void TestEmbeddedSemanticReusePixels(GraphicsFixture& gpu)
     Check(reusedPixels == freshPixels, "reused semantic layouts match a fresh WARP render byte for byte");
 }
 
+static void TestSourceGuideAllocationAtomicity()
+{
+    using namespace DxUi::RichText;
+    using namespace DxUi::RichText::Detail;
+    const auto factory = RichGeometryFactory();
+    Document source{L"one two\tthree\r\nnext line\n"};
+    LayoutOptions options;
+    options.widthDip = 240.0f;
+    RichEditorLayout geometry;
+    geometry.BeginPreparation(factory.get(), source.Snapshot(), source.Revision(), ViewMode::Source, options);
+    while (geometry.HasPendingPreparation())
+        static_cast<void>(geometry.AdvancePreparation());
+    const auto finish = [&](RichSourceGuides& guides) {
+        while (! guides.Advance(factory.get(), geometry)) {}
+    };
+    const auto seed = [&] {
+        auto guides = std::make_unique<RichSourceGuides>();
+        guides->Begin(source.Snapshot(), 1u, geometry.Generation(), true, true, options);
+        finish(*guides);
+        return guides;
+    };
+    const auto stage = [&](RichSourceGuides& guides) {
+        guides.Begin(source.Snapshot(), 2u, geometry.Generation(), true, true, options);
+        finish(guides);
+    };
+    auto measured = seed();
+    const auto oldCounting = countAllocations;
+    const auto oldCalls = allocations, oldBytes = allocationBytes;
+    allocations = allocationBytes = 0u;
+    countAllocations = true;
+    stage(*measured);
+    countAllocations = oldCounting;
+    const auto count = allocations;
+    allocations = oldCalls;
+    allocationBytes = oldBytes;
+    Check(count > 0u && count < 512u, "source guide preparation has bounded observed allocations");
+    for (std::size_t point = 0u; point < count; ++point)
+    {
+        auto guides = seed();
+        const auto numberCount = guides->Numbers().size(), markCount = guides->Marks().size();
+        const auto oldFailure = failAllocationAfter;
+        bool failed = false;
+        failAllocationAfter = point;
+        try { stage(*guides); }
+        catch (const std::bad_alloc&) { failed = true; }
+        failAllocationAfter = oldFailure;
+        Check(failed && guides->Numbers().size() == numberCount && guides->Marks().size() == markCount,
+              "guide allocation failure preserves the preceding immutable publication");
+        stage(*guides);
+        Check(guides->Current(2u, geometry.Generation(), true, true) && guides->Numbers().size() == numberCount && guides->Marks().size() == markCount,
+              "guide allocation retry completes without skipped or duplicated source units");
+    }
+}
+static void TestEmbeddedSourceGuidesPixels(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    const std::wstring source = L"alpha  beta\tend\r\nsecond line\n";
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "source guide graphics");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "source guide view");
+    auto owned = std::make_unique<RichTextEditor>(source);
+    auto* editor = owned.get();
+    editor->SetViewMode(RichText::ViewMode::Source);
+    auto appearance = editor->GetAppearance();
+    appearance.sourceMonospace = true;
+    appearance.sourceLineNumbers = true;
+    editor->SetAppearance(appearance);
+    view.Controls().SetRoot(std::move(owned));
+    Hr(gpu.Resize(480u, 240u), "source guide raster size");
+    const auto capture = [&] {
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare source guide pixels");
+        gpu.Bind();
+        Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "source guide composite");
+        std::vector<std::uint8_t> pixels(0u);
+        Hr(gpu.Read(pixels), "source guide readback");
+        return pixels;
+    };
+    const auto plain = capture();
+    appearance.sourceWhitespaceMarks = true;
+    editor->SetAppearance(appearance);
+    const auto marked = capture();
+    Check(plain != marked && editor->GetText() == source && ! editor->CanUndo(),
+          "whitespace marks alter rendered pixels without changing counted source or history");
+    appearance.sourceLineNumbers = false;
+    editor->SetAppearance(appearance);
+    const auto noNumbers = capture();
+    Check(noNumbers != marked && editor->GetText() == source, "physical line gutter changes rendered pixels without changing source");
+    appearance.sourceLineNumbers = true;
+    editor->SetAppearance(appearance);
+    std::wstring longSource;
+    for (unsigned line = 0u; line < 600u; ++line)
+        longSource += L"pending \tline\n";
+    editor->SetText(longSource);
+    Hr(view.Prepare(480u, 240u, 96.0f), "begin long source guide preparation");
+    Check(view.NeedsPreparation(), "large guide preparation yields before publication");
+    editor->SetText(source);
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "replace pending source guides");
+    Check(editor->GetText() == source && ! view.NeedsPreparation(), "new source supersedes pending guides without stale publication");
+}
 static void TestEmbeddedCodeLineNumberPixels(GraphicsFixture& gpu)
 {
     using namespace DxUi;

@@ -3103,8 +3103,11 @@ struct RichTextEditorAppearance
     bool showVerticalScrollbar = false;
     bool sourceMonospace       = false;
     bool tableOverflow         = false; // Subtle table minimum widths may overflow horizontally.
-    float zoom                 = 1.0f;  // Font scale, .25..4; source/history are unchanged.
-    float tabStopDip           = 0.0f;  // Zero keeps DirectWrite's default; otherwise 1..4096 DIP.
+    bool sourceWrap            = true;
+    bool sourceLineNumbers     = false;
+    bool sourceWhitespaceMarks = false;
+    float zoom                 = 1.0f; // Font scale, .25..4; source/history are unchanged.
+    float tabStopDip           = 0.0f; // Zero keeps DirectWrite's default; otherwise 1..4096 DIP.
     // Zero preserves host Tab traversal; 1..16 inserts that many spaces in source/code.
     unsigned sourceTabSpaces   = 0u;
     bool sourceTabUsesTabs     = false; // When enabled, insert a tab instead of spaces.
@@ -3142,6 +3145,10 @@ struct RichTextLinkActivation
 struct RichTextScrollInfo
 {
     float offsetDip{}, viewportHeightDip{}, contentHeightDip{};
+};
+struct RichTextHorizontalScrollInfo
+{
+    float offsetDip{}, viewportWidthDip{}, contentWidthDip{};
 };
 enum class RichTextDecorationKind
 {
@@ -3356,6 +3363,9 @@ public:
     [[nodiscard]] std::optional<RichTextScrollInfo> GetScrollInfo() const noexcept;
     bool SetScrollOffsetDip(float offsetDip);
     void SetOnScrollChanged(std::function<void(float)> callback);
+    [[nodiscard]] std::optional<RichTextHorizontalScrollInfo> GetHorizontalScrollInfo() const noexcept;
+    bool SetHorizontalScrollOffsetDip(float offsetDip);
+    void SetOnHorizontalScrollChanged(std::function<void(float)> callback);
     // F2/UIA source entry changes only local presentation and caret, without
     // taking OS focus. Exact document text/history remain authoritative. An
     // active IME composition or stale/unprepared target refuses the transition.
@@ -3503,6 +3513,9 @@ private:
     [[nodiscard]] std::optional<RichText::MarkdownRange> CaretLinkDisplayRange() const noexcept;
     void UpdateCaretLinkDisplayRange() noexcept;
     bool PrepareSourceInk();
+    bool PrepareSourceGuides(ControlHost& host);
+    [[nodiscard]] float HorizontalTranslation() const noexcept;
+    void PublishHorizontalScrollChanged() noexcept;
     HRESULT PrepareCodeInk(const std::shared_ptr<const RichText::SemanticDocument>& document);
     [[nodiscard]] std::optional<RichText::MarkdownRange> HoveredLinkDisplayRange(ControlHost& host, D2D1_POINT_2F point) const;
     [[nodiscard]] std::optional<RichText::MarkdownRange> ActiveParagraphDisplayRange() const;
