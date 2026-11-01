@@ -1302,8 +1302,7 @@ may replace node identities; Clear explicitly starts a new document namespace.
 
 Every result carries its CommonMark0312, Gfm029 or RichMarkdown target, extension
 options and source revision. M3 supplies base inline parsing and specified GFM
-extensions; RichMarkdown math/Mermaid/footnotes/front matter and semantic native
-rendering/editing remain later gates.
+extensions. Later sections define the implemented bounded RichMarkdown math, Mermaid, footnote, front-matter and semantic editing profiles; full conformance and final-source qualification remain separate.
 The Gfm029 HTML declaration block start requires an uppercase ASCII letter after
 `<!`, as in its pinned grammar; CommonMark0312 and RichMarkdown accept either
 ASCII letter case.

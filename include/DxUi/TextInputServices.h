@@ -105,6 +105,7 @@ public:
     virtual ~BitmapStructuredTextClipboard() = default;
     virtual HRESULT ReadSelectedBitmapContent(HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml, bool includeBitmap) noexcept = 0;
 };
+// Optional transform discovery uses a cross-cast from the same TextInputClient object passed to SetClient.
 // Application-side optional source-paste transform. Called on the attaching UI
 // thread, outside rendering, before the existing revision-checked commit. It
 // prepares text only: no document mutation or clipboard ownership is delegated.

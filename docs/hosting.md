@@ -265,7 +265,7 @@ The public [EmbeddedTextClient example](../Samples/EmbeddedControls/EmbeddedText
 EmbeddedHost to the application's TextInputServices using an immutable focusId. Run the independent
 EmbeddedControls executable with --text-input to edit a profile name alongside the toggle and slider.
 The application supplies the device, HWND, presentation, physical screen origin and DPI conversion.
-The sample forwards deferred messages and TSF keys, cancels on focus/DPI loss, and detaches before destruction.
+The sample forwards deferred messages and TSF keys, cancels on focus/DPI loss, and detaches before destruction. To opt into source-paste transformation, implement `TextClipboardPasteTransform` on the same object supplied to `TextInputServices::SetClient`; the service discovers it by cross-casting that client.
 Deferred TSF lock notifications consumed by a nested message loop wait for the active lock to unwind; they do not
 repost into that loop. Pending flags remain coalesced if posting fails and retry on the next real lock request.
 The native host leaves `WM_GETTEXT`, `WM_GETTEXTLENGTH` and `WM_SETTEXT` to its window caption. Read or change an

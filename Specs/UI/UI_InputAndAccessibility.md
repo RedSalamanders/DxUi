@@ -949,8 +949,7 @@ CF_HDROP and Unicode fallback under one nonblocking clipboard ownership attempt.
 ANSI file lists and malformed/unterminated buffers MUST fail without publishing
 partial content. Limits are 16 files, 32767 UTF-16 units per file and 65536 total
 file units. Existing TextClipboard Read/Write and ordinary text clients remain
-Unicode-only. Application TextClipboardPasteTransform prepares source without
-mutation; EmbeddedHost validates focus/revision before transformation and the
+Unicode-only. The application implements optional TextClipboardPasteTransform on the same object passed to SetClient as TextInputClient; discovery cross-casts that client. The transform prepares source without mutation; EmbeddedHost validates focus/revision before transformation and the
 normal ApplyTextInput commit validates again. A changed document path MUST
 invalidate that transport revision. Read-only/composition checks precede reads;
 stale source, selection, base or ownership MUST NOT commit old clipboard work.
@@ -1475,9 +1474,7 @@ not another Markdown dialect's v0 projection. Exact document Home/End includes
 trailing raw trivia. A collapsed visual delete from inside a transformed/object
 source token removes its complete owned token through one undoable source plan;
 programmatic replacement and imported text-service state retain exact ACPs.
-Generated separators use the explicit compatible M4e joining policy; semantic
-UIA children/format attributes
-and physical IME/AT qualification remain open in M4 and the existing platform gates.
+Generated separators use the explicit compatible M4e joining policy. Current semantic UIA children and format attributes follow the contract above; physical IME/AT and platform qualification remain separate.
 
 M4d.2 source caret geometry distinguishes empty/trailing/container-only lines and
 empty/padded cells without adding source characters. TextPattern2, TSF selections

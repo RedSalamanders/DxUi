@@ -36,7 +36,7 @@ Neither accepted CPU graphs nor unsupported results establish native rendering.
 from commit `fbbea3573439d51e6568356f5886053b111b1f88`; `collection.json` records
 URLs, Git blobs and exact SHA-256 values. These pin the math command reference.
 No KaTeX implementation, JavaScript runtime, browser or external helper is built
-or deployed. The owned native math parser/layout remains M5 work.
+or deployed. The owned native math parser/layout implements the bounded profile documented in the rich-text contract; full language and final-source qualification remain separate.
 
 The parser implementation is owned Unicode C++ in `src/Controls/DxUi.MarkdownSyntax.cpp`.
 MD4C, Discount and cmark-gfm inform API boundaries; none is linked or used as the

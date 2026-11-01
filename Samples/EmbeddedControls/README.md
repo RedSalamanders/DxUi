@@ -5,8 +5,7 @@ sample state; it never changes audio, camera or application settings. `Main.cpp`
 swap chain, render target and event-blocked message loop. The library owns its prepared surface and shared resources.
 
 Run the executable to interact, or pass `--output image.png` for a headless rendering. Add `--complex-ui` for the
-[independent 83-control scene](../ComplexUi/README.md) used by the library benchmark. Both modes use fixed 96-DPI
-canvases (480x240 or 1280x720); adaptive layout and full host bridges are outside this minimal sample.
+[independent 83-control scene](../ComplexUi/README.md) used by the library benchmark. Headless `--output` captures use fixed 96-DPI canvases: 480x240 default, 480x340 text-input, 980x720 rich-text, and 1280x720 complex-ui. The live window is per-monitor-DPI aware and resizes its target and swap chain; adaptive layout and complete host integration remain application responsibilities.
 `GraphicsFixture.h` contains fixture-only readback/PNG output. No consumer checkout or plugin is required.
 
 Use `--rich-text` for a 980x720 editable Unicode RichMarkdown semantic preview

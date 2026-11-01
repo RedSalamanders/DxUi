@@ -580,8 +580,7 @@ alternative. Source/base/binding/visibility changes cancel tokens and reject sta
 completion. Selection-only changes do not invalidate a file. `ReloadImages`
 explicitly refreshes the cache; failed completions stay cached across unrelated edits until reload, document location or remote-image policy changes. The control does not watch the filesystem.
 `Samples/EmbeddedControls/RichImageLoader.h` demonstrates one application-owned
-threadpool callback, fixed queues and owner messages. Its default policy declines
-UNC access; an application can explicitly authorize network files. Neither the
+threadpool callback, fixed queues and owner messages. Its default policy rejects lexically UNC-prefixed file paths; an application can explicitly authorize network files. This lexical check is not a filesystem or network security boundary: mapped drives, reparse points and redirected paths may still reach remote storage. Neither the
 control nor composition owns a loader, thread, device, HWND or timer. The worker
 uses only its owned request/pixels and posts a cookie-bearing owner message;
 closing retires queues without joining a filesystem or codec call.
@@ -887,8 +886,7 @@ INT_MIN/INT_MAX handling and actual signed counts. It adds no C++ heap work or
 mutable index. This command improvement is separate from Default frame timing
 and does not clear the performance hold.
 
-Tests live in Controls.Tests.RichDocument, RichMarkdown and RichTextLayout under
-[Tests/Controls](../Tests/Controls), registered in EditorControls. They retain the
+Tests span the document, Markdown and layout suites under [Tests/Controls](../Tests/Controls), including Controls.Tests.RichTextEditor, Controls.Tests.RichTextInput and Controls.Tests.RichTextAccessibility; shared semantic/resource cases also run in the Embedded suite under [Tests/Embedded](../Tests/Embedded). They retain the
 prototype's randomized/history/codec/projection/real-DirectWrite scenarios and
 add cross-piece Unicode/CRLF oracles, slice/failure/no-op contracts, font changes,
 invalid projection retirement and actual drawing on two separate WARP devices.
@@ -1012,11 +1010,11 @@ quotes and lists, tight/loose and empty items, headings, thematic breaks,
 indented/fenced code, seven HTML forms and multiline reference definitions. Original
 delimiters, trivia, unknown constructs, mixed line endings and entity spellings
 are preserved. The parser accepts raw NUL and supplies a replacement lexical
-value; the existing editor Document/codecs/text services still reject NUL.
+value; the editor Document, UTF-8 codecs and text services retain counted NUL as exact source; CF_UNICODETEXT cannot represent it and copy/cut refuses such selections.
 
 The three grammar targets are CommonMark0312, Gfm029 and RichMarkdown. They are
 versioned grammar keys. The bounded base parser and specified GFM extensions pass
-the original semantic corpora; RichMarkdown's additional extensions remain pending. Lexical
+the original semantic corpora; RichMarkdown also provides the bounded opt-in extensions described below. Lexical
 candidates include all 2,125 semicolon-terminated named references, bounded numeric
 references and ASCII punctuation escapes. A candidate inside code/HTML cannot be
 rendered by decoding it in isolation; use the resolved inline forest described
@@ -1110,8 +1108,7 @@ The native tests preserve all 652 CommonMark and 672 GFM original example inputs
 and check all named entity values against independently transcribed standard data.
 The independent M3 semantic checks described below additionally compare every
 original expected HTML output. Later sections cover implemented semantic editing,
-footnote presentation and metadata envelopes; math/diagram rendering, metadata
-content validity and end-to-end NUL admission remain open.
+footnote presentation, metadata validation and bounded native math/diagram rendering. Full profile and final-source platform/performance qualification remain open.
 Pinned inputs, attribution and offline generators are described in
 [ThirdParty/Markdown](../ThirdParty/Markdown/README.md). The control catalog,
 styles and existing gallery example remain unchanged; embedded exact-pixel tests
@@ -1473,8 +1470,7 @@ from physical Narrator/NVDA/IME and native ARM64 acceptance. This accessibility
 change alters no drawing inputs; fresh reviewed rich captures are pixel-identical
 to published regions, so existing gallery assets are retained. D4c remains HOLD.
 
-M5 follows the owner's C++-only decision: an explicit limited Mermaid grammar
-will be implemented natively. Unsupported diagrams remain exact editable source;
+The C++-only Mermaid engine implements the bounded native profiles described below. Unsupported diagrams remain exact editable source;
 no JavaScript or headless-browser helper is deployed.
 
 ## Leading metadata envelopes

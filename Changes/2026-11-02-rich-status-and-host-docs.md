@@ -1,0 +1,1 @@
+- Clarify implemented rich-text status, sample DPI behavior, lexical network-path policy and same-client paste-transform discovery.

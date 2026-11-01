@@ -21,8 +21,7 @@ progress bars, plus a Grid and Tree. Dragging a slider updates its corresponding
 locally; the example performs no system configuration or device operations.
 
 The [sample host](../Samples/EmbeddedControls/Main.cpp) owns its WARP device, fixed-size window and swap chain.
-It blocks on messages while idle. These examples demonstrate embedding at 96 DPI; full IME/UIA bridging, adaptive
-layout, hardware presentation pacing and physical touch validation remain separate integration work.
+It blocks on messages while idle. Headless captures use fixed 96-DPI canvases; the live window follows per-monitor DPI and resizes its target. Full IME/UIA qualification, adaptive layout, hardware presentation pacing and physical touch validation remain separate integration work.
 
 The `--rich-text` mode uses a 980x720 canvas and the sample's text-service bridge.
 Its headings/styles, tables, quotes, tasks, code and image alternatives use the
