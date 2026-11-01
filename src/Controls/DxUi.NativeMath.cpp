@@ -838,6 +838,9 @@ class Parser
     }
     static bool ScriptAlphabet(const MathNode& node) noexcept
     {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
         if (node.kind == MathKind::Text)
             return ! node.text.empty() && std::ranges::all_of(node.text, [](wchar_t ch) { return ch >= L'A' && ch <= L'Z'; });
         if (node.kind != MathKind::Row)

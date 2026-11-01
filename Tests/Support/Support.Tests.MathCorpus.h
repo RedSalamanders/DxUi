@@ -1240,6 +1240,13 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         deep.append(MathMaximumGroupDepth, L'}');
         check(static_cast<bool>(ParseMath(deep)), "64 nested text font groups retain the ordinary parser stack");
     }
+    {
+        std::wstring scriptDepth(L"\\mathscr{");
+        scriptDepth.append(MathMaximumGroupDepth - 2u, L'{');
+        scriptDepth += L'A';
+        scriptDepth.append(MathMaximumGroupDepth - 1u, L'}');
+        check(static_cast<bool>(ParseMath(scriptDepth)), "script command and its 63 groups fit the ordinary stack at their admitted nesting boundary");
+    }
 #if DXUI_ENABLE_DIAGNOSTICS
     const auto lowestObservedStack         = Detail::testRichMathLowestStackAddress;
     Detail::testRichMathLowestStackAddress = 0u;
