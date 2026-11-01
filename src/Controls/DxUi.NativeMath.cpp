@@ -162,6 +162,53 @@ class Parser
         for (auto& child : node.children)
             Alphabet(child, alphabet);
     }
+    bool AppendTextAccent(std::wstring& text)
+    {
+        if (at >= source.size())
+            return false;
+        const wchar_t command = source[at];
+        wchar_t mark{};
+        switch (command)
+        {
+            case L'\'': mark = L'\u0301'; break;
+            case L'`': mark = L'\u0300'; break;
+            case L'^': mark = L'\u0302'; break;
+            case L'"': mark = L'\u0308'; break;
+            case L'~': mark = L'\u0303'; break;
+            case L'=': mark = L'\u0304'; break;
+            case L'.': mark = L'\u0307'; break;
+            case L'u': mark = L'\u0306'; break;
+            case L'v': mark = L'\u030c'; break;
+            case L'H': mark = L'\u030b'; break;
+            case L'c': mark = L'\u0327'; break;
+            case L'k': mark = L'\u0328'; break;
+            case L'r': mark = L'\u030a'; break;
+            case L'b': mark = L'\u0331'; break;
+            case L'd': mark = L'\u0323'; break;
+            default: return false;
+        }
+        if (Letter(command) && at + 1u < source.size() && Letter(source[at + 1u]))
+            return false;
+        ++at;
+        Space();
+        const bool grouped = at < source.size() && source[at] == L'{';
+        if (grouped)
+            ++at;
+        if (at == source.size() || source[at] == L'{' || source[at] == L'}' || source[at] == L'\\' || iswspace(source[at]))
+            Reject(MathIssue::MissingRequiredArgument);
+        const wchar_t first = source[at++];
+        text.push_back(first);
+        if (first >= 0xd800u && first <= 0xdbffu)
+        {
+            if (at == source.size() || source[at] < 0xdc00u || source[at] > 0xdfffu)
+                Reject(MathIssue::InvalidSource);
+            text.push_back(source[at++]);
+        }
+        if (grouped && (at == source.size() || source[at++] != L'}'))
+            Reject(MathIssue::UnsupportedCommand);
+        text.push_back(mark);
+        return true;
+    }
     std::wstring GroupText(bool textMode = false, bool rejectMathDelimiters = false)
     {
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -177,6 +224,8 @@ class Parser
             auto c = source[at++];
             if (c == L'\\')
             {
+                if (textMode && AppendTextAccent(value))
+                    continue;
                 if (at == source.size() || std::wstring_view(L"{}%_$&#\\ ").find(source[at]) == source.npos)
                     Reject();
                 value += source[at++];
@@ -994,6 +1043,8 @@ class Parser
             {
                 if (at == source.size())
                     Reject(MathIssue::MissingRequiredArgument);
+                if (AppendTextAccent(text))
+                    continue;
                 if (! Letter(source[at]))
                 {
                     if (std::wstring_view(L"{}%_$&#\\ ").find(source[at]) == std::wstring_view::npos)

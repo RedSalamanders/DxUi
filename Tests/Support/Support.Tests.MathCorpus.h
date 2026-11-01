@@ -1022,6 +1022,23 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         }
     }
 #endif
+    for (const auto source : {L"\\text{caf\\'e}", L"\\text{caf\\'{e}}"})
+    {
+        const auto expression = ParseMath(source);
+        check(expression && expression.root.children[0u].text == L"cafe\u0301", "text accents retain the base and combining mark");
+#if DXUI_ENABLE_DIAGNOSTICS
+        Detail::PreparedMath layout(factory, std::make_shared<const MathExpression>(expression), 24.f);
+        while (! layout.Advance()) {}
+        check(layout.GlyphLayouts().size() == 1u && layout.GlyphLayouts()[0u].node->text == L"cafe\u0301" && layout.Size().width > 0.f,
+              "DirectWrite receives the composed text sequence during preparation");
+#endif
+    }
+    {
+        const auto expression = ParseMath(L"\\colorbox{red}{caf\\'{e}}");
+        check(expression && expression.root.children[0u].children[0u].text == L"cafe\u0301", "colored text reuses text-accent decoding");
+    }
+    for (const auto source : {L"\\text{\\'{ab}}", L"\\text{\\'}", L"\\text{\\cafe}"})
+        check(! ParseMath(source), "unsupported or incomplete text accents preserve the complete source");
     const auto binomial = ParseMath(L"\\binom{n}{k}");
     check(binomial && binomial.root.children.size() == 1u && binomial.root.children[0u].kind == MathKind::Matrix &&
               binomial.root.children[0u].text == L"pmatrix" && binomial.root.children[0u].columns == 1u && binomial.root.children[0u].children.size() == 2u,
