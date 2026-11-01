@@ -25,12 +25,13 @@ honored), missing `Changes/README.md`, and a missing or duplicate `## Unreleased
 `-Base <ref>` it also compares the checkout with its merge base with that ref: fragments may be added, edited or
 renamed, and `CHANGELOG.md` must equal the exact fold `Fold-Changelog.ps1` would write of the fragments that the merge
 base holds and the checkout no longer has, excluding withdrawn fragments whose entries are not published. Hand edits, entries folded from fragments the same change adds, edited,
-removed, reordered or duplicated entries and any other change outside the Unreleased entries are refused; line endings never count. PrePush entrypoints run it with `-Base origin/main`. CI
+removed, reordered or duplicated entries and any other change outside the Unreleased entries are refused except the exact generated release transition; line endings never count. PrePush entrypoints run it with `-Base origin/main`. CI
 compares a pull request's merge commit with its first parent (`HEAD^1`, from a two-commit checkout) and a push with
 the tip it replaced (`github.event.before`, from a full-history checkout), so every commit of a multi-commit push is
 covered; repositories without PrePush run the same command before handoff. Existing
 validation/tooling entrypoints invoke it or its shared module. Explanation-only runs never mutate files.
 
+A distinct explicit release-only change may use `Tools/Release-Changelog.ps1 -Version <semver> -Date <yyyy-mm-dd>` after all pending fragments have been folded on the base. It atomically moves the complete current Unreleased entries under one new version/date heading, leaves an empty Unreleased section, and preserves all prior history. `-WhatIf` is read-only. Validation accepts only this exact generated transition; corrections to previously published notes remain new fragments and never rewrite historical entries.
 [`Tools/Fold-Changelog.ps1`](../../Tools/Fold-Changelog.ps1) validates all input before writing. It inserts entries
 under Unreleased in descending ordinal filename order (newest date first, topic breaking ties), preserves the
 changelog's UTF-8 BOM and line endings, flushes a staged changelog to disk and atomically publishes it, then removes

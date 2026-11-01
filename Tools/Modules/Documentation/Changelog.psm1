@@ -143,6 +143,25 @@ function Read-ChangelogGit([Parameter(Mandatory)][string] $Root, [Parameter(Mand
     } finally { $process.Dispose() }
 }
 
+function Get-ChangelogReleaseText([Parameter(Mandatory)][string] $Changelog, [Parameter(Mandatory)][string] $Version, [Parameter(Mandatory)][string] $Date) {
+    if ($Version -cnotmatch '^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?(?:\+[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$') { throw 'Release version must be an explicit semantic version.' }
+    $core=$Version.Split('+')[0]
+    if ($core.Contains('-')) {
+        $pre=($core -split '-',2)[1]
+        foreach ($part in ($pre -split '\.')) { if ($part -cmatch '^0[0-9]+$') { throw 'Numeric prerelease identifiers cannot have leading zeroes.' } }
+    }
+    $parsed=[DateTime]::MinValue
+    if (-not [DateTime]::TryParseExact($Date,'yyyy-MM-dd',[Globalization.CultureInfo]::InvariantCulture,[Globalization.DateTimeStyles]::None,[ref]$parsed)) { throw 'Release date must be a real yyyy-MM-dd date.' }
+    if ($Changelog -cmatch ('(?m)^##[ \t]+'+[regex]::Escape($Version)+'(?:[ \t]|$)')) { throw "Release $Version already exists." }
+    $heading=[regex]::Match($Changelog,$script:UnreleasedHeadingPattern)
+    if(-not $heading.Success){throw 'CHANGELOG.md has no Unreleased heading.'}
+    $after=$Changelog.Substring($heading.Index+$heading.Length)
+    $section=($after -split '(?m)^##[ \t]+',2)[0]
+    if(-not [regex]::IsMatch($section,$script:EntryPattern)){throw 'Unreleased has no entries to release.'}
+    $newline=if($Changelog.Contains("`r`n")){"`r`n"}else{"`n"}
+    return $Changelog.Substring(0,$heading.Index)+"## Unreleased${newline}${newline}## $Version - $Date${newline}${newline}"+$after
+}
+
 function Get-ChangelogFoldProblems([Parameter(Mandatory)][string] $Root, [Parameter(Mandatory)][string] $Base) {
     # Since this checkout's merge base with $Base, Changes/ may gain fragments, and CHANGELOG.md may change only by
     # folding fragments that the merge base holds and this checkout no longer has: the fold on the default branch. The
@@ -160,6 +179,17 @@ function Get-ChangelogFoldProblems([Parameter(Mandatory)][string] $Root, [Parame
         $changelog = Join-Path $Root 'CHANGELOG.md'
         Assert-ChangelogPath $changelog $Root
         $headText = Read-ChangelogText $changelog
+        # A separate release operation may only move the complete existing Unreleased section into one
+        # generated version/date section, after all fragments are already folded on the base.
+        $release=[regex]::Match(($headText -replace "`r`n","`n"),'(?m)^## Unreleased[ \t]*\n\n## (?<version>[^\s]+) - (?<date>\d{4}-\d{2}-\d{2})\n\n')
+        if($release.Success -and -not [regex]::IsMatch($baseText, ('(?m)^##[ \t]+'+[regex]::Escape($release.Groups['version'].Value)+'(?:[ \t]|$)'))) {
+            $baseFragments=@((Read-ChangelogGit $Root @('ls-tree','--name-only',$mergeBase,'--','Changes/')) -split "`n" | Where-Object { $_ -match '^Changes/[^/]+\.md$' -and $_ -cne 'Changes/README.md' })
+            $currentFragments=Get-ChangelogFragments $Root
+            if(-not $baseFragments.Count -and -not $currentFragments.Count) {
+                $releaseText=Get-ChangelogReleaseText $baseText $release.Groups['version'].Value $release.Groups['date'].Value
+                if(($releaseText -replace "`r`n","`n") -ceq ($headText -replace "`r`n","`n")){return , $problems.ToArray()}
+            }
+        }
         $before = Split-Changelog $baseText
         $after = Split-Changelog $headText
         if ($before.Before -cne $after.Before -or $before.Other -cne $after.Other -or $before.After -cne $after.After) {
@@ -278,4 +308,33 @@ function Invoke-ChangelogFold([Parameter(Mandatory)][string] $Root) {
     }
 }
 
-Export-ModuleMember -Function Get-ChangelogFragmentProblems, Get-ChangelogFragments, Get-ChangelogProblems, Get-ChangelogFoldProblems, Merge-ChangelogFragments, Invoke-ChangelogFold
+function Invoke-ChangelogRelease([Parameter(Mandatory)][string] $Root, [Parameter(Mandatory)][string] $Version, [Parameter(Mandatory)][string] $Date, [switch] $CheckOnly) {
+    $Root=[IO.Path]::GetFullPath($Root)
+    $problems=Get-ChangelogProblems $Root -RequireFolded
+    if($problems.Count){throw "A release requires valid fully folded inputs:`n$($problems -join "`n")"}
+    $path=Join-Path $Root 'CHANGELOG.md'
+    Assert-ChangelogPath $path $Root
+    $original=Read-ChangelogText $path
+    $updated=Get-ChangelogReleaseText $original $Version $Date
+    if($CheckOnly){return}
+    $lockPath=Join-Path $Root '.changelog-fold.lock'
+    Assert-ChangelogPath $lockPath $Root
+    $lease=[IO.FileStream]::new($lockPath,[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None,1,[IO.FileOptions]::DeleteOnClose)
+    $stage=$null
+    try {
+        $problems=Get-ChangelogProblems $Root -RequireFolded
+        if($problems.Count -or (Read-ChangelogText $path) -cne $original){throw 'Changelog inputs changed while preparing the release; retry.'}
+        $bytes=[IO.File]::ReadAllBytes($path)
+        $bom=$bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF
+        $stage=Join-Path $Root ('.changelog-'+[guid]::NewGuid().ToString('N')+'.tmp')
+        Assert-ChangelogPath $stage $Root
+        Write-ChangelogStage $stage $updated $bom
+        if((Get-ChangelogProblems $Root -RequireFolded).Count -or (Read-ChangelogText $path) -cne $original){throw 'Changelog inputs changed during release preparation; retry.'}
+        [IO.File]::Move($stage,$path,$true);$stage=$null
+    } finally {
+        if($stage -and [IO.File]::Exists($stage)){[IO.File]::Delete($stage)}
+        $lease.Dispose()
+    }
+}
+
+Export-ModuleMember -Function Get-ChangelogFragmentProblems, Get-ChangelogFragments, Get-ChangelogProblems, Get-ChangelogFoldProblems, Get-ChangelogReleaseText, Merge-ChangelogFragments, Invoke-ChangelogFold, Invoke-ChangelogRelease

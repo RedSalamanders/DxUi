@@ -344,6 +344,35 @@ Case 'CHANGELOG.md changes only by an exact fold of fragments the merge base hol
     Reset-FixtureBase $r
     Refuses { & $validate -Root $r -Base refs/heads/no-such-base }
 }
+Case 'a release cut is generated exactly and preserves prior history' {
+    param($r)
+    New-FixtureRepository $r
+    Put $r 'CHANGELOG.md' "# Changelog`n`n## Unreleased`n`n- First.`n- Second.`n`n## 1.0.0 - 2026-10-01`n`n- Previous.`n"
+    Save-FixtureBase $r
+    $release=Join-Path $repository 'Tools/Release-Changelog.ps1'
+    $before=Snapshot $r
+    & $release -Root $r -Version '1.1.0' -Date '2026-11-01' -WhatIf
+    Assert ((Snapshot $r) -ceq $before) 'Release WhatIf changed inputs'
+    Refuses { & $release -Root $r -Version '1.01.0' -Date '2026-11-01' }
+    Refuses { & $release -Root $r -Version '1.1.0-01' -Date '2026-11-01' }
+    Refuses { & $release -Root $r -Version '1.0.0' -Date '2026-11-01' }
+    Refuses { & $release -Root $r -Version '1.1.0' -Date '2026-02-30' }
+    Put $r 'Changes/2026-10-31-pending.md' '- Pending.'
+    Refuses { & $release -Root $r -Version '1.1.0' -Date '2026-11-01' }
+    Remove-Item -LiteralPath (Join-Path $r 'Changes/2026-10-31-pending.md')
+    & $release -Root $r -Version '1.1.0' -Date '2026-11-01'
+    $text=[IO.File]::ReadAllText((Join-Path $r 'CHANGELOG.md'))
+    Assert ($text -ceq "# Changelog`n`n## Unreleased`n`n## 1.1.0 - 2026-11-01`n`n- First.`n- Second.`n`n## 1.0.0 - 2026-10-01`n`n- Previous.`n") 'Release did not preserve exact content and history'
+    Assert ((Get-ChangelogFoldProblems $r 'origin/main').Count -eq 0) 'The exact generated release was refused'
+    [void](Invoke-FixtureGit $r @('add','CHANGELOG.md'))
+    [void](Invoke-FixtureGit $r @('commit','-q','-m','generated release'))
+    [void](Invoke-FixtureGit $r @('update-ref','refs/remotes/origin/main','HEAD'))
+    Put $r 'Changes/2026-11-01-next.md' '- Next feature.'
+    Assert ((Get-ChangelogFoldProblems $r 'origin/main').Count -eq 0) 'A later feature after a release was refused'
+    Remove-Item -LiteralPath (Join-Path $r 'Changes/2026-11-01-next.md')
+    Edit-Fixture $r 'CHANGELOG.md' '- Previous.' '- Changed previous.'
+    Refuses { & $validate -Root $r -Base origin/main }
+}
 Case 'a fold stays exact when the default branch meanwhile gains a fragment with the same text' {
     param($r)
     New-FixtureRepository $r
@@ -574,9 +603,17 @@ Case 'the public PrePush runner validates the changelog against origin/main befo
     }
     Edit-Fixture $r 'CHANGELOG.md' '- Existing.' "- Hand edit.`n- Existing."
     $result = & $run
-    Assert ($result.ExitCode -ne 0 -and $result.Flat.Contains('added by hand')) "The runner did not refuse a hand-edited changelog: $($result.Output)"
+    Assert ($result.ExitCode -ne 0 -and $result.Flat.Contains('requires committed')) "The runner accepted a dirty changelog: $($result.Output)"
+    [void](Invoke-FixtureGit $r @('add','CHANGELOG.md'))
+    [void](Invoke-FixtureGit $r @('commit','-q','-m','invalid hand edit'))
+    $result = & $run
+    Assert ($result.ExitCode -ne 0 -and $result.Flat.Contains('added by hand')) "The runner did not refuse a committed hand-edited changelog: $($result.Output)"
     Reset-FixtureBase $r
     Put $r 'Changes/2026-10-21-pending.md' '- Pending until the fold on main.'
+    $result = & $run
+    Assert ($result.ExitCode -ne 0 -and $result.Flat.Contains('requires committed')) 'An untracked fragment was treated as pushed input'
+    [void](Invoke-FixtureGit $r @('add','Changes/2026-10-21-pending.md'))
+    [void](Invoke-FixtureGit $r @('commit','-q','-m','pending fragment'))
     $result = & $run
     Assert ($result.Flat.Contains('Changelog valid: 1 pending fragment(s); CHANGELOG.md changes since origin/main are exact folds')) "The runner refused a pending fragment: $($result.Output)"
 }
