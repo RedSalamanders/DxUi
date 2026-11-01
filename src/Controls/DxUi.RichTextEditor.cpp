@@ -2197,6 +2197,7 @@ RichText::MarkdownCommandStatus RichTextEditor::ExecuteMarkdownCommand(const Ric
 std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownCommandState(const RichText::MarkdownCommandRequest& request) const noexcept
 {
     using namespace RichText;
+    _state->lastListStateAncestorSteps = 0u;
     if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::InsertEscapedText))
         return std::nullopt;
     MarkdownCommandState result;
@@ -2265,9 +2266,14 @@ std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownComma
         else if (flag)
             no = true;
     }
+<<<<<<< HEAD
     result.headingLevel                = mixedHeading ? 0u : heading;
     _state->lastListStateAncestorSteps = 0u;
     result.listKind                    = UniformListKind(*document->Syntax(), first, last, _state->lastListStateAncestorSteps);
+=======
+    result.headingLevel = mixedHeading ? 0u : heading;
+    result.listKind = UniformListKind(*document->Syntax(), first, last, _state->lastListStateAncestorSteps);
+>>>>>>> c67fb31c (Reset list-state work for early query returns)
     if (request.command == MarkdownCommand::SetHeading)
     {
         result.active = seen && ! mixedHeading && heading == request.headingLevel;

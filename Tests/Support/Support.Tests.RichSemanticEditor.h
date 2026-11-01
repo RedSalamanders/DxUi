@@ -522,6 +522,11 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     Check(wrappedState && ! wrappedState->mixed && wrappedState->listKind == MarkdownListKind::Unordered && ancestorSteps >= 240u,
           "deep nested sibling lists exercise parent-link recovery through repeated quote wrappers");
     std::cout << "list-state source units=" << wrappedLists.size() << " ancestor steps=" << ancestorSteps << '\n';
+    editor->SetReadOnly(true);
+    const auto blockedState = editor->QueryMarkdownCommandState(stateRequest);
+    Check(blockedState && blockedState->available == std::optional<bool>{false} && editor->DebugGetListStateAncestorSteps() == 0u,
+          "an early rejected state query resets its work diagnostic");
+    editor->SetReadOnly(false);
     editor->SetText(L"intro\n\n- item\n\nending");
     prepare();
     editor->SetSelection({0u, editor->Snapshot().Length()});
