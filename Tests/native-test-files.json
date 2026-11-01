@@ -21,6 +21,7 @@
   "Tests/Controls/Controls.Tests.IntrinsicLayout.h",
   "Tests/Controls/Controls.Tests.LocalizedLayoutFixture.h",
   "Tests/Controls/Controls.Tests.MarkdownCorpus.h",
+  "Tests/Controls/Controls.Tests.MetadataCorpus.h",
   "Tests/Controls/Controls.Tests.MenuPopupReadiness.cpp",
   "Tests/Controls/Controls.Tests.MenuPopupReadiness.h",
   "Tests/Controls/Controls.Tests.NativeDevicePolicy.h",
