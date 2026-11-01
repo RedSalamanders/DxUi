@@ -1213,8 +1213,22 @@ void TestLabelAndSeparatorTypographySurviveEmbeddedMeasureAndRetirementCallbacks
     runRetiringSetter("toggle labels", [](FlexPanel& root) -> Control* { return root.AddChild<Toggle>(); }, [](Control* control) {
         static_cast<Toggle*>(control)->SetStateLabels(L"off", L"on");
     });
-    runRetiringSetter("splitter position", [](FlexPanel& root) -> Control* { return root.AddChild<Splitter>(); }, [](Control* control) {
-        static_cast<Splitter*>(control)->SetPosition(10.0f);
+    runRetiringSetter("splitter position",
+                      [](FlexPanel& root) -> Control*
+    {
+        auto* splitter = root.AddChild<Splitter>();
+        RequireSucceeded(root.SetChildOptions(splitter, Fixed(200.0f, 80.0f)), "give the splitter a usable explicit extent");
+        return splitter;
+    },
+                      [](Control* control)
+    {
+        auto* splitter    = static_cast<Splitter*>(control);
+        const auto bounds = splitter->GetBounds();
+        const auto extent = bounds.right - bounds.left;
+        Require(splitter->GetOrientation() == SplitterOrientation::Vertical && splitter->GetPosition() != 64.0f && 64.0f >= splitter->GetMinimumFirstPane() &&
+                    64.0f <= extent - splitter->GetThickness() - splitter->GetMinimumSecondPane(),
+                "splitter retirement fixture requests a distinct position inside both pane limits");
+        splitter->SetPosition(64.0f);
     });
     runRetiringSetter("button multiline", [](FlexPanel& root) -> Control* { return root.AddChild<Button>(L"button"); }, [](Control* control) {
         static_cast<Button*>(control)->SetMultiline(true);
