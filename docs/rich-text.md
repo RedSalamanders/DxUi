@@ -1591,7 +1591,8 @@ map ASCII digits, while other characters are preserved.
 The bounded native profile records atom classes, font styles, script style and
 operator limit policy in its typed model. Variables are italic by default; numbers,
 text groups and named operators are upright. Binary atoms at unary positions use
-ordinary spacing. Explicit math atom wrappers, display/text/script declarations,
+ordinary spacing. The `\ldots` command is an Inner atom; a literal ellipsis
+retains its ordinary character class. Explicit math atom wrappers, display/text/script declarations,
 `limits`/`nolimits`, starred `operatorname`, sized `big`/`Big`/`bigg`/`Bigg` delimiters,
 and `tilde`/`widetilde` are admitted. Escaped `\|` produces a double vertical bar
 as an ordinary atom and as a scalable or sized delimiter. Paired and sized

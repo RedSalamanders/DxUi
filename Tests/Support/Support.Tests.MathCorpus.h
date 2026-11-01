@@ -192,6 +192,22 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
 {
     PinnedSupportRows(factory, check);
     MathFontTableTests::Run(check);
+    {
+        const auto dots = std::make_shared<const MathExpression>(ParseMath(L"a\\ldots b"));
+        const auto literal = std::make_shared<const MathExpression>(ParseMath(L"a…b"));
+        check(*dots && dots->root.children.size() == 3u && dots->root.children[1u].atomClass == MathAtomClass::Inner && *literal &&
+                  literal->root.children.size() == 3u && literal->root.children[1u].atomClass == MathAtomClass::Ordinary,
+              "ldots is Inner while the authored literal ellipsis remains Ordinary");
+        Detail::PreparedMath withDots(factory, dots, 24.f), withLiteral(factory, literal, 24.f);
+        while (! withDots.Advance())
+        {
+        }
+        while (! withLiteral.Advance())
+        {
+        }
+        check(std::abs((withDots.Size().width - withLiteral.Size().width) - 8.f) < .01f,
+              "ldots adds two TeX thin spaces around the same independently shaped glyphs");
+    }
     check(Detail::ParseNativeColor(L"#AbC") == 0xaabbccu && Detail::ParseNativeColor(L"rebeccaPurple") == 0x663399u &&
               Detail::ParseNativeColor(L"DarkGrey") == 0xa9a9a9u && ! Detail::ParseNativeColor(L"#xyz") && ! Detail::ParseNativeColor(L"#12345678"),
           "native color admission handles named colors, case, short hex and rejects unsupported alpha or malformed input");

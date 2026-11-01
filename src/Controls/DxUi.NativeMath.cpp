@@ -1225,6 +1225,10 @@ class Parser
             if (key == name)
             {
                 auto result = Make(MathKind::Text, std::wstring(value));
+                // KaTeX's math-mode ldots is an Inner atom; the same literal
+                // Unicode glyph remains ordinary when authored directly.
+                if (name == L"ldots")
+                    result.atomClass = MathAtomClass::Inner;
                 constexpr std::array operators{L"sum", L"prod", L"coprod", L"bigcup", L"bigcap", L"int", L"iint", L"iiint", L"oint",
                                                L"sin", L"cos",  L"tan",    L"cot",    L"sec",    L"csc", L"sinh", L"cosh",  L"log",
                                                L"ln",  L"exp",  L"lim",    L"max",    L"min",    L"det", L"gcd"};
