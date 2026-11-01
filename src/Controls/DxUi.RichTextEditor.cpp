@@ -1600,6 +1600,13 @@ void RichTextEditor::SetAccessibilityLabels(std::shared_ptr<const RichText::Acce
         return;
     RetireSemanticAccessibility();
     ++_state->appearanceRevision;
+    // Label changes rebuild semantic identity without changing the source.
+    // Retain eligible jobs and staged pixels privately until new semantics
+    // rebinds them; source edits still use the same occurrence guard.
+    if (_state->imageSource)
+        _state->images.SuspendForEdit(Snapshot(), *_state->imageSource);
+    else
+        _state->images.Cancel();
     _state->semantic.SetAccessibilityLabels(std::move(labels));
     _state->semanticRejected.reset();
     _state->nativeGeometryRejected.reset();

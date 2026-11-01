@@ -361,5 +361,27 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
     editor.SetSelection({destination, destination + 1u});
     check(editor.ReplaceSelection(L"x") && affected.Cancelled() && ! editor.CompleteImageRequest(affected, picture),
           "editing the image source cancels and rejects the old request");
+    const std::wstring labelSource = L"![first](first.png) and ![second](second.png)";
+    editor.SetText(labelSource);
+    editor.SetSelection({2u, 2u});
+    prepare();
+    editor.TakePendingImageRequests(requests);
+    check(requests.size() == 2u, "label-change fixture dispatches two image requests");
+    const auto labelRevision   = editor.Revision();
+    const auto sourceSelection = editor.GetSelection();
+    check(editor.CompleteImageRequest(requests[0], picture), "first completion stages pixels before labels change");
+    const auto beforeLabels = editor.DebugGetState();
+    editor.SetAccessibilityLabels(std::make_shared<const AccessibilityLabels>());
+    check(! requests[1].Cancelled() && ! editor.GetSemanticDocument() && editor.CompleteImageRequest(requests[1], picture),
+          "metadata-only label replacement retains and accepts an in-flight image while semantics rebuilds");
+    const auto duringLabels = editor.DebugGetState();
+    check(duringLabels.preparationAdvances == beforeLabels.preparationAdvances && editor.Revision() == labelRevision &&
+              editor.GetSelection() == sourceSelection && editor.GetText() == labelSource && ! editor.CanUndo(),
+          "label replacement and both image completions preserve source, selection and history without synchronous preparation");
+    prepare();
+    editor.TakePendingImageRequests(requests);
+    check(requests.empty() && editor.GetImageResourceStatistics().readySources == 2u && editor.GetAcknowledgedSemanticDocument(host),
+          "new semantic publication adopts both previously staged and newly completed image sources without redispatch");
+    editor.SetAccessibilityLabels(nullptr);
 }
 } // namespace RichImageResourceTests
