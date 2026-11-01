@@ -2566,6 +2566,13 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
         case ::DxUi::RichText::MarkdownCommand::SetList:
         case ::DxUi::RichText::MarkdownCommand::ToggleStyle:
         case ::DxUi::RichText::MarkdownCommand::ToggleTask:
+        case ::DxUi::RichText::MarkdownCommand::SetQuote:
+        case ::DxUi::RichText::MarkdownCommand::SetCodeBlock:
+        case ::DxUi::RichText::MarkdownCommand::SetCodeLanguage:
+        case ::DxUi::RichText::MarkdownCommand::InsertHardBreak:
+        case ::DxUi::RichText::MarkdownCommand::InsertMath:
+        case ::DxUi::RichText::MarkdownCommand::InsertThematicBreak:
+        case ::DxUi::RichText::MarkdownCommand::InsertImage:
         default: return;
     }
     plan.applicable_ = true;
