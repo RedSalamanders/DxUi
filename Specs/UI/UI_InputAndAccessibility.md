@@ -1233,6 +1233,8 @@ hosts without one use the consumer context-menu callback together with the
 public default-menu model and command dispatch APIs.
 Default-menu item staging uses fallible empty-container construction and an
 atomic output swap, so an allocation failure leaves the supplied model intact.
+Consumer context-menu observer allocation failure is fatal; a delivered observer
+exception never triggers a second fallback menu.
 Ctrl+Backspace and Ctrl+Delete erase to the preceding or following word boundary;
 rich-view deletion maps visible fragments through the structural source planner.
 An active source-edit session bounds word deletion to its own interval.

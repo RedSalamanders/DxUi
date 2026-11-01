@@ -4231,8 +4231,22 @@ bool RichTextEditor::OnContextMenu(ControlHost& host, bool keyboardInvocation, D
             else
                 _state->sourceCaretSite = previousSite;
         }
-        if (Control::OnContextMenu(host, keyboardInvocation, point))
+        try
+        {
+            if (Control::OnContextMenu(host, keyboardInvocation, point))
+                return true;
+        }
+        catch (const std::bad_alloc&)
+        {
+            // A consumer observer's allocation failure remains fatal.
+            std::terminate();
+        }
+        catch (const std::exception&)
+        {
+            // The consumer has received the request; never open a second menu.
+            Debug::Warning(L"DxUi::RichTextEditor: context menu callback failed.");
             return true;
+        }
         const auto hwnd = host.GetHwnd();
         if (! _state->contextMenuLabels || ! hwnd)
             return false;
