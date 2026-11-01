@@ -353,6 +353,33 @@ template <typename Editor = DxUi::RichTextEditor> static void TestRichDefaultMen
             }
         }
         Check(sawFailure && succeeded, "default-menu model allocation sweep reaches failure and success");
+        Document history(L"x");
+        Check(history.ReplaceSelection(L"y"), "seed a history ring before fault injection");
+        const auto before          = history.Snapshot();
+        const auto beforeSelection = history.GetSelection();
+        const auto beforeRevision  = history.Revision();
+        bool undoAllocationFailed{};
+        {
+            const auto previous = failAllocationAfter;
+            const auto restore  = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
+            failAllocationAfter = 0u;
+            try
+            {
+                static_cast<void>(history.Undo());
+            }
+            catch (const std::bad_alloc&)
+            {
+                undoAllocationFailed = true;
+            }
+        }
+        Check(undoAllocationFailed && history.Snapshot().IsSameRevision(before) && history.GetSelection() == beforeSelection &&
+                  history.Revision() == beforeRevision && history.CanUndo() && ! history.CanRedo(),
+              "failure to allocate the first redo ring leaves source, selection and both histories intact");
+        Check(history.Undo() && history.Text() == L"x" && history.Redo() && history.Snapshot().IsSameRevision(before),
+              "undo and redo remain usable after the rejected ring allocation");
+        bool cycled{};
+        const auto warmHistoryAllocations = observe([&] { cycled = history.Undo() && history.Redo(); });
+        Check(cycled && warmHistoryAllocations == 0u, "warm undo and redo reuse bounded history storage without allocating");
     }
 }
 

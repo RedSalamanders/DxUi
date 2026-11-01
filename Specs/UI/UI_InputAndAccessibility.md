@@ -1255,6 +1255,10 @@ Adjacent direct letter, digit, underscore, supplementary scalar, joiner and comb
 units and one second between input events. A selection move, command, punctuation,
 whitespace, or source revision change ends the group. IME transactions retain
 their native composition history policy.
+Undo and redo each retain at most 128 immutable source/selection snapshots in
+bounded rings. Storage needed for a first push is prepared before publishing an
+edit or moving history, so allocation failure preserves both histories and the
+current source and selection. Held source snapshots remain independently valid.
 Source-view and source-region Backspace/Delete runs on those same text elements
 coalesce in the same bounded way; direction or explicit word deletion ends a run.
 The default-off direct-typing auto-pair policy inserts matching parentheses,

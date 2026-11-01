@@ -7,6 +7,7 @@
 #include <optional>
 #include <span>
 #include <stdexcept>
+#include <type_traits>
 #include <variant>
 #include <windows.h>
 
@@ -432,7 +433,7 @@ struct SourceSnapshot::Revision
     }
 };
 
-SourceSnapshot::SourceSnapshot() = default;
+SourceSnapshot::SourceSnapshot() noexcept = default;
 const SourceSnapshot::PieceTreeNode* SourceSnapshot::RootNode() const noexcept
 {
     return state_ ? state_->root.get() : nullptr;
@@ -610,8 +611,8 @@ bool Document::AdoptReadOnlySourceSnapshot(const SourceSnapshot& source, Selecti
         return false;
     source_    = source;
     selection_ = selection;
-    undo_.clear();
-    redo_.clear();
+    undo_.Clear();
+    redo_.Clear();
     ++revision_; // Local Document revisions remain independent of the source Document.
     return true;
 }
@@ -628,8 +629,8 @@ void Document::Reset(std::wstring_view text)
     SourceSnapshot next(std::make_shared<const SourceSnapshot::Revision>(std::move(root), nullptr, 0u, 0u, 0u));
     source_    = std::move(next);
     selection_ = {};
-    undo_.clear();
-    redo_.clear();
+    undo_.Clear();
+    redo_.Clear();
     ++revision_;
 }
 void Document::SetSelection(Selection selection)
@@ -639,13 +640,36 @@ void Document::SetSelection(Selection selection)
     selection_ = selection;
     ++selectionEpoch_;
 }
-void Document::Push(std::vector<History>& history, History entry)
+void Document::HistoryRing::PreparePush()
 {
-    // Immutable snapshots preserve each public edit as one undo transaction.
-    // Evict the oldest entry before appending to keep retention bounded.
-    if (history.size() == MaximumHistory)
-        history.erase(history.begin());
-    history.push_back(std::move(entry));
+    if (entries.empty())
+        entries.resize(MaximumHistory);
+}
+void Document::HistoryRing::Push(History entry) noexcept
+{
+    static_assert(std::is_nothrow_move_assignable_v<History>);
+    static_assert(std::is_nothrow_move_constructible_v<History>);
+    static_assert(std::is_nothrow_copy_constructible_v<History>);
+    const auto index = (first + count) % MaximumHistory;
+    entries[index]   = std::move(entry);
+    if (count == MaximumHistory)
+        first = (first + 1u) % MaximumHistory;
+    else
+        ++count;
+}
+Document::History Document::HistoryRing::TakeBack() noexcept
+{
+    const auto index = (first + count - 1u) % MaximumHistory;
+    auto result      = std::move(entries[index]);
+    entries[index]   = History{};
+    if (! --count)
+        first = 0u;
+    return result;
+}
+void Document::HistoryRing::Clear() noexcept
+{
+    while (count)
+        static_cast<void>(TakeBack());
 }
 bool Document::Replace(std::size_t begin, std::size_t end, std::wstring_view text, Selection after)
 {
@@ -764,22 +788,13 @@ bool Document::ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view
     const auto root = source_.state_ ? source_.state_->root : nullptr;
     auto nextRoot   = SourceSnapshot::PieceTreeNode::ReplaceRange(root, begin, end, insertion);
     SourceSnapshot candidate(std::make_shared<const SourceSnapshot::Revision>(std::move(nextRoot), source_.state_.get(), begin, end, insertedEnd));
-    // Construct history only for a recorded edit. Copy construction can report
-    // allocation failure; an unused default Debug STL container would also
-    // allocate an iterator proxy inside its noexcept constructor.
-    std::optional<std::vector<History>> nextUndo;
     if (recordHistory && ! coalesceHistory)
-    {
-        nextUndo.emplace(undo_);
-        Push(*nextUndo, {source_, selection_});
-    }
+        undo_.PreparePush(); // Fallible allocation precedes the source commit.
+    if (recordHistory && ! coalesceHistory)
+        undo_.Push({source_, selection_});
     source_ = std::move(candidate);
     if (recordHistory)
-    {
-        if (nextUndo)
-            undo_.swap(*nextUndo);
-        redo_.clear();
-    }
+        redo_.Clear();
     selection_ = after;
     ++revision_;
     return true;
@@ -791,29 +806,25 @@ bool Document::ReplaceSelection(std::wstring_view text)
 }
 bool Document::Undo()
 {
-    if (undo_.empty())
+    if (undo_.Empty())
         return false;
-    auto nextRedo = redo_;
-    Push(nextRedo, {source_, selection_});
-    auto old   = undo_.back();
-    source_    = old.source;
+    redo_.PreparePush();
+    auto old = undo_.TakeBack();
+    redo_.Push({source_, selection_});
+    source_    = std::move(old.source);
     selection_ = old.selection;
-    undo_.pop_back();
-    redo_.swap(nextRedo);
     ++revision_;
     return true;
 }
 bool Document::Redo()
 {
-    if (redo_.empty())
+    if (redo_.Empty())
         return false;
-    auto nextUndo = undo_;
-    Push(nextUndo, {source_, selection_});
-    auto next  = redo_.back();
-    source_    = next.source;
+    undo_.PreparePush();
+    auto next = redo_.TakeBack();
+    undo_.Push({source_, selection_});
+    source_    = std::move(next.source);
     selection_ = next.selection;
-    redo_.pop_back();
-    undo_.swap(nextUndo);
     ++revision_;
     return true;
 }
