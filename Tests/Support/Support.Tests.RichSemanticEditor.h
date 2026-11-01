@@ -156,6 +156,14 @@ template <typename Prepare, typename Key, typename Character> void StructuralHos
                                                      "default context menu requires complete localized labels");
     editor->SetOnContextMenu([&](POINT, bool) { ++menus; });
     editor->SetSelection({0u, 2u});
+    std::vector<MenuFlyoutItem> menuItems(0u);
+    editor->BuildDefaultContextMenuItems(menuItems);
+    Check(menuItems.size() == 8u && menuItems[2u].enabled && menuItems[3u].enabled && menuItems[2u].text == L"Cut",
+          "embedded clients can obtain the localized default menu model");
+    Check(editor->InvokeDefaultContextMenuCommand(host, static_cast<int>(RichTextContextMenuCommand::SelectAll)) &&
+              editor->GetSelection() == Selection{0u, 4u} && ! editor->InvokeDefaultContextMenuCommand(host, -1),
+          "embedded clients can dispatch a default menu action and reject unknown commands");
+    editor->SetSelection({0u, 2u});
     Check(editor->OnContextMenu(host, true, D2D1::Point2F(8.0f, 8.0f)) && menus == 1u && editor->GetSelection() == Selection{0u, 2u},
           "keyboard context menu preserves selection and reaches the consumer callback");
     Check(editor->OnContextMenu(host, false, D2D1::Point2F(450.0f, 15.0f)) && menus == 2u && editor->GetSelection() == Selection{4u, 4u},

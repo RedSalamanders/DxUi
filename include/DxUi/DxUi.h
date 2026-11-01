@@ -3166,6 +3166,17 @@ struct RichTextContextMenuLabels
 {
     std::wstring undo, redo, cut, copy, paste, selectAll, bold, italic;
 };
+enum class RichTextContextMenuCommand : int
+{
+    Undo = 1,
+    Redo,
+    Cut,
+    Copy,
+    Paste,
+    SelectAll,
+    Bold,
+    Italic
+};
 struct RichTextEditorDebugState
 {
     bool layoutReady                   = false;
@@ -3278,6 +3289,8 @@ public:
     [[nodiscard]] std::span<const RichTextDecoration> GetDecorations() const noexcept;
     // Supplying localized labels enables the built-in editing menu. Null disables it.
     void SetDefaultContextMenuLabels(const RichTextContextMenuLabels* labels);
+    void BuildDefaultContextMenuItems(std::vector<MenuFlyoutItem>& items) const;
+    bool InvokeDefaultContextMenuCommand(ControlHost& host, int commandId) noexcept;
     void SetFocusModeEnabled(bool enabled) noexcept;
     [[nodiscard]] bool IsFocusModeEnabled() const noexcept;
     // Opt-in lossless block/lexical analysis on the host's preparation turns.

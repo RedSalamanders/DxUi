@@ -1218,7 +1218,8 @@ Supplying localized default-menu labels opts into the asynchronous built-in
 Undo, Redo, Cut, Copy, Paste, Select All, Bold and Italic menu. A consumer
 context-menu callback takes precedence; the menu's deferred command verifies
 editor lifetime and binding before dispatch. It requires a host HWND; embedded
-hosts without one continue to use the consumer callback.
+hosts without one use the consumer context-menu callback together with the
+public default-menu model and command dispatch APIs.
 Ctrl+Backspace and Ctrl+Delete erase to the preceding or following word boundary;
 rich-view deletion maps visible fragments through the structural source planner.
 An active source-edit session bounds word deletion to its own interval.

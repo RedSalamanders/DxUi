@@ -1017,6 +1017,52 @@ void RichTextEditor::SetDefaultContextMenuLabels(const RichTextContextMenuLabels
     auto next = std::make_shared<const RichTextContextMenuLabels>(*labels);
     _state->contextMenuLabels.swap(next);
 }
+void RichTextEditor::BuildDefaultContextMenuItems(std::vector<MenuFlyoutItem>& out) const
+{
+    std::vector<MenuFlyoutItem> items(0u);
+    const auto labels = _state->contextMenuLabels;
+    if (! labels)
+    {
+        out.swap(items);
+        return;
+    }
+    const auto selection = GetSelection();
+    items.reserve(8u);
+    const auto add = [&](const std::wstring& label, int id, bool enabled)
+    {
+        items.emplace_back();
+        auto& item     = items.back();
+        item.text      = label;
+        item.commandId = id;
+        item.enabled   = enabled;
+    };
+    add(labels->undo, 1, Editable() && CanUndo());
+    add(labels->redo, 2, Editable() && CanRedo());
+    add(labels->cut, 3, Editable() && selection.Start() != selection.End());
+    add(labels->copy, 4, IsEnabled() && selection.Start() != selection.End());
+    add(labels->paste, 5, Editable());
+    add(labels->selectAll, 6, IsEnabled() && Snapshot().Length() != 0u);
+    add(labels->bold, 7, Editable());
+    add(labels->italic, 8, Editable());
+    out.swap(items);
+}
+bool RichTextEditor::InvokeDefaultContextMenuCommand(ControlHost& host, int commandId) noexcept
+{
+    if (GetHost() != &host || ! IsEnabled())
+        return false;
+    switch (commandId)
+    {
+        case 1: return OnKeyDown(host, 'Z', MK_CONTROL);
+        case 2: return OnKeyDown(host, 'Y', MK_CONTROL);
+        case 3: return OnKeyDown(host, 'X', MK_CONTROL);
+        case 4: return OnCopy(host);
+        case 5: return OnKeyDown(host, 'V', MK_CONTROL);
+        case 6: return OnSelectAll(host);
+        case 7: return OnKeyDown(host, 'B', MK_CONTROL);
+        case 8: return OnKeyDown(host, 'I', MK_CONTROL);
+        default: return false;
+    }
+}
 void RichTextEditor::SetFocusModeEnabled(bool enabled) noexcept
 {
     if (_state->focusMode == enabled)
@@ -3856,29 +3902,11 @@ bool RichTextEditor::OnContextMenu(ControlHost& host, bool keyboardInvocation, D
         }
         if (Control::OnContextMenu(host, keyboardInvocation, point))
             return true;
-        const auto labels = _state->contextMenuLabels;
-        const auto hwnd   = host.GetHwnd();
-        if (! labels || ! hwnd)
+        const auto hwnd = host.GetHwnd();
+        if (! _state->contextMenuLabels || ! hwnd)
             return false;
-        const auto selection = GetSelection();
         std::vector<MenuFlyoutItem> items(0u);
-        items.reserve(8u);
-        const auto add = [&](const std::wstring& label, int id, bool enabled)
-        {
-            items.emplace_back();
-            auto& item     = items.back();
-            item.text      = label;
-            item.commandId = id;
-            item.enabled   = enabled;
-        };
-        add(labels->undo, 1, Editable() && CanUndo());
-        add(labels->redo, 2, Editable() && CanRedo());
-        add(labels->cut, 3, Editable() && selection.Start() != selection.End());
-        add(labels->copy, 4, selection.Start() != selection.End());
-        add(labels->paste, 5, Editable());
-        add(labels->selectAll, 6, Snapshot().Length() != 0u);
-        add(labels->bold, 7, Editable());
-        add(labels->italic, 8, Editable());
+        BuildDefaultContextMenuItems(items);
         const auto anchor = ResolveContextMenuAnchor(host, keyboardInvocation, point);
         if (lifetime.expired() || GetHost() != &host)
             return true;
@@ -3894,18 +3922,7 @@ bool RichTextEditor::OnContextMenu(ControlHost& host, bool keyboardInvocation, D
         {
             if (lifetime.expired() || GetHost() != owner || _state->bindingRevision != binding || ! command)
                 return;
-            switch (command.value())
-            {
-                case 1: static_cast<void>(OnKeyDown(*owner, 'Z', MK_CONTROL)); break;
-                case 2: static_cast<void>(OnKeyDown(*owner, 'Y', MK_CONTROL)); break;
-                case 3: static_cast<void>(OnKeyDown(*owner, 'X', MK_CONTROL)); break;
-                case 4: static_cast<void>(OnCopy(*owner)); break;
-                case 5: static_cast<void>(OnKeyDown(*owner, 'V', MK_CONTROL)); break;
-                case 6: static_cast<void>(OnSelectAll(*owner)); break;
-                case 7: static_cast<void>(OnKeyDown(*owner, 'B', MK_CONTROL)); break;
-                case 8: static_cast<void>(OnKeyDown(*owner, 'I', MK_CONTROL)); break;
-                default: break;
-            }
+            static_cast<void>(InvokeDefaultContextMenuCommand(*owner, command.value()));
         },
                                       options);
     }
