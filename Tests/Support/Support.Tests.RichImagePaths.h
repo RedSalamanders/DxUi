@@ -204,10 +204,10 @@ template <typename Prepare, typename Check> inline void RetainedFileReferences(D
         deepPath.append(L"\\a");
         deepLiteral.append(L"\\\\a");
     }
-    check(Detail::BuildMarkdownFileReference(L"C:\\docs\\note.md", deepPath).has_value(), "512-component file reference remains representable");
+    check(DxUi::RichText::Detail::BuildMarkdownFileReference(L"C:\\docs\\note.md", deepPath).has_value(), "512-component file reference remains representable");
     deepPath.append(L"\\file.png");
     deepLiteral.append(L"\\\\file\\.png\"");
-    check(! Detail::BuildMarkdownFileReference(L"C:\\docs\\note.md", deepPath), "over-deep file reference is unrepresentable");
+    check(! DxUi::RichText::Detail::BuildMarkdownFileReference(L"C:\\docs\\note.md", deepPath), "over-deep file reference is unrepresentable");
     content.filePaths        = {L"C:\\docs\\a.png", deepPath};
     replacement              = L"sentinel";
     const auto deepRevision  = editor.Revision();

@@ -2031,9 +2031,13 @@ does not validate the YAML/TOML payload.
 ### Native Mermaid flowchart profile
 
 The owner's extension engine choice is C++ only. `DxUiNativeFlowchart1` is the
-named limited grammar below. The CPU parser and geometric layout are in development; native painting,
-source-object editing and UIA diagram publication remain M5 work. A prepared
-graph MUST NOT be reported as a rendered diagram until those layers qualify.
+named limited grammar below. Its bounded CPU parser, geometric layout, native
+painting, F2 source-object editing and semantic UIA diagram publication are
+implemented. An individual object is rendered only after its geometry and native
+resources publish successfully; unsupported, malformed or over-capacity objects
+retain exact source and their diagnostic. This implementation status does not
+establish full Mermaid compatibility, physical accessibility or consumer
+qualification. Other bounded diagram families have their own documented profiles.
 
 The body starts with `flowchart` or `graph`, horizontal whitespace and one exact
 direction: `TB`/`TD`, `BT`, `LR` or `RL`. Statements end at a physical CR/LF/CRLF
