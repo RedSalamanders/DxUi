@@ -336,6 +336,33 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     }
     check(static_cast<bool>(ParseMath(L"\\boxed{\\xcancel{a+b}}")) && ! ParseMath(L"\\boxed") && ! ParseMath(L"\\cancel{"),
           "nested annotations parse and incomplete operands fail closed");
+    // The named sizes and factors are pinned independently to KaTeX 0.16.11 Options.js.
+    for (const auto& [name, factor] : std::array{
+             std::pair{L"tiny", .5f}, std::pair{L"sixptsize", .6f}, std::pair{L"scriptsize", .7f}, std::pair{L"footnotesize", .8f},
+             std::pair{L"small", .9f}, std::pair{L"normalsize", 1.f}, std::pair{L"large", 1.2f}, std::pair{L"Large", 1.44f},
+             std::pair{L"LARGE", 1.728f}, std::pair{L"huge", 2.074f}, std::pair{L"Huge", 2.488f}})
+    {
+        const auto expression = std::make_shared<const MathExpression>(ParseMath(L"\\" + std::wstring(name) + L" x"));
+        check(static_cast<bool>(*expression), "named size declaration parses");
+        Detail::PreparedMath sized(factory, expression, 24.f);
+        while (! sized.Advance())
+        {
+        }
+        check(sized.GlyphLayouts().size() == 1u && std::abs(sized.GlyphLayouts()[0].font - 24.f * factor) < .001f,
+              "named size shapes at the pinned factor");
+    }
+    {
+        const auto expression = std::make_shared<const MathExpression>(ParseMath(L"{\\Huge x_y}z"));
+        check(static_cast<bool>(*expression), "named size remains scoped across a grouped script");
+        Detail::PreparedMath sized(factory, expression, 24.f);
+        while (! sized.Advance())
+        {
+        }
+        const auto& glyphs = sized.GlyphLayouts();
+        check(glyphs.size() == 3u && std::abs(glyphs[0].font - 24.f * 2.488f) < .001f &&
+                  std::abs(glyphs[1].font - 24.f * 2.074f) < .001f && std::abs(glyphs[2].font - 24.f) < .001f,
+              "named size uses the pinned script map and ends at the group boundary");
+    }
     std::size_t scenarioIndex{};
     for (const auto& scenario : prepared)
     {

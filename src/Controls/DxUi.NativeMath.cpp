@@ -766,7 +766,10 @@ class Parser
                 while (end < source.size() && Letter(source[end]))
                     ++end;
                 const auto declaration = source.substr(first, end - first);
-                if (declaration == L"displaystyle" || declaration == L"textstyle" || declaration == L"scriptstyle" || declaration == L"scriptscriptstyle")
+                if (declaration == L"displaystyle" || declaration == L"textstyle" || declaration == L"scriptstyle" || declaration == L"scriptscriptstyle" ||
+                    declaration == L"tiny" || declaration == L"sixptsize" || declaration == L"scriptsize" || declaration == L"footnotesize" ||
+                    declaration == L"small" || declaration == L"normalsize" || declaration == L"large" || declaration == L"Large" ||
+                    declaration == L"LARGE" || declaration == L"huge" || declaration == L"Huge")
                 {
                     if (depth >= MathMaximumGroupDepth)
                         Reject(MathIssue::Capacity);

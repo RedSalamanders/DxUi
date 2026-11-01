@@ -553,7 +553,9 @@ class PreparedMath final
                         node.text != L"mathsf" && node.text != L"mathtt" && node.text != L"mathord" && node.text != L"mathop" && node.text != L"mathbin" &&
                         node.text != L"mathrel" && node.text != L"mathopen" && node.text != L"mathclose" && node.text != L"mathpunct" &&
                         node.text != L"mathinner" && node.text != L"displaystyle" && node.text != L"textstyle" && node.text != L"scriptstyle" &&
-                        node.text != L"scriptscriptstyle")
+                        node.text != L"scriptscriptstyle" && node.text != L"tiny" && node.text != L"sixptsize" && node.text != L"scriptsize" &&
+                        node.text != L"footnotesize" && node.text != L"small" && node.text != L"normalsize" && node.text != L"large" &&
+                        node.text != L"Large" && node.text != L"LARGE" && node.text != L"huge" && node.text != L"Huge")
                         throw std::length_error("Invalid mathematical style");
                     if (node.children.size() != 1u)
                         throw std::length_error("Invalid mathematical unary node");
@@ -603,7 +605,7 @@ class PreparedMath final
     {
         return shape != L'.';
     }
-    std::size_t Flatten(const MathNode& node, float size, bool bold, bool italic, bool forceItalic, bool display, unsigned scriptLevel)
+    std::size_t Flatten(const MathNode& node, float size, bool bold, bool italic, bool forceItalic, bool display, unsigned scriptLevel, int namedSizeIndex = -1)
     {
         const auto index = boxes.size();
         boxes.push_back({&node, 0u, 0u, std::numeric_limits<std::size_t>::max(), {}, 0.f, node.atomClass, size, scriptLevel, display});
@@ -632,6 +634,15 @@ class PreparedMath final
             bool childBold = bold, childItalic = italic, childDisplay = display;
             bool childForceItalic = forceItalic;
             auto childLevel       = scriptLevel;
+            auto childNamedSize = namedSizeIndex;
+            constexpr std::array<float, 11u> namedScales{.5f, .6f, .7f, .8f, .9f, 1.f, 1.2f, 1.44f, 1.728f, 2.074f, 2.488f};
+            constexpr std::array<std::array<unsigned, 3u>, 11u> sizeStyle{{{0, 0, 0}, {1, 0, 0}, {2, 0, 0}, {3, 1, 0}, {4, 1, 0},
+                                                                          {5, 2, 0}, {6, 3, 1}, {7, 5, 2}, {8, 6, 5}, {9, 7, 6}, {10, 9, 8}}};
+            const auto scaledSize = [&](unsigned level)
+            {
+                return childNamedSize < 0 ? font * StyleScale(level)
+                                          : font * namedScales[sizeStyle[static_cast<std::size_t>(childNamedSize)][std::min(level, 2u)]];
+            };
             if (node.kind == MathKind::Style)
             {
                 if (node.text == L"mathbf")
@@ -659,10 +670,19 @@ class PreparedMath final
                     childItalic      = true;
                     childForceItalic = true;
                 }
+                constexpr std::array<std::wstring_view, 11u> sizes{L"tiny", L"sixptsize", L"scriptsize", L"footnotesize", L"small", L"normalsize",
+                                                                   L"large", L"Large", L"LARGE", L"huge", L"Huge"};
+                const auto namedSize = std::ranges::find(sizes, node.text);
+                if (namedSize != sizes.end())
+                {
+                    childNamedSize = static_cast<int>(namedSize - sizes.begin());
+                    childSize = scaledSize(0u);
+                    childLevel = 0u;
+                }
                 if (node.text == L"displaystyle" || node.text == L"textstyle" || node.text == L"scriptstyle" || node.text == L"scriptscriptstyle")
                 {
                     const unsigned level = node.text == L"displaystyle" || node.text == L"textstyle" ? 0u : node.text == L"scriptstyle" ? 1u : 2u;
-                    childSize            = font * StyleScale(level);
+                    childSize            = scaledSize(level);
                     childLevel           = level;
                     childDisplay         = node.text == L"displaystyle";
                 }
@@ -677,12 +697,12 @@ class PreparedMath final
                 boxes[index].display = fractionDisplay;
                 childDisplay         = false; // Fraction contents use text or script style, not display style.
                 childLevel           = fractionDisplay ? 0u : nextLevel;
-                childSize            = font * StyleScale(childLevel);
+                childSize            = scaledSize(childLevel);
             }
             else if (node.kind == MathKind::Scripts && childIndex != 0u)
             {
                 childLevel   = nextLevel;
-                childSize    = font * StyleScale(childLevel);
+                childSize    = scaledSize(childLevel);
                 childDisplay = false;
             }
             else if (node.kind == MathKind::Root)
@@ -690,7 +710,7 @@ class PreparedMath final
                 if (childIndex == 1u)
                 {
                     childLevel = 2u;
-                    childSize  = font * StyleScale(childLevel);
+                    childSize  = scaledSize(childLevel);
                 }
             }
             else if (node.kind == MathKind::Matrix)
@@ -700,7 +720,7 @@ class PreparedMath final
                 if (node.text == L"smallmatrix")
                 {
                     childLevel               = std::max(1u, scriptLevel);
-                    childSize                = font * StyleScale(childLevel);
+                    childSize                = scaledSize(childLevel);
                     boxes[index].size        = childSize;
                     boxes[index].scriptLevel = childLevel;
                     boxes[index].display     = false;
@@ -708,7 +728,7 @@ class PreparedMath final
             }
             else if (node.kind == MathKind::Delimiter)
                 childSize = size;
-            Flatten(child, childSize, childBold, childItalic, childForceItalic, childDisplay, childLevel);
+            Flatten(child, childSize, childBold, childItalic, childForceItalic, childDisplay, childLevel, childNamedSize);
         }
         boxes[index].firstChild = firstChild;
         boxes[index].endChild   = boxes.size();
