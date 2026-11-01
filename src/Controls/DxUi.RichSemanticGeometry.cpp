@@ -1163,6 +1163,17 @@ struct PreparedSemanticGeometry::Preparation
             }))
                 options.textAlignment = DWRITE_TEXT_ALIGNMENT_CENTER;
         }
+        const bool paddedCode = ! table && ! caretOnly && next.options.markdownPresentation == MarkdownPresentationStyle::Subtle &&
+                                ! next.document->Syntax()->SourceRegion() &&
+                                (node.block.kind == MarkdownBlockKind::FencedCode || node.block.kind == MarkdownBlockKind::IndentedCode) &&
+                                next.document->Elements()[content.element].role == SemanticRole::Code;
+        const float codeInset = paddedCode ? std::min(6.0f, std::max(0.0f, (box->width - 1.0f) * 0.5f)) : 0.0f;
+        if (paddedCode)
+        {
+            box->x += codeInset;
+            box->y += 6.0f;
+            box->width -= 2.0f * codeInset;
+        }
         options.widthDip = std::max(1.0f, box->width);
         auto* native     = next.native ? next.native->Find(content.element) : nullptr;
         if (native && (native->display < content.display.first || native->display >= content.display.last))
@@ -1398,6 +1409,8 @@ struct PreparedSemanticGeometry::Preparation
         }
         box->height = box->layout.Height();
         box->frame  = D2D1::RectF(box->x, box->y, box->x + box->width, box->y + box->height);
+        if (paddedCode)
+            box->frame = D2D1::RectF(box->x - codeInset, box->y - 6.0f, box->x + box->width + codeInset, box->y + box->height + 6.0f);
         if (native)
             box->frame = D2D1::RectF(box->x + native->bounds.left, box->y + native->bounds.top, box->x + native->bounds.right, box->y + native->bounds.bottom);
         float bottom = box->frame.bottom;
@@ -2418,7 +2431,13 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
         if (! bounds || bounds->bottom <= top || bounds->top >= bottom)
             continue;
         const auto rectangle = D2D1::RectF(bounds->left + origin.x, bounds->top + origin.y, bounds->right + origin.x, bounds->bottom + origin.y);
-        if (elements[i].role == SemanticRole::Quote && quoteFill)
+        const auto nodeIndex = elements[i].syntaxNode;
+        const bool styledCode = elements[i].role == SemanticRole::Code &&
+                                state.options.markdownPresentation == MarkdownPresentationStyle::Subtle &&
+                                ! state.document->Syntax()->SourceRegion() && nodeIndex < state.document->Syntax()->Nodes().size() &&
+                                (state.document->Syntax()->Nodes()[nodeIndex].block.kind == MarkdownBlockKind::FencedCode ||
+                                 state.document->Syntax()->Nodes()[nodeIndex].block.kind == MarkdownBlockKind::IndentedCode);
+        if ((elements[i].role == SemanticRole::Quote || styledCode) && quoteFill)
             target->FillRectangle(rectangle, quoteFill);
         if (elements[i].role == SemanticRole::Image && state.images && state.images->Placed(i))
             continue;

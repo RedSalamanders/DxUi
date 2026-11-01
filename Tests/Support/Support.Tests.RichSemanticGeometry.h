@@ -721,6 +721,36 @@ inline void ParagraphsTablesAndSourceRanges()
     Check(! geometry.Ready() && ! geometry.Pending() && geometry.Height() == 0.0f, "semantic retirement releases both staged and published SDK graphs");
     SemanticSpacingPolicy();
 }
+inline void PaddedCodePresentation()
+{
+    const auto factory = Factory();
+    const std::wstring source = L"```cpp\nint x;\n```\n";
+    const auto document = RichSemanticDocumentTests::Build(source);
+    const auto code = std::ranges::find(document->Elements(), SemanticRole::Code, &SemanticElement::role);
+    Check(code != document->Elements().end(), "code frame fixture has a semantic code element");
+    const auto element = static_cast<std::size_t>(code - document->Elements().begin());
+    const auto prepare = [&](float width, MarkdownPresentationStyle style)
+    {
+        auto geometry = std::make_unique<PreparedSemanticGeometry>();
+        LayoutOptions options;
+        options.widthDip = width;
+        options.markdownPresentation = style;
+        geometry->Begin(factory.get(), document, options);
+        Complete(*geometry);
+        return geometry;
+    };
+    const auto legacy = prepare(200.0f, MarkdownPresentationStyle::Default);
+    const auto subtle = prepare(200.0f, MarkdownPresentationStyle::Subtle);
+    const auto oldFrame = legacy->ElementBounds(element), frame = subtle->ElementBounds(element);
+    const auto position = source.find(L"int");
+    const auto caret = subtle->SourceCaret(position);
+    Check(oldFrame && frame && frame->bottom - frame->top >= oldFrame->bottom - oldFrame->top + 11.9f &&
+              caret.x >= frame->left + 5.9f && caret.y >= frame->top + 5.9f,
+          "subtle code frame reserves inner padding and preserves source caret geometry");
+    const auto narrow = prepare(5.0f, MarkdownPresentationStyle::Subtle);
+    const auto bounds = narrow->ElementBounds(element);
+    Check(bounds && bounds->right - bounds->left <= 5.01f, "narrow code frame clamps its horizontal padding to the viewport");
+}
 inline void MarkdownSubtlePresentation()
 {
     const auto factory        = Factory();

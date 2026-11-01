@@ -1470,6 +1470,7 @@ __declspec(noinline) static int RunFunctionalTests()
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-rich-incremental-preparation")
     {
         MarkdownSourceCorrelationTests::LexicalEdits(Check);
+        RichSemanticTests::Run(RichSemanticGeometryTests::PaddedCodePresentation);
         TestEmbeddedSemanticReusePixels(gpu);
         TestEmbeddedImageResources(gpu);
         DxUi::EmbeddedHost view;
@@ -1495,6 +1496,12 @@ __declspec(noinline) static int RunFunctionalTests()
         editor->SetMarkdownAnalysisProfile(DxUi::RichText::MarkdownProfile::RichMarkdown);
         editor->SetMarkdownRenderingEnabled(true);
         editor->SetText(L"```json\n{\"a\": true}\n```\n");
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "ordinary code preparation");
+        Hr(gpu.Resize(480u, 240u), "resize tokenizer raster fixture");
+        std::vector<std::uint8_t> ordinaryPixels, coloredPixels;
+        gpu.Bind();
+        Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "ordinary code composite");
+        Hr(gpu.Read(ordinaryPixels), "ordinary code raster");
         unsigned calls = 0u;
         editor->SetCodeTokenizer([&](std::wstring_view language, std::wstring_view code, std::vector<DxUi::RichText::CodeToken>& out) {
             ++calls;
@@ -1503,6 +1510,10 @@ __declspec(noinline) static int RunFunctionalTests()
         });
         Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "tokenized code preparation");
         Check(calls == 1u && editor->GetText() == L"```json\n{\"a\": true}\n```\n", "tokenization is cached and does not edit source");
+        gpu.Bind();
+        Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "colored code composite");
+        Hr(gpu.Read(coloredPixels), "colored code raster");
+        Check(ordinaryPixels != coloredPixels, "prepared token ranges change rendered glyph ink");
         Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "idle tokenized preparation");
         Check(calls == 1u, "idle preparation does not reinvoke tokenizer");
         editor->SetCodeTokenizer([&](std::wstring_view, std::wstring_view, std::vector<DxUi::RichText::CodeToken>& out) {
@@ -1642,6 +1653,7 @@ __declspec(noinline) static int RunFunctionalTests()
     RichSemanticTests::Run(RichSemanticDocumentTests::SchedulingAndAdmission);
     RichSemanticTests::Run(RichSemanticGeometryTests::ParagraphsTablesAndSourceRanges);
     RichSemanticTests::Run(RichSemanticGeometryTests::MarkdownSubtlePresentation);
+    RichSemanticTests::Run(RichSemanticGeometryTests::PaddedCodePresentation);
     RichSemanticTests::Run(RichSemanticGeometryTests::AtomicNavigationAndCancellation);
     RichSemanticTests::Run(RichSemanticGeometryTests::SourceCaretSites);
     RichSemanticTests::Run(RichSemanticGeometryTests::HangingMarkersLinksAndHtml);

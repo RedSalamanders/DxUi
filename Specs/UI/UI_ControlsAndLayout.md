@@ -1076,6 +1076,8 @@ the policy-only bounded preparation rebuild. Re-enabling remote admission create
 fresh remote identities; old completions MUST never republish pixels. Every policy
 transition MUST preserve exact document source, selection, history and IME state.
 
+In the opt-in Subtle Markdown style, fenced and indented code blocks have a neutral themed fill and a six-DIP inner frame; narrow viewports clamp horizontal insets to retain a one-DIP text width. Their source caret and selection use the inset content geometry. Default presentation retains its original code frame.
+
 An optional code tokenizer receives borrowed language and rendered code views on the owner preparation thread. Built-in JSON, C-like, PowerShell and diff tokenizers supply bounded comment, keyword and literal spans. Application results must contain at most 4096 sorted, disjoint, nonempty UTF-16 ranges within the code body, without splitting surrogate pairs; invalid results or tokenizer failures use ordinary ink. The editor stages all ranges until the current semantic publication is complete, validates owner, binding and source after every callback, and invokes at most one code tokenizer per preparation turn. Paint uses the cached ranges; selected text and high contrast take precedence. Changing the tokenizer requests a fresh owner preparation without editing source or history.
 Image requests MUST execute in caller-owned scheduling, with callback-free
 cancellation and source/base/binding/visibility validation at owner completion.

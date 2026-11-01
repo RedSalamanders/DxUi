@@ -292,7 +292,7 @@ static void TestEmbeddedSemanticReusePixels(GraphicsFixture& gpu)
     using namespace DxUi;
     std::wstring source = L"- one\n- two\n\n| a | b |\n| --- | --- |\n| c | d |\n\n"
                           L"A formula $x^2$ and ![image](example.png).\n\n"
-                          L"```mermaid\ngraph LR;A[Draft]-->B[Ready]\n```\n\n";
+                          L"```mermaid\ngraph LR;A[Draft]-->B[Ready]\n```\n\n```cpp\nint value = 42;\n```\n\n";
     for (unsigned i = 0u; i < 100u; ++i)
         source += L"**Styled** paragraph and Unicode \u03b2.\n\n";
     std::shared_ptr<GraphicsDevice> graphics;
@@ -308,6 +308,9 @@ static void TestEmbeddedSemanticReusePixels(GraphicsFixture& gpu)
     {
         editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
         editor->SetMarkdownRenderingEnabled(true);
+        auto appearance = editor->GetAppearance();
+        appearance.markdownPresentation = RichText::MarkdownPresentationStyle::Subtle;
+        editor->SetAppearance(appearance);
     }
     reused.Controls().SetRoot(std::move(first));
     fresh.Controls().SetRoot(std::move(second));
