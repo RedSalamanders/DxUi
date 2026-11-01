@@ -1968,7 +1968,8 @@ void SemanticMathLiteralFallback(bool embedded)
     using namespace RichText;
     RichAccessibilityFixture fixture(embedded, true, true);
     fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
-    const auto verify = [&](const std::wstring& source, std::wstring_view expression, std::wstring_view helpText, std::wstring_view linkTitle)
+    const auto verify = [&](const std::wstring& source, std::wstring_view expression, std::wstring_view helpText, std::wstring_view linkTitle,
+                            bool unsupportedSyntax)
     {
         fixture.editor->SetText(source);
         fixture.Publish();
@@ -2004,6 +2005,10 @@ void SemanticMathLiteralFallback(bool embedded)
                    element.source.last - element.source.first == expression.size() + delimiterUnits;
         }),
                 "literal math remains a semantic Math element over its complete source envelope");
+        if (unsupportedSyntax)
+            Require(std::ranges::any_of(semantic->Diagnostics(),
+                                        [](const auto& diagnostic) { return diagnostic.kind == SemanticDiagnosticKind::UnsupportedMath; }),
+                    "unknown math command has an independent unsupported-syntax diagnostic");
         auto text = TextProvider(fixture);
         wil::com_ptr_nothrow<ITextRangeProvider> raw;
         RequireSucceeded(text->RangeFromChild(math.get(), raw.put()), "literal math exact raw source range");
@@ -2020,14 +2025,14 @@ void SemanticMathLiteralFallback(bool embedded)
 
     const std::wstring unsupportedExpression = L"\\unknown{x}";
     const std::wstring unsupportedSource     = L"before $" + unsupportedExpression + L"$ and [link](https://example.test \"original title\") after\r\n";
-    verify(unsupportedSource, unsupportedExpression, L"Unsupported or oversized native equation. Exact source is preserved.", L"original title");
+    verify(unsupportedSource, unsupportedExpression, L"Unsupported native equation. Exact source is preserved.", L"original title", true);
 
     const std::wstring capacityExpression = L"\\text{" + std::wstring(1400u, L'm') + L"}";
     const std::wstring capacitySource     = L"before $$" + capacityExpression + L"$$ after [link](https://example.test \"capacity title\")\r\n";
     auto appearance                       = fixture.editor->GetAppearance();
     appearance.bodyFontSizeDip            = 96.f;
     fixture.editor->SetAppearance(appearance);
-    verify(capacitySource, capacityExpression, L"Equation cannot be prepared natively for this view. Exact source is preserved.", L"capacity title");
+    verify(capacitySource, capacityExpression, L"Equation cannot be prepared natively for this view. Exact source is preserved.", L"capacity title", false);
 }
 void SemanticDecodedImages(bool embedded)
 {
