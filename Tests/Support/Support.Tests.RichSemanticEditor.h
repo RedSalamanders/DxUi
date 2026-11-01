@@ -274,6 +274,16 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
               editor->GetText() == L"\U0001f600a\u0301",
           "adjacent source grapheme deletions restore both whole elements in one undo");
     editor->SetViewMode(ViewMode::Rich);
+    editor->SetText(L"**abc**");
+    prepare();
+    editor->SetSelection({5u, 5u});
+    Check(editor->OnKeyDown(host, VK_BACK, 0u) && editor->GetText() == L"**ab**", "semantic deletion preserves a nonempty wrapper");
+    prepare();
+    Check(editor->OnKeyDown(host, VK_BACK, 0u) && editor->GetText() == L"**a**", "adjacent semantic deletion retains the remaining wrapper");
+    prepare();
+    Check(editor->OnKeyDown(host, VK_BACK, 0u) && editor->GetText().empty() && editor->Undo() && editor->GetText() == L"**a**" && editor->Undo() &&
+              editor->GetText() == L"**abc**",
+          "plain semantic erasures coalesce while structural wrapper removal remains a separate undo");
     editor->SetText(L"");
     Check(editor->OnChar(host, L'a', 0u) && editor->OnChar(host, L' ', 0u) && editor->OnChar(host, L'b', 0u) && editor->Undo() && editor->GetText() == L"a ",
           "whitespace ends a typing undo group");

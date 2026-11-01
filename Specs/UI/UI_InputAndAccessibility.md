@@ -1254,6 +1254,9 @@ whitespace, or source revision change ends the group. IME transactions retain
 their native composition history policy.
 Source-view and source-region Backspace/Delete runs on those same text elements
 coalesce in the same bounded way; direction or explicit word deletion ends a run.
+Rich-view deletion also groups adjacent single plain-source erasures; structural
+wrapper removal, transformed tokens and disjoint fragments remain separate
+transactions so their ownership is preserved.
 The source-exact SetQuote command toggles or adds/removes one quote level for
 supported selected physical text lines as one transaction, including list-owned
 lines with representable container prefixes. A mixed toggle quotes the

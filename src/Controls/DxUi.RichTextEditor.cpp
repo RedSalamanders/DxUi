@@ -3655,6 +3655,43 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
             if (ranges.empty())
                 return false; // Generated separators need an explicit structural join command (M4e).
             const auto plan = RichText::BuildMarkdownDeletion(Snapshot(), Revision(), document->Syntax(), selection, ranges);
+            // Only a single plain source erasure may join a typing run. Plans
+            // that also remove markup or combine disjoint spans stay atomic.
+            if (! byWord && plan.IsApplicable() && plan.Edits().size() == 1u && plan.Edits()[0].replacement.empty())
+            {
+                const auto& edit  = plan.Edits()[0];
+                const auto erased = plan.ExpectedSource().Slice(edit.source.first, edit.source.last);
+                if (erased.size() <= 64u && IsHistoryWordElement(erased))
+                {
+                    const auto composition = host.GetFocusControl() == this ? host.GetNativeTextCompositionActive(this) : std::optional<bool>{false};
+                    if ((host.GetFocusControl() == this && host.HasActiveNativeTextInputSession() && ! composition) || composition.value_or(false))
+                    {
+                        _state->typingRun.reset();
+                        return false;
+                    }
+                    const auto now      = GetTickCount64();
+                    const auto previous = _state->typingRun;
+                    const auto kind     = backwards ? State::TypingRun::Kind::Backspace : State::TypingRun::Kind::Delete;
+                    const bool merge    = previous && previous->kind == kind && previous->revision == Revision() &&
+                                          previous->selectionEpoch == _state->document.selectionEpoch_ && previous->caret == selection.caret &&
+                                          now >= previous->lastTick && now - previous->lastTick <= 1000u && previous->units + erased.size() <= 64u &&
+                                          _state->document.CanUndo();
+                    const bool changed  = _state->document.ReplaceImpl(edit.source.first, edit.source.last, {}, plan.After(), true, merge);
+                    if (changed)
+                        _state->typingRun = State::TypingRun{kind,
+                                                             Revision(),
+                                                             _state->document.selectionEpoch_,
+                                                             now,
+                                                             plan.After().caret,
+                                                             merge ? previous->units + erased.size() : erased.size()};
+                    else
+                        _state->typingRun.reset();
+                    _state->sourceCaretSite = RichText::MarkdownNoNode;
+                    Changed(changed);
+                    return changed;
+                }
+            }
+            _state->typingRun.reset();
             return ApplyMarkdownCommand(plan) == RichText::MarkdownCommandStatus::Changed;
         }
     }
@@ -4245,7 +4282,8 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                     else
                         _state->typingRun.reset();
                 }
-                else
+                else if (control || ! Editable() || selection.Start() != selection.End() || ! _state->markdownRendering ||
+                         _state->mode != RichText::ViewMode::Rich)
                     _state->typingRun.reset();
                 static_cast<void>(Erase(host, backwards, control, merge));
                 return true;
