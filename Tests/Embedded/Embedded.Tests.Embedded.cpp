@@ -1276,6 +1276,8 @@ __declspec(noinline) static int RunFunctionalTests()
         }
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-image-failures")
             TestRichImagePathAllocationFailures();
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-file-drop-failures")
+            TestRichFileDropTransportAllocationFailures();
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-file-reference-paste")
         {
             GraphicsFixture gpu;
@@ -1514,6 +1516,8 @@ __declspec(noinline) static int RunFunctionalTests()
     RichImageTests::Core(Check);
     RichImageResourceTests::Admission(Check);
     TestRichImagePathAllocationFailures();
+    TestRichFileDropTransportAllocationFailures();
+    TestRichFileDropTransactionAllocationFailures(gpu);
     TestRichImageDecoderAllocationFailures();
     TestRichEditorSteadyLinkHoverAllocatesNothing(gpu);
     TestRichImageResourceAllocationFailures();

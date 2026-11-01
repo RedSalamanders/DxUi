@@ -771,6 +771,31 @@ bool EmbeddedHost::InputIsCoherent(bool allowDirty) noexcept
     // allowDirty=false so they do not publish a stale surface.
     return allowDirty || ! _state->dirty;
 }
+bool EmbeddedHost::PreviewFileDrop(D2D1_POINT_2F point) noexcept
+{
+    return _state && _host._attachmentOwnerThreadId == GetCurrentThreadId() && ! _state->zeroSized && ! _state->contentPending &&
+           ! _host.GetCapturedControl() && InputIsCoherent(true) && _host.PreviewFileDrop(point);
+}
+bool EmbeddedHost::CommitFileDrop(D2D1_POINT_2F point, IDataObject& dataObject, bool (*validate)(void*) noexcept, void* context) noexcept
+{
+    if (! PreviewFileDrop(point))
+        return false;
+    struct Validation
+    {
+        EmbeddedHost* host;
+        D2D1_POINT_2F point;
+        bool (*validate)(void*) noexcept;
+        void* context;
+    } validation{this, point, validate, context};
+    return _host.CommitFileDropCore(point,
+                                    dataObject,
+                                    [](void* context) noexcept
+    {
+        const auto& current = *static_cast<Validation*>(context);
+        return (! current.validate || current.validate(current.context)) && current.host->PreviewFileDrop(current.point);
+    },
+                                    &validation);
+}
 bool EmbeddedHost::TextInputIsAvailable() noexcept
 {
     if (InputIsCoherent(true))
@@ -1169,6 +1194,34 @@ HRESULT EmbeddedHost::ReadTextInput(EmbeddedTextInputSnapshot& snapshot) noexcep
         snapshot = {};
         return E_OUTOFMEMORY;
     }
+}
+HRESULT EmbeddedHost::ApplyClipboardFilePaste(uint64_t revision, uint64_t focusId, const TextClipboardContent& content) noexcept
+try
+{
+    EmbeddedTextInputSnapshot current;
+    const auto result = ReadTextInput(current);
+    if (result != S_OK)
+        return result;
+    if (current.revision != revision || current.focusId != focusId)
+        return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
+    if (current.state.readOnly)
+        return E_ACCESSDENIED;
+    if (current.state.compositionStartIndex || current.state.compositionEndIndex)
+        return S_FALSE;
+    auto* editor = dynamic_cast<RichTextEditor*>(_host.GetFocusControl());
+    return editor && editor->ApplyClipboardFilePaste(content) ? S_OK : S_FALSE;
+}
+catch (const std::bad_alloc&)
+{
+    return E_OUTOFMEMORY;
+}
+catch (const std::length_error&)
+{
+    return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
+}
+catch (const std::exception&)
+{
+    return E_INVALIDARG;
 }
 HRESULT EmbeddedHost::TransformClipboardPaste(uint64_t revision, uint64_t focusId, const TextClipboardContent& content, std::wstring& replacement) noexcept
 try

@@ -1,6 +1,6 @@
 # RichTextEditor file drag-and-drop
 
-Status: SPECIFICATION READY; implementation and runtime tests NOT STARTED.
+Status: IMPLEMENTATION IN PROGRESS; native builds, runtime tests, captures and performance qualification remain pending.
 Owner decision (2026-10-20): prepare this spec and test plan; submit the existing
 RichTextEditor work as a PR. Do not implement drag-and-drop in that PR.
 
@@ -8,7 +8,7 @@ This is an independently sequenced addition to
 [the rich-text plan](RichTextEditor_2026-10-17.md), following qualified M5g.1b
 file-reference paste and M5g.2 native image display. It does not close the parent
 plan, D4c performance HOLD, M5g.3 resources, native ARM64, physical IME/AT or
-consumer adoption. Proposed names below are design guidance, not available APIs.
+consumer adoption. The implementation is under review; the checklist remains open until its validation evidence is complete.
 
 ## Checklist and execution order
 

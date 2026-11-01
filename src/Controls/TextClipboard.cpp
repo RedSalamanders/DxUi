@@ -2,6 +2,7 @@
 #include <cstring>
 #include <cwchar>
 #include <limits>
+#include <ole2.h>
 #include <shlobj.h>
 
 namespace DxUi
@@ -208,6 +209,43 @@ try
 catch (const std::bad_alloc&)
 {
     return E_OUTOFMEMORY;
+}
+HRESULT ReadDataObjectFilePaths(IDataObject* dataObject, TextClipboardContent& content) noexcept
+try
+{
+    if (! dataObject)
+        return E_INVALIDARG;
+    FORMATETC format{CF_HDROP, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL};
+    STGMEDIUM medium{};
+    const HRESULT hr = dataObject->GetData(&format, &medium);
+    if (FAILED(hr))
+        return hr;
+    const auto release = wil::scope_exit([&] noexcept { ReleaseStgMedium(&medium); });
+    if (medium.tymed != TYMED_HGLOBAL || ! medium.hGlobal)
+        return DV_E_TYMED;
+    constexpr SIZE_T maximumBytes = 256u * 1024u;
+    const auto bytes              = GlobalSize(medium.hGlobal);
+    if (bytes > maximumBytes)
+        return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
+    if (bytes < sizeof(DROPFILES))
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    const auto* data = static_cast<const std::byte*>(GlobalLock(medium.hGlobal));
+    if (! data)
+    {
+        const auto error = GetLastError();
+        return HRESULT_FROM_WIN32(error ? error : ERROR_INVALID_DATA);
+    }
+    const auto unlock = wil::scope_exit([&] noexcept { static_cast<void>(GlobalUnlock(medium.hGlobal)); });
+    return DecodeClipboardFilePaths(std::span(data, bytes), content);
+}
+catch (const std::bad_alloc&)
+{
+    return E_OUTOFMEMORY;
+}
+catch (const std::exception&)
+{
+    // A foreign IDataObject must not propagate an exception across OLE.
+    return E_FAIL;
 }
 HRESULT ReadTextClipboardContent(TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles) noexcept
 try

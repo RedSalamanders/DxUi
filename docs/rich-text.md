@@ -279,8 +279,9 @@ and directory component case is preserved. No current-directory lookup, asset
 copy/move or remote request occurs. Location changes do not edit source/history
 or cancel composition. Callers update this metadata when opening or saving a file.
 
-One paste is one undoable source transaction. Multiple files use blank-line
-separators and preserve clipboard order, including mixed image/link lists. Image
+One paste is one undoable source transaction. Multiple files preserve clipboard
+order, including mixed image/link lists. Blank paragraphs retain list and quote
+continuation prefixes; table cells use spaces to keep the row intact. Image
 descriptions use the filename stem; text links display the complete
 filename. If any structured path cannot be represented safely, the complete list
 keeps its original displayed spellings as quoted literal text; Rich mode escapes
@@ -292,6 +293,9 @@ analysis uses ordinary Unicode paste. Read-only/disabled/composing editors rejec
 mutation. Native and application-owned embedded TSF clipboard routes reject stale
 source/selection/base/owner state. Existing Unicode-only controls retain their
 text clipboard behavior; structured file transport is an optional interface.
+Embedded text clients may additionally implement `TextClipboardFilePaste` to
+commit a prepared file list through the view's source-site-aware transaction;
+the replacement-only transform remains available to existing clients.
 Limits are 16 paths, 32767 UTF-16 units per path and 65536 total path units, plus
 the existing document source limit. Clipboard paths may recognize formats whose
 decoders are not available. Displaying an image also requires the application to
@@ -301,8 +305,10 @@ not open a file or add navigation. File type classification is lexical and does
 not check existence. Drag-and-drop and copying assets into the document folder
 are outside this paste feature.
 The [file drag-and-drop specification and native/embedded test plan](../Specs/Plans/WIP/RichTextFileDrop_2026-10-20.md)
-defines future drop-at-caret insertion with the same image/link policy.
-Drag-and-drop is not implemented in the current sample or control.
+owns the in-progress drop-at-caret implementation. `DxUi/FileDrop.h` provides an
+application-owned revocable OLE adapter; the application owns registration and
+routes view-local DIPs to the native or embedded host. Final validation and
+performance qualification remain pending.
 The [file-reference qualification packet](../Measurements/RichText/README.md)
 records all six builds and 57 ordinary x64 scope passes for image/link and mixed
 paste, including native/embedded transport, semantic roles, history and fault

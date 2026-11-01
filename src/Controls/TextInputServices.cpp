@@ -854,6 +854,20 @@ HRESULT TextInputServices::Clipboard(TextClipboardCommand command, TextClipboard
                 return paste;
             if (client != _state->client)
                 return TF_E_DISCONNECTED;
+            if (! content.filePaths.empty())
+                if (auto* direct = dynamic_cast<TextClipboardFilePaste*>(client.get()))
+                {
+                    const auto result = direct->ApplyFilePaste(snapshot, content);
+                    if (result == S_OK)
+                    {
+                        if (client == _state->client)
+                            NotifyChanged();
+                        return S_OK; // The transaction committed even if its callback retired the client.
+                    }
+                    if (client != _state->client)
+                        return TF_E_DISCONNECTED;
+                    return result;
+                }
             replacement.assign(content.filePaths.empty() ? std::wstring_view(content.text) : std::wstring_view{});
             if (replacement.size() > kMaximumTextUnits || replacement.find(L'\0') != std::wstring::npos)
                 return E_INVALIDARG;

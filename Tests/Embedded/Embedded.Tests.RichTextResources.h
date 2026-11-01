@@ -5,12 +5,102 @@
 #include "Support.Tests.MarkdownCapacity.h"
 #include "Support.Tests.MarkdownInlines.h"
 #include "Support.Tests.PreparedFlowchart.h"
+#include "Support.Tests.RichFileDrop.h"
 #include "Support.Tests.RichImage.h"
 #include "Support.Tests.RichImagePaths.h"
 #include "Support.Tests.RichImageResources.h"
 #include "Support.Tests.SemanticDiagrams.h"
 #include "Support.Tests.SemanticSourceBlock.h"
 #include <DxUi/RichSemanticDocument.h>
+
+static void TestRichFileDropTransportAllocationFailures()
+{
+    using namespace DxUi;
+    auto data = Microsoft::WRL::Make<RichFileDropTests::DropDataObject>();
+    Check(data != nullptr, "allocate private file-drop data object");
+    constexpr wchar_t list[] = L"C:\\docs\\one.png\0C:\\docs\\two.pdf\0";
+    data->bytes              = RichImagePathTests::DropBuffer(std::wstring_view(list, std::size(list)));
+    TextClipboardContent measured;
+    const auto oldCounting = countAllocations;
+    const auto oldCalls = allocations, oldBytes = allocationBytes;
+    allocations = allocationBytes = 0u;
+    countAllocations              = true;
+    const auto measuredResult     = ReadDataObjectFilePaths(data.Get(), measured);
+    countAllocations              = oldCounting;
+    const auto observed           = allocations;
+    allocations                   = oldCalls;
+    allocationBytes               = oldBytes;
+    Check(measuredResult == S_OK && measured.filePaths.size() == 2u && observed > 0u && observed < 256u,
+          "file-drop transport has an observed bounded allocation schedule");
+    for (size_t failure = 0u; failure < observed; ++failure)
+    {
+        TextClipboardContent content;
+        content.text          = L"sentinel";
+        const auto oldFailure = failAllocationAfter;
+        const auto releases   = data->releases;
+        failAllocationAfter   = failure;
+        const auto result     = ReadDataObjectFilePaths(data.Get(), content);
+        failAllocationAfter   = oldFailure;
+        Check(result == E_OUTOFMEMORY && content.text == L"sentinel" && content.filePaths.empty() && data->releases <= releases + 1u,
+              "each observed transport allocation failure preserves output and releases any acquired medium once");
+        Check(ReadDataObjectFilePaths(data.Get(), content) == S_OK && content.filePaths.size() == 2u,
+              "file-drop transport permits an exact retry after allocation failure");
+    }
+}
+static void TestRichFileDropTransactionAllocationFailures(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    using namespace DxUi::RichText;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "file-drop fault fixture graphics");
+    auto data = Microsoft::WRL::Make<RichFileDropTests::DropDataObject>();
+    Check(data != nullptr, "file-drop fault fixture data object");
+    constexpr wchar_t list[] = L"C:\\docs\\one.png\0C:\\docs\\two.pdf\0";
+    data->bytes              = RichImagePathTests::DropBuffer(std::wstring_view(list, std::size(list)));
+    const auto exercise      = [&](size_t failure, bool measure)
+    {
+        EmbeddedHost view;
+        Hr(view.Attach(graphics), "attach file-drop fault fixture");
+        auto owned   = std::make_unique<RichTextEditor>(L"alpha");
+        auto* editor = owned.get();
+        editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        editor->SetDocumentFilePath(L"C:\\docs\\note.md");
+        view.Controls().SetRoot(std::move(owned));
+        editor->SetSelection({5u, 0u});
+        Hr(PrepareRichEmbeddedContent(view, 640u, 240u), "prepare file-drop fault fixture");
+        const auto rect = editor->TryGetTextInputCaretRect(view.Controls(), 2u);
+        Check(rect.has_value(), "file-drop fault fixture caret");
+        const auto point       = D2D1::Point2F(rect->left + .01f, (rect->top + rect->bottom) * .5f);
+        const auto revision    = editor->Revision();
+        const auto oldCounting = countAllocations;
+        const auto oldCalls = allocations, oldBytes = allocationBytes, oldFailure = failAllocationAfter;
+        allocations = allocationBytes = 0u;
+        countAllocations              = measure;
+        if (! measure)
+            failAllocationAfter = failure;
+        const bool committed = view.CommitFileDrop(point, *data.Get());
+        const auto observed  = allocations;
+        failAllocationAfter  = oldFailure;
+        countAllocations     = oldCounting;
+        allocations          = oldCalls;
+        allocationBytes      = oldBytes;
+        if (measure)
+            Check(committed && editor->GetText() == L"al![one](one.png)\r\n\r\n[two\\.pdf](two.pdf)pha", "measure successful file-drop transaction");
+        else
+        {
+            Check(! committed && editor->GetText() == L"alpha" && editor->Revision() == revision && editor->GetSelection() == Selection{5u, 0u} &&
+                      ! editor->CanUndo(),
+                  "each precommit allocation failure preserves exact source, revision, selection and history");
+            Check(view.CommitFileDrop(point, *data.Get()), "file-drop transaction permits exact retry after allocation failure");
+        }
+        return observed;
+    };
+    const auto observed = exercise(0u, true);
+    Check(observed > 0u && observed < 2048u, "file-drop transaction has an observed bounded allocation schedule");
+    for (size_t failure = 0u; failure < observed; ++failure)
+        static_cast<void>(exercise(failure, false));
+}
 
 // The paired benchmark also compiles this common fixture against its older
 // frozen SDK. Keep the new API references dependent; ordinary qualification

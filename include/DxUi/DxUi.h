@@ -50,6 +50,7 @@
 struct IRawElementProviderFragmentRoot;
 struct ITextStoreACP;
 struct ITfThreadMgrEventSink;
+struct IDataObject;
 
 namespace DxUi
 {
@@ -3332,6 +3333,8 @@ protected:
 private:
     friend struct EmbeddedAccessibilityAccess;
     [[nodiscard]] std::optional<std::vector<std::pair<size_t, size_t>>> SourceVisualLineRangesFallible(const ControlHost& host) const;
+    friend class ControlHost;
+    friend class EmbeddedHost;
     [[nodiscard]] std::shared_ptr<const RichText::Detail::AccessibilityEpoch> AccessibilitySemanticEpoch() const noexcept;
     void RetireSemanticAccessibility() const noexcept;
     struct State;
@@ -3344,7 +3347,20 @@ private:
     void UpdateSemanticSourceRegion() noexcept;
     void SourcePresentationChanged(ControlHost& host);
     [[nodiscard]] bool CanChangeSemanticSourcePresentation(ControlHost& host) const;
-    [[nodiscard]] bool CanPasteMarkdownFileReferences() const noexcept;
+    [[nodiscard]] bool CanPasteMarkdownFileReferences(RichText::Selection selection) const noexcept;
+    bool TryPrepareFileReferencesAt(const TextClipboardContent& content,
+                                    RichText::Selection selection,
+                                    std::wstring& replacement,
+                                    size_t targetSite = RichText::MarkdownNoNode) const;
+    bool ApplyClipboardFilePaste(const TextClipboardContent& content);
+    struct FileDropPosition
+    {
+        size_t caret{}, site = RichText::MarkdownNoNode;
+        bool operator==(const FileDropPosition&) const = default;
+    };
+    [[nodiscard]] std::optional<FileDropPosition> FileDropCaret(const ControlHost& host, D2D1_POINT_2F point) const;
+    [[nodiscard]] uint64_t FileDropEpoch() const noexcept;
+    bool CommitFileDrop(FileDropPosition position, const TextClipboardContent& content);
     void Changed(bool sourceChanged, bool synchronizeTextInput = true);
     void SelectionChanged(bool synchronizeTextInput = true, bool preservePreferredCaretX = false, bool publishSelection = true);
     void PublishSelectionChanged() noexcept;
@@ -5840,6 +5856,12 @@ public:
     [[nodiscard]] uint64_t GetResourceGeneration() const noexcept;
     [[nodiscard]] bool HasPendingContentPreparation() const noexcept;
     [[nodiscard]] uint64_t GetInteractionRevision() const noexcept;
+    // View-local DIP routing; applications own OLE registration and screen conversion.
+    [[nodiscard]] bool PreviewFileDrop(D2D1_POINT_2F point) noexcept;
+    [[nodiscard]] bool CommitFileDrop(D2D1_POINT_2F point,
+                                      IDataObject& dataObject,
+                                      bool (*validate)(void*) noexcept = nullptr,
+                                      void* context                    = nullptr) noexcept;
     [[nodiscard]] IDWriteTextFormat* GetTextFormat(FontRole role) const noexcept;
     [[nodiscard]] IDWriteTextFormat* GetTextFormat(FontRole role,
                                                    float fontSizeDip,
@@ -5962,6 +5984,7 @@ public:
 
 private:
     friend class EmbeddedHost;
+    bool CommitFileDropCore(D2D1_POINT_2F point, IDataObject& dataObject, bool (*validate)(void*) noexcept, void* context) noexcept;
     friend struct ControlModelQueryAccess;
     friend class PageHost;
     friend class Control;
@@ -6028,8 +6051,10 @@ private:
     [[nodiscard]] bool CanReuseMessagePruneSnapshot(const MessagePruneSnapshot& current) const noexcept;
     [[nodiscard]] bool CanPublishMessagePrunePass(const MessagePrunePass& pass) const noexcept;
     MessagePruneSnapshot _messagePruneSnapshot;
-    uint64_t _messagePrunePassSerial                        = 0u;
-    uint64_t _interactionRevision                           = 0;
+    uint64_t _messagePrunePassSerial = 0u;
+    uint64_t _interactionRevision    = 0;
+    struct FileDropState;
+    std::shared_ptr<FileDropState> _fileDropState;
     InitialRootChildBatchFrame* _initialRootChildBatchFrame = nullptr;
     bool _pendingPageLayout                                 = false;
     bool _pendingIntrinsicLayout                            = false;

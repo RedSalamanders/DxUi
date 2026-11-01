@@ -4,20 +4,342 @@
 #include "GraphicsFixture.h"
 #include "RichImageLoader.h"
 #include "Support.Tests.ClipboardFixture.h"
+#include "Support.Tests.RichFileDrop.h"
 #include "Support.Tests.RichImagePaths.h"
 #include "Support.Tests.RichImageResources.h"
 #include "Support.Tests.RichTextStateReplacement.h"
 #include <DxUi/Embedded.h>
+#include <DxUi/FileDrop.h>
 #include <imm.h>
 
 namespace
 {
 using namespace DxUi;
 using namespace DxUi::RichText;
+using namespace RichFileDropTests;
 
 // Expose the protected adapter to exercise malformed service input independently
 // of TSF's own validation. Production callers go through ControlHost/EmbeddedHost.
 using ServiceRichEditor = RichTextStateReplacementTests::ServiceEditor;
+
+void TestRichTextOleFileListOwnership()
+{
+    auto data = Microsoft::WRL::Make<DropDataObject>();
+    Require(data != nullptr, "OLE file list test object allocation");
+    constexpr wchar_t list[] = L"C:\\docs\\a.png\0D:\\file.txt\0";
+    data->bytes              = RichImagePathTests::DropBuffer(std::wstring_view(list, std::size(list)));
+    TextClipboardContent content;
+    Require(ReadDataObjectFilePaths(data.Get(), content) == S_OK && content.filePaths.size() == 2u && data->calls == 1u && data->releases == 1u,
+            "OLE medium is fetched once, decoded in order and released through pUnkForRelease");
+    data->bytes.resize(256u * 1024u + 1u);
+    Require(ReadDataObjectFilePaths(data.Get(), content) == HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW) && content.filePaths.size() == 2u && data->releases == 2u,
+            "oversized medium is rejected before decoding and leaves the owned output unchanged");
+    data->bytes = RichImagePathTests::DropBuffer(std::wstring_view(list, std::size(list)));
+    DROPFILES header{};
+    std::memcpy(&header, data->bytes.data(), sizeof(header));
+    header.fWide = FALSE;
+    std::memcpy(data->bytes.data(), &header, sizeof(header));
+    Require(FAILED(ReadDataObjectFilePaths(data.Get(), content)) && content.filePaths.size() == 2u && data->releases == 3u,
+            "ANSI payload is refused atomically and still releases its medium");
+    constexpr wchar_t invalidUnicode[] = {L'C', L':', L'\\', wchar_t(0xd800), L'\0', L'\0'};
+    data->bytes                        = RichImagePathTests::DropBuffer(std::wstring_view(invalidUnicode, std::size(invalidUnicode)));
+    Require(FAILED(ReadDataObjectFilePaths(data.Get(), content)) && content.filePaths.size() == 2u && data->releases == 4u,
+            "malformed Unicode rejects the entire list and releases the medium");
+    constexpr wchar_t unterminated[] = {L'C', L':', L'\\', L'a', L'b', L'\0'};
+    data->bytes                      = RichImagePathTests::DropBuffer(std::wstring_view(unterminated, std::size(unterminated)));
+    Require(FAILED(ReadDataObjectFilePaths(data.Get(), content)) && content.filePaths.size() == 2u && data->releases == 5u,
+            "a missing list terminator leaves the prior output intact and releases the medium");
+    std::wstring overCount;
+    for (std::size_t i = 0u; i != TextClipboardContent::MaximumFiles + 1u; ++i)
+    {
+        overCount.append(L"C:\\a.txt");
+        overCount.push_back(L'\0');
+    }
+    overCount.push_back(L'\0');
+    data->bytes = RichImagePathTests::DropBuffer(overCount);
+    Require(ReadDataObjectFilePaths(data.Get(), content) == HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW) && content.filePaths.size() == 2u && data->releases == 6u,
+            "over-count lists are rejected atomically and release the medium");
+    data->getDataResult = E_ACCESSDENIED;
+    Require(ReadDataObjectFilePaths(data.Get(), content) == E_ACCESSDENIED && content.filePaths.size() == 2u && data->releases == 6u,
+            "GetData failure preserves the owned output and releases no unacquired medium");
+    data->getDataResult = E_OUTOFMEMORY;
+    Require(ReadDataObjectFilePaths(data.Get(), content) == E_OUTOFMEMORY && content.filePaths.size() == 2u && data->releases == 6u,
+            "transport allocation failure preserves the prior owned output");
+}
+void TestRichTextOleAdapterRevocation()
+{
+    auto data = Microsoft::WRL::Make<DropDataObject>();
+    Require(data != nullptr, "OLE adapter test object allocation");
+    constexpr wchar_t list[] = L"C:\\docs\\a.png\0";
+    data->bytes              = RichImagePathTests::DropBuffer(std::wstring_view(list, std::size(list)));
+    auto receiver            = std::make_shared<DropReceiver>();
+    RichFileDropAdapter adapter;
+    RequireSucceeded(adapter.Attach(receiver), "attach revocable OLE adapter");
+    wil::com_ptr<IDropTarget> retained = adapter.Target();
+    DWORD effect                       = DROPEFFECT_COPY;
+    Require(retained->DragEnter(data.Get(), 0u, {}, &effect) == S_OK && effect == DROPEFFECT_COPY && data->queries == 1u && data->calls == 0u,
+            "drag enter queries the offered format without fetching the file list");
+    effect = DROPEFFECT_COPY;
+    Require(retained->DragOver(MK_SHIFT, {}, &effect) == S_OK && effect == DROPEFFECT_NONE && data->calls == 0u,
+            "shift drag refuses move semantics without reading data");
+    data->duringGetData = [&]
+    {
+        DWORD nested = DROPEFFECT_COPY;
+        Require(retained->Drop(data.Get(), 0u, {}, &nested) == S_OK && nested == DROPEFFECT_NONE, "nested drop is refused");
+        adapter.Detach();
+    };
+    effect = DROPEFFECT_COPY;
+    Require(retained->Drop(data.Get(), 0u, {}, &effect) == S_OK && effect == DROPEFFECT_NONE && receiver->commits == 0u && data->releases == 1u,
+            "revocation during GetData prevents commit and releases the acquired medium");
+    effect = DROPEFFECT_COPY;
+    Require(retained->DragOver(0u, {}, &effect) == S_OK && effect == DROPEFFECT_NONE, "retained COM target stays inert after explicit detach");
+    data->duringGetData = {};
+    RequireSucceeded(adapter.Attach(receiver), "reattach with a new adapter generation");
+    retained          = adapter.Target();
+    data->duringQuery = [&] { adapter.Detach(); };
+    effect            = DROPEFFECT_COPY;
+    Require(retained->DragEnter(data.Get(), 0u, {}, &effect) == S_OK && effect == DROPEFFECT_NONE && receiver->commits == 0u,
+            "revoke during QueryGetData cannot publish a stale accepting target");
+}
+template <typename Prepare, typename Preview, typename Commit>
+void CheckFileDropInsertion(ControlHost& host, RichTextEditor& editor, Prepare&& prepare, Preview&& preview, Commit&& commit)
+{
+    size_t notifications{};
+    editor.SetOnTextChanged([&] { ++notifications; });
+    const auto caret = editor.TryGetTextInputCaretRect(host, 2u);
+    Require(caret.has_value(), "file drop source caret is prepared");
+    const auto point = D2D1::Point2F(caret->left + .01f, (caret->top + caret->bottom) * .5f);
+    auto data        = Microsoft::WRL::Make<DropDataObject>();
+    Require(data != nullptr, "file drop private data object");
+    constexpr wchar_t list[] = L"C:\\docs\\a.png\0";
+    data->bytes              = RichImagePathTests::DropBuffer(std::wstring_view(list, std::size(list)));
+    Require(preview(point), "prepared unfocused editor accepts file-drop preview");
+    Require(commit(point, *data.Get()), "file reference commits at the proposed source caret");
+    Require(editor.GetText() == L"al![a](a.png)pha" && ! host.GetFocusControl() && notifications == 1u,
+            "drop inserts once without replacing selection or taking focus");
+    prepare();
+    const auto insertedDocument = editor.GetSemanticDocument();
+    Require(insertedDocument && std::ranges::any_of(insertedDocument->Elements(), [](const auto& element) { return element.role == SemanticRole::Image; }),
+            "dropped image publishes a source-backed semantic image");
+    std::vector<RichImageRequest> requests(0u);
+    editor.TakePendingImageRequests(requests);
+    Require(requests.size() == 1u && requests.front().FilePath() == L"C:\\docs\\a.png", "dropped image queues the caller-owned resource request");
+    Require(editor.Undo() && editor.GetText() == L"alpha" && editor.GetSelection() == Selection{5u, 0u},
+            "one undo restores original source and backward selection");
+    Require(notifications == 2u, "drop and undo each publish one change");
+    prepare();
+    const auto staleCaret = editor.TryGetTextInputCaretRect(host, 2u);
+    Require(staleCaret.has_value(), "stale drop fixture prepares a source caret");
+    const auto stalePoint = D2D1::Point2F(staleCaret->left + .01f, (staleCaret->top + staleCaret->bottom) * .5f);
+    data->duringGetData   = [&]
+    {
+        editor.SetSelection({1u, 1u});
+        editor.SetSelection({5u, 0u});
+    };
+    Require(! commit(stalePoint, *data.Get()) && editor.GetText() == L"alpha" && editor.GetSelection() == Selection{5u, 0u} && notifications == 2u,
+            "selection supersession during GetData rejects even when the directional value is restored");
+    data->duringGetData      = {};
+    const std::wstring table = L"a | b | c\n- | - | -\nx\n";
+    editor.SetText(table);
+    editor.SetSelection({table.size(), 0u});
+    prepare();
+    const auto value    = table.rfind(L'x');
+    const auto bounds   = editor.TryGetTextInputRangeRects(host, value, value + 1u);
+    const auto viewport = editor.TryGetTextInputViewportRect();
+    Require(bounds && ! bounds->empty() && viewport, "padded drop cell has prepared geometry");
+    const auto padded         = D2D1::Point2F((viewport->left + viewport->right) * .5f, (bounds->front().top + bounds->front().bottom) * .5f);
+    constexpr wchar_t mixed[] = L"C:\\docs\\a.png\0C:\\docs\\b.pdf\0";
+    data->bytes               = RichImagePathTests::DropBuffer(std::wstring_view(mixed, std::size(mixed)));
+    Require(preview(padded) && commit(padded, *data.Get()), "drop materializes the targeted padded cell");
+    Require(editor.GetText() == L"a | b | c\n- | - | -\nx | ![a](a.png) [b\\.pdf](b.pdf)\n", "padded drop preserves table and ordered references");
+    Require(editor.Undo() && editor.GetText() == table && editor.GetSelection() == Selection{table.size(), 0u},
+            "padded drop undo restores the unrelated backward selection");
+    const std::wstring listSource = L"- item\n- next\n";
+    editor.SetText(listSource);
+    editor.SetSelection({listSource.size(), 0u});
+    prepare();
+    const auto listCaret = editor.TryGetTextInputCaretRect(host, 6u);
+    Require(listCaret.has_value(), "list drop caret is prepared");
+    const auto listPoint = D2D1::Point2F(listCaret->left + .01f, (listCaret->top + listCaret->bottom) * .5f);
+    Require(preview(listPoint) && commit(listPoint, *data.Get()), "multi-file drop enters the selected list item");
+    Require(editor.GetText() == L"- item![a](a.png)\n  \n  [b\\.pdf](b.pdf)\n- next\n", "drop retains the list item's continuation context");
+    Require(editor.Undo() && editor.GetText() == listSource && editor.GetSelection() == Selection{listSource.size(), 0u},
+            "list drop undo restores its unrelated selection");
+    const std::wstring unicode = L"a\U0001f469\u200d\U0001f4bbz";
+    editor.SetText(unicode);
+    prepare();
+    const auto emoji = editor.TryGetTextInputRangeRects(host, 1u, unicode.size() - 1u);
+    Require(emoji && ! emoji->empty(), "Unicode drop fixture has prepared emoji geometry");
+    const auto emojiPoint =
+        D2D1::Point2F(emoji->front().left + (emoji->front().right - emoji->front().left) * .25f, (emoji->front().top + emoji->front().bottom) * .5f);
+    data->bytes = RichImagePathTests::DropBuffer(std::wstring_view(list, std::size(list)));
+    Require(preview(emojiPoint) && commit(emojiPoint, *data.Get()), "Unicode grapheme drop commits at a prepared stop");
+    Require(editor.GetText() == L"a![a](a.png)\U0001f469\u200d\U0001f4bbz" || editor.GetText() == L"a\U0001f469\u200d\U0001f4bb![a](a.png)z",
+            "drop never splits an emoji ZWJ grapheme");
+    Require(editor.Undo() && editor.GetText() == unicode, "Unicode drop restores exact source in one undo");
+    editor.SetText(L"before $x$ after");
+    prepare();
+    const auto document = editor.GetSemanticDocument();
+    Require(document != nullptr, "object drop fixture publishes semantic geometry");
+    const auto object = std::ranges::find(document->Elements(), SemanticRole::Math, &SemanticElement::role);
+    Require(object != document->Elements().end(), "object drop fixture has a native formula");
+    const auto objectBounds = editor.GetSemanticElementBounds(host, static_cast<size_t>(object - document->Elements().begin()));
+    Require(objectBounds.has_value(), "object drop fixture has visible bounds");
+    const auto inside = D2D1::Point2F((objectBounds->left + objectBounds->right) * .5f, (objectBounds->top + objectBounds->bottom) * .5f);
+    const auto reads  = data->calls;
+    Require(! preview(inside) && ! commit(inside, *data.Get()) && data->calls == reads, "object interiors reject before reading the data object");
+    editor.SetText(L"alpha");
+    prepare();
+    const auto notifyCaret = editor.TryGetTextInputCaretRect(host, 2u);
+    Require(notifyCaret.has_value(), "notification failure fixture has prepared geometry");
+    const auto notifyPoint = D2D1::Point2F(notifyCaret->left + .01f, (notifyCaret->top + notifyCaret->bottom) * .5f);
+    editor.SetOnTextChanged([] { throw std::runtime_error("drop notification test"); });
+    Require(commit(notifyPoint, *data.Get()) && editor.GetText() == L"al![a](a.png)pha", "notification failure after the committed edit still reports success");
+    editor.SetOnTextChanged({});
+}
+void TestRichTextNativeFileDropInsertion()
+{
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<RichTextEditor>(L"alpha");
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    editor->SetDocumentFilePath(L"C:\\docs\\note.md");
+    window.Host().SetRoot(std::move(owned));
+    editor->SetSelection({5u, 0u});
+    Require(PrepareNativeContentForTests(window.Host()), "native file drop geometry settles");
+    CheckFileDropInsertion(window.Host(), *editor, [&] { Require(PrepareNativeContentForTests(window.Host()), "native drop re-prepares"); }, [&](auto point) {
+        return window.Host().PreviewFileDrop(point);
+    }, [&](auto point, auto& data) { return window.Host().CommitFileDrop(point, data); });
+    editor->SetText(L"alpha");
+    Require(PrepareNativeContentForTests(window.Host()), "retiring drop fixture prepares");
+    const auto caret = editor->TryGetTextInputCaretRect(window.Host(), 2u);
+    Require(caret.has_value(), "retiring drop has current caret");
+    const auto point    = D2D1::Point2F(caret->left + .01f, (caret->top + caret->bottom) * .5f);
+    const auto lifetime = editor->GetLifetimeToken();
+    editor->SetOnTextChanged([&] { window.Host().SetRoot({}); });
+    auto data = Microsoft::WRL::Make<DropDataObject>();
+    Require(data != nullptr, "retiring drop data object");
+    constexpr wchar_t list[] = L"C:\\docs\\a.png\0";
+    data->bytes              = RichImagePathTests::DropBuffer(std::wstring_view(list, std::size(list)));
+    Require(window.Host().CommitFileDrop(point, *data.Get()) && lifetime.expired(),
+            "a committed drop reports success even when notification retires its editor");
+}
+void TestRichTextEmbeddedFileDropInsertion()
+{
+    GraphicsFixture gpu;
+    RequireSucceeded(gpu.Create(), "file drop borrowed WARP device");
+    std::shared_ptr<GraphicsDevice> graphics;
+    RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), graphics), "file drop shared graphics");
+    EmbeddedHost view;
+    RequireSucceeded(view.Attach(graphics), "file drop embedded view");
+    auto owned   = std::make_unique<RichTextEditor>(L"alpha");
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    editor->SetDocumentFilePath(L"C:\\docs\\note.md");
+    view.Controls().SetRoot(std::move(owned));
+    editor->SetSelection({5u, 0u});
+    for (unsigned turn = 0u; turn < 1024u && view.NeedsPreparation(); ++turn)
+        RequireSucceeded(view.Prepare(640u, 240u), "file drop prepares view");
+    Require(! view.NeedsPreparation(), "file drop geometry settles");
+    CheckFileDropInsertion(view.Controls(),
+                           *editor,
+                           [&]
+    {
+        for (unsigned turn = 0u; turn < 1024u && view.NeedsPreparation(); ++turn)
+            RequireSucceeded(view.Prepare(640u, 240u), "embedded drop re-prepares");
+        Require(! view.NeedsPreparation(), "embedded drop geometry settles after edit");
+    },
+                           [&](auto point) { return view.PreviewFileDrop(point); },
+                           [&](auto point, auto& data) { return view.CommitFileDrop(point, data); });
+    editor->SetText(L"alpha");
+    for (unsigned turn = 0u; turn < 1024u && view.NeedsPreparation(); ++turn)
+        RequireSucceeded(view.Prepare(640u, 240u), "visibility drop fixture prepares");
+    const auto caret = editor->TryGetTextInputCaretRect(view.Controls(), 2u);
+    Require(caret.has_value(), "visibility drop has a current caret");
+    const auto point = D2D1::Point2F(caret->left + .01f, (caret->top + caret->bottom) * .5f);
+    auto data        = Microsoft::WRL::Make<DropDataObject>();
+    Require(data != nullptr, "visibility drop data object");
+    constexpr wchar_t list[] = L"C:\\docs\\a.png\0";
+    data->bytes              = RichImagePathTests::DropBuffer(std::wstring_view(list, std::size(list)));
+    data->duringGetData      = [&] { view.SetVisible(false); };
+    Require(! view.CommitFileDrop(point, *data.Get()) && editor->GetText() == L"alpha" && data->releases == 1u,
+            "hide during GetData rejects the stale embedded view and releases its medium");
+    view.SetVisible(true);
+    for (unsigned turn = 0u; turn < 1024u && view.NeedsPreparation(); ++turn)
+        RequireSucceeded(view.Prepare(640u, 240u), "detachment drop fixture prepares");
+    const auto currentCaret = editor->TryGetTextInputCaretRect(view.Controls(), 2u);
+    Require(currentCaret.has_value(), "detachment drop has current geometry");
+    const auto currentPoint = D2D1::Point2F(currentCaret->left + .01f, (currentCaret->top + currentCaret->bottom) * .5f);
+    const auto lifetime     = editor->GetLifetimeToken();
+    data->duringGetData     = [&] { view.Detach(); };
+    Require(! view.CommitFileDrop(currentPoint, *data.Get()) && lifetime.expired() && data->releases == 2u,
+            "detach during GetData retires the target without dereferencing it and releases its medium");
+}
+void TestRichTextEmbeddedFileDropCoordinates()
+{
+    GraphicsFixture gpu;
+    RequireSucceeded(gpu.Create(), "two-view drop graphics device");
+    std::shared_ptr<GraphicsDevice> graphics;
+    RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), graphics), "two-view drop graphics pool");
+    EmbeddedHost first, second;
+    RequireSucceeded(first.Attach(graphics), "first drop view attaches");
+    RequireSucceeded(second.Attach(graphics), "second drop view attaches");
+    RichTextEditor* editors[2]{};
+    EmbeddedHost* views[] = {&first, &second};
+    for (size_t i = 0u; i < 2u; ++i)
+    {
+        auto editor = std::make_unique<RichTextEditor>(L"alpha");
+        editors[i]  = editor.get();
+        editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        editor->SetDocumentFilePath(L"C:\\docs\\note.md");
+        views[i]->Controls().SetRoot(std::move(editor));
+        for (unsigned turn = 0u; turn < 1024u && views[i]->NeedsPreparation(); ++turn)
+            RequireSucceeded(views[i]->Prepare(600u, 300u, 144.f), "offset drop view prepares at 144 DPI");
+        Require(! views[i]->NeedsPreparation(), "offset drop view settles");
+    }
+    class Receiver final : public RichFileDropReceiver
+    {
+    public:
+        EmbeddedHost* views[2]{};
+        bool Preview(POINTL point) noexcept override
+        {
+            const auto index = point.x >= 700 ? 1u : 0u;
+            const auto x     = static_cast<float>(point.x - (index ? 700 : 0)) * 96.f / 144.f;
+            const auto y     = static_cast<float>(point.y - 40) * 96.f / 144.f;
+            return views[index]->PreviewFileDrop(D2D1::Point2F(x, y));
+        }
+        bool Drop(POINTL point, IDataObject& data, RichFileDropGuard guard) noexcept override
+        {
+            const auto index = point.x >= 700 ? 1u : 0u;
+            const auto x     = static_cast<float>(point.x - (index ? 700 : 0)) * 96.f / 144.f;
+            const auto y     = static_cast<float>(point.y - 40) * 96.f / 144.f;
+            return views[index]->CommitFileDrop(D2D1::Point2F(x, y), data, guard.current, guard.context);
+        }
+    };
+    auto receiver      = std::make_shared<Receiver>();
+    receiver->views[0] = &first;
+    receiver->views[1] = &second;
+    RichFileDropAdapter adapter;
+    RequireSucceeded(adapter.Attach(receiver), "application router attaches");
+    const auto caret = editors[1]->TryGetTextInputCaretRect(second.Controls(), 2u);
+    Require(caret.has_value(), "second view exposes prepared caret");
+    const POINTL point{700 + static_cast<LONG>((caret->left + .01f) * 1.5f), 40 + static_cast<LONG>((caret->top + caret->bottom) * .75f)};
+    auto data = Microsoft::WRL::Make<DropDataObject>();
+    Require(data != nullptr, "two-view drop data object");
+    constexpr wchar_t list[] = L"C:\\docs\\a.png\0";
+    data->bytes              = RichImagePathTests::DropBuffer(std::wstring_view(list, std::size(list)));
+    DWORD effect             = DROPEFFECT_COPY;
+    Require(adapter.Target()->DragEnter(data.Get(), 0u, point, &effect) == S_OK && effect == DROPEFFECT_COPY,
+            "application routing converts an offset 144-DPI view for preview");
+    effect = DROPEFFECT_COPY;
+    Require(adapter.Target()->Drop(data.Get(), 0u, point, &effect) == S_OK && effect == DROPEFFECT_COPY && editors[0]->GetText() == L"alpha" &&
+                editors[1]->GetText() == L"al![a](a.png)pha",
+            "only the routed view receives the source insertion");
+    adapter.Detach();
+}
 
 void TestRichTextApplicationImageLoading()
 {
@@ -382,6 +704,27 @@ void TestRichTextApplicationImageClipboard()
             "embedded service preserves mixed order and chooses relative or absolute file destinations per item");
     Require(editor->Undo() && editor->GetText() == L"replace" && editor->GetSelection() == Selection{7u, 0u} && ! editor->CanUndo(),
             "embedded mixed paste restores source and backward selection in one undo");
+    const std::wstring table = L"a | b | c\n- | - | -\nx\n";
+    editor->SetText(table);
+    prepare();
+    const auto tableSyntax = editor->GetMarkdownSyntax();
+    std::vector<size_t> cells(0u);
+    for (size_t index = 0u; index < tableSyntax->Nodes().size(); ++index)
+        if (tableSyntax->Nodes()[index].block.kind == MarkdownBlockKind::TableCell)
+            cells.push_back(index);
+    Require(cells.size() >= 6u, "padded file-paste fixture has three body cells");
+    editor->SetSelection({table.size() - 1u, table.size() - 1u});
+    MarkdownCommandRequest next;
+    next.command    = MarkdownCommand::NextTableCell;
+    next.targetCell = cells[3u];
+    Require(editor->ExecuteMarkdownCommand(next) == MarkdownCommandStatus::Unchanged, "select first padded cell without materializing source");
+    clipboard.content.filePaths = {L"C:\\docs\\a.png", L"C:\\docs\\b.pdf"};
+    RequireSucceeded(services.Clipboard(TextClipboardCommand::Paste, &clipboard), "file paste uses the prepared padded-cell site");
+    Require(editor->GetText() == L"a | b | c\n- | - | -\nx | ![a](a.png) [b\\.pdf](b.pdf)\n",
+            "embedded file paste materializes the intended padded cell and preserves its table");
+    Require(editor->Undo() && editor->GetText() == table, "padded-cell file paste is one undo transaction");
+    editor->SetText(L"replace");
+    editor->SetSelection({7u, 0u});
     clipboard.content.filePaths.clear();
     clipboard.content.text = L"\"C:\\docs\\files\\report.pdf\"";
     prepare();
@@ -722,6 +1065,11 @@ void RunRichTextInputTests()
     DXUI_RUN_TEST(TestRichTextApplicationImageLoading);
     DXUI_RUN_TEST(TestRichTextApplicationImageLoaderLifecycle);
     DXUI_RUN_TEST(TestRichTextImageClipboardTransport);
+    DXUI_RUN_TEST(TestRichTextOleFileListOwnership);
+    DXUI_RUN_TEST(TestRichTextOleAdapterRevocation);
+    DXUI_RUN_TEST(TestRichTextEmbeddedFileDropInsertion);
+    DXUI_RUN_TEST(TestRichTextNativeFileDropInsertion);
+    DXUI_RUN_TEST(TestRichTextEmbeddedFileDropCoordinates);
     DXUI_RUN_TEST(TestRichTextNativeLocalizedServiceCommit);
     DXUI_RUN_TEST(TestRichTextEmbeddedLocalizedServiceCommit);
     DXUI_RUN_TEST(TestRichTextServiceValidationAndGeometry);

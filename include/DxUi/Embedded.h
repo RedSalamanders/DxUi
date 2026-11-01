@@ -158,6 +158,12 @@ public:
     // Prepare, or arrange and PrepareInteraction, before a gesture after interaction geometry changes. Captured continuation remains live
     // until geometry/tree/availability changes, which cancels capture and requires preparation.
     bool DispatchPointer(const PointerEvent& event) noexcept;
+    // Application-converted view-local DIPs. No HWND or focus is acquired.
+    [[nodiscard]] bool PreviewFileDrop(D2D1_POINT_2F point) noexcept;
+    [[nodiscard]] bool CommitFileDrop(D2D1_POINT_2F point,
+                                      IDataObject& dataObject,
+                                      bool (*validate)(void*) noexcept = nullptr,
+                                      void* context                    = nullptr) noexcept;
     bool DispatchKey(UINT virtualKey, bool down, UINT modifiers = 0) noexcept;
     bool DispatchCharacter(wchar_t character, UINT modifiers = 0) noexcept;
     // Correlate a Return/Space keydown with its exact translated character. Keep a separate receipt for each keydown
@@ -174,6 +180,7 @@ public:
     // Optional application-side clipboard transform. Checks the current focus
     // session/revision; prepares source only and never commits or takes focus.
     HRESULT TransformClipboardPaste(uint64_t revision, uint64_t focusId, const TextClipboardContent& content, std::wstring& replacement) noexcept;
+    HRESULT ApplyClipboardFilePaste(uint64_t revision, uint64_t focusId, const TextClipboardContent& content) noexcept;
     // Read a fresh snapshot after every accepted change. A stale revision returns ERROR_REVISION_MISMATCH.
     // Preview changes displayed text/composition without notifying the model. Commit notifies once relative
     // to the pre-composition text. Cancel restores that text without notification and ignores the supplied state.

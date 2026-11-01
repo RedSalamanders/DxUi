@@ -75,6 +75,15 @@ public:
     // Unicode paste. File-only content requires an explicit supported result.
     virtual HRESULT TransformPaste(const EmbeddedTextInputSnapshot& snapshot, const TextClipboardContent& content, std::wstring& replacement) noexcept = 0;
 };
+// Optional additive path for controls whose prepared caret site is richer than
+// a source ACP. The client validates the supplied focus/revision and commits
+// one transaction; existing replacement-only clients remain unchanged.
+class TextClipboardFilePaste
+{
+public:
+    virtual ~TextClipboardFilePaste()                                                                                       = default;
+    virtual HRESULT ApplyFilePaste(const EmbeddedTextInputSnapshot& snapshot, const TextClipboardContent& content) noexcept = 0;
+};
 
 // One lazy TSF service per application HWND. Borrows the HWND and retains only the active client.
 // Owns no renderer, swap chain, timer or worker. The application initializes COM in its UI STA.

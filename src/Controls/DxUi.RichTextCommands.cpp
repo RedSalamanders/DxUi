@@ -1,4 +1,5 @@
 #include "DxUi.MarkdownTableCells.h"
+#include "DxUi.RichFileReferenceContext.h"
 #include "DxUi.RichSemanticHtml.h"
 #include <DxUi/RichTextCommands.h>
 #include <limits>
@@ -219,7 +220,7 @@ struct MarkdownCommandPlanner
         }
         std::vector<std::size_t> parents(0u);
         for (auto i = nodes[node].parent; i != MarkdownNoNode; i = nodes[i].parent)
-            if (nodes[i].block.kind == Kind::BlockQuote || nodes[i].block.kind == Kind::ListItem)
+            if (nodes[i].block.kind == Kind::BlockQuote || nodes[i].block.kind == Kind::ListItem || nodes[i].block.kind == Kind::FootnoteDefinition)
                 parents.push_back(i);
         at                   = line.first;
         unsigned column      = 0u;
@@ -239,6 +240,19 @@ struct MarkdownCommandPlanner
         for (auto p = parents.rbegin(); p != parents.rend(); ++p)
         {
             const auto& owner = nodes[*p];
+            if (owner.block.kind == Kind::FootnoteDefinition)
+            {
+                if (Line(owner.block.source.first).first == line.first)
+                {
+                    if (owner.block.content.first < at || owner.block.content.first > line.bodyEnd)
+                        return false;
+                    column = Columns(Slice(line.first, owner.block.content.first));
+                    at     = owner.block.content.first;
+                }
+                else if (! takeSpace(owner.contentIndent))
+                    return false;
+                continue;
+            }
             if (owner.block.kind == Kind::ListItem && Line(owner.block.source.first).first != line.first)
             {
                 if (! takeSpace(owner.contentIndent))
@@ -2206,6 +2220,105 @@ void MarkdownCommandPlanner::Delete(std::span<const MarkdownRange> ranges)
     }
 }
 } // namespace Detail
+
+std::wstring Detail::EscapeFileReferenceLiteral(std::wstring_view value)
+{
+    return LiteralMarkdown(value);
+}
+
+std::optional<Detail::FileReferenceContext> Detail::FileReferenceInsertionContext(const SourceSnapshot& source,
+                                                                                  std::uint64_t revision,
+                                                                                  std::shared_ptr<const MarkdownSyntax> syntax,
+                                                                                  Selection selection)
+{
+    MarkdownCommandPlanner planner(source, revision, std::move(syntax), selection);
+    auto leaf = planner.LeafAt(selection.Start());
+    if (leaf == MarkdownNoNode)
+        for (const auto kind : {Kind::FencedCode, Kind::IndentedCode, Kind::HtmlBlock, Kind::FrontMatter})
+            if (const auto candidate = planner.NodeAt(kind, selection.Start()); candidate != MarkdownNoNode)
+            {
+                leaf = candidate;
+                break;
+            }
+    auto anchor      = leaf;
+    const auto& line = planner.Line(selection.Start());
+    std::size_t content{};
+    if (leaf == MarkdownNoNode)
+    {
+        if (selection.Start() != selection.End())
+            return std::nullopt;
+        for (const auto& empty : planner.plan.Syntax()->EmptyLines())
+            if (empty.insertion == selection.caret)
+            {
+                if (anchor != MarkdownNoNode && anchor != empty.owner)
+                    return std::nullopt; // Shared ACP without a unique owner is not a capability.
+                anchor = empty.owner;
+            }
+        if (anchor == MarkdownNoNode)
+        {
+            for (const auto& node : planner.nodes)
+                if ((node.block.kind == Kind::ListItem || node.block.kind == Kind::BlockQuote || node.block.kind == Kind::Table) &&
+                    selection.Start() >= node.block.source.first && selection.Start() <= node.block.source.last)
+                    return std::nullopt;
+            return FileReferenceContext{};
+        }
+        if (anchor >= planner.nodes.size() || selection.caret < line.first || selection.caret > line.bodyEnd)
+            return std::nullopt;
+        content = selection.caret;
+    }
+    else if (selection.End() > planner.nodes[leaf].block.source.last || planner.Line(selection.Start()).first != planner.Line(selection.End()).first)
+        return std::nullopt;
+    if (leaf != MarkdownNoNode && planner.nodes[leaf].block.kind == Kind::TableCell)
+    {
+        FileReferenceContext result;
+        result.table = true;
+        return result;
+    }
+    if (leaf != MarkdownNoNode)
+    {
+        if (TextLeaf(planner.nodes[leaf].block.kind))
+        {
+            if (! planner.OuterOffset(leaf, line, content) || selection.Start() < content)
+                return std::nullopt;
+        }
+        else
+        {
+            bool found = false;
+            for (const auto& sourceLine : planner.nodes[leaf].lines)
+                if (planner.Line(sourceLine.source.first).first == line.first)
+                {
+                    content = sourceLine.source.first;
+                    found   = true;
+                    break;
+                }
+            if (! found || selection.Start() < content)
+                return std::nullopt;
+        }
+    }
+    FileReferenceContext result;
+    result.continuation.assign(planner.Slice(line.first, content));
+    for (auto item = anchor; item != MarkdownNoNode; item = planner.nodes[item].parent)
+    {
+        if (planner.nodes[item].block.kind == Kind::FootnoteDefinition && planner.Line(planner.nodes[item].block.source.first).first == line.first)
+        {
+            std::size_t outer{};
+            if (! planner.OuterOffset(item, line, outer) || planner.nodes[item].block.content.first < outer ||
+                planner.nodes[item].block.content.first > content)
+                return std::nullopt;
+            result.continuation.replace(outer - line.first, planner.nodes[item].block.content.first - outer, planner.nodes[item].contentIndent, L' ');
+            continue;
+        }
+        if (planner.nodes[item].block.kind != Kind::ListItem || planner.Line(planner.nodes[item].block.source.first).first != line.first)
+            continue;
+        ItemPrefix prefix;
+        if (! planner.Prefix(item, prefix) || prefix.first < line.first || prefix.content > content)
+            return std::nullopt;
+        const auto column = Columns(planner.Slice(line.first, prefix.first));
+        const auto width  = Columns(planner.Slice(prefix.first, prefix.content), column) - column;
+        result.continuation.replace(prefix.first - line.first, prefix.content - prefix.first, width, L' ');
+    }
+    return result;
+}
 
 MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
                                          std::uint64_t revision,

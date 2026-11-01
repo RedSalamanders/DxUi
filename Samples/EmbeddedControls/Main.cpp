@@ -3,8 +3,10 @@
 #include "EmbeddedTextClient.h"
 #include "GraphicsFixture.h"
 #include "RichImageLoader.h"
+#include <DxUi/FileDrop.h>
 #include <iostream>
 #include <new>
+#include <ole2.h>
 #include <windowsx.h>
 #pragma comment(lib, "user32.lib")
 namespace
@@ -30,6 +32,10 @@ struct App
     wil::com_ptr_nothrow<IDXGISwapChain> swapChain;
     wil::unique_hwnd window;
     DxUi::TextInputServices textServices;
+    DxUi::RichFileDropAdapter dropAdapter;
+    std::shared_ptr<DxUi::RichFileDropReceiver> dropReceiver;
+    using DropRegistration = wil::unique_any<HWND, decltype(&RevokeDragDrop), RevokeDragDrop>;
+    DropRegistration dropRegistration;
     std::shared_ptr<EmbeddedTextClient> textClient;
     RichImageLoader imageLoader;
     std::vector<DxUi::RichText::RichImageRequest> pendingImages;
@@ -39,6 +45,9 @@ struct App
     bool richText     = false;
     ~App()
     {
+        dropAdapter.Detach();
+        dropRegistration.reset();
+        dropReceiver.reset();
         imageLoader.Shutdown();
         ClearText();
         textServices.Detach();
@@ -281,7 +290,12 @@ struct App
                         app->Request();
                     }
                     return 0;
-                case WM_CLOSE: app->window.reset(); return 0;
+                case WM_CLOSE:
+                    app->dropAdapter.Detach();
+                    app->dropRegistration.reset();
+                    app->dropReceiver.reset();
+                    app->window.reset();
+                    return 0;
                 case WM_DESTROY: PostQuitMessage(0); return 0;
                 case WM_NCDESTROY:
                     app->ClearText();
@@ -359,6 +373,41 @@ struct App
         if (textInput)
             RETURN_IF_FAILED(textServices.Attach(window.get()));
         dpi = float(GetDpiForWindow(window.get()));
+        if (richText)
+        {
+            class Receiver final : public DxUi::RichFileDropReceiver
+            {
+            public:
+                explicit Receiver(App& owner) noexcept : app(&owner)
+                {
+                }
+                bool Preview(POINTL screen) noexcept override
+                {
+                    POINT client{screen.x, screen.y};
+                    if (! app->window || ! ScreenToClient(app->window.get(), &client) || app->dpi <= 0.f)
+                        return false;
+                    return app->View().PreviewFileDrop(D2D1::Point2F(float(client.x) * 96.f / app->dpi, float(client.y) * 96.f / app->dpi));
+                }
+                bool Drop(POINTL screen, IDataObject& data, DxUi::RichFileDropGuard guard) noexcept override
+                {
+                    POINT client{screen.x, screen.y};
+                    if (! app->window || ! ScreenToClient(app->window.get(), &client) || app->dpi <= 0.f)
+                        return false;
+                    const bool committed = app->View().CommitFileDrop(
+                        D2D1::Point2F(float(client.x) * 96.f / app->dpi, float(client.y) * 96.f / app->dpi), data, guard.current, guard.context);
+                    if (committed)
+                        app->RefreshText();
+                    return committed;
+                }
+
+            private:
+                App* app; // Borrowed; the application retires the adapter before destroying its window or view.
+            };
+            dropReceiver = std::make_shared<Receiver>(*this);
+            RETURN_IF_FAILED(dropAdapter.Attach(dropReceiver));
+            RETURN_IF_FAILED(RegisterDragDrop(window.get(), dropAdapter.Target()));
+            dropRegistration.reset(window.get());
+        }
         RECT scaled{0, 0, LONG(float(gpu.width) * dpi / 96), LONG(float(gpu.height) * dpi / 96)};
         if (! AdjustWindowRectExForDpi(&scaled, style, FALSE, 0, UINT(dpi)))
             return HRESULT_FROM_WIN32(GetLastError());
@@ -399,10 +448,10 @@ struct App
 } // namespace
 int wmain(int argc, wchar_t** argv)
 {
-    const auto hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    const auto hr = OleInitialize(nullptr);
     if (FAILED(hr))
         return 1;
-    const auto com = wil::scope_exit([] { CoUninitialize(); });
+    const auto com = wil::scope_exit([] { OleUninitialize(); });
     try
     {
         bool complex                = false;

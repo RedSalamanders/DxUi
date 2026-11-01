@@ -1345,8 +1345,16 @@ uint32_t DebugGetSharedWindowHostAttachmentCountForThread(DWORD threadId) noexce
 }
 #endif
 
+struct ControlHost::FileDropState
+{
+    bool live = true;
+    bool busy = false;
+};
+
 ControlHost::~ControlHost()
 {
+    if (_fileDropState)
+        _fileDropState->live = false;
     Detach();
 }
 
@@ -1484,6 +1492,11 @@ void ControlHost::Detach(bool processExit) noexcept
     {
         Debug::Error(L"DxUi::ControlHost: refusing foreign-thread detach owner={} current={}.", _attachmentOwnerThreadId, GetCurrentThreadId());
         return;
+    }
+    if (_fileDropState)
+    {
+        _fileDropState->live = false;
+        _fileDropState.reset();
     }
     if (_detachInProgress.exchange(true, std::memory_order_acq_rel))
     {
@@ -2481,6 +2494,78 @@ bool ControlHost::HasPendingContentPreparation() const noexcept
 uint64_t ControlHost::GetInteractionRevision() const noexcept
 {
     return _interactionRevision;
+}
+bool ControlHost::PreviewFileDrop(D2D1_POINT_2F point) noexcept
+try
+{
+    if (_attachmentOwnerThreadId != GetCurrentThreadId() || (! _hwnd && ! _embedded) || _capturedControl || HasPendingContentPreparation() ||
+        _nativeTextInputImeComposing || _nativeTextInputTsfComposing || _nativeTextInputCompositionStartIndex || _nativeTextInputCompositionEndIndex)
+        return false;
+    const auto bounds = GetClientBoundsDip();
+    if (! std::isfinite(point.x) || ! std::isfinite(point.y) || point.x < bounds.left || point.x >= bounds.right || point.y < bounds.top ||
+        point.y >= bounds.bottom)
+        return false;
+    auto* editor = dynamic_cast<RichTextEditor*>(HitTestControl(point));
+    return editor && editor->FileDropCaret(*this, point).has_value();
+}
+catch (const std::exception&)
+{
+    return false;
+}
+bool ControlHost::CommitFileDrop(D2D1_POINT_2F point, IDataObject& dataObject, bool (*validate)(void*) noexcept, void* context) noexcept
+{
+    return CommitFileDropCore(point, dataObject, validate, context);
+}
+bool ControlHost::CommitFileDropCore(D2D1_POINT_2F point, IDataObject& dataObject, bool (*validate)(void*) noexcept, void* context) noexcept
+try
+{
+    if (! PreviewFileDrop(point))
+        return false;
+    if (! _fileDropState)
+        _fileDropState = std::make_shared<FileDropState>();
+    const auto state = _fileDropState;
+    if (! state->live || state->busy)
+        return false;
+    state->busy       = true;
+    const auto finish = wil::scope_exit([state] noexcept { state->busy = false; });
+    auto* root        = _root.get();
+    if (! root)
+        return false;
+    const auto rootLifetime = root->GetLifetimeToken();
+    auto* editor            = dynamic_cast<RichTextEditor*>(HitTestControl(point));
+    if (! editor)
+        return false;
+    const auto editorLifetime = editor->GetLifetimeToken();
+    const auto caret          = editor->FileDropCaret(*this, point);
+    if (! caret)
+        return false;
+    const auto source      = editor->Snapshot();
+    const auto revision    = editor->Revision();
+    const auto selection   = editor->GetSelection();
+    const auto epoch       = editor->FileDropEpoch();
+    const auto interaction = _interactionRevision;
+    TextClipboardContent content;
+    if (ReadDataObjectFilePaths(&dataObject, content) != S_OK || ! state->live || rootLifetime.expired() || editorLifetime.expired())
+        return false;
+    if (_root.get() != root || _interactionRevision != interaction || editor->GetHost() != this || editor->Revision() != revision ||
+        ! editor->Snapshot().IsSameRevision(source) || editor->GetSelection() != selection || editor->FileDropEpoch() != epoch)
+        return false;
+    if (! PreviewFileDrop(point) || ! state->live || rootLifetime.expired() || editorLifetime.expired() || (validate && ! validate(context)))
+        return false;
+    if (! state->live || rootLifetime.expired() || editorLifetime.expired() || _root.get() != root || _interactionRevision != interaction ||
+        editor->GetHost() != this || editor->Revision() != revision || editor->GetSelection() != selection || editor->FileDropEpoch() != epoch)
+        return false;
+    if (HitTestControl(point) != editor || ! state->live || rootLifetime.expired() || editorLifetime.expired() || _interactionRevision != interaction ||
+        editor->FileDropEpoch() != epoch || editor->Revision() != revision)
+        return false;
+    const auto currentCaret = editor->FileDropCaret(*this, point);
+    if (! currentCaret || *currentCaret != *caret)
+        return false;
+    return editor->CommitFileDrop(*caret, content);
+}
+catch (const std::exception&)
+{
+    return false;
 }
 
 IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role) const noexcept

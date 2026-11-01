@@ -1,6 +1,7 @@
 #include "DxUi.Internal.h"
 #include "DxUi.RichAccessibilityEpoch.h"
 #include "DxUi.RichEditorLayout.h"
+#include "DxUi.RichFileReferenceContext.h"
 #include "DxUi.RichImagePaths.h"
 #include "DxUi.RichImageResources.h"
 #include "DxUi.RichSemanticGeometry.h"
@@ -126,6 +127,7 @@ struct RichTextEditor::State
     uint64_t typographyRevision         = 0;
     uint64_t appearanceRevision         = 0;
     uint64_t bindingRevision            = 0;
+    uint64_t fileDropEpoch              = 0;
     uint64_t resourceGeneration         = 0;
     uint64_t requestRevision = 0, requestBinding = 0, requestTypography = 0, requestResources = 0;
     IDWriteFactory* requestFactory = nullptr; // Identity only; staged layouts retain the factory through WIL.
@@ -322,7 +324,7 @@ RichText::RichImageResourceStatistics RichTextEditor::GetImageResourceStatistics
 {
     return _state->images.Statistics();
 }
-bool RichTextEditor::CanPasteMarkdownFileReferences() const noexcept
+bool RichTextEditor::CanPasteMarkdownFileReferences(RichText::Selection selection) const noexcept
 {
     using namespace RichText;
     if (! Editable() || ! _state->markdownRendering || _state->mode != ViewMode::Rich || _state->sourceEditing)
@@ -330,8 +332,7 @@ bool RichTextEditor::CanPasteMarkdownFileReferences() const noexcept
     const auto syntax = GetMarkdownSyntax();
     if (! syntax || syntax->SourceRegion())
         return false;
-    const auto selection = GetSelection();
-    const auto text      = syntax->Source();
+    const auto text = syntax->Source();
     for (const auto& token : syntax->Inlines())
         if (token.kind == MarkdownInlineKind::Code || token.kind == MarkdownInlineKind::Html || token.kind == MarkdownInlineKind::Image ||
             token.kind == MarkdownInlineKind::Link)
@@ -374,16 +375,73 @@ bool RichTextEditor::CanPasteMarkdownFileReferences() const noexcept
 }
 bool RichTextEditor::TryPrepareClipboardPaste(const TextClipboardContent& content, std::wstring& replacement) const
 {
+    return TryPrepareFileReferencesAt(content, GetSelection(), replacement);
+}
+bool RichTextEditor::TryPrepareFileReferencesAt(const TextClipboardContent& content,
+                                                RichText::Selection selection,
+                                                std::wstring& replacement,
+                                                size_t targetSite) const
+{
     if (! Editable())
         return false;
-    const bool references = CanPasteMarkdownFileReferences();
+    if (content.filePaths.size() > TextClipboardContent::MaximumFiles)
+        throw std::length_error("Clipboard file capacity exceeded");
+    std::size_t totalFileUnits{};
+    for (const auto& file : content.filePaths)
+    {
+        if (file.empty() || ! RichText::IsValidUtf16(file) || file.find(L'\0') != file.npos || file.find_first_of(L"\"\r\n") != file.npos ||
+            file.size() > TextClipboardContent::MaximumFileUnits)
+            throw std::invalid_argument("Invalid Unicode clipboard file path");
+        if (file.size() > TextClipboardContent::MaximumTotalFileUnits - totalFileUnits)
+            throw std::length_error("Clipboard file capacity exceeded");
+        totalFileUnits += file.size();
+    }
+    const bool references = CanPasteMarkdownFileReferences(selection);
     const auto syntax     = GetMarkdownSyntax();
     std::wstring_view eol = L"\r\n";
-    if (syntax)
+    std::wstring sourceStorage(0u, L' ');
+    if (! syntax)
+        sourceStorage = Snapshot().Text();
+    const std::wstring_view source = syntax ? syntax->Source() : std::wstring_view(sourceStorage);
+    if (const auto at = source.find_first_of(L"\r\n"); at != source.npos)
+        eol = source.substr(at, source[at] == L'\r' && at + 1u < source.size() && source[at + 1u] == L'\n' ? 2u : 1u);
+    std::optional<RichText::Detail::FileReferenceContext> context;
+    if (content.filePaths.size() > 1u && syntax && ! syntax->SourceRegion() && _state->markdownRendering && _state->mode == ViewMode::Rich &&
+        ! _state->sourceEditing)
     {
-        const auto source = syntax->Source();
-        if (const auto at = source.find_first_of(L"\r\n"); at != source.npos)
-            eol = source.substr(at, source[at] == L'\r' && at + 1u < source.size() && source[at + 1u] == L'\n' ? 2u : 1u);
+        auto* host           = GetHost();
+        const auto* geometry = _state->layout.SemanticGeometry();
+        const auto site      = targetSite == RichText::MarkdownNoNode ? _state->sourceCaretSite : targetSite;
+        if ((targetSite != RichText::MarkdownNoNode || selection == GetSelection()) && selection.Start() == selection.End() && host && LayoutIsCurrent(*host) &&
+            geometry && geometry->IsCellSourceSite(selection.caret, site))
+        {
+            context.emplace();
+            context->table = true;
+        }
+        else
+            context = RichText::Detail::FileReferenceInsertionContext(Snapshot(), Revision(), syntax, selection);
+        if (! context)
+            return false;
+    }
+    std::wstring referenceSeparator(0u, L' '), literalSeparator(0u, L' ');
+    const bool inlineOpaque = context && ! references && syntax &&
+                              std::ranges::any_of(syntax->Inlines(),
+                                                  [&](const auto& token)
+    {
+        const bool opaque = token.kind == RichText::MarkdownInlineKind::Code || token.kind == RichText::MarkdownInlineKind::Html ||
+                            token.kind == RichText::MarkdownInlineKind::Image || token.kind == RichText::MarkdownInlineKind::Link;
+        return opaque && ((selection.Start() < token.source.last && selection.End() > token.source.first) ||
+                          (selection.Start() == selection.End() && selection.caret > token.source.first && selection.caret < token.source.last));
+    });
+    if (context && (context->table || inlineOpaque))
+        referenceSeparator = literalSeparator = L" ";
+    else
+    {
+        literalSeparator.append(eol);
+        if (context)
+            literalSeparator.append(context->continuation);
+        referenceSeparator = literalSeparator;
+        referenceSeparator.append(literalSeparator);
     }
     std::wstring staged(0u, L' ');
     if (content.filePaths.empty())
@@ -397,18 +455,6 @@ bool RichTextEditor::TryPrepareClipboardPaste(const TextClipboardContent& conten
     }
     else
     {
-        if (content.filePaths.size() > TextClipboardContent::MaximumFiles)
-            throw std::length_error("Clipboard file capacity exceeded");
-        std::size_t totalFileUnits{};
-        for (const auto& file : content.filePaths)
-        {
-            if (file.empty() || ! RichText::IsValidUtf16(file) || file.find(L'\0') != file.npos || file.find_first_of(L"\"\r\n") != file.npos ||
-                file.size() > TextClipboardContent::MaximumFileUnits)
-                throw std::invalid_argument("Invalid Unicode clipboard file path");
-            if (file.size() > TextClipboardContent::MaximumTotalFileUnits - totalFileUnits)
-                throw std::length_error("Clipboard file capacity exceeded");
-            totalFileUnits += file.size();
-        }
         bool allReferences = references;
         for (const auto& file : content.filePaths)
         {
@@ -418,11 +464,11 @@ bool RichTextEditor::TryPrepareClipboardPaste(const TextClipboardContent& conten
                 allReferences = false;
                 break;
             }
-            const auto separator = staged.empty() ? 0u : eol.size() * 2u;
+            const auto separator = staged.empty() ? 0u : referenceSeparator.size();
             if (separator > RichText::Document::MaximumUnits - staged.size() || markdown->size() > RichText::Document::MaximumUnits - staged.size() - separator)
                 throw std::length_error("File reference paste source capacity exceeded");
             if (separator)
-                staged.append(eol).append(eol);
+                staged.append(referenceSeparator);
             staged.append(*markdown);
         }
         if (! allReferences)
@@ -432,19 +478,17 @@ bool RichTextEditor::TryPrepareClipboardPaste(const TextClipboardContent& conten
             staged.clear();
             for (const auto& file : content.filePaths)
             {
-                if (file.empty() || ! RichText::IsValidUtf16(file) || file.find(L'\0') != file.npos || file.size() > TextClipboardContent::MaximumFileUnits)
-                    throw std::invalid_argument("Invalid Unicode clipboard file path");
-                const auto separator = staged.empty() ? 0u : eol.size();
+                if (! references && context && context->table && file.find(L'|') != std::wstring::npos)
+                    return false;
+                const auto literal   = references ? RichText::Detail::EscapeFileReferenceLiteral(file) : std::wstring(file);
+                const auto separator = staged.empty() ? 0u : literalSeparator.size();
                 if (separator + 2u > RichText::Document::MaximumUnits - staged.size() ||
-                    file.size() > RichText::Document::MaximumUnits - staged.size() - separator - 2u)
+                    literal.size() > RichText::Document::MaximumUnits - staged.size() - separator - 2u)
                     throw std::length_error("Clipboard file source capacity exceeded");
                 if (! staged.empty())
-                    staged.append(eol);
+                    staged.append(literalSeparator);
                 staged.push_back(L'"');
-                if (references)
-                    RichText::Detail::AppendMarkdownLiteralPath(file, staged);
-                else
-                    staged.append(file);
+                staged.append(literal);
                 staged.push_back(L'"');
                 if (staged.size() > RichText::Document::MaximumUnits)
                     throw std::length_error("Clipboard file source capacity exceeded");
@@ -453,6 +497,103 @@ bool RichTextEditor::TryPrepareClipboardPaste(const TextClipboardContent& conten
     }
     replacement.swap(staged);
     return true;
+}
+bool RichTextEditor::ApplyClipboardFilePaste(const TextClipboardContent& content)
+{
+    if (content.filePaths.empty())
+        return false;
+    std::wstring replacement(0u, L' ');
+    if (! TryPrepareClipboardPaste(content, replacement))
+        return false;
+    const auto selection = GetSelection();
+    if (_state->sourceCaretSite != RichText::MarkdownNoNode && (! GetHost() || ! LayoutIsCurrent(*GetHost())))
+        return false; // Never discard a pending source site's identity.
+    if (selection.Start() == selection.End())
+        if (auto* host = GetHost(); host && LayoutIsCurrent(*host))
+            if (const auto* geometry = _state->layout.SemanticGeometry(); geometry && geometry->IsCellSourceSite(selection.caret, _state->sourceCaretSite))
+            {
+                RichText::MarkdownCommandRequest request;
+                request.command    = RichText::MarkdownCommand::SetTableCell;
+                request.targetCell = geometry->SourceSyntaxNode(selection.caret, _state->sourceCaretSite);
+                request.text       = replacement;
+                return ExecuteMarkdownCommand(request) == RichText::MarkdownCommandStatus::Changed;
+            }
+    return ReplaceSelection(std::move(replacement));
+}
+std::optional<RichTextEditor::FileDropPosition> RichTextEditor::FileDropCaret(const ControlHost& host, D2D1_POINT_2F point) const
+{
+    if (GetHost() != &host || ! Editable() || ! LayoutIsCurrent(host) ||
+        (_state->markdownRendering && _state->mode == RichText::ViewMode::Rich && ! GetMarkdownSyntax()) || ! std::isfinite(point.x) ||
+        ! std::isfinite(point.y))
+        return std::nullopt;
+    const auto viewport = TextViewport();
+    if (point.x < viewport.left || point.x >= viewport.right || point.y < viewport.top || point.y >= viewport.bottom)
+        return std::nullopt;
+    const auto x = point.x - viewport.left, y = point.y - viewport.top + _state->scrollDip;
+    const auto hit = _state->layout.HitTestSource(x, y);
+    if (const auto* geometry = _state->layout.SemanticGeometry())
+    {
+        const auto syntax = GetMarkdownSyntax();
+        if (! syntax)
+            return std::nullopt;
+        const auto& document = geometry->Document();
+        const auto visual    = geometry->HitTest(x, y);
+        if (visual.inside)
+        {
+            const auto position = visual.trailing && visual.position ? visual.position - 1u : visual.position;
+            const auto spans    = document.Map().Spans();
+            const auto span =
+                std::upper_bound(spans.begin(), spans.end(), position, [](size_t offset, const auto& value) { return offset < value.display.last; });
+            if (span != spans.end() && span->kind == RichText::DisplaySpanKind::Object && position >= span->display.first && position < span->display.last)
+                return std::nullopt;
+        }
+    }
+    const auto source = Snapshot();
+    if (! source.IsBoundary(hit.position))
+        return std::nullopt;
+    // PreparedLayout::HitTest snaps to its retained Unicode grapheme stops;
+    // semantic mapping additionally snaps atomic source spans. Explicit caret
+    // sites are parser-owned line/cell boundaries, never interior scalar ACPs.
+    return FileDropPosition{hit.position, hit.site};
+}
+uint64_t RichTextEditor::FileDropEpoch() const noexcept
+{
+    return _state->fileDropEpoch;
+}
+bool RichTextEditor::CommitFileDrop(FileDropPosition position, const TextClipboardContent& content)
+{
+    if (content.filePaths.empty())
+        return false;
+    for (const auto& path : content.filePaths)
+        if (path.find_first_of(L"\"\r\n") != std::wstring::npos)
+            return false;
+    const auto source = Snapshot();
+    const auto caret  = position.caret;
+    if (! source.IsBoundary(caret))
+        return false;
+    std::wstring replacement(0u, L' ');
+    if (! TryPrepareFileReferencesAt(content, {caret, caret}, replacement, position.site) || replacement.empty())
+        return false;
+    if (auto* host = GetHost(); host && LayoutIsCurrent(*host))
+        if (const auto* geometry = _state->layout.SemanticGeometry(); geometry && geometry->IsCellSourceSite(caret, position.site))
+        {
+            RichText::MarkdownCommandRequest request;
+            request.command     = RichText::MarkdownCommand::SetTableCell;
+            request.targetCell  = geometry->SourceSyntaxNode(caret, position.site);
+            request.text        = replacement;
+            const auto revision = Revision();
+            const auto plan     = RichText::BuildMarkdownCommand(source, revision, GetMarkdownSyntax(), {caret, caret}, request);
+            if (! plan.IsApplicable())
+                return false;
+            std::vector<RichText::SourceEdit> edits(0u);
+            edits.reserve(plan.Edits().size());
+            for (const auto& edit : plan.Edits())
+                edits.push_back({edit.source, edit.replacement});
+            return ApplySourceEdits(source, revision, edits, plan.After());
+        }
+    const RichText::SourceEdit edit{{caret, caret}, replacement};
+    const auto after = caret + replacement.size();
+    return ApplySourceEdits(source, Revision(), std::span(&edit, 1u), {after, after});
 }
 uint64_t RichTextEditor::Revision() const noexcept
 {
@@ -1133,6 +1274,7 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
 }
 void RichTextEditor::SelectionChanged(bool synchronizeTextInput, bool preservePreferredCaretX, bool publishSelection)
 {
+    ++_state->fileDropEpoch;
     if (_state->sourceEditing)
     {
         const auto range     = _state->sourceEditing->region.source;
@@ -1183,6 +1325,7 @@ D2D1_RECT_F RichTextEditor::TextViewport() const noexcept
 }
 void RichTextEditor::RetireLayout() const noexcept
 {
+    ++_state->fileDropEpoch;
     _state->sourceInk.Clear();
     _state->hoveredLink.reset();
     _state->caretLink.reset();
@@ -2473,11 +2616,16 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                     if (available && ! lifetime.expired() && GetHost() == &host && _state->bindingRevision == binding && Revision() == revision &&
                         _state->imageLocationRevision == location && GetSelection() == selection)
                     {
-                        std::wstring replacement(0u, L' ');
-                        if (TryPrepareClipboardPaste(content, replacement))
-                            static_cast<void>(ReplaceSelection(std::move(replacement)));
-                        else if (! content.text.empty())
-                            static_cast<void>(ReplaceSelection(std::move(content.text)));
+                        if (! content.filePaths.empty())
+                            static_cast<void>(ApplyClipboardFilePaste(content));
+                        else
+                        {
+                            std::wstring replacement(0u, L' ');
+                            if (TryPrepareClipboardPaste(content, replacement))
+                                static_cast<void>(ReplaceSelection(std::move(replacement)));
+                            else if (! content.text.empty())
+                                static_cast<void>(ReplaceSelection(std::move(content.text)));
+                        }
                     }
                     return true;
                 }

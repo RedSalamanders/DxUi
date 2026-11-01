@@ -1000,10 +1000,14 @@ Markdown links for other files, relative to the document parent;
 unsaved/cross-root paths MUST use an absolute file URI. Component case MUST be
 preserved, including case-sensitive directory correctness. Code/HTML/metadata,
 active source scopes and partial atomic inline contexts MUST retain literal
-paste. Multiple files MUST use blank paragraphs and preserve clipboard order,
-including mixed images/links. Image descriptions use the filename stem; text link
+paste. Multiple files MUST preserve clipboard order, including mixed images and links. Ordinary paragraphs use blank
+paragraph separators; list and quote continuations retain their containing prefixes,
+and a table cell uses a single space so no row or table is split. Ambiguous or
+cross-container source selections MUST refuse rather than alter surrounding structure.
+Image descriptions use the filename stem; text link
 labels retain the complete filename. If any structured path is unrepresentable,
-the complete original list MUST remain quoted source. One paste MUST record one transaction
+the complete original list MUST remain quoted literal text; Rich-mode source escapes
+Markdown punctuation while opaque/Source mode retains raw spelling. One paste MUST record one transaction
 and preserve exact undo/redo and backward selections. Path construction is
 lexical, bounded and fallible; no control-owned I/O, file copy/move or remote
 fetch is implied. Display requires caller-serviced immutable image resources;

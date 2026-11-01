@@ -188,6 +188,27 @@ template <typename Prepare, typename Check> inline void RetainedFileReferences(D
     {
         check(replacement == L"sentinel" && editor.GetText() == L"ok" && ! editor.CanUndo(), "malformed list fails before partial output or history");
     }
+    content.filePaths = {L"relative*[x].txt"};
+    check(editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"\"relative\\*\\[x\\]\\.txt\"",
+          "unrepresentable rich-mode paths remain inert literal source");
+    content.filePaths = {L"\\\\?\\C:\\docs\\a.png"};
+    check(editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"![a](a.png)",
+          "valid extended-length paths remain admissible file references");
+    for (const auto* invalid : {L"C:\\docs\\a\"b.png", L"C:\\docs\\a\nb.png", L"C:\\docs\\a\rb.png"})
+    {
+        content.filePaths = {invalid};
+        replacement       = L"sentinel";
+        bool rejected     = false;
+        try
+        {
+            static_cast<void>(editor.TryPrepareClipboardPaste(content, replacement));
+        }
+        catch (const std::invalid_argument&)
+        {
+            rejected = true;
+        }
+        check(rejected && replacement == L"sentinel", "quote and line-break paths reject atomically");
+    }
     content.filePaths = {L"C:\\docs\\report.pdf"};
     for (const auto invalid : {L"C:\\docs\\bad\"![image](x).png", L"C:\\docs\\line\n![image](x).png", L"C:\\docs\\line\rbreak.pdf"})
     {
@@ -228,6 +249,54 @@ template <typename Prepare, typename Check> inline void RetainedFileReferences(D
     }
     editor.SetText(L"ok");
     editor.SetSelection({2u, 2u});
+    prepare();
+    content.filePaths = {L"C:\\docs\\a.png", L"C:\\docs\\b.pdf"};
+    struct ContainerCase
+    {
+        std::wstring_view source, needle, separator;
+        MarkdownBlockKind kind;
+    };
+    for (const auto& item : {ContainerCase{L"- item\n- next\n", L"item", L"\n  \n  ", MarkdownBlockKind::ListItem},
+                             ContainerCase{L"> item\n> next\n", L"item", L"\n> \n> ", MarkdownBlockKind::BlockQuote},
+                             ContainerCase{L"> - item\n> - next\n", L"item", L"\n>   \n>   ", MarkdownBlockKind::ListItem},
+                             ContainerCase{L"- - item\n", L"item", L"\n    \n    ", MarkdownBlockKind::ListItem},
+                             ContainerCase{L"> \n", L"> ", L"\n> \n> ", MarkdownBlockKind::BlockQuote},
+                             ContainerCase{L"- \n", L"- ", L"\n  \n  ", MarkdownBlockKind::ListItem},
+                             ContainerCase{L"ref[^n]\n\n[^n]: item\n", L"item", L"\n    \n    ", MarkdownBlockKind::FootnoteDefinition},
+                             ContainerCase{L"ref[^n]\n\n[^n]: - item\n", L"item", L"\n      \n      ", MarkdownBlockKind::ListItem},
+                             ContainerCase{L"ref[^n]\n\n[^n]: > item\n", L"item", L"\n    > \n    > ", MarkdownBlockKind::BlockQuote},
+                             ContainerCase{L"| a | b |\n| - | - |\n| c | d |\n", L"d", L" ", MarkdownBlockKind::Table}})
+    {
+        editor.SetText(std::wstring(item.source));
+        const auto at = item.source.find(item.needle) + item.needle.size();
+        editor.SetSelection({at, at});
+        prepare();
+        std::wstring staged(0u, L' ');
+        check(editor.TryPrepareClipboardPaste(content, staged) && staged == std::wstring(L"![a](a.png)") + std::wstring(item.separator) + L"[b\\.pdf](b.pdf)",
+              "multi-file staging preserves its enclosing Markdown container");
+        check(editor.ReplaceSelection(staged), "container references commit as one source transaction");
+        prepare();
+        const auto syntax = editor.GetMarkdownSyntax();
+        check(syntax && std::ranges::any_of(syntax->Nodes(), [&](const auto& node) { return node.block.kind == item.kind; }),
+              "multi-file insertion retains the enclosing list, quote or table");
+        check(editor.Undo() && editor.GetText() == item.source, "container reference undo restores exact source");
+    }
+    for (const auto& item : {ContainerCase{L"> ```\n> code\n> ```\n", L"code", L"\n> ", MarkdownBlockKind::FencedCode},
+                             ContainerCase{L"- ```\n  code\n  ```\n", L"code", L"\n  ", MarkdownBlockKind::FencedCode},
+                             ContainerCase{L"`inline code`", L"code", L" ", MarkdownBlockKind::Paragraph}})
+    {
+        editor.SetText(std::wstring(item.source));
+        const auto at = item.source.find(item.needle) + item.needle.size();
+        editor.SetSelection({at, at});
+        prepare();
+        std::wstring staged(0u, L' ');
+        check(editor.TryPrepareClipboardPaste(content, staged) &&
+                  staged == std::wstring(L"\"C:\\docs\\a.png\"") + std::wstring(item.separator) + L"\"C:\\docs\\b.pdf\"",
+              "multiple literal paths retain opaque container context and original spelling");
+    }
+    editor.SetText(L"ok");
+    editor.SetSelection({2u, 2u});
+    content.filePaths.clear();
     prepare();
     editor.SetReadOnly(true);
     check(! editor.TryPrepareClipboardPaste(content, replacement), "read-only rejects file-link paste");
