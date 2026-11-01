@@ -4400,6 +4400,32 @@ static void TestRetainedRichTextUiaRangeAllocationBudget(GraphicsFixture& gpu)
     }
 }
 
+static void TestRichTaskPlanAllocationFailureKeepsPointerSelection(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "task allocation fixture device");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "task allocation fixture host");
+    auto root    = std::make_unique<RichTextEditor>(L"- [ ] task\n");
+    auto* editor = root.get();
+    editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    view.Controls().SetRoot(std::move(root));
+    view.Controls().SetFocusControl(editor, false);
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "task allocation fixture preparation");
+    const auto rects = editor->TryGetTextInputRangeRects(view.Controls(), 2u, 5u);
+    Check(rects && ! rects->empty(), "task allocation fixture has visible checkbox geometry");
+    const auto rect = rects->front();
+    const D2D1_POINT_2F point{(rect.left + rect.right) * .5f, (rect.top + rect.bottom) * .5f};
+    const auto previous = failAllocationAfter;
+    failAllocationAfter = 0u;
+    const bool handled  = editor->OnMouseDown(view.Controls(), point, false, 0u);
+    failAllocationAfter = previous;
+    Check(handled && view.Controls().GetCapturedControl() == editor && editor->GetSelection().caret > 0u && editor->GetText() == L"- [ ] task\n",
+          "a refused task plan keeps the ordinary caret press and capture without editing source");
+    view.Controls().ReleaseMouseCapture();
+}
 static void TestRetainedRichTextDefaultFontChunkReuse(GraphicsFixture& gpu)
 {
     using namespace DxUi;
