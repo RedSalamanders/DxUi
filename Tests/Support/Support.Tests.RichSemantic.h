@@ -319,6 +319,10 @@ inline void ListsAndHeadings()
         }
         else
             Unavailable(L"alpha", {0u, 5u}, request, profile);
+        request.command = MarkdownCommand::InsertThematicBreak;
+        Exact(L"", {}, request, L"---", Selection{3u, 3u}, profile);
+        Exact(L"hello\n", {2u, 2u}, request, L"he\n\n---\n\nllo\n", Selection{9u, 9u}, profile);
+        Unavailable(L"- item\n", {3u, 3u}, request, profile);
         request.text    = {};
         request.command = MarkdownCommand::InsertParagraph;
         Exact(L"> 9) alpha\r\n", {10u, 10u}, request, L"> 9) alpha\r\n> 10) \r\n", Selection{18u, 18u}, profile);

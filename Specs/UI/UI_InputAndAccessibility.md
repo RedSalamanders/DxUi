@@ -1233,6 +1233,9 @@ InsertMath in the RichMarkdown profile wraps a selected source expression, or
 inserts a supplied nonempty expression, using inline or display delimiters.
 It selects the expression and rejects conflicting delimiters, multiline payloads,
 opaque inline interiors and expressions beyond native math source capacity.
+InsertThematicBreak inserts a separated rule at a top-level caret, retaining
+the existing text and line-ending convention; unsupported container positions
+decline rather than rewriting a prefix.
 
 A task press MUST stage an immutable current source plan without editing text.
 Only matching release inside its checkbox can apply it. Leaving the rectangle,

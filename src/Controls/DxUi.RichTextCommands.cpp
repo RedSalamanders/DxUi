@@ -844,6 +844,7 @@ struct MarkdownCommandPlanner
     void CodeBlock(const MarkdownCommandRequest& request);
     void HardBreak();
     void Math(const MarkdownCommandRequest& request);
+    void ThematicBreak();
     void Join(bool backwards);
     void Style(MarkdownTextStyle style);
     void Link(const MarkdownCommandRequest& request, bool remove);
@@ -1359,6 +1360,64 @@ void MarkdownCommandPlanner::Math(const MarkdownCommandRequest& request)
     Add(first, last, insertion);
     const auto begin = first + 2u, end = begin + payload.size();
     plan.after_       = plan.before_.anchor <= plan.before_.caret ? Selection{begin, end} : Selection{end, begin};
+    explicitSelection = true;
+    plan.applicable_  = true;
+}
+
+void MarkdownCommandPlanner::ThematicBreak()
+{
+    if (plan.before_.Start() != plan.before_.End())
+        return;
+    const auto caret = plan.before_.caret;
+    const auto leaf  = LeafAt(caret);
+    if (leaf != MarkdownNoNode &&
+        (nodes[leaf].block.kind != Kind::Paragraph || nodes[leaf].parent == MarkdownNoNode || nodes[nodes[leaf].parent].block.kind != Kind::Document))
+        return;
+    if (leaf == MarkdownNoNode && ! EmptyStructuralSite())
+        return;
+    if (NodeAt(Kind::BlockQuote, caret) != MarkdownNoNode || NodeAt(Kind::ListItem, caret) != MarkdownNoNode)
+        return;
+    for (const auto& node : plan.syntax_->Inlines())
+        if (node.kind != MarkdownInlineKind::Text && node.source.first < caret && caret < node.source.last)
+            return;
+    const auto eol  = Eol(Line(caret));
+    unsigned before = 0u, after = 0u;
+    for (auto at = caret; at > 0u && before < 2u; ++before)
+    {
+        if (text[at - 1u] == L'\n')
+        {
+            --at;
+            if (at && text[at - 1u] == L'\r')
+                --at;
+        }
+        else if (text[at - 1u] == L'\r')
+            --at;
+        else
+            break;
+    }
+    for (auto at = caret; at < text.size() && after < 2u; ++after)
+    {
+        if (text[at] == L'\r')
+        {
+            ++at;
+            if (at < text.size() && text[at] == L'\n')
+                ++at;
+        }
+        else if (text[at] == L'\n')
+            ++at;
+        else
+            break;
+    }
+    std::wstring insertion(0u, L' ');
+    if (caret != 0u)
+        for (; before < 2u; ++before)
+            insertion += eol;
+    insertion += L"---";
+    if (caret != text.size())
+        for (; after < 2u; ++after)
+            insertion += eol;
+    Add(caret, caret, insertion);
+    plan.after_       = {caret + insertion.size(), caret + insertion.size()};
     explicitSelection = true;
     plan.applicable_  = true;
 }
@@ -2660,7 +2719,7 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
 {
     if (request.text.size() > Document::MaximumUnits || request.destination.size() > Document::MaximumUnits || request.title.size() > Document::MaximumUnits)
         throw std::length_error("Structural request text exceeds source capacity");
-    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::InsertMath))
+    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::InsertThematicBreak))
         throw std::invalid_argument("Invalid Markdown command");
     Detail::MarkdownCommandPlanner builder(source, revision, std::move(syntax), selection);
     // Resolved definitions own editable content, while the label and
@@ -2697,6 +2756,7 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
         case MarkdownCommand::SetCodeLanguage: builder.CodeBlock(request); break;
         case MarkdownCommand::InsertHardBreak: builder.HardBreak(); break;
         case MarkdownCommand::InsertMath: builder.Math(request); break;
+        case MarkdownCommand::InsertThematicBreak: builder.ThematicBreak(); break;
         case MarkdownCommand::InsertTable:
         case MarkdownCommand::InsertTableRow:
         case MarkdownCommand::DeleteTableRow:
