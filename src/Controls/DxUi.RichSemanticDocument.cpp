@@ -1323,6 +1323,39 @@ struct SemanticBuilder::Preparation
             visits.push_back(close);
             return;
         }
+        if (node.block.kind == MarkdownBlockKind::FrontMatter && node.block.closed && node.frontMatterKind != MarkdownFrontMatterKind::None &&
+            std::ranges::none_of(syntax.Diagnostics(), [&](const auto& issue) { return issue.node == visit.node; }))
+        {
+            const auto states = Detail::SemanticExtensionAccess::Disclosures(*document);
+            const auto found = std::lower_bound(states.begin(), states.end(), node.identity,
+                                                [](const auto& value, auto key) { return value.identity < key; });
+            const bool expanded = found != states.end() && found->identity == node.identity && found->expanded;
+            const auto header = Element(SemanticRole::Disclosure, node.block.source, visit.element, node.identity);
+            document->elements_[header].syntaxNode = visit.node;
+            document->elements_[header].disclosureExpanded = expanded;
+            auto headerVisit = visit;
+            headerVisit.flags &= ~Code;
+            const auto paragraph = Paragraph(headerVisit, header);
+            output.Generated(expanded ? L"\u25be " : L"\u25b8 ", node.block.content.first, headerVisit.flags, 0u);
+            output.Generated(Label(AccessibilityTextId::Properties), node.block.content.first, headerVisit.flags | Bold, 0u);
+            document->paragraphs_[paragraph].display.last = output.text.size();
+            CloseElement(header);
+            document->elements_[header].name.assign(Label(AccessibilityTextId::Properties));
+            output.Generated(L"\n", node.block.content.first, headerVisit.flags, 0u);
+            if (expanded)
+            {
+                Detail::NormalizeSemanticLeaf(syntax, visit.node, normalized);
+                Detail::SemanticValue content;
+                Detail::SliceSemanticValue(normalized, node.block.content, content);
+                document->hasPropertiesBody_ = ! content.text.empty();
+                close = BeginLeafParagraph(visit);
+                output.Value(content, visit.flags, 0u);
+            }
+            else
+                close.close = true;
+            visits.push_back(close);
+            return;
+        }
         auto fenceInfo = syntax.Slice(node.block.info);
         while (! fenceInfo.empty() && (fenceInfo.back() == L' ' || fenceInfo.back() == L'\t'))
             fenceInfo.remove_suffix(1u);

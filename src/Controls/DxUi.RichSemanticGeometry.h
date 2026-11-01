@@ -161,7 +161,8 @@ public:
               const LinkDrawing* links = nullptr,
               ID2D1Brush* quoteFill    = nullptr,
               const DiagramColorContext* diagramColors = nullptr,
-              ID2D1Brush* calloutAccent = nullptr) const;
+              ID2D1Brush* calloutAccent = nullptr,
+              ID2D1Brush* propertiesInk = nullptr) const;
 
 private:
     struct State;

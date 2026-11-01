@@ -89,6 +89,7 @@ enum class AccessibilityTextId
     HighlightAnnotation,
     SpellingAnnotation,
     GrammarAnnotation,
+    Properties,
     Count
 };
 struct AccessibilityTextOverride

@@ -1850,8 +1850,8 @@ structured UIA publication, extension rendering or consumer qualification.
 
 ### RichMarkdown metadata envelopes (M5a)
 
-Status: initial source-envelope implementation in development; validity,
-dedicated object editing and complete M5 qualification remain pending.
+Status: source-envelope and bounded YAML/TOML validation are implemented;
+dedicated property-schema editing and complete M5 qualification remain pending.
 
 Only RichMarkdown MUST recognize an exact `---` (YAML 1.2.2) or `+++` (TOML
 1.0.0) first physical line, optionally preceded by one document BOM. No leading
@@ -1868,9 +1868,14 @@ text or fabricate a close. Metadata content MUST NOT define Markdown references,
 headings, lists or inlines in the following document. Unknown fields, comments,
 spelling, order, BOM and original EOLs MUST survive every untouched source range.
 
-Before validated metadata presentation is available, semantic rendering MUST
-display the entire literal envelope, including fences, without entity/Markdown
-decoding. Source ACPs/history remain authoritative. Markdown structural style,
+A closed metadata envelope with no validation diagnostic presents a collapsed,
+localized Properties disclosure by default. Expansion shows the source-owned
+fence-excluding content as dimmed literal text; high contrast uses ordinary text.
+Mouse, keyboard and UIA use the same bounded view-state contract as HTML details;
+F2 enters the exact raw envelope and Escape exits source presentation. No property
+schema, value conversion or writeback is inferred. Invalid, over-capacity and
+unclosed metadata remains fully literal, including fences, with its diagnostic.
+Source ACPs/history remain authoritative. Markdown structural style,
 heading, list, quote and table commands MUST reject metadata targets atomically; ordinary
 source replacement/undo/redo and source-view selection remain available.
 Envelope recognition alone MUST NOT be presented as YAML/TOML validity or full

@@ -955,10 +955,10 @@ void TestRichSemanticDocumentNativeHtmlAndLinkPresentation()
 void TestRichSemanticDocumentFrontMatterLiteralFallback()
 {
     using namespace DxUi::RichText;
-    const auto document = RichSemanticDocumentTests::Build(L"\ufeff---\r\n# literal **&amp;**\r\n---\r\n# After\r\n", MarkdownProfile::RichMarkdown);
+    const auto document = RichSemanticDocumentTests::Build(L"\ufeff---\r\n# literal **&amp;**\r\ninvalid: [\r\n---\r\n# After\r\n", MarkdownProfile::RichMarkdown);
     RichSemanticDocumentTests::CheckGraph(*document);
-    Require(document->Map().Display() == L"\ufeff---\n# literal **&amp;**\n---\nAfter\n",
-            "unvalidated metadata stays fully source-visible with no Markdown/entity decoding or fence loss");
+    Require(document->Map().Display() == L"\ufeff---\n# literal **&amp;**\ninvalid: [\n---\nAfter\n",
+            "invalid metadata stays fully source-visible with no Markdown/entity decoding or fence loss");
     const auto elements = document->Elements();
     const auto metadata = std::find_if(elements.begin(), elements.end(), [](const auto& item) { return item.role == SemanticRole::Metadata; });
     Require(metadata != elements.end() && metadata->source.first == 0u && ! metadata->name.empty(),

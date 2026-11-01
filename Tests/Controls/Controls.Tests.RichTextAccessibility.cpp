@@ -2631,6 +2631,46 @@ void SemanticDisclosure(bool embedded)
     Require(edited && edited->Map().Display().find(L"Replacement body") == std::wstring::npos && fixture.editor->CanUndo(),
             "an independent source edit keeps surviving disclosure presentation and ordinary history");
 }
+void SemanticProperties(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    for (const std::wstring source : {L"---\nname: \u03b2\ncount: 2\n---\n\nAfter\n", L"+++\nname = \"\u03b2\"\ncount = 2\n+++\n\nAfter\n"})
+    {
+        fixture.editor->SetText(source);
+        fixture.editor->SetSelection({2u, 2u});
+        fixture.Publish();
+        auto root = fixture.Simple();
+        auto header = FindNamedSemanticPart(*root.get(), L"Properties");
+        wil::com_ptr_nothrow<IUnknown> pattern;
+        Require(header && SUCCEEDED(header->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put())) && pattern,
+                "validated metadata has a Properties disclosure action");
+        wil::com_ptr_nothrow<IExpandCollapseProvider> expansion;
+        Require(SUCCEEDED(pattern.query_to(expansion.put())), "properties action exposes ExpandCollapse");
+        ExpandCollapseState state{};
+        RequireSucceeded(expansion->get_ExpandCollapseState(&state), "read properties state");
+        const auto original = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+        Require(state == ExpandCollapseState_Collapsed && original && original->Map().Display().find(L"name") == std::wstring::npos &&
+                    original->Map().Display().ends_with(L"After\n"), "validated properties start collapsed without hiding adjacent content");
+        const auto revision = fixture.editor->Revision();
+        RequireSucceeded(expansion->Expand(), "expand validated properties");
+        fixture.Publish();
+        const auto expanded = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+        Require(expanded && expanded->Map().Display().find(L"name") != std::wstring::npos && fixture.editor->GetText() == source &&
+                    fixture.editor->Revision() == revision && fixture.editor->GetSelection() == Selection{2u, 2u} && ! fixture.editor->CanUndo(),
+                "properties expansion is presentation-only and preserves exact source, selection and history");
+        fixture.editor->SetSelection({source.find(L'\u03b2'), source.find(L'\u03b2')});
+        Require(fixture.editor->OnKeyDown(*fixture.controls, VK_F2, 0u), "F2 enters exact front-matter source");
+        fixture.Publish();
+        Require(fixture.editor->GetSemanticSourceRegion().has_value() && fixture.editor->GetText() == source && ! fixture.editor->CanUndo(),
+                "front-matter source entry retains the exact envelope and history");
+        Require(fixture.editor->OnKeyDown(*fixture.controls, VK_ESCAPE, 0u), "Escape exits front-matter source");
+        fixture.Publish();
+        Require(! fixture.editor->GetSemanticSourceRegion() && fixture.editor->GetText() == source && ! fixture.editor->CanUndo(),
+                "source inspection never rewrites properties");
+    }
+}
 void SemanticCallouts(bool embedded)
 {
     using namespace RichText;
@@ -3477,6 +3517,7 @@ void TestRichTextAccessibilityWindowObjectSourceEditing()
     SemanticWikiActivation(false);
     SemanticDisclosure(false);
     SemanticCallouts(false);
+    SemanticProperties(false);
 #if DXUI_ENABLE_DIAGNOSTICS
     SemanticHtmlScriptFallback(false);
 #endif
@@ -3489,6 +3530,7 @@ void TestRichTextAccessibilityEmbeddedObjectSourceEditing()
     EmbeddedCase(SemanticWikiActivation);
     EmbeddedCase(SemanticDisclosure);
     EmbeddedCase(SemanticCallouts);
+    EmbeddedCase(SemanticProperties);
 #if DXUI_ENABLE_DIAGNOSTICS
     EmbeddedCase(SemanticHtmlScriptFallback);
 #endif

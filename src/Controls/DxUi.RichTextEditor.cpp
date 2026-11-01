@@ -495,9 +495,9 @@ struct RichTextEditor::State
     RichText::MarkdownParser markdown;
     RichText::SemanticBuilder semantic;
     std::vector<RichText::Detail::DisclosureOverride> disclosureStates{0u};
-    wil::com_ptr<ID2D1SolidColorBrush> calloutAccent;
-    D2D1_COLOR_F calloutAccentColor{};
-    uint64_t calloutAccentResources{}, calloutAccentBinding{};
+    wil::com_ptr<ID2D1SolidColorBrush> calloutAccent, propertiesInk;
+    D2D1_COLOR_F calloutAccentColor{}, propertiesInkColor{};
+    uint64_t calloutAccentResources{}, calloutAccentBinding{}, propertiesInkResources{}, propertiesInkBinding{};
     std::shared_ptr<const RichText::MarkdownSyntax> disclosureSyntax;
     std::optional<RichText::SourceSnapshot> disclosureSource;
     RichText::Detail::RichSourceInk sourceInk;
@@ -3194,6 +3194,7 @@ D2D1_RECT_F RichTextEditor::ScrollbarTrack() const noexcept
 void RichTextEditor::RetireLayout(bool retainGeometry) const noexcept
 {
     _state->calloutAccent.reset();
+    _state->propertiesInk.reset();
     _state->preparedCommand.reset();
     _state->selectionMask.reset();
     _state->selectionLayer.reset();
@@ -3505,25 +3506,30 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
     };
     try
     {
-        const auto prepareCalloutAccent = [&]
+        const auto prepareSemanticBrushes = [&]
         {
             const auto document = GetSemanticDocument();
-            if (! document || ! document->HasCallouts() || host.GetTheme().highContrast) return;
-            const auto color = host.GetTheme().accent;
-            const auto& prior = state.calloutAccentColor;
-            const bool sameColor = prior.r == color.r && prior.g == color.g && prior.b == color.b && prior.a == color.a;
-            if (state.calloutAccent && sameColor && state.calloutAccentResources == host.GetResourceGeneration() &&
-                state.calloutAccentBinding == state.bindingRevision) return;
-            auto* brush = host.GetSolidBrush(color);
-            if (brush)
+            if (! document || host.GetTheme().highContrast) return;
+            const auto prepare = [&](const D2D1_COLOR_F color, wil::com_ptr<ID2D1SolidColorBrush>& saved, D2D1_COLOR_F& prior,
+                                     uint64_t& resources, uint64_t& binding)
             {
-                const auto actual = brush->GetColor();
-                if (actual.r != color.r || actual.g != color.g || actual.b != color.b || actual.a != color.a) brush = nullptr;
-            }
-            state.calloutAccent = brush;
-            state.calloutAccentColor = color;
-            state.calloutAccentResources = host.GetResourceGeneration();
-            state.calloutAccentBinding = state.bindingRevision;
+                const bool same = prior.r == color.r && prior.g == color.g && prior.b == color.b && prior.a == color.a;
+                if (saved && same && resources == host.GetResourceGeneration() && binding == state.bindingRevision) return;
+                auto* brush = host.GetSolidBrush(color);
+                if (brush)
+                {
+                    const auto actual = brush->GetColor();
+                    if (actual.r != color.r || actual.g != color.g || actual.b != color.b || actual.a != color.a) brush = nullptr;
+                }
+                saved = brush;
+                prior = color;
+                resources = host.GetResourceGeneration();
+                binding = state.bindingRevision;
+            };
+            if (document->HasCallouts())
+                prepare(host.GetTheme().accent, state.calloutAccent, state.calloutAccentColor, state.calloutAccentResources, state.calloutAccentBinding);
+            if (document->HasPropertiesBody())
+                prepare(host.GetTheme().subduedText, state.propertiesInk, state.propertiesInkColor, state.propertiesInkResources, state.propertiesInkBinding);
         };
         const auto viewport = TextViewport();
         if (GetHost() != &host || ! IsVisible() || viewport.right <= viewport.left || viewport.bottom <= viewport.top)
@@ -3571,7 +3577,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         }
         if (LayoutIsCurrent(host))
         {
-            prepareCalloutAccent();
+            prepareSemanticBrushes();
             UpdateCaretScroll();
             PrepareOverlayGeometry(host);
             const auto codeInk = PrepareCodeInk(state.mode == RichText::ViewMode::Rich && state.layout.Semantic() ? GetSemanticDocument() : nullptr);
@@ -3635,7 +3641,8 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             {
                 std::vector<uint64_t> identities(0u);
                 for (const auto& node : currentSyntax->Nodes())
-                    if (node.block.kind == RichText::MarkdownBlockKind::HtmlBlock || node.block.kind == RichText::MarkdownBlockKind::BlockQuote)
+                    if (node.block.kind == RichText::MarkdownBlockKind::HtmlBlock || node.block.kind == RichText::MarkdownBlockKind::BlockQuote ||
+                        node.block.kind == RichText::MarkdownBlockKind::FrontMatter)
                         identities.push_back(node.identity);
                 std::ranges::sort(identities);
                 std::erase_if(state.disclosureStates, [&](const auto& value)
@@ -3793,7 +3800,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 }
             }
         }
-        prepareCalloutAccent();
+        prepareSemanticBrushes();
         auto* factory = host.GetWriteFactory();
 #if DXUI_ENABLE_DIAGNOSTICS
         if (RichText::Detail::testRichSemanticWriteFactory)
@@ -4621,7 +4628,12 @@ void RichTextEditor::Paint(ControlHost& host) const
                           ! host.GetTheme().highContrast && ! dimmed && state.calloutAccent &&
                                   state.calloutAccentResources == host.GetResourceGeneration() && state.calloutAccentBinding == state.bindingRevision && state.calloutAccentColor.r == host.GetTheme().accent.r &&
                                   state.calloutAccentColor.g == host.GetTheme().accent.g && state.calloutAccentColor.b == host.GetTheme().accent.b &&
-                                  state.calloutAccentColor.a == host.GetTheme().accent.a ? state.calloutAccent.get() : subdued);
+                                  state.calloutAccentColor.a == host.GetTheme().accent.a ? state.calloutAccent.get() : subdued,
+                          ! host.GetTheme().highContrast && ! dimmed && state.propertiesInk &&
+                                  state.propertiesInkResources == host.GetResourceGeneration() && state.propertiesInkBinding == state.bindingRevision &&
+                                  state.propertiesInkColor.r == host.GetTheme().subduedText.r && state.propertiesInkColor.g == host.GetTheme().subduedText.g &&
+                                  state.propertiesInkColor.b == host.GetTheme().subduedText.b && state.propertiesInkColor.a == host.GetTheme().subduedText.a
+                              ? state.propertiesInk.get() : nullptr);
         if (! state.overlayHighlightsDirty)
             state.decorationPaintIndex.ForEach(state.scrollDip,
                                                visibleBottom,

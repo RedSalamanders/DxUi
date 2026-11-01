@@ -204,13 +204,14 @@ public:
               const LinkDrawing* links = nullptr,
               ID2D1Brush* quoteFill    = nullptr,
               const DiagramColorContext* diagramColors = nullptr,
-              ID2D1Brush* calloutAccent = nullptr) const
+              ID2D1Brush* calloutAccent = nullptr,
+              ID2D1Brush* propertiesInk = nullptr) const
     {
 #if DXUI_ENABLE_DIAGNOSTICS
         ++testRichLayoutDrawCalls;
 #endif
         if (activeSemantic_)
-            semantic_.Draw(target, brush, decoration, origin, top, bottom, fill, imageOpacity, links, quoteFill, diagramColors, calloutAccent);
+            semantic_.Draw(target, brush, decoration, origin, top, bottom, fill, imageOpacity, links, quoteFill, diagramColors, calloutAccent, propertiesInk);
         else
             v0_.Draw(target, brush, origin, top, bottom, links);
     }

@@ -2496,6 +2496,15 @@ static void TestRichFrontMatterAllocationFailureAtomicity(bool trace = false)
         parsed.Begin(source, 2u, MarkdownProfile::RichMarkdown);
         finish(parsed);
         const auto syntax = parsed.Published();
+        const auto beginProperties = [&](SemanticBuilder& builder)
+        {
+            if (syntax->Nodes()[1u].block.closed && syntax->Diagnostics().empty())
+            {
+                const std::array states{DxUi::RichText::Detail::DisclosureOverride{syntax->Nodes()[1u].identity, true}};
+                DxUi::RichText::Detail::SemanticExtensionAccess::BeginWithPresentation(builder, syntax, {}, states);
+            }
+            else builder.Begin(syntax);
+        };
         std::size_t semanticRequests{};
         {
             SemanticBuilder builder;
@@ -2511,7 +2520,7 @@ static void TestRichFrontMatterAllocationFailureAtomicity(bool trace = false)
             });
             allocations = allocationBytes = 0u;
             countAllocations              = true;
-            builder.Begin(syntax);
+            beginProperties(builder);
             finishSemantic(builder);
             countAllocations = false;
             semanticRequests = allocations;
@@ -2532,7 +2541,7 @@ static void TestRichFrontMatterAllocationFailureAtomicity(bool trace = false)
                 failAllocationAfter   = failure;
                 try
                 {
-                    builder.Begin(syntax);
+                    beginProperties(builder);
                     finishSemantic(builder);
                 }
                 catch (const std::bad_alloc&)
@@ -2542,7 +2551,7 @@ static void TestRichFrontMatterAllocationFailureAtomicity(bool trace = false)
             }
             Check(rejected && builder.Published() == old && ! builder.HasPendingPreparation() && old->Map().Source() == L"previous",
                   "metadata semantic/diagnostic allocation failures retain the old publication and retire staging");
-            builder.Begin(syntax);
+            beginProperties(builder);
             finishSemantic(builder);
             Check(builder.Published()->Syntax() == syntax && builder.Published()->Map().Source() == source,
                   "semantic metadata and missing-fence help retry without changing source after each observed allocation failure");

@@ -556,6 +556,55 @@ template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe obs
         Check(std::ranges::none_of(ordinary->Elements(), [](const auto& element) { return element.role == SemanticRole::Callout; }) &&
                   ordinary->Map().Source() == sourceText, "unknown or unsupported callout headings retain ordinary quote semantics and exact source");
     }
+    for (const std::wstring_view propertiesSource : {L"---\nname: \u03b2\ncount: 2\n---\n\nAfter\n", L"+++\nname = \"\u03b2\"\ncount = 2\n+++\n\nAfter\n"})
+    {
+        const auto syntax = RichSemanticDocumentTests::Parse(propertiesSource, MarkdownProfile::RichMarkdown);
+        SemanticBuilder builder;
+        builder.Begin(syntax);
+        const auto closed = RichSemanticDocumentTests::Complete(builder, *syntax);
+        const auto header = std::ranges::find(closed->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
+        Check(syntax->Diagnostics().empty() && header != closed->Elements().end() && header->name == L"Properties" && ! header->disclosureExpanded &&
+                  ! closed->HasPropertiesBody() && closed->Map().Source() == propertiesSource && closed->Map().Display().find(L"name") == std::wstring::npos &&
+                  closed->Map().Display().ends_with(L"After\n"), "validated YAML/TOML default to a local collapsed properties header");
+        const std::array states{Detail::DisclosureOverride{header->blockIdentity, true}};
+        Detail::SemanticExtensionAccess::BeginWithPresentation(builder, syntax, {}, states);
+        const auto opened = RichSemanticDocumentTests::Complete(builder, *syntax);
+        Check(opened->HasPropertiesBody() && opened->Map().Source() == propertiesSource && opened->Map().Display().find(L"name") != std::wstring::npos &&
+                  opened->Map().Display().find(L"count") != std::wstring::npos && opened->Map().Display().find(L"---") == std::wstring::npos &&
+                  opened->Map().Display().find(L"+++") == std::wstring::npos && closed->Map().Display().find(L"name") == std::wstring::npos,
+              "expanded validated properties show raw body text, hide fences, and preserve the held source publication");
+        PreparedSemanticGeometry propertiesGeometry;
+        propertiesGeometry.Begin(factory.get(), opened, options);
+        Complete(propertiesGeometry);
+        wil::com_ptr<ID2D1SolidColorBrush> dim;
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(.55f, .55f, .55f), dim.put()));
+        std::array<std::vector<BYTE>, 2u> rendered{std::vector<BYTE>(pixels.size()), std::vector<BYTE>(pixels.size())};
+        for (std::size_t pass = 0u; pass < 2u; ++pass)
+        {
+            target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+            propertiesGeometry.Draw(target.get(), ink.get(), ink.get(), {}, 0.f, 100.f, nullptr, 1.f, nullptr, nullptr, nullptr, nullptr,
+                                    pass ? dim.get() : nullptr);
+            THROW_IF_FAILED(target->EndDraw());
+            THROW_IF_FAILED(bitmap->CopyPixels(nullptr, 1600u, static_cast<UINT>(rendered[pass].size()), rendered[pass].data()));
+        }
+        std::size_t dimmedPixels{};
+        for (std::size_t byte = 0u; byte < rendered[0u].size(); byte += 4u)
+            dimmedPixels += rendered[1u][byte] > rendered[0u][byte] + 30u && rendered[1u][byte] < 240u;
+        Check(dimmedPixels > 10u && dim->GetOpacity() == 1.f, "expanded property body uses the borrowed subdued ink without modifying the brush");
+        builder.Begin(syntax);
+        const auto restored = RichSemanticDocumentTests::Complete(builder, *syntax);
+        Check(! restored->HasPropertiesBody() && restored->Map().Display().find(L"name") == std::wstring::npos,
+              "clearing the properties view override restores the collapsed default");
+    }
+    {
+        const auto syntax = RichSemanticDocumentTests::Parse(L"---\nname: value\n---\n", MarkdownProfile::RichMarkdown);
+        const std::array entries{AccessibilityTextOverride{AccessibilityTextId::Properties, L"Eigenschaften"}};
+        SemanticBuilder builder; builder.SetAccessibilityLabels(std::make_shared<AccessibilityLabels>(entries)); builder.Begin(syntax);
+        const auto localized = RichSemanticDocumentTests::Complete(builder, *syntax);
+        const auto header = std::ranges::find(localized->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
+        Check(header != localized->Elements().end() && header->name == L"Eigenschaften" && localized->Map().Display().find(L"Eigenschaften") != std::wstring::npos,
+              "properties visible and accessibility text come from the same immutable per-document label set");
+    }
     for (const std::wstring disclosureSource : {L"<details><summary></summary>body</details>\n", L"<details><summary>x</summary><summary>y</summary></details>\n",
                                       L"<details onclick=\"run()\"><summary>x</summary>body</details>\n",
                                       L"<details><summary>x</summary><p>body</p></details>\n",

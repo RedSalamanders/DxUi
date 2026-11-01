@@ -3018,7 +3018,8 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                                     const LinkDrawing* links,
                                     ID2D1Brush* quoteFill,
                                     const DiagramColorContext* diagramColors,
-                                    ID2D1Brush* calloutAccent) const
+                                    ID2D1Brush* calloutAccent,
+                                    ID2D1Brush* propertiesInk) const
 {
     const auto& state = Current();
     if (! target || ! text || ! decoration || ! std::isfinite(top) || ! std::isfinite(bottom) || top > bottom || ! std::isfinite(imageOpacity) ||
@@ -3120,7 +3121,8 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
         const auto* boxColors = box->authoredColorSurfaceKnown && box->markChips.empty() ? diagramColors : nullptr;
         const bool emphasized = links && links->emphasis && links->emphasisBrush && links->emphasis->first < box->paragraph.display.last &&
                                 box->paragraph.display.first < links->emphasis->last;
-        auto* boxText         = emphasized ? links->emphasisBrush : text;
+        auto* boxText         = elements[box->paragraph.element].role == SemanticRole::Metadata && propertiesInk
+                                    ? propertiesInk : emphasized ? links->emphasisBrush : text;
         if (elements[box->paragraph.element].role == SemanticRole::Rule)
             target->DrawLine(D2D1::Point2F(origin.x + box->x, origin.y + box->y + box->height * .5f),
                              D2D1::Point2F(origin.x + box->x + box->width, origin.y + box->y + box->height * .5f),

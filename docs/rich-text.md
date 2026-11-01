@@ -1418,8 +1418,13 @@ service previews, presentation/profile changes and binding retirement withdraw
 old children before a replacement snapshot. Pure geometry reflow may preserve
 their identity. Foreign UIA reads do not dereference the control to check it.
 
-Semantic presentation currently keeps this source fully visible as a literal
-fallback, including fences. Ordinary source edits/undo/redo remain available;
+A validated, closed envelope presents a localized collapsed Properties header.
+Expand it by mouse, Ctrl+Tab/Space or UIA to see the original fence-excluding
+content in subdued text; high contrast uses ordinary text. F2 opens the exact
+raw envelope for source editing. Invalid, over-capacity or unclosed envelopes
+remain fully literal, including their fences and diagnostics. This is presentation
+only: applications own property schemas and any structured editing. Ordinary
+source edits/undo/redo remain available;
 Markdown style, heading, list, quote and table commands reject metadata targets. Closed TOML
 content is checked against TOML 1.0.0 and reports invalid input or a nesting-
 capacity refusal while preserving the entire source. YAML 1.2.2 core-schema validation
