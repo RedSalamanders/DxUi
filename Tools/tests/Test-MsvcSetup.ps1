@@ -15,11 +15,17 @@ $source=Join-Path $packet 'FakeInstaller.cs'
 using System;
 using System.IO;
 using System.Threading;
+using System.Diagnostics;
 class FakeInstaller {
     static int Main(string[] args) {
         string root=Environment.GetEnvironmentVariable("DXUI_SETUP_FIXTURE");
+        if (args.Length > 0 && args[0] == "--child") { Thread.Sleep(30000); return 0; }
         File.WriteAllLines(Path.Combine(root,"arguments.txt"),args);
-        Thread.Sleep(400);
+        if (Environment.GetEnvironmentVariable("DXUI_FIXTURE_CHILD") == "true") {
+            Process child=Process.Start(new ProcessStartInfo(System.Reflection.Assembly.GetExecutingAssembly().Location,"--child") { CreateNoWindow=true, UseShellExecute=false });
+            File.WriteAllText(Path.Combine(root,"child.txt"),child.Id+" "+child.StartTime.ToUniversalTime().Ticks);
+        }
+        Thread.Sleep(Int32.Parse(Environment.GetEnvironmentVariable("DXUI_FIXTURE_SLEEP")));
         string version=Environment.GetEnvironmentVariable("DXUI_FIXTURE_VERSION");
         if (!String.IsNullOrEmpty(version))
             File.WriteAllText(Path.Combine(root,"VS instance","VC","Auxiliary","Build","Microsoft.VCToolsVersion.default.txt"),version);
@@ -34,11 +40,15 @@ class FakeInstaller {
 $fake=Join-Path $packet 'FakeInstaller.exe'
 & (Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe') /nologo /target:winexe /out:$fake $source
 if($LASTEXITCODE-ne 0){throw 'Cannot compile the fake GUI bootstrapper.'}
-function Invoke-SetupFixture([string]$Name,[int]$ExitCode=0,[string]$Version='14.52.37025',[switch]$Ready,[switch]$VerifyOnly,[switch]$Local,[switch]$BadSignature,[string]$Missing=''){
+function Invoke-SetupFixture([string]$Name,[int]$ExitCode=0,[string]$Version='14.52.37025',[switch]$Ready,[switch]$VerifyOnly,[switch]$Local,[switch]$BadSignature,[string]$Missing='', [switch]$InstallerTimeout,[switch]$DownloadTimeout){
     $fixture=Join-Path $packet $Name
     $script=Join-Path $fixture '.github/actions/setup-msvc/Setup.ps1'
     [void][IO.Directory]::CreateDirectory((Split-Path $script))
     Copy-Item $SetupScriptPath $script
+    if($InstallerTimeout){
+        $fixtureSource=[IO.File]::ReadAllText($script).Replace('$installerTimeoutMilliseconds=1800000','$installerTimeoutMilliseconds=1500')
+        [IO.File]::WriteAllText($script,$fixtureSource)
+    }
     [void][IO.Directory]::CreateDirectory((Join-Path $fixture 'Tools'))
     [IO.File]::WriteAllText((Join-Path $fixture 'Tools/VisualStudio.psm1'), 'function Get-DxUiVisualStudioInstallation { Join-Path $env:DXUI_SETUP_FIXTURE "VS instance" }; Export-ModuleMember Get-DxUiVisualStudioInstallation')
     [IO.File]::WriteAllText((Join-Path $fixture 'Directory.Build.props'),'<Project><PropertyGroup><RequiredMsvcToolsVersion>14.52</RequiredMsvcToolsVersion></PropertyGroup></Project>')
@@ -55,7 +65,7 @@ function Invoke-SetupFixture([string]$Name,[int]$ExitCode=0,[string]$Version='14
 param([switch]$VerifyOnly)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
-function Invoke-WebRequest {param($Uri,$OutFile) Copy-Item $env:DXUI_FAKE_INSTALLER $OutFile;[IO.File]::WriteAllText((Join-Path $env:DXUI_SETUP_FIXTURE 'downloaded.txt'),$Uri)}
+function Invoke-WebRequest {param($Uri,$OutFile,$TimeoutSec) [IO.File]::WriteAllText((Join-Path $env:DXUI_SETUP_FIXTURE 'download-timeout.txt'),[string]$TimeoutSec); if($env:DXUI_DOWNLOAD_TIMEOUT -eq 'true'){throw [TimeoutException]::new('synthetic bounded download timeout')}; Copy-Item $env:DXUI_FAKE_INSTALLER $OutFile;[IO.File]::WriteAllText((Join-Path $env:DXUI_SETUP_FIXTURE 'downloaded.txt'),$Uri)}
 function Get-AuthenticodeSignature {param($LiteralPath) [pscustomobject]@{Status=$env:DXUI_FIXTURE_SIGNATURE;SignerCertificate=[pscustomobject]@{Subject='CN=Microsoft Corporation, O=Microsoft Corporation, C=US'}}}
 # Success starts with LASTEXITCODE unset, as on hosted CI. Failure has stale success.
 if($env:DXUI_FIXTURE_EXIT-ne '0'){$global:LASTEXITCODE=0}
@@ -67,6 +77,9 @@ if($env:DXUI_FIXTURE_EXIT-ne '0'){$global:LASTEXITCODE=0}
     if($VerifyOnly){$start.ArgumentList.Add('-VerifyOnly')}
     $start.Environment['DXUI_SETUP_FIXTURE']=$fixture;$start.Environment['DXUI_FAKE_INSTALLER']=$fake
     $start.Environment['DXUI_FIXTURE_VERSION']=$Version;$start.Environment['DXUI_FIXTURE_EXIT']=[string]$ExitCode
+    $start.Environment['DXUI_FIXTURE_SLEEP']=if($InstallerTimeout){'30000'}else{'400'}
+    $start.Environment['DXUI_FIXTURE_CHILD']=if($InstallerTimeout){'true'}else{'false'}
+    $start.Environment['DXUI_DOWNLOAD_TIMEOUT']=if($DownloadTimeout){'true'}else{'false'}
     $start.Environment['DXUI_FIXTURE_SIGNATURE']=if($BadSignature){'NotSigned'}else{'Valid'}
     $start.Environment['ProgramFiles(x86)']=Join-Path $fixture 'Program Files'
     $start.Environment['GITHUB_ACTIONS']=if($Local){'false'}else{'true'}
@@ -91,6 +104,39 @@ Invoke-TestCase 'delayed GUI success waits and preserves install path with space
     $index=[Array]::IndexOf($arguments,'--installPath')
     Assert-Equal (Join-Path $result.Root 'runner temp with spaces/VS-Msvc-14.52') $arguments[$index+1] 'install path remains one argument'
     Assert-Contains $arguments '--wait' 'bootstrapper waits for its installer'
+    Assert-Equal '180' ([IO.File]::ReadAllText((Join-Path $result.Root 'download-timeout.txt'))) 'download has a finite timeout'
+}
+Invoke-TestCase 'installer timeout terminates its owned descendant and preserves unrelated processes' {
+    $start=[Diagnostics.ProcessStartInfo]::new('pwsh');$start.UseShellExecute=$false;$start.CreateNoWindow=$true
+    foreach($arg in @('-NoProfile','-Command','Start-Sleep -Seconds 30')){$start.ArgumentList.Add($arg)}
+    $sentinel=[Diagnostics.Process]::Start($start)
+    try {
+        $result=Invoke-SetupFixture 'installer-timeout' -InstallerTimeout
+        Assert-True ($result.Exit-ne 0 -and $result.Text-match 'VS provisioning timed out after 1.5 seconds' -and $result.Text-match 'termination: confirmed') $result.Text
+        Assert-True (-not $sentinel.HasExited) 'unrelated owned sentinel remains running'
+        $identity=([IO.File]::ReadAllText((Join-Path $result.Root 'child.txt'))).Split(' ')
+        $deadline=[Diagnostics.Stopwatch]::StartNew()
+        $childStillOwned=$true
+        do {
+            $child=Get-Process -Id ([int]$identity[0]) -ErrorAction SilentlyContinue
+            try {$childStillOwned=($null-ne $child -and $child.StartTime.ToUniversalTime().Ticks -eq [long]$identity[1] -and -not $child.HasExited)}
+            catch [InvalidOperationException] {$childStillOwned=$false}
+            if($childStillOwned){Start-Sleep -Milliseconds 50}
+        } while($childStillOwned -and $deadline.ElapsedMilliseconds -lt 5000)
+        Assert-True (-not $childStillOwned) 'installer descendant no longer exists'
+        $output=[IO.File]::ReadAllLines((Join-Path $result.Root 'github-output.txt'))
+        $logs=($output|Where-Object {$_-like 'installer_logs=*'}).Substring('installer_logs='.Length)
+        Assert-True ((Test-Path (Join-Path $logs 'bootstrapper.stdout.log')) -and (Test-Path (Join-Path $logs 'bootstrapper.stderr.log'))) 'timeout retains both bootstrapper logs'
+    } finally { if(-not $sentinel.HasExited){$sentinel.Kill();[void]$sentinel.WaitForExit(5000)};$sentinel.Dispose() }
+}
+Invoke-TestCase 'download timeout refuses before launching the installer' {
+    $result=Invoke-SetupFixture 'download-timeout' -DownloadTimeout
+    Assert-True ($result.Exit-ne 0 -and $result.Text-match 'synthetic bounded download timeout') $result.Text
+    Assert-Equal '180' ([IO.File]::ReadAllText((Join-Path $result.Root 'download-timeout.txt'))) 'download timeout is passed to the provider'
+    Assert-True (-not(Test-Path (Join-Path $result.Root 'arguments.txt'))) 'installer never launched'
+    $output=[IO.File]::ReadAllLines((Join-Path $result.Root 'github-output.txt'))
+    $logs=($output|Where-Object {$_-like 'installer_logs=*'}).Substring('installer_logs='.Length)
+    Assert-True ((Test-Path (Join-Path $logs 'download.log')) -and ([IO.File]::ReadAllText((Join-Path $logs 'download.log')) -match 'synthetic bounded download timeout')) 'download failure is retained for the existing log artifact'
 }
 Invoke-TestCase 'reboot-required success is accepted only after exact tools verify' {
     $result=Invoke-SetupFixture 'reboot' -ExitCode 3010
