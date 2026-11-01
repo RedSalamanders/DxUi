@@ -4217,7 +4217,7 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                 return false; // Tab is host traversal; control characters never enter the source.
         }
         if (_state->markdownAutoFormatEnabled && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich && ! _state->sourceEditing &&
-            text.size() == 1u && GetSelection().Start() == GetSelection().End())
+            text.size() == 1u && GetSelection().Start() == GetSelection().End() && (_state->autoFormatRun || MatchAutoFormat(text) != AutoFormatMatch::None))
         {
             const auto selection  = GetSelection();
             const auto source     = Snapshot();
