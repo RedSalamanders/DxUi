@@ -1247,6 +1247,8 @@ The non-mutating command-state query reports current style, heading and list
 presentation without constructing an edit; unavailable editor states report
 `available = false`. Applicability remains unknown for an enabled rich editor
 until its structural planner predicates are available without edit construction.
+Code-exit applicability shares its nonallocating source admission predicate
+with the planner when no active native input session needs composition checking.
 InsertThematicBreak inserts a separated rule at a top-level caret, retaining
 the existing text and line-ending convention; unsupported container positions
 decline rather than rewriting a prefix.

@@ -67,6 +67,8 @@ struct MarkdownCommandState
     unsigned headingLevel = 0u;
     std::optional<MarkdownListKind> listKind;
 };
+// Shared nonallocating admission predicate for the source-exact code exit.
+std::optional<std::size_t> FindExitCodeBlock(const MarkdownSyntax& syntax, Selection selection) noexcept;
 struct MarkdownCommandRequest
 {
     MarkdownCommand command{};

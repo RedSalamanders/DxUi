@@ -1600,6 +1600,12 @@ std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownComma
     if (! document)
         return std::nullopt;
     const auto selection = GetSelection();
+    if (request.command == MarkdownCommand::ExitCodeBlock)
+    {
+        auto* host = GetHost();
+        if (! host || host->GetFocusControl() != this || ! host->HasActiveNativeTextInputSession())
+            result.available = FindExitCodeBlock(*document->Syntax(), selection).has_value();
+    }
     auto first = selection.Start(), last = selection.End();
     if (first == last && first != 0u)
         --first;

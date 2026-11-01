@@ -1,0 +1,1 @@
+- Share a nonallocating code-exit admission predicate between the editor query and structural planner; remaining command applicability and native qualification are pending.

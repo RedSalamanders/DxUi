@@ -9,6 +9,32 @@
 
 namespace DxUi::RichText
 {
+std::optional<std::size_t> FindExitCodeBlock(const MarkdownSyntax& syntax, Selection selection) noexcept
+{
+    if (selection.Start() != selection.End())
+        return std::nullopt;
+    const auto& nodes = syntax.Nodes();
+    const auto text   = syntax.Source();
+    for (std::size_t i = 1u; i < nodes.size(); ++i)
+    {
+        const auto& node = nodes[i];
+        const auto range = node.block.source;
+        const auto caret = selection.caret;
+        if (node.block.kind != MarkdownBlockKind::FencedCode || node.parent == MarkdownNoNode || nodes[node.parent].block.kind != MarkdownBlockKind::Document ||
+            range.first > caret || ! (caret < range.last || (caret == range.last && caret == text.size() && ! node.block.closed)))
+            continue;
+        auto eol = text.find_first_of(L"\r\n", range.first);
+        if (eol == text.npos)
+            eol = text.find_first_of(L"\r\n");
+        const std::size_t eolUnits = eol == text.npos ? 2u : text[eol] == L'\r' && eol + 1u < text.size() && text[eol + 1u] == L'\n' ? 2u : 1u;
+        const bool hasEnd          = range.last > 0u && (text[range.last - 1u] == L'\r' || text[range.last - 1u] == L'\n');
+        const auto inserted        = (hasEnd ? 0u : eolUnits) + (node.block.closed ? 0u : node.block.fenceLength + eolUnits) + eolUnits;
+        if (inserted > Document::MaximumUnits - text.size())
+            return std::nullopt;
+        return i;
+    }
+    return std::nullopt;
+}
 MarkdownCommandPlan::MarkdownCommandPlan(const SourceSnapshot& source, std::uint64_t revision, std::shared_ptr<const MarkdownSyntax> syntax, Selection before)
     : source_(source),
       revision_(revision),
@@ -1332,14 +1358,10 @@ void MarkdownCommandPlanner::HardBreak()
 
 void MarkdownCommandPlanner::ExitCode()
 {
-    if (plan.before_.Start() != plan.before_.End())
+    const auto found = FindExitCodeBlock(*plan.syntax_, plan.before_);
+    if (! found)
         return;
-    const auto index = NodeAt(Kind::FencedCode, plan.before_.caret);
-    if (index == MarkdownNoNode)
-        return;
-    const auto& node = nodes[index];
-    if (node.parent == MarkdownNoNode || nodes[node.parent].block.kind != Kind::Document)
-        return;
+    const auto& node  = nodes[found.value()];
     const auto at     = node.block.source.last;
     const auto eol    = Eol(Line(node.block.source.first));
     const bool hasEnd = at > 0u && (text[at - 1u] == L'\r' || text[at - 1u] == L'\n');

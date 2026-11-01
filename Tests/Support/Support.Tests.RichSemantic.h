@@ -305,6 +305,10 @@ inline void ListsAndHeadings()
         request.text    = L"rust";
         Exact(L"~~~cpp\nhello\n~~~\n", {8u, 8u}, request, L"~~~rust\nhello\n~~~\n", std::nullopt, profile);
         request.command = MarkdownCommand::ExitCodeBlock;
+        Document codeState(L"~~~\nx\n~~~\n");
+        const auto codeSyntax = Parse(codeState, profile);
+        Check(FindExitCodeBlock(*codeSyntax, {4u, 4u}).has_value() && ! FindExitCodeBlock(*codeSyntax, {0u, 3u}),
+              "nonallocating code-exit admission agrees with collapsed-selection contract");
         Exact(L"~~~\nx\n~~~\n", {4u, 4u}, request, L"~~~\nx\n~~~\n\n", Selection{10u, 10u}, profile);
         Exact(L"~~~\nx", {4u, 4u}, request, L"~~~\nx\n~~~\n\n", Selection{10u, 10u}, profile);
         request.command = MarkdownCommand::InsertHardBreak;
