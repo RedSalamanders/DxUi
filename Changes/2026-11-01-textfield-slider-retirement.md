@@ -1,0 +1,1 @@
+- Guard TextField mutations and Slider visual transitions when synchronous embedded invalidation retires their controls. Native qualification remains pending.

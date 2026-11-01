@@ -1724,7 +1724,8 @@ void PageHost::SetPage(std::unique_ptr<Control> page, std::wstring connectedAnim
     }
 
     host->RequestAnimation();
-    RequestInvalidate();
+    if (! ownerLifetime.expired() && GetHost() == host)
+        RequestInvalidate();
 }
 
 Control* PageHost::GetPage() noexcept
@@ -4193,11 +4194,14 @@ void Button::UpdateInteractionTransition(ControlHost& host, InteractionTransitio
 
     // Seed from the host's animation clock, which its ticks follow, so a fresh transition neither fast-forwards on its first
     // tick nor waits for the clock to catch up.
-    transition.lastTickMs = host.GetAnimationTickMs();
-    transition.anchored   = true;
-    transition.active     = true;
+    transition.lastTickMs           = host.GetAnimationTickMs();
+    transition.anchored             = true;
+    transition.active               = true;
+    const auto lifetime             = GetLifetimeToken();
+    ControlHost* const originalHost = GetHost();
     host.RequestAnimation();
-    Invalidate(host);
+    if (! lifetime.expired() && GetHost() == originalHost)
+        Invalidate(host);
 }
 
 bool Button::AdvanceInteractionTransition(const ControlHost& host, InteractionTransitionState& transition, uint64_t nowTickMs) noexcept
@@ -6318,13 +6322,16 @@ void Slider::BeginValueAnimation(ControlHost& host, double fromValue, double toV
         return;
     }
 
-    _displayedValue            = fromValue;
-    _valueAnimationStart       = fromValue;
-    _valueAnimationTarget      = toValue;
-    _valueAnimationStartTickMs = host.GetAnimationTickMs();
-    _valueAnimationActive      = true;
+    _displayedValue                 = fromValue;
+    _valueAnimationStart            = fromValue;
+    _valueAnimationTarget           = toValue;
+    _valueAnimationStartTickMs      = host.GetAnimationTickMs();
+    _valueAnimationActive           = true;
+    const auto lifetime             = GetLifetimeToken();
+    ControlHost* const originalHost = GetHost();
     host.RequestAnimation();
-    Invalidate(host);
+    if (! lifetime.expired() && GetHost() == originalHost)
+        Invalidate(host);
 }
 
 bool Slider::AdvanceValueAnimation(ControlHost& host, uint64_t nowTickMs) noexcept
@@ -6371,12 +6378,15 @@ void Slider::BeginVisualTransition(ControlHost& host, VisualTransitionState& tra
         return;
     }
 
-    transition.startProgress = transition.progress;
-    transition.target        = clampedTarget;
-    transition.startTickMs   = host.GetAnimationTickMs();
-    transition.active        = true;
+    transition.startProgress        = transition.progress;
+    transition.target               = clampedTarget;
+    transition.startTickMs          = host.GetAnimationTickMs();
+    transition.active               = true;
+    const auto lifetime             = GetLifetimeToken();
+    ControlHost* const originalHost = GetHost();
     host.RequestAnimation();
-    Invalidate(host);
+    if (! lifetime.expired() && GetHost() == originalHost)
+        Invalidate(host);
 }
 
 bool Slider::AdvanceVisualTransition(VisualTransitionState& transition, uint64_t nowTickMs, EasingCurve curve) noexcept
@@ -6426,8 +6436,14 @@ void Slider::SnapVisualTransitions() noexcept
 
 void Slider::SyncInteractionVisuals(ControlHost& host) noexcept
 {
+    const auto lifetime             = GetLifetimeToken();
+    ControlHost* const originalHost = GetHost();
     BeginVisualTransition(host, _hoverTransition, (IsHovered() || _dragging) ? 1.0f : 0.0f);
+    if (lifetime.expired() || GetHost() != originalHost)
+        return;
     BeginVisualTransition(host, _pressTransition, _dragging ? 1.0f : 0.0f);
+    if (lifetime.expired() || GetHost() != originalHost)
+        return;
     BeginVisualTransition(host, _touchTransition, (_dragging && _touchDragging) ? 1.0f : 0.0f);
 }
 
@@ -6449,8 +6465,9 @@ void Slider::SetValueInternal(ControlHost* host, double value, bool notifyChange
         return;
     }
 
-    const double previousDisplayed = _displayedValue;
-    _value                         = clamped;
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    const double previousDisplayed    = _displayedValue;
+    _value                            = clamped;
     if (_dragging || ! animatePosition || ! host || host->GetTheme().reducedMotion)
     {
         SnapDisplayedValue();
@@ -6468,7 +6485,8 @@ void Slider::SetValueInternal(ControlHost* host, double value, bool notifyChange
         BeginValueAnimation(*host, previousDisplayed, _value);
     }
 
-    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    if (lifetime.expired())
+        return;
     if (notifyChanged)
         NotifyChange(_dragging ? SliderChangePhase::Preview : SliderChangePhase::Commit, true);
     if (! notifyChanged && ! lifetime.expired())
@@ -6781,8 +6799,14 @@ bool Slider::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButto
     {
         _dragThumbPointerOffsetDip = 0.0f;
     }
+    const auto lifetime             = GetLifetimeToken();
+    ControlHost* const originalHost = GetHost();
     host.CaptureMouse(this);
+    if (lifetime.expired() || GetHost() != originalHost || (originalHost && host.GetCapturedControl() != this))
+        return true;
     SyncInteractionVisuals(host);
+    if (lifetime.expired() || GetHost() != originalHost)
+        return true;
     UpdateValueFromPoint(host, point);
     return true;
 }
@@ -6805,7 +6829,8 @@ bool Slider::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
         return false;
     }
 
-    const auto life = GetLifetimeToken();
+    const auto life                 = GetLifetimeToken();
+    ControlHost* const originalHost = GetHost();
     UpdateValueFromPoint(host, point);
     if (life.expired())
         return true;
@@ -6813,8 +6838,14 @@ bool Slider::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
     _touchDragging             = false;
     _dragThumbPointerOffsetDip = 0.0f;
     host.ReleaseMouseCapture();
+    if (life.expired() || GetHost() != originalHost)
+        return true;
     SyncInteractionVisuals(host);
+    if (life.expired() || GetHost() != originalHost)
+        return true;
     Invalidate(host);
+    if (life.expired() || GetHost() != originalHost)
+        return true;
     NotifyChange(SliderChangePhase::Commit, false);
     return true;
 }

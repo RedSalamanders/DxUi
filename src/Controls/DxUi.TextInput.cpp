@@ -962,10 +962,13 @@ void TextField::RefreshAccessibilitySnapshot() const noexcept
 
 void TextField::SetText(std::wstring text)
 {
+    const auto lifetime   = GetLifetimeToken();
     _pendingLeadSurrogate = 0;
     _text                 = std::move(text);
     if (_multiline)
         InvalidateMeasure();
+    if (lifetime.expired())
+        return;
     _caretIndex = std::min(_caretIndex, _text.size());
     _selectionAnchorIndex.reset();
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
@@ -985,9 +988,15 @@ void TextField::SetText(std::wstring text)
     if (auto* host = GetHost(); host && host->GetFocusControl() == this)
     {
         host->SyncTextInput(this);
+        if (lifetime.expired())
+            return;
     }
     RefreshAccessibilitySnapshot();
+    if (lifetime.expired())
+        return;
     RequestInvalidate();
+    if (lifetime.expired())
+        return;
 }
 
 std::wstring_view TextField::GetText() const noexcept
@@ -1041,6 +1050,7 @@ size_t TextField::GetCaretIndex() const noexcept
 
 void TextField::SetSelectionRange(const size_t selectionStart, const size_t selectionEnd) noexcept
 {
+    const auto lifetime   = GetLifetimeToken();
     _pendingLeadSurrogate = 0;
     BreakDirectEditMerge();
     const size_t clampedStart = std::min(selectionStart, _text.size());
@@ -1063,13 +1073,20 @@ void TextField::SetSelectionRange(const size_t selectionStart, const size_t sele
     if (auto* host = GetHost(); host && host->GetFocusControl() == this)
     {
         host->SyncTextInput(this);
+        if (lifetime.expired())
+            return;
     }
     RefreshAccessibilitySnapshot();
+    if (lifetime.expired())
+        return;
     RequestInvalidate();
+    if (lifetime.expired())
+        return;
 }
 
 void TextField::ReplaceSelectionAndNotify(std::wstring_view replacement)
 {
+    const auto lifetime   = GetLifetimeToken();
     const bool willMutate = HasSelection() || ! replacement.empty();
     if (! willMutate)
     {
@@ -1090,20 +1107,30 @@ void TextField::ReplaceSelectionAndNotify(std::wstring_view replacement)
     if (auto* host = GetHost(); host && host->GetFocusControl() == this)
     {
         host->SyncTextInput(this);
+        if (lifetime.expired())
+            return;
     }
     RefreshAccessibilitySnapshot();
+    if (lifetime.expired())
+        return;
     RequestInvalidate();
+    if (lifetime.expired())
+        return;
     static_cast<void>(NotifyChanged());
 }
 
 void TextField::SetTextAndNotify(std::wstring text)
 {
+    const auto lifetime = GetLifetimeToken();
     SetText(std::move(text));
+    if (lifetime.expired())
+        return;
     static_cast<void>(NotifyChanged());
 }
 
 void TextField::SetMasked(bool masked) noexcept
 {
+    const auto lifetime = GetLifetimeToken();
     if (_masked == masked)
     {
         return;
@@ -1111,14 +1138,22 @@ void TextField::SetMasked(bool masked) noexcept
 
     _masked = masked;
     InvalidateMeasure();
+    if (lifetime.expired())
+        return;
     RegenerateConcealedMaskEpoch();
     InvalidateSingleLineLayoutCache();
     if (ControlHost* const host = GetHost(); host && HasFocus())
     {
         host->SyncTextInput(this);
+        if (lifetime.expired())
+            return;
     }
     RefreshAccessibilitySnapshot();
+    if (lifetime.expired())
+        return;
     RequestInvalidate();
+    if (lifetime.expired())
+        return;
 }
 
 bool TextField::IsMasked() const noexcept
@@ -1128,6 +1163,7 @@ bool TextField::IsMasked() const noexcept
 
 void TextField::SetPasswordRevealMode(PasswordRevealMode mode) noexcept
 {
+    const auto lifetime = GetLifetimeToken();
     if (_passwordRevealMode == mode)
     {
         return;
@@ -1135,6 +1171,8 @@ void TextField::SetPasswordRevealMode(PasswordRevealMode mode) noexcept
 
     _passwordRevealMode = mode;
     InvalidateMeasure();
+    if (lifetime.expired())
+        return;
     _passwordRevealButtonHovered   = false;
     _passwordRevealButtonPressed   = false;
     _passwordRevealKeyboardFocused = false;
@@ -1152,9 +1190,15 @@ void TextField::SetPasswordRevealMode(PasswordRevealMode mode) noexcept
         SetPasswordRevealState(PasswordRevealState::Hidden);
     }
 
+    if (lifetime.expired())
+        return;
     InvalidateSingleLineLayoutCache();
     RefreshAccessibilitySnapshot();
+    if (lifetime.expired())
+        return;
     RequestInvalidate();
+    if (lifetime.expired())
+        return;
 }
 
 PasswordRevealMode TextField::GetPasswordRevealMode() const noexcept
@@ -1164,6 +1208,7 @@ PasswordRevealMode TextField::GetPasswordRevealMode() const noexcept
 
 void TextField::SetPasswordRevealState(PasswordRevealState state) noexcept
 {
+    const auto lifetime = GetLifetimeToken();
     if (_passwordRevealMode == PasswordRevealMode::Visible)
     {
         state = PasswordRevealState::Visible;
@@ -1182,7 +1227,11 @@ void TextField::SetPasswordRevealState(PasswordRevealState state) noexcept
     _passwordRevealState = state;
     InvalidateSingleLineLayoutCache();
     RefreshAccessibilitySnapshot();
+    if (lifetime.expired())
+        return;
     RequestInvalidate();
+    if (lifetime.expired())
+        return;
     if (Debug::Perf::IsCaptureEnabled())
     {
         Debug::Perf::Emit(
@@ -1298,10 +1347,13 @@ void TextField::SetPlaceholder(std::wstring text)
 
 void TextField::SetMultiline(bool multiline) noexcept
 {
+    const auto lifetime = GetLifetimeToken();
     if (_multiline == multiline)
         return;
     _multiline = multiline;
     InvalidateMeasure();
+    if (lifetime.expired())
+        return;
     _preferredMultilineXOffsetDip.reset();
     _multilineFirstVisibleLine    = 0u;
     _multilineWheelDeltaRemainder = 0.0f;
@@ -1316,10 +1368,13 @@ bool TextField::IsMultiline() const noexcept
 
 void TextField::SetClearButtonEnabled(bool enabled) noexcept
 {
+    const auto lifetime = GetLifetimeToken();
     if (_clearButtonEnabled == enabled)
         return;
     _clearButtonEnabled = enabled;
     InvalidateMeasure();
+    if (lifetime.expired())
+        return;
     if (! enabled)
     {
         _clearButtonHovered = false;
@@ -1338,6 +1393,7 @@ void TextField::SetCaretColor(std::optional<D2D1_COLOR_F> caretColor) noexcept
 
 void TextField::SetHorizontalTextPadding(float leftDip, float rightDip) noexcept
 {
+    const auto lifetime         = GetLifetimeToken();
     const float clampedLeftDip  = std::max(0.0f, leftDip);
     const float clampedRightDip = std::max(0.0f, rightDip);
     if (_hasExplicitHorizontalTextPadding && _textPaddingLeftDip == clampedLeftDip && _textPaddingRightDip == clampedRightDip)
@@ -1349,17 +1405,24 @@ void TextField::SetHorizontalTextPadding(float leftDip, float rightDip) noexcept
     _textPaddingLeftDip               = clampedLeftDip;
     _textPaddingRightDip              = clampedRightDip;
     InvalidateMeasure();
+    if (lifetime.expired())
+        return;
     InvalidateSingleLineLayoutCache();
     InvalidateMultilineLayoutCache();
     if (auto* host = GetHost(); host && host->GetFocusControl() == this)
     {
         host->SyncTextInput(this);
+        if (lifetime.expired())
+            return;
     }
     RequestInvalidate();
+    if (lifetime.expired())
+        return;
 }
 
 void TextField::SetVerticalTextPadding(float topDip, float bottomDip) noexcept
 {
+    const auto lifetime          = GetLifetimeToken();
     const float clampedTopDip    = std::max(0.0f, topDip);
     const float clampedBottomDip = std::max(0.0f, bottomDip);
     if (_hasExplicitVerticalTextPadding && _textPaddingTopDip == clampedTopDip && _textPaddingBottomDip == clampedBottomDip)
@@ -1371,17 +1434,24 @@ void TextField::SetVerticalTextPadding(float topDip, float bottomDip) noexcept
     _textPaddingTopDip              = clampedTopDip;
     _textPaddingBottomDip           = clampedBottomDip;
     InvalidateMeasure();
+    if (lifetime.expired())
+        return;
     InvalidateSingleLineLayoutCache();
     InvalidateMultilineLayoutCache();
     if (auto* host = GetHost(); host && host->GetFocusControl() == this)
     {
         host->SyncTextInput(this);
+        if (lifetime.expired())
+            return;
     }
     RequestInvalidate();
+    if (lifetime.expired())
+        return;
 }
 
 void TextField::SetReadOnly(bool readOnly) noexcept
 {
+    const auto lifetime   = GetLifetimeToken();
     _pendingLeadSurrogate = 0;
     if (_readOnly == readOnly)
     {
@@ -1395,12 +1465,18 @@ void TextField::SetReadOnly(bool readOnly) noexcept
         _passwordRevealButtonPressed   = false;
         _passwordRevealKeyboardFocused = false;
         RemaskPasswordReveal();
+        if (lifetime.expired())
+            return;
     }
     if (ControlHost* const host = GetHost(); host && HasFocus())
     {
         host->SyncTextInput(this);
+        if (lifetime.expired())
+            return;
     }
     RequestInvalidate();
+    if (lifetime.expired())
+        return;
 }
 
 bool TextField::IsReadOnly() const noexcept

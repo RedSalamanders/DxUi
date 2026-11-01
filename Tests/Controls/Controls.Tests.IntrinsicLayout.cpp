@@ -1228,6 +1228,18 @@ void TestLabelAndSeparatorTypographySurviveEmbeddedMeasureAndRetirementCallbacks
     runRetiringSetter("numeric unit", [](FlexPanel& root) -> Control* { return root.AddChild<NumericStepper>(); }, [](Control* control) {
         static_cast<NumericStepper*>(control)->SetUnit(L"px", 20.0f);
     });
+    runRetiringSetter("text field multiline", [](FlexPanel& root) -> Control* { return root.AddChild<TextField>(L"text"); }, [](Control* control) {
+        static_cast<TextField*>(control)->SetMultiline(true);
+    });
+    runRetiringSetter("text field masking", [](FlexPanel& root) -> Control* { return root.AddChild<TextField>(L"text"); }, [](Control* control) {
+        static_cast<TextField*>(control)->SetMasked(true);
+    });
+    runRetiringSetter("text field change", [](FlexPanel& root) -> Control* { return root.AddChild<TextField>(L"text"); }, [](Control* control) {
+        static_cast<TextField*>(control)->SetTextAndNotify(L"changed");
+    });
+    runRetiringSetter("slider value", [](FlexPanel& root) -> Control* { return root.AddChild<Slider>(); }, [](Control* control) {
+        static_cast<Slider*>(control)->SetValue(0.5);
+    });
 }
 
 void TestFlexFlowWrapGrowthRtlAndOverflow()
