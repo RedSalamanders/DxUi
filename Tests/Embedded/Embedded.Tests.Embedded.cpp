@@ -2133,13 +2133,14 @@ __declspec(noinline) static int RunFunctionalTests()
     const auto prepared = scene.view.GetStatistics();
     Check(scene.view.Prepare(480, 240) == S_FALSE, "clean preparation is skipped");
     gpu.Bind();
-    const auto start = std::chrono::steady_clock::now();
-    countAllocations = true;
+    const auto start                      = std::chrono::steady_clock::now();
+    const auto allocationsBeforeComposite = allocations;
+    countAllocations                      = true;
     for (int i = 0; i < 1000; ++i)
         Hr(scene.view.Composite(gpu.context.get(), gpu.Viewport()), "warm compose");
     countAllocations = false;
     const auto us    = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start).count();
-    Check(allocations == 0, "1000 warm composites have zero C++ allocations");
+    Check(allocations == allocationsBeforeComposite, "1000 warm composites have zero C++ allocations");
     Check(scene.view.GetStatistics().surfaceAllocations == prepared.surfaceAllocations && scene.view.GetStatistics().preparations == prepared.preparations,
           "warm composition creates no surface or raster work");
     // Poison the state a preceding widget can leave behind; composite must establish its own pipeline.
@@ -2435,8 +2436,8 @@ __declspec(noinline) static int RunFunctionalTests()
         Check(complex.view.DispatchPointer({DxUi::PointerAction::Cancel}), "complex sample slider cancellation");
         Check(complex.progress[0]->GetValue() == 0, "complex sample cancellation restores progress");
     }
-    std::cout << "PASS " << checks << " checks; 1000 warm composites " << us << " us; C++ allocations " << allocations << "; changed toggle pixels " << changed
-              << '\n';
+    std::cout << "PASS " << checks << " checks; 1000 warm composites " << us << " us; C++ allocations " << allocations - allocationsBeforeComposite
+              << "; changed toggle pixels " << changed << '\n';
     return 0;
 }
 
