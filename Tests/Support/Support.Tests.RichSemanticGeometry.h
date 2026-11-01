@@ -967,6 +967,28 @@ inline void MarkdownSubtlePresentation()
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), textBrush.put()));
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(1.0f, 0.0f, 0.0f, 1.0f), decorationBrush.put()));
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fillBrush.put()));
+    const auto clippedRaster = [&](bool culled)
+    {
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        target->PushAxisAlignedClip(D2D1::RectF(0.0f, 100.0f, static_cast<float>(rasterWidth), 220.0f), D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+        subtle->Draw(target.get(),
+                     textBrush.get(),
+                     decorationBrush.get(),
+                     D2D1::Point2F(),
+                     culled ? 100.0f : 0.0f,
+                     culled ? 220.0f : subtle->Height(),
+                     fillBrush.get(),
+                     1.0f,
+                     nullptr,
+                     fillBrush.get());
+        target->PopAxisAlignedClip();
+        THROW_IF_FAILED(target->EndDraw());
+        std::vector<BYTE> pixels(stride * rasterHeight);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+        return pixels;
+    };
+    Check(clippedRaster(false) == clippedRaster(true), "indexed viewport paint preserves every clipped pixel and original overlap order");
     const auto raster = [&](MarkdownPresentationStyle style)
     {
         auto geometry = makeGeometry(520.0f, DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, style);

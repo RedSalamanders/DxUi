@@ -348,6 +348,39 @@ struct SemanticBox
         return {after != native->rtl ? bounds.right : bounds.left, after ? bounds.bottom - caretHeight : bounds.top, caretHeight};
     }
 };
+// An immutable interval tree retains original paint order even when semantic
+// bounds overlap. It is staged a node at a time and queried without allocation.
+struct PaintIndex
+{
+    struct Node
+    {
+        float top = std::numeric_limits<float>::infinity(), bottom = -std::numeric_limits<float>::infinity();
+    };
+    PaintIndex() : nodes(0u)
+    {
+    }
+    std::vector<Node> nodes;
+    std::size_t leaves{};
+    template <typename Visit> void ForEach(float top, float bottom, Visit&& visit) const
+    {
+        if (! leaves)
+            return;
+        const auto walk = [&](const auto& self, std::size_t index) -> void
+        {
+            const auto& node = nodes[index];
+            if (node.bottom <= top || node.top >= bottom)
+                return;
+            if (index >= leaves)
+            {
+                visit(index - leaves);
+                return;
+            }
+            self(self, index * 2u);
+            self(self, index * 2u + 1u);
+        };
+        walk(walk, 1u);
+    }
+};
 struct MarkdownDecorations
 {
     // Debug iterator proxies allocate: choose fallible size constructors.
@@ -482,6 +515,7 @@ struct PreparedSemanticGeometry::State
         D2D1_RECT_F clip{};
     };
     std::vector<CodeNumber> codeNumbers;
+    PaintIndex paintBoxes, paintElements, paintNumbers, paintHeadingRules, paintTableRows;
     // Source caret boxes are in physical source order, while their zero-width
     // display anchors may coincide with or follow generated marker text. Keep
     // the glyph search index in display order instead of assuming both orders
@@ -595,6 +629,7 @@ struct PreparedSemanticGeometry::Preparation
         SourceLines,
         InlineBounds,
         ParentBounds,
+        PaintIndex,
         Publish
     };
     explicit Preparation(std::shared_ptr<const SemanticDocument> document,
@@ -638,6 +673,8 @@ struct PreparedSemanticGeometry::Preparation
     // has fallible construction and bounded logarithmic per-item operations.
     std::multimap<std::uint64_t, std::size_t> reusable;
     std::size_t reuseIndex{};
+    std::size_t paintGroup{}, paintCursor{}, paintCount{};
+    unsigned paintPhase{};
     struct EmptyLayout
     {
         float width{};
@@ -2274,13 +2311,92 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
             {
                 if (! work.boundsIndex)
                 {
-                    work.phase = Preparation::Phase::Publish;
+                    work.phase = Preparation::Phase::PaintIndex;
                     continue;
                 }
                 const auto index  = --work.boundsIndex;
                 const auto parent = work.state->document->Elements()[index].parent;
                 if (parent != MarkdownNoNode && work.state->bounds[index])
                     Union(work.state->bounds[parent], *work.state->bounds[index]);
+            }
+            else if (work.phase == Preparation::Phase::PaintIndex)
+            {
+                auto& state = *work.state;
+                if (work.paintGroup == 5u)
+                {
+                    work.phase = Preparation::Phase::Publish;
+                    continue;
+                }
+                PaintIndex* index = work.paintGroup == 0u   ? &state.paintBoxes
+                                    : work.paintGroup == 1u ? &state.paintElements
+                                    : work.paintGroup == 2u ? &state.paintNumbers
+                                    : work.paintGroup == 3u ? &state.paintHeadingRules
+                                                            : &state.paintTableRows;
+                if (work.paintPhase == 0u)
+                {
+                    work.paintCount = work.paintGroup == 0u   ? state.boxes.size()
+                                      : work.paintGroup == 1u ? state.bounds.size()
+                                      : work.paintGroup == 2u ? state.codeNumbers.size()
+                                      : ! state.decorations   ? 0u
+                                      : work.paintGroup == 3u ? state.decorations->headingRules.size()
+                                                              : state.decorations->tableRows.size();
+                    if (! work.paintCount)
+                    {
+                        ++work.paintGroup;
+                        continue;
+                    }
+                    index->leaves = 1u;
+                    while (index->leaves < work.paintCount)
+                        index->leaves *= 2u;
+                    index->nodes.reserve(index->leaves * 2u);
+                    work.paintCursor = 0u;
+                    work.paintPhase  = 1u;
+                }
+                else if (work.paintPhase == 1u)
+                {
+                    index->nodes.emplace_back();
+                    if (index->nodes.size() == index->leaves * 2u)
+                    {
+                        work.paintCursor = 0u;
+                        work.paintPhase  = 2u;
+                    }
+                }
+                else if (work.paintPhase == 2u)
+                {
+                    if (work.paintCursor == work.paintCount)
+                    {
+                        work.paintCursor = index->leaves;
+                        work.paintPhase  = 3u;
+                        continue;
+                    }
+                    const auto i = work.paintCursor++;
+                    std::optional<D2D1_RECT_F> rect;
+                    if (work.paintGroup == 0u)
+                        rect = state.boxes[i]->frame;
+                    else if (work.paintGroup == 1u)
+                        rect = state.bounds[i];
+                    else if (work.paintGroup == 2u)
+                        rect = state.codeNumbers[i].clip;
+                    else if (work.paintGroup == 3u)
+                        rect = state.decorations->headingRules[i];
+                    else
+                        rect = state.decorations->tableRows[i];
+                    if (rect)
+                        index->nodes[index->leaves + i] = {rect->top, rect->bottom};
+                }
+                else
+                {
+                    if (work.paintCursor <= 1u)
+                    {
+                        ++work.paintGroup;
+                        work.paintPhase = 0u;
+                        continue;
+                    }
+                    const auto i    = --work.paintCursor;
+                    const auto& a   = index->nodes[i * 2u];
+                    const auto& b   = index->nodes[i * 2u + 1u];
+                    index->nodes[i] = {std::min(a.top, b.top), std::max(a.bottom, b.bottom)};
+                }
             }
             else
             {
@@ -2726,11 +2842,13 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
     if (state.native && ! fill)
         throw std::invalid_argument("Native diagram drawing needs an opaque fill brush");
     const auto elements = state.document->Elements();
-    for (std::size_t i = 0u; i < elements.size(); ++i)
+    state.paintElements.ForEach(top,
+                                bottom,
+                                [&](std::size_t i)
     {
         const auto& bounds = state.bounds[i];
         if (! bounds || bounds->bottom <= top || bounds->top >= bottom)
-            continue;
+            return;
         const auto rectangle  = D2D1::RectF(bounds->left + origin.x, bounds->top + origin.y, bounds->right + origin.x, bounds->bottom + origin.y);
         const auto nodeIndex  = elements[i].syntaxNode;
         const bool styledCode = elements[i].role == SemanticRole::Code && state.options.markdownPresentation == MarkdownPresentationStyle::Subtle &&
@@ -2766,9 +2884,9 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
             target->DrawLine(D2D1::Point2F(copy->left + 14.0f, copy->top + 15.0f), D2D1::Point2F(copy->left + 14.0f, copy->top + 6.0f), decoration);
         }
         if (elements[i].role == SemanticRole::Image && state.images && state.images->Placed(i))
-            continue;
+            return;
         if (elements[i].role == SemanticRole::Cell && state.options.markdownPresentation == MarkdownPresentationStyle::Subtle)
-            continue;
+            return;
         if (elements[i].role == SemanticRole::Cell || elements[i].role == SemanticRole::Code || elements[i].role == SemanticRole::Image)
             target->DrawRectangle(rectangle, decoration);
         else if (elements[i].role == SemanticRole::Quote)
@@ -2776,99 +2894,110 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
             const float x = state.options.readingDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT ? rectangle.right + 8.0f : rectangle.left - 8.0f;
             target->DrawLine(D2D1::Point2F(x, rectangle.top), D2D1::Point2F(x, rectangle.bottom), decoration, 2.0f);
         }
-    }
-    for (const auto& number : state.codeNumbers)
-        if (number.clip.bottom > top && number.clip.top < bottom)
-        {
-            const auto clip = D2D1::RectF(number.clip.left + origin.x, number.clip.top + origin.y, number.clip.right + origin.x, number.clip.bottom + origin.y);
-            target->PushAxisAlignedClip(clip, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
-            const auto restore = wil::scope_exit([&]() noexcept { target->PopAxisAlignedClip(); });
-            number.layout->Draw(target, decoration, D2D1::Point2F(number.origin.x + origin.x, number.origin.y + origin.y));
-        }
+    });
+    state.paintNumbers.ForEach(top,
+                               bottom,
+                               [&](std::size_t i)
+    {
+        const auto& number = state.codeNumbers[i];
+        const auto clip    = D2D1::RectF(number.clip.left + origin.x, number.clip.top + origin.y, number.clip.right + origin.x, number.clip.bottom + origin.y);
+        target->PushAxisAlignedClip(clip, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+        const auto restore = wil::scope_exit([&]() noexcept { target->PopAxisAlignedClip(); });
+        number.layout->Draw(target, decoration, D2D1::Point2F(number.origin.x + origin.x, number.origin.y + origin.y));
+    });
     if (const auto* decorations = state.decorations.get())
     {
-        for (const auto& rule : decorations->headingRules)
-            if (rule.bottom > top && rule.top < bottom)
-                target->DrawLine(
-                    D2D1::Point2F(rule.left + origin.x, rule.top + origin.y), D2D1::Point2F(rule.right + origin.x, rule.top + origin.y), decoration);
-        for (const auto& row : decorations->tableRows)
-            if (row.bottom > top && row.top < bottom)
-                target->DrawLine(D2D1::Point2F(row.left + origin.x, row.bottom - 1.0f + origin.y),
-                                 D2D1::Point2F(row.right + origin.x, row.bottom - 1.0f + origin.y),
-                                 decoration);
-    }
-    for (const auto& box : state.boxes)
-        if (box->frame.bottom > top && box->frame.top < bottom)
+        state.paintHeadingRules.ForEach(top,
+                                        bottom,
+                                        [&](std::size_t i)
         {
-            const bool emphasized = links && links->emphasis && links->emphasisBrush && links->emphasis->first < box->paragraph.display.last &&
-                                    box->paragraph.display.first < links->emphasis->last;
-            auto* boxText         = emphasized ? links->emphasisBrush : text;
-            if (elements[box->paragraph.element].role == SemanticRole::Rule)
-                target->DrawLine(D2D1::Point2F(origin.x + box->x, origin.y + box->y + box->height * .5f),
-                                 D2D1::Point2F(origin.x + box->x + box->width, origin.y + box->y + box->height * .5f),
-                                 decoration);
-            else
+            const auto& rule = decorations->headingRules[i];
+            target->DrawLine(D2D1::Point2F(rule.left + origin.x, rule.top + origin.y), D2D1::Point2F(rule.right + origin.x, rule.top + origin.y), decoration);
+        });
+        state.paintTableRows.ForEach(top,
+                                     bottom,
+                                     [&](std::size_t i)
+        {
+            const auto& row = decorations->tableRows[i];
+            target->DrawLine(D2D1::Point2F(row.left + origin.x, row.bottom - 1.0f + origin.y),
+                             D2D1::Point2F(row.right + origin.x, row.bottom - 1.0f + origin.y),
+                             decoration);
+        });
+    }
+    state.paintBoxes.ForEach(top,
+                             bottom,
+                             [&](std::size_t i)
+    {
+        const auto& box       = state.boxes[i];
+        const bool emphasized = links && links->emphasis && links->emphasisBrush && links->emphasis->first < box->paragraph.display.last &&
+                                box->paragraph.display.first < links->emphasis->last;
+        auto* boxText         = emphasized ? links->emphasisBrush : text;
+        if (elements[box->paragraph.element].role == SemanticRole::Rule)
+            target->DrawLine(D2D1::Point2F(origin.x + box->x, origin.y + box->y + box->height * .5f),
+                             D2D1::Point2F(origin.x + box->x + box->width, origin.y + box->y + box->height * .5f),
+                             decoration);
+        else
+        {
+            if (box->paragraph.table != MarkdownNoNode)
+                target->PushAxisAlignedClip(
+                    D2D1::RectF(origin.x + box->frame.left, origin.y + box->frame.top, origin.x + box->frame.right, origin.y + box->frame.bottom),
+                    D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+            const auto restoreClip = wil::scope_exit([&]() noexcept
             {
                 if (box->paragraph.table != MarkdownNoNode)
-                    target->PushAxisAlignedClip(
-                        D2D1::RectF(origin.x + box->frame.left, origin.y + box->frame.top, origin.x + box->frame.right, origin.y + box->frame.bottom),
-                        D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
-                const auto restoreClip = wil::scope_exit([&]() noexcept
+                    target->PopAxisAlignedClip();
+            });
+            if (quoteFill && state.codeChipsAvailable)
+                for (const auto& chip : box->codeChips)
                 {
-                    if (box->paragraph.table != MarkdownNoNode)
-                        target->PopAxisAlignedClip();
-                });
-                if (quoteFill && state.codeChipsAvailable)
-                    for (const auto& chip : box->codeChips)
+                    const auto rectangle = D2D1::RectF(
+                        origin.x + box->x + chip.left, origin.y + box->y + chip.top, origin.x + box->x + chip.right, origin.y + box->y + chip.bottom);
+                    if (rectangle.bottom > origin.y + top && rectangle.top < origin.y + bottom)
+                        target->FillRoundedRectangle(D2D1::RoundedRect(rectangle, 2.0f, 2.0f), quoteFill);
+                }
+            if (links && links->markedTextFill && state.codeChipsAvailable)
+                for (const auto& chip : box->markChips)
+                {
+                    const auto rectangle = D2D1::RectF(
+                        origin.x + box->x + chip.left, origin.y + box->y + chip.top, origin.x + box->x + chip.right, origin.y + box->y + chip.bottom);
+                    if (rectangle.bottom <= origin.y + top || rectangle.top >= origin.y + bottom)
+                        continue;
+                    if (links->outlineMarkedText)
+                        target->DrawRectangle(rectangle, text);
+                    else
+                        target->FillRectangle(rectangle, links->markedTextFill);
+                }
+            auto localLinks = links ? *links : LinkDrawing{};
+            localLinks.displayOrigin += box->paragraph.display.first;
+            box->layout.Draw(target, boxText, D2D1::Point2F(origin.x + box->x, origin.y + box->y), links ? &localLinks : nullptr);
+            if (box->native &&
+                ! box->native->paint->Draw(target,
+                                           boxText,
+                                           decoration,
+                                           fill,
+                                           D2D1::Point2F(origin.x + box->x + box->native->bounds.left, origin.y + box->y + box->native->bounds.top)))
+                throw std::logic_error("Native diagram target/resources are incompatible");
+            if (box->images)
+                for (const auto& image : box->images->placements)
+                    if (image.owner == box.get() && image.bounds.bottom + box->y > top && image.bounds.top + box->y < bottom)
                     {
-                        const auto rectangle = D2D1::RectF(
-                            origin.x + box->x + chip.left, origin.y + box->y + chip.top, origin.x + box->x + chip.right, origin.y + box->y + chip.bottom);
-                        if (rectangle.bottom > origin.y + top && rectangle.top < origin.y + bottom)
-                            target->FillRoundedRectangle(D2D1::RoundedRect(rectangle, 2.0f, 2.0f), quoteFill);
-                    }
-                if (links && links->markedTextFill && state.codeChipsAvailable)
-                    for (const auto& chip : box->markChips)
-                    {
-                        const auto rectangle = D2D1::RectF(
-                            origin.x + box->x + chip.left, origin.y + box->y + chip.top, origin.x + box->x + chip.right, origin.y + box->y + chip.bottom);
-                        if (rectangle.bottom <= origin.y + top || rectangle.top >= origin.y + bottom)
-                            continue;
-                        if (links->outlineMarkedText)
-                            target->DrawRectangle(rectangle, text);
-                        else
-                            target->FillRectangle(rectangle, links->markedTextFill);
-                    }
-                auto localLinks = links ? *links : LinkDrawing{};
-                localLinks.displayOrigin += box->paragraph.display.first;
-                box->layout.Draw(target, boxText, D2D1::Point2F(origin.x + box->x, origin.y + box->y), links ? &localLinks : nullptr);
-                if (box->native &&
-                    ! box->native->paint->Draw(target,
-                                               boxText,
-                                               decoration,
-                                               fill,
-                                               D2D1::Point2F(origin.x + box->x + box->native->bounds.left, origin.y + box->y + box->native->bounds.top)))
-                    throw std::logic_error("Native diagram target/resources are incompatible");
-                if (box->images)
-                    for (const auto& image : box->images->placements)
-                        if (image.owner == box.get() && image.bounds.bottom + box->y > top && image.bounds.top + box->y < bottom)
+                        if (image.math)
                         {
-                            if (image.math)
-                            {
-                                image.math->Draw(target,
-                                                 boxText,
-                                                 D2D1::Point2F(origin.x + box->x + image.bounds.left, origin.y + box->y + image.bounds.top),
-                                                 (image.bounds.right - image.bounds.left) / image.Size().width);
-                                continue;
-                            }
-                            target->DrawBitmap(image.bitmap.get(),
-                                               D2D1::RectF(origin.x + box->x + image.bounds.left,
-                                                           origin.y + box->y + image.bounds.top,
-                                                           origin.x + box->x + image.bounds.right,
-                                                           origin.y + box->y + image.bounds.bottom),
-                                               imageOpacity,
-                                               D2D1_BITMAP_INTERPOLATION_MODE_LINEAR);
+                            image.math->Draw(target,
+                                             boxText,
+                                             D2D1::Point2F(origin.x + box->x + image.bounds.left, origin.y + box->y + image.bounds.top),
+                                             (image.bounds.right - image.bounds.left) / image.Size().width);
+                            continue;
                         }
-            }
+                        target->DrawBitmap(image.bitmap.get(),
+                                           D2D1::RectF(origin.x + box->x + image.bounds.left,
+                                                       origin.y + box->y + image.bounds.top,
+                                                       origin.x + box->x + image.bounds.right,
+                                                       origin.y + box->y + image.bounds.bottom),
+                                           imageOpacity,
+                                           D2D1_BITMAP_INTERPOLATION_MODE_LINEAR);
+                    }
         }
+    });
 }
 } // namespace DxUi::RichText::Detail

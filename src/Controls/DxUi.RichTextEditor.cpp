@@ -19,6 +19,7 @@
 #include <DxUi/RichTextLayout.h>
 #include <UIAutomation.h>
 #include <cmath>
+#include <limits>
 #include <set>
 #include <stdexcept>
 #include <wil/result.h>
@@ -431,6 +432,7 @@ struct RichTextEditor::State
     std::vector<HighlightRectangle> highlightRectangles{0u};
     std::vector<float> highlightBottoms{0u};
     std::vector<DecorationRectangle> decorationRectangles{0u};
+    std::vector<float> decorationBottoms{0u}, decorationTops{0u};
     RichTextDecorationStatus decorationStatus = RichTextDecorationStatus::None;
     size_t decorationRectangleLimit           = 4096u;
     std::vector<D2D1_RECT_F> compositionRectangles{0u}, conversionRectangles{0u};
@@ -2946,6 +2948,22 @@ void RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
         }
         state.highlightRectangles.swap(rectangles);
         state.highlightBottoms.swap(bottoms);
+        std::vector<float> decorationBottoms(0u), decorationTops(decorations.size(), 0.0f);
+        decorationBottoms.reserve(decorations.size());
+        float maximumBottom = -std::numeric_limits<float>::infinity();
+        for (const auto& entry : decorations)
+        {
+            maximumBottom = std::max(maximumBottom, entry.rectangle.bottom);
+            decorationBottoms.push_back(maximumBottom);
+        }
+        float minimumTop = std::numeric_limits<float>::infinity();
+        for (size_t i = decorations.size(); i > 0u; --i)
+        {
+            minimumTop             = std::min(minimumTop, decorations[i - 1u].rectangle.top);
+            decorationTops[i - 1u] = minimumTop;
+        }
+        state.decorationBottoms.swap(decorationBottoms);
+        state.decorationTops.swap(decorationTops);
         state.decorationRectangles.swap(decorations);
         state.decorationStatus       = state.decorations.empty()    ? RichTextDecorationStatus::None
                                        : decorationCapacityExceeded ? RichTextDecorationStatus::CapacityExceeded
@@ -3961,9 +3979,17 @@ void RichTextEditor::Paint(ControlHost& host) const
         const std::span<const State::DecorationRectangle> decorations = state.overlayHighlightsDirty
                                                                             ? std::span<const State::DecorationRectangle>{}
                                                                             : std::span<const State::DecorationRectangle>(state.decorationRectangles);
-        for (const auto& decoration : decorations)
+        const float visibleBottom                                     = state.scrollDip + viewport.bottom - viewport.top;
+        const auto firstDecoration =
+            state.overlayHighlightsDirty
+                ? 0u
+                : static_cast<size_t>(std::upper_bound(state.decorationBottoms.begin(), state.decorationBottoms.end(), state.scrollDip) -
+                                      state.decorationBottoms.begin());
+        for (size_t index = firstDecoration; index < decorations.size() && state.decorationTops[index] < visibleBottom; ++index)
         {
-            if (decoration.kind != RichTextDecorationKind::Background)
+            const auto& decoration = decorations[index];
+            if (decoration.rectangle.bottom <= state.scrollDip || decoration.rectangle.top >= visibleBottom ||
+                decoration.kind != RichTextDecorationKind::Background)
                 continue;
             auto color = DecorationColor(host.GetTheme(), decoration.role);
             if (! host.GetTheme().highContrast)
@@ -4072,8 +4098,9 @@ void RichTextEditor::Paint(ControlHost& host) const
                           1.0f,
                           decorated ? &links : nullptr,
                           quoteFill);
-        for (const auto& decoration : decorations)
+        for (size_t index = firstDecoration; index < decorations.size() && state.decorationTops[index] < visibleBottom; ++index)
         {
+            const auto& decoration = decorations[index];
             if (decoration.kind == RichTextDecorationKind::Background)
                 continue;
             const auto& rectangle = decoration.rectangle;

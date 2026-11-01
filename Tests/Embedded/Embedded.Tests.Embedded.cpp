@@ -1481,6 +1481,7 @@ __declspec(noinline) static int RunFunctionalTests()
         MarkdownSourceCorrelationTests::LexicalEdits(Check);
         MarkdownSourceCorrelationTests::ClosedRootDifferential(Check);
         MarkdownSourceCorrelationTests::ClosedRootCancellation(Check);
+        RichSemanticTests::Run(RichSemanticGeometryTests::MarkdownSubtlePresentation);
         RichSemanticTests::Run(RichSemanticGeometryTests::PaddedCodePresentation);
         RichSemanticTests::Run(RichSemanticEditorTests::SourceWindowUnicodeParity);
         RichSemanticTests::Run(RichSemanticEditorTests::RichSourceWindowParity);
