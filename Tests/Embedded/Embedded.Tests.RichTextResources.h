@@ -27,7 +27,7 @@ static void TestRichLabelWakeupAndRetirement(GraphicsFixture& gpu)
         size_t requests{};
     } state{&view};
     EmbeddedCallbacks callbacks{};
-    callbacks.context = &state;
+    callbacks.context            = &state;
     callbacks.requestPreparation = [](void* context) noexcept
     {
         auto& current = *static_cast<CallbackState*>(context);
@@ -40,7 +40,7 @@ static void TestRichLabelWakeupAndRetirement(GraphicsFixture& gpu)
         }
     };
     Hr(view.Attach(graphics, callbacks), "attach label wakeup host");
-    auto root = std::make_unique<RichTextEditor>(L"text");
+    auto root    = std::make_unique<RichTextEditor>(L"text");
     auto* editor = root.get();
     view.Controls().SetRoot(std::move(root));
     Hr(PrepareRichEmbeddedContent(view, 320u, 120u), "settle label wakeup host");
@@ -49,7 +49,7 @@ static void TestRichLabelWakeupAndRetirement(GraphicsFixture& gpu)
     const auto before = state.requests;
     {
         const auto previous = failAllocationAfter;
-        const auto restore = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
+        const auto restore  = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
         failAllocationAfter = 0u;
         editor->SetAccessibilityLabels(labels);
     }
@@ -67,7 +67,7 @@ static void TestRichPreparedWordFailureAtomicity(GraphicsFixture& gpu)
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create graphics for caret-word fault tests");
     EmbeddedHost view;
     Hr(view.Attach(graphics), "attach caret-word fault host");
-    auto root = std::make_unique<RichTextEditor>(L"**word**");
+    auto root    = std::make_unique<RichTextEditor>(L"**word**");
     auto* editor = root.get();
     editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
     editor->SetMarkdownRenderingEnabled(true);
@@ -77,9 +77,9 @@ static void TestRichPreparedWordFailureAtomicity(GraphicsFixture& gpu)
         editor->SetViewMode(mode);
         editor->SetSelection({3u, 3u});
         Hr(PrepareRichEmbeddedContent(view, 320u, 120u), "prepare caret-word fault fixture");
-        const auto source = editor->Snapshot();
+        const auto source    = editor->Snapshot();
         const auto selection = editor->GetSelection();
-        const auto revision = editor->Revision();
+        const auto revision  = editor->Revision();
         const auto undo = editor->CanUndo(), redo = editor->CanRedo();
         size_t requests{};
         {
@@ -88,14 +88,14 @@ static void TestRichPreparedWordFailureAtomicity(GraphicsFixture& gpu)
             const auto restore = wil::scope_exit([=] noexcept
             {
                 countAllocations = oldCounting;
-                allocations = oldCalls;
-                allocationBytes = oldBytes;
+                allocations      = oldCalls;
+                allocationBytes  = oldBytes;
             });
             allocations = allocationBytes = 0u;
-            countAllocations = true;
-            const auto result = editor->GetPreparedCaretWordSourceRanges(view.Controls());
-            countAllocations = false;
-            requests = allocations;
+            countAllocations              = true;
+            const auto result             = editor->GetPreparedCaretWordSourceRanges(view.Controls());
+            countAllocations              = false;
+            requests                      = allocations;
             Check(result.has_value(), "prepared caret-word query succeeds when allocation is available");
         }
         Check(requests > 0u && requests < 64u, "caret-word query has a bounded set of allocation points");
@@ -104,9 +104,9 @@ static void TestRichPreparedWordFailureAtomicity(GraphicsFixture& gpu)
             std::optional<std::vector<RichText::MarkdownRange>> failed;
             {
                 const auto previous = failAllocationAfter;
-                const auto restore = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
+                const auto restore  = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
                 failAllocationAfter = failure;
-                failed = editor->GetPreparedCaretWordSourceRanges(view.Controls());
+                failed              = editor->GetPreparedCaretWordSourceRanges(view.Controls());
             }
             Check(! failed && editor->Snapshot().IsSameRevision(source) && editor->GetSelection() == selection && editor->Revision() == revision &&
                       editor->CanUndo() == undo && editor->CanRedo() == redo,
@@ -1119,16 +1119,18 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
     // Count the actual allocation schedule, including native parsing, captions,
     // normalized-to-raw provenance, diagnostic publication and footer ownership.
     const std::array<std::wstring_view, 12u> sources = {SemanticDiagramTests::scenarios[5u].source,
-                                                       L"main[^n]\r\n\r\n[^n]: note\r\n    > ```mermaid\r\n    > graph LR;A{wide}-->|yes|B\r\n    > ```\r\n",
-                                                       SemanticDiagramTests::scenarios[11u].source,
-                                                       SemanticDiagramTests::scenarios[8u].source,
-                                                       L"```mermaid\nsequenceDiagram\nparticipant A\nparticipant B\nA->>B: request\nB-->>A: reply\n```\n",
-                                                       L"```mermaid\npie\n\"Dogs\": 3\n\"Cats\": 2\n```\n",
-                                                       L"```mermaid\nerDiagram\nCUSTOMER ||--o{ ORDER : places\nORDER ||--|{ ITEM : contains\n```\n",
-                                                       L"```mermaid\ngantt\nCompile : 2024-02-27, 3d\nTest : 2024-03-01, 2d\n```\n",
-                                                       L"```mermaid\nmindmap\n root\n  First\n   Leaf\n  Second\n```\n",
-                                                       L"```math\n\\frac{1}{2}\n```\n", L"$$\n\\frac{1}{2}\n$$\n", L"```latex\n\\frac{1}{2}\n"};
-    const auto observe                              = [](auto&& operation)
+                                                        L"main[^n]\r\n\r\n[^n]: note\r\n    > ```mermaid\r\n    > graph LR;A{wide}-->|yes|B\r\n    > ```\r\n",
+                                                        SemanticDiagramTests::scenarios[11u].source,
+                                                        SemanticDiagramTests::scenarios[8u].source,
+                                                        L"```mermaid\nsequenceDiagram\nparticipant A\nparticipant B\nA->>B: request\nB-->>A: reply\n```\n",
+                                                        L"```mermaid\npie\n\"Dogs\": 3\n\"Cats\": 2\n```\n",
+                                                        L"```mermaid\nerDiagram\nCUSTOMER ||--o{ ORDER : places\nORDER ||--|{ ITEM : contains\n```\n",
+                                                        L"```mermaid\ngantt\nCompile : 2024-02-27, 3d\nTest : 2024-03-01, 2d\n```\n",
+                                                        L"```mermaid\nmindmap\n root\n  First\n   Leaf\n  Second\n```\n",
+                                                        L"```math\n\\frac{1}{2}\n```\n",
+                                                        L"$$\n\\frac{1}{2}\n$$\n",
+                                                        L"```latex\n\\frac{1}{2}\n"};
+    const auto observe                               = [](auto&& operation)
     {
         const auto oldCounting = countAllocations;
         const auto oldCalls = allocations, oldBytes = allocationBytes;
@@ -1391,13 +1393,18 @@ static void TestPreparedFlowchartAllocationFailures(bool trace = false)
             PreparedFlowchart prepared;
             const auto oldCounting = countAllocations;
             const auto oldCalls = allocations, oldBytes = allocationBytes;
-            const auto restore = wil::scope_exit([=] noexcept { countAllocations = oldCounting; allocations = oldCalls; allocationBytes = oldBytes; });
+            const auto restore = wil::scope_exit([=] noexcept
+            {
+                countAllocations = oldCounting;
+                allocations      = oldCalls;
+                allocationBytes  = oldBytes;
+            });
             allocations = allocationBytes = 0u;
-            countAllocations = true;
+            countAllocations              = true;
             prepared.Begin(write.get(), drawing.get(), graph, options, {2u, 2u});
             Complete(prepared, Check);
             countAllocations = false;
-            requests = allocations;
+            requests         = allocations;
             Check(prepared.Ready(), "native family preparation succeeds before allocation sweep");
         }
         for (std::size_t failure = 0u; failure < requests; ++failure)
@@ -1405,15 +1412,24 @@ static void TestPreparedFlowchartAllocationFailures(bool trace = false)
             PreparedFlowchart prepared;
             bool rejected{};
             failAllocationAfter = failure;
-            try { prepared.Begin(write.get(), drawing.get(), graph, options, {2u, 2u}); Complete(prepared, Check); }
-            catch (const std::bad_alloc&) { rejected = true; }
+            try
+            {
+                prepared.Begin(write.get(), drawing.get(), graph, options, {2u, 2u});
+                Complete(prepared, Check);
+            }
+            catch (const std::bad_alloc&)
+            {
+                rejected = true;
+            }
             failAllocationAfter = std::numeric_limits<size_t>::max();
             Check(rejected && ! prepared.Ready(), "native family preparation propagates each observed allocation failure");
             prepared.Begin(write.get(), drawing.get(), graph, options, {2u, 2u});
             Complete(prepared, Check);
             Check(prepared.Ready(), "native family preparation succeeds on explicit retry");
             failAllocationAfter = 0u;
-            prepared.Cancel(); prepared.Invalidate(); prepared.Clear();
+            prepared.Cancel();
+            prepared.Invalidate();
+            prepared.Clear();
             failAllocationAfter = std::numeric_limits<size_t>::max();
         }
         total += requests;
@@ -1521,21 +1537,26 @@ static void TestNativeFlowchartLayoutAllocationFailureAtomicity(bool trace = fal
         const auto graph = Graph(source);
         const std::vector<FlowchartSize> nodes(graph->nodes.size(), {16.0, 12.0}), edges(graph->edges.size(), {16.0, 12.0});
         const std::vector<FlowchartSize> endpoints(graph->family == NativeDiagramFamily::EntityRelationship ? graph->edges.size() : 0u, {16.0, 12.0});
-        const std::vector<FlowchartSize> groups(graph->family == NativeDiagramFamily::Pie || graph->family == NativeDiagramFamily::Gantt ? 1u : graph->groups.size(),
-                                                {16.0, 12.0});
+        const std::vector<FlowchartSize> groups(
+            graph->family == NativeDiagramFamily::Pie || graph->family == NativeDiagramFamily::Gantt ? 1u : graph->groups.size(), {16.0, 12.0});
         std::size_t requests{};
         {
             NativeFlowchartLayout layout;
             const auto oldCounting = countAllocations;
             const auto oldCalls = allocations, oldBytes = allocationBytes;
-            const auto restore = wil::scope_exit([=] noexcept { countAllocations = oldCounting; allocations = oldCalls; allocationBytes = oldBytes; });
+            const auto restore = wil::scope_exit([=] noexcept
+            {
+                countAllocations = oldCounting;
+                allocations      = oldCalls;
+                allocationBytes  = oldBytes;
+            });
             allocations = allocationBytes = 0u;
-            countAllocations = true;
+            countAllocations              = true;
             layout.Begin(graph, nodes, edges, endpoints, endpoints, groups);
-            countAllocations = false;
-            requests = allocations;
+            countAllocations    = false;
+            requests            = allocations;
             failAllocationAfter = 0u;
-            const auto result = Complete(layout, Check, 7u);
+            const auto result   = Complete(layout, Check, 7u);
             failAllocationAfter = std::numeric_limits<size_t>::max();
             Check(result->issue == FlowchartLayoutIssue::None, "family layout advances without allocating after admission");
         }
@@ -1544,8 +1565,14 @@ static void TestNativeFlowchartLayoutAllocationFailureAtomicity(bool trace = fal
             NativeFlowchartLayout layout;
             bool rejected{};
             failAllocationAfter = failure;
-            try { layout.Begin(graph, nodes, edges, endpoints, endpoints, groups); }
-            catch (const std::bad_alloc&) { rejected = true; }
+            try
+            {
+                layout.Begin(graph, nodes, edges, endpoints, endpoints, groups);
+            }
+            catch (const std::bad_alloc&)
+            {
+                rejected = true;
+            }
             failAllocationAfter = std::numeric_limits<size_t>::max();
             Check(rejected && ! layout.HasPendingPreparation(), "family layout admission propagates each allocation failure without partial staging");
             layout.Begin(graph, nodes, edges, endpoints, endpoints, groups);
@@ -1558,27 +1585,29 @@ static void TestNativeFlowchartLayoutAllocationFailureAtomicity(bool trace = fal
 static void TestNativeFlowchartAllocationFailureAtomicity(bool trace = false)
 {
     using namespace NativeFlowchartTests;
-    const std::wstring sources[] = {L"graph LR;A[\"Unicode \u03b2 \U0001f600\"]-->|yes|B((Second));B-->A;A-->A",
-                                    L"graph TD;A[staged];B[another];A-->B;style A fill:red",
-                                    L"graph TD;A[staged];B[another];A-->|\"incomplete label",
-                                    L"graph TD;A[\"" + std::wstring(NativeFlowchartParser::MaximumLabelUnits + 1u, L'x') + L"\"]",
-                                    L"flowchart LR;A & B-->|group|C & D-->E",
-                                    L"flowchart LR;A-.->B;B==>C;C~~~D",
-                                    L"stateDiagram-v2;state \"Ready\" as S;S : Running;S-->T : go",
-                                    L"stateDiagram-v2;state C <<choice>>;A-->C;C-->B : yes",
-                                    L"stateDiagram-v2;state F <<fork>>;state J <<join>>;A-->F;F-->J;J-->B",
-                                    L"classDiagram;Base <|-- Derived;Derived : member",
-                                    L"classDiagram\nclass Animal {\n+name: String\n+run()\n}\nAnimal -- Pond\n",
-                                    L"sequenceDiagram\nparticipant Alice as Client\nparticipant Bob\nBob->>Alice: request\nAlice-->>Bob: response\nAlice-)Alice: retry\n",
-                                    L"pie showData\ntitle Pets\n\"Dogs\": 3\n\"Cats\": 2\n\"Birds\": 1\n",
-                                    L"erDiagram\nCUSTOMER ||--o{ ORDER : places\nCUSTOMER {\n string name\n int age\n}\nORDER ||--|{ ITEM : contains\n",
-                                    L"gantt\ntitle Release\nsection Build\nCompile : 2024-02-27, 3d\nTest : 2024-03-01, 2d\n",
-                                    L"mindmap\n  root((Central))\n    First\n      Leaf\n    Second\n",
-                                    L"flowchart TD\nA:::heavy --> B\nclassDef heavy stroke-width:3px\n",
-                                    L"flowchart TD\nA[\"<b>Bold</b> <i>It</i>\"]-->|<u>go</u>|B\n",
-                                    L"classDiagram\nnote \"a long standalone note\"\nclass A {\n+first: int\n+second: string\n}\n",
-                                    L"mindmap\n root\n  child\n ::icon(bad)\n", L"pie\n\"one\": 1\n\"one\": 2\n",
-                                    L"sequenceDiagram\nAlice->>Bob: hello\nAlice->>Missing: bad\n"};
+    const std::wstring sources[] = {
+        L"graph LR;A[\"Unicode \u03b2 \U0001f600\"]-->|yes|B((Second));B-->A;A-->A",
+        L"graph TD;A[staged];B[another];A-->B;style A fill:red",
+        L"graph TD;A[staged];B[another];A-->|\"incomplete label",
+        L"graph TD;A[\"" + std::wstring(NativeFlowchartParser::MaximumLabelUnits + 1u, L'x') + L"\"]",
+        L"flowchart LR;A & B-->|group|C & D-->E",
+        L"flowchart LR;A-.->B;B==>C;C~~~D",
+        L"stateDiagram-v2;state \"Ready\" as S;S : Running;S-->T : go",
+        L"stateDiagram-v2;state C <<choice>>;A-->C;C-->B : yes",
+        L"stateDiagram-v2;state F <<fork>>;state J <<join>>;A-->F;F-->J;J-->B",
+        L"classDiagram;Base <|-- Derived;Derived : member",
+        L"classDiagram\nclass Animal {\n+name: String\n+run()\n}\nAnimal -- Pond\n",
+        L"sequenceDiagram\nparticipant Alice as Client\nparticipant Bob\nBob->>Alice: request\nAlice-->>Bob: response\nAlice-)Alice: retry\n",
+        L"pie showData\ntitle Pets\n\"Dogs\": 3\n\"Cats\": 2\n\"Birds\": 1\n",
+        L"erDiagram\nCUSTOMER ||--o{ ORDER : places\nCUSTOMER {\n string name\n int age\n}\nORDER ||--|{ ITEM : contains\n",
+        L"gantt\ntitle Release\nsection Build\nCompile : 2024-02-27, 3d\nTest : 2024-03-01, 2d\n",
+        L"mindmap\n  root((Central))\n    First\n      Leaf\n    Second\n",
+        L"flowchart TD\nA:::heavy --> B\nclassDef heavy stroke-width:3px\n",
+        L"flowchart TD\nA[\"<b>Bold</b> <i>It</i>\"]-->|<u>go</u>|B\n",
+        L"classDiagram\nnote \"a long standalone note\"\nclass A {\n+first: int\n+second: string\n}\n",
+        L"mindmap\n root\n  child\n ::icon(bad)\n",
+        L"pie\n\"one\": 1\n\"one\": 2\n",
+        L"sequenceDiagram\nAlice->>Bob: hello\nAlice->>Missing: bad\n"};
     std::size_t total{};
     for (const auto& source : sources)
     {

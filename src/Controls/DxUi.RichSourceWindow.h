@@ -19,7 +19,7 @@ inline bool StableSourceBreak(wchar_t previous, wchar_t current) noexcept
 // break or document edge; unusually long words/clusters may span the source.
 template <typename UnitAt> TextElementRange PreparedDisplayWordRange(size_t length, size_t caret, UnitAt&& unitAt)
 {
-    caret = (std::min)(caret, length);
+    caret                 = (std::min)(caret, length);
     const auto stableLeft = [&](size_t at)
     {
         while (at && ! StableSourceBreak(unitAt(at - 1u), unitAt(at)))
@@ -33,7 +33,7 @@ template <typename UnitAt> TextElementRange PreparedDisplayWordRange(size_t leng
         return at;
     };
     auto first = stableLeft(caret > 128u ? caret - 128u : 0u);
-    auto last = stableRight(caret + (std::min)(size_t{128u}, length - caret));
+    auto last  = stableRight(caret + (std::min)(size_t{128u}, length - caret));
     for (;;)
     {
         std::wstring text(last - first, L'\0');
@@ -45,7 +45,7 @@ template <typename UnitAt> TextElementRange PreparedDisplayWordRange(size_t leng
             range = {GetEnclosingAccessibilityTextUnitSpan(text, word.start, TextUnit_Character).start,
                      GetEnclosingAccessibilityTextUnitSpan(text, word.end - 1u, TextUnit_Character).end};
         const bool rootDriveAmbiguous = first && range.first == 2u && text.size() >= 2u && text[1u] == L':';
-        const auto span = last - first;
+        const auto span               = last - first;
         if (first && (range.first == 0u || rootDriveAmbiguous))
         {
             first = stableLeft(first > span ? first - span : 0u);

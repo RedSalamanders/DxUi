@@ -1424,6 +1424,10 @@ name/help templates contain `{0}` (reference ordinal) and `{1}` (footnote ordina
 exactly once each, in any order; no other braces or format directives are accepted
 in numbered templates. Other entries are literal text. Invalid configuration
 throws before it can be installed; construction and preparation remain fallible.
+Each native diagram family exposes its own header and help, including pie slice
+and Gantt task vocabulary, identifying/non-identifying ER relationships and empty
+family diagnostics. Display and fenced math closing-delimiter diagnostics use
+the same dictionary. Authored titles, labels, dates, values and TeX remain exact.
 
 Changing dictionary identity retires pending/published semantics and stale UIA
 children before rebuilding. Held documents retain their own immutable dictionary.

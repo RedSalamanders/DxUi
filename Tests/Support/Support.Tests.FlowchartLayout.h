@@ -37,7 +37,8 @@ inline std::shared_ptr<const FlowchartLayoutPlan> Place(std::shared_ptr<const Fl
     std::vector<FlowchartSize> edges(graph->edges.size(), FlowchartSize{});
     const bool cardinality = std::ranges::any_of(graph->edges, [](const auto& edge) { return ! edge.fromCardinality.empty() || ! edge.toCardinality.empty(); });
     const std::vector<FlowchartSize> endpointLabels(cardinality ? graph->edges.size() : 0u, {16.0, 12.0});
-    const std::vector<FlowchartSize> groups(graph->family == NativeDiagramFamily::Pie || graph->family == NativeDiagramFamily::Gantt ? 1u : graph->groups.size(), {16.0, 12.0});
+    const std::vector<FlowchartSize> groups(
+        graph->family == NativeDiagramFamily::Pie || graph->family == NativeDiagramFamily::Gantt ? 1u : graph->groups.size(), {16.0, 12.0});
     for (std::size_t index = 0u; index < edges.size(); ++index)
         if (! graph->edges[index].label.empty())
             edges[index] = {20.0, 12.0};
@@ -85,10 +86,10 @@ template <typename Check> inline void Geometry(Check&& check)
         check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == invalid && rejected->nodes.empty() && rejected->edges.empty(),
               "unsupported sequence constructs retain exact source without partial events");
     }
-    const auto pie = Graph(L"pie showData title Inventory\n\"One\": 25\n\"Three\": 75\n\"Zero\": 0\n");
+    const auto pie     = Graph(L"pie showData title Inventory\n\"One\": 25\n\"Three\": 75\n\"Zero\": 0\n");
     const auto piePlan = Place(pie, check);
-    check(pie->outcome == FlowchartOutcome::Prepared && pie->family == NativeDiagramFamily::Pie && pie->pieShowData &&
-              pie->pieTitle == L"Inventory" && pie->nodes.size() == 3u && pie->nodes[0u].pieValue == 25.0 && pie->nodes[1u].pieValue == 75.0,
+    check(pie->outcome == FlowchartOutcome::Prepared && pie->family == NativeDiagramFamily::Pie && pie->pieShowData && pie->pieTitle == L"Inventory" &&
+              pie->nodes.size() == 3u && pie->nodes[0u].pieValue == 25.0 && pie->nodes[1u].pieValue == 75.0,
           "pie model retains title, numeric values, showData and source order");
     check(piePlan->issue == FlowchartLayoutIssue::None && piePlan->nodes.size() == 3u && Near(piePlan->nodes[0u].pieStart, 0.0) &&
               Near(piePlan->nodes[0u].pieEnd, 1.5707963267948966) && Near(piePlan->nodes[1u].pieEnd, 6.283185307179586) &&
@@ -100,22 +101,22 @@ template <typename Check> inline void Geometry(Check&& check)
         check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == invalid && rejected->nodes.empty(),
               "invalid pie values retain exact source without partial slices");
     }
-    const auto er = Graph(L"erDiagram\nCUSTOMER ||--o{ ORDER : places\nCUSTOMER {\nstring name\nint id PK\n}\n");
+    const auto er         = Graph(L"erDiagram\nCUSTOMER ||--o{ ORDER : places\nCUSTOMER {\nstring name\nint id PK\n}\n");
     const auto loneEntity = Graph(L"erDiagram\nCUSTOMER\n");
     check(loneEntity->outcome == FlowchartOutcome::Prepared && loneEntity->nodes.size() == 1u && loneEntity->edges.empty(),
           "standalone ER entities retain their source-owned identifier");
     const auto erPlan = Place(er, check);
     check(er->outcome == FlowchartOutcome::Prepared && er->family == NativeDiagramFamily::EntityRelationship && er->nodes.size() == 2u &&
               er->nodes[0u].label == L"CUSTOMER\nstring name\nint id PK" && er->nodes[0u].compartmentCount == 1u && er->edges.size() == 1u &&
-              er->edges[0u].erFrom == ErMultiplicity::One && er->edges[0u].erTo == ErMultiplicity::ZeroOrMany &&
-              er->edges[0u].fromCardinality == L"1" && er->edges[0u].toCardinality == L"0..*",
+              er->edges[0u].erFrom == ErMultiplicity::One && er->edges[0u].erTo == ErMultiplicity::ZeroOrMany && er->edges[0u].fromCardinality == L"1" &&
+              er->edges[0u].toCardinality == L"0..*",
           "ER model retains typed entities, attributes and both endpoint multiplicities");
     check(erPlan->issue == FlowchartLayoutIssue::None && erPlan->edges.size() == 1u && erPlan->edges[0u].erFrom == ErMultiplicity::One &&
-              erPlan->edges[0u].erTo == ErMultiplicity::ZeroOrMany, "ER endpoint multiplicities reach native geometry");
-    for (const auto& [source, left, right] :
-         {std::tuple{L"erDiagram\nA o|..|{ B : owns\n", ErMultiplicity::ZeroOrOne, ErMultiplicity::OneOrMany},
-          std::tuple{L"erDiagram\nA }o..|o B : owns\n", ErMultiplicity::ZeroOrMany, ErMultiplicity::ZeroOrOne},
-          std::tuple{L"erDiagram\nA }|..o{ B : owns\n", ErMultiplicity::OneOrMany, ErMultiplicity::ZeroOrMany}})
+              erPlan->edges[0u].erTo == ErMultiplicity::ZeroOrMany,
+          "ER endpoint multiplicities reach native geometry");
+    for (const auto& [source, left, right] : {std::tuple{L"erDiagram\nA o|..|{ B : owns\n", ErMultiplicity::ZeroOrOne, ErMultiplicity::OneOrMany},
+                                              std::tuple{L"erDiagram\nA }o..|o B : owns\n", ErMultiplicity::ZeroOrMany, ErMultiplicity::ZeroOrOne},
+                                              std::tuple{L"erDiagram\nA }|..o{ B : owns\n", ErMultiplicity::OneOrMany, ErMultiplicity::ZeroOrMany}})
     {
         const auto relationship = Graph(source);
         check(relationship->outcome == FlowchartOutcome::Prepared && relationship->edges.size() == 1u && relationship->edges[0u].erFrom == left &&
@@ -128,25 +129,25 @@ template <typename Check> inline void Geometry(Check&& check)
         check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == invalid && rejected->nodes.empty(),
               "unsupported ER syntax retains exact source without partial entities");
     }
-    const auto gantt = Graph(L"gantt\ndateFormat YYYY-MM-DD\ntitle Release\nsection Build\nCompile : 2024-02-27, 3d\nShip : 2024-03-01, 2024-03-03\n");
+    const auto gantt     = Graph(L"gantt\ndateFormat YYYY-MM-DD\ntitle Release\nsection Build\nCompile : 2024-02-27, 3d\nShip : 2024-03-01, 2024-03-03\n");
     const auto ganttPlan = Place(gantt, check);
     check(gantt->outcome == FlowchartOutcome::Prepared && gantt->family == NativeDiagramFamily::Gantt && gantt->ganttTitle == L"Release" &&
               gantt->nodes.size() == 2u && gantt->nodes[0u].ganttSection == L"Build" && gantt->nodes[0u].ganttEnd - gantt->nodes[0u].ganttStart == 3 &&
               gantt->nodes[1u].ganttStart == gantt->nodes[0u].ganttEnd && gantt->nodes[1u].ganttEnd - gantt->nodes[1u].ganttStart == 2,
           "Gantt model preserves sections, leap-day dates and half-open task durations");
-    check(ganttPlan->issue == FlowchartLayoutIssue::None && ganttPlan->nodes.size() == 2u &&
-              Near(ganttPlan->nodes[0u].bounds.width, 192.0) && Near(ganttPlan->nodes[1u].bounds.width, 128.0) &&
+    check(ganttPlan->issue == FlowchartLayoutIssue::None && ganttPlan->nodes.size() == 2u && Near(ganttPlan->nodes[0u].bounds.width, 192.0) &&
+              Near(ganttPlan->nodes[1u].bounds.width, 128.0) &&
               Near(ganttPlan->nodes[0u].bounds.x + ganttPlan->nodes[0u].bounds.width, ganttPlan->nodes[1u].bounds.x) &&
               ganttPlan->nodes[0u].bounds.y < ganttPlan->nodes[1u].bounds.y,
           "Gantt task bars follow independently calculated dates, durations and source order");
-    for (const auto invalid : {L"gantt\nBad : 2023-02-29, 1d\n", L"gantt\nBad : 2024-01-01, 0d\n",
-                               L"gantt\nBad : after task, 3d\n", L"gantt\nBad : 2024-01-01, 367d\n"})
+    for (const auto invalid :
+         {L"gantt\nBad : 2023-02-29, 1d\n", L"gantt\nBad : 2024-01-01, 0d\n", L"gantt\nBad : after task, 3d\n", L"gantt\nBad : 2024-01-01, 367d\n"})
     {
         const auto rejected = Graph(invalid);
         check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == invalid && rejected->nodes.empty(),
               "invalid or unsupported Gantt task retains exact source without partial schedule");
     }
-    const auto mind = Graph(L"mindmap\n  root((Central))\n    First\n      Leaf\n    Second\n");
+    const auto mind     = Graph(L"mindmap\n  root((Central))\n    First\n      Leaf\n    Second\n");
     const auto mindPlan = Place(mind, check);
     check(mind->outcome == FlowchartOutcome::Prepared && mind->family == NativeDiagramFamily::Mindmap && mind->nodes.size() == 4u &&
               mind->nodes[0u].shape == FlowchartShape::Circle && mind->nodes[0u].label == L"Central" && mind->nodes[1u].mindParent == 0u &&
@@ -157,8 +158,8 @@ template <typename Check> inline void Geometry(Check&& check)
               mindPlan->nodes[2u].bounds.x > mindPlan->nodes[1u].bounds.x + mindPlan->nodes[1u].bounds.width &&
               mindPlan->nodes[3u].bounds.x + mindPlan->nodes[3u].bounds.width < mindPlan->nodes[0u].bounds.x,
           "mindmap lays out alternating branches on both sides of the central root");
-    for (const auto invalid : {L"mindmap\n  Root\n  Other root\n", L"mindmap\n  Root\n    Child\n   Bad indent\n",
-                               L"mindmap\n  Root\n    ::icon(fa fa-book)\n"})
+    for (const auto invalid :
+         {L"mindmap\n  Root\n  Other root\n", L"mindmap\n  Root\n    Child\n   Bad indent\n", L"mindmap\n  Root\n    ::icon(fa fa-book)\n"})
     {
         const auto rejected = Graph(invalid);
         check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == invalid && rejected->nodes.empty(),
@@ -421,7 +422,7 @@ template <typename Check> inline void Invariants(const FlowchartLayoutPlan& plan
             check(first.x >= 0.0 && first.y >= 0.0 && first.x <= plan.extent.width && first.y <= plan.extent.height, "routes remain inside retained bounds");
             for (const auto& node : plan.nodes)
             {
-                const auto& rect = node.bounds;
+                const auto& rect   = node.bounds;
                 const auto slanted = node.shape >= FlowchartShape::Parallelogram && node.shape <= FlowchartShape::ReverseTrapezoid;
                 const auto sideGap = [&](FlowchartPoint endpoint, FlowchartPoint outer)
                 {
@@ -450,16 +451,18 @@ template <typename Check> inline void Corpus(Check&& check)
         for (std::size_t group = 0u; group < first->groups.size(); ++group)
         {
             const auto& bounds = first->groups[group].bounds;
-            const auto bit = static_cast<std::uint16_t>(1u << group);
+            const auto bit     = static_cast<std::uint16_t>(1u << group);
             for (std::size_t node = 0u; node < first->nodes.size(); ++node)
             {
                 const auto& shape = first->nodes[node].bounds;
                 if (graph->nodes[node].groupMask & bit)
                     check(bounds.x <= shape.x && bounds.y <= shape.y && bounds.x + bounds.width >= shape.x + shape.width &&
-                              bounds.y + bounds.height >= shape.y + shape.height, "group bounds contain each authored member");
+                              bounds.y + bounds.height >= shape.y + shape.height,
+                          "group bounds contain each authored member");
                 else
                     check(bounds.x >= shape.x + shape.width || bounds.x + bounds.width <= shape.x || bounds.y >= shape.y + shape.height ||
-                              bounds.y + bounds.height <= shape.y, "group bounds do not cover an unrelated node");
+                              bounds.y + bounds.height <= shape.y,
+                          "group bounds do not cover an unrelated node");
             }
         }
         check(first->nodes.size() == batched->nodes.size() && first->edges.size() == batched->edges.size() &&
@@ -490,22 +493,23 @@ template <typename Check> inline void Corpus(Check&& check)
     check(admitted == 39u, "geometry covers every admitted original reference graph");
     for (const auto direction : {L"TB", L"BT", L"LR", L"RL"})
     {
-        const auto source = std::wstring(L"flowchart ") + direction +
-                            L"\nA>flag] --> B[/forward/] --> C[\\reverse\\] --> D[/up\\] --> E[\\down/] --> F(-oval-)\n";
+        const auto source =
+            std::wstring(L"flowchart ") + direction + L"\nA>flag] --> B[/forward/] --> C[\\reverse\\] --> D[/up\\] --> E[\\down/] --> F(-oval-)\n";
         const auto graph = Graph(source);
-        const auto plan = Place(graph, check, 7u);
+        const auto plan  = Place(graph, check, 7u);
         check(graph->outcome == FlowchartOutcome::Prepared && graph->nodes.size() == 6u && graph->edges.size() == 5u,
               "all slanted legacy shapes and ellipse form one source-ordered chain");
         Invariants(*plan, check);
-        if (plan->nodes.size() == 6u && plan->edges.size() == 5u && (graph->direction == FlowchartDirection::LeftRight || graph->direction == FlowchartDirection::RightLeft))
+        if (plan->nodes.size() == 6u && plan->edges.size() == 5u &&
+            (graph->direction == FlowchartDirection::LeftRight || graph->direction == FlowchartDirection::RightLeft))
             for (std::size_t edge = 0u; edge < 5u; ++edge)
             {
                 const auto& target = plan->nodes[edge + 1u];
-                const auto& tip = plan->edges[edge].path.back();
-                const double inset = target.shape >= FlowchartShape::Parallelogram && target.shape <= FlowchartShape::ReverseTrapezoid
-                                         ? target.bounds.width * .125 : 0.0;
-                const auto expectedX = graph->direction == FlowchartDirection::LeftRight ? target.bounds.x + inset
-                                                                                         : target.bounds.x + target.bounds.width - inset;
+                const auto& tip    = plan->edges[edge].path.back();
+                const double inset =
+                    target.shape >= FlowchartShape::Parallelogram && target.shape <= FlowchartShape::ReverseTrapezoid ? target.bounds.width * .125 : 0.0;
+                const auto expectedX =
+                    graph->direction == FlowchartDirection::LeftRight ? target.bounds.x + inset : target.bounds.x + target.bounds.width - inset;
                 check(Near(tip.x, expectedX) && Near(tip.y, target.bounds.y + target.bounds.height / 2.0),
                       "horizontal arrows meet the actual slanted shape boundary");
             }
@@ -513,18 +517,18 @@ template <typename Check> inline void Corpus(Check&& check)
     for (const auto direction : {L"TB", L"BT", L"LR", L"RL"})
     {
         const auto source = std::wstring(L"flowchart ") + direction + L"\nc1-->a2\nsubgraph ide1 [one]\na1-->a2\nend\n";
-        const auto graph = Graph(source);
-        const auto plan = Place(graph, check, 7u);
+        const auto graph  = Graph(source);
+        const auto plan   = Place(graph, check, 7u);
         Invariants(*plan, check);
-        check(plan->groups.size() == 1u && plan->nodes.size() == 3u && plan->edges.size() == 2u &&
-                  graph->nodes[0u].key == L"c1" && graph->nodes[1u].key == L"a2" && graph->nodes[2u].key == L"a1",
+        check(plan->groups.size() == 1u && plan->nodes.size() == 3u && plan->edges.size() == 2u && graph->nodes[0u].key == L"c1" &&
+                  graph->nodes[1u].key == L"a2" && graph->nodes[2u].key == L"a1",
               "mixed group and external node retain source identities and complete geometry in each direction");
         if (plan->groups.size() == 1u && plan->nodes.size() == 3u)
         {
-            const auto& group = plan->groups[0u].bounds;
+            const auto& group    = plan->groups[0u].bounds;
             const auto& outsider = plan->nodes[0u].bounds;
-            check(group.x >= outsider.x + outsider.width || group.x + group.width <= outsider.x ||
-                      group.y >= outsider.y + outsider.height || group.y + group.height <= outsider.y,
+            check(group.x >= outsider.x + outsider.width || group.x + group.width <= outsider.x || group.y >= outsider.y + outsider.height ||
+                      group.y + group.height <= outsider.y,
                   "mixed group envelope remains disjoint from the external node");
         }
     }

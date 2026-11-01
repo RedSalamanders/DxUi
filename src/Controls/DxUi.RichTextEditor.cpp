@@ -1622,7 +1622,7 @@ void RichTextEditor::SetAccessibilityLabels(std::shared_ptr<const RichText::Acce
     _state->semantic.SetAccessibilityLabels(std::move(labels));
     _state->semanticRejected.reset();
     _state->nativeGeometryRejected.reset();
-    RetireLayout(); // Marks preparation pending without calling the application.
+    RetireLayout();      // Marks preparation pending without calling the application.
     RequestInvalidate(); // Last owner access: scheduling can retire this control.
 }
 std::shared_ptr<const RichText::AccessibilityLabels> RichTextEditor::GetAccessibilityLabels() const noexcept
@@ -2279,7 +2279,7 @@ std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownComma
             no = true;
     }
     result.headingLevel = mixedHeading ? 0u : heading;
-    result.listKind = UniformListKind(*document->Syntax(), first, last, _state->lastListStateAncestorSteps);
+    result.listKind     = UniformListKind(*document->Syntax(), first, last, _state->lastListStateAncestorSteps);
     if (request.command == MarkdownCommand::SetHeading)
     {
         result.active = seen && ! mixedHeading && heading == request.headingLevel;
@@ -2295,10 +2295,11 @@ std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownComma
         result.active = result.listKind && result.listKind.value() == request.listKind;
         result.mixed  = ! result.listKind;
     }
-    if (inputBlocked || ((request.command == MarkdownCommand::InsertParagraph || request.command == MarkdownCommand::InsertHardBreak) &&
-                         ! IsSingleLineCommandSelection(*document->Syntax(), selection)) ||
+    if (inputBlocked ||
+        ((request.command == MarkdownCommand::InsertParagraph || request.command == MarkdownCommand::InsertHardBreak) &&
+         ! IsSingleLineCommandSelection(*document->Syntax(), selection)) ||
         ((request.command != MarkdownCommand::SetList || ! request.listStart || request.listStart.value() <= 999999999u) &&
-                         ! IsCommandFeatureEnabled(*document->Syntax(), request.command, request.style, request.listKind)))
+         ! IsCommandFeatureEnabled(*document->Syntax(), request.command, request.style, request.listKind)))
         result.available = false;
     return result;
 }
@@ -3656,10 +3657,10 @@ std::optional<std::vector<RichText::MarkdownRange>> RichTextEditor::GetPreparedC
     {
         if (! LayoutIsCurrent(host))
             return std::nullopt;
-        const auto& projection = _state->layout;
-        const auto source = Snapshot();
+        const auto& projection   = _state->layout;
+        const auto source        = Snapshot();
         const auto displayLength = projection.DisplayLength();
-        const auto displayCaret = projection.ToDisplay(GetSelection().caret);
+        const auto displayCaret  = projection.ToDisplay(GetSelection().caret);
         const auto word = RichText::Detail::PreparedDisplayWordRange(displayLength, displayCaret, [&](size_t index) { return projection.DisplayUnit(index); });
         if (word.first == word.last)
             return std::optional<std::vector<RichText::MarkdownRange>>(std::in_place, 0u);
@@ -3675,7 +3676,7 @@ std::optional<std::vector<RichText::MarkdownRange>> RichTextEditor::GetPreparedC
         for (size_t index = word.first; index < word.last; ++index)
         {
             const auto first = projection.ToSource(index);
-            const auto last = projection.ToSource(index + 1u, true);
+            const auto last  = projection.ToSource(index + 1u, true);
             if (first > last || (! ranges.empty() && first < ranges.back().first))
                 return std::nullopt;
             if (! ranges.empty() && first <= ranges.back().last)

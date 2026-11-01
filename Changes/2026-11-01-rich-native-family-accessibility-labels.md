@@ -1,0 +1,1 @@
+- Extend immutable RichText accessibility labels to native chart families, ER relationship vocabulary and display/fenced equation diagnostics, preserving authored text and the shared native-object admission bound.

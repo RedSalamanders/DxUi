@@ -1,6 +1,6 @@
 #include "DxUi.RichSemanticGeometry.h"
-#include "DxUi.PreparedLayoutAccess.h"
 #include "DxUi.PaintIndex.h"
+#include "DxUi.PreparedLayoutAccess.h"
 #include "DxUi.PreparedMath.h"
 #include "DxUi.RichImageResources.h"
 #include "DxUi.RichLayoutOptions.h"

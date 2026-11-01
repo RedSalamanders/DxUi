@@ -811,7 +811,8 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
     const auto entityEdge = Complete(parser);
     check(entityEdge->outcome == FlowchartOutcome::Prepared && entityEdge->edges.size() == 1u && entityEdge->edges[0u].label == L"\"\n♥",
           "pipe edge labels decode semicolon-terminated entities without splitting the statement");
-    for (const auto source : {L"flowchart LR\nA[#bogus;]\n", L"flowchart LR\nA[#1;]\n", L"flowchart LR\nA[#128;]\n", L"flowchart LR\nA[<script>text</script>]\n"})
+    for (const auto source :
+         {L"flowchart LR\nA[#bogus;]\n", L"flowchart LR\nA[#1;]\n", L"flowchart LR\nA[#128;]\n", L"flowchart LR\nA[<script>text</script>]\n"})
     {
         parser.Begin(source, 31u);
         const auto result = Complete(parser);

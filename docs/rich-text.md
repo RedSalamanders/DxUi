@@ -1247,8 +1247,10 @@ For example, override `FootnoteName` with `L"Note {0}"`, `GoToFootnote` with
 `L"Note {1}, référence {0}"`. Numbered templates require each specified token once
 and allow reordering. Entries must be nonempty valid UTF-16 without NUL, at most
 1,024 units; invalid identities, duplicates or templates throw at construction.
-Static help entries use literal text. Authored diagram labels, TeX source, link
-titles and image alternatives remain unchanged. Changing labels retires stale UIA
+Static help entries use literal text. Pie, ER, Gantt and mind-map headers and
+help, ER relationship vocabulary and missing display-math delimiters use the
+same dictionary. Authored diagram labels, chart dates and values, TeX source,
+link titles and image alternatives remain unchanged. Changing labels retires stale UIA
 children and rebuilds semantic metadata while preserving source, selection and
 undo/redo. A changed dictionary schedules preparation in embedded and native
 hosts; setting the same identity does not reschedule it. Held semantic documents keep their earlier labels. Foreign UIA reads

@@ -731,20 +731,27 @@ template <typename Check> inline void GroupRaster(Check&& check)
 template <typename Check> inline void StyledLabelRaster(Check&& check)
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) THROW_IF_FAILED(initialized);
-    const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
-    const auto graph = FlowchartLayoutTests::Graph(L"flowchart TD\nA[\"<b>Bold</b> <i>It</i> <u>U</u> <s>S</s>\"]-->|<b>go</b>|B\n");
-    check(graph->outcome == FlowchartOutcome::Prepared && graph->nodes.size() == 2u && graph->edges.size() == 1u &&
-              graph->nodes[0u].label == L"Bold It U S" && graph->nodes[0u].styles.count == 4u && graph->edges[0u].label == L"go" &&
-              graph->edges[0u].styles.count == 1u, "styled node and edge labels expose their independent text and style ranges");
-    if (graph->outcome != FlowchartOutcome::Prepared || graph->nodes.size() != 2u || graph->edges.size() != 1u) return;
-    const auto write = WriteFactory();
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    const auto graph     = FlowchartLayoutTests::Graph(L"flowchart TD\nA[\"<b>Bold</b> <i>It</i> <u>U</u> <s>S</s>\"]-->|<b>go</b>|B\n");
+    check(graph->outcome == FlowchartOutcome::Prepared && graph->nodes.size() == 2u && graph->edges.size() == 1u && graph->nodes[0u].label == L"Bold It U S" &&
+              graph->nodes[0u].styles.count == 4u && graph->edges[0u].label == L"go" && graph->edges[0u].styles.count == 1u,
+          "styled node and edge labels expose their independent text and style ranges");
+    if (graph->outcome != FlowchartOutcome::Prepared || graph->nodes.size() != 2u || graph->edges.size() != 1u)
+        return;
+    const auto write   = WriteFactory();
     const auto drawing = DrawingFactory();
     PreparedFlowchart prepared;
     prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
     Complete(prepared, check);
     const auto geometry = prepared.Geometry();
-    const auto width = static_cast<UINT>(std::ceil(geometry->extent.width)), height = static_cast<UINT>(std::ceil(geometry->extent.height)), stride = width * 4u;
+    const auto width = static_cast<UINT>(std::ceil(geometry->extent.width)), height = static_cast<UINT>(std::ceil(geometry->extent.height)),
+               stride = width * 4u;
     wil::com_ptr<IWICImagingFactory> imaging;
     THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
     const auto pixels = [&](bool reference)
@@ -758,14 +765,21 @@ template <typename Check> inline void StyledLabelRaster(Check&& check)
         THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
         THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
         THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
-        target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(D2D1::ColorF::White));
         check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}), "styled labels paint on the owner target");
         if (reference)
         {
             LayoutOptions options;
             wil::com_ptr<IDWriteTextFormat> format;
-            THROW_IF_FAILED(write->CreateTextFormat(options.fontFamily.c_str(), nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
-                                                     DWRITE_FONT_STRETCH_NORMAL, options.fontSizeDip, options.locale.c_str(), format.put()));
+            THROW_IF_FAILED(write->CreateTextFormat(options.fontFamily.c_str(),
+                                                    nullptr,
+                                                    DWRITE_FONT_WEIGHT_NORMAL,
+                                                    DWRITE_FONT_STYLE_NORMAL,
+                                                    DWRITE_FONT_STRETCH_NORMAL,
+                                                    options.fontSizeDip,
+                                                    options.locale.c_str(),
+                                                    format.put()));
             const auto draw = [&](std::wstring_view value, FlowchartRect box, bool node)
             {
                 wil::com_ptr<IDWriteTextLayout> layout;
@@ -777,12 +791,19 @@ template <typename Check> inline void StyledLabelRaster(Check&& check)
                     THROW_IF_FAILED(layout->SetUnderline(TRUE, {8u, 1u}));
                     THROW_IF_FAILED(layout->SetStrikethrough(TRUE, {10u, 1u}));
                 }
-                DWRITE_TEXT_METRICS metrics{}; DWRITE_OVERHANG_METRICS ink{};
-                THROW_IF_FAILED(layout->GetMetrics(&metrics)); THROW_IF_FAILED(layout->GetOverhangMetrics(&ink));
+                DWRITE_TEXT_METRICS metrics{};
+                DWRITE_OVERHANG_METRICS ink{};
+                THROW_IF_FAILED(layout->GetMetrics(&metrics));
+                THROW_IF_FAILED(layout->GetOverhangMetrics(&ink));
                 const auto left = std::min(metrics.left, -ink.left), top = std::min(metrics.top, -ink.top);
-                target->FillRectangle(D2D1::RectF(static_cast<float>(box.x) - 2.f, static_cast<float>(box.y) - 2.f,
-                                                  static_cast<float>(box.x + box.width) + 2.f, static_cast<float>(box.y + box.height) + 2.f), fill.get());
-                target->DrawTextLayout(D2D1::Point2F(static_cast<float>(box.x) - left, static_cast<float>(box.y) - top), layout.get(), text.get(),
+                target->FillRectangle(D2D1::RectF(static_cast<float>(box.x) - 2.f,
+                                                  static_cast<float>(box.y) - 2.f,
+                                                  static_cast<float>(box.x + box.width) + 2.f,
+                                                  static_cast<float>(box.y + box.height) + 2.f),
+                                      fill.get());
+                target->DrawTextLayout(D2D1::Point2F(static_cast<float>(box.x) - left, static_cast<float>(box.y) - top),
+                                       layout.get(),
+                                       text.get(),
                                        D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
             };
             draw(L"Bold It U S", geometry->nodes[0u].label, true);
@@ -801,24 +822,38 @@ template <typename Check> inline void StyledLabelRaster(Check&& check)
             {
                 const auto offset = (static_cast<std::size_t>(y) * width + x) * 4u;
                 ++compared;
-                if (! std::equal(actual.data() + offset, actual.data() + offset + 4u, reference.data() + offset)) ++different;
+                if (! std::equal(actual.data() + offset, actual.data() + offset + 4u, reference.data() + offset))
+                    ++different;
             }
     check(compared > 0u && different == 0u, "styled node and edge pixels match independently styled DirectWrite layouts");
-    auto invalid = std::make_shared<FlowchartModel>(*graph);
+    auto invalid                             = std::make_shared<FlowchartModel>(*graph);
     invalid->nodes[0u].styles.spans[0u].last = invalid->nodes[0u].label.size() + 1u;
     const std::vector<FlowchartSize> nodes(invalid->nodes.size(), {16.0, 12.0}), edges(invalid->edges.size(), {16.0, 12.0});
     bool layoutRejected{}, paintRejected{};
-    try { NativeFlowchartLayout layout; layout.Begin(invalid, nodes, edges); }
-    catch (const std::invalid_argument&) { layoutRejected = true; }
-    try { prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u}); }
-    catch (const std::invalid_argument&) { paintRejected = true; }
+    try
+    {
+        NativeFlowchartLayout layout;
+        layout.Begin(invalid, nodes, edges);
+    }
+    catch (const std::invalid_argument&)
+    {
+        layoutRejected = true;
+    }
+    try
+    {
+        prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u});
+    }
+    catch (const std::invalid_argument&)
+    {
+        paintRejected = true;
+    }
     check(layoutRejected && paintRejected && prepared.Ready(), "forged out-of-range label styles fail before replacing publication");
     const auto inlineEdge = FlowchartLayoutTests::Graph(L"flowchart TD\nA -- <b>go</b> --> B\n");
     check(inlineEdge->outcome == FlowchartOutcome::Prepared && inlineEdge->edges.size() == 1u && inlineEdge->edges[0u].label == L"go" &&
               inlineEdge->edges[0u].styles.count == 1u && inlineEdge->edges[0u].styles.spans[0u].flags == LabelBold,
           "inline edge text retains the same bounded markup as pipe labels");
-    for (const auto source : {L"flowchart TD\nA[\"<b>unclosed\"]\n", L"flowchart TD\nA[\"<span class=x>bad</span>\"]\n",
-                              L"flowchart TD\nA[\"<b><i>bad</b></i>\"]\n"})
+    for (const auto source :
+         {L"flowchart TD\nA[\"<b>unclosed\"]\n", L"flowchart TD\nA[\"<span class=x>bad</span>\"]\n", L"flowchart TD\nA[\"<b><i>bad</b></i>\"]\n"})
     {
         const auto rejected = FlowchartLayoutTests::Graph(source);
         check(rejected->outcome == FlowchartOutcome::Unsupported && rejected->source == source && rejected->nodes.empty(),
@@ -828,17 +863,26 @@ template <typename Check> inline void StyledLabelRaster(Check&& check)
 template <typename Check> inline void LegacyPolygonRaster(Check&& check)
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) THROW_IF_FAILED(initialized);
-    const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
-    struct Case { std::wstring_view source; FlowchartShape shape; bool topLeft, bottomLeft, topRight; };
-    constexpr std::array cases{
-        Case{L"flowchart TD\nA>flag]\n", FlowchartShape::Asymmetric, true, true, false},
-        Case{L"flowchart TD\nA[/forward/]\n", FlowchartShape::Parallelogram, false, true, true},
-        Case{L"flowchart TD\nA[\\reverse\\]\n", FlowchartShape::ReverseParallelogram, true, false, false},
-        Case{L"flowchart TD\nA[/up\\]\n", FlowchartShape::Trapezoid, false, true, false},
-        Case{L"flowchart TD\nA[\\down/]\n", FlowchartShape::ReverseTrapezoid, true, false, true},
-        Case{L"flowchart TD\nA(-oval-)\n", FlowchartShape::Ellipse, false, false, false}};
-    const auto write = WriteFactory();
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    struct Case
+    {
+        std::wstring_view source;
+        FlowchartShape shape;
+        bool topLeft, bottomLeft, topRight;
+    };
+    constexpr std::array cases{Case{L"flowchart TD\nA>flag]\n", FlowchartShape::Asymmetric, true, true, false},
+                               Case{L"flowchart TD\nA[/forward/]\n", FlowchartShape::Parallelogram, false, true, true},
+                               Case{L"flowchart TD\nA[\\reverse\\]\n", FlowchartShape::ReverseParallelogram, true, false, false},
+                               Case{L"flowchart TD\nA[/up\\]\n", FlowchartShape::Trapezoid, false, true, false},
+                               Case{L"flowchart TD\nA[\\down/]\n", FlowchartShape::ReverseTrapezoid, true, false, true},
+                               Case{L"flowchart TD\nA(-oval-)\n", FlowchartShape::Ellipse, false, false, false}};
+    const auto write   = WriteFactory();
     const auto drawing = DrawingFactory();
     wil::com_ptr<IWICImagingFactory> imaging;
     THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
@@ -848,30 +892,33 @@ template <typename Check> inline void LegacyPolygonRaster(Check&& check)
         const auto graph = FlowchartLayoutTests::Graph(item.source);
         check(graph->outcome == FlowchartOutcome::Prepared && graph->nodes.size() == 1u && graph->nodes[0u].shape == item.shape,
               "legacy shape parser retains the independently specified shape");
-        if (graph->outcome != FlowchartOutcome::Prepared || graph->nodes.size() != 1u) return;
+        if (graph->outcome != FlowchartOutcome::Prepared || graph->nodes.size() != 1u)
+            return;
         PreparedFlowchart prepared;
         prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
         Complete(prepared, check);
         wil::com_ptr<IWICBitmap> bitmap;
         THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
         wil::com_ptr<ID2D1RenderTarget> target;
-        const auto properties = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
-                                                               D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+        const auto properties =
+            D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
         THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
         wil::com_ptr<ID2D1SolidColorBrush> text, stroke, fill;
         THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
         THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
         THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Red), fill.put()));
-        target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(D2D1::ColorF::White));
         check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}), "legacy shape paints on the borrowed target");
         THROW_IF_FAILED(target->EndDraw());
         std::vector<BYTE> pixels(stride * height);
         THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
         const auto rect = prepared.Geometry()->nodes[0u].bounds;
-        const auto red = [&](double x, double y)
+        const auto red  = [&](double x, double y)
         {
             const auto px = static_cast<std::size_t>(rect.x + x * rect.width), py = static_cast<std::size_t>(rect.y + y * rect.height);
-            if (px >= width || py >= height) return false;
+            if (px >= width || py >= height)
+                return false;
             const auto offset = py * stride + px * 4u;
             return pixels[offset] < 100u && pixels[offset + 1u] < 100u && pixels[offset + 2u] > 150u;
         };
@@ -882,14 +929,20 @@ template <typename Check> inline void LegacyPolygonRaster(Check&& check)
 template <typename Check> inline void ExpandedShapeRaster(Check&& check)
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) THROW_IF_FAILED(initialized);
-    const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
-    const auto graph = FlowchartLayoutTests::Graph(L"flowchart LR\nA(((Double)))\nB[(Database)]\nA --> B\n");
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    const auto graph     = FlowchartLayoutTests::Graph(L"flowchart LR\nA(((Double)))\nB[(Database)]\nA --> B\n");
     check(graph->outcome == FlowchartOutcome::Prepared && graph->nodes.size() == 2u && graph->nodes[0u].shape == FlowchartShape::DoubleCircle &&
               graph->nodes[1u].shape == FlowchartShape::Cylinder && graph->nodes[0u].label == L"Double" && graph->nodes[1u].label == L"Database",
           "double circle and cylinder preserve independent authored shapes and labels");
-    if (graph->outcome != FlowchartOutcome::Prepared || graph->nodes.size() != 2u) return;
-    const auto write = WriteFactory();
+    if (graph->outcome != FlowchartOutcome::Prepared || graph->nodes.size() != 2u)
+        return;
+    const auto write   = WriteFactory();
     const auto drawing = DrawingFactory();
     PreparedFlowchart prepared;
     prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
@@ -900,14 +953,15 @@ template <typename Check> inline void ExpandedShapeRaster(Check&& check)
     wil::com_ptr<IWICBitmap> bitmap;
     THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
     wil::com_ptr<ID2D1RenderTarget> target;
-    const auto properties = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
-                                                           D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+    const auto properties =
+        D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
     THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
     wil::com_ptr<ID2D1SolidColorBrush> text, stroke, fill;
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
-    target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+    target->BeginDraw();
+    target->Clear(D2D1::ColorF(D2D1::ColorF::White));
     check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}), "expanded shapes paint using the owner target");
     THROW_IF_FAILED(target->EndDraw());
     std::vector<BYTE> pixels(stride * height);
@@ -920,11 +974,12 @@ template <typename Check> inline void ExpandedShapeRaster(Check&& check)
                 if (x + dx >= 0 && y + dy >= 0 && x + dx < static_cast<int>(width) && y + dy < static_cast<int>(height))
                 {
                     const auto offset = static_cast<std::size_t>(y + dy) * stride + static_cast<std::size_t>(x + dx) * 4u;
-                    if (pixels[offset] > 150u && pixels[offset + 1u] < 220u && pixels[offset + 2u] < 220u) return true;
+                    if (pixels[offset] > 150u && pixels[offset + 1u] < 220u && pixels[offset + 2u] < 220u)
+                        return true;
                 }
         return false;
     };
-    const auto circle = prepared.Geometry()->nodes[0u].bounds;
+    const auto circle   = prepared.Geometry()->nodes[0u].bounds;
     const auto cylinder = prepared.Geometry()->nodes[1u].bounds;
     check(blueNear(circle.x + circle.width / 2.0, circle.y) && blueNear(circle.x + circle.width / 2.0, circle.y + 4.0),
           "double circle paints both independently separated outlines");
@@ -941,13 +996,19 @@ template <typename Check> inline void ExpandedShapeRaster(Check&& check)
 template <typename Check> inline void NodeStrokeRaster(Check&& check)
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) THROW_IF_FAILED(initialized);
-    const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
-    const auto graph = FlowchartLayoutTests::Graph(L"flowchart TD\nA[Alpha]:::strong\nclassDef strong stroke-width:3px\n");
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    const auto graph     = FlowchartLayoutTests::Graph(L"flowchart TD\nA[Alpha]:::strong\nclassDef strong stroke-width:3px\n");
     check(graph->outcome == FlowchartOutcome::Prepared && graph->nodes.size() == 1u && graph->nodes[0u].strokeWidth == 3u,
           "forward class declaration applies bounded node stroke width to its intended node");
-    if (graph->outcome != FlowchartOutcome::Prepared || graph->nodes.size() != 1u) return;
-    const auto write = WriteFactory();
+    if (graph->outcome != FlowchartOutcome::Prepared || graph->nodes.size() != 1u)
+        return;
+    const auto write   = WriteFactory();
     const auto drawing = DrawingFactory();
     PreparedFlowchart prepared;
     prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
@@ -958,40 +1019,56 @@ template <typename Check> inline void NodeStrokeRaster(Check&& check)
     wil::com_ptr<IWICBitmap> bitmap;
     THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
     wil::com_ptr<ID2D1RenderTarget> target;
-    const auto properties = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
-                                                           D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+    const auto properties =
+        D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
     THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
     wil::com_ptr<ID2D1SolidColorBrush> text, stroke, fill;
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
-    target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+    target->BeginDraw();
+    target->Clear(D2D1::ColorF(D2D1::ColorF::White));
     check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}), "styled node paints with the caller's theme brushes");
     THROW_IF_FAILED(target->EndDraw());
     std::vector<BYTE> pixels(stride * height);
     THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
     const auto box = prepared.Geometry()->nodes[0u].bounds;
-    const auto x = static_cast<UINT>(box.x + box.width / 2.0);
-    const auto y = static_cast<UINT>(box.y);
+    const auto x   = static_cast<UINT>(box.x + box.width / 2.0);
+    const auto y   = static_cast<UINT>(box.y);
     std::size_t ink{};
     for (int dy = -2; dy <= 2; ++dy)
     {
-        const auto row = static_cast<UINT>(static_cast<int>(y) + dy);
+        const auto row    = static_cast<UINT>(static_cast<int>(y) + dy);
         const auto offset = static_cast<std::size_t>(row) * stride + static_cast<std::size_t>(x) * 4u;
         ink += pixels[offset] > 150u && pixels[offset + 1u] < 180u && pixels[offset + 2u] < 180u;
     }
     check(ink >= 3u && stroke->GetOpacity() == 1.0f, "three-pixel styled border paints visibly and preserves caller brush state");
-    auto invalid = std::make_shared<FlowchartModel>(*graph);
+    auto invalid                   = std::make_shared<FlowchartModel>(*graph);
     invalid->nodes[0u].strokeWidth = 4u;
     bool layoutRejected{}, paintRejected{};
     const std::vector<FlowchartSize> nodeSizes(1u, {16.0, 12.0});
-    try { NativeFlowchartLayout layout; layout.Begin(invalid, nodeSizes, {}); }
-    catch (const std::invalid_argument&) { layoutRejected = true; }
-    try { prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u}); }
-    catch (const std::invalid_argument&) { paintRejected = true; }
+    try
+    {
+        NativeFlowchartLayout layout;
+        layout.Begin(invalid, nodeSizes, {});
+    }
+    catch (const std::invalid_argument&)
+    {
+        layoutRejected = true;
+    }
+    try
+    {
+        prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u});
+    }
+    catch (const std::invalid_argument&)
+    {
+        paintRejected = true;
+    }
     check(layoutRejected && paintRejected && prepared.Ready(), "invalid direct stroke widths fail both services before publication");
-    for (const auto source : {L"flowchart TD\nA\nstyle A fill:red\n", L"flowchart TD\nA\nstyle A stroke-width:4px\n",
-                              L"flowchart TD\nstyle missing stroke-width:2px\n", L"flowchart TD\nA:::missing\n",
+    for (const auto source : {L"flowchart TD\nA\nstyle A fill:red\n",
+                              L"flowchart TD\nA\nstyle A stroke-width:4px\n",
+                              L"flowchart TD\nstyle missing stroke-width:2px\n",
+                              L"flowchart TD\nA:::missing\n",
                               L"flowchart TD\nA:::strong\nstyle A stroke-width:2px\nclassDef strong stroke-width:3px\n"})
     {
         const auto unsupported = FlowchartLayoutTests::Graph(source);
@@ -1008,32 +1085,39 @@ template <typename Check> inline void NodeStrokeRaster(Check&& check)
 template <typename Check> inline void MindmapRaster(Check&& check)
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) THROW_IF_FAILED(initialized);
-    const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
-    const auto graph = FlowchartLayoutTests::Graph(L"mindmap\n  root((Central))\n    First\n      Leaf\n    Second\n");
-    const auto write = WriteFactory();
-    const auto drawing = DrawingFactory();
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    const auto graph     = FlowchartLayoutTests::Graph(L"mindmap\n  root((Central))\n    First\n      Leaf\n    Second\n");
+    const auto write     = WriteFactory();
+    const auto drawing   = DrawingFactory();
     PreparedFlowchart prepared;
     prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
     Complete(prepared, check);
     const auto geometry = prepared.Geometry();
     check(prepared.Ready() && geometry && geometry->nodes.size() == 4u && geometry->edges.size() == 3u,
           "mindmap root and branching hierarchy prepare native geometry");
-    if (! prepared.Ready() || ! geometry || geometry->nodes.size() != 4u || geometry->edges.size() != 3u) return;
+    if (! prepared.Ready() || ! geometry || geometry->nodes.size() != 4u || geometry->edges.size() != 3u)
+        return;
     wil::com_ptr<IWICImagingFactory> imaging;
     THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
     constexpr UINT width = 800u, height = 400u, stride = width * 4u;
     wil::com_ptr<IWICBitmap> bitmap;
     THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
     wil::com_ptr<ID2D1RenderTarget> target;
-    const auto properties = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
-                                                           D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+    const auto properties =
+        D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
     THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
     wil::com_ptr<ID2D1SolidColorBrush> text, stroke, fill;
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
-    target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+    target->BeginDraw();
+    target->Clear(D2D1::ColorF(D2D1::ColorF::White));
     check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}), "mindmap paints on its owner target");
     THROW_IF_FAILED(target->EndDraw());
     std::vector<BYTE> pixels(stride * height);
@@ -1046,13 +1130,13 @@ template <typename Check> inline void MindmapRaster(Check&& check)
                 if (x + dx >= 0 && y + dy >= 0 && x + dx < static_cast<int>(width) && y + dy < static_cast<int>(height))
                 {
                     const auto offset = static_cast<std::size_t>(y + dy) * stride + static_cast<std::size_t>(x + dx) * 4u;
-                    if (pixels[offset] > 150u && pixels[offset + 1u] < 220u && pixels[offset + 2u] < 220u) return true;
+                    if (pixels[offset] > 150u && pixels[offset + 1u] < 220u && pixels[offset + 2u] < 220u)
+                        return true;
                 }
         return false;
     };
     for (const auto& edge : geometry->edges)
-        check(blueNear((edge.path[1u].x + edge.path[2u].x) / 2.0, edge.path[1u].y),
-              "each mindmap hierarchy connector has visible ink between node columns");
+        check(blueNear((edge.path[1u].x + edge.path[2u].x) / 2.0, edge.path[1u].y), "each mindmap hierarchy connector has visible ink between node columns");
     const std::vector<FlowchartSize> nodes(graph->nodes.size(), {16.0, 12.0}), edges(graph->edges.size());
     for (unsigned variant = 0u; variant < 5u; ++variant)
     {
@@ -1066,10 +1150,23 @@ template <typename Check> inline void MindmapRaster(Check&& check)
             case 4u: invalid->nodes[0u].shape = FlowchartShape::Bar; break;
         }
         bool layoutRejected{}, paintRejected{};
-        try { NativeFlowchartLayout layout; layout.Begin(invalid, nodes, edges); }
-        catch (const std::invalid_argument&) { layoutRejected = true; }
-        try { prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u}); }
-        catch (const std::invalid_argument&) { paintRejected = true; }
+        try
+        {
+            NativeFlowchartLayout layout;
+            layout.Begin(invalid, nodes, edges);
+        }
+        catch (const std::invalid_argument&)
+        {
+            layoutRejected = true;
+        }
+        try
+        {
+            prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u});
+        }
+        catch (const std::invalid_argument&)
+        {
+            paintRejected = true;
+        }
         check(! ValidMindmapModel(*invalid) && layoutRejected && paintRejected && prepared.Ready() && prepared.Geometry() == geometry,
               "direct invalid mindmap models fail both services without replacing prior publication");
     }
@@ -1077,38 +1174,46 @@ template <typename Check> inline void MindmapRaster(Check&& check)
 template <typename Check> inline void GanttRaster(Check&& check)
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) THROW_IF_FAILED(initialized);
-    const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
-    const auto graph = FlowchartLayoutTests::Graph(L"gantt\ntitle Release\nsection Build\nCompile : 2024-02-27, 3d\nShip : 2024-03-01, 2024-03-03\n");
-    const auto write = WriteFactory();
-    const auto drawing = DrawingFactory();
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    const auto graph     = FlowchartLayoutTests::Graph(L"gantt\ntitle Release\nsection Build\nCompile : 2024-02-27, 3d\nShip : 2024-03-01, 2024-03-03\n");
+    const auto write     = WriteFactory();
+    const auto drawing   = DrawingFactory();
     PreparedFlowchart prepared;
     prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
     Complete(prepared, check);
     const auto geometry = prepared.Geometry();
     check(prepared.Ready() && geometry && geometry->nodes.size() == 2u, "Gantt tasks prepare measured native timeline bars");
-    if (! prepared.Ready() || ! geometry || geometry->nodes.size() != 2u) return;
+    if (! prepared.Ready() || ! geometry || geometry->nodes.size() != 2u)
+        return;
     wil::com_ptr<IWICImagingFactory> imaging;
     THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
     constexpr UINT width = 800u, height = 400u, stride = width * 4u;
     wil::com_ptr<IWICBitmap> bitmap;
     THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
     wil::com_ptr<ID2D1RenderTarget> target;
-    const auto properties = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
-                                                           D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+    const auto properties =
+        D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
     THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
     wil::com_ptr<ID2D1SolidColorBrush> text, stroke, fill;
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
-    target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+    target->BeginDraw();
+    target->Clear(D2D1::ColorF(D2D1::ColorF::White));
     check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}), "Gantt timeline paints on its owner target");
     THROW_IF_FAILED(target->EndDraw());
     std::vector<BYTE> pixels(stride * height);
     THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
     for (const auto& task : geometry->nodes)
     {
-        const auto x = static_cast<std::size_t>(task.bounds.x + task.bounds.width / 2.0), y = static_cast<std::size_t>(task.bounds.y + task.bounds.height / 2.0);
+        const auto x      = static_cast<std::size_t>(task.bounds.x + task.bounds.width / 2.0),
+                   y      = static_cast<std::size_t>(task.bounds.y + task.bounds.height / 2.0);
         const auto offset = y * stride + x * 4u;
         check(x < width && y < height && pixels[offset] > 150u && pixels[offset + 1u] < 100u && pixels[offset + 2u] < 100u,
               "each independently measured task bar contains actual raster ink");
@@ -1126,10 +1231,23 @@ template <typename Check> inline void GanttRaster(Check&& check)
             case 4u: invalid->nodes[0u].ganttEndSource.last = invalid->source.size() + 1u; break;
         }
         bool layoutRejected{}, paintRejected{};
-        try { NativeFlowchartLayout layout; layout.Begin(invalid, nodes, {}, {}, {}, labels); }
-        catch (const std::invalid_argument&) { layoutRejected = true; }
-        try { prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u}); }
-        catch (const std::invalid_argument&) { paintRejected = true; }
+        try
+        {
+            NativeFlowchartLayout layout;
+            layout.Begin(invalid, nodes, {}, {}, {}, labels);
+        }
+        catch (const std::invalid_argument&)
+        {
+            layoutRejected = true;
+        }
+        try
+        {
+            prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u});
+        }
+        catch (const std::invalid_argument&)
+        {
+            paintRejected = true;
+        }
         check(! ValidGanttModel(*invalid) && layoutRejected && paintRejected && prepared.Ready() && prepared.Geometry() == geometry,
               "direct invalid Gantt models fail both services without replacing the prior publication");
     }
@@ -1137,31 +1255,38 @@ template <typename Check> inline void GanttRaster(Check&& check)
 template <typename Check> inline void ErRaster(Check&& check)
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) THROW_IF_FAILED(initialized);
-    const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
-    const auto graph = FlowchartLayoutTests::Graph(L"erDiagram\nCUSTOMER ||--o{ ORDER : places\nCUSTOMER {\nstring name\nint id PK\n}\n");
-    const auto write = WriteFactory();
-    const auto drawing = DrawingFactory();
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    const auto graph     = FlowchartLayoutTests::Graph(L"erDiagram\nCUSTOMER ||--o{ ORDER : places\nCUSTOMER {\nstring name\nint id PK\n}\n");
+    const auto write     = WriteFactory();
+    const auto drawing   = DrawingFactory();
     PreparedFlowchart prepared;
     prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
     Complete(prepared, check);
     const auto geometry = prepared.Geometry();
     check(prepared.Ready() && geometry && geometry->edges.size() == 1u, "ER diagram prepares native entity and relationship geometry");
-    if (! prepared.Ready() || ! geometry || geometry->edges.empty()) return;
+    if (! prepared.Ready() || ! geometry || geometry->edges.empty())
+        return;
     wil::com_ptr<IWICImagingFactory> imaging;
     THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
     constexpr UINT width = 600u, height = 400u, stride = width * 4u;
     wil::com_ptr<IWICBitmap> bitmap;
     THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
     wil::com_ptr<ID2D1RenderTarget> target;
-    const auto properties = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
-                                                           D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+    const auto properties =
+        D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
     THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
     wil::com_ptr<ID2D1SolidColorBrush> text, stroke, fill;
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
-    target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+    target->BeginDraw();
+    target->Clear(D2D1::ColorF(D2D1::ColorF::White));
     check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}), "ER entity and relationship paint");
     THROW_IF_FAILED(target->EndDraw());
     std::vector<BYTE> pixels(stride * height);
@@ -1174,13 +1299,13 @@ template <typename Check> inline void ErRaster(Check&& check)
                 if (x + dx >= 0 && y + dy >= 0 && x + dx < static_cast<int>(width) && y + dy < static_cast<int>(height))
                 {
                     const auto offset = static_cast<std::size_t>(y + dy) * stride + static_cast<std::size_t>(x + dx) * 4u;
-                    if (pixels[offset] > 150u && pixels[offset + 1u] < 100u && pixels[offset + 2u] < 100u) return true;
+                    if (pixels[offset] > 150u && pixels[offset + 1u] < 100u && pixels[offset + 2u] < 100u)
+                        return true;
                 }
         return false;
     };
     const auto& edge = geometry->edges[0u];
-    check(edge.erFrom == ErMultiplicity::One && edge.erTo == ErMultiplicity::ZeroOrMany &&
-              blueNear(edge.path.front().x - 3.0, edge.path.front().y + 4.0) &&
+    check(edge.erFrom == ErMultiplicity::One && edge.erTo == ErMultiplicity::ZeroOrMany && blueNear(edge.path.front().x - 3.0, edge.path.front().y + 4.0) &&
               blueNear(edge.path.back().x - 3.0, edge.path.back().y - 4.0),
           "one and optional-many endpoint marks produce visible raster ink beside the relationship");
     const std::vector<FlowchartSize> nodeSizes(graph->nodes.size(), {16.0, 12.0}), edgeSizes(graph->edges.size(), {24.0, 12.0}),
@@ -1197,10 +1322,23 @@ template <typename Check> inline void ErRaster(Check&& check)
             case 4u: invalid->edges[0u].arrow = true; break;
         }
         bool layoutRejected{}, paintRejected{};
-        try { NativeFlowchartLayout layout; layout.Begin(invalid, nodeSizes, edgeSizes, endpointSizes, endpointSizes); }
-        catch (const std::invalid_argument&) { layoutRejected = true; }
-        try { prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u}); }
-        catch (const std::invalid_argument&) { paintRejected = true; }
+        try
+        {
+            NativeFlowchartLayout layout;
+            layout.Begin(invalid, nodeSizes, edgeSizes, endpointSizes, endpointSizes);
+        }
+        catch (const std::invalid_argument&)
+        {
+            layoutRejected = true;
+        }
+        try
+        {
+            prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u});
+        }
+        catch (const std::invalid_argument&)
+        {
+            paintRejected = true;
+        }
         check(! ValidErModel(*invalid) && layoutRejected && paintRejected && prepared.Ready() && prepared.Geometry() == geometry,
               "direct invalid ER models fail both services without replacing the prior publication");
     }
@@ -1208,32 +1346,39 @@ template <typename Check> inline void ErRaster(Check&& check)
 template <typename Check> inline void PieRaster(Check&& check)
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) THROW_IF_FAILED(initialized);
-    const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
-    const auto graph = FlowchartLayoutTests::Graph(L"pie showData title Inventory\n\"One\": 25\n\"Three\": 75\n");
-    const auto write = WriteFactory();
-    const auto drawing = DrawingFactory();
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    const auto graph     = FlowchartLayoutTests::Graph(L"pie showData title Inventory\n\"One\": 25\n\"Three\": 75\n");
+    const auto write     = WriteFactory();
+    const auto drawing   = DrawingFactory();
     PreparedFlowchart prepared;
     prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
     Complete(prepared, check);
     const auto geometry = prepared.Geometry();
     check(prepared.Ready() && geometry && geometry->nodes.size() == 2u, "bounded pie prepares two native sectors");
-    if (! prepared.Ready() || ! geometry || geometry->nodes.size() != 2u) return;
+    if (! prepared.Ready() || ! geometry || geometry->nodes.size() != 2u)
+        return;
     wil::com_ptr<IWICImagingFactory> imaging;
     THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
     constexpr UINT width = 600u, height = 400u, stride = width * 4u;
     wil::com_ptr<IWICBitmap> bitmap;
     THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
     wil::com_ptr<ID2D1RenderTarget> target;
-    const auto properties = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
-                                                           D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+    const auto properties =
+        D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
     THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
     wil::com_ptr<ID2D1SolidColorBrush> text, stroke, fill;
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
     THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
     stroke->SetOpacity(.8f);
-    target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+    target->BeginDraw();
+    target->Clear(D2D1::ColorF(D2D1::ColorF::White));
     check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}), "native pie paints on the caller target");
     THROW_IF_FAILED(target->EndDraw());
     check(std::abs(stroke->GetOpacity() - .8f) < .001f, "pie painting restores caller brush opacity");
@@ -1244,10 +1389,10 @@ template <typename Check> inline void PieRaster(Check&& check)
         const auto px = static_cast<std::size_t>(x), py = static_cast<std::size_t>(y);
         return pixels[py * stride + px * 4u + 2u];
     };
-    const auto circle = geometry->pieCircle;
+    const auto circle   = geometry->pieCircle;
     const double radius = circle.width / 2.0, centerX = circle.x + radius, centerY = circle.y + radius;
-    const auto first = red(centerX + radius * .35, centerY - radius * .35);
-    const auto second = red(centerX - radius * .35, centerY + radius * .35);
+    const auto first       = red(centerX + radius * .35, centerY - radius * .35);
+    const auto second      = red(centerX - radius * .35, centerY + radius * .35);
     const auto firstLegend = geometry->nodes[0u].bounds, secondLegend = geometry->nodes[1u].bounds;
     check(first > second + 15u && std::abs(static_cast<int>(first) - static_cast<int>(red(firstLegend.x + 6.0, firstLegend.y + 6.0))) <= 2 &&
               std::abs(static_cast<int>(second) - static_cast<int>(red(secondLegend.x + 6.0, secondLegend.y + 6.0))) <= 2,
@@ -1265,10 +1410,23 @@ template <typename Check> inline void PieRaster(Check&& check)
             case 4u: invalid->nodes[0u].valueSource.last = invalid->source.size() + 1u; break;
         }
         bool layoutRejected{}, paintRejected{};
-        try { NativeFlowchartLayout layout; layout.Begin(invalid, nodes, {}, {}, {}, labels); }
-        catch (const std::invalid_argument&) { layoutRejected = true; }
-        try { prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u}); }
-        catch (const std::invalid_argument&) { paintRejected = true; }
+        try
+        {
+            NativeFlowchartLayout layout;
+            layout.Begin(invalid, nodes, {}, {}, {}, labels);
+        }
+        catch (const std::invalid_argument&)
+        {
+            layoutRejected = true;
+        }
+        try
+        {
+            prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u});
+        }
+        catch (const std::invalid_argument&)
+        {
+            paintRejected = true;
+        }
         check(! ValidPieModel(*invalid) && layoutRejected && paintRejected && prepared.Ready() && prepared.Geometry() == geometry,
               "direct invalid pie models fail in both services without replacing the prior publication");
     }
@@ -1280,7 +1438,8 @@ template <typename Check> inline void PieRaster(Check&& check)
           "single positive slice and zero slice prepare without a spurious wedge");
     if (prepared.Ready() && whole)
     {
-        target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(D2D1::ColorF::White));
         check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}), "whole-circle pie paints");
         THROW_IF_FAILED(target->EndDraw());
         THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));

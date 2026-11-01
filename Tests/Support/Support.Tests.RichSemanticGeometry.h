@@ -1,6 +1,6 @@
 #pragma once
-#include "Controls/DxUi.PreparedLayoutAccess.h"
 #include "Controls/DxUi.PaintIndex.h"
+#include "Controls/DxUi.PreparedLayoutAccess.h"
 #include "Controls/DxUi.PreparedMath.h"
 #include "Controls/DxUi.RichSemanticGeometry.h"
 #include "Support.Tests.RichSemanticDocument.h"

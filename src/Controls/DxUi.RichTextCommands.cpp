@@ -309,12 +309,13 @@ bool CanInsertMath(const MarkdownSyntax& syntax, Selection selection, std::wstri
         // existing container prefix and generate canonical continuation lines.
         if (leaf != MarkdownNoNode && nodes[leaf].block.kind != MarkdownBlockKind::Paragraph)
             return false;
-        const auto lineStart = first ? text.find_last_of(L"\r\n", first - 1u) : text.npos;
+        const auto lineStart     = first ? text.find_last_of(L"\r\n", first - 1u) : text.npos;
         const auto physicalStart = lineStart == text.npos ? 0u : lineStart + 1u;
-        const auto lineEnd = text.find_first_of(L"\r\n", first);
-        const auto physicalEnd = lineEnd == text.npos ? text.size() : lineEnd;
-        if (last != physicalEnd || (leaf == MarkdownNoNode ? first != physicalStart :
-            std::ranges::none_of(nodes[leaf].lines, [&](const auto& line) { return line.source.first == first; })))
+        const auto lineEnd       = text.find_first_of(L"\r\n", first);
+        const auto physicalEnd   = lineEnd == text.npos ? text.size() : lineEnd;
+        if (last != physicalEnd || (leaf == MarkdownNoNode ? first != physicalStart : std::ranges::none_of(nodes[leaf].lines, [&](const auto& line) {
+            return line.source.first == first;
+        })))
             return false;
         if (leaf != MarkdownNoNode)
             for (auto parent = nodes[leaf].parent; parent != MarkdownNoNode; parent = nodes[parent].parent)
@@ -1955,9 +1956,9 @@ void MarkdownCommandPlanner::Math(const MarkdownCommandRequest& request)
     if (! CanInsertMath(*plan.syntax_, plan.before_, request.text, request.mathDisplay))
         return;
     const auto first = plan.before_.Start(), last = plan.before_.End();
-    const auto payload     = first == last ? request.text : Slice(first, last);
-    const auto closer      = request.mathDisplay ? std::wstring_view(L"\\]") : std::wstring_view(L"\\)");
-    const auto& line = Line(first);
+    const auto payload = first == last ? request.text : Slice(first, last);
+    const auto closer  = request.mathDisplay ? std::wstring_view(L"\\]") : std::wstring_view(L"\\)");
+    const auto& line   = Line(first);
     const auto newline = Eol(line);
     std::wstring continuation(0u, L' ');
     if (request.mathDisplay)
@@ -1967,9 +1968,17 @@ void MarkdownCommandPlanner::Math(const MarkdownCommandRequest& request)
             return;
     }
     std::wstring insertion = request.mathDisplay ? L"\\[" : L"\\(";
-    if (request.mathDisplay) { insertion += newline; insertion += continuation; }
+    if (request.mathDisplay)
+    {
+        insertion += newline;
+        insertion += continuation;
+    }
     insertion += payload;
-    if (request.mathDisplay) { insertion += newline; insertion += continuation; }
+    if (request.mathDisplay)
+    {
+        insertion += newline;
+        insertion += continuation;
+    }
     insertion += closer;
     Add(first, last, insertion);
     const auto begin = first + 2u + (request.mathDisplay ? newline.size() + continuation.size() : 0u), end = begin + payload.size();

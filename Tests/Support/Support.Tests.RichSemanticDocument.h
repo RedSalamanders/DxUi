@@ -455,7 +455,21 @@ inline void LocalizedAccessibilityLabels()
                              AccessibilityTextOverride{LabelId::SequenceAsyncSends, L" envoie plus tard "},
                              AccessibilityTextOverride{LabelId::SequenceTo, L" vers "},
                              AccessibilityTextOverride{LabelId::SequenceDottedEnd, L" (pointillé); "},
-                             AccessibilityTextOverride{LabelId::StandaloneDiagramNote, L"Remarque: "}};
+                             AccessibilityTextOverride{LabelId::StandaloneDiagramNote, L"Remarque: "},
+                             AccessibilityTextOverride{LabelId::PieHeader, L"Répartition : "},
+                             AccessibilityTextOverride{LabelId::PieSlices, L". Parts : "},
+                             AccessibilityTextOverride{LabelId::PieHelp, L"Source de la répartition disponible."},
+                             AccessibilityTextOverride{LabelId::EntityRelationshipHeader, L"Relations, "},
+                             AccessibilityTextOverride{LabelId::EntityRelationshipHelp, L"Source des relations disponible."},
+                             AccessibilityTextOverride{LabelId::IdentifyingRelationship, L"] identifie "},
+                             AccessibilityTextOverride{LabelId::NonIdentifyingRelationship, L"] associe "},
+                             AccessibilityTextOverride{LabelId::GanttHeader, L"Calendrier : "},
+                             AccessibilityTextOverride{LabelId::GanttTasks, L". Tâches : "},
+                             AccessibilityTextOverride{LabelId::GanttHelp, L"Source du calendrier disponible."},
+                             AccessibilityTextOverride{LabelId::MindmapHeader, L"Carte. Sujets : "},
+                             AccessibilityTextOverride{LabelId::MindmapHelp, L"Source de la carte disponible."},
+                             AccessibilityTextOverride{LabelId::UnclosedDisplayMath, L"Délimiteur mathématique manquant."},
+                             AccessibilityTextOverride{LabelId::UnclosedMathFence, L"Clôture mathématique manquante."}};
     const auto labels = std::make_shared<const AccessibilityLabels>(entries);
     borrowed.assign(L"caller storage changed");
     SemanticBuilder builder;
@@ -505,6 +519,52 @@ inline void LocalizedAccessibilityLabels()
                               [](const auto& element)
     { return element.role == SemanticRole::Diagram && element.name.find(L"Remarque: Authored Note: body;") != element.name.npos; }),
           "standalone class-note vocabulary localizes while authored note text remains literal");
+    struct FamilyLabelCase
+    {
+        std::wstring_view source, prefix, help, authored;
+    };
+    for (const auto& fixture : std::array{FamilyLabelCase{L"```mermaid\npie\ntitle Authored title\n\"Authored slice\": 1\n```\n",
+                                                          L"Répartition : Authored title. Parts : ",
+                                                          L"Source de la répartition disponible.",
+                                                          L"Authored slice: 1; "},
+                                          FamilyLabelCase{L"```mermaid\nerDiagram\nA ||--o{ B : Authored relation\n```\n",
+                                                          L"Relations, ",
+                                                          L"Source des relations disponible.",
+                                                          L"A [1] identifie Authored relation B [0..*]"},
+                                          FamilyLabelCase{L"```mermaid\nerDiagram\nA ||..o{ B : Authored relation\n```\n",
+                                                          L"Relations, ",
+                                                          L"Source des relations disponible.",
+                                                          L"A [1] associe Authored relation B [0..*]"},
+                                          FamilyLabelCase{L"```mermaid\ngantt\ntitle Authored title\nAuthored task : 2026-11-01, 2d\n```\n",
+                                                          L"Calendrier : Authored title. Tâches : ",
+                                                          L"Source du calendrier disponible.",
+                                                          L"Authored task: 2026-11-01, 2d; "},
+                                          FamilyLabelCase{L"```mermaid\nmindmap\nAuthored root\n  Authored child\n```\n",
+                                                          L"Carte. Sujets : ",
+                                                          L"Source de la carte disponible.",
+                                                          L"Authored root; Authored child; "}})
+    {
+        const auto english = Build(fixture.source, MarkdownProfile::RichMarkdown);
+        builder.Begin(english->Syntax());
+        const auto translated = Complete(builder, *english->Syntax());
+        const auto element    = std::ranges::find(translated->Elements(), SemanticRole::Diagram, &SemanticElement::role);
+        Check(element != translated->Elements().end() && translated->Diagnostics().empty() && element->name.starts_with(fixture.prefix) &&
+                  element->name.find(fixture.authored) != element->name.npos && element->title == fixture.help &&
+                  translated->Map().Display() == english->Map().Display() && translated->Map().Source() == fixture.source,
+              "new native diagram families localize generated vocabulary and preserve authored content and geometry input");
+    }
+    for (const auto& fixture : std::array{FamilyLabelCase{L"$$\nx\n", {}, L"Délimiteur mathématique manquant.", {}},
+                                          FamilyLabelCase{L"```math\nx\n", {}, L"Clôture mathématique manquante.", {}},
+                                          FamilyLabelCase{L"```math\nx\n```\n", {}, L"Expression mathématique; source exacte disponible.", {}}})
+    {
+        const auto english = Build(fixture.source, MarkdownProfile::RichMarkdown);
+        builder.Begin(english->Syntax());
+        const auto translated = Complete(builder, *english->Syntax());
+        const auto math       = std::ranges::find(translated->Elements(), SemanticRole::Math, &SemanticElement::role);
+        Check(math != translated->Elements().end() && math->title == fixture.help && translated->Map().Source() == fixture.source &&
+                  translated->Map().Display() == english->Map().Display(),
+              "display and fenced equation help localizes without changing source or fallback display");
+    }
     for (const auto pattern : {L"missing", L"{0}{0}", L"{1}", L"{0:02}", L"}{0}"})
     {
         const std::array invalid{AccessibilityTextOverride{LabelId::FootnoteName, pattern}};

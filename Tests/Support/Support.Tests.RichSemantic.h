@@ -343,8 +343,8 @@ inline void ListsAndHeadings()
             request.command = MarkdownCommand::SetQuote;
             Document metadata(L"---\na: b\n---\n");
             metadata.SetSelection({5u, 5u});
-            Check(metadata.ReplaceSelection(L"x") && metadata.Text() == L"---\nax: b\n---\n" && metadata.Undo() &&
-                      metadata.Text() == L"---\na: b\n---\n" && metadata.Redo() && metadata.Text() == L"---\nax: b\n---\n",
+            Check(metadata.ReplaceSelection(L"x") && metadata.Text() == L"---\nax: b\n---\n" && metadata.Undo() && metadata.Text() == L"---\na: b\n---\n" &&
+                      metadata.Redo() && metadata.Text() == L"---\nax: b\n---\n",
                   "metadata remains available to exact source editing and undo/redo");
         }
         else
@@ -419,7 +419,8 @@ inline void ListsAndHeadings()
             Unavailable(L"| h |\n| - |\n| x |\n", {14u, 15u}, request, profile);
             Document displayMath(L"\\[\nx\ny\n\\]");
             const auto displaySyntax = Parse(displayMath, profile);
-            Check(std::ranges::any_of(displaySyntax->Nodes(), [](const auto& node) { return node.block.kind == MarkdownBlockKind::FencedCode && node.block.fenceMarker == L'['; }),
+            Check(std::ranges::any_of(displaySyntax->Nodes(),
+                                      [](const auto& node) { return node.block.kind == MarkdownBlockKind::FencedCode && node.block.fenceMarker == L'['; }),
                   "multiline display insertion remains one math source envelope");
             for (const auto& sample : {std::pair{std::wstring_view(L"$a `$x` tail"), MarkdownInlineKind::Code},
                                        std::pair{std::wstring_view(L"$a <span title=\"$x\">tail"), MarkdownInlineKind::Html},

@@ -50,7 +50,7 @@ wil::com_ptr<ID2D1PathGeometry> CylinderPath(ID2D1Factory* factory, FlowchartRec
     THROW_IF_FAILED(path->Open(sink.put()));
     const auto left = static_cast<float>(rect.x), right = static_cast<float>(rect.x + rect.width);
     const auto top = static_cast<float>(rect.y), bottom = static_cast<float>(rect.y + rect.height);
-    const auto radius = 8.f;
+    const auto radius  = 8.f;
     const auto arcSize = D2D1::SizeF((right - left) / 2.f, radius);
     sink->BeginFigure(D2D1::Point2F(left, top + radius), D2D1_FIGURE_BEGIN_FILLED);
     sink->AddArc({D2D1::Point2F(right, top + radius), arcSize, 0.f, D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE_SMALL});
@@ -67,7 +67,7 @@ wil::com_ptr<ID2D1PathGeometry> PiePath(ID2D1Factory* factory, FlowchartRect cir
     wil::com_ptr<ID2D1GeometrySink> sink;
     THROW_IF_FAILED(path->Open(sink.put()));
     const double radius = circle.width / 2.0;
-    const auto point = [&](double angle) noexcept
+    const auto point    = [&](double angle) noexcept
     {
         return D2D1::Point2F(static_cast<float>(circle.x + radius + radius * std::sin(angle)),
                              static_cast<float>(circle.y + radius - radius * std::cos(angle)));
@@ -76,8 +76,8 @@ wil::com_ptr<ID2D1PathGeometry> PiePath(ID2D1Factory* factory, FlowchartRect cir
     sink->AddLine(point(start));
     for (const auto angle : {(start + end) / 2.0, end})
     {
-        const D2D1_ARC_SEGMENT arc{point(angle), D2D1::SizeF(static_cast<float>(radius), static_cast<float>(radius)), 0.f,
-                                   D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE_SMALL};
+        const D2D1_ARC_SEGMENT arc{
+            point(angle), D2D1::SizeF(static_cast<float>(radius), static_cast<float>(radius)), 0.f, D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE_SMALL};
         sink->AddArc(arc);
     }
     sink->EndFigure(D2D1_FIGURE_END_CLOSED);
@@ -175,10 +175,14 @@ struct PreparedFlowchart::State
             {
                 const auto& style = styles->spans[index];
                 const DWRITE_TEXT_RANGE range{static_cast<UINT32>(style.first), static_cast<UINT32>(style.last - style.first)};
-                if (style.flags & LabelBold) THROW_IF_FAILED(layout->SetFontWeight(DWRITE_FONT_WEIGHT_BOLD, range));
-                if (style.flags & LabelItalic) THROW_IF_FAILED(layout->SetFontStyle(DWRITE_FONT_STYLE_ITALIC, range));
-                if (style.flags & LabelUnderline) THROW_IF_FAILED(layout->SetUnderline(TRUE, range));
-                if (style.flags & LabelStrike) THROW_IF_FAILED(layout->SetStrikethrough(TRUE, range));
+                if (style.flags & LabelBold)
+                    THROW_IF_FAILED(layout->SetFontWeight(DWRITE_FONT_WEIGHT_BOLD, range));
+                if (style.flags & LabelItalic)
+                    THROW_IF_FAILED(layout->SetFontStyle(DWRITE_FONT_STYLE_ITALIC, range));
+                if (style.flags & LabelUnderline)
+                    THROW_IF_FAILED(layout->SetUnderline(TRUE, range));
+                if (style.flags & LabelStrike)
+                    THROW_IF_FAILED(layout->SetStrikethrough(TRUE, range));
             }
         DWRITE_TEXT_METRICS metrics{};
         DWRITE_OVERHANG_METRICS ink{};
@@ -310,8 +314,10 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
             (edge.openArrow && (graph->family != NativeDiagramFamily::Sequence || ! edge.arrow)) ||
             (graph->family != NativeDiagramFamily::EntityRelationship && (edge.erFrom != ErMultiplicity::None || edge.erTo != ErMultiplicity::None)) ||
             edge.minimumRanks == 0u || edge.minimumRanks > NativeFlowchartParser::MaximumLinkRanks || edge.relation < FlowchartRelation::Line ||
-            edge.relation > FlowchartRelation::Composition || edge.arrow != (edge.relation != FlowchartRelation::Line && edge.relation != FlowchartRelation::Note) ||
-            (edge.relation == FlowchartRelation::Note && (graph->nodes[edge.to].shape != FlowchartShape::Note || graph->nodes[edge.to].noteTarget != edge.from)))
+            edge.relation > FlowchartRelation::Composition ||
+            edge.arrow != (edge.relation != FlowchartRelation::Line && edge.relation != FlowchartRelation::Note) ||
+            (edge.relation == FlowchartRelation::Note &&
+             (graph->nodes[edge.to].shape != FlowchartShape::Note || graph->nodes[edge.to].noteTarget != edge.from)))
             throw std::invalid_argument("Invalid native flowchart edge");
     if (next_ && next_->state->Matches(write, drawing, graph, typography, resourceEpoch))
         return LayoutPreparationStatus::Pending;
@@ -366,18 +372,25 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                         ++result.layoutsPrepared;
                         auto& preparedLabel = node          ? state.nodeLabels[index]
                                               : group == 0u ? state.edgeLabels[index]
-                                              : group == 1u ? state.fromCardinalities[index] : state.toCardinalities[index];
-                        auto& measuredSize = node ? state.nodeSizes[index]
-                                             : group == 0u ? state.edgeSizes[index]
-                                             : group == 1u ? state.fromCardinalitySizes[index] : state.toCardinalitySizes[index];
+                                              : group == 1u ? state.fromCardinalities[index]
+                                                            : state.toCardinalities[index];
+                        auto& measuredSize  = node          ? state.nodeSizes[index]
+                                              : group == 0u ? state.edgeSizes[index]
+                                              : group == 1u ? state.fromCardinalitySizes[index]
+                                                            : state.toCardinalitySizes[index];
                         if (node && state.graph->family == NativeDiagramFamily::Gantt)
                         {
-                            const auto& task = state.graph->nodes[index];
+                            const auto& task  = state.graph->nodes[index];
                             const auto source = std::wstring_view(state.graph->source);
                             std::wstring legend(0u, L' ');
-                            if (! task.ganttSection.empty()) legend.append(task.ganttSection).append(L" / ");
-                            legend.append(label).append(L" (").append(source.substr(task.ganttStartSource.first, task.ganttStartSource.last - task.ganttStartSource.first))
-                                  .append(L", ").append(source.substr(task.ganttEndSource.first, task.ganttEndSource.last - task.ganttEndSource.first)).append(L")");
+                            if (! task.ganttSection.empty())
+                                legend.append(task.ganttSection).append(L" / ");
+                            legend.append(label)
+                                .append(L" (")
+                                .append(source.substr(task.ganttStartSource.first, task.ganttStartSource.last - task.ganttStartSource.first))
+                                .append(L", ")
+                                .append(source.substr(task.ganttEndSource.first, task.ganttEndSource.last - task.ganttEndSource.first))
+                                .append(L")");
                             state.Label(legend, preparedLabel, measuredSize);
                         }
                         else if (node && state.graph->family == NativeDiagramFamily::Pie && state.graph->pieShowData)
@@ -388,8 +401,12 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                             state.Label(legend, preparedLabel, measuredSize);
                         }
                         else
-                            state.Label(label, preparedLabel, measuredSize,
-                                        node ? &state.graph->nodes[index].styles : group == 0u ? &state.graph->edges[index].styles : nullptr);
+                            state.Label(label,
+                                        preparedLabel,
+                                        measuredSize,
+                                        node          ? &state.graph->nodes[index].styles
+                                        : group == 0u ? &state.graph->edges[index].styles
+                                                      : nullptr);
                         if (node)
                         {
                             auto& prepared    = state.nodeLabels[index];
@@ -425,10 +442,11 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                     if (result.layoutsPrepared == budget.maximumLayouts)
                         return result;
                     ++result.layoutsPrepared;
-                    state.Label(state.graph->family == NativeDiagramFamily::Pie ? std::wstring_view(state.graph->pieTitle)
+                    state.Label(state.graph->family == NativeDiagramFamily::Pie     ? std::wstring_view(state.graph->pieTitle)
                                 : state.graph->family == NativeDiagramFamily::Gantt ? std::wstring_view(state.graph->ganttTitle)
-                                                                                   : std::wstring_view(state.graph->groups[work.cursor].title),
-                                state.groupLabels[work.cursor], state.groupSizes[work.cursor]);
+                                                                                    : std::wstring_view(state.graph->groups[work.cursor].title),
+                                state.groupLabels[work.cursor],
+                                state.groupSizes[work.cursor]);
                     ++work.cursor;
                     break;
                 case Preparation::Stage::BeginGeometry:
@@ -490,7 +508,7 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                              state.geometry->nodes[work.cursor].shape <= FlowchartShape::ReverseTrapezoid)
                     {
                         const auto& node = state.geometry->nodes[work.cursor];
-                        const auto r = node.bounds;
+                        const auto r     = node.bounds;
                         const auto point = [&](double x, double y) { return FlowchartPoint{r.x + x * r.width, r.y + y * r.height}; };
                         if (node.shape == FlowchartShape::Asymmetric)
                         {
@@ -499,9 +517,10 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                         }
                         else
                         {
-                            const auto topLeft = node.shape == FlowchartShape::Parallelogram || node.shape == FlowchartShape::Trapezoid ? .25 : 0.0;
+                            const auto topLeft  = node.shape == FlowchartShape::Parallelogram || node.shape == FlowchartShape::Trapezoid ? .25 : 0.0;
                             const auto topRight = node.shape == FlowchartShape::ReverseParallelogram || node.shape == FlowchartShape::Trapezoid ? .75 : 1.0;
-                            const auto bottomLeft = node.shape == FlowchartShape::ReverseParallelogram || node.shape == FlowchartShape::ReverseTrapezoid ? .25 : 0.0;
+                            const auto bottomLeft =
+                                node.shape == FlowchartShape::ReverseParallelogram || node.shape == FlowchartShape::ReverseTrapezoid ? .25 : 0.0;
                             const auto bottomRight = node.shape == FlowchartShape::Parallelogram || node.shape == FlowchartShape::ReverseTrapezoid ? .75 : 1.0;
                             const std::array points{point(topLeft, 0.0), point(topRight, 0.0), point(bottomRight, 1.0), point(bottomLeft, 1.0)};
                             state.nodePaths[work.cursor] = Path(state.drawing.get(), points);
@@ -604,7 +623,8 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
     {
         label(state.groupLabels[0u], plan.ganttTitle);
         target->DrawLine(D2D1::Point2F(static_cast<float>(plan.ganttAxis.x), static_cast<float>(plan.ganttAxis.y)),
-                         D2D1::Point2F(static_cast<float>(plan.ganttAxis.x + plan.ganttAxis.width), static_cast<float>(plan.ganttAxis.y)), stroke);
+                         D2D1::Point2F(static_cast<float>(plan.ganttAxis.x + plan.ganttAxis.width), static_cast<float>(plan.ganttAxis.y)),
+                         stroke);
         for (std::size_t index = 0u; index < plan.nodes.size(); ++index)
         {
             target->FillRectangle(Rect(plan.nodes[index].bounds), stroke);
@@ -615,16 +635,18 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
     if (state.graph->family == NativeDiagramFamily::Pie)
     {
         const auto originalOpacity = stroke->GetOpacity();
-        const auto restoreOpacity = wil::scope_exit([&]() noexcept { stroke->SetOpacity(originalOpacity); });
+        const auto restoreOpacity  = wil::scope_exit([&]() noexcept { stroke->SetOpacity(originalOpacity); });
         label(state.groupLabels[0u], plan.pieTitle);
         for (std::size_t index = 0u; index < plan.nodes.size(); ++index)
         {
             const float opacity = originalOpacity * (.28f + .22f * static_cast<float>(index % 4u));
             stroke->SetOpacity(opacity);
-            if (state.nodePaths[index]) target->FillGeometry(state.nodePaths[index].get(), stroke);
+            if (state.nodePaths[index])
+                target->FillGeometry(state.nodePaths[index].get(), stroke);
             target->FillRectangle(Rect(plan.nodes[index].bounds), stroke);
             stroke->SetOpacity(originalOpacity);
-            if (state.nodePaths[index]) target->DrawGeometry(state.nodePaths[index].get(), stroke);
+            if (state.nodePaths[index])
+                target->DrawGeometry(state.nodePaths[index].get(), stroke);
             target->DrawRectangle(Rect(plan.nodes[index].bounds), stroke);
             label(state.nodeLabels[index], plan.nodes[index].label);
         }
@@ -667,33 +689,37 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
         {
             const auto endpoint = [&](bool last, ErMultiplicity cardinality) noexcept
             {
-                const auto originPoint = last ? edge.path.back() : edge.path.front();
+                const auto originPoint   = last ? edge.path.back() : edge.path.front();
                 FlowchartPoint neighbour = originPoint;
                 for (std::size_t step = 1u; step < edge.path.size(); ++step)
                 {
                     neighbour = last ? edge.path[edge.path.size() - 1u - step] : edge.path[step];
-                    if (neighbour.x != originPoint.x || neighbour.y != originPoint.y) break;
+                    if (neighbour.x != originPoint.x || neighbour.y != originPoint.y)
+                        break;
                 }
                 const auto length = std::hypot(neighbour.x - originPoint.x, neighbour.y - originPoint.y);
-                if (length <= 0.0) return;
+                if (length <= 0.0)
+                    return;
                 const auto dx = (neighbour.x - originPoint.x) / length, dy = (neighbour.y - originPoint.y) / length;
                 const auto p = [&](double distance, double across) noexcept
                 { return Point({originPoint.x + dx * distance - dy * across, originPoint.y + dy * distance + dx * across}); };
-                const auto bar = [&](double distance) noexcept { target->DrawLine(p(distance, -4.0), p(distance, 4.0), stroke); };
-                const bool many = cardinality == ErMultiplicity::OneOrMany || cardinality == ErMultiplicity::ZeroOrMany;
+                const auto bar      = [&](double distance) noexcept { target->DrawLine(p(distance, -4.0), p(distance, 4.0), stroke); };
+                const bool many     = cardinality == ErMultiplicity::OneOrMany || cardinality == ErMultiplicity::ZeroOrMany;
                 const bool optional = cardinality == ErMultiplicity::ZeroOrOne || cardinality == ErMultiplicity::ZeroOrMany;
                 if (many)
                 {
                     target->DrawLine(p(9.0, 0.0), p(2.0, -4.0), stroke);
                     target->DrawLine(p(9.0, 0.0), p(2.0, 4.0), stroke);
                 }
-                else bar(4.0);
+                else
+                    bar(4.0);
                 if (optional)
                 {
                     const auto center = p(many ? 13.0 : 11.0, 0.0);
                     target->DrawEllipse(D2D1::Ellipse(center, 2.f, 2.f), stroke);
                 }
-                else bar(many ? 13.0 : 9.0);
+                else
+                    bar(many ? 13.0 : 9.0);
             };
             endpoint(false, edge.erFrom);
             endpoint(true, edge.erTo);
@@ -719,8 +745,8 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
     }
     for (std::size_t index = 0u; index < plan.nodes.size(); ++index)
     {
-        const auto& node  = plan.nodes[index];
-        const auto bounds = Rect(node.bounds);
+        const auto& node           = plan.nodes[index];
+        const auto bounds          = Rect(node.bounds);
         const auto nodeStrokeWidth = static_cast<float>(state.graph->nodes[index].strokeWidth);
         if (node.shape == FlowchartShape::Bar)
         {
@@ -746,8 +772,9 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
         {
             target->FillGeometry(state.nodePaths[index].get(), fill);
             target->DrawGeometry(state.nodePaths[index].get(), stroke, nodeStrokeWidth);
-            target->DrawEllipse(D2D1::Ellipse(D2D1::Point2F((bounds.left + bounds.right) / 2.f, bounds.top + 8.f),
-                                               (bounds.right - bounds.left) / 2.f, 8.f), stroke, nodeStrokeWidth);
+            target->DrawEllipse(D2D1::Ellipse(D2D1::Point2F((bounds.left + bounds.right) / 2.f, bounds.top + 8.f), (bounds.right - bounds.left) / 2.f, 8.f),
+                                stroke,
+                                nodeStrokeWidth);
         }
         else if (node.shape == FlowchartShape::Rounded)
         {

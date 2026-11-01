@@ -2,7 +2,6 @@
 #include "Controls/DxUi.PreparedMath.h"
 #include "Controls/DxUi.RichSemanticGeometry.h"
 #include "Controls/DxUi.RichSourceWindow.h"
-#include "Controls/DxUi.RichSourceWindow.h"
 #include "Support.Tests.CountingWriteFactory.h"
 #include "Support.Tests.RichImageResources.h"
 #include "Support.Tests.RichSemantic.h"
@@ -201,8 +200,7 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     Check(! editor->GetPreparedCaretWordSourceRanges(host), "caret-word query refuses stale geometry");
     prepare();
     const auto boldWord = editor->GetPreparedCaretWordSourceRanges(host);
-    Check(boldWord && boldWord->size() == 1u && (*boldWord)[0] == MarkdownRange{2u, 7u},
-          "prepared caret word excludes hidden emphasis delimiters");
+    Check(boldWord && boldWord->size() == 1u && (*boldWord)[0] == MarkdownRange{2u, 7u}, "prepared caret word excludes hidden emphasis delimiters");
     editor->SetSelection({12u, 12u});
     const auto entityWord = editor->GetPreparedCaretWordSourceRanges(host);
     Check(entityWord && entityWord->size() == 1u && (*entityWord)[0] == MarkdownRange{10u, 15u},
@@ -218,12 +216,10 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     prepare();
     editor->SetSelection({3u, 3u});
     const auto combinedWord = editor->GetPreparedCaretWordSourceRanges(host);
-    Check(combinedWord && combinedWord->size() == 1u && (*combinedWord)[0] == MarkdownRange{2u, 4u},
-          "prepared caret word cannot split a combining grapheme");
+    Check(combinedWord && combinedWord->size() == 1u && (*combinedWord)[0] == MarkdownRange{2u, 4u}, "prepared caret word cannot split a combining grapheme");
     editor->SetSelection({7u, 7u});
     const auto emojiWord = editor->GetPreparedCaretWordSourceRanges(host);
-    Check(emojiWord && emojiWord->size() == 1u && (*emojiWord)[0] == MarkdownRange{7u, 9u},
-          "prepared caret word cannot split a supplementary emoji");
+    Check(emojiWord && emojiWord->size() == 1u && (*emojiWord)[0] == MarkdownRange{7u, 9u}, "prepared caret word cannot split a supplementary emoji");
     editor->SetViewMode(ViewMode::Source);
     editor->SetText(L"word\r\nnext");
     prepare();
@@ -237,37 +233,55 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     prepare();
     editor->SetSelection({4u, 4u});
     const auto prototypeWord = editor->GetPreparedCaretWordSourceRanges(host);
-    Check(prototypeWord && prototypeWord->size() == 3u && (*prototypeWord)[0] == MarkdownRange{0u, 2u} &&
-              (*prototypeWord)[1] == MarkdownRange{4u, 6u} && (*prototypeWord)[2] == MarkdownRange{8u, 9u},
+    Check(prototypeWord && prototypeWord->size() == 3u && (*prototypeWord)[0] == MarkdownRange{0u, 2u} && (*prototypeWord)[1] == MarkdownRange{4u, 6u} &&
+              (*prototypeWord)[2] == MarkdownRange{8u, 9u},
           "prototype rich projection preserves disjoint word source around hidden markers");
     std::wstring manyWords(60000u, L' ');
     for (size_t at = 0u; at < manyWords.size(); at += 5u)
         manyWords.replace(at, 4u, L"word");
-    size_t reads = 0u;
-    const auto localWord = DxUi::RichText::Detail::PreparedDisplayWordRange(manyWords.size(), 30002u, [&](size_t at) { ++reads; return manyWords[at]; });
-    Check(localWord.first == 30000u && localWord.last == 30004u && reads < 2048u,
-          "ordinary words in a long prepared display require bounded local reads");
+    size_t reads         = 0u;
+    const auto localWord = DxUi::RichText::Detail::PreparedDisplayWordRange(manyWords.size(),
+                                                                            30002u,
+                                                                            [&](size_t at)
+    {
+        ++reads;
+        return manyWords[at];
+    });
+    Check(localWord.first == 30000u && localWord.last == 30004u && reads < 2048u, "ordinary words in a long prepared display require bounded local reads");
     std::wstring giantWord(60000u, L'x');
     size_t giantReads = 0u;
-    const auto giant = DxUi::RichText::Detail::PreparedDisplayWordRange(giantWord.size(), 30000u, [&](size_t at) { ++giantReads; return giantWord[at]; });
+    const auto giant  = DxUi::RichText::Detail::PreparedDisplayWordRange(giantWord.size(),
+                                                                         30000u,
+                                                                         [&](size_t at)
+    {
+        ++giantReads;
+        return giantWord[at];
+    });
     Check(giant.first == 0u && giant.last == giantWord.size() && giantReads < giantWord.size() * 4u,
           "a document-wide word expands to its complete source without repeated full scans");
     const std::wstring boundaryText = std::wstring(300u, L'x') + L" C:\\alpha\\beta\r\na\u0301 \U0001f469\u200d\U0001f4bb end";
-    for (const auto position : {size_t{0u}, size_t{127u}, size_t{300u}, size_t{302u}, size_t{305u}, size_t{311u},
-                                boundaryText.find(L'a', 310u), boundaryText.find(L"\U0001f469"), boundaryText.size()})
+    for (const auto position : {size_t{0u},
+                                size_t{127u},
+                                size_t{300u},
+                                size_t{302u},
+                                size_t{305u},
+                                size_t{311u},
+                                boundaryText.find(L'a', 310u),
+                                boundaryText.find(L"\U0001f469"),
+                                boundaryText.size()})
     {
         const auto expected = GetEnclosingAccessibilityTextUnitSpan(boundaryText, position, TextUnit_Word);
         auto first = expected.start, last = expected.end;
         if (first < last)
         {
             first = GetEnclosingAccessibilityTextUnitSpan(boundaryText, first, TextUnit_Character).start;
-            last = GetEnclosingAccessibilityTextUnitSpan(boundaryText, last - 1u, TextUnit_Character).end;
+            last  = GetEnclosingAccessibilityTextUnitSpan(boundaryText, last - 1u, TextUnit_Character).end;
         }
         const auto actual = DxUi::RichText::Detail::PreparedDisplayWordRange(boundaryText.size(), position, [&](size_t at) { return boundaryText[at]; });
         Check(actual.first == first && actual.last == last, "windowed word boundaries agree with the canonical full-display Unicode oracle");
     }
-    const std::array<std::wstring_view, 12u> wordTokens{L"a", L"z", L" ", L"_", L"/", L".", L"\r\n", L"\u0301", L"\U0001f600",
-                                                       L"\U0001f469\u200d\U0001f4bb", L"\u0915\u094d\u0937", L"\U0001f1fa\U0001f1f8"};
+    const std::array<std::wstring_view, 12u> wordTokens{
+        L"a", L"z", L" ", L"_", L"/", L".", L"\r\n", L"\u0301", L"\U0001f600", L"\U0001f469\u200d\U0001f4bb", L"\u0915\u094d\u0937", L"\U0001f1fa\U0001f1f8"};
     unsigned wordSeed = 17u;
     for (unsigned sample = 0u; sample < 16u; ++sample)
     {
@@ -286,7 +300,7 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
             if (first < last)
             {
                 first = GetEnclosingAccessibilityTextUnitSpan(corpus, first, TextUnit_Character).start;
-                last = GetEnclosingAccessibilityTextUnitSpan(corpus, last - 1u, TextUnit_Character).end;
+                last  = GetEnclosingAccessibilityTextUnitSpan(corpus, last - 1u, TextUnit_Character).end;
             }
             const auto actual = DxUi::RichText::Detail::PreparedDisplayWordRange(corpus.size(), position, [&](size_t at) { return corpus[at]; });
             Check(actual.first == first && actual.last == last, "windowed word and grapheme boundaries match the complete Unicode oracle");
@@ -687,13 +701,16 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     editor->SetText(L"- a\n");
     prepare();
     editor->SetSelection({2u, 2u});
-    for (const auto command : {MarkdownCommand::ToggleTask, MarkdownCommand::SetList, MarkdownCommand::InsertTable,
-                               MarkdownCommand::DeleteTableColumn, MarkdownCommand::ToggleStyle})
+    for (const auto command : {MarkdownCommand::ToggleTask,
+                               MarkdownCommand::SetList,
+                               MarkdownCommand::InsertTable,
+                               MarkdownCommand::DeleteTableColumn,
+                               MarkdownCommand::ToggleStyle})
     {
         MarkdownCommandRequest disabled;
-        disabled.command = command;
-        disabled.listKind = MarkdownListKind::Task;
-        disabled.style = MarkdownTextStyle::Strikethrough;
+        disabled.command         = command;
+        disabled.listKind        = MarkdownListKind::Task;
+        disabled.style           = MarkdownTextStyle::Strikethrough;
         const auto disabledState = editor->QueryMarkdownCommandState(disabled);
         Check(disabledState && disabledState->available == std::optional<bool>{false} &&
                   editor->ExecuteMarkdownCommand(disabled) == MarkdownCommandStatus::Unavailable,
@@ -706,7 +723,7 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     for (const auto command : {MarkdownCommand::InsertParagraph, MarkdownCommand::InsertHardBreak})
     {
         MarkdownCommandRequest spanning;
-        spanning.command = command;
+        spanning.command         = command;
         const auto spanningState = editor->QueryMarkdownCommandState(spanning);
         Check(spanningState && spanningState->available == std::optional<bool>{false} &&
                   editor->ExecuteMarkdownCommand(spanning) == MarkdownCommandStatus::Unavailable,
@@ -1222,8 +1239,8 @@ template <typename Prepare> void InlineMathSourceEditing(ControlHost& host, Prep
     Check(semantic && std::ranges::any_of(semantic->Elements(),
                                           [&](const auto& item) { return item.role == SemanticRole::Math && item.source == MarkdownRange{2u, 2u}; }),
           "empty math insertion remains an inline owner between paired delimiters");
-    Check(semantic && std::ranges::none_of(semantic->Syntax()->Inlines(), [](const auto& node)
-          { return node.kind == MarkdownInlineKind::Text && node.source == MarkdownRange{2u, 3u}; }),
+    Check(semantic && std::ranges::none_of(semantic->Syntax()->Inlines(),
+                                           [](const auto& node) { return node.kind == MarkdownInlineKind::Text && node.source == MarkdownRange{2u, 3u}; }),
           "zero-width inline source sentinel cannot become a text node over the adjacent delimiter");
     Check(editor->Undo(), "undo restores math between delimiters");
     prepare();
@@ -1238,10 +1255,10 @@ template <typename Prepare> void InlineMathSourceEditing(ControlHost& host, Prep
     Check(editor->ReplaceSelection(L""), "the expression interior may become empty");
     prepare();
     semantic = editor->GetAcknowledgedSemanticDocument(host);
-    Check(editor->GetText() == L"$$" && editor->GetSemanticSourceRegion() &&
-              editor->GetSemanticSourceRegion()->source == MarkdownRange{0u, 2u} && semantic &&
-              std::ranges::any_of(semantic->Elements(), [](const auto& item) { return item.role == SemanticRole::Math && item.source == MarkdownRange{0u, 2u}; }),
-          "an actively edited empty inline expression keeps its inline owner even when its raw source is a display opener");
+    Check(
+        editor->GetText() == L"$$" && editor->GetSemanticSourceRegion() && editor->GetSemanticSourceRegion()->source == MarkdownRange{0u, 2u} && semantic &&
+            std::ranges::any_of(semantic->Elements(), [](const auto& item) { return item.role == SemanticRole::Math && item.source == MarkdownRange{0u, 2u}; }),
+        "an actively edited empty inline expression keeps its inline owner even when its raw source is a display opener");
     Check(editor->Undo(), "undo restores the deleted inline expression interior");
     prepare();
     Check(editor->OnKeyDown(host, VK_ESCAPE, 0u), "leave the restored inline expression");

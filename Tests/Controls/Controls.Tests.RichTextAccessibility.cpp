@@ -2000,8 +2000,8 @@ void SemanticDiagramAlternatives(bool embedded)
     const auto pieImage = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
     Require(pieImage != nullptr, "pie is exposed as an acknowledged native image provider");
     const auto pieName = ReadProviderStringProperty(*pieImage.get(), UIA_NamePropertyId, "pie alternative");
-    Require(pieName.starts_with(L"Pie chart: Inventory") && pieName.find(L"One: 25") != std::wstring::npos &&
-                pieName.find(L"Three: 75") != std::wstring::npos, "pie provider exposes the title and source values");
+    Require(pieName.starts_with(L"Pie chart: Inventory") && pieName.find(L"One: 25") != std::wstring::npos && pieName.find(L"Three: 75") != std::wstring::npos,
+            "pie provider exposes the title and source values");
     wil::com_ptr_nothrow<ITextRangeProvider> pieRange;
     RequireSucceeded(text->RangeFromChild(pieImage.get(), pieRange.put()), "pie source range");
     Require(ReadTextRangeText(*pieRange.get(), -1, "pie exact raw fence") == pie, "pie UIA range owns the original fence");
@@ -2012,7 +2012,8 @@ void SemanticDiagramAlternatives(bool embedded)
     Require(erImage != nullptr, "ER diagram is exposed as an acknowledged native image provider");
     const auto erName = ReadProviderStringProperty(*erImage.get(), UIA_NamePropertyId, "ER alternative");
     Require(erName.starts_with(L"Entity relationship diagram") && erName.find(L"CUSTOMER [1]") != std::wstring::npos &&
-                erName.find(L"ORDER [0..*]") != std::wstring::npos, "ER provider exposes entity multiplicities");
+                erName.find(L"ORDER [0..*]") != std::wstring::npos,
+            "ER provider exposes entity multiplicities");
     wil::com_ptr_nothrow<ITextRangeProvider> erRange;
     RequireSucceeded(text->RangeFromChild(erImage.get(), erRange.put()), "ER source range");
     Require(ReadTextRangeText(*erRange.get(), -1, "ER exact raw fence") == er, "ER UIA range owns the original fence");
@@ -2033,8 +2034,8 @@ void SemanticDiagramAlternatives(bool embedded)
     const auto mindImage = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
     Require(mindImage != nullptr, "Mind map is exposed as an acknowledged native image provider");
     const auto mindName = ReadProviderStringProperty(*mindImage.get(), UIA_NamePropertyId, "Mind map alternative");
-    Require(mindName.starts_with(L"Mind map. Nodes: ") && mindName.find(L"Central") != std::wstring::npos &&
-                mindName.find(L"Leaf") != std::wstring::npos && mindName.find(L"Second") != std::wstring::npos,
+    Require(mindName.starts_with(L"Mind map. Nodes: ") && mindName.find(L"Central") != std::wstring::npos && mindName.find(L"Leaf") != std::wstring::npos &&
+                mindName.find(L"Second") != std::wstring::npos,
             "Mind map provider exposes hierarchy labels");
     wil::com_ptr_nothrow<ITextRangeProvider> mindRange;
     RequireSucceeded(text->RangeFromChild(mindImage.get(), mindRange.put()), "Mind map source range");
@@ -2048,8 +2049,7 @@ void SemanticDiagramAlternatives(bool embedded)
     Require(mathName.find(L"\\frac{1}{2}") != std::wstring::npos, "display math alternative retains authored TeX");
     wil::com_ptr_nothrow<ITextRangeProvider> mathRange;
     RequireSucceeded(text->RangeFromChild(mathImage.get(), mathRange.put()), "display math fence source range");
-    Require(ReadTextRangeText(*mathRange.get(), -1, "display math fence exact source") == mathFence,
-            "display math UIA range owns the complete original fence");
+    Require(ReadTextRangeText(*mathRange.get(), -1, "display math fence exact source") == mathFence, "display math UIA range owns the complete original fence");
 }
 void SemanticMathLiteralFallback(bool embedded)
 {

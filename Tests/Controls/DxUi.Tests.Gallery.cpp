@@ -1196,8 +1196,8 @@ void AddComboItems(ComboBox& combo)
     }
     {
         const Tile tile = flow.Next(*scene.root, L"RichTextEditor / native C++ mathematics", 2u, 480.0f);
-        auto* editor    = scene.root->AddChild<RichTextEditor>(L"### Mathematics stays in the document\n\nInline $E=mc^2$ and display notation:\n\n"
-                                                               L"$$\nx=\\frac{-b+\\sqrt{b^2-4ac}}{2a}\n$$\n\n$$\n\\begin{bmatrix}a&b\\\\c&d\\end{bmatrix}\n$$\n");
+        auto* editor = scene.root->AddChild<RichTextEditor>(L"### Mathematics stays in the document\n\nInline $E=mc^2$ and display notation:\n\n"
+                                                            L"$$\nx=\\frac{-b+\\sqrt{b^2-4ac}}{2a}\n$$\n\n$$\n\\begin{bmatrix}a&b\\\\c&d\\end{bmatrix}\n$$\n");
         editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
         editor->SetMarkdownRenderingEnabled(true);
         editor->SetBounds(tile.content);

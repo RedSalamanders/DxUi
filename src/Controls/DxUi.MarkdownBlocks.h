@@ -1148,15 +1148,15 @@ public:
                 if (node.block.fenceMarker == L'$' || node.block.fenceMarker == L'[')
                 {
                     const auto delimiter = node.block.fenceMarker == L'$' ? std::wstring_view(L"$$") : std::wstring_view(L"\\]");
-                    const auto rest = candidate.Rest();
-                    const bool closing = indent <= 3u && rest.starts_with(delimiter) &&
-                        std::ranges::all_of(rest.substr(delimiter.size()), [](wchar_t c) { return c == L' ' || c == L'\t'; });
+                    const auto rest      = candidate.Rest();
+                    const bool closing   = indent <= 3u && rest.starts_with(delimiter) &&
+                                           std::ranges::all_of(rest.substr(delimiter.size()), [](wchar_t c) { return c == L' ' || c == L'\t'; });
                     if (closing)
                     {
-                        node.block.source.last = end;
+                        node.block.source.last  = end;
                         node.block.content.last = first;
-                        node.block.closed = true;
-                        leaf_ = MarkdownNoNode;
+                        node.block.closed       = true;
+                        leaf_                   = MarkdownNoNode;
                     }
                     else
                     {
@@ -1336,19 +1336,18 @@ public:
         const auto indent = cursor.Indent();
         if (indent <= 3u)
         {
-            const auto rest   = trimmed.Rest();
-            if (sourceProfile_ == MarkdownProfile::RichMarkdown &&
-                (rest.starts_with(L"$$") || rest.starts_with(L"\\[")) &&
+            const auto rest = trimmed.Rest();
+            if (sourceProfile_ == MarkdownProfile::RichMarkdown && (rest.starts_with(L"$$") || rest.starts_with(L"\\[")) &&
                 std::ranges::all_of(rest.substr(2u), [](wchar_t c) { return c == L' ' || c == L'\t'; }))
             {
                 CloseLeaf();
-                leaf_ = Add(Kind::FencedCode, open_.back());
-                auto& block = nodes_[leaf_].block;
+                leaf_             = Add(Kind::FencedCode, open_.back());
+                auto& block       = nodes_[leaf_].block;
                 block.fenceMarker = rest[0u] == L'$' ? L'$' : L'[';
                 block.fenceLength = 2u;
                 block.fenceIndent = indent;
-                block.closed = false;
-                block.content = {end, end};
+                block.closed      = false;
+                block.content     = {end, end};
                 Extend();
                 return;
             }

@@ -63,7 +63,26 @@ constexpr std::wstring_view defaults[] = {L"Invoke or press F2 to edit exact sou
                                           L" asynchronously sends ",
                                           L" to ",
                                           L" (dotted); ",
-                                          L"Note: "};
+                                          L"Note: ",
+                                          L"Empty pie chart. Source is preserved.",
+                                          L"Empty Gantt chart. Source is preserved.",
+                                          L"Empty mind map. Source is preserved.",
+                                          L"Empty sequence diagram. Source is preserved.",
+                                          L"Empty entity relationship diagram. Source is preserved.",
+                                          L"Pie chart: ",
+                                          L". Slices: ",
+                                          L"Pie chart. Source is available as document text.",
+                                          L"Entity relationship diagram, ",
+                                          L"Entity relationship diagram. Source is available as document text.",
+                                          L"] identifying ",
+                                          L"] non-identifying ",
+                                          L"Gantt chart: ",
+                                          L". Tasks: ",
+                                          L"Gantt chart. Source is available as document text.",
+                                          L"Mind map. Nodes: ",
+                                          L"Mind map. Source is available as document text.",
+                                          L"Missing closing display math delimiter. Exact source is preserved.",
+                                          L"Missing closing math fence. Exact source is preserved."};
 static_assert(std::size(defaults) == static_cast<std::size_t>(Id::Count));
 unsigned ArgumentCount(Id id) noexcept
 {

@@ -257,34 +257,34 @@ static void TestRichDocumentAllocationFailureAtomicity()
     }
     Document firstUndoBase(L"base");
     firstUndoBase.Replace(4u, 4u, L"!", {5u, 5u});
-    const auto firstUndoSource = firstUndoBase.Snapshot();
+    const auto firstUndoSource    = firstUndoBase.Snapshot();
     const auto firstUndoSelection = firstUndoBase.GetSelection();
-    const auto firstUndoRevision = firstUndoBase.Revision();
+    const auto firstUndoRevision  = firstUndoBase.Revision();
     size_t firstUndoRequests{};
     {
-        Document candidate = firstUndoBase;
+        Document candidate  = firstUndoBase;
         const auto oldCount = countAllocations;
         const auto oldCalls = allocations, oldBytes = allocationBytes;
         const auto restore = wil::scope_exit([=] noexcept
         {
             countAllocations = oldCount;
-            allocations = oldCalls;
-            allocationBytes = oldBytes;
+            allocations      = oldCalls;
+            allocationBytes  = oldBytes;
         });
         allocations = allocationBytes = 0u;
-        countAllocations = true;
+        countAllocations              = true;
         Check(candidate.Undo(), "first undo prepares the redo ring");
-        countAllocations = false;
+        countAllocations  = false;
         firstUndoRequests = allocations;
     }
     Check(firstUndoRequests > 0u && firstUndoRequests < 64u, "first undo has a bounded fallible redo-ring preparation");
     for (size_t failure = 0u; failure < firstUndoRequests; ++failure)
     {
         Document candidate = firstUndoBase;
-        bool rejected = false;
+        bool rejected      = false;
         {
             const auto previous = failAllocationAfter;
-            const auto restore = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
+            const auto restore  = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
             failAllocationAfter = failure;
             try
             {

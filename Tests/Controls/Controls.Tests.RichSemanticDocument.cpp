@@ -837,28 +837,27 @@ void TestRichSemanticNativeMathematicsAndBroaderMermaid()
                 sequenceDiagram->name.find(L"reply") > sequenceDiagram->name.find(L"hello"),
             "sequence semantic alternative retains participants and chronological messages with exact source");
     const std::wstring pieSource = L"```mermaid\npie showData title Inventory\n\"One\": 25\n\"Three\": 75\n```\n";
-    const auto pieDocument = RichSemanticDocumentTests::Build(pieSource, MarkdownProfile::RichMarkdown);
-    const auto pieDiagram = std::ranges::find(pieDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
-    Require(pieDocument->Map().Source() == pieSource && pieDiagram != pieDocument->Elements().end() &&
-                pieDiagram->name.starts_with(L"Pie chart: Inventory") && pieDiagram->name.find(L"One: 25") != std::wstring::npos &&
-                pieDiagram->name.find(L"Three: 75") != std::wstring::npos,
+    const auto pieDocument       = RichSemanticDocumentTests::Build(pieSource, MarkdownProfile::RichMarkdown);
+    const auto pieDiagram        = std::ranges::find(pieDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
+    Require(pieDocument->Map().Source() == pieSource && pieDiagram != pieDocument->Elements().end() && pieDiagram->name.starts_with(L"Pie chart: Inventory") &&
+                pieDiagram->name.find(L"One: 25") != std::wstring::npos && pieDiagram->name.find(L"Three: 75") != std::wstring::npos,
             "pie semantic alternative preserves title, slice values, order and exact source");
     const std::wstring erSource = L"```mermaid\nerDiagram\nCUSTOMER ||--o{ ORDER : places\n```\n";
-    const auto erDocument = RichSemanticDocumentTests::Build(erSource, MarkdownProfile::RichMarkdown);
-    const auto erDiagram = std::ranges::find(erDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
+    const auto erDocument       = RichSemanticDocumentTests::Build(erSource, MarkdownProfile::RichMarkdown);
+    const auto erDiagram        = std::ranges::find(erDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
     Require(erDocument->Map().Source() == erSource && erDiagram != erDocument->Elements().end() &&
                 erDiagram->name.starts_with(L"Entity relationship diagram") && erDiagram->name.find(L"CUSTOMER [1]") != std::wstring::npos &&
                 erDiagram->name.find(L"ORDER [0..*]") != std::wstring::npos,
             "ER semantic alternative exposes both multiplicities with exact source");
     const std::wstring ganttSource = L"```mermaid\ngantt\ntitle Release\nsection Build\nCompile : 2024-02-27, 3d\n```\n";
-    const auto ganttDocument = RichSemanticDocumentTests::Build(ganttSource, MarkdownProfile::RichMarkdown);
-    const auto ganttDiagram = std::ranges::find(ganttDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
+    const auto ganttDocument       = RichSemanticDocumentTests::Build(ganttSource, MarkdownProfile::RichMarkdown);
+    const auto ganttDiagram        = std::ranges::find(ganttDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
     Require(ganttDocument->Map().Source() == ganttSource && ganttDiagram != ganttDocument->Elements().end() &&
                 ganttDiagram->name.starts_with(L"Gantt chart: Release") && ganttDiagram->name.find(L"Build / Compile: 2024-02-27, 3d") != std::wstring::npos,
             "Gantt semantic alternative preserves title, section, dates and exact source");
     const std::wstring mindSource = L"```mermaid\nmindmap\n  root((Central))\n    First\n      Leaf\n    Second\n```\n";
-    const auto mindDocument = RichSemanticDocumentTests::Build(mindSource, MarkdownProfile::RichMarkdown);
-    const auto mindDiagram = std::ranges::find(mindDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
+    const auto mindDocument       = RichSemanticDocumentTests::Build(mindSource, MarkdownProfile::RichMarkdown);
+    const auto mindDiagram        = std::ranges::find(mindDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
     Require(mindDocument->Map().Source() == mindSource && mindDiagram != mindDocument->Elements().end() &&
                 mindDiagram->name.starts_with(L"Mind map. Nodes: ") && mindDiagram->name.find(L"Central") != std::wstring::npos &&
                 mindDiagram->name.find(L"First") != std::wstring::npos && mindDiagram->name.find(L"Leaf") != std::wstring::npos &&
@@ -866,28 +865,31 @@ void TestRichSemanticNativeMathematicsAndBroaderMermaid()
             "Mind map semantic alternative preserves hierarchy labels and exact source");
     for (const auto* info : {L"math", L"latex"})
     {
-        const auto fenceSource = std::wstring(L"```") + info + L"\n\\frac{1}{2}\n```\n";
+        const auto fenceSource   = std::wstring(L"```") + info + L"\n\\frac{1}{2}\n```\n";
         const auto fenceDocument = RichSemanticDocumentTests::Build(fenceSource, MarkdownProfile::RichMarkdown);
-        const auto formula = std::ranges::find(fenceDocument->Elements(), SemanticRole::Math, &SemanticElement::role);
+        const auto formula       = std::ranges::find(fenceDocument->Elements(), SemanticRole::Math, &SemanticElement::role);
         Require(fenceDocument->Map().Source() == fenceSource && formula != fenceDocument->Elements().end() &&
                     fenceDocument->Map().Display().find(L'\ufffc') != std::wstring::npos && fenceDocument->Diagnostics().empty(),
                 "closed display math fence prepares a native object and preserves exact source");
-        Require(std::ranges::any_of(fenceDocument->Runs(), [&](const auto& run)
-                { return run.start <= formula->display.first && run.start + run.length > formula->display.first && !(run.flags & Code); }),
+        Require(std::ranges::any_of(fenceDocument->Runs(),
+                                    [&](const auto& run)
+        { return run.start <= formula->display.first && run.start + run.length > formula->display.first && ! (run.flags & Code); }),
                 "prepared math uses body typography rather than code-block style");
         const auto index = static_cast<std::size_t>(formula - fenceDocument->Elements().begin());
         Require(fenceDocument->SourceEditingNode(index).has_value() && fenceDocument->SourceEditingRange(index).has_value(),
                 "math fence source edit is owned by its complete block");
     }
     const std::wstring unclosedMath = L"```math\nx + 1\n";
-    const auto unclosedDocument = RichSemanticDocumentTests::Build(unclosedMath, MarkdownProfile::RichMarkdown);
+    const auto unclosedDocument     = RichSemanticDocumentTests::Build(unclosedMath, MarkdownProfile::RichMarkdown);
     Require(unclosedDocument->Map().Source() == unclosedMath && unclosedDocument->Map().Display().find(unclosedMath) != std::wstring::npos &&
-                std::ranges::any_of(unclosedDocument->Diagnostics(), [](const auto& diagnostic) { return diagnostic.kind == SemanticDiagnosticKind::UnsupportedMath; }),
+                std::ranges::any_of(unclosedDocument->Diagnostics(),
+                                    [](const auto& diagnostic) { return diagnostic.kind == SemanticDiagnosticKind::UnsupportedMath; }),
             "unclosed math fence retains its exact source and diagnostic");
     const std::wstring rejectedMath = L"```latex\n\\input{secret}\n```\n";
-    const auto rejectedDocument = RichSemanticDocumentTests::Build(rejectedMath, MarkdownProfile::RichMarkdown);
+    const auto rejectedDocument     = RichSemanticDocumentTests::Build(rejectedMath, MarkdownProfile::RichMarkdown);
     Require(rejectedDocument->Map().Source() == rejectedMath && rejectedDocument->Map().Display().find(rejectedMath) != std::wstring::npos &&
-                std::ranges::any_of(rejectedDocument->Diagnostics(), [](const auto& diagnostic) { return diagnostic.kind == SemanticDiagnosticKind::UnsupportedMath; }),
+                std::ranges::any_of(rejectedDocument->Diagnostics(),
+                                    [](const auto& diagnostic) { return diagnostic.kind == SemanticDiagnosticKind::UnsupportedMath; }),
             "unsupported fenced math retains its exact source and diagnostic");
     for (const auto* displaySource : {L"$$\nx + 1\n$$\n", L"\\[\nx + 1\n\\]\n"})
     {
@@ -901,28 +903,29 @@ void TestRichSemanticNativeMathematicsAndBroaderMermaid()
                 inlineDisplay->Map().Display().find(L"$$x$$") != std::wstring::npos,
             "display delimiters embedded in a sentence remain literal");
     const std::wstring missingDisplay = L"$$\nx\n\ny\n";
-    const auto missingDocument = RichSemanticDocumentTests::Build(missingDisplay, MarkdownProfile::RichMarkdown);
+    const auto missingDocument        = RichSemanticDocumentTests::Build(missingDisplay, MarkdownProfile::RichMarkdown);
     Require(missingDocument->Map().Source() == missingDisplay && missingDocument->Map().Display().find(missingDisplay) != std::wstring::npos &&
-                ! missingDocument->Diagnostics().empty(), "unclosed display owns all remaining lines and reports a diagnostic");
+                ! missingDocument->Diagnostics().empty(),
+            "unclosed display owns all remaining lines and reports a diagnostic");
     const std::wstring scopedDisplay = L"> $$\n> x\n\nafter\n";
-    const auto scopedDocument = RichSemanticDocumentTests::Build(scopedDisplay, MarkdownProfile::RichMarkdown);
+    const auto scopedDocument        = RichSemanticDocumentTests::Build(scopedDisplay, MarkdownProfile::RichMarkdown);
     Require(scopedDocument->Map().Source() == scopedDisplay && ! scopedDocument->Diagnostics().empty() &&
-                std::ranges::any_of(scopedDocument->Elements(), [](const auto& element)
-                { return element.role == SemanticRole::Math && element.source == MarkdownRange{0u, 9u}; }) &&
-                std::ranges::any_of(scopedDocument->Elements(), [](const auto& element)
-                { return element.role == SemanticRole::Paragraph && element.source == MarkdownRange{10u, 16u}; }),
+                std::ranges::any_of(scopedDocument->Elements(),
+                                    [](const auto& element) { return element.role == SemanticRole::Math && element.source == MarkdownRange{0u, 9u}; }) &&
+                std::ranges::any_of(scopedDocument->Elements(),
+                                    [](const auto& element) { return element.role == SemanticRole::Paragraph && element.source == MarkdownRange{10u, 16u}; }),
             "unclosed nested display stops at its quote boundary and leaves the following paragraph independent");
     const std::wstring listDisplay = L"- $$\n  x\n\nafter\n";
-    const auto listDocument = RichSemanticDocumentTests::Build(listDisplay, MarkdownProfile::RichMarkdown);
+    const auto listDocument        = RichSemanticDocumentTests::Build(listDisplay, MarkdownProfile::RichMarkdown);
     Require(listDocument->Map().Source() == listDisplay && ! listDocument->Diagnostics().empty() &&
-                std::ranges::any_of(listDocument->Elements(), [](const auto& element)
-                { return element.role == SemanticRole::Math && element.source == MarkdownRange{0u, 10u}; }) &&
-                std::ranges::any_of(listDocument->Elements(), [](const auto& element)
-                { return element.role == SemanticRole::Paragraph && element.source == MarkdownRange{10u, 16u}; }),
+                std::ranges::any_of(listDocument->Elements(),
+                                    [](const auto& element) { return element.role == SemanticRole::Math && element.source == MarkdownRange{0u, 10u}; }) &&
+                std::ranges::any_of(listDocument->Elements(),
+                                    [](const auto& element) { return element.role == SemanticRole::Paragraph && element.source == MarkdownRange{10u, 16u}; }),
             "unclosed nested display stops at its list boundary and leaves the following paragraph independent");
     const std::wstring styledSource = L"```mermaid\nflowchart TD\nA[\"<b>Bold</b> <i>It</i>\"]-->|<u>go</u>|B\n```\n";
-    const auto styledDocument = RichSemanticDocumentTests::Build(styledSource, MarkdownProfile::RichMarkdown);
-    const auto styledDiagram = std::ranges::find(styledDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
+    const auto styledDocument       = RichSemanticDocumentTests::Build(styledSource, MarkdownProfile::RichMarkdown);
+    const auto styledDiagram        = std::ranges::find(styledDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
     Require(styledDocument->Map().Source() == styledSource && styledDiagram != styledDocument->Elements().end() &&
                 styledDiagram->name.find(L"Bold It") != std::wstring::npos && styledDiagram->name.find(L"go") != std::wstring::npos &&
                 styledDiagram->name.find(L"<b>") == std::wstring::npos,

@@ -760,12 +760,14 @@ struct SemanticBuilder::Preparation
             }
             if (graph.nodes.empty())
             {
-                RejectDiagram(SemanticDiagnosticKind::EmptyDiagram, node.block.content,
-                              graph.family == Detail::NativeDiagramFamily::Pie ? L"Empty pie chart. Source is preserved."
-                              : graph.family == Detail::NativeDiagramFamily::Gantt ? L"Empty Gantt chart. Source is preserved."
-                              : graph.family == Detail::NativeDiagramFamily::Mindmap ? L"Empty mind map. Source is preserved."
-                              : graph.family == Detail::NativeDiagramFamily::Sequence ? L"Empty sequence diagram. Source is preserved."
-                                                                                     : L"Empty flowchart. Source is preserved.");
+                RejectDiagram(SemanticDiagnosticKind::EmptyDiagram,
+                              node.block.content,
+                              graph.family == Detail::NativeDiagramFamily::Pie                  ? Label(AccessibilityTextId::EmptyPie)
+                              : graph.family == Detail::NativeDiagramFamily::Gantt              ? Label(AccessibilityTextId::EmptyGantt)
+                              : graph.family == Detail::NativeDiagramFamily::Mindmap            ? Label(AccessibilityTextId::EmptyMindmap)
+                              : graph.family == Detail::NativeDiagramFamily::Sequence           ? Label(AccessibilityTextId::EmptySequence)
+                              : graph.family == Detail::NativeDiagramFamily::EntityRelationship ? Label(AccessibilityTextId::EmptyEntityRelationship)
+                                                                                                : Label(AccessibilityTextId::EmptyDiagram));
                 return;
             }
             if (graph.nodes.size() + graph.edges.size() + graph.groups.size() > Detail::SemanticExtensions::MaximumRecords - Extensions().records)
@@ -779,19 +781,19 @@ struct SemanticBuilder::Preparation
             else if (graph.direction == Detail::FlowchartDirection::LeftRight)
                 direction = Label(AccessibilityTextId::DirectionLeftRight);
             else if (graph.direction == Detail::FlowchartDirection::RightLeft)
-                direction = L"right to left";
-            const auto family = graph.family == Detail::NativeDiagramFamily::State   ? L"State diagram, "
-                                : graph.family == Detail::NativeDiagramFamily::Class ? L"Class diagram, "
-                                : graph.family == Detail::NativeDiagramFamily::Sequence ? L"Sequence diagram, "
-                                : graph.family == Detail::NativeDiagramFamily::EntityRelationship ? L"Entity relationship diagram, "
-                                                                                     : L"Flowchart, ";
-            const bool initialized = graph.family == Detail::NativeDiagramFamily::Pie
-                                         ? DiagramAlternative({L"Pie chart: ", graph.pieTitle, L". Slices: "})
-                                     : graph.family == Detail::NativeDiagramFamily::Gantt
-                                         ? DiagramAlternative({L"Gantt chart: ", graph.ganttTitle, L". Tasks: "})
-                                     : graph.family == Detail::NativeDiagramFamily::Mindmap
-                                         ? DiagramAlternative({L"Mind map. Nodes: "})
-                                         : DiagramAlternative({family, direction, L". Nodes: "});
+                direction = Label(AccessibilityTextId::DirectionRightLeft);
+            const auto family = graph.family == Detail::NativeDiagramFamily::State                ? Label(AccessibilityTextId::StateDiagramHeader)
+                                : graph.family == Detail::NativeDiagramFamily::Class              ? Label(AccessibilityTextId::ClassDiagramHeader)
+                                : graph.family == Detail::NativeDiagramFamily::Sequence           ? Label(AccessibilityTextId::SequenceDiagramHeader)
+                                : graph.family == Detail::NativeDiagramFamily::EntityRelationship ? Label(AccessibilityTextId::EntityRelationshipHeader)
+                                                                                                  : Label(AccessibilityTextId::FlowchartHeader);
+            const bool initialized =
+                graph.family == Detail::NativeDiagramFamily::Pie
+                    ? DiagramAlternative({Label(AccessibilityTextId::PieHeader), graph.pieTitle, Label(AccessibilityTextId::PieSlices)})
+                : graph.family == Detail::NativeDiagramFamily::Gantt
+                    ? DiagramAlternative({Label(AccessibilityTextId::GanttHeader), graph.ganttTitle, Label(AccessibilityTextId::GanttTasks)})
+                : graph.family == Detail::NativeDiagramFamily::Mindmap ? DiagramAlternative({Label(AccessibilityTextId::MindmapHeader)})
+                                                                       : DiagramAlternative({family, direction, Label(AccessibilityTextId::DiagramNodes)});
             if (! initialized)
                 return;
             work.phase = Phase::Nodes;
@@ -812,7 +814,7 @@ struct SemanticBuilder::Preparation
                     work.phase = Phase::Publish;
                     return;
                 }
-                if (! DiagramAlternative({graph.groups.empty() ? L" Connections: " : L" Groups: "}))
+                if (! DiagramAlternative({graph.groups.empty() ? Label(AccessibilityTextId::DiagramConnections) : Label(AccessibilityTextId::DiagramGroups)}))
                     return;
                 work.cursor = 0u;
                 work.phase  = graph.groups.empty() ? Phase::Edges : Phase::Groups;
@@ -821,11 +823,16 @@ struct SemanticBuilder::Preparation
             const auto index = work.cursor++;
             if (graph.family == Detail::NativeDiagramFamily::Gantt)
             {
-                const auto& task = graph.nodes[index];
+                const auto& task  = graph.nodes[index];
                 const auto source = std::wstring_view(graph.source);
-                DiagramAlternative({task.ganttSection, task.ganttSection.empty() ? L"" : L" / ", task.label, L": ",
-                                    source.substr(task.ganttStartSource.first, task.ganttStartSource.last - task.ganttStartSource.first), L", ",
-                                    source.substr(task.ganttEndSource.first, task.ganttEndSource.last - task.ganttEndSource.first), L"; "});
+                DiagramAlternative({task.ganttSection,
+                                    task.ganttSection.empty() ? L"" : L" / ",
+                                    task.label,
+                                    L": ",
+                                    source.substr(task.ganttStartSource.first, task.ganttStartSource.last - task.ganttStartSource.first),
+                                    L", ",
+                                    source.substr(task.ganttEndSource.first, task.ganttEndSource.last - task.ganttEndSource.first),
+                                    L"; "});
                 return;
             }
             if (graph.family == Detail::NativeDiagramFamily::Pie)
@@ -896,9 +903,17 @@ struct SemanticBuilder::Preparation
             }
             if (graph.family == Detail::NativeDiagramFamily::EntityRelationship)
             {
-                DiagramAlternative({id(edge.from), L" [", edge.fromCardinality,
-                                    edge.style == Detail::FlowchartLineStyle::Dotted ? L"] non-identifying " : L"] identifying ",
-                                    edge.label, L" ", id(edge.to), L" [", edge.toCardinality, L"]; "});
+                DiagramAlternative({id(edge.from),
+                                    L" [",
+                                    edge.fromCardinality,
+                                    edge.style == Detail::FlowchartLineStyle::Dotted ? Label(AccessibilityTextId::NonIdentifyingRelationship)
+                                                                                     : Label(AccessibilityTextId::IdentifyingRelationship),
+                                    edge.label,
+                                    L" ",
+                                    id(edge.to),
+                                    L" [",
+                                    edge.toCardinality,
+                                    L"]; "});
                 return;
             }
             if (edge.relation == Detail::FlowchartRelation::Note)
@@ -949,16 +964,16 @@ struct SemanticBuilder::Preparation
         result.bodyUnits.assign(normalized.units.begin(), normalized.units.end());
         result.sourceEnd = node.block.content.last;
         extensions.records += graph.nodes.size() + graph.edges.size() + graph.groups.size();
-        auto& element  = document->elements_[work.visit.element];
-        element.role   = SemanticRole::Diagram;
-        element.title  = graph.family == Detail::NativeDiagramFamily::State   ? L"State diagram. Source is available as document text."
-                         : graph.family == Detail::NativeDiagramFamily::Class ? L"Class diagram. Source is available as document text."
-                         : graph.family == Detail::NativeDiagramFamily::Sequence ? L"Sequence diagram. Source is available as document text."
-                         : graph.family == Detail::NativeDiagramFamily::Pie ? L"Pie chart. Source is available as document text."
-                         : graph.family == Detail::NativeDiagramFamily::EntityRelationship ? L"Entity relationship diagram. Source is available as document text."
-                         : graph.family == Detail::NativeDiagramFamily::Gantt ? L"Gantt chart. Source is available as document text."
-                         : graph.family == Detail::NativeDiagramFamily::Mindmap ? L"Mind map. Source is available as document text."
-                                                                              : L"Flowchart. Source is available as document text.";
+        auto& element = document->elements_[work.visit.element];
+        element.role  = SemanticRole::Diagram;
+        element.title = graph.family == Detail::NativeDiagramFamily::State                ? Label(AccessibilityTextId::StateDiagramHelp)
+                        : graph.family == Detail::NativeDiagramFamily::Class              ? Label(AccessibilityTextId::ClassDiagramHelp)
+                        : graph.family == Detail::NativeDiagramFamily::Sequence           ? Label(AccessibilityTextId::SequenceDiagramHelp)
+                        : graph.family == Detail::NativeDiagramFamily::Pie                ? Label(AccessibilityTextId::PieHelp)
+                        : graph.family == Detail::NativeDiagramFamily::EntityRelationship ? Label(AccessibilityTextId::EntityRelationshipHelp)
+                        : graph.family == Detail::NativeDiagramFamily::Gantt              ? Label(AccessibilityTextId::GanttHelp)
+                        : graph.family == Detail::NativeDiagramFamily::Mindmap            ? Label(AccessibilityTextId::MindmapHelp)
+                                                                                          : Label(AccessibilityTextId::FlowchartHelp);
         if (! graph.accessibleTitle.empty())
         {
             if (graph.accessibleDescription.empty())
@@ -1024,49 +1039,51 @@ struct SemanticBuilder::Preparation
             return;
         }
         auto fenceInfo = syntax.Slice(node.block.info);
-        while (! fenceInfo.empty() && (fenceInfo.back() == L' ' || fenceInfo.back() == L'\t')) fenceInfo.remove_suffix(1u);
+        while (! fenceInfo.empty() && (fenceInfo.back() == L' ' || fenceInfo.back() == L'\t'))
+            fenceInfo.remove_suffix(1u);
         const bool mathFence = syntax.Profile() == MarkdownProfile::RichMarkdown && node.block.kind == MarkdownBlockKind::FencedCode &&
                                (fenceInfo == L"math" || fenceInfo == L"latex" || node.block.fenceMarker == L'$' || node.block.fenceMarker == L'[');
         if (mathFence && analyzeNative)
         {
             Detail::NormalizeSemanticLeaf(syntax, visit.node, normalized);
-            auto& extensions = Extensions();
+            auto& extensions          = Extensions();
             const bool sourceFallback = NativeSourceFallback(node.block.source);
-            auto expression = node.block.closed && ! sourceFallback ? std::make_shared<MathExpression>(ParseMath(normalized.text))
-                                                                   : std::shared_ptr<MathExpression>{};
+            auto expression =
+                node.block.closed && ! sourceFallback ? std::make_shared<MathExpression>(ParseMath(normalized.text)) : std::shared_ptr<MathExpression>{};
             const auto count = [](auto&& self, const MathNode& value) -> std::size_t
             {
                 std::size_t result = 1u;
-                for (const auto& child : value.children) result += self(self, child);
+                for (const auto& child : value.children)
+                    result += self(self, child);
                 return result;
             };
-            const auto records = expression ? count(count, expression->root) : 0u;
+            const auto records  = expression ? count(count, expression->root) : 0u;
             const bool capacity = expression && (expression->issue == MathIssue::Capacity ||
-                (*expression && (records > 4096u - extensions.mathRecords ||
-                 extensions.maths.size() + extensions.diagrams.size() + extensions.images.size() >= Detail::SemanticExtensions::MaximumObjects)));
-            auto& formula = document->elements_[visit.element];
-            formula.role = SemanticRole::Math;
-            formula.name = normalized.text;
+                                                 (*expression && (records > 4096u - extensions.mathRecords || ! extensions.CanAdmitObject())));
+            auto& formula       = document->elements_[visit.element];
+            formula.role        = SemanticRole::Math;
+            formula.name        = normalized.text;
             const bool prepared = expression && *expression && ! capacity;
-            if (prepared) visit.flags &= ~Code;
+            if (prepared)
+                visit.flags &= ~Code;
             close = BeginLeafParagraph(visit, ! prepared);
             if (prepared)
             {
-                formula.title = L"Mathematical expression. Exact TeX source is available as document text.";
+                formula.title = Label(AccessibilityTextId::Equation);
                 output.Emit(L"\ufffc", node.block.source, DisplaySpanKind::Object, visit.flags, visit.heading);
                 extensions.maths.push_back({visit.element, std::move(expression), true});
                 extensions.mathRecords += records;
             }
             else
             {
-                extensions.diagnostics.push_back({capacity ? SemanticDiagnosticKind::MathCapacity : SemanticDiagnosticKind::UnsupportedMath,
-                                                  node.block.source, visit.element});
+                extensions.diagnostics.push_back(
+                    {capacity ? SemanticDiagnosticKind::MathCapacity : SemanticDiagnosticKind::UnsupportedMath, node.block.source, visit.element});
                 formula.title = ! node.block.closed && (node.block.fenceMarker == L'$' || node.block.fenceMarker == L'[')
-                                  ? L"Missing closing display math delimiter. Exact source is preserved."
-                              : ! node.block.closed ? L"Missing closing math fence. Exact source is preserved."
-                              : sourceFallback ? L"Equation cannot be prepared natively for this view. Exact source is preserved."
-                              : capacity ? L"Equation exceeds native object capacity. Exact source is preserved."
-                                         : L"Unsupported native equation. Exact source is preserved.";
+                                    ? Label(AccessibilityTextId::UnclosedDisplayMath)
+                                : ! node.block.closed ? Label(AccessibilityTextId::UnclosedMathFence)
+                                : sourceFallback      ? Label(AccessibilityTextId::EquationViewFallback)
+                                : capacity            ? Label(AccessibilityTextId::EquationCapacity)
+                                                      : Label(AccessibilityTextId::UnsupportedEquation);
                 output.Emit(syntax.Slice(node.block.source), node.block.source, DisplaySpanKind::Source, Code, 0u);
             }
             visits.push_back(close);
@@ -1471,13 +1488,14 @@ void SemanticBuilder::BeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyn
         const bool inlineMath =
             std::ranges::any_of(syntax->Inlines(), [&](const auto& node) { return node.kind == MarkdownInlineKind::Math && node.source == range; });
         const bool diagram = ! inlineMath && std::ranges::any_of(syntax->Nodes(),
-                                                           [&](const auto& node)
+                                                                 [&](const auto& node)
         {
             auto info = syntax->Slice(node.block.info);
-            while (! info.empty() && (info.back() == L' ' || info.back() == L'\t')) info.remove_suffix(1u);
+            while (! info.empty() && (info.back() == L' ' || info.back() == L'\t'))
+                info.remove_suffix(1u);
             return node.block.kind == MarkdownBlockKind::FencedCode && node.block.source == range &&
-                   ((info.starts_with(L"mermaid") && (info.size() == 7u || info[7u] == L' ' || info[7u] == L'\t')) ||
-                    info == L"math" || info == L"latex" || node.block.fenceMarker == L'$' || node.block.fenceMarker == L'[');
+                   ((info.starts_with(L"mermaid") && (info.size() == 7u || info[7u] == L' ' || info[7u] == L'\t')) || info == L"math" || info == L"latex" ||
+                    node.block.fenceMarker == L'$' || node.block.fenceMarker == L'[');
         });
         if (syntax->Profile() != MarkdownProfile::RichMarkdown || (! inlineMath && ! diagram))
             throw std::invalid_argument("Native source fallback requires an exact native syntax owner");
