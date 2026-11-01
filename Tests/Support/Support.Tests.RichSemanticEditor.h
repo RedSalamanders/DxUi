@@ -272,6 +272,22 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     editor->SetText(L"");
     Check(editor->GetDecorations().empty(), "source replacement retires revision-local decorations");
     RichSemanticTests::Reject<std::invalid_argument>([&] { editor->SetDecorations(decorationSource, decorations); }, "stale decoration source is rejected");
+    Check(! editor->IsAutoPairEnabled() && editor->OnChar(host, L'(', 0u) && editor->GetText() == L"(" && editor->Undo(),
+          "direct typing keeps literal punctuation by default");
+    editor->SetAutoPairEnabled(true);
+    Check(editor->OnChar(host, L'(', 0u) && editor->GetText() == L"()" && editor->GetSelection() == Selection{1u, 1u} && editor->Undo() &&
+              editor->GetText().empty(),
+          "opt-in direct punctuation inserts one paired undo transaction with an interior caret");
+    editor->SetText(L"word");
+    editor->SetSelection({4u, 0u});
+    Check(editor->OnChar(host, L'[', 0u) && editor->GetText() == L"[word]" && editor->GetSelection() == Selection{5u, 1u} && editor->Undo() &&
+              editor->GetText() == L"word",
+          "opt-in pairing wraps a reversed selection without changing direction and undoes atomically");
+    editor->SetReadOnly(true);
+    Check(! editor->OnChar(host, L'{', 0u) && editor->GetText() == L"word", "read-only input cannot auto-pair");
+    editor->SetReadOnly(false);
+    editor->SetAutoPairEnabled(false);
+    editor->SetText(L"");
     Check(editor->OnChar(host, L'a', 0u) && editor->OnChar(host, L'b', 0u) && editor->OnChar(host, L'c', 0u) && editor->GetText() == L"abc" && editor->Undo() &&
               editor->GetText().empty(),
           "adjacent direct word typing coalesces into one undo");

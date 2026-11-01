@@ -1257,6 +1257,11 @@ whitespace, or source revision change ends the group. IME transactions retain
 their native composition history policy.
 Source-view and source-region Backspace/Delete runs on those same text elements
 coalesce in the same bounded way; direction or explicit word deletion ends a run.
+The default-off direct-typing auto-pair policy inserts matching parentheses,
+brackets, braces, quotes, asterisks or underscores as one undo transaction,
+placing the caret between them or preserving the direction of a wrapped source
+selection. Native composition is never paired. Table-cell input retains its
+structural cell-edit policy.
 Rich-view deletion also groups adjacent single plain-source erasures; structural
 wrapper removal, transformed tokens and disjoint fragments remain separate
 transactions so their ownership is preserved.

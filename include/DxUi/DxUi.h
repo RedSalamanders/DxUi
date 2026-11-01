@@ -3395,6 +3395,9 @@ public:
     void SetSearchShortcutsEnabled(bool enabled) noexcept;
     void SetOnFindRequested(std::function<void()> callback);
     void SetMarkdownShortcutsEnabled(bool enabled) noexcept;
+    // Optional paired delimiters for direct typing; disabled by default.
+    void SetAutoPairEnabled(bool enabled) noexcept;
+    [[nodiscard]] bool IsAutoPairEnabled() const noexcept;
     void SetOnLinkEditRequested(std::function<void()> callback);
     bool ToggleFormatting(std::wstring_view marker);
     // Opt-in semantic editing: current CPU analysis is required; commands never

@@ -243,6 +243,7 @@ struct RichTextEditor::State
     bool searchShortcutsEnabled = false;
     std::shared_ptr<const std::function<void()>> onFindRequested;
     bool markdownShortcutsEnabled = false;
+    bool autoPairEnabled          = false;
     std::shared_ptr<const std::function<void()>> onLinkEditRequested;
     struct HighlightRectangle
     {
@@ -1663,6 +1664,14 @@ void RichTextEditor::SetOnFindRequested(std::function<void()> callback)
 void RichTextEditor::SetMarkdownShortcutsEnabled(bool enabled) noexcept
 {
     _state->markdownShortcutsEnabled = enabled;
+}
+void RichTextEditor::SetAutoPairEnabled(bool enabled) noexcept
+{
+    _state->autoPairEnabled = enabled;
+}
+bool RichTextEditor::IsAutoPairEnabled() const noexcept
+{
+    return _state->autoPairEnabled;
 }
 void RichTextEditor::SetOnLinkEditRequested(std::function<void()> callback)
 {
@@ -4111,7 +4120,39 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                     return true;
             }
         const auto selection = GetSelection();
-        const bool word      = IsHistoryWordElement(text);
+        if (_state->autoPairEnabled && text.size() == 1u)
+        {
+            wchar_t closing{};
+            switch (text[0])
+            {
+                case L'(': closing = L')'; break;
+                case L'[': closing = L']'; break;
+                case L'{': closing = L'}'; break;
+                case L'"':
+                case L'\'':
+                case L'*':
+                case L'_': closing = text[0]; break;
+                default: break;
+            }
+            const bool focused             = host.GetFocusControl() == this;
+            const auto composition         = focused ? host.GetNativeTextCompositionActive(this) : std::optional<bool>{false};
+            const bool insideSourceSession = ! _state->sourceEditing || (selection.Start() >= _state->sourceEditing->region.source.first &&
+                                                                         selection.End() <= _state->sourceEditing->region.source.last);
+            if (closing && insideSourceSession && (! focused || ! host.HasActiveNativeTextInputSession() || composition.has_value()) &&
+                ! composition.value_or(false))
+            {
+                std::wstring replacement(1u, text[0]);
+                replacement += Snapshot().Slice(selection.Start(), selection.End());
+                replacement += closing;
+                const auto begin = selection.Start() + 1u, end = selection.End() + 1u;
+                const RichText::Selection after = selection.anchor <= selection.caret ? RichText::Selection{begin, end} : RichText::Selection{end, begin};
+                _state->typingRun.reset();
+                const bool changed = _state->document.ReplaceImpl(selection.Start(), selection.End(), replacement, after, true);
+                Changed(changed);
+                return true;
+            }
+        }
+        const bool word = IsHistoryWordElement(text);
         if (word && selection.Start() == selection.End())
         {
             const auto now      = GetTickCount64();
