@@ -1778,6 +1778,35 @@ template <typename Prepare> void SemanticDirection(ControlHost& host, Prepare&& 
     const auto hostRtlLtrLast = editor->TryGetTextInputCaretRect(host, 7u);
     Check(hostRtlLtrFirst && hostRtlLtrLast && hostRtlLtrFirst->left < hostRtlLtrLast->left,
           "a left-to-right paragraph remains left-to-right under a right-to-left host");
+    editor->SetFlowDirection(FlowDirection::LeftToRight);
+    appearance.markdownPresentation = MarkdownPresentationStyle::Subtle;
+    appearance.autoParagraphDirection = false;
+    editor->SetAppearance(appearance);
+    prepare();
+    const auto subtleBefore = editor->GetAcknowledgedSemanticDocument(host);
+    std::vector<D2D1_RECT_F> subtleCells(0u);
+    for (std::size_t index = 0u; index < subtleBefore->Elements().size(); ++index)
+        if (subtleBefore->Elements()[index].role == SemanticRole::Cell)
+            if (const auto bounds = editor->GetSemanticElementBounds(host, index))
+                subtleCells.push_back(*bounds);
+    appearance.autoParagraphDirection = true;
+    editor->SetAppearance(appearance);
+    prepare();
+    const auto subtleAfter = editor->GetAcknowledgedSemanticDocument(host);
+    std::size_t subtleCell = 0u;
+    for (std::size_t index = 0u; index < subtleAfter->Elements().size(); ++index)
+        if (subtleAfter->Elements()[index].role == SemanticRole::Cell)
+            if (const auto bounds = editor->GetSemanticElementBounds(host, index))
+            {
+                Check(subtleCell < subtleCells.size() && std::abs(subtleCells[subtleCell].left - bounds->left) < .1f &&
+                          std::abs(subtleCells[subtleCell].right - bounds->right) < .1f,
+                      "Subtle table direction does not mirror or reposition columns");
+                ++subtleCell;
+            }
+    const auto subtleStart = editor->TryGetTextInputCaretRect(host, cellHebrew);
+    const auto subtleEnd = editor->TryGetTextInputCaretRect(host, cellHebrew + 4u);
+    Check(subtleCell == 4u && subtleStart && subtleEnd && subtleStart->left > subtleEnd->left,
+          "Subtle table preserves columns and applies right-to-left cell caret order");
     editor->SetDocumentFilePath(L"C:\\docs\\example.md");
     editor->SetText(L"Image ![alt](pending.png)");
     prepare();
