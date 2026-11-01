@@ -342,6 +342,10 @@ inline void ListsAndHeadings()
         else
             Unavailable(L"alpha", {0u, 5u}, request, profile);
         request.command = MarkdownCommand::InsertThematicBreak;
+        Document ruleState(L"hello\n");
+        const auto ruleSyntax = Parse(ruleState, profile);
+        Check(CanInsertThematicBreak(*ruleSyntax, {2u, 2u}) && ! CanInsertThematicBreak(*ruleSyntax, {0u, 2u}),
+              "thematic-break state shares collapsed-selection admission with the planner");
         Exact(L"", {}, request, L"---", Selection{3u, 3u}, profile);
         Exact(L"hello\n", {2u, 2u}, request, L"he\n\n---\n\nllo\n", Selection{9u, 9u}, profile);
         Unavailable(L"- item\n", {3u, 3u}, request, profile);

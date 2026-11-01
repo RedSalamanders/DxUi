@@ -1716,16 +1716,17 @@ std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownComma
         return std::nullopt;
     const auto selection = GetSelection();
     if (request.command == MarkdownCommand::ExitCodeBlock || request.command == MarkdownCommand::SetCodeLanguage ||
-        request.command == MarkdownCommand::InsertMath)
+        request.command == MarkdownCommand::InsertMath || request.command == MarkdownCommand::InsertThematicBreak)
     {
         auto* host             = GetHost();
         const auto composition = host && host->GetFocusControl() == this ? host->GetNativeTextCompositionActive(this) : std::optional<bool>{false};
-        const bool applicable  = request.command == MarkdownCommand::ExitCodeBlock ? FindExitCodeBlock(*document->Syntax(), selection).has_value()
-                                 : request.command == MarkdownCommand::SetCodeLanguage
-                                     ? FindCodeLanguageTarget(*document->Syntax(), selection, request.text).has_value()
-                                     : CanInsertMath(*document->Syntax(), selection, request.text, request.mathDisplay);
-        result.available       = (! host || host->GetFocusControl() != this || ! host->HasActiveNativeTextInputSession() || composition.has_value()) &&
-                                 ! composition.value_or(false) && applicable;
+        const bool applicable =
+            request.command == MarkdownCommand::ExitCodeBlock     ? FindExitCodeBlock(*document->Syntax(), selection).has_value()
+            : request.command == MarkdownCommand::SetCodeLanguage ? FindCodeLanguageTarget(*document->Syntax(), selection, request.text).has_value()
+            : request.command == MarkdownCommand::InsertMath      ? CanInsertMath(*document->Syntax(), selection, request.text, request.mathDisplay)
+                                                                  : CanInsertThematicBreak(*document->Syntax(), selection);
+        result.available = (! host || host->GetFocusControl() != this || ! host->HasActiveNativeTextInputSession() || composition.has_value()) &&
+                           ! composition.value_or(false) && applicable;
     }
     auto first = selection.Start(), last = selection.End();
     if (first == last && first != 0u)

@@ -9,6 +9,117 @@
 
 namespace DxUi::RichText
 {
+namespace
+{
+size_t CommandNodeAt(const MarkdownSyntax& syntax, MarkdownBlockKind kind, size_t at) noexcept
+{
+    const auto& nodes = syntax.Nodes();
+    const auto text   = syntax.Source();
+    size_t best       = MarkdownNoNode;
+    for (size_t i = 1u; i < nodes.size(); ++i)
+    {
+        const auto range = nodes[i].block.source;
+        if (nodes[i].block.kind == kind && range.first <= at &&
+            (at < range.last || (at == range.last && at == text.size() &&
+                                 (text.empty() || (text.back() != L'\r' && text.back() != L'\n') ||
+                                  ((kind == MarkdownBlockKind::FencedCode || kind == MarkdownBlockKind::FrontMatter) && ! nodes[i].block.closed)))) &&
+            (best == MarkdownNoNode || range.last - range.first <= nodes[best].block.source.last - nodes[best].block.source.first))
+            best = i;
+    }
+    return best;
+}
+struct RuleAdmission
+{
+    std::wstring_view eol;
+    unsigned before{}, after{};
+};
+std::optional<RuleAdmission> InspectThematicBreak(const MarkdownSyntax& syntax, Selection selection) noexcept
+{
+    const auto text = syntax.Source();
+    if (syntax.SourceRegion() || selection.Start() != selection.End() || ! IsEditBoundary(text, selection.caret))
+        return std::nullopt;
+    const auto caret  = selection.caret;
+    const auto& nodes = syntax.Nodes();
+    if (CommandNodeAt(syntax, MarkdownBlockKind::FootnoteDefinition, caret) != MarkdownNoNode)
+        return std::nullopt;
+    size_t leaf = MarkdownNoNode;
+    for (const auto kind : {MarkdownBlockKind::Paragraph, MarkdownBlockKind::AtxHeading, MarkdownBlockKind::SetextHeading, MarkdownBlockKind::TableCell})
+    {
+        const auto node = CommandNodeAt(syntax, kind, caret);
+        if (node != MarkdownNoNode && (leaf == MarkdownNoNode || nodes[node].block.source.last - nodes[node].block.source.first <
+                                                                     nodes[leaf].block.source.last - nodes[leaf].block.source.first))
+            leaf = node;
+    }
+    if (leaf != MarkdownNoNode && (nodes[leaf].block.kind != MarkdownBlockKind::Paragraph || nodes[leaf].parent == MarkdownNoNode ||
+                                   nodes[nodes[leaf].parent].block.kind != MarkdownBlockKind::Document))
+        return std::nullopt;
+    size_t lineFirst = caret;
+    while (lineFirst && text[lineFirst - 1u] != L'\r' && text[lineFirst - 1u] != L'\n')
+        --lineFirst;
+    auto lineEnd = caret;
+    while (lineEnd < text.size() && text[lineEnd] != L'\r' && text[lineEnd] != L'\n')
+        ++lineEnd;
+    if (leaf == MarkdownNoNode)
+    {
+        for (const auto kind : {MarkdownBlockKind::FencedCode,
+                                MarkdownBlockKind::IndentedCode,
+                                MarkdownBlockKind::HtmlBlock,
+                                MarkdownBlockKind::FrontMatter,
+                                MarkdownBlockKind::Table})
+            if (CommandNodeAt(syntax, kind, caret) != MarkdownNoNode)
+                return std::nullopt;
+        if (lineFirst != lineEnd &&
+            std::ranges::none_of(syntax.EmptyLines(), [&](const auto& line) { return line.insertion == caret && line.source.first == lineFirst; }))
+            return std::nullopt;
+    }
+    if (CommandNodeAt(syntax, MarkdownBlockKind::BlockQuote, caret) != MarkdownNoNode ||
+        CommandNodeAt(syntax, MarkdownBlockKind::ListItem, caret) != MarkdownNoNode)
+        return std::nullopt;
+    for (const auto& node : syntax.Inlines())
+        if (node.kind != MarkdownInlineKind::Text && node.source.first < caret && caret < node.source.last)
+            return std::nullopt;
+    auto eolAt      = lineEnd < text.size() ? lineEnd : text.find_first_of(L"\r\n");
+    const auto eol  = eolAt == text.npos                                                              ? std::wstring_view(L"\r\n")
+                      : text[eolAt] == L'\r' && eolAt + 1u < text.size() && text[eolAt + 1u] == L'\n' ? text.substr(eolAt, 2u)
+                                                                                                      : text.substr(eolAt, 1u);
+    unsigned before = 0u, after = 0u;
+    for (auto at = caret; at > 0u && before < 2u; ++before)
+    {
+        if (text[at - 1u] == L'\n')
+        {
+            --at;
+            if (at && text[at - 1u] == L'\r')
+                --at;
+        }
+        else if (text[at - 1u] == L'\r')
+            --at;
+        else
+            break;
+    }
+    for (auto at = caret; at < text.size() && after < 2u; ++after)
+    {
+        if (text[at] == L'\r')
+        {
+            ++at;
+            if (at < text.size() && text[at] == L'\n')
+                ++at;
+        }
+        else if (text[at] == L'\n')
+            ++at;
+        else
+            break;
+    }
+    const unsigned prefix = caret == 0u ? 0u : 2u - before;
+    const unsigned suffix = caret == text.size() ? 0u : 2u - after;
+    if (3u + (prefix + suffix) * eol.size() > Document::MaximumUnits - text.size())
+        return std::nullopt;
+    return RuleAdmission{eol, prefix, suffix};
+}
+} // namespace
+bool CanInsertThematicBreak(const MarkdownSyntax& syntax, Selection selection) noexcept
+{
+    return InspectThematicBreak(syntax, selection).has_value();
+}
 bool CanInsertMath(const MarkdownSyntax& syntax, Selection selection, std::wstring_view requested, bool display) noexcept
 {
     const auto text  = syntax.Source();
@@ -16,21 +127,7 @@ bool CanInsertMath(const MarkdownSyntax& syntax, Selection selection, std::wstri
     if (syntax.Profile() != MarkdownProfile::RichMarkdown || syntax.SourceRegion() || ! IsEditBoundary(text, first) || ! IsEditBoundary(text, last))
         return false;
     const auto& nodes = syntax.Nodes();
-    const auto nodeAt = [&](MarkdownBlockKind kind, size_t at) noexcept
-    {
-        size_t best = MarkdownNoNode;
-        for (size_t i = 1u; i < nodes.size(); ++i)
-        {
-            const auto range = nodes[i].block.source;
-            if (nodes[i].block.kind == kind && range.first <= at &&
-                (at < range.last || (at == range.last && at == text.size() &&
-                                     (text.empty() || (text.back() != L'\r' && text.back() != L'\n') ||
-                                      ((kind == MarkdownBlockKind::FencedCode || kind == MarkdownBlockKind::FrontMatter) && ! nodes[i].block.closed)))) &&
-                (best == MarkdownNoNode || range.last - range.first <= nodes[best].block.source.last - nodes[best].block.source.first))
-                best = i;
-        }
-        return best;
-    };
+    const auto nodeAt = [&](MarkdownBlockKind kind, size_t at) noexcept { return CommandNodeAt(syntax, kind, at); };
     if (first == last)
     {
         if (nodeAt(MarkdownBlockKind::FootnoteDefinition, first) != MarkdownNoNode)
@@ -1506,56 +1603,16 @@ void MarkdownCommandPlanner::Math(const MarkdownCommandRequest& request)
 
 void MarkdownCommandPlanner::ThematicBreak()
 {
-    if (plan.before_.Start() != plan.before_.End())
+    const auto admission = InspectThematicBreak(*plan.syntax_, plan.before_);
+    if (! admission)
         return;
     const auto caret = plan.before_.caret;
-    const auto leaf  = LeafAt(caret);
-    if (leaf != MarkdownNoNode &&
-        (nodes[leaf].block.kind != Kind::Paragraph || nodes[leaf].parent == MarkdownNoNode || nodes[nodes[leaf].parent].block.kind != Kind::Document))
-        return;
-    if (leaf == MarkdownNoNode && ! EmptyStructuralSite())
-        return;
-    if (NodeAt(Kind::BlockQuote, caret) != MarkdownNoNode || NodeAt(Kind::ListItem, caret) != MarkdownNoNode)
-        return;
-    for (const auto& node : plan.syntax_->Inlines())
-        if (node.kind != MarkdownInlineKind::Text && node.source.first < caret && caret < node.source.last)
-            return;
-    const auto eol  = Eol(Line(caret));
-    unsigned before = 0u, after = 0u;
-    for (auto at = caret; at > 0u && before < 2u; ++before)
-    {
-        if (text[at - 1u] == L'\n')
-        {
-            --at;
-            if (at && text[at - 1u] == L'\r')
-                --at;
-        }
-        else if (text[at - 1u] == L'\r')
-            --at;
-        else
-            break;
-    }
-    for (auto at = caret; at < text.size() && after < 2u; ++after)
-    {
-        if (text[at] == L'\r')
-        {
-            ++at;
-            if (at < text.size() && text[at] == L'\n')
-                ++at;
-        }
-        else if (text[at] == L'\n')
-            ++at;
-        else
-            break;
-    }
     std::wstring insertion(0u, L' ');
-    if (caret != 0u)
-        for (; before < 2u; ++before)
-            insertion += eol;
+    for (unsigned i = 0u; i < admission->before; ++i)
+        insertion += admission->eol;
     insertion += L"---";
-    if (caret != text.size())
-        for (; after < 2u; ++after)
-            insertion += eol;
+    for (unsigned i = 0u; i < admission->after; ++i)
+        insertion += admission->eol;
     Add(caret, caret, insertion);
     plan.after_       = {caret + insertion.size(), caret + insertion.size()};
     explicitSelection = true;
