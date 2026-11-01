@@ -939,6 +939,29 @@ void RichTextEditor::SetSourceHighlights(std::span<const RichTextSourceHighlight
     if (! lifetime.expired())
         RequestInvalidate();
 }
+void RichTextEditor::SetSearchMatches(const RichText::SourceSnapshot& expectedSource,
+                                      std::span<const RichText::MarkdownRange> matches,
+                                      std::optional<size_t> activeIndex)
+{
+    if (! Snapshot().IsSameRevision(expectedSource))
+        throw std::invalid_argument("Stale search matches");
+    if (matches.size() > 4096u)
+        throw std::length_error("Too many search matches");
+    if (activeIndex && activeIndex.value() >= matches.size())
+        throw std::out_of_range("Invalid active search match");
+    std::vector<RichTextSourceHighlight> highlights(0u);
+    highlights.reserve(matches.size());
+    size_t previousEnd = 0u;
+    for (size_t i = 0u; i < matches.size(); ++i)
+    {
+        const auto range = matches[i];
+        if (range.first >= range.last || range.first < previousEnd || ! expectedSource.IsBoundary(range.first) || ! expectedSource.IsBoundary(range.last))
+            throw std::invalid_argument("Invalid search match range");
+        highlights.push_back({range.first, range.last - range.first, activeIndex && activeIndex.value() == i});
+        previousEnd = range.last;
+    }
+    SetSourceHighlights(highlights);
+}
 void RichTextEditor::ClearSourceHighlights() noexcept
 {
     if (_state->highlights.empty())

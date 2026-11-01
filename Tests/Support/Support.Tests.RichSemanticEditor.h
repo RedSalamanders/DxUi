@@ -175,6 +175,11 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     prepare();
     host.SetFocusControl(editor, false);
     editor->SetText(L"One one only");
+    const auto searchSource  = editor->Snapshot();
+    const auto searchMatches = FindInSource(searchSource, L"one", {.wholeWord = true});
+    editor->SetSearchMatches(searchSource, searchMatches, 1u);
+    Check(editor->GetSourceHighlights().size() == 2u && ! editor->GetSourceHighlights()[0].current && editor->GetSourceHighlights()[1].current,
+          "revision-guarded search matches feed existing highlight geometry with an active match");
     Check(editor->SelectSourceMatch(L"one", false, {.wholeWord = true}) && editor->GetSelection() == Selection{0u, 3u} &&
               editor->SelectSourceMatch(L"one", false, {.wholeWord = true}) && editor->GetSelection() == Selection{4u, 7u} &&
               editor->SelectSourceMatch(L"one", false, {.wholeWord = true}) && editor->GetSelection() == Selection{0u, 3u} &&

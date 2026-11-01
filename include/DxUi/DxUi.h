@@ -3264,6 +3264,9 @@ public:
     [[nodiscard]] bool IsLinkUnderlineVisible(size_t sourceOffset) const noexcept;
     // At most 4096 scalar/CRLF-safe source intervals; source edits clear them.
     void SetSourceHighlights(std::span<const RichTextSourceHighlight> highlights);
+    void SetSearchMatches(const RichText::SourceSnapshot& expectedSource,
+                          std::span<const RichText::MarkdownRange> matches,
+                          std::optional<size_t> activeIndex = std::nullopt);
     void ClearSourceHighlights() noexcept;
     [[nodiscard]] std::span<const RichTextSourceHighlight> GetSourceHighlights() const noexcept;
     // Revision-guarded source annotations. Source changes retire them.
