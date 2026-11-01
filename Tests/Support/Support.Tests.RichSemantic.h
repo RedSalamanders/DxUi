@@ -407,13 +407,14 @@ inline void ListsAndHeadings()
             Exact(L"alpha", {0u, 5u}, request, L"\\(alpha\\)", Selection{2u, 7u}, profile);
             request.mathDisplay = true;
             request.text        = L"x";
-            Exact(L"", {}, request, L"\\[\nx\n\\]", Selection{3u, 4u}, profile);
+            Exact(L"", {}, request, L"\\[\r\nx\r\n\\]", Selection{4u, 5u}, profile);
             request.text = L"x\ny";
-            Exact(L"", {}, request, L"\\[\nx\ny\n\\]", Selection{3u, 6u}, profile);
+            Exact(L"", {}, request, L"\\[\r\nx\ny\r\n\\]", Selection{4u, 7u}, profile);
+            request.text = L"x";
             Exact(L"x\r\n", {0u, 1u}, request, L"\\[\r\nx\r\n\\]\r\n", Selection{4u, 5u}, profile);
             Unavailable(L"before x after", {7u, 8u}, request, profile);
-            Unavailable(L"> item\n", {2u, 6u}, request, profile);
-            Unavailable(L"- item\n", {2u, 6u}, request, profile);
+            Exact(L"> item\n", {2u, 6u}, request, L"> \\[\n> item\n> \\]\n", Selection{7u, 11u}, profile);
+            Exact(L"- item\n", {2u, 6u}, request, L"- \\[\n  item\n  \\]\n", Selection{7u, 11u}, profile);
             Document displayMath(L"\\[\nx\ny\n\\]");
             const auto displaySyntax = Parse(displayMath, profile);
             Check(std::ranges::any_of(displaySyntax->Nodes(), [](const auto& node) { return node.block.kind == MarkdownBlockKind::FencedCode && node.block.fenceMarker == L'['; }),

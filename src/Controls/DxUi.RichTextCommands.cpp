@@ -305,13 +305,28 @@ bool CanInsertMath(const MarkdownSyntax& syntax, Selection selection, std::wstri
         return false;
     if (display)
     {
-        // Display envelopes occupy whole physical lines. Limit insertion to a
-        // top-level paragraph or an empty line so list/quote/table prefixes
-        // cannot be silently detached from the authored content.
-        if ((leaf != MarkdownNoNode && (nodes[leaf].block.kind != MarkdownBlockKind::Paragraph || nodes[leaf].parent == MarkdownNoNode ||
-                                      nodes[nodes[leaf].parent].block.kind != MarkdownBlockKind::Document)) ||
-            (first && text[first - 1u] != L'\r' && text[first - 1u] != L'\n') ||
-            (last < text.size() && text[last] != L'\r' && text[last] != L'\n'))
+        // The owner must be a complete physical paragraph line; preserve its
+        // existing container prefix and generate canonical continuation lines.
+        if (leaf != MarkdownNoNode && nodes[leaf].block.kind != MarkdownBlockKind::Paragraph)
+            return false;
+        const auto lineStart = first ? text.find_last_of(L"\r\n", first - 1u) : text.npos;
+        const auto physicalStart = lineStart == text.npos ? 0u : lineStart + 1u;
+        const auto lineEnd = text.find_first_of(L"\r\n", first);
+        const auto physicalEnd = lineEnd == text.npos ? text.size() : lineEnd;
+        if (last != physicalEnd || (leaf == MarkdownNoNode ? first != physicalStart :
+            std::ranges::none_of(nodes[leaf].lines, [&](const auto& line) { return line.source.first == first; })))
+            return false;
+        if (leaf != MarkdownNoNode)
+            for (auto parent = nodes[leaf].parent; parent != MarkdownNoNode; parent = nodes[parent].parent)
+                if (nodes[parent].block.kind != MarkdownBlockKind::Document && nodes[parent].block.kind != MarkdownBlockKind::BlockQuote &&
+                    nodes[parent].block.kind != MarkdownBlockKind::List && nodes[parent].block.kind != MarkdownBlockKind::ListItem)
+                    return false;
+        // Multiline selected/requested values need line-by-line container
+        // prefixing and cannot be committed as one selection-preserving edit.
+        if (payload.find_first_of(L"\r\n") != payload.npos && first != physicalStart)
+            return false;
+        const auto prefixBound = (first - physicalStart) * 4u;
+        if (prefixBound > (Document::MaximumUnits - (text.size() - (last - first)) - payload.size() - 8u) / 2u)
             return false;
         return true;
     }
@@ -1942,16 +1957,22 @@ void MarkdownCommandPlanner::Math(const MarkdownCommandRequest& request)
     const auto first = plan.before_.Start(), last = plan.before_.End();
     const auto payload     = first == last ? request.text : Slice(first, last);
     const auto closer      = request.mathDisplay ? std::wstring_view(L"\\]") : std::wstring_view(L"\\)");
-    const auto newlineAt = plan.syntax_->Source().find_first_of(L"\r\n");
-    const std::wstring_view newline = newlineAt != std::wstring_view::npos && plan.syntax_->Source().substr(newlineAt, 2u) == L"\r\n"
-                                          ? L"\r\n" : L"\n";
+    const auto& line = Line(first);
+    const auto newline = Eol(line);
+    std::wstring continuation(0u, L' ');
+    if (request.mathDisplay)
+    {
+        const auto site = FindInlineInsertionSite(*plan.syntax_, plan.before_);
+        if (! site || (site.value() != MarkdownNoNode && ! ContinuationPrefix(site.value(), line, first, continuation)))
+            return;
+    }
     std::wstring insertion = request.mathDisplay ? L"\\[" : L"\\(";
-    if (request.mathDisplay) insertion += newline;
+    if (request.mathDisplay) { insertion += newline; insertion += continuation; }
     insertion += payload;
-    if (request.mathDisplay) insertion += newline;
+    if (request.mathDisplay) { insertion += newline; insertion += continuation; }
     insertion += closer;
     Add(first, last, insertion);
-    const auto begin = first + 2u + (request.mathDisplay ? newline.size() : 0u), end = begin + payload.size();
+    const auto begin = first + 2u + (request.mathDisplay ? newline.size() + continuation.size() : 0u), end = begin + payload.size();
     plan.after_       = plan.before_.anchor <= plan.before_.caret ? Selection{begin, end} : Selection{end, begin};
     explicitSelection = true;
     plan.applicable_  = true;
