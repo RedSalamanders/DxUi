@@ -2212,3 +2212,10 @@ Without an authored title the generated graph summary remains the name.
 Class diagrams also accept realization relationships `A <|.. B` and `B ..|> A`, rendered as a dotted line with the hollow triangle at the interface.
 
 Class diagrams also accept dotted association `A .. B` without an arrowhead.
+
+Class member blocks and colon members retain source order; a horizontal separator
+precedes the first member and each subsequent attribute/method group change.
+A member containing `(` starts a method group; other members are attributes.
+At most 16 groups per class are admitted. Additional groups preserve the exact
+source with a capacity diagnostic. Separators use measured text line positions,
+including wrapped labels and bidi layout, and remain within the class box.

@@ -579,6 +579,21 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
     check(association->outcome == FlowchartOutcome::Prepared && association->edges.size() == 1u && association->edges[0].relation == FlowchartRelation::Line &&
               association->edges[0].style == FlowchartLineStyle::Dotted,
           "class dotted association retains its line type and no arrowhead");
+    parser.Begin(L"classDiagram\nA : +size: int\nA : +draw()\nA : +other: int\n<<interface>> A\n", 1u);
+    const auto compartments = Complete(parser);
+    check(compartments->outcome == FlowchartOutcome::Prepared && compartments->nodes.size() == 1u &&
+              compartments->nodes[0].label == L"«interface»\nA\n+size: int\n+draw()\n+other: int" &&
+              compartments->nodes[0].compartmentCount == 3u && compartments->nodes[0].compartmentStarts[0] == 14u &&
+              compartments->nodes[0].compartmentStarts[1] == 25u && compartments->nodes[0].compartmentStarts[2] == 33u,
+          "class compartments follow source group changes and survive a later annotation prefix");
+    std::wstring tooMany = L"classDiagram\nclass A {\n";
+    for (std::size_t index = 0u; index < 17u; ++index)
+        tooMany += index % 2u ? L"f()\n" : L"v\n";
+    tooMany += L"}\n";
+    parser.Begin(tooMany, 1u);
+    const auto limitedCompartments = Complete(parser);
+    check(limitedCompartments->outcome == FlowchartOutcome::Capacity && limitedCompartments->source == tooMany && limitedCompartments->nodes.empty(),
+          "excess class compartments preserve source and discard staged graph");
     for (const auto& expected : familyGrammarExpectations)
     {
         parser.Begin(expected.source, 1u);

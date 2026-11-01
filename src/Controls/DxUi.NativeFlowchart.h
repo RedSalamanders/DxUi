@@ -1,5 +1,6 @@
 #pragma once
 #include <DxUi/MarkdownSyntax.h>
+#include <array>
 
 namespace DxUi::RichText::Detail
 {
@@ -88,6 +89,11 @@ struct FlowchartNode
     MarkdownRange identifier, declaration;
     std::wstring label;
     std::wstring key;
+    // Text offsets at which class member compartments begin. Alternating
+    // attribute/method groups retain source order and have bounded separators.
+    std::array<std::size_t, 16u> compartmentStarts{};
+    std::size_t compartmentCount{};
+    bool lastCompartmentMethod{};
     FlowchartShape shape{};
 };
 struct FlowchartEdge

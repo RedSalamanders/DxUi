@@ -162,8 +162,27 @@ struct NativeFlowchartParser::Preparation
         annotated.push_back(L'\n');
         annotated.append(label);
         label.swap(annotated);
+        for (std::size_t index = 0u; index < model->nodes[node].compartmentCount; ++index)
+            model->nodes[node].compartmentStarts[index] += renderedSize + 1u;
         classAnnotations[node] = true;
         return true;
+    }
+    bool ClassMember(std::size_t nodeIndex, std::size_t at, std::size_t end)
+    {
+        if (at == end)
+            return Error(FlowchartIssue::UnsupportedStatement, at, end, FlowchartOutcome::Unsupported);
+        auto& node = model->nodes[nodeIndex];
+        const bool method = Text().substr(at, end - at).find(L'(') != std::wstring_view::npos;
+        const bool boundary = ! node.compartmentCount || method != node.lastCompartmentMethod;
+        if (boundary && node.compartmentCount == node.compartmentStarts.size())
+            return Error(FlowchartIssue::LabelCapacity, at, end, FlowchartOutcome::Capacity);
+        if (node.label.size() == MaximumLabelUnits)
+            return Error(FlowchartIssue::LabelCapacity, at, end, FlowchartOutcome::Capacity);
+        node.label.push_back(L'\n');
+        if (boundary)
+            node.compartmentStarts[node.compartmentCount++] = node.label.size();
+        node.lastCompartmentMethod = method;
+        return PlainText(at, end, node.label, true);
     }
     bool DescriptionLine(std::size_t start, std::size_t end)
     {
@@ -490,11 +509,7 @@ struct NativeFlowchartParser::Preparation
             if (member.find_first_of(L"{}\";") != std::wstring_view::npos || member.starts_with(L"class ") || member.starts_with(L"direction ") ||
                 member.starts_with(L"click ") || member.starts_with(L"style "))
                 return Error(FlowchartIssue::UnsupportedStatement, at, end, FlowchartOutcome::Unsupported);
-            auto& label = model->nodes[classBlockNode].label;
-            if (label.size() == MaximumLabelUnits)
-                return Error(FlowchartIssue::LabelCapacity, memberStart, end, FlowchartOutcome::Capacity);
-            label.push_back(L'\n');
-            return PlainText(at, end, label, true);
+            return ClassMember(classBlockNode, memberStart, end);
         }
         if (model->family == NativeDiagramFamily::Class && Text().substr(at, 2u) == L"<<")
         {
@@ -660,11 +675,7 @@ struct NativeFlowchartParser::Preparation
                         return false;
                     return StateDescription(previousGroup.front(), description, descriptionStart, end);
                 }
-                auto& label = model->nodes[previousGroup.front()].label;
-                if (label.size() == MaximumLabelUnits)
-                    return Error(FlowchartIssue::LabelCapacity, at, end, FlowchartOutcome::Capacity);
-                label.push_back(L'\n');
-                return PlainText(at, end, label, model->family == NativeDiagramFamily::Class);
+                return ClassMember(previousGroup.front(), at, end);
             }
             FlowchartEdge edge;
             const auto edgeStart = at;

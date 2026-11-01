@@ -250,6 +250,7 @@ template <typename Check> inline void RasterOracle(Check&& check)
                               L"graph TD;A[\"first\\nsecond\"]",
                               L"graph TD;A[one<br>two #9829;]",
                               L"classDiagram\nclass Shape\n<<interface>> Shape\n",
+                              L"classDiagram\nclass Shape {\n+size: int\n+draw()\n}\n",
                               L"graph TD;A[\"ordinary Unicode words wrap over several lines without truncation\"]"})
         for (const auto direction : {DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT})
         {
@@ -315,6 +316,18 @@ template <typename Check> inline void RasterOracle(Check&& check)
                         const auto bounds = D2D1::RectF(8.0f, 8.0f, static_cast<float>(8.0 + boxWidth), static_cast<float>(8.0 + boxHeight));
                         target->FillRectangle(bounds, fill.get());
                         target->DrawRectangle(bounds, stroke.get());
+                        if (std::wstring_view(source).starts_with(L"classDiagram\nclass Shape {"))
+                        {
+                            // Independent literal source positions and public SDK hit testing.
+                            for (const UINT32 position : {6u, 17u})
+                            {
+                                FLOAT x{}, y{};
+                                DWRITE_HIT_TEST_METRICS hit{};
+                                THROW_IF_FAILED(layout->HitTestTextPosition(position, FALSE, &x, &y, &hit));
+                                const auto lineY = static_cast<float>(8.0 + (boxHeight - labelHeight) / 2.0) - top + y;
+                                target->DrawLine(D2D1::Point2F(bounds.left, lineY), D2D1::Point2F(bounds.right, lineY), stroke.get());
+                            }
+                        }
                         target->DrawTextLayout(D2D1::Point2F(static_cast<float>(8.0 + (boxWidth - labelWidth) / 2.0) - left,
                                                              static_cast<float>(8.0 + (boxHeight - labelHeight) / 2.0) - top),
                                                layout.get(),

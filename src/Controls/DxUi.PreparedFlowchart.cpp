@@ -13,6 +13,8 @@ struct FlowchartLabel
 {
     wil::com_ptr<IDWriteTextLayout> layout;
     D2D1_POINT_2F origin{};
+    std::array<float, 16u> compartmentY{};
+    std::size_t compartmentCount{};
 };
 bool SameTypography(const LayoutOptions& a, const LayoutOptions& b) noexcept
 {
@@ -187,8 +189,17 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
     if (graph->direction < FlowchartDirection::TopBottom || graph->direction > FlowchartDirection::RightLeft)
         throw std::invalid_argument("Invalid native flowchart direction");
     for (const auto& node : graph->nodes)
+    {
         if (node.label.size() > NativeFlowchartParser::MaximumLabelUnits || node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Subroutine)
             throw std::invalid_argument("Invalid flowchart node label/shape");
+        if (node.compartmentCount > node.compartmentStarts.size() || (node.compartmentCount && graph->family != NativeDiagramFamily::Class))
+            throw std::invalid_argument("Invalid class compartment count");
+        for (std::size_t index = 0u; index < node.compartmentCount; ++index)
+            if (! node.compartmentStarts[index] || node.compartmentStarts[index] >= node.label.size() ||
+                node.label[node.compartmentStarts[index] - 1u] != L'\n' ||
+                (index && node.compartmentStarts[index] <= node.compartmentStarts[index - 1u]))
+                throw std::invalid_argument("Invalid class compartment offset");
+    }
     for (const auto& edge : graph->edges)
         if (edge.label.size() > NativeFlowchartParser::MaximumLabelUnits || edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() ||
             edge.minimumRanks == 0u || edge.minimumRanks > NativeFlowchartParser::MaximumLinkRanks || edge.relation < FlowchartRelation::Line ||
@@ -239,6 +250,21 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                             return result;
                         ++result.layoutsPrepared;
                         state.Label(label, node ? state.nodeLabels[index] : state.edgeLabels[index], node ? state.nodeSizes[index] : state.edgeSizes[index]);
+                        if (node)
+                        {
+                            auto& prepared = state.nodeLabels[index];
+                            const auto& model = state.graph->nodes[index];
+                            for (std::size_t compartment = 0u; compartment < model.compartmentCount; ++compartment)
+                            {
+                                FLOAT x{}, y{};
+                                DWRITE_HIT_TEST_METRICS hit{};
+                                THROW_IF_FAILED(prepared.layout->HitTestTextPosition(static_cast<UINT32>(model.compartmentStarts[compartment]), FALSE, &x, &y, &hit));
+                                if (! std::isfinite(y))
+                                    throw std::overflow_error("Nonfinite class compartment position");
+                                prepared.compartmentY[compartment] = y + prepared.origin.y;
+                            }
+                            prepared.compartmentCount = model.compartmentCount;
+                        }
                     }
                     ++work.cursor;
                     break;
@@ -445,7 +471,13 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
             target->FillRectangle(bounds, fill);
             target->DrawRectangle(bounds, stroke);
         }
-        label(state.nodeLabels[index], node.label);
+        const auto& nodeLabel = state.nodeLabels[index];
+        for (std::size_t compartment = 0u; compartment < nodeLabel.compartmentCount; ++compartment)
+        {
+            const auto y = static_cast<float>(node.label.y) + nodeLabel.compartmentY[compartment];
+            target->DrawLine(D2D1::Point2F(bounds.left, y), D2D1::Point2F(bounds.right, y), stroke);
+        }
+        label(nodeLabel, node.label);
     }
     // Exterior corridors can cross other edges' label rectangles. Paint every
     // label last over its opaque backing, so no later route can obscure ink.
