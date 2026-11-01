@@ -1239,9 +1239,12 @@ try
     auto* editor = dynamic_cast<RichTextEditor*>(_host.GetFocusControl());
     if (! editor)
         return E_NOTIMPL;
-    if (editor->TryPrepareClipboardPaste(content, replacement))
+    bool stale = false;
+    if (editor->TryPrepareClipboardPaste(content, replacement, &stale))
         return S_OK;
-    if (! content.filePaths.empty())
+    if (stale)
+        return E_ABORT;
+    if (! content.filePaths.empty() || (content.hasHtmlFragment && content.text.empty()))
         return S_FALSE;
     // Rich source paste preserves CR/LF spelling. Ordinary TextField clients retain service normalization.
     replacement = content.text;

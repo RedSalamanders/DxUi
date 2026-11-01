@@ -1477,6 +1477,7 @@ __declspec(noinline) static int RunFunctionalTests()
         TestEmbeddedCodeLineNumberPixels(gpu);
         TestEmbeddedSourceGuidesPixels(gpu);
         TestSourceGuideAllocationAtomicity();
+        TestHtmlClipboardFragment();
         TestEmbeddedImageResources(gpu);
         DxUi::EmbeddedHost view;
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
@@ -1762,6 +1763,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestEmbeddedCodeLineNumberPixels(gpu);
     TestEmbeddedSourceGuidesPixels(gpu);
     TestSourceGuideAllocationAtomicity();
+    TestHtmlClipboardFragment();
     TestEmbeddedRichGeometryReuseAndRetirement(gpu);
     TestRetainedRichTextSchedulingCanRetireOwner(gpu);
     TestRetainedRichTextFailedPreparation(gpu);

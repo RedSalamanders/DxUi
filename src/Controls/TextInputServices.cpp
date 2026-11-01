@@ -894,7 +894,7 @@ HRESULT TextInputServices::Clipboard(TextClipboardCommand command, TextClipboard
                     replacement.swap(transformed);
                 else if (FAILED(result) && result != E_NOTIMPL)
                     return result;
-                else if (! content.filePaths.empty())
+                else if (! content.filePaths.empty() || (content.hasHtmlFragment && content.text.empty()))
                     return S_FALSE;
             }
             else if (! content.filePaths.empty())

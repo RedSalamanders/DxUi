@@ -3279,6 +3279,7 @@ public:
     // Raw source/code stays literal. Files are never copied or opened here.
     // No edit/callback occurs; false leaves replacement unchanged.
     bool TryPrepareClipboardPaste(const TextClipboardContent& content, std::wstring& replacement) const;
+    bool TryPrepareClipboardPaste(const TextClipboardContent& content, std::wstring& replacement, bool* stale) const;
     [[nodiscard]] uint64_t Revision() const noexcept;
     void SetSelection(RichText::Selection selection);
     [[nodiscard]] RichText::Selection GetSelection() const noexcept;
@@ -3295,6 +3296,8 @@ public:
     void SetCodeTokenizer(RichText::CodeTokenizer tokenizer);
     // Borrowed rendered code text is valid only during the owner-thread callback.
     void SetOnCodeCopyRequested(std::function<void(std::wstring_view)> callback, std::wstring accessibleName = L"Copy code");
+    // Optional application converter: borrowed validated CF_HTML fragment to Markdown source.
+    void SetHtmlPasteConverter(std::function<std::optional<std::wstring>(std::wstring_view)> converter);
     [[nodiscard]] std::wstring_view GetCodeCopyAccessibleName() const noexcept;
     HRESULT InvokeSemanticCodeCopy(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& document, size_t element) noexcept;
     // Unclipped host-DIP bounds; may lie outside the viewport.

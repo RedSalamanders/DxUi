@@ -35,6 +35,7 @@ public:
     void (*check)(bool, const char*);
     wil::unique_hglobal data;
     wil::unique_hglobal fileData;
+    wil::unique_hglobal htmlData;
     bool busy              = false;
     bool failAllocation    = false;
     bool failEmpty         = false;
@@ -64,8 +65,9 @@ private:
     }
     static HANDLE WINAPI GetData(UINT format)
     {
-        _current->check(format == CF_UNICODETEXT || format == CF_HDROP, "transport reads Unicode text or wide file lists");
-        return format == CF_HDROP ? _current->fileData.get() : _current->data.get();
+        const auto htmlFormat = RegisterClipboardFormatW(L"HTML Format");
+        _current->check(format == CF_UNICODETEXT || format == CF_HDROP || format == htmlFormat, "transport reads supported clipboard formats");
+        return format == CF_HDROP ? _current->fileData.get() : (format == htmlFormat ? _current->htmlData.get() : _current->data.get());
     }
     static BOOL WINAPI Empty()
     {

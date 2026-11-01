@@ -49,10 +49,14 @@ struct TextClipboardContent
     TextClipboardContent& operator=(const TextClipboardContent&) = default;
     std::wstring text;
     std::vector<std::wstring> filePaths;
+    std::wstring htmlFragment; // Validated, bounded CF_HTML UTF-8 fragment.
+    bool hasHtmlFragment = false;
     void Swap(TextClipboardContent& other) noexcept
     {
         text.swap(other.text);
         filePaths.swap(other.filePaths);
+        htmlFragment.swap(other.htmlFragment);
+        std::swap(hasHtmlFragment, other.hasHtmlFragment);
     }
 };
 class StructuredTextClipboard

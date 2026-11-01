@@ -3,6 +3,7 @@
 #include <objidl.h>
 namespace DxUi
 {
+HRESULT DecodeClipboardHtml(std::span<const std::byte> buffer, std::wstring& fragment) noexcept;
 HRESULT DecodeClipboardText(std::span<const wchar_t> buffer, std::wstring& text) noexcept;
 bool ValidClipboardUnicode(std::wstring_view text) noexcept;
 HRESULT ClipboardAllocationSize(size_t textUnits, size_t& bytes) noexcept;

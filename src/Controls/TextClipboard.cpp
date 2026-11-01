@@ -1,4 +1,5 @@
 #include "TextClipboard.h"
+#include <charconv>
 #include <cstring>
 #include <cwchar>
 #include <limits>
@@ -73,8 +74,33 @@ public:
                 return result;
         }
         const auto result = ReadUnicodeClipboardData(calls.getData(CF_UNICODETEXT), staged.text);
-        if (result == S_OK)
+        if (FAILED(result))
+            return result;
+        const auto htmlFormat = RegisterClipboardFormatW(L"HTML Format");
+        if (htmlFormat)
+            if (const auto data = calls.getData(htmlFormat))
+            {
+                const auto bytes = GlobalSize(data);
+                const auto* buffer = static_cast<const std::byte*>(GlobalLock(data));
+                if (buffer)
+                {
+                    const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(data); });
+                    std::wstring fragment;
+                    const auto htmlResult = DecodeClipboardHtml(std::span(buffer, bytes), fragment);
+                    if (htmlResult == E_OUTOFMEMORY)
+                        return htmlResult;
+                    if (htmlResult == S_OK)
+                    {
+                        staged.htmlFragment.swap(fragment);
+                        staged.hasHtmlFragment = true;
+                    }
+                }
+            }
+        if (result == S_OK || staged.hasHtmlFragment)
+        {
             content.Swap(staged);
+            return S_OK;
+        }
         return result;
     }
     catch (const std::bad_alloc&)
@@ -116,6 +142,60 @@ public:
 thread_local TextClipboard* testTextClipboard                     = nullptr;
 thread_local const ClipboardSystemCalls* testClipboardSystemCalls = nullptr;
 #endif
+HRESULT DecodeClipboardHtml(std::span<const std::byte> buffer, std::wstring& fragment) noexcept
+try
+{
+    constexpr size_t maximumBytes = 4u * 65536u + 4096u;
+    if (buffer.empty() || buffer.size() > maximumBytes)
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    const auto bytes = std::string_view(reinterpret_cast<const char*>(buffer.data()), buffer.size());
+    const auto readOffset = [&](std::string_view key, size_t& result) noexcept {
+        const auto header = bytes.substr(0u, (std::min)(bytes.size(), size_t{4096u}));
+        auto at = header.find(key);
+        if (at == header.npos || (at && header[at - 1u] != '\n'))
+            return false;
+        at += key.size();
+        auto end = at;
+        while (end < header.size() && header[end] >= '0' && header[end] <= '9')
+            ++end;
+        if (end == at || end == header.size() || (header[end] != '\r' && header[end] != '\n'))
+            return false;
+        const auto parsed = std::from_chars(header.data() + at, header.data() + end, result);
+        return parsed.ec == std::errc{} && parsed.ptr == header.data() + end;
+    };
+    size_t htmlFirst{}, htmlLast{}, first{}, last{};
+    if (! readOffset("StartHTML:", htmlFirst) || ! readOffset("EndHTML:", htmlLast) ||
+        ! readOffset("StartFragment:", first) || ! readOffset("EndFragment:", last) ||
+        htmlFirst > first || first > last || last > htmlLast || htmlLast > bytes.size())
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    const auto header = bytes.substr(0u, htmlFirst);
+    for (const auto key : {std::string_view{"StartHTML:"}, std::string_view{"EndHTML:"}, std::string_view{"StartFragment:"}, std::string_view{"EndFragment:"}})
+    {
+        const auto at = header.find(key);
+        if (at == header.npos || header.find(key, at + key.size()) != header.npos)
+            return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    }
+    const auto html = bytes.substr(first, last - first);
+    if (html.find('\0') != html.npos || html.size() > static_cast<size_t>((std::numeric_limits<int>::max)()))
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    if (html.empty())
+    {
+        fragment.clear();
+        return S_OK;
+    }
+    const auto length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, html.data(), static_cast<int>(html.size()), nullptr, 0);
+    if (! length || length > 65536)
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    std::wstring staged(static_cast<size_t>(length), L'\0');
+    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, html.data(), static_cast<int>(html.size()), staged.data(), length) != length)
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    fragment.swap(staged);
+    return S_OK;
+}
+catch (const std::bad_alloc&)
+{
+    return E_OUTOFMEMORY;
+}
 HRESULT ClipboardAllocationSize(size_t textUnits, size_t& bytes) noexcept
 {
     bytes = 0;

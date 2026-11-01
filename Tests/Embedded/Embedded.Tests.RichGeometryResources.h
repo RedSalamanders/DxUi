@@ -1,3 +1,5 @@
+#include "Controls/TextClipboard.h"
+#include "Support.Tests.ClipboardFixture.h"
 #pragma once
 #include "Controls/DxUi.RichSourceGuides.h"
 #include <DxUi/RichTextLayout.h>
@@ -333,6 +335,46 @@ static void TestEmbeddedSemanticReusePixels(GraphicsFixture& gpu)
     Check(reusedPixels == freshPixels, "reused semantic layouts match a fresh WARP render byte for byte");
 }
 
+static void TestHtmlClipboardFragment()
+{
+    using namespace DxUi;
+    const std::string body = "<b>hello</b>";
+    const auto header = std::format("Version:1.0\r\nStartHTML:{:010}\r\nEndHTML:{:010}\r\nStartFragment:{:010}\r\nEndFragment:{:010}\r\n", 105, 117, 105, 117);
+    Check(header.size() == 105u, "CF_HTML test header has stable byte offsets");
+    const auto bytes = header + body;
+    std::wstring fragment = L"sentinel";
+    Check(DecodeClipboardHtml(std::as_bytes(std::span(bytes.data(), bytes.size())), fragment) == S_OK && fragment == L"<b>hello</b>",
+          "CF_HTML decoder honors byte offsets and UTF-8");
+    auto invalid = bytes;
+    invalid[invalid.size() - 1u] = static_cast<char>(0xff);
+    fragment = L"sentinel";
+    Check(FAILED(DecodeClipboardHtml(std::as_bytes(std::span(invalid.data(), invalid.size())), fragment)) && fragment == L"sentinel",
+          "invalid UTF-8 does not publish a fragment");
+    fragment = L"sentinel";
+    const auto oldFailure = failAllocationAfter;
+    failAllocationAfter = 0u;
+    const auto failed = DecodeClipboardHtml(std::as_bytes(std::span(bytes.data(), bytes.size())), fragment);
+    failAllocationAfter = oldFailure;
+    Check(failed == E_OUTOFMEMORY && fragment == L"sentinel", "HTML allocation failure preserves the prior output");
+    auto owner = reinterpret_cast<HWND>(1);
+    ClipboardTransportFixture transport(owner, Check);
+    transport.htmlData.reset(GlobalAlloc(GMEM_MOVEABLE, bytes.size()));
+    Check(bool(transport.htmlData), "allocate private HTML clipboard medium");
+    auto* memory = GlobalLock(transport.htmlData.get());
+    Check(memory != nullptr, "lock private HTML clipboard medium");
+    {
+        const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(transport.htmlData.get()); });
+        std::memcpy(memory, bytes.data(), bytes.size());
+    }
+    TextClipboardContent content;
+    Check(ReadTextClipboardContent(SystemTextClipboard(), owner, content, true) == S_OK && content.hasHtmlFragment && content.htmlFragment == L"<b>hello</b>" &&
+              transport.opens == 1u && transport.closes == 1u,
+          "structured clipboard reads HTML through one private ownership attempt");
+    invalid = bytes;
+    invalid.replace(invalid.find("StartFragment:") + 14u, 10u, "9999999999");
+    Check(FAILED(DecodeClipboardHtml(std::as_bytes(std::span(invalid.data(), invalid.size())), fragment)) && fragment == L"sentinel",
+          "out-of-range CF_HTML offsets do not publish a fragment");
+}
 static void TestSourceGuideAllocationAtomicity()
 {
     using namespace DxUi::RichText;

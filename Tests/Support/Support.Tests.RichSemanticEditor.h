@@ -2009,6 +2009,31 @@ template <typename Prepare> void UrlOnSelectionPaste(ControlHost& host, Prepare&
     appearance.pasteUrlOnSelection = false;
     editor->SetAppearance(appearance);
     Check(! editor->TryPrepareClipboardPaste(content, replacement), "URL paste is opt in");
+    content.htmlFragment = L"<b>hello</b>";
+    content.hasHtmlFragment = true;
+    editor->SetHtmlPasteConverter([](std::wstring_view html) -> std::optional<std::wstring> {
+        return html == L"<b>hello</b>" ? std::optional<std::wstring>{L"**hello**"} : std::nullopt;
+    });
+    Check(editor->TryPrepareClipboardPaste(content, replacement) && replacement == L"**hello**",
+          "application HTML converter receives counted fragment and prepares Markdown");
+    const auto originalRevision = editor->Revision();
+    editor->SetHtmlPasteConverter([&](std::wstring_view) -> std::optional<std::wstring> {
+        editor->SetText(L"changed during conversion");
+        return L"stale";
+    });
+    replacement = L"sentinel";
+    bool stale = false;
+    Check(! editor->TryPrepareClipboardPaste(content, replacement, &stale) && stale && replacement == L"sentinel" && editor->Revision() != originalRevision,
+          "reentrant converter cannot publish a stale replacement");
+    editor->SetHtmlPasteConverter([&](std::wstring_view) -> std::optional<std::wstring> {
+        host.SetFocusControl(nullptr);
+        return L"stale focus";
+    });
+    host.SetFocusControl(editor);
+    stale = false;
+    Check(! editor->TryPrepareClipboardPaste(content, replacement, &stale) && stale && replacement == L"sentinel",
+          "reentrant focus replacement declines converter output");
+    editor->SetHtmlPasteConverter({});
 }
 template <typename Prepare> void SourceHorizontalAndGuides(ControlHost& host, Prepare&& prepare)
 {

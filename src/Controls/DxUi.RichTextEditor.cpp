@@ -348,6 +348,7 @@ struct RichTextEditor::State
     RichText::LayoutOptions sourceGuideOptions;
     std::shared_ptr<const RichText::CodeTokenizer> codeTokenizer;
     std::shared_ptr<const std::function<void(std::wstring_view)>> onCodeCopyRequested;
+    std::shared_ptr<const std::function<std::optional<std::wstring>(std::wstring_view)>> htmlPasteConverter;
     std::wstring codeCopyAccessibleName;
     std::shared_ptr<const RichText::SemanticDocument> codeInkDocument;
     std::vector<RichText::TextInkRange> codeInk, codeInkStaged;
@@ -712,9 +713,53 @@ bool RichTextEditor::CanPasteMarkdownFileReferences(RichText::Selection selectio
 }
 bool RichTextEditor::TryPrepareClipboardPaste(const TextClipboardContent& content, std::wstring& replacement) const
 {
+    return TryPrepareClipboardPaste(content, replacement, nullptr);
+}
+bool RichTextEditor::TryPrepareClipboardPaste(const TextClipboardContent& content, std::wstring& replacement, bool* stale) const
+{
+    if (stale)
+        *stale = false;
     if (! content.filePaths.empty())
         return TryPrepareFileReferencesAt(content, GetSelection(), replacement);
     const auto selection = GetSelection();
+    if (Editable() && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich && content.hasHtmlFragment && content.htmlFragment.size() <= RichText::Document::MaximumUnits &&
+        RichText::IsValidUtf16(content.htmlFragment) && _state->htmlPasteConverter)
+    {
+        const auto converter = _state->htmlPasteConverter;
+        const auto lifetime = GetLifetimeToken();
+        const auto revision = Revision();
+        const auto binding = _state->bindingRevision;
+        const auto host = GetHost();
+        const auto focus = host ? host->GetFocusControl() : nullptr;
+        try
+        {
+            auto converted = (*converter)(content.htmlFragment);
+            if (lifetime.expired() || GetHost() != host || (host && host->GetFocusControl() != focus) || Revision() != revision || _state->bindingRevision != binding || GetSelection() != selection ||
+                _state->htmlPasteConverter != converter || ! Editable() || ! _state->markdownRendering || _state->mode != RichText::ViewMode::Rich)
+            {
+                if (stale)
+                    *stale = true;
+                return false;
+            }
+            if (converted && converted->size() <= RichText::Document::MaximumUnits && RichText::IsValidUtf16(*converted))
+            {
+                replacement.swap(*converted);
+                return true;
+            }
+        }
+        catch (const std::bad_alloc&)
+        {
+            throw;
+        }
+        catch (const std::exception&)
+        {
+            if (stale && (lifetime.expired() || GetHost() != host || (host && host->GetFocusControl() != focus) || Revision() != revision || _state->bindingRevision != binding || GetSelection() != selection ||
+                          _state->htmlPasteConverter != converter || ! Editable() || ! _state->markdownRendering || _state->mode != RichText::ViewMode::Rich))
+                *stale = true;
+            // Application converter failure retains ordinary Unicode paste unless the target changed.
+            return false;
+        }
+    }
     if (! Editable() || ! _state->appearance.pasteUrlOnSelection || ! _state->markdownRendering ||
         _state->mode != RichText::ViewMode::Rich || selection.Start() == selection.End())
         return false;
@@ -2096,6 +2141,11 @@ void RichTextEditor::SetCodeTokenizer(RichText::CodeTokenizer tokenizer)
     _state->codeInkCursor   = 0u;
     _state->codeInkComplete = false;
     RequestContentPreparation();
+}
+void RichTextEditor::SetHtmlPasteConverter(std::function<std::optional<std::wstring>(std::wstring_view)> converter)
+{
+    auto next = converter ? std::make_shared<const std::function<std::optional<std::wstring>(std::wstring_view)>>(std::move(converter)) : nullptr;
+    _state->htmlPasteConverter.swap(next);
 }
 void RichTextEditor::SetOnCodeCopyRequested(std::function<void(std::wstring_view)> callback, std::wstring accessibleName)
 {
@@ -4814,7 +4864,12 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                         else
                         {
                             std::wstring replacement(0u, L' ');
-                            if (TryPrepareClipboardPaste(content, replacement))
+                            bool stalePaste = false;
+                            const bool transformed = TryPrepareClipboardPaste(content, replacement, &stalePaste);
+                            if (stalePaste || lifetime.expired() || GetHost() != &host || _state->bindingRevision != binding || Revision() != revision ||
+                                _state->imageLocationRevision != location || GetSelection() != selection)
+                                return true;
+                            if (transformed)
                                 static_cast<void>(ReplaceSelection(std::move(replacement)));
                             else if (! content.text.empty())
                                 static_cast<void>(ReplaceSelection(std::move(content.text)));
