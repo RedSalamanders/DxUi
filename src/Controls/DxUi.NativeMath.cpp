@@ -156,7 +156,23 @@ class Parser
     }
     MathNode Matrix(std::wstring environment, unsigned depth)
     {
-        constexpr std::array names{L"matrix", L"pmatrix", L"bmatrix", L"Bmatrix", L"vmatrix", L"Vmatrix", L"smallmatrix", L"cases", L"aligned", L"gathered"};
+        constexpr std::array names{L"matrix",
+                                   L"pmatrix",
+                                   L"bmatrix",
+                                   L"Bmatrix",
+                                   L"vmatrix",
+                                   L"Vmatrix",
+                                   L"smallmatrix",
+                                   L"cases",
+                                   L"aligned",
+                                   L"gathered",
+                                   L"align",
+                                   L"align*",
+                                   L"split",
+                                   L"gather",
+                                   L"gather*",
+                                   L"equation",
+                                   L"equation*"};
         if (std::ranges::find(names, environment) == names.end())
             Reject(MathIssue::UnsupportedEnvironment);
         std::vector<MathNode> cells(0u);
@@ -169,8 +185,15 @@ class Parser
                 rowWidths[rows - 1u] = rowColumns;
                 columns              = std::max(columns, rowColumns);
             }
-            if ((environment == L"gathered" && columns != 1u) || (environment == L"cases" && columns > 2u) || rows * columns > 128u)
+            const bool gathered = environment == L"gathered" || environment == L"gather" || environment == L"gather*" || environment == L"equation" ||
+                                  environment == L"equation*";
+            const bool equation = environment == L"equation" || environment == L"equation*";
+            if ((gathered && columns != 1u) || (equation && rows != 1u) || (environment == L"cases" && columns > 2u) || rows * columns > 128u)
                 Reject();
+            if (environment == L"align" || environment == L"align*" || environment == L"split")
+                environment = L"aligned";
+            else if (gathered)
+                environment = L"gathered";
             if (cells.size() == static_cast<std::size_t>(rows) * columns)
                 return Make(MathKind::Matrix, std::move(environment), std::move(cells), columns);
             std::vector<MathNode> rectangular(0u);

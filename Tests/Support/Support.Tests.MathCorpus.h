@@ -291,6 +291,21 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     }
     check(! ParseMath(L"\\begin{matrix}a&b&c&d&e&f&g&h&i&j&k&l&m&n&o&p\\\\a\\\\a\\\\a\\\\a\\\\a\\\\a\\\\a\\\\a\\end{matrix}"),
           "implicit empty matrix cells count toward the 128-cell admission bound");
+    for (const auto& [source, canonical] : {std::pair{L"\\begin{align}a&=b\\\\c&=d\\end{align}", L"aligned"},
+                                            std::pair{L"\\begin{align*}a&=b\\end{align*}", L"aligned"},
+                                            std::pair{L"\\begin{split}a&=b\\end{split}", L"aligned"},
+                                            std::pair{L"\\begin{gather}a\\\\b\\end{gather}", L"gathered"},
+                                            std::pair{L"\\begin{gather*}a\\end{gather*}", L"gathered"},
+                                            std::pair{L"\\begin{equation}a\\end{equation}", L"gathered"},
+                                            std::pair{L"\\begin{equation*}a\\end{equation*}", L"gathered"}})
+    {
+        const auto expression = ParseMath(source);
+        check(expression && expression.root.children.size() == 1u && expression.root.children[0u].kind == MathKind::Matrix &&
+                  expression.root.children[0u].text == canonical,
+              "unnumbered environment aliases preserve their aligned or centered layout rule");
+    }
+    for (const auto source : {L"\\begin{equation}a\\\\b\\end{equation}", L"\\begin{gather}a&b\\end{gather}", L"\\begin{align}a\\end{align*}"})
+        check(! ParseMath(source), "environment aliases preserve row, column and matching-name restrictions");
     for (const auto& [source, style] : {std::pair{L"\\dbinom{n}{k}", L"displaystyle"}, std::pair{L"\\tbinom{n}{k}", L"textstyle"}})
     {
         const auto expression = ParseMath(source);

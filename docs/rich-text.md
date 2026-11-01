@@ -1411,6 +1411,9 @@ as an ordinary atom and as a scalable or sized delimiter. Paired and sized
 delimiters also accept `\lparen`, `\rparen`, `\lt`, `\gt`, `/` and `\backslash`.
 Text groups collapse source whitespace and remove grouping braces while retaining escaped literal braces. Matrix rows may
 have a trailing separator; gathered rows have one column and cases at most two.
+Inside an admitted math envelope, `align`, `align*` and `split` use aligned-row
+geometry; `gather`, `gather*`, `equation` and `equation*` use centered one-column
+geometry. Equation forms admit one row. These bounded aliases do not add numbering.
 `\not` admits ungrouped single relation glyphs `= < > ≤ ≥ ∈ ∋ ⊂ ⊃ ⊆ ⊇ ∼ ≡ ≈ ∣ ∥`
 and substitutes their Unicode negations; other operands retain exact source.
 Unsupported commands remain local exact source. This is a named native profile,
