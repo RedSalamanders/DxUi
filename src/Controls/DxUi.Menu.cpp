@@ -5053,6 +5053,8 @@ void TraceMenuPointerRoute(MenuController& controller,
     const bool initializeStationaryPopupHover =
         ! pointerMoved && targetPopup && ! targetPopup->hoveredIndex.has_value() && ! targetPopup->keyboardIndex.has_value();
     const bool stationaryCascadeParentReturn = ! pointerMoved && targetPopup && controller.popups.size() > 1u && controller.GetTopmostPopup() != targetPopup;
+    if (! pointerMoved && std::ranges::any_of(controller.popups, [](const auto& popup) { return popup->keyboardIndex.has_value(); }))
+        return MenuInputDisposition::Ignored; // A stationary pointer cannot supersede keyboard ownership or arm a new hover timer.
     if (! pointerMoved && ! initializeStationaryPopupHover && ! stationaryCascadeParentReturn)
     {
         return MenuInputDisposition::Ignored;
@@ -5107,9 +5109,12 @@ void TraceMenuPointerRoute(MenuController& controller,
 
     if (targetPopup)
     {
+        // A stationary return can reconcile hover/close timers after a child is
+        // shown, but it cannot take keyboard ownership from that child.
+        const bool pointerTakesKeyboardFocus = event.mayTakeKeyboardFocus && pointerMoved;
         if (const std::optional<D2D1_POINT_2F> pointDip = ResolvePointerPopupPointDip(*targetPopup, event); pointDip.has_value())
         {
-            HandleMenuMouseMoveAtPointDip(controller, *targetPopup, pointDip.value(), event.mayTakeKeyboardFocus);
+            HandleMenuMouseMoveAtPointDip(controller, *targetPopup, pointDip.value(), pointerTakesKeyboardFocus);
         }
         size_t targetPopupIndex = controller.popups.size();
         for (size_t i = 0; i < controller.popups.size(); ++i)
@@ -5155,7 +5160,7 @@ void TraceMenuPointerRoute(MenuController& controller,
                     popup->hoveredIndex = cascadeHighlight;
                     invalidate          = true;
                 }
-                if (event.mayTakeKeyboardFocus && popup->keyboardIndex.has_value())
+                if (pointerTakesKeyboardFocus && popup->keyboardIndex.has_value())
                 {
                     popup->keyboardIndex.reset();
                     invalidate = true;
@@ -5168,7 +5173,7 @@ void TraceMenuPointerRoute(MenuController& controller,
                     popup->hoveredIndex.reset();
                     invalidate = true;
                 }
-                if (event.mayTakeKeyboardFocus && popup->keyboardIndex.has_value())
+                if (pointerTakesKeyboardFocus && popup->keyboardIndex.has_value())
                 {
                     popup->keyboardIndex.reset();
                     invalidate = true;

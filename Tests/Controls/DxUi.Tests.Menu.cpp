@@ -5990,6 +5990,21 @@ void TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop()
         const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
 
         ContextMenuPopupDebugState popupState{};
+        D2D1_RECT_F b2Rect{};
+        if (! WaitForContextMenuPopupItemRect(bPopupHwnd, 1u, b2Rect))
+        {
+            driverFailure = "B2 row geometry is available before keyboard ownership";
+            return;
+        }
+        const float dpi = static_cast<float>(GetDpiForWindow(bPopupHwnd));
+        POINT stationaryPoint{static_cast<LONG>(std::lround((b2Rect.left + b2Rect.right) * 0.5f * dpi / USER_DEFAULT_SCREEN_DPI)),
+                              static_cast<LONG>(std::lround((b2Rect.top + b2Rect.bottom) * 0.5f * dpi / USER_DEFAULT_SCREEN_DPI))};
+        if (ClientToScreen(bPopupHwnd, &stationaryPoint) == FALSE)
+        {
+            driverFailure = "B2 row maps to screen before keyboard ownership";
+            return;
+        }
+        static_cast<void>(SendCapturedMouseMessageForMenuSuite(bPopupHwnd, WM_MOUSEMOVE, 0, stationaryPoint));
         PostMessageW(bPopupHwnd, WM_KEYDOWN, VK_HOME, 0);
         if (! WaitForContextMenuPopupState(bPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
             return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
@@ -6012,6 +6027,17 @@ void TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop()
         }, popupState))
         {
             driverFailure = "Right arrow on B1 focuses B11 before left-arrow validation";
+            return;
+        }
+
+        static_cast<void>(SendCapturedMouseMessageForMenuSuite(bPopupHwnd, WM_MOUSEMOVE, 0, stationaryPoint));
+        ContextMenuPopupDebugState parentState{};
+        if (! WaitForContextMenuPopupState(
+                bSubmenuHwnd, [](const ContextMenuPopupDebugState& state) noexcept { return state.keyboardIndex == std::optional<size_t>{0u}; }, popupState) ||
+            ! WaitForContextMenuPopupState(
+                bPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept { return ! state.hoverTimerPendingClose; }, parentState))
+        {
+            driverFailure = "stationary parent hover preserves B11 keyboard focus and does not arm a close timer";
             return;
         }
 

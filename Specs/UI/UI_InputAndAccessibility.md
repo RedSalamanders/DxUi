@@ -445,6 +445,8 @@ Unmatched characters, Backspace character echoes and inert keys preserve pointer
 timers. A previously queued timer must not replace or close a newly focused child.
 A later genuine pointer or wheel hover may schedule a timer under the new ownership
 generation. AltGr's modifier event preserves the existing pointer timer behavior.
+A stationary pointer message on an ancestor must not clear a child's keyboard
+focus or arm a new cascade timer.
 A menu's row layouts and accessibility proxies exist only while it is open: closing it returns them, even
 while a client still holds its row elements. `DebugGetContextMenuResources` counts them exactly (popups, row text
 layouts and the accessibility records of menu-popup snapshots, wherever held), so a test asserts that a closed menu
