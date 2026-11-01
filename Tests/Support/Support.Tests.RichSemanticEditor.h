@@ -490,6 +490,14 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
                   editor->ExecuteMarkdownCommand(stateRequest) == MarkdownCommandStatus::Unavailable,
               "join state and execution agree that a caret inside formatted text is not a boundary");
     }
+    editor->SetText(L"alone");
+    prepare();
+    editor->SetSelection({0u, 0u});
+    stateRequest.command = MarkdownCommand::JoinBackward;
+    const auto isolatedJoin = editor->QueryMarkdownCommandState(stateRequest);
+    Check(isolatedJoin && isolatedJoin->available == std::optional<bool>{false} &&
+              editor->ExecuteMarkdownCommand(stateRequest) == MarkdownCommandStatus::Unavailable,
+          "join state and execution reject a first paragraph without a predecessor");
     editor->SetText(L"~~~\nx\n~~~\n");
     prepare();
     editor->SetSelection({4u, 4u});

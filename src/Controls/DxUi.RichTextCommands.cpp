@@ -172,6 +172,33 @@ std::optional<std::size_t> FindJoinLeaf(const MarkdownSyntax& syntax, Selection 
     const auto visible = JoinVisibleBody(syntax, best);
     if (backwards ? selection.caret > visible.first : selection.caret < visible.last)
         return std::nullopt;
+    if (kind == MarkdownBlockKind::Paragraph)
+    {
+        auto nearest = nodes[best].parent;
+        while (nearest != MarkdownNoNode && nodes[nearest].block.kind != MarkdownBlockKind::ListItem &&
+               nodes[nearest].block.kind != MarkdownBlockKind::BlockQuote)
+            nearest = nodes[nearest].parent;
+        const bool quoteOutdent = backwards && nearest != MarkdownNoNode && nodes[nearest].block.kind == MarkdownBlockKind::BlockQuote &&
+                                  nodes[nearest].firstChild == best;
+        // List joins and quote outdents need additional prefix admission. A
+        // plain paragraph can reject missing or non-paragraph siblings here.
+        bool insideList = false;
+        for (auto parent = nodes[best].parent; parent != MarkdownNoNode; parent = nodes[parent].parent)
+            insideList |= nodes[parent].block.kind == MarkdownBlockKind::ListItem;
+        if (! insideList && ! quoteOutdent)
+        {
+            auto previous = MarkdownNoNode;
+            const auto parent = nodes[best].parent;
+            if (parent != MarkdownNoNode)
+                for (auto sibling = nodes[parent].firstChild; sibling != MarkdownNoNode && sibling != best; sibling = nodes[sibling].nextSibling)
+                    previous = sibling;
+            const auto left  = backwards ? previous : best;
+            const auto right = backwards ? best : nodes[best].nextSibling;
+            if (left == MarkdownNoNode || right == MarkdownNoNode || nodes[left].block.kind != MarkdownBlockKind::Paragraph ||
+                nodes[right].block.kind != MarkdownBlockKind::Paragraph || nodes[left].block.content.last > nodes[right].block.content.first)
+                return std::nullopt;
+        }
+    }
     return best;
 }
 static std::optional<size_t> FindInlineInsertionSite(const MarkdownSyntax& syntax, Selection selection) noexcept
