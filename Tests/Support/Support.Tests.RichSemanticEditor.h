@@ -340,6 +340,15 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
                               [](const auto& node) { return node.block.kind == MarkdownBlockKind::FencedCode && node.block.closed; }) &&
               editor->Undo() && editor->GetText().empty(),
           "fence trigger publishes a closed code block and undoes atomically");
+    for (const auto source : {std::wstring_view(L"> \n"), std::wstring_view(L"- \n")})
+    {
+        editor->SetText(std::wstring(source));
+        prepare();
+        editor->SetSelection({2u, 2u});
+        Check(editor->OnChar(host, L'#', 0u) && editor->OnChar(host, L' ', 0u) && editor->GetText() == std::wstring(source.substr(0u, 2u)) + L"# \n" &&
+                  editor->Undo() && editor->GetText() == source,
+              "an empty quote or list item admits an atomic nested heading trigger");
+    }
     editor->SetText(L"~~~\n\n~~~");
     prepare();
     editor->SetSelection({4u, 4u});

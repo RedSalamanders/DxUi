@@ -1,0 +1,1 @@
+- Recognize direct Markdown marker triggers in parser-proven empty quote and list containers.

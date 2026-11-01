@@ -301,6 +301,7 @@ struct RichTextEditor::State
     {
         uint64_t revision{}, selectionEpoch{}, lastTick{};
         size_t caret{}, lineStart{};
+        bool nested{};
     };
     std::optional<AutoFormatRun> autoFormatRun;
     struct SmartTypingSite
@@ -4229,6 +4230,7 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
             candidate += text;
             const auto match       = MatchAutoFormat(candidate);
             bool allowed           = match != AutoFormatMatch::None;
+            bool nested            = continuing && previous->nested;
             const bool focused     = host.GetFocusControl() == this;
             const auto composition = focused ? host.GetNativeTextCompositionActive(this) : std::optional<bool>{false};
             allowed = allowed && (! focused || ! host.HasActiveNativeTextInputSession() || composition.has_value()) && ! composition.value_or(false);
@@ -4251,17 +4253,32 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                 else if (! lineEnd && selection.caret + 2u <= source.Length() && source.IsBoundary(selection.caret + 2u))
                     lineEnd = source.Slice(selection.caret, selection.caret + 2u) == L"\r\n";
                 const auto syntax = GetMarkdownSyntax();
-                allowed           = lineStart && lineEnd && syntax != nullptr;
+                if (syntax)
+                    for (const auto& empty : syntax->EmptyLines())
+                        if (empty.insertion == selection.caret && empty.owner < syntax->Nodes().size())
+                        {
+                            const auto kind = syntax->Nodes()[empty.owner].block.kind;
+                            if (kind == RichText::MarkdownBlockKind::Document || kind == RichText::MarkdownBlockKind::BlockQuote ||
+                                kind == RichText::MarkdownBlockKind::ListItem)
+                            {
+                                lineStart = true;
+                                nested    = kind != RichText::MarkdownBlockKind::Document;
+                            }
+                        }
+                allowed = lineStart && lineEnd && syntax != nullptr;
                 if (syntax)
                     for (const auto& node : syntax->Nodes())
                         if (node.block.kind != RichText::MarkdownBlockKind::Document && node.block.kind != RichText::MarkdownBlockKind::BlankLine &&
-                            node.block.source.first <= selection.caret &&
+                            node.block.kind != RichText::MarkdownBlockKind::BlockQuote && node.block.kind != RichText::MarkdownBlockKind::List &&
+                            node.block.kind != RichText::MarkdownBlockKind::ListItem && node.block.source.first <= selection.caret &&
                             (selection.caret < node.block.source.last ||
                              (selection.caret == node.block.source.last && selection.caret == source.Length() &&
                               ((node.block.kind == RichText::MarkdownBlockKind::FencedCode && ! node.block.closed) ||
                                node.block.kind == RichText::MarkdownBlockKind::HtmlBlock))))
                             allowed = false;
             }
+            if (nested && match == AutoFormatMatch::Fence)
+                allowed = false; // A nested fence needs a synthesized continuation prefix.
             if (allowed)
             {
                 std::wstring insertion(text);
@@ -4283,7 +4300,7 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                 _state->typingRun.reset();
                 const bool changed = _state->document.ReplaceImpl(selection.caret, selection.caret, insertion, {caret, caret}, true, continuing);
                 if (changed && match == AutoFormatMatch::Prefix)
-                    _state->autoFormatRun = State::AutoFormatRun{Revision(), _state->document.selectionEpoch_, now, caret, start};
+                    _state->autoFormatRun = State::AutoFormatRun{Revision(), _state->document.selectionEpoch_, now, caret, start, nested};
                 else
                     _state->autoFormatRun.reset();
                 Changed(changed);

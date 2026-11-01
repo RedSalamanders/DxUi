@@ -1267,9 +1267,10 @@ three hyphens to en and em dashes, and direct straight quotes to contextual
 curly quotes. Each replacement is a single undo transaction. It declines code,
 opaque inline syntax, active source-region editing and native composition;
 pairing takes precedence when both policies are enabled.
-Default-off Markdown auto-format recognizes top-level empty-line heading,
-bullet, ordered-list, quote, thematic-rule and triple-backtick/tilde fence
-triggers. A completed marker is one undo transaction; a fence trigger creates
+Default-off Markdown auto-format recognizes empty-line heading, bullet,
+ordered-list, quote and thematic-rule triggers at top level and in representable
+empty quote/list containers; triple-backtick/tilde fence triggers are top-level.
+A completed marker is one undo transaction; a fence trigger creates
 a closed block with the caret on its empty body line. Trigger recognition
 precedes auto-pair and smart typography, and declines code, nonempty lines,
 source-region editing and native composition. A new trigger requires current
