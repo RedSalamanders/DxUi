@@ -168,14 +168,14 @@
     "file": "pie.md.txt",
     "gitBlob": "81ec720c4f2597122ba60a61707b1a2e916ab454",
     "sha256": "B9EE132D9B28F4CC46763BD36F9807695C2FE8AF219B8DA464E2AF78789D5800",
-    "support": "unsupported-family",
+    "support": "limited-pie",
     "firstExample": {
-      "reason": "unsupported-diagram-family",
-      "issue": "UnsupportedFamily",
+      "reason": "bounded-pie-title-and-slices",
+      "issue": "None",
       "direction": "TopBottom",
-      "outcome": "Unsupported",
+      "outcome": "Prepared",
       "edges": 0,
-      "nodes": 0
+      "nodes": 3
     }
   },
   {

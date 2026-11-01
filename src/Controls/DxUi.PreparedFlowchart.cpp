@@ -42,6 +42,30 @@ wil::com_ptr<ID2D1PathGeometry> Path(ID2D1Factory* factory, std::span<const Flow
     THROW_IF_FAILED(sink->Close());
     return path;
 }
+wil::com_ptr<ID2D1PathGeometry> PiePath(ID2D1Factory* factory, FlowchartRect circle, double start, double end)
+{
+    wil::com_ptr<ID2D1PathGeometry> path;
+    THROW_IF_FAILED(factory->CreatePathGeometry(path.put()));
+    wil::com_ptr<ID2D1GeometrySink> sink;
+    THROW_IF_FAILED(path->Open(sink.put()));
+    const double radius = circle.width / 2.0;
+    const auto point = [&](double angle) noexcept
+    {
+        return D2D1::Point2F(static_cast<float>(circle.x + radius + radius * std::sin(angle)),
+                             static_cast<float>(circle.y + radius - radius * std::cos(angle)));
+    };
+    sink->BeginFigure(D2D1::Point2F(static_cast<float>(circle.x + radius), static_cast<float>(circle.y + radius)), D2D1_FIGURE_BEGIN_FILLED);
+    sink->AddLine(point(start));
+    for (const auto angle : {(start + end) / 2.0, end})
+    {
+        const D2D1_ARC_SEGMENT arc{point(angle), D2D1::SizeF(static_cast<float>(radius), static_cast<float>(radius)), 0.f,
+                                   D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE_SMALL};
+        sink->AddArc(arc);
+    }
+    sink->EndFigure(D2D1_FIGURE_END_CLOSED);
+    THROW_IF_FAILED(sink->Close());
+    return path;
+}
 } // namespace
 struct PreparedFlowchart::State
 {
@@ -67,12 +91,12 @@ struct PreparedFlowchart::State
           edgeLabels(graph->edges.size()),
           fromCardinalities(hasCardinality ? graph->edges.size() : 0u),
           toCardinalities(hasCardinality ? graph->edges.size() : 0u),
-          groupLabels(graph->groups.size()),
+          groupLabels(graph->family == NativeDiagramFamily::Pie ? 1u : graph->groups.size()),
           nodeSizes(graph->nodes.size()),
           edgeSizes(graph->edges.size()),
           fromCardinalitySizes(hasCardinality ? graph->edges.size() : 0u),
           toCardinalitySizes(hasCardinality ? graph->edges.size() : 0u),
-          groupSizes(graph->groups.size()),
+          groupSizes(graph->family == NativeDiagramFamily::Pie ? 1u : graph->groups.size()),
           nodePaths(graph->nodes.size()),
           arrowPaths(graph->edges.size())
     {
@@ -207,6 +231,8 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
         throw std::invalid_argument("Invalid native flowchart direction");
     if (! ValidSequenceModel(*graph))
         throw std::invalid_argument("Invalid sequence timeline model");
+    if (! ValidPieModel(*graph))
+        throw std::invalid_argument("Invalid native pie topology");
     if (! graph->groups.empty() && graph->family != NativeDiagramFamily::Flowchart && graph->family != NativeDiagramFamily::State &&
         graph->family != NativeDiagramFamily::Class)
         throw std::invalid_argument("Groups require a supported diagram profile");
@@ -297,13 +323,19 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                         ++result.layoutsPrepared;
                         auto& preparedLabel = node          ? state.nodeLabels[index]
                                               : group == 0u ? state.edgeLabels[index]
-                                              : group == 1u ? state.fromCardinalities[index]
-                                                            : state.toCardinalities[index];
-                        auto& measuredSize  = node          ? state.nodeSizes[index]
-                                              : group == 0u ? state.edgeSizes[index]
-                                              : group == 1u ? state.fromCardinalitySizes[index]
-                                                            : state.toCardinalitySizes[index];
-                        state.Label(label, preparedLabel, measuredSize);
+                                              : group == 1u ? state.fromCardinalities[index] : state.toCardinalities[index];
+                        auto& measuredSize = node ? state.nodeSizes[index]
+                                             : group == 0u ? state.edgeSizes[index]
+                                             : group == 1u ? state.fromCardinalitySizes[index] : state.toCardinalitySizes[index];
+                        if (node && state.graph->family == NativeDiagramFamily::Pie && state.graph->pieShowData)
+                        {
+                            const auto source = state.graph->nodes[index].valueSource;
+                            std::wstring legend(0u, L' ');
+                            legend.append(label).append(L": ").append(std::wstring_view(state.graph->source).substr(source.first, source.last - source.first));
+                            state.Label(legend, preparedLabel, measuredSize);
+                        }
+                        else
+                            state.Label(label, preparedLabel, measuredSize);
                         if (node)
                         {
                             auto& prepared    = state.nodeLabels[index];
@@ -325,15 +357,22 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                     break;
                 }
                 case Preparation::Stage::GroupLabels:
-                    if (work.cursor == state.graph->groups.size())
+                    if (work.cursor == state.groupLabels.size())
                     {
                         work.stage = Preparation::Stage::BeginGeometry;
+                        break;
+                    }
+                    if (state.graph->family == NativeDiagramFamily::Pie && state.graph->pieTitle.empty())
+                    {
+                        ++work.cursor;
                         break;
                     }
                     if (result.layoutsPrepared == budget.maximumLayouts)
                         return result;
                     ++result.layoutsPrepared;
-                    state.Label(state.graph->groups[work.cursor].title, state.groupLabels[work.cursor], state.groupSizes[work.cursor]);
+                    state.Label(state.graph->family == NativeDiagramFamily::Pie ? std::wstring_view(state.graph->pieTitle)
+                                                                               : std::wstring_view(state.graph->groups[work.cursor].title),
+                                state.groupLabels[work.cursor], state.groupSizes[work.cursor]);
                     ++work.cursor;
                     break;
                 case Preparation::Stage::BeginGeometry:
@@ -363,7 +402,13 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                         work.stage  = Preparation::Stage::ArrowPaths;
                         break;
                     }
-                    if (state.geometry->nodes[work.cursor].shape == FlowchartShape::Diamond)
+                    if (state.graph->family == NativeDiagramFamily::Pie)
+                    {
+                        const auto& slice = state.geometry->nodes[work.cursor];
+                        if (slice.pieEnd > slice.pieStart)
+                            state.nodePaths[work.cursor] = PiePath(state.drawing.get(), state.geometry->pieCircle, slice.pieStart, slice.pieEnd);
+                    }
+                    else if (state.geometry->nodes[work.cursor].shape == FlowchartShape::Diamond)
                     {
                         const auto rect                             = state.geometry->nodes[work.cursor].bounds;
                         const std::array<FlowchartPoint, 4u> points = {{{rect.x + rect.width / 2.0, rect.y},
@@ -476,6 +521,24 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
                                    text,
                                    D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
     };
+    if (state.graph->family == NativeDiagramFamily::Pie)
+    {
+        const auto originalOpacity = stroke->GetOpacity();
+        const auto restoreOpacity = wil::scope_exit([&]() noexcept { stroke->SetOpacity(originalOpacity); });
+        label(state.groupLabels[0u], plan.pieTitle);
+        for (std::size_t index = 0u; index < plan.nodes.size(); ++index)
+        {
+            const float opacity = originalOpacity * (.28f + .22f * static_cast<float>(index % 4u));
+            stroke->SetOpacity(opacity);
+            if (state.nodePaths[index]) target->FillGeometry(state.nodePaths[index].get(), stroke);
+            target->FillRectangle(Rect(plan.nodes[index].bounds), stroke);
+            stroke->SetOpacity(originalOpacity);
+            if (state.nodePaths[index]) target->DrawGeometry(state.nodePaths[index].get(), stroke);
+            target->DrawRectangle(Rect(plan.nodes[index].bounds), stroke);
+            label(state.nodeLabels[index], plan.nodes[index].label);
+        }
+        return true;
+    }
     for (const auto& group : plan.groups)
     {
         target->FillRectangle(Rect(group.bounds), fill);

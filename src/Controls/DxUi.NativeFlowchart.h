@@ -1,6 +1,7 @@
 #pragma once
 #include <DxUi/MarkdownSyntax.h>
 #include <array>
+#include <cmath>
 
 namespace DxUi::RichText::Detail
 {
@@ -25,7 +26,8 @@ enum class NativeDiagramFamily
     Flowchart,
     State,
     Class,
-    Sequence
+    Sequence,
+    Pie
 };
 enum class FlowchartShape
 {
@@ -93,6 +95,8 @@ struct FlowchartNode
     FlowchartNode(const FlowchartNode&)            = default;
     FlowchartNode& operator=(const FlowchartNode&) = default;
     MarkdownRange identifier, declaration;
+    MarkdownRange valueSource;
+    double pieValue{};
     std::wstring label;
     std::wstring key;
     // Text offsets at which class member compartments begin. Alternating
@@ -134,22 +138,18 @@ struct FlowchartEdge
 struct FlowchartModel
 {
     explicit FlowchartModel(std::wstring_view text, std::uint64_t value)
-        : source(text),
-          revision(value),
-          accessibleTitle(0u, L' '),
-          accessibleDescription(0u, L' '),
-          nodes(0u),
-          edges(0u),
-          groups(0u)
+        : source(text), revision(value), accessibleTitle(0u, L' '), accessibleDescription(0u, L' '), pieTitle(0u, L' '), nodes(0u), edges(0u), groups(0u)
     {
     }
     std::wstring source;
     std::uint64_t revision{};
     std::wstring accessibleTitle, accessibleDescription;
+    std::wstring pieTitle;
     FlowchartDirection direction{};
     NativeDiagramFamily family{};
     FlowchartOutcome outcome{};
     FlowchartDiagnostic diagnostic;
+    bool pieShowData{};
     // A rejected result exposes no partial graph. The exact body remains owned.
     std::vector<FlowchartNode> nodes;
     std::vector<FlowchartEdge> edges;
@@ -171,6 +171,46 @@ inline bool ValidSequenceModel(const FlowchartModel& graph) noexcept
             ! edge.fromCardinality.empty() || ! edge.toCardinality.empty() || edge.source.first >= edge.source.last || edge.source.last > graph.source.size())
             return false;
     return true;
+}
+inline bool ValidPieModel(const FlowchartModel& graph) noexcept
+{
+    if (graph.family != NativeDiagramFamily::Pie) return true;
+    if (graph.direction != FlowchartDirection::TopBottom || graph.nodes.empty() || graph.nodes.size() > 16u || ! graph.groups.empty() || ! graph.edges.empty() ||
+        graph.pieTitle.size() > 1024u) return false;
+    double total{};
+    for (const auto& node : graph.nodes)
+    {
+        if (node.shape != FlowchartShape::Rectangle || node.groupMask || node.compartmentCount || node.label.empty() ||
+            node.identifier.first >= node.identifier.last || node.identifier.last > graph.source.size() ||
+            node.valueSource.first >= node.valueSource.last || node.valueSource.last > graph.source.size() || ! std::isfinite(node.pieValue) || node.pieValue < 0.0)
+            return false;
+        const auto source = std::wstring_view(graph.source).substr(node.valueSource.first, node.valueSource.last - node.valueSource.first);
+        double parsed{}, place = .1;
+        unsigned integers{}, fractions{};
+        bool dot{};
+        for (const auto unit : source)
+        {
+            if (unit == L'.' && ! dot) { dot = true; continue; }
+            if (unit < L'0' || unit > L'9') return false;
+            if (dot)
+            {
+                if (++fractions > 2u) return false;
+                parsed += static_cast<double>(unit - L'0') * place;
+                place *= .1;
+            }
+            else
+            {
+                if (++integers > 15u) return false;
+                parsed = parsed * 10.0 + static_cast<double>(unit - L'0');
+            }
+        }
+        if (! integers || (dot && ! fractions) || parsed != node.pieValue) return false;
+        total += node.pieValue;
+    }
+    for (std::size_t index = 0u; index < graph.nodes.size(); ++index)
+        for (std::size_t other = index + 1u; other < graph.nodes.size(); ++other)
+            if (graph.nodes[index].label == graph.nodes[other].label) return false;
+    return std::isfinite(total) && total > 0.0;
 }
 class NativeFlowchartParser
 {

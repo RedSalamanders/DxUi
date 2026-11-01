@@ -1994,6 +1994,17 @@ void SemanticDiagramAlternatives(bool embedded)
     wil::com_ptr_nothrow<ITextRangeProvider> sequenceRange;
     RequireSucceeded(text->RangeFromChild(sequenceImage.get(), sequenceRange.put()), "sequence source range");
     Require(ReadTextRangeText(*sequenceRange.get(), -1, "sequence exact raw fence") == sequence, "sequence UIA range owns the original fence");
+    const std::wstring pie = L"```mermaid\npie title Inventory\n\"One\": 25\n\"Three\": 75\n```\n";
+    fixture.editor->SetText(pie);
+    fixture.Publish();
+    const auto pieImage = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
+    Require(pieImage != nullptr, "pie is exposed as an acknowledged native image provider");
+    const auto pieName = ReadProviderStringProperty(*pieImage.get(), UIA_NamePropertyId, "pie alternative");
+    Require(pieName.starts_with(L"Pie chart: Inventory") && pieName.find(L"One: 25") != std::wstring::npos &&
+                pieName.find(L"Three: 75") != std::wstring::npos, "pie provider exposes the title and source values");
+    wil::com_ptr_nothrow<ITextRangeProvider> pieRange;
+    RequireSucceeded(text->RangeFromChild(pieImage.get(), pieRange.put()), "pie source range");
+    Require(ReadTextRangeText(*pieRange.get(), -1, "pie exact raw fence") == pie, "pie UIA range owns the original fence");
 }
 void SemanticMathLiteralFallback(bool embedded)
 {

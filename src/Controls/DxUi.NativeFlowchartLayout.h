@@ -34,6 +34,7 @@ struct FlowchartPlacedNode
     FlowchartShape shape{};
     std::size_t rank{};
     FlowchartRect bounds, label;
+    double pieStart{}, pieEnd{};
 };
 struct FlowchartPlacedEdge
 {
@@ -60,6 +61,7 @@ struct FlowchartLayoutPlan
     }
     FlowchartLayoutIssue issue{};
     FlowchartSize extent;
+    FlowchartRect pieCircle, pieTitle;
     // Source-independent geometry: no source strings, graph ownership, device,
     // SDK layout, host, theme brush or raster resource is retained here.
     // Stable vector positions identify the corresponding model label slots.

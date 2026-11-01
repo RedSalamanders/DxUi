@@ -34,6 +34,7 @@ struct NativeFlowchartLayout::Preparation
         Measure,
         SequenceNodes,
         SequenceEdges,
+        PieNodes,
         Adjacency,
         Dfs,
         Indegree,
@@ -83,6 +84,7 @@ struct NativeFlowchartLayout::Preparation
     double bandWidth{}, bandLeft{}, rowY{Margin}, leftWidth{}, rightWidth{};
     double minX{}, minY{}, maxX{}, maxY{};
     double sequenceX{Margin}, sequenceY{}, sequenceWidth{}, sequenceHeader{}, sequenceGap{};
+    double pieTotal{}, pieAngle{}, pieLegendY{}, pieWidth{}, pieDiameter{};
     FlowchartPoint shift;
     Stage stage{};
     bool horizontal{}, bounded{}, done{}, hasCardinality{}, hasNotes{}, alignedPairs{}, alignedGroups{};
@@ -174,7 +176,22 @@ struct NativeFlowchartLayout::Preparation
     {
         if (cursor == graph->nodes.size())
         {
-            if (graph->family == NativeDiagramFamily::Sequence)
+            if (graph->family == NativeDiagramFamily::Pie)
+            {
+                for (std::size_t index = 0u; index < graph->nodes.size(); ++index)
+                    pieTotal += graph->nodes[index].pieValue;
+                if (pieTotal <= 0.0 || ! std::isfinite(pieTotal)) { Fail(FlowchartLayoutIssue::DiagramExtent); return; }
+                pieDiameter = 144.0;
+                for (std::size_t index = 0u; index < graph->nodes.size(); ++index)
+                    pieDiameter = std::max(pieDiameter, nodeLabels[index].height * 8.0);
+                const auto title = groupLabels[0u];
+                plan->pieTitle = {Margin, Margin, title.width, title.height};
+                plan->pieCircle = {Margin, Margin + title.height + (title.height ? 12.0 : 0.0), pieDiameter, pieDiameter};
+                pieLegendY = plan->pieCircle.y;
+                pieWidth = std::max(Margin + title.width, Margin + pieDiameter);
+                Then(Stage::PieNodes);
+            }
+            else if (graph->family == NativeDiagramFamily::Sequence)
             {
                 sequenceGap = 48.0;
                 for (std::size_t edge = 0u; edge < graph->edges.size(); ++edge)
@@ -218,6 +235,33 @@ struct NativeFlowchartLayout::Preparation
             return;
         }
         plan->nodes.push_back({shape, 0u, {0.0, 0.0, horizontal ? height : width, horizontal ? width : height}, {}});
+    }
+    void PieNodes()
+    {
+        if (cursor == plan->nodes.size())
+        {
+            plan->extent = {pieWidth + Margin, std::max(plan->pieCircle.y + pieDiameter, pieLegendY) + Margin};
+            if (! Valid(plan->extent)) { Fail(FlowchartLayoutIssue::DiagramExtent); return; }
+            Then(Stage::Finish);
+            return;
+        }
+        const auto index = cursor++;
+        auto& slice = plan->nodes[index];
+        const auto label = nodeLabels[index];
+        const auto x = plan->pieCircle.x + pieDiameter + 24.0;
+        const auto legendHeight = std::max(12.0, label.height);
+        slice.bounds = {x, pieLegendY + (legendHeight - 12.0) / 2.0, 12.0, 12.0};
+        slice.label = {x + 20.0, pieLegendY + (legendHeight - label.height) / 2.0, label.width, label.height};
+        slice.pieStart = pieAngle;
+        pieAngle += graph->nodes[index].pieValue / pieTotal * 6.28318530717958647692;
+        if (graph->nodes[index].pieValue > 0.0 && std::none_of(graph->nodes.begin() + static_cast<std::ptrdiff_t>(index + 1u), graph->nodes.end(),
+                                                               [](const auto& next) { return next.pieValue > 0.0; }))
+            pieAngle = 6.28318530717958647692;
+        slice.pieEnd = std::min(pieAngle, 6.28318530717958647692);
+        pieLegendY += legendHeight + 8.0;
+        pieWidth = std::max(pieWidth, slice.label.x + slice.label.width);
+        if (pieWidth + Margin > MaximumExtent || pieLegendY + Margin > MaximumExtent || pieDiameter > MaximumExtent)
+            Fail(FlowchartLayoutIssue::DiagramExtent);
     }
     void SequenceNodes()
     {
@@ -858,6 +902,7 @@ struct NativeFlowchartLayout::Preparation
             case Stage::Measure: Measure(); break;
             case Stage::SequenceNodes: SequenceNodes(); break;
             case Stage::SequenceEdges: SequenceEdges(); break;
+            case Stage::PieNodes: PieNodes(); break;
             case Stage::Adjacency: Adjacency(); break;
             case Stage::Dfs: Dfs(); break;
             case Stage::Indegree:
@@ -932,6 +977,8 @@ void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
         throw std::invalid_argument("Invalid flowchart layout direction");
     if (! ValidSequenceModel(*graph))
         throw std::invalid_argument("Invalid sequence timeline model");
+    if (! ValidPieModel(*graph))
+        throw std::invalid_argument("Invalid pie chart topology");
     for (const auto& node : graph->nodes)
         if (node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Note ||
             (node.shape == FlowchartShape::Note &&
@@ -967,7 +1014,7 @@ void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
     for (const auto& value : toCardinalities)
         if (! Valid(value))
             throw std::invalid_argument("Invalid target cardinality measurement");
-    if (graph->groups.size() > 16u || groupLabels.size() != graph->groups.size())
+    if (graph->groups.size() > 16u || groupLabels.size() != (graph->family == NativeDiagramFamily::Pie ? 1u : graph->groups.size()))
         throw std::invalid_argument("Invalid flowchart group measurements");
     for (const auto& value : groupLabels)
         if (! Valid(value))

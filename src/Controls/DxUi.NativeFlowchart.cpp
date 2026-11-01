@@ -43,6 +43,8 @@ struct NativeFlowchartParser::Preparation
     std::size_t groupDepth{};
     bool quote{}, escaped{}, pipe{}, comment{}, header{}, done{}, classBlock{}, titleSeen{}, descriptionSeen{}, descriptionBlock{}, descriptionHasLine{};
     bool noteBlock{}, noteBlockLeft{}, noteBlockHasLine{};
+    bool pieTitleSeen{};
+    double pieTotal{};
     explicit Preparation(std::wstring_view source, std::uint64_t revision) : model(std::make_shared<FlowchartModel>(source, revision)), noteBlockText(0u, L' ')
     {
         if (source.size() > MaximumSourceUnits)
@@ -562,6 +564,31 @@ struct NativeFlowchartParser::Preparation
         if (! header)
         {
             const auto line = Text().substr(at, end - at);
+            if (line == L"pie" || line.starts_with(L"pie "))
+            {
+                model->family = NativeDiagramFamily::Pie;
+                model->direction = FlowchartDirection::TopBottom;
+                at += 3u;
+                Skip(at, end);
+                if (Text().substr(at, 8u) == L"showData" && (at + 8u == end || Space(Text()[at + 8u])))
+                {
+                    model->pieShowData = true;
+                    at += 8u;
+                    Skip(at, end);
+                }
+                if (at < end)
+                {
+                    if (Text().substr(at, 6u) != L"title ")
+                        return Error(FlowchartIssue::UnsupportedStatement, at, end, FlowchartOutcome::Unsupported);
+                    at += 6u;
+                    Skip(at, end);
+                    if (at == end) return Error(FlowchartIssue::UnsupportedStatement, at, end, FlowchartOutcome::Unsupported);
+                    if (! PlainText(at, end, model->pieTitle)) return false;
+                    pieTitleSeen = true;
+                }
+                header = true;
+                return true;
+            }
             if (line == L"stateDiagram-v2" || line == L"stateDiagram" || line == L"classDiagram" || line == L"sequenceDiagram")
             {
                 model->family    = line == L"classDiagram"      ? NativeDiagramFamily::Class
@@ -676,6 +703,69 @@ struct NativeFlowchartParser::Preparation
                 seen = true;
                 return true;
             }
+        if (model->family == NativeDiagramFamily::Pie)
+        {
+            const auto start = at;
+            if (statement.starts_with(L"title "))
+            {
+                if (pieTitleSeen) return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+                at += 6u;
+                Skip(at, end);
+                if (at == end) return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+                if (! PlainText(at, end, model->pieTitle)) return false;
+                pieTitleSeen = true;
+                return true;
+            }
+            if (Text()[at++] != L'"') return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+            const auto labelStart = at;
+            while (at < end && Text()[at] != L'"')
+            {
+                if (Text()[at] == L'\\' && at + 1u < end) ++at;
+                ++at;
+            }
+            if (at == end) return Error(FlowchartIssue::MissingLabelClose, labelStart, end);
+            FlowchartNode slice;
+            slice.identifier = {labelStart, at};
+            slice.declaration = {start, end};
+            auto labelAt = labelStart;
+            if (! PlainText(labelAt, at, slice.label, false, true)) return false;
+            if (slice.label.empty()) return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+            for (const auto& existing : model->nodes)
+                if (existing.label == slice.label) return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+            ++at;
+            Skip(at, end);
+            if (at == end || Text()[at++] != L':') return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+            Skip(at, end);
+            const auto valueStart = at;
+            double value{};
+            unsigned integerDigits{}, fractionalDigits{};
+            while (at < end && Text()[at] >= L'0' && Text()[at] <= L'9')
+            {
+                if (++integerDigits > 15u) return Error(FlowchartIssue::LabelCapacity, valueStart, at + 1u, FlowchartOutcome::Capacity);
+                value = value * 10.0 + static_cast<double>(Text()[at++] - L'0');
+            }
+            if (at < end && Text()[at] == L'.')
+            {
+                ++at;
+                double place = .1;
+                while (at < end && Text()[at] >= L'0' && Text()[at] <= L'9')
+                {
+                    if (++fractionalDigits > 2u) return Error(FlowchartIssue::UnsupportedStatement, valueStart, at + 1u, FlowchartOutcome::Unsupported);
+                    value += static_cast<double>(Text()[at++] - L'0') * place;
+                    place *= .1;
+                }
+            }
+            if (! integerDigits || (at > valueStart && Text()[at - 1u] == L'.'))
+                return Error(FlowchartIssue::UnsupportedStatement, valueStart, end, FlowchartOutcome::Unsupported);
+            slice.valueSource = {valueStart, at};
+            Skip(at, end);
+            if (at != end) return Error(FlowchartIssue::UnsupportedStatement, at, end, FlowchartOutcome::Unsupported);
+            if (model->nodes.size() == 16u) return Error(FlowchartIssue::NodeCapacity, start, end, FlowchartOutcome::Capacity);
+            slice.pieValue = value;
+            pieTotal += value;
+            model->nodes.push_back(slice);
+            return true;
+        }
         if (model->family == NativeDiagramFamily::Sequence)
         {
             const auto start = at;
@@ -1308,6 +1398,11 @@ struct NativeFlowchartParser::Preparation
             if (! header)
             {
                 Error(FlowchartIssue::MissingHeader, 0u, scan);
+                return;
+            }
+            if (model->family == NativeDiagramFamily::Pie && (! model->nodes.empty() && pieTotal == 0.0))
+            {
+                Error(FlowchartIssue::UnsupportedStatement, 0u, scan, FlowchartOutcome::Unsupported);
                 return;
             }
             done = true;

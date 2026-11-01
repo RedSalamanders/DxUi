@@ -728,6 +728,91 @@ template <typename Check> inline void GroupRaster(Check&& check)
     check(! rejected.Ready() && rejected.Geometry() && rejected.Geometry()->issue == FlowchartLayoutIssue::DiagramExtent && rejected.Geometry()->groups.empty(),
           "overlapping unrelated groups fail without publishing partial geometry");
 }
+template <typename Check> inline void PieRaster(Check&& check)
+{
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
+    const auto graph = FlowchartLayoutTests::Graph(L"pie showData title Inventory\n\"One\": 25\n\"Three\": 75\n");
+    const auto write = WriteFactory();
+    const auto drawing = DrawingFactory();
+    PreparedFlowchart prepared;
+    prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
+    Complete(prepared, check);
+    const auto geometry = prepared.Geometry();
+    check(prepared.Ready() && geometry && geometry->nodes.size() == 2u, "bounded pie prepares two native sectors");
+    if (! prepared.Ready() || ! geometry || geometry->nodes.size() != 2u) return;
+    wil::com_ptr<IWICImagingFactory> imaging;
+    THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    constexpr UINT width = 600u, height = 400u, stride = width * 4u;
+    wil::com_ptr<IWICBitmap> bitmap;
+    THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+    wil::com_ptr<ID2D1RenderTarget> target;
+    const auto properties = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
+                                                           D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
+    wil::com_ptr<ID2D1SolidColorBrush> text, stroke, fill;
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
+    stroke->SetOpacity(.8f);
+    target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+    check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}), "native pie paints on the caller target");
+    THROW_IF_FAILED(target->EndDraw());
+    check(std::abs(stroke->GetOpacity() - .8f) < .001f, "pie painting restores caller brush opacity");
+    std::vector<BYTE> pixels(stride * height);
+    THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+    const auto red = [&](double x, double y)
+    {
+        const auto px = static_cast<std::size_t>(x), py = static_cast<std::size_t>(y);
+        return pixels[py * stride + px * 4u + 2u];
+    };
+    const auto circle = geometry->pieCircle;
+    const double radius = circle.width / 2.0, centerX = circle.x + radius, centerY = circle.y + radius;
+    const auto first = red(centerX + radius * .35, centerY - radius * .35);
+    const auto second = red(centerX - radius * .35, centerY + radius * .35);
+    const auto firstLegend = geometry->nodes[0u].bounds, secondLegend = geometry->nodes[1u].bounds;
+    check(first > second + 15u && std::abs(static_cast<int>(first) - static_cast<int>(red(firstLegend.x + 6.0, firstLegend.y + 6.0))) <= 2 &&
+              std::abs(static_cast<int>(second) - static_cast<int>(red(secondLegend.x + 6.0, secondLegend.y + 6.0))) <= 2,
+          "quarter and three-quarter sector pixels independently match their ordered legend swatches");
+    const std::vector<FlowchartSize> nodes(graph->nodes.size(), {16.0, 12.0}), labels(1u, {16.0, 12.0});
+    for (unsigned variant = 0u; variant < 5u; ++variant)
+    {
+        auto invalid = std::make_shared<FlowchartModel>(*graph);
+        switch (variant)
+        {
+            case 0u: invalid->direction = FlowchartDirection::LeftRight; break;
+            case 1u: invalid->nodes[0u].pieValue = -1.0; break;
+            case 2u: invalid->nodes[0u].pieValue = 26.0; break;
+            case 3u: invalid->groups.emplace_back(); break;
+            case 4u: invalid->nodes[0u].valueSource.last = invalid->source.size() + 1u; break;
+        }
+        bool layoutRejected{}, paintRejected{};
+        try { NativeFlowchartLayout layout; layout.Begin(invalid, nodes, {}, {}, {}, labels); }
+        catch (const std::invalid_argument&) { layoutRejected = true; }
+        try { prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u}); }
+        catch (const std::invalid_argument&) { paintRejected = true; }
+        check(! ValidPieModel(*invalid) && layoutRejected && paintRejected && prepared.Ready() && prepared.Geometry() == geometry,
+              "direct invalid pie models fail in both services without replacing the prior publication");
+    }
+    const auto single = FlowchartLayoutTests::Graph(L"pie\n\"Whole\": 1\n\"Zero\": 0\n");
+    prepared.Begin(write.get(), drawing.get(), single, {}, {2u, 2u});
+    Complete(prepared, check);
+    const auto whole = prepared.Geometry();
+    check(prepared.Ready() && whole && whole->nodes.size() == 2u && FlowchartLayoutTests::Near(whole->nodes[1u].pieStart, whole->nodes[1u].pieEnd),
+          "single positive slice and zero slice prepare without a spurious wedge");
+    if (prepared.Ready() && whole)
+    {
+        target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}), "whole-circle pie paints");
+        THROW_IF_FAILED(target->EndDraw());
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+        const auto c = whole->pieCircle;
+        const auto r = c.width / 2.0, x = c.x + r, y = c.y + r;
+        check(red(x + r * .4, y) < 240u && red(x - r * .4, y) < 240u && red(x, y + r * .4) < 240u && red(x, y - r * .4) < 240u,
+              "a full-circle sector fills all four independently sampled quadrants");
+    }
+}
 template <typename Check> inline void SequenceRaster(Check&& check)
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);

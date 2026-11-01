@@ -836,6 +836,13 @@ void TestRichSemanticNativeMathematicsAndBroaderMermaid()
                 sequenceDiagram->name.find(L"Beta") != std::wstring::npos && sequenceDiagram->name.find(L"hello") != std::wstring::npos &&
                 sequenceDiagram->name.find(L"reply") > sequenceDiagram->name.find(L"hello"),
             "sequence semantic alternative retains participants and chronological messages with exact source");
+    const std::wstring pieSource = L"```mermaid\npie showData title Inventory\n\"One\": 25\n\"Three\": 75\n```\n";
+    const auto pieDocument = RichSemanticDocumentTests::Build(pieSource, MarkdownProfile::RichMarkdown);
+    const auto pieDiagram = std::ranges::find(pieDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
+    Require(pieDocument->Map().Source() == pieSource && pieDiagram != pieDocument->Elements().end() &&
+                pieDiagram->name.starts_with(L"Pie chart: Inventory") && pieDiagram->name.find(L"One: 25") != std::wstring::npos &&
+                pieDiagram->name.find(L"Three: 75") != std::wstring::npos,
+            "pie semantic alternative preserves title, slice values, order and exact source");
 }
 void TestRichSemanticDocumentStructuralStyleValues()
 {

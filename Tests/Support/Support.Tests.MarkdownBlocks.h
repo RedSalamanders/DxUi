@@ -450,6 +450,7 @@ inline wchar_t FamilyCode(NativeDiagramFamily family) noexcept
         case NativeDiagramFamily::State: return L'S';
         case NativeDiagramFamily::Class: return L'C';
         case NativeDiagramFamily::Sequence: return L'Q';
+        case NativeDiagramFamily::Pie: return L'P';
     }
     return L'?';
 }

@@ -1609,6 +1609,7 @@ void TestPreparedFlowchartEdgeLabelsCannotBeObscured()
     PreparedFlowchartTests::CardinalityRaster(Require);
     PreparedFlowchartTests::GroupRaster(Require);
     PreparedFlowchartTests::SequenceRaster(Require);
+    PreparedFlowchartTests::PieRaster(Require);
     PreparedFlowchartTests::StateNoteRaster(Require);
 }
 void TestRichTextLayoutTransientLinkInkAndUnderlineRestoreSharedState()

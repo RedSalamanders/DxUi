@@ -34,7 +34,7 @@ inline std::shared_ptr<const FlowchartLayoutPlan> Place(std::shared_ptr<const Fl
 {
     const std::vector<FlowchartSize> nodes(graph->nodes.size(), {16.0, 12.0});
     std::vector<FlowchartSize> edges(graph->edges.size(), FlowchartSize{});
-    const std::vector<FlowchartSize> groups(graph->groups.size(), {16.0, 12.0});
+    const std::vector<FlowchartSize> groups(graph->family == NativeDiagramFamily::Pie ? 1u : graph->groups.size(), {16.0, 12.0});
     for (std::size_t index = 0u; index < edges.size(); ++index)
         if (! graph->edges[index].label.empty())
             edges[index] = {20.0, 12.0};
@@ -81,6 +81,21 @@ template <typename Check> inline void Geometry(Check&& check)
         const auto rejected = Graph(invalid);
         check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == invalid && rejected->nodes.empty() && rejected->edges.empty(),
               "unsupported sequence constructs retain exact source without partial events");
+    }
+    const auto pie = Graph(L"pie showData title Inventory\n\"One\": 25\n\"Three\": 75\n\"Zero\": 0\n");
+    const auto piePlan = Place(pie, check);
+    check(pie->outcome == FlowchartOutcome::Prepared && pie->family == NativeDiagramFamily::Pie && pie->pieShowData &&
+              pie->pieTitle == L"Inventory" && pie->nodes.size() == 3u && pie->nodes[0u].pieValue == 25.0 && pie->nodes[1u].pieValue == 75.0,
+          "pie model retains title, numeric values, showData and source order");
+    check(piePlan->issue == FlowchartLayoutIssue::None && piePlan->nodes.size() == 3u && Near(piePlan->nodes[0u].pieStart, 0.0) &&
+              Near(piePlan->nodes[0u].pieEnd, 1.5707963267948966) && Near(piePlan->nodes[1u].pieEnd, 6.283185307179586) &&
+              Near(piePlan->nodes[2u].pieStart, piePlan->nodes[2u].pieEnd) && piePlan->pieCircle.width == piePlan->pieCircle.height,
+          "pie sectors have independently calculated quarter, three-quarter and zero angles");
+    for (const auto invalid : {L"pie\n\"x\": -1\n", L"pie\n\"x\": 1.234\n", L"pie\n\"x\": 0\n", L"pie\n\"x\": 1\n\"x\": 2\n"})
+    {
+        const auto rejected = Graph(invalid);
+        check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == invalid && rejected->nodes.empty(),
+              "invalid pie values retain exact source without partial slices");
     }
     for (const auto direction : {L"TD", L"BT", L"LR", L"RL"})
     {

@@ -1897,12 +1897,12 @@ remain accounted for. Independent subset expectations distinguish 32 admitted
 graphs from 73 unsupported definitions and record each issue and exact UTF-16 diagnostic range, including the documented stadium and
 the original endpoint-group fan-out examples.
 The family matrix separately identifies the limited flowchart, state, class and
-sequence profiles, the example collection, and 17 unsupported diagram families. Generated
+sequence and pie profiles, the example collection, and 16 unsupported diagram families. Generated
 first-example fixtures specify the exact expected outcome and diagnostic for all
 20 diagram-family documents: the state example prepares five nodes and six
 transitions; the class example prepares six nodes and four relationships, and
-the sequence example prepares two participants and three messages. The remaining
-17 examples are unsupported-family fallbacks. These cases measure
+the sequence example prepares two participants and three messages, and the pie
+example prepares three slices. The remaining 16 examples are unsupported-family fallbacks. These cases measure
 local subset coverage, not complete Mermaid family conformance. Original reference
 bytes and MIT notice remain under `ThirdParty/Markdown/mermaid-11.4.1`.
 
@@ -2336,7 +2336,15 @@ text range owns the exact source fence. Notes, activations, actors, loops,
 grouping, directives and other syntax retain the entire source with a diagnostic.
 The shared diagram source, node, edge, label and extent budgets apply.
 
-Flowchart, state, class and sequence diagrams accept one `accTitle: text` and one
+The bounded `pie` profile accepts an optional plain title and `showData`, followed
+by up to 16 unique quoted plain labels and nonnegative decimal values with at most 15
+integer digits and two fractional digits. The total must be positive; invalid or
+unsupported notation retains the exact fence with a diagnostic. Native sectors
+follow source order clockwise and use repeated theme-derived shades with a matching
+ordered legend; `showData` includes the original value spelling in the legend.
+The accessible alternative exposes the title and all labels and values in order.
+
+Flowchart, state, class, sequence and pie diagrams accept one `accTitle: text` and one
 `accDescr: text` or multiline `accDescr {` / `accDescr{` block closed by a
 standalone `}`. Values are plain text, each bounded to 1024 UTF-16 units;
 multiline descriptions join trimmed physical lines with LF, retaining empty

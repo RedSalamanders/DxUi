@@ -760,7 +760,10 @@ struct SemanticBuilder::Preparation
             }
             if (graph.nodes.empty())
             {
-                RejectDiagram(SemanticDiagnosticKind::EmptyDiagram, node.block.content, Label(AccessibilityTextId::EmptyDiagram));
+                RejectDiagram(SemanticDiagnosticKind::EmptyDiagram, node.block.content,
+                              graph.family == Detail::NativeDiagramFamily::Pie ? L"Empty pie chart. Source is preserved."
+                              : graph.family == Detail::NativeDiagramFamily::Sequence ? L"Empty sequence diagram. Source is preserved."
+                                                                                     : L"Empty flowchart. Source is preserved.");
                 return;
             }
             if (graph.nodes.size() + graph.edges.size() + graph.groups.size() > Detail::SemanticExtensions::MaximumRecords - Extensions().records)
@@ -774,12 +777,15 @@ struct SemanticBuilder::Preparation
             else if (graph.direction == Detail::FlowchartDirection::LeftRight)
                 direction = Label(AccessibilityTextId::DirectionLeftRight);
             else if (graph.direction == Detail::FlowchartDirection::RightLeft)
-                direction = Label(AccessibilityTextId::DirectionRightLeft);
-            const auto family = graph.family == Detail::NativeDiagramFamily::State      ? Label(AccessibilityTextId::StateDiagramHeader)
-                                : graph.family == Detail::NativeDiagramFamily::Class    ? Label(AccessibilityTextId::ClassDiagramHeader)
-                                : graph.family == Detail::NativeDiagramFamily::Sequence ? Label(AccessibilityTextId::SequenceDiagramHeader)
-                                                                                        : Label(AccessibilityTextId::FlowchartHeader);
-            if (! DiagramAlternative({family, direction, Label(AccessibilityTextId::DiagramNodes)}))
+                direction = L"right to left";
+            const auto family = graph.family == Detail::NativeDiagramFamily::State   ? L"State diagram, "
+                                : graph.family == Detail::NativeDiagramFamily::Class ? L"Class diagram, "
+                                : graph.family == Detail::NativeDiagramFamily::Sequence ? L"Sequence diagram, "
+                                                                                     : L"Flowchart, ";
+            const bool initialized = graph.family == Detail::NativeDiagramFamily::Pie
+                                         ? DiagramAlternative({L"Pie chart: ", graph.pieTitle, L". Slices: "})
+                                         : DiagramAlternative({family, direction, L". Nodes: "});
+            if (! initialized)
                 return;
             work.phase = Phase::Nodes;
             return;
@@ -794,13 +800,24 @@ struct SemanticBuilder::Preparation
         {
             if (work.cursor == graph.nodes.size())
             {
-                if (! DiagramAlternative({graph.groups.empty() ? Label(AccessibilityTextId::DiagramConnections) : Label(AccessibilityTextId::DiagramGroups)}))
+                if (graph.family == Detail::NativeDiagramFamily::Pie)
+                {
+                    work.phase = Phase::Publish;
+                    return;
+                }
+                if (! DiagramAlternative({graph.groups.empty() ? L" Connections: " : L" Groups: "}))
                     return;
                 work.cursor = 0u;
                 work.phase  = graph.groups.empty() ? Phase::Edges : Phase::Groups;
                 return;
             }
             const auto index = work.cursor++;
+            if (graph.family == Detail::NativeDiagramFamily::Pie)
+            {
+                const auto value = graph.nodes[index].valueSource;
+                DiagramAlternative({graph.nodes[index].label, L": ", std::wstring_view(graph.source).substr(value.first, value.last - value.first), L"; "});
+                return;
+            }
             if (graph.nodes[index].shape == Detail::FlowchartShape::Note)
             {
                 if (graph.nodes[index].noteTarget == MarkdownNoNode)
@@ -899,12 +916,13 @@ struct SemanticBuilder::Preparation
         result.bodyUnits.assign(normalized.units.begin(), normalized.units.end());
         result.sourceEnd = node.block.content.last;
         extensions.records += graph.nodes.size() + graph.edges.size() + graph.groups.size();
-        auto& element = document->elements_[work.visit.element];
-        element.role  = SemanticRole::Diagram;
-        element.title = graph.family == Detail::NativeDiagramFamily::State      ? Label(AccessibilityTextId::StateDiagramHelp)
-                        : graph.family == Detail::NativeDiagramFamily::Class    ? Label(AccessibilityTextId::ClassDiagramHelp)
-                        : graph.family == Detail::NativeDiagramFamily::Sequence ? Label(AccessibilityTextId::SequenceDiagramHelp)
-                                                                                : Label(AccessibilityTextId::FlowchartHelp);
+        auto& element  = document->elements_[work.visit.element];
+        element.role   = SemanticRole::Diagram;
+        element.title  = graph.family == Detail::NativeDiagramFamily::State   ? L"State diagram. Source is available as document text."
+                         : graph.family == Detail::NativeDiagramFamily::Class ? L"Class diagram. Source is available as document text."
+                         : graph.family == Detail::NativeDiagramFamily::Sequence ? L"Sequence diagram. Source is available as document text."
+                         : graph.family == Detail::NativeDiagramFamily::Pie ? L"Pie chart. Source is available as document text."
+                                                                              : L"Flowchart. Source is available as document text.";
         if (! graph.accessibleTitle.empty())
         {
             if (graph.accessibleDescription.empty())
