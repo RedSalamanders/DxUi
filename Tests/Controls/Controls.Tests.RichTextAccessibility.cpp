@@ -2650,6 +2650,27 @@ void SemanticOptionalDefinitionsAndAbbreviations(bool embedded)
             "native and embedded UIA expose authored abbreviation expansion as help");
     Require(FindSemanticPart(*root.get(), UIA_ListControlTypeId) != nullptr && FindNamedSemanticPart(*root.get(), L"Term") != nullptr,
             "definition list and term are exposed as semantic structure");
+    const auto definitionStart = source.find(L"*[HTML]:");
+    fixture.editor->SetSelection({definitionStart + 2u, definitionStart + 2u});
+    Require(fixture.editor->OnKeyDown(*fixture.controls, VK_F2, 0u), "F2 opens the hidden abbreviation declaration");
+    fixture.Publish();
+    const auto region = fixture.editor->GetSemanticSourceRegion();
+    Require(region && region->source.first == definitionStart && fixture.editor->GetText() == source && ! fixture.editor->CanUndo(),
+            "hidden declaration F2 exposes its exact source without changing history");
+    const auto colon = source.find(L':', definitionStart);
+    fixture.editor->SetSelection({colon, colon + 1u});
+    Require(fixture.editor->ReplaceSelection(L""), "declaration can be edited into an invalid form");
+    Require(fixture.editor->OnKeyDown(*fixture.controls, VK_ESCAPE, 0u), "Escape exits abbreviation source editing");
+    fixture.Publish();
+    const auto invalidDefinition = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+    Require(invalidDefinition && invalidDefinition->Map().Display().find(L"*[HTML] Hyper") != std::wstring::npos &&
+                std::ranges::none_of(invalidDefinition->Elements(), [](const auto& element) { return element.role == SemanticRole::Abbreviation; }),
+            "invalid declaration is visible and no stale abbreviation survives");
+    Require(fixture.editor->Undo() && fixture.editor->GetText() == source, "one Undo restores the original declaration");
+    fixture.Publish();
+    const auto restored = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+    Require(restored && std::ranges::any_of(restored->Elements(), [](const auto& element) { return element.role == SemanticRole::Abbreviation; }),
+            "undo restores abbreviation semantics");
     const auto revision = fixture.editor->Revision();
     fixture.editor->SetMarkdownAnalysisExtensions(std::nullopt);
     fixture.Publish();

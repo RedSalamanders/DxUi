@@ -249,8 +249,9 @@ struct SemanticBuilder::Preparation
     {
         std::size_t node{}, parent = MarkdownNoNode, element = MarkdownNoNode, paragraph = MarkdownNoNode;
         std::size_t table = MarkdownNoNode, row{}, column{}, columns{}, skipUntil{};
+        std::size_t clipFirst{}, clipLast = MarkdownNoNode, definitionLine{}, definitionInlineStart = MarkdownNoNode;
         unsigned flags{}, heading{}, indent{};
-        bool inlineNode{}, close{}, footerRoot{}, backlink{}, exactSource{};
+        bool inlineNode{}, close{}, footerRoot{}, backlink{}, exactSource{}, definitionPart{}, definitionClose{};
     };
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
 // Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
@@ -289,7 +290,6 @@ struct SemanticBuilder::Preparation
           footerByNode(0u),
           footerOrder(0u),
           abbreviations(0u),
-          abbreviationNodes(0u),
           softBreakPolicy(softBreakPolicyValue)
     {
         document->sourceBlock_ = sourceBlock;
@@ -312,8 +312,7 @@ struct SemanticBuilder::Preparation
                 }
             footerOrder.resize(count);
         }
-        if (HasMarkdownExtension(document->syntax_->Extensions(), MarkdownExtensions::Abbreviations))
-            PrepareAbbreviations();
+        abbreviationPending = HasMarkdownExtension(document->syntax_->Extensions(), MarkdownExtensions::Abbreviations);
         visits.push_back({});
     }
     bool NativeSourceFallback(MarkdownRange source) const noexcept
@@ -333,7 +332,16 @@ struct SemanticBuilder::Preparation
     std::vector<std::size_t> footerByNode, footerOrder;
     struct Abbreviation { std::wstring_view key, title; std::size_t node{}; };
     std::vector<Abbreviation> abbreviations;
-    std::vector<bool> abbreviationNodes;
+    struct AbbreviationWork
+    {
+        Detail::SemanticValue value;
+        std::size_t parent{}, cursor{};
+        unsigned flags{}, heading{};
+        bool longWord{};
+    };
+    std::unique_ptr<AbbreviationWork> abbreviationWork;
+    std::size_t abbreviationCursor = 1u;
+    bool abbreviationPending{};
     SoftBreakPolicy softBreakPolicy;
     std::size_t nextFooter{};
 
@@ -341,52 +349,58 @@ struct SemanticBuilder::Preparation
     {
         return (value >= L'A' && value <= L'Z') || (value >= L'a' && value <= L'z') || (value >= L'0' && value <= L'9');
     }
-    void PrepareAbbreviations()
+    void PrepareAbbreviation(std::size_t index)
     {
-        const auto& nodes = document->syntax_->Nodes();
-        abbreviationNodes.assign(nodes.size(), false);
+        const auto& node = document->syntax_->Nodes()[index];
+        if (node.parent != 0u || node.block.kind != MarkdownBlockKind::Paragraph || node.lines.size() != 1u || node.lines.front().leadingSpaces)
+            return;
         const auto source = document->syntax_->Source();
-        for (std::size_t index = 1u; index < nodes.size() && abbreviations.size() < 128u; ++index)
-        {
-            const auto& node = nodes[index];
-            if (node.parent != 0u || node.block.kind != MarkdownBlockKind::Paragraph || node.lines.size() != 1u || node.lines.front().leadingSpaces)
-                continue;
-            auto line = node.lines.front().source;
-            while (line.last > line.first && (source[line.last - 1u] == L'\r' || source[line.last - 1u] == L'\n')) --line.last;
-            auto text = source.substr(line.first, line.last - line.first);
-            if (! text.starts_with(L"*[")) continue;
-            const auto close = text.find(L"]:", 2u);
-            if (close == text.npos || close == 2u || close - 2u > 64u) continue;
-            const auto key = text.substr(2u, close - 2u);
-            if (! std::ranges::all_of(key, AbbreviationCharacter)) continue;
-            auto first = close + 2u;
-            if (first == text.size() || (text[first] != L' ' && text[first] != L'\t')) continue;
-            while (first < text.size() && (text[first] == L' ' || text[first] == L'\t')) ++first;
-            auto last = text.size();
-            while (last > first && (text[last - 1u] == L' ' || text[last - 1u] == L'\t')) --last;
-            const auto title = text.substr(first, last - first);
-            if (first == last || last - first > 512u || title.find_first_of(L"<>") != title.npos ||
-                std::ranges::any_of(title, [](wchar_t value) { return value < 0x20 || (value >= 0x7f && value <= 0x9f); }) ||
-                std::ranges::any_of(abbreviations, [&](const auto& value) { return value.key == key; })) continue;
-            abbreviations.push_back({key, title, index});
-            abbreviationNodes[index] = true;
-        }
-        std::ranges::sort(abbreviations, {}, &Abbreviation::key);
+        auto line = node.lines.front().source;
+        while (line.last > line.first && (source[line.last - 1u] == L'\r' || source[line.last - 1u] == L'\n')) --line.last;
+        if (line.last - line.first > 580u) return;
+        const auto text = source.substr(line.first, line.last - line.first);
+        if (! text.starts_with(L"*[")) return;
+        const auto close = text.find(L"]:", 2u);
+        if (close == text.npos || close == 2u || close - 2u > 64u) return;
+        const auto key = text.substr(2u, close - 2u);
+        if (! std::ranges::all_of(key, AbbreviationCharacter)) return;
+        auto first = close + 2u;
+        if (first == text.size() || (text[first] != L' ' && text[first] != L'\t')) return;
+        while (first < text.size() && (text[first] == L' ' || text[first] == L'\t')) ++first;
+        auto last = text.size();
+        while (last > first && (text[last - 1u] == L' ' || text[last - 1u] == L'\t')) --last;
+        const auto title = text.substr(first, last - first);
+        if (first == last || last - first > 512u || title.find_first_of(L"<>") != title.npos ||
+            std::ranges::any_of(title, [](wchar_t value) { return value < 0x20 || (value >= 0x7f && value <= 0x9f); }) ||
+            std::ranges::any_of(abbreviations, [&](const auto& value) { return value.key == key; })) return;
+        abbreviations.push_back({key, title, index});
+        Extensions().abbreviationNodes.push_back(index);
     }
-    void EmitAbbreviated(const Detail::SemanticValue& value, std::size_t parent, unsigned flags, unsigned heading)
+    void AdvanceAbbreviationText()
     {
+        auto& work = *abbreviationWork;
+        const auto& value = work.value;
         auto emitUnit = [&](std::size_t index)
         {
             const auto& unit = value.units[index];
             output.Emit(std::wstring_view(value.text).substr(index, 1u), unit.source,
                         unit.generated ? DisplaySpanKind::Generated : unit.transformed ? DisplaySpanKind::Transformed : DisplaySpanKind::Source,
-                        flags, heading);
+                        work.flags, work.heading);
         };
-        for (std::size_t first = 0u; first < value.text.size();)
+        std::size_t budget = 256u;
+        while (work.cursor < value.text.size() && budget)
         {
-            if (! AbbreviationCharacter(value.text[first])) { emitUnit(first++); continue; }
+            const auto first = work.cursor;
+            if (work.longWord)
+            {
+                if (AbbreviationCharacter(value.text[first])) { emitUnit(first); ++work.cursor; --budget; continue; }
+                work.longWord = false;
+            }
+            if (! AbbreviationCharacter(value.text[first])) { emitUnit(first); ++work.cursor; --budget; continue; }
             auto last = first + 1u;
-            while (last < value.text.size() && AbbreviationCharacter(value.text[last])) ++last;
+            while (last < value.text.size() && last - first <= 64u && AbbreviationCharacter(value.text[last])) ++last;
+            if (last - first > 64u) { work.longWord = true; continue; }
+            if (last - first > budget && budget != 256u) break;
             const auto word = std::wstring_view(value.text).substr(first, last - first);
             const auto found = std::lower_bound(abbreviations.begin(), abbreviations.end(), word,
                                                 [](const auto& item, auto key) { return item.key < key; });
@@ -409,14 +423,16 @@ struct SemanticBuilder::Preparation
             if (exact)
             {
                 const auto raw = MarkdownRange{value.units[first].source.first, value.units[last - 1u].source.last};
-                const auto element = Element(SemanticRole::Abbreviation, raw, parent);
-                output.Emit(word, raw, DisplaySpanKind::Source, flags, heading);
+                const auto element = Element(SemanticRole::Abbreviation, raw, work.parent);
+                output.Emit(word, raw, DisplaySpanKind::Source, work.flags, work.heading);
                 CloseElement(element);
                 document->elements_[element].title.assign(found->title);
             }
             else for (auto index = first; index < last; ++index) emitUnit(index);
-            first = last;
+            work.cursor = last;
+            budget -= last - first;
         }
+        if (work.cursor == value.text.size()) abbreviationWork.reset();
     }
     struct CalloutHeader
     {
@@ -758,6 +774,7 @@ struct SemanticBuilder::Preparation
     void Inline(Visit visit)
     {
         const auto& node = document->syntax_->Inlines()[visit.node];
+        if (! visit.close && visit.clipLast != MarkdownNoNode && node.source.first >= visit.clipLast) return;
         if (visit.close)
         {
             CloseElement(visit.element);
@@ -769,7 +786,7 @@ struct SemanticBuilder::Preparation
             sibling.node = node.nextSibling;
             visits.push_back(sibling);
         }
-        if (node.source.last <= visit.skipUntil)
+        if (node.source.last <= visit.skipUntil || (visit.clipLast != MarkdownNoNode && node.source.last <= visit.clipFirst))
             return;
         auto markdownFlags = visit.flags;
         switch (node.kind)
@@ -919,12 +936,47 @@ struct SemanticBuilder::Preparation
         {
             Detail::SemanticValue value;
             Detail::ResolveSemanticValue(*document->syntax_, normalized, node, value);
+            if (visit.clipLast != MarkdownNoNode && (node.source.first < visit.clipFirst || node.source.last > visit.clipLast))
+            {
+                if (node.kind != MarkdownInlineKind::Text) throw std::logic_error("Definition inline owner crosses a line boundary");
+                Detail::SemanticValue clipped;
+                Detail::SliceSemanticValue(value, {visit.clipFirst, visit.clipLast}, clipped);
+                value.text.swap(clipped.text);
+                value.units.swap(clipped.units);
+            }
             const auto valueFlags = flags | ((node.kind == MarkdownInlineKind::Code || node.kind == MarkdownInlineKind::Html) ? Code : 0u);
             if (node.kind == MarkdownInlineKind::Text && ! abbreviations.empty())
-                EmitAbbreviated(value, parent, valueFlags, visit.heading);
+            {
+                auto work = std::make_unique<AbbreviationWork>();
+                work->value.text.swap(value.text);
+                work->value.units.swap(value.units);
+                work->parent = parent;
+                work->flags = valueFlags;
+                work->heading = visit.heading;
+                abbreviationWork = std::move(work);
+            }
             else
                 output.Value(value, valueFlags, visit.heading);
         }
+    }
+    std::optional<MarkdownRange> DefinitionRange(const MarkdownNode& node, std::size_t index) const
+    {
+        const auto source = document->syntax_->Source();
+        const auto& line = node.lines[index];
+        if (line.leadingSpaces) return std::nullopt;
+        auto first = line.source.first, last = line.source.last;
+        while (last > first && (source[last - 1u] == L'\r' || source[last - 1u] == L'\n')) --last;
+        if (index)
+        {
+            if (last - first < 3u || source[first] != L':' || (source[first + 1u] != L' ' && source[first + 1u] != L'\t')) return std::nullopt;
+            first += 2u;
+            while (first < last && (source[first] == L' ' || source[first] == L'\t')) ++first;
+        }
+        while (last > first && (source[last - 1u] == L' ' || source[last - 1u] == L'\t')) --last;
+        const auto text = source.substr(first, last - first);
+        if (text.empty() || text.size() > 1024u || text.find_first_of(L"<>") != text.npos ||
+            (! index && text.find_first_of(L"*_`[]\\~^$=+") != text.npos)) return std::nullopt;
+        return MarkdownRange{first, last};
     }
     bool DefinitionList(const Visit& visit)
     {
@@ -933,47 +985,95 @@ struct SemanticBuilder::Preparation
         if (! HasMarkdownExtension(syntax.Extensions(), MarkdownExtensions::DefinitionLists) || visit.skipUntil ||
             node.block.kind != MarkdownBlockKind::Paragraph || node.lines.size() < 2u || node.lines.size() > 17u)
             return false;
-        const auto source = syntax.Source();
-        const auto content = [&](std::size_t index) -> std::optional<MarkdownRange>
-        {
-            const auto& line = node.lines[index];
-            if (line.leadingSpaces) return std::nullopt;
-            auto first = line.source.first, last = line.source.last;
-            while (last > first && (source[last - 1u] == L'\r' || source[last - 1u] == L'\n')) --last;
-            if (index)
-            {
-                if (last - first < 3u || source[first] != L':' || (source[first + 1u] != L' ' && source[first + 1u] != L'\t')) return std::nullopt;
-                first += 2u;
-                while (first < last && (source[first] == L' ' || source[first] == L'\t')) ++first;
-            }
-            while (last > first && (source[last - 1u] == L' ' || source[last - 1u] == L'\t')) --last;
-            const auto text = source.substr(first, last - first);
-            if (text.empty() || text.size() > 1024u || text.find_first_of(L"*_`[]<>\\~^$=+") != text.npos) return std::nullopt;
-            return MarkdownRange{first, last};
-        };
+        // Leave enough capacity for every remaining syntax node plus bounded
+        // generated owners. An unsafe expansion stays an ordinary paragraph.
+        constexpr std::size_t reserve = 16u;
+        const auto maximum = SemanticDocument::MaximumParagraphs;
+        if (syntax.Nodes().size() > maximum - reserve || document->paragraphs_.size() > maximum - reserve - syntax.Nodes().size() ||
+            node.lines.size() > maximum - reserve - syntax.Nodes().size() - document->paragraphs_.size()) return false;
+        std::array<MarkdownRange, 17u> ranges{};
+        std::array<std::size_t, 17u> starts{};
         for (std::size_t index = 0u; index < node.lines.size(); ++index)
-            if (! content(index)) return false;
+        {
+            const auto range = DefinitionRange(node, index);
+            if (! range) return false;
+            ranges[index] = *range;
+        }
+        // A style/object that straddles lines cannot be split into independent
+        // definition paragraphs without inventing source ownership. Both the
+        // validation and start-index pass are linear in inline roots + lines.
+        const auto& inlines = syntax.Inlines();
+        std::size_t validationLine = 0u;
+        for (auto item = node.firstInline; item != MarkdownNoNode; item = inlines[item].nextSibling)
+        {
+            const auto& inlineNode = inlines[item];
+            while (validationLine < node.lines.size() && inlineNode.source.first >= ranges[validationLine].last) ++validationLine;
+            if (validationLine == node.lines.size()) break;
+            if (inlineNode.kind == MarkdownInlineKind::Text || inlineNode.kind == MarkdownInlineKind::SoftBreak ||
+                inlineNode.kind == MarkdownInlineKind::HardBreak || inlineNode.source.last <= ranges[validationLine].first) continue;
+            if (inlineNode.source.first < ranges[validationLine].first || inlineNode.source.last > ranges[validationLine].last) return false;
+        }
+        auto firstInline = node.firstInline;
+        for (std::size_t index = 0u; index < node.lines.size(); ++index)
+        {
+            while (firstInline != MarkdownNoNode && inlines[firstInline].source.last <= ranges[index].first)
+                firstInline = inlines[firstInline].nextSibling;
+            starts[index] = firstInline;
+        }
         Detail::NormalizeSemanticLeaf(syntax, visit.node, normalized);
+        html.Reset();
         const auto list = Element(SemanticRole::DefinitionList, node.block.source, visit.parent, node.identity);
         document->elements_[list].syntaxNode = visit.node;
-        for (std::size_t index = 0u; index < node.lines.size(); ++index)
+        auto close = visit;
+        close.close = true;
+        close.element = list;
+        visits.push_back(close);
+        for (auto line = node.lines.size(); line > 0u; --line)
         {
-            const auto range = *content(index);
-            const auto owned = index ? MarkdownRange{node.lines[index].source.first, range.last} : range;
-            const auto element = Element(index ? SemanticRole::DefinitionDescription : SemanticRole::DefinitionTerm, owned, list);
-            document->elements_[element].syntaxNode = visit.node;
-            auto paragraphVisit = visit;
-            if (index) ++paragraphVisit.indent;
-            const auto paragraph = Paragraph(paragraphVisit, element);
-            Detail::SemanticValue value;
-            Detail::SliceSemanticValue(normalized, range, value);
-            output.Value(value, visit.flags | (index ? 0u : Bold), visit.heading);
-            document->paragraphs_[paragraph].display.last = output.text.size();
-            CloseElement(element);
-            output.Generated(L"\n", range.last, visit.flags, visit.heading);
+            auto part = visit;
+            part.parent = list;
+            part.definitionPart = true;
+            part.definitionLine = line - 1u;
+            part.definitionInlineStart = starts[line - 1u];
+            visits.push_back(part);
         }
-        CloseElement(list);
         return true;
+    }
+    void DefinitionPart(Visit visit)
+    {
+        const auto& node = document->syntax_->Nodes()[visit.node];
+        const auto range = *DefinitionRange(node, visit.definitionLine);
+        const auto owned = visit.definitionLine ? MarkdownRange{node.lines[visit.definitionLine].source.first, range.last} : range;
+        const auto element = Element(visit.definitionLine ? SemanticRole::DefinitionDescription : SemanticRole::DefinitionTerm, owned, visit.parent);
+        document->elements_[element].syntaxNode = visit.node;
+        auto paragraphVisit = visit;
+        if (visit.definitionLine) ++paragraphVisit.indent;
+        const auto paragraph = Paragraph(paragraphVisit, element);
+        auto close = visit;
+        close.definitionPart = false;
+        close.definitionClose = true;
+        close.element = element;
+        close.paragraph = paragraph;
+        close.clipLast = range.last;
+        visits.push_back(close);
+        if (visit.definitionInlineStart != MarkdownNoNode)
+        {
+            auto inlineVisit = visit;
+            inlineVisit.definitionPart = false;
+            inlineVisit.inlineNode = true;
+            inlineVisit.node = visit.definitionInlineStart;
+            inlineVisit.parent = element;
+            inlineVisit.clipFirst = range.first;
+            inlineVisit.clipLast = range.last;
+            if (! visit.definitionLine) inlineVisit.flags |= Bold;
+            visits.push_back(inlineVisit);
+        }
+    }
+    void FinishDefinitionPart(Visit visit)
+    {
+        document->paragraphs_[visit.paragraph].display.last = output.text.size();
+        CloseElement(visit.element);
+        output.Generated(L"\n", visit.clipLast, visit.flags, visit.heading);
     }
     std::size_t Paragraph(const Visit& visit, std::size_t element)
     {
@@ -1678,7 +1778,7 @@ struct SemanticBuilder::Preparation
         }
         if (node.block.kind == MarkdownBlockKind::BlankLine || node.block.kind == MarkdownBlockKind::ReferenceDefinition)
             return;
-        if (! abbreviationNodes.empty() && abbreviationNodes[visit.node]) return;
+        if (std::ranges::binary_search(Detail::SemanticExtensionAccess::AbbreviationNodes(*document), visit.node)) return;
         if (DefinitionList(visit)) return;
         // Used primary definitions are projected once at the document root in
         // reference order. Unused/duplicate definitions stay literal in place.
@@ -1862,6 +1962,22 @@ struct SemanticBuilder::Preparation
     }
     bool Step()
     {
+        if (abbreviationWork)
+        {
+            AdvanceAbbreviationText();
+            return false;
+        }
+        if (abbreviationPending)
+        {
+            if (abbreviationCursor < document->syntax_->Nodes().size() && abbreviations.size() < 128u)
+            {
+                PrepareAbbreviation(abbreviationCursor++);
+                return false;
+            }
+            std::ranges::sort(abbreviations, {}, &Abbreviation::key);
+            abbreviationPending = false;
+            return false;
+        }
         if (diagram)
         {
             AdvanceDiagram();
@@ -1887,6 +2003,10 @@ struct SemanticBuilder::Preparation
         visits.pop_back();
         if (visit.backlink)
             Backlink(visit);
+        else if (visit.definitionPart)
+            DefinitionPart(visit);
+        else if (visit.definitionClose)
+            FinishDefinitionPart(visit);
         else if (visit.inlineNode)
             Inline(visit);
         else

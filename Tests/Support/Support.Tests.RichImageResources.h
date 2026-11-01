@@ -386,6 +386,21 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
     editor.ReloadImages();
     prepare();
     editor.TakePendingImageRequests(requests);
+    check(requests.size() == 2u, "extension-change fixture dispatches two image requests");
+    check(editor.CompleteImageRequest(requests[0], picture), "first image stages before extension change");
+    editor.SetMarkdownAnalysisExtensions(MarkdownExtensions::RichAll | MarkdownExtensions::Abbreviations);
+    check(! requests[1].Cancelled() && ! editor.GetSemanticDocument() && editor.CompleteImageRequest(requests[1], picture),
+          "same-source extension change retains and accepts the in-flight image request");
+    prepare();
+    editor.TakePendingImageRequests(requests);
+    check(requests.empty() && editor.GetImageResourceStatistics().readySources == 2u && editor.GetText() == labelSource &&
+              editor.Revision() == labelRevision && editor.GetSelection() == sourceSelection && ! editor.CanUndo(),
+          "extension rebind adopts both completed image sources without redispatch or source/history changes");
+    editor.SetMarkdownAnalysisExtensions(std::nullopt);
+    prepare();
+    editor.ReloadImages();
+    prepare();
+    editor.TakePendingImageRequests(requests);
     check(requests.size() == 2u, "soft-break policy fixture dispatches two image requests");
     check(editor.CompleteImageRequest(requests[0], picture), "first image completes before soft-break policy change");
     const auto beforePolicy    = editor.DebugGetState();

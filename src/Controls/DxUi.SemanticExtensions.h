@@ -35,7 +35,7 @@ struct SemanticDiagram
 struct SemanticExtensions
 {
     static constexpr std::size_t MaximumObjects = 128u, MaximumRecords = MathMaximumDocumentNodes;
-    SemanticExtensions() : diagrams(0u), maths(0u), diagnostics(0u), images(0u), sourceObjects(0u), disclosures(0u)
+    SemanticExtensions() : diagrams(0u), maths(0u), diagnostics(0u), images(0u), sourceObjects(0u), disclosures(0u), abbreviationNodes(0u)
     {
     }
     std::vector<SemanticDiagram> diagrams;
@@ -50,6 +50,7 @@ struct SemanticExtensions
     std::vector<std::size_t> images;
     std::vector<MarkdownRange> sourceObjects;
     std::vector<DisclosureOverride> disclosures;
+    std::vector<std::size_t> abbreviationNodes;
     std::size_t candidates{}, records{};
     bool CanAdmitObject() const noexcept
     {
@@ -65,6 +66,10 @@ struct SemanticExtensionAccess
     static std::span<const MarkdownRange> SourceObjects(const SemanticDocument& document) noexcept
     {
         return document.extensions_ ? std::span<const MarkdownRange>(document.extensions_->sourceObjects) : std::span<const MarkdownRange>{};
+    }
+    static std::span<const std::size_t> AbbreviationNodes(const SemanticDocument& document) noexcept
+    {
+        return document.extensions_ ? std::span<const std::size_t>(document.extensions_->abbreviationNodes) : std::span<const std::size_t>{};
     }
     static std::span<const DisclosureOverride> Disclosures(const SemanticDocument& document) noexcept
     {

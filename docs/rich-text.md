@@ -983,11 +983,14 @@ oversized targets stay literal. `MarkdownExtensions::All` disables wiki syntax;
 Two further RichMarkdown features are explicitly opt-in. Pass
 `RichAll | DefinitionLists | Abbreviations` to `MarkdownParser::Begin`, or to
 `RichTextEditor::SetMarkdownAnalysisExtensions` after selecting RichMarkdown.
-A plain term followed by up to 16 plain `: description` lines becomes a native
-definition list. A top-level single-line `*[HTML]: Hyper Text Markup Language`
+A plain term followed by up to 16 `: description` lines becomes a native
+definition list; descriptions support single-line Markdown inline formatting.
+HTML, cross-line owners and forms exceeding per-line or aggregate capacity
+remain ordinary Markdown. A top-level single-line `*[HTML]: Hyper Text Markup Language`
 defines an exact case-sensitive ASCII word and its authored hover/UIA help. Up to
 128 declarations are recognized; duplicate, malformed and oversized forms stay
-ordinary Markdown. These bounded projections retain the complete raw source and
+ordinary Markdown. Hidden declarations retain F2 source editing, and changing
+the mask preserves same-source in-flight image requests. These bounded projections retain the complete raw source and
 history; they are not a general definition-list or abbreviation grammar.
 Switching profile resets an explicit editor extension mask.
 

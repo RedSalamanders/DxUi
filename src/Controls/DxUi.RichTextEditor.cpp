@@ -1809,7 +1809,10 @@ void RichTextEditor::SetMarkdownAnalysisExtensions(std::optional<RichText::Markd
     _state->smartTypingSite.reset();
     RetireSemanticAccessibility();
     _state->markdown.Clear();
-    _state->images.Cancel();
+    if (_state->imageSource)
+        _state->images.SuspendForEdit(Snapshot(), *_state->imageSource);
+    else
+        _state->images.Cancel();
     _state->sourceEditing.reset();
     _state->markdownCapacityRejected.reset();
     _state->preparationRejected.reset();
@@ -2196,8 +2199,11 @@ bool RichTextEditor::BeginReferenceDefinitionSourceEdit(ControlHost& host, const
 {
     const auto semantic = GetAcknowledgedSemanticDocument(host);
     if (! expected || ! semantic || semantic->Syntax() != expected || ! CanChangeSemanticSourcePresentation(host) || _state->sourceEditing ||
-        node >= expected->Nodes().size() || expected->Nodes()[node].block.kind != RichText::MarkdownBlockKind::ReferenceDefinition)
+        node >= expected->Nodes().size())
         return false;
+    const bool reference = expected->Nodes()[node].block.kind == RichText::MarkdownBlockKind::ReferenceDefinition;
+    const bool abbreviation = std::ranges::binary_search(RichText::Detail::SemanticExtensionAccess::AbbreviationNodes(*semantic), node);
+    if (! reference && ! abbreviation) return false;
     const auto source = expected->Nodes()[node].block.source;
     auto session      = _state->nextSourceEditingSession++;
     if (! session)
@@ -5843,7 +5849,9 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                 for (std::size_t node = 0u; node < syntax->Nodes().size(); ++node)
                 {
                     const auto& block = syntax->Nodes()[node].block;
-                    if (block.kind == RichText::MarkdownBlockKind::ReferenceDefinition && caret >= block.source.first && caret < block.source.last)
+                    if ((block.kind == RichText::MarkdownBlockKind::ReferenceDefinition ||
+                         std::ranges::binary_search(RichText::Detail::SemanticExtensionAccess::AbbreviationNodes(*document), node)) &&
+                        caret >= block.source.first && caret < block.source.last)
                         return BeginReferenceDefinitionSourceEdit(host, syntax, node);
                 }
             }

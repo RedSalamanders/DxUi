@@ -1299,10 +1299,12 @@ the application resolves the target and supplies immutable pixels. Neither
 path performs filesystem, vault or network resolution. Lookahead work is
 cooperatively bounded and amortized linear over a leaf.
 
-With DefinitionLists enabled, one plain term line followed by 1–16 plain
-`: ` description lines in the same paragraph projects a source-owned definition
-list, term and descriptions. Each line is at most 1,024 UTF-16 units; formatted,
-empty, over-bound or malformed forms retain normal Markdown presentation. With
+With DefinitionLists enabled, one plain term line followed by 1–16 `: `
+description lines in the same paragraph projects a source-owned definition
+list, term and descriptions. Descriptions support single-line Markdown inline
+formatting; HTML and inline owners crossing lines stay ordinary. Each line is
+at most 1,024 UTF-16 units; empty, over-bound, malformed or aggregate-capacity
+rejected forms retain normal Markdown presentation. With
 Abbreviations enabled, up to 128 unique top-level single-line declarations of
 `*[KEY]: expansion` are recognized; keys are 1–64 ASCII letters/digits, and
 expansions are 1–512 UTF-16 units without controls or angle brackets. Their first
@@ -1311,7 +1313,10 @@ case-sensitive standalone ASCII word gets a source-owned abbreviation element,
 its authored expansion as UIA HelpText and the ordinary read-only/Ctrl hover title.
 Code, transformed tokens and words adjacent to Unicode or Markdown delimiters
 are left ordinary. Duplicate, malformed or over-capacity declarations remain
-visible as ordinary Markdown. No source, selection, history, or network behavior
+visible as ordinary Markdown. Accepted hidden declarations retain F2 source
+editing. Declaration collection and text matching yield cooperatively. Changing
+the extension mask preserves same-source in-flight image requests. No source,
+selection, history, or network behavior
 changes, and CommonMark/GFM cannot enable these two flags.
 
 GFM tables are recognized before cell inlines, retain alignment/header metadata,

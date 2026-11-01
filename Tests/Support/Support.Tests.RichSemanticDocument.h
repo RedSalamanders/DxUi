@@ -20,7 +20,8 @@ inline std::shared_ptr<const SemanticDocument> Complete(SemanticBuilder& builder
     const bool nativeCandidates = syntax.Profile() == MarkdownProfile::RichMarkdown && std::ranges::any_of(syntax.Nodes(), [&](const auto& node) {
         return node.block.kind == MarkdownBlockKind::FencedCode && syntax.Slice(node.block.info).starts_with(L"mermaid");
     });
-    const auto bound            = 4u * (syntax.Nodes().size() + syntax.Inlines().size()) + 1u + (nativeCandidates ? 8u * syntax.Source().size() + 32u : 0u);
+    const auto bound            = 4u * (syntax.Nodes().size() + syntax.Inlines().size()) + 1u + (nativeCandidates ? 8u * syntax.Source().size() + 32u : 0u) +
+                                  (HasMarkdownExtension(syntax.Extensions(), MarkdownExtensions::Abbreviations) ? syntax.Nodes().size() + syntax.Source().size() / 128u + 32u : 0u);
     while (builder.HasPendingPreparation())
     {
         const auto step = builder.Advance(7u);
@@ -174,9 +175,14 @@ inline void DirectedValues()
                                                      "invalid soft-break policy is rejected");
     Check(breakBuilder.Published() == visibleBreak, "invalid soft-break policy leaves the current publication intact");
 }
+static_assert(static_cast<unsigned>(MarkdownExtensions::WikiLinks) == 512u);
+static_assert(static_cast<unsigned>(MarkdownExtensions::RichAll) == 1023u);
+static_assert(static_cast<unsigned>(MarkdownExtensions::DefinitionLists) == 1024u);
+static_assert(static_cast<unsigned>(MarkdownExtensions::Abbreviations) == 2048u);
+static_assert(static_cast<unsigned>(MarkdownExtensions::RichOptionalMask) == 4095u);
 inline void OptionalDefinitionsAndAbbreviations()
 {
-    const std::wstring source = L"HTML and HTML5 and html. `HTML`\n\n*[HTML]: Hyper Text Markup Language\n\nTerm\n: first description\n: second description\n\nAfter\n";
+    const std::wstring source = L"HTML and HTML5 and html. `HTML`\n\n*[HTML]: Hyper Text Markup Language\n\nTerm\n: first **description**\n: second description\n\nAfter\n";
     const auto defaults = Build(source, MarkdownProfile::RichMarkdown);
     Check(std::ranges::none_of(defaults->Elements(), [](const auto& element)
           { return element.role == SemanticRole::DefinitionList || element.role == SemanticRole::Abbreviation; }),
@@ -199,14 +205,18 @@ inline void OptionalDefinitionsAndAbbreviations()
     const auto list = std::ranges::find(document->Elements(), SemanticRole::DefinitionList, &SemanticElement::role);
     Check(list != document->Elements().end() && std::ranges::count(document->Elements(), SemanticRole::DefinitionTerm, &SemanticElement::role) == 1u &&
               std::ranges::count(document->Elements(), SemanticRole::DefinitionDescription, &SemanticElement::role) == 2u,
-          "one term and two plain descriptions receive distinct source-owned list roles");
+          "one term and two descriptions receive distinct source-owned list roles");
+    const auto strongOffset = document->Map().Display().find(L"description");
+    Check(strongOffset != std::wstring::npos && std::ranges::any_of(document->Runs(), [&](const auto& run)
+          { return run.start <= strongOffset && strongOffset < run.start + run.length && (run.flags & Bold); }),
+          "Markdown inline emphasis inside a description retains native semantic styling");
     for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029})
     {
         RichSemanticTests::Reject<std::invalid_argument>([&] { parser.Begin(source, 2u, profile, extensions); },
                                                          "opt-in rich extensions are unavailable to standard profiles");
         Check(parser.Published() == syntax && ! parser.HasPendingPreparation(), "invalid profile options leave the prior parser publication intact");
     }
-    const std::wstring malformed = L"*[X]: First\n\n*[X]: Second\n\nBad term\n: **formatted**\n\nX Xray\n";
+    const std::wstring malformed = L"*[X]: First\n\n*[X]: Second\n\nBad term\n: <formatted>\n\nX Xray\n";
     parser.Begin(malformed, 3u, MarkdownProfile::RichMarkdown, extensions);
     while (parser.HasPendingPreparation()) parser.Advance(7u);
     const auto malformedSyntax = parser.Published();
@@ -215,7 +225,7 @@ inline void OptionalDefinitionsAndAbbreviations()
     Check(rejected->Map().Source() == malformed && rejected->Map().Display().find(L"Second") != std::wstring::npos &&
               std::ranges::none_of(rejected->Elements(), [](const auto& element) { return element.role == SemanticRole::DefinitionList; }) &&
               std::ranges::count(rejected->Elements(), SemanticRole::Abbreviation, &SemanticElement::role) == 1u,
-          "duplicate definitions and unsupported formatted lists stay ordinary, and longer words do not gain a tooltip");
+          "duplicate definitions and unsupported HTML lists stay ordinary, and longer words do not gain a tooltip");
     std::wstring capped(L"K0 K128\n\n");
     for (unsigned index = 0u; index < 129u; ++index)
         capped.append(L"*[K").append(std::to_wstring(index)).append(L"]: expansion\n\n");
@@ -227,6 +237,46 @@ inline void OptionalDefinitionsAndAbbreviations()
     Check(cappedDocument->Map().Source() == capped && cappedDocument->Map().Display().find(L"*[K128]: expansion") != std::wstring::npos &&
               std::ranges::count(cappedDocument->Elements(), SemanticRole::Abbreviation, &SemanticElement::role) == 1u,
           "the 129th declaration stays ordinary while the first 128 remain bounded and source-exact");
+    std::wstring manyLists(0u, L' ');
+    for (unsigned index = 0u; index < 242u; ++index)
+    {
+        manyLists.append(L"term-").append(std::to_wstring(index)).append(L"\n");
+        for (unsigned line = 0u; line < 16u; ++line)
+            manyLists.append(L": line-").append(std::to_wstring(line)).append(L"\n");
+        manyLists.append(L"\n");
+    }
+    parser.Begin(manyLists, 5u, MarkdownProfile::RichMarkdown, extensions);
+    while (parser.HasPendingPreparation()) parser.Advance(7u);
+    const auto manySyntax = parser.Published();
+    builder.Begin(manySyntax);
+    const auto many = Complete(builder, *manySyntax);
+    const auto lists = std::ranges::count(many->Elements(), SemanticRole::DefinitionList, &SemanticElement::role);
+    Check(many->Map().Source() == manyLists && many->Paragraphs().size() <= SemanticDocument::MaximumParagraphs && lists > 0 && lists < 242 &&
+              many->Map().Display().find(L"term-241") != std::wstring::npos,
+          "aggregate paragraph admission preserves late ordinary content instead of failing the whole document");
+    std::wstring lengthy(L"HTML ");
+    lengthy.append(8192u, L'a');
+    lengthy.append(L"\n\n*[HTML]: Hyper Text\n");
+    parser.Begin(lengthy, 6u, MarkdownProfile::RichMarkdown, extensions);
+    while (parser.HasPendingPreparation()) parser.Advance(7u);
+    const auto lengthySyntax = parser.Published();
+    builder.Begin(lengthySyntax);
+    const auto first = builder.Advance(1u);
+    Check(first.workUnits == 1u && builder.HasPendingPreparation() && builder.Published() == many,
+          "abbreviation collection yields and retains the previous publication");
+    builder.Cancel();
+    Check(! builder.HasPendingPreparation() && builder.Published() == many, "cancelling abbreviation staging leaves published semantics intact");
+    builder.Begin(lengthySyntax);
+    std::size_t turns{};
+    while (builder.HasPendingPreparation())
+    {
+        const auto step = builder.Advance(1u);
+        Check(step.workUnits == 1u, "abbreviation source scan respects each one-unit owner turn");
+        ++turns;
+    }
+    Check(turns > 32u && builder.Published()->Map().Source() == lengthy &&
+              std::ranges::count(builder.Published()->Elements(), SemanticRole::Abbreviation, &SemanticElement::role) == 1u,
+          "long text is processed cooperatively without matching a suffix of an oversized word");
 }
 inline void NativeHtmlAndLinkPresentation()
 {
