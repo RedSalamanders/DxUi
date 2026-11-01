@@ -328,6 +328,12 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     editor->SetViewMode(ViewMode::Rich);
     Check(editor->OnChar(host, L' ', 0u) && editor->Undo() && editor->GetText() == L"#",
           "view transitions retire pending trigger grouping even if the source revision is unchanged");
+    editor->SetText(L"");
+    prepare();
+    Check(editor->OnChar(host, L'#', 0u), "seed a trigger before an explicit command");
+    static_cast<void>(editor->OnKeyDown(host, VK_ESCAPE, 0u));
+    Check(editor->OnChar(host, L' ', 0u) && editor->Undo() && editor->GetText() == L"#",
+          "Escape ends pending trigger grouping without requiring a selection change");
     for (const auto trigger :
          {std::wstring_view(L"## "), std::wstring_view(L"- "), std::wstring_view(L"1. "), std::wstring_view(L"> "), std::wstring_view(L"---")})
     {

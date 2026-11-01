@@ -4530,8 +4530,13 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
             return false;
         _state->pendingLeadSurrogate = 0;
         const bool control = ModifiersContainCtrl(modifiers), shift = ModifiersContainShift(modifiers);
-        if (control || key == VK_ESCAPE || key == VK_RETURN || key == VK_TAB || key == VK_F2)
+        if (control || key == VK_ESCAPE || key == VK_RETURN || key == VK_TAB || key == VK_F2 || key == VK_LEFT || key == VK_RIGHT || key == VK_UP ||
+            key == VK_DOWN || key == VK_HOME || key == VK_END || key == VK_PRIOR || key == VK_NEXT)
+        {
             _state->typingRun.reset();
+            _state->autoFormatRun.reset();
+            _state->smartTypingSite.reset();
+        }
         if (_state->markdownShortcutsEnabled && Editable() && control && ! ModifiersContainAlt(modifiers) && shift && key >= '0' && key <= '6' &&
             _state->markdownRendering && _state->mode == RichText::ViewMode::Rich && ! _state->sourceEditing)
         {

@@ -1284,6 +1284,7 @@ syntax; once started, its revision and selection guard allow completion while
 replacement syntax is still pending.
 Profile, view, source-presentation and read-only transitions retire pending
 typing-policy context even if the raw source revision is unchanged.
+Escape and editing/navigation command chords also end a pending trigger group.
 Rich-view deletion also groups adjacent single plain-source erasures; structural
 wrapper removal, transformed tokens and disjoint fragments remain separate
 transactions so their ownership is preserved.
