@@ -683,6 +683,41 @@ template <typename Check> inline void GroupRaster(Check&& check)
                 check(ink != 0u, "every group title has visible text ink within its own measured bounds");
             }
         }
+    const auto grid = FlowchartLayoutTests::Graph(L"graph TD\nC1-->A2\nsubgraph One\nA1-->A2\nend\nsubgraph Two\nB1-->B2\nend\nsubgraph Three\nC1-->C2\nend\n");
+    PreparedFlowchart gridPaint;
+    gridPaint.Begin(write.get(), drawing.get(), grid, {}, {1u, 1u});
+    Complete(gridPaint, check);
+    check(gridPaint.Ready() && gridPaint.Geometry() && gridPaint.Geometry()->groups.size() == 3u,
+          "interleaved reference group grid prepares with actual measured labels");
+    if (gridPaint.Ready())
+    {
+        constexpr UINT width = 600u, height = 300u, stride = width * 4u;
+        wil::com_ptr<IWICBitmap> bitmap;
+        THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+        wil::com_ptr<ID2D1RenderTarget> target;
+        const auto properties = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
+                                                               D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+        THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
+        wil::com_ptr<ID2D1SolidColorBrush> brush, fill;
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), brush.put()));
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
+        target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        check(gridPaint.Draw(target.get(), brush.get(), brush.get(), fill.get(), {}), "group grid paints");
+        THROW_IF_FAILED(target->EndDraw());
+        std::vector<BYTE> pixels(stride * height);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+        for (const auto& group : gridPaint.Geometry()->groups)
+        {
+            std::size_t ink{};
+            for (UINT y = static_cast<UINT>(group.label.y); y < std::min(height, static_cast<UINT>(std::ceil(group.label.y + group.label.height))); ++y)
+                for (UINT x = static_cast<UINT>(group.label.x); x < std::min(width, static_cast<UINT>(std::ceil(group.label.x + group.label.width))); ++x)
+                {
+                    const auto offset = static_cast<std::size_t>(y) * stride + x * 4u;
+                    ink += pixels[offset] < 80u && pixels[offset + 1u] < 80u && pixels[offset + 2u] < 80u;
+                }
+            check(ink != 0u, "each independently placed group title has visible raster ink");
+        }
+    }
     const auto crowded = FlowchartLayoutTests::Graph(L"graph TD\nsubgraph A[Extremely wide first group title]\nX\nend\n"
                                                      L"subgraph B[Extremely wide second group title]\nY\nend\n");
     PreparedFlowchart rejected;

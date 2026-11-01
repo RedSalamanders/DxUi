@@ -145,6 +145,19 @@ template <typename Check> inline void Geometry(Check&& check)
     check(namespaced->groups.size() == 1u && namespaced->groups[0].title == L"Domain" && namespaced->nodes.size() == 2u &&
               namespaced->nodes[0].groupMask == 1u && namespaced->nodes[1].groupMask == 1u && namespacedPlan->issue == FlowchartLayoutIssue::None &&
               namespacedPlan->groups.size() == 1u, "class namespace owns its members and has bounded native group geometry");
+    const auto grid = Graph(L"graph TD\nC1-->A2\nsubgraph One\nA1-->A2\nend\nsubgraph Two\nB1-->B2\nend\nsubgraph Three\nC1-->C2\nend\n");
+    const std::vector<FlowchartSize> gridNodes(grid->nodes.size(), {16.0, 12.0}), gridEdges(grid->edges.size()), gridLabels(grid->groups.size(), {16.0, 12.0});
+    NativeFlowchartLayout gridLayout;
+    gridLayout.Begin(grid, gridNodes, gridEdges, {}, {}, gridLabels);
+    const auto gridPlan = Complete(gridLayout, check);
+    check(gridPlan->issue == FlowchartLayoutIssue::None && gridPlan->groups.size() == 3u && gridPlan->nodes.size() == 6u,
+          "interleaved two-rank group grid is placed without group collisions");
+    if (gridPlan->groups.size() == 3u)
+        for (std::size_t group = 0u; group < gridPlan->groups.size(); ++group)
+            for (std::size_t other = group + 1u; other < gridPlan->groups.size(); ++other)
+                check(gridPlan->groups[group].bounds.x + gridPlan->groups[group].bounds.width <= gridPlan->groups[other].bounds.x ||
+                          gridPlan->groups[other].bounds.x + gridPlan->groups[other].bounds.width <= gridPlan->groups[group].bounds.x,
+                      "group columns have disjoint independently checked bounds");
     for (const auto source : {L"classDiagram\nnamespace Empty {\n}\n", L"classDiagram\nnamespace A {\nclass B\n", L"classDiagram\nnamespace 2Bad {\nclass A\n}\n"})
     {
         const auto rejected = Graph(source);

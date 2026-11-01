@@ -1760,8 +1760,11 @@ source nodes precede the targets in model order and all edges are unlabeled, wit
 groups, notes or cardinality; model identities and
 source order remain intact. Other edges use exterior lanes sized for their own labels and minimum
 separation; unlabeled lanes may be shared only when their inclusive rank intervals
-do not intersect. Labeled lanes remain exclusive. Endpoint
-corridors remain outside full rank rows, including for skipped-rank edges,
+do not intersect. Labeled lanes remain exclusive. When two ranks contain exactly one
+member of each non-nested group, columns align in group order and reserve the
+largest node or title width, preserving model identity while avoiding unrelated
+group overlap. Other group configurations retain collision detection.
+Endpoint corridors remain outside full rank rows, including for skipped-rank edges,
 cycles, self-loops and parallel edges. Crossings are permitted; optimal routing
 and upstream Mermaid coordinate compatibility are not claimed.
 

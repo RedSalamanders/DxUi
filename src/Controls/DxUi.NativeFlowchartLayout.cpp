@@ -66,6 +66,8 @@ struct NativeFlowchartLayout::Preparation
     std::array<FlowchartSize, 16u> groupLabels{};
     std::array<std::size_t, Nodes> head{}, tail{}, rank{}, indegree{}, before{}, after{}, color{}, incoming{}, outgoing{}, rowCount{};
     std::array<std::size_t, Nodes> pairTargets{};
+    std::array<std::size_t, Nodes> groupColumns{};
+    std::array<double, 16u> groupColumnWidth{};
     std::array<bool, Nodes> ranked{};
     std::array<std::size_t, Edges> next{}, startPort{}, endPort{};
     std::array<double, Edges> laneOffset{}, laneWidth{};
@@ -80,7 +82,7 @@ struct NativeFlowchartLayout::Preparation
     double minX{}, minY{}, maxX{}, maxY{};
     FlowchartPoint shift;
     Stage stage{};
-    bool horizontal{}, bounded{}, done{}, hasCardinality{}, hasNotes{}, alignedPairs{};
+    bool horizontal{}, bounded{}, done{}, hasCardinality{}, hasNotes{}, alignedPairs{}, alignedGroups{};
 
     Preparation(std::shared_ptr<const FlowchartModel> value,
                 std::span<const FlowchartSize> nodes,
@@ -296,6 +298,32 @@ struct NativeFlowchartLayout::Preparation
                     if (alignedPairs)
                         pairTargets[source] = graph->edges[edge].to;
                 }
+                // A complete two-rank grid with one member per
+                // independent group can align its columns without merging
+                // unrelated group bounds. Model indices remain unchanged.
+                const auto groupCount = graph->groups.size();
+                alignedGroups = groupCount > 1u && graph->nodes.size() == 2u * groupCount && ! hasNotes &&
+                                rowCount[0u] == groupCount && rowCount[1u] == groupCount;
+                groupColumns.fill(NoIndex);
+                for (std::size_t group = 0u; alignedGroups && group < groupCount; ++group)
+                {
+                    alignedGroups = graph->groups[group].parentMask == 0u;
+                    groupColumnWidth[group] = Cross(groupLabels[group]);
+                }
+                for (std::size_t node = 0u; alignedGroups && node < graph->nodes.size(); ++node)
+                {
+                    const auto mask = graph->nodes[node].groupMask;
+                    std::size_t group{};
+                    while (group < groupCount && mask != static_cast<std::uint16_t>(1u << group)) ++group;
+                    alignedGroups = group < groupCount && rank[node] < 2u;
+                    if (alignedGroups)
+                    {
+                        const auto slot = rank[node] * groupCount + group;
+                        alignedGroups = groupColumns[slot] == NoIndex;
+                        groupColumns[slot] = node;
+                        groupColumnWidth[group] = std::max(groupColumnWidth[group], plan->nodes[node].bounds.width);
+                    }
+                }
                 Then(Stage::Ports);
                 return;
             }
@@ -385,6 +413,13 @@ struct NativeFlowchartLayout::Preparation
     {
         if (cursor == graph->nodes.size())
         {
+            if (alignedGroups)
+            {
+                double width{};
+                for (std::size_t group = 0u; group < graph->groups.size(); ++group)
+                    width += groupColumnWidth[group] + (group ? NodeGap : 0.0);
+                rowWidth[0u] = rowWidth[1u] = bandWidth = width;
+            }
             bandLeft = Margin + leftWidth;
             if (bandLeft + bandWidth + rightWidth + 2.0 * Margin > MaximumExtent)
             {
@@ -427,12 +462,13 @@ struct NativeFlowchartLayout::Preparation
             return;
         }
         const auto position = cursor++;
-        const auto index    = alignedPairs && position >= graph->edges.size() ? pairTargets[position - graph->edges.size()] : position;
-        auto& node          = plan->nodes[index];
-        node.rank           = rank[index];
-        node.bounds.x       = rowCursor[node.rank];
-        node.bounds.y       = rowTop[node.rank] + (rowHeight[node.rank] - node.bounds.height) / 2.0;
-        rowCursor[node.rank] += node.bounds.width + NodeGap;
+        const auto index = alignedGroups ? groupColumns[position]
+                           : alignedPairs && position >= graph->edges.size() ? pairTargets[position - graph->edges.size()] : position;
+        auto& node       = plan->nodes[index];
+        node.rank        = rank[index];
+        node.bounds.x    = rowCursor[node.rank];
+        node.bounds.y    = rowTop[node.rank] + (rowHeight[node.rank] - node.bounds.height) / 2.0;
+        rowCursor[node.rank] += (alignedGroups ? groupColumnWidth[position % graph->groups.size()] : node.bounds.width) + NodeGap;
         node.label = {node.bounds.x + (node.bounds.width - Cross(nodeLabels[index])) / 2.0,
                       node.bounds.y + (node.bounds.height - Major(nodeLabels[index])) / 2.0,
                       Cross(nodeLabels[index]),
