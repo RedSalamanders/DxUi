@@ -763,38 +763,38 @@ inline void ParagraphsTablesAndSourceRanges()
 }
 inline void PaddedCodePresentation()
 {
-    const auto factory = Factory();
+    const auto factory        = Factory();
     const std::wstring source = L"```cpp\nint x;\n```\n";
-    const auto document = RichSemanticDocumentTests::Build(source);
-    const auto code = std::ranges::find(document->Elements(), SemanticRole::Code, &SemanticElement::role);
+    const auto document       = RichSemanticDocumentTests::Build(source);
+    const auto code           = std::ranges::find(document->Elements(), SemanticRole::Code, &SemanticElement::role);
     Check(code != document->Elements().end(), "code frame fixture has a semantic code element");
     const auto element = static_cast<std::size_t>(code - document->Elements().begin());
     const auto prepare = [&](float width, MarkdownPresentationStyle style)
     {
         auto geometry = std::make_unique<PreparedSemanticGeometry>();
         LayoutOptions options;
-        options.widthDip = width;
+        options.widthDip             = width;
         options.markdownPresentation = style;
         geometry->Begin(factory.get(), document, options);
         Complete(*geometry);
         return geometry;
     };
-    const auto legacy = prepare(200.0f, MarkdownPresentationStyle::Default);
-    const auto subtle = prepare(200.0f, MarkdownPresentationStyle::Subtle);
+    const auto legacy   = prepare(200.0f, MarkdownPresentationStyle::Default);
+    const auto subtle   = prepare(200.0f, MarkdownPresentationStyle::Subtle);
     const auto oldFrame = legacy->ElementBounds(element), frame = subtle->ElementBounds(element);
     const auto position = source.find(L"int");
-    const auto caret = subtle->SourceCaret(position);
-    Check(oldFrame && frame && frame->bottom - frame->top >= oldFrame->bottom - oldFrame->top + 11.9f &&
-              caret.x >= frame->left + 5.9f && caret.y >= frame->top + 5.9f,
+    const auto caret    = subtle->SourceCaret(position);
+    Check(oldFrame && frame && frame->bottom - frame->top >= oldFrame->bottom - oldFrame->top + 11.9f && caret.x >= frame->left + 5.9f &&
+              caret.y >= frame->top + 5.9f,
           "subtle code frame reserves inner padding and preserves source caret geometry");
     const auto unlabeled = RichSemanticDocumentTests::Build(L"```\nint x;\n```\n");
     PreparedSemanticGeometry noLabel;
     LayoutOptions labelOptions;
-    labelOptions.widthDip = 200.0f;
+    labelOptions.widthDip             = 200.0f;
     labelOptions.markdownPresentation = MarkdownPresentationStyle::Subtle;
     noLabel.Begin(factory.get(), unlabeled, labelOptions);
     Complete(noLabel);
-    const auto noLabelCode = std::ranges::find(unlabeled->Elements(), SemanticRole::Code, &SemanticElement::role);
+    const auto noLabelCode   = std::ranges::find(unlabeled->Elements(), SemanticRole::Code, &SemanticElement::role);
     const auto noLabelBounds = noLabel.ElementBounds(static_cast<std::size_t>(noLabelCode - unlabeled->Elements().begin()));
     Check(noLabelBounds && frame && frame->bottom - frame->top >= noLabelBounds->bottom - noLabelBounds->top &&
               subtle->HitTestSource(caret.x, caret.y + caret.height * 0.5f).position == position,
@@ -858,8 +858,8 @@ inline void MarkdownSubtlePresentation()
     // private helper used by semantic table allocation.
     const std::wstring word = L"UnbreakableIdentifier";
     wil::com_ptr<IDWriteTextFormat> wordFormat;
-    THROW_IF_FAILED(factory->CreateTextFormat(L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL,
-                                              18.0f, L"en-us", wordFormat.put()));
+    THROW_IF_FAILED(factory->CreateTextFormat(
+        L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 18.0f, L"en-us", wordFormat.put()));
     wil::com_ptr<IDWriteTextLayout> wordLayout;
     THROW_IF_FAILED(factory->CreateTextLayout(word.data(), static_cast<UINT32>(word.size()), wordFormat.get(), 4096.0f, 4096.0f, wordLayout.put()));
     float wordMinimum{};
@@ -870,21 +870,19 @@ inline void MarkdownSubtlePresentation()
     {
         PreparedSemanticGeometry minimumTable;
         LayoutOptions minimumOptions;
-        minimumOptions.widthDip = 360.0f;
+        minimumOptions.widthDip             = 360.0f;
         minimumOptions.markdownPresentation = MarkdownPresentationStyle::Subtle;
-        minimumOptions.readingDirection = direction;
+        minimumOptions.readingDirection     = direction;
         minimumTable.Begin(factory.get(), minimumDocument, minimumOptions);
         Complete(minimumTable);
         const auto cells = minimumDocument->Elements();
-        const auto cell = std::ranges::find_if(cells, [](const auto& value) {
-            return value.role == SemanticRole::Cell && value.name == L"UnbreakableIdentifier";
-        });
+        const auto cell =
+            std::ranges::find_if(cells, [](const auto& value) { return value.role == SemanticRole::Cell && value.name == L"UnbreakableIdentifier"; });
         Check(cell != cells.end(), "intrinsic minimum fixture owns the exact body cell");
         const auto bounds = minimumTable.ElementBounds(static_cast<std::size_t>(cell - cells.begin()));
-        Check(bounds && bounds->right - bounds->left + .1f >= wordMinimum + 12.0f,
-              "wrappable column yields space to an unbreakable word in either direction");
+        Check(bounds && bounds->right - bounds->left + .1f >= wordMinimum + 12.0f, "wrappable column yields space to an unbreakable word in either direction");
         const auto wordSource = minimumDocument->Syntax()->Source().find(word);
-        const auto caret = minimumTable.SourceCaret(wordSource);
+        const auto caret      = minimumTable.SourceCaret(wordSource);
         Check(caret.height > 0.0f && minimumTable.HitTestSource(caret.x, caret.y + caret.height * .5f).position == wordSource,
               "minimum-width allocation keeps the source caret aligned with its cell");
     }
