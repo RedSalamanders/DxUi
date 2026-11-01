@@ -815,9 +815,9 @@ void TestRichTextEditorSelectionDrawWork()
     window.Host().SetRoot(std::move(owned));
     RenderEditor(window);
     editor->SetSelection({0u, source.size()});
-    Detail::testRichLayoutDrawCalls = 0u;
+    DxUi::RichText::Detail::testRichLayoutDrawCalls = 0u;
     RenderEditor(window);
-    const auto draws = Detail::testRichLayoutDrawCalls;
+    const auto draws = DxUi::RichText::Detail::testRichLayoutDrawCalls;
     Require(editor->DebugGetState().preparedSelectionRectangles >= 20u, "selection workload includes many independently prepared source lines");
     Require(draws >= 2u && draws <= 4u, "multiline selection paints one base and one masked selected-text pass per frame");
     Require(editor->GetSelection() == Selection{0u, source.size()} && editor->GetText() == source && ! editor->CanUndo(),
