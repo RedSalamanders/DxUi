@@ -980,25 +980,25 @@
   },
   {
     "id": 90,
-    "outcome": "Unsupported",
-    "nodes": 0,
-    "edges": 0,
+    "outcome": "Prepared",
+    "nodes": 6,
+    "edges": 4,
     "direction": "TopBottom",
-    "reason": "subgraphs",
-    "issue": "UnsupportedStatement",
-    "diagnosticFirst": 29,
-    "diagnosticLast": 37
+    "reason": "admitted-grammar",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 91,
-    "outcome": "Unsupported",
-    "nodes": 0,
-    "edges": 0,
+    "outcome": "Prepared",
+    "nodes": 3,
+    "edges": 2,
     "direction": "TopBottom",
-    "reason": "subgraphs",
-    "issue": "UnsupportedStatement",
-    "diagnosticFirst": 29,
-    "diagnosticLast": 37
+    "reason": "admitted-grammar",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 92,
@@ -1006,10 +1006,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "subgraphs",
+    "reason": "subgraph-endpoints",
     "issue": "UnsupportedStatement",
-    "diagnosticFirst": 29,
-    "diagnosticLast": 37
+    "diagnosticFirst": 142,
+    "diagnosticLast": 145
   },
   {
     "id": 93,
@@ -1017,10 +1017,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "subgraphs",
+    "reason": "subgraph-direction",
     "issue": "UnsupportedStatement",
-    "diagnosticFirst": 15,
-    "diagnosticLast": 23
+    "diagnosticFirst": 32,
+    "diagnosticLast": 41
   },
   {
     "id": 94,
@@ -1028,10 +1028,10 @@
     "nodes": 0,
     "edges": 0,
     "direction": "TopBottom",
-    "reason": "subgraphs",
+    "reason": "subgraph-direction",
     "issue": "UnsupportedStatement",
-    "diagnosticFirst": 17,
-    "diagnosticLast": 25
+    "diagnosticFirst": 44,
+    "diagnosticLast": 53
   },
   {
     "id": 95,

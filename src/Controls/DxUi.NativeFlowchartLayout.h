@@ -48,9 +48,13 @@ struct FlowchartPlacedEdge
     FlowchartRect fromCardinality, toCardinality;
     bool hasArrow{}, hasLabel{};
 };
+struct FlowchartPlacedGroup
+{
+    FlowchartRect bounds, label;
+};
 struct FlowchartLayoutPlan
 {
-    FlowchartLayoutPlan() : nodes(0u), edges(0u)
+    FlowchartLayoutPlan() : nodes(0u), edges(0u), groups(0u)
     {
     }
     FlowchartLayoutIssue issue{};
@@ -61,6 +65,7 @@ struct FlowchartLayoutPlan
     // A capacity result publishes no partially placed nodes or edges.
     std::vector<FlowchartPlacedNode> nodes;
     std::vector<FlowchartPlacedEdge> edges;
+    std::vector<FlowchartPlacedGroup> groups;
 };
 class NativeFlowchartLayout
 {
@@ -78,7 +83,8 @@ public:
                std::span<const FlowchartSize> nodeLabels,
                std::span<const FlowchartSize> edgeLabels,
                std::span<const FlowchartSize> fromCardinalities = {},
-               std::span<const FlowchartSize> toCardinalities = {});
+               std::span<const FlowchartSize> toCardinalities = {},
+               std::span<const FlowchartSize> groupLabels = {});
     // An event handles one node, edge, DFS transition or rank. A stable Kahn
     // choice scans at most 256 nodes. Units are not elapsed-time guarantees.
     // Begin copies at most 768 measurements into fixed bounded staging arrays.

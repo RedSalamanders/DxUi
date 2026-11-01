@@ -41,11 +41,14 @@ struct NativeFlowchartLayout::Preparation
         Rows,
         RowPositions,
         NodesPosition,
+        GroupPositions,
         Routes,
         TransformNodes,
+        TransformGroups,
         TransformEdges,
         CardinalityCheck,
         NormalizeNodes,
+        NormalizeGroups,
         NormalizeEdges,
         Finish
     };
@@ -58,6 +61,7 @@ struct NativeFlowchartLayout::Preparation
     std::array<FlowchartSize, Nodes> nodeLabels{};
     std::array<FlowchartSize, Edges> edgeLabels{};
     std::array<FlowchartSize, Edges> fromCardinalities{}, toCardinalities{};
+    std::array<FlowchartSize, 16u> groupLabels{};
     std::array<std::size_t, Nodes> head{}, tail{}, rank{}, indegree{}, before{}, after{}, color{}, incoming{}, outgoing{}, rowCount{};
     std::array<bool, Nodes> ranked{};
     std::array<std::size_t, Edges> next{}, startPort{}, endPort{};
@@ -76,7 +80,7 @@ struct NativeFlowchartLayout::Preparation
     bool horizontal{}, bounded{}, done{}, hasCardinality{};
 
     Preparation(std::shared_ptr<const FlowchartModel> value, std::span<const FlowchartSize> nodes, std::span<const FlowchartSize> edges,
-                std::span<const FlowchartSize> from, std::span<const FlowchartSize> to)
+                std::span<const FlowchartSize> from, std::span<const FlowchartSize> to, std::span<const FlowchartSize> groups)
         : graph(std::move(value)),
           plan(std::make_shared<FlowchartLayoutPlan>())
     {
@@ -84,11 +88,13 @@ struct NativeFlowchartLayout::Preparation
         std::copy(edges.begin(), edges.end(), edgeLabels.begin());
         std::copy(from.begin(), from.end(), fromCardinalities.begin());
         std::copy(to.begin(), to.end(), toCardinalities.begin());
+        std::copy(groups.begin(), groups.end(), groupLabels.begin());
         head.fill(NoIndex);
         tail.fill(NoIndex);
         next.fill(NoIndex);
         plan->nodes.reserve(nodes.size());
         plan->edges.reserve(edges.size());
+        plan->groups.resize(graph->groups.size());
         for (const auto& edge : graph->edges)
             hasCardinality = hasCardinality || ! edge.fromCardinality.empty() || ! edge.toCardinality.empty();
         horizontal = graph->direction == FlowchartDirection::LeftRight || graph->direction == FlowchartDirection::RightLeft;
@@ -99,6 +105,7 @@ struct NativeFlowchartLayout::Preparation
         plan->extent = {};
         plan->nodes.clear();
         plan->edges.clear();
+        plan->groups.clear();
         done = true;
     }
     void Then(Stage value) noexcept
@@ -387,7 +394,7 @@ struct NativeFlowchartLayout::Preparation
     {
         if (cursor == plan->nodes.size())
         {
-            Then(Stage::Routes);
+            Then(Stage::GroupPositions);
             return;
         }
         const auto index = cursor++;
@@ -400,6 +407,65 @@ struct NativeFlowchartLayout::Preparation
                       node.bounds.y + (node.bounds.height - Major(nodeLabels[index])) / 2.0,
                       Cross(nodeLabels[index]),
                       Major(nodeLabels[index])};
+    }
+    void GroupPositions()
+    {
+        if (cursor == graph->groups.size())
+        {
+            Then(Stage::Routes);
+            return;
+        }
+        const auto index = graph->groups.size() - ++cursor;
+        const auto bit = static_cast<std::uint16_t>(1u << index);
+        double left{}, top{}, right{}, bottom{};
+        bool any{};
+        const auto include = [&](const FlowchartRect& rect)
+        {
+            if (! any)
+            {
+                left = rect.x; top = rect.y; right = rect.x + rect.width; bottom = rect.y + rect.height; any = true;
+                return;
+            }
+            left = std::min(left, rect.x); top = std::min(top, rect.y);
+            right = std::max(right, rect.x + rect.width); bottom = std::max(bottom, rect.y + rect.height);
+        };
+        for (std::size_t node = 0u; node < graph->nodes.size(); ++node)
+            if (graph->nodes[node].groupMask & bit)
+                include(plan->nodes[node].bounds);
+        for (std::size_t child = index + 1u; child < graph->groups.size(); ++child)
+            if (graph->groups[child].parentMask & bit)
+                include(plan->groups[child].bounds);
+        if (! any)
+        {
+            Fail(FlowchartLayoutIssue::DiagramExtent);
+            return;
+        }
+        const auto title = groupLabels[index];
+        const auto width = std::max(right - left + 16.0, Cross(title) + 16.0);
+        auto& result = plan->groups[index];
+        result.bounds = {left - 8.0, top - Major(title) - 16.0, width, bottom - top + Major(title) + 24.0};
+        result.label = {result.bounds.x + 8.0, result.bounds.y + 4.0, Cross(title), Major(title)};
+        for (std::size_t node = 0u; node < graph->nodes.size(); ++node)
+        {
+            const auto& other = plan->nodes[node].bounds;
+            if (! (graph->nodes[node].groupMask & bit) && result.bounds.x < other.x + other.width && other.x < result.bounds.x + result.bounds.width &&
+                result.bounds.y < other.y + other.height && other.y < result.bounds.y + result.bounds.height)
+            {
+                Fail(FlowchartLayoutIssue::DiagramExtent);
+                return;
+            }
+        }
+        for (std::size_t other = index + 1u; other < graph->groups.size(); ++other)
+        {
+            const auto& bounds = plan->groups[other].bounds;
+            if (! (graph->groups[other].parentMask & bit) && result.bounds.x < bounds.x + bounds.width &&
+                bounds.x < result.bounds.x + result.bounds.width && result.bounds.y < bounds.y + bounds.height &&
+                bounds.y < result.bounds.y + result.bounds.height)
+            {
+                Fail(FlowchartLayoutIssue::DiagramExtent);
+                return;
+            }
+        }
     }
     void Routes()
     {
@@ -442,7 +508,7 @@ struct NativeFlowchartLayout::Preparation
     {
         if (cursor == plan->nodes.size())
         {
-            Then(Stage::TransformEdges);
+            Then(Stage::TransformGroups);
             return;
         }
         auto& node  = plan->nodes[cursor++];
@@ -451,12 +517,25 @@ struct NativeFlowchartLayout::Preparation
         Include(node.bounds);
         Include(node.label);
     }
+    void TransformGroups()
+    {
+        if (cursor == plan->groups.size())
+        {
+            Then(Stage::TransformEdges);
+            return;
+        }
+        auto& group = plan->groups[cursor++];
+        group.bounds = Transform(group.bounds);
+        group.label = Transform(group.label);
+        Include(group.bounds);
+        Include(group.label);
+    }
     void TransformEdges()
     {
         if (cursor == plan->edges.size())
         {
             Then(Stage::CardinalityCheck);
-            if (! hasCardinality)
+            if (! hasCardinality && graph->groups.empty())
                 cursor = plan->edges.size();
             return;
         }
@@ -501,12 +580,25 @@ struct NativeFlowchartLayout::Preparation
         {
             return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
         };
+        if (plan->edges[current].hasLabel)
+            for (const auto& group : plan->groups)
+                if (overlaps(plan->edges[current].label, group.label))
+                {
+                    Fail(FlowchartLayoutIssue::DiagramExtent);
+                    return;
+                }
         for (const bool from : {true, false})
         {
             const auto& cardinality = from ? graph->edges[current].fromCardinality : graph->edges[current].toCardinality;
             if (cardinality.empty())
                 continue;
             const auto& bounds = from ? plan->edges[current].fromCardinality : plan->edges[current].toCardinality;
+            for (const auto& group : plan->groups)
+                if (overlaps(bounds, group.label))
+                {
+                    Fail(FlowchartLayoutIssue::DiagramExtent);
+                    return;
+                }
             for (const auto& node : plan->nodes)
                 if (overlaps(bounds, node.bounds))
                 {
@@ -541,18 +633,30 @@ struct NativeFlowchartLayout::Preparation
             case Stage::Rows: Rows(); break;
             case Stage::RowPositions: RowPositions(); break;
             case Stage::NodesPosition: NodesPosition(); break;
+            case Stage::GroupPositions: GroupPositions(); break;
             case Stage::Routes: Routes(); break;
             case Stage::TransformNodes: TransformNodes(); break;
+            case Stage::TransformGroups: TransformGroups(); break;
             case Stage::TransformEdges: TransformEdges(); break;
             case Stage::CardinalityCheck: CardinalityCheck(); break;
             case Stage::NormalizeNodes:
                 if (cursor == plan->nodes.size())
                 {
-                    Then(Stage::NormalizeEdges);
+                    Then(Stage::NormalizeGroups);
                     break;
                 }
                 Shift(plan->nodes[cursor].bounds, shift);
                 Shift(plan->nodes[cursor].label, shift);
+                ++cursor;
+                break;
+            case Stage::NormalizeGroups:
+                if (cursor == plan->groups.size())
+                {
+                    Then(Stage::NormalizeEdges);
+                    break;
+                }
+                Shift(plan->groups[cursor].bounds, shift);
+                Shift(plan->groups[cursor].label, shift);
                 ++cursor;
                 break;
             case Stage::NormalizeEdges:
@@ -580,7 +684,8 @@ void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
                                   std::span<const FlowchartSize> nodeLabels,
                                   std::span<const FlowchartSize> edgeLabels,
                                   std::span<const FlowchartSize> fromCardinalities,
-                                  std::span<const FlowchartSize> toCardinalities)
+                                  std::span<const FlowchartSize> toCardinalities,
+                                  std::span<const FlowchartSize> groupLabels)
 {
     if (! graph || graph->outcome != FlowchartOutcome::Prepared || graph->nodes.size() > NativeFlowchartParser::MaximumNodes ||
         graph->edges.size() > NativeFlowchartParser::MaximumEdges || nodeLabels.size() != graph->nodes.size() || edgeLabels.size() != graph->edges.size())
@@ -614,7 +719,12 @@ void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
     for (const auto& value : toCardinalities)
         if (! Valid(value))
             throw std::invalid_argument("Invalid target cardinality measurement");
-    auto next    = std::make_unique<Preparation>(std::move(graph), nodeLabels, edgeLabels, fromCardinalities, toCardinalities);
+    if (graph->groups.size() > 16u || groupLabels.size() != graph->groups.size())
+        throw std::invalid_argument("Invalid flowchart group measurements");
+    for (const auto& value : groupLabels)
+        if (! Valid(value))
+            throw std::invalid_argument("Invalid flowchart group label measurement");
+    auto next    = std::make_unique<Preparation>(std::move(graph), nodeLabels, edgeLabels, fromCardinalities, toCardinalities, groupLabels);
     preparation_ = std::move(next);
 }
 MarkdownAdvance NativeFlowchartLayout::Advance(std::size_t maximumWorkUnits)

@@ -614,6 +614,71 @@ template <typename Check> inline void CardinalityRaster(Check&& check)
     check(rejected->issue == FlowchartLayoutIssue::DiagramExtent && rejected->nodes.empty() && rejected->edges.empty(),
           "colliding endpoint labels fail without publishing partial geometry");
 }
+template <typename Check> inline void GroupRaster(Check&& check)
+{
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
+    const auto drawing = DrawingFactory();
+    const auto write = WriteFactory();
+    wil::com_ptr<IWICImagingFactory> imaging;
+    THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    for (const auto direction : {L"TD", L"BT", L"LR", L"RL"})
+    {
+        const auto source = std::wstring(L"graph ") + direction + L"\nsubgraph O[Outer]\nsubgraph I[Inner]\nA-->B\nend\nend\n";
+        const auto graph = FlowchartLayoutTests::Graph(source);
+        PreparedFlowchart prepared;
+        prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
+        Complete(prepared, check);
+        const auto geometry = prepared.Geometry();
+        check(prepared.Ready() && geometry && geometry->groups.size() == 2u, "nested groups prepare in all four orientations");
+        if (! geometry || geometry->groups.size() != 2u)
+            continue;
+        const auto outer = geometry->groups[0].bounds, inner = geometry->groups[1].bounds;
+        check(outer.x < inner.x && outer.y < inner.y && outer.x + outer.width > inner.x + inner.width &&
+                  outer.y + outer.height > inner.y + inner.height,
+              "outer group visibly contains the complete inner group");
+        constexpr UINT width = 600u, height = 300u, stride = width * 4u;
+        wil::com_ptr<IWICBitmap> bitmap;
+        THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+        wil::com_ptr<ID2D1RenderTarget> target;
+        const auto properties = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
+                                                               D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+        THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
+        target->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
+        wil::com_ptr<ID2D1SolidColorBrush> text, stroke, fill;
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}), "group fixture paints");
+        THROW_IF_FAILED(target->EndDraw());
+        std::vector<BYTE> pixels(stride * height);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+        for (const auto& group : geometry->groups)
+        {
+            std::size_t ink{};
+            const auto rect = group.label;
+            for (UINT y = static_cast<UINT>(rect.y); y < std::min(height, static_cast<UINT>(std::ceil(rect.y + rect.height))); ++y)
+                for (UINT x = static_cast<UINT>(rect.x); x < std::min(width, static_cast<UINT>(std::ceil(rect.x + rect.width))); ++x)
+                {
+                    const auto at = static_cast<std::size_t>(y) * stride + x * 4u;
+                    ink += pixels[at] < 80u && pixels[at + 1u] < 80u && pixels[at + 2u] < 80u;
+                }
+            check(ink != 0u, "every group title has visible text ink within its own measured bounds");
+        }
+    }
+    const auto crowded = FlowchartLayoutTests::Graph(L"graph TD\nsubgraph A[Extremely wide first group title]\nX\nend\n"
+                                                    L"subgraph B[Extremely wide second group title]\nY\nend\n");
+    PreparedFlowchart rejected;
+    rejected.Begin(write.get(), drawing.get(), crowded, {}, {1u, 1u});
+    Complete(rejected, check);
+    check(! rejected.Ready() && rejected.Geometry() && rejected.Geometry()->issue == FlowchartLayoutIssue::DiagramExtent &&
+              rejected.Geometry()->groups.empty(),
+          "overlapping unrelated groups fail without publishing partial geometry");
+}
 template <typename Check> inline void LineStyleRasterOracle(Check&& check)
 {
     wil::com_ptr<IWICImagingFactory> imaging;

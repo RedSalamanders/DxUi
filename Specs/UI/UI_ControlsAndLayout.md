@@ -1679,7 +1679,7 @@ YAML, `%%{...}%%` configuration, directives and other families are unsupported.
 
 An identifier is `[A-Za-z_][A-Za-z0-9_]*` with exact case-sensitive identity.
 `end`, `subgraph`, `direction`, `style`, `class`, `classDef`, `click`,
-`linkStyle` and `note` are reserved. A node is an identifier alone or followed by `[label]`
+`linkStyle` and `note` are reserved except for the bounded subgraph statements below. A node is an identifier alone or followed by `[label]`
 (rectangle), `(label)` (rounded), `((label))` (circle), `([label])` (stadium
 capsule), `{label}` (diamond), `{{label}}` (hexagon) or `[[label]]` (subroutine). Other expanded shape syntax is unsupported. An explicit declaration replaces the
 node's previous label/shape; a bare endpoint preserves it. Node order is first
@@ -2227,3 +2227,14 @@ relation reverses, are independently measured, painted beside those endpoints
 and included in the accessible graph alternative. If a cardinality label would
 overlap a node or another label, native geometry fails closed and the editor
 retains the original source with its geometry diagnostic.
+
+Flowcharts admit up to 16 `subgraph ID` or `subgraph ID[title]` containers,
+nested at most four levels and closed by `end`. Each requires at least one node;
+IDs and titles obey the existing bounded identifier and label grammar. Nodes
+referenced inside a group belong to that group and its ancestors; sibling group
+membership conflicts, group endpoints, local `direction`, empty or unclosed
+containers retain exact source with a diagnostic. Group titles and containment
+are exposed in the accessible graph alternative. Native geometry measures titles,
+paints nested containers and fails closed when unrelated groups, nodes or labels
+cannot fit without overlap. This is a limited flowchart subset, not unrestricted
+Mermaid subgraph compatibility.

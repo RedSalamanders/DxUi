@@ -281,7 +281,7 @@ inline constexpr Scenario scenarios[] = {
     {L"graph TD;A-->|yes%%keep|B", {}, {}, 2u, 1u, {}, L"A"},
     {L"graph TD;A--- ops;A--- xB", {}, {}, 3u, 2u, {}, L"A"},
     {L"sequenceDiagram\nA->>B: hello\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedFamily},
-    {L"flowchart TD\nsubgraph G\nA --> B\nend\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement},
+    {L"flowchart TD\nsubgraph G\nA --> B\nend\n", {}, {}, 2u, 1u, {}, L"A"},
     {L"flowchart TD\nA --> B\nstyle A fill:red\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement},
     {L"flowchart TD\nA --> B\nclick A \"https://example.invalid\"\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement},
     {L"%%{init: {}}%%\nflowchart TD\nA --> B\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedConfiguration},
@@ -436,7 +436,7 @@ template <typename Check> inline void CheckOriginalCorpus(Check&& check)
                       result->diagnostic.source.first < result->diagnostic.source.last && result->diagnostic.source.last <= result->source.size(),
                   "unsupported original family examples retain their independently classified diagnostic and exact source fallback");
     }
-    check(prepared == 30u && unsupported == 75u && std::size(NativeFlowchartCorpus::familyExamples) == 20u,
+    check(prepared == 32u && unsupported == 73u && std::size(NativeFlowchartCorpus::familyExamples) == 20u,
           "Mermaid corpus has no omitted examples/families and separates graph preparation from rejection");
     CheckFamilyGrammar(check);
     CheckFanout(check);
@@ -565,8 +565,22 @@ inline constexpr FamilyGrammarExpectation familyGrammarExpectations[] = {
 template <typename Check> inline void CheckFamilyGrammar(Check&& check)
 {
     NativeFlowchartParser parser;
-    for (const auto& [source, from, to] :
-         {std::tuple{L"classDiagram\nInterface <|.. Implementation\n", 1u, 0u}, std::tuple{L"classDiagram\nImplementation ..|> Interface\n", 0u, 1u}})
+    parser.Begin(L"flowchart TD\nsubgraph O[Outer]\nsubgraph I[Inner]\nA-->B\nend\nend\n", 1u);
+    const auto nestedGroups = Complete(parser);
+    check(nestedGroups->outcome == FlowchartOutcome::Prepared && nestedGroups->groups.size() == 2u && nestedGroups->nodes.size() == 2u &&
+              nestedGroups->groups[0].title == L"Outer" && nestedGroups->groups[1].title == L"Inner" &&
+              nestedGroups->groups[1].parentMask == 1u && nestedGroups->nodes[0].groupMask == 3u && nestedGroups->nodes[1].groupMask == 3u,
+          "nested group titles and source membership retain their parent relationship");
+    for (const auto source : {L"graph TD\nsubgraph G\nA\n", L"graph TD\nsubgraph A\nend\n",
+                              L"graph TD\nsubgraph A\nX\nend\nsubgraph B\nX\nend\n"})
+    {
+        parser.Begin(source, 1u);
+        const auto rejected = Complete(parser);
+        check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == source && rejected->nodes.empty() && rejected->groups.empty(),
+              "unclosed, empty and conflicting groups preserve exact source without a partial graph");
+    }
+    for (const auto& [source, from, to] : {std::tuple{L"classDiagram\nInterface <|.. Implementation\n", 1u, 0u},
+                                           std::tuple{L"classDiagram\nImplementation ..|> Interface\n", 0u, 1u}})
     {
         parser.Begin(source, 1u);
         const auto model = Complete(parser);

@@ -217,7 +217,7 @@ using an explicit document location:
 The native extension engine choice is C++ only. `DxUiNativeFlowchart1` currently
 has an internal CPU parser with focused Debug checks for rectangles, rounded nodes, circles,
 diamonds, stadiums, hexagons and subroutines, four directions and bounded solid, dotted, thick and invisible edge chains. Simple state and class profiles are also available; other Mermaid families,
-other expanded shapes/edges, subgraphs, styling, icons and executable directives remain
+other expanded shapes/edges, advanced subgraph forms, styling, icons and executable directives remain
 unsupported. The pinned original corpus distinguishes accepted graphs from
 rejected definitions. Source-independent cooperative CPU geometry passes focused
 x64 Debug checks, with stable ranks, four orientations, direct unambiguous adjacent
@@ -1464,3 +1464,14 @@ relation reverses, are independently measured, painted beside those endpoints
 and included in the accessible graph alternative. If a cardinality label would
 overlap a node or another label, native geometry fails closed and the editor
 retains the original source with its geometry diagnostic.
+
+Flowcharts admit up to 16 `subgraph ID` or `subgraph ID[title]` containers,
+nested at most four levels and closed by `end`. Each requires at least one node;
+IDs and titles obey the existing bounded identifier and label grammar. Nodes
+referenced inside a group belong to that group and its ancestors; sibling group
+membership conflicts, group endpoints, local `direction`, empty or unclosed
+containers retain exact source with a diagnostic. Group titles and containment
+are exposed in the accessible graph alternative. Native geometry measures titles,
+paints nested containers and fails closed when unrelated groups, nodes or labels
+cannot fit without overlap. This is a limited flowchart subset, not unrestricted
+Mermaid subgraph compatibility.

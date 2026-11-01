@@ -126,6 +126,12 @@ template <typename Check> inline void Core(Check&& check)
         check(diagrams.size() == 1u && doc->Elements()[diagrams.front().element].name.find(L"A [1] \u2192 B [0..*]") != std::wstring::npos,
               "class cardinalities remain attached to the correct accessible endpoints");
     }
+    {
+        const auto doc = Build(L"```mermaid\ngraph TD\nsubgraph O[Outer]\nsubgraph I[Inner]\nA-->B\nend\nend\n```", check);
+        const auto diagrams = SemanticExtensionAccess::Diagrams(*doc);
+        check(diagrams.size() == 1u && doc->Elements()[diagrams.front().element].name.find(L"Groups: Outer: A; B; Inner: A; B;") != std::wstring::npos,
+              "nested group titles and memberships occur in the accessible graph alternative");
+    }
     for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029})
     {
         const auto doc = Build(scenarios[0u].source, check, profile);

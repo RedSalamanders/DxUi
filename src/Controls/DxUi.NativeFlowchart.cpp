@@ -37,6 +37,8 @@ struct NativeFlowchartParser::Preparation
     std::array<bool, MaximumNodes> stateDescriptions{};
     std::array<bool, MaximumNodes> classAnnotations{};
     std::array<std::uint8_t, MaximumNodes> pseudoKinds{};
+    std::array<std::size_t, 4u> groupStack{};
+    std::size_t groupDepth{};
     bool quote{}, escaped{}, pipe{}, comment{}, header{}, done{}, classBlock{}, titleSeen{}, descriptionSeen{}, descriptionBlock{}, descriptionHasLine{};
     explicit Preparation(std::wstring_view source, std::uint64_t revision) : model(std::make_shared<FlowchartModel>(source, revision))
     {
@@ -53,6 +55,7 @@ struct NativeFlowchartParser::Preparation
         model->diagnostic = {issue, source};
         model->nodes.clear();
         model->edges.clear();
+        model->groups.clear();
         model->accessibleTitle.clear();
         model->accessibleDescription.clear();
         done = true;
@@ -310,6 +313,9 @@ struct NativeFlowchartParser::Preparation
             ++at;
         const auto idEnd = at;
         const auto id    = Text().substr(start, idEnd - start);
+        for (const auto& group : model->groups)
+            if (group.key == id)
+                return Error(FlowchartIssue::UnsupportedStatement, start, idEnd, FlowchartOutcome::Unsupported);
         if (id.size() > MaximumIdentifierUnits)
             return Error(FlowchartIssue::IdentifierCapacity, start, idEnd, FlowchartOutcome::Capacity);
         for (const auto reserved : {L"end",
@@ -408,6 +414,13 @@ struct NativeFlowchartParser::Preparation
             node.shape       = candidate.shape;
             node.declaration = candidate.declaration;
         }
+        std::uint16_t activeGroups{};
+        for (std::size_t depthIndex = 0u; depthIndex < groupDepth; ++depthIndex)
+            activeGroups |= static_cast<std::uint16_t>(1u << groupStack[depthIndex]);
+        auto& membership = model->nodes[index].groupMask;
+        if (activeGroups && membership && (activeGroups & membership) != activeGroups && (activeGroups & membership) != membership)
+            return Error(FlowchartIssue::UnsupportedStatement, start, idEnd, FlowchartOutcome::Unsupported);
+        membership |= activeGroups;
         return true;
     }
     bool NodeGroup(std::size_t& at, std::size_t end, std::vector<std::size_t>& group, bool target = false)
@@ -485,6 +498,62 @@ struct NativeFlowchartParser::Preparation
             return DescriptionLine(at, end);
         }
         const auto statement = Text().substr(at, end - at);
+        if (model->family == NativeDiagramFamily::Flowchart && statement == L"end")
+        {
+            if (! groupDepth)
+                return Error(FlowchartIssue::UnsupportedStatement, at, end, FlowchartOutcome::Unsupported);
+            const auto groupIndex = groupStack[groupDepth - 1u];
+            bool hasNode{};
+            for (const auto& node : model->nodes)
+                hasNode = hasNode || (node.groupMask & static_cast<std::uint16_t>(1u << groupIndex));
+            if (! hasNode)
+                return Error(FlowchartIssue::UnsupportedStatement, at, end, FlowchartOutcome::Unsupported);
+            model->groups[groupIndex].source.last = end;
+            --groupDepth;
+            return true;
+        }
+        if (model->family == NativeDiagramFamily::Flowchart && statement.starts_with(L"subgraph") && statement.size() > 8u && Space(statement[8u]))
+        {
+            if (groupDepth == groupStack.size() || model->groups.size() == 16u)
+                return Error(FlowchartIssue::NodeCapacity, at, end, FlowchartOutcome::Capacity);
+            const auto groupStart = at;
+            at += 8u;
+            Skip(at, end);
+            const auto keyStart = at;
+            if (at == end || ! Letter(Text()[at]))
+                return Error(FlowchartIssue::InvalidIdentifier, at, end);
+            while (at < end && (Letter(Text()[at]) || (Text()[at] >= L'0' && Text()[at] <= L'9') || Text()[at] == L'_'))
+                ++at;
+            if (at - keyStart > MaximumIdentifierUnits)
+                return Error(FlowchartIssue::IdentifierCapacity, keyStart, at, FlowchartOutcome::Capacity);
+            const auto key = Text().substr(keyStart, at - keyStart);
+            for (const auto& group : model->groups)
+                if (group.key == key)
+                    return Error(FlowchartIssue::UnsupportedStatement, keyStart, at, FlowchartOutcome::Unsupported);
+            for (const auto& node : model->nodes)
+                if (node.key == key)
+                    return Error(FlowchartIssue::UnsupportedStatement, keyStart, at, FlowchartOutcome::Unsupported);
+            FlowchartGroup group;
+            group.key.assign(key);
+            group.source.first = groupStart;
+            for (std::size_t depthIndex = 0u; depthIndex < groupDepth; ++depthIndex)
+                group.parentMask |= static_cast<std::uint16_t>(1u << groupStack[depthIndex]);
+            Skip(at, end);
+            if (at < end && Text()[at] == L'[')
+            {
+                ++at;
+                if (! Label(at, end, L']', group.title))
+                    return false;
+                Skip(at, end);
+            }
+            else
+                group.title.assign(key);
+            if (at != end || group.title.empty())
+                return Error(FlowchartIssue::UnsupportedStatement, groupStart, end, FlowchartOutcome::Unsupported);
+            groupStack[groupDepth++] = model->groups.size();
+            model->groups.push_back(group);
+            return true;
+        }
         if (! classBlock && (statement == L"accDescr {" || statement == L"accDescr{"))
         {
             if (descriptionSeen)
@@ -923,9 +992,10 @@ struct NativeFlowchartParser::Preparation
         {
             if (! comment && ! Statement(scan))
                 return;
-            if (classBlock || descriptionBlock)
+            if (classBlock || descriptionBlock || groupDepth)
             {
-                Error(FlowchartIssue::UnexpectedToken, descriptionBlock ? descriptionBlockStart : classBlockStart, scan);
+                const auto start = descriptionBlock ? descriptionBlockStart : classBlock ? classBlockStart : model->groups[groupStack[groupDepth - 1u]].source.first;
+                Error(FlowchartIssue::UnexpectedToken, start, scan);
                 return;
             }
             if (! header)

@@ -112,6 +112,7 @@ struct SemanticBuilder::Preparation
         {
             Parse,
             Nodes,
+            Groups,
             Edges,
             Publish
         } phase{};
@@ -756,7 +757,7 @@ struct SemanticBuilder::Preparation
                 RejectDiagram(SemanticDiagnosticKind::EmptyDiagram, node.block.content, L"Empty flowchart. Source is preserved.");
                 return;
             }
-            if (graph.nodes.size() + graph.edges.size() > Detail::SemanticExtensions::MaximumRecords - Extensions().records)
+            if (graph.nodes.size() + graph.edges.size() + graph.groups.size() > Detail::SemanticExtensions::MaximumRecords - Extensions().records)
             {
                 RejectDiagram(SemanticDiagnosticKind::DiagramCapacity, node.block.source, L"Native object capacity exceeded. Source is preserved.");
                 return;
@@ -786,14 +787,33 @@ struct SemanticBuilder::Preparation
         {
             if (work.cursor == graph.nodes.size())
             {
-                if (! DiagramAlternative({L" Connections: "}))
+                if (! DiagramAlternative({graph.groups.empty() ? L" Connections: " : L" Groups: "}))
                     return;
                 work.cursor = 0u;
-                work.phase  = Phase::Edges;
+                work.phase  = graph.groups.empty() ? Phase::Edges : Phase::Groups;
                 return;
             }
             const auto index = work.cursor++;
             DiagramAlternative({id(index), L" = ", graph.nodes[index].label, L"; "});
+            return;
+        }
+        if (work.phase == Phase::Groups)
+        {
+            if (work.cursor == graph.groups.size())
+            {
+                if (! DiagramAlternative({L" Connections: "}))
+                    return;
+                work.cursor = 0u;
+                work.phase = Phase::Edges;
+                return;
+            }
+            const auto index = work.cursor++;
+            if (! DiagramAlternative({graph.groups[index].title, L": "}))
+                return;
+            const auto mask = static_cast<std::uint16_t>(1u << index);
+            for (std::size_t member = 0u; member < graph.nodes.size(); ++member)
+                if ((graph.nodes[member].groupMask & mask) && ! DiagramAlternative({id(member), L"; "}))
+                    return;
             return;
         }
         if (work.phase == Phase::Edges)
@@ -838,12 +858,12 @@ struct SemanticBuilder::Preparation
         result.graph   = work.graph;
         result.bodyUnits.assign(normalized.units.begin(), normalized.units.end());
         result.sourceEnd = node.block.content.last;
-        extensions.records += graph.nodes.size() + graph.edges.size();
-        auto& element = document->elements_[work.visit.element];
-        element.role  = SemanticRole::Diagram;
-        element.title = graph.family == Detail::NativeDiagramFamily::State   ? L"State diagram. Source is available as document text."
-                        : graph.family == Detail::NativeDiagramFamily::Class ? L"Class diagram. Source is available as document text."
-                                                                             : L"Flowchart. Source is available as document text.";
+        extensions.records += graph.nodes.size() + graph.edges.size() + graph.groups.size();
+        auto& element  = document->elements_[work.visit.element];
+        element.role   = SemanticRole::Diagram;
+        element.title  = graph.family == Detail::NativeDiagramFamily::State   ? L"State diagram. Source is available as document text."
+                         : graph.family == Detail::NativeDiagramFamily::Class ? L"Class diagram. Source is available as document text."
+                                                                              : L"Flowchart. Source is available as document text.";
         if (! graph.accessibleTitle.empty())
         {
             if (graph.accessibleDescription.empty())

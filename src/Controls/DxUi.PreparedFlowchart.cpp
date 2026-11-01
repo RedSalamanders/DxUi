@@ -67,10 +67,12 @@ struct PreparedFlowchart::State
           edgeLabels(graph->edges.size()),
           fromCardinalities(hasCardinality ? graph->edges.size() : 0u),
           toCardinalities(hasCardinality ? graph->edges.size() : 0u),
+          groupLabels(graph->groups.size()),
           nodeSizes(graph->nodes.size()),
           edgeSizes(graph->edges.size()),
           fromCardinalitySizes(hasCardinality ? graph->edges.size() : 0u),
           toCardinalitySizes(hasCardinality ? graph->edges.size() : 0u),
+          groupSizes(graph->groups.size()),
           nodePaths(graph->nodes.size()),
           arrowPaths(graph->edges.size())
     {
@@ -83,8 +85,8 @@ struct PreparedFlowchart::State
     bool hasCardinality{};
     wil::com_ptr<IDWriteTextFormat> format;
     wil::com_ptr<ID2D1StrokeStyle> dottedStyle;
-    std::vector<FlowchartLabel> nodeLabels, edgeLabels, fromCardinalities, toCardinalities;
-    std::vector<FlowchartSize> nodeSizes, edgeSizes, fromCardinalitySizes, toCardinalitySizes;
+    std::vector<FlowchartLabel> nodeLabels, edgeLabels, fromCardinalities, toCardinalities, groupLabels;
+    std::vector<FlowchartSize> nodeSizes, edgeSizes, fromCardinalitySizes, toCardinalitySizes, groupSizes;
     std::vector<wil::com_ptr<ID2D1PathGeometry>> nodePaths, arrowPaths;
     std::shared_ptr<const FlowchartLayoutPlan> geometry;
     bool labelCapacity{};
@@ -168,6 +170,7 @@ struct PreparedFlowchart::Preparation
     {
         Format,
         Labels,
+        GroupLabels,
         BeginGeometry,
         Geometry,
         NodePaths,
@@ -194,19 +197,29 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
                                                  FlowchartResourceEpoch resourceEpoch)
 {
     if (! write || ! drawing || ! graph || graph->outcome != FlowchartOutcome::Prepared || graph->nodes.size() > NativeFlowchartParser::MaximumNodes ||
-        graph->edges.size() > NativeFlowchartParser::MaximumEdges || graph->source.size() > NativeFlowchartParser::MaximumSourceUnits ||
+        graph->edges.size() > NativeFlowchartParser::MaximumEdges || graph->groups.size() > 16u || graph->source.size() > NativeFlowchartParser::MaximumSourceUnits ||
         ! std::isfinite(typography.fontSizeDip) || typography.fontSizeDip <= 0.0f || typography.fontSizeDip > 512.0f || typography.fontFamily.size() > 1024u ||
         typography.locale.size() > 1024u ||
         (typography.readingDirection != DWRITE_READING_DIRECTION_LEFT_TO_RIGHT && typography.readingDirection != DWRITE_READING_DIRECTION_RIGHT_TO_LEFT))
         throw std::invalid_argument("Invalid native flowchart preparation admission");
     if (graph->direction < FlowchartDirection::TopBottom || graph->direction > FlowchartDirection::RightLeft)
         throw std::invalid_argument("Invalid native flowchart direction");
+    if (! graph->groups.empty() && graph->family != NativeDiagramFamily::Flowchart)
+        throw std::invalid_argument("Groups require the flowchart profile");
+    for (std::size_t index = 0u; index < graph->groups.size(); ++index)
+        if (graph->groups[index].title.empty() || graph->groups[index].title.size() > NativeFlowchartParser::MaximumLabelUnits ||
+            graph->groups[index].parentMask >= (1u << index))
+            throw std::invalid_argument("Invalid flowchart group");
     for (const auto& node : graph->nodes)
     {
-        if (node.label.size() > NativeFlowchartParser::MaximumLabelUnits || node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Subroutine)
+        if (node.label.size() > NativeFlowchartParser::MaximumLabelUnits || node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Subroutine ||
+            node.groupMask >= (1u << graph->groups.size()))
             throw std::invalid_argument("Invalid flowchart node label/shape");
         if (node.compartmentCount > node.compartmentStarts.size() || (node.compartmentCount && graph->family != NativeDiagramFamily::Class))
             throw std::invalid_argument("Invalid class compartment count");
+        for (std::size_t group = 0u; group < graph->groups.size(); ++group)
+            if ((node.groupMask & (1u << group)) && (node.groupMask & graph->groups[group].parentMask) != graph->groups[group].parentMask)
+                throw std::invalid_argument("Invalid nested group membership");
         for (std::size_t index = 0u; index < node.compartmentCount; ++index)
             if (! node.compartmentStarts[index] || node.compartmentStarts[index] >= node.label.size() ||
                 node.label[node.compartmentStarts[index] - 1u] != L'\n' ||
@@ -254,7 +267,8 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                     const auto edges = state.graph->edges.size();
                     if (work.cursor == nodes + (state.hasCardinality ? 3u : 1u) * edges)
                     {
-                        work.stage = Preparation::Stage::BeginGeometry;
+                        work.cursor = 0u;
+                        work.stage = Preparation::Stage::GroupLabels;
                         break;
                     }
                     const auto node = work.cursor < nodes;
@@ -295,6 +309,18 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                     ++work.cursor;
                     break;
                 }
+                case Preparation::Stage::GroupLabels:
+                    if (work.cursor == state.graph->groups.size())
+                    {
+                        work.stage = Preparation::Stage::BeginGeometry;
+                        break;
+                    }
+                    if (result.layoutsPrepared == budget.maximumLayouts)
+                        return result;
+                    ++result.layoutsPrepared;
+                    state.Label(state.graph->groups[work.cursor].title, state.groupLabels[work.cursor], state.groupSizes[work.cursor]);
+                    ++work.cursor;
+                    break;
                 case Preparation::Stage::BeginGeometry:
                     if (state.labelCapacity)
                     {
@@ -304,7 +330,7 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                         work.stage      = Preparation::Stage::Publish;
                         break;
                     }
-                    work.layout.Begin(state.graph, state.nodeSizes, state.edgeSizes, state.fromCardinalitySizes, state.toCardinalitySizes);
+                    work.layout.Begin(state.graph, state.nodeSizes, state.edgeSizes, state.fromCardinalitySizes, state.toCardinalitySizes, state.groupSizes);
                     work.stage = Preparation::Stage::Geometry;
                     break;
                 case Preparation::Stage::Geometry:
@@ -429,6 +455,11 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
                                    text,
                                    D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
     };
+    for (const auto& group : plan.groups)
+    {
+        target->FillRectangle(Rect(group.bounds), fill);
+        target->DrawRectangle(Rect(group.bounds), stroke);
+    }
     for (std::size_t index = 0u; index < plan.edges.size(); ++index)
     {
         const auto& edge = plan.edges[index];
@@ -451,6 +482,11 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
             else
                 target->FillGeometry(state.arrowPaths[index].get(), stroke);
         }
+    }
+    for (std::size_t index = 0u; index < plan.groups.size(); ++index)
+    {
+        target->FillRectangle(Rect(plan.groups[index].label), fill);
+        label(state.groupLabels[index], plan.groups[index].label);
     }
     for (std::size_t index = 0u; index < plan.nodes.size(); ++index)
     {
