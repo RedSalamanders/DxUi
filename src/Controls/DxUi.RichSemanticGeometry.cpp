@@ -1,4 +1,5 @@
 #include "DxUi.RichSemanticGeometry.h"
+#include "DxUi.PreparedLayoutAccess.h"
 #include "DxUi.PreparedMath.h"
 #include "DxUi.RichImageResources.h"
 #include "DxUi.SemanticExtensions.h"
@@ -389,21 +390,11 @@ float AddHeight(float y, float height)
     return next;
 }
 #pragma warning(pop)
-void IdentityProjection(const SemanticDocument& document, MarkdownRange range, Projection& projection)
+void SemanticDisplayInput(const SemanticDocument& document, MarkdownRange range, PreparedLayoutAccess::SemanticInput& projection)
 {
     const auto text     = document.Map().Display().substr(range.first, range.last - range.first);
-    projection.mode     = ViewMode::Source; // Private display identity, never raw model ACPs.
     projection.revision = document.Syntax()->Revision();
-    projection.source.assign(text);
     projection.text.assign(text);
-    projection.sourceToDisplay.resize(text.size() + 1u);
-    projection.units.resize(text.size());
-    for (std::size_t i = 0u; i <= text.size(); ++i)
-    {
-        projection.sourceToDisplay[i] = i;
-        if (i < text.size())
-            projection.units[i] = {i, i + 1u};
-    }
     const auto runs  = document.Runs();
     const auto first = std::lower_bound(runs.begin(), runs.end(), range.first, [](const auto& run, auto offset) { return run.start + run.length <= offset; });
     for (auto run = first; run != runs.end() && run->start < range.last; ++run)
@@ -781,12 +772,10 @@ struct PreparedSemanticGeometry::Preparation
     {
         // Only native-height opt-in calls need an SDK measurement. Uniform
         // body heights are known from the same public size/multiplier policy.
-        Projection projection{
-            std::wstring(0u, L' '), std::wstring(0u, L' '), std::vector<std::size_t>(1u, 0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)};
-        projection.mode = ViewMode::Source;
+        PreparedLayoutAccess::SemanticInput projection;
         PreparedLayout line;
-        line.PrepareSemanticOwned(state->factory.get(), projection, state->options);
-        const auto metrics = line.LineMetrics();
+        PreparedLayoutAccess::PrepareSemantic(line, state->factory.get(), projection, state->options);
+        const auto metrics = PreparedLayoutAccess::LineMetrics(line);
         if (metrics.empty())
             throw std::logic_error("Empty body layout has no native line metrics");
         SetBodyLineHeight(metrics.front().height);
@@ -935,9 +924,8 @@ struct PreparedSemanticGeometry::Preparation
         // cached metrics retain the natural advance even for an unusual font.
         options.widthDip      = std::max(options.widthDip, options.fontSizeDip * 32.0f);
         options.textAlignment = DWRITE_TEXT_ALIGNMENT_LEADING;
-        Projection projection{
-            std::wstring(0u, L' '), std::wstring(0u, L' '), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)};
-        IdentityProjection(*state->document, box->paragraph.display, projection);
+        PreparedLayoutAccess::SemanticInput projection;
+        SemanticDisplayInput(*state->document, box->paragraph.display, projection);
         bool reused      = false;
         const auto& node = state->document->Syntax()->Nodes()[content.syntaxNode];
         if (previousState && node.identity != 0u)
@@ -968,8 +956,8 @@ struct PreparedSemanticGeometry::Preparation
             }
         }
         if (! reused)
-            box->layout.PrepareSemanticOwned(state->factory.get(), projection, options, true);
-        const auto width = box->layout.HorizontalTextBounds().second;
+            PreparedLayoutAccess::PrepareSemantic(box->layout, state->factory.get(), projection, options, true);
+        const auto width = PreparedLayoutAccess::HorizontalTextBounds(box->layout).second;
         if (! std::isfinite(width) || width < 0.0f)
             throw std::overflow_error("Nonfinite semantic marker width");
         const auto list = state->document->Syntax()->Nodes()[content.markerOwner].parent;
@@ -1034,14 +1022,13 @@ struct PreparedSemanticGeometry::Preparation
         LayoutOptions options = state->options;
         options.widthDip      = std::max(state->options.widthDip, 1048576.0f);
         options.textAlignment = DWRITE_TEXT_ALIGNMENT_LEADING;
-        Projection projection{
-            std::wstring(0u, L' '), std::wstring(0u, L' '), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)};
-        IdentityProjection(*state->document, content.display, projection);
+        PreparedLayoutAccess::SemanticInput projection;
+        SemanticDisplayInput(*state->document, content.display, projection);
         PreparedLayout measured;
-        measured.PrepareSemanticOwned(state->factory.get(), projection, options, true);
-        const auto textBounds         = measured.HorizontalTextBounds();
+        PreparedLayoutAccess::PrepareSemantic(measured, state->factory.get(), projection, options, true);
+        const auto textBounds         = PreparedLayoutAccess::HorizontalTextBounds(measured);
         float textWidth               = std::max(0.0f, textBounds.second);
-        float minimumWidth            = measured.MinimumTextWidth();
+        float minimumWidth            = PreparedLayoutAccess::MinimumTextWidth(measured);
         const auto includeObjectWidth = [&](MarkdownRange object, float objectWidth)
         {
             if (object.first < content.display.first || object.last > content.display.last || object.first >= object.last)
@@ -1344,9 +1331,8 @@ struct PreparedSemanticGeometry::Preparation
         }
         if (! box->layout.Ready())
         {
-            Projection projection{
-                std::wstring(0u, L' '), std::wstring(0u, L' '), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)};
-            IdentityProjection(*next.document, content.display, projection);
+            PreparedLayoutAccess::SemanticInput projection;
+            SemanticDisplayInput(*next.document, content.display, projection);
             wil::com_ptr<IDWriteInlineObject> placeholder;
             if (native)
             {
@@ -1369,7 +1355,7 @@ struct PreparedSemanticGeometry::Preparation
             const auto objectOffset = native ? static_cast<UINT32>(native->display - content.display.first) : 0u;
             struct ImageInlines
             {
-                std::array<PreparedLayout::SemanticInlineObject, RichImageResources::MaximumPlacements> ranges{};
+                std::array<PreparedLayoutAccess::InlineObject, RichImageResources::MaximumPlacements> ranges{};
                 std::array<wil::com_ptr<IDWriteInlineObject>, RichImageResources::MaximumPlacements> objects{};
                 std::size_t count{};
             };
@@ -1398,7 +1384,7 @@ struct PreparedSemanticGeometry::Preparation
                           [](const auto& a, const auto& b) { return a.first < b.first; });
             }
             const auto imageRanges =
-                imageInlines ? std::span(imageInlines->ranges.data(), imageInlines->count) : std::span<PreparedLayout::SemanticInlineObject>{};
+                imageInlines ? std::span(imageInlines->ranges.data(), imageInlines->count) : std::span<PreparedLayoutAccess::InlineObject>{};
             if (previousState && node.identity != 0u && ! caretOnly && ! marker)
             {
                 const auto range = reusable.equal_range(node.identity);
@@ -1489,7 +1475,8 @@ struct PreparedSemanticGeometry::Preparation
             }
             if (! box->layout.Ready())
             {
-                box->layout.PrepareSemanticOwned(next.factory.get(), projection, options, false, placeholder.get(), objectOffset, imageRanges);
+                PreparedLayoutAccess::PrepareSemantic(
+                    box->layout, next.factory.get(), projection, options, false, placeholder.get(), objectOffset, imageRanges);
                 lastLayoutCalls = 1u;
                 if (emptySite)
                 {
@@ -1512,7 +1499,7 @@ struct PreparedSemanticGeometry::Preparation
                         std::size_t lineStart{};
                         float lineTop{};
                         bool located{};
-                        for (const auto& line : box->layout.LineMetrics())
+                        for (const auto& line : PreparedLayoutAccess::LineMetrics(box->layout))
                         {
                             if (local < lineStart + line.length)
                             {
@@ -1565,7 +1552,7 @@ struct PreparedSemanticGeometry::Preparation
                     }
             if (native)
             {
-                const auto textBounds = box->layout.HorizontalTextBounds();
+                const auto textBounds = PreparedLayoutAccess::HorizontalTextBounds(box->layout);
                 if (textBounds.second > options.widthDip + 0.01f)
                     next.Reject(native->element);
                 const auto rectangles = box->layout.Range(objectOffset, objectOffset + 1u);
@@ -1610,7 +1597,7 @@ struct PreparedSemanticGeometry::Preparation
         float bottom = box->frame.bottom;
         if (content.markerOwner != MarkdownNoNode && ! split && consumeParagraph)
         {
-            const auto [left, width] = box->layout.HorizontalTextBounds();
+            const auto [left, width] = PreparedLayoutAccess::HorizontalTextBounds(box->layout);
             const auto actualLeft    = rtl ? next.options.widthDip - indent : indent - width;
             box->x                   = actualLeft - left;
             box->width               = width;
@@ -1621,8 +1608,8 @@ struct PreparedSemanticGeometry::Preparation
             // Two real layouts share one first baseline. The marker column is
             // measured once per list, so 9./10., tasks and continuation leaves
             // agree on the same text edge in either reading direction.
-            const auto [left, width] = marker->layout.HorizontalTextBounds();
-            const auto markerLines = marker->layout.LineMetrics(), bodyLines = box->layout.LineMetrics();
+            const auto [left, width] = PreparedLayoutAccess::HorizontalTextBounds(marker->layout);
+            const auto markerLines = PreparedLayoutAccess::LineMetrics(marker->layout), bodyLines = PreparedLayoutAccess::LineMetrics(box->layout);
             const float markerBaseline = markerLines.empty() ? 0.0f : markerLines.front().baseline;
             const float bodyBaseline   = bodyLines.empty() ? 0.0f : bodyLines.front().baseline;
             const float baseline       = std::max(markerBaseline, bodyBaseline);
@@ -2121,7 +2108,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                     continue;
                 }
                 const auto& box  = *boxes[work.codeNumberBox];
-                const auto lines = box.layout.LineMetrics();
+                const auto lines = PreparedLayoutAccess::LineMetrics(box.layout);
                 if (box.codeGutter == 0.0f || lines.size() > 4096u || work.codeNumberLine == lines.size() || work.state->codeNumbers.size() == 4096u)
                 {
                     ++work.codeNumberBox;
@@ -2438,7 +2425,7 @@ SourceCaretHit PreparedSemanticGeometry::AdjacentSourceLine(std::size_t source, 
         const auto& box     = *state.boxes[boxIndex];
         if (box.markerOnly)
             continue;
-        const auto lines = box.layout.LineMetrics();
+        const auto lines = PreparedLayoutAccess::LineMetrics(box.layout);
         float lineY      = box.y;
         for (const auto& line : lines)
         {

@@ -953,6 +953,8 @@ origin, preserving its mixed-font caret and color-font behavior. Reuse requires
 the same vertical origin; a height-changing edit rebuilds dependent suffixes and
 reports all that work. An inexact synthetic line or an empty displayed suffix
 retains canonical whole geometry, including terminal-font behavior.
+Private semantic DirectWrite preparation consumes bounded display text and runs without fabricating source identity arrays; public Projection preparation retains its strict source mapping validation. Semantic staging remains transactional, and matching public headers and library builds remain required.
+
 Whole-layout preparation/reuse/source units are reported separately and cannot be
 credited as bounded incremental work. Original height/raster failures remain
 retained. All three x64 profiles pass geometry and 108 exact WARP pairs each,

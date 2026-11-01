@@ -13,8 +13,8 @@ namespace DxUi::RichText
 {
 namespace Detail
 {
-class PreparedSemanticGeometry;
-}
+struct PreparedLayoutAccess;
+} // namespace Detail
 struct LayoutOptions
 {
     float widthDip             = 1.0f;
@@ -140,34 +140,11 @@ public:
 
 private:
     friend class PreparedDocumentLayout;
-    friend class Detail::PreparedSemanticGeometry;
+    friend struct Detail::PreparedLayoutAccess;
     std::pair<float, float> DrawingVerticalBounds() const;
     std::pair<float, float> HorizontalTextBounds() const;
-    float MinimumTextWidth() const;
     std::span<const DWRITE_LINE_METRICS> LineMetrics() const;
-    struct SemanticInlineObject
-    {
-        IDWriteInlineObject* object{};
-        UINT32 first{}, length{};
-    };
-    void PrepareOwned(IDWriteFactory* factory,
-                      Projection& projection,
-                      const LayoutOptions& options,
-                      float verticalOrigin                          = 0.0f,
-                      bool semanticDisplay                          = false,
-                      bool marker                                   = false,
-                      IDWriteInlineObject* object                   = nullptr,
-                      UINT32 objectOffset                           = 0u,
-                      std::span<const SemanticInlineObject> objects = {});
-    // Private identity layout for already bounded semantic display, not a model
-    // capacity increase or a replacement for its nonmonotonic document map.
-    void PrepareSemanticOwned(IDWriteFactory* factory,
-                              Projection& projection,
-                              const LayoutOptions& options,
-                              bool marker                                   = false,
-                              IDWriteInlineObject* object                   = nullptr,
-                              UINT32 objectOffset                           = 0u,
-                              std::span<const SemanticInlineObject> objects = {});
+    void PrepareOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, float verticalOrigin = 0.0f);
     float VerticalOrigin() const noexcept;
     bool PositionedExactly() const noexcept;
     struct State;

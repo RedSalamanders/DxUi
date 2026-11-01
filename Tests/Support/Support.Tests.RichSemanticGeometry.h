@@ -1,4 +1,5 @@
 #pragma once
+#include "Controls/DxUi.PreparedLayoutAccess.h"
 #include "Controls/DxUi.PreparedMath.h"
 #include "Controls/DxUi.RichSemanticGeometry.h"
 #include "Support.Tests.RichSemanticDocument.h"
@@ -772,6 +773,28 @@ inline void ParagraphsTablesAndSourceRanges()
 }
 inline void PaddedCodePresentation()
 {
+    {
+        using Access     = DxUi::RichText::Detail::PreparedLayoutAccess;
+        const auto write = Factory();
+        PreparedLayout layout;
+        LayoutOptions options;
+        options.widthDip = 200.0f;
+        Access::SemanticInput input;
+        input.text = L"semantic text";
+        input.runs.push_back({0u, 8u, Bold, 0u});
+        Access::PrepareSemantic(layout, write.get(), input, options);
+        Check(layout.Content().text == L"semantic text" && layout.Content().runs.size() == 1u && layout.Content().source.empty() &&
+                  layout.Content().units.empty() && layout.Content().sourceToDisplay.empty(),
+              "semantic layout retains only display text and runs without a fabricated source map");
+        const auto generation = layout.Generation();
+        Access::SemanticInput invalid;
+        invalid.text = L"x";
+        invalid.runs.push_back({0u, 2u, Bold, 0u});
+        RichSemanticTests::Reject<std::invalid_argument>([&] { Access::PrepareSemantic(layout, write.get(), invalid, options); },
+                                                         "semantic display still validates run bounds");
+        Check(layout.Generation() == generation && layout.Content().text == L"semantic text",
+              "invalid semantic staging leaves the previous published layout intact");
+    }
     const auto factory        = Factory();
     const std::wstring source = L"```cpp\nint x;\n```\n";
     const auto document       = RichSemanticDocumentTests::Build(source);

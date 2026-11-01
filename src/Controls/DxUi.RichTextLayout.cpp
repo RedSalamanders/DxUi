@@ -1,3 +1,4 @@
+#include "DxUi.PreparedLayoutAccess.h"
 #include "DxUi.RichTextSourceInkRenderer.h"
 #include "DxUi.TextElements.h"
 #include <DxUi/RichTextLayout.h>
@@ -151,25 +152,35 @@ void PreparedLayout::Prepare(IDWriteFactory* factory, Projection projection, con
 {
     PrepareOwned(factory, projection, options);
 }
-void PreparedLayout::PrepareSemanticOwned(IDWriteFactory* factory,
-                                          Projection& projection,
-                                          const LayoutOptions& options,
-                                          bool marker,
-                                          IDWriteInlineObject* object,
-                                          UINT32 objectOffset,
-                                          std::span<const SemanticInlineObject> objects)
+void PreparedLayout::PrepareOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, float verticalOrigin)
 {
-    PrepareOwned(factory, projection, options, 0.0f, true, marker, object, objectOffset, objects);
+    Detail::PreparedLayoutAccess::Prepare(*this, factory, projection, options, verticalOrigin);
 }
-void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
-                                  Projection& projection,
-                                  const LayoutOptions& options,
-                                  float verticalOrigin,
-                                  bool semanticDisplay,
-                                  bool marker,
-                                  IDWriteInlineObject* object,
-                                  UINT32 objectOffset,
-                                  std::span<const SemanticInlineObject> objects)
+void Detail::PreparedLayoutAccess::PrepareSemantic(PreparedLayout& owner,
+                                                   IDWriteFactory* factory,
+                                                   SemanticInput& input,
+                                                   const LayoutOptions& options,
+                                                   bool marker,
+                                                   IDWriteInlineObject* object,
+                                                   UINT32 objectOffset,
+                                                   std::span<const InlineObject> objects)
+{
+    Projection projection{std::wstring(0u, L' '), std::wstring(0u, L' '), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)};
+    projection.text.swap(input.text);
+    projection.runs.swap(input.runs);
+    projection.revision = input.revision;
+    Prepare(owner, factory, projection, options, 0.0f, true, marker, object, objectOffset, objects);
+}
+void Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
+                                           IDWriteFactory* factory,
+                                           Projection& projection,
+                                           const LayoutOptions& options,
+                                           float verticalOrigin,
+                                           bool semanticDisplay,
+                                           bool marker,
+                                           IDWriteInlineObject* object,
+                                           UINT32 objectOffset,
+                                           std::span<const InlineObject> objects)
 {
     const auto width = options.widthDip, fontSize = options.fontSizeDip;
     const auto validName          = [](const std::wstring& name) { return ! name.empty() && name.size() <= 255 && IsValidUtf16(name); };
@@ -193,9 +204,10 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
         (options.markdownPresentation != MarkdownPresentationStyle::Default && options.markdownPresentation != MarkdownPresentationStyle::Subtle))
         throw std::invalid_argument("Invalid rich-text layout options");
     const auto maximum = semanticDisplay ? Document::MaximumUnits * 2u : Document::MaximumUnits;
-    if (projection.text.size() > maximum || ! IsValidSourceUtf16(projection.text) || projection.source.size() > maximum ||
-        ! IsValidSourceUtf16(projection.source) || projection.units.size() != projection.text.size() ||
-        projection.sourceToDisplay.size() != projection.source.size() + 1 || (projection.mode != ViewMode::Source && projection.mode != ViewMode::Rich))
+    if (projection.text.size() > maximum || ! IsValidSourceUtf16(projection.text) ||
+        (! semanticDisplay &&
+         (projection.source.size() > maximum || ! IsValidSourceUtf16(projection.source) || projection.units.size() != projection.text.size() ||
+          projection.sourceToDisplay.size() != projection.source.size() + 1 || (projection.mode != ViewMode::Source && projection.mode != ViewMode::Rich))))
         throw std::invalid_argument("Invalid rich-text display text");
     if (object && (! semanticDisplay || objectOffset >= projection.text.size() || projection.text[objectOffset] != L'\ufffc'))
         throw std::invalid_argument("Invalid semantic object placement");
@@ -210,18 +222,21 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
             throw std::invalid_argument("Invalid semantic inline object range");
         objectEnd = static_cast<std::size_t>(inlineObject.first) + inlineObject.length;
     }
-    std::size_t previousDisplay = 0, previousSource = 0;
-    for (const auto offset : projection.sourceToDisplay)
+    if (! semanticDisplay)
     {
-        if (offset < previousDisplay || offset > projection.text.size())
-            throw std::invalid_argument("Invalid rich-text source mapping");
-        previousDisplay = offset;
-    }
-    for (const auto& unit : projection.units)
-    {
-        if (unit.start < previousSource || unit.start >= unit.end || unit.end > projection.source.size())
-            throw std::invalid_argument("Invalid rich-text display mapping");
-        previousSource = unit.end;
+        std::size_t previousDisplay = 0, previousSource = 0;
+        for (const auto offset : projection.sourceToDisplay)
+        {
+            if (offset < previousDisplay || offset > projection.text.size())
+                throw std::invalid_argument("Invalid rich-text source mapping");
+            previousDisplay = offset;
+        }
+        for (const auto& unit : projection.units)
+        {
+            if (unit.start < previousSource || unit.start >= unit.end || unit.end > projection.source.size())
+                throw std::invalid_argument("Invalid rich-text display mapping");
+            previousSource = unit.end;
+        }
     }
     for (const auto& run : projection.runs)
     {
@@ -383,8 +398,8 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
     std::vector<std::size_t> lines{0};
     for (const auto& line : lineMetrics)
         lines.push_back(lines.back() + line.length);
-    auto next               = std::make_unique<State>();
-    projection_             = std::move(projection);
+    auto next               = std::make_unique<PreparedLayout::State>();
+    owner.projection_       = std::move(projection);
     next->layout            = std::move(layout);
     next->positioning       = std::move(positioning);
     next->clusters          = std::move(clusters);
@@ -398,8 +413,8 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
     next->verticalOrigin    = verticalOrigin;
     next->textOffset        = textOffset;
     next->positionedExactly = positionedExactly;
-    state_.swap(next);
-    ++generation_;
+    owner.state_.swap(next);
+    ++owner.generation_;
 }
 void PreparedLayout::Clear() noexcept
 {
@@ -437,12 +452,12 @@ std::pair<float, float> PreparedLayout::HorizontalTextBounds() const
         throw std::logic_error("Unprepared rich-text horizontal metrics");
     return {state_->textLeft, state_->textWidth};
 }
-float PreparedLayout::MinimumTextWidth() const
+float Detail::PreparedLayoutAccess::MinimumTextWidth(const PreparedLayout& owner)
 {
-    if (! state_)
+    if (! owner.state_)
         throw std::logic_error("Unprepared rich-text intrinsic width");
     float minimum{};
-    Check(state_->layout->DetermineMinWidth(&minimum), "DetermineMinWidth");
+    Check(owner.state_->layout->DetermineMinWidth(&minimum), "DetermineMinWidth");
     if (! std::isfinite(minimum) || minimum < 0.0f)
         throw std::overflow_error("Nonfinite rich-text intrinsic width");
     return minimum;
