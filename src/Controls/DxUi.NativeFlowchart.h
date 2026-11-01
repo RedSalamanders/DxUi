@@ -24,7 +24,8 @@ enum class NativeDiagramFamily
 {
     Flowchart,
     State,
-    Class
+    Class,
+    Sequence
 };
 enum class FlowchartShape
 {
@@ -128,6 +129,7 @@ struct FlowchartEdge
     FlowchartLineStyle style{};
     std::size_t minimumRanks{1u};
     bool arrow{};
+    bool openArrow{}; // Sequence asynchronous messages use an open arrowhead.
 };
 struct FlowchartModel
 {

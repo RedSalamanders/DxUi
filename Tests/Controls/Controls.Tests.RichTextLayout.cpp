@@ -1608,6 +1608,7 @@ void TestPreparedFlowchartEdgeLabelsCannotBeObscured()
     PreparedFlowchartTests::LineStyleRasterOracle(Require);
     PreparedFlowchartTests::CardinalityRaster(Require);
     PreparedFlowchartTests::GroupRaster(Require);
+    PreparedFlowchartTests::SequenceRaster(Require);
     PreparedFlowchartTests::StateNoteRaster(Require);
 }
 void TestRichTextLayoutTransientLinkInkAndUnderlineRestoreSharedState()

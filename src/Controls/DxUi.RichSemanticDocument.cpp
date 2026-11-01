@@ -770,6 +770,7 @@ struct SemanticBuilder::Preparation
                 direction = L"right to left";
             const auto family = graph.family == Detail::NativeDiagramFamily::State   ? L"State diagram, "
                                 : graph.family == Detail::NativeDiagramFamily::Class ? L"Class diagram, "
+                                : graph.family == Detail::NativeDiagramFamily::Sequence ? L"Sequence diagram, "
                                                                                      : L"Flowchart, ";
             if (! DiagramAlternative({family, direction, L". Nodes: "}))
                 return;
@@ -833,6 +834,12 @@ struct SemanticBuilder::Preparation
                 return;
             }
             const auto& edge = graph.edges[work.cursor++];
+            if (graph.family == Detail::NativeDiagramFamily::Sequence)
+            {
+                DiagramAlternative({id(edge.from), edge.openArrow ? L" asynchronously sends " : L" sends ", edge.label, L" to ", id(edge.to),
+                                    edge.style == Detail::FlowchartLineStyle::Dotted ? L" (dotted); " : L"; "});
+                return;
+            }
             if (edge.relation == Detail::FlowchartRelation::Note)
             {
                 DiagramAlternative({id(edge.from), L" note: ", graph.nodes[edge.to].label, L"; "});
@@ -880,11 +887,12 @@ struct SemanticBuilder::Preparation
         result.bodyUnits.assign(normalized.units.begin(), normalized.units.end());
         result.sourceEnd = node.block.content.last;
         extensions.records += graph.nodes.size() + graph.edges.size() + graph.groups.size();
-        auto& element = document->elements_[work.visit.element];
-        element.role  = SemanticRole::Diagram;
-        element.title = graph.family == Detail::NativeDiagramFamily::State   ? L"State diagram. Source is available as document text."
-                        : graph.family == Detail::NativeDiagramFamily::Class ? L"Class diagram. Source is available as document text."
-                                                                             : L"Flowchart. Source is available as document text.";
+        auto& element  = document->elements_[work.visit.element];
+        element.role   = SemanticRole::Diagram;
+        element.title  = graph.family == Detail::NativeDiagramFamily::State   ? L"State diagram. Source is available as document text."
+                         : graph.family == Detail::NativeDiagramFamily::Class ? L"Class diagram. Source is available as document text."
+                         : graph.family == Detail::NativeDiagramFamily::Sequence ? L"Sequence diagram. Source is available as document text."
+                                                                              : L"Flowchart. Source is available as document text.";
         if (! graph.accessibleTitle.empty())
         {
             if (graph.accessibleDescription.empty())

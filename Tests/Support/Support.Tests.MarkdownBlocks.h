@@ -280,7 +280,7 @@ inline constexpr Scenario scenarios[] = {
     {L"graph TD;A[\"\"];a[lower];A-->a", {}, {}, 2u, 1u, {}, L""},
     {L"graph TD;A-->|yes%%keep|B", {}, {}, 2u, 1u, {}, L"A"},
     {L"graph TD;A--- ops;A--- xB", {}, {}, 3u, 2u, {}, L"A"},
-    {L"sequenceDiagram\nA->>B: hello\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedFamily},
+    {L"sequenceDiagram\nA->>B: hello\n", {}, {}, 2u, 1u, {}, L"A"},
     {L"flowchart TD\nsubgraph G\nA --> B\nend\n", {}, {}, 2u, 1u, {}, L"A"},
     {L"flowchart TD\nA --> B\nstyle A fill:red\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement},
     {L"flowchart TD\nA --> B\nclick A \"https://example.invalid\"\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement},
@@ -449,6 +449,7 @@ inline wchar_t FamilyCode(NativeDiagramFamily family) noexcept
         case NativeDiagramFamily::Flowchart: return L'F';
         case NativeDiagramFamily::State: return L'S';
         case NativeDiagramFamily::Class: return L'C';
+        case NativeDiagramFamily::Sequence: return L'Q';
     }
     return L'?';
 }

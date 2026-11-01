@@ -827,6 +827,14 @@ void TestRichSemanticNativeMathematicsAndBroaderMermaid()
     Require(genericDocument->Map().Source() == genericSource && genericDiagram != genericDocument->Elements().end() &&
                 genericDiagram->name.find(L"List<int>") != std::wstring::npos,
             "class generic semantic alternative exposes the displayed type and preserves exact source");
+    const std::wstring sequenceSource = L"```mermaid\nsequenceDiagram\nparticipant A as Alpha\nparticipant B as Beta\nA->>B: hello\nB-->>A: reply\n```\n";
+    const auto sequenceDocument = RichSemanticDocumentTests::Build(sequenceSource, MarkdownProfile::RichMarkdown);
+    const auto sequenceDiagram = std::ranges::find(sequenceDocument->Elements(), SemanticRole::Diagram, &SemanticElement::role);
+    Require(sequenceDocument->Map().Source() == sequenceSource && sequenceDiagram != sequenceDocument->Elements().end() &&
+                sequenceDiagram->name.starts_with(L"Sequence diagram") && sequenceDiagram->name.find(L"Alpha") != std::wstring::npos &&
+                sequenceDiagram->name.find(L"Beta") != std::wstring::npos && sequenceDiagram->name.find(L"hello") != std::wstring::npos &&
+                sequenceDiagram->name.find(L"reply") > sequenceDiagram->name.find(L"hello"),
+            "sequence semantic alternative retains participants and chronological messages with exact source");
 }
 void TestRichSemanticDocumentStructuralStyleValues()
 {

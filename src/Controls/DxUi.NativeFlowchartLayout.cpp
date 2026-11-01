@@ -32,6 +32,8 @@ struct NativeFlowchartLayout::Preparation
     enum class Stage
     {
         Measure,
+        SequenceNodes,
+        SequenceEdges,
         Adjacency,
         Dfs,
         Indegree,
@@ -80,6 +82,7 @@ struct NativeFlowchartLayout::Preparation
     std::size_t cursor{}, roots{}, depth{}, rankedCount{}, active{}, activeEdge{}, maximumRank{}, laneCount{};
     double bandWidth{}, bandLeft{}, rowY{Margin}, leftWidth{}, rightWidth{};
     double minX{}, minY{}, maxX{}, maxY{};
+    double sequenceX{Margin}, sequenceY{}, sequenceWidth{}, sequenceHeader{}, sequenceGap{};
     FlowchartPoint shift;
     Stage stage{};
     bool horizontal{}, bounded{}, done{}, hasCardinality{}, hasNotes{}, alignedPairs{}, alignedGroups{};
@@ -171,7 +174,17 @@ struct NativeFlowchartLayout::Preparation
     {
         if (cursor == graph->nodes.size())
         {
-            Then(Stage::Adjacency);
+            if (graph->family == NativeDiagramFamily::Sequence)
+            {
+                sequenceGap = 48.0;
+                for (std::size_t edge = 0u; edge < graph->edges.size(); ++edge)
+                    sequenceGap = std::max(sequenceGap, edgeLabels[edge].width + 24.0);
+                for (const auto& node : plan->nodes)
+                    sequenceHeader = std::max(sequenceHeader, node.bounds.height);
+                Then(Stage::SequenceNodes);
+            }
+            else
+                Then(Stage::Adjacency);
             return;
         }
         const auto index = cursor++;
@@ -205,6 +218,59 @@ struct NativeFlowchartLayout::Preparation
             return;
         }
         plan->nodes.push_back({shape, 0u, {0.0, 0.0, horizontal ? height : width, horizontal ? width : height}, {}});
+    }
+    void SequenceNodes()
+    {
+        if (cursor == plan->nodes.size())
+        {
+            sequenceWidth = sequenceX - (plan->nodes.empty() ? 0.0 : sequenceGap);
+            sequenceY = Margin + sequenceHeader + 24.0;
+            Then(Stage::SequenceEdges);
+            return;
+        }
+        const auto index = cursor++;
+        auto& node = plan->nodes[index];
+        node.bounds.x = sequenceX;
+        node.bounds.y = Margin + (sequenceHeader - node.bounds.height) / 2.0;
+        node.label = {node.bounds.x + (node.bounds.width - nodeLabels[index].width) / 2.0,
+                      node.bounds.y + (node.bounds.height - nodeLabels[index].height) / 2.0,
+                      nodeLabels[index].width, nodeLabels[index].height};
+        sequenceX += node.bounds.width + sequenceGap;
+        if (sequenceX > MaximumExtent) Fail(FlowchartLayoutIssue::DiagramExtent);
+    }
+    void SequenceEdges()
+    {
+        if (cursor == graph->edges.size())
+        {
+            plan->extent = {sequenceWidth + Margin, sequenceY + Margin};
+            if (! Valid(plan->extent)) { Fail(FlowchartLayoutIssue::DiagramExtent); return; }
+            Then(Stage::Finish);
+            return;
+        }
+        const auto index = cursor++;
+        const auto& edge = graph->edges[index];
+        const auto& from = plan->nodes[edge.from].bounds;
+        const auto& to = plan->nodes[edge.to].bounds;
+        const double fromX = from.x + from.width / 2.0, toX = to.x + to.width / 2.0;
+        const auto label = edgeLabels[index];
+        const double lineY = sequenceY + label.height + 6.0;
+        const bool self = edge.from == edge.to;
+        FlowchartPlacedEdge placed;
+        placed.route = self ? FlowchartRoute::Self : FlowchartRoute::Forward;
+        placed.relation = edge.relation; placed.style = edge.style; placed.hasArrow = true; placed.hasLabel = true; placed.openArrow = edge.openArrow;
+        const double endY = self ? lineY + 20.0 : lineY;
+        if (self)
+            placed.path = {{{fromX, lineY}, {fromX + 24.0, lineY}, {fromX + 24.0, endY}, {toX, endY}, {toX, endY}, {toX, endY}}};
+        else
+            placed.path = {{{fromX, lineY}, {fromX, lineY}, {fromX, lineY}, {toX, lineY}, {toX, lineY}, {toX, lineY}}};
+        const double arrowBase = toX + (self || toX < fromX ? 8.0 : -8.0);
+        placed.arrow = {{{toX, endY}, {arrowBase, endY - 4.0}, {arrowBase, endY + 4.0}}};
+        const double labelX = self ? fromX + 8.0 : (fromX + toX - label.width) / 2.0;
+        placed.label = {labelX, sequenceY, label.width, label.height};
+        sequenceWidth = std::max(sequenceWidth, std::max(labelX + label.width, self ? fromX + 24.0 : toX));
+        sequenceY = endY + 24.0;
+        if (sequenceWidth + Margin > MaximumExtent || sequenceY + Margin > MaximumExtent) { Fail(FlowchartLayoutIssue::DiagramExtent); return; }
+        plan->edges.push_back(placed);
     }
     void Adjacency()
     {
@@ -774,6 +840,8 @@ struct NativeFlowchartLayout::Preparation
         switch (stage)
         {
             case Stage::Measure: Measure(); break;
+            case Stage::SequenceNodes: SequenceNodes(); break;
+            case Stage::SequenceEdges: SequenceEdges(); break;
             case Stage::Adjacency: Adjacency(); break;
             case Stage::Dfs: Dfs(); break;
             case Stage::Indegree:
@@ -857,6 +925,7 @@ void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
         if (edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() || edge.minimumRanks == 0u ||
             edge.minimumRanks > NativeFlowchartParser::MaximumLinkRanks || edge.relation < FlowchartRelation::Line ||
             edge.relation > FlowchartRelation::Composition || edge.style < FlowchartLineStyle::Solid || edge.style > FlowchartLineStyle::Invisible ||
+            (edge.openArrow && (graph->family != NativeDiagramFamily::Sequence || ! edge.arrow)) ||
             (edge.style == FlowchartLineStyle::Invisible && (edge.arrow || ! edge.label.empty())) ||
             edge.arrow != (edge.relation != FlowchartRelation::Line && edge.relation != FlowchartRelation::Note) ||
             (edge.relation == FlowchartRelation::Note &&

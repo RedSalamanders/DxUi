@@ -233,7 +233,7 @@ using an explicit document location:
 
 The native extension engine choice is C++ only. `DxUiNativeFlowchart1` currently
 has an internal CPU parser with focused Debug checks for rectangles, rounded nodes, circles,
-diamonds, stadiums, hexagons and subroutines, four directions and bounded solid, dotted, thick and invisible edge chains. Simple state and class profiles are also available; other Mermaid families,
+diamonds, stadiums, hexagons and subroutines, four directions and bounded solid, dotted, thick and invisible edge chains. Bounded state, class and sequence profiles are also available; other Mermaid families,
 other expanded shapes/edges, advanced subgraph forms, styling, icons and executable directives remain
 unsupported. The pinned original corpus distinguishes accepted graphs from
 rejected definitions. Source-independent cooperative CPU geometry passes focused
@@ -1461,7 +1461,14 @@ within `1..512` DIP. Source, selection, history and focus are preserved.
 sets an explicit tab interval independently of typed indentation. Both remain
 optional; existing Source view typography is preserved by default.
 
-Flowchart, state and class diagrams accept one `accTitle: text` and one
+The bounded `sequenceDiagram` profile supports ordered implicit or explicitly
+declared participants, plain aliases, directed `->>` / `-->>` messages,
+open-head `-)` / `--)` messages and self-message loops. Measured headers,
+dashed lifelines and chronological messages are drawn natively; accessibility
+retains participant/message order and the exact fence. Notes, actors, activations,
+loops, directives and other syntax retain the full source with a diagnostic.
+
+Flowchart, state, class and sequence diagrams accept one `accTitle: text` and one
 `accDescr: text` or multiline `accDescr {` / `accDescr{` block closed by a
 standalone `}`. Values are plain text, each bounded to 1024 UTF-16 units;
 multiline descriptions join trimmed physical lines with LF, retaining empty

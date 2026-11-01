@@ -726,6 +726,63 @@ template <typename Check> inline void GroupRaster(Check&& check)
     check(! rejected.Ready() && rejected.Geometry() && rejected.Geometry()->issue == FlowchartLayoutIssue::DiagramExtent && rejected.Geometry()->groups.empty(),
           "overlapping unrelated groups fail without publishing partial geometry");
 }
+template <typename Check> inline void SequenceRaster(Check&& check)
+{
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
+    const auto graph = FlowchartLayoutTests::Graph(L"sequenceDiagram\nparticipant A as Alpha\nparticipant B as Beta\nA->>B: hello\nB-->>A: reply\nA-)A: later\n");
+    const auto write = WriteFactory();
+    const auto drawing = DrawingFactory();
+    PreparedFlowchart prepared;
+    prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
+    Complete(prepared, check);
+    const auto geometry = prepared.Geometry();
+    check(prepared.Ready() && geometry && geometry->nodes.size() == 2u && geometry->edges.size() == 3u,
+          "sequence participants and messages prepare as a native timeline");
+    if (! prepared.Ready() || ! geometry || geometry->nodes.size() != 2u || geometry->edges.size() != 3u) return;
+    wil::com_ptr<IWICImagingFactory> imaging;
+    THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    constexpr UINT width = 600u, height = 400u, stride = width * 4u;
+    wil::com_ptr<IWICBitmap> bitmap;
+    THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+    wil::com_ptr<ID2D1RenderTarget> target;
+    const auto properties = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
+                                                           D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
+    wil::com_ptr<ID2D1SolidColorBrush> text, stroke, fill;
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
+    target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+    check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}), "native sequence timeline paints");
+    THROW_IF_FAILED(target->EndDraw());
+    std::vector<BYTE> pixels(stride * height);
+    THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+    const auto blueNear = [&](double px, double py)
+    {
+        const auto x = static_cast<int>(px), y = static_cast<int>(py);
+        for (int dy = -2; dy <= 2; ++dy)
+            for (int dx = -2; dx <= 2; ++dx)
+                if (x + dx >= 0 && y + dy >= 0 && x + dx < static_cast<int>(width) && y + dy < static_cast<int>(height))
+                {
+                    const auto offset = static_cast<std::size_t>(y + dy) * stride + static_cast<std::size_t>(x + dx) * 4u;
+                    if (pixels[offset] > 150u && pixels[offset + 1u] < 100u && pixels[offset + 2u] < 100u) return true;
+                }
+        return false;
+    };
+    const auto& first = geometry->edges[0u];
+    check(blueNear((first.path[0u].x + first.path[3u].x) / 2.0, first.path[0u].y), "sequence message has actual horizontal raster ink");
+    const auto& loop = geometry->edges[2u];
+    check(loop.openArrow && blueNear((loop.arrow[0u].x + loop.arrow[1u].x) / 2.0, (loop.arrow[0u].y + loop.arrow[1u].y) / 2.0),
+          "open asynchronous self-message arrowhead has visible raster ink");
+    const auto& participant = geometry->nodes[0u].bounds;
+    const auto lifelineX = participant.x + participant.width / 2.0;
+    std::size_t lifelineInk{};
+    for (double y = participant.y + participant.height + 2.0; y < participant.y + participant.height + 18.0; y += 2.0)
+        lifelineInk += blueNear(lifelineX, y);
+    check(lifelineInk > 0u, "participant has a visible lifeline below its header");
+}
 template <typename Check> inline void StateNoteRaster(Check&& check)
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);

@@ -11,7 +11,7 @@ $pins=@{
     'collection.json'='157DEAF02EC36597EB5012AF8CE1EDF3CA710281CFC6E3E65493BD74A540799A'
     'syntax-inventory.json'='5CBAD5692330F513128C4D6CAF59A6ACE18A530073DEC9098208FC559FE48231'
     'dxui-flowchart-expectations.json'='158E436513D9318CF56590C154394513FB4252B74547377ADDD51B82B03FAD43'
-    'dxui-family-matrix.json'='3284F77116CA03CCF995409124684FFD5EBCCE053D3965B5157FEA87D9B468AF'
+    'dxui-family-matrix.json'='0E6B17BFF1CA42FCF5019DD0F5C8B29F12DE73875F28A6259FB059A9376F680F'
 }
 foreach($name in $pins.Keys){
     if((Get-FileHash -LiteralPath (Join-Path $InputDirectory $name)).Hash -cne $pins[$name]){throw "Pinned native flowchart input differs: $name"}
@@ -26,14 +26,15 @@ $examples=[regex]::Matches([IO.File]::ReadAllText((Join-Path $InputDirectory 'fl
 $expectations=@(Get-Content -LiteralPath (Join-Path $InputDirectory 'dxui-flowchart-expectations.json') -Raw | ConvertFrom-Json)
 $families=@(Get-Content -LiteralPath (Join-Path $InputDirectory 'dxui-family-matrix.json') -Raw | ConvertFrom-Json)
 if($collection.Count -ne 24 -or $examples.Count -ne 105 -or $expectations.Count -ne 105 -or $families.Count -ne 22){throw 'Incomplete native Mermaid corpus inventory'}
-$familyExamples=@($families | Where-Object { $_.support -in @('unsupported-family','limited-state','limited-class') })
-if($familyExamples.Count -ne 20 -or @($families | Where-Object support -eq 'unsupported-family').Count -ne 18 -or
-   @($families | Where-Object support -eq 'limited-state').Count -ne 1 -or @($families | Where-Object support -eq 'limited-class').Count -ne 1){
+$familyExamples=@($families | Where-Object { $_.support -in @('unsupported-family','limited-state','limited-class','limited-sequence') })
+if($familyExamples.Count -ne 20 -or @($families | Where-Object support -eq 'unsupported-family').Count -ne 17 -or
+   @($families | Where-Object support -eq 'limited-state').Count -ne 1 -or @($families | Where-Object support -eq 'limited-class').Count -ne 1 -or
+   @($families | Where-Object support -eq 'limited-sequence').Count -ne 1){
     throw 'Invalid native Mermaid family support matrix'
 }
 foreach($family in $families){
-    if($family.support -notin @('unsupported-family','limited-flowchart','limited-state','limited-class','example-collection')){throw "Unknown Mermaid support value: $($family.support)"}
-    if($family.support -in @('unsupported-family','limited-state','limited-class')){
+    if($family.support -notin @('unsupported-family','limited-flowchart','limited-state','limited-class','limited-sequence','example-collection')){throw "Unknown Mermaid support value: $($family.support)"}
+    if($family.support -in @('unsupported-family','limited-state','limited-class','limited-sequence')){
         $expected=$family.firstExample
         if(!$expected -or $expected.outcome -notin @('Prepared','Unsupported') -or
            $expected.issue -notin @('None','UnsupportedFamily','UnsupportedStatement','UnsupportedEdge') -or
@@ -100,4 +101,4 @@ if($Check){
 }else{[IO.File]::WriteAllText($OutputPath,$expected,[Text.UTF8Encoding]::new($false))}
 $preparedCount = @($expectations | Where-Object outcome -eq 'Prepared').Count
 $unsupportedCount = @($expectations | Where-Object outcome -eq 'Unsupported').Count
-Write-Host "Native flowchart vectors: $($expectations.Count) original examples, $preparedCount admitted graphs, $unsupportedCount unsupported; $($familyExamples.Count) original family examples (2 limited profiles, 18 unsupported families)."
+Write-Host "Native flowchart vectors: $($expectations.Count) original examples, $preparedCount admitted graphs, $unsupportedCount unsupported; $($familyExamples.Count) original family examples (3 limited profiles, 17 unsupported families)."

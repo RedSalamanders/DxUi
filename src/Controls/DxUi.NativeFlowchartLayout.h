@@ -47,7 +47,7 @@ struct FlowchartPlacedEdge
     std::array<FlowchartPoint, 4u> diamond{};
     FlowchartRect label;
     FlowchartRect fromCardinality, toCardinality;
-    bool hasArrow{}, hasLabel{};
+    bool hasArrow{}, hasLabel{}, openArrow{};
 };
 struct FlowchartPlacedGroup
 {

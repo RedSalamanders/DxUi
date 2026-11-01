@@ -1823,15 +1823,16 @@ The bounded math parser exposes a stable typed issue for the named malformed and
 Native math preparation reads Cambria Math constants once per semantic geometry generation and shares the resulting em-relative values across formulas. A width-only reflow may reuse finalized DirectWrite math layouts while rebuilding placement geometry, provided the semantic document, factory, render target, resource epochs, image bindings and all other layout options match. Changed font, factory, target, epoch or document retires the incompatible resources; clearing the owner releases them. No global factory or font cache extends their lifetime.
 
 The pinned Mermaid 11.4.1 inventory and all 105 original flowchart examples MUST
-remain accounted for. Independent subset expectations distinguish 16 admitted
-graphs from 89 unsupported definitions and records each issue and exact UTF-16 diagnostic range, including the documented stadium and
+remain accounted for. Independent subset expectations distinguish 32 admitted
+graphs from 73 unsupported definitions and record each issue and exact UTF-16 diagnostic range, including the documented stadium and
 the original endpoint-group fan-out examples.
-The family matrix separately identifies the limited flowchart, state and class
-profiles, the example collection, and 18 unsupported diagram families. Generated
+The family matrix separately identifies the limited flowchart, state, class and
+sequence profiles, the example collection, and 17 unsupported diagram families. Generated
 first-example fixtures specify the exact expected outcome and diagnostic for all
 20 diagram-family documents: the state example prepares five nodes and six
-transitions; the class example falls back on its unsupported `note` directive;
-the remaining 18 examples are unsupported-family fallbacks. These cases measure
+transitions; the class example prepares six nodes and four relationships, and
+the sequence example prepares two participants and three messages. The remaining
+17 examples are unsupported-family fallbacks. These cases measure
 local subset coverage, not complete Mermaid family conformance. Original reference
 bytes and MIT notice remain under `ThirdParty/Markdown/mermaid-11.4.1`.
 
@@ -2255,7 +2256,17 @@ Aligned rows alternate right-aligned left operands and left-aligned right operan
 
 Over-capacity notation conservatively retains the remaining physical inline line (display notation: logical leaf) as literal source with a diagnostic. This prevents nested Markdown interpretation and bounds repeated failed delimiter scans. The consumer inspector uses MathMaximumSourceUnits and clears rather than accepting an oversized value.
 
-Flowchart, state and class diagrams accept one `accTitle: text` and one
+The bounded `sequenceDiagram` profile retains participants in first-appearance
+order, with optional plain `participant ID as label` declarations. Ordered solid
+`->>` and dotted `-->>` messages use filled heads; solid `-)` and dotted `--)`
+messages use open heads. Self messages use a loop. Each participant has a
+measured header and a dashed lifeline; measured messages appear in source order.
+The diagram alternative exposes participants, messages and their order, and its
+text range owns the exact source fence. Notes, activations, actors, loops,
+grouping, directives and other syntax retain the entire source with a diagnostic.
+The shared diagram source, node, edge, label and extent budgets apply.
+
+Flowchart, state, class and sequence diagrams accept one `accTitle: text` and one
 `accDescr: text` or multiline `accDescr {` / `accDescr{` block closed by a
 standalone `}`. Values are plain text, each bounded to 1024 UTF-16 units;
 multiline descriptions join trimmed physical lines with LF, retaining empty

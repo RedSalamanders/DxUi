@@ -64,6 +64,24 @@ template <typename Check> inline void Geometry(Check&& check)
               "unambiguous adjacent ranks use the independent direct centerline oracle");
     check(plan->edges[0u].hasArrow && Near(plan->edges[0u].arrow[1u].x, 24.0) && Near(plan->edges[0u].arrow[1u].y, 88.0),
           "arrow head ends on the target shape boundary");
+    const auto sequence = Graph(L"sequenceDiagram\nparticipant Alice as Client\nparticipant Bob\nBob->>Alice: request\nAlice-->>Bob: reply\nBob-)Bob: self\n");
+    const auto timeline = Place(sequence, check);
+    check(sequence->outcome == FlowchartOutcome::Prepared && sequence->family == NativeDiagramFamily::Sequence && sequence->nodes.size() == 2u &&
+              sequence->nodes[0u].label == L"Client" && sequence->edges.size() == 3u && sequence->edges[0u].from == 1u && sequence->edges[0u].to == 0u &&
+              sequence->edges[1u].style == FlowchartLineStyle::Dotted && sequence->edges[2u].openArrow,
+          "sequence model retains participant and message order, aliases and message kinds");
+    check(timeline->issue == FlowchartLayoutIssue::None && timeline->nodes.size() == 2u && timeline->edges.size() == 3u &&
+              timeline->nodes[0u].bounds.x < timeline->nodes[1u].bounds.x && timeline->edges[0u].path[0u].y < timeline->edges[1u].path[0u].y &&
+              timeline->edges[1u].path[0u].y < timeline->edges[2u].path[0u].y && timeline->edges[2u].route == FlowchartRoute::Self &&
+              timeline->edges[2u].openArrow && timeline->edges[0u].arrow[1u].x > timeline->edges[0u].arrow[0u].x &&
+              timeline->edges[1u].arrow[1u].x < timeline->edges[1u].arrow[0u].x,
+          "sequence layout uses ordered lifelines, correctly directed messages and a self-message loop");
+    for (const auto invalid : {L"sequenceDiagram\nAlice->>Bob: x\nloop later\n", L"sequenceDiagram\nAlice->>Bob\n", L"sequenceDiagram\nactor Alice\n"})
+    {
+        const auto rejected = Graph(invalid);
+        check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == invalid && rejected->nodes.empty() && rejected->edges.empty(),
+              "unsupported sequence constructs retain exact source without partial events");
+    }
     for (const auto direction : {L"TD", L"BT", L"LR", L"RL"})
     {
         const auto pairs = Place(Graph(std::wstring(L"graph ") + direction + L";A;B;C;Z;Y;X;A-->X;B-->Y;C-->Z"), check);

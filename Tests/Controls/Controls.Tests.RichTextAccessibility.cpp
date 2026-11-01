@@ -1981,6 +1981,19 @@ void SemanticDiagramAlternatives(bool embedded)
     fixture.Publish();
     Require(image->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE,
             "restoring presentation cannot resurrect an old graphic provider");
+    const std::wstring sequence = L"```mermaid\nsequenceDiagram\nparticipant A as Alpha\nparticipant B as Beta\nA->>B: hello\nB-->>A: reply\n```\n";
+    fixture.editor->SetText(sequence);
+    fixture.Publish();
+    const auto sequenceImage = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
+    Require(sequenceImage != nullptr, "sequence is exposed as an acknowledged native image provider");
+    const auto sequenceName = ReadProviderStringProperty(*sequenceImage.get(), UIA_NamePropertyId, "sequence alternative");
+    Require(sequenceName.starts_with(L"Sequence diagram") && sequenceName.find(L"Alpha") != std::wstring::npos &&
+                sequenceName.find(L"Beta") != std::wstring::npos && sequenceName.find(L"hello") != std::wstring::npos &&
+                sequenceName.find(L"reply") != std::wstring::npos && sequenceName.find(L"reply") > sequenceName.find(L"hello"),
+            "sequence provider exposes participants and message order");
+    wil::com_ptr_nothrow<ITextRangeProvider> sequenceRange;
+    RequireSucceeded(text->RangeFromChild(sequenceImage.get(), sequenceRange.put()), "sequence source range");
+    Require(ReadTextRangeText(*sequenceRange.get(), -1, "sequence exact raw fence") == sequence, "sequence UIA range owns the original fence");
 }
 void SemanticMathLiteralFallback(bool embedded)
 {

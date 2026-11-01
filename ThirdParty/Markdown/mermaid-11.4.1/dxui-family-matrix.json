@@ -228,14 +228,14 @@
     "file": "sequenceDiagram.md.txt",
     "gitBlob": "2357b9bf43799bf682bb9ea6ed03d0804c25bf42",
     "sha256": "3F8D1CC2929E67BF3A8941095FEC4BCE4ED868F3187102DA7258A8FA6B9E2B52",
-    "support": "unsupported-family",
+    "support": "limited-sequence",
     "firstExample": {
-      "reason": "unsupported-diagram-family",
-      "issue": "UnsupportedFamily",
+      "reason": "bounded-participant-and-message-timeline",
+      "issue": "None",
       "direction": "TopBottom",
-      "outcome": "Unsupported",
-      "edges": 0,
-      "nodes": 0
+      "outcome": "Prepared",
+      "edges": 3,
+      "nodes": 2
     }
   },
   {
