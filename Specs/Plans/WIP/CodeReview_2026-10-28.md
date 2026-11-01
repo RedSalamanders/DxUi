@@ -944,3 +944,7 @@ Its directed native subscription/tick/frame/owner-thread checks require the fina
 integrated runtime campaign; this decision alone is not a passing receipt.
 
 The earlier findings and unchecked boxes below describe the review baseline, not proof that all defects still reproduce. Current-source repairs are integrated or in progress under CodeReview_2026-10-31; map each finding to code and directed coverage before disposition. Final-source builds, runtime and shared qualification remain open.
+
+### R28-48 current contract and challenged cold-path proposal
+
+The repeated full-tree membership checks are replaced by one entry check and retained lifetime, root and interaction-revision guards in `Button::PrepareVisualContent`. The separate suggestion to retain layouts through configured-format cache eviction is not implemented or measured: the current published contract deliberately re-resolves exact format identity after eviction and stages one replacement when it changes (`Core_PerformanceAndResources.md`, prepared text rendering). The eviction fixture asserts that behavior and unchanged pixels. A stable semantic key could avoid that cold-path replacement only if it proves equivalent across font fallback, DPI, typography and resource generations; it is a proposal requiring a contract change and paired evidence, not a completed performance result. Current-source qualification remains separate.

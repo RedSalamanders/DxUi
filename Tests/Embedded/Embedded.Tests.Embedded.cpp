@@ -25,6 +25,7 @@
 #include <malloc.h>
 #include <new>
 #include <stdexcept>
+#include <type_traits>
 
 #include "Embedded.Tests.BenchmarkInstrument.h"
 static size_t checks = 0;
@@ -829,6 +830,36 @@ __declspec(noinline) static void TestPointerDoesNotRetargetAfterHoverOrHitGeomet
     }
 }
 
+// The existing thread-local allocator seam is armed only around the catalog call. Sweeping
+// every allocation observed on the successful path includes Separator's Control lifetime
+// token even when Debug STL iterator proxies add allocations before that token.
+static void TestSeparatorCatalogAllocationFailures()
+{
+    static_assert(! std::is_nothrow_default_constructible_v<DxUi::Separator>);
+    std::unique_ptr<DxUi::Control> output;
+    const auto oldCount = allocations;
+    const auto oldCounting = countAllocations;
+    allocations = 0u;
+    countAllocations = true;
+    const HRESULT success = DxUi::CreateControl(DxUi::ControlKind::Separator, output);
+    countAllocations = oldCounting;
+    const size_t observed = allocations;
+    allocations = oldCount;
+    Check(success == S_OK && dynamic_cast<DxUi::Separator*>(output.get()) && observed >= 2u,
+          "catalog success observes both object and lifetime-token allocation");
+    for (size_t point = 0u; point < observed; ++point)
+    {
+        auto sentinel = std::make_unique<DxUi::Label>(L"sentinel");
+        DxUi::Control* const original = sentinel.get();
+        std::unique_ptr<DxUi::Control> retained = std::move(sentinel);
+        const auto previous = failAllocationAfter;
+        failAllocationAfter = point;
+        const HRESULT result = DxUi::CreateControl(DxUi::ControlKind::Separator, retained);
+        failAllocationAfter = previous;
+        Check(result == E_OUTOFMEMORY && retained.get() == original,
+              "every observed Separator factory allocation failure preserves the caller result");
+    }
+}
 // Keep unrelated functional-test locals out of the benchmark entry stack, even under LTCG.
 __declspec(noinline) static void TestPreparationCallbacksCanRetireRoot(GraphicsFixture& gpu)
 {
@@ -1724,6 +1755,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestUnicodeGraphemeForwardWalkAllocationBudget();
     TestUnicodeBulkMovementAndDeletionAllocationBudget();
     TestRichTextUtf8RejectionAllocationBudget();
+    TestSeparatorCatalogAllocationFailures();
     TestRichAppearanceConstructionFailureAtomicity();
     TestRichInputAllocationFailureAtomicity();
     TestRichDocumentFragmentedHistoryStorageBudget();

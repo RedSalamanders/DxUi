@@ -6,6 +6,11 @@ forced request returns false with `ERROR_INVALID_STATE` and preserves existing a
 attachment before selecting another pool policy. Device replacement preserves WARP. The default option retains
 hardware creation with its existing WARP fallback. This option does not create an embedded device or scheduler.
 
+`AttachOptions::batchInitialRootChildren` is an opt-in native swap-chain policy (default false).
+During an initial full draw after creation or resize, it may flush between visible direct children
+of a root `Panel`, up to eight intermediate flushes. Nested panels and embedded hosts do not
+use this policy. Remaining children and overlays retain their order. A failed flush suppresses
+presentation and remains pending for recovery; see the [native host contract](../Specs/Rendering/Rendering_Win32Host.md).
 PageHost's current page participates in Tab traversal and UI Automation, including child patterns, labels and
 point hits. Outgoing transition pages are visual-only. Unhandled native keys continue to the application's window
 procedure; host animation ticks request further scheduling independently of repainting changed control pixels.

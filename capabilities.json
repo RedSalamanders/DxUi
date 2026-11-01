@@ -77,6 +77,7 @@
     "opt-in-quiet-button-tree-splitter-presentation",
     "decorated-command-icons-and-keyboard-hints",
     "source-preserving-document-heading-margins-and-indent",
+    "native-opt-in-initial-root-child-batching",
     "frame-clock",
     "frame-stage-scope",
     "reduced-motion",
