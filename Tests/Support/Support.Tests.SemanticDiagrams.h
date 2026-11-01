@@ -253,21 +253,37 @@ template <typename Check> inline void Geometry(Check&& check)
         }
     }
     const auto mathDocument = Build(L"$x^2$", check);
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    wil::com_ptr<IWICImagingFactory> imaging;
+    THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    wil::com_ptr<IWICBitmap> bitmap;
+    THROW_IF_FAILED(imaging->CreateBitmap(512u, 256u, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+    wil::com_ptr<ID2D1RenderTarget> target;
+    const auto properties = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
+                                                           D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
     LayoutOptions mathOptions;
     mathOptions.widthDip = 480.f;
     PreparedSemanticGeometry mathGeometry;
-    check(mathGeometry.Begin(real.get(), mathDocument, mathOptions, drawing.get(), {1u, 1u}) == LayoutPreparationStatus::Pending,
+    check(mathGeometry.Begin(real.get(), mathDocument, mathOptions, drawing.get(), {1u, 1u}, {}, target.get()) == LayoutPreparationStatus::Pending,
           "initial native math geometry prepares asynchronously");
     while (mathGeometry.Pending())
         static_cast<void>(mathGeometry.Advance());
-    check(mathGeometry.Begin(real.get(), mathDocument, mathOptions, drawing.get(), {1u, 1u}) == LayoutPreparationStatus::Complete,
+    check(mathGeometry.Begin(real.get(), mathDocument, mathOptions, drawing.get(), {1u, 1u}, {}, target.get()) == LayoutPreparationStatus::Complete,
           "identical math geometry reuses its publication");
     mathOptions.dpi = 192.f;
-    check(mathGeometry.Begin(real.get(), mathDocument, mathOptions, drawing.get(), {1u, 1u}) == LayoutPreparationStatus::Pending,
+    check(mathGeometry.Begin(real.get(), mathDocument, mathOptions, drawing.get(), {1u, 1u}, {}, target.get()) == LayoutPreparationStatus::Pending,
           "a DPI change retires math geometry that may contain device corrections");
     while (mathGeometry.Pending())
         static_cast<void>(mathGeometry.Advance());
-    check(mathGeometry.Begin(real.get(), mathDocument, mathOptions, drawing.get(), {1u, 1u}) == LayoutPreparationStatus::Complete,
+    check(mathGeometry.Begin(real.get(), mathDocument, mathOptions, drawing.get(), {1u, 1u}, {}, target.get()) == LayoutPreparationStatus::Complete,
           "the new DPI reuses only its own completed geometry");
     for (const auto invalidDpi : {0.f, 4097.f})
     {
@@ -276,13 +292,13 @@ template <typename Check> inline void Geometry(Check&& check)
         bool rejected{};
         try
         {
-            mathGeometry.Begin(real.get(), mathDocument, invalid, drawing.get(), {1u, 1u});
+            mathGeometry.Begin(real.get(), mathDocument, invalid, drawing.get(), {1u, 1u}, {}, target.get());
         }
         catch (const std::invalid_argument&)
         {
             rejected = true;
         }
-        check(rejected && mathGeometry.Begin(real.get(), mathDocument, mathOptions, drawing.get(), {1u, 1u}) == LayoutPreparationStatus::Complete,
+        check(rejected && mathGeometry.Begin(real.get(), mathDocument, mathOptions, drawing.get(), {1u, 1u}, {}, target.get()) == LayoutPreparationStatus::Complete,
               "invalid DPI preserves the previous published native geometry");
     }
 }
