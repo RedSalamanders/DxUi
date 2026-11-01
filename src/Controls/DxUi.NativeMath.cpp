@@ -199,7 +199,7 @@ class Parser
                                    L"gather*",
                                    L"equation",
                                    L"equation*",
-                                   L"array"};
+                                   L"array", L"alignat", L"alignat*"};
         if (std::ranges::find(names, environment) == names.end())
             Reject(MathIssue::UnsupportedEnvironment);
         std::wstring columnSpec(0u, L' ');
@@ -219,6 +219,22 @@ class Parser
             if (columnSpec.empty())
                 Reject(MathIssue::MissingRequiredArgument);
             declaredColumns = static_cast<unsigned>(columnSpec.size());
+        }
+        else if (environment == L"alignat" || environment == L"alignat*")
+        {
+            const auto argument = GroupText();
+            unsigned pairs{};
+            for (const auto ch : argument)
+            {
+                if (iswspace(ch))
+                    continue;
+                if (ch < L'0' || ch > L'9' || pairs > MathMaximumColumns / 2u)
+                    Reject(MathIssue::UnsupportedCommand);
+                pairs = pairs * 10u + static_cast<unsigned>(ch - L'0');
+            }
+            if (! pairs || pairs > MathMaximumColumns / 2u)
+                Reject(MathIssue::Capacity);
+            declaredColumns = 2u * pairs;
         }
         std::vector<MathNode> cells(0u);
         std::array<unsigned, MathMaximumRows> rowWidths{};
@@ -243,6 +259,8 @@ class Parser
                 Reject(MathIssue::Capacity);
             if (environment == L"align" || environment == L"align*" || environment == L"split")
                 environment = L"aligned";
+            else if (environment == L"alignat*")
+                environment = L"alignat";
             else if (environment == L"array")
                 environment = L"array:" + columnSpec;
             else if (gathered)

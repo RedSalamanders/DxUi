@@ -603,9 +603,10 @@ class PreparedMath final
                 case MathKind::Matrix:
                     if (node.columns == 0u || node.columns > MathMaximumColumns || node.children.empty() || node.children.size() > MathMaximumMatrixCells ||
                         node.children.size() % node.columns != 0u || node.children.size() / node.columns > MathMaximumRows ||
+                        (node.text == L"alignat" && node.columns % 2u != 0u) ||
                         (node.text != L"matrix" && node.text != L"smallmatrix" && node.text != L"pmatrix" && node.text != L"bmatrix" &&
                          node.text != L"Bmatrix" && node.text != L"vmatrix" && node.text != L"Vmatrix" && node.text != L"cases" && node.text != L"aligned" &&
-                         node.text != L"gathered" && !(node.text.starts_with(L"array:") && node.text.size() == 6u + node.columns &&
+                         node.text != L"gathered" && node.text != L"alignat" && !(node.text.starts_with(L"array:") && node.text.size() == 6u + node.columns &&
                            std::ranges::all_of(std::wstring_view(node.text).substr(6u), [](wchar_t value) { return value == L'l' || value == L'c' || value == L'r'; }))))
                         throw std::length_error("Mathematical matrix capacity exceeded");
                     break;
@@ -1125,11 +1126,11 @@ class PreparedMath final
                     }
                     totalHeight += std::max(box.size, above + below) + box.size * .3f;
                 }
-                const bool fenced        = node.text != L"matrix" && node.text != L"smallmatrix" && node.text != L"aligned" && node.text != L"gathered" && ! node.text.starts_with(L"array:");
+                const bool fenced        = node.text != L"matrix" && node.text != L"smallmatrix" && node.text != L"aligned" && node.text != L"gathered" && node.text != L"alignat" && ! node.text.starts_with(L"array:");
                 const float leftPadding  = fenced ? box.size * .4f : 0.f;
                 const float rightPadding = fenced && node.text != L"cases" ? box.size * .4f : 0.f;
                 const auto width         = std::accumulate(widths.begin(), widths.begin() + node.columns, 0.f) +
-                                           box.size * .65f * static_cast<float>(node.columns - 1u) + leftPadding + rightPadding;
+                                           box.size * .65f * static_cast<float>(node.text == L"alignat" ? 0u : node.columns - 1u) + leftPadding + rightPadding;
                 box.extent               = {width, totalHeight * .5f + box.size * .25f, std::max(0.f, totalHeight * .5f - box.size * .25f)};
                 continue;
             }
@@ -1840,24 +1841,24 @@ class PreparedMath final
                     cell  = NextSibling(cell);
                 }
                 above             = std::max(above, box.size * .8f);
-                const bool fenced = node.text != L"matrix" && node.text != L"smallmatrix" && node.text != L"aligned" && node.text != L"gathered" && ! node.text.starts_with(L"array:");
+                const bool fenced = node.text != L"matrix" && node.text != L"smallmatrix" && node.text != L"aligned" && node.text != L"gathered" && node.text != L"alignat" && ! node.text.starts_with(L"array:");
                 float cellX       = x + (fenced ? box.size * .4f : 0.f);
                 cell              = rowFirst;
                 for (unsigned col = 0; col < node.columns; ++col)
                 {
                     const float remaining = widths[col] - boxes[cell].extent.width;
                                         const auto alignment = node.text.starts_with(L"array:") ? node.text[6u + col] : L'c';
-                    const float offset = node.text == L"aligned" ? (col % 2u == 0u ? remaining : 0.f)
+                    const float offset = (node.text == L"aligned" || node.text == L"alignat") ? (col % 2u == 0u ? remaining : 0.f)
                                          : node.text == L"cases" || alignment == L'l' ? 0.f
                                          : alignment == L'r' ? remaining : remaining / 2.f;
                     Place(cell, cellX + offset, y + above);
-                    cellX += widths[col] + box.size * .65f;
+                    cellX += widths[col] + (node.text == L"alignat" ? 0.f : box.size * .65f);
                     cell = NextSibling(cell);
                 }
                 y += std::max(box.size, above + below) + box.size * .3f;
                 rowFirst = cell;
             }
-            if (node.text != L"matrix" && node.text != L"smallmatrix" && node.text != L"aligned" && node.text != L"gathered" && ! node.text.starts_with(L"array:"))
+            if (node.text != L"matrix" && node.text != L"smallmatrix" && node.text != L"aligned" && node.text != L"gathered" && node.text != L"alignat" && ! node.text.starts_with(L"array:"))
             {
                 const auto left  = node.text == L"pmatrix"                            ? L'('
                                    : node.text == L"Bmatrix" || node.text == L"cases" ? L'{'

@@ -730,6 +730,25 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     for (const auto source : {L"\\genfrac{(}{)}{2pt}{0}{a}{b}", L"\\genfrac{(}{)}{}{4}{a}{b}", L"\\genfrac{?}{}{}{}{a}{b}",
                               L"\\genfrac{}{}{}{}{a}"})
         check(! ParseMath(source), "unsupported general fraction dimensions, style and delimiters reject the whole source");
+    {
+        const auto expression = ParseMath(L"\\begin{alignat*}{2}a&b&c&d\\end{alignat*}");
+        check(expression && expression.root.children[0u].text == L"alignat" && expression.root.children[0u].columns == 4u,
+              "alignat retains its declared number of alternating alignment pairs");
+#if DXUI_ENABLE_DIAGNOSTICS
+        Detail::PreparedMath tight(factory, std::make_shared<const MathExpression>(expression), 24.f);
+        Detail::PreparedMath normal(factory, std::make_shared<const MathExpression>(ParseMath(L"\\begin{aligned}a&b&c&d\\end{aligned}")), 24.f);
+        while (! tight.Advance())
+        {
+        }
+        while (! normal.Advance())
+        {
+        }
+        check(std::abs(normal.Size().width - tight.Size().width - 3.f * 24.f * .65f) < .01f,
+              "alignat adds no automatic gaps between columns, unlike aligned's three existing gaps");
+#endif
+        check(! ParseMath(L"\\begin{alignat}{1}a&b&c\\end{alignat}") && ! ParseMath(L"\\begin{alignat}{0}a\\end{alignat}"),
+              "alignat rejects too many columns or a zero pair count");
+    }
     const auto binomial = ParseMath(L"\\binom{n}{k}");
     check(binomial && binomial.root.children.size() == 1u && binomial.root.children[0u].kind == MathKind::Matrix &&
               binomial.root.children[0u].text == L"pmatrix" && binomial.root.children[0u].columns == 1u && binomial.root.children[0u].children.size() == 2u,

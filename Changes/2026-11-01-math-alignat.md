@@ -1,0 +1,1 @@
+- Add bounded alignat environments with explicitly paired, gap-free columns.
