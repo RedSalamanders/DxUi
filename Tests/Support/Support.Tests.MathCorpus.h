@@ -184,7 +184,7 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         while (! strike.Advance())
         {
         }
-        const auto expectedStrike = strike.Baseline() - 12.f * static_cast<float>(fontMetrics.xHeight) / fontMetrics.designUnitsPerEm;
+        const auto expectedStrike = strike.Baseline() - 12.f * static_cast<float>(fontMetrics.xHeight) / static_cast<float>(fontMetrics.designUnitsPerEm);
         check(strike.StrokeLayouts().size() == 1u && std::abs(strike.StrokeLayouts()[0].first.y - expectedStrike) < .01f,
               "horizontal strike uses the actual SDK font x-height about its baseline");
         const UINT32 scalar = L'x';

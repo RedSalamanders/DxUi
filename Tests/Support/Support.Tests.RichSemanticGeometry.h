@@ -297,9 +297,10 @@ inline void MathWidthReflowAndTargetReplacement()
             for (UINT x = 0; x < static_cast<UINT>(width); ++x)
                 if (pixels[y * stride + x * 4u] < 240u)
                 {
-                    if (x > width * .35f && x < width * .65f)
+                    const auto position = static_cast<float>(x);
+                    if (position > width * .35f && position < width * .65f)
                         ++centerInk;
-                    if (x > width - 60.f)
+                    if (position > width - 60.f)
                         ++trailingInk;
                 }
         Check(centerInk && trailingInk, "tagged display paints centered body and independent trailing label at both widths");
