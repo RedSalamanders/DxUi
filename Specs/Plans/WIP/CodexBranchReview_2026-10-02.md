@@ -124,3 +124,10 @@ callback, model getter or host transition. No historical receipt changes source.
 
 The checklist above remains open for integration review and final-source tests;
 compatibility-branch and consumer ownership are unchanged.
+
+A further ComboBox pass found that an unhandled popup callback could transfer a
+surviving control to another host before the original request opened its popup.
+The selection callbacks had similar old-host continuation paths. The follow-up
+revalidates host ownership at the callback and each input caller; focused popup
+and selection transfer fixtures compile, with runtime validation still pending.
+This guard does not claim to detect every detach-and-reattach to the same host.

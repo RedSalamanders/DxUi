@@ -1,0 +1,1 @@
+- Stop stale ComboBox popup and selection continuations when application callbacks transfer the control to another host.

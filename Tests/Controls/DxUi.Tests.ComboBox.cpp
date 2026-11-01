@@ -1253,6 +1253,48 @@ void TestComboBoxSelectionStopsAfterSelectionChangedDestroysComboBox()
     Require(dynamic_cast<const Panel*>(host.GetRoot()) != nullptr, "ComboBox selection callback leaves the replacement root installed");
 }
 
+void TestComboBoxSelectionCallbackCanTransferItsOwner()
+{
+    using namespace DxUi;
+    WindowHost original;
+    WindowHost replacement;
+    auto root = std::make_unique<Panel>();
+    auto* panel = root.get();
+    auto* combo = panel->AddChild<ComboBox>();
+    combo->SetItems({ComboBox::Item{L"one", L"One"}, ComboBox::Item{L"two", L"Two"}});
+    original.SetRoot(std::move(root));
+    size_t notifications = 0u;
+    combo->SetOnSelectionChanged([&](size_t)
+    {
+        ++notifications;
+        replacement.SetRoot(panel->TakeChild(0u));
+    });
+    Require(combo->OnChar(original, L't', 0u), "typeahead commits a matching item");
+    Require(notifications == 1u && replacement.GetRoot() == combo && combo->GetSelectedIndex() == std::optional<size_t>{1u},
+            "selection callback transfers the committed control without an old-host continuation");
+}
+void TestComboBoxPopupCallbackTransferDoesNotOpenOnOldHost()
+{
+    using namespace DxUi;
+    WindowHost original;
+    WindowHost replacement;
+    auto root = std::make_unique<Panel>();
+    auto* panel = root.get();
+    auto* combo = panel->AddChild<ComboBox>();
+    combo->SetItems({ComboBox::Item{L"one", L"One"}});
+    original.SetRoot(std::move(root));
+    bool transferred = false;
+    combo->SetOnPopupRequested([&]()
+    {
+        auto owner = panel->TakeChild(0u);
+        transferred = owner.get() == combo;
+        replacement.SetRoot(std::move(owner));
+        return false;
+    });
+    Require(combo->OnKeyDown(original, VK_RETURN, 0u), "old popup request is consumed during host transfer");
+    Require(transferred && replacement.GetRoot() == combo && ! combo->IsPopupOpen(),
+            "unhandled popup callback cannot open a transferred control through the old host");
+}
 void TestComboBoxPopupCallbackKeepsItsCaptureWhenItDestroysTheComboBox()
 {
     using namespace DxUi;
@@ -1395,6 +1437,8 @@ void TestComboBoxTextChangeSnapshotCleanupRetiresRootBeforeCallerContinues()
 
 void RunComboBoxTests()
 {
+    DXUI_RUN_TEST(TestComboBoxSelectionCallbackCanTransferItsOwner);
+    DXUI_RUN_TEST(TestComboBoxPopupCallbackTransferDoesNotOpenOnOldHost);
     DXUI_RUN_TEST(TestComboBoxPopupCallbackKeepsItsCaptureWhenItDestroysTheComboBox);
     DXUI_RUN_TEST(TestComboBoxPopupCallbackKeepsItsCaptureWhenItReplacesItself);
     DXUI_RUN_TEST(TestComboBoxTextChangedCallbackRetainsMutableStateAcrossNotifications);

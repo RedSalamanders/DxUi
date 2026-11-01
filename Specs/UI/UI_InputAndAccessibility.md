@@ -1545,3 +1545,7 @@ ScrollPanel commits its offset before notifying the scroll observer. A standard
 exception from that callback is contained at its noexcept boundary and stops the
 older continuation; the committed offset remains. The callback may replace its
 subscription or retire the panel without invalidating the retained call storage.
+
+A ComboBox popup or selection callback may transfer a surviving control to a
+different host. The old input request MUST stop before opening a popup, syncing
+text input or invalidating through its previous host.
