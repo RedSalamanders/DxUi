@@ -1092,12 +1092,12 @@ struct WindowHostAccessibilityTarget final
     std::atomic<ULONG> _referenceCount{1u};
     HWND hwnd = nullptr;
     // Decided once: only a menu popup's snapshots count for DebugGetContextMenuResources.
-    const bool menuPopup = IsNativeMenuPopupWindow(hwnd);
-    bool embedded        = false;
+    const bool menuPopup        = IsNativeMenuPopupWindow(hwnd);
+    bool embedded               = false;
     EmbeddedHost* embeddedOwner = nullptr; // Borrowed on the owner thread; cleared before disconnect.
-    DWORD threadId       = GetCurrentThreadId();
-    uint64_t runtimeId   = 0;
-    uint64_t preparation = 0;
+    DWORD threadId              = GetCurrentThreadId();
+    uint64_t runtimeId          = 0;
+    uint64_t preparation        = 0;
     std::weak_ptr<int> rootLifetime;
     std::shared_ptr<EmbeddedAccessibilitySite> site;
     EmbeddedAccessibilityPlacement placement{};
@@ -14293,7 +14293,7 @@ void EmbeddedHost::DisconnectAccessibility() noexcept
     if (! target || target->threadId != GetCurrentThreadId())
         return;
     EmbeddedAccessibilityAccess::Target(_host) = nullptr;
-    target->embeddedOwner = nullptr;
+    target->embeddedOwner                      = nullptr;
     target->host.store(nullptr, std::memory_order_release);
     target->snapshot.store(nullptr, std::memory_order_release);
     target->site.reset();
