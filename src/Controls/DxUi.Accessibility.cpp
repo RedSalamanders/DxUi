@@ -4623,18 +4623,18 @@ struct TextRangeSpanMoveResult
         const auto ranges = EmbeddedAccessibilityAccess::SourceLines(*editor, host);
         if (! ranges)
             return std::nullopt;
-        std::vector<TextRangeSpan> spans;
+        std::vector<TextRangeSpan> spans(0u);
         spans.reserve(ranges->size());
         for (const auto& [start, end] : *ranges)
             spans.push_back({start, end});
-        return spans;
+        return std::optional<std::vector<TextRangeSpan>>(std::in_place, spans);
     }
     if (text.empty() || ! IsSimpleTextRangeCaretGeometrySupported(control, text))
     {
         return std::nullopt;
     }
 
-    std::vector<TextRangeSpan> spans;
+    std::vector<TextRangeSpan> spans(0u);
     size_t logicalLineCount = 0u;
     size_t logicalLineStart = 0u;
     while (logicalLineStart <= text.size())
@@ -4700,7 +4700,7 @@ struct TextRangeSpanMoveResult
     {
         return std::nullopt;
     }
-    return spans;
+    return std::optional<std::vector<TextRangeSpan>>(std::in_place, spans);
 }
 
 [[nodiscard]] size_t FindTextRangeVisualLineIndex(std::span<const TextRangeSpan> spans, size_t position) noexcept
