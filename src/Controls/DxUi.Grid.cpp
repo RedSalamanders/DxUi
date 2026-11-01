@@ -1069,6 +1069,42 @@ void GridSelectionModel::SetRange(const std::vector<uint64_t>& orderedRowIds, ui
     _anchorRowId = anchorRowId;
 }
 
+void GridSelectionModel::AssignInOrder(std::span<const uint64_t> visibleRowIds, std::span<const uint64_t> requestedRowIds, std::optional<uint64_t> anchor)
+{
+    // Stage both membership representations before publication. Hash membership and fixed-width radix sorting avoid
+    // inserting each requested ID into the middle of the sorted vector on a large reverse-order selection.
+    const std::unordered_set<uint64_t> requested(requestedRowIds.begin(), requestedRowIds.end());
+    std::vector<uint64_t> ordered;
+    ordered.reserve((std::min)(visibleRowIds.size(), requestedRowIds.size()));
+    for (const uint64_t id : visibleRowIds)
+        if (requested.contains(id))
+            ordered.push_back(id);
+    std::vector<uint64_t> sorted(ordered);
+    if (! std::ranges::is_sorted(sorted))
+    {
+        std::vector<uint64_t> scratch(sorted.size());
+        for (unsigned shift = 0u; shift < 64u; shift += 8u)
+        {
+            std::array<size_t, 256u> offsets{};
+            for (const uint64_t id : sorted)
+                ++offsets[static_cast<unsigned>((id >> shift) & 0xffu)];
+            size_t position{};
+            for (auto& count : offsets)
+            {
+                const size_t next = position + count;
+                count             = position;
+                position          = next;
+            }
+            for (const uint64_t id : sorted)
+                scratch[offsets[static_cast<unsigned>((id >> shift) & 0xffu)]++] = id;
+            sorted.swap(scratch);
+        }
+    }
+    _selectedRowIds.swap(ordered);
+    _sortedRowIds.swap(sorted);
+    _anchorRowId = anchor;
+}
+
 void GridSelectionModel::PreserveOrdered(const std::vector<uint64_t>& orderedRowIds)
 {
     if (_selectedRowIds.empty())
@@ -6844,16 +6880,7 @@ try
             return;
         if (_selectionMode != GridSelectionMode::Single)
         {
-            for (const uint64_t rowId : rowIds)
-            {
-                if (rowId != *last && visible.contains(rowId) && ! nextSelection.IsSelected(rowId))
-                {
-                    nextSelection.Toggle(rowId);
-                    if (! nextSelection.IsSelected(rowId))
-                        return;
-                }
-            }
-            nextSelection.PreserveOrdered(visibleRowIds);
+            nextSelection.AssignInOrder(visibleRowIds, rowIds, last);
         }
         nextSelection.SetAnchor(last);
     }

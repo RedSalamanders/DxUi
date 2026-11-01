@@ -1501,6 +1501,7 @@ public:
     void SetSingle(uint64_t rowId) noexcept;
     void Toggle(uint64_t rowId) noexcept;
     void SetRange(const std::vector<uint64_t>& orderedRowIds, uint64_t anchorRowId, uint64_t currentRowId);
+    void AssignInOrder(std::span<const uint64_t> visibleRowIds, std::span<const uint64_t> requestedRowIds, std::optional<uint64_t> anchor);
     void PreserveOrdered(const std::vector<uint64_t>& orderedRowIds);
 
     // No allocation. Up to 1,024 selected ids it scans them, as it always did; above that it binary searches the ascending copy,

@@ -960,16 +960,7 @@ try
             nextSelection.SetSingle(last.value());
             if (! nextSelection.IsSelected(*last))
                 return;
-            for (const uint64_t itemId : itemIds)
-            {
-                if (itemId != last.value() && visible.contains(itemId) && ! nextSelection.IsSelected(itemId))
-                {
-                    nextSelection.Toggle(itemId);
-                    if (! nextSelection.IsSelected(itemId))
-                        return;
-                }
-            }
-            nextSelection.PreserveOrdered(visibleIds);
+            nextSelection.AssignInOrder(visibleIds, itemIds, last);
             nextSelection.SetAnchor(last);
         }
         _selection = std::move(nextSelection);

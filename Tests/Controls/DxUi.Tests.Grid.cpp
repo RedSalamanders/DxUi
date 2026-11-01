@@ -470,6 +470,22 @@ void TestSelectionModel()
     const auto preserved = selection.GetOrderedSelection();
     Require(preserved.size() == 3u, "selection preserve size");
     Require(preserved[0] == 9u && preserved[1] == 7u && preserved[2] == 6u, "selection preserve order");
+    std::vector<uint64_t> manyVisible;
+    std::vector<uint64_t> manyRequested;
+    for (uint64_t id = 20000u; id > 0u; --id)
+    {
+        manyVisible.push_back(id);
+        if ((id % 2u) == 0u)
+            manyRequested.push_back(id);
+    }
+    manyRequested.push_back(20000u);
+    manyRequested.push_back(999999u);
+    selection.AssignInOrder(manyVisible, manyRequested, 20000u);
+    Require(selection.GetCount() == 10000u && selection.GetAnchor() == 20000u && selection.IsSelected(20000u) && selection.IsSelected(2u) &&
+                ! selection.IsSelected(19999u) && ! selection.IsSelected(999999u),
+            "bulk assignment filters duplicates and missing ids and retains its anchor");
+    Require(selection.GetOrderedSelection().front() == 20000u && selection.GetOrderedSelection().back() == 2u,
+            "bulk assignment retains visible order independently of membership order");
 }
 
 // The exception contract of the selection model is unchanged by its ascending copy: the mutators that set one id or flip one stay

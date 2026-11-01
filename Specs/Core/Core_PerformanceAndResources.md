@@ -1,5 +1,9 @@
 # Performance and resources
 
+Bulk Grid and Tree selection builds a staged visible-order list with hash membership and a fixed-width radix-sorted
+membership copy. Its expected work is linear in visible and requested IDs, including reverse-ordered IDs; allocation
+failure preserves the previously published selection. The final requested visible ID remains focus and anchor.
+
 Semantic spacing overrides are prepared geometry policy. Both absent retain
 legacy placement and allocate no new spacing metadata. An opted-in list minimum
 may stage one nearest-ListItem index per bounded syntax node in the existing
