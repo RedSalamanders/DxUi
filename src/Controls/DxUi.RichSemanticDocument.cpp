@@ -230,6 +230,7 @@ std::wstring BuildHeadingTableOfContents(const SemanticDocument& document)
         {
             if (value == L'\ufffc') continue;
             if (value == L'\n' || value == L'\r') { push(L' '); emitted = true; continue; }
+            if (value == L'&') { for (const auto unit : std::wstring_view(L"&amp;")) push(unit); emitted = true; continue; }
             if (std::wstring_view(L"\\`*_{}[]<>()#+-.!|~^$=").find(value) != std::wstring_view::npos) push(L'\\');
             push(value); emitted = true;
         }
