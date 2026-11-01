@@ -328,7 +328,7 @@ template <typename Check> inline void ClosedRootDifferential(Check&& check)
 }
 template <typename Check> inline void ClosedRootCancellation(Check&& check)
 {
-    const std::wstring source = L"- alpha\n  - beta\n    - gamma\n\n  tail\n\nTARGET\n";
+    const std::wstring source = L"TARGET\n\n- alpha\n  - beta\n    - gamma\n\n  tail\n";
     Document document(source);
     MarkdownParser parser;
     parser.Begin(document.Snapshot(), document.Revision(), MarkdownProfile::RichMarkdown);
@@ -346,6 +346,7 @@ template <typename Check> inline void ClosedRootCancellation(Check&& check)
     check(parser.Published() == published && published->Source() == source, "cancelling subtree preparation retains the published tree");
     parser.Begin(document.Snapshot(), document.Revision(), MarkdownProfile::RichMarkdown);
     const auto recovered = Complete(parser, check);
-    check(recovered && recovered->Source() == document.Text(), "cancelled subtree preparation retries against the current source");
+    check(recovered && recovered->Source() == document.Text() && recovered->BlockStatistics().reusedClosedRoots > 0u,
+          "cancelled subtree preparation retries and reuses the unchanged subtree");
 }
 } // namespace MarkdownSourceCorrelationTests
