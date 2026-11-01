@@ -1050,6 +1050,10 @@ RichText::Selection RichTextEditor::GetSelection() const noexcept
 {
     return _state->document.GetSelection();
 }
+std::optional<RichText::SourceLocation> RichTextEditor::GetSourceCaretLocation() const noexcept
+{
+    return Snapshot().LocationAt(GetSelection().caret);
+}
 void RichTextEditor::SetViewMode(RichText::ViewMode mode)
 {
     if (mode != RichText::ViewMode::Source && mode != RichText::ViewMode::Rich)

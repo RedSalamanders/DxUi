@@ -1315,6 +1315,11 @@ notification or lifecycle guards. RichTextEditor exposes its own ApplySourceEdit
 adapter through the existing Changed/SelectionChanged path, enforcing those
 guards and invalidating stale parser/geometry access before notification. It
 preserves the pure helper's single history entry and exact source coordinates.
+`SourceSnapshot::LocationAt` and `RichTextEditor::GetSourceCaretLocation` return
+zero-based logical source line and UTF-16 column, treating CRLF as one break.
+They visit immutable source pieces without allocating or flattening, in time
+proportional to the inspected prefix. Invalid snapshots, offsets and edit
+boundaries have no location; visual wrapping and reordered content do not alter it.
 
 ### Semantic document preparation (M4c bounded preview)
 

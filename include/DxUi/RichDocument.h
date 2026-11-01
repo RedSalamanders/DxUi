@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -27,6 +28,13 @@ struct Selection
         return std::max(anchor, caret);
     }
     bool operator==(const Selection&) const = default;
+};
+
+// Zero-based logical source coordinates; column counts UTF-16 code units.
+struct SourceLocation
+{
+    std::size_t line{}, column{};
+    bool operator==(const SourceLocation&) const = default;
 };
 
 bool IsValidUtf16(std::wstring_view text) noexcept;
@@ -70,6 +78,9 @@ public:
     // is logarithmic; Slice visits only intersecting pieces after that lookup.
     // Scalar/CRLF boundaries are preserved; immutable snapshots support worker reads.
     bool IsBoundary(std::size_t offset) const noexcept;
+    // CRLF is one line break. Invalid revisions and non-edit boundaries return no location.
+    // Visits source pieces without allocating or flattening the immutable snapshot.
+    std::optional<SourceLocation> LocationAt(std::size_t offset) const noexcept;
     std::wstring Slice(std::size_t first, std::size_t last) const;
     // A conservative replacement interval, safe for Slice in both snapshots.
     // Tracked ranges may include unchanged text; missing bounded ancestry falls

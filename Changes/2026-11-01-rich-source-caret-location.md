@@ -1,0 +1,1 @@
+- Expose allocation-free logical source caret line and UTF-16 column queries, with mixed-line-ending and immutable-snapshot coverage; native qualification remains pending.

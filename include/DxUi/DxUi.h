@@ -3283,6 +3283,8 @@ public:
     [[nodiscard]] uint64_t Revision() const noexcept;
     void SetSelection(RichText::Selection selection);
     [[nodiscard]] RichText::Selection GetSelection() const noexcept;
+    // Logical source location, independent of visual line wrapping or footnote order.
+    [[nodiscard]] std::optional<RichText::SourceLocation> GetSourceCaretLocation() const noexcept;
     void SetViewMode(RichText::ViewMode mode);
     [[nodiscard]] RichText::ViewMode GetViewMode() const noexcept;
     // Validated owner-thread presentation; never changes source/history.

@@ -486,6 +486,35 @@ bool SourceSnapshot::IsBoundary(std::size_t offset) const noexcept
         return true;
     return IsEditJoinAllowed(CharacterAt(offset - 1u), CharacterAt(offset));
 }
+std::optional<SourceLocation> SourceSnapshot::LocationAt(std::size_t offset) const noexcept
+{
+    if (! state_ || ! IsBoundary(offset))
+        return std::nullopt;
+    SourceLocation location;
+    bool previousCr = false;
+    PieceTreeNode::VisitRange(RootNode(), 0u, offset, [&](std::wstring_view fragment) noexcept
+    {
+        for (const wchar_t c : fragment)
+        {
+            if (c == L'\r')
+            {
+                ++location.line;
+                location.column = 0u;
+            }
+            else if (c == L'\n')
+            {
+                if (! previousCr)
+                    ++location.line;
+                location.column = 0u;
+            }
+            else
+                ++location.column;
+            previousCr = c == L'\r';
+        }
+        return true;
+    });
+    return location;
+}
 std::wstring SourceSnapshot::Slice(std::size_t first, std::size_t last) const
 {
     if (first > last || ! IsBoundary(first) || ! IsBoundary(last))
