@@ -6,38 +6,32 @@
 
 namespace RichTextExportTests
 {
-template <typename Extensions, typename Check> void OptionalSemanticExtensions(Check&& check)
+template <typename Check> void OptionalSemanticExtensions(Check&& check)
 {
     using namespace DxUi::RichText;
-    if constexpr (requires {
-                      Extensions::DefinitionLists;
-                      Extensions::Abbreviations;
-                  })
-    {
-        MarkdownParser parser;
-        parser.Begin(L"HTML\n\n*[HTML]: Hyper Text\n\nTerm\n: **description**\n",
-                     1u,
-                     MarkdownProfile::RichMarkdown,
-                     Extensions::RichAll | Extensions::DefinitionLists | Extensions::Abbreviations);
-        while (parser.HasPendingPreparation())
-            parser.Advance();
-        const auto syntax = parser.Published();
-        SemanticBuilder builder;
-        builder.Begin(syntax);
-        const auto document = RichSemanticDocumentTests::Complete(builder, *syntax);
-        const auto content  = ExportSemanticDocument(*document);
-        check(content.HtmlFragment().find(L"<abbr title=\"Hyper Text\">HTML</abbr>") != std::wstring_view::npos &&
-                  content.HtmlFragment().find(L"<dl>") != std::wstring_view::npos && content.HtmlFragment().find(L"<dt>") != std::wstring_view::npos &&
-                  content.HtmlFragment().find(L"<dd>") != std::wstring_view::npos &&
-                  content.HtmlFragment().find(L"<strong>description</strong>") != std::wstring_view::npos,
-              "optional abbreviation and definition roles retain their inert HTML semantics");
-    }
+    MarkdownParser parser;
+    parser.Begin(L"HTML\n\n*[HTML]: Hyper Text\n\nTerm\n: **description**\n",
+                 1u,
+                 MarkdownProfile::RichMarkdown,
+                 MarkdownExtensions::RichAll | MarkdownExtensions::DefinitionLists | MarkdownExtensions::Abbreviations);
+    while (parser.HasPendingPreparation())
+        parser.Advance();
+    const auto syntax = parser.Published();
+    SemanticBuilder builder;
+    builder.Begin(syntax);
+    const auto document = RichSemanticDocumentTests::Complete(builder, *syntax);
+    const auto content  = ExportSemanticDocument(*document);
+    check(content.HtmlFragment().find(L"<abbr title=\"Hyper Text\">HTML</abbr>") != std::wstring_view::npos &&
+              content.HtmlFragment().find(L"<dl>") != std::wstring_view::npos && content.HtmlFragment().find(L"<dt>") != std::wstring_view::npos &&
+              content.HtmlFragment().find(L"<dd>") != std::wstring_view::npos &&
+              content.HtmlFragment().find(L"<strong>description</strong>") != std::wstring_view::npos,
+          "optional abbreviation and definition roles retain their inert HTML semantics");
 }
 template <typename Check> void Core(Check&& check)
 {
     using namespace DxUi;
     using namespace DxUi::RichText;
-    OptionalSemanticExtensions<MarkdownExtensions>(check);
+    OptionalSemanticExtensions(check);
     const std::wstring source = L"# Heading\n\nBefore **bold** & <em>native</em> [safe](https://example.test \"Title & more\") [unsafe](javascript:alert) "
                                 L"![image](picture.png) $x^2$.\n\n"
                                 L"5. first\n6. second\n\n| A | B |\n| - | - |\n| one | two |\n";

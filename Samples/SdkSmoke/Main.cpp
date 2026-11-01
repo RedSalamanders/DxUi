@@ -1,6 +1,7 @@
 #include <DxUi/DxUi.h>
 #include <DxUi/Embedded.h>
 #include <DxUi/FrameRuntime.h>
+#include <DxUi/RichTextExport.h>
 
 int main()
 {
@@ -18,5 +19,15 @@ int main()
             return 2;
         }
     }
-    return stage == DxUi::FrameStage::Idle ? 0 : 3;
+    if (stage != DxUi::FrameStage::Idle)
+        return 3;
+    DxUi::RichText::MarkdownParser parser;
+    parser.Begin(L"# SDK\n\n**export**\n", 1u, DxUi::RichText::MarkdownProfile::RichMarkdown);
+    while (parser.HasPendingPreparation())
+        parser.Advance();
+    const auto content = DxUi::RichText::ExportMarkdownSyntax(parser.Published());
+    return content.Text().find(L"export") != std::wstring_view::npos && content.HtmlFragment().find(L"<h1 id=\"sdk\">SDK</h1>") != std::wstring_view::npos &&
+                   content.HtmlFragment().find(L"<strong>export</strong>") != std::wstring_view::npos
+               ? 0
+               : 4;
 }
