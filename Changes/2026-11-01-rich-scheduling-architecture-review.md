@@ -1,0 +1,1 @@
+- Record the current shared-turn, image-completion and width-reflow implementation and distinguish optional consolidation from existing lifecycle contracts.
