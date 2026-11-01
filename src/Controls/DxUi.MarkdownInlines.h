@@ -251,8 +251,10 @@ class MarkdownInlines
     MarkdownRange Range(std::size_t first, std::size_t last) const noexcept
     {
         return {offsets_[first],
-                last > first ? offsets_[last - 1u] + (text_[last - 1u] == L'\n' && offsets_[last - 1u] + 1u < source_.size() &&
-                                                              source_[offsets_[last - 1u]] == L'\r' && source_[offsets_[last - 1u] + 1u] == L'\n'
+                last > first ? offsets_[last - 1u] + (((text_[last - 1u] == L'\n' && source_[offsets_[last - 1u]] == L'\r') ||
+                                                         (text_[last - 1u] == L'|' && source_[offsets_[last - 1u]] == L'\\')) &&
+                                                                offsets_[last - 1u] + 1u < source_.size() &&
+                                                                source_[offsets_[last - 1u] + 1u] == text_[last - 1u]
                                                           ? 2u
                                                           : 1u)
                              : offsets_[first]};
@@ -604,9 +606,9 @@ class MarkdownInlines
             {
                 // Table row splitting precedes inline parsing: an escaped pipe
                 // loses its backslash even inside a code span.
+                offsets_.push_back(i);
                 if (block.block.kind == MarkdownBlockKind::TableCell && source_[i] == L'\\' && i + 1u < line.source.last && source_[i + 1u] == L'|')
                     ++i;
-                offsets_.push_back(i);
                 if (source_[i] == L'\r')
                 {
                     text_.push_back(L'\n');

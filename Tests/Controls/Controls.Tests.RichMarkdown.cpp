@@ -446,6 +446,20 @@ void TestLosslessMarkdownInlineScenariosAndExtensionIdentity()
 {
     std::cout << "Directed inline scenarios: " << std::size(MarkdownInlineTests::scenarios) << "; profiles: 3\n";
     MarkdownParser parser;
+    for (const auto profile : {MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+    {
+        const std::wstring_view table = L"| a\\|b | `\\|` |\n| --- | --- |\n";
+        parser.Begin(table, 1u, profile);
+        const auto syntax = CompleteMarkdown(parser, 1u);
+        const auto text = std::ranges::find_if(syntax->Inlines(), [](const auto& node)
+                                               { return node.kind == MarkdownInlineKind::Text && node.value == L"a|b"; });
+        const auto code = std::ranges::find_if(syntax->Inlines(), [](const auto& node)
+                                               { return node.kind == MarkdownInlineKind::Code && node.value == L"|"; });
+        Require(text != syntax->Inlines().end() && text->source.first == 2u && text->source.last == 6u,
+                "escaped table pipe includes its backslash in the contiguous text source");
+        Require(code != syntax->Inlines().end() && code->source.first == 9u && code->source.last == 13u,
+                "escaped table pipe inside code retains the complete code source");
+    }
     const wchar_t nulLabel[] = L"[a\0b]: /url\n[a\0b]\n";
     for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
     {
