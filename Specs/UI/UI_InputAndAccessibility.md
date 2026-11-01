@@ -1205,6 +1205,9 @@ exact current match, also as one composition-safe undo transaction.
 at the source boundary; selection and scrolling use the ordinary editor policy.
 `SetSearchMatches` revision-checks ordered, non-overlapping source matches and
 maps an optional active match into the existing source-highlight presentation.
+Optional search shortcuts route Ctrl+F to the consumer's find-request callback
+and F3/Shift+F3 to next/previous matches of the configured query; they are
+disabled by default. The consumer owns the find interface and query updates.
 Selection, source-highlight and native composition rectangles are staged with
 current layout before painting; selection or highlight changes retire their
 prepared geometry until the host prepares the replacement.

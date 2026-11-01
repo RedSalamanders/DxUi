@@ -3357,6 +3357,9 @@ public:
     bool ReplaceSelectedSourceMatch(std::wstring_view query, std::wstring_view replacement, RichText::SourceSearchOptions options = {});
     // Select the next/previous source match, wrapping once at the document edge.
     bool SelectSourceMatch(std::wstring_view query, bool backwards = false, RichText::SourceSearchOptions options = {});
+    void SetSearchQuery(std::wstring_view query, RichText::SourceSearchOptions options = {});
+    void SetSearchShortcutsEnabled(bool enabled) noexcept;
+    void SetOnFindRequested(std::function<void()> callback);
     bool ToggleFormatting(std::wstring_view marker);
     // Opt-in semantic editing: current CPU analysis is required; commands never
     // advance preparation. Plans also guard syntax identity and source selection.

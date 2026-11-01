@@ -123,7 +123,7 @@ D2D1_COLOR_F DecorationColor(const ThemePalette& theme, RichTextDecorationRole r
 #pragma warning(disable : 4625 4626 5026 5027)
 struct RichTextEditor::State
 {
-    explicit State(std::wstring text) : document(std::move(text)), documentFilePath(0u, L' ')
+    explicit State(std::wstring text) : document(std::move(text)), searchQuery(0u, L' '), documentFilePath(0u, L' ')
     {
     }
     RichText::Document document;
@@ -149,6 +149,10 @@ struct RichTextEditor::State
     std::vector<RichTextSourceHighlight> highlights;
     std::vector<RichTextDecoration> decorations;
     std::shared_ptr<const RichTextContextMenuLabels> contextMenuLabels;
+    std::wstring searchQuery;
+    RichText::SourceSearchOptions searchOptions;
+    bool searchShortcutsEnabled = false;
+    std::shared_ptr<const std::function<void()>> onFindRequested;
     struct HighlightRectangle
     {
         D2D1_RECT_F rectangle{};
@@ -1461,6 +1465,23 @@ bool RichTextEditor::ApplySourceEdits(const RichText::SourceSnapshot& expectedSo
     _state->sourceCaretSite = RichText::MarkdownNoNode;
     Changed(changed);
     return changed;
+}
+void RichTextEditor::SetSearchQuery(std::wstring_view query, RichText::SourceSearchOptions options)
+{
+    if (query.size() > RichText::Document::MaximumUnits || ! RichText::IsValidUtf16(query))
+        throw std::invalid_argument("Invalid search query");
+    std::wstring staged(query);
+    _state->searchQuery.swap(staged);
+    _state->searchOptions = options;
+}
+void RichTextEditor::SetSearchShortcutsEnabled(bool enabled) noexcept
+{
+    _state->searchShortcutsEnabled = enabled;
+}
+void RichTextEditor::SetOnFindRequested(std::function<void()> callback)
+{
+    auto next = callback ? std::make_shared<const std::function<void()>>(std::move(callback)) : nullptr;
+    _state->onFindRequested.swap(next);
 }
 bool RichTextEditor::SelectSourceMatch(std::wstring_view query, bool backwards, RichText::SourceSearchOptions options)
 {
@@ -3550,6 +3571,22 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
             _state->taskPressPlan.reset();
             PublishSelectionChanged();
             return true;
+        }
+        if (_state->searchShortcutsEnabled)
+        {
+            if (control && ! shift && key == 'F')
+            {
+                const auto callback = _state->onFindRequested;
+                if (! callback)
+                    return false;
+                (*callback)();
+                return true;
+            }
+            if (! control && key == VK_F3 && ! _state->searchQuery.empty())
+            {
+                static_cast<void>(SelectSourceMatch(_state->searchQuery, shift, _state->searchOptions));
+                return true;
+            }
         }
         if (_state->sourceEditing && (key == VK_ESCAPE || (control && key == VK_RETURN && ! shift) || (key == VK_F2 && ! control && ! shift)))
             return EndSemanticSourceEdit(host);

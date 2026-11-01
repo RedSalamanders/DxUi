@@ -199,6 +199,14 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
               editor->SelectSourceMatch(L"one", false, {.wholeWord = true}) && editor->GetSelection() == Selection{0u, 3u} &&
               editor->SelectSourceMatch(L"one", true, {.wholeWord = true}) && editor->GetSelection() == Selection{4u, 7u},
           "source match navigation wraps in both directions");
+    unsigned findRequests = 0u;
+    editor->SetSearchQuery(L"one", {.wholeWord = true});
+    editor->SetOnFindRequested([&] { ++findRequests; });
+    editor->SetSearchShortcutsEnabled(true);
+    Check(editor->OnKeyDown(host, 'F', MK_CONTROL) && findRequests == 1u && editor->OnKeyDown(host, VK_F3, 0u) && editor->GetSelection() == Selection{0u, 3u} &&
+              editor->OnKeyDown(host, VK_F3, MK_SHIFT) && editor->GetSelection() == Selection{4u, 7u},
+          "opt-in find and next/previous shortcuts route through current search state");
+    editor->SetSearchShortcutsEnabled(false);
     Check(editor->ReplaceSelectedSourceMatch(L"one", L"two", {.wholeWord = true}) && editor->GetText() == L"One two only" && editor->Undo() &&
               editor->GetText() == L"One one only",
           "replace selected match is one source-exact undo transaction");
