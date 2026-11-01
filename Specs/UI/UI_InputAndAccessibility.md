@@ -1229,6 +1229,10 @@ SetCodeBlock wraps supported top-level paragraph lines in a tilde fence longer
 than any contained run, or unwraps a closed top-level fence. SetCodeLanguage
 replaces a current top-level fence info string. Nested container conversion and
 unclosed-fence unwrapping are unavailable pending their source-prefix policy.
+InsertMath in the RichMarkdown profile wraps a selected source expression, or
+inserts a supplied nonempty expression, using inline or display delimiters.
+It selects the expression and rejects conflicting delimiters, multiline payloads,
+opaque inline interiors and expressions beyond native math source capacity.
 
 A task press MUST stage an immutable current source plan without editing text.
 Only matching release inside its checkbox can apply it. Leaving the rectangle,

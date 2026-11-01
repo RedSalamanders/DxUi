@@ -27,7 +27,8 @@ enum class MarkdownCommand
     SetQuote,
     SetCodeBlock,
     SetCodeLanguage,
-    InsertHardBreak
+    InsertHardBreak,
+    InsertMath
 };
 enum class MarkdownQuoteAction
 {
@@ -61,6 +62,7 @@ struct MarkdownCommandRequest
     MarkdownListKind listKind       = MarkdownListKind::Unordered;
     MarkdownTextStyle style         = MarkdownTextStyle::Strong;
     MarkdownQuoteAction quoteAction = MarkdownQuoteAction::Toggle;
+    bool mathDisplay                = false;
     unsigned headingLevel           = 1u;
     std::optional<unsigned> listStart;
     // Revision-local TableCell identity, needed when padded cells share an ACP.

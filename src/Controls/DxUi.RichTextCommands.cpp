@@ -1,6 +1,7 @@
 #include "DxUi.MarkdownTableCells.h"
 #include "DxUi.RichFileReferenceContext.h"
 #include "DxUi.RichSemanticHtml.h"
+#include <DxUi/RichMath.h>
 #include <DxUi/RichTextCommands.h>
 #include <limits>
 #include <stdexcept>
@@ -842,6 +843,7 @@ struct MarkdownCommandPlanner
     void Quote(MarkdownQuoteAction action);
     void CodeBlock(const MarkdownCommandRequest& request);
     void HardBreak();
+    void Math(const MarkdownCommandRequest& request);
     void Join(bool backwards);
     void Style(MarkdownTextStyle style);
     void Link(const MarkdownCommandRequest& request, bool remove);
@@ -1320,6 +1322,43 @@ void MarkdownCommandPlanner::HardBreak()
     insertion += prefix;
     Add(caret, caret, insertion);
     plan.after_       = {caret + insertion.size(), caret + insertion.size()};
+    explicitSelection = true;
+    plan.applicable_  = true;
+}
+
+void MarkdownCommandPlanner::Math(const MarkdownCommandRequest& request)
+{
+    if (plan.syntax_->Profile() != MarkdownProfile::RichMarkdown)
+        return;
+    std::size_t leaf{};
+    if (! InlineSelection(leaf))
+        return;
+    const auto first = plan.before_.Start(), last = plan.before_.End();
+    for (const auto& node : plan.syntax_->Inlines())
+    {
+        if (node.kind == MarkdownInlineKind::Text || node.source.last <= first || node.source.first >= last)
+            continue;
+        const auto body = node.kind == MarkdownInlineKind::Strong || node.kind == MarkdownInlineKind::Emphasis || node.kind == MarkdownInlineKind::Strikethrough
+                              ? InlineBody(node)
+                              : std::nullopt;
+        if (! body || first < body->first || last > body->last)
+            return;
+    }
+    if (first == last)
+        for (const auto range : opaqueInlines)
+            if (range.first < first && first < range.last)
+                return;
+    const auto payload = first == last ? request.text : Slice(first, last);
+    const auto closer  = request.mathDisplay ? std::wstring_view(L"\\]") : std::wstring_view(L"\\)");
+    if (payload.empty() || payload.size() > MathMaximumSourceUnits || ! IsValidUtf16(payload) || payload.find_first_of(L"\r\n") != payload.npos ||
+        payload.find(closer) != payload.npos)
+        return;
+    std::wstring insertion = request.mathDisplay ? L"\\[" : L"\\(";
+    insertion += payload;
+    insertion += closer;
+    Add(first, last, insertion);
+    const auto begin = first + 2u, end = begin + payload.size();
+    plan.after_       = plan.before_.anchor <= plan.before_.caret ? Selection{begin, end} : Selection{end, begin};
     explicitSelection = true;
     plan.applicable_  = true;
 }
@@ -2621,7 +2660,7 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
 {
     if (request.text.size() > Document::MaximumUnits || request.destination.size() > Document::MaximumUnits || request.title.size() > Document::MaximumUnits)
         throw std::length_error("Structural request text exceeds source capacity");
-    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::InsertHardBreak))
+    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::InsertMath))
         throw std::invalid_argument("Invalid Markdown command");
     Detail::MarkdownCommandPlanner builder(source, revision, std::move(syntax), selection);
     // Resolved definitions own editable content, while the label and
@@ -2657,6 +2696,7 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
         case MarkdownCommand::SetCodeBlock:
         case MarkdownCommand::SetCodeLanguage: builder.CodeBlock(request); break;
         case MarkdownCommand::InsertHardBreak: builder.HardBreak(); break;
+        case MarkdownCommand::InsertMath: builder.Math(request); break;
         case MarkdownCommand::InsertTable:
         case MarkdownCommand::InsertTableRow:
         case MarkdownCommand::DeleteTableRow:
