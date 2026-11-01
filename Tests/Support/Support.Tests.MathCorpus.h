@@ -1286,6 +1286,26 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         scriptDepth.append(MathMaximumGroupDepth - 1u, L'}');
         check(static_cast<bool>(ParseMath(scriptDepth)), "script command and its 63 groups fit the ordinary stack at their admitted nesting boundary");
     }
+    {
+        std::wstring deepLeft(0u, L' '), deepNot(0u, L' ');
+        for (unsigned i = 0u; i < MathMaximumGroupDepth; ++i)
+        {
+            deepLeft += L"\\left(";
+            deepNot += L"\\not ";
+        }
+        deepLeft += L'x';
+        deepNot += L'=';
+        for (unsigned i = 0u; i < MathMaximumGroupDepth; ++i)
+            deepLeft += L"\\right)";
+        const auto delimited = std::make_shared<const MathExpression>(ParseMath(deepLeft));
+        check(static_cast<bool>(*delimited), "64 nested paired delimiters fit the ordinary parser stack");
+        check(! ParseMath(deepNot), "deep unsupported nested negation refuses without overflow");
+#if DXUI_ENABLE_DIAGNOSTICS
+        Detail::PreparedMath delimitedGeometry(factory, delimited, 12.f);
+        while (! delimitedGeometry.Advance()) {}
+        check(delimitedGeometry.GlyphLayouts().size() == 1u, "64 nested paired delimiters prepare on the ordinary stack");
+#endif
+    }
 #if DXUI_ENABLE_DIAGNOSTICS
     const auto lowestObservedStack         = Detail::testRichMathLowestStackAddress;
     Detail::testRichMathLowestStackAddress = 0u;

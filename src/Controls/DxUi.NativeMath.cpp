@@ -831,17 +831,15 @@ class Parser
             return Make(MathKind::Scripts, L"", {std::move(base), std::move(sub), std::move(super)});
 
     }
-    MathNode StructuredCommand(std::wstring_view name, unsigned depth)
+    MathNode NotCommand(unsigned depth)
     {
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
 #endif
-        if (name == L"not")
-        {
             auto operand = Atom(depth + 1u);
             if (operand.kind != MathKind::Text || operand.atomClass != MathAtomClass::Relation || operand.text.size() != 1u)
                 Reject(MathIssue::UnsupportedCommand);
-            constexpr std::array pairs{std::pair{L'=', L'≠'},
+            static constexpr std::array pairs{std::pair{L'=', L'≠'},
                                        std::pair{L'<', L'≮'},
                                        std::pair{L'>', L'≯'},
                                        std::pair{L'≤', L'≰'},
@@ -864,7 +862,13 @@ class Parser
                     return operand;
                 }
             Reject(MathIssue::UnsupportedCommand);
-        }
+
+    }
+    MathNode StructuredCommand(std::wstring_view name, unsigned depth)
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
         if (name == L"begin")
             return Matrix(GroupText(), depth);
         Reject(MathIssue::UnsupportedCommand);
@@ -929,7 +933,24 @@ class Parser
         auto body = Atom(depth + 1u);
         return FinishMathStyle(name, std::move(body));
     }
-    MathNode StyledCommand(std::wstring_view name, unsigned depth)
+    MathNode FinishDelimited(wchar_t left, wchar_t right, MathNode&& body)
+    {
+        return Make(MathKind::Delimited, std::wstring{left, right}, {std::move(body)});
+    }
+    MathNode LeftCommand(unsigned depth)
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
+        const auto left = Delimiter();
+        auto body = Row(depth + 1u, false, false, true);
+        if (source.substr(at, 6u) != L"\\right")
+            Reject(MathIssue::MissingRightDelimiter);
+        at += 6u;
+        const auto right = Delimiter();
+        return FinishDelimited(left, right, std::move(body));
+    }
+    MathNode StyledCommand(std::wstring_view name)
     {
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
@@ -951,16 +972,6 @@ class Parser
             if (name == L"textbf" || name == L"textit")
                 return Make(MathKind::Style, name == L"textbf" ? L"mathbf" : L"mathit", {std::move(result)});
             return result;
-        }
-        if (name == L"left")
-        {
-            const auto left = Delimiter();
-            auto body       = Row(depth + 1, false, false, true);
-            if (source.substr(at, 6) != L"\\right")
-                Reject(MathIssue::MissingRightDelimiter);
-            at += 6;
-            const auto right = Delimiter();
-            return Make(MathKind::Delimited, std::wstring{left, right}, {std::move(body)});
         }
         Reject(MathIssue::UnsupportedCommand);
     }
@@ -1368,6 +1379,10 @@ class Parser
             return UnaryAccentCommand(name, depth);
         if (name == L"begin")
             return BeginCommand(depth);
+        if (name == L"not")
+            return NotCommand(depth);
+        if (name == L"left")
+            return LeftCommand(depth);
         if (name == L"sqrt")
             return RootCommand(depth);
         if (name == L"substack")
@@ -1390,7 +1405,7 @@ class Parser
                                                        L"mathpunct",  L"mathinner",  L"overline", L"underline",    L"bar",       L"hat",      L"widehat",
                                                        L"vec",        L"dot",        L"ddot",     L"tilde",        L"widetilde", L"check", L"widecheck", L"breve", L"acute", L"grave", L"mathring", L"underbar", L"utilde", L"overbrace", L"underbrace", L"overgroup", L"undergroup", L"left", L"boxed", L"cancel", L"bcancel", L"xcancel", L"sout", L"phase", L"angl"};
         if (std::ranges::find(styled, name) != std::end(styled))
-            return StyledCommand(name, depth);
+            return StyledCommand(name);
         return SymbolCommand(name);
     }
     MathNode Atom(unsigned depth)
