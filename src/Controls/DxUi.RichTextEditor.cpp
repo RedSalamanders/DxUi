@@ -355,6 +355,7 @@ struct RichTextEditor::State
     std::optional<RichText::MarkdownRange> hoveredLink;
     std::optional<RichText::MarkdownRange> caretLink;
     std::shared_ptr<const std::function<void(const RichTextLinkActivation&)>> onLinkActivated;
+    std::shared_ptr<const std::function<void(const RichTextImageActivation&)>> onImageActivated;
     std::weak_ptr<const RichText::SemanticDocument> keyboardNavigationDocument;
     size_t keyboardNavigationElement = RichText::MarkdownNoNode;
     struct TaskFocusIntent
@@ -2068,6 +2069,46 @@ void RichTextEditor::SetOnLinkActivated(std::function<void(const RichTextLinkAct
 bool RichTextEditor::HasLinkActivationHandler() const noexcept
 {
     return bool(_state->onLinkActivated);
+}
+void RichTextEditor::SetOnImageActivated(std::function<void(const RichTextImageActivation&)> callback)
+{
+    auto next = callback ? std::make_shared<const std::function<void(const RichTextImageActivation&)>>(std::move(callback)) : nullptr;
+    _state->onImageActivated.swap(next);
+}
+bool RichTextEditor::ActivateSemanticImage(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& expected, size_t element)
+{
+    const auto document = expected;
+    if (! document || element >= document->Elements().size() || GetHost() != &host || ! IsEnabled() || ! IsVisible() ||
+        GetAcknowledgedSemanticDocument(host) != document || document->Elements()[element].role != RichText::SemanticRole::Image)
+        return false;
+    const auto lifetime = GetLifetimeToken();
+    if (host.GetFocusControl() == this)
+    {
+        NativeTextInputState input{.text = std::wstring(0u, L' '), .compositionClauseBoundaries = std::vector<size_t>(0u)};
+        const bool available = host.TryReadNativeTextInputState(this, input);
+        if ((host.HasActiveNativeTextInputSession() && ! available) || (available && (input.compositionStartIndex || input.compositionEndIndex)))
+            return false;
+    }
+    if (lifetime.expired() || GetHost() != &host || GetAcknowledgedSemanticDocument(host) != document)
+        return false;
+    const auto callback = _state->onImageActivated;
+    if (! callback)
+        return false;
+    const auto& image = document->Elements()[element];
+    const RichTextImageActivation activation{image.source, image.destination, image.title, image.name, image.wiki};
+    try
+    {
+        (*callback)(activation);
+    }
+    catch (const std::bad_alloc&)
+    {
+        std::terminate(); // Application notification allocation failure is fatal.
+    }
+    catch (const std::exception&)
+    {
+        Debug::Warning(L"DxUi::RichTextEditor: image notification failed; source retained.");
+    }
+    return true; // The callback may have retired this owner.
 }
 bool RichTextEditor::CanChangeSemanticSourcePresentation(ControlHost& host) const
 {
@@ -5910,6 +5951,14 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                         if (link.role == RichText::SemanticRole::Link && link.source.first <= GetSelection().caret && GetSelection().caret < link.source.last)
                             return NavigateSemanticElement(host, document, element);
                     }
+                    if (_state->onImageActivated)
+                        for (size_t element = 0u; element < document->Elements().size(); ++element)
+                        {
+                            const auto& image = document->Elements()[element];
+                            if (image.role == RichText::SemanticRole::Image && image.source.first <= GetSelection().caret &&
+                                GetSelection().caret < image.source.last)
+                                return ActivateSemanticImage(host, document, element);
+                        }
                 }
             switch (key)
             {
@@ -6411,6 +6460,12 @@ bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool ri
                         if (const auto bounds = GetSemanticElementBounds(host, element);
                             bounds && point.x >= bounds->left && point.x <= bounds->right && point.y >= bounds->top && point.y <= bounds->bottom)
                             return NavigateSemanticElement(host, document, element);
+                if (_state->onImageActivated)
+                    for (size_t element = 0u; element < document->Elements().size(); ++element)
+                        if (document->Elements()[element].role == RichText::SemanticRole::Image)
+                            if (const auto bounds = GetSemanticElementBounds(host, element);
+                                bounds && point.x >= bounds->left && point.x <= bounds->right && point.y >= bounds->top && point.y <= bounds->bottom)
+                                return ActivateSemanticImage(host, document, element);
             }
         std::shared_ptr<const RichText::MarkdownCommandPlan> taskPlan;
         D2D1_RECT_F taskRect{};

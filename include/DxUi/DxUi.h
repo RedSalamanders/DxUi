@@ -3181,6 +3181,13 @@ struct RichTextLinkActivation
     std::wstring_view label;
     bool wiki = false;
 };
+struct RichTextImageActivation
+{
+    RichText::MarkdownRange source;
+    // Borrowed from the immutable semantic publication during the callback.
+    std::wstring_view destination, title, alternative;
+    bool wiki = false;
+};
 struct RichTextScrollInfo
 {
     float offsetDip{}, viewportHeightDip{}, contentHeightDip{};
@@ -3445,6 +3452,9 @@ public:
     // The library never launches a browser, file, process or network operation.
     void SetOnLinkActivated(std::function<void(const RichTextLinkActivation&)> callback);
     [[nodiscard]] bool HasLinkActivationHandler() const noexcept;
+    // Explicit image intent; the application decides what opening means.
+    void SetOnImageActivated(std::function<void(const RichTextImageActivation&)> callback);
+    bool ActivateSemanticImage(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& expected, size_t element);
     // Current prepared geometry only. Programmatic scrolling does not change
     // source, selection, undo history or focus; read-only views allow it.
     [[nodiscard]] std::optional<RichTextScrollInfo> GetScrollInfo() const noexcept;

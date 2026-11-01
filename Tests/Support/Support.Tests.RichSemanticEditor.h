@@ -1973,6 +1973,18 @@ template <typename Prepare> void WikiTargets(ControlHost& host, Prepare&& prepar
     prepare();
     const auto document = editor->GetAcknowledgedSemanticDocument(host);
     Check(document != nullptr, "wiki targets have acknowledged semantic geometry");
+    unsigned imageActivations{};
+    editor->SetOnImageActivated([&](const RichTextImageActivation& activation)
+    {
+        Check(activation.wiki && activation.destination == L"Asset" && activation.alternative == L"Asset",
+              "image activation exposes the semantic target without resolving it");
+        ++imageActivations;
+    });
+    const auto image = std::ranges::find_if(document->Elements(), [](const auto& element) { return element.role == SemanticRole::Image && element.wiki; });
+    Check(image != document->Elements().end() &&
+              editor->ActivateSemanticImage(host, document, static_cast<std::size_t>(image - document->Elements().begin())) && imageActivations == 1u &&
+              editor->GetText() == source && ! editor->CanUndo(),
+          "image intent is application-owned and leaves source and history unchanged");
     const auto link = std::ranges::find_if(document->Elements(), [](const auto& element) { return element.role == SemanticRole::Link && element.wiki; });
     Check(link != document->Elements().end() &&
               editor->NavigateSemanticElement(host, document, static_cast<std::size_t>(link - document->Elements().begin())) && navigations == 1u &&
@@ -1988,9 +2000,21 @@ template <typename Prepare> void WikiTargets(ControlHost& host, Prepare&& prepar
     editor->TakePendingImageRequests(requests);
     Check(requests.empty() && editor->GetImageResourceStatistics().readySources == 1u && editor->GetText() == source,
           "resolved wiki pixels publish without changing Markdown source");
+    const auto ready      = editor->GetAcknowledgedSemanticDocument(host);
+    const auto readyImage = std::ranges::find(ready->Elements(), SemanticRole::Image, &SemanticElement::role);
+    Check(readyImage != ready->Elements().end(), "resolved image remains in the current semantic publication");
+    const auto imageIndex = static_cast<std::size_t>(readyImage - ready->Elements().begin());
+    editor->SetSelection({readyImage->source.first, readyImage->source.first});
+    Check(editor->OnKeyDown(host, VK_RETURN, MK_CONTROL) && imageActivations == 2u, "Ctrl+Enter requests activation for the image at the source caret");
+    const auto imageBounds = editor->GetSemanticElementBounds(host, imageIndex);
+    Check(imageBounds.has_value(), "resolved image has a pointer target");
+    const auto point = D2D1::Point2F((imageBounds->left + imageBounds->right) / 2.f, (imageBounds->top + imageBounds->bottom) / 2.f);
+    Check(editor->OnMouseDown(host, point, false, MK_CONTROL) && imageActivations == 3u, "Ctrl+click requests activation of the prepared image");
     editor->SetSelection({2u, 2u});
     Check(editor->OnKeyDown(host, VK_F2, 0u), "wiki link enters exact inline source editing");
     prepare();
+    Check(! editor->ActivateSemanticImage(host, document, static_cast<std::size_t>(image - document->Elements().begin())),
+          "a retired semantic publication cannot activate a replacement image");
     const auto region = editor->GetSemanticSourceRegion();
     Check(region && region->source == MarkdownRange{0u, source.find(L']') + 2u}, "wiki source editing owns the full raw envelope");
     editor->SetSelection({region->source.first, region->source.last});
@@ -1998,6 +2022,13 @@ template <typename Prepare> void WikiTargets(ControlHost& host, Prepare&& prepar
           "broken wiki source remains editable and one undo restores it exactly");
     prepare();
     Check(editor->OnKeyDown(host, VK_ESCAPE, 0u), "wiki source session exits normally");
+    prepare();
+    const auto current      = editor->GetAcknowledgedSemanticDocument(host);
+    const auto currentImage = std::ranges::find(current->Elements(), SemanticRole::Image, &SemanticElement::role);
+    Check(currentImage != current->Elements().end(), "image intent test has current prepared geometry");
+    editor->SetOnImageActivated([&](const RichTextImageActivation&) { host.SetRoot(std::unique_ptr<Control>{}); });
+    Check(editor->ActivateSemanticImage(host, current, static_cast<std::size_t>(currentImage - current->Elements().begin())),
+          "image callback may retire the editor without continuation through its old owner");
 }
 template <typename Prepare> void InlineScriptFallback(ControlHost& host, Prepare&& prepare)
 {

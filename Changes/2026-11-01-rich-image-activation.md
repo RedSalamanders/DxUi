@@ -1,0 +1,1 @@
+- Add guarded application-owned rich image activation intents without changing source, history or existing link navigation.

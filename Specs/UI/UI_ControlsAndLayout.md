@@ -1118,6 +1118,14 @@ same image limits. Disabling it cancels its jobs and evicts its pixels without
 retiring local, remote or wiki jobs; toggling the remote policy likewise retains
 data jobs. Stale completions cannot publish after cancellation.
 
+An application may register an image activation intent callback. Ctrl+click
+and Ctrl+Enter request activation on a current prepared image; an enclosing
+link retains its existing navigation priority. The callback borrows the exact
+semantic source range, destination, title and alternative while the immutable
+publication is held. A stale publication or active composition is refused;
+the library performs no navigation or source/history mutation. Image UIA source
+editing retains its existing action and is not changed into activation.
+
 In the opt-in Subtle Markdown style, fenced and indented code blocks have a neutral themed fill and a six-DIP inner frame; narrow viewports clamp horizontal insets to retain a one-DIP text width. Their source caret and selection use the inset content geometry. A fenced block with a language token of at most 128 UTF-16 units shows that token in a nonselectable prepared header; longer labels are omitted. When the frame has room for both its font-scaled gutter and at least 56 DIP of content, a nonselectable gutter displays prepared physical line numbers, aligned after wrapping and mirrored for right-to-left layout. Preparation admits at most 4096 number layouts per document, omits blocks with more than 4096 visual lines and stops numbering when that cap is reached; narrower frames omit the gutter. Default presentation retains its original code frame.
 
 An application may register a localized accessible name and code-copy intent callback. In Subtle style the prepared header then exposes a pointer action and a distinct UIA Invoke child; Ctrl+Shift+C invokes the block containing the source caret. The callback receives a borrowed counted rendered-code view with the block's normalized line endings, including any NUL; the application owns clipboard format policy. The existing code-element Invoke remains source editing. Stale, canceled, detached, or retired gestures and peers cannot invoke a replacement owner, and the action never changes source, selection or history.
