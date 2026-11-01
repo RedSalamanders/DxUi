@@ -1272,7 +1272,13 @@ single leading/trailing-space rule. Exact source spelling is retained separately
 
 `MarkdownExtensions` defaults to None for CommonMark, All for Gfm029 and
 RichAll for RichMarkdown. Explicit options select Tables, TaskLists, Strikethrough, Autolinks,
-TagFilter and the RichMarkdown-only Highlight, Superscript, Subscript, Inserted and WikiLinks flags;
+TagFilter and the RichMarkdown-only Highlight, Superscript, Subscript, Inserted, WikiLinks,
+DefinitionLists and Abbreviations flags; the latter two are opt-in and are not
+included in the existing RichAll default. RichOptionalMask is the full admissible
+RichMarkdown bit mask. `SetMarkdownAnalysisExtensions` selects an explicit mask
+for the editor's current profile, or null to restore its default; changing profile
+resets the explicit mask. The mask participates in syntax adoption, cancellation,
+semantic publication and reuse identity; changing it preserves source and history;
 unknown bits and unsupported profile/option combinations are rejected
 atomically. Options participate in request coalescing/publication identity.
 RichMarkdown resolves exact `==...==`, `^...^`, `~...~` and `++...++` delimiter
@@ -1292,6 +1298,22 @@ Wiki embeds create bounded `WikiTarget` image requests with an empty FilePath;
 the application resolves the target and supplies immutable pixels. Neither
 path performs filesystem, vault or network resolution. Lookahead work is
 cooperatively bounded and amortized linear over a leaf.
+
+With DefinitionLists enabled, one plain term line followed by 1–16 plain
+`: ` description lines in the same paragraph projects a source-owned definition
+list, term and descriptions. Each line is at most 1,024 UTF-16 units; formatted,
+empty, over-bound or malformed forms retain normal Markdown presentation. With
+Abbreviations enabled, up to 128 unique top-level single-line declarations of
+`*[KEY]: expansion` are recognized; keys are 1–64 ASCII letters/digits, and
+expansions are 1–512 UTF-16 units without controls or angle brackets. Their first
+accepted declaration is hidden only in semantic presentation. A matching exact,
+case-sensitive standalone ASCII word gets a source-owned abbreviation element,
+its authored expansion as UIA HelpText and the ordinary read-only/Ctrl hover title.
+Code, transformed tokens and words adjacent to Unicode or Markdown delimiters
+are left ordinary. Duplicate, malformed or over-capacity declarations remain
+visible as ordinary Markdown. No source, selection, history, or network behavior
+changes, and CommonMark/GFM cannot enable these two flags.
+
 GFM tables are recognized before cell inlines, retain alignment/header metadata,
 unescape cell pipes even in code, pad missing cells and retain ignored excess
 source. Task metadata belongs to the list item, requires its first paragraph

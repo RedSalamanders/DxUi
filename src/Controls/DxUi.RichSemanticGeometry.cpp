@@ -654,7 +654,19 @@ struct PreparedSemanticGeometry::State
             const auto& line = *box.sourceCaret;
             return source == line.insertion || (source >= line.source.first && source < line.source.last);
         }
-        const auto range = document->Syntax()->Nodes()[box.paragraph.syntaxNode].block.source;
+        const auto& owner = document->Elements()[box.paragraph.element];
+        const auto& node = document->Syntax()->Nodes()[box.paragraph.syntaxNode];
+        if (owner.role == SemanticRole::DefinitionTerm || owner.role == SemanticRole::DefinitionDescription)
+            return source >= owner.source.first && source <= owner.source.last;
+        if (owner.role == SemanticRole::Disclosure)
+        {
+            if (node.block.kind == MarkdownBlockKind::FrontMatter)
+                return source <= node.block.content.first;
+            return source >= owner.source.first && source <= owner.source.last;
+        }
+        if (owner.role == SemanticRole::Metadata && document->HasPropertiesBody())
+            return source >= node.block.content.first && source <= node.block.content.last;
+        const auto range = node.block.source;
         return source >= range.first && source <= range.last;
     }
     std::size_t SourceBox(std::size_t source, std::size_t site) const
@@ -2488,7 +2500,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 const auto index    = work.boundsIndex++;
                 const auto& element = elements[index];
                 if (element.role == SemanticRole::Link || element.role == SemanticRole::Image || element.role == SemanticRole::Math ||
-                    element.role == SemanticRole::Task || element.role == SemanticRole::Disclosure || element.role == SemanticRole::FootnoteReference || element.role == SemanticRole::FootnoteBacklink)
+                    element.role == SemanticRole::Task || element.role == SemanticRole::Disclosure || element.role == SemanticRole::Abbreviation || element.role == SemanticRole::FootnoteReference || element.role == SemanticRole::FootnoteBacklink)
                     for (const auto& rectangle : RangeFromState(*work.state, element.display.first, element.display.last))
                         Union(work.state->bounds[index], rectangle);
             }

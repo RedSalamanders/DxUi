@@ -174,6 +174,60 @@ inline void DirectedValues()
                                                      "invalid soft-break policy is rejected");
     Check(breakBuilder.Published() == visibleBreak, "invalid soft-break policy leaves the current publication intact");
 }
+inline void OptionalDefinitionsAndAbbreviations()
+{
+    const std::wstring source = L"HTML and HTML5 and html. `HTML`\n\n*[HTML]: Hyper Text Markup Language\n\nTerm\n: first description\n: second description\n\nAfter\n";
+    const auto defaults = Build(source, MarkdownProfile::RichMarkdown);
+    Check(std::ranges::none_of(defaults->Elements(), [](const auto& element)
+          { return element.role == SemanticRole::DefinitionList || element.role == SemanticRole::Abbreviation; }),
+          "definition and abbreviation extensions are off by default");
+    MarkdownParser parser;
+    const auto extensions = MarkdownExtensions::RichAll | MarkdownExtensions::DefinitionLists | MarkdownExtensions::Abbreviations;
+    parser.Begin(source, 1u, MarkdownProfile::RichMarkdown, extensions);
+    while (parser.HasPendingPreparation()) parser.Advance(7u);
+    const auto syntax = parser.Published();
+    SemanticBuilder builder; builder.Begin(syntax);
+    const auto document = Complete(builder, *syntax);
+    CheckGraph(*document);
+    Check(document->Map().Source() == source && document->Map().Display().find(L"*[HTML]:") == std::wstring::npos &&
+              document->Map().Display().find(L"HTML and HTML5 and html.") != std::wstring::npos && document->Map().Display().ends_with(L"After\n"),
+          "opt-in definitions hide only the recognized declaration while preserving the exact raw source and surrounding text");
+    const auto abbreviation = std::ranges::find(document->Elements(), SemanticRole::Abbreviation, &SemanticElement::role);
+    Check(abbreviation != document->Elements().end() && abbreviation->name == L"HTML" && abbreviation->title == L"Hyper Text Markup Language" &&
+              std::ranges::count(document->Elements(), SemanticRole::Abbreviation, &SemanticElement::role) == 1u,
+          "only the exact case-sensitive standalone word has the authored expansion; code and longer words stay ordinary");
+    const auto list = std::ranges::find(document->Elements(), SemanticRole::DefinitionList, &SemanticElement::role);
+    Check(list != document->Elements().end() && std::ranges::count(document->Elements(), SemanticRole::DefinitionTerm, &SemanticElement::role) == 1u &&
+              std::ranges::count(document->Elements(), SemanticRole::DefinitionDescription, &SemanticElement::role) == 2u,
+          "one term and two plain descriptions receive distinct source-owned list roles");
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029})
+    {
+        RichSemanticTests::Reject<std::invalid_argument>([&] { parser.Begin(source, 2u, profile, extensions); },
+                                                         "opt-in rich extensions are unavailable to standard profiles");
+        Check(parser.Published() == syntax && ! parser.HasPendingPreparation(), "invalid profile options leave the prior parser publication intact");
+    }
+    const std::wstring malformed = L"*[X]: First\n\n*[X]: Second\n\nBad term\n: **formatted**\n\nX Xray\n";
+    parser.Begin(malformed, 3u, MarkdownProfile::RichMarkdown, extensions);
+    while (parser.HasPendingPreparation()) parser.Advance(7u);
+    const auto malformedSyntax = parser.Published();
+    builder.Begin(malformedSyntax);
+    const auto rejected = Complete(builder, *malformedSyntax);
+    Check(rejected->Map().Source() == malformed && rejected->Map().Display().find(L"Second") != std::wstring::npos &&
+              std::ranges::none_of(rejected->Elements(), [](const auto& element) { return element.role == SemanticRole::DefinitionList; }) &&
+              std::ranges::count(rejected->Elements(), SemanticRole::Abbreviation, &SemanticElement::role) == 1u,
+          "duplicate definitions and unsupported formatted lists stay ordinary, and longer words do not gain a tooltip");
+    std::wstring capped(L"K0 K128\n\n");
+    for (unsigned index = 0u; index < 129u; ++index)
+        capped.append(L"*[K").append(std::to_wstring(index)).append(L"]: expansion\n\n");
+    parser.Begin(capped, 4u, MarkdownProfile::RichMarkdown, extensions);
+    while (parser.HasPendingPreparation()) parser.Advance(7u);
+    const auto cappedSyntax = parser.Published();
+    builder.Begin(cappedSyntax);
+    const auto cappedDocument = Complete(builder, *cappedSyntax);
+    Check(cappedDocument->Map().Source() == capped && cappedDocument->Map().Display().find(L"*[K128]: expansion") != std::wstring::npos &&
+              std::ranges::count(cappedDocument->Elements(), SemanticRole::Abbreviation, &SemanticElement::role) == 1u,
+          "the 129th declaration stays ordinary while the first 128 remain bounded and source-exact");
+}
 inline void NativeHtmlAndLinkPresentation()
 {
     struct TagStyle

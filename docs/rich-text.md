@@ -980,6 +980,17 @@ precedence; nested brackets, escapes, multiple separators and multiline or
 oversized targets stay literal. `MarkdownExtensions::All` disables wiki syntax;
 `RichAll` includes it. No vault lookup, networking or page creation is implicit.
 
+Two further RichMarkdown features are explicitly opt-in. Pass
+`RichAll | DefinitionLists | Abbreviations` to `MarkdownParser::Begin`, or to
+`RichTextEditor::SetMarkdownAnalysisExtensions` after selecting RichMarkdown.
+A plain term followed by up to 16 plain `: description` lines becomes a native
+definition list. A top-level single-line `*[HTML]: Hyper Text Markup Language`
+defines an exact case-sensitive ASCII word and its authored hover/UIA help. Up to
+128 declarations are recognized; duplicate, malformed and oversized forms stay
+ordinary Markdown. These bounded projections retain the complete raw source and
+history; they are not a general definition-list or abbreviation grammar.
+Switching profile resets an explicit editor extension mask.
+
 Use opt-in analysis in either retained host:
 
 ```cpp
@@ -1074,8 +1085,8 @@ if (auto syntax = parser.Published(); !parser.HasPendingPreparation() && syntax)
 ```
 
 An optional fourth Begin argument selects `MarkdownExtensions` explicitly.
-CommonMark defaults to None and rejects GFM options; Gfm029 and RichMarkdown
-default to All. Request identity includes the options. RichMarkdown adds leading
+CommonMark defaults to None and rejects GFM options; Gfm029 defaults to All and
+RichMarkdown defaults to RichAll. Request identity includes the options. RichMarkdown adds leading
 metadata envelopes and footnote syntax/binding; math/diagram rendering and metadata
 validation remain in development. Published inline indices belong to
 one revision; stable block IDs do not validate reference-dependent semantics.

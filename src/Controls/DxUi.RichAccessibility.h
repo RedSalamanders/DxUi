@@ -262,7 +262,7 @@ public:
                                   : element.role == Link || element.role == FootnoteReference || element.role == FootnoteBacklink ? UIA_HyperlinkControlTypeId
                                   : element.role == Image || element.role == Diagram || element.role == Math                      ? UIA_ImageControlTypeId
                                   : element.role == Table                                                                         ? UIA_TableControlTypeId
-                                  : element.role == List                                                                          ? UIA_ListControlTypeId
+                                  : element.role == List || element.role == DefinitionList                                       ? UIA_ListControlTypeId
                                   : element.role == ListItem                                                                      ? UIA_ListItemControlTypeId
                                   : element.role == Row                                                                           ? UIA_DataItemControlTypeId
                                   : element.role == Cell && element.tableHeader                                                   ? UIA_HeaderItemControlTypeId

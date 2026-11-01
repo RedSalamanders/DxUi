@@ -1722,7 +1722,7 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
     };
     // Count the actual allocation schedule, including native parsing, captions,
     // normalized-to-raw provenance, diagnostic publication and footer ownership.
-    const std::array<std::wstring_view, 17u> sources = {SemanticDiagramTests::scenarios[5u].source,
+    const std::array<std::wstring_view, 19u> sources = {SemanticDiagramTests::scenarios[5u].source,
                                                         L"main[^n]\r\n\r\n[^n]: note\r\n    > ```mermaid\r\n    > graph LR;A{wide}-->|yes|B\r\n    > ```\r\n",
                                                         SemanticDiagramTests::scenarios[11u].source,
                                                         SemanticDiagramTests::scenarios[8u].source,
@@ -1738,7 +1738,9 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
                                                         L"x<sup>![alt](image.png)</sup>\n",
                                                         L"<details open>\n<summary><b>More</b></summary>\nBody text\n</details>\n",
                                                         L"> [!NOTE]\n> Body **bold**\n",
-                                                        L"> [!tip]- Closed title\n> Hidden **body**\n"};
+                                                        L"> [!tip]- Closed title\n> Hidden **body**\n",
+                                                        L"Term\n: first description\n: second description\n",
+                                                        L"HTML document\n\n*[HTML]: Hyper Text Markup Language\n"};
     const auto observe                               = [](auto&& operation)
     {
         const auto oldCounting = countAllocations;
@@ -1758,7 +1760,16 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
     std::size_t semanticRequests{}, geometryRequests{};
     for (const auto source : sources)
     {
-        const auto syntax = RichSemanticDocumentTests::Parse(source, MarkdownProfile::RichMarkdown);
+        const auto syntax = [&]
+        {
+            if (! source.starts_with(L"Term\n:") && ! source.starts_with(L"HTML document"))
+                return RichSemanticDocumentTests::Parse(source, MarkdownProfile::RichMarkdown);
+            MarkdownParser parser;
+            parser.Begin(source, 1u, MarkdownProfile::RichMarkdown,
+                         MarkdownExtensions::RichAll | MarkdownExtensions::DefinitionLists | MarkdownExtensions::Abbreviations);
+            while (parser.HasPendingPreparation()) parser.Advance(7u);
+            return parser.Published();
+        }();
         const auto begin = [&](SemanticBuilder& builder)
         {
             if (source.starts_with(L"<details"))

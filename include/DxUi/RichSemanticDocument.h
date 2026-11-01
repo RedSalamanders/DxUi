@@ -36,7 +36,11 @@ enum class SemanticRole
     Diagram,
     Math,
     Disclosure,
-    Callout
+    Callout,
+    DefinitionList,
+    DefinitionTerm,
+    DefinitionDescription,
+    Abbreviation
 };
 struct SemanticElement
 {

@@ -28,7 +28,10 @@ enum class MarkdownExtensions : unsigned
     Subscript     = 128u,
     Inserted      = 256u,
     WikiLinks     = 512u,
-    RichAll       = 1023u
+    RichAll       = 1023u,
+    DefinitionLists = 1024u,
+    Abbreviations = 2048u,
+    RichOptionalMask = 4095u
 };
 constexpr MarkdownExtensions operator|(MarkdownExtensions a, MarkdownExtensions b) noexcept
 {

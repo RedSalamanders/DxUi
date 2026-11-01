@@ -602,6 +602,7 @@ struct RichTextEditor::State
     bool markdownRendering  = false;
     size_t semanticAdvances = 0, lastAdvanceSemanticWork = 0;
     std::optional<RichText::MarkdownProfile> markdownProfile;
+    std::optional<RichText::MarkdownExtensions> markdownExtensions;
     uint64_t markdownRequestRevision = 0;
     bool markdownRequestActive       = false;
     size_t markdownAdvances = 0, lastAdvanceMarkdownWork = 0;
@@ -762,7 +763,7 @@ HRESULT RichTextEditor::TryAdoptReadOnlyMarkdownSyntax(const RichText::SourceSna
     const auto previous = _state->markdown.Published();
     try
     {
-        if (! _state->markdown.TryAdoptParsedSnapshot(source, Revision(), syntax, *_state->markdownProfile))
+        if (! _state->markdown.TryAdoptParsedSnapshot(source, Revision(), syntax, *_state->markdownProfile, _state->markdownExtensions))
             return S_FALSE;
     }
     catch (const std::bad_alloc&)
@@ -1781,12 +1782,48 @@ void RichTextEditor::SetMarkdownAnalysisProfile(std::optional<RichText::Markdown
     if (! profile)
         _state->markdownRendering = false;
     _state->markdownProfile = profile;
+    _state->markdownExtensions.reset();
+    _state->preparationRejected.reset();
+    _state->nativeObjectRejections.reset();
     RetireLayout();
     SelectionChanged();
 }
 std::optional<RichText::MarkdownProfile> RichTextEditor::GetMarkdownAnalysisProfile() const noexcept
 {
     return _state->markdownProfile;
+}
+void RichTextEditor::SetMarkdownAnalysisExtensions(std::optional<RichText::MarkdownExtensions> extensions)
+{
+    if (extensions)
+    {
+        if (! _state->markdownProfile) throw std::invalid_argument("Markdown extensions require an analysis profile");
+        const auto profile = *_state->markdownProfile;
+        const auto mask = profile == RichText::MarkdownProfile::RichMarkdown ? RichText::MarkdownExtensions::RichOptionalMask
+                         : profile == RichText::MarkdownProfile::Gfm029 ? RichText::MarkdownExtensions::All : RichText::MarkdownExtensions::None;
+        if ((static_cast<unsigned>(*extensions) & ~static_cast<unsigned>(mask)) != 0u)
+            throw std::invalid_argument("Markdown extensions are not supported by this profile");
+    }
+    if (_state->markdownExtensions == extensions) return;
+    _state->markdownExtensions = extensions;
+    _state->autoFormatRun.reset();
+    _state->smartTypingSite.reset();
+    RetireSemanticAccessibility();
+    _state->markdown.Clear();
+    _state->images.Cancel();
+    _state->sourceEditing.reset();
+    _state->markdownCapacityRejected.reset();
+    _state->preparationRejected.reset();
+    _state->nativeObjectRejections.reset();
+    _state->semantic.Clear();
+    _state->semanticRejected.reset();
+    _state->nativeGeometryRejected.reset();
+    _state->sourceCaretSite = RichText::MarkdownNoNode;
+    RetireLayout();
+    SelectionChanged();
+}
+std::optional<RichText::MarkdownExtensions> RichTextEditor::GetMarkdownAnalysisExtensions() const noexcept
+{
+    return _state->markdownExtensions;
 }
 void RichTextEditor::SetAccessibilityLabels(std::shared_ptr<const RichText::AccessibilityLabels> labels) noexcept
 {
@@ -3602,9 +3639,9 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                     // per-control worker. Semantic preparation consumes only a
                     // completed current tree within the remaining owner-turn budget.
                     if (state.sourceEditing)
-                        state.markdown.BeginSourceRegion(Snapshot(), Revision(), state.sourceEditing->region, *state.markdownProfile);
+                        state.markdown.BeginSourceRegion(Snapshot(), Revision(), state.sourceEditing->region, *state.markdownProfile, state.markdownExtensions);
                     else
-                        state.markdown.Begin(Snapshot(), Revision(), *state.markdownProfile);
+                        state.markdown.Begin(Snapshot(), Revision(), *state.markdownProfile, state.markdownExtensions);
                     state.markdownRequestRevision = Revision();
                     state.markdownRequestActive   = true;
                 }
@@ -6612,8 +6649,10 @@ std::wstring_view RichTextEditor::HoveredTitle(ControlHost& host, D2D1_POINT_2F 
     for (std::size_t index = 0u; index < elements.size(); ++index)
     {
         const auto& element = elements[index];
-        if ((element.role == RichText::SemanticRole::Link || element.role == RichText::SemanticRole::Image) && ! element.title.empty() &&
-            ! geometry->Document().IsSourceEditingElement(index) && element.display.first <= display && display < element.display.last &&
+        if ((element.role == RichText::SemanticRole::Link || element.role == RichText::SemanticRole::Image ||
+             element.role == RichText::SemanticRole::Abbreviation) && ! element.title.empty() &&
+            ! geometry->Document().IsSourceEditingElement(index) &&
+            element.display.first <= display && display < element.display.last &&
             (! best || element.display.last - element.display.first <= best->display.last - best->display.first))
             best = &element;
     }

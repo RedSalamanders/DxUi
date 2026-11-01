@@ -1416,6 +1416,27 @@ template <typename Prepare, typename Move, typename Key> void TitleTooltipContra
     prepare();
     move(link, 0u);
     Check(host.DebugGetPendingTooltipText() == L"Link title", "title returns after the editor is shown");
+    const std::wstring abbreviationSource = L"HTML document\n\n*[HTML]: Hyper Text Markup Language\n";
+    editor->SetMarkdownAnalysisExtensions(MarkdownExtensions::RichAll | MarkdownExtensions::Abbreviations);
+    editor->SetText(abbreviationSource);
+    prepare();
+    const auto abbreviationDocument = editor->GetAcknowledgedSemanticDocument(host);
+    Check(abbreviationDocument != nullptr, "opt-in abbreviation has acknowledged semantic geometry");
+    const auto abbreviation = std::ranges::find(abbreviationDocument->Elements(), SemanticRole::Abbreviation, &SemanticElement::role);
+    Check(abbreviation != abbreviationDocument->Elements().end(), "opt-in abbreviation has a source-owned element");
+    const auto abbreviationBounds = editor->GetSemanticElementBounds(host, static_cast<size_t>(abbreviation - abbreviationDocument->Elements().begin()));
+    Check(abbreviationBounds.has_value(), "abbreviation tooltip has a prepared target");
+    const auto abbreviationPoint = D2D1::Point2F((abbreviationBounds->left + abbreviationBounds->right) * .5f,
+                                                   (abbreviationBounds->top + abbreviationBounds->bottom) * .5f);
+    move(abbreviationPoint, 0u);
+    Check(host.DebugGetPendingTooltipText() == L"Hyper Text Markup Language" && editor->GetText() == abbreviationSource && ! editor->CanUndo(),
+          "read-only abbreviation hover uses the authored expansion without rewriting source");
+    editor->SetReadOnly(false);
+    prepare();
+    move(abbreviationPoint, 0u);
+    Check(host.DebugGetPendingTooltipText() == L"General tooltip", "editable abbreviation requires Ctrl for its title");
+    move(abbreviationPoint, MK_CONTROL);
+    Check(host.DebugGetPendingTooltipText() == L"Hyper Text Markup Language", "editable Ctrl hover exposes the same authored expansion");
     host.SetRoot(std::make_unique<Label>(L"replacement"));
     Check(host.DebugGetPendingTooltipText().empty() && ! host.HasTooltip(), "retiring the editor clears its title tooltip");
 }

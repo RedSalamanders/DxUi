@@ -2631,6 +2631,43 @@ void SemanticDisclosure(bool embedded)
     Require(edited && edited->Map().Display().find(L"Replacement body") == std::wstring::npos && fixture.editor->CanUndo(),
             "an independent source edit keeps surviving disclosure presentation and ordinary history");
 }
+void SemanticOptionalDefinitionsAndAbbreviations(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    const auto extensions = MarkdownExtensions::RichAll | MarkdownExtensions::DefinitionLists | MarkdownExtensions::Abbreviations;
+    fixture.editor->SetMarkdownAnalysisExtensions(extensions);
+    const std::wstring source = L"HTML document\n\n*[HTML]: Hyper Text Markup Language\n\nTerm\n: description\n";
+    fixture.editor->SetText(source);
+    fixture.Publish();
+    const auto document = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+    Require(document && document->Map().Source() == source && document->Map().Display().find(L"*[HTML]:") == std::wstring::npos,
+            "optional semantic extensions retain the exact source while hiding the abbreviation declaration");
+    auto root = fixture.Simple();
+    auto abbreviation = FindNamedSemanticPart(*root.get(), L"HTML");
+    Require(abbreviation && ReadProviderStringProperty(*abbreviation.get(), UIA_HelpTextPropertyId, "abbreviation expansion") == L"Hyper Text Markup Language",
+            "native and embedded UIA expose authored abbreviation expansion as help");
+    Require(FindSemanticPart(*root.get(), UIA_ListControlTypeId) != nullptr && FindNamedSemanticPart(*root.get(), L"Term") != nullptr,
+            "definition list and term are exposed as semantic structure");
+    const auto revision = fixture.editor->Revision();
+    fixture.editor->SetMarkdownAnalysisExtensions(std::nullopt);
+    fixture.Publish();
+    const auto ordinary = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+    Require(ordinary && ordinary->Map().Source() == source && ordinary->Map().Display().find(L"*[HTML]:") != std::wstring::npos &&
+                fixture.editor->Revision() == revision && ! fixture.editor->CanUndo(),
+            "disabling the optional extensions restores ordinary presentation without changing source or history");
+    wil::unique_variant retired;
+    Require(abbreviation->GetPropertyValue(UIA_HelpTextPropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE,
+            "extension configuration change retires the previous abbreviation provider");
+    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+    Require(! fixture.editor->GetMarkdownAnalysisExtensions(), "changing profiles resets the explicit extension mask");
+    bool invalid = false;
+    try { fixture.editor->SetMarkdownAnalysisExtensions(MarkdownExtensions::Abbreviations); }
+    catch (const std::invalid_argument&) { invalid = true; }
+    Require(invalid && fixture.editor->GetMarkdownAnalysisProfile() == MarkdownProfile::Gfm029 && ! fixture.editor->GetMarkdownAnalysisExtensions(),
+            "non-RichMarkdown profiles refuse rich-only extension bits atomically");
+}
 void SemanticProperties(bool embedded)
 {
     using namespace RichText;
@@ -3518,6 +3555,7 @@ void TestRichTextAccessibilityWindowObjectSourceEditing()
     SemanticDisclosure(false);
     SemanticCallouts(false);
     SemanticProperties(false);
+    SemanticOptionalDefinitionsAndAbbreviations(false);
 #if DXUI_ENABLE_DIAGNOSTICS
     SemanticHtmlScriptFallback(false);
 #endif
@@ -3531,6 +3569,7 @@ void TestRichTextAccessibilityEmbeddedObjectSourceEditing()
     EmbeddedCase(SemanticDisclosure);
     EmbeddedCase(SemanticCallouts);
     EmbeddedCase(SemanticProperties);
+    EmbeddedCase(SemanticOptionalDefinitionsAndAbbreviations);
 #if DXUI_ENABLE_DIAGNOSTICS
     EmbeddedCase(SemanticHtmlScriptFallback);
 #endif

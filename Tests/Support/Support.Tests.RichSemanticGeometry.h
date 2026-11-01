@@ -576,6 +576,16 @@ template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe obs
         PreparedSemanticGeometry propertiesGeometry;
         propertiesGeometry.Begin(factory.get(), opened, options);
         Complete(propertiesGeometry);
+        const auto openHeader = std::ranges::find(opened->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
+        const auto headerBounds = propertiesGeometry.ElementBounds(static_cast<std::size_t>(openHeader - opened->Elements().begin()));
+        Check(headerBounds.has_value(), "properties header has prepared interactive geometry");
+        const auto headerHit = propertiesGeometry.HitTestSource((headerBounds->left + headerBounds->right) * .5f,
+                                                                 (headerBounds->top + headerBounds->bottom) * .5f);
+        const auto bodySource = propertiesSource.find(L"count");
+        const auto bodyCaret = propertiesGeometry.SourceCaret(bodySource);
+        const auto previousSiteCaret = propertiesGeometry.SourceCaret(bodySource, headerHit.site);
+        Check(std::abs(bodyCaret.y - previousSiteCaret.y) < .01f && bodyCaret.y > headerBounds->top,
+              "moving from the generated properties header into source text selects the body caret site");
         wil::com_ptr<ID2D1SolidColorBrush> dim;
         THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(.55f, .55f, .55f), dim.put()));
         std::array<std::vector<BYTE>, 2u> rendered{std::vector<BYTE>(pixels.size()), std::vector<BYTE>(pixels.size())};
@@ -604,6 +614,26 @@ template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe obs
         const auto header = std::ranges::find(localized->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
         Check(header != localized->Elements().end() && header->name == L"Eigenschaften" && localized->Map().Display().find(L"Eigenschaften") != std::wstring::npos,
               "properties visible and accessibility text come from the same immutable per-document label set");
+    }
+    {
+        const std::wstring definitionSource = L"Term\n: first description\n: second description\n";
+        MarkdownParser parser;
+        parser.Begin(definitionSource, 1u, MarkdownProfile::RichMarkdown,
+                     MarkdownExtensions::RichAll | MarkdownExtensions::DefinitionLists);
+        while (parser.HasPendingPreparation()) parser.Advance(7u);
+        const auto syntax = parser.Published();
+        SemanticBuilder builder; builder.Begin(syntax);
+        const auto definition = RichSemanticDocumentTests::Complete(builder, *syntax);
+        PreparedSemanticGeometry definitionGeometry;
+        definitionGeometry.Begin(factory.get(), definition, options);
+        Complete(definitionGeometry);
+        const auto term = definitionSource.find(L"Term"), description = definitionSource.find(L"second description");
+        const auto termCaret = definitionGeometry.SourceCaret(term);
+        const auto termHit = definitionGeometry.HitTestSource(termCaret.x + .1f, termCaret.y + termCaret.height * .5f);
+        const auto expected = definitionGeometry.SourceCaret(description);
+        const auto reusedSite = definitionGeometry.SourceCaret(description, termHit.site);
+        Check(termHit.position == term && std::abs(expected.y - reusedSite.y) < .01f && expected.y > termCaret.y,
+              "moving between source-owned definition paragraphs cannot reuse the prior term's caret site");
     }
     for (const std::wstring disclosureSource : {L"<details><summary></summary>body</details>\n", L"<details><summary>x</summary><summary>y</summary></details>\n",
                                       L"<details onclick=\"run()\"><summary>x</summary>body</details>\n",
