@@ -1,5 +1,6 @@
 #pragma once
 #include "Controls/DxUi.RichImagePaths.h"
+#include "Controls/DxUi.RichFileReferenceContext.h"
 #include "Controls/TextClipboard.h"
 #include <DxUi/DxUi.h>
 #include <cstring>
@@ -79,6 +80,20 @@ template <typename Check> inline void Paths(Check&& check)
               ! SameLocalImagePath(L"C:\\Docs\\a.png", L"C:\\docs\\a.png"),
           "resource keys coalesce Windows roots while preserving case-sensitive file/directory spelling");
     check(NormalizeDocumentFilePath(L"C:/docs/../note.md") == L"C:\\note.md", "document metadata uses a lexical canonical absolute spelling");
+    const auto contextAt = [](std::wstring text, std::wstring_view needle) {
+        DxUi::RichText::Document document(text);
+        DxUi::RichText::MarkdownParser parser;
+        parser.Begin(document.Snapshot(), document.Revision(), DxUi::RichText::MarkdownProfile::RichMarkdown);
+        while (parser.HasPendingPreparation()) parser.Advance(256u);
+        const auto at = text.rfind(needle) + needle.size();
+        return FileReferenceInsertionContext(document.Snapshot(), document.Revision(), parser.Published(), {at, at});
+    };
+    const auto cellEnd = contextAt(L"| a | b |\n| - | - |\n| c | d |\n", L"d");
+    check(cellEnd && cellEnd->table, "unique nonempty cell endpoint retains table context");
+    const auto lastColumn = contextAt(L"a | b\n- | -\nx | y\n", L"y");
+    check(lastColumn && lastColumn->table, "complete table row admits its final cell endpoint");
+    const auto paddedEnd = contextAt(L"a | b | c\n- | - | -\nx\n", L"x");
+    check(! paddedEnd, "shared row-end ACP refuses table insertion without a geometry site");
     try
     {
         static_cast<void>(BuildMarkdownFileReference(L"", L"C:\\" + std::wstring(22000u, L'\u6771') + L".png"));

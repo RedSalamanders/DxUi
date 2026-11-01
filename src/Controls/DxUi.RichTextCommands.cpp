@@ -3213,6 +3213,49 @@ std::optional<Detail::FileReferenceContext> Detail::FileReferenceInsertionContex
                                                                                   Selection selection)
 {
     MarkdownCommandPlanner planner(source, revision, std::move(syntax), selection);
+    // A nonempty cell's terminal ACP lies just outside its half-open source
+    // range. It is safe to retain the table context only if exactly one cell
+    // owns that caret; padded cells may share an ACP and need a geometry site.
+    if (selection.Start() == selection.End())
+    {
+        std::size_t cell = MarkdownNoNode;
+        for (std::size_t index = 0u; index < planner.nodes.size(); ++index)
+        {
+            const auto& node = planner.nodes[index];
+            if (node.block.kind != Kind::TableCell || selection.caret < node.block.content.first || selection.caret > node.block.content.last)
+                continue;
+            if (cell != MarkdownNoNode)
+                return std::nullopt;
+            cell = index;
+        }
+        if (cell != MarkdownNoNode && planner.nodes[cell].block.content.first < planner.nodes[cell].block.content.last &&
+            selection.caret == planner.nodes[cell].block.content.last)
+        {
+            const auto row = planner.nodes[cell].parent;
+            if (row == MarkdownNoNode || planner.nodes[row].block.kind != Kind::TableRow)
+                return std::nullopt;
+            if (selection.caret == planner.Line(selection.caret).bodyEnd)
+            {
+                const auto table = planner.nodes[row].parent;
+                if (table == MarkdownNoNode || planner.nodes[table].block.kind != Kind::Table)
+                    return std::nullopt;
+                const auto header = planner.nodes[table].firstChild;
+                if (header == MarkdownNoNode || planner.nodes[header].block.kind != Kind::TableRow)
+                    return std::nullopt;
+                const auto cellCount = [&](std::size_t parent) noexcept {
+                    std::size_t count{};
+                    for (auto child = planner.nodes[parent].firstChild; child != MarkdownNoNode; child = planner.nodes[child].nextSibling)
+                        count += planner.nodes[child].block.kind == Kind::TableCell ? 1u : 0u;
+                    return count;
+                };
+                if (cellCount(row) < cellCount(header))
+                    return std::nullopt; // Synthetic padded cells share this row-end ACP.
+            }
+            FileReferenceContext result;
+            result.table = true;
+            return result;
+        }
+    }
     auto leaf = planner.LeafAt(selection.Start());
     if (leaf == MarkdownNoNode)
         for (const auto kind : {Kind::FencedCode, Kind::IndentedCode, Kind::HtmlBlock, Kind::FrontMatter})
