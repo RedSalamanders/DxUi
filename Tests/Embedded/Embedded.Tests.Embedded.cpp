@@ -1235,7 +1235,7 @@ __declspec(noinline) static void TestTreeReorderWakeRetiresOwner(GraphicsFixture
         Wake nextWake{.view = &nextView};
         callbacks.context = &nextWake;
         Hr(nextView.Attach(graphics, callbacks), "attach Tree cancellation retirement host");
-        auto nextRoot = std::make_unique<Panel>();
+        auto nextRoot  = std::make_unique<Panel>();
         auto* nextTree = nextRoot->AddChild<Tree>();
         nextTree->SetBounds(D2D1::RectF(0, 0, 220, 160));
         nextTree->SetReorderEnabled(true);

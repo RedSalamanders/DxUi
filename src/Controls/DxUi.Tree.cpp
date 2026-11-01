@@ -1676,8 +1676,8 @@ bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
 
 bool Tree::OnMouseLeave(ControlHost& host)
 {
-    const auto lifetime = GetLifetimeToken();
-    const auto* originalHost = GetHost();
+    const auto lifetime        = GetLifetimeToken();
+    const auto* originalHost   = GetHost();
     const bool hadHover        = _hoveredVisibleIndex.has_value();
     const bool hadHotScrollbar = _verticalScrollbarHotPart != ScrollbarHotPart::None;
     const bool hadTooltip      = host.HasTooltip();
@@ -2089,7 +2089,7 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
 
 void Tree::OnCaptureLost(ControlHost& host)
 {
-    const auto lifetime = GetLifetimeToken();
+    const auto lifetime      = GetLifetimeToken();
     const auto* originalHost = GetHost();
     if (_reorderArmed)
     {
@@ -2155,7 +2155,7 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
     if (_reorderArmed && virtualKey == VK_ESCAPE)
     {
-        const auto lifetime = GetLifetimeToken();
+        const auto lifetime      = GetLifetimeToken();
         const auto* originalHost = GetHost();
         _singleClickInvokeItemId.reset();
         _singleClickCaptureArmed = false;
