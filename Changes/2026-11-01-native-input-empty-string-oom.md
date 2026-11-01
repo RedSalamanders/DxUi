@@ -1,0 +1,1 @@
+- Let native character input decline an allocation failure atomically instead of terminating inside MSVC Debug's noexcept empty-string constructor.
