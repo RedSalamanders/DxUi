@@ -1591,6 +1591,7 @@ void TestWindowHostCaptureDiscardsFrameWhenPaintMutatesTheChildTree()
         size_t firstPaints   = 0u;
         size_t secondPaints  = 0u;
         size_t callbackCount = 0u;
+        uint64_t invalidatesBeforeMutation = 0u;
         std::function<void()> onNextPaint;
     };
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
@@ -1641,13 +1642,21 @@ void TestWindowHostCaptureDiscardsFrameWhenPaintMutatesTheChildTree()
         Require(window.Host().DebugCaptureBitmap(initialFrame), "initial child-tree capture completes");
         const uint64_t initialBatchFlushCount = window.Host().DebugGetInitialRootChildBatchFlushCount();
         Require(initialBatchFlushCount == 3u, "the initial tree submits one batch per visible direct root child");
-        ValidateRect(window.Hwnd(), nullptr);
-        Require(GetUpdateRect(window.Hwnd(), nullptr, FALSE) == FALSE, "initial capture has no pending native corrective paint");
         state.firstPaints  = 0u;
         state.secondPaints = 0u;
         state.onNextPaint  = [&]
         {
             ++state.callbackCount;
+            // The simulated device loss has already requested a paint. Prove
+            // a native update region can also arise without a host request,
+            // then clear both before measuring the mutation's own request.
+            Require(ValidateRect(window.Hwnd(), nullptr) != FALSE, "clear pre-existing native paint before the mutation");
+            const auto beforeExternal = window.Host().DebugGetInvalidateCount();
+            Require(InvalidateRect(window.Hwnd(), nullptr, FALSE) != FALSE && GetUpdateRect(window.Hwnd(), nullptr, FALSE) != FALSE &&
+                        window.Host().DebugGetInvalidateCount() == beforeExternal,
+                    "an independent native invalidation does not masquerade as a host request");
+            Require(ValidateRect(window.Hwnd(), nullptr) != FALSE, "clear the independent native invalidation");
+            state.invalidatesBeforeMutation = window.Host().DebugGetInvalidateCount();
             switch (mutation)
             {
                 case 0u: panel->ClearChildren(); break;
@@ -1669,7 +1678,8 @@ void TestWindowHostCaptureDiscardsFrameWhenPaintMutatesTheChildTree()
         Require((window.Host().GetRoot() == panel) == (mutation != 5u), "only root replacement changes the native root identity");
         if (mutation == 0u)
             Require(state.secondPaints == 0u && panel->GetChildren().empty(), "clearing children skips the retired sibling paint");
-        Require(GetUpdateRect(window.Hwnd(), nullptr, FALSE) != FALSE, "child-tree mutation schedules corrective native painting");
+        Require(window.Host().DebugGetInvalidateCount() > state.invalidatesBeforeMutation && GetUpdateRect(window.Hwnd(), nullptr, FALSE) != FALSE,
+                "child-tree mutation requests corrective host painting and leaves a native update region");
         WindowHostBitmapCapture freshFrame;
         Require(window.Host().DebugCaptureBitmap(freshFrame), "a later native capture completes for the current child tree");
         Require(! freshFrame.bgraPixels.empty() && ! state.onNextPaint, "recovery yields a complete frame without repeating the callback");
