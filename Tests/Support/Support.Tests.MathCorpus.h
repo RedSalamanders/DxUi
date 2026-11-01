@@ -601,6 +601,36 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
                   delimited.root.children[0u].text == glyphs,
               "parenthesis aliases, relation-shaped and slash delimiters retain exact glyph identity");
     }
+    for (const auto& [source, kind, label] : std::array{
+             std::tuple{L"a\\over b", MathKind::Fraction, L"frac"}, std::tuple{L"a\\atop b", MathKind::Fraction, L"atop"},
+             std::tuple{L"a\\choose b", MathKind::Matrix, L"pmatrix"}, std::tuple{L"a\\brace b", MathKind::Matrix, L"Bmatrix"},
+             std::tuple{L"a\\brack b", MathKind::Matrix, L"bmatrix"}})
+    {
+        const auto expression = ParseMath(source);
+        check(expression && expression.root.kind == kind && expression.root.text == label && expression.root.children.size() == 2u &&
+                  expression.root.children[0u].children[0u].text == L"a" && expression.root.children[1u].children[0u].text == L"b",
+              "infix math owns both sides and preserves its independently specified rule and fences");
+    }
+    check(! ParseMath(L"a\\over b\\atop c") && ! ParseMath(L"a\\over \\displaystyle b\\over c"),
+          "a second infix in the same math group is rejected");
+    check(static_cast<bool>(ParseMath(L"{a\\over {b\\atop c}}")), "nested groups each admit their own infix");
+    std::wstring nestedInfix(0u, L' ');
+    for (unsigned i = 0u; i < MathMaximumGroupDepth; ++i)
+        nestedInfix += L"{a\\over ";
+    nestedInfix += L'b';
+    nestedInfix.append(MathMaximumGroupDepth, L'}');
+    check(static_cast<bool>(ParseMath(nestedInfix)), "nested infix fractions honor the 64-group bound on the ordinary stack");
+#if DXUI_ENABLE_DIAGNOSTICS
+    for (const auto& [source, expectedStrokes] : {std::pair{L"a\\over b", 1u}, std::pair{L"a\\atop b", 0u}})
+    {
+        Detail::PreparedMath prepared(factory, std::make_shared<const MathExpression>(ParseMath(source)), 24.f);
+        while (! prepared.Advance())
+        {
+        }
+        check(prepared.StrokeLayouts().size() == expectedStrokes && prepared.GlyphLayouts().size() == 2u,
+              "fraction layout paints a rule only for over while preserving both SDK-shaped operands");
+    }
+#endif
     const auto binomial = ParseMath(L"\\binom{n}{k}");
     check(binomial && binomial.root.children.size() == 1u && binomial.root.children[0u].kind == MathKind::Matrix &&
               binomial.root.children[0u].text == L"pmatrix" && binomial.root.children[0u].columns == 1u && binomial.root.children[0u].children.size() == 2u,

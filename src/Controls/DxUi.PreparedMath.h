@@ -582,7 +582,7 @@ class PreparedMath final
                         throw std::length_error("Invalid mathematical space node");
                     break;
                 case MathKind::Fraction:
-                    if (node.text != L"frac" && node.text != L"dfrac" && node.text != L"tfrac")
+                    if (node.text != L"frac" && node.text != L"dfrac" && node.text != L"tfrac" && node.text != L"atop")
                         throw std::length_error("Invalid mathematical fraction style");
                     if (node.children.size() != 2u)
                         throw std::length_error("Invalid mathematical pair node");
@@ -1515,7 +1515,8 @@ class PreparedMath final
             const float ruleY = baseline - axisAtSize;
             Place(ChildAt(index, 0u), x + (box.extent.width - top.width) / 2.f, baseline - topShift);
             Place(ChildAt(index, 1u), x + (box.extent.width - bottom.width) / 2.f, baseline + bottomShift);
-            Stroke(x + 2.f, ruleY, x + box.extent.width - 2.f, ruleY, scaledRule);
+            if (node.text != L"atop")
+                Stroke(x + 2.f, ruleY, x + box.extent.width - 2.f, ruleY, scaledRule);
             return;
         }
         if (node.kind == Root && node.children.size() == 2u)

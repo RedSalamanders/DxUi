@@ -871,7 +871,7 @@ class Parser
             value += source[at++];
         return Make(MathKind::Text, std::move(value));
     }
-    MathNode Row(unsigned depth, bool grouped, bool cell, bool right = false, bool indexClose = false, bool stopBrace = false)
+    MathNode Row(unsigned depth, bool grouped, bool cell, bool right = false, bool indexClose = false, bool stopBrace = false, bool infixAllowed = true)
     {
         std::vector<MathNode> children(0u);
         while (at < source.size())
@@ -904,6 +904,19 @@ class Parser
                 while (end < source.size() && Letter(source[end]))
                     ++end;
                 const auto declaration = source.substr(first, end - first);
+                if (declaration == L"over" || declaration == L"atop" || declaration == L"choose" || declaration == L"brace" || declaration == L"brack")
+                {
+                    if (! infixAllowed)
+                        Reject(MathIssue::UnsupportedCommand);
+                    at = end;
+                    auto numerator = Make(MathKind::Row, L"", std::move(children));
+                    auto denominator = Row(depth, grouped, cell, right, indexClose, stopBrace, false);
+                    if (declaration == L"over" || declaration == L"atop")
+                        return Make(MathKind::Fraction, declaration == L"over" ? L"frac" : L"atop", {std::move(numerator), std::move(denominator)});
+                    const auto environment = declaration == L"choose" ? L"pmatrix" : declaration == L"brace" ? L"Bmatrix" :
+                                             declaration == L"brack" ? L"bmatrix" : L"matrix";
+                    return Make(MathKind::Matrix, environment, {std::move(numerator), std::move(denominator)}, 1u);
+                }
                 if (declaration == L"tag")
                 {
                     if (depth != 0u || equationTag)
@@ -942,7 +955,7 @@ class Parser
                         Reject(MathIssue::UnsupportedCommand);
                     auto label = std::wstring(L"textcolor:");
                     label += Detail::EncodeNativeColor(color.value());
-                    AppendColored(children, label, Row(depth + 1u, grouped, cell, right, indexClose, stopBrace));
+                    AppendColored(children, label, Row(depth + 1u, grouped, cell, right, indexClose, stopBrace, infixAllowed));
                     return Make(MathKind::Row, L"", std::move(children));
                 }
                 if (declaration == L"displaystyle" || declaration == L"textstyle" || declaration == L"scriptstyle" || declaration == L"scriptscriptstyle" ||
@@ -953,7 +966,7 @@ class Parser
                     if (depth >= MathMaximumGroupDepth)
                         Reject(MathIssue::Capacity);
                     at = end;
-                    children.push_back(Make(MathKind::Style, std::wstring(declaration), {Row(depth + 1, grouped, cell, right, indexClose, stopBrace)}));
+                    children.push_back(Make(MathKind::Style, std::wstring(declaration), {Row(depth + 1, grouped, cell, right, indexClose, stopBrace, infixAllowed)}));
                     return Make(MathKind::Row, L"", std::move(children));
                 }
             }

@@ -1,0 +1,1 @@
+- Render bounded infix fractions and fenced binomial forms while preserving source on ambiguous operators.

@@ -936,6 +936,7 @@ Ctrl; read-only editors do not. A nested image title takes precedence over its
 containing link title. Otherwise the control's consumer tooltip remains eligible.
 Tooltip selection does not mutate source, selection, history or focus. Source
 changes, scrolling, hiding and control detachment retire the previous title.
+The bounded math parser supports one `\over`, `\atop`, `\choose`, `\brace` or `\brack` infix operator per math group; nested groups independently admit an operator. Ruled and ruleless fractions and the three fenced forms retain their distinct geometry. Duplicate operators reject the complete formula to source.
 
 The bounded retained-geometry component is functionally qualified:
 PreparedDocumentLayout stages immutable projection clones and DirectWrite chunks
