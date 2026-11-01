@@ -2164,8 +2164,9 @@ struct SemanticBuilder::Preparation
                     output.Generated(L" ", node.block.content.first, visit.flags, visit.heading);
                 paragraph.display.last = output.text.size();
                 CloseElement(visit.element);
-                if (output.text.empty() || output.text.back() != L'\n')
-                    output.Generated(visit.table != MarkdownNoNode && visit.column + 1u < visit.columns ? L"\t" : L"\n",
+                const bool hasNextCell = visit.table != MarkdownNoNode && visit.column + 1u < visit.columns;
+                if (hasNextCell || output.text.empty() || output.text.back() != L'\n')
+                    output.Generated(hasNextCell ? L"\t" : L"\n",
                                      visit.exactSource ? node.block.source.last : node.block.content.last);
             }
             else

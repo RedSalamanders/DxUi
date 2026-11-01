@@ -1031,6 +1031,9 @@ In a GFM table cell, an escaped pipe is one displayed character whose inline
 source range includes both the backslash and the pipe, including inside code spans.
 Angle-autolink recognition stops at the first forbidden whitespace, control, or
 nested angle opener, so repeated rejected prefixes do not rescan the remaining leaf.
+Each non-final table cell contributes a generated tab after its content even when
+that content ends in an HTML line break; a trailing break in a paragraph does not
+generate an additional line.
 
 RichMarkdown additionally enables `==highlight==`, `^superscript^`,
 `~subscript~` and `++inserted++`; `~~strike~~` remains GFM strikethrough.
