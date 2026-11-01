@@ -937,7 +937,7 @@ changes, scrolling, hiding and control detachment retire the previous title.
 
 ## Retained RichTextEditor v0 preview (D2c)
 
-The bounded math parser supports one `\over`, `\atop`, `\choose`, `\brace` or `\brack` infix operator per math group; nested groups independently admit an operator. Ruled and ruleless fractions and the three fenced forms retain their distinct geometry. Duplicate operators reject the complete formula to source. The array environment accepts 1–64 l/c/r columns with independently aligned cells and bounded rectangular padding; unimplemented rules reject to source.
+The bounded math parser supports one `\over`, `\atop`, `\choose`, `\brace` or `\brack` infix operator per math group; nested groups independently admit an operator. Ruled and ruleless fractions and the three fenced forms retain their distinct geometry. Duplicate operators reject the complete formula to source. The array environment accepts 1–64 l/c/r columns with independently aligned cells and bounded rectangular padding; unimplemented rules reject to source. Native check, widecheck, breve, acute, grave, mathring, underbar and utilde accents stage bounded, direction-specific geometry during preparation.
 
 The bounded retained-geometry component is functionally qualified:
 PreparedDocumentLayout stages immutable projection clones and DirectWrite chunks

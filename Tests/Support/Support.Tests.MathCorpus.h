@@ -428,6 +428,29 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
                       "actuarial angle has a top bar and right leg");
         }
     }
+#if DXUI_ENABLE_DIAGNOSTICS
+    for (const auto& [name, strokes] : std::array{std::pair{L"check", 2u}, std::pair{L"widecheck", 2u}, std::pair{L"breve", 4u},
+                                                  std::pair{L"acute", 1u}, std::pair{L"grave", 1u}, std::pair{L"mathring", 8u},
+                                                  std::pair{L"underbar", 1u}, std::pair{L"utilde", 6u}})
+    {
+        const auto expression = std::make_shared<const MathExpression>(ParseMath(L"\\" + std::wstring(name) + L"{x}"));
+        check(static_cast<bool>(*expression), "bounded accent has a complete operand");
+        Detail::PreparedMath layout(factory, expression, 24.f);
+        while (! layout.Advance())
+        {
+        }
+        const auto lines = layout.StrokeLayouts();
+        check(lines.size() == strokes, "each accent stages its own bounded geometry");
+        if (std::wstring_view(name) == L"check" || std::wstring_view(name) == L"widecheck")
+            check(lines[0u].first.y < lines[0u].last.y && lines[1u].first.y > lines[1u].last.y, "check accents open upward");
+        if (std::wstring_view(name) == L"acute")
+            check(lines[0u].first.y > lines[0u].last.y, "acute slopes upward");
+        if (std::wstring_view(name) == L"grave")
+            check(lines[0u].first.y < lines[0u].last.y, "grave slopes downward");
+        if (std::wstring_view(name) == L"underbar" || std::wstring_view(name) == L"utilde")
+            check(lines[0u].first.y > layout.Baseline(), "under accents remain below the body baseline");
+    }
+#endif
     check(static_cast<bool>(ParseMath(L"\\boxed{\\xcancel{a+b}}")) && ! ParseMath(L"\\boxed") && ! ParseMath(L"\\cancel{"),
           "nested annotations parse and incomplete operands fail closed");
     // The named sizes and factors are pinned independently to KaTeX 0.16.11 Options.js.

@@ -524,7 +524,8 @@ class Parser
         if (name == L"boxed" || name == L"cancel" || name == L"bcancel" || name == L"xcancel" || name == L"sout" || name == L"phase" || name == L"angl")
             return Make(MathKind::Accent, std::wstring(name), {Atom(depth + 1)});
         if (name == L"overline" || name == L"underline" || name == L"bar" || name == L"hat" || name == L"widehat" || name == L"vec" || name == L"dot" ||
-            name == L"ddot" || name == L"tilde" || name == L"widetilde")
+            name == L"ddot" || name == L"tilde" || name == L"widetilde" || name == L"check" || name == L"widecheck" ||
+            name == L"breve" || name == L"acute" || name == L"grave" || name == L"mathring" || name == L"underbar" || name == L"utilde")
             return Make(MathKind::Accent, std::wstring(name), {Atom(depth + 1)});
         if (name == L"left")
         {
@@ -866,7 +867,7 @@ class Parser
                                                        L"mathnormal", L"boldsymbol", L"bm",       L"mathbb",       L"mathcal",   L"mathfrak", L"mathsf",
                                                        L"mathtt",     L"mathord",    L"mathop",   L"mathbin",      L"mathrel",   L"mathopen", L"mathclose",
                                                        L"mathpunct",  L"mathinner",  L"overline", L"underline",    L"bar",       L"hat",      L"widehat",
-                                                       L"vec",        L"dot",        L"ddot",     L"tilde",        L"widetilde", L"left", L"boxed", L"cancel", L"bcancel", L"xcancel", L"sout", L"phase", L"angl"};
+                                                       L"vec",        L"dot",        L"ddot",     L"tilde",        L"widetilde", L"check", L"widecheck", L"breve", L"acute", L"grave", L"mathring", L"underbar", L"utilde", L"left", L"boxed", L"cancel", L"bcancel", L"xcancel", L"sout", L"phase", L"angl"};
         if (std::ranges::find(styled, name) != std::end(styled))
             return StyledCommand(name, depth);
         return SymbolCommand(name);

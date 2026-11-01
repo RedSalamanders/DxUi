@@ -607,6 +607,8 @@ class PreparedMath final
                 case MathKind::Accent:
                     if (node.text != L"overline" && node.text != L"underline" && node.text != L"bar" && node.text != L"hat" && node.text != L"widehat" &&
                         node.text != L"tilde" && node.text != L"widetilde" && node.text != L"vec" && node.text != L"dot" && node.text != L"ddot" &&
+                        node.text != L"check" && node.text != L"widecheck" && node.text != L"breve" && node.text != L"acute" && node.text != L"grave" &&
+                        node.text != L"mathring" && node.text != L"underbar" && node.text != L"utilde" &&
                         node.text != L"boxed" && node.text != L"cancel" && node.text != L"bcancel" && node.text != L"xcancel" && node.text != L"sout" && node.text != L"phase" && node.text != L"angl" &&
                         ! ColorBox(node.text))
                         throw std::length_error("Invalid mathematical accent");
@@ -1139,7 +1141,7 @@ class PreparedMath final
                     box.extent.below += pad;
                     continue;
                 }
-                if (node.text == L"underline")
+                if (node.text == L"underline" || node.text == L"underbar" || node.text == L"utilde")
                     box.extent.below += box.size * .2f;
                 else
                     box.extent.above += box.size * .3f;
@@ -1660,16 +1662,40 @@ class PreparedMath final
                 return;
             }
             Place(ChildAt(index, 0u), x, baseline);
-            const float y    = node.text == L"underline" ? baseline + box.extent.below - 2.f : baseline - box.extent.above + box.size * .1f;
+            const bool below = node.text == L"underline" || node.text == L"underbar" || node.text == L"utilde";
+            const float y = below ? baseline + box.extent.below - (node.text == L"underline" ? 2.f : box.size * .1f)
+                                  : baseline - box.extent.above + box.size * (node.text == L"mathring" ? .15f : .1f);
             const auto shape = node.text == L"widehat" ? L'\u0302' : node.text == L"widetilde" ? L'\u0303' : node.text == L"vec" ? L'\u20d7' : L'\0';
             if (shape && AddHorizontalAccent(shape, x, baseline - box.extent.above, baseline - box.extent.above + box.size * .3f, box.extent.width, box.size))
                 return;
-            if (node.text == L"hat" || node.text == L"widehat")
+            if (node.text == L"check" || node.text == L"widecheck")
             {
-                Stroke(x, y + box.size * .15f, x + box.extent.width / 2.f, y, stroke);
-                Stroke(x + box.extent.width / 2.f, y, x + box.extent.width, y + box.size * .15f, stroke);
+                Stroke(x, y, x + box.extent.width / 2.f, y + box.size * .15f, stroke);
+                Stroke(x + box.extent.width / 2.f, y + box.size * .15f, x + box.extent.width, y, stroke);
             }
-            else if (node.text == L"tilde" || node.text == L"widetilde")
+            else if (node.text == L"acute" || node.text == L"grave")
+            {
+                const float center = x + box.extent.width / 2.f;
+                const float half = std::min(box.extent.width * .35f, box.size * .1f);
+                Stroke(center - half, y + (node.text == L"acute" ? box.size * .12f : 0.f),
+                       center + half, y + (node.text == L"grave" ? box.size * .12f : 0.f), stroke);
+            }
+            else if (node.text == L"breve" || node.text == L"mathring")
+            {
+                const float left = x + box.extent.width * .25f, right = x + box.extent.width * .75f;
+                const float width = right - left, height = box.size * .14f;
+                Stroke(left, y, left + width * .2f, y + height * .7f, stroke);
+                Stroke(left + width * .2f, y + height * .7f, left + width * .5f, y + height, stroke);
+                Stroke(left + width * .5f, y + height, left + width * .8f, y + height * .7f, stroke);
+                Stroke(left + width * .8f, y + height * .7f, right, y, stroke);
+                if (node.text == L"mathring")
+                {
+                    Stroke(right, y, left + width * .8f, y - height * .7f, stroke);
+                    Stroke(left + width * .8f, y - height * .7f, left + width * .5f, y - height, stroke);
+                    Stroke(left + width * .5f, y - height, left + width * .2f, y - height * .7f, stroke);
+                    Stroke(left + width * .2f, y - height * .7f, left, y, stroke);
+                }
+            }            else if (node.text == L"tilde" || node.text == L"widetilde" || node.text == L"utilde")
             {
                 constexpr unsigned segments = 6u;
                 const float amplitude       = box.size * .055f;
