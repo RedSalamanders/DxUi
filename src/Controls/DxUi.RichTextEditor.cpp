@@ -75,6 +75,7 @@ struct RichTextEditor::State
         {
         }
         std::shared_ptr<const RichText::MarkdownSyntax> syntax;
+        RichText::SourceSnapshot source;
         std::vector<RichText::MarkdownRange> objects;
         float width{};
         uint64_t typography{}, resources{}, binding{}, appearance{};
@@ -87,7 +88,7 @@ struct RichTextEditor::State
                      uint64_t nextBinding,
                      uint64_t nextAppearance) const noexcept
         {
-            return syntax == value && width == nextWidth && rtl == nextRtl && typography == nextTypography && resources == nextResources &&
+            return (! value || syntax == value) && width == nextWidth && rtl == nextRtl && typography == nextTypography && resources == nextResources &&
                    binding == nextBinding && appearance == nextAppearance;
         }
     };
@@ -1394,6 +1395,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                     {
                         auto& rejected      = state.nativeObjectRejections.emplace();
                         rejected.syntax     = value->Syntax();
+                        rejected.source     = Snapshot();
                         rejected.width      = std::max(1.0f, TextViewport().right - TextViewport().left);
                         rejected.typography = host.GetTypographyRevision();
                         rejected.resources  = host.GetResourceGeneration();
@@ -1517,13 +1519,69 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         }
         const auto width      = std::max(1.0f, viewport.right - viewport.left);
         const auto typography = host.GetTypographyRevision(), resources = host.GetResourceGeneration();
+        const auto currentSyntax = GetMarkdownSyntax();
         if (state.nativeObjectRejections &&
-            ! state.nativeObjectRejections->Matches(
-                GetMarkdownSyntax(), width, IsRightToLeft(), typography, resources, state.bindingRevision, state.appearanceRevision))
+            ! state.nativeObjectRejections->Matches(nullptr, width, IsRightToLeft(), typography, resources, state.bindingRevision, state.appearanceRevision))
         {
-            // A width/font/device/binding change retries only the rejected
-            // native objects. Their previous literal publication is immutable.
             state.nativeObjectRejections.reset();
+            RetireSemanticAccessibility();
+            state.semantic.Clear();
+        }
+        if (state.nativeObjectRejections && currentSyntax && state.nativeObjectRejections->syntax != currentSyntax)
+        {
+            auto& rejected    = *state.nativeObjectRejections;
+            const auto source = Snapshot();
+            const auto change = source.ChangedRangeFrom(rejected.source);
+            std::vector<RichText::MarkdownRange> retained(0u);
+            retained.reserve(rejected.objects.size());
+            if (change.kind != RichText::SourceChangeKind::FullReplacement)
+                for (auto range : rejected.objects)
+                {
+                    const auto previousRange = range;
+                    if (range.last <= change.begin)
+                    {
+                        // Entire object precedes the tracked edit.
+                    }
+                    else if (range.first >= change.previousEnd)
+                    {
+                        range.first = change.currentEnd + (range.first - change.previousEnd);
+                        range.last  = change.currentEnd + (range.last - change.previousEnd);
+                    }
+                    else
+                        continue;
+                    const bool math = std::ranges::any_of(
+                        currentSyntax->Inlines(), [&](const auto& item) { return item.kind == RichText::MarkdownInlineKind::Math && item.source == range; });
+                    const auto oldNodes   = rejected.syntax->Nodes();
+                    const auto newNodes   = currentSyntax->Nodes();
+                    const auto oldDiagram = std::ranges::find_if(oldNodes, [&](const auto& item) {
+                        return item.block.kind == RichText::MarkdownBlockKind::FencedCode && item.block.source == previousRange;
+                    });
+                    const auto newDiagram = std::ranges::find_if(
+                        newNodes, [&](const auto& item) { return item.block.kind == RichText::MarkdownBlockKind::FencedCode && item.block.source == range; });
+                    bool diagram = oldDiagram != oldNodes.end() && newDiagram != newNodes.end();
+                    if (diagram)
+                    {
+                        const auto info = currentSyntax->Slice(newDiagram->block.info);
+                        diagram         = info.starts_with(L"mermaid") && (info.size() == 7u || info[7u] == L' ' || info[7u] == L'\t');
+                        auto before = oldDiagram->parent, after = newDiagram->parent;
+                        while (diagram && before != RichText::MarkdownNoNode && after != RichText::MarkdownNoNode)
+                        {
+                            const auto& oldParent = oldNodes[before];
+                            const auto& newParent = newNodes[after];
+                            diagram               = oldParent.block.kind == newParent.block.kind && oldParent.contentIndent == newParent.contentIndent &&
+                                                    oldParent.listStart == newParent.listStart && oldParent.listMarker == newParent.listMarker &&
+                                                    oldParent.alignment == newParent.alignment;
+                            before                = oldParent.parent;
+                            after                 = newParent.parent;
+                        }
+                        diagram = diagram && before == after;
+                    }
+                    if (math || diagram)
+                        retained.push_back(range);
+                }
+            rejected.objects.swap(retained);
+            rejected.syntax = currentSyntax;
+            rejected.source = source;
             RetireSemanticAccessibility();
             state.semantic.Clear();
         }

@@ -1233,6 +1233,14 @@ inline void NativeMathHRESULTFailureContainment(ControlHost& host)
         Check(PrepareUntilSettled(*editor, host) == S_OK && calls->matchingLayouts == attempts,
               "the same unsupported math/key is not retried during idle preparation");
 
+        editor->SetSelection({0u, 0u});
+        Check(editor->ReplaceSelection(L"prefix\n\n"), "insert unrelated source before rejected formula");
+        Check(PrepareUntilSettled(*editor, host) == S_OK && calls->matchingLayouts == attempts &&
+                  editor->GetAcknowledgedSemanticDocument(host)->Diagnostics().size() == 1u,
+              "a shifted unchanged rejected formula is not retried on an unrelated edit");
+        Check(editor->Undo() && PrepareUntilSettled(*editor, host) == S_OK && calls->matchingLayouts == attempts,
+              "undo of the unrelated edit retains the rejected formula key");
+        editor->SetSelection({caret, caret});
         auto appearance            = editor->GetAppearance();
         appearance.bodyFontSizeDip = 13.f;
         editor->SetAppearance(appearance);

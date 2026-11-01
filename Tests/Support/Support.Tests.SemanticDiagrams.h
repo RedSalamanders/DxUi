@@ -317,6 +317,16 @@ template <typename Prepare, typename Check> inline void Editor(RichTextEditor& e
     check(after.preparationAdvances == idle.preparationAdvances && after.markdownPreparationAdvances == idle.markdownPreparationAdvances &&
               after.semanticPreparationAdvances == idle.semanticPreparationAdvances,
           "identical rejected native view requests add no idle parse or layout work");
+    editor.SetSelection({0u, 0u});
+    check(editor.ReplaceSelection(L"unrelated\n\n"), "edit before a rejected native diagram");
+    prepare(50u);
+    const auto shifted = editor.GetAcknowledgedSemanticDocument(host);
+    check(shifted && shifted->Diagnostics().size() == 1u && shifted->Diagnostics()[0].kind == SemanticDiagnosticKind::DiagramCapacity &&
+              SemanticExtensionAccess::Diagrams(*shifted).empty() && editor.GetText() == L"unrelated\n\n" + source,
+          "unchanged rejected diagram remains a local fallback after an unrelated edit shifts its source range");
+    check(editor.Undo(), "unrelated edit can be undone");
+    prepare(50u);
+    check(localFallback(), "fallback survives undo of an unrelated edit");
     const auto raw = source.find(L'A');
     auto erased    = source;
     erased.erase(raw, 1u);

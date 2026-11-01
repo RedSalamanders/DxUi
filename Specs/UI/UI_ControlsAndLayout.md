@@ -2077,8 +2077,7 @@ cause-neutral wording because the same source-preserving view fallback also cove
 capacity and font-operation failures. Other semantic content stays rich. The
 presentation rejection key includes immutable syntax, width, direction, host
 typography/resource generation, binding and local appearance geometry revision.
-Repeated idle preparation does not retry the same rejection; changing a key retries
-it. DirectWrite `GetLineMetrics` reports a one-line-capacity rejection only when it
+Repeated idle preparation does not retry the same rejection. A tracked edit outside an unchanged object retains its refusal when its exact syntax owner and diagram container geometry context remain equivalent; changing the view key or object retries it. DirectWrite `GetLineMetrics` reports a one-line-capacity rejection only when it
 returns `E_NOT_SUFFICIENT_BUFFER` and reports more than one required line. Other
 failed HRESULTs from leaf layout/metrics and image upload preserve their original
 error channel and leave the request retryable. In particular, `E_OUTOFMEMORY`,
