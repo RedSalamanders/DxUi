@@ -1351,6 +1351,10 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
         _state->preparedCommand.reset();
     if (semanticPolicyChanged)
     {
+        if (_state->imageSource)
+            _state->images.SuspendForEdit(Snapshot(), *_state->imageSource);
+        else
+            _state->images.Cancel();
         _state->semantic.SetSoftBreakPolicy(value.softBreakPolicy);
         _state->semanticRejected.reset();
         RetireSemanticAccessibility();
