@@ -1789,6 +1789,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestNativeFlowchartAllocationFailureAtomicity();
     FlowchartLayoutTests::Geometry(Check);
     FlowchartLayoutTests::Corpus(Check);
+    FlowchartLayoutTests::CrossingReduction(Check);
     FlowchartLayoutTests::Admission(Check);
     TestNativeFlowchartLayoutAllocationFailureAtomicity();
     TestPreparedFlowchartAllocationFailures();

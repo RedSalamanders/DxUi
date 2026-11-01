@@ -1838,13 +1838,12 @@ rank. Rectangles/rounded rectangles pad labels, circles contain the padded label
 diagonal, diamonds contain twice the padded width/height, hexagons double padded width to contain the label in their straight middle band, subroutines reserve room for inset rules, and stadium capsules
 keep the complete measured label inside their straight middle band. Their centerline
 ports lie on the capsule boundary in all four flow directions. Direction changes
-flow without rotating text. An unlabeled forward edge between adjacent single-node
-ranks uses their common centerline when its source has one outgoing and target one
-incoming edge. A complete matching of equal-width nodes in two adjacent ranks
-also orders targets by their source and uses separate direct centerlines when the
-source nodes precede the targets in model order and all edges are unlabeled, without
-groups, notes or cardinality; model identities and
-source order remain intact. Other edges use exterior lanes sized for their own labels and minimum
+flow without rotating text. An unlabeled forward edge between adjacent ranks
+without parallel edges, groups, notes or cardinality uses an orthogonal elbow within the empty
+inter-rank corridor, with a straight centerline when its endpoints align. A
+complete matching of equal-width nodes in two adjacent ranks also orders targets
+by their source when the source nodes precede the targets in model order. Model
+identities and source order remain intact. Other edges use exterior lanes sized for their own labels and minimum
 separation; unlabeled lanes may be shared only when their inclusive rank intervals
 do not intersect. Labeled lanes remain exclusive. When two ranks contain exactly one
 member of each non-nested group, columns align in group order and reserve the
@@ -1852,6 +1851,14 @@ largest node or title width, preserving model identity while avoiding unrelated
 group overlap. A two-rank single group with one member per rank and one
 ungrouped sibling uses separate member and sibling columns. Other group
 configurations retain collision detection.
+For ungrouped flowcharts without notes, two stable adjacent-rank barycenter
+sweeps may reorder nodes within their ranks without changing model identities.
+A candidate is used only when both adjacent-rank endpoint inversions and proper
+interior crossings between orthogonal route segments strictly decrease compared
+with source order; otherwise source-order positions and routes are restored.
+Ties are stable. Groups and notes retain their collision-checked placement, and
+long edges participate in routing but not barycenter scoring. Each scoring,
+sorting and route-comparison event handles one bounded node or edge.
 Endpoint corridors remain outside full rank rows, including for skipped-rank edges,
 cycles, self-loops and parallel edges. Crossings are permitted; optimal routing
 and upstream Mermaid coordinate compatibility are not claimed.

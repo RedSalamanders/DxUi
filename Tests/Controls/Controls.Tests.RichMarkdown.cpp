@@ -1138,6 +1138,7 @@ void TestNativeFlowchartDeterministicGeometry()
 void TestNativeFlowchartLayoutIndependentCorpusAndRouting()
 {
     FlowchartLayoutTests::Corpus(Require);
+    FlowchartLayoutTests::CrossingReduction(Require);
 }
 void TestNativeFlowchartLayoutAdmissionAndCancellation()
 {

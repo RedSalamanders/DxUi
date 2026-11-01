@@ -43,6 +43,11 @@ struct NativeFlowchartLayout::Preparation
         Indegree,
         ChooseRank,
         RankEdges,
+        OrderInitialize,
+        OrderAccumulate,
+        OrderSort,
+        OrderPosition,
+        OrderCompare,
         Ports,
         Rows,
         RowPositions,
@@ -51,6 +56,8 @@ struct NativeFlowchartLayout::Preparation
         NoteCollision,
         GroupPositions,
         Routes,
+        RouteCompare,
+        RestoreNodes,
         TransformNodes,
         TransformGroups,
         TransformEdges,
@@ -72,6 +79,14 @@ struct NativeFlowchartLayout::Preparation
     std::array<FlowchartSize, 16u> groupLabels{};
     std::array<std::size_t, Nodes> head{}, tail{}, rank{}, indegree{}, before{}, after{}, color{}, incoming{}, outgoing{}, rowCount{};
     std::array<std::size_t, Nodes> pairTargets{};
+    // Candidate ordering is private to staging; model identities never move.
+    std::array<std::size_t, Nodes> orderedNodes{}, orderPosition{}, originalPosition{}, neighborCount{};
+    std::array<double, Nodes> neighborSum{}, originalX{};
+    std::array<std::array<FlowchartPoint, 6u>, Edges> originalPaths{};
+    std::size_t originalRouteCrossings{}, candidateRouteCrossings{};
+    bool restoringRoutes{};
+    std::size_t orderSweep{}, originalCrossings{}, candidateCrossings{};
+    bool useOrdering{};
     std::array<std::size_t, Nodes> groupColumns{};
     std::array<int, Nodes> mindSide{};
     std::array<double, 16u> groupColumnWidth{};
@@ -591,7 +606,10 @@ struct NativeFlowchartLayout::Preparation
                         groupColumnWidth[group] = std::max(groupColumnWidth[group], plan->nodes[node].bounds.width);
                     }
                 }
-                Then(Stage::Ports);
+                if (graph->family == NativeDiagramFamily::Flowchart && graph->groups.empty() && ! hasNotes && ! alignedPairs && graph->edges.size() > 1u)
+                    Then(Stage::OrderInitialize);
+                else
+                    Then(Stage::Ports);
                 return;
             }
             for (std::size_t index = 0u; index < graph->nodes.size(); ++index)
@@ -626,6 +644,114 @@ struct NativeFlowchartLayout::Preparation
         rank[to] = std::max(rank[to], rank[active] + length);
         --indegree[to];
     }
+    // Two stable adjacent-rank barycenter sweeps are evaluated against the
+    // original rank order. Each event handles one node or edge; bounded inner
+    // comparisons never exceed the parser's node/edge ceilings. A candidate is
+    // retained only when its independently counted inversions strictly decrease.
+    void Order()
+    {
+        if (stage == Stage::OrderInitialize)
+        {
+            if (cursor == graph->nodes.size())
+            {
+                neighborSum.fill(0.0);
+                neighborCount.fill(0u);
+                Then(Stage::OrderAccumulate);
+                return;
+            }
+            const auto node = cursor++;
+            orderedNodes[node] = node;
+            std::size_t position{};
+            for (std::size_t prior = 0u; prior < node; ++prior)
+                position += rank[prior] == rank[node];
+            originalPosition[node] = orderPosition[node] = position;
+            return;
+        }
+        if (stage == Stage::OrderAccumulate)
+        {
+            if (cursor == graph->edges.size())
+            {
+                Then(Stage::OrderSort);
+                return;
+            }
+            const auto edgeIndex = cursor++;
+            const auto& edge = graph->edges[edgeIndex];
+            if (plan->edges[edgeIndex].route != FlowchartRoute::Forward || rank[edge.to] != rank[edge.from] + 1u)
+                return;
+            const auto node = orderSweep == 0u ? edge.to : edge.from;
+            const auto neighbor = orderSweep == 0u ? edge.from : edge.to;
+            neighborSum[node] += static_cast<double>(orderPosition[neighbor]);
+            ++neighborCount[node];
+            return;
+        }
+        if (stage == Stage::OrderSort)
+        {
+            if (cursor == graph->nodes.size())
+            {
+                rowCount.fill(0u);
+                Then(Stage::OrderPosition);
+                return;
+            }
+            const auto current = cursor++;
+            const auto node = orderedNodes[current];
+            const auto score = [&](std::size_t index)
+            {
+                return neighborCount[index] ? neighborSum[index] / static_cast<double>(neighborCount[index]) : static_cast<double>(orderPosition[index]);
+            };
+            auto insertion = current;
+            while (insertion)
+            {
+                const auto prior = orderedNodes[insertion - 1u];
+                if (rank[prior] < rank[node] || (rank[prior] == rank[node] && score(prior) <= score(node)))
+                    break;
+                orderedNodes[insertion] = prior;
+                --insertion;
+            }
+            orderedNodes[insertion] = node;
+            return;
+        }
+        if (stage == Stage::OrderPosition)
+        {
+            if (cursor == graph->nodes.size())
+            {
+                if (++orderSweep < 2u)
+                {
+                    neighborSum.fill(0.0);
+                    neighborCount.fill(0u);
+                    Then(Stage::OrderAccumulate);
+                }
+                else
+                    Then(Stage::OrderCompare);
+                return;
+            }
+            const auto node = orderedNodes[cursor++];
+            orderPosition[node] = rowCount[rank[node]]++;
+            return;
+        }
+        if (cursor == graph->edges.size())
+        {
+            useOrdering = candidateCrossings < originalCrossings;
+            Then(Stage::Ports);
+            return;
+        }
+        const auto index = cursor++;
+        const auto& edge = graph->edges[index];
+        if (plan->edges[index].route != FlowchartRoute::Forward || rank[edge.to] != rank[edge.from] + 1u)
+            return;
+        for (std::size_t prior = 0u; prior < index; ++prior)
+        {
+            const auto& other = graph->edges[prior];
+            if (plan->edges[prior].route != FlowchartRoute::Forward || rank[other.from] != rank[edge.from] ||
+                rank[other.to] != rank[edge.to] || edge.from == other.from || edge.to == other.to)
+                continue;
+            const auto crossed = [&](const auto& positions)
+            {
+                return (positions[edge.from] < positions[other.from]) != (positions[edge.to] < positions[other.to]);
+            };
+            originalCrossings += crossed(originalPosition);
+            candidateCrossings += crossed(orderPosition);
+        }
+    }
     void Ports()
     {
         if (cursor == graph->edges.size())
@@ -640,9 +766,13 @@ struct NativeFlowchartLayout::Preparation
         const auto back  = plan->edges[index].route == FlowchartRoute::Back;
         startPort[index] = back ? ++before[rank[edge.from]] : ++after[rank[edge.from]];
         endPort[index]   = back ? ++after[rank[edge.to]] : ++before[rank[edge.to]];
-        direct[index] =
-            alignedPairs || (plan->edges[index].route == FlowchartRoute::Forward && edge.label.empty() && rank[edge.to] == rank[edge.from] + 1u &&
-                             rowCount[rank[edge.from]] == 1u && rowCount[rank[edge.to]] == 1u && outgoing[edge.from] == 1u && incoming[edge.to] == 1u);
+        const auto parallel = std::ranges::count_if(graph->edges, [&](const auto& other)
+        {
+            return other.from == edge.from && other.to == edge.to;
+        }) > 1;
+        direct[index] = alignedPairs ||
+                        (! parallel && graph->groups.empty() && ! hasNotes && ! hasCardinality &&
+                         plan->edges[index].route == FlowchartRoute::Forward && edge.label.empty() && rank[edge.to] == rank[edge.from] + 1u);
         if (direct[index])
             return;
         laneWidth[index] = edge.label.empty() ? PortGap : std::max(PortGap, Cross(edgeLabels[index]) + Margin);
@@ -767,8 +897,15 @@ struct NativeFlowchartLayout::Preparation
         const auto position = cursor++;
         const auto index    = alignedGroups                                     ? groupColumns[position]
                               : alignedPairs && position >= graph->edges.size() ? pairTargets[position - graph->edges.size()]
-                                                                                : position;
+                              : useOrdering ? orderedNodes[position] : position;
         auto& node          = plan->nodes[index];
+        if (useOrdering)
+        {
+            originalX[index] = bandLeft + (bandWidth - rowWidth[rank[index]]) / 2.0;
+            for (std::size_t prior = 0u; prior < index; ++prior)
+                if (rank[prior] == rank[index])
+                    originalX[index] += plan->nodes[prior].bounds.width + NodeGap;
+        }
         node.rank           = rank[index];
         node.bounds.x       = rowCursor[node.rank];
         node.bounds.y       = rowTop[node.rank] + (rowHeight[node.rank] - node.bounds.height) / 2.0;
@@ -898,7 +1035,7 @@ struct NativeFlowchartLayout::Preparation
     {
         if (cursor == plan->edges.size())
         {
-            Then(Stage::TransformNodes);
+            Then(useOrdering && ! restoringRoutes ? Stage::RouteCompare : Stage::TransformNodes);
             return;
         }
         const auto index = cursor++;
@@ -934,12 +1071,22 @@ struct NativeFlowchartLayout::Preparation
         const auto last  = back ? rowTop[to.rank] + rowHeight[to.rank] + static_cast<double>(endPort[index]) * PortGap
                                 : rowTop[to.rank] - static_cast<double>(endPort[index]) * PortGap;
         const auto fromX = from.bounds.x + from.bounds.width / 2.0, toX = to.bounds.x + to.bounds.width / 2.0;
-        // Unambiguous adjacent single-node ranks share a centerline; every
-        // other route retains its exterior lane and rank-row corridors.
-        const auto cross       = direct[index] ? fromX
+        // Adjacent-rank unlabeled routes use the empty inter-rank corridor;
+        // other routes retain exterior lanes and row corridors.
+        const auto cross       = direct[index] ? toX
                                  : back        ? Margin + leftWidth - laneOffset[index] - laneWidth[index]
                                                : bandLeft + bandWidth + Margin + laneOffset[index];
         placed.path            = {{{fromX, start}, {fromX, first}, {cross, first}, {cross, last}, {toX, last}, {toX, end}}};
+        if (useOrdering && ! restoringRoutes)
+        {
+            auto& original = originalPaths[index];
+            original = placed.path;
+            const auto oldFrom = originalX[edge.from] + from.bounds.width / 2.0;
+            const auto oldTo = originalX[edge.to] + to.bounds.width / 2.0;
+            original[0u].x = original[1u].x = oldFrom;
+            original[4u].x = original[5u].x = oldTo;
+            if (direct[index]) original[2u].x = original[3u].x = oldTo;
+        }
         placed.relation        = edge.relation;
         placed.style           = edge.style;
         placed.erFrom          = edge.erFrom;
@@ -955,6 +1102,54 @@ struct NativeFlowchartLayout::Preparation
         const auto fromSize = fromCardinalities[index], toSize = toCardinalities[index];
         placed.fromCardinality = {fromX + 4.0, start + (back ? -Major(fromSize) - 2.0 : 2.0), Cross(fromSize), Major(fromSize)};
         placed.toCardinality   = {toX + 4.0, end + (back ? 2.0 : -Major(toSize) - 2.0), Cross(toSize), Major(toSize)};
+    }
+    static std::size_t ProperCrossings(const std::array<FlowchartPoint, 6u>& first, const std::array<FlowchartPoint, 6u>& second) noexcept
+    {
+        std::size_t result{};
+        for (std::size_t a = 1u; a < first.size(); ++a)
+            for (std::size_t b = 1u; b < second.size(); ++b)
+            {
+                const auto p = first[a - 1u], q = first[a], r = second[b - 1u], s = second[b];
+                const bool verticalA = p.x == q.x, verticalB = r.x == s.x;
+                if (verticalA == verticalB) continue;
+                const auto v = verticalA ? p : r, ve = verticalA ? q : s;
+                const auto h = verticalA ? r : p, he = verticalA ? s : q;
+                result += v.x > std::min(h.x, he.x) && v.x < std::max(h.x, he.x) &&
+                          h.y > std::min(v.y, ve.y) && h.y < std::max(v.y, ve.y);
+            }
+        return result;
+    }
+    void CompareRoutes()
+    {
+        if (cursor == plan->edges.size())
+        {
+            if (candidateRouteCrossings < originalRouteCrossings)
+                Then(Stage::TransformNodes);
+            else
+            {
+                restoringRoutes = true;
+                Then(Stage::RestoreNodes);
+            }
+            return;
+        }
+        const auto index = cursor++;
+        for (std::size_t prior = 0u; prior < index; ++prior)
+        {
+            originalRouteCrossings += ProperCrossings(originalPaths[index], originalPaths[prior]);
+            candidateRouteCrossings += ProperCrossings(plan->edges[index].path, plan->edges[prior].path);
+        }
+    }
+    void RestoreNodes()
+    {
+        if (cursor == plan->nodes.size())
+        {
+            Then(Stage::Routes);
+            return;
+        }
+        const auto index = cursor++;
+        auto& node = plan->nodes[index];
+        node.label.x += originalX[index] - node.bounds.x;
+        node.bounds.x = originalX[index];
     }
     void TransformNodes()
     {
@@ -1112,6 +1307,11 @@ struct NativeFlowchartLayout::Preparation
             case Stage::Indegree:
             case Stage::ChooseRank:
             case Stage::RankEdges: Rank(); break;
+            case Stage::OrderInitialize:
+            case Stage::OrderAccumulate:
+            case Stage::OrderSort:
+            case Stage::OrderPosition:
+            case Stage::OrderCompare: Order(); break;
             case Stage::Ports: Ports(); break;
             case Stage::Rows: Rows(); break;
             case Stage::RowPositions: RowPositions(); break;
@@ -1120,6 +1320,8 @@ struct NativeFlowchartLayout::Preparation
             case Stage::NoteCollision: NoteCollision(); break;
             case Stage::GroupPositions: GroupPositions(); break;
             case Stage::Routes: Routes(); break;
+            case Stage::RouteCompare: CompareRoutes(); break;
+            case Stage::RestoreNodes: RestoreNodes(); break;
             case Stage::TransformNodes: TransformNodes(); break;
             case Stage::TransformGroups: TransformGroups(); break;
             case Stage::TransformEdges: TransformEdges(); break;
