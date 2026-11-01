@@ -1659,8 +1659,65 @@ template <typename Prepare> void SourceCaretSites(ControlHost& host, Prepare&& p
     SourceCaretSitesPolicy(host, prepare, false);
     SourceCaretSitesPolicy(host, prepare, true);
 }
-template <typename Prepare> void RenderingAdmissionFallback(ControlHost& host, Prepare&& prepare)
+template <typename Prepare, typename PrepareDpi> void RenderingAdmissionFallback(ControlHost& host, Prepare&& prepare, PrepareDpi&& prepareDpi)
 {
+#if ! DXUI_ENABLE_DIAGNOSTICS
+    static_cast<void>(prepareDpi);
+#endif
+#if DXUI_ENABLE_DIAGNOSTICS
+    const auto previousFailure = RichText::Detail::testRichPreparationFailure;
+    const auto previousAttempts = RichText::Detail::testRichPreparationFailureAttempts;
+    const auto restoreFailure = wil::scope_exit([&]() noexcept {
+        RichText::Detail::testRichPreparationFailure = previousFailure;
+        RichText::Detail::testRichPreparationFailureAttempts = previousAttempts;
+    });
+    for (const unsigned stage : {1u, 2u})
+    {
+        RichText::Detail::testRichPreparationFailure = stage;
+        RichText::Detail::testRichPreparationFailureAttempts = 0u;
+        const std::wstring original = L"**retained** and $x$\n";
+        auto root = std::make_unique<RichTextEditor>(original);
+        auto* editor = root.get();
+        editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        editor->SetSelection({2u, 5u});
+        host.SetRoot(std::move(root));
+        prepare();
+        Check(editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::SourceFallback && editor->DebugGetState().layoutReady && ! editor->GetSemanticDocument() &&
+                  editor->GetText() == original && editor->GetSelection() == Selection{2u, 5u} && ! editor->CanUndo() &&
+                  editor->GetViewMode() == ViewMode::Rich && RichText::Detail::testRichPreparationFailureAttempts == 1u,
+              "deterministic rich failure falls back once without changing source, selection, history or requested mode");
+        prepare();
+        Check(RichText::Detail::testRichPreparationFailureAttempts == 1u, "unchanged rich failure key does not retry on idle");
+        prepareDpi(144u);
+        Check(host.GetDpi() == 144.f && RichText::Detail::testRichPreparationFailureAttempts == 2u &&
+                  editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::SourceFallback,
+              "changed DPI retries the deterministic preparation key");
+        prepareDpi(96u);
+        Check(host.GetDpi() == 96.f && RichText::Detail::testRichPreparationFailureAttempts == 3u,
+              "restored DPI is a distinct preparation request");
+        auto appearance = editor->GetAppearance();
+        appearance.zoom = 1.25f;
+        editor->SetAppearance(appearance);
+        prepare();
+        Check(RichText::Detail::testRichPreparationFailureAttempts == 4u && editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::SourceFallback,
+              "changed appearance retries a deterministic preparation key");
+        RichText::Detail::testRichPreparationFailure = 0u;
+        editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+        prepare();
+        Check(editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic && editor->GetText() == original &&
+                  editor->GetSelection() == Selection{2u, 5u} && ! editor->CanUndo(), "changed profile recovers semantic presentation with source/history intact");
+        RichText::Detail::testRichPreparationFailure = stage;
+        editor->SetText(L"new **source**\n");
+        prepare();
+        Check(RichText::Detail::testRichPreparationFailureAttempts == 5u && editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::SourceFallback,
+              "new source retries the deterministic preparation key");
+        RichText::Detail::testRichPreparationFailure = 0u;
+        editor->SetText(L"recovered **source**\n");
+        prepare();
+        Check(editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic, "new source recovers after the fault is removed");
+    }
+#endif
     std::wstring source;
     for (size_t i = 0u; i <= SemanticDocument::MaximumParagraphs; ++i)
         source += L"x\n\n";

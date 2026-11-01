@@ -30,6 +30,9 @@ extern thread_local const RichImageRasterCalls* testRichImageRasterCalls;
 // Private owner-thread seams for proving that native preparation errors retain
 // their HRESULT and that the editor can substitute an instrumented factory.
 extern thread_local IDWriteFactory* testRichSemanticWriteFactory;
+// 1: semantic staging, 2: native geometry; persistent until the test clears it.
+extern thread_local unsigned testRichPreparationFailure;
+extern thread_local std::size_t testRichPreparationFailureAttempts;
 #endif
 class NativeObjectsRejected final : public std::exception
 {

@@ -1738,7 +1738,12 @@ __declspec(noinline) static int RunFunctionalTests()
             RichSemanticEditorTests::Rendering(transactionView.Controls(),
                                                [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic rendering preparation"); });
             RichSemanticEditorTests::RenderingAdmissionFallback(
-                transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic fallback preparation"); });
+                transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic fallback preparation"); },
+                [&](UINT dpi)
+                {
+                    Hr(PrepareRichEmbeddedContent(transactionView, 480u * dpi / 96u, 240u * dpi / 96u, static_cast<float>(dpi)),
+                       "embedded semantic fallback at changed DPI");
+                });
             RichSemanticEditorTests::SourceCaretSites(
                 transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded source caret site preparation"); });
             RichSemanticEditorTests::HangingMarkersLinksAndHtml(transactionView.Controls(), [&] {

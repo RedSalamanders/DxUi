@@ -1103,6 +1103,9 @@ Reused placements MUST consume exactly one preparation event, without an extra
 common phase-tail count. Invalid zero semantic budgets MUST preserve staging
 and create no bitmap. Bitmap memory/device HRESULT failures MUST retire staging,
 preserve the prior complete geometry and permit an explicit current retry.
+`D2DERR_UNSUPPORTED_OPERATION` for an image upload is target-local: preparation
+uses the image alternative, tries duplicate shared pixels only once for that
+preparation, and retries after the resource key changes.
 
 The [guide](../../docs/rich-text.md) lists exact navigation/format/clipboard
 commands and v0 limits. Layout survives palette/selection repaint, rebuilds on
@@ -2188,14 +2191,23 @@ supported by the selected font type. The formula's accessible explanation uses
 cause-neutral wording because the same source-preserving view fallback also covers
 capacity and font-operation failures. Other semantic content stays rich. The
 presentation rejection key includes immutable syntax, width, direction, host
-typography/resource generation, binding and local appearance geometry revision.
+typography/resource generation, effective DPI, binding and local appearance geometry revision.
 Repeated idle preparation does not retry the same rejection. A tracked edit outside an unchanged object retains its refusal when its exact syntax owner and diagram container geometry context remain equivalent; changing the view key or object retries it. DirectWrite `GetLineMetrics` reports a one-line-capacity rejection only when it
 returns `E_NOT_SUFFICIENT_BUFFER` and reports more than one required line. Other
-failed HRESULTs from leaf layout/metrics and image upload preserve their original
+failed HRESULTs from leaf layout/metrics and image upload, except the explicit
+unsupported-image result above, preserve their original
 error channel and leave the request retryable. In particular, `E_OUTOFMEMORY`,
 `DWRITE_E_UNEXPECTED`, `D2DERR_RECREATE_TARGET` and DXGI device-loss results must not
 be converted into permanent source rejection; they remain eligible for explicit
 preparation retry or resource-generation recovery.
+
+A deterministic `std::logic_error` in semantic staging or native rich geometry is
+logged once and memoized for the exact source, profile, source-editing region,
+view, width, DPI, direction, typography, resource generation, binding and local
+appearance key. The editor prepares source presentation without changing the
+requested view, source, selection or history; idle turns do not retry the rejected
+key. A changed key permits rich preparation again. Memory, device and unknown
+HRESULT failures remain retryable and do not use this deterministic fallback.
 
 The native Mermaid engine additionally accepts a bounded `stateDiagram` /
 `stateDiagram-v2` profile: direction, simple declarations/quoted aliases,

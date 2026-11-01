@@ -362,12 +362,32 @@ struct RichTextEditor::State
     };
     std::optional<SourceEditingSession> sourceEditing;
     uint64_t nextSourceEditingSession = 1u;
+    struct PreparationRejection
+    {
+        RichText::SourceSnapshot source;
+        std::optional<RichText::MarkdownProfile> profile;
+        std::optional<RichText::MarkdownSourceRegion> region;
+        RichText::ViewMode mode{};
+        float width{}, dpi{};
+        uint64_t typography{}, resources{}, binding{}, appearance{};
+        bool rtl{};
+    };
+    std::optional<PreparationRejection> preparationRejected;
+    bool RejectsPreparation(float width, float dpi, bool rtl, uint64_t typography, uint64_t resources) const noexcept
+    {
+        return preparationRejected && markdownRendering && preparationRejected->source.IsSameRevision(document.Snapshot()) &&
+               preparationRejected->profile == markdownProfile && preparationRejected->mode == mode && preparationRejected->width == width &&
+               preparationRejected->dpi == dpi && preparationRejected->rtl == rtl && preparationRejected->typography == typography &&
+               preparationRejected->resources == resources && preparationRejected->binding == bindingRevision &&
+               preparationRejected->appearance == appearanceRevision &&
+               preparationRejected->region == (sourceEditing ? std::optional(sourceEditing->region) : std::nullopt);
+    }
     std::shared_ptr<const RichText::MarkdownSyntax> semanticRejected;
     struct NativeGeometryRejection
     {
         std::shared_ptr<const RichText::SemanticDocument> document;
-        float width{};
-        uint64_t typography{}, resources{}, binding{};
+        float width{}, dpi{};
+        uint64_t typography{}, resources{}, binding{}, appearance{};
         bool rtl{};
     };
     std::optional<NativeGeometryRejection> nativeGeometryRejected;
@@ -379,28 +399,29 @@ struct RichTextEditor::State
         std::shared_ptr<const RichText::MarkdownSyntax> syntax;
         RichText::SourceSnapshot source;
         std::vector<RichText::MarkdownRange> objects;
-        float width{};
+        float width{}, dpi{};
         uint64_t typography{}, resources{}, binding{}, appearance{};
         bool rtl{};
         bool Matches(const std::shared_ptr<const RichText::MarkdownSyntax>& value,
                      float nextWidth,
+                     float nextDpi,
                      bool nextRtl,
                      uint64_t nextTypography,
                      uint64_t nextResources,
                      uint64_t nextBinding,
                      uint64_t nextAppearance) const noexcept
         {
-            return (! value || syntax == value) && width == nextWidth && rtl == nextRtl && typography == nextTypography && resources == nextResources &&
+            return (! value || syntax == value) && width == nextWidth && dpi == nextDpi && rtl == nextRtl && typography == nextTypography && resources == nextResources &&
                    binding == nextBinding && appearance == nextAppearance;
         }
     };
     std::optional<NativeObjectRejections> nativeObjectRejections;
     bool RejectsNativeGeometry(
-        const std::shared_ptr<const RichText::SemanticDocument>& value, float width, bool rtl, uint64_t typography, uint64_t resources) const noexcept
+        const std::shared_ptr<const RichText::SemanticDocument>& value, float width, float dpi, bool rtl, uint64_t typography, uint64_t resources) const noexcept
     {
-        return nativeGeometryRejected && nativeGeometryRejected->document == value && nativeGeometryRejected->width == width &&
+        return nativeGeometryRejected && nativeGeometryRejected->document == value && nativeGeometryRejected->width == width && nativeGeometryRejected->dpi == dpi &&
                nativeGeometryRejected->rtl == rtl && nativeGeometryRejected->typography == typography && nativeGeometryRejected->resources == resources &&
-               nativeGeometryRejected->binding == bindingRevision;
+               nativeGeometryRejected->binding == bindingRevision && nativeGeometryRejected->appearance == appearanceRevision;
     }
     struct MarkdownCapacityRejection
     {
@@ -631,9 +652,12 @@ bool RichTextEditor::CompleteImageRequest(const RichText::RichImageRequest& requ
         return false;
     const auto viewport = TextViewport();
     const auto* host    = GetHost();
+    if (_state->RejectsPreparation(std::max(1.0f, viewport.right - viewport.left), host->GetDpi(), IsRightToLeft(),
+                                   host->GetTypographyRevision(), host->GetResourceGeneration()))
+        return false;
     if (document &&
         _state->RejectsNativeGeometry(
-            document, std::max(1.0f, viewport.right - viewport.left), IsRightToLeft(), host->GetTypographyRevision(), host->GetResourceGeneration()))
+            document, std::max(1.0f, viewport.right - viewport.left), host->GetDpi(), IsRightToLeft(), host->GetTypographyRevision(), host->GetResourceGeneration()))
         return false;
     const bool alreadyDirty = _state->images.HasUnpublished();
     if (! _state->images.Complete(request, std::move(image)))
@@ -1510,8 +1534,12 @@ MarkdownRenderingStatus RichTextEditor::GetMarkdownRenderingStatus() const noexc
     if (const auto* host = GetHost())
     {
         const auto viewport = TextViewport();
+        if (_state->RejectsPreparation(std::max(1.0f, viewport.right - viewport.left), host->GetDpi(), IsRightToLeft(),
+                                       host->GetTypographyRevision(), host->GetResourceGeneration()))
+            return MarkdownRenderingStatus::SourceFallback;
         if (_state->RejectsNativeGeometry(GetSemanticDocument(),
                                           std::max(1.0f, viewport.right - viewport.left),
+                                          host->GetDpi(),
                                           IsRightToLeft(),
                                           host->GetTypographyRevision(),
                                           host->GetResourceGeneration()))
@@ -2806,6 +2834,7 @@ void RichTextEditor::CancelContentPreparation() noexcept
 HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
 {
     auto& state = *_state;
+    bool richPreparationActive = false;
     if (state.codeCallbackActive)
         return S_FALSE;
     state.lastAdvanceLayouts = state.lastAdvanceBlockSteps = 0u;
@@ -2849,6 +2878,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                         rejected.syntax     = value->Syntax();
                         rejected.source     = Snapshot();
                         rejected.width      = std::max(1.0f, TextViewport().right - TextViewport().left);
+                        rejected.dpi        = host.GetDpi();
                         rejected.typography = host.GetTypographyRevision();
                         rejected.resources  = host.GetResourceGeneration();
                         rejected.binding    = state.bindingRevision;
@@ -2872,9 +2902,11 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             }
             state.nativeGeometryRejected.emplace(value,
                                                  std::max(1.0f, TextViewport().right - TextViewport().left),
+                                                 host.GetDpi(),
                                                  host.GetTypographyRevision(),
                                                  host.GetResourceGeneration(),
                                                  state.bindingRevision,
+                                                 state.appearanceRevision,
                                                  IsRightToLeft());
             RetireSemanticAccessibility();
             state.layout.Invalidate();
@@ -2921,11 +2953,21 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             static_cast<void>(host.GetSolidBrush(host.GetTheme().subduedText));
             static_cast<void>(host.GetSolidBrush(host.GetTheme().accent));
         }
+        const auto width      = std::max(1.0f, viewport.right - viewport.left);
+        const auto typography = host.GetTypographyRevision(), resources = host.GetResourceGeneration();
+        const bool rejectedPreparation = state.RejectsPreparation(width, host.GetDpi(), IsRightToLeft(), typography, resources);
+        if (state.preparationRejected && ! rejectedPreparation)
+        {
+            state.preparationRejected.reset();
+            RetireSemanticAccessibility();
+            state.layout.Invalidate();
+            state.requestActive = false;
+        }
         if (LayoutIsCurrent(host))
         {
             UpdateCaretScroll();
             PrepareOverlayGeometry(host);
-            const auto codeInk = PrepareCodeInk(state.mode == RichText::ViewMode::Rich ? GetSemanticDocument() : nullptr);
+            const auto codeInk = PrepareCodeInk(state.mode == RichText::ViewMode::Rich && state.layout.Semantic() ? GetSemanticDocument() : nullptr);
             if (codeInk != S_OK)
                 return codeInk;
             const auto result          = PrepareSourceInk() && PrepareSourceGuides(host) ? S_OK : S_FALSE;
@@ -2936,7 +2978,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 PublishScrollChanged();
             return result;
         }
-        if (state.markdownProfile && ! GetMarkdownSyntax() && ! state.HasCurrentMarkdownCapacityRejection())
+        if (! rejectedPreparation && state.markdownProfile && ! GetMarkdownSyntax() && ! state.HasCurrentMarkdownCapacityRejection())
         {
             try
             {
@@ -2976,11 +3018,9 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 state.markdownCapacityRejected.emplace(Snapshot(), Revision(), *state.markdownProfile);
             }
         }
-        const auto width      = std::max(1.0f, viewport.right - viewport.left);
-        const auto typography = host.GetTypographyRevision(), resources = host.GetResourceGeneration();
         const auto currentSyntax = GetMarkdownSyntax();
         if (state.nativeObjectRejections &&
-            ! state.nativeObjectRejections->Matches(nullptr, width, IsRightToLeft(), typography, resources, state.bindingRevision, state.appearanceRevision))
+            ! state.nativeObjectRejections->Matches(nullptr, width, host.GetDpi(), IsRightToLeft(), typography, resources, state.bindingRevision, state.appearanceRevision))
         {
             state.nativeObjectRejections.reset();
             RetireSemanticAccessibility();
@@ -3077,7 +3117,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             state.semantic.Clear();
         }
         std::shared_ptr<const RichText::SemanticDocument> semanticDocument;
-        if (state.markdownRendering && state.mode == RichText::ViewMode::Rich)
+        if (! rejectedPreparation && state.markdownRendering && state.mode == RichText::ViewMode::Rich)
         {
             const auto syntax = GetMarkdownSyntax();
             semanticDocument  = GetSemanticDocument();
@@ -3090,13 +3130,23 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                         return S_FALSE;
                     if (! state.semantic.HasPendingPreparation())
                     {
+                        richPreparationActive = true;
                         if (state.nativeObjectRejections)
                             RichText::Detail::SemanticExtensionAccess::BeginWithNativeFallbacks(state.semantic, syntax, state.nativeObjectRejections->objects);
                         else
                             state.semantic.Begin(syntax);
                     }
                     ++state.semanticAdvances;
+                    richPreparationActive = true;
+#if DXUI_ENABLE_DIAGNOSTICS
+                    if (RichText::Detail::testRichPreparationFailure == 1u)
+                    {
+                        ++RichText::Detail::testRichPreparationFailureAttempts;
+                        throw std::logic_error("injected deterministic semantic staging failure");
+                    }
+#endif
                     const auto advance            = state.semantic.Advance(sharedWorkBudget - state.lastAdvanceMarkdownWork);
+                    richPreparationActive = false;
                     state.lastAdvanceSemanticWork = advance.workUnits;
                     if (advance.status == RichText::MarkdownPreparationStatus::Pending)
                         return S_FALSE;
@@ -3104,6 +3154,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 }
                 catch (const std::length_error&)
                 {
+                    richPreparationActive = false;
                     // Admission is a preview bound, not a document failure.
                     // Remember this exact immutable syntax so idle preparation
                     // cannot repeatedly fail. Editing/profile changes retry.
@@ -3117,7 +3168,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         if (RichText::Detail::testRichSemanticWriteFactory)
             factory = RichText::Detail::testRichSemanticWriteFactory;
 #endif
-        if (semanticDocument && state.RejectsNativeGeometry(semanticDocument, width, IsRightToLeft(), typography, resources))
+        if (semanticDocument && state.RejectsNativeGeometry(semanticDocument, width, host.GetDpi(), IsRightToLeft(), typography, resources))
             semanticDocument.reset();
         if (semanticDocument)
         {
@@ -3200,6 +3251,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             options.tableOverflow    = appearance.tableOverflow;
             options.readingDirection = IsRightToLeft() ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
             state.sourceGuideOptions = options;
+            richPreparationActive = semanticDocument != nullptr;
             state.layout.BeginPreparation(factory,
                                           state.document.Snapshot(),
                                           revision,
@@ -3210,6 +3262,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                                           {typography, resources},
                                           state.images.Snapshot(),
                                           host.GetDeviceContext());
+            richPreparationActive = false;
             state.requestRevision   = revision;
             state.requestBinding    = binding;
             state.requestTypography = typography;
@@ -3222,7 +3275,16 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         if (state.layout.HasPendingPreparation())
         {
             ++state.preparationAdvances;
+            richPreparationActive = semanticDocument != nullptr;
+#if DXUI_ENABLE_DIAGNOSTICS
+            if (richPreparationActive && RichText::Detail::testRichPreparationFailure == 2u)
+            {
+                ++RichText::Detail::testRichPreparationFailureAttempts;
+                throw std::logic_error("injected deterministic native geometry failure");
+            }
+#endif
             const auto advance          = state.layout.AdvancePreparation();
+            richPreparationActive = false;
             state.lastAdvanceLayouts    = advance.layoutsPrepared;
             state.lastAdvanceBlockSteps = advance.blockSteps;
             if (advance.status == RichText::LayoutPreparationStatus::Pending)
@@ -3312,6 +3374,36 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         state.markdownRequestActive = false;
         state.requestActive         = false;
         return failure.GetErrorCode();
+    }
+    catch (const std::logic_error&)
+    {
+        if (richPreparationActive && GetHost() == &host && state.markdownRendering && state.mode == RichText::ViewMode::Rich)
+        {
+            const auto viewport = TextViewport();
+            auto& rejected = state.preparationRejected.emplace();
+            rejected.source = Snapshot();
+            rejected.profile = state.markdownProfile;
+            if (state.sourceEditing) rejected.region = state.sourceEditing->region;
+            rejected.mode = state.mode;
+            rejected.width = std::max(1.0f, viewport.right - viewport.left);
+            rejected.dpi = host.GetDpi();
+            rejected.rtl = IsRightToLeft();
+            rejected.typography = host.GetTypographyRevision();
+            rejected.resources = host.GetResourceGeneration();
+            rejected.binding = state.bindingRevision;
+            rejected.appearance = state.appearanceRevision;
+            state.images.Cancel();
+            state.semantic.Clear();
+            RetireSemanticAccessibility();
+            state.layout.Invalidate();
+            state.requestActive = false;
+            Debug::Warning(L"DxUi::RichTextEditor: deterministic rich preparation failed; exact source is shown for this view key.");
+            return S_FALSE;
+        }
+        state.layout.Invalidate();
+        state.semantic.Cancel();
+        state.requestActive = false;
+        return E_FAIL;
     }
     catch (const std::exception&)
     {

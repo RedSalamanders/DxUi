@@ -2,6 +2,7 @@
 #include "DxUi.PreparedMath.h"
 #include "DxUi.RichImageResources.h"
 #include "DxUi.SemanticExtensions.h"
+#include "Support/Diagnostics.h"
 #include <array>
 #include <cmath>
 #include <limits>
@@ -23,6 +24,8 @@ namespace DxUi::RichText::Detail
 thread_local const RichImageRasterCalls* testRichImageRasterCalls{};
 thread_local IDWriteFactory* testRichSemanticWriteFactory{};
 thread_local HRESULT testRichMathLineMetricsFailure{S_OK};
+thread_local unsigned testRichPreparationFailure{};
+thread_local std::size_t testRichPreparationFailureAttempts{};
 thread_local HRESULT testRichMathGlyphMetricsFailure{S_OK};
 thread_local HRESULT testRichMathGlyphIndexFailure{S_OK};
 thread_local std::size_t testRichMathConstantReads{};
@@ -147,6 +150,7 @@ struct NativeImageGeometry
                         const NativeImageGeometry* previous,
                         std::vector<std::size_t>& rejected)
         : placements(resources.placements.size() + SemanticExtensionAccess::Maths(document).size()),
+          unsupportedPixels(0u),
           targetIdentity(target)
     {
         if (! target)
@@ -228,10 +232,16 @@ struct NativeImageGeometry
         std::ranges::sort(placements, {}, &NativeImagePlacement::element);
     }
     std::vector<NativeImagePlacement> placements;
+    std::vector<const RichImage*> unsupportedPixels;
     ID2D1RenderTarget* targetIdentity; // Identity only after staging; never dereferenced here.
-    bool PrepareOne(std::size_t index, ID2D1RenderTarget* target)
+    bool PrepareOne(std::size_t index, ID2D1RenderTarget* target, bool& unsupported)
     {
         auto& placement  = placements[index];
+        if (std::ranges::find(unsupportedPixels, placement.pixels.get()) != unsupportedPixels.end())
+        {
+            unsupported = true;
+            return false;
+        }
         const auto found = std::find_if(
             placements.begin(), placements.begin() + static_cast<std::ptrdiff_t>(index), [&](const auto& prior) { return prior.pixels == placement.pixels; });
         if (found != placements.begin() + static_cast<std::ptrdiff_t>(index))
@@ -240,12 +250,20 @@ struct NativeImageGeometry
             return false;
         }
         const auto properties = D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.0f, 96.0f);
-        THROW_IF_FAILED(UploadImageBitmap(target,
-                                          D2D1::SizeU(placement.pixels->Width(), placement.pixels->Height()),
-                                          placement.pixels->Pixels().data(),
-                                          placement.pixels->Stride(),
-                                          properties,
-                                          placement.bitmap.put()));
+        const auto result = UploadImageBitmap(target,
+                                              D2D1::SizeU(placement.pixels->Width(), placement.pixels->Height()),
+                                              placement.pixels->Pixels().data(),
+                                              placement.pixels->Stride(),
+                                              properties,
+                                              placement.bitmap.put());
+        if (result == D2DERR_UNSUPPORTED_OPERATION)
+        {
+            unsupportedPixels.push_back(placement.pixels.get());
+            unsupported = true;
+            Debug::Warning(L"DxUi: image upload is unsupported by this target; the image alternative is retained.");
+            return true;
+        }
+        THROW_IF_FAILED(result);
         return true;
     }
     bool PrepareMath(std::size_t index)
@@ -1936,7 +1954,12 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                     ++result.blockSteps;
                     continue;
                 }
-                const bool uploaded = work.state->images->PrepareOne(work.imageIndex++, work.raster.get());
+                bool unsupported{};
+                const bool uploaded = work.state->images->PrepareOne(work.imageIndex, work.raster.get(), unsupported);
+                if (unsupported)
+                    work.state->images->placements.erase(work.state->images->placements.begin() + static_cast<std::ptrdiff_t>(work.imageIndex));
+                else
+                    ++work.imageIndex;
                 ++result.blockSteps;
                 // One indivisible bounded upload per owner turn. Repeated
                 // placements share a bitmap; no decode/I/O happens here.

@@ -344,6 +344,7 @@ static void TestRichImageRasterFailureAndBudgets()
     Check(jobs.size() == 2u && resources.Complete(jobs[0], RichImageResourceTests::Picture()) &&
               resources.Complete(jobs[1], RichImageResourceTests::Picture(48u, 32u)),
           "raster fixture has two independent decoded sources");
+    resources.Publish();
     const auto images = resources.Snapshot();
     RichImageFailureTests::RasterCalls calls;
     PreparedSemanticGeometry geometry;
@@ -385,7 +386,7 @@ static void TestRichImageRasterFailureAndBudgets()
     begin(1u);
     Check(! geometry.Pending() && calls.uploads == 2u, "identical image/target/epoch preparation coalesces without uploads");
     std::uint64_t epoch = 1u;
-    for (const auto failure : {E_OUTOFMEMORY, DXGI_ERROR_DEVICE_REMOVED, D2DERR_RECREATE_TARGET})
+    for (const auto failure : {E_OUTOFMEMORY, DXGI_ERROR_DEVICE_REMOVED, D2DERR_RECREATE_TARGET, E_FAIL})
         for (const auto failureIndex : {0u, 1u})
         {
             const auto generation = geometry.Generation();
@@ -420,6 +421,7 @@ static void TestRichImageRasterFailureAndBudgets()
     }
     resources.Take(jobs);
     Check(jobs.size() == 1u && resources.Complete(jobs[0], RichImageResourceTests::Picture(8u, 8u)), "maximum placement fixture shares one small image");
+    resources.Publish();
     const auto before = calls.uploads;
     geometry.Begin(write.get(), maximum, options, drawing.get(), {++epoch, epoch}, resources.Snapshot(), target.get());
     finish();
@@ -436,5 +438,23 @@ static void TestRichImageRasterFailureAndBudgets()
                       "every admitted maximum placement preserves the actual image size");
         }
     Check(measured == 129u, "native placement capacity never removes source images");
+    const auto unsupportedBefore = calls.uploads;
+    calls.failure = D2DERR_UNSUPPORTED_OPERATION;
+    calls.failAt = calls.uploads;
+    geometry.Begin(write.get(), maximum, options, drawing.get(), {++epoch, epoch}, resources.Snapshot(), target.get());
+    finish();
+    Check(calls.uploads - unsupportedBefore == 1u && maximum->Map().Source() == source,
+          "unsupported upload is tried once for all duplicate image pixels while exact source remains");
+    const auto fallbackGeneration = geometry.Generation();
+    for (std::size_t index = 0u; index < maximum->Elements().size(); ++index)
+        if (maximum->Elements()[index].role == SemanticRole::Image)
+            Check(geometry.ElementBounds(index).has_value(), "unsupported upload keeps every alternative reachable in native geometry");
+    geometry.Begin(write.get(), maximum, options, drawing.get(), {epoch, epoch}, resources.Snapshot(), target.get());
+    Check(! geometry.Pending() && geometry.Generation() == fallbackGeneration && calls.uploads == unsupportedBefore + 1u,
+          "unchanged unsupported image target does not retry during idle");
+    calls.failAt = std::numeric_limits<std::size_t>::max();
+    geometry.Begin(write.get(), maximum, options, drawing.get(), {++epoch, epoch}, resources.Snapshot(), target.get());
+    finish();
+    Check(calls.uploads == unsupportedBefore + 2u, "new resource key retries and recovers the image upload");
     std::cout << "image raster driver failures=4 maximumPlacements=128 sharedUploads=1\n";
 }
