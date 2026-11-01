@@ -867,12 +867,12 @@ class MarkdownInlines
         }
         return ! extended || (dots && (AsciiLetter(text.back()) || Digit(text.back())));
     }
-    bool AngleAutolink()
+    std::optional<std::size_t> AngleAutolinkEnd(std::size_t start) const noexcept
     {
-        const auto end = text_.find(L'>', cursor_ + 1u);
+        const auto end = text_.find(L'>', start + 1u);
         if (end == std::wstring::npos)
-            return false;
-        const auto content = std::wstring_view(text_).substr(cursor_ + 1u, end - cursor_ - 1u);
+            return std::nullopt;
+        const auto content = std::wstring_view(text_).substr(start + 1u, end - start - 1u);
         const auto colon   = content.find(L':');
         bool uri           = colon >= 2u && colon <= 32u && colon != std::wstring_view::npos && AsciiLetter(content.front());
         if (uri)
@@ -886,7 +886,17 @@ class MarkdownInlines
         }
         const bool email = ! uri && Email(content, false);
         if (! uri && ! email)
+            return std::nullopt;
+        return end;
+    }
+    bool AngleAutolink()
+    {
+        const auto found = AngleAutolinkEnd(cursor_);
+        if (! found)
             return false;
+        const auto end           = found.value();
+        const auto content       = std::wstring_view(text_).substr(cursor_ + 1u, end - cursor_ - 1u);
+        const bool email         = content.find(L':') == std::wstring_view::npos;
         const auto link          = Append(Kind::Link, cursor_, end + 1u);
         nodes_[link].destination = email ? std::wstring(L"mailto:") + std::wstring(content) : std::wstring(content);
         const auto child         = nodes_.size();
@@ -904,9 +914,9 @@ class MarkdownInlines
         cursor_ = end + 1u;
         return true;
     }
-    std::size_t HtmlEnd() const noexcept
+    std::size_t HtmlEnd(std::size_t start) const noexcept
     {
-        const auto input = std::wstring_view(text_).substr(cursor_);
+        const auto input = std::wstring_view(text_).substr(start);
         auto terminated  = [&](std::wstring_view prefix, std::wstring_view suffix)
         {
             if (! input.starts_with(prefix))
@@ -1323,13 +1333,32 @@ class MarkdownInlines
             const auto content = first + width;
             if (content < text_.size() && (! dollars || display || ! SourceSpace(text_[content])))
             {
-                bool endedLine = false;
+                bool endedLine     = false;
+                auto nextAngleEnd  = std::wstring::npos;
+                bool angleEndKnown = false;
                 for (auto end = content; end < std::min(text_.size(), content + MathMaximumSourceUnits + 1u); ++end)
                 {
                     if (! display && text_[end] == L'\n')
                     {
                         endedLine = true;
                         break;
+                    }
+                    if (text_[end] == L'`' || text_[end] == L'<')
+                    {
+                        if (text_[end] == L'<' && (! angleEndKnown || (nextAngleEnd != std::wstring::npos && end > nextAngleEnd)))
+                        {
+                            nextAngleEnd  = text_.find(L'>', end);
+                            angleEndKnown = true;
+                        }
+                        std::size_t slashes{};
+                        for (auto index = end; index > content && text_[index - 1u] == L'\\'; --index)
+                            ++slashes;
+                        if (slashes % 2u == 0u && ((text_[end] == L'`' && backtickNext_[end] != MarkdownNoNode) ||
+                                                   (text_[end] == L'<' && nextAngleEnd != std::wstring::npos && (HtmlEnd(end) || AngleAutolinkEnd(end)))))
+                        {
+                            endedLine = true; // Let the regular inline scanner own this opaque token.
+                            break;
+                        }
                     }
                     if (std::wstring_view(text_).substr(end, width) != closer)
                         continue;
@@ -1378,7 +1407,7 @@ class MarkdownInlines
         if (c == L'<' && AngleAutolink())
             return;
         if (c == L'<')
-            if (const auto length = HtmlEnd())
+            if (const auto length = HtmlEnd(cursor_))
             {
                 cursor_ += length;
                 const auto node = Append(Kind::Html, first, cursor_, std::wstring_view(text_).substr(first, length));

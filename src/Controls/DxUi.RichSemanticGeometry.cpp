@@ -23,6 +23,8 @@ namespace DxUi::RichText::Detail
 thread_local const RichImageRasterCalls* testRichImageRasterCalls{};
 thread_local IDWriteFactory* testRichSemanticWriteFactory{};
 thread_local HRESULT testRichMathLineMetricsFailure{S_OK};
+thread_local HRESULT testRichMathGlyphMetricsFailure{S_OK};
+thread_local HRESULT testRichMathGlyphIndexFailure{S_OK};
 thread_local std::size_t testRichMathConstantReads{};
 thread_local std::size_t testRichMathPreparations{};
 #endif

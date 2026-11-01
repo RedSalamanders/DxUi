@@ -2315,6 +2315,47 @@ void TestRichTextAccessibilityEmbeddedLinkActivation()
 {
     EmbeddedCase([](bool embedded) { SemanticLinkActivation(embedded); });
 }
+void SemanticCodeCopyAction(bool embedded)
+{
+    RichAccessibilityFixture fixture(embedded, true, true);
+    auto appearance = fixture.editor->GetAppearance();
+    appearance.markdownPresentation = RichText::MarkdownPresentationStyle::Subtle;
+    fixture.editor->SetAppearance(appearance);
+    const std::wstring source = L"```cpp\nint x;\n```\n";
+    fixture.editor->SetText(source);
+    fixture.editor->SetSelection({9u, 9u});
+    std::wstring copied;
+    unsigned calls{};
+    fixture.editor->SetOnCodeCopyRequested([&](std::wstring_view code) { copied.assign(code); ++calls; }, L"Copy example code");
+    fixture.Publish();
+    auto root = fixture.Simple();
+    auto copy = FindNamedSemanticPart(*root.get(), L"Copy example code");
+    Require(copy && ReadProviderLongProperty(*copy.get(), UIA_ControlTypePropertyId, "copy button role") == UIA_ButtonControlTypeId,
+            "native and embedded code copy is exposed as a named button");
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    RequireSucceeded(copy->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "code copy Invoke availability");
+    wil::com_ptr_nothrow<IInvokeProvider> invoke;
+    RequireSucceeded(pattern.query_to(invoke.put()), "code copy Invoke interface");
+    const auto selection = fixture.editor->GetSelection();
+    const auto revision = fixture.editor->Revision();
+    RequireSucceeded(invoke->Invoke(), "invoke code copy intent");
+    Require(calls == 1u && copied == L"int x;\n" && fixture.editor->GetSelection() == selection && fixture.editor->Revision() == revision &&
+                fixture.editor->GetText() == source && ! fixture.editor->CanUndo(),
+            "copy action sends rendered code without source, selection or history changes");
+    fixture.editor->SetOnCodeCopyRequested({});
+    Require(invoke->Invoke() == UIA_E_ELEMENTNOTAVAILABLE, "removed callback immediately retires old copy peer");
+    fixture.Publish();
+    root = fixture.Simple();
+    Require(! FindNamedSemanticPart(*root.get(), L"Copy example code"), "unregistered code copy action is absent from accessibility tree");
+}
+void TestRichTextAccessibilityWindowCodeCopy()
+{
+    SemanticCodeCopyAction(false);
+}
+void TestRichTextAccessibilityEmbeddedCodeCopy()
+{
+    EmbeddedCase([](bool embedded) { SemanticCodeCopyAction(embedded); });
+}
 void SemanticFootnoteNavigation(bool embedded)
 {
     using namespace RichText;
@@ -2475,7 +2516,7 @@ void SemanticStructureAndTasks(bool embedded)
 {
     RichAccessibilityFixture fixture(embedded, true, true);
     fixture.editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
-    const std::wstring source = L"# Head\n\n[label](#local) ![image alt](image)\n\n- [ ] task\n\n| A | B | C |\n| --- | --- | --- |\n| value |\n";
+    const std::wstring source = L"# Head\n\n[label](https://example.invalid) ![image alt](image)\n\n- [ ] task\n\n| A | B | C |\n| --- | --- | --- |\n| value |\n";
     fixture.editor->SetText(source);
     fixture.editor->SetSelection({5u, 2u});
     fixture.Publish();
@@ -2488,7 +2529,7 @@ void SemanticStructureAndTasks(bool embedded)
     wil::com_ptr_nothrow<IUnknown> invocation;
     RequireSucceeded(link->GetPatternProvider(UIA_InvokePatternId, invocation.put()), "inert link pattern query");
     Require(! invocation && ReadProviderStringProperty(*image.get(), UIA_NamePropertyId, "image alternative") == L"image alt",
-            "link destinations stay inert and images expose their native alternatives");
+            "unhandled external links stay inert and images expose their native alternatives");
     wil::com_ptr_nothrow<ITextProvider> text;
     RequireSucceeded(simple.query_to(text.put()), "structured source pattern");
     wil::com_ptr_nothrow<ITextRangeProvider> taskRange, paddedRange;
@@ -2940,6 +2981,8 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSemanticFrontMatterDiagnostics);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSemanticFrontMatterDiagnostics);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowFootnoteNavigation);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowCodeCopy);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedCodeCopy);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowLinkActivation);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedLinkActivation);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowDiagramAlternatives);

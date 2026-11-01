@@ -1,0 +1,1 @@
+- Keep inline code and HTML tokens from being consumed by an earlier unmatched math delimiter.

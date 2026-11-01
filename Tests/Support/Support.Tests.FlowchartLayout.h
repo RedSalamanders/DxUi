@@ -65,8 +65,8 @@ template <typename Check> inline void Geometry(Check&& check)
           "arrow head ends on the target shape boundary");
     for (const auto& [direction, horizontal] : {std::pair{L"TB", false}, std::pair{L"BT", false}, std::pair{L"LR", true}, std::pair{L"RL", true}})
     {
-        const auto graph = Graph(L"stateDiagram-v2\ndirection " + std::wstring(direction) + L"\nstate F <<fork>>\nA --> F\nF --> B\n");
-        const auto bars  = Place(graph, check);
+        const auto forkGraph = Graph(L"stateDiagram-v2\ndirection " + std::wstring(direction) + L"\nstate F <<fork>>\nA --> F\nF --> B\n");
+        const auto bars      = Place(forkGraph, check);
         const auto& bar  = bars->nodes[0u];
         check(bar.shape == FlowchartShape::Bar && (horizontal ? bar.bounds.height > bar.bounds.width : bar.bounds.width > bar.bounds.height),
               "fork bars stay perpendicular to the selected graph direction");
@@ -239,7 +239,7 @@ template <typename Check> inline void Corpus(Check&& check)
                       "budget choice cannot change edge routing");
         ++admitted;
     }
-    check(admitted == 16u, "geometry covers every admitted original reference graph");
+    check(admitted == 30u, "geometry covers every admitted original reference graph");
     const auto fanoutGraph = Graph(L"flowchart LR;A & B --> C & D --> E");
     const auto fanoutPlan  = Place(fanoutGraph, check, 7u);
     check(fanoutGraph->outcome == FlowchartOutcome::Prepared && fanoutPlan->nodes.size() == 5u && fanoutPlan->edges.size() == 6u,

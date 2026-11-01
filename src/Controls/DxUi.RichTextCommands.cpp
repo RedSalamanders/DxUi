@@ -263,6 +263,69 @@ std::optional<std::size_t> FindCodeLanguageTarget(const MarkdownSyntax& syntax, 
     }
     return std::nullopt;
 }
+static std::optional<std::wstring_view> CodeExitPrefix(const MarkdownSyntax& syntax, std::size_t index) noexcept
+{
+    const auto& nodes = syntax.Nodes();
+    const auto& node  = nodes[index];
+    bool inList       = false;
+    for (auto parent = node.parent; parent != MarkdownNoNode; parent = nodes[parent].parent)
+    {
+        const auto kind = nodes[parent].block.kind;
+        if (kind == MarkdownBlockKind::ListItem)
+            inList = true;
+        if (kind != MarkdownBlockKind::Document && kind != MarkdownBlockKind::BlockQuote && kind != MarkdownBlockKind::List &&
+            kind != MarkdownBlockKind::ListItem)
+            return std::nullopt;
+    }
+    if (nodes[node.parent].block.kind == MarkdownBlockKind::Document)
+        return std::wstring_view{};
+    const auto text = syntax.Source();
+    if (inList)
+    {
+        std::size_t content{};
+        if (node.block.closed)
+        {
+            content = node.block.source.last;
+            if (content && text[content - 1u] == L'\n')
+                --content;
+            if (content && text[content - 1u] == L'\r')
+                --content;
+            while (content > node.block.source.first && (text[content - 1u] == L' ' || text[content - 1u] == L'\t'))
+                --content;
+            const auto fenceEnd = content;
+            while (content > node.block.source.first && text[content - 1u] == node.block.fenceMarker)
+                --content;
+            if (fenceEnd - content < node.block.fenceLength)
+                return std::nullopt;
+        }
+        else
+        {
+            if (node.lines.empty() || node.lines.back().leadingSpaces != 0u)
+                return std::nullopt;
+            content = node.lines.back().source.first;
+            if (content >= text.size() || text[content] == L'\r' || text[content] == L'\n')
+                return std::nullopt; // A blank line alone does not prove list indentation.
+        }
+        auto line = content;
+        while (line && text[line - 1u] != L'\r' && text[line - 1u] != L'\n')
+            --line;
+        if (line == content)
+            return std::nullopt;
+        return text.substr(line, content - line);
+    }
+    auto marker = node.block.info.first;
+    while (marker > node.block.source.first && (text[marker - 1u] == L' ' || text[marker - 1u] == L'\t'))
+        --marker;
+    const auto fenceEnd = marker;
+    while (marker > node.block.source.first && text[marker - 1u] == node.block.fenceMarker)
+        --marker;
+    if (fenceEnd - marker < node.block.fenceLength)
+        return std::nullopt;
+    auto line = marker;
+    while (line && text[line - 1u] != L'\r' && text[line - 1u] != L'\n')
+        --line;
+    return text.substr(line, marker - line);
+}
 std::optional<std::size_t> FindExitCodeBlock(const MarkdownSyntax& syntax, Selection selection) noexcept
 {
     if (selection.Start() != selection.End())
@@ -274,15 +337,19 @@ std::optional<std::size_t> FindExitCodeBlock(const MarkdownSyntax& syntax, Selec
         const auto& node = nodes[i];
         const auto range = node.block.source;
         const auto caret = selection.caret;
-        if (node.block.kind != MarkdownBlockKind::FencedCode || node.parent == MarkdownNoNode || nodes[node.parent].block.kind != MarkdownBlockKind::Document ||
-            range.first > caret || ! (caret < range.last || (caret == range.last && caret == text.size() && ! node.block.closed)))
+        if (node.block.kind != MarkdownBlockKind::FencedCode || node.parent == MarkdownNoNode || range.first > caret ||
+            ! (caret < range.last || (caret == range.last && caret == text.size() && ! node.block.closed)))
             continue;
+        const auto prefix = CodeExitPrefix(syntax, i);
+        if (! prefix)
+            return std::nullopt;
         auto eol = text.find_first_of(L"\r\n", range.first);
         if (eol == text.npos)
             eol = text.find_first_of(L"\r\n");
         const std::size_t eolUnits = eol == text.npos ? 2u : text[eol] == L'\r' && eol + 1u < text.size() && text[eol + 1u] == L'\n' ? 2u : 1u;
         const bool hasEnd          = range.last > 0u && (text[range.last - 1u] == L'\r' || text[range.last - 1u] == L'\n');
-        const auto inserted        = (hasEnd ? 0u : eolUnits) + (node.block.closed ? 0u : node.block.fenceLength + eolUnits) + eolUnits;
+        const auto inserted =
+            (hasEnd ? 0u : eolUnits) + (node.block.closed ? 0u : prefix->size() + node.block.fenceLength + eolUnits) + prefix->size() + eolUnits;
         if (inserted > Document::MaximumUnits - text.size())
             return std::nullopt;
         return i;
@@ -1452,6 +1519,23 @@ void MarkdownCommandPlanner::Quote(MarkdownQuoteAction action)
         --end;
     for (std::size_t i = 1u; i < nodes.size(); ++i)
     {
+        if (nodes[i].block.kind == Kind::FencedCode)
+        {
+            const auto range      = nodes[i].block.source;
+            const bool intersects = plan.before_.Start() == plan.before_.End()
+                                        ? range.first <= end && (end < range.last || (end == range.last && end == text.size() && ! nodes[i].block.closed))
+                                        : range.first < plan.before_.End() && range.last > plan.before_.Start();
+            if (! intersects)
+                continue;
+            for (auto line = std::ranges::lower_bound(lines, range.first, {}, &PhysicalLine::first); line != lines.end() && line->first < range.last; ++line)
+            {
+                std::size_t at{};
+                if (! OuterOffset(i, *line, at))
+                    return;
+                selected.push_back({line->first, at, Ancestor(i, Kind::BlockQuote) != MarkdownNoNode});
+            }
+            continue;
+        }
         if (! TextLeaf(nodes[i].block.kind) || nodes[i].block.kind == Kind::TableCell)
             continue;
         for (const auto& content : nodes[i].lines)
@@ -1551,11 +1635,12 @@ void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
         if (node.parent == MarkdownNoNode || last > node.block.source.last)
             return;
         const auto& opening = Line(node.block.source.first);
-        if (! node.block.closed || node.block.source.last <= opening.end)
+        if (node.block.source.last < opening.end)
             return;
-        const auto& closing = Line(node.block.source.last - 1u);
-        if (closing.first < opening.end)
+        const auto& closing = Line(node.block.source.last ? node.block.source.last - 1u : 0u);
+        if (node.block.closed && closing.first < opening.end)
             return;
+        const auto bodyEnd         = node.block.closed ? closing.first : node.block.source.last;
         bool openingOwnsListMarker = false;
         for (auto parent = node.parent; parent != MarkdownNoNode; parent = nodes[parent].parent)
         {
@@ -1575,15 +1660,15 @@ void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
                 ++marker;
             if (marker == opening.bodyEnd || text[marker] != node.block.fenceMarker)
                 return;
-            if (opening.end == closing.first)
+            if (opening.end == bodyEnd)
             {
                 std::wstring emptyItem(Slice(opening.first, markerEnd));
-                emptyItem += Slice(closing.bodyEnd, closing.end);
-                Add(opening.first, closing.end, emptyItem);
+                emptyItem += node.block.closed ? Slice(closing.bodyEnd, closing.end) : Slice(opening.bodyEnd, opening.end);
+                Add(opening.first, node.block.closed ? closing.end : opening.end, emptyItem);
                 plan.applicable_ = true;
                 return;
             }
-            if (opening.end > closing.first)
+            if (opening.end > bodyEnd)
                 return;
             std::size_t bodyStart{};
             const auto& firstBody = Line(opening.end);
@@ -1591,9 +1676,19 @@ void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
                 return;
             Add(opening.first, bodyStart, Slice(opening.first, markerEnd));
         }
+        else if (! node.block.closed && opening.end == bodyEnd && Ancestor(fenced, Kind::BlockQuote) != MarkdownNoNode)
+        {
+            std::size_t prefixEnd{};
+            if (! OuterOffset(fenced, opening, prefixEnd))
+                return;
+            std::wstring emptyQuote(Slice(opening.first, prefixEnd));
+            emptyQuote += Slice(opening.bodyEnd, opening.end);
+            Add(opening.first, opening.end, emptyQuote);
+        }
         else
             Add(opening.first, opening.end, L"");
-        Add(closing.first, closing.end, L"");
+        if (node.block.closed)
+            Add(closing.first, closing.end, L"");
         plan.applicable_ = true;
         return;
     }
@@ -1713,6 +1808,7 @@ void MarkdownCommandPlanner::ExitCode()
     if (! found)
         return;
     const auto& node  = nodes[found.value()];
+    const auto prefix = CodeExitPrefix(*plan.syntax_, found.value()).value();
     const auto at     = node.block.source.last;
     const auto eol    = Eol(Line(node.block.source.first));
     const bool hasEnd = at > 0u && (text[at - 1u] == L'\r' || text[at - 1u] == L'\n');
@@ -1721,9 +1817,11 @@ void MarkdownCommandPlanner::ExitCode()
         insertion += eol;
     if (! node.block.closed)
     {
+        insertion += prefix;
         insertion.append(node.block.fenceLength, node.block.fenceMarker);
         insertion += eol;
     }
+    insertion += prefix;
     const auto caret = at + insertion.size();
     insertion += eol;
     Add(at, at, insertion);
@@ -1749,6 +1847,10 @@ void MarkdownCommandPlanner::Math(const MarkdownCommandRequest& request)
     plan.applicable_  = true;
 }
 
+namespace
+{
+std::wstring LiteralMarkdown(std::wstring_view value);
+}
 void MarkdownCommandPlanner::ClearFormatting()
 {
     if (plan.before_.Start() == plan.before_.End())
@@ -1768,6 +1870,21 @@ void MarkdownCommandPlanner::ClearFormatting()
             break;
         }
         only = &node;
+    }
+    if (only && only->kind == MarkdownInlineKind::Link && text[only->source.first] != L'[')
+    {
+        const auto body = InlineBody(*only);
+        if (! body || first > body->first || last < body->last)
+            return;
+        // Escape the visible autolink spelling so removing its delimiters does
+        // not immediately create another angle or extended autolink.
+        const auto replacement = LiteralMarkdown(Slice(body->first, body->last));
+        Add(only->source.first, only->source.last, replacement);
+        const auto end    = only->source.first + replacement.size();
+        plan.after_       = plan.before_.anchor <= plan.before_.caret ? Selection{only->source.first, end} : Selection{end, only->source.first};
+        explicitSelection = true;
+        plan.applicable_  = true;
+        return;
     }
     if (only && (only->kind == MarkdownInlineKind::Strong || only->kind == MarkdownInlineKind::Emphasis || only->kind == MarkdownInlineKind::Strikethrough ||
                  only->kind == MarkdownInlineKind::Code))

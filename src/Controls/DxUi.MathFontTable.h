@@ -1,4 +1,6 @@
 #pragma once
+#include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -85,6 +87,22 @@ public:
     {
         std::uint16_t glyph{}, advance{};
     };
+    struct AssemblyPart
+    {
+        std::uint16_t glyph{}, startConnector{}, endConnector{}, advance{};
+        bool extender{};
+    };
+    struct AssemblyPlacement
+    {
+        AssemblyPart part;
+        std::uint32_t offset{}; // From the bottom of the vertical assembly, in design units.
+    };
+    struct AssemblyPlan
+    {
+        std::array<AssemblyPlacement, 64u> placements{};
+        std::size_t count{};
+        std::uint32_t advance{};
+    };
     [[nodiscard]] std::optional<std::size_t> VerticalConstruction(std::uint16_t glyph) const noexcept
     {
         const auto table = HeaderOffset(8u);
@@ -131,6 +149,104 @@ public:
     {
         const auto construction = VerticalConstruction(glyph);
         return construction ? VerticalVariantAt(construction.value(), minimum) : std::nullopt;
+    }
+    [[nodiscard]] std::optional<AssemblyPlan> VerticalAssemblyAt(std::size_t construction, std::uint32_t minimum) const noexcept
+    {
+        const auto variants = HeaderOffset(8u);
+        const auto relative = U16(construction);
+        if (! variants || ! relative || relative.value() == 0u || minimum == 0u)
+            return std::nullopt;
+        const auto overlap  = U16(variants.value());
+        const auto assembly = construction + relative.value();
+        const auto count    = U16(assembly + 4u);
+        if (! overlap || ! count || count.value() == 0u || count.value() > 32u || assembly > bytes.size() || bytes.size() - assembly < 6u ||
+            count.value() > (bytes.size() - assembly - 6u) / 10u)
+            return std::nullopt;
+        std::array<AssemblyPart, 32u> parts{};
+        bool hasExtender{};
+        for (std::size_t index = 0u; index < count.value(); ++index)
+        {
+            const auto base  = assembly + 6u + index * 10u;
+            const auto glyph = U16(base), start = U16(base + 2u), end = U16(base + 4u), advance = U16(base + 6u), flags = U16(base + 8u);
+            if (! glyph || ! start || ! end || ! advance || ! flags || glyph.value() == 0u || advance.value() == 0u || start.value() > advance.value() ||
+                end.value() > advance.value() || (flags.value() & 0xfffeu) != 0u)
+                return std::nullopt;
+            parts[index] = {glyph.value(), start.value(), end.value(), advance.value(), (flags.value() & 1u) != 0u};
+            hasExtender  = hasExtender || parts[index].extender;
+        }
+        for (std::size_t repeat = 0u; repeat <= 64u; ++repeat)
+        {
+            AssemblyPlan plan;
+            for (std::size_t index = 0u; index < count.value(); ++index)
+            {
+                const auto copies = parts[index].extender ? repeat : 1u;
+                if (copies > plan.placements.size() - plan.count)
+                    return std::nullopt;
+                for (std::size_t copy = 0u; copy < copies; ++copy)
+                    plan.placements[plan.count++].part = parts[index];
+            }
+            if (! plan.count)
+                continue;
+            std::array<std::uint32_t, 63u> overlaps{};
+            std::uint32_t least{}, greatest{};
+            bool compatible = true;
+            for (std::size_t index = 0u; index < plan.count; ++index)
+            {
+                least += plan.placements[index].part.advance;
+                greatest += plan.placements[index].part.advance;
+                if (index)
+                {
+                    const auto connection = std::min(plan.placements[index - 1u].part.endConnector, plan.placements[index].part.startConnector);
+                    if (connection < overlap.value())
+                    {
+                        compatible = false;
+                        break;
+                    }
+                    overlaps[index - 1u] = connection;
+                    least -= connection;
+                    greatest -= overlap.value();
+                }
+            }
+            if (! compatible)
+            {
+                if (! hasExtender)
+                    return std::nullopt;
+                continue;
+            }
+            if (greatest < minimum)
+            {
+                if (! hasExtender)
+                    return std::nullopt;
+                continue;
+            }
+            auto extra = std::min(minimum, greatest) > least ? std::min(minimum, greatest) - least : 0u;
+            while (extra)
+            {
+                std::size_t active{};
+                for (std::size_t index = 0u; index + 1u < plan.count; ++index)
+                    active += overlaps[index] > overlap.value() ? 1u : 0u;
+                if (! active)
+                    return std::nullopt;
+                const auto share = std::max<std::uint32_t>(1u, extra / static_cast<std::uint32_t>(active));
+                for (std::size_t index = 0u; index + 1u < plan.count && extra; ++index)
+                {
+                    const auto change = std::min({share, extra, overlaps[index] - overlap.value()});
+                    overlaps[index] -= change;
+                    extra -= change;
+                }
+            }
+            std::uint32_t offset{};
+            for (std::size_t index = 0u; index < plan.count; ++index)
+            {
+                plan.placements[index].offset = offset;
+                offset += plan.placements[index].part.advance;
+                if (index + 1u < plan.count)
+                    offset -= overlaps[index];
+            }
+            plan.advance = offset;
+            return plan;
+        }
+        return std::nullopt;
     }
 };
 } // namespace DxUi::RichText::Detail

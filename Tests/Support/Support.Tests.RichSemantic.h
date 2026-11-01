@@ -303,6 +303,8 @@ inline void ListsAndHeadings()
         Exact(L"- item\n", {2u, 2u}, request, L"- > item\n", std::nullopt, profile);
         Exact(L"> a\n# b\n", {0u, 7u}, request, L"> a\n> # b\n", std::nullopt, profile);
         Exact(L"a\n\nb\n", {0u, 4u}, request, L"> a\n> \n> b\n", std::nullopt, profile);
+        Exact(L"~~~\nx\n~~~\n", {4u, 4u}, request, L"> ~~~\n> x\n> ~~~\n", std::nullopt, profile);
+        Exact(L"> ~~~\n> x\n> ~~~\n", {8u, 8u}, request, L"~~~\nx\n~~~\n", std::nullopt, profile);
         request.command = MarkdownCommand::SetCodeBlock;
         request.text    = L"cpp";
         Exact(L"hello\n", {0u, 5u}, request, L"~~~cpp\nhello\n~~~\n", std::nullopt, profile);
@@ -313,6 +315,10 @@ inline void ListsAndHeadings()
         Exact(L"> ~~~\n> hello\n> ~~~\n", {9u, 9u}, request, L"> hello\n", std::nullopt, profile);
         Exact(L"- ~~~\n  hello\n  ~~~\n", {9u, 9u}, request, L"- hello\n", std::nullopt, profile);
         Exact(L"- ~~~\n  ~~~\n", {4u, 4u}, request, L"- \n", std::nullopt, profile);
+        Exact(L"~~~\nhello", {4u, 4u}, request, L"hello", std::nullopt, profile);
+        Exact(L"> ~~~\n> hello", {8u, 8u}, request, L"> hello", std::nullopt, profile);
+        Exact(L"- ~~~\n  hello", {9u, 9u}, request, L"- hello", std::nullopt, profile);
+        Exact(L"- ~~~", {4u, 4u}, request, L"- ", std::nullopt, profile);
         request.command = MarkdownCommand::SetCodeLanguage;
         request.text    = L"rust";
         Document languageState(L"~~~cpp\nhello\n~~~\n");
@@ -328,6 +334,10 @@ inline void ListsAndHeadings()
               "nonallocating code-exit admission agrees with collapsed-selection contract");
         Exact(L"~~~\nx\n~~~\n", {4u, 4u}, request, L"~~~\nx\n~~~\n\n", Selection{10u, 10u}, profile);
         Exact(L"~~~\nx", {4u, 4u}, request, L"~~~\nx\n~~~\n\n", Selection{10u, 10u}, profile);
+        Exact(L"> ~~~\n> x\n> ~~~\n", {8u, 8u}, request, L"> ~~~\n> x\n> ~~~\n> \n", std::nullopt, profile);
+        Exact(L"> ~~~\n> x", {8u, 8u}, request, L"> ~~~\n> x\n> ~~~\n> \n", std::nullopt, profile);
+        Exact(L"- ~~~\n  x\n  ~~~\n", {9u, 9u}, request, L"- ~~~\n  x\n  ~~~\n  \n", std::nullopt, profile);
+        Exact(L"- ~~~\n  x", {9u, 9u}, request, L"- ~~~\n  x\n  ~~~\n  \n", std::nullopt, profile);
         request.command = MarkdownCommand::InsertHardBreak;
         Exact(L"hello\n", {2u, 2u}, request, L"he  \nllo\n", Selection{5u, 5u}, profile);
         Exact(L"hello\n", {1u, 4u}, request, L"h  \no\n", Selection{4u, 4u}, profile);
@@ -358,6 +368,20 @@ inline void ListsAndHeadings()
             const auto displaySyntax = Parse(displayMath, profile);
             Check(std::ranges::any_of(displaySyntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
                   "multiline display insertion remains one math source envelope");
+            for (const auto& sample : {std::pair{std::wstring_view(L"$a `$x` tail"), MarkdownInlineKind::Code},
+                                       std::pair{std::wstring_view(L"$a <span title=\"$x\">tail"), MarkdownInlineKind::Html},
+                                       std::pair{std::wstring_view(L"$a <https://example.invalid/$x> tail"), MarkdownInlineKind::Link}})
+            {
+                Document protectedSource{std::wstring(sample.first)};
+                const auto protectedSyntax = Parse(protectedSource, profile);
+                Check(std::ranges::any_of(protectedSyntax->Inlines(), [&](const auto& node) { return node.kind == sample.second; }) &&
+                          std::ranges::none_of(protectedSyntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
+                      "unmatched math opener cannot consume a closer owned by later code, HTML or angle autolink");
+            }
+            Document mathComparison(L"$x < y$");
+            const auto comparisonSyntax = Parse(mathComparison, profile);
+            Check(std::ranges::any_of(comparisonSyntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
+                  "a literal comparison operator does not masquerade as an HTML ownership boundary");
             request.mathDisplay = false;
         }
         else
@@ -380,6 +404,11 @@ inline void ListsAndHeadings()
         Exact(L"**word**", {2u, 6u}, request, L"word", Selection{0u, 4u}, profile);
         Exact(L"**a *b* c**", {2u, 9u}, request, L"a b c", Selection{0u, 5u}, profile);
         Exact(L"[word](https://example.invalid)", {1u, 5u}, request, L"word", Selection{0u, 4u}, profile);
+        Exact(L"<https://example.invalid>", {1u, 24u}, request, L"https\\:\\/\\/example\\.invalid", std::nullopt, profile);
+        Document literalUrl(L"https\\:\\/\\/example\\.invalid");
+        const auto literalUrlSyntax = Parse(literalUrl, profile);
+        Check(std::ranges::none_of(literalUrlSyntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Link; }),
+              "cleared autolink spelling does not become another link after reparsing");
         Exact(L"**word**", {3u, 5u}, request, L"**w**or**d**", Selection{5u, 7u}, profile);
         Exact(L"`word`", {1u, 5u}, request, L"word", Selection{0u, 4u}, profile);
         request.command = MarkdownCommand::InsertEscapedText;

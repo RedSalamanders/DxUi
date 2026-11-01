@@ -1266,14 +1266,16 @@ lines with representable container prefixes. A mixed toggle quotes the
 unquoted lines while preserving existing quotes, including parsed empty-line
 trivia with representable prefixes. It declines lazy missing prefixes and
 selections containing unsupported blocks rather than partially rewriting them.
+An intersected fenced code block is quoted or unquoted as a whole, preserving
+its fence and body lines.
 SetCodeBlock wraps supported top-level paragraph lines or a container-owned
 paragraph with representable physical prefixes in a tilde fence longer than any
-contained run, or unwraps a closed top-level or representable container fence.
+contained run, or unwraps a top-level or representable container fence, whether
+closed or unclosed.
 When a list marker belongs to the opening fence line, it is transferred to the
 first body line, or retained as an empty list item when the fence has no body. SetCodeLanguage
 replaces a current fence info string, including one in a list or quote.
-Unclosed-fence unwrapping is unavailable pending its source-prefix policy.
-Ctrl+Enter in a top-level fenced block exits to an empty following source line;
+Ctrl+Enter in a top-level or representable quote/list-contained fenced block exits to an empty following source line;
 an unclosed block receives its matching closing fence first, in one undo step.
 InsertMath in the RichMarkdown profile wraps a selected source expression, or
 inserts a supplied nonempty expression, using inline or display delimiters.
@@ -1281,6 +1283,9 @@ It selects the expression and rejects conflicting delimiters, inline multiline
 payloads, opaque inline interiors and expressions beyond native math source
 capacity. Top-level display expressions may span nonblank physical lines;
 blank-line and nested multiline admission remains unavailable.
+An unmatched math opener cannot claim a closing delimiter inside a subsequent
+recognized inline code span, HTML token or angle autolink; those tokens retain their Markdown
+ownership and the unmatched opener remains literal.
 InsertHardBreak preserves representable quote and nested-list prefixes, replacing
 each list marker on the split line with equal-width continuation indentation.
 Unrepresentable lazy prefixes remain unavailable.
@@ -1296,8 +1301,9 @@ the existing text and line-ending convention; unsupported container positions
 decline rather than rewriting a prefix.
 ClearFormatting removes complete selected strong, emphasis, strikethrough and link
 wrappers as one transaction. Single-style partial ranges and inline-code spans
-reuse the structural style splitter; mixed nested partial selections, bare
-autolinks and object intersections remain unavailable pending further splitting.
+reuse the structural style splitter. A completely selected angle or bare
+autolink becomes escaped visible text so reparsing does not recreate the link;
+mixed nested partial selections and object intersections remain unavailable pending further splitting.
 InsertEscapedText inserts or replaces a plain source selection with bounded,
 single-line literal text, escaping ASCII Markdown punctuation.
 InsertImage creates an inert Markdown image with escaped alt/title and a

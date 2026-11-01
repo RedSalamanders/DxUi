@@ -221,6 +221,59 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
     const auto isolatedFence = prepare(L"\\Big(");
     if (! isolatedFence->VariantLayouts().empty())
     {
+#if DXUI_ENABLE_DIAGNOSTICS
+        const auto previousGlyphFailure = Detail::testRichMathGlyphMetricsFailure;
+        const auto restoreGlyphFailure = wil::scope_exit([previousGlyphFailure]() noexcept { Detail::testRichMathGlyphMetricsFailure = previousGlyphFailure; });
+        auto expression                = std::make_shared<const MathExpression>(ParseMath(L"\\Big("));
+        Detail::PreparedMath failedMetrics(factory.get(), expression, 24.f);
+        Detail::testRichMathGlyphMetricsFailure = E_OUTOFMEMORY;
+        HRESULT failureCode                     = S_OK;
+        try
+        {
+            while (! failedMetrics.Advance())
+            {
+            }
+        }
+        catch (const wil::ResultException& failure)
+        {
+            failureCode = failure.GetErrorCode();
+        }
+        Require(failureCode == E_OUTOFMEMORY && Detail::testRichMathGlyphMetricsFailure == S_OK,
+                "font glyph metrics preserve transient allocation HRESULT instead of publishing fallback geometry");
+        Detail::PreparedMath recoveredMetrics(factory.get(), expression, 24.f);
+        while (! recoveredMetrics.Advance())
+        {
+        }
+        Require(! recoveredMetrics.VariantLayouts().empty(), "fresh formula preparation retries the same font glyph after a transient failure");
+        Detail::PreparedMath unsupportedMetrics(factory.get(), expression, 24.f);
+        Detail::testRichMathGlyphMetricsFailure = DWRITE_E_UNSUPPORTEDOPERATION;
+        while (! unsupportedMetrics.Advance())
+        {
+        }
+        Require(unsupportedMetrics.VariantLayouts().empty() && ! unsupportedMetrics.StrokeLayouts().empty(),
+                "the explicitly unsupported font operation retains the bounded vector fallback");
+        const auto previousIndexFailure = Detail::testRichMathGlyphIndexFailure;
+        const auto restoreIndexFailure  = wil::scope_exit([previousIndexFailure]() noexcept { Detail::testRichMathGlyphIndexFailure = previousIndexFailure; });
+        for (const auto source : {L"x", L"\\Big("})
+        {
+            auto indexExpression = std::make_shared<const MathExpression>(ParseMath(source));
+            Detail::PreparedMath failedIndex(factory.get(), indexExpression, 24.f);
+            Detail::testRichMathGlyphIndexFailure = E_OUTOFMEMORY;
+            HRESULT indexFailure                  = S_OK;
+            try
+            {
+                while (! failedIndex.Advance())
+                {
+                }
+            }
+            catch (const wil::ResultException& failure)
+            {
+                indexFailure = failure.GetErrorCode();
+            }
+            Require(indexFailure == E_OUTOFMEMORY && Detail::testRichMathGlyphIndexFailure == S_OK,
+                    "italic correction and delimiter glyph-index failures preserve the transient HRESULT");
+        }
+#endif
         Require(isolatedFence->StrokeLayouts().empty(), "the isolated font delimiter has no vector fallback strokes");
         wil::com_ptr<IWICImagingFactory> imaging;
         THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
@@ -246,6 +299,61 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
     }
     else
         Require(! isolatedFence->StrokeLayouts().empty(), "a font without an adequate variant retains the vector fallback");
+    std::wstring tallFenceSource = L"\\left(\\begin{gathered}";
+    for (unsigned row = 0u; row < 16u; ++row)
+    {
+        if (row)
+            tallFenceSource += L"\\\\";
+        tallFenceSource += L'x';
+    }
+    tallFenceSource += L"\\end{gathered}\\right)";
+    const auto tallFence = prepare(tallFenceSource.c_str());
+    const auto tallSize  = tallFence->Size();
+    for (const auto& part : tallFence->VariantLayouts())
+        Require(part.left >= -.01f && part.top >= -.01f && part.left + part.width <= tallSize.width + .01f && part.top + part.height <= tallSize.height + .01f,
+                "every font assembly part stays inside the complete formula bounds");
+    if (tallFence->VariantLayouts().size() > 2u && tallSize.width < 200.f && tallSize.height < 780.f)
+    {
+        wil::com_ptr<IWICImagingFactory> imaging;
+        THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+        wil::com_ptr<IWICBitmap> bitmap;
+        THROW_IF_FAILED(imaging->CreateBitmap(256u, 800u, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+        const auto drawing = PreparedFlowchartTests::DrawingFactory();
+        wil::com_ptr<ID2D1RenderTarget> target;
+        const auto properties =
+            D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+        THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
+        wil::com_ptr<ID2D1SolidColorBrush> brush;
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(1.f, 1.f, 1.f, 1.f), brush.put()));
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(0.f, 0.f, 0.f, 0.f));
+        tallFence->Draw(target.get(), brush.get(), D2D1::Point2F(8.f, 8.f), 1.f);
+        THROW_IF_FAILED(target->EndDraw());
+        std::vector<BYTE> pixels(256u * 800u * 4u);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, 256u * 4u, static_cast<UINT>(pixels.size()), pixels.data()));
+        unsigned inkRows{}, gap{}, maxGap{};
+        const auto right = static_cast<unsigned>(8.f + tallSize.width * .35f);
+        for (unsigned y = 25u; y < static_cast<unsigned>(tallSize.height) - 10u; ++y)
+        {
+            bool hit{};
+            for (unsigned x = 8u; x < right; ++x)
+                hit = hit || pixels[(static_cast<std::size_t>(y) * 256u + x) * 4u + 3u] != 0u;
+            if (hit)
+            {
+                ++inkRows;
+                gap = 0u;
+            }
+            else
+                maxGap = std::max(maxGap, ++gap);
+        }
+        Require(inkRows > 200u && maxGap <= 4u, "assembled delimiter extenders join without visible gaps in offscreen raster output");
+    }
+    std::wstring manyFences(0u, L' ');
+    for (unsigned index = 0u; index < 14u; ++index)
+        manyFences += tallFenceSource;
+    const auto boundedFences = prepare(manyFences);
+    Require(boundedFences->VariantLayouts().size() <= 512u,
+            "many oversized delimiters obey the per-formula assembly-part budget and use vector fallback when exhausted");
     const auto displayFraction = prepare(L"\\dfrac{x}{y}"), textFraction = prepare(L"\\tfrac{x}{y}");
     Require(displayFraction->GlyphLayouts().size() == 2u && textFraction->GlyphLayouts().size() == 2u &&
                 displayFraction->GlyphLayouts()[0u].font > textFraction->GlyphLayouts()[0u].font &&
