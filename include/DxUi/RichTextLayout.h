@@ -60,6 +60,8 @@ struct LinkDrawing
     ID2D1Brush* emphasisBrush     = nullptr;
     ID2D1Brush* inactiveLinkBrush = nullptr;
     bool underline                = true;
+    // Experimental renderer; canonical source coloring remains available when false.
+    bool directSourceInkPreview = false;
     std::optional<MarkdownRange> hover, caret, emphasis;
     std::size_t displayOrigin{};
     // Prepared disjoint ranges, sorted by display.first. Null brushes inherit

@@ -683,6 +683,7 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
     value.blendWithWindowBackground   = next.blendWithWindowBackground;
     value.useAccentLinkColor          = next.useAccentLinkColor;
     value.colorizeMarkdownSource      = next.colorizeMarkdownSource;
+    value.directSourceInkPreview      = next.directSourceInkPreview;
     value.maximumTextWidthDip         = next.maximumTextWidthDip;
     value.paddingDip                  = next.paddingDip;
     value.bodyFontSizeDip             = next.bodyFontSizeDip;
@@ -2241,7 +2242,8 @@ void RichTextEditor::Paint(ControlHost& host) const
     links.caret     = CaretLinkDisplayRange();
     if (state.mode == RichText::ViewMode::Source && appearance.colorizeMarkdownSource && ! host.GetTheme().highContrast)
     {
-        links.inkRanges = state.sourceInk.Ranges();
+        links.inkRanges              = state.sourceInk.Ranges();
+        links.directSourceInkPreview = appearance.directSourceInkPreview;
         // Keep the ordinary first pass beneath true selection. Translucent
         // selection fill and antialiased selected glyph edges must never retain
         // colored syntax ink from underneath their selected-text pass.

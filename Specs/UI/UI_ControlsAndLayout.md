@@ -4,7 +4,7 @@ RichTextEditor `RichTextEditorAppearance::colorizeMarkdownSource` is opt-in and
 uses the configured lossless Markdown analysis profile. Source glyph geometry
 MUST stay identical: syntax delimiters receive subdued ink, heading/list markers
 and exact source link destinations receive accent ink, and selection ink wins.
-No source text, UTF-16 offset, history or text-service state changes. Color ranges
+The experimental direct renderer has its own default-off `directSourceInkPreview` switch; the ordinary colored DirectWrite path remains the default until paired performance qualification succeeds. No source text, UTF-16 offset, history or text-service state changes. Color ranges
 MUST publish only after complete owner preparation, be disjoint/sorted and stay
 bounded to 65,536 staging events. Source/host/layout retirement cancels pending
 ink. Capacity overflow falls back to the whole ordinary source view and is

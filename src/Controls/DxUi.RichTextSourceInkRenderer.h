@@ -12,6 +12,9 @@
 
 namespace DxUi::RichText::Detail
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+inline thread_local std::size_t testSourceInkRendererAttempts{};
+#endif
 enum class SourceInkDrawResult
 {
     NotApplicable,
@@ -386,6 +389,9 @@ inline SourceInkDrawResult DrawSourceInkIfSupported(ID2D1RenderTarget* target,
                                                     D2D1_POINT_2F origin,
                                                     SourceInkColorContextLookup colorContextLookup = SourceInkColorContextLookup::QueryTarget)
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+    ++testSourceInkRendererAttempts;
+#endif
     if (! target || ! baseBrush || ! layout || projection.mode != ViewMode::Source || drawing.inkExclusion || drawing.emphasisBrush ||
         drawing.inactiveLinkBrush || drawing.emphasis || drawing.hover || drawing.caret ||
         std::ranges::any_of(projection.runs, [](const StyleRun& run) { return run.flags != 0u; }))

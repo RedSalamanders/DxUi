@@ -3097,6 +3097,7 @@ struct RichTextEditorAppearance
     bool blendWithWindowBackground = false;
     bool useAccentLinkColor        = false;
     bool colorizeMarkdownSource    = false;
+    bool directSourceInkPreview    = false;
     float maximumTextWidthDip      = 0.0f;
     float paddingDip               = -1.0f; // Negative one inherits the density-specific inset.
     float bodyFontSizeDip          = 0.0f;  // Zero inherits the host's body size.

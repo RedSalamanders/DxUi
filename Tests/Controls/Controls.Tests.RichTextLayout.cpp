@@ -503,6 +503,8 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
 
     const std::array ink{TextInkRange{{0u, 5u}, TextInkRole::Accent}, TextInkRange{{6u, 14u}, TextInkRole::Link}};
     LinkDrawing drawing;
+    Require(! drawing.directSourceInkPreview, "direct source renderer is disabled by default independently of source colors");
+    drawing.directSourceInkPreview                               = true;
     drawing.brush                                                = red.get(); // RTE supplies its accent brush even when Source has no link runs.
     drawing.inkRanges                                            = ink;
     drawing.inkBrushes[static_cast<size_t>(TextInkRole::Accent)] = red.get();
@@ -1389,6 +1391,17 @@ void TestRichTextSourceInkRendererMatchesCanonicalRaster()
         {
             options.readingDirection = direction;
             layout.Prepare(factory.get(), projection, options);
+#if DXUI_ENABLE_DIAGNOSTICS
+            auto canonicalDefault                   = drawing;
+            canonicalDefault.directSourceInkPreview = false;
+            const auto attemptsBefore               = Detail::testSourceInkRendererAttempts;
+            const auto canonicalDefaultPixels       = render(layout, canonicalDefault, D2D1::Point2F(8.375f, 8.625f));
+            Require(Detail::testSourceInkRendererAttempts == attemptsBefore, "default source coloring avoids direct-renderer preflight");
+            const auto attemptsBeforePreview = Detail::testSourceInkRendererAttempts;
+            const auto previewPixels         = render(layout, drawing, D2D1::Point2F(8.375f, 8.625f));
+            Require(Detail::testSourceInkRendererAttempts > attemptsBeforePreview && previewPixels == canonicalDefaultPixels,
+                    "explicit preview exercises the direct renderer while retaining canonical colored pixels");
+#endif
             shared = layout;
             for (const FLOAT dpi : {96.0f, 120.0f, 144.0f, 192.0f})
             {

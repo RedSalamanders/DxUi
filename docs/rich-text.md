@@ -90,7 +90,7 @@ markers and link-colored exact source destinations. Configure analysis with
 services, selection and history are unchanged. Preparation publishes complete
 disjoint ranges; drawing never parses. High contrast uses the ordinary text
 pair. The 65,536-event presentation bound falls back to the complete uncolored
-source view rather than publishing partial syntax or repeatedly retrying it.
+source view rather than publishing partial syntax or repeatedly retrying it. `directSourceInkPreview` separately enables an experimental direct renderer; it defaults off and remains performance-unqualified. Source coloring still uses the canonical DirectWrite path when it is off.
 List marker ink uses the parser's exact source token range, so nested, ordered,
 quoted and task-list prefixes stay aligned with their original UTF-16 offsets.
 Each owner preparation advance uses at most 256 work steps shared across block

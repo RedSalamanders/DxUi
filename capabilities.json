@@ -91,6 +91,7 @@
     "bounded-rich-semantic-mapping-transactions-preview",
     "bounded-rich-semantic-document-preview",
     "bounded-retained-semantic-markdown-rendering-preview",
+    "direct-source-ink-renderer-opt-in-preview",
     "bounded-semantic-source-caret-sites-preview",
     "bounded-native-html-links-hanging-markers-preview",
     "bounded-source-exact-markdown-commands-preview",
@@ -133,6 +134,7 @@
     "embedded-host-text-uia-bridge",
     "rich-text-editor",
     "rich-text-markdown-extension-conformance",
+    "direct-source-ink-renderer-performance-qualification",
     "av-control"
   ]
 }
