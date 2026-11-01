@@ -264,10 +264,10 @@ enum class MenuItemKind : uint8_t
 
 struct MenuFlyoutItem
 {
-    MenuItemKind kind = MenuItemKind::Standard;
-    std::wstring text;
-    std::wstring acceleratorText;
-    std::wstring iconGlyph;
+    MenuItemKind kind            = MenuItemKind::Standard;
+    std::wstring text            = std::wstring(0u, L' ');
+    std::wstring acceleratorText = std::wstring(0u, L' ');
+    std::wstring iconGlyph       = std::wstring(0u, L' ');
     struct BitmapIcon final
     {
         BitmapIcon() = default;
@@ -292,21 +292,21 @@ struct MenuFlyoutItem
     std::shared_ptr<BitmapIcon> iconBitmap;
     struct SliderStop final
     {
-        std::wstring text;
-        int commandId = 0;
+        std::wstring text = std::wstring(0u, L' ');
+        int commandId     = 0;
     };
-    std::vector<SliderStop> sliderStops;
-    uint32_t sliderValue = 0u;
-    bool enabled         = true;
-    bool checked         = false;
-    int commandId        = 0;
-    std::vector<MenuFlyoutItem> children; // Non-empty → has submenu
+    std::vector<SliderStop> sliderStops  = std::vector<SliderStop>(0u);
+    uint32_t sliderValue                 = 0u;
+    bool enabled                         = true;
+    bool checked                         = false;
+    int commandId                        = 0;
+    std::vector<MenuFlyoutItem> children = std::vector<MenuFlyoutItem>(0u); // Non-empty → has submenu
     // Optional literal description below the primary label. Standard/Toggle/Radio/Info
     // rows wrap both fields at the available menu width and grow to fit their text.
-    std::wstring secondaryText;
+    std::wstring secondaryText = std::wstring(0u, L' ');
     // Concise spoken identity of the entry's UIA element; empty uses the decoded label.
     // Include a path here when it distinguishes commands. The secondary text is exposed through HelpText.
-    std::wstring accessibleName;
+    std::wstring accessibleName = std::wstring(0u, L' ');
 };
 
 struct MenuBarItem
@@ -604,7 +604,7 @@ enum class PasswordMaskLengthPolicy : uint8_t
 
 struct TextInputState
 {
-    std::wstring text;
+    std::wstring text = std::wstring(0u, L' ');
     std::optional<size_t> selectionAnchorIndex;
     size_t caretIndex       = 0u;
     size_t firstVisibleLine = 0u;
@@ -615,7 +615,7 @@ struct TextInputState
 
 struct NativeTextInputState
 {
-    std::wstring text;
+    std::wstring text = std::wstring(0u, L' ');
     std::optional<size_t> selectionAnchorIndex;
     size_t caretIndex       = 0u;
     size_t firstVisibleLine = 0u;
@@ -627,13 +627,13 @@ struct NativeTextInputState
     std::optional<size_t> conversionTargetStartIndex;
     std::optional<size_t> conversionTargetEndIndex;
     std::optional<size_t> compositionCursorIndex;
-    std::vector<size_t> compositionClauseBoundaries;
-    FlowDirection flowDirection               = FlowDirection::LeftToRight;
-    DWRITE_READING_DIRECTION readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
-    PasswordRevealMode passwordRevealMode     = PasswordRevealMode::Peek;
-    PasswordRevealState passwordRevealState   = PasswordRevealState::Hidden;
-    PasswordMaskLengthPolicy maskLengthPolicy = PasswordMaskLengthPolicy::Exact;
-    size_t secretVisibleDotCount              = 0u;
+    std::vector<size_t> compositionClauseBoundaries = std::vector<size_t>(0u);
+    FlowDirection flowDirection                     = FlowDirection::LeftToRight;
+    DWRITE_READING_DIRECTION readingDirection       = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
+    PasswordRevealMode passwordRevealMode           = PasswordRevealMode::Peek;
+    PasswordRevealState passwordRevealState         = PasswordRevealState::Hidden;
+    PasswordMaskLengthPolicy maskLengthPolicy       = PasswordMaskLengthPolicy::Exact;
+    size_t secretVisibleDotCount                    = 0u;
 };
 
 enum class TextInputAutomationEventKind : uint8_t
@@ -1542,9 +1542,9 @@ struct PageHostDebugState
 
 struct WindowHostBitmapCapture
 {
-    UINT widthPx  = 0u;
-    UINT heightPx = 0u;
-    std::vector<uint8_t> bgraPixels;
+    UINT widthPx                    = 0u;
+    UINT heightPx                   = 0u;
+    std::vector<uint8_t> bgraPixels = std::vector<uint8_t>(0u);
 };
 
 enum class WindowHostCursorKind : uint8_t
@@ -1780,21 +1780,21 @@ private:
     std::optional<Density> _explicitDensity;
     std::optional<FlowDirection> _detachedFlowDirection;
     std::optional<Density> _detachedDensity;
-    std::wstring _connectedAnimationKey;
-    std::wstring _tooltipText;
-    std::wstring _accessibleName;
-    std::wstring _accessibleHelpText;
+    std::wstring _connectedAnimationKey = std::wstring(0u, L' ');
+    std::wstring _tooltipText           = std::wstring(0u, L' ');
+    std::wstring _accessibleName        = std::wstring(0u, L' ');
+    std::wstring _accessibleHelpText    = std::wstring(0u, L' ');
     struct AccessibleFormProperties
     {
         Control* label = nullptr;
         std::weak_ptr<int> labelLifetime;
-        bool required  = false;
-        bool dataValid = true;
-        std::wstring itemStatus;
+        bool required           = false;
+        bool dataValid          = true;
+        std::wstring itemStatus = std::wstring(0u, L' ');
     };
     // Manual layouts pay only for this empty pointer; form presentation storage is allocated on demand.
     std::unique_ptr<AccessibleFormProperties> _accessibleFormProperties;
-    std::wstring _accessibleAutomationId;
+    std::wstring _accessibleAutomationId = std::wstring(0u, L' ');
     AccessibilityRole _accessibilityRole = AccessibilityRole::Default;
     std::shared_ptr<const std::function<HRESULT(ControlHost&)>> _onAccessibleInvoke;
     std::shared_ptr<const std::function<void(POINT screenPoint, bool keyboardInvocation)>> _onContextMenu;
@@ -3217,6 +3217,7 @@ struct RichTextEditorDebugState
 class RichTextEditor : public Control
 {
 public:
+    using DefaultContextMenuLabels = RichTextContextMenuLabels;
     explicit RichTextEditor(std::wstring text = {});
     ~RichTextEditor() noexcept override;
     // Source UTF-16 offsets, including hidden Markdown delimiters. Invalid
@@ -4580,8 +4581,8 @@ private:
     [[nodiscard]] bool EnsureLayoutCache(const ControlHost& host) const noexcept;
     [[nodiscard]] D2D1_RECT_F ComputeBoundsDip(const ControlHost& host) const noexcept;
     void ScrollInspection(ControlHost& host, float offsetDip) noexcept;
-    std::wstring _text;
-    std::wstring _pendingText;
+    std::wstring _text              = std::wstring(0u, L' ');
+    std::wstring _pendingText       = std::wstring(0u, L' ');
     D2D1_POINT_2F _originDip        = D2D1::Point2F();
     D2D1_POINT_2F _pendingOriginDip = D2D1::Point2F();
     mutable LayoutCache _layoutCache{};
@@ -6360,7 +6361,8 @@ private:
     mutable wil::com_ptr<IDWriteTextFormat> _heroIconTextFormat;
     mutable wil::com_ptr<IDWriteTextFormat> _iconLargeTextFormat;
     mutable wil::com_ptr<IDWriteTextFormat> _monoTextFormat;
-    mutable std::unordered_map<uint64_t, wil::com_ptr<IDWriteTextFormat>> _configuredTextFormats;
+    mutable std::unordered_map<uint64_t, wil::com_ptr<IDWriteTextFormat>> _configuredTextFormats =
+        std::unordered_map<uint64_t, wil::com_ptr<IDWriteTextFormat>>(0u);
     mutable bool _fluentIconFontAvailabilityChecked = false;
     mutable bool _fluentIconFontAvailable           = false;
 
@@ -6384,9 +6386,9 @@ private:
     bool _forceFullPresentAfterBufferReset = false;
     bool _initialRootChildBatchPending     = false;
 
-    mutable std::unordered_map<uint32_t, wil::com_ptr<ID2D1SolidColorBrush>> _brushCache;
+    mutable std::unordered_map<uint32_t, wil::com_ptr<ID2D1SolidColorBrush>> _brushCache = std::unordered_map<uint32_t, wil::com_ptr<ID2D1SolidColorBrush>>(0u);
     mutable wil::com_ptr<ID2D1SolidColorBrush> _fallbackBrush;
-    mutable std::vector<uint32_t> _brushFailureLogKeys;
+    mutable std::vector<uint32_t> _brushFailureLogKeys = std::vector<uint32_t>(0u);
     // Keep test-only storage unconditional so ControlHost layout stays stable
     // even when ENABLE_TESTS differs between a DxUi producer and consumer.
     bool _debugForceNullSolidBrushes         = false;
@@ -6422,7 +6424,7 @@ private:
     std::optional<size_t> _nativeTextInputConversionTargetStartIndex;
     std::optional<size_t> _nativeTextInputConversionTargetEndIndex;
     std::optional<size_t> _nativeTextInputCompositionCursorIndex;
-    std::vector<size_t> _nativeTextInputCompositionClauseBoundaries;
+    std::vector<size_t> _nativeTextInputCompositionClauseBoundaries = std::vector<size_t>(0u);
     std::optional<TextInputState> _nativeTextInputImeBaseState;
     std::optional<std::wstring> _nativeTextInputImePreviewText;
     std::optional<NativeTextInputImePayload> _debugNativeTextInputImePayload;
@@ -6480,7 +6482,7 @@ private:
     uint64_t _focusRequestRevision       = 0u;
     Control* _supplementalTooltipControl = nullptr;
     std::weak_ptr<int> _supplementalTooltipLifetime;
-    std::wstring _supplementalTooltipText;
+    std::wstring _supplementalTooltipText      = std::wstring(0u, L' ');
     D2D1_POINT_2F _supplementalTooltipPointDip = D2D1::Point2F();
     Button* _defaultButton                     = nullptr;
     Button* _cancelButton                      = nullptr;

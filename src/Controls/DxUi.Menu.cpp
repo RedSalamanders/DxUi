@@ -1120,7 +1120,9 @@ struct MenuPopup
         PendingClose,
     };
 
-    MenuPopup()                            = default;
+    MenuPopup() : ownedItems(0u), itemOffsetsDip(0u), descriptionLayouts(0u)
+    {
+    }
     MenuPopup(const MenuPopup&)            = delete;
     MenuPopup& operator=(const MenuPopup&) = delete;
     MenuPopup(MenuPopup&&)                 = delete;
@@ -1437,6 +1439,9 @@ void InvalidatePopup(MenuPopup& popup) noexcept;
 
 struct MenuController
 {
+    MenuController() : popups(0u), rootItems(0u)
+    {
+    }
     ~MenuController() noexcept;
 
     HWND ownerHwnd = nullptr;
@@ -4606,11 +4611,7 @@ void ActivatePopupForKeyboard(MenuPopup& popup) noexcept
     SetFocus(popup.hwnd);
 }
 
-std::vector<std::unique_ptr<MenuController>>& ActiveAsyncMenuControllers() noexcept
-{
-    thread_local std::vector<std::unique_ptr<MenuController>> controllers;
-    return controllers;
-}
+thread_local std::optional<std::vector<std::unique_ptr<MenuController>>> g_activeAsyncMenuControllers;
 
 // Process-exit shutdown runs before the window-host registry is swept. Keep async menus
 // disabled for the rest of this UI thread so reentrant teardown callbacks cannot add a
@@ -4691,14 +4692,17 @@ void FinalizeAsyncMenuController(MenuController& controller) noexcept
     controller.asyncFinalizing = true;
 
     std::unique_ptr<MenuController> ownedController;
-    auto& controllers = ActiveAsyncMenuControllers();
-    const auto it     = std::find_if(controllers.begin(), controllers.end(), [&controller](const std::unique_ptr<MenuController>& candidate) noexcept {
-        return candidate.get() == &controller;
-    });
-    if (it != controllers.end())
+    if (g_activeAsyncMenuControllers)
     {
-        ownedController = std::move(*it);
-        controllers.erase(it);
+        auto& controllers = g_activeAsyncMenuControllers.value();
+        const auto it     = std::find_if(controllers.begin(), controllers.end(), [&controller](const std::unique_ptr<MenuController>& candidate) noexcept {
+            return candidate.get() == &controller;
+        });
+        if (it != controllers.end())
+        {
+            ownedController = std::move(*it);
+            controllers.erase(it);
+        }
     }
 
     MenuController& target             = ownedController ? *ownedController : controller;
@@ -6358,7 +6362,9 @@ void RunMenuModalLoop(MenuController& controller)
 void DismissAsyncMenusForProcessExit() noexcept
 {
     g_asyncMenuProcessExit = true;
-    auto& controllers      = ActiveAsyncMenuControllers();
+    if (! g_activeAsyncMenuControllers)
+        return;
+    auto& controllers = g_activeAsyncMenuControllers.value();
     while (! controllers.empty())
     {
         MenuController& controller = *controllers.back();
@@ -6510,6 +6516,10 @@ bool ContextMenu::ShowAsync(HWND ownerHwnd,
                                 TraceHwndValue(GetActiveWindow()),
                                 TraceHwndValue(WindowFromPoint(screenPoint)));
 
+    if (! g_activeAsyncMenuControllers)
+        g_activeAsyncMenuControllers.emplace(0u);
+    auto& activeControllers = g_activeAsyncMenuControllers.value();
+    activeControllers.reserve(activeControllers.size() + 1u);
     auto controller              = std::make_unique<MenuController>();
     controller->ownerHwnd        = ownerHwnd;
     controller->theme            = theme;
@@ -6542,7 +6552,7 @@ bool ContextMenu::ShowAsync(HWND ownerHwnd,
     Debug::Perf::Emit(L"DxUi::PopupShow", L"root_async", Debug::Perf::ElapsedUs(startedAt), static_cast<uint64_t>(controller->rootItems.size()), 0u);
 
     MenuController& controllerRef = *controller;
-    ActiveAsyncMenuControllers().push_back(std::move(controller));
+    activeControllers.push_back(std::move(controller));
     if (! BeginAsyncMenuInteraction(controllerRef))
     {
         // Contract: returning false means the closed callback never fires. Drop

@@ -12,6 +12,7 @@
 #include "Support.Tests.SemanticDiagrams.h"
 #include "Support.Tests.SemanticSourceBlock.h"
 #include <DxUi/RichSemanticDocument.h>
+#include <type_traits>
 
 static void TestRichFileDropTransportAllocationFailures()
 {
@@ -230,6 +231,55 @@ static void TestReadOnlyParsedSnapshotAllocationFailures()
     }
     else
         Check(false, "current ordinary qualification requires parsed snapshot reuse support");
+}
+
+template <typename Editor = DxUi::RichTextEditor> static void TestRichDefaultMenuModelAllocationFailureAtomicity()
+{
+    using namespace DxUi;
+    static_assert(std::is_aggregate_v<MenuFlyoutItem>);
+    if constexpr (! requires { typename Editor::DefaultContextMenuLabels; })
+    {
+        Check(false, "current qualification requires rich default-menu model support");
+        return;
+    }
+    else
+    {
+        static_assert(! std::is_nothrow_default_constructible_v<MenuFlyoutItem> || ! std::is_same_v<Editor, Editor>);
+        Editor editor(L"word");
+        const typename Editor::DefaultContextMenuLabels labels{L"Undo", L"Redo", L"Cut", L"Copy", L"Paste", L"Select all", L"Bold", L"Italic"};
+        editor.SetDefaultContextMenuLabels(&labels);
+        bool succeeded = false, sawFailure = false;
+        for (size_t point = 0u; point < 256u; ++point)
+        {
+            std::vector<MenuFlyoutItem> items(0u);
+            items.emplace_back();
+            items.front().text = L"sentinel";
+            bool failed        = false;
+            try
+            {
+                const auto previous = failAllocationAfter;
+                const auto restore  = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
+                failAllocationAfter = point;
+                editor.BuildDefaultContextMenuItems(items);
+            }
+            catch (const std::bad_alloc&)
+            {
+                failed = true;
+            }
+            if (failed)
+            {
+                sawFailure = true;
+                Check(items.size() == 1u && items.front().text == L"sentinel", "failed default-menu staging leaves the caller model unchanged");
+            }
+            else
+            {
+                Check(items.size() == 8u, "default-menu model succeeds after all injected allocation sites");
+                succeeded = true;
+                break;
+            }
+        }
+        Check(sawFailure && succeeded, "default-menu model allocation sweep reaches failure and success");
+    }
 }
 
 static void TestRichEditorSteadyLinkHoverAllocatesNothing(GraphicsFixture& gpu)

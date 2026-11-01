@@ -1225,6 +1225,8 @@ context-menu callback takes precedence; the menu's deferred command verifies
 editor lifetime and binding before dispatch. It requires a host HWND; embedded
 hosts without one use the consumer context-menu callback together with the
 public default-menu model and command dispatch APIs.
+Default-menu item staging uses fallible empty-container construction and an
+atomic output swap, so an allocation failure leaves the supplied model intact.
 Ctrl+Backspace and Ctrl+Delete erase to the preceding or following word boundary;
 rich-view deletion maps visible fragments through the structural source planner.
 An active source-edit session bounds word deletion to its own interval.
