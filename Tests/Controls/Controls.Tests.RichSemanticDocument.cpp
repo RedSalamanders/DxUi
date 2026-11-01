@@ -702,6 +702,19 @@ void TestRichSemanticNativeMathematicsAndBroaderMermaid()
         Require(++frakturTurns <= 32u, "Fraktur glyphs prepare within the bounded leaf budget");
     Require(! frakturPaint.GlyphLayouts().empty() && frakturPaint.Size().width > 0.f && frakturPaint.Size().height > 0.f,
             "Fraktur participates in native measured layout");
+    for (const auto& [formula, expected] : {std::pair{L"\\mathsf{Az09}", L"𝖠𝗓𝟢𝟫"}, std::pair{L"\\mathtt{Az09}", L"𝙰𝚣𝟶𝟿"}})
+    {
+        const auto alphabet = ParseMath(formula);
+        Require(static_cast<bool>(alphabet), "sans and monospace mathematical alphabets parse");
+        frakturText.clear();
+        collect(collect, alphabet.root);
+        Require(frakturText == expected, "sans and monospace map letters and digits to their independent Unicode alphabet");
+        Detail::PreparedMath alphabetPaint(writeFactory.get(), std::make_shared<const MathExpression>(alphabet), 24.f);
+        unsigned turns{};
+        while (! alphabetPaint.Advance())
+            Require(++turns <= 32u, "mathematical alphabet prepares within its bounded leaf budget");
+        Require(! alphabetPaint.GlyphLayouts().empty() && alphabetPaint.Size().width > 0.f, "mathematical alphabet participates in native layout");
+    }
     for (const auto formula : {L"\\input{file}", L"\\frac{a}", L"x^2^3", L"\\begin{matrix}x\\end{cases}"})
         Require(! ParseMath(formula), "malformed, unsafe or unsupported equations reject the complete formula");
     const auto fallback = RichSemanticDocumentTests::Build(L"$\\input{private}$", MarkdownProfile::RichMarkdown);
