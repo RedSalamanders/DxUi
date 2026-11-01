@@ -2353,7 +2353,7 @@ std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownComma
 {
     using namespace RichText;
     _state->lastListStateAncestorSteps = 0u;
-    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::InsertFootnote))
+    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::MoveLineDown))
         return std::nullopt;
     MarkdownCommandState result;
     if (! Editable() || ! _state->markdownRendering || _state->mode != ViewMode::Rich || _state->sourceEditing)
@@ -5177,6 +5177,64 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
             request.headingLevel = key - static_cast<UINT>('0');
             static_cast<void>(ExecuteMarkdownCommand(request));
             return true;
+        }
+        if (ModifiersContainAlt(modifiers) && ! control && ! shift && (key == VK_UP || key == VK_DOWN) && Editable() && ! _state->sourceEditing)
+        {
+            if (_state->markdownRendering && _state->mode == RichText::ViewMode::Rich && GetMarkdownRenderingStatus() != MarkdownRenderingStatus::SourceFallback)
+            {
+                RichText::MarkdownCommandRequest request;
+                request.command = key == VK_UP ? RichText::MarkdownCommand::MoveLineUp : RichText::MarkdownCommand::MoveLineDown;
+                return ExecuteMarkdownCommand(request) != RichText::MarkdownCommandStatus::Unavailable;
+            }
+            if (MarkdownCommandInputBlocked(&host, this))
+                return false;
+            const auto source = Snapshot();
+            const auto text = source.Text();
+            const auto selection = GetSelection();
+            const auto start = selection.Start() == 0u ? 0u : text.find_last_of(L"\r\n", selection.Start() - 1u) + 1u;
+            const auto lineEnd = [&](size_t at)
+            {
+                const auto found = text.find_first_of(L"\r\n", at);
+                return found == std::wstring_view::npos ? text.size() : found;
+            };
+            const auto afterEol = [&](size_t at)
+            {
+                if (at < text.size() && text[at] == L'\r' && at + 1u < text.size() && text[at + 1u] == L'\n')
+                    return at + 2u;
+                return at < text.size() ? at + 1u : at;
+            };
+            const auto currentBody = lineEnd(start);
+            if (selection.End() > currentBody)
+                return false;
+            size_t first = start, firstBody = currentBody, second = afterEol(currentBody), secondBody{};
+            if (key == VK_UP)
+            {
+                if (start == 0u)
+                    return false;
+                auto boundary = start - 1u;
+                if (text[boundary] == L'\n' && boundary > 0u && text[boundary - 1u] == L'\r')
+                    --boundary;
+                first = boundary == 0u ? 0u : text.find_last_of(L"\r\n", boundary - 1u) + 1u;
+                firstBody = boundary;
+                second = start;
+                secondBody = currentBody;
+            }
+            else
+            {
+                if (second == text.size())
+                    return false;
+                secondBody = lineEnd(second);
+            }
+            const auto end = afterEol(secondBody);
+            std::wstring replacement(0u, L' ');
+            replacement.append(text.substr(second, secondBody - second));
+            replacement.append(text.substr(firstBody, second - firstBody));
+            replacement.append(text.substr(first, firstBody - first));
+            replacement.append(text.substr(secondBody, end - secondBody));
+            const auto target = key == VK_UP ? first : first + secondBody - second + second - firstBody;
+            const RichText::Selection after{target + selection.anchor - start, target + selection.caret - start};
+            const RichText::SourceEdit edit{{first, end}, replacement};
+            return ApplySourceEdits(source, Revision(), std::span(&edit, 1u), after);
         }
         if (ModifiersContainAlt(modifiers))
             return false;

@@ -1750,6 +1750,11 @@ numeric character references for spaces and line breaks. Quoted CRLF and CR
 normalize to LF in the resulting cell text. The same table limits
 apply to input and generated source; preparation keys the format and exact text.
 Ordinary paste is unchanged unless the application invokes this command.
+Alt+Up/Down moves the selected physical line within its paragraph, or a whole
+adjacent sibling list item including nested contents, as one source transaction.
+Source mode moves physical lines directly. Selection follows its original text;
+mixed ownership, list boundaries, active source sessions and composition refuse
+the action. Original list markers are not renumbered automatically.
 
 Semantic visual deletion MUST remove empty owned Markdown/validated inline
 HTML wrappers only when their complete body is deleted, recursively. Block HTML

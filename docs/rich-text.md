@@ -142,6 +142,10 @@ Markdown shortcuts use Ctrl+Shift+0–6 for heading clear/levels, Ctrl+Shift+X f
 strike, Ctrl+backtick for code and Ctrl+K for the consumer's link-edit request.
 Ctrl+Insert copies, Shift+Insert pastes and Shift+Delete cuts. Ctrl+Shift+V
 pastes Unicode text directly without the optional HTML, file or URL conversion.
+Alt+Up/Down moves a physical line inside a paragraph, a whole sibling list item
+in Rich mode, or a raw physical line in Source mode. The selection follows the
+moved text and Undo restores the original source in one step. List marker numbers
+are retained; moving across a list boundary is unavailable.
 The feature is disabled by default. `QueryMarkdownCommandState` returns current
 style/heading/list presentation without allocation. Applicability is unknown
 when neither an immediate proof nor an exact prepared result is available.

@@ -946,6 +946,16 @@ inline void Tables()
     const std::wstring reorderedPadding(L"| a | c | b |\r\n| :- | --- | -: |\r\n| x |\r\n");
     Exact(padded.Text(), {padded.Text().size(), padded.Text().size()}, request, reorderedPadding, Selection{reorderedPadding.size(), reorderedPadding.size()});
 }
+inline void MoveLinesAndItems()
+{
+    MarkdownCommandRequest request;
+    request.command = MarkdownCommand::MoveLineUp;
+    Exact(L"- a\n- b\n", {6u, 6u}, request, L"- b\n- a\n", Selection{2u, 2u});
+    Exact(L"- a\n  - nested\n- b", {17u, 17u}, request, L"- b\n- a\n  - nested", Selection{2u, 2u});
+    request.command = MarkdownCommand::MoveLineDown;
+    Exact(L"alpha\nbeta", {1u, 4u}, request, L"beta\nalpha", Selection{6u, 9u});
+    Unavailable(L"- only\n", {2u, 2u}, request);
+}
 inline void GuardsAndDeletion()
 {
     MarkdownCommandRequest request;

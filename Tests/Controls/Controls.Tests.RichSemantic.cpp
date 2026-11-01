@@ -50,6 +50,7 @@ void TestRichMarkdownStructuralInlineTasksLinks()
 void TestRichMarkdownStructuralTables()
 {
     RichSemanticTests::Run(RichCommandTests::Tables);
+    RichSemanticTests::Run(RichCommandTests::MoveLinesAndItems);
 }
 void TestRichMarkdownStructuralGuardsAndDeletion()
 {

@@ -39,7 +39,9 @@ enum class MarkdownCommand
     MoveTableRowDown,
     MoveTableColumnLeft,
     MoveTableColumnRight,
-    InsertFootnote
+    InsertFootnote,
+    MoveLineUp,
+    MoveLineDown
 };
 enum class MarkdownQuoteAction
 {

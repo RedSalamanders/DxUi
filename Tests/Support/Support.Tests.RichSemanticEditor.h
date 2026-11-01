@@ -1062,6 +1062,22 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     Check(preparedTable && preparedTable->available == std::optional<bool>{true} &&
               (! otherState || ! otherState->available.has_value()),
           "prepared table state keys the delimiter format with its payload");
+    editor->SetText(L"- a\n  - nested\n- b");
+    prepare();
+    editor->SetSelection({17u, 17u});
+    Check(editor->OnKeyDown(host, VK_UP, kModifierAlt) && editor->GetText() == L"- b\n- a\n  - nested" &&
+              editor->GetSelection() == Selection{2u, 2u} && editor->Undo() && editor->GetText() == L"- a\n  - nested\n- b",
+          "Alt+Up moves a complete sibling list item and preserves one-step undo");
+    prepare();
+    editor->SetSelection({2u, 2u});
+    Check(! editor->OnKeyDown(host, VK_UP, kModifierAlt), "Alt+Up at the list boundary is unavailable");
+    editor->SetViewMode(ViewMode::Source);
+    editor->SetText(L"one\r\ntwo");
+    editor->SetSelection({1u, 3u});
+    Check(editor->OnKeyDown(host, VK_DOWN, kModifierAlt) && editor->GetText() == L"two\r\none" &&
+              editor->GetSelection() == Selection{6u, 8u} && editor->Undo() && editor->GetText() == L"one\r\ntwo",
+          "Alt+Down moves a raw source line with CRLF and preserves directional selection and undo");
+    editor->SetViewMode(ViewMode::Rich);
     request         = {};
     request.command = MarkdownCommand::DeleteTableColumn;
     exact(L"| a | b |\n| - | -: |\n| x |\n", {2u, 2u}, request, L"| b |\n| -: |\n| |\n", Selection{2u, 2u});

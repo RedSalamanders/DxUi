@@ -1691,6 +1691,7 @@ __declspec(noinline) static int RunFunctionalTests()
     RichSemanticTests::Run(RichCommandTests::ListsAndHeadings);
     RichSemanticTests::Run(RichCommandTests::InlineTasksLinks);
     RichSemanticTests::Run(RichCommandTests::Tables);
+    RichSemanticTests::Run(RichCommandTests::MoveLinesAndItems);
     RichSemanticTests::Run(RichCommandTests::GuardsAndDeletion);
     RichSemanticTests::Run(TestRichMarkdownCommandFailureAtomicity);
     RichSemanticTests::Run([&] { TestRichMarkdownCommandHostFailureAtomicity(gpu); });

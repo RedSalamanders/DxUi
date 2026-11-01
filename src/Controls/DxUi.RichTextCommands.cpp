@@ -1567,6 +1567,7 @@ struct MarkdownCommandPlanner
     void Link(const MarkdownCommandRequest& request, bool remove);
     void Task();
     void Table(const MarkdownCommandRequest& request);
+    void MoveLine(bool up);
     void Delete(std::span<const MarkdownRange> ranges);
     std::optional<MarkdownRange> InlineBody(const MarkdownInline& node) const;
     bool InlineSelection(std::size_t& leaf) const
@@ -1826,6 +1827,61 @@ struct MarkdownCommandPlanner
     }
 };
 #pragma warning(pop)
+
+void MarkdownCommandPlanner::MoveLine(bool up)
+{
+    const auto selection = plan.before_;
+    MarkdownRange current{}, other{};
+    const auto item = NodeAt(Kind::ListItem, selection.Start());
+    if (item != MarkdownNoNode)
+    {
+        const auto adjacent = up ? PreviousSibling(item) : nodes[item].nextSibling;
+        if (adjacent == MarkdownNoNode || nodes[adjacent].block.kind != Kind::ListItem)
+            return;
+        current = nodes[item].block.source;
+        other = nodes[adjacent].block.source;
+    }
+    else
+    {
+        const auto paragraph = NodeAt(Kind::Paragraph, selection.Start());
+        if (paragraph == MarkdownNoNode)
+            return;
+        const auto& line = Line(selection.Start());
+        const auto index = static_cast<std::size_t>(&line - lines.data());
+        if ((up && index == 0u) || (! up && index + 1u >= lines.size()))
+            return;
+        const auto& adjacent = lines[up ? index - 1u : index + 1u];
+        if (NodeAt(Kind::Paragraph, adjacent.first) != paragraph || NodeAt(Kind::ListItem, adjacent.first) != MarkdownNoNode)
+            return;
+        current = {line.first, line.end};
+        other = {adjacent.first, adjacent.end};
+    }
+    const auto first = up ? other : current;
+    const auto second = up ? current : other;
+    if (first.last != second.first || first.first == first.last || second.first == second.last)
+        return;
+    const auto bodyEnd = [&](MarkdownRange range)
+    {
+        auto end = range.last;
+        if (end > range.first && text[end - 1u] == L'\n') --end;
+        if (end > range.first && text[end - 1u] == L'\r') --end;
+        return end;
+    };
+    const auto firstBody = bodyEnd(first), secondBody = bodyEnd(second);
+    const auto currentBody = up ? secondBody : firstBody;
+    if (selection.Start() < current.first || selection.End() > currentBody || firstBody == first.last)
+        return;
+    std::wstring value(0u, L' ');
+    value += Slice(second.first, secondBody);
+    value += Slice(firstBody, first.last);
+    value += Slice(first.first, firstBody);
+    value += Slice(secondBody, second.last);
+    const auto target = up ? first.first : first.first + secondBody - second.first + first.last - firstBody;
+    plan.after_ = {target + selection.anchor - current.first, target + selection.caret - current.first};
+    explicitSelection = true;
+    Add(first.first, second.last, value);
+    plan.applicable_ = true;
+}
 
 void MarkdownCommandPlanner::Quote(MarkdownQuoteAction action)
 {
@@ -3853,6 +3909,8 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
         case ::DxUi::RichText::MarkdownCommand::ClearFormatting:
         case ::DxUi::RichText::MarkdownCommand::InsertEscapedText:
         case ::DxUi::RichText::MarkdownCommand::InsertFootnote:
+        case ::DxUi::RichText::MarkdownCommand::MoveLineUp:
+        case ::DxUi::RichText::MarkdownCommand::MoveLineDown:
         default: return;
     }
     plan.applicable_ = true;
@@ -4094,7 +4152,7 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
 {
     if (request.text.size() > Document::MaximumUnits || request.destination.size() > Document::MaximumUnits || request.title.size() > Document::MaximumUnits)
         throw std::length_error("Structural request text exceeds source capacity");
-    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::InsertFootnote))
+    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::MoveLineDown))
         throw std::invalid_argument("Invalid Markdown command");
     Detail::MarkdownCommandPlanner builder(source, revision, std::move(syntax), selection);
     // Footnote labels and unresolved definitions are protected source.
@@ -4125,6 +4183,8 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
         case MarkdownCommand::ClearFormatting: builder.ClearFormatting(); break;
         case MarkdownCommand::InsertEscapedText: builder.EscapedText(request); break;
         case MarkdownCommand::InsertFootnote: builder.Footnote(request); break;
+        case MarkdownCommand::MoveLineUp: builder.MoveLine(true); break;
+        case MarkdownCommand::MoveLineDown: builder.MoveLine(false); break;
         case MarkdownCommand::InsertTable:
         case MarkdownCommand::InsertTableRow:
         case MarkdownCommand::DeleteTableRow:
