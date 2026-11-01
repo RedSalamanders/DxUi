@@ -1473,6 +1473,7 @@ __declspec(noinline) static int RunFunctionalTests()
     {
         MarkdownSourceCorrelationTests::LexicalEdits(Check);
         RichSemanticTests::Run(RichSemanticGeometryTests::PaddedCodePresentation);
+        RichSemanticTests::Run(RichSemanticEditorTests::SourceWindowUnicodeParity);
         TestEmbeddedSemanticReusePixels(gpu);
         TestEmbeddedCodeLineNumberPixels(gpu);
         TestEmbeddedSourceGuidesPixels(gpu);
@@ -1485,6 +1486,7 @@ __declspec(noinline) static int RunFunctionalTests()
         Hr(view.Attach(graphics), "incremental embedded view");
         RichSemanticTests::Run([&] {
             RichSemanticEditorTests::SemanticGeometryReuse(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "incremental preparation"); });
+            RichSemanticEditorTests::PendingSourceWindowTransport(view.Controls());
             RichSemanticEditorTests::UrlOnSelectionPaste(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "URL paste"); });
             RichSemanticEditorTests::SourceHorizontalAndGuides(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "source guides"); });
             RichSemanticEditorTests::RichTableHorizontalOverflow(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "table overflow"); });
@@ -1673,6 +1675,7 @@ __declspec(noinline) static int RunFunctionalTests()
     RichSemanticTests::Run(RichSemanticGeometryTests::ParagraphsTablesAndSourceRanges);
     RichSemanticTests::Run(RichSemanticGeometryTests::MarkdownSubtlePresentation);
     RichSemanticTests::Run(RichSemanticGeometryTests::PaddedCodePresentation);
+    RichSemanticTests::Run(RichSemanticEditorTests::SourceWindowUnicodeParity);
     RichSemanticTests::Run(RichSemanticGeometryTests::AtomicNavigationAndCancellation);
     RichSemanticTests::Run(RichSemanticGeometryTests::SourceCaretSites);
     RichSemanticTests::Run(RichSemanticGeometryTests::HangingMarkersLinksAndHtml);
@@ -1698,6 +1701,7 @@ __declspec(noinline) static int RunFunctionalTests()
         RichSemanticTests::Run([&]
         {
             RichSemanticEditorTests::SemanticGeometryReuse(transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic reuse"); });
+            RichSemanticEditorTests::PendingSourceWindowTransport(transactionView.Controls());
             RichSemanticEditorTests::UrlOnSelectionPaste(transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "URL paste"); });
             RichSemanticEditorTests::SourceHorizontalAndGuides(transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "source guides"); });
             RichSemanticEditorTests::RichTableHorizontalOverflow(transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "table overflow"); });

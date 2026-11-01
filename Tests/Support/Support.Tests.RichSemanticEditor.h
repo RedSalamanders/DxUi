@@ -1,6 +1,7 @@
 #pragma once
 #include "Controls/DxUi.PreparedMath.h"
 #include "Controls/DxUi.RichSemanticGeometry.h"
+#include "Controls/DxUi.RichSourceWindow.h"
 #include "Support.Tests.CountingWriteFactory.h"
 #include "Support.Tests.RichSemantic.h"
 #include <DxUi/DxUi.h>
@@ -1979,6 +1980,76 @@ inline void NativeMathHRESULTFailureContainment(ControlHost& host)
 #endif
 }
 
+inline void SourceWindowUnicodeParity()
+{
+    using namespace DxUi::RichText::Detail;
+    std::vector<std::wstring> cases;
+    cases.push_back(std::wstring(400u, L'a') + L" \r\nC:\\folder\\file -- next \U0001f600a\u0301 text" + std::wstring(400u, L'z'));
+    std::wstring regional(200u, L'x');
+    for (unsigned i = 0u; i < 200u; ++i) regional += L"\U0001f1e6";
+    regional += std::wstring(200u, L'y');
+    cases.push_back(regional);
+    std::wstring indic(180u, L'x');
+    for (unsigned i = 0u; i < 180u; ++i) indic += L"\u0915\u094d";
+    indic += L"\u0915" + std::wstring(180u, L'y');
+    cases.push_back(indic);
+    std::wstring emoji(200u, L'x');
+    for (unsigned i = 0u; i < 150u; ++i) emoji += L"\U0001f469\u200d";
+    emoji += L"\U0001f469" + std::wstring(200u, L'y');
+    cases.push_back(emoji);
+    auto counted = std::wstring(180u, L'x');
+    counted.push_back(L'\0');
+    counted += L"\r\nword" + std::wstring(180u, L'y');
+    cases.push_back(counted);
+    for (const auto& text : cases)
+    {
+        Document document(text);
+        const auto source = document.Snapshot();
+        for (size_t caret = 0u; caret <= text.size(); caret += 7u)
+        {
+            if (! source.IsBoundary(caret)) continue;
+            for (const auto operation : {SourceWindowOperation::Previous, SourceWindowOperation::Next, SourceWindowOperation::PreviousWord,
+                                         SourceWindowOperation::NextWord, SourceWindowOperation::DeleteBackward, SourceWindowOperation::DeleteForward})
+            {
+                TextElementRange expected{};
+                switch (operation)
+                {
+                    case SourceWindowOperation::Previous: expected = {StepToPreviousTextElement(text, caret), caret}; break;
+                    case SourceWindowOperation::Next: expected = {caret, StepToNextTextElement(text, caret)}; break;
+                    case SourceWindowOperation::PreviousWord: expected = {FindPreviousWordBoundary(text, caret), caret}; break;
+                    case SourceWindowOperation::NextWord: expected = {caret, FindNextWordBoundary(text, caret)}; break;
+                    case SourceWindowOperation::DeleteBackward: expected = GetTextElementDeletionRange(text, caret, true); break;
+                    case SourceWindowOperation::DeleteForward: expected = GetTextElementDeletionRange(text, caret, false); break;
+                }
+                const auto actual = SourceWindowRange(source, caret, operation);
+                Check(actual.first == expected.first && actual.last == expected.last, "source window preserves full Unicode and word boundary results");
+            }
+        }
+    }
+    Document longAscii(std::wstring(65536u, L'a'));
+    const auto snapshot = longAscii.Snapshot();
+    const auto first = SourceWindowLeft(snapshot, 32768u - 128u);
+    const auto last = SourceWindowRight(snapshot, 32768u + 128u);
+    Check(last - first <= 258u, "ordinary source caret obtains a bounded local context");
+    const auto wholeWord = SourceWindowRange(snapshot, 32768u, SourceWindowOperation::PreviousWord);
+    Check(wholeWord.first == 0u && wholeWord.last == 32768u, "unbroken long words expand safely to their true boundary");
+}
+inline void PendingSourceWindowTransport(ControlHost& host)
+{
+    const std::wstring source = std::wstring(500u, L'a') + L"\r\n\U0001f469\u200d\U0001f4bb text" + std::wstring(500u, L'z');
+    auto owned = std::make_unique<RichTextEditor>(source);
+    auto* editor = owned.get();
+    editor->SetViewMode(ViewMode::Source);
+    host.SetRoot(std::move(owned));
+    host.SetFocusControl(editor, false);
+    editor->SetSelection({500u, 500u});
+    Check(editor->OnKeyDown(host, VK_RIGHT, 0u) && editor->GetSelection() == Selection{502u, 502u},
+          "pending layout moves across CRLF as one element");
+    Check(editor->OnKeyDown(host, VK_RIGHT, 0u) && editor->GetSelection() == Selection{507u, 507u},
+          "pending layout moves across a full emoji ZWJ cluster");
+    Check(editor->OnKeyDown(host, VK_BACK, 0u) && editor->GetText() == std::wstring(500u, L'a') + L"\r\n text" + std::wstring(500u, L'z') &&
+              editor->Undo() && editor->GetText() == source, "pending layout erases one emoji cluster with one undo");
+}
 template <typename Prepare> void UrlOnSelectionPaste(ControlHost& host, Prepare&& prepare)
 {
     auto owned = std::make_unique<RichTextEditor>(L"hello **world**");
