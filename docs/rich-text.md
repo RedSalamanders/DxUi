@@ -1536,6 +1536,8 @@ Quoted `img src` with optional quoted `alt` and `title` uses the same atomic
 alternative, base path, cancellation, resource bounds and caller-owned completion
 as Markdown images. Remote images still require explicit opt-in. Unknown
 attributes and unsupported source schemes keep the complete leaf as exact source.
+Standalone attribute-free `hr` / `hr/` uses the same native horizontal rule as a
+Markdown thematic break. Inline, attributed and closing forms remain literal.
 
 `SetZoom` and `GetZoom` expose font scale in `.25..4`; Ctrl+wheel, Ctrl+Plus/Minus
 and Ctrl+zero use the same presentation setting. Effective font sizes remain

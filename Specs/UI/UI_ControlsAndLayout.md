@@ -1462,6 +1462,7 @@ part of retained layout/reuse keys and require owner preparation before drawing.
 | b, strong, i, em, u, s, del, code, span, kbd, ins | Attribute-free nested styles: bold, italic, underline, strike, code font or a transparent span. Keyboard text uses the code font; inserted text is underlined. |
 | mark | Attribute-free highlighted text, combinable with the nested styles above. Source delimiters remain hidden with exact source ownership. |
 | img, img/ | Exactly one quoted src, optional quoted alt/title, and no other attributes. The complete tag owns one atomic image alternative and uses the ordinary bounded image resource pipeline. |
+| hr, hr/ | One standalone attribute-free rule in its HTML block, with only surrounding whitespace. It uses native thematic-break geometry, accessibility and source editing. Inline or attributed forms remain literal. |
 | a | Exactly one quoted href and optional quoted title, with no other attributes. Destination/title references are decoded; the resolved label is an inert underlined link. |
 | br, br/, br / | Attribute-free void break, mapped atomically from its complete raw tag to one native LF. A closing br tag or another self-closing style tag is unsupported. |
 | p, div, h1-h6, pre | At most one outer wrapper in an HTML block, outside which only whitespace is permitted. Paragraph/heading/code presentation uses existing native styles; nested/sibling block wrappers are unsupported. |

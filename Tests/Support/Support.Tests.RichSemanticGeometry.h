@@ -1038,6 +1038,32 @@ inline void MarkdownSubtlePresentation()
     const auto markRange = markedGeometry.SourceRange({13u, 19u});
     Check(markRange.size() == 1u && isGreen((markRange.front().left + markRange.front().right) * .5f, markRange.front().top + 1.0f),
           "HTML mark paints its retained background without requiring Subtle presentation");
+    const auto ruleDocument = RichSemanticDocumentTests::Build(L"<hr />\n");
+    PreparedSemanticGeometry ruleGeometry;
+    ruleGeometry.Begin(factory.get(), ruleDocument, markedOptions);
+    Complete(ruleGeometry);
+    const auto ruleElement = std::ranges::find(ruleDocument->Elements(), SemanticRole::Rule, &SemanticElement::role);
+    Check(ruleElement != ruleDocument->Elements().end(), "HTML rule raster owns a native rule element");
+    const auto ruleBounds = ruleGeometry.ElementBounds(static_cast<std::size_t>(ruleElement - ruleDocument->Elements().begin()));
+    Check(ruleBounds.has_value(), "HTML rule retains its complete horizontal frame");
+    target->BeginDraw();
+    target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+    ruleGeometry.Draw(target.get(), textBrush.get(), decorationBrush.get(), D2D1::Point2F(), 0.0f, static_cast<float>(rasterHeight), fillBrush.get());
+    THROW_IF_FAILED(target->EndDraw());
+    THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(palettePixels.size()), palettePixels.data()));
+    const auto middle = static_cast<long>(std::lround((ruleBounds->top + ruleBounds->bottom) * .5f));
+    unsigned redColumns{};
+    for (UINT x = 4u; x + 4u < rasterWidth; ++x)
+    {
+        bool red{};
+        for (long y = std::max(0l, middle - 2l); y <= std::min(static_cast<long>(rasterHeight - 1u), middle + 2l); ++y)
+        {
+            const auto offset = static_cast<std::size_t>(y) * stride + static_cast<std::size_t>(x) * 4u;
+            red               = red || (palettePixels[offset + 2u] > 200u && palettePixels[offset] < 240u && palettePixels[offset + 1u] < 240u);
+        }
+        redColumns += red ? 1u : 0u;
+    }
+    Check(redColumns > 450u, "HTML rule raster spans the native document width instead of painting a replacement glyph");
 }
 inline void AtomicNavigationAndCancellation()
 {

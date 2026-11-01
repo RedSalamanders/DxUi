@@ -30,6 +30,7 @@ enum class NativeHtmlKind
     Ins,
     Mark,
     Img,
+    Hr,
     Comment
 };
 inline bool HtmlSpace(wchar_t value) noexcept
@@ -73,6 +74,7 @@ inline unsigned HtmlFlags(NativeHtmlKind kind) noexcept
         case ::DxUi::RichText::Detail::NativeHtmlKind::Span:
         case NativeHtmlKind::Comment:
         case NativeHtmlKind::Img:
+        case NativeHtmlKind::Hr:
         default: return 0u;
     }
 }
@@ -136,8 +138,8 @@ inline bool ParseNativeHtmlTag(std::wstring_view value, NativeHtmlTag& tag)
         tag.kind = NativeHtmlKind::Comment;
         return true;
     }
-    constexpr std::wstring_view names[] = {L"b",   L"strong", L"i",  L"em", L"u",  L"s",  L"del", L"code", L"span", L"a",   L"br",   L"p",
-                                           L"div", L"h1",     L"h2", L"h3", L"h4", L"h5", L"h6",  L"pre",  L"kbd",  L"ins", L"mark", L"img"};
+    constexpr std::wstring_view names[] = {L"b",  L"strong", L"i",  L"em", L"u",  L"s",  L"del", L"code", L"span", L"a",    L"br",  L"p", L"div",
+                                           L"h1", L"h2",     L"h3", L"h4", L"h5", L"h6", L"pre", L"kbd",  L"ins",  L"mark", L"img", L"hr"};
     if (value.size() < 3u || value.front() != L'<' || value.back() != L'>')
         return false;
     std::size_t at = 1u;
@@ -163,7 +165,8 @@ inline bool ParseNativeHtmlTag(std::wstring_view value, NativeHtmlTag& tag)
         if (at == value.size() - 1u)
             return complete();
         if (value[at] == L'/')
-            return ! tag.closing && (tag.kind == NativeHtmlKind::Br || tag.kind == NativeHtmlKind::Img) && complete() && at + 1u == value.size() - 1u;
+            return ! tag.closing && (tag.kind == NativeHtmlKind::Br || tag.kind == NativeHtmlKind::Img || tag.kind == NativeHtmlKind::Hr) && complete() &&
+                   at + 1u == value.size() - 1u;
         if (at == before || tag.closing || (tag.kind != NativeHtmlKind::A && tag.kind != NativeHtmlKind::Img))
             return false;
         const auto nameFirst = at;
@@ -241,10 +244,17 @@ struct NativeHtmlPlan
         for (std::size_t index = 0u; index < tags.size(); ++index)
         {
             auto& tag = tags[index];
-            if (tag.kind == NativeHtmlKind::Br || tag.kind == NativeHtmlKind::Comment || tag.kind == NativeHtmlKind::Img)
+            if (tag.kind == NativeHtmlKind::Br || tag.kind == NativeHtmlKind::Comment || tag.kind == NativeHtmlKind::Img || tag.kind == NativeHtmlKind::Hr)
             {
                 if (tag.closing)
                     return false;
+                if (tag.kind == NativeHtmlKind::Hr)
+                {
+                    if (! block || tags.size() != 1u || ! std::all_of(text.begin(), text.begin() + static_cast<std::ptrdiff_t>(tag.first), HtmlSpace) ||
+                        ! std::all_of(text.begin() + static_cast<std::ptrdiff_t>(tag.last), text.end(), HtmlSpace))
+                        return false;
+                    wrapper = NativeHtmlKind::Hr;
+                }
             }
             else if (tag.closing)
             {

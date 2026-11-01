@@ -192,6 +192,17 @@ inline void NativeHtmlAndLinkPresentation()
     }
     for (const auto breakTag : {L"<br>", L"<br/>", L"<br />", L"<BR />"})
         Check(Build(std::wstring(L"one") + breakTag + L"two\n")->Map().Display() == L"one\ntwo\n", "all declared void-break spellings have one native LF");
+    for (const auto ruleSource : {L"<hr>\n", L"<HR />\r\n", L"  <hr/>\n"})
+    {
+        const auto ruleDocument = Build(ruleSource);
+        const auto ruleElement  = std::ranges::find(ruleDocument->Elements(), SemanticRole::Rule, &SemanticElement::role);
+        Check(ruleElement != ruleDocument->Elements().end() && ruleElement->nativeHtml && ruleDocument->Map().Display() == L"\ufffc\n" &&
+                  ruleDocument->Map().Source() == ruleSource,
+              "a standalone attribute-free HTML rule uses native thematic geometry and exact source");
+        CheckGraph(*ruleDocument);
+    }
+    for (const auto invalidRule : {L"one <hr> two\n", L"<hr class='x'>\n", L"</hr>\n"})
+        Check(Build(invalidRule)->Map().Display() == invalidRule, "inline or attributed HTML rules remain a literal complete leaf");
     for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
     {
         const std::wstring imageSource = L"one <IMG alt='A &amp; B' SRC='pictures/item.png' title='hint' /> end\n";

@@ -370,6 +370,11 @@ struct SemanticBuilder::Preparation
     }
     void HtmlBlock(const Visit& visit)
     {
+        if (html.wrapper == Detail::NativeHtmlKind::Hr)
+        {
+            output.Emit(L"\ufffc", html.tags.front().source, DisplaySpanKind::Object, visit.flags, visit.heading);
+            return;
+        }
         std::size_t at = 0u;
         for (const auto& tag : html.tags)
         {
@@ -932,6 +937,8 @@ struct SemanticBuilder::Preparation
                 }
                 else if (kind == Detail::NativeHtmlKind::Pre)
                     document->elements_[visit.element].role = SemanticRole::Code;
+                else if (kind == Detail::NativeHtmlKind::Hr)
+                    document->elements_[visit.element].role = SemanticRole::Rule;
                 else
                     document->elements_[visit.element].role = SemanticRole::Paragraph;
             }
