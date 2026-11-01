@@ -26,7 +26,12 @@ if ($Mode -ne 'later') {
 [Console]::Out.Write("stdout $Name")
 if ($Mode -eq 'failure') { [Console]::Error.WriteLine('TIMEOUT: TestHeld after 3 s'); exit 124 }
 [Console]::Out.WriteLine()
-if ($Mode -eq 'later') { [Console]::Out.WriteLine('SKIPPED: optional fixture') }
+if ($Mode -eq 'later') {
+    [Console]::Error.WriteLine('[START] Later')
+    [Console]::Error.WriteLine('  [START] TestOptional')
+    [Console]::Error.WriteLine('SKIPPED: optional fixture')
+    [Console]::Error.WriteLine('  [DONE] TestOptional (0.001 s)')
+}
 exit 0
 '@ | Set-Content -LiteralPath $child -Encoding utf8NoBOM
     $runs = @(foreach ($item in @(@('first','failure'),@('second','success'),@('third','later'))) {
@@ -41,7 +46,7 @@ exit 0
     Assert-Equal 'TIMEOUT: TestHeld after 3 s' $failure.Timeout 'stderr reaches the ordinary watchdog failure packet'
     Assert-True ((Get-Content -Raw -LiteralPath $runs[2].Log).Contains('SKIPPED: optional fixture')) 'capability skip text stays in the suite log'
     $skips = Get-SuiteSkips -LogPath $runs[2].Log
-    Assert-Contains $skips '(before any test): optional fixture' 'the standard skip parser sees the retained skip'
+    Assert-Contains $skips 'TestOptional: optional fixture' 'the standard skip parser retains the named stderr test owner'
     foreach ($run in $runs) {
         Assert-True (Test-Path -LiteralPath $run.Log -PathType Leaf) "final log exists for $($run.Name)"
         Assert-True (Test-Path -LiteralPath ($run.Log + '.stdout') -PathType Leaf) 'stdout provenance is retained'
