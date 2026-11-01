@@ -990,6 +990,16 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     for (unsigned i = 0u; i < MathMaximumGroupDepth; ++i)
         nestedArrays += L"\\end{array}";
     check(static_cast<bool>(ParseMath(nestedArrays)), "64 nested arrays fit the ordinary thread stack");
+    for (const auto environment : {L"darray", L"subarray"})
+    {
+        std::wstring deep(0u, L' ');
+        for (unsigned i = 0u; i < MathMaximumGroupDepth; ++i)
+            deep += L"\\begin{" + std::wstring(environment) + L"}{c}";
+        deep += L'x';
+        for (unsigned i = 0u; i < MathMaximumGroupDepth; ++i)
+            deep += L"\\end{" + std::wstring(environment) + L"}";
+        check(static_cast<bool>(ParseMath(deep)), "64 nested styled arrays fit the ordinary thread stack");
+    }
     std::wstring nestedSwitches(0u, L' ');
     for (unsigned i = 0u; i < MathMaximumGroupDepth; ++i)
         nestedSwitches += L"\\bf ";
@@ -1072,6 +1082,40 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
                   "nested matrix gaps remain attached to their authored rows");
         }
     }
+#if DXUI_ENABLE_DIAGNOSTICS
+    {
+        const auto left = std::make_shared<const MathExpression>(ParseMath(L"\\begin{subarray}{l}a\\\\abcdef\\end{subarray}"));
+        const auto centered = std::make_shared<const MathExpression>(ParseMath(L"\\begin{subarray}{c}a\\\\abcdef\\end{subarray}"));
+        check(static_cast<bool>(*left) && static_cast<bool>(*centered), "subarray admits its bounded single alignment column");
+        Detail::PreparedMath leftLayout(factory, left, 24.f);
+        Detail::PreparedMath centeredLayout(factory, centered, 24.f);
+        while (! leftLayout.Advance()) {}
+        while (! centeredLayout.Advance()) {}
+        const auto leftGlyphs = leftLayout.GlyphLayouts();
+        const auto centerGlyphs = centeredLayout.GlyphLayouts();
+        check(leftGlyphs.size() == 2u && centerGlyphs.size() == 2u &&
+                  std::abs(leftGlyphs[0u].origin.x - leftGlyphs[1u].origin.x) < .01f &&
+                  centerGlyphs[0u].origin.x > centerGlyphs[1u].origin.x && leftGlyphs[0u].font < 24.f,
+              "subarray stages script-size cells with independently verified left or centered alignment");
+        check(! ParseMath(L"\\begin{subarray}{r}a\\end{subarray}") && ! ParseMath(L"\\begin{subarray}{l}a&b\\end{subarray}"),
+              "unsupported subarray columns retain complete source");
+    }
+#endif
+#if DXUI_ENABLE_DIAGNOSTICS
+    {
+        const auto ordinary = std::make_shared<const MathExpression>(ParseMath(L"\\begin{array}{c}\\sum_{i}^{n}\\end{array}"));
+        const auto display = std::make_shared<const MathExpression>(ParseMath(L"\\begin{darray}{c}\\sum_{i}^{n}\\end{darray}"));
+        check(static_cast<bool>(*ordinary) && static_cast<bool>(*display), "darray admits the array column grammar");
+        Detail::PreparedMath ordinaryLayout(factory, ordinary, 24.f);
+        Detail::PreparedMath displayLayout(factory, display, 24.f);
+        while (! ordinaryLayout.Advance()) {}
+        while (! displayLayout.Advance()) {}
+        check(displayLayout.Size().height > ordinaryLayout.Size().height &&
+                  displayLayout.GlyphLayouts().size() == ordinaryLayout.GlyphLayouts().size(),
+              "darray uses display-style operator limits rather than array text style");
+        check(! ParseMath(L"\\begin{darray}{z}a\\end{darray}"), "invalid darray columns retain source");
+    }
+#endif
     for (const auto source : {L"\\begin{matrix}a\\\\[-1pt]b\\end{matrix}", L"\\substack{a\\\\[65pt]b}",
                               L"\\begin{matrix}a\\\\[bogus]b\\end{matrix}", L"\\substack{a\\\\[2ptb}"})
         check(! ParseMath(source), "invalid row-spacing dimensions retain complete source");

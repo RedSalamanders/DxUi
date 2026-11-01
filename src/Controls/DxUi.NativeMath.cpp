@@ -386,20 +386,42 @@ class Parser
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
 #endif
-        constexpr std::array names{L"matrix",   L"pmatrix",  L"bmatrix",  L"Bmatrix",   L"vmatrix",  L"Vmatrix", L"smallmatrix", L"cases",
-                                   L"rcases",   L"dcases",   L"drcases",  L"aligned",   L"gathered", L"align",   L"align*",      L"split",
-                                   L"gather",   L"gather*",  L"equation", L"equation*", L"array",    L"alignat", L"alignat*",    L"matrix*",
-                                   L"pmatrix*", L"bmatrix*", L"Bmatrix*", L"vmatrix*",  L"Vmatrix*"};
+        constexpr std::array names{L"matrix",
+                                   L"pmatrix",
+                                   L"bmatrix",
+                                   L"Bmatrix",
+                                   L"vmatrix",
+                                   L"Vmatrix",
+                                   L"smallmatrix",
+                                   L"cases", L"rcases", L"dcases", L"drcases",
+                                   L"aligned",
+                                   L"gathered",
+                                   L"align",
+                                   L"align*",
+                                   L"split",
+                                   L"gather",
+                                   L"gather*",
+                                   L"equation",
+                                   L"equation*",
+                                   L"array", L"darray", L"subarray", L"alignat", L"alignat*", L"matrix*", L"pmatrix*", L"bmatrix*", L"Bmatrix*", L"vmatrix*", L"Vmatrix*"};
         if (std::ranges::find(names, environment) == names.end())
             Reject(MathIssue::UnsupportedEnvironment);
         const wchar_t matrixAlignment = MatrixAlignment(environment);
         std::wstring columnSpec(0u, L' ');
         unsigned declaredColumns{};
-        if (environment == L"array")
+        if (environment == L"array" || environment == L"darray")
         {
             columnSpec.assign(ArraySpecification());
             const auto separator = columnSpec.find(L':');
-            declaredColumns      = static_cast<unsigned>(separator == std::wstring::npos ? columnSpec.size() : separator);
+            declaredColumns = static_cast<unsigned>(separator == std::wstring::npos ? columnSpec.size() : separator);
+        }
+        else if (environment == L"subarray")
+        {
+            const auto alignment = GroupText();
+            if (alignment != L"l" && alignment != L"c")
+                Reject(MathIssue::UnsupportedCommand);
+            columnSpec = alignment;
+            declaredColumns = 1u;
         }
         else if (environment == L"alignat" || environment == L"alignat*")
         {
@@ -454,9 +476,11 @@ class Parser
                 environment = L"aligned";
             else if (environment == L"alignat*")
                 environment = L"alignat";
-            else if (environment == L"array")
+            else if (environment == L"subarray")
+                environment = L"subarray:" + columnSpec;
+            else if (environment == L"array" || environment == L"darray")
             {
-                environment = L"array:" + columnSpec;
+                environment = environment + L":" + columnSpec;
                 bool horizontal{};
                 for (unsigned row = 0u; row <= rows; ++row)
                     horizontal = horizontal || (rowWidths[row] & 0x300u) != 0u;
@@ -492,9 +516,8 @@ class Parser
         while (at < source.size())
         {
             Space();
-            if (environment == L"array" && ! rowColumns && ConsumeArrayRule(rowWidths[rows]))
-                continue;
-            if (! rowColumns && ! cells.empty() && source.substr(at, 5) == L"\\end{")
+            if ((environment == L"array" || environment == L"darray") && ! rowColumns && ConsumeArrayRule(rowWidths[rows]))
+                continue;            if (! rowColumns && ! cells.empty() && source.substr(at, 5) == L"\\end{")
             {
                 at += 4;
                 if (GroupText() != environment)

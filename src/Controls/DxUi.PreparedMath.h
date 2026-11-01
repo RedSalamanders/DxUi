@@ -259,7 +259,7 @@ class PreparedMath final
     static std::wstring_view MatrixBase(std::wstring_view name) noexcept
     {
         name = MatrixCore(name);
-        if (! name.starts_with(L"array:") && name.size() > 2u && name[name.size() - 2u] == L':' &&
+        if (! name.starts_with(L"array:") && ! name.starts_with(L"darray:") && name.size() > 2u && name[name.size() - 2u] == L':' &&
             (name.back() == L'l' || name.back() == L'c' || name.back() == L'r'))
             return name.substr(0u, name.size() - 2u);
         return name;
@@ -290,6 +290,10 @@ class PreparedMath final
             }
         }
         name = core;
+        if (name.starts_with(L"subarray:"))
+            return columns == 1u && (name == L"subarray:l" || name == L"subarray:c");
+        if (name.starts_with(L"darray:"))
+            name.remove_prefix(1u);
         if (name.starts_with(L"array:"))
         {
             const auto plainSize = 6u + columns, verticalEnd = plainSize + columns + 2u;
@@ -915,9 +919,9 @@ class PreparedMath final
             }
             else if (node.kind == MathKind::Matrix)
             {
-                childDisplay = MatrixCore(node.text) == L"dcases" || MatrixCore(node.text) == L"drcases";
+                childDisplay = MatrixCore(node.text) == L"dcases" || MatrixCore(node.text) == L"drcases" || MatrixCore(node.text).starts_with(L"darray:");
                 boxes[index].display = childDisplay;
-                if (MatrixCore(node.text) == L"smallmatrix")
+                if (MatrixCore(node.text) == L"smallmatrix" || MatrixBase(node.text) == L"subarray")
                 {
                     childLevel               = std::max(1u, scriptLevel);
                     childSize                = scaledSize(childLevel);
@@ -1231,8 +1235,9 @@ class PreparedMath final
                     }
                     totalHeight += std::max(box.size, above + below) + box.size * .3f + MatrixGap(node.text, row / node.columns, box.size);
                 }
-                const auto matrixName = MatrixBase(node.text);
-                const bool fenced = matrixName != L"matrix" && matrixName != L"smallmatrix" && matrixName != L"aligned" && matrixName != L"gathered" && matrixName != L"alignat" && ! matrixName.starts_with(L"array:");
+                auto matrixName = MatrixBase(node.text);
+                if (matrixName.starts_with(L"darray:")) matrixName.remove_prefix(1u);
+                const bool fenced = matrixName != L"matrix" && matrixName != L"smallmatrix" && matrixName != L"subarray" && matrixName != L"aligned" && matrixName != L"gathered" && matrixName != L"alignat" && ! matrixName.starts_with(L"array:");
                 const bool rightCases = MatrixCore(node.text) == L"rcases" || MatrixCore(node.text) == L"drcases";
                 const bool leftCases = MatrixCore(node.text) == L"cases" || MatrixCore(node.text) == L"dcases";
                 const float leftPadding  = fenced && ! rightCases ? box.size * .4f : 0.f;
@@ -2028,7 +2033,8 @@ class PreparedMath final
         }
         if (node.kind == Matrix && node.columns > 0u)
         {
-            const auto matrixCore = MatrixCore(node.text);
+            auto matrixCore = MatrixCore(node.text);
+            if (matrixCore.starts_with(L"darray:")) matrixCore.remove_prefix(1u);
             std::array<float, MathMaximumColumns> widths{};
             unsigned childColumn{};
             for (auto child = box.firstChild; child < box.endChild; child = NextSibling(child))
@@ -2062,7 +2068,7 @@ class PreparedMath final
                 }
                 above             = std::max(above, box.size * .8f);
                 const auto matrixName = MatrixBase(matrixCore);
-                const bool fenced = matrixName != L"matrix" && matrixName != L"smallmatrix" && matrixName != L"aligned" && matrixName != L"gathered" && matrixName != L"alignat" && ! matrixName.starts_with(L"array:");
+                const bool fenced = matrixName != L"matrix" && matrixName != L"smallmatrix" && matrixName != L"subarray" && matrixName != L"aligned" && matrixName != L"gathered" && matrixName != L"alignat" && ! matrixName.starts_with(L"array:");
                 float cellX       = x + (fenced && matrixCore != L"rcases" && matrixCore != L"drcases" ? box.size * .4f : 0.f);
                 cell              = rowFirst;
                 for (unsigned col = 0; col < node.columns; ++col)
@@ -2105,7 +2111,7 @@ class PreparedMath final
                 }
             }
             const auto matrixName = MatrixBase(matrixCore);
-            if (matrixName != L"matrix" && matrixName != L"smallmatrix" && matrixName != L"aligned" && matrixName != L"gathered" && matrixName != L"alignat" && ! matrixName.starts_with(L"array:"))
+            if (matrixName != L"matrix" && matrixName != L"smallmatrix" && matrixName != L"subarray" && matrixName != L"aligned" && matrixName != L"gathered" && matrixName != L"alignat" && ! matrixName.starts_with(L"array:"))
             {
                 const auto left  = matrixName == L"pmatrix"                            ? L'('
                                    : matrixName == L"Bmatrix" || matrixCore == L"cases" || matrixCore == L"rcases" || matrixCore == L"dcases" || matrixCore == L"drcases" ? L'{'
