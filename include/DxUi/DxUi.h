@@ -2997,6 +2997,9 @@ public:
 
 #if DXUI_ENABLE_DIAGNOSTICS
     [[nodiscard]] D2D1_RECT_F DebugGetTabRect(size_t index) const noexcept;
+    [[nodiscard]] uint64_t DebugGetHeaderLayoutBuildCount() const noexcept { return _debugHeaderLayoutBuildCount; }
+    [[nodiscard]] uint64_t DebugGetHeaderGeometryBuildCount() const noexcept { return _debugHeaderGeometryBuildCount; }
+    void DebugFailNextHeaderGeometryForTest() noexcept { _debugFailNextHeaderGeometry = true; RequestVisualContentPreparation(); }
     [[nodiscard]] D2D1_RECT_F DebugGetCloseButtonRect(size_t index) const noexcept;
     [[nodiscard]] bool DebugIsCloseButtonVisible(size_t index) const noexcept;
     [[nodiscard]] float DebugGetHeaderScrollOffsetDip() const noexcept;
@@ -3010,6 +3013,8 @@ public:
 protected:
     [[nodiscard]] Control* HitTest(D2D1_POINT_2F point) override;
     [[nodiscard]] const Control* HitTest(D2D1_POINT_2F point) const override;
+    void PrepareVisualContent(ControlHost& host) noexcept override;
+    void CancelVisualContentPreparation() noexcept override;
     void PropagateHost(ControlHost* host) noexcept override;
     void OnBoundsChanged() noexcept override;
     void OnFlowDirectionChanged() noexcept override;
@@ -3032,6 +3037,17 @@ private:
         size_t index    = 0u;
     };
 
+    struct PreparedAttachedGeometry
+    {
+        D2D1_RECT_F fillRect{};
+        D2D1_RECT_F sourceRect{};
+        const ControlHost* owner = nullptr;
+        uint64_t resourceGeneration = 0u;
+        float dpi = 0.f;
+        bool valid = false;
+        wil::com_ptr<ID2D1PathGeometry> fill;
+        wil::com_ptr<ID2D1PathGeometry> stroke;
+    };
     struct TabHeaderLayoutCache
     {
         bool valid                = false;
@@ -3097,6 +3113,13 @@ private:
     bool _tabReorderingEnabled    = true;
     bool _dragReordering          = false;
     mutable TabHeaderLayoutCache _tabHeaderLayoutCache;
+    PreparedAttachedGeometry _selectedHeaderGeometry;
+    PreparedAttachedGeometry _hoveredHeaderGeometry;
+#if DXUI_ENABLE_DIAGNOSTICS
+    mutable uint64_t _debugHeaderLayoutBuildCount = 0u;
+    uint64_t _debugHeaderGeometryBuildCount = 0u;
+    bool _debugFailNextHeaderGeometry = false;
+#endif
 };
 #pragma warning(pop)
 

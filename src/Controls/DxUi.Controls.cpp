@@ -656,22 +656,22 @@ void DrawRoundedRect(ControlHost& host, const D2D1_RECT_F& rect, const D2D1_COLO
     }
 }
 
-void DrawTopRoundedAttachedRect(ControlHost& host,
+template <typename Geometry> void PrepareTopRoundedAttachedRect(ControlHost& host,
                                 const D2D1_RECT_F& rect,
-                                const D2D1_COLOR_F& fill,
-                                const D2D1_COLOR_F& stroke,
+                                bool stroke,
                                 float radiusDip,
                                 float fillBottomExtensionDip,
-                                float strokeBottomInsetDip)
+                                float strokeBottomInsetDip,
+                                Geometry& result,
+                                uint64_t* creationCount)
 {
-    auto* dc = host.GetDeviceContext();
-    if (! dc)
-    {
-        return;
-    }
-
+    result = {};
     const D2D1_RECT_F fillRect   = SnapRectToPixel(host, D2D1::RectF(rect.left, rect.top, rect.right, rect.bottom + (std::max)(0.0f, fillBottomExtensionDip)));
     const D2D1_RECT_F strokeRect = SnapRectToPixel(host, rect);
+    result.fillRect = fillRect;
+    auto* dc = host.GetDeviceContext();
+    if (! dc)
+        return;
     const float width            = (std::max)(0.0f, fillRect.right - fillRect.left);
     const float height           = (std::max)(0.0f, fillRect.bottom - fillRect.top);
     const float radius           = std::clamp(radiusDip, 0.0f, (std::min)(width * 0.5f, height));
@@ -684,21 +684,20 @@ void DrawTopRoundedAttachedRect(ControlHost& host,
     dc->GetFactory(factory.addressof());
     if (! factory)
     {
-        FillRectangleWithColor(host, fillRect, fill);
         return;
     }
 
     wil::com_ptr<ID2D1PathGeometry> fillGeometry;
+    if (creationCount)
+        ++*creationCount;
     if (FAILED(factory->CreatePathGeometry(fillGeometry.addressof())) || ! fillGeometry)
     {
-        FillRectangleWithColor(host, fillRect, fill);
         return;
     }
 
     wil::com_ptr<ID2D1GeometrySink> sink;
     if (FAILED(fillGeometry->Open(sink.addressof())) || ! sink)
     {
-        FillRectangleWithColor(host, fillRect, fill);
         return;
     }
 
@@ -714,21 +713,19 @@ void DrawTopRoundedAttachedRect(ControlHost& host,
     sink->EndFigure(D2D1_FIGURE_END_CLOSED);
     if (FAILED(sink->Close()))
     {
-        FillRectangleWithColor(host, fillRect, fill);
         return;
     }
 
-    if (auto* fillBrush = host.GetSolidBrush(fill))
-    {
-        dc->FillGeometry(fillGeometry.get(), fillBrush);
-    }
+    result.fill = std::move(fillGeometry);
 
-    if (stroke.a <= 0.0f)
+    if (! stroke)
     {
         return;
     }
 
     wil::com_ptr<ID2D1PathGeometry> strokeGeometry;
+    if (creationCount)
+        ++*creationCount;
     if (FAILED(factory->CreatePathGeometry(strokeGeometry.addressof())) || ! strokeGeometry)
     {
         return;
@@ -755,12 +752,26 @@ void DrawTopRoundedAttachedRect(ControlHost& host,
         return;
     }
 
-    if (auto* strokeBrush = host.GetSolidBrush(stroke))
-    {
-        dc->DrawGeometry(strokeGeometry.get(), strokeBrush, 1.0f);
-    }
+    result.stroke = std::move(strokeGeometry);
 }
 
+template <typename Geometry>
+void DrawPreparedTopRoundedAttachedRect(ControlHost& host, const Geometry& geometry, const D2D1_COLOR_F& fill, const D2D1_COLOR_F& stroke)
+{
+    auto* const dc = host.GetDeviceContext();
+    if (! dc)
+        return;
+    if (geometry.fill)
+    {
+        if (auto* brush = host.GetSolidBrush(fill))
+            dc->FillGeometry(geometry.fill.get(), brush);
+    }
+    else
+        FillRectangleWithColor(host, geometry.fillRect, fill);
+    if (geometry.stroke && stroke.a > 0.f)
+        if (auto* brush = host.GetSolidBrush(stroke))
+            dc->DrawGeometry(geometry.stroke.get(), brush, 1.0f);
+}
 void PaintFocusRing(ControlHost& host, const D2D1_RECT_F& controlBounds, float controlCornerRadiusDip) noexcept
 {
     const auto& palette = host.GetTheme();
@@ -8552,6 +8563,7 @@ void MenuBar::InvalidateIfInteractive(ControlHost& host) noexcept
 
 TabControl::TabControl()
 {
+    EnableVisualContentPreparation();
     SetFocusable(true);
 }
 
@@ -8962,6 +8974,7 @@ D2D1_RECT_F TabControl::GetContentRect() const noexcept
 void TabControl::InvalidateTabHeaderLayoutCache() const noexcept
 {
     _tabHeaderLayoutCache.valid = false;
+    RequestVisualContentPreparation(false);
 }
 
 void TabControl::InvalidateTabTitleMeasurements() const noexcept
@@ -9064,6 +9077,9 @@ const TabControl::TabHeaderLayoutCache& TabControl::EnsureTabHeaderLayoutCache()
         return _tabHeaderLayoutCache;
     }
 
+#if DXUI_ENABLE_DIAGNOSTICS
+    ++_debugHeaderLayoutBuildCount;
+#endif
     TabHeaderLayoutCache& layout = _tabHeaderLayoutCache;
     layout.valid                 = true;
     layout.needsOverflowButtons  = false;
@@ -9369,6 +9385,7 @@ bool TabControl::UpdateVisiblePageBounds() noexcept
 
 bool TabControl::SyncLayout() noexcept
 {
+    RequestVisualContentPreparation(false);
     const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
     Debug::Perf::Scope syncPerf(L"dxui.tabcontrol.sync_layout_us");
     const float viewportWidth = (std::max)(0.0f, GetHeaderViewportRight() - GetHeaderViewportLeft());
@@ -9755,15 +9772,13 @@ void TabControl::Paint(ControlHost& host) const
         const bool closeVisible           = IsCloseButtonVisible(index);
         const D2D1_COLOR_F fill           = selected ? theme.cardBackground : (hovered ? theme.headerHovered : theme.windowBackground);
         const D2D1_COLOR_F transparent    = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
-        const D2D1_RECT_F attachedTabRect = D2D1::RectF(tabRect.left, tabRect.top, tabRect.right, tabRect.bottom);
         if (selected)
         {
-            DrawTopRoundedAttachedRect(
-                host, attachedTabRect, fill, theme.borderDefault, kTabCornerRadiusDip, kTabAttachFillExtensionDip, kTabAttachStrokeInsetDip);
+            DrawPreparedTopRoundedAttachedRect(host, _selectedHeaderGeometry, fill, theme.borderDefault);
         }
         else if (hovered)
         {
-            DrawTopRoundedAttachedRect(host, attachedTabRect, fill, transparent, kTabCornerRadiusDip, kTabAttachFillExtensionDip, 0.0f);
+            DrawPreparedTopRoundedAttachedRect(host, _hoveredHeaderGeometry, fill, transparent);
         }
 
         const D2D1_RECT_F closeRect = GetCloseButtonRect(index);
@@ -9874,6 +9889,7 @@ bool TabControl::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modi
     if (_hoveredTabIndex != nextHover)
     {
         _hoveredTabIndex = nextHover;
+        RequestVisualContentPreparation(false);
         Invalidate(host);
     }
     else if (tooltipChanged)
@@ -9903,6 +9919,7 @@ bool TabControl::OnMouseLeave(ControlHost& host)
     if (_hoveredTabIndex.has_value())
     {
         _hoveredTabIndex.reset();
+        RequestVisualContentPreparation(false);
         Invalidate(host);
     }
     else if (tooltipChanged)
@@ -10054,6 +10071,58 @@ const Control* TabControl::HitTest(D2D1_POINT_2F point) const
     return Panel::HitTest(point);
 }
 
+void TabControl::PrepareVisualContent(ControlHost& host) noexcept
+{
+    if (GetHost() != &host)
+        return;
+    const auto& header = EnsureTabHeaderLayoutCache();
+    const auto prepare = [&](std::optional<size_t> index, bool stroke, PreparedAttachedGeometry& geometry)
+    {
+        if (! index || index.value() >= header.tabRects.size() || ! _tabs[index.value()].visible)
+        {
+            geometry = {};
+            return;
+        }
+        const auto rect = header.tabRects[index.value()];
+        if (geometry.valid && geometry.owner == &host && geometry.resourceGeneration == host.GetResourceGeneration() && geometry.dpi == host.GetDpi() &&
+            geometry.sourceRect.left == rect.left && geometry.sourceRect.top == rect.top && geometry.sourceRect.right == rect.right &&
+            geometry.sourceRect.bottom == rect.bottom)
+            return;
+        uint64_t* creationCount = nullptr;
+#if DXUI_ENABLE_DIAGNOSTICS
+        creationCount = &_debugHeaderGeometryBuildCount;
+        if (std::exchange(_debugFailNextHeaderGeometry, false))
+        {
+            geometry = {};
+            geometry.fillRect = SnapRectToPixel(host, D2D1::RectF(rect.left, rect.top, rect.right, rect.bottom + kTabAttachFillExtensionDip));
+        }
+        else
+#endif
+            PrepareTopRoundedAttachedRect(host, rect, stroke, kTabCornerRadiusDip, kTabAttachFillExtensionDip,
+                                          stroke ? kTabAttachStrokeInsetDip : 0.f, geometry, creationCount);
+        geometry.owner = &host;
+        geometry.sourceRect = rect;
+        geometry.resourceGeneration = host.GetResourceGeneration();
+        geometry.dpi = host.GetDpi();
+        geometry.valid = geometry.fill && (! stroke || geometry.stroke);
+    };
+    prepare(_selectedIndex, true, _selectedHeaderGeometry);
+    prepare(_hoveredTabIndex != _selectedIndex ? _hoveredTabIndex : std::nullopt, false, _hoveredHeaderGeometry);
+    const auto& theme = host.GetTheme();
+    for (const auto& color : {theme.windowBackground, theme.cardBackground, theme.headerBackground, theme.headerHovered,
+                              theme.borderDefault, theme.border, theme.borderStrong, theme.text, theme.subduedText, theme.focusStrokeOuter, theme.focusStrokeInner})
+        static_cast<void>(host.GetSolidBrush(color));
+    static_cast<void>(host.GetTextFormat(FontRole::Body, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false,
+                                         ResolveReadingDirection(GetFlowDirection())));
+    static_cast<void>(host.GetTextFormat(FontRole::Icon, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false,
+                                         DWRITE_READING_DIRECTION_LEFT_TO_RIGHT));
+}
+
+void TabControl::CancelVisualContentPreparation() noexcept
+{
+    _selectedHeaderGeometry = {};
+    _hoveredHeaderGeometry = {};
+}
 void TabControl::PropagateHost(ControlHost* host) noexcept
 {
     const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();

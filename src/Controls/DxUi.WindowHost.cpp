@@ -1561,6 +1561,8 @@ void ControlHost::SetTheme(const ThemePalette& palette) noexcept
         ++_interactionRevision;
     _palette = palette;
     RecreateBrushCache();
+    _forceAllVisualPreparation = true;
+    _pendingVisualPreparation = true;
     if (_root && densityChanged)
     {
         _root->OnDensityChanged();

@@ -351,3 +351,149 @@ static void TestInteractionLayoutWithoutPaint(GraphicsFixture& gpu)
         Check(scene.view.DispatchPointer({DxUi::PointerAction::Down, 100, 84}), "interaction-layout owner input remains enabled after wrong-thread call");
     }
 }
+
+struct TabPaintProbeState
+{
+    DxUi::TabControl* tabs = nullptr;
+    size_t paints = 0u;
+    size_t allocationsDuringPaint = 0u;
+    uint64_t layoutsDuringPaint = 0u;
+    uint64_t headerBuildsDuringPaint = 0u;
+    uint64_t geometryBuildsDuringPaint = 0u;
+};
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
+class TabPaintProbePanel final : public DxUi::Panel
+{
+public:
+    explicit TabPaintProbePanel(TabPaintProbeState& state) noexcept : state_(&state) {}
+    void Paint(DxUi::ControlHost& host) const override
+    {
+        const auto layouts = DxUi::testSingleLineMeasureLayoutCreations;
+        const auto builds = state_->tabs->DebugGetHeaderLayoutBuildCount();
+        const auto geometries = state_->tabs->DebugGetHeaderGeometryBuildCount();
+        allocations = 0u;
+        countAllocations = true;
+        Panel::Paint(host);
+        countAllocations = false;
+        ++state_->paints;
+        state_->allocationsDuringPaint += allocations;
+        state_->layoutsDuringPaint += DxUi::testSingleLineMeasureLayoutCreations - layouts;
+        state_->headerBuildsDuringPaint += state_->tabs->DebugGetHeaderLayoutBuildCount() - builds;
+        state_->geometryBuildsDuringPaint += state_->tabs->DebugGetHeaderGeometryBuildCount() - geometries;
+    }
+private:
+    TabPaintProbeState* state_;
+};
+#pragma warning(pop)
+static void TestEmbeddedTabHeaderPreparationAvoidsPaintWork(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create tab preparation graphics");
+    EmbeddedHost first, second;
+    Hr(first.Attach(graphics), "attach first tab host");
+    Hr(second.Attach(graphics), "attach second tab host");
+    Hr(PrepareRichEmbeddedContent(first, 220u, 140u), "initialize first blank tab host resources");
+    Hr(PrepareRichEmbeddedContent(second, 220u, 140u), "initialize second blank tab host resources");
+    auto root = std::make_unique<Panel>();
+    auto* owner = root.get();
+    TabPaintProbeState paintState;
+    auto* probe = root->AddChild<TabPaintProbePanel>(paintState);
+    probe->SetBounds(D2D1::RectF(0, 0, 220, 140));
+    auto* tabs = probe->AddChild<TabControl>();
+    paintState.tabs = tabs;
+    tabs->SetBounds(D2D1::RectF(0, 0, 220, 140));
+    for (const auto* label : {L"Alpha long title", L"Bravo long title", L"Charlie long title", L"Delta long title"})
+        Check(tabs->AddTab<Panel>(label) != nullptr, "add a tab for overflow preparation");
+    first.Controls().SetRoot(std::move(root));
+    Hr(PrepareRichEmbeddedContent(first, 220u, 140u), "prepare initial tab host");
+    Check(paintState.paints > 0u && paintState.allocationsDuringPaint == 0u && paintState.layoutsDuringPaint == 0u &&
+              paintState.headerBuildsDuringPaint == 0u && paintState.geometryBuildsDuringPaint == 0u, "the initial actual tab paint uses only prepared geometry");
+    Check(tabs->DebugHasOverflowButtons(), "first prepared tab header has overflow controls");
+    const auto initial = tabs->DebugGetTabRect(0u);
+    Check(initial.right > initial.left && initial.bottom > initial.top, "first prepared tab geometry is visible");
+
+    auto moved = owner->TakeChild(0u);
+    Check(moved.get() == probe, "take the same tab subtree for host transfer");
+    second.Controls().SetRoot(std::move(moved));
+    const auto paintsBeforeTransfer = paintState.paints;
+    Hr(PrepareRichEmbeddedContent(second, 220u, 140u), "prepare same-size replacement tab host");
+    Check(paintState.paints > paintsBeforeTransfer && paintState.allocationsDuringPaint == 0u && paintState.layoutsDuringPaint == 0u &&
+              paintState.headerBuildsDuringPaint == 0u && paintState.geometryBuildsDuringPaint == 0u, "the first actual paint after host transfer creates no C++ allocation or layout");
+    Check(tabs->DebugGetHeaderGeometryBuildCount() > 0u, "the selected tab publishes prepared native path geometry");
+    gpu.Bind();
+    std::vector<uint8_t> blankPixels, tabPixels;
+    Hr(gpu.Read(blankPixels), "capture the blank target before tab composition");
+    Hr(second.Composite(gpu.context.get(), gpu.Viewport()), "composite the first prepared transferred tab frame");
+    Hr(gpu.Read(tabPixels), "capture the first prepared tab frame");
+    Check(tabPixels != blankPixels, "the first prepared frame actually draws visible tab content");
+    Check(tabs->DebugHasOverflowButtons(), "transferred header retains overflow geometry");
+    const auto afterTransfer = tabs->DebugGetTabRect(0u);
+    Check(afterTransfer.right > afterTransfer.left && afterTransfer.bottom > afterTransfer.top,
+          "transferred header retains nonempty first-frame tab geometry");
+    const auto paintWithoutWork = [&]
+    {
+        auto* context = second.Controls().GetDeviceContext();
+        Check(context != nullptr, "the current tab host has a drawing context");
+        const auto beforeLayouts = testSingleLineMeasureLayoutCreations;
+        const auto beforeBuilds = tabs->DebugGetHeaderLayoutBuildCount();
+        const auto beforeGeometries = tabs->DebugGetHeaderGeometryBuildCount();
+        allocations = 0u;
+        context->BeginDraw();
+        countAllocations = true;
+        tabs->Paint(second.Controls());
+        countAllocations = false;
+        const size_t paintAllocations = allocations;
+        Hr(context->EndDraw(), "draw prepared tab header");
+        Check(paintAllocations == 0u && testSingleLineMeasureLayoutCreations == beforeLayouts &&
+                  tabs->DebugGetHeaderLayoutBuildCount() == beforeBuilds && tabs->DebugGetHeaderGeometryBuildCount() == beforeGeometries,
+              "prepared tab paint performs no C++ allocation, title layout or geometry rebuild");
+    };
+    paintWithoutWork();
+    Check(tabs->OnMouseWheel(second.Controls(), D2D1::Point2F(100, 12), -120.f, 0u), "overflow header scroll is handled");
+    const auto paintsBeforeScroll = paintState.paints;
+    Hr(PrepareRichEmbeddedContent(second, 220u, 140u), "prepare scrolled tab header");
+    Check(paintState.paints > paintsBeforeScroll && paintState.allocationsDuringPaint == 0u && paintState.layoutsDuringPaint == 0u &&
+              paintState.headerBuildsDuringPaint == 0u && paintState.geometryBuildsDuringPaint == 0u, "the first actual paint after overflow scroll uses staged geometry");
+    const auto scrolled = tabs->DebugGetTabRect(0u);
+    Check(scrolled.left < afterTransfer.left && tabs->DebugGetHeaderScrollOffsetDip() > 0.f,
+          "prepared overflow scroll changes the exact tab geometry");
+    paintWithoutWork();
+    const auto secondTab = tabs->DebugGetTabRect(1u);
+    const D2D1_POINT_2F hoverPoint{std::clamp((secondTab.left + secondTab.right) * .5f, 1.f, 218.f), 12.f};
+    const auto beforeHover = tabs->DebugGetHeaderGeometryBuildCount();
+    Check(tabs->OnMouseMove(second.Controls(), hoverPoint, 0u), "hover a visible overflow tab");
+    Hr(PrepareRichEmbeddedContent(second, 220u, 140u), "prepare hovered tab geometry");
+    Check(tabs->DebugGetHeaderGeometryBuildCount() > beforeHover && paintState.allocationsDuringPaint == 0u &&
+              paintState.layoutsDuringPaint == 0u && paintState.geometryBuildsDuringPaint == 0u,
+          "the first hovered tab paint uses newly prepared geometry without resource work");
+    paintWithoutWork();
+    auto recolored = second.Controls().GetTheme();
+    recolored.borderStrong = D2D1::ColorF(0.2f, 0.4f, 0.8f, 1.f);
+    second.Controls().SetTheme(recolored);
+    Hr(PrepareRichEmbeddedContent(second, 220u, 140u), "prepare recolored tab brushes");
+    Check(paintState.allocationsDuringPaint == 0u && paintState.layoutsDuringPaint == 0u && paintState.geometryBuildsDuringPaint == 0u,
+          "the first recolored tab paint uses prepared brushes and geometry");
+    paintWithoutWork();
+    static_cast<void>(tabs->OnMouseLeave(second.Controls()));
+    Hr(PrepareRichEmbeddedContent(second, 220u, 140u), "settle hover before selected geometry failure");
+    const auto beforeFailure = tabs->DebugGetHeaderGeometryBuildCount();
+    tabs->DebugFailNextHeaderGeometryForTest();
+    tabs->SetTabTitle(0u, L"Alpha after failed geometry");
+    Hr(PrepareRichEmbeddedContent(second, 220u, 140u), "prepare the injected geometry fallback");
+    Check(tabs->DebugGetHeaderGeometryBuildCount() == beforeFailure && tabs->GetTabTitle(0u) == L"Alpha after failed geometry",
+          "failed selected geometry uses the deterministic fill fallback without publishing a path");
+    paintWithoutWork();
+    tabs->SetTabTitle(0u, L"Alpha retry geometry");
+    Hr(PrepareRichEmbeddedContent(second, 220u, 140u), "prepare a later geometry retry");
+    Check(tabs->DebugGetHeaderGeometryBuildCount() > beforeFailure, "a later relevant change retries native geometry creation");
+    paintWithoutWork();
+    std::shared_ptr<GraphicsDevice> replacement;
+    Hr(GraphicsDevice::Create(gpu.device.get(), replacement), "create replacement tab graphics generation");
+    const auto beforeReplacement = tabs->DebugGetHeaderGeometryBuildCount();
+    Hr(second.ReplaceDevice(replacement), "replace the tab host device");
+    Hr(PrepareRichEmbeddedContent(second, 220u, 140u), "prepare tabs after device replacement");
+    Check(tabs->DebugGetHeaderGeometryBuildCount() > beforeReplacement, "device replacement rebuilds attached-tab geometry");
+    paintWithoutWork();
+}

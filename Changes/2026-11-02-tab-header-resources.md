@@ -1,0 +1,1 @@
+- Stage tab header path and palette resources before painting and reuse them across unchanged frames.

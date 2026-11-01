@@ -371,6 +371,7 @@ physical application DPI presentation and real assistive-technology journeys req
   PageHost participates in the same inheritance chain as Panel; its pages resolve through the PageHost rather than
   directly through the host. Root replacement snapshots the incoming control's previous inherited values before
   interaction-reset callbacks can retire its old parent, then reparents without dereferencing that old chain.
+- TabControl stages title measurements, header geometry, attached-tab path geometries and its host palette and text-format resources before painting. Host transfer, DPI, content and overflow scrolling retire the affected cache and schedule visual preparation; the first subsequent prepared frame draws the current tabs without creating a title layout or rebuilding header geometry during Paint.
 - Tree walks go through logical children (`Control::GetLogicalChildCount`/`GetLogicalChild`): a Panel's children and a
   PageHost's current page. Membership (`IsControlInTree`), Tab order, native text input and its text store, the
   ComboBox scroll-container lookup and the UI Automation tree all use that one walk, so the content of a page takes
