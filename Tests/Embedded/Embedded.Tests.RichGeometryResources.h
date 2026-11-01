@@ -354,13 +354,13 @@ static void TestSourceGuideAllocationAtomicity()
     const auto seed = [&]
     {
         auto guides = std::make_unique<RichSourceGuides>();
-        guides->Begin(source.Snapshot(), 1u, geometry.Generation(), true, true, options);
+        guides->Begin(source.Snapshot(), 1u, geometry.Generation(), true, true, options, 44.0f);
         finish(*guides);
         return guides;
     };
     const auto stage = [&](RichSourceGuides& guides)
     {
-        guides.Begin(source.Snapshot(), 2u, geometry.Generation(), true, true, options);
+        guides.Begin(source.Snapshot(), 2u, geometry.Generation(), true, true, options, 44.0f);
         finish(guides);
     };
     auto measured          = seed();

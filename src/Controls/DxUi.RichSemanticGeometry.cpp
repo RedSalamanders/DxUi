@@ -1217,7 +1217,16 @@ struct PreparedSemanticGeometry::Preparation
         const float codeInset = paddedCode ? std::min(6.0f, std::max(0.0f, (box->width - 1.0f) * 0.5f)) : 0.0f;
         if (paddedCode)
         {
-            box->codeGutter = box->width >= 96.0f ? 40.0f : 0.0f;
+            auto remainingLines = node.lines.size() + 1u;
+            unsigned digits = 1u;
+            while (remainingLines >= 10u)
+            {
+                remainingLines /= 10u;
+                ++digits;
+            }
+            const float codeSize = options.codeFontSizeDip > 0.0f ? options.codeFontSizeDip : options.fontSizeDip;
+            const float wantedGutter = std::max(40.0f, static_cast<float>(digits) * codeSize * 0.75f + 8.0f);
+            box->codeGutter = box->width >= wantedGutter + 56.0f ? wantedGutter : 0.0f;
             box->x += codeInset + (rtl ? 0.0f : box->codeGutter);
             box->y += 6.0f + codeHeader;
             box->width -= 2.0f * codeInset + box->codeGutter;

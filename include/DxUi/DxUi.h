@@ -3518,6 +3518,7 @@ private:
     bool PrepareSourceInk();
     bool PrepareSourceGuides(ControlHost& host);
     [[nodiscard]] float HorizontalTranslation() const noexcept;
+    [[nodiscard]] float SourceGutterWidth() const noexcept;
     void PublishHorizontalScrollChanged() noexcept;
     HRESULT PrepareCodeInk(const std::shared_ptr<const RichText::SemanticDocument>& document);
     [[nodiscard]] std::optional<RichText::MarkdownRange> HoveredLinkDisplayRange(ControlHost& host, D2D1_POINT_2F point) const;
