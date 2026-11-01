@@ -1,0 +1,1 @@
+- Add a bounded source-exact quote toggle and indent/outdent command for supported text lines; native qualification and remaining nested-container behavior are pending.

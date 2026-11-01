@@ -288,7 +288,15 @@ inline void ListsAndHeadings()
     MarkdownCommandRequest request;
     for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
     {
-        request.command = MarkdownCommand::InsertParagraph;
+        request.command = MarkdownCommand::SetQuote;
+        Exact(L"", {}, request, L"> ", std::nullopt, profile);
+        Exact(L"alpha\nbeta\n", {0u, 10u}, request, L"> alpha\n> beta\n", std::nullopt, profile);
+        Exact(L"> alpha\n", {2u, 2u}, request, L"alpha\n", std::nullopt, profile);
+        request.quoteAction = MarkdownQuoteAction::Outdent;
+        Exact(L"> > alpha\n", {4u, 4u}, request, L"> alpha\n", std::nullopt, profile);
+        Unavailable(L"- item\n", {2u, 2u}, request, profile);
+        request.quoteAction = MarkdownQuoteAction::Toggle;
+        request.command     = MarkdownCommand::InsertParagraph;
         Exact(L"> 9) alpha\r\n", {10u, 10u}, request, L"> 9) alpha\r\n> 10) \r\n", Selection{18u, 18u}, profile);
         Exact(L"9. abc\n   tail\n", {4u, 4u}, request, L"9. a\n10. bc\n    tail\n", std::nullopt, profile);
         Exact(L"9.\titem\n\tmore\n", {7u, 7u}, request, L"9.\titem\n10.\t\n\tmore\n", std::nullopt, profile);

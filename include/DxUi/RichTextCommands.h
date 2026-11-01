@@ -23,7 +23,14 @@ enum class MarkdownCommand
     DeleteTableColumn,
     SetTableCell,
     NextTableCell,
-    PreviousTableCell
+    PreviousTableCell,
+    SetQuote
+};
+enum class MarkdownQuoteAction
+{
+    Toggle,
+    Indent,
+    Outdent
 };
 enum class MarkdownListKind
 {
@@ -48,9 +55,10 @@ enum class MarkdownCommandStatus
 struct MarkdownCommandRequest
 {
     MarkdownCommand command{};
-    MarkdownListKind listKind = MarkdownListKind::Unordered;
-    MarkdownTextStyle style   = MarkdownTextStyle::Strong;
-    unsigned headingLevel     = 1u;
+    MarkdownListKind listKind       = MarkdownListKind::Unordered;
+    MarkdownTextStyle style         = MarkdownTextStyle::Strong;
+    MarkdownQuoteAction quoteAction = MarkdownQuoteAction::Toggle;
+    unsigned headingLevel           = 1u;
     std::optional<unsigned> listStart;
     // Revision-local TableCell identity, needed when padded cells share an ACP.
     // Other commands infer their target from the exact source selection.

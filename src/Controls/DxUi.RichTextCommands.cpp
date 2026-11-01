@@ -839,6 +839,7 @@ struct MarkdownCommandPlanner
         plan.applicable_ = found;
     }
     void SetList(const MarkdownCommandRequest& request);
+    void Quote(MarkdownQuoteAction action);
     void Join(bool backwards);
     void Style(MarkdownTextStyle style);
     void Link(const MarkdownCommandRequest& request, bool remove);
@@ -1119,6 +1120,85 @@ struct MarkdownCommandPlanner
     }
 };
 #pragma warning(pop)
+
+void MarkdownCommandPlanner::Quote(MarkdownQuoteAction action)
+{
+    if (action != MarkdownQuoteAction::Toggle && action != MarkdownQuoteAction::Indent && action != MarkdownQuoteAction::Outdent)
+        throw std::invalid_argument("Invalid quote action");
+    struct SelectedLine
+    {
+        std::size_t first, at;
+        bool quoted;
+    };
+    std::vector<SelectedLine> selected(0u);
+    auto end = plan.before_.End();
+    if (end > plan.before_.Start() && Line(end).first == end)
+        --end;
+    for (std::size_t i = 1u; i < nodes.size(); ++i)
+    {
+        if (! TextLeaf(nodes[i].block.kind) || nodes[i].block.kind == Kind::TableCell || Ancestor(i, Kind::ListItem) != MarkdownNoNode)
+            continue;
+        for (const auto& content : nodes[i].lines)
+        {
+            const auto& line = Line(content.source.first);
+            if ((plan.before_.Start() == plan.before_.End() ? ! (line.first <= end && end <= line.bodyEnd)
+                                                            : line.end <= plan.before_.Start() || line.first > end))
+                continue;
+            std::size_t at{};
+            if (! OuterOffset(i, line, at))
+                return;
+            selected.push_back({line.first, at, Ancestor(i, Kind::BlockQuote) != MarkdownNoNode});
+        }
+    }
+    if (selected.empty())
+    {
+        if (action != MarkdownQuoteAction::Outdent && EmptyStructuralSite())
+        {
+            Add(plan.before_.caret, plan.before_.caret, L"> ");
+            plan.applicable_ = true;
+        }
+        return;
+    }
+    std::ranges::sort(selected, {}, &SelectedLine::first);
+    for (std::size_t i = 1u; i < selected.size(); ++i)
+        if (selected[i - 1u].first == selected[i].first)
+            return;
+    for (const auto& line : lines)
+    {
+        const bool included =
+            plan.before_.Start() == plan.before_.End() ? line.first <= end && end <= line.bodyEnd : line.end > plan.before_.Start() && line.first <= end;
+        if (included)
+        {
+            const auto found = std::ranges::lower_bound(selected, line.first, {}, &SelectedLine::first);
+            if (found == selected.end() || found->first != line.first)
+                return; // Never apply only part of a selection containing unsupported blocks or trivia.
+        }
+    }
+    const bool allQuoted = std::ranges::all_of(selected, &SelectedLine::quoted);
+    const bool anyQuoted = std::ranges::any_of(selected, &SelectedLine::quoted);
+    if ((action == MarkdownQuoteAction::Toggle && anyQuoted != allQuoted) || (action == MarkdownQuoteAction::Outdent && ! allQuoted))
+        return;
+    const bool remove = action == MarkdownQuoteAction::Outdent || (action == MarkdownQuoteAction::Toggle && allQuoted);
+    for (const auto& line : selected)
+    {
+        if (! remove)
+            Add(line.at, line.at, L"> ");
+        else
+        {
+            const auto marker = text.rfind(L'>', line.at ? line.at - 1u : 0u);
+            if (marker == text.npos || marker < line.first || marker >= line.at)
+            {
+                plan.edits_.clear();
+                return;
+            }
+            auto last = marker + 1u;
+            if (last < line.at && (text[last] == L' ' || text[last] == L'\t'))
+                ++last;
+            Add(marker, last, L"");
+        }
+    }
+    plan.applicable_ = true;
+}
 
 void MarkdownCommandPlanner::SetList(const MarkdownCommandRequest& request)
 {
@@ -2417,7 +2497,7 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
 {
     if (request.text.size() > Document::MaximumUnits || request.destination.size() > Document::MaximumUnits || request.title.size() > Document::MaximumUnits)
         throw std::length_error("Structural request text exceeds source capacity");
-    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::PreviousTableCell))
+    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::SetQuote))
         throw std::invalid_argument("Invalid Markdown command");
     Detail::MarkdownCommandPlanner builder(source, revision, std::move(syntax), selection);
     // Resolved definitions own editable content, while the label and
@@ -2449,6 +2529,7 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
         case MarkdownCommand::SetLink: builder.Link(request, false); break;
         case MarkdownCommand::RemoveLink: builder.Link(request, true); break;
         case MarkdownCommand::ToggleTask: builder.Task(); break;
+        case MarkdownCommand::SetQuote: builder.Quote(request.quoteAction); break;
         case MarkdownCommand::InsertTable:
         case MarkdownCommand::InsertTableRow:
         case MarkdownCommand::DeleteTableRow:

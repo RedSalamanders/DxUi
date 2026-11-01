@@ -1219,6 +1219,10 @@ whitespace, or source revision change ends the group. IME transactions retain
 their native composition history policy.
 Source-view and source-region Backspace/Delete runs on those same characters
 coalesce in the same bounded way; direction or explicit word deletion ends a run.
+The source-exact SetQuote command toggles or adds/removes one quote level for
+supported selected physical text lines as one transaction. It declines mixed
+toggle states, list-owned lines, lazy missing prefixes and selections containing
+unsupported blocks or blank trivia rather than partially rewriting them.
 
 A task press MUST stage an immutable current source plan without editing text.
 Only matching release inside its checkbox can apply it. Leaving the rectangle,
