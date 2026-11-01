@@ -152,6 +152,70 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
 {
     MathFontTableTests::Run(check);
 #if DXUI_ENABLE_DIAGNOSTICS
+    {
+        wil::com_ptr<IDWriteFontCollection> collection;
+        THROW_IF_FAILED(factory->GetSystemFontCollection(collection.put()));
+        UINT32 familyIndex{};
+        BOOL found{};
+        THROW_IF_FAILED(collection->FindFamilyName(L"Cambria Math", &familyIndex, &found));
+        check(found, "SDK math-kern oracle requires the system math family");
+        wil::com_ptr<IDWriteFontFamily> family;
+        THROW_IF_FAILED(collection->GetFontFamily(familyIndex, family.put()));
+        wil::com_ptr<IDWriteFont> font;
+        THROW_IF_FAILED(family->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, font.put()));
+        wil::com_ptr<IDWriteFontFace> face;
+        THROW_IF_FAILED(font->CreateFontFace(face.put()));
+        DWRITE_FONT_METRICS fontMetrics{};
+        face->GetMetrics(&fontMetrics);
+        const UINT32 scalar = L'x';
+        UINT16 glyph{};
+        THROW_IF_FAILED(face->GetGlyphIndices(&scalar, 1u, &glyph));
+        check(glyph != 0u && fontMetrics.designUnitsPerEm != 0u, "SDK reports the actual math glyph and design scale");
+        std::array<std::uint8_t, 256u> data{};
+        const auto write = [&](std::size_t at, std::uint16_t value)
+        {
+            data[at]      = static_cast<std::uint8_t>(value >> 8u);
+            data[at + 1u] = static_cast<std::uint8_t>(value);
+        };
+        write(0u, 1u);
+        write(4u, 100u);
+        write(6u, 10u);
+        write(16u, 26u);
+        write(36u, 16u);
+        write(38u, 1u);
+        for (std::size_t corner = 0u; corner < 4u; ++corner)
+            write(40u + corner * 2u, 24u);
+        write(52u, 1u);
+        write(54u, 1u);
+        write(56u, glyph);
+        write(60u, 0u);
+        const auto previous               = Detail::testRichMathTableOverride;
+        const auto restore                = wil::scope_exit([&]() noexcept { Detail::testRichMathTableOverride = previous; });
+        Detail::testRichMathTableOverride = data;
+        const auto expression             = std::make_shared<const MathExpression>(ParseMath(L"x_x^x"));
+        const auto prepare                = [&]
+        {
+            auto result = std::make_unique<Detail::PreparedMath>(factory, expression, 24.f);
+            while (! result->Advance())
+            {
+            }
+            return result;
+        };
+        write(62u, 0u);
+        const auto unkerned = prepare();
+        write(62u, static_cast<std::uint16_t>(-100));
+        const auto kerned = prepare();
+        const auto& a     = unkerned->GlyphLayouts();
+        const auto& b     = kerned->GlyphLayouts();
+        check(a.size() == 3u && b.size() == 3u, "single-glyph math script oracle keeps the base and both scripts");
+        const auto expected = -100.f * (b[0].font + b[1].font) / fontMetrics.designUnitsPerEm;
+        check(std::abs((b[1].origin.x - a[1].origin.x) - expected) < .05f && std::abs((b[2].origin.x - a[2].origin.x) - expected) < .05f,
+              "real SDK-shaped glyphs apply the synthetic OpenType correction to both script positions");
+        write(16u, 0u);
+        const auto missing = prepare();
+        check(std::abs(missing->GlyphLayouts()[1].origin.x - a[1].origin.x) < .01f && std::abs(missing->GlyphLayouts()[2].origin.x - a[2].origin.x) < .01f,
+              "missing MATH kern information falls back to the original placement");
+    }
     const auto readsBefore   = Detail::testRichMathConstantReads;
     const auto formatsBefore = Detail::testRichMathTextFormats;
     const auto formats       = std::make_shared<Detail::MathTextFormats>(factory);
