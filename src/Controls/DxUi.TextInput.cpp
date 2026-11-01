@@ -1017,6 +1017,9 @@ void TextField::SetFontRole(const FontRole fontRole) noexcept
             EnsureCaretVisible(host, std::max(1.0f, GetTextRect().right - GetTextRect().left));
         if (HasFocus())
             host->SyncTextInput(this);
+        if (lifetime.expired() || GetHost() != host)
+            return;
+        host->NotifyTextInputLayoutChanged(this);
         if (lifetime.expired())
             return;
     }

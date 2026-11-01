@@ -1232,3 +1232,5 @@ raiser's checks protect their continuations independently; retaining a provider 
 control.
 
 Grid SelectionItem AddToSelection and RemoveFromSelection report successful accepted changes when a delegate updates or arranges sibling detail controls. Such geometry changes alone do not retire the row. Destroying/detaching the owner, replacing its model, or reassigning even the same model still invalidates the retained action/provider. Row identity is revalidated after callbacks and accessibility publication.
+
+Native text-store layout notifications include focused text-control bounds and typography changes, window moves, DPI changes, and publication of changed prepared content. Locked TSF notifications use the existing coalesced deferred path; callbacks are lifetime and session guarded.

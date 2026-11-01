@@ -164,6 +164,17 @@ TextElementRange GetTextElementDeletionRange(std::wstring_view text,
             return backwards ? TextElementRange{*std::prev(next), caret} : TextElementRange{caret, *std::next(next)};
         return {*std::prev(next), *next};
     }
+    // ASCII neighbors establish boundaries without scanning from document start;
+    // keep CRLF and non-ASCII context on the full Unicode path.
+    const auto asciiBoundary = [&](std::size_t at) noexcept
+    { return at == 0u || at == text.size() || (text[at - 1u] <= 0x7fu && text[at] <= 0x7fu && ! (text[at - 1u] == L'\r' && text[at] == L'\n')); };
+    if (asciiBoundary(caret))
+    {
+        if (backwards && text[caret - 1u] <= 0x7fu && asciiBoundary(caret - 1u))
+            return {caret - 1u, caret};
+        if (! backwards && text[caret] <= 0x7fu)
+            return {caret, FindNextTextElementBoundary(text, caret)};
+    }
     for (std::size_t first = 0u; first < text.size();)
     {
         const auto last = FindNextTextElementBoundary(text, first);

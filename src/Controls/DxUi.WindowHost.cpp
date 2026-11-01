@@ -1539,6 +1539,9 @@ void ControlHost::Detach(bool processExit) noexcept
         _animationSubscriptionId = 0u;
     }
     _animationSuspendedWhileHidden = false;
+#if DXUI_ENABLE_DIAGNOSTICS
+    _debugTextStoreLayoutObserver.reset();
+#endif
 
     ResetRootInteractionState();
     if (_root)
@@ -3073,6 +3076,7 @@ void ControlHost::OnDpiChanged(HWND hwnd, UINT newDpi, const RECT* suggestedRect
     // Every bounding rectangle and point hit UI Automation holds is in the old DPI's pixels.
     RefreshWindowHostAccessibilitySnapshot(_hwnd, this);
     Invalidate();
+    NotifyTextInputLayoutChanged(_nativeTextInputControl);
 }
 
 void ControlHost::AllowTranslatedCharacter() noexcept
@@ -3343,6 +3347,10 @@ try
             return 0;
         case WM_DESTROY:
             NotifyWindowHostAccessibilityDestroyed(hwnd);
+            handled = false;
+            return 0;
+        case WM_MOVE:
+            NotifyTextInputLayoutChanged(_nativeTextInputControl);
             handled = false;
             return 0;
         case WM_DPICHANGED:

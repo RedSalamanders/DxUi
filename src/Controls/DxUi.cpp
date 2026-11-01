@@ -381,8 +381,12 @@ void Control::SetBounds(const D2D1_RECT_F& bounds) noexcept
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         OnBoundsChanged();
         if (lifetime.expired())
-        {
             return;
+        if (ControlHost* const host = GetHost())
+        {
+            host->NotifyTextInputLayoutChanged(this);
+            if (lifetime.expired() || GetHost() != host)
+                return;
         }
         RequestInvalidate();
     }

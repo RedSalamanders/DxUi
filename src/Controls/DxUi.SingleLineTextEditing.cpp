@@ -48,6 +48,10 @@ constexpr float kSingleLineMeasureWidthDip = 32768.0f;
         return finish(0u);
     }
 
+    // Adjacent ASCII units establish a boundary without any RI/emoji/Indic
+    // history; CRLF is the one ASCII pair that remains a single element.
+    if (text[caret - 1u] <= 0x7fu && (caret == 1u || (text[caret - 2u] <= 0x7fu && ! (text[caret - 2u] == L'\r' && text[caret - 1u] == L'\n'))))
+        return finish(caret - 1u);
     size_t cursor = 0u;
     while (cursor < text.size())
     {
@@ -82,6 +86,10 @@ constexpr float kSingleLineMeasureWidthDip = 32768.0f;
         return finish(text.size());
     }
 
+    // A known ASCII-to-ASCII boundary can start the existing full Unicode
+    // cluster scan locally, including combining marks after the ASCII unit.
+    if (text[caret] <= 0x7fu && (! caret || (text[caret - 1u] <= 0x7fu && ! (text[caret - 1u] == L'\r' && text[caret] == L'\n'))))
+        return finish(FindNextTextElementBoundary(text, caret));
     size_t cursor = 0u;
     while (cursor < text.size())
     {

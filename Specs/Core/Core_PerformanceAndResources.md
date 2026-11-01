@@ -1036,3 +1036,5 @@ pixel/geometry/copy regressions and measured CPU/memory evidence remain separate
 A paused ProgressBar contributes no animation continuation and keeps its current indeterminate phase. Pausing and resuming use one retained boolean and reset the tick seed; elapsed paused time is not replayed as catch-up work. A host may continue animation for other controls. Regression coverage must observe idle pause, active-to-paused phase preservation and resume without a phase jump, with enabled/indeterminate state unchanged.
 
 Native swap-chain creation, back-buffer retrieval, and target-bitmap creation route device-loss HRESULTs through the same shared-generation retirement and full-repaint recovery as presentation failures. Unrelated preparation failures preserve their existing retry policy.
+
+Single-line grapheme movement and unindexed deletion may use locally established ASCII boundaries, with CRLF and uncertain Unicode context retained on the full grapheme path. Native text-input synchronization transfers the exported text buffer into its snapshot instead of copying it again; this does not change ownership, notifications, or secure cache retirement.

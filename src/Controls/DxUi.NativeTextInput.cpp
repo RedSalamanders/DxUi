@@ -108,10 +108,10 @@ void ShutdownNativeTextInputThreadManagerState(NativeTextInputThreadManagerState
     return true;
 }
 
-[[nodiscard]] NativeTextInputState ToNativeTextInputState(const Control& control, const TextInputState& controlState)
+[[nodiscard]] NativeTextInputState ToNativeTextInputState(const Control& control, TextInputState& controlState)
 {
     NativeTextInputState state;
-    state.text                 = controlState.text;
+    state.text.swap(controlState.text);
     state.selectionAnchorIndex = controlState.selectionAnchorIndex;
     state.caretIndex           = controlState.caretIndex;
     state.firstVisibleLine     = controlState.firstVisibleLine;
@@ -1089,6 +1089,29 @@ void ControlHost::SyncNativeTextInputSession(Control* control) noexcept
     }
 }
 
+void ControlHost::NotifyTextInputLayoutChanged(Control* control) noexcept
+{
+    if (! control || control != _nativeTextInputControl || _nativeTextInputControlLifetime.expired() || ! IsControlInTree(_root.get(), control))
+        return;
+    const auto lifetime = _nativeTextInputControlLifetime;
+    const auto session  = _nativeTextInputSessionRevision;
+    wil::com_ptr_nothrow<ITextStoreACP> store;
+    if (_nativeTextInputTsfTextStore)
+        static_cast<void>(_nativeTextInputTsfTextStore.query_to(store.put()));
+#if DXUI_ENABLE_DIAGNOSTICS
+    auto observer = _debugTextStoreLayoutObserver;
+    if (observer && observer.get() != store.get())
+        NotifyTextStoreLayoutChanged(observer.get());
+#endif
+    if (! lifetime.expired() && session == _nativeTextInputSessionRevision && control == _nativeTextInputControl && store)
+        NotifyTextStoreLayoutChanged(store.get());
+}
+#if DXUI_ENABLE_DIAGNOSTICS
+void ControlHost::DebugSetTextStoreLayoutObserverForTest(ITextStoreACP* store) noexcept
+{
+    _debugTextStoreLayoutObserver = store;
+}
+#endif
 bool ControlHost::ScheduleNativeTextStoreDeferredWork(Control* control, UINT_PTR sessionCookie) noexcept
 {
     if (sessionCookie != _nativeTextStoreDispatchCookie || ! control || control != _nativeTextInputControl || _nativeTextInputControlLifetime.expired() ||

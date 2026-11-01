@@ -2625,6 +2625,7 @@ void ControlHost::PublishPreparedContent() noexcept
     if (auto* focused = GetFocusControl())
         SyncTextInput(focused);
     RefreshAccessibilitySnapshot();
+    NotifyTextInputLayoutChanged(_nativeTextInputControl);
 }
 
 bool PageHost::FinishTransition() noexcept

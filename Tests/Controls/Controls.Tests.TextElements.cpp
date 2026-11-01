@@ -53,6 +53,14 @@ void TestTextElementBoundsMalformedAndLongContext()
             cursor = next;
         }
     }
+    const std::wstring longAscii(100000u, L'a');
+    const auto middle = longAscii.size() / 2u;
+    Require(DxUi::StepToPreviousTextElement(longAscii, middle) == middle - 1u && DxUi::StepToNextTextElement(longAscii, middle) == middle + 1u,
+            "long ASCII movement preserves the adjacent boundaries");
+    const auto backward = DxUi::GetTextElementDeletionRange(longAscii, middle, true);
+    const auto forward  = DxUi::GetTextElementDeletionRange(longAscii, middle, false);
+    Require(backward.first == middle - 1u && backward.last == middle && forward.first == middle && forward.last == middle + 1u,
+            "long ASCII deletion uses the same independent neighboring boundaries");
     const std::wstring longElement = L"a" + std::wstring(8192, L'\u0301');
     Require(DxUi::CountTextElements(longElement) == 1 && DxUi::StepToPreviousTextElement(longElement, longElement.size()) == 0,
             "long extender context uses a bounded state machine without recursive lookbehind");

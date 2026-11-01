@@ -5858,6 +5858,7 @@ public:
     void CommitFocusedTextInput() noexcept;
     [[nodiscard]] bool TryReadTextInputState(const Control* control, TextInputState& outState) const noexcept;
     void SyncTextInput(Control* control) noexcept;
+    void NotifyTextInputLayoutChanged(Control* control) noexcept;
     [[nodiscard]] bool HasActiveTextInput() const noexcept;
     [[nodiscard]] HWND GetTextInputHwnd() const noexcept;
     void CaptureMouse(Control* control) noexcept;
@@ -6009,6 +6010,7 @@ public:
     // Hidden harnesses opt in explicitly; pixels are staged before swap-chain presentation.
     [[nodiscard]] bool DebugCaptureBitmap(WindowHostBitmapCapture& out, bool allowHidden) noexcept;
     [[nodiscard]] ITextStoreACP* DebugCreateNativeTextInputTextStoreForTest() noexcept;
+    void DebugSetTextStoreLayoutObserverForTest(ITextStoreACP* store) noexcept;
     [[nodiscard]] bool DebugPostActiveNativeTextStoreWorkForTest() noexcept;
     [[nodiscard]] UINT_PTR DebugGetNativeTextStoreDispatchCookieForTest() const noexcept;
     [[nodiscard]] bool DebugHasPostedNativeTextStoreWorkForTest() const noexcept;
@@ -6303,6 +6305,9 @@ private:
     wil::com_ptr_nothrow<IUnknown> _nativeTextInputTsfPreviousFocusDocumentMgr;
     wil::com_ptr_nothrow<IUnknown> _nativeTextInputTsfContext;
     wil::com_ptr_nothrow<IUnknown> _nativeTextInputTsfTextStore;
+#if DXUI_ENABLE_DIAGNOSTICS
+    wil::com_ptr_nothrow<ITextStoreACP> _debugTextStoreLayoutObserver;
+#endif
     DWORD _nativeTextInputTsfClientId              = 0u;
     bool _nativeTextInputTsfActive                 = false;
     uint64_t _nativeTextInputTsfTransitionRevision = 0u;

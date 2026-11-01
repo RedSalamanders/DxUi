@@ -9098,6 +9098,18 @@ void TestNativeTextInputTextStoreExternalRetainedChangesNotifySink()
                 sink.layoutChangeCount == layoutChangesAfterSelection + 1u,
             "native text store notifies only the layout sink after external retained layout change");
 
+    window.Host().DebugSetTextStoreLayoutObserverForTest(store.get());
+    auto layoutBefore = sink.layoutChangeCount;
+    field->SetBounds(D2D1::RectF(9.0f, 5.0f, 282.0f, 46.0f));
+    Require(sink.layoutChangeCount > layoutBefore, "retained bounds changes notify the active text store layout sink");
+    layoutBefore = sink.layoutChangeCount;
+    field->SetFontRole(FontRole::Title);
+    Require(sink.layoutChangeCount > layoutBefore, "text typography changes notify the active text store layout sink");
+    layoutBefore = sink.layoutChangeCount;
+    bool handled = false;
+    window.Host().HandleMessage(window.Hwnd(), WM_MOVE, 0u, 0, handled);
+    Require(sink.layoutChangeCount > layoutBefore, "window moves notify the active text store layout sink");
+    window.Host().DebugSetTextStoreLayoutObserverForTest(nullptr);
     HRESULT layoutUnadviseResult = E_UNEXPECTED;
     bool layoutCallbackCompleted = false;
     sink.onLayoutChange          = [&](TsLayoutCode, TsViewCookie) noexcept
