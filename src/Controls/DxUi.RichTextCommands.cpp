@@ -1547,6 +1547,11 @@ void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
             const auto& firstBody = Line(opening.end);
             if (! OuterOffset(fenced, opening, markerEnd) || ! OuterOffset(fenced, firstBody, bodyStart) || bodyStart > firstBody.bodyEnd)
                 return;
+            auto marker = markerEnd;
+            while (marker < opening.bodyEnd && Space(text[marker]))
+                ++marker;
+            if (marker == opening.bodyEnd || text[marker] != node.block.fenceMarker)
+                return;
             Add(opening.first, bodyStart, Slice(opening.first, markerEnd));
         }
         else
