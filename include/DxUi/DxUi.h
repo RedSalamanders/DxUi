@@ -3398,6 +3398,9 @@ public:
     // Optional paired delimiters for direct typing; disabled by default.
     void SetAutoPairEnabled(bool enabled) noexcept;
     [[nodiscard]] bool IsAutoPairEnabled() const noexcept;
+    // Optional direct-typing typographic replacements; disabled by default.
+    void SetSmartTypographyEnabled(bool enabled) noexcept;
+    [[nodiscard]] bool IsSmartTypographyEnabled() const noexcept;
     void SetOnLinkEditRequested(std::function<void()> callback);
     bool ToggleFormatting(std::wstring_view marker);
     // Opt-in semantic editing: current CPU analysis is required; commands never

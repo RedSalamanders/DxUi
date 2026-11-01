@@ -288,6 +288,26 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     editor->SetReadOnly(false);
     editor->SetAutoPairEnabled(false);
     editor->SetText(L"");
+    prepare();
+    Check(! editor->IsSmartTypographyEnabled(), "smart typography is disabled by default");
+    editor->SetSmartTypographyEnabled(true);
+    Check(editor->OnChar(host, L'.', 0u) && editor->OnChar(host, L'.', 0u) && editor->OnChar(host, L'.', 0u) && editor->GetText() == L"\u2026" &&
+              editor->Undo() && editor->GetText() == L"..",
+          "rapid ellipsis typing remains one replacement undo even before semantic analysis republishes");
+    editor->SetText(L"");
+    prepare();
+    Check(editor->OnChar(host, L'-', 0u) && editor->OnChar(host, L'-', 0u) && editor->OnChar(host, L'-', 0u) && editor->GetText() == L"\u2014" &&
+              editor->Undo() && editor->GetText() == L"\u2013",
+          "direct dash replacement is atomic and upgrades an en dash to an em dash");
+    editor->SetText(L"`x`");
+    prepare();
+    editor->SetSelection({2u, 2u});
+    Check(editor->OnChar(host, L'"', 0u) && editor->GetText() == L"`x\"`", "smart quotes leave inline code spelling literal");
+    editor->SetText(L"");
+    prepare();
+    Check(editor->OnChar(host, L'"', 0u) && editor->GetText() == L"\u201c", "smart quote opens at the start of prose");
+    editor->SetSmartTypographyEnabled(false);
+    editor->SetText(L"");
     Check(editor->OnChar(host, L'a', 0u) && editor->OnChar(host, L'b', 0u) && editor->OnChar(host, L'c', 0u) && editor->GetText() == L"abc" && editor->Undo() &&
               editor->GetText().empty(),
           "adjacent direct word typing coalesces into one undo");

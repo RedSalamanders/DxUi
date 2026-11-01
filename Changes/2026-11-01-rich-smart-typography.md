@@ -1,0 +1,1 @@
+- Offer default-off smart punctuation replacements with atomic undo and code/composition safeguards.

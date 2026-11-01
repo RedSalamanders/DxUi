@@ -258,6 +258,13 @@ struct RichTextEditor::State
     std::shared_ptr<const std::function<void()>> onFindRequested;
     bool markdownShortcutsEnabled = false;
     bool autoPairEnabled          = false;
+    bool smartTypographyEnabled   = false;
+    struct SmartTypingSite
+    {
+        uint64_t revision{};
+        size_t caret{};
+    };
+    std::optional<SmartTypingSite> smartTypingSite;
     std::shared_ptr<const std::function<void()>> onLinkEditRequested;
     struct HighlightRectangle
     {
@@ -1687,6 +1694,14 @@ void RichTextEditor::SetAutoPairEnabled(bool enabled) noexcept
 bool RichTextEditor::IsAutoPairEnabled() const noexcept
 {
     return _state->autoPairEnabled;
+}
+void RichTextEditor::SetSmartTypographyEnabled(bool enabled) noexcept
+{
+    _state->smartTypographyEnabled = enabled;
+}
+bool RichTextEditor::IsSmartTypographyEnabled() const noexcept
+{
+    return _state->smartTypographyEnabled;
 }
 void RichTextEditor::SetOnLinkEditRequested(std::function<void()> callback)
 {
@@ -4194,6 +4209,87 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                 const bool changed = _state->document.ReplaceImpl(selection.Start(), selection.End(), replacement, after, true);
                 Changed(changed);
                 return true;
+            }
+        }
+        if (_state->smartTypographyEnabled && ! _state->sourceEditing && _state->mode == RichText::ViewMode::Rich && text.size() == 1u &&
+            selection.Start() == selection.End() && (text[0] == L'.' || text[0] == L'-' || text[0] == L'\'' || text[0] == L'"'))
+        {
+            const bool focused     = host.GetFocusControl() == this;
+            const auto composition = focused ? host.GetNativeTextCompositionActive(this) : std::optional<bool>{false};
+            bool permitted         = (! focused || ! host.HasActiveNativeTextInputSession() || composition.has_value()) && ! composition.value_or(false);
+            if (permitted && _state->markdownRendering)
+            {
+                const auto syntax = GetMarkdownSyntax();
+                permitted = syntax != nullptr ||
+                            (_state->smartTypingSite && _state->smartTypingSite->revision == Revision() && _state->smartTypingSite->caret == selection.caret);
+                if (syntax)
+                {
+                    for (const auto& node : syntax->Nodes())
+                        if ((node.block.kind == RichText::MarkdownBlockKind::FencedCode || node.block.kind == RichText::MarkdownBlockKind::IndentedCode ||
+                             node.block.kind == RichText::MarkdownBlockKind::HtmlBlock || node.block.kind == RichText::MarkdownBlockKind::FrontMatter) &&
+                            node.block.source.first <= selection.caret &&
+                            (selection.caret < node.block.source.last ||
+                             (selection.caret == node.block.source.last && selection.caret == syntax->Source().size() && ! node.block.closed)))
+                            permitted = false;
+                    for (const auto& node : syntax->Inlines())
+                        if ((node.kind == RichText::MarkdownInlineKind::Code || node.kind == RichText::MarkdownInlineKind::Html ||
+                             node.kind == RichText::MarkdownInlineKind::Math || node.kind == RichText::MarkdownInlineKind::Image ||
+                             node.kind == RichText::MarkdownInlineKind::Link) &&
+                            node.source.first < selection.caret && selection.caret < node.source.last)
+                            permitted = false;
+                }
+            }
+            if (permitted)
+            {
+                const auto source = Snapshot();
+                auto first        = selection.caret;
+                wchar_t replacement{};
+                if (text[0] == L'.' && first >= 2u && source.IsBoundary(first - 2u) && source.Slice(first - 2u, first) == L"..")
+                {
+                    first -= 2u;
+                    replacement = L'\u2026';
+                }
+                else if (text[0] == L'-' && first && source.IsBoundary(first - 1u))
+                {
+                    const auto previous = source.Slice(first - 1u, first);
+                    if (previous == L"-" || previous == L"\u2013")
+                    {
+                        --first;
+                        replacement = previous == L"-" ? L'\u2013' : L'\u2014';
+                    }
+                }
+                else if (text[0] == L'\'' || text[0] == L'"')
+                {
+                    bool opening = first == 0u;
+                    if (first && source.IsBoundary(first - 1u))
+                    {
+                        const auto previous = source.Slice(first - 1u, first);
+                        WORD type{};
+                        opening = previous[0] == L'(' || previous[0] == L'[' || previous[0] == L'{' ||
+                                  (GetStringTypeW(CT_CTYPE1, previous.data(), 1, &type) && (type & C1_SPACE) != 0u);
+                        if (previous[0] == L'\\')
+                            permitted = false;
+                    }
+                    replacement = text[0] == L'\'' ? (opening ? L'\u2018' : L'\u2019') : (opening ? L'\u201c' : L'\u201d');
+                }
+                if (permitted && replacement)
+                {
+                    _state->typingRun.reset();
+                    const auto end          = first + 1u;
+                    const bool changed      = _state->document.ReplaceImpl(first, selection.caret, std::wstring_view(&replacement, 1u), {end, end}, true);
+                    _state->smartTypingSite = changed ? std::optional{State::SmartTypingSite{Revision(), end}} : std::nullopt;
+                    Changed(changed);
+                    return true;
+                }
+                if (permitted)
+                {
+                    _state->typingRun.reset();
+                    const auto end          = selection.caret + text.size();
+                    const bool changed      = _state->document.ReplaceImpl(selection.caret, selection.caret, text, {end, end}, true);
+                    _state->smartTypingSite = changed ? std::optional{State::SmartTypingSite{Revision(), end}} : std::nullopt;
+                    Changed(changed);
+                    return true;
+                }
             }
         }
         const bool word = IsHistoryWordElement(text);

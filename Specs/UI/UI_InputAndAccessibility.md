@@ -1262,6 +1262,11 @@ brackets, braces, quotes, asterisks or underscores as one undo transaction,
 placing the caret between them or preserving the direction of a wrapped source
 selection. Native composition is never paired. Empty table-cell scaffolds use
 their structural cell-edit transaction and retain the interior caret.
+Default-off smart typography converts three periods to an ellipsis, two and
+three hyphens to en and em dashes, and direct straight quotes to contextual
+curly quotes. Each replacement is a single undo transaction. It declines code,
+opaque inline syntax, active source-region editing and native composition;
+pairing takes precedence when both policies are enabled.
 Rich-view deletion also groups adjacent single plain-source erasures; structural
 wrapper removal, transformed tokens and disjoint fragments remain separate
 transactions so their ownership is preserved.
