@@ -1333,12 +1333,11 @@ class MarkdownInlines
             const auto content = first + width;
             if (content < text_.size() && (! dollars || display || ! SourceSpace(text_[content])))
             {
-                bool endedLine    = false;
-                auto nextAngleEnd = text_.find(L'>', content);
+                bool endedLine     = false;
+                auto nextAngleEnd  = std::wstring::npos;
+                bool angleEndKnown = false;
                 for (auto end = content; end < std::min(text_.size(), content + MathMaximumSourceUnits + 1u); ++end)
                 {
-                    if (nextAngleEnd != std::wstring::npos && end > nextAngleEnd)
-                        nextAngleEnd = text_.find(L'>', end);
                     if (! display && text_[end] == L'\n')
                     {
                         endedLine = true;
@@ -1346,6 +1345,11 @@ class MarkdownInlines
                     }
                     if (text_[end] == L'`' || text_[end] == L'<')
                     {
+                        if (text_[end] == L'<' && (! angleEndKnown || (nextAngleEnd != std::wstring::npos && end > nextAngleEnd)))
+                        {
+                            nextAngleEnd  = text_.find(L'>', end);
+                            angleEndKnown = true;
+                        }
                         std::size_t slashes{};
                         for (auto index = end; index > content && text_[index - 1u] == L'\\'; --index)
                             ++slashes;
