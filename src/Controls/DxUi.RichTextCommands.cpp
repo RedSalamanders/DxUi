@@ -168,8 +168,16 @@ static std::optional<size_t> FindInlineInsertionSite(const MarkdownSyntax& synta
     }
     if (first == last)
         for (const auto& node : syntax.Inlines())
-            if ((node.kind == MarkdownInlineKind::Code || node.kind == MarkdownInlineKind::Html) && node.source.first < first && first < node.source.last)
+        {
+            if (node.kind == MarkdownInlineKind::Text || node.source.first >= first || node.source.last <= first)
+                continue;
+            const bool style =
+                node.kind == MarkdownInlineKind::Strong || node.kind == MarkdownInlineKind::Emphasis || node.kind == MarkdownInlineKind::Strikethrough;
+            const size_t delimiter = node.kind == MarkdownInlineKind::Emphasis ? 1u : 2u;
+            if (! style || node.source.last - node.source.first < delimiter * 2u || first < node.source.first + delimiter ||
+                first > node.source.last - delimiter)
                 return std::nullopt;
+        }
     return leaf;
 }
 bool CanInsertMath(const MarkdownSyntax& syntax, Selection selection, std::wstring_view requested, bool display) noexcept
@@ -215,18 +223,6 @@ bool CanInsertEscapedText(const MarkdownSyntax& syntax, Selection selection, std
         return false;
     const auto text  = syntax.Source();
     const auto first = selection.Start(), last = selection.End();
-    if (first == last)
-        for (const auto& node : syntax.Inlines())
-        {
-            if (node.kind == MarkdownInlineKind::Text || node.source.first >= first || node.source.last <= first)
-                continue;
-            const bool style =
-                node.kind == MarkdownInlineKind::Strong || node.kind == MarkdownInlineKind::Emphasis || node.kind == MarkdownInlineKind::Strikethrough;
-            const size_t delimiter = node.kind == MarkdownInlineKind::Emphasis ? 1u : 2u;
-            if (! style || node.source.last - node.source.first < delimiter * 2u || first < node.source.first + delimiter ||
-                first > node.source.last - delimiter)
-                return false;
-        }
     const auto payload = first == last ? requested : text.substr(first, last - first);
     if (payload.empty() || ! IsValidUtf16(payload) || payload.find_first_of(L"\r\n") != payload.npos || payload.size() > Document::MaximumUnits)
         return false;

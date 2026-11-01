@@ -334,6 +334,12 @@ inline void ListsAndHeadings()
             const auto mathSyntax = Parse(mathState, profile);
             Check(CanInsertMath(*mathSyntax, {0u, 5u}, {}, false) && ! CanInsertMath(*mathSyntax, {0u, 0u}, {}, false),
                   "math insertion query shares planner admission for selected and empty payloads");
+            Document opaqueMath(L"[link](https://example.invalid)");
+            const auto opaqueMathSyntax = Parse(opaqueMath, profile);
+            Check(! CanInsertMath(*opaqueMathSyntax, {2u, 2u}, L"x", false), "math insertion refuses an opaque link interior");
+            request.text = L"x";
+            Unavailable(L"[link](https://example.invalid)", {2u, 2u}, request, profile);
+            request.text = {};
             Exact(L"alpha", {0u, 5u}, request, L"\\(alpha\\)", Selection{2u, 7u}, profile);
             request.mathDisplay = true;
             request.text        = L"x";
