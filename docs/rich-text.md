@@ -1446,3 +1446,9 @@ vertical lane (on the left for RTL) and enables thumb dragging and page clicks.
 It defaults to false for existing layouts. Wheel input bubbles at either edge.
 Geometry getters and drawing only read the offset; caret reveal runs during
 owner preparation.
+
+The native HTML presentation also hides complete `<!-- ... -->` comments,
+without interpreting their bodies, and accepts `kbd` as monospace text and `ins`
+as underlined inserted text. Source view, source selection and clipboard copy
+retain every original character. Other unsupported HTML remains literal for the
+complete leaf; no DOM or script execution is involved.

@@ -259,10 +259,27 @@ inline void NativeHtmlAndLinkPresentation()
                                L"one <a href='x' href='y'>x</a>\n",
                                L"one <a href=x>x</a>\n",
                                L"one <b>x\n",
-                               L"one <!-- c -->x\n",
                                L"one <a href='x'>[nested](y)</a>\n",
                                L"[<a href='x'>nested</a>](y)\n"})
         Check(Build(invalid)->Map().Display() == invalid, "malformed/active/nested-anchor HTML is literal atomically");
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+    {
+        const auto comments = Build(L"one <!-- <b>inert &amp; comment</b> -->x\n", profile);
+        Check(comments->Map().Display() == L"one x\n" && comments->Map().DisplayRanges({4u, comments->Map().Source().find(L"-->") + 3u}).empty(),
+              "HTML comment contents are hidden without interpreting nested tags or entities");
+        const auto aliases = Build(L"one <kbd>x</kbd> <ins>y</ins>\n", profile);
+        Check(aliases->Map().Display() == L"one x y\n", "keyboard and inserted-text aliases render their source text");
+        const auto flags = [&](size_t at)
+        {
+            for (const auto& run : aliases->Runs())
+                if (run.start <= at && at < run.start + run.length)
+                    return run.flags;
+            return 0u;
+        };
+        Check(flags(4u) == Code && flags(6u) == Underline, "keyboard and inserted aliases retain monospace and underline styles");
+        CheckGraph(*comments);
+        CheckGraph(*aliases);
+    }
     std::wstring deep = L"one ";
     for (unsigned i = 0u; i < 33u; ++i)
         deep += L"<b>";

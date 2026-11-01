@@ -25,7 +25,10 @@ enum class NativeHtmlKind
     H4,
     H5,
     H6,
-    Pre
+    Pre,
+    Kbd,
+    Ins,
+    Comment
 };
 inline bool HtmlSpace(wchar_t value) noexcept
 {
@@ -47,10 +50,12 @@ inline unsigned HtmlFlags(NativeHtmlKind kind) noexcept
         case NativeHtmlKind::Strong: return Bold;
         case NativeHtmlKind::I:
         case NativeHtmlKind::Em: return Italic;
-        case NativeHtmlKind::U: return Underline;
+        case NativeHtmlKind::U:
+        case NativeHtmlKind::Ins: return Underline;
         case NativeHtmlKind::S:
         case NativeHtmlKind::Del: return Strike;
         case NativeHtmlKind::Code:
+        case NativeHtmlKind::Kbd:
         case NativeHtmlKind::Pre: return Code;
         case NativeHtmlKind::A: return Link;
         case ::DxUi::RichText::Detail::NativeHtmlKind::Br:
@@ -63,6 +68,7 @@ inline unsigned HtmlFlags(NativeHtmlKind kind) noexcept
         case ::DxUi::RichText::Detail::NativeHtmlKind::H6:
         case ::DxUi::RichText::Detail::NativeHtmlKind::P:
         case ::DxUi::RichText::Detail::NativeHtmlKind::Span:
+        case NativeHtmlKind::Comment:
         default: return 0u;
     }
 }
@@ -72,7 +78,7 @@ inline unsigned HtmlHeading(NativeHtmlKind kind) noexcept
 }
 inline bool HtmlBlockWrapper(NativeHtmlKind kind) noexcept
 {
-    return kind >= NativeHtmlKind::P;
+    return kind >= NativeHtmlKind::P && kind <= NativeHtmlKind::Pre;
 }
 inline std::wstring DecodeHtmlAttribute(std::wstring_view input)
 {
@@ -121,8 +127,13 @@ struct NativeHtmlTag
 };
 inline bool ParseNativeHtmlTag(std::wstring_view value, NativeHtmlTag& tag)
 {
-    constexpr std::wstring_view names[] = {L"b",  L"strong", L"i",   L"em", L"u",  L"s",  L"del", L"code", L"span", L"a",
-                                           L"br", L"p",      L"div", L"h1", L"h2", L"h3", L"h4",  L"h5",   L"h6",   L"pre"};
+    if (value.starts_with(L"<!--") && value.ends_with(L"-->") && value.find(L"-->", 4u) == value.size() - 3u)
+    {
+        tag.kind = NativeHtmlKind::Comment;
+        return true;
+    }
+    constexpr std::wstring_view names[] = {L"b", L"strong", L"i",  L"em", L"u",  L"s",  L"del", L"code", L"span", L"a",   L"br",
+                                           L"p", L"div",    L"h1", L"h2", L"h3", L"h4", L"h5",  L"h6",   L"pre",  L"kbd", L"ins"};
     if (value.size() < 3u || value.front() != L'<' || value.back() != L'>')
         return false;
     std::size_t at = 1u;
@@ -219,7 +230,7 @@ struct NativeHtmlPlan
         for (std::size_t index = 0u; index < tags.size(); ++index)
         {
             auto& tag = tags[index];
-            if (tag.kind == NativeHtmlKind::Br)
+            if (tag.kind == NativeHtmlKind::Br || tag.kind == NativeHtmlKind::Comment)
             {
                 if (tag.closing)
                     return false;
@@ -331,7 +342,18 @@ struct NativeHtmlPlan
                 continue;
             }
             NativeHtmlTag tag;
-            tag.first     = at;
+            tag.first = at;
+            if (std::wstring_view(input.text).substr(at).starts_with(L"<!--"))
+            {
+                const auto close = input.text.find(L"-->", at + 4u);
+                if (close == input.text.npos || tags.size() == MaximumTags)
+                    return;
+                tag.last = at = close + 3u;
+                tag.source    = {input.units[tag.first].source.first, input.units[tag.last - 1u].source.last};
+                tag.kind      = NativeHtmlKind::Comment;
+                tags.push_back(tag);
+                continue;
+            }
             wchar_t quote = 0;
             for (++at; at < input.text.size(); ++at)
             {
