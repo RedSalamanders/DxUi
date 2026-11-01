@@ -35,7 +35,8 @@ enum class SemanticRole
     FootnoteBacklink,
     Diagram,
     Math,
-    Disclosure
+    Disclosure,
+    Callout
 };
 struct SemanticElement
 {
@@ -121,6 +122,7 @@ public:
     {
         return *map_;
     }
+    bool HasCallouts() const noexcept { return hasCallouts_; }
     std::span<const SemanticElement> Elements() const noexcept
     {
         return elements_;
@@ -166,6 +168,7 @@ private:
     std::shared_ptr<const MarkdownSyntax> syntax_;
     std::shared_ptr<const AccessibilityLabels> labels_;
     std::uint64_t identity_{};
+    bool hasCallouts_{};
     std::shared_ptr<const SourceDisplayMap> map_;
     std::vector<SemanticElement> elements_;
     std::vector<SemanticParagraph> paragraphs_;

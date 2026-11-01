@@ -1722,7 +1722,7 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
     };
     // Count the actual allocation schedule, including native parsing, captions,
     // normalized-to-raw provenance, diagnostic publication and footer ownership.
-    const std::array<std::wstring_view, 15u> sources = {SemanticDiagramTests::scenarios[5u].source,
+    const std::array<std::wstring_view, 17u> sources = {SemanticDiagramTests::scenarios[5u].source,
                                                         L"main[^n]\r\n\r\n[^n]: note\r\n    > ```mermaid\r\n    > graph LR;A{wide}-->|yes|B\r\n    > ```\r\n",
                                                         SemanticDiagramTests::scenarios[11u].source,
                                                         SemanticDiagramTests::scenarios[8u].source,
@@ -1736,7 +1736,9 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
                                                         L"```latex\n\\frac{1}{2}\n",
                                                         L"<p>x<sup><b>hello</b></sup> y<sub>world</sub></p>\n",
                                                         L"x<sup>![alt](image.png)</sup>\n",
-                                                        L"<details open>\n<summary><b>More</b></summary>\nBody text\n</details>\n"};
+                                                        L"<details open>\n<summary><b>More</b></summary>\nBody text\n</details>\n",
+                                                        L"> [!NOTE]\n> Body **bold**\n",
+                                                        L"> [!tip]- Closed title\n> Hidden **body**\n"};
     const auto observe                               = [](auto&& operation)
     {
         const auto oldCounting = countAllocations;

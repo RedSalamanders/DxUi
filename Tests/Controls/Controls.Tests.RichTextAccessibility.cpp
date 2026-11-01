@@ -2631,6 +2631,50 @@ void SemanticDisclosure(bool embedded)
     Require(edited && edited->Map().Display().find(L"Replacement body") == std::wstring::npos && fixture.editor->CanUndo(),
             "an independent source edit keeps surviving disclosure presentation and ordinary history");
 }
+void SemanticCallouts(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    const std::wstring source = L"> [!tip]- Closed title\n> hidden **body**\n";
+    fixture.editor->SetText(source);
+    fixture.editor->SetSelection({2u, 2u});
+    fixture.Publish();
+    auto root = fixture.Simple();
+    auto group = FindNamedSemanticPart(*root.get(), L"Closed title");
+    wil::unique_variant role;
+    Require(group && SUCCEEDED(group->GetPropertyValue(UIA_ControlTypePropertyId, &role)) && role.vt == VT_I4 && role.lVal == UIA_GroupControlTypeId,
+            "callout is a named semantic group");
+    auto summary = FindNamedSemanticPart(*group.get(), L"Closed title");
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    Require(summary && SUCCEEDED(summary->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put())) && pattern,
+            "foldable callout has a distinct summary action");
+    wil::com_ptr_nothrow<IExpandCollapseProvider> expansion;
+    Require(SUCCEEDED(pattern.query_to(expansion.put())), "callout summary offers ExpandCollapse");
+    ExpandCollapseState state{};
+    RequireSucceeded(expansion->get_ExpandCollapseState(&state), "read callout state");
+    Require(state == ExpandCollapseState_Collapsed && fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls)->Map().Display().find(L"hidden") == std::wstring::npos,
+            "minus callout starts collapsed");
+    const auto revision = fixture.editor->Revision();
+    RequireSucceeded(expansion->Expand(), "expand callout");
+    fixture.Publish();
+    const auto opened = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+    Require(opened && opened->Map().Display().find(L"hidden body") != std::wstring::npos && fixture.editor->GetText() == source &&
+                fixture.editor->Revision() == revision && fixture.editor->GetSelection() == Selection{2u, 2u} && ! fixture.editor->CanUndo(),
+            "callout expansion reveals rich content without changing source or history");
+    group = FindNamedSemanticPart(*root.get(), L"Closed title");
+    summary = FindNamedSemanticPart(*group.get(), L"Closed title");
+    pattern.reset(); expansion.reset();
+    Require(summary && SUCCEEDED(summary->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put())) && pattern && SUCCEEDED(pattern.query_to(expansion.put())),
+            "expanded callout exposes a fresh summary provider");
+    RequireSucceeded(expansion->Collapse(), "collapse callout");
+    fixture.Publish();
+    Require(fixture.editor->OnKeyDown(*fixture.controls, VK_TAB, MK_CONTROL) && fixture.editor->OnKeyDown(*fixture.controls, VK_SPACE, 0u),
+            "callout supports keyboard navigation and expansion");
+    fixture.Publish();
+    Require(fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls)->Map().Display().find(L"hidden body") != std::wstring::npos &&
+                fixture.editor->GetText() == source && ! fixture.editor->CanUndo(), "keyboard callout action retains source and history");
+}
 #if DXUI_ENABLE_DIAGNOSTICS
 void SemanticHtmlScriptFallback(bool embedded)
 {
@@ -3432,6 +3476,7 @@ void TestRichTextAccessibilityWindowObjectSourceEditing()
     SemanticInlineLinkImageSourceEditing(false);
     SemanticWikiActivation(false);
     SemanticDisclosure(false);
+    SemanticCallouts(false);
 #if DXUI_ENABLE_DIAGNOSTICS
     SemanticHtmlScriptFallback(false);
 #endif
@@ -3443,6 +3488,7 @@ void TestRichTextAccessibilityEmbeddedObjectSourceEditing()
     EmbeddedCase(SemanticInlineLinkImageSourceEditing);
     EmbeddedCase(SemanticWikiActivation);
     EmbeddedCase(SemanticDisclosure);
+    EmbeddedCase(SemanticCallouts);
 #if DXUI_ENABLE_DIAGNOSTICS
     EmbeddedCase(SemanticHtmlScriptFallback);
 #endif

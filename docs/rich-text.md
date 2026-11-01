@@ -1643,6 +1643,15 @@ ordinary nested text styles and links; conflicting nested scripts and embedded
 images or math remain literal. Color fonts require a compatible color-glyph
 target; unavailable support retains the entire affected HTML leaf as source.
 
+RichMarkdown recognizes GitHub-style quote headings such as `> [!NOTE]` and
+Obsidian-style `> [!tip]- Title` as callouts. Fourteen documented kinds use a
+native bold heading, icon and theme-accent bar; `+` and `-` enable an initially
+open or closed disclosure. Click the title, use Ctrl+Tab then Space, or use UIA
+ExpandCollapse to change a foldable callout. Only plain titles are admitted;
+unknown kinds, malformed headings and formatted titles remain ordinary quotes.
+Source, selection and undo history are preserved. CommonMark and GFM do not
+change their quote behavior.
+
 A complete HTML block with `<details>` (or `<details open>`) and a nonempty
 first-child `<summary>` presents a native disclosure. Click the summary, use
 Ctrl+Tab then Space, or use UIA ExpandCollapse to reveal or hide its body.

@@ -248,7 +248,7 @@ struct SemanticBuilder::Preparation
     struct Visit
     {
         std::size_t node{}, parent = MarkdownNoNode, element = MarkdownNoNode, paragraph = MarkdownNoNode;
-        std::size_t table = MarkdownNoNode, row{}, column{}, columns{};
+        std::size_t table = MarkdownNoNode, row{}, column{}, columns{}, skipUntil{};
         unsigned flags{}, heading{}, indent{};
         bool inlineNode{}, close{}, footerRoot{}, backlink{}, exactSource{};
     };
@@ -330,6 +330,55 @@ struct SemanticBuilder::Preparation
     SoftBreakPolicy softBreakPolicy;
     std::size_t nextFooter{};
 
+    struct CalloutHeader
+    {
+        MarkdownRange marker, label;
+        std::size_t paragraph{}, skipUntil{};
+        bool foldable{}, expanded{};
+    };
+    std::optional<CalloutHeader> FindCallout(const MarkdownNode& quote) const
+    {
+        if (document->syntax_->Profile() != MarkdownProfile::RichMarkdown || quote.block.kind != MarkdownBlockKind::BlockQuote ||
+            quote.firstChild == MarkdownNoNode) return std::nullopt;
+        const auto& nodes = document->syntax_->Nodes();
+        const auto& paragraph = nodes[quote.firstChild];
+        if (paragraph.block.kind != MarkdownBlockKind::Paragraph) return std::nullopt;
+        const auto source = document->syntax_->Source();
+        const auto first = paragraph.block.content.first;
+        auto end = source.find_first_of(L"\r\n", first);
+        if (end == source.npos || end > paragraph.block.source.last) end = paragraph.block.source.last;
+        if (end <= first || end - first > 512u) return std::nullopt;
+        auto line = source.substr(first, end - first);
+        if (! line.starts_with(L"[!")) return std::nullopt;
+        const auto close = line.find(L']', 2u);
+        if (close == line.npos) return std::nullopt;
+        const auto kind = line.substr(2u, close - 2u);
+        constexpr std::wstring_view kinds[] = {L"note", L"tip", L"important", L"warning", L"caution", L"info", L"todo", L"success",
+                                               L"question", L"failure", L"danger", L"bug", L"example", L"quote"};
+        if (std::ranges::none_of(kinds, [&](auto value) { return Detail::HtmlName(kind, value); })) return std::nullopt;
+        auto cursor = close + 1u;
+        bool foldable = false, expanded = true;
+        if (cursor < line.size() && (line[cursor] == L'+' || line[cursor] == L'-'))
+        {
+            foldable = true;
+            expanded = line[cursor++] == L'+';
+        }
+        if (cursor < line.size() && line[cursor] != L' ' && line[cursor] != L'\t') return std::nullopt;
+        while (cursor < line.size() && (line[cursor] == L' ' || line[cursor] == L'\t')) ++cursor;
+        auto titleEnd = line.size();
+        while (titleEnd > cursor && (line[titleEnd - 1u] == L' ' || line[titleEnd - 1u] == L'\t')) --titleEnd;
+        const auto label = cursor < titleEnd ? MarkdownRange{first + cursor, first + titleEnd} : MarkdownRange{first + 2u, first + close};
+        const auto title = source.substr(label.first, label.last - label.first);
+        if (title.size() > 256u || title.find_first_of(L"*_`[]<>\\~^$=+") != title.npos) return std::nullopt;
+        auto skip = end;
+        if (skip < source.size() && source[skip] == L'\r') ++skip;
+        if (skip < source.size() && source[skip] == L'\n') ++skip;
+        // Never hide the leading part of a cross-line inline object/style.
+        const auto& inlines = document->syntax_->Inlines();
+        for (auto item = paragraph.firstInline; item != MarkdownNoNode; item = inlines[item].nextSibling)
+            if (inlines[item].source.first < skip && inlines[item].source.last > skip) return std::nullopt;
+        return CalloutHeader{{first, end}, label, quote.firstChild, skip, foldable, expanded};
+    }
     std::size_t Footer(std::size_t node) const noexcept
     {
         return footerByNode.empty() ? MarkdownNoNode : footerByNode[node];
@@ -455,6 +504,7 @@ struct SemanticBuilder::Preparation
             case SemanticRole::Link:
             case SemanticRole::Disclosure: element.name.assign(output.text, element.display.first, element.display.last - element.display.first); break;
             case ::DxUi::RichText::SemanticRole::Diagram:
+            case ::DxUi::RichText::SemanticRole::Callout:
             case ::DxUi::RichText::SemanticRole::Document:
             case ::DxUi::RichText::SemanticRole::Footnote:
             case ::DxUi::RichText::SemanticRole::FootnoteBacklink:
@@ -627,6 +677,8 @@ struct SemanticBuilder::Preparation
             sibling.node = node.nextSibling;
             visits.push_back(sibling);
         }
+        if (node.source.last <= visit.skipUntil)
+            return;
         auto markdownFlags = visit.flags;
         switch (node.kind)
         {
@@ -1452,7 +1504,9 @@ struct SemanticBuilder::Preparation
         // reference order. Unused/duplicate definitions stay literal in place.
         if (Footer(visit.node) != MarkdownNoNode && ! visit.footerRoot)
             return;
-        visit.element = Element(visit.footerRoot ? SemanticRole::Footnote : BlockRole(node.block.kind), node.block.source, visit.parent, node.identity);
+        const auto callout = FindCallout(node);
+        visit.element = Element(visit.footerRoot ? SemanticRole::Footnote : callout ? SemanticRole::Callout : BlockRole(node.block.kind),
+                                node.block.source, visit.parent, node.identity);
         document->elements_[visit.element].syntaxNode  = visit.node;
         document->elements_[visit.element].heading     = node.block.heading;
         document->elements_[visit.element].alignment   = node.alignment;
@@ -1540,6 +1594,30 @@ struct SemanticBuilder::Preparation
             document->paragraphs_[paragraph].markerOwner  = visit.node;
             output.Generated(L"\n", node.block.content.first);
         }
+        bool calloutExpanded = true;
+        if (callout)
+        {
+            document->hasCallouts_ = true;
+            const auto states = Detail::SemanticExtensionAccess::Disclosures(*document);
+            const auto found = std::lower_bound(states.begin(), states.end(), node.identity,
+                                                [](const auto& value, auto key) { return value.identity < key; });
+            calloutExpanded = ! callout->foldable || (found == states.end() || found->identity != node.identity ? callout->expanded : found->expanded);
+            const auto role = callout->foldable ? SemanticRole::Disclosure : SemanticRole::Paragraph;
+            const auto header = Element(role, callout->marker, visit.element, node.identity);
+            document->elements_[header].syntaxNode = visit.node;
+            document->elements_[header].disclosureExpanded = calloutExpanded;
+            auto headingVisit = visit;
+            headingVisit.node = callout->paragraph;
+            const auto paragraph = Paragraph(headingVisit, header);
+            if (callout->foldable) output.Generated(calloutExpanded ? L"\u25be " : L"\u25b8 ", callout->marker.first, Bold, 0u);
+            output.Generated(L"! ", callout->marker.first, Bold, 0u);
+            output.Emit(syntax.Slice(callout->label), callout->label, DisplaySpanKind::Source, Bold, 0u);
+            document->paragraphs_[paragraph].display.last = output.text.size();
+            CloseElement(header);
+            document->elements_[header].name.assign(syntax.Slice(callout->label));
+            document->elements_[visit.element].name.assign(syntax.Slice(callout->label));
+            output.Generated(L"\n", callout->marker.last, visit.flags, 0u);
+        }
         auto close  = visit;
         close.close = true;
         if (visit.footerRoot && FirstVisibleChild(nodes, node) == MarkdownNoNode)
@@ -1556,10 +1634,13 @@ struct SemanticBuilder::Preparation
             return;
         }
         visits.push_back(close);
-        if ((! Leaf(node.block.kind) || visit.footerRoot) && node.firstChild != MarkdownNoNode)
+        if ((! Leaf(node.block.kind) || visit.footerRoot) && node.firstChild != MarkdownNoNode && (! callout || calloutExpanded))
         {
             auto child       = visit;
-            child.node       = node.firstChild;
+            child.node       = callout && nodes[node.firstChild].block.source.last <= callout->skipUntil
+                                   ? nodes[node.firstChild].nextSibling : node.firstChild;
+            if (child.node == MarkdownNoNode) return;
+            if (callout) child.skipUntil = callout->skipUntil;
             child.parent     = visit.element;
             child.column     = 0u;
             child.footerRoot = false;

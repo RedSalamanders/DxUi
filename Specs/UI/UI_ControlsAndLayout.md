@@ -1611,6 +1611,19 @@ part of retained layout/reuse keys and require owner preparation before drawing.
 | details, summary | A complete HTML block with one outer `details`, optional bare `open`, and one nonempty first-child `summary` is a bounded disclosure. The summary accepts native inline text styles but not links or images; the body accepts the ordinary inline native HTML subset and no nested block wrappers or disclosures. A summary click, Ctrl+Tab then Space, or UIA ExpandCollapse changes editor-owned view state without changing source, selection, revision, or history. Closed bodies remain in exact source and Source view. Override state is bounded to 4,096 block identities, follows surviving incremental identities, and is retired on full source replacement. Malformed, empty-summary, unknown-attribute and other unsupported forms retain the complete literal leaf. |
 | `<!-- ... -->` | Complete comments are hidden; their bodies are never scanned as tags, Markdown or entities. Their exact source remains available in Source view and raw ACPs. |
 
+RichMarkdown additionally recognizes a block quote beginning with a standalone
+`[!KIND]` line as a callout. Supported case-insensitive kinds are note, tip,
+important, warning, caution, info, todo, success, question, failure, danger, bug,
+example and quote. A plain authored title may follow the marker; `+` or `-`
+immediately after `]` makes the callout initially expanded or collapsed.
+Titles are at most 256 UTF-16 units and the heading line at most 512; unsupported
+kinds, formatted titles and malformed headers remain ordinary quotes. The native
+view shows an icon, bold title and theme-accent bar, using text ink in high
+contrast. Foldable titles use the same mouse, keyboard and UIA disclosure action
+and bounded per-view state as HTML details. The original marker, quote prefixes,
+body, selection and history remain authoritative. CommonMark/GFM profiles do not
+apply this extension.
+
 One leaf permits at most 4,096 tags and 32 simultaneous opening tags. Unknown
 tags, declarations, attributes (including class/style/events), malformed,
 crossed or unclosed tags, depth/tag overflow, overlapping Markdown/native anchors

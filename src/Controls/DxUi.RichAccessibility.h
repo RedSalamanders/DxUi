@@ -266,7 +266,7 @@ public:
                                   : element.role == ListItem                                                                      ? UIA_ListItemControlTypeId
                                   : element.role == Row                                                                           ? UIA_DataItemControlTypeId
                                   : element.role == Cell && element.tableHeader                                                   ? UIA_HeaderItemControlTypeId
-                                  : element.role == Quote || element.role == Metadata || element.role == Footnote                 ? UIA_GroupControlTypeId
+                                  : element.role == Quote || element.role == Callout || element.role == Metadata || element.role == Footnote                 ? UIA_GroupControlTypeId
                                   : element.role == Rule                                                                          ? UIA_SeparatorControlTypeId
                                                                                                                                   : UIA_TextControlTypeId;
                 *result         = VariantFromInt(type);

@@ -1343,7 +1343,8 @@ struct PreparedSemanticGeometry::Preparation
                 break;
             }
             const auto& element = next.document->Elements()[surfaceOwner];
-            if (element.role == SemanticRole::Quote || (element.tableHeader && next.options.markdownPresentation == MarkdownPresentationStyle::Subtle))
+            if (element.role == SemanticRole::Quote || element.role == SemanticRole::Callout ||
+                (element.tableHeader && next.options.markdownPresentation == MarkdownPresentationStyle::Subtle))
             {
                 box->authoredColorSurfaceKnown = false;
                 break;
@@ -3016,7 +3017,8 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                                     float imageOpacity,
                                     const LinkDrawing* links,
                                     ID2D1Brush* quoteFill,
-                                    const DiagramColorContext* diagramColors) const
+                                    const DiagramColorContext* diagramColors,
+                                    ID2D1Brush* calloutAccent) const
 {
     const auto& state = Current();
     if (! target || ! text || ! decoration || ! std::isfinite(top) || ! std::isfinite(bottom) || top > bottom || ! std::isfinite(imageOpacity) ||
@@ -3042,7 +3044,7 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                                  state.document->Syntax()->Nodes()[nodeIndex].block.kind == MarkdownBlockKind::IndentedCode);
         const bool tableHeader =
             elements[i].role == SemanticRole::Cell && elements[i].tableHeader && state.options.markdownPresentation == MarkdownPresentationStyle::Subtle;
-        if ((elements[i].role == SemanticRole::Quote || styledCode || tableHeader) && quoteFill)
+        if ((elements[i].role == SemanticRole::Quote || elements[i].role == SemanticRole::Callout || styledCode || tableHeader) && quoteFill)
             target->FillRectangle(rectangle, quoteFill);
         const auto copy = styledCode && state.options.codeCopyAction
                               ? CodeCopyBounds(rectangle, state.options.readingDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT)
@@ -3074,10 +3076,11 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
             return;
         if (elements[i].role == SemanticRole::Cell || elements[i].role == SemanticRole::Code || elements[i].role == SemanticRole::Image)
             target->DrawRectangle(rectangle, decoration);
-        else if (elements[i].role == SemanticRole::Quote)
+        else if (elements[i].role == SemanticRole::Quote || elements[i].role == SemanticRole::Callout)
         {
             const float x = state.options.readingDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT ? rectangle.right + 8.0f : rectangle.left - 8.0f;
-            target->DrawLine(D2D1::Point2F(x, rectangle.top), D2D1::Point2F(x, rectangle.bottom), decoration, 2.0f);
+            target->DrawLine(D2D1::Point2F(x, rectangle.top), D2D1::Point2F(x, rectangle.bottom),
+                             elements[i].role == SemanticRole::Callout && calloutAccent ? calloutAccent : decoration, 2.0f);
         }
     });
     state.paintNumbers.ForEach(top,

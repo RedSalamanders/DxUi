@@ -502,6 +502,60 @@ template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe obs
             Check(restoredSummary != restored->Elements().end() && restoredSummary->disclosureExpanded == initiallyOpen,
                   "removing view overrides restores authored default even when syntax and native fallbacks are unchanged");
         }
+    for (const auto& sample : {std::pair{std::wstring_view(L"> [!NOTE]\n> text **bold**\n"), std::wstring_view(L"NOTE")},
+                               std::pair{std::wstring_view(L"> [!tip]+ Custom title\n> text **bold**\n"), std::wstring_view(L"Custom title")},
+                               std::pair{std::wstring_view(L"> [!WARNING]\n>\n> separate body\n"), std::wstring_view(L"WARNING")}})
+    {
+        const auto calloutDoc = RichSemanticDocumentTests::Build(sample.first, MarkdownProfile::RichMarkdown);
+        const auto callout = std::ranges::find(calloutDoc->Elements(), SemanticRole::Callout, &SemanticElement::role);
+        const auto display = calloutDoc->Map().Display();
+        Check(calloutDoc->HasCallouts() && callout != calloutDoc->Elements().end() && callout->name == sample.second && calloutDoc->Map().Source() == sample.first &&
+                  display.find(L"[!") == std::wstring::npos &&
+                  (display.find(L"body") != std::wstring::npos || display.find(L"text bold") != std::wstring::npos),
+              "callout semantics project a source-owned title and retain the authored body/inline styles");
+        PreparedSemanticGeometry calloutGeometry;
+        calloutGeometry.Begin(factory.get(), calloutDoc, options);
+        Complete(calloutGeometry);
+        wil::com_ptr<ID2D1SolidColorBrush> accent;
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(1.f, 0.f, 0.f), accent.put()));
+        target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        calloutGeometry.Draw(target.get(), ink.get(), ink.get(), {}, 0.f, 100.f, nullptr, 1.f, nullptr, nullptr, nullptr, accent.get());
+        THROW_IF_FAILED(target->EndDraw());
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, 1600u, static_cast<UINT>(pixels.size()), pixels.data()));
+        std::size_t accentPixels{};
+        for (std::size_t byte = 0u; byte < pixels.size(); byte += 4u)
+            accentPixels += pixels[byte] < 100u && pixels[byte + 1u] < 100u && pixels[byte + 2u] > 180u;
+        Check(accentPixels > 5u && accent->GetOpacity() == 1.f, "native callout paints a borrowed theme accent bar without mutating its brush");
+    }
+    {
+        const std::wstring calloutSource = L"> [!tip]- Closed title\n> hidden **body**\n";
+        const auto syntax = RichSemanticDocumentTests::Parse(calloutSource, MarkdownProfile::RichMarkdown);
+        SemanticBuilder builder; builder.Begin(syntax);
+        const auto collapsed = RichSemanticDocumentTests::Complete(builder, *syntax);
+        const auto disclosure = std::ranges::find(collapsed->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
+        Check(disclosure != collapsed->Elements().end() && ! disclosure->disclosureExpanded && disclosure->name == L"Closed title" &&
+                  collapsed->Map().Display().find(L"hidden") == std::wstring::npos && collapsed->Map().Source() == calloutSource,
+              "folded Obsidian callout hides its body without changing raw source");
+        const std::array states{Detail::DisclosureOverride{disclosure->blockIdentity, true}};
+        Detail::SemanticExtensionAccess::BeginWithPresentation(builder, syntax, {}, states);
+        const auto opened = RichSemanticDocumentTests::Complete(builder, *syntax);
+        Check(opened->Map().Display().find(L"hidden body") != std::wstring::npos && opened->Map().Source() == calloutSource &&
+                  collapsed->Map().Display().find(L"hidden") == std::wstring::npos,
+              "expanded callout restores body formatting while held collapsed publication remains immutable");
+        for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::Gfm029})
+        {
+            const auto standard = RichSemanticDocumentTests::Build(calloutSource, profile);
+            Check(! standard->HasCallouts() && std::ranges::none_of(standard->Elements(), [](const auto& element) { return element.role == SemanticRole::Callout; }) &&
+                      standard->Map().Display().find(L"[!tip]") != std::wstring::npos,
+                  "callout extensions do not change CommonMark or GFM quote behavior");
+        }
+    }
+    for (const std::wstring_view sourceText : {L"> [!unknown]\n> body\n", L"> [!NOTE] *formatted*\n> body\n", L"> prefix [!NOTE]\n> body\n"})
+    {
+        const auto ordinary = RichSemanticDocumentTests::Build(sourceText, MarkdownProfile::RichMarkdown);
+        Check(std::ranges::none_of(ordinary->Elements(), [](const auto& element) { return element.role == SemanticRole::Callout; }) &&
+                  ordinary->Map().Source() == sourceText, "unknown or unsupported callout headings retain ordinary quote semantics and exact source");
+    }
     for (const std::wstring disclosureSource : {L"<details><summary></summary>body</details>\n", L"<details><summary>x</summary><summary>y</summary></details>\n",
                                       L"<details onclick=\"run()\"><summary>x</summary>body</details>\n",
                                       L"<details><summary>x</summary><p>body</p></details>\n",
