@@ -793,8 +793,11 @@ void Control::SetAccessibleName(std::wstring name)
 {
     if (_accessibleName != name)
     {
-        _accessibleName = std::move(name);
+        _accessibleName     = std::move(name);
+        const auto lifetime = GetLifetimeToken();
         RequestInvalidate();
+        if (lifetime.expired())
+            return;
         if (ControlHost* const host = GetHost())
         {
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
@@ -812,7 +815,10 @@ void Control::SetAccessibleHelpText(std::wstring helpText)
     if (_accessibleHelpText != helpText)
     {
         _accessibleHelpText = std::move(helpText);
+        const auto lifetime = GetLifetimeToken();
         RequestInvalidate();
+        if (lifetime.expired())
+            return;
         if (ControlHost* const host = GetHost())
         {
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
@@ -846,7 +852,10 @@ HRESULT Control::SetAccessibleFormProperties(Control* label, bool required, bool
             properties->itemStatus = std::move(itemStatus);
         }
         _accessibleFormProperties.swap(properties);
+        const auto lifetime = GetLifetimeToken();
         RequestInvalidate();
+        if (lifetime.expired())
+            return S_OK;
         if (ControlHost* const host = GetHost())
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
         return S_OK;
@@ -899,8 +908,11 @@ void Control::SetAccessibilityRole(AccessibilityRole role) noexcept
 {
     if (_accessibilityRole != role)
     {
-        _accessibilityRole = role;
+        _accessibilityRole  = role;
+        const auto lifetime = GetLifetimeToken();
         RequestInvalidate();
+        if (lifetime.expired())
+            return;
         if (ControlHost* const host = GetHost())
         {
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
@@ -1303,8 +1315,10 @@ void Control::OnBoundsChanged() noexcept
 
 void Control::OnFlowDirectionChanged() noexcept
 {
-    InvalidateMeasure();
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    InvalidateMeasure();
+    if (lifetime.expired())
+        return;
     if (_host && _host->GetFocusControl() == this && SupportsTextInput())
     {
         _host->SyncTextInput(this);
@@ -1318,8 +1332,10 @@ void Control::OnFlowDirectionChanged() noexcept
 
 void Control::OnDensityChanged() noexcept
 {
-    InvalidateMeasure();
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    InvalidateMeasure();
+    if (lifetime.expired())
+        return;
     if (_host && _host->GetFocusControl() == this && SupportsTextInput())
     {
         _host->SyncTextInput(this);

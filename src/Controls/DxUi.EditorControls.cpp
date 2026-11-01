@@ -407,8 +407,11 @@ void Splitter::SetPosition(float positionDip) noexcept
     {
         return;
     }
-    _positionDip = clamped;
+    _positionDip        = clamped;
+    const auto lifetime = GetLifetimeToken();
     RequestInvalidate();
+    if (lifetime.expired())
+        return;
     if (ControlHost* const host = GetHost())
         RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
 }
@@ -840,18 +843,26 @@ NumericStepper::NumericStepper()
 
 void NumericStepper::SetStepButtonNames(std::wstring increaseName, std::wstring decreaseName)
 {
+    const auto lifetime = GetLifetimeToken();
     _increment->SetAccessibleName(std::move(increaseName));
-    _decrement->SetAccessibleName(std::move(decreaseName));
+    if (! lifetime.expired())
+        _decrement->SetAccessibleName(std::move(decreaseName));
 }
 
 void NumericStepper::SetLabel(std::wstring label, float widthDip)
 {
-    _label         = std::move(label);
-    _labelWidthDip = std::isfinite(widthDip) ? (std::max)(0.0f, widthDip) : 0.0f;
+    _label              = std::move(label);
+    _labelWidthDip      = std::isfinite(widthDip) ? (std::max)(0.0f, widthDip) : 0.0f;
+    const auto lifetime = GetLifetimeToken();
     InvalidateMeasure();
+    if (lifetime.expired())
+        return;
     _field->SetAccessibleName(_label);
+    if (lifetime.expired())
+        return;
     Arrange();
-    RequestInvalidate();
+    if (! lifetime.expired())
+        RequestInvalidate();
 }
 
 std::wstring_view NumericStepper::GetLabel() const noexcept
@@ -861,11 +872,15 @@ std::wstring_view NumericStepper::GetLabel() const noexcept
 
 void NumericStepper::SetUnit(std::wstring unit, float widthDip)
 {
-    _unit         = std::move(unit);
-    _unitWidthDip = std::isfinite(widthDip) ? (std::max)(0.0f, widthDip) : 0.0f;
+    _unit               = std::move(unit);
+    _unitWidthDip       = std::isfinite(widthDip) ? (std::max)(0.0f, widthDip) : 0.0f;
+    const auto lifetime = GetLifetimeToken();
     InvalidateMeasure();
+    if (lifetime.expired())
+        return;
     Arrange();
-    RequestInvalidate();
+    if (! lifetime.expired())
+        RequestInvalidate();
 }
 
 std::wstring_view NumericStepper::GetUnit() const noexcept

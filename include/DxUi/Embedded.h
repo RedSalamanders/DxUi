@@ -26,7 +26,7 @@ private:
 struct EmbeddedCallbacks
 {
     void* context = nullptr;
-    // Borrowed until detach; invoked synchronously on the UI thread and must not re-enter the host.
+    // Borrowed until detach; invoked synchronously on the UI thread. It may retire or replace retained controls.
     void (*requestPreparation)(void* context) noexcept = nullptr;
 };
 enum class PointerAction : uint8_t

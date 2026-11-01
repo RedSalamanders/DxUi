@@ -1340,6 +1340,8 @@ std::unique_ptr<Control> Panel::TakeChild(size_t index) noexcept
         if (! ownerLifetime.expired())
         {
             InvalidateMeasure();
+            if (ownerLifetime.expired())
+                return child;
             if (host)
                 host->RefreshAccessibilitySnapshot();
             if (! ownerLifetime.expired())
@@ -1365,6 +1367,8 @@ size_t Panel::CompactChildren() noexcept
     // The children's indices, and the accessibility paths built from them, changed.
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     InvalidateMeasure();
+    if (lifetime.expired())
+        return removed;
     if (ControlHost* const host = GetHost())
         host->RefreshAccessibilitySnapshot();
     if (! lifetime.expired())
@@ -2943,9 +2947,11 @@ void Button::SetMultiline(bool multiline) noexcept
 {
     if (_multiline != multiline)
     {
-        _multiline = multiline;
+        _multiline          = multiline;
+        const auto lifetime = GetLifetimeToken();
         InvalidateMeasure();
-        RequestInvalidate();
+        if (! lifetime.expired())
+            RequestInvalidate();
     }
 }
 
@@ -3421,7 +3427,10 @@ void Button::SetDisclosureExpanded(bool expanded) noexcept
         _disclosureTransition.anchored      = false;
         _disclosureTransition.initialized   = true;
         _disclosureTransition.active        = false;
+        const auto lifetime                 = GetLifetimeToken();
         RequestInvalidate();
+        if (lifetime.expired())
+            return;
         if (ControlHost* const host = GetHost())
         {
             host->RefreshAccessibilitySnapshot();
@@ -3434,6 +3443,7 @@ void Button::SetDisclosureExpanded(bool expanded) noexcept
         return;
     }
 
+    const auto lifetime     = GetLifetimeToken();
     ControlHost* const host = GetHost();
     // The rotation runs on its own ticks: it starts at the first one, so a button hidden now (it gets none until it
     // paints again) rotates when it shows, and a pause in them pauses it instead of skipping to the end.
@@ -3447,15 +3457,21 @@ void Button::SetDisclosureExpanded(bool expanded) noexcept
     if (_disclosureTransition.active)
     {
         host->RequestAnimation();
+        if (lifetime.expired() || GetHost() != host)
+            return;
     }
     else
     {
         _disclosureTransition.progress = target;
     }
     RequestInvalidate();
+    if (lifetime.expired() || GetHost() != host)
+        return;
     if (host)
     {
         host->RefreshAccessibilitySnapshot();
+        if (lifetime.expired() || GetHost() != host)
+            return;
         RaiseWindowHostDisclosureChanged(host->GetHwnd(), this, expanded);
     }
 }
@@ -3471,7 +3487,10 @@ void Button::ClearDisclosureState() noexcept
     {
         _disclosureExpanded.reset();
         _disclosureTransition = {};
+        const auto lifetime   = GetLifetimeToken();
         RequestInvalidate();
+        if (lifetime.expired())
+            return;
         if (ControlHost* const host = GetHost())
         {
             host->RefreshAccessibilitySnapshot();
@@ -4307,10 +4326,12 @@ void Toggle::SetStateLabels(std::wstring uncheckedText, std::wstring checkedText
     // Unchanged labels (an application that sets them on every refresh) relay out nothing.
     if (_uncheckedText == uncheckedText && _checkedText == checkedText)
         return;
-    _uncheckedText = std::move(uncheckedText);
-    _checkedText   = std::move(checkedText);
+    _uncheckedText      = std::move(uncheckedText);
+    _checkedText        = std::move(checkedText);
+    const auto lifetime = GetLifetimeToken();
     InvalidateMeasure();
-    RequestInvalidate();
+    if (! lifetime.expired())
+        RequestInvalidate();
 }
 
 std::wstring_view Toggle::GetActiveStateLabel() const noexcept
@@ -4928,8 +4949,11 @@ void ProgressBar::SetValue(double value) noexcept
     // Like Slider, a non-finite value is rejected: NaN would reach UI Automation and never compare equal.
     if (! std::isfinite(value))
         return;
-    _value = value;
+    _value              = value;
+    const auto lifetime = GetLifetimeToken();
     RequestInvalidate();
+    if (lifetime.expired())
+        return;
     if (ControlHost* const host = GetHost())
         RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
 }
@@ -4943,8 +4967,11 @@ void ProgressBar::SetMinimum(double minimum) noexcept
 {
     if (! std::isfinite(minimum))
         return;
-    _minimum = minimum;
+    _minimum            = minimum;
+    const auto lifetime = GetLifetimeToken();
     RequestInvalidate();
+    if (lifetime.expired())
+        return;
     if (ControlHost* const host = GetHost())
         RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
 }
@@ -4958,8 +4985,11 @@ void ProgressBar::SetMaximum(double maximum) noexcept
 {
     if (! std::isfinite(maximum))
         return;
-    _maximum = maximum;
+    _maximum            = maximum;
+    const auto lifetime = GetLifetimeToken();
     RequestInvalidate();
+    if (lifetime.expired())
+        return;
     if (ControlHost* const host = GetHost())
         RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
 }
@@ -4976,9 +5006,10 @@ void ProgressBar::SetIndeterminate(bool indeterminate) noexcept
         return;
     }
 
-    _indeterminate  = indeterminate;
-    _animationPhase = 0.0f;
-    _lastTickMs     = 0u;
+    _indeterminate      = indeterminate;
+    _animationPhase     = 0.0f;
+    _lastTickMs         = 0u;
+    const auto lifetime = GetLifetimeToken();
     if (indeterminate && ! _animationPaused && IsEnabled() && IsVisible())
     {
         if (ControlHost* host = GetHost(); host && ! host->GetTheme().reducedMotion)
@@ -4986,7 +5017,8 @@ void ProgressBar::SetIndeterminate(bool indeterminate) noexcept
             host->RequestAnimation();
         }
     }
-    RequestInvalidate();
+    if (! lifetime.expired())
+        RequestInvalidate();
 }
 
 bool ProgressBar::IsIndeterminate() const noexcept
@@ -4998,14 +5030,16 @@ void ProgressBar::SetAnimationPaused(bool paused) noexcept
 {
     if (_animationPaused == paused)
         return;
-    _animationPaused = paused;
-    _lastTickMs      = 0u;
+    _animationPaused    = paused;
+    _lastTickMs         = 0u;
+    const auto lifetime = GetLifetimeToken();
     if (! paused && _indeterminate && IsEnabled() && IsVisible())
     {
         if (ControlHost* host = GetHost(); host && ! host->GetTheme().reducedMotion)
             host->RequestAnimation();
     }
-    RequestInvalidate();
+    if (! lifetime.expired())
+        RequestInvalidate();
 }
 
 bool ProgressBar::IsAnimationPaused() const noexcept
@@ -9127,6 +9161,8 @@ bool TabControl::SyncLayout() noexcept
         return false;
     }
     RequestInvalidate();
+    if (ownerLifetime.expired())
+        return false;
     // Its tabs, their titles and the selected one are what UI Automation reads of a tab control, and every change of them
     // comes through here. Publishing marks the view and runs no application code unless the focus moved unpublished.
     if (ControlHost* const host = GetHost())

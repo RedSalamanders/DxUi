@@ -1194,6 +1194,40 @@ void TestLabelAndSeparatorTypographySurviveEmbeddedMeasureAndRetirementCallbacks
         return separator;
     },
                       [](Control* control) { static_cast<Separator*>(control)->SetOrientation(SeparatorOrientation::Horizontal); });
+    const auto addProgress = [](FlexPanel& root) -> Control* { return root.AddChild<ProgressBar>(); };
+    runRetiringSetter("progress minimum", addProgress, [](Control* control) { static_cast<ProgressBar*>(control)->SetMinimum(-1.0); });
+    runRetiringSetter("progress maximum", addProgress, [](Control* control) { static_cast<ProgressBar*>(control)->SetMaximum(200.0); });
+    runRetiringSetter("progress value", addProgress, [](Control* control) { static_cast<ProgressBar*>(control)->SetValue(3.0); });
+    runRetiringSetter("progress animation", addProgress, [](Control* control) { static_cast<ProgressBar*>(control)->SetIndeterminate(true); });
+    runRetiringSetter("accessible name", addProgress, [](Control* control) { control->SetAccessibleName(L"updated"); });
+    runRetiringSetter("accessible help", addProgress, [](Control* control) { control->SetAccessibleHelpText(L"updated"); });
+    runRetiringSetter("accessible form", addProgress, [](Control* control) {
+        Require(control->SetAccessibleFormProperties(nullptr, true, true) == S_OK, "form metadata is committed before retirement");
+    });
+    runRetiringSetter("accessible role", addProgress, [](Control* control) { control->SetAccessibilityRole(AccessibilityRole::Status); });
+    runRetiringSetter("flow direction", addProgress, [](Control* control) { control->SetFlowDirection(FlowDirection::RightToLeft); });
+    runRetiringSetter("density", addProgress, [](Control* control) { control->SetDensity(Density::Compact); });
+    runRetiringSetter("toggle labels", [](FlexPanel& root) -> Control* { return root.AddChild<Toggle>(); }, [](Control* control) {
+        static_cast<Toggle*>(control)->SetStateLabels(L"off", L"on");
+    });
+    runRetiringSetter("splitter position", [](FlexPanel& root) -> Control* { return root.AddChild<Splitter>(); }, [](Control* control) {
+        static_cast<Splitter*>(control)->SetPosition(10.0f);
+    });
+    runRetiringSetter("button multiline", [](FlexPanel& root) -> Control* { return root.AddChild<Button>(L"button"); }, [](Control* control) {
+        static_cast<Button*>(control)->SetMultiline(true);
+    });
+    runRetiringSetter("button disclosure", [](FlexPanel& root) -> Control* { return root.AddChild<Button>(L"button"); }, [](Control* control) {
+        static_cast<Button*>(control)->SetDisclosureExpanded(true);
+    });
+    runRetiringSetter("combo chrome", [](FlexPanel& root) -> Control* { return root.AddChild<ComboBox>(); }, [](Control* control) {
+        static_cast<ComboBox*>(control)->SetChromeVisible(false);
+    });
+    runRetiringSetter("numeric label", [](FlexPanel& root) -> Control* { return root.AddChild<NumericStepper>(); }, [](Control* control) {
+        static_cast<NumericStepper*>(control)->SetLabel(L"count", 40.0f);
+    });
+    runRetiringSetter("numeric unit", [](FlexPanel& root) -> Control* { return root.AddChild<NumericStepper>(); }, [](Control* control) {
+        static_cast<NumericStepper*>(control)->SetUnit(L"px", 20.0f);
+    });
 }
 
 void TestFlexFlowWrapGrowthRtlAndOverflow()

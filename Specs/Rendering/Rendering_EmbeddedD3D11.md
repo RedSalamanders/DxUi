@@ -123,7 +123,7 @@ pool and application model; their trees and hit rectangles remain independent. T
 interactive and supplies view-local physical coordinates. This replaces the earlier single-tree/two-surface sketch.
 
 Attach, prepare, input, animation, replace-device and destruction are UI-thread affine. The borrowed preparation
-callback is synchronous and must not re-enter the host. Dirty requests coalesce; requests raised during painting
+callback is synchronous and may retire or replace retained controls. Dirty requests coalesce; requests raised during painting
 remain pending after preparation. The caller advances animation only when NeedsAnimation is true. Hidden views
 request no periodic work; zero-sized targets disable interaction. Prepare returns S_FALSE for a clean or suspended
 view. Failed preparation suppresses composition/input until a successful prepare. No automatic retry loop exists.

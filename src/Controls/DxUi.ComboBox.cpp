@@ -488,9 +488,11 @@ void ComboBox::SetChromeVisible(bool visible) noexcept
         return;
     }
 
-    _chromeVisible = visible;
+    _chromeVisible      = visible;
+    const auto lifetime = GetLifetimeToken();
     InvalidateMeasure();
-    RequestInvalidate();
+    if (! lifetime.expired())
+        RequestInvalidate();
 }
 
 bool ComboBox::IsChromeVisible() const noexcept

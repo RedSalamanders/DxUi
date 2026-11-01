@@ -31,7 +31,7 @@ device; the application owns immediate-context scheduling and presentation.
 1. Build the tree and apply `view.Controls().SetTheme(...)`. `MakeDefaultThemePalette(true)` selects a dark palette;
    use `false` for light. Apply the application's reduced-motion and high-contrast policy explicitly.
 2. Model, input, theme or geometry changes mark the view dirty. A borrowed `requestPreparation` callback requests
-   host work; it is synchronous, coalesced, must not re-enter the view, and its context must outlive attachment.
+   host work; it is synchronous and coalesced, may retire or replace retained controls, and its context must outlive attachment.
 3. Before scene drawing, call `view.Prepare(widthPixels, heightPixels, dpi)`. It performs changed layout and raster
    work. S_FALSE means already clean, hidden, zero-sized, or that cooperative content preparation remains pending. When NeedsPreparation() is true, honor the next owner-turn request and call Prepare again; do not spin. A failed HRESULT suppresses input/composition until preparation succeeds; handle the failure instead of repeatedly retrying in a tight loop. E_ABORT is the exception: a callback superseded the frame (it replaced the root or changed the tree mid-pass), and the view has already requested another preparation, so skip this frame composition and prepare again on that request.
    Optional control visual preparation is separate from content preparation: it may retain bounded visual resources, but it does not mark content geometry changed, publish text-input/UIA geometry, or hold input readiness pending.
