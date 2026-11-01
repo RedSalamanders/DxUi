@@ -558,9 +558,9 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
                 requestAfterPreparation = true;
                 return S_FALSE;
             }
-            // The finish guard schedules a changed revision after callbacks unwind.
-            // A failure of unchanged content stays dirty without an automatic retry.
-            return E_ABORT;
+            // Supersession is handled above. An unchanged deterministic content
+            // failure is reported distinctly and stays dirty without a retry loop.
+            return FAILED(_host._contentPreparationFailure) ? _host._contentPreparationFailure : E_ABORT;
         }
         ID3D11ShaderResourceView* empty = nullptr;
         _host._d3dContext->PSSetShaderResources(0, 1, &empty);

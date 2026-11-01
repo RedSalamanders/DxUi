@@ -6102,6 +6102,7 @@ private:
     bool _pendingVisualPreparation                          = false;
     bool _forceAllVisualPreparation                         = false;
     bool _contentPreparationContinues                       = false;
+    HRESULT _contentPreparationFailure                      = S_OK;
     bool _contentGeometryChanged                            = false;
     uint64_t _preparedContentResources                      = 0u;
     uint64_t _preparedContentTypography                     = 0u;

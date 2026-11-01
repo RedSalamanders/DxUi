@@ -2290,10 +2290,11 @@ static void TestRichTextCooperativeFailureDoesNotRetryAutomatically(GraphicsFixt
         FailingPreparation() : RichTextEditor(L"source survives")
         {
         }
-        bool fail = true;
+        bool fail       = true;
+        HRESULT failure = E_OUTOFMEMORY;
         HRESULT PrepareContent(ControlHost& host) noexcept override
         {
-            return fail ? E_OUTOFMEMORY : RichTextEditor::PrepareContent(host);
+            return fail ? failure : RichTextEditor::PrepareContent(host);
         }
     };
 #pragma warning(pop)
@@ -2306,10 +2307,11 @@ static void TestRichTextCooperativeFailureDoesNotRetryAutomatically(GraphicsFixt
     auto* editor = owned.get();
     view.Controls().SetRoot(std::move(owned));
     const auto beforeFailure = requests;
-    Check(FAILED(view.Prepare(480, 240)) && view.NeedsPreparation() && requests == beforeFailure,
-          "preparation failure suppresses publication and schedules no automatic retry");
-    Check(FAILED(view.Prepare(480, 240)) && view.NeedsPreparation() && requests == beforeFailure,
-          "an explicit retry of unchanged failed content does not schedule an automatic retry");
+    Check(view.Prepare(480, 240) == E_OUTOFMEMORY && view.NeedsPreparation() && requests == beforeFailure,
+          "preparation failure retains its HRESULT and schedules no automatic retry");
+    editor->failure = E_ABORT;
+    Check(view.Prepare(480, 240) == E_FAIL && view.NeedsPreparation() && requests == beforeFailure,
+          "an unchanged content abort is distinct from a superseded frame and does not schedule automatic retry");
     editor->fail = false;
     editor->SetText(L"new source permits retry");
     Check(requests == beforeFailure + 1u, "a new model request wakes a failed dirty view exactly once");

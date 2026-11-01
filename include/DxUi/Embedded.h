@@ -143,7 +143,8 @@ public:
     // Physical pixel size and DPI. Text shaping and raster work happen only here, never in Composite.
     // S_FALSE means hidden, zero-sized, already prepared, or cooperative content preparation remains pending;
     // in the last case NeedsPreparation() stays true and the caller should prepare on a later owner turn, not spin.
-    // A failed HRESULT disables interaction until preparation succeeds.
+    // A failed HRESULT disables interaction until preparation succeeds. A content failure preserves its HRESULT
+    // (an unchanged content E_ABORT is reported as E_FAIL); it schedules no automatic retry.
     // E_ABORT means a callback superseded the frame (root or tree changed mid-pass). The view already requested
     // another preparation; prepare again when asked instead of presenting the retired frame.
     HRESULT Prepare(UINT widthPixels, UINT heightPixels, float dpi = 96.0f) noexcept;

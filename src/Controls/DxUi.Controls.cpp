@@ -2323,6 +2323,7 @@ bool ControlHost::PreparePendingPageLayout() noexcept
     const bool prepareAllVisual =
         _forceAllVisualPreparation || _preparedVisualResources != GetResourceGeneration() || _preparedVisualTypography != GetTypographyRevision();
     _contentPreparationContinues = false;
+    _contentPreparationFailure   = S_OK;
     if (! _pendingPageLayout && ! _pendingIntrinsicLayout && ! _pendingContentPreparation && ! prepareAllContent && ! _pendingVisualPreparation &&
         ! prepareAllVisual)
         return true;
@@ -2387,7 +2388,11 @@ bool ControlHost::PreparePendingPageLayout() noexcept
             if (content == S_FALSE || FAILED(content))
                 control._contentPreparationPending = true;
             if (FAILED(content))
+            {
+                if (SUCCEEDED(_contentPreparationFailure))
+                    _contentPreparationFailure = content == E_ABORT ? E_FAIL : content;
                 complete = false;
+            }
             if (content == S_OK)
                 _contentGeometryChanged = true;
         }

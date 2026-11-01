@@ -1,0 +1,1 @@
+- Preserve deterministic embedded content-preparation failure HRESULTs separately from superseded-frame E_ABORT and leave retry under the owner bounded policy. Native qualification remains pending.

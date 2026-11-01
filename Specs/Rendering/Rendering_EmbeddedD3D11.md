@@ -126,7 +126,7 @@ Attach, prepare, input, animation, replace-device and destruction are UI-thread 
 callback is synchronous and may retire or replace retained controls. Dirty requests coalesce; requests raised during painting
 remain pending after preparation. The caller advances animation only when NeedsAnimation is true. Hidden views
 request no periodic work; zero-sized targets disable interaction. Prepare returns S_FALSE for a clean or suspended
-view. Failed preparation suppresses composition/input until a successful prepare. No automatic retry loop exists.
+view. Failed preparation suppresses composition/input until a successful prepare. An unchanged content failure returns its HRESULT (E_ABORT is normalized to E_FAIL), and schedules no automatic retry; a caller may retry under its own bounded policy. E_ABORT remains reserved for superseded work.
 The callback must not re-enter EmbeddedHost preparation, composition, input, device replacement or lifecycle methods.
 It may retire or replace controls through a `ControlHost` reference borrowed before the callback; this limited
 retirement is tolerated. Library continuations that may run after synchronous scheduling or measurement callbacks
