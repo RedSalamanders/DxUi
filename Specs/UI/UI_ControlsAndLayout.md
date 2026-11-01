@@ -908,6 +908,9 @@ the complete bounded source. Two empty sources may remain semantically unchanged
 across unrelated identities. Adjacent equal physical lines may share one immutable
 payload. Preparation statistics count processed/reused block slots and the widened
 source slice, not individual parser calls or timing acceptance.
+
+Tracked edits may reuse a proven unchanged closed Markdown root and its complete source-correlated subtree; prefix roots require an unchanged document-owned separator, and shifted suffixes retain their unchanged continuation through EOF. Unsupported or ambiguous closure, reference-definition staging, incompatible profiles and source-region parses use the normal parser. Reuse is cooperatively prepared, publishes only a complete parse, and rebuilds inline resolution and identities against the new source; cancellation leaves the prior immutable result intact.
+
 Stage every new payload and prefix index before nonthrowing publication. Failure
 must preserve the entire prior state, revision, statistics and block identities.
 Clear releases all owned prepared state; default/moved/retired services reject

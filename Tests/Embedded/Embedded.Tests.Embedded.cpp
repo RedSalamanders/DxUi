@@ -1456,6 +1456,12 @@ __declspec(noinline) static int RunFunctionalTests()
 #endif
         return 0;
     }
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-markdown-closed-roots")
+    {
+        MarkdownSourceCorrelationTests::ClosedRootDifferential(Check);
+        MarkdownSourceCorrelationTests::ClosedRootCancellation(Check);
+        return 0;
+    }
     static size_t diagnosticCalls = 0;
     DxUi::Diagnostics::sink       = [](std::wstring_view, std::wstring_view message) noexcept
     {
@@ -1473,6 +1479,8 @@ __declspec(noinline) static int RunFunctionalTests()
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-rich-incremental-preparation")
     {
         MarkdownSourceCorrelationTests::LexicalEdits(Check);
+        MarkdownSourceCorrelationTests::ClosedRootDifferential(Check);
+        MarkdownSourceCorrelationTests::ClosedRootCancellation(Check);
         RichSemanticTests::Run(RichSemanticGeometryTests::PaddedCodePresentation);
         RichSemanticTests::Run(RichSemanticEditorTests::SourceWindowUnicodeParity);
     RichSemanticTests::Run(RichSemanticEditorTests::RichSourceWindowParity);
@@ -1648,6 +1656,8 @@ __declspec(noinline) static int RunFunctionalTests()
     MarkdownSourceCorrelationTests::Reads(Check);
     MarkdownSourceCorrelationTests::ParserIdentities(Check);
     MarkdownSourceCorrelationTests::LexicalEdits(Check);
+    MarkdownSourceCorrelationTests::ClosedRootDifferential(Check);
+    MarkdownSourceCorrelationTests::ClosedRootCancellation(Check);
     SemanticSourceBlockTests::Core(Check);
     SemanticSourceBlockTests::Geometry(Check);
     SemanticSourceBlockTests::SourceRegions(Check);

@@ -1399,6 +1399,8 @@ void TestLosslessMarkdownCorrelationSnapshotIdentity()
 {
     MarkdownSourceCorrelationTests::ParserIdentities(Require);
     MarkdownSourceCorrelationTests::LexicalEdits(Require);
+    MarkdownSourceCorrelationTests::ClosedRootDifferential(Require);
+    MarkdownSourceCorrelationTests::ClosedRootCancellation(Require);
 }
 void RunRichMarkdownTests()
 {

@@ -514,9 +514,165 @@ struct MarkdownParser::Preparation
                                     CharacterReference};
     std::size_t cursor{}, lineFirst{}, lexicalCursor{}, literalFirst{}, rootCursor{}, rootNode = MarkdownNoNode;
     std::size_t reusableRootIndex = 1u;
+    struct ClosedRootReuse
+    {
+        ClosedRootReuse() : remap(0u)
+        {
+        }
+        enum class Phase
+        {
+            ValidateNodes,
+            ValidateLinks,
+            ValidateEmpty,
+            CopyNodes,
+            CopyLines,
+            CopyEmpty
+        };
+        Phase phase = Phase::ValidateNodes;
+        std::size_t root{}, scan{}, end{}, line = MarkdownNoNode, emptyBegin{}, emptyCursor{}, newFirst{};
+        std::vector<std::size_t> remap;
+    };
+    std::optional<ClosedRootReuse> closedRoot;
     bool blocksComplete{}, lexemesComplete{}, rootsComplete{}, inlinesComplete{};
+    void ClosedRootUnit()
+    {
+        auto& work          = *closedRoot;
+        const auto& nodes   = previous->Nodes();
+        const auto blanks   = previous->EmptyLines();
+        const auto& root    = nodes[work.root];
+        const auto oldFirst = root.block.source.first, oldLast = root.block.source.last;
+        const auto validRange = [&](MarkdownRange range) noexcept
+        { return (range.first == 0u && range.last == 0u) || (range.first >= oldFirst && range.first <= range.last && range.last <= oldLast); };
+        const auto fail = [&]() noexcept { closedRoot.reset(); };
+        if (work.phase == ClosedRootReuse::Phase::ValidateNodes)
+        {
+            if (work.scan == nodes.size() || (work.scan > work.root && nodes[work.scan].parent == 0u))
+            {
+                work.end = work.scan;
+                if ((root.nextSibling == MarkdownNoNode ? work.end != nodes.size() : root.nextSibling != work.end) ||
+                    ! blocks.CanImportNodeCount(work.end - work.root))
+                {
+                    fail();
+                    return;
+                }
+                work.scan  = work.root;
+                work.phase = ClosedRootReuse::Phase::ValidateLinks;
+                return;
+            }
+            const auto index = work.scan;
+            const auto& node = nodes[index];
+            if (work.line == MarkdownNoNode)
+            {
+                const bool parentValid = index == work.root ? node.parent == 0u : node.parent >= work.root && node.parent < index;
+                const bool childValid =
+                    node.firstChild == MarkdownNoNode || (node.firstChild > index && node.firstChild < nodes.size() && nodes[node.firstChild].parent == index);
+                const bool siblingValid = index == work.root || node.nextSibling == MarkdownNoNode ||
+                                          (node.nextSibling > index && node.nextSibling < nodes.size() && nodes[node.nextSibling].parent == node.parent);
+                if (! parentValid || ! childValid || ! siblingValid ||
+                    (node.block.kind == MarkdownBlockKind::SourceEditor || node.block.kind == MarkdownBlockKind::ReferenceDefinition) ||
+                    (node.block.source.first < oldFirst || node.block.source.first > node.block.source.last || node.block.source.last > oldLast) ||
+                    (node.block.content.first < oldFirst || node.block.content.first > node.block.content.last || node.block.content.last > oldLast) ||
+                    ! validRange(node.block.info) || ! validRange(node.label) || ! validRange(node.destination) || ! validRange(node.title))
+                {
+                    fail();
+                    return;
+                }
+                work.line = 0u;
+                return;
+            }
+            if (work.line < node.lines.size())
+            {
+                const auto line = node.lines[work.line++].source;
+                if (line.first < oldFirst || line.first > line.last || line.last > oldLast)
+                    fail();
+                return;
+            }
+            ++work.scan;
+            work.line = MarkdownNoNode;
+            return;
+        }
+        if (work.phase == ClosedRootReuse::Phase::ValidateLinks)
+        {
+            if (work.scan < work.end)
+            {
+                const auto index = work.scan++;
+                const auto& node = nodes[index];
+                if ((node.firstChild != MarkdownNoNode && node.firstChild >= work.end) ||
+                    (index != work.root && node.nextSibling != MarkdownNoNode && node.nextSibling >= work.end))
+                    fail();
+                return;
+            }
+            const auto blank =
+                std::lower_bound(blanks.begin(), blanks.end(), oldFirst, [](const auto& value, auto position) { return value.source.first < position; });
+            work.emptyBegin = work.emptyCursor = static_cast<std::size_t>(blank - blanks.begin());
+            work.phase                         = ClosedRootReuse::Phase::ValidateEmpty;
+            return;
+        }
+        if (work.phase == ClosedRootReuse::Phase::ValidateEmpty)
+        {
+            if (work.emptyCursor < blanks.size() && blanks[work.emptyCursor].source.first < oldLast)
+            {
+                const auto& blank            = blanks[work.emptyCursor++];
+                const auto retainedEnd       = root.lines.empty() ? oldFirst : root.lines.back().source.last;
+                const bool trailingCodeBlank = root.block.kind == MarkdownBlockKind::IndentedCode && blank.owner == 0u && blank.source.first >= retainedEnd &&
+                                               blank.source.last <= oldLast;
+                if ((! trailingCodeBlank && (blank.owner < work.root || blank.owner >= work.end)) || ! validRange(blank.source) ||
+                    blank.insertion < blank.source.first || blank.insertion > blank.source.last)
+                    fail();
+                return;
+            }
+            work.remap.reserve(work.end - work.root);
+            work.scan  = work.root;
+            work.line  = 0u;
+            work.phase = ClosedRootReuse::Phase::CopyNodes;
+            return;
+        }
+        if (work.phase == ClosedRootReuse::Phase::CopyNodes)
+        {
+            if (work.scan == work.end)
+            {
+                work.emptyCursor = work.emptyBegin;
+                work.phase       = ClosedRootReuse::Phase::CopyEmpty;
+                return;
+            }
+            const auto& node  = nodes[work.scan];
+            const auto parent = work.scan == work.root ? 0u : work.remap[node.parent - work.root];
+            work.remap.push_back(blocks.ImportClosedNode(node, parent, oldFirst, work.newFirst));
+            work.line  = 0u;
+            work.phase = ClosedRootReuse::Phase::CopyLines;
+            return;
+        }
+        if (work.phase == ClosedRootReuse::Phase::CopyLines)
+        {
+            const auto& node = nodes[work.scan];
+            if (work.line < node.lines.size())
+            {
+                blocks.ImportClosedLine(work.remap.back(), node.lines[work.line++], oldFirst, work.newFirst);
+                return;
+            }
+            ++work.scan;
+            work.phase = ClosedRootReuse::Phase::CopyNodes;
+            return;
+        }
+        if (work.emptyCursor < blanks.size() && blanks[work.emptyCursor].source.first < oldLast)
+        {
+            const auto& blank = blanks[work.emptyCursor++];
+            blocks.ImportClosedEmptyLine(blank, blank.owner == 0u ? 0u : work.remap[blank.owner - work.root], oldFirst, work.newFirst);
+            return;
+        }
+        cursor    = work.newFirst + (oldLast - oldFirst);
+        lineFirst = cursor;
+        blocks.FinishClosedRoot(cursor);
+        reusableRootIndex = work.end;
+        closedRoot.reset();
+    }
     void ScanBlockUnit()
     {
+        if (closedRoot)
+        {
+            ClosedRootUnit();
+            return;
+        }
         if (blocks.AdvanceTableCell())
             return;
         const auto& source = blockSource;
@@ -543,17 +699,15 @@ struct MarkdownParser::Preparation
                         const auto& blanks = previous->EmptyLines();
                         const auto blank   = std::lower_bound(
                             blanks.begin(), blanks.end(), old.block.source.last, [](const auto& line, auto position) { return line.source.first < position; });
-                        const bool separated = blank != blanks.end() && blank->owner == 0u && blank->source.first == old.block.source.last &&
-                                               blank->source.last > blank->source.first && (! prefix || blank->source.last <= commonFirst);
-                        const auto oldSource = previous->Source();
-                        const bool ordinary  = old.block.kind == MarkdownBlockKind::Paragraph && old.firstChild == MarkdownNoNode &&
-                                               old.block.source.last > old.block.source.first && old.block.content.first < old.block.source.last &&
-                                               oldSource[old.block.content.first] != L'[';
-                        if (separated && ordinary)
+                        const bool followingBlank = blank != blanks.end() && blank->owner == 0u && blank->source.first == old.block.source.last &&
+                                                    blank->source.last > blank->source.first && (! prefix || blank->source.last <= commonFirst);
+                        // A suffix is unchanged through EOF, so its existing closure remains valid.
+                        // Prefix roots require an unchanged document-owned separator.
+                        if ((followingBlank || suffix) && old.block.closed && old.block.source.last > old.block.source.first)
                         {
-                            blocks.ImportClosedRootParagraph(old, cursor);
-                            cursor += old.block.source.last - old.block.source.first;
-                            lineFirst = cursor;
+                            closedRoot.emplace();
+                            closedRoot->root = closedRoot->scan = reusableRootIndex - 1u;
+                            closedRoot->newFirst                = cursor;
                             return;
                         }
                     }

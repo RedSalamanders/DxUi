@@ -960,6 +960,55 @@ public:
     {
         return ! sourceRegion_ && open_.size() == 1u && leaf_ == MarkdownNoNode && ! tableRow_;
     }
+    bool CanImportNodeCount(std::size_t count) const noexcept
+    {
+        return count <= MarkdownSyntax::MaximumNodeRecords - nodes_.size();
+    }
+    std::size_t ImportClosedNode(const MarkdownNode& old, std::size_t parent, std::size_t oldFirst, std::size_t currentFirst)
+    {
+        const auto shift = [&](std::size_t at) noexcept { return currentFirst + (at - oldFirst); };
+        const auto range = [&](MarkdownRange value) noexcept
+        { return value.first == 0u && value.last == 0u ? value : MarkdownRange{shift(value.first), shift(value.last)}; };
+        lineFirst_           = currentFirst;
+        lineEnd_             = currentFirst + (old.block.source.last - oldFirst);
+        const auto index     = Add(old.block.kind, parent);
+        auto& node           = nodes_[index];
+        node.block           = old.block;
+        node.block.source    = {shift(old.block.source.first), shift(old.block.source.last)};
+        node.block.content   = {shift(old.block.content.first), shift(old.block.content.last)};
+        node.block.info      = range(old.block.info);
+        node.label           = range(old.label);
+        node.destination     = range(old.destination);
+        node.title           = range(old.title);
+        node.listStart       = old.listStart;
+        node.contentIndent   = old.contentIndent;
+        node.htmlType        = old.htmlType;
+        node.listMarker      = old.listMarker;
+        node.tight           = old.tight;
+        node.alignment       = old.alignment;
+        node.task            = old.task;
+        node.tableHeader     = old.tableHeader;
+        node.frontMatterKind = old.frontMatterKind;
+        // Add constructed new parent/sibling links and an empty line vector.
+        // Identity and inlines are rebuilt by the ordinary later passes.
+        return index;
+    }
+    void ImportClosedLine(std::size_t node, const MarkdownContentLine& old, std::size_t oldFirst, std::size_t currentFirst)
+    {
+        nodes_[node].lines.push_back({{currentFirst + (old.source.first - oldFirst), currentFirst + (old.source.last - oldFirst)}, old.leadingSpaces});
+    }
+    void ImportClosedEmptyLine(const MarkdownEmptyLine& old, std::size_t owner, std::size_t oldFirst, std::size_t currentFirst)
+    {
+        emptyLines_.push_back({{currentFirst + (old.source.first - oldFirst), currentFirst + (old.source.last - oldFirst)},
+                               currentFirst + (old.insertion - oldFirst),
+                               owner,
+                               old.indent});
+    }
+    void FinishClosedRoot(std::size_t end) noexcept
+    {
+        acceptedEnd_ = end;
+        ++statistics_.reusedClosedRoots;
+    }
     void ImportClosedRootParagraph(const MarkdownNode& old, std::size_t currentFirst)
     {
         if (! CanImportClosedRoot() || old.parent != 0u || old.block.kind != Kind::Paragraph || old.firstChild != MarkdownNoNode ||
