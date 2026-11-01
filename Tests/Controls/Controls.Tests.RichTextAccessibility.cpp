@@ -1974,11 +1974,25 @@ void SemanticMathLiteralFallback(bool embedded)
         fixture.Publish();
         auto simple = fixture.Simple();
         auto math   = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
-        Require(math != nullptr &&
-                    ReadProviderLongProperty(*math.get(), UIA_ControlTypePropertyId, "literal math UIA control type") == UIA_ImageControlTypeId &&
-                    ReadProviderStringProperty(*math.get(), UIA_NamePropertyId, "literal math UIA name") == expression &&
-                    ReadProviderStringProperty(*math.get(), UIA_HelpTextPropertyId, "literal math UIA help") == helpText,
-                "literal math retains its logical Image role, TeX interior name and failure-specific help text");
+        Require(math != nullptr, "literal math has an Image child");
+        const auto actualType = ReadProviderLongProperty(*math.get(), UIA_ControlTypePropertyId, "literal math UIA control type");
+        const auto actualName = ReadProviderStringProperty(*math.get(), UIA_NamePropertyId, "literal math UIA name");
+        const auto actualHelp = ReadProviderStringProperty(*math.get(), UIA_HelpTextPropertyId, "literal math UIA help");
+        if (actualType != UIA_ImageControlTypeId || actualName != expression || actualHelp != helpText)
+        {
+            std::wcerr << L"literal math provider actual type=";
+            std::wcerr << actualType;
+            std::wcerr << L" name=";
+            std::wcerr << std::wstring_view(actualName).substr(0u, 120u);
+            std::wcerr << L" help=";
+            std::wcerr << actualHelp;
+            std::wcerr << L" expected help=";
+            std::wcerr << helpText;
+            std::wcerr << L'\n';
+        }
+        Require(actualType == UIA_ImageControlTypeId, "literal math retains its Image role");
+        Require(actualName == expression, "literal math retains its TeX interior name");
+        Require(actualHelp == helpText, "literal math retains failure-specific help text");
         const auto delimiter = source.find(expression);
         Require(delimiter != std::wstring::npos, "literal math source has the expected TeX interior");
         const auto delimiterUnits = delimiter >= 2u && source[delimiter - 1u] == L'$' && source[delimiter - 2u] == L'$' ? 4u : 2u;
