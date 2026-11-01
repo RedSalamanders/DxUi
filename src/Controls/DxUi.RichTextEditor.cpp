@@ -811,6 +811,43 @@ bool RichTextEditor::CompleteImageRequest(const RichText::RichImageRequest& requ
     }
     return true;
 }
+bool RichTextEditor::ReplaceImageFrame(ControlHost& host,
+                                       const std::shared_ptr<const RichText::SemanticDocument>& expected,
+                                       const RichText::RichImageRequest& request,
+                                       std::shared_ptr<const RichText::RichImage> image)
+{
+    const auto document = expected;
+    if (! document || GetHost() != &host || ! IsVisible() || ! _state->markdownRendering || _state->mode != RichText::ViewMode::Rich ||
+        GetAcknowledgedSemanticDocument(host) != document || !_state->images.Current(document, _state->imageLocationRevision, _state->bindingRevision))
+        return false;
+    const auto lifetime = GetLifetimeToken();
+    if (host.GetFocusControl() == this)
+    {
+        NativeTextInputState input{.text = std::wstring(0u, L' '), .compositionClauseBoundaries = std::vector<size_t>(0u)};
+        const bool available = host.TryReadNativeTextInputState(this, input);
+        if ((host.HasActiveNativeTextInputSession() && ! available) || (available && (input.compositionStartIndex || input.compositionEndIndex)))
+            return false;
+    }
+    if (lifetime.expired() || GetHost() != &host || GetAcknowledgedSemanticDocument(host) != document ||
+        !_state->images.Current(document, _state->imageLocationRevision, _state->bindingRevision))
+        return false;
+    const bool alreadyDirty = _state->images.HasUnpublished();
+    if (!_state->images.ReplaceFrame(request, image))
+        return false;
+    if (!alreadyDirty && _state->images.HasUnpublished())
+    {
+        RetireSemanticAccessibility();
+        _state->hoveredLink.reset();
+        _state->caretLink.reset();
+        if (_state->layout.HasPendingPreparation())
+            ++_state->cancelledPreparations;
+        _state->layout.Invalidate();
+        _state->requestActive = false;
+        RequestContentPreparation(false);
+        RequestInvalidate(); // May retire this control; no member access follows.
+    }
+    return true;
+}
 void RichTextEditor::ReloadImages()
 {
     _state->images.Clear();

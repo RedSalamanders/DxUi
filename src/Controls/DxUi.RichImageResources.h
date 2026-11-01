@@ -317,6 +317,41 @@ public:
     {
         return snapshotDirty_;
     }
+    bool ReplaceFrame(const RichImageRequest& request, const std::shared_ptr<const RichImage>& image) noexcept
+    {
+        if (! document_ || next_ || ! request.state_ || ! image)
+            return false;
+        const auto found = std::ranges::find(entries_, request.state_, &Entry::request);
+        if (found == entries_.end() || found->pending || ! found->image)
+            return false;
+        std::size_t bytes{};
+        for (auto entry = entries_.begin(); entry != entries_.end(); ++entry)
+        {
+            const auto& pixels = entry == found ? image : entry->image;
+            if (! pixels)
+                continue;
+            bool duplicate = false;
+            for (auto prior = entries_.begin(); prior != entry; ++prior)
+                if ((prior == found ? image : prior->image) == pixels)
+                {
+                    duplicate = true;
+                    break;
+                }
+            if (! duplicate)
+            {
+                if (pixels->Pixels().size() > MaximumDecodedBytes - bytes)
+                    return false;
+                bytes += pixels->Pixels().size();
+            }
+        }
+        if (found->image != image)
+        {
+            found->image   = image;
+            decodedBytes_  = bytes;
+            snapshotDirty_ = true;
+        }
+        return true;
+    }
     void Publish()
     {
         if (! snapshotDirty_)

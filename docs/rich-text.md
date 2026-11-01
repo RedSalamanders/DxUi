@@ -612,6 +612,9 @@ Turning either remote or data admission off cancels only that kind of work.
 An optional `SetOnImageActivated` callback receives a current image's source
 range, destination, title and alternative for Ctrl+click or Ctrl+Enter. The
 application owns any resulting action; an enclosing link takes precedence.
+Applications that decode animated media may schedule immutable frames with
+`ReplaceImageFrame` against the current acknowledged document and completed
+request. DxUi does not own a timer or decoder; stale submissions are refused.
 SVG and unavailable formats keep their alternative. The source parser still preserves every original
 destination. Limits are 16 MiB encoded, 4096 pixels per side, 4,194,304 decoded
 pixels, 32 unique sources, 128 native placements shared with diagrams and 64 MiB

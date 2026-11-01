@@ -3344,6 +3344,12 @@ public:
     // True accepts a current completion. Null/capacity keeps the image alt;
     // false rejects stale/canceled/foreign requests. No source/history edit.
     bool CompleteImageRequest(const RichText::RichImageRequest& request, std::shared_ptr<const RichText::RichImage> image);
+    // Replace a completed image with a caller-scheduled immutable animation frame.
+    // The exact acknowledged document guards against stale source publications.
+    bool ReplaceImageFrame(ControlHost& host,
+                           const std::shared_ptr<const RichText::SemanticDocument>& expected,
+                           const RichText::RichImageRequest& request,
+                           std::shared_ptr<const RichText::RichImage> image);
     void ReloadImages();
     [[nodiscard]] RichText::RichImageResourceStatistics GetImageResourceStatistics() const noexcept;
     // Prepare one source replacement for the native/app clipboard route. File

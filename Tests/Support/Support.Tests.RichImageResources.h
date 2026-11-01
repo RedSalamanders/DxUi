@@ -71,7 +71,7 @@ template <typename Check> inline void Admission(Check&& check)
     resources.Take(requests);
     check(requests.size() == 1u && resources.Statistics().imageElements == 128u,
           "native image placement ceiling retains excess alternatives while coalescing duplicate files");
-    const auto picture = Picture();
+    const auto picture          = Picture();
     check(resources.Complete(requests[0], picture) && resources.HasUnpublished(), "completion stages an unpublished resource snapshot");
     resources.Publish();
     check(resources.Snapshot()->placements.size() == 128u, "one immutable image supplies every admitted duplicate placement");
@@ -277,6 +277,7 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
     std::size_t notices{};
     editor.SetOnTextChanged([&] { ++notices; });
     const auto picture = Picture();
+    const auto completedRequest = requests[0];
     check(editor.CompleteImageRequest(requests[0], picture) && requests[0].Cancelled() && ! editor.CompleteImageRequest(requests[0], picture),
           "current completion publishes once and retires its job token");
     prepare();
@@ -284,6 +285,10 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
           "image publication preserves source, backward selection, history and text notifications");
     const auto document = editor.GetAcknowledgedSemanticDocument(host);
     check(static_cast<bool>(document), "image geometry has an acknowledged source document");
+    check(editor.ReplaceImageFrame(host, document, requests[0], Picture()), "caller can replace a completed image with a new immutable frame");
+    prepare();
+    check(editor.GetText() == source && editor.Revision() == revision && editor.GetSelection() == selection && ! editor.CanUndo() && ! notices,
+          "frame replacement preserves source, selection, history and notifications");
     unsigned images{};
     for (std::size_t index = 0u; index < document->Elements().size(); ++index)
         if (document->Elements()[index].role == SemanticRole::Image)
@@ -316,6 +321,7 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
     check(requests.size() == 1u && requests[0].FilePath() == L"D:\\other\\image.png", "new image request uses only the new explicit base");
     const auto changedSource = requests[0];
     editor.SetText(L"![other](b.png)");
+    check(! editor.ReplaceImageFrame(host, document, completedRequest, Picture()), "a frame from a replaced source publication is refused");
     check(changedSource.Cancelled() && ! editor.CompleteImageRequest(changedSource, picture),
           "source replacement rejects a prior image completion immediately");
     prepare();
