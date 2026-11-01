@@ -1493,7 +1493,17 @@ bool RichTextEditor::NavigateSemanticElement(ControlHost& host, const std::share
 void RichTextEditor::SetOnLinkActivated(std::function<void(const RichTextLinkActivation&)> callback)
 {
     auto next = callback ? std::make_shared<const std::function<void(const RichTextLinkActivation&)>>(std::move(callback)) : nullptr;
+    const bool availabilityChanged = bool(next) != bool(_state->onLinkActivated);
     _state->onLinkActivated.swap(next);
+    if (availabilityChanged)
+    {
+        RetireSemanticAccessibility();
+        RequestInvalidate(); // A scheduling callback may retire this owner.
+    }
+}
+bool RichTextEditor::HasLinkActivationHandler() const noexcept
+{
+    return bool(_state->onLinkActivated);
 }
 bool RichTextEditor::CanChangeSemanticSourcePresentation(ControlHost& host) const
 {

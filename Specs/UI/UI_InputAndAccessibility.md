@@ -1,7 +1,7 @@
 # Input and accessibility
 
-RichTextEditor links expose Invoke and support Ctrl+click or Ctrl+Enter at the
-source caret. A current, enabled, non-composing semantic publication is required;
+RichTextEditor local-fragment links expose Invoke and support Ctrl+click or Ctrl+Enter at the
+source caret. External links expose Invoke only while an activation handler is registered. A current, enabled, non-composing semantic publication is required;
 read-only editors permit navigation. External destinations invoke
 `SetOnLinkActivated` with borrowed immutable source/destination/title data. DxUi
 does not launch a process or access a destination. Callback retirement is safe.

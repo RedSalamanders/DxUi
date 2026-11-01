@@ -2005,7 +2005,7 @@ an enabled binding and no active composition. It selects and scrolls without
 editing history or acquiring keyboard focus; read-only navigation is allowed.
 UIA exposes internal references/backlinks as Hyperlink + Invoke, dispatching
 native mutations to the owner and rejecting embedded foreign-thread mutation.
-External destinations remain inert. Source/presentation/binding retirement MUST
+External destinations remain inert until the application registers a link activation handler; registration and removal retire the prior semantic accessibility publication. Source/presentation/binding retirement MUST
 make held navigation providers unavailable before a replacement publication.
 Ctrl+click activates internal links; Ctrl+Enter at a source-bearing reference
 activates its definition. Ctrl+Tab and Ctrl+Shift+Tab cycle generated backlinks in display order without changing the raw selection; the focused backlink has a visible outline and Ctrl+Enter activates it. Navigation is refused during composition and never transfers keyboard focus.

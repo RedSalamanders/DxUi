@@ -594,6 +594,7 @@ struct AccessibilityRichTextSnapshot
     std::vector<std::optional<D2D1_RECT_F>> bounds, copyBounds;
     std::vector<RichText::MarkdownRange> underlinedLinks;
     std::wstring bodyFont, codeFont, copyName;
+    bool externalLinkActivationEnabled = false;
     double fontSizePoints     = 0.0;
     double codeFontSizePoints = 0.0;
     double headingScaleStep   = 0.15;
@@ -2289,6 +2290,7 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
                     readFamily(body, rich->bodyFont);
                     readFamily(host.GetTextFormat(FontRole::Monospace), rich->codeFont);
                     rich->fontSizePoints   = static_cast<double>(body->GetFontSize()) * 72.0 / 96.0;
+                    rich->externalLinkActivationEnabled = editor->HasLinkActivationHandler();
                     const auto& appearance = editor->GetAppearance();
                     if (! appearance.bodyFontFamily.empty())
                         rich->bodyFont = appearance.bodyFontFamily;

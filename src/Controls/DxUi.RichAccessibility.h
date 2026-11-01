@@ -198,8 +198,11 @@ public:
         const auto* record  = Record(snapshot);
         if (! record)
             return UIA_E_ELEMENTNOTAVAILABLE;
-        const auto role = record->RichSemantic()->Elements()[element_].role;
-        if (id == UIA_InvokePatternId && (codeCopy_ || role == RichText::SemanticRole::Link || record->RichSemantic()->NavigationTarget(element_) ||
+        const auto& semantic = record->RichSemantic()->Elements()[element_];
+        const auto role = semantic.role;
+        const bool linkAction = role == RichText::SemanticRole::Link &&
+                                (semantic.destination.starts_with(L'#') || record->controlRichText->externalLinkActivationEnabled);
+        if (id == UIA_InvokePatternId && (codeCopy_ || linkAction || record->RichSemantic()->NavigationTarget(element_) ||
                                           record->RichSemantic()->SourceEditingRange(element_)))
             *result = static_cast<IInvokeProvider*>(this);
         else if (! codeCopy_ && id == UIA_TogglePatternId && role == RichText::SemanticRole::Task)
@@ -487,8 +490,12 @@ public:
             return DispatchAccessibilityUiActionToWindowThread(hwnd_, request);
         }
         const auto* record = Record(snapshot);
-        if (! record || (! codeCopy_ && record->RichSemantic()->Elements()[element_].role != RichText::SemanticRole::Link &&
-                        ! record->RichSemantic()->NavigationTarget(element_) && ! record->RichSemantic()->SourceEditingRange(element_)))
+        if (! record)
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        const auto& semantic = record->RichSemantic()->Elements()[element_];
+        const bool linkAction = semantic.role == RichText::SemanticRole::Link &&
+                                (semantic.destination.starts_with(L'#') || record->controlRichText->externalLinkActivationEnabled);
+        if (! codeCopy_ && ! linkAction && ! record->RichSemantic()->NavigationTarget(element_) && ! record->RichSemantic()->SourceEditingRange(element_))
             return UIA_E_NOTSUPPORTED;
         if (! record->controlEnabled)
             return UIA_E_ELEMENTNOTENABLED;

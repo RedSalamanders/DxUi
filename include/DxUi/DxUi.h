@@ -3349,6 +3349,7 @@ public:
     // navigate inside the document; external destinations are delegated only.
     // The library never launches a browser, file, process or network operation.
     void SetOnLinkActivated(std::function<void(const RichTextLinkActivation&)> callback);
+    [[nodiscard]] bool HasLinkActivationHandler() const noexcept;
     // Current prepared geometry only. Programmatic scrolling does not change
     // source, selection, undo history or focus; read-only views allow it.
     [[nodiscard]] std::optional<RichTextScrollInfo> GetScrollInfo() const noexcept;
