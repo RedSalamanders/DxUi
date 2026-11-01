@@ -818,9 +818,10 @@ binary search and slices visit only intersecting entries. Edits copy boundary
 paths, reuse untouched subtrees and rebalance split/merged nodes before publication.
 Captured snapshots support concurrent immutable reads while the owner changes
 its document. The Document itself remains owner-thread mutable. Changed edits
-allocate the inserted buffer and copied paths; snapshot text materialization, projection
-and layout still prepare the complete bounded document. The capacity is unchanged;
-incremental layout and qualification beyond the bounded source remain pending.
+allocate the inserted buffer and copied paths. The capacity is unchanged. Current
+semantic preparation also reuses eligible retained block layouts as described below;
+this does not establish incremental processing for every projection or qualification
+beyond the bounded source.
 Future selection checks run against the virtual replacement before storage/history
 allocation. Reset, replacement, transient replacement, undo and redo stage all
 required allocations before publishing; allocation failure preserves the full
@@ -834,8 +835,9 @@ the latest 96 edits are always tracked, with at most 128 retained. Missing
 history or reset falls back to the complete source. Returned boundaries are
 safe for `Slice`, including newly joined CRLF. Queries allocate nothing and change
 no shared cache. Numeric pages keep no old source buffers alive. This source
-service supports the planned incremental preparation; whole-document projection/
-layout and shared scheduling are still separate work.
+service supports incremental preparation and retained block reuse described below;
+whole-document projection work and shared scheduling have separate bounds and
+qualification requirements.
 Whole-text IME previews are narrowed to their changed prefix/suffix interval
 before replacing source. Shared fragments are compared without materializing old
 text; scalar and CRLF edges remain intact and unchanged buffers stay shared.
@@ -898,7 +900,7 @@ so API revision stays 4. Consume an exact clean pin via the normal
 
 Historical source-bound runs are retained in [the qualification history](../Measurements/RichText/2026-11-01-usage-history.md). They do not qualify a later source revision.
 
-The next bounded preparation follow-through removes redundant source correlation
+At the earlier bounded preparation checkpoint, the follow-through removed redundant source correlation
 when trusted snapshot change metadata is already available, and avoids indexing
 discarded old children for a full replacement. Read-spy and parser identity/event
 budget tests and focused x64 Debug/native/embedded qualification pass. Source ownership

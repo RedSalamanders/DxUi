@@ -1068,21 +1068,24 @@ rechecks source, selection epoch, binding, focus and composition before the
 same one-transaction file-reference insertion. Invalid, canceled or stale
 results do not mutate source. The application owns any asset side effects.
 
-The separate [file-drop plan](../Plans/WIP/RichTextFileDrop_2026-10-20.md) specifies
-pending drag-and-drop support with the same displayed-image/relative-file-link
-policy. Its insertion target MUST be a prepared source caret at the drop point;
+The file-drop transport uses the same displayed-image/relative-file-link
+policy as paste. Its insertion target MUST be a prepared source caret at the drop point;
 preview MUST NOT move the existing selection, and one accepted file list MUST
 produce one atomic insertion whose undo restores that selection. Native and
 embedded transports MUST share path/context rules and the application-owned image
-pipeline. This planned capability is not implemented by file-reference paste.
+pipeline. Native and embedded applications own OLE registration and routing;
+the library provides the bounded adapter and guarded insertion services. The
+[file-drop plan](../Plans/WIP/RichTextFileDrop_2026-10-20.md) retains current-source
+qualification and consumer adoption separately from implementation.
 
 Pure structural command/deletion planning MUST reject syntax carrying a
 presentation-only source-region hint before staging any document change, even
 when the requested selection lies outside that region. Callers obtain canonical
 syntax for structural planning.
 
-Rich image resources MUST be immutable premultiplied BGRA, fully decoded before
-owner publication. The initial raster profile uses the built-in PNG/JPEG/BMP/GIF/
+Raster image resources MUST be immutable premultiplied BGRA, fully decoded before
+owner publication. Separately enabled SVG resources retain immutable admitted
+bytes and use the bounded preparation contract below. The raster profile uses the built-in PNG/JPEG/BMP/GIF/
 TIFF codecs and first static frame; GIF canvas placement/transparency/background
 and JPEG/TIFF EXIF orientation MUST be preserved. Unsupported resources MUST keep
 the source-exact alternative. Admission is at most 16 MiB encoded, 4096 per side,
@@ -1257,7 +1260,7 @@ The pinned dialect's seven HTML-block forms are opaque literal source, with
 container/EOF termination and their appropriate closing/blank-line conditions.
 CommonMark 0.31.2 textarea/search behavior remains distinct from strict GFM 0.29.
 Resolved inline forests and GFM extension metadata are implemented in M3; its
-bounded profile qualification is retained in the [sealed M3 packet](../../Measurements/RichText/README.md); semantic rendering/editing remains pending.
+bounded profile qualification is retained in the [sealed M3 packet](../../Measurements/RichText/README.md). Later bounded semantic rendering and editing are implemented as specified below; final-source qualification remains separate.
 BlockStatistics records deterministic prefix-inspection and container-finalization
 work. Indentation lookahead stops at its required threshold; a line's marker
 metadata rejects incompatible thematic suffixes without rescanning each nested
@@ -2553,7 +2556,7 @@ operator scripts; a trailing row separator is accepted.
 `\not` admits ungrouped single relation glyphs `= < > ≤ ≥ ∈ ∋ ⊂ ⊃ ⊆ ⊇ ∼ ≡ ≈ ∣ ∥`
 and substitutes their Unicode negations; other operands retain exact source.
 Unsupported commands remain local exact source. This is a named native profile,
-not a claim of all KaTeX functions or identical TeX font metrics. The selected mathematical face supplies bounded OpenType MATH italic corrections and precomposed vertical delimiter variants when available; larger delimiters use up to 32 distinct part records and 64 total compatible vertical glyph parts per delimiter, with 512 per formula. Connector overlap follows the [OpenType MATH format](https://learn.microsoft.com/en-us/typography/opentype/spec/math); part origins whose ink metrics do not match their advance within two design units use vector fallback. Missing, malformed or oversized font data also falls back. For `\widehat`, `\widetilde` and `\vec`, bounded horizontal variants or assemblies are used when their metrics fit the reserved accent envelope; missing, malformed or incompatible data retains vector fallback. Validated OpenType Device-table deltas for the supported math constants and italic corrections are applied at the formula ppem and converted from pixels to DIP using the effective DPI. Missing or malformed records fall back to the unadjusted design value; variable-font VariationIndex corrections remain unsupported. A single root-level `\tag{label}` or `\tag*{label}` on a display equation stages the body and plain text label separately, centers the body in its containing box and places the label at its trailing edge; the unstarred form adds parentheses. Inline, repeated, nested or embedded-math labels are rejected to exact source. The full box is the atomic source hit/selection extent; width changes retain shaped body and label. The bounded size declarations `\tiny` through `\Huge` scope to the enclosing group and use the pinned KaTeX size and script-size mapping while preserving source. The bounded annotation commands `\boxed`, `\cancel`, `\bcancel`, `\xcancel`, `\sout`, `\phase` and `\angl` retain their authored source and stage their frame, strike, phasor or actuarial strokes with the formula geometry; nested operands use the same bounds and no brushes or geometry are created during draw. For direct single-glyph script operands whose actual shaped faces match the retained MATH font file, bounded MathKern corner tables adjust horizontal subscript and superscript placement using the two correction heights and OpenType minimum; device deltas are scaled at each glyph ppem. Missing, malformed, oversized, fallback-font or compound-box data uses zero kern. The source and object ownership remain exact. The at-most-4-MiB font snapshot and bounded glyph-indexed tables are shared per geometry generation.
+not a claim of all KaTeX functions or identical TeX font metrics. The selected mathematical face supplies bounded OpenType MATH italic corrections and precomposed vertical delimiter variants when available; larger delimiters use up to 32 distinct part records and 64 total compatible vertical glyph parts per delimiter, with 512 per formula. Connector overlap follows the [OpenType MATH format](https://learn.microsoft.com/en-us/typography/opentype/spec/math); part origins whose ink metrics do not match their advance within two design units use vector fallback. Missing, malformed or oversized font data also falls back. For `\widehat`, `\widetilde` and `\vec`, bounded horizontal variants or assemblies are used when their metrics fit the reserved accent envelope; missing, malformed or incompatible data retains vector fallback. Validated OpenType Device-table deltas for the supported math constants and italic corrections are applied at the formula ppem and converted from pixels to DIP using the effective DPI. Missing or malformed records fall back to the unadjusted design value; variable-font VariationIndex corrections remain unsupported. A single root-level `\tag{label}` or `\tag*{label}` on a display equation stages the body and plain text label separately, centers the body in its containing box and places the label at its trailing edge; the unstarred form adds parentheses. Inline, repeated within one equation or row, nested, or embedded-math labels are rejected to exact source. Supported display align, alignat, gather and equation environments may instead have one independent tag per row as specified above. The full box is the atomic source hit/selection extent; width changes retain shaped body and label. The bounded size declarations `\tiny` through `\Huge` scope to the enclosing group and use the pinned KaTeX size and script-size mapping while preserving source. The bounded annotation commands `\boxed`, `\cancel`, `\bcancel`, `\xcancel`, `\sout`, `\phase` and `\angl` retain their authored source and stage their frame, strike, phasor or actuarial strokes with the formula geometry; nested operands use the same bounds and no brushes or geometry are created during draw. For direct single-glyph script operands whose actual shaped faces match the retained MATH font file, bounded MathKern corner tables adjust horizontal subscript and superscript placement using the two correction heights and OpenType minimum; device deltas are scaled at each glyph ppem. Missing, malformed, oversized, fallback-font or compound-box data uses zero kern. The source and object ownership remain exact. The at-most-4-MiB font snapshot and bounded glyph-indexed tables are shared per geometry generation.
 Font lookup and glyph-query HRESULT failures remain retryable; only a known
 unsupported font operation or absent/invalid font data uses the vector fallback.
 Native `binom`, `dbinom` and `tbinom` form a two-row parenthesized matrix with
