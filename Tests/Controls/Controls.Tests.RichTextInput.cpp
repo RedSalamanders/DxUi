@@ -606,6 +606,18 @@ void TestRichTextImageClipboardTransport()
     AttachedHostWindow window;
     ClipboardTransportFixture clipboard(window.Hwnd(), Require);
     RequireSucceeded(SystemTextClipboard().Write(window.Hwnd(), L"unicode fallback"), "structured transport fixture Unicode data");
+    const auto priorOpens = clipboard.opens;
+    Require(SystemTextClipboard().Write(window.Hwnd(), std::wstring_view(L"a\0b", 3u)) == E_INVALIDARG && clipboard.opens == priorOpens,
+            "CF_UNICODETEXT refuses counted NUL before opening or replacing clipboard content");
+    auto root    = std::make_unique<Panel>();
+    auto* editor = root->AddChild<RichTextEditor>(std::wstring(L"a\0b", 3u));
+    window.Host().SetRoot(std::move(root));
+    editor->SetSelection({0u, 3u});
+    const auto beforeCut      = editor->Snapshot();
+    const auto beforeCutOpens = clipboard.opens;
+    Require(editor->OnKeyDown(window.Host(), 'X', MK_CONTROL) && editor->Snapshot().IsSameRevision(beforeCut) &&
+                editor->GetSelection() == RichText::Selection{0u, 3u} && ! editor->CanUndo() && clipboard.opens == beforeCutOpens,
+            "a counted-NUL cut refuses before clipboard mutation and preserves source, selection and history");
     constexpr wchar_t list[] = L"C:\\docs\\a.png\0D:\\\u6771.jpg\0";
     const auto bytes         = RichImagePathTests::DropBuffer(std::wstring_view(list, std::size(list)));
     clipboard.fileData.reset(GlobalAlloc(GMEM_MOVEABLE, bytes.size()));

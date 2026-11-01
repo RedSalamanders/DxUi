@@ -7337,6 +7337,45 @@ void TestNativeTextInputBackendClearWithoutSelectionLeavesTextAndClipboardUnchan
     Require(unchanged, "native wm_clear without selection leaves text and clipboard unchanged");
 }
 
+void TestNativeRichTextStoreCountedNul()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    window.Host().SetTextInputBackend(TextInputBackend::Native);
+    auto root    = std::make_unique<Panel>();
+    auto* editor = root->AddChild<RichTextEditor>(std::wstring(L"A\0B", 3u));
+    editor->SetBounds(D2D1::RectF(12.0f, 16.0f, 260.0f, 80.0f));
+    window.Host().SetRoot(std::move(root));
+    window.Host().SetFocusControl(editor);
+    window.Host().SyncTextInput(editor);
+    NativeTextStoreTestSink sink;
+    wil::com_ptr_nothrow<ITextStoreACP> store;
+    store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
+    Require(store != nullptr, "counted-NUL RichText store exists");
+    RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE), "attach counted-NUL sink");
+    std::wstring observed;
+    sink.onLockGranted = [&](DWORD) noexcept
+    {
+        wchar_t buffer[8]{};
+        ULONG count{}, runs{};
+        LONG next{};
+        HRESULT result = store->GetText(0, -1, buffer, 8u, &count, nullptr, 0u, &runs, &next);
+        if (FAILED(result))
+            return result;
+        observed.assign(buffer, count);
+        const wchar_t replacement[] = {L'x', L'\0', L'y'};
+        TS_TEXTCHANGE change{};
+        return store->SetText(0u, 0, -1, replacement, 3u, &change);
+    };
+    HRESULT session = E_FAIL;
+    RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session), "counted-NUL TSF lock request");
+    RequireSucceeded(session, "counted-NUL TSF read and write succeed");
+    Require(observed == std::wstring(L"A\0B", 3u) && editor->GetText() == std::wstring(L"x\0y", 3u) && editor->Undo() &&
+                editor->GetText() == std::wstring(L"A\0B", 3u),
+            "TSF uses explicit counts for read, write, and undo across NUL");
+    RequireSucceeded(store->UnadviseSink(&sink), "detach counted-NUL sink");
+}
+
 void TestNativeTextInputTextStoreRequiresLockAndExposesTextSelectionGeometry()
 {
     using namespace DxUi;
@@ -9808,6 +9847,7 @@ void RunNativeTextInputTests()
     DXUI_RUN_TEST(TestNativeTextInputBackendEditableComboExactMatchCommandsSyncSelection);
     DXUI_RUN_TEST(TestNativeTextInputBackendEditableComboDeleteKeysAndPathWordDeleteSyncState);
     DXUI_RUN_TEST(TestNativeTextInputBackendLeavesASystemCharacterToTheSystem);
+    DXUI_RUN_TEST(TestNativeRichTextStoreCountedNul);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreRequiresLockAndExposesTextSelectionGeometry);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreRejectsDestroyedControlDuringTeardown);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreExposesOwnerCompositionSink);

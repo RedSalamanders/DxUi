@@ -149,7 +149,7 @@ struct MarkdownCommandPlanner
     {
         if (first > last || ! plan.source_.IsBoundary(first) || ! plan.source_.IsBoundary(last))
             throw std::out_of_range("Invalid structural source edit");
-        if (replacement.size() > Document::MaximumUnits || ! IsValidUtf16(replacement))
+        if (replacement.size() > Document::MaximumUnits || ! IsValidSourceUtf16(replacement))
             throw std::invalid_argument("Invalid structural replacement");
         if (Slice(first, last) != replacement)
             plan.edits_.emplace_back(MarkdownRange{first, last}, replacement);
@@ -1049,7 +1049,7 @@ struct MarkdownCommandPlanner
             cursor = edit.source.last;
         }
         candidate += Slice(cursor, text.size());
-        if (! IsValidUtf16(candidate) || ! IsEditBoundary(candidate, plan.after_.anchor) || ! IsEditBoundary(candidate, plan.after_.caret))
+        if (! IsValidSourceUtf16(candidate) || ! IsEditBoundary(candidate, plan.after_.anchor) || ! IsEditBoundary(candidate, plan.after_.caret))
             throw std::out_of_range("Invalid structural command result selection");
         return plan;
     }
@@ -1980,7 +1980,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
         }
         case MarkdownCommand::SetTableCell:
         {
-            if (! IsValidUtf16(request.text) || request.text.find_first_of(L"\r\n") != std::wstring_view::npos)
+            if (! IsValidSourceUtf16(request.text) || request.text.find_first_of(L"\r\n") != std::wstring_view::npos)
                 throw std::invalid_argument("Cell source must be valid single-line Unicode");
             for (std::size_t at = 0u; at < request.text.size(); ++at)
             {

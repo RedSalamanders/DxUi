@@ -191,9 +191,9 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
         (options.markdownPresentation != MarkdownPresentationStyle::Default && options.markdownPresentation != MarkdownPresentationStyle::Subtle))
         throw std::invalid_argument("Invalid rich-text layout options");
     const auto maximum = semanticDisplay ? Document::MaximumUnits * 2u : Document::MaximumUnits;
-    if (projection.text.size() > maximum || ! IsValidUtf16(projection.text) || projection.source.size() > maximum || ! IsValidUtf16(projection.source) ||
-        projection.units.size() != projection.text.size() || projection.sourceToDisplay.size() != projection.source.size() + 1 ||
-        (projection.mode != ViewMode::Source && projection.mode != ViewMode::Rich))
+    if (projection.text.size() > maximum || ! IsValidSourceUtf16(projection.text) || projection.source.size() > maximum ||
+        ! IsValidSourceUtf16(projection.source) || projection.units.size() != projection.text.size() ||
+        projection.sourceToDisplay.size() != projection.source.size() + 1 || (projection.mode != ViewMode::Source && projection.mode != ViewMode::Rich))
         throw std::invalid_argument("Invalid rich-text display text");
     if (object && (! semanticDisplay || objectOffset >= projection.text.size() || projection.text[objectOffset] != L'\ufffc'))
         throw std::invalid_argument("Invalid semantic object placement");

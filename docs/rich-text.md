@@ -257,7 +257,7 @@ capture and cancellation, logical DirectWrite cluster navigation, word navigatio
 line/document Home/End, Up/Down/PageUp/PageDown, Backspace/Delete, Enter in the document's first EOL spelling (CRLF when absent),
 Ctrl+A/C/X/V/Z/Y, Ctrl+Shift+Z and Ctrl+B/I. Copy/cut transfers exact selected
 Markdown source and original EOLs through the host's bounded Unicode clipboard;
-busy/failed clipboard writes never cut. Paste validates before committing and
+busy/failed clipboard writes never cut. Counted U+0000 remains exact in RichText source, UTF-8 codecs, text services and UIA; CF_UNICODETEXT copy/cut refuses a selection containing it instead of truncating. Paste validates before committing and
 rechecks owner/revision/selection after clipboard callbacks. Surrogate pairs
 commit together, orphan halves are discarded, and AltGr Unicode input is accepted.
 This does not qualify full visual bidi/UAX navigation.

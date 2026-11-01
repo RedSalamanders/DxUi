@@ -37,7 +37,7 @@ std::shared_ptr<const SourceDisplayMap> SourceDisplayMap::Build(std::wstring_vie
     // Admission precedes copies and indexes, including multiplication/amplification.
     if (source.size() > Document::MaximumUnits || display.size() > MaximumDisplayUnits || spans.size() > MaximumSpans)
         throw std::length_error("Semantic coordinate capacity exceeded");
-    if (! IsValidUtf16(source) || ! IsValidUtf16(display))
+    if (! IsValidSourceUtf16(source) || ! IsValidSourceUtf16(display))
         throw std::invalid_argument("Invalid semantic UTF-16");
     return std::shared_ptr<const SourceDisplayMap>(new SourceDisplayMap(source, display, spans));
 }
@@ -244,7 +244,7 @@ bool ApplySourceEdits(
             throw std::invalid_argument("Semantic edits must be ordered and disjoint");
         if (edit.replacement.size() > Document::MaximumUnits - inserted)
             throw std::length_error("Semantic insertion capacity exceeded");
-        if (! IsValidUtf16(edit.replacement))
+        if (! IsValidSourceUtf16(edit.replacement))
             throw std::invalid_argument("Invalid semantic replacement UTF-16");
         inserted += edit.replacement.size();
         removed += edit.source.last - edit.source.first;

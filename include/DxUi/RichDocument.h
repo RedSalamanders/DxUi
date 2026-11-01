@@ -30,6 +30,8 @@ struct Selection
 };
 
 bool IsValidUtf16(std::wstring_view text) noexcept;
+// Counted RichText source admits U+0000; metadata and other existing callers remain strict.
+bool IsValidSourceUtf16(std::wstring_view text) noexcept;
 bool IsEditBoundary(std::wstring_view text, std::size_t offset) noexcept;
 std::wstring DecodeUtf8(std::string_view bytes);
 std::string EncodeUtf8(std::wstring_view text);

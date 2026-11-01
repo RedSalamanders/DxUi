@@ -1246,7 +1246,7 @@ void SemanticBuilder::BeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyn
         throw std::invalid_argument("Semantic preparation requires syntax");
     if (syntax->SourceRegionNode() != MarkdownNoNode && sourceBlock != syntax->SourceRegionNode())
         throw std::invalid_argument("Hinted syntax requires its active source presentation");
-    if (! IsValidUtf16(syntax->Source()))
+    if (! IsValidSourceUtf16(syntax->Source()))
         throw std::invalid_argument("Invalid semantic source UTF-16");
     if (syntax->Source().size() > Document::MaximumUnits || syntax->Nodes().size() > SemanticDocument::MaximumElements ||
         syntax->Inlines().size() > SemanticDocument::MaximumElements - syntax->Nodes().size())

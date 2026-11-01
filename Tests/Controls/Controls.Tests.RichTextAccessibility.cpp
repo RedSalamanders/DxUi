@@ -1138,6 +1138,47 @@ void TestRichTextAccessibilityEmbeddedPendingPreparationGeometry()
 {
     EmbeddedCase([](bool embedded) { PendingPreparationGeometry(embedded); });
 }
+void CountedNulSource(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true);
+    const std::wstring source(L"A\0B", 3u);
+    fixture.editor->SetText(source);
+    fixture.editor->SetViewMode(ViewMode::Source);
+    fixture.Publish();
+    auto text = TextProvider(fixture);
+    wil::com_ptr_nothrow<ITextRangeProvider> document;
+    RequireSucceeded(text->get_DocumentRange(document.put()), "counted-NUL UIA document");
+    Require(ReadTextRangeText(*document.get(), -1, "counted-NUL UIA text") == source, "UIA returns the complete counted source including and after NUL");
+    wil::unique_bstr needle(SysAllocStringLen(source.data(), static_cast<UINT>(source.size())));
+    wil::com_ptr_nothrow<ITextRangeProvider> found;
+    Require(needle && SUCCEEDED(document->FindText(needle.get(), FALSE, FALSE, found.put())) && found &&
+                ReadTextRangeText(*found.get(), -1, "counted-NUL search result") == source,
+            "UIA FindText uses the complete counted BSTR needle");
+    TextInputState state;
+    Require(fixture.editor->ExportTextInputState(state) && state.text == source, "text services export counted NUL without truncation");
+    state.text       = std::wstring(L"x\0yz", 4u);
+    state.caretIndex = 4u;
+    Require(fixture.editor->ImportTextInputState(*fixture.controls, state, true) && fixture.editor->GetText() == state.text && fixture.editor->Undo() &&
+                fixture.editor->GetText() == source,
+            "counted text-service edits preserve the NUL and remain reversible");
+    fixture.Publish();
+    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    fixture.editor->SetViewMode(ViewMode::Rich);
+    fixture.editor->SetMarkdownRenderingEnabled(true);
+    fixture.Publish();
+    Require(fixture.editor->GetText() == source && fixture.editor->GetMarkdownSyntax() && fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls),
+            "Rich projection accepts counted raw source while retaining its exact spelling");
+}
+void TestRichTextAccessibilityWindowCountedNul()
+{
+    CountedNulSource(false);
+}
+void TestRichTextAccessibilityEmbeddedCountedNul()
+{
+    EmbeddedCase([](bool embedded) { CountedNulSource(embedded); });
+}
+
 void ReadOnlySourceSnapshotSynchronization(bool embedded)
 {
     using namespace RichText;
@@ -2820,6 +2861,8 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedPendingPreparationGeometry);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowMarkdownSourceAndRanges);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedMarkdownSourceAndRanges);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowCountedNul);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedCountedNul);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowReadOnlySnapshotSynchronization);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedReadOnlySnapshotSynchronization);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowReadOnlyParsedSnapshotAdoption);

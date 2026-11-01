@@ -22,11 +22,11 @@ void Validate(std::wstring_view text)
 {
     if (text.size() > Document::MaximumUnits)
         throw std::length_error("Rich-text v0 source exceeds 64 Ki UTF-16 units");
-    if (! IsValidUtf16(text))
+    if (! IsValidSourceUtf16(text))
         throw std::invalid_argument("Invalid UTF-16 source");
 }
 } // namespace
-bool IsValidUtf16(std::wstring_view text) noexcept
+bool IsValidSourceUtf16(std::wstring_view text) noexcept
 {
     for (std::size_t i = 0; i < text.size(); ++i)
     {
@@ -35,10 +35,14 @@ bool IsValidUtf16(std::wstring_view text) noexcept
             if (++i == text.size() || ! IsUtf16TrailSurrogate(text[i]))
                 return false;
         }
-        else if (IsUtf16TrailSurrogate(text[i]) || text[i] == L'\0')
+        else if (IsUtf16TrailSurrogate(text[i]))
             return false;
     }
     return true;
+}
+bool IsValidUtf16(std::wstring_view text) noexcept
+{
+    return text.find(L'\0') == text.npos && IsValidSourceUtf16(text);
 }
 bool IsEditBoundary(std::wstring_view text, std::size_t offset) noexcept
 {

@@ -1191,7 +1191,7 @@ rendering/editing remain later gates.
 Begin validates/owns at most 65,536 UTF-16 units, accepting raw NUL and rejecting
 unpaired surrogates. Reference-label folding replaces raw NUL with U+FFFD before
 matching, consistently with normalized inline text; exact Source() stays intact.
-This parser behavior does not admit NUL through Document or native text services.
+The RichText document, UTF-8 codecs, text-service state and UIA retain counted NUL as an exact source unit. Clipboard CF_UNICODETEXT cannot represent counted NUL: copying a selection containing one fails without changing clipboard or source. Other controls retain their own admission rules.
 Equal source/revision/profile/change requests coalesce.
 Snapshot admission uses bounded source materialization and tracked change queries;
 unchanged completed snapshots avoid materialization. Invalid/failed Begin keeps

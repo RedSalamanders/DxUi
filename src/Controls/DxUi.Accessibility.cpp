@@ -6568,12 +6568,14 @@ HRESULT AccessibilityTextRangeProvider::FindText(BSTR text, BOOL backward, BOOL 
     }
 
     const std::wstring_view needle(text ? text : L"", SysStringLen(text));
-    if (needle.empty() || ! RichText::IsValidUtf16(needle) || needle.size() > static_cast<size_t>(INT_MAX))
+    if (needle.empty() || ! RichText::IsValidSourceUtf16(needle) || needle.size() > static_cast<size_t>(INT_MAX))
         return E_INVALIDARG;
     const std::scoped_lock lock(AccessibilitySnapshotMutex(_target));
     const auto* record = FindControlNavigationRecord(*snapshot, _path);
     if (! record)
         return UIA_E_ELEMENTNOTAVAILABLE;
+    if (! record->controlRichText && ! RichText::IsValidUtf16(needle))
+        return E_INVALIDARG;
     const std::wstring_view source = _textOverride && ! record->controlSupportsText2 ? *_textOverride : record->controlAccessibleText;
     const auto range               = ClampCurrentRange(source.size());
     size_t first                   = range.start;

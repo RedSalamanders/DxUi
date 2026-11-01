@@ -159,13 +159,24 @@ void TestRichDocumentUnicodeCodecRejections()
     Require(EncodeUtf8(L"").empty() && DecodeUtf8("").empty(), "empty Unicode codec identity");
     for (const std::string bytes : {"\xc0\x80", "\xe2\x82", "\xed\xa0\x80", "\xf4\x90\x80\x80"})
         Reject([&] { DecodeUtf8(bytes); }, "overlong truncated surrogate and out-of-range UTF-8 rejected");
-    for (const auto& text : {std::wstring(1, 0xd800), std::wstring(1, 0xdc00), std::wstring(L"a\0b", 3)})
+    for (const auto& text : {std::wstring(1, 0xd800), std::wstring(1, 0xdc00)})
     {
         Require(! IsValidUtf16(text), "invalid UTF-16 detected without conversion");
         Reject([&] { EncodeUtf8(text); }, "invalid UTF-16 encoding rejected");
     }
     Reject([] { EncodeUtf8(std::wstring(Document::MaximumUnits + 1, L'x')); }, "UTF-16 codec bound enforced");
     Reject([] { DecodeUtf8(std::string(Document::MaximumUnits + 1, 'x')); }, "UTF-8 decoded bound enforced");
+    const std::wstring counted(L"a\0b", 3u);
+    Require(IsValidSourceUtf16(counted) && ! IsValidUtf16(counted) && DecodeUtf8(EncodeUtf8(counted)) == counted,
+            "counted NUL round trips through explicit-length UTF-8 codecs");
+    std::wstring maximum(Document::MaximumUnits, L'x');
+    maximum.back() = L'\0';
+    Require(DecodeUtf8(EncodeUtf8(maximum)) == maximum && Document(maximum).Length() == Document::MaximumUnits,
+            "counted NUL remains valid at the unchanged 65,536-unit source limit");
+    Document nulDocument(counted);
+    nulDocument.SetSelection({1u, 2u});
+    Require(nulDocument.ReplaceSelection(L"z") && nulDocument.Undo() && nulDocument.Text() == counted && nulDocument.Redo() && nulDocument.Text() == L"azb",
+            "counted NUL remains an exact reversible source unit");
     const std::wstring source = L"\ufeff\u03b2\U0001f600\r\nx\ry\n";
     Require(DecodeUtf8(EncodeUtf8(source)) == source, "BOM supplementary scalar and mixed-newline codec identity");
 }

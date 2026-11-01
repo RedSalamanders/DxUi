@@ -432,7 +432,7 @@ template <class View> HRESULT PrepareEmbeddedContentForTests(View& view, UINT wi
     BSTR text = nullptr;
     RequireSucceeded(range.GetText(maxLength, &text), context);
     const auto freeText = wil::scope_exit([&] { SysFreeString(text); });
-    return std::wstring(text ? text : L"");
+    return std::wstring(text ? text : L"", text ? SysStringLen(text) : 0u);
 }
 
 inline void RequireRectNear(const RECT& actual, const RECT& expected, const char* message)
