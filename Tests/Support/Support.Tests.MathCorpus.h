@@ -712,6 +712,24 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     for (const auto source : {L"\\begin{array}{}a\\end{array}", L"\\begin{array}{l|r}a&b\\end{array}",
                               L"\\begin{array}{l}a&b\\end{array}", L"\\begin{array}{z}a\\end{array}"})
         check(! ParseMath(source), "unsupported or overwide array specifications retain source instead of partial rendering");
+    {
+        const auto expression = ParseMath(L"\\genfrac{(}{)}{0pt}{0}{a}{b}");
+        check(expression && expression.root.children.size() == 1u && expression.root.children[0u].kind == MathKind::Style &&
+                  expression.root.children[0u].text == L"displaystyle" && expression.root.children[0u].children[0u].kind == MathKind::Delimited &&
+                  expression.root.children[0u].children[0u].text == L"()" &&
+                  expression.root.children[0u].children[0u].children[0u].text == L"atop",
+              "general fraction records independently specified style, fences and absent rule");
+#if DXUI_ENABLE_DIAGNOSTICS
+        Detail::PreparedMath layout(factory, std::make_shared<const MathExpression>(expression), 24.f);
+        while (! layout.Advance())
+        {
+        }
+        check(layout.GlyphLayouts().size() == 2u && layout.Size().width > 0.f, "general fraction prepares both SDK-shaped operands and fences");
+#endif
+    }
+    for (const auto source : {L"\\genfrac{(}{)}{2pt}{0}{a}{b}", L"\\genfrac{(}{)}{}{4}{a}{b}", L"\\genfrac{?}{}{}{}{a}{b}",
+                              L"\\genfrac{}{}{}{}{a}"})
+        check(! ParseMath(source), "unsupported general fraction dimensions, style and delimiters reject the whole source");
     const auto binomial = ParseMath(L"\\binom{n}{k}");
     check(binomial && binomial.root.children.size() == 1u && binomial.root.children[0u].kind == MathKind::Matrix &&
               binomial.root.children[0u].text == L"pmatrix" && binomial.root.children[0u].columns == 1u && binomial.root.children[0u].children.size() == 2u,

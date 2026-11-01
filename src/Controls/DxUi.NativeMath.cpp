@@ -389,6 +389,37 @@ class Parser
             return arrow;
 
     }
+    MathNode GeneralFraction(unsigned depth)
+    {
+        const auto left = GroupText();
+        const auto right = GroupText();
+        const auto rule = GroupText();
+        const auto style = GroupText();
+        const auto delimiter = [](std::wstring_view value) -> wchar_t
+        {
+            if (value.empty() || value == L".")
+                return L'.';
+            if (value.size() != 1u || std::wstring_view(L"()[]{}|⟨⟩‖⌊⌋⌈⌉/<>\\↑↓↕⇑⇓⇕").find(value[0u]) == std::wstring_view::npos)
+                Reject(MathIssue::UnsupportedCommand);
+            return value[0u];
+        };
+        if (! rule.empty() && rule != L"0pt" && rule != L"0em" && rule != L"0ex" && rule != L"0")
+            Reject(MathIssue::UnsupportedCommand);
+        if (! style.empty() && style != L"0" && style != L"1" && style != L"2" && style != L"3")
+            Reject(MathIssue::UnsupportedCommand);
+        const auto leftGlyph = delimiter(left), rightGlyph = delimiter(right);
+        auto numerator = Atom(depth + 1u);
+        auto denominator = Atom(depth + 1u);
+        auto fraction = Make(MathKind::Fraction, rule.empty() ? L"frac" : L"atop", {std::move(numerator), std::move(denominator)});
+        if (leftGlyph != L'.' || rightGlyph != L'.')
+            fraction = Make(MathKind::Delimited, std::wstring{leftGlyph, rightGlyph}, {std::move(fraction)});
+        if (! style.empty())
+        {
+            const auto name = style == L"0" ? L"displaystyle" : style == L"1" ? L"textstyle" : style == L"2" ? L"scriptstyle" : L"scriptscriptstyle";
+            fraction = Make(MathKind::Style, name, {std::move(fraction)});
+        }
+        return fraction;
+    }
     MathNode StructuredCommand(std::wstring_view name, unsigned depth)
     {
         if (name == L"not")
@@ -884,6 +915,8 @@ class Parser
         if (name == L"xrightarrow" || name == L"xleftarrow" || name == L"xleftrightarrow" || name == L"xRightarrow" || name == L"xLeftarrow" ||
             name == L"xLeftrightarrow" || name == L"xmapsto" || name == L"xlongequal")
             return ExtensibleArrowCommand(name, depth);
+        if (name == L"genfrac")
+            return GeneralFraction(depth);
         static constexpr std::wstring_view structured[] = {
             L"not", L"frac", L"dfrac", L"tfrac", L"binom", L"dbinom", L"tbinom", L"overset", L"underset", L"stackrel", L"sqrt", L"substack", L"begin"};
         if (std::ranges::find(structured, name) != std::end(structured))
