@@ -2134,6 +2134,38 @@ void MarkdownCommandPlanner::Join(bool backwards)
     }
     if (nodes[current].block.kind != Kind::Paragraph)
         return;
+    if (backwards && plan.before_.caret <= visible.first && Ancestor(current, Kind::ListItem) == MarkdownNoNode)
+    {
+        const auto quote = Ancestor(current, Kind::BlockQuote);
+        if (quote != MarkdownNoNode && nodes[quote].firstChild == current)
+        {
+            const auto markerFor = [&](const PhysicalLine& line) -> std::optional<MarkdownRange>
+            {
+                std::size_t at{};
+                if (! OuterOffset(quote, line, at))
+                    return std::nullopt;
+                while (at < line.bodyEnd && Space(text[at]))
+                    ++at;
+                if (at == line.bodyEnd || text[at] != L'>')
+                    return std::nullopt;
+                auto last = at + 1u;
+                if (last < line.bodyEnd && Space(text[last]))
+                    ++last;
+                return MarkdownRange{at, last};
+            };
+            const auto first = std::ranges::lower_bound(lines, Line(nodes[quote].block.source.first).first, {}, &PhysicalLine::first);
+            const auto last = std::ranges::lower_bound(lines, nodes[quote].block.source.last, {}, &PhysicalLine::first);
+            if (first == last || std::ranges::any_of(first, last, [&](const auto& line) { return ! markerFor(line); }))
+                return; // A lazy or unproven line cannot be outdented safely.
+            for (auto line = first; line != last; ++line)
+            {
+                const auto marker = markerFor(*line).value();
+                Add(marker.first, marker.last, L"");
+            }
+            plan.applicable_ = true;
+            return;
+        }
+    }
     if (backwards ? plan.before_.caret > visible.first : plan.before_.caret < visible.last)
         return;
     const auto item = Ancestor(current, Kind::ListItem);

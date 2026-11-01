@@ -422,6 +422,11 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     editor->SetSelection({3u, 3u});
     Check(editor->OnKeyDown(host, VK_BACK, 0u) && editor->GetText() == L"title\n" && editor->Undo() && editor->GetText() == L"## title\n",
           "rich backspace at heading content removes the heading marker in one undo step");
+    editor->SetText(L"> one\n> two\n");
+    prepare();
+    editor->SetSelection({2u, 2u});
+    Check(editor->OnKeyDown(host, VK_BACK, 0u) && editor->GetText() == L"one\ntwo\n" && editor->Undo() && editor->GetText() == L"> one\n> two\n",
+          "rich backspace at the first quote leaf removes one level from every quote line in one undo step");
     editor->SetText(L"**abc**");
     prepare();
     editor->SetSelection({5u, 5u});
