@@ -415,6 +415,8 @@ inline void ListsAndHeadings()
             Unavailable(L"before x after", {7u, 8u}, request, profile);
             Exact(L"> item\n", {2u, 6u}, request, L"> \\[\n> item\n> \\]\n", Selection{7u, 11u}, profile);
             Exact(L"- item\n", {2u, 6u}, request, L"- \\[\n  item\n  \\]\n", Selection{7u, 11u}, profile);
+            Exact(L"- > item\n", {4u, 8u}, request, L"- > \\[\n  > item\n  > \\]\n", Selection{11u, 15u}, profile);
+            Unavailable(L"| h |\n| - |\n| x |\n", {14u, 15u}, request, profile);
             Document displayMath(L"\\[\nx\ny\n\\]");
             const auto displaySyntax = Parse(displayMath, profile);
             Check(std::ranges::any_of(displaySyntax->Nodes(), [](const auto& node) { return node.block.kind == MarkdownBlockKind::FencedCode && node.block.fenceMarker == L'['; }),
