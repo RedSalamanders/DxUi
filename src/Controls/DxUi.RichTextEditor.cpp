@@ -1525,6 +1525,96 @@ RichText::MarkdownCommandStatus RichTextEditor::ExecuteMarkdownCommand(const Ric
     const auto plan = BuildMarkdownCommand(Snapshot(), Revision(), syntax, GetSelection(), resolved);
     return ApplyMarkdownCommand(plan);
 }
+std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownCommandState(const RichText::MarkdownCommandRequest& request) const noexcept
+{
+    using namespace RichText;
+    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::InsertImage))
+        return std::nullopt;
+    MarkdownCommandState result;
+    if (! Editable() || ! _state->markdownRendering || _state->mode != ViewMode::Rich || _state->sourceEditing)
+    {
+        result.available = false;
+        return result;
+    }
+    const auto document = GetSemanticDocument();
+    if (! document)
+        return std::nullopt;
+    const auto selection = GetSelection();
+    auto first = selection.Start(), last = selection.End();
+    if (first == last && first != 0u)
+        --first;
+    if (first == last)
+        ++last;
+    unsigned flag = 0u;
+    if (request.command == MarkdownCommand::ToggleStyle)
+        switch (request.style)
+        {
+            case MarkdownTextStyle::Strong: flag = Bold; break;
+            case MarkdownTextStyle::Emphasis: flag = Italic; break;
+            case MarkdownTextStyle::Strikethrough: flag = Strike; break;
+            case MarkdownTextStyle::Code: flag = Code; break;
+            default: return std::nullopt;
+        }
+    bool seen = false, yes = false, no = false;
+    unsigned heading  = 0u;
+    bool mixedHeading = false;
+    for (const auto& run : document->SourceRuns())
+    {
+        if (run.start >= last)
+            break;
+        if (run.start + run.length <= first)
+            continue;
+        if (! seen)
+            heading = run.heading;
+        else if (heading != run.heading)
+            mixedHeading = true;
+        seen = true;
+        if (flag && (run.flags & flag))
+            yes = true;
+        else if (flag)
+            no = true;
+    }
+    result.headingLevel = mixedHeading ? 0u : heading;
+    const auto listAt   = [&](size_t position) noexcept
+    {
+        const auto& nodes = document->Syntax()->Nodes();
+        size_t best       = MarkdownNoNode;
+        for (size_t i = 1u; i < nodes.size(); ++i)
+        {
+            const auto& node = nodes[i];
+            if (node.block.kind != MarkdownBlockKind::ListItem || node.block.source.first > position || position >= node.block.source.last)
+                continue;
+            if (best == MarkdownNoNode || node.block.source.last - node.block.source.first < nodes[best].block.source.last - nodes[best].block.source.first)
+                best = i;
+        }
+        if (best == MarkdownNoNode || nodes[best].parent == MarkdownNoNode)
+            return MarkdownListKind::None;
+        if (nodes[best].task != MarkdownTask::None)
+            return MarkdownListKind::Task;
+        const auto marker = nodes[nodes[best].parent].listMarker;
+        return marker == L'.' || marker == L')' ? MarkdownListKind::Ordered : MarkdownListKind::Unordered;
+    };
+    const auto startList = listAt(first);
+    const auto endList   = listAt(last ? last - 1u : 0u);
+    if (startList == endList)
+        result.listKind = startList;
+    if (request.command == MarkdownCommand::SetHeading)
+    {
+        result.active = seen && ! mixedHeading && heading == request.headingLevel;
+        result.mixed  = mixedHeading;
+    }
+    else if (flag)
+    {
+        result.active = yes && ! no;
+        result.mixed  = yes && no;
+    }
+    else if (request.command == MarkdownCommand::SetList)
+    {
+        result.active = result.listKind && result.listKind.value() == request.listKind;
+        result.mixed  = ! result.listKind;
+    }
+    return result;
+}
 bool RichTextEditor::Undo()
 {
     if (! Editable() || ! _state->document.Undo())

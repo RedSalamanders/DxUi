@@ -58,6 +58,14 @@ enum class MarkdownCommandStatus
     Unchanged,
     Changed
 };
+struct MarkdownCommandState
+{
+    // Unknown means that determining applicability requires the full planner.
+    std::optional<bool> available;
+    bool active = false, mixed = false;
+    unsigned headingLevel = 0u;
+    std::optional<MarkdownListKind> listKind;
+};
 struct MarkdownCommandRequest
 {
     MarkdownCommand command{};

@@ -3342,6 +3342,7 @@ public:
     // advance preparation. Plans also guard syntax identity and source selection.
     // Read-only/disabled/source-view/pending/composing targets are unavailable.
     RichText::MarkdownCommandStatus ExecuteMarkdownCommand(const RichText::MarkdownCommandRequest& request);
+    [[nodiscard]] std::optional<RichText::MarkdownCommandState> QueryMarkdownCommandState(const RichText::MarkdownCommandRequest& request) const noexcept;
     RichText::MarkdownCommandStatus ApplyMarkdownCommand(const RichText::MarkdownCommandPlan& plan);
     bool Undo();
     bool Redo();

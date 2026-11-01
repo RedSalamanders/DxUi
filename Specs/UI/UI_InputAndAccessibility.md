@@ -1235,6 +1235,10 @@ InsertMath in the RichMarkdown profile wraps a selected source expression, or
 inserts a supplied nonempty expression, using inline or display delimiters.
 It selects the expression and rejects conflicting delimiters, multiline payloads,
 opaque inline interiors and expressions beyond native math source capacity.
+The non-mutating command-state query reports current style, heading and list
+presentation without constructing an edit; unavailable editor states report
+`available = false`. Applicability remains unknown for an enabled rich editor
+until its structural planner predicates are available without edit construction.
 InsertThematicBreak inserts a separated rule at a top-level caret, retaining
 the existing text and line-ending convention; unsupported container positions
 decline rather than rewriting a prefix.

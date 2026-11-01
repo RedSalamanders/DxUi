@@ -238,6 +238,20 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     editor->SetDocumentFilePath(L"");
     editor->SetText(L"word");
     prepare();
+    editor->SetText(L"**word** plain");
+    prepare();
+    editor->SetSelection({2u, 6u});
+    MarkdownCommandRequest stateRequest;
+    stateRequest.command = MarkdownCommand::ToggleStyle;
+    stateRequest.style   = MarkdownTextStyle::Strong;
+    const auto boldState = editor->QueryMarkdownCommandState(stateRequest);
+    Check(boldState && boldState->active && ! boldState->mixed && ! boldState->available,
+          "command-state query reports current bold state without claiming unresolved applicability");
+    editor->SetSelection({2u, 14u});
+    const auto mixedState = editor->QueryMarkdownCommandState(stateRequest);
+    Check(mixedState && mixedState->mixed && ! mixedState->active, "command-state query reports mixed formatting");
+    editor->SetText(L"word");
+    prepare();
     std::size_t notifications = 0u;
     editor->SetOnTextChanged([&] { ++notifications; });
     const auto exact = [&](std::wstring_view source,
