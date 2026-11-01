@@ -41,7 +41,7 @@ frame under an unchanged root. Attachment changes schedule a corrective native p
 renders the current tree. Delegate replacement from a model getter cannot publish a partially painted frame.
 
 Attach runs on a same-process HWND's owner thread. One host owns an HWND, and one host has at most one attachment.
-Repeating Attach for the same HWND and presentation mode is idempotent; switching either requires Detach first.
+Repeating Attach is idempotent only for the same HWND, presentation mode and batch-initial-children option; a repeated force-WARP request also requires the existing shared pool to be WARP. A default force-WARP option inherits the current pool policy. Changing HWND, mode or batch option requires Detach first; an incompatible explicit WARP request fails.
 Attach attempted synchronously from a teardown callback fails with `ERROR_BUSY`; a later attachment after Detach
 returns remains supported. Teardown cannot acquire a new HWND or resurrect focus or a native text-input session.
 A rejected attachment preserves the existing host, accessibility peers, payloads and shared-resource accounting.
