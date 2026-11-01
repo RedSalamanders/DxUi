@@ -393,7 +393,7 @@ public:
                 ++result.readySources;
             else if (entry.pending && ! entry.request->cancelled.load(std::memory_order_relaxed))
                 ++result.pendingSources;
-            else
+            else if (entry.failed)
                 ++result.failedSources;
         }
         return result;

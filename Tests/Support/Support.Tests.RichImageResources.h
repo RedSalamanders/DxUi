@@ -61,6 +61,38 @@ template <typename Check> inline void Admission(Check&& check)
         }
         throw std::runtime_error("image resource preparation did not settle");
     };
+    {
+        constexpr std::wstring_view sourceText = L"![a](a.png) ![b](b.png)";
+        Document text(sourceText);
+        const auto original = text.Snapshot();
+        RichImageResources pending;
+        pending.Begin(Semantic(sourceText), L"C:\\docs\\note.md", 1u, 1u);
+        finish(pending);
+        std::vector<RichImageRequest> jobs(0u);
+        pending.Take(jobs);
+        check(jobs.size() == 2u && pending.Statistics().pendingSources == 2u && pending.Statistics().failedSources == 0u,
+              "two dispatched sources begin pending without failures");
+        text.Replace(5u, 6u, L"x", {});
+        pending.SuspendForEdit(text.Snapshot(), original);
+        const auto suspended = pending.Statistics();
+        check(jobs[0].Cancelled() && ! jobs[1].Cancelled() && suspended.requestedSources == 2u && suspended.pendingSources == 1u &&
+                  suspended.failedSources == 0u && ! pending.Complete(jobs[0], Picture()),
+              "an affected source edit cancels only that request without reporting a failed decode");
+        check(pending.Complete(jobs[1], {}) && pending.Statistics().failedSources == 1u && pending.Statistics().pendingSources == 0u,
+              "an actual failed completion remains distinguishable from cancelled work");
+        RichImageResources cancelled;
+        cancelled.Begin(Semantic(sourceText), L"C:\\docs\\note.md", 1u, 1u);
+        finish(cancelled);
+        std::vector<RichImageRequest> cancelledJobs(0u);
+        cancelled.Take(cancelledJobs);
+        cancelled.Cancel();
+        check(cancelledJobs.size() == 2u && cancelledJobs[0].Cancelled() && cancelledJobs[1].Cancelled() &&
+                  cancelled.Statistics().pendingSources == 0u && cancelled.Statistics().failedSources == 0u,
+              "cancelling all in-flight jobs does not report failed sources");
+        pending.Cancel();
+        check(pending.Statistics().failedSources == 1u && pending.Statistics().pendingSources == 0u && jobs[0].Cancelled(),
+              "cancelling retained work never invents another failed source");
+    }
     std::wstring source(0u, L' ');
     for (unsigned i = 0u; i < 129u; ++i)
         source.append(L"![image](same.png) ");
@@ -489,6 +521,8 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
     editor.SetSelection({destination, destination + 1u});
     check(editor.ReplaceSelection(L"x") && affected.Cancelled() && ! editor.CompleteImageRequest(affected, picture),
           "editing the image source cancels and rejects the old request");
+    check(editor.GetImageResourceStatistics().pendingSources == 0u && editor.GetImageResourceStatistics().failedSources == 0u,
+          "an affected source edit immediately cancels the job without reporting decode failure");
     const auto imageSourceBeforeLabels = editor.GetText();
     const std::wstring labelSource     = L"![first](first.png) and ![second](second.png)";
     editor.SetText(labelSource);
