@@ -50,6 +50,42 @@ void TestRichSemanticNativeObjectSharedContract()
             window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare shared native object contract"); });
     });
 }
+void TestRichSemanticNativeMathCaretMetrics()
+{
+    using namespace DxUi;
+    using namespace DxUi::RichText;
+    AttachedHostWindow window;
+    auto root    = std::make_unique<RichTextEditor>(L"Before $\\frac{1}{2}$ after");
+    auto* editor = root.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    window.Host().SetRoot(std::move(root));
+    auto* format  = window.Host().GetTextFormat(FontRole::Body);
+    auto* factory = window.Host().GetWriteFactory();
+    Require(format && factory, "body format and DirectWrite factory are available");
+    wil::com_ptr<IDWriteTextLayout> plain;
+    THROW_IF_FAILED(factory->CreateTextLayout(L"Before", 6u, format, 400.f, 400.f, plain.put()));
+    DWRITE_LINE_METRICS line{};
+    UINT32 lineCount{};
+    THROW_IF_FAILED(plain->GetLineMetrics(&line, 1u, &lineCount));
+    float x{}, y{};
+    DWRITE_HIT_TEST_METRICS text{};
+    THROW_IF_FAILED(plain->HitTestTextPosition(3u, FALSE, &x, &y, &text));
+    Require(lineCount == 1u && text.height > 0.f && line.baseline > 0.f, "standalone SDK body-line oracle has a baseline and text caret");
+    for (const UINT dpi : {96u, 144u, 192u})
+    {
+        bool handled{};
+        static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_DPICHANGED, MAKEWPARAM(dpi, dpi), 0, handled));
+        Require(handled && PrepareNativeContentForTests(window.Host()), "prepare equation caret at requested DPI");
+        const auto adjacent = editor->TryGetTextInputCaretRect(window.Host(), 3u);
+        const auto edge     = editor->TryGetTextInputCaretRect(window.Host(), 7u);
+        Require(adjacent && edge && std::abs((adjacent->bottom - adjacent->top) - text.height) < .1f &&
+                    std::abs((edge->bottom - edge->top) - text.height) < .1f && std::abs(adjacent->top - edge->top) < .1f,
+                "formula-edge caret matches adjacent body text and the independent SDK line height at every DPI");
+        std::cout << "math caret dpi=" << dpi << " textTop=" << adjacent->top << " edgeTop=" << edge->top << " height=" << text.height
+                  << " standaloneBaseline=" << line.baseline << '\n';
+    }
+}
 void TestRichSemanticNativeMathAndBroaderDiagrams()
 {
     AttachedHostWindow window;
@@ -168,6 +204,7 @@ void RunRichSemanticGeometryTests()
     DXUI_RUN_TEST(TestRichSemanticNativeObjectFailureContainment);
     DXUI_RUN_TEST(TestRichSemanticNativeFallbackSyntaxOwnership);
     DXUI_RUN_TEST(TestRichSemanticNativeObjectSharedContract);
+    DXUI_RUN_TEST(TestRichSemanticNativeMathCaretMetrics);
     DXUI_RUN_TEST(TestRichSemanticNativeMathAndBroaderDiagrams);
     DXUI_RUN_TEST(TestRichSemanticGeometryParagraphsTablesAndSourceRanges);
     DXUI_RUN_TEST(TestRichSemanticGeometryMarkdownSubtlePresentation);
