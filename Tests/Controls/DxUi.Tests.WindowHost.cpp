@@ -4,6 +4,7 @@
 #include "Controls.Tests.NativeDevicePolicy.h"
 #include "Controls/DxUi.Typography.h"
 #include "Support.Tests.PerformanceCapture.h"
+#include "Support/AnimationDispatcher.h"
 #include "Support/PostedPayload.h"
 #include "Support/WindowMessages.h"
 #include <DxUi/NativeMenuInterop.h>
@@ -778,13 +779,19 @@ public:
     {
     }
 
-    bool Tick(DxUi::WindowHost& /*host*/, uint64_t nowTickMs) override
+    bool Tick(DxUi::WindowHost& host, uint64_t nowTickMs) override
     {
         lastTickMs = nowTickMs;
         ++tickCount;
+        if (onTick)
+        {
+            auto callback = std::move(onTick);
+            return callback(host);
+        }
         return true;
     }
 
+    std::function<bool(DxUi::WindowHost&)> onTick;
     uint64_t tickCount  = 0u;
     uint64_t lastTickMs = 0u;
 };
@@ -6069,6 +6076,8 @@ void TestWindowHostRestoreFromMinimizeRearmsSuspendedAnimation()
 void TestWindowHostApplicationVisibilitySuspendsNativePresentation()
 {
     using namespace DxUi;
+    auto& dispatcher         = Ui::AnimationDispatcher::GetInstance();
+    const auto subscriptions = dispatcher.DebugGetActiveSubscriptionCountForTest();
     WindowHost detached;
     Require(detached.SetNativePresentationVisible(false) == E_UNEXPECTED, "an unattached host refuses an application native-visibility signal");
     AttachedHostWindow window;
@@ -6107,8 +6116,17 @@ void TestWindowHostApplicationVisibilitySuspendsNativePresentation()
     Require(host.RenderInitialFrameForShow() && host.DebugGetRenderCount() > renders && host.DebugGetFullPresentAttemptCount() > fullPresents,
             "restored application visibility renders a complete fresh native frame");
     Require(host.SetNativePresentationVisible(true) == S_FALSE, "repeated visible signal adds no work");
+    ticking->onTick = [](WindowHost& owner)
+    {
+        Require(owner.SetNativePresentationVisible(false) == S_OK && owner.SetNativePresentationVisible(true) == S_OK,
+                "a tick callback starts a new visible subscription");
+        return false;
+    };
+    Require(! host.DebugAnimationTickForTest(2000u) && host.DebugHasActiveAnimationSubscription(),
+            "a stale tick cannot clear the replacement subscription created during its callback");
     host.Detach();
     Require(host.IsNativePresentationVisible(), "a later attachment starts with the default presentation policy");
+    Require(dispatcher.DebugGetActiveSubscriptionCountForTest() == subscriptions, "detach removes the replacement subscription without an orphan callback");
 }
 
 void TestWindowHostVisibilityChangedDuringPaintRequiresFreshFrame()

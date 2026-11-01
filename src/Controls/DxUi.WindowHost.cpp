@@ -5968,10 +5968,18 @@ bool ControlHost::OnAnimationTick(uint64_t nowTickMs) noexcept
         return false;
     }
 
+    const auto presentationRevision = _nativePresentationRevision;
+    const auto subscription         = _animationSubscriptionId;
+    const auto tickCurrent          = [&]() noexcept
+    { return _nativePresentationVisible && _nativePresentationRevision == presentationRevision && _animationSubscriptionId == subscription; };
     ValidateSupplementalTooltipTarget();
+    if (! tickCurrent())
+        return false;
     if (! _root)
     {
         const bool tooltipTicking = _tooltipLayer.Tick(*this, nowTickMs);
+        if (! tickCurrent())
+            return false;
         if (! tooltipTicking)
         {
             _animationSubscriptionId = 0u;
@@ -5984,13 +5992,12 @@ bool ControlHost::OnAnimationTick(uint64_t nowTickMs) noexcept
     // A tree whose Tick throws stops ticking until a control asks for animation again, rather than failing every frame.
     bool rootTicking = false;
     static_cast<void>(TryControlCallback([&] { rootTicking = _root->Tick(*this, nowTickMs); }));
-    if (! _nativePresentationVisible)
-    {
-        _nativePresentationResumeAnimation = _nativePresentationResumeAnimation || rootTicking;
+    if (! tickCurrent())
         return false;
-    }
     const bool tooltipTicking = _tooltipLayer.Tick(*this, nowTickMs);
-    const bool keepTicking    = rootTicking || tooltipTicking;
+    if (! tickCurrent())
+        return false;
+    const bool keepTicking = rootTicking || tooltipTicking;
     if (! keepTicking)
     {
         _animationSubscriptionId = 0u;
