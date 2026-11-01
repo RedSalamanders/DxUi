@@ -1,6 +1,6 @@
 # Code review of the ten-day merge window (#87-#137)
 
-Status: SPEC READY. Review only: no library, test or tooling code changed. Remediation waits for the
+Status: ACTIVE. The 30 October review baseline is historical; 1 November repairs and qualification are in progress under the 31 October sequencer. The original review reported that remediation awaited the
 [questions](#questions-for-the-developer) that decide its scope.
 Date: 2026-10-28, refreshed 2026-10-30 (see [30 October refresh](#30-october-refresh)).
 Window: first-parent `51ef9f29` (main on 2026-10-18) to `881e5d5f` (main on 2026-10-28): 28 merges, #87 to #121.
@@ -932,3 +932,7 @@ Focus-taking suites run only at an agreed time.
 Runtime behaviour: nothing was built or run, and every finding is a static trace. #138 (shared CI, `a412f316`) merged
 after the window and rewrote the workflows, `Tests/test-scopes.json`, `build.ps1` and `test.ps1`. R28-37, R28-38, R28-39,
 R28-51 and the CR-29 to CR-31 entries describe `09f6d96a`; recheck their line references and status against #138.
+
+## Current-source disposition — 1 November 2026
+
+The earlier findings and unchecked boxes below describe the review baseline, not proof that all defects still reproduce. Current-source repairs are integrated or in progress under CodeReview_2026-10-31; map each finding to code and directed coverage before disposition. Final-source builds, runtime and shared qualification remain open.

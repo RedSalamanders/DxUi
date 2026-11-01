@@ -91,3 +91,7 @@ Exact source identities, raw metadata and field differences are retained under t
 evidence. Ordinary Debug and ASan formats remain separate from the recorded RedSalamander Full Embedded recovery mode.
 
 All six canonical native builds and all three local Full profiles pass; each Full profile executes 19 ordinary suites with zero capability skips. Source 24aafbc5 also passes all three approved Menu/NativeTextInput focus profiles, zero skips with verified restoration. Quiet performance comparison and final candidate CI remain pending.
+
+## Current-source disposition — 1 November 2026
+
+The native policy and prior checks are implemented; matched frozen Release size reporting, quiet paired measurements and final tooling/spec/format checks remain open. The same identity-matched paired campaign may serve the MSVC plan, but cannot waive an unqualified policy or source mismatch.

@@ -87,3 +87,7 @@ The oracles of `49c963f`, run against main: a queued `Select` of a stale text ra
 
 `validate.ps1`, `format.ps1 -Check`, `test.ps1` in x64 Debug, Release and ASan Debug (without the suites that take the
 desktop, which CI runs) and the three ARM64 builds; each oracle fails against main before its fix.
+
+## Current-source disposition — 1 November 2026
+
+The merged historical provider and caret fixes remain source-specific. The wider application-delegate audit below still needs per-path revalidation against current lifetime guards and tests; a shared test may cover overlapping paths, but an unreviewed callback is not a pass. Branch retention and consumer adoption remain separate.

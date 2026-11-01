@@ -268,6 +268,9 @@ other plans are unaffected.
 
 ## Citation check
 
+The source comparisons in this section are historical to 31 October; the
+1 November delivery candidate contains subsequent repairs and features.
+
 A later pass checked the code and spec anchors, not only the plan status lines.
 `include/` and `src/` are still byte-identical to `f2940cc2`, so a line number that was
 right on 31 October is still the same bytes. That does not make every older anchor right.
@@ -392,3 +395,7 @@ This read-only review uses baseline `4423074dee2410acb28e62b41072e6c561a79eb8`; 
 - **Other DeliveryReview repairs.** Tree release must resume its model guard after a successful selection-collapse callback and still re-resolve the released stable id (DX-1). Inactive Tree ink prefers `theme.text`, while high contrast remains the resolver's HighlightText behavior (DX-8). The Label typography override needs wrapped ink width and first-line baseline matching `MeasureText` (`DxUi.Layout.cpp:91-105,240-285`); extend intrinsic layout tests with wrapped trailing whitespace, empty and single-line cases (DX-9). `TagPicker::ClearChildren` must erase holes after lifetime-safe callbacks, following `FormField::ClearChildren` (`DxUi.Controls.cpp:7201-7209`, `DxUi.Forms.cpp:618`; DX-6). Separator's allocating base cannot sit under a `noexcept` constructor if the catalog is to return `E_OUTOFMEMORY` (DX-5); use a narrowly scoped allocation fault seam and preserve the output on failure. File-paste tests must exercise the shared retained editor paste path, not only the Markdown reference builder (DX-3). Native TSF capacity tests must exercise the native store and preserve the last valid preview, rather than only the client adapter (DX-4).
 
 These findings describe source-reachable behavior and focused regression candidates, not completed repairs, performance acceptance or production qualification. Physical touch/AT/IME, native ARM64 execution, interactive restoration, matched performance receipts and consumer adoption retain their existing owners.
+
+## Current-source disposition — 1 November 2026
+
+The folder inventory and citation comparison below describe the 31 October baseline. Current delivery source is not byte-identical to f2940cc2: many repairs and file-drop/RichText features now exist. The active index and plan statuses are reconciled against the 1 November candidate without deleting historical observations; unresolved source-specific work and shared qualification remain open.

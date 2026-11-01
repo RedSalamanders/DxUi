@@ -235,3 +235,7 @@ regeneration is unnecessary. Consumer pins remain unchanged, and policy/noise/ju
 - [x] Qualify the combined fixed source with actual ten-row and full NativeTextInput receipts under the approved lease: final SDK086 runs all four foreground suites in every x64 profile without skips and verifies restoration.
 - [x] Pass native-source validators/formatting and publish exact SDK086 for six-profile hosted qualification; all six native jobs and external consumers pass.
 - [x] Review final native/provider/consumer evidence before integration, retaining the independent performance-policy and consumer platform holds above.
+
+## Current-source disposition — 1 November 2026
+
+The compiler and six-profile cohort below are historical. Plan-specific closure still needs matched frozen baseline/candidate executable, DLL and archive sizes, build durations, quiet counterbalanced resource measurements and the five-repository settings-difference report. Consumer adoption and the shared unqualified policy remain separate; no new performance acceptance is claimed.

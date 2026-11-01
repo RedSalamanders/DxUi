@@ -3634,3 +3634,7 @@ reproducer remain retained; the final native and embedded oracle reports zero
 differences. Gallery output is unchanged while the service remains unconnected
 to editor objects. M5d.2c/M5d.3/M5e/M5f, metadata/math, M6 and the existing
 performance/physical/platform gates remain open.
+
+## Current-source disposition — 1 November 2026
+
+Named metadata validation, scoped source editing, file-drop infrastructure and substantial bounded math and Mermaid work now exist in the delivery candidate; earlier phase descriptions are historical. MD16, MD33 and per-row math tags remain active, and M5/M6 need per-item reconciliation and final-source testing. The source and semantic paragraph/element caps remain in force; local native-object fallback does not remove whole-document admission limits. Shared platform, physical, consumer and performance holds remain separately owned.

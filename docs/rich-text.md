@@ -1852,3 +1852,21 @@ distinct revision, so track the mirrored source revision in application state. O
 hidden syntax, collapsed content and inline objects differ between views. The
 application chooses which pane drives synchronization and how to handle those
 ambiguous positions; no proportional pixel offset is assumed.
+
+### Application-owned shortcode insertion
+
+Emoji shortcode expansion is an application insertion policy, not a Markdown
+parser extension. Source containing `:smile:` remains literal until the application
+chooses to replace it. An application may keep its own pinned, bounded shortcode
+table and opt into expansion at insertion time. It captures the editor's
+`Snapshot()`, `Revision()` and `GetSelection()` on the owner thread, checks its
+own focus, read-only and composition policy, and resolves only an admitted
+shortcode to valid UTF-16. Before committing it rechecks control lifetime,
+focus and selection, then calls `ApplySourceEdits` with that exact snapshot and
+revision, one source-range replacement and the desired post-edit selection.
+The edit ranges must be valid source boundaries and the replacement storage must
+remain alive through the synchronous call. `ApplySourceEdits` throws `std::invalid_argument` for a stale snapshot or revision; applications must separately guard selection and their
+own asynchronous lookup/ownership state. A changed or invalid context is
+left untouched. The resulting source contains the chosen Unicode text, and the
+existing edit transaction owns undo; no parser-level shortcode table or display
+transformation is implied.

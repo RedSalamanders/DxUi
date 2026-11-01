@@ -280,3 +280,7 @@ plan's remaining gates and any unresolved merge conflicts with current main.
   [DragEnter effect negotiation](https://learn.microsoft.com/en-us/windows/win32/api/oleidl/nf-oleidl-idroptarget-dragenter),
   [Shell CF_HDROP transport](https://learn.microsoft.com/en-us/windows/win32/shell/clipboard),
   [ReleaseStgMedium ownership](https://learn.microsoft.com/en-us/windows/win32/api/ole2/nf-ole2-releasestgmedium).
+
+## Current-source disposition — 1 November 2026
+
+The file-drop implementation now exists: bounded OLE transport and receiver, guarded prepared caret insertion and sample integration. D1–D6 below remain unchecked pending exact-current-source native/embedded, resource, documentation and consumer qualification; the old SPEC READY description is historical. Reuse the overlapping clipboard, OLE and editor fixtures where identities match.

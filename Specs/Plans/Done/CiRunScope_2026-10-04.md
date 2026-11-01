@@ -52,3 +52,7 @@ documentation-only pull request reports them skipped.
 ## Current evidence boundary (1 November 2026)
 
 [CI run 41301128985](https://github.com/RedSalamanders/DxUi/actions/runs/41301128985) at `4423074dee2410acb28e62b41072e6c561a79eb8` and [run 41228969822](https://github.com/RedSalamanders/DxUi/actions/runs/41228969822) at `5f31f2b3fcee2528c5a32c83285ee1d656019a26` completed successfully with only the coordinator job executed. Neither is a native qualification result. Current rollout qualification and platform, consumer and performance obligations remain separate.
+
+## Current-source disposition — 1 November 2026
+
+This is a historical closeout: the former PR-native-matrix observation was superseded by Build_UnifiedCI. It does not establish the current hosted workflow or current candidate qualification.

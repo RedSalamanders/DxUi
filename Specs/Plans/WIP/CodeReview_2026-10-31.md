@@ -46,6 +46,9 @@ until reviewed, integrated and tested together. The complete checklist below sta
 
 ## Verdict
 
+The following verdict is the historical review baseline; see the 1 November
+implementation checkpoint and current-source disposition for subsequent work.
+
 **Not production-ready for a consumer pin.** The 15-day window shipped a real library (Unicode rich editor, menu
 timers, TSF, Grid/Tree, embedded host) and then reviewed it. No library repair from those reviews has landed.
 Current `src/` and `include/` still contain reachable document-integrity, memory-safety, menu-cascade, IME-loss
@@ -249,6 +252,9 @@ behind the pin. DX-1 does not block the bump.
 
 ## Explicitly not a ship item
 
+This is the original pin scope. The user subsequently authorized the listed
+RichText and file-drop features; S3–S7 and API revision 5 remain outside scope.
+
 - DX-7 character-receipt `DispatchCharacter`. No consumer passes a receipt.
 - File drag-and-drop.
 - S3–S7 consumer UI proposals.
@@ -263,3 +269,7 @@ list above. A new native test file uses `<Component>.Tests.Something.h/.cpp` and
 Run the affected `test.ps1` configurations for the files actually changed. Wall-compat ports are verified on those
 branches. Move this plan to Done only after the chosen waves are implemented, their tests pass, and the Enter
 contract sentences are updated. DX-11 may stay unchecked if the ordinal assertions are not added.
+
+## Current-source disposition — 1 November 2026
+
+The Verdict, original wave checklists and exclusions below are historical source descriptions; the user has since authorized the listed remaining RichText and file-drop features. Work is integrated or active on the 1 November candidate, including MD16, MD33 and per-row math tags. The r17 ordinary result was 17/19; its stale RichTilde oracle and focused Math stack-overflow and Embedded label-move termination have structural repairs integrated, but those repairs have not yet been qualified at the final source. The Debug build was in progress at this checkpoint. Native ARM64 runtime remains explicitly deferred; foreground suites are authorized with the restoring lease. API revision remains 4.

@@ -1532,3 +1532,11 @@ painting and geometry queries never mutate scroll. The opt-in vertical scrollbar
 reserves a stable lane before layout (leading for RTL), uses the canonical shared
 thumb geometry/theme, and owns only its captured drag. Escape/capture loss ends
 that gesture. Wheel input at the document edge remains available to ancestors.
+
+Emoji shortcode expansion MAY be supplied by an application at insertion time.
+The library does not parse or expand shortcodes. An application using
+`RichTextEditor::ApplySourceEdits` MUST retain and revalidate its source snapshot,
+revision, selection and owner/focus/composition policy before committing an
+admitted replacement. The synchronous edit requires valid source boundaries and
+borrows replacement text only for the call; stale or invalid work MUST NOT
+change source or history.

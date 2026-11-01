@@ -194,3 +194,7 @@ Original queue files remain byte-preserved, with additional verified C: copies.
 Continuation notes and exact remaining gates are saved under the consumer's
 `.build/markdown-caption-continuation/`. Final metadata updates do not relabel any
 original producer or claim repository-wide/performance acceptance.
+
+## Current-source disposition — 1 November 2026
+
+The bounded presentation implementation and historical functional evidence exist. Current-source RTL/table/quote/image/heading coverage and paired evidence remain to be reconciled. Physical and consumer qualification are shared holds; no earlier receipt qualifies a changed candidate.

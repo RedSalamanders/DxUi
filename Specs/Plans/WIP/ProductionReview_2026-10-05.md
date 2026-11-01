@@ -2146,3 +2146,7 @@ Consumer adoption (RedXe, RedSalamander) stays separate.
   an offscreen, hidden owner without activating it before asserting sent deactivation. The next
   candidate puts that owner onscreen and verifies foreground focus before opening the modal
   menu; it retains the popup, dismissal and zero-skip assertions. Release CI remains open.
+
+## Current-source disposition — 1 November 2026
+
+The automatic-Start and six-profile receipts below retain their historical source and failure boundaries. Revalidate concrete accepted findings against current implementation and tests; architecture proposals remain proposals unless separately implemented or rejected with reasons. Shared physical, consumer, native ARM and performance-policy holds are owned by ConsumerUiQualification.

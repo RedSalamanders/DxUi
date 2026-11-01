@@ -60,3 +60,7 @@ The experiment does not establish a speedup or broad rendering equivalence beyon
 ## Ownership and closeout
 
 This plan is the active SDK renderer owner. The UI contract is normative; `docs/rich-text.md` documents usage only. Detailed adoption measurements and current consumer decisions belong to the RedTilde parent plan. Parent physical-input, hosted RedTilde and ARM64 holds remain separate. Move this plan to Done only after all required SDK gates pass, the reviewed consumer pins/matrices are recorded, authoritative docs are current and exact evidence is retained. Do not claim acceptance from private diagnostics or from a descriptive paired study.
+
+## Current-source disposition — 1 November 2026
+
+Implementation and its historical native/pixel receipts exist. Final-source and intended-consumer adoption, actual-base paired performance, the unqualified policy and platform/physical holds remain distinct; do not promote an older fixture or source into acceptance.

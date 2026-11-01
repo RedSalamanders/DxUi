@@ -451,3 +451,7 @@ All nine final focused suite runs (three suites in three x64 configurations) and
 final ARM64 cross-builds pass. Skills/spec/dependency/format validators pass. The gallery
 was regenerated on the corrected source; the two changed theme images were reviewed again.
 No build/test process from this task remains active at the checkpoint.
+
+## Current-source disposition — 1 November 2026
+
+The described-menu implementation is present. Its historical receipts do not establish final-source directed, resource, paired or consumer acceptance. Reuse matching Menu and resource scenarios across plans while preserving their exact source and scope.

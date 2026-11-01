@@ -387,3 +387,7 @@ all six input runs with restoration. These failures are not erased or counted as
 The consumer minimum-row slice is committed as `e925bf7f8` (72/72 Debug checks).
 Its save-failure/recovery/reopen placement fixture is independently being qualified.
 Its qualified DxUi pin remains `78b3de3`; the previous adaptive-layout plan stays Done.
+
+## Current-source disposition — 1 November 2026
+
+The merged feature and historical gallery, paired and ARM results remain source-bound. Check current implementation rather than describing the superseded V11 cache as current; exact consumer adoption and relevant current-source resource evidence remain open.

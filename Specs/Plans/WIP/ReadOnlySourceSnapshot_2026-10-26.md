@@ -98,3 +98,7 @@ in eight cases, each at 64 edge pixels by one channel level. No production icon/
 ### Renderer qualification ownership
 
 The private source-ink renderer experiment and its qualification ledger now live in [Source ink renderer qualification](SourceInkRendererQualification_2026-10-27.md). Source snapshot sharing and parsed-data reuse remain the scope of this plan.
+
+## Current-source disposition — 1 November 2026
+
+Immutable sharing and optional syntax adoption are implemented. Historical functional evidence does not qualify this candidate or the actual-base paired comparison. PopupReadiness retains the separate Menu follow-up and ConsumerUiQualification owns shared policy, platform and consumer holds.

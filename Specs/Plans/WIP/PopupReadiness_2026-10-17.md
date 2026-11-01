@@ -343,3 +343,7 @@ are unchanged. Async synthetic/UIA, click-only and deliberate unhovered-capture 
 - [ ] Run the four newly aligned modal painted-hover cases and the submenu-retention correction after the frozen
   pipeline releases its lane. Source formatting and runtime behavior remain subject to review; this fixture-only
   update establishes no cause for the existing hosted failure or new pass.
+
+## Current-source disposition — 1 November 2026
+
+The implemented readiness and historical Menu receipts remain valid for their recorded source. The separate healthy-state-probe failure has no established cause; a later passing run does not explain it. Final-source Menu evidence and explicitly deferred native ARM64 execution remain open, with shared restoration/platform holds in ConsumerUiQualification.

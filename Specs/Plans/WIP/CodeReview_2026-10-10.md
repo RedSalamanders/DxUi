@@ -1178,3 +1178,7 @@ The reviewers and the lead found these sound at HEAD:
 - **Embedded composition.** `Composite` does no heap work, layout or blocking.
 - **Workflow security.** SHA-pinned actions, read-only default token, no `pull_request_target`, and no untrusted
   `${{ }}` inside `run:`.
+
+## Current-source disposition — 1 November 2026
+
+The older source-bound six-profile and consumer receipts remain historical. Reconcile the current candidate with the later review sequencer and run matching final-source tests; hosted event-SHA, manual, consumer and paired-policy requirements remain separately owned.

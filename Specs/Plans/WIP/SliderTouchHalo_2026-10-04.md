@@ -53,3 +53,7 @@ On `b1099d2` (the gallery commit `39a5da4` and this record change no source):
 - ARM64 Debug, Release and ASan Debug build. They are cross-builds: native ARM64 execution stays with CI.
 - `gallery.ps1 -PublishDocs` regenerated the sheets from an x64 Release build of `b1099d2` with a clean tree, and the
   slider tiles were checked in the light, dark and high-contrast sheets.
+
+## Current-source disposition — 1 November 2026
+
+Q26 is implemented: Slider::Paint clips its halo and TestSliderTouchHaloStaysInsideItsPaintBoundsAndBehindOverlays covers neighbor, overlay and viewport behavior. The recorded r17 Animation pass is historical source-bound evidence; final-source validation, physical touch and exact consumer adoption remain open.

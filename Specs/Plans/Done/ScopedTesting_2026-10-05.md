@@ -59,3 +59,7 @@ Post-merge policy review adds a clean committed candidate barrier around PR cove
 ## Current CI reconciliation (1 November 2026)
 
 The historical native PR matrix and proposed delegation to it below describe the workflow at the time, not the current route. [Build_UnifiedCI](../../Build/Build_UnifiedCI.md) supersedes automatic native PR matrices: PR checks are compiler-free and do not cover native obligations. [Testing_Validation](../../Testing/Testing_Validation.md) requires exact enabled coverage before any delegation; no future or skipped run is a pass. This closeout does not establish qualification for later source changes.
+
+## Current-source disposition — 1 November 2026
+
+This historical implementation closeout does not qualify the current candidate. Current receipt identity and validation rules remain in Testing_Validation.md; the canonical runner offers bounded parallel ordinary suites while foreground suites retain their separate lease.
