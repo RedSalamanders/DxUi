@@ -858,7 +858,46 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         check(layout.GlyphLayouts().size() == 2u && layout.Size().width > 0.f, "general fraction prepares both SDK-shaped operands and fences");
 #endif
     }
-    for (const auto source : {L"\\genfrac{(}{)}{-2pt}{0}{a}{b}", L"\\genfrac{(}{)}{}{4}{a}{b}", L"\\genfrac{?}{}{}{}{a}{b}", L"\\genfrac{}{}{}{}{a}"})
+#if DXUI_ENABLE_DIAGNOSTICS
+    for (const auto& [source, expectedLines] : {
+             std::pair{L"\\xhookleftarrow{a}", 4u}, std::pair{L"\\xhookrightarrow{a}", 4u},
+             std::pair{L"\\xleftharpoonup{a}", 2u}, std::pair{L"\\xleftharpoondown{a}", 2u},
+             std::pair{L"\\xrightharpoonup{a}", 2u}, std::pair{L"\\xrightharpoondown{a}", 2u},
+             std::pair{L"\\xleftrightharpoons{a}", 4u}, std::pair{L"\\xrightleftharpoons{a}", 4u}})
+    {
+        const auto expression = std::make_shared<const MathExpression>(ParseMath(source));
+        check(static_cast<bool>(*expression), "hook and harpoon relations parse");
+        Detail::PreparedMath arrow(factory, expression, 24.f);
+        while (! arrow.Advance()) {}
+        check(arrow.StrokeLayouts().size() == expectedLines && arrow.GlyphLayouts().size() == 1u,
+              "hook and harpoon relations retain their bounded directed strokes and label");
+        const auto& strokes = arrow.StrokeLayouts();
+        for (const auto& line : strokes)
+            check(line.first.x >= 0.f && line.last.x >= 0.f && line.first.x <= arrow.Size().width && line.last.x <= arrow.Size().width &&
+                      line.first.y >= 0.f && line.last.y >= 0.f && line.first.y <= arrow.Size().height && line.last.y <= arrow.Size().height,
+                  "directed arrow stroke endpoints remain in the prepared box");
+        const std::wstring_view command(source);
+        if (expectedLines == 2u && strokes.size() == 2u)
+        {
+            const auto& head = strokes[1u];
+            const bool left = command.find(L"leftharpoon") != command.npos;
+            const bool up = command.find(L"up") != command.npos;
+            check((left ? head.first.x > head.last.x : head.first.x < head.last.x) &&
+                      (up ? head.first.y < head.last.y : head.first.y > head.last.y),
+                  "single harpoon endpoint independently identifies direction and barb orientation");
+        }
+        if (expectedLines == 4u && strokes.size() == 4u && command.find(L"harpoons") != command.npos)
+        {
+            const bool leftFirst = command.find(L"leftright") != command.npos;
+            check(strokes[0u].first.y < strokes[1u].first.y &&
+                      (leftFirst ? strokes[2u].first.x > strokes[2u].last.x : strokes[2u].first.x < strokes[2u].last.x) &&
+                      (leftFirst ? strokes[3u].first.x < strokes[3u].last.x : strokes[3u].first.x > strokes[3u].last.x),
+                  "paired harpoons use two ordered shafts with opposing heads");
+        }
+    }
+#endif
+    for (const auto source : {L"\\genfrac{(}{)}{-2pt}{0}{a}{b}", L"\\genfrac{(}{)}{}{4}{a}{b}", L"\\genfrac{?}{}{}{}{a}{b}",
+                              L"\\genfrac{}{}{}{}{a}"})
         check(! ParseMath(source), "unsupported general fraction dimensions, style and delimiters reject the whole source");
     {
         const auto expression = ParseMath(L"\\begin{alignat*}{2}a&b&c&d\\end{alignat*}");
