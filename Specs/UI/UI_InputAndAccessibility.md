@@ -1,5 +1,17 @@
 # Input and accessibility
 
+RichTextEditor links expose Invoke and support Ctrl+click or Ctrl+Enter at the
+source caret. A current, enabled, non-composing semantic publication is required;
+read-only editors permit navigation. External destinations invoke
+`SetOnLinkActivated` with borrowed immutable source/destination/title data. DxUi
+does not launch a process or access a destination. Callback retirement is safe.
+Local `#` fragments navigate to heading content without editing history or taking
+focus. Heading IDs use Unicode reference folding, space-to-hyphen conversion,
+ASCII punctuation removal except hyphen/underscore, and source-ordered `-1`, `-2`
+collision suffixes; empty IDs use `section`. URI escapes decode as strict UTF-8;
+malformed escapes or unresolved headings refuse atomically. `#` targets source
+start. Navigation preserves source and current requested view.
+
 Lossless Markdown analysis is preparation metadata. Enabling or changing its
 grammar target must preserve the existing RichTextEditor source ACP contract,
 Unicode source transactions, history, composition and source UIA text. Parser

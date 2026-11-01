@@ -3126,6 +3126,12 @@ struct RichTextSourceHighlight
     bool current                                                   = false;
     bool operator==(const RichTextSourceHighlight&) const noexcept = default;
 };
+struct RichTextLinkActivation
+{
+    RichText::MarkdownRange source;
+    // Borrowed for the callback; the immutable semantic publication stays alive.
+    std::wstring_view destination, title;
+};
 struct RichTextEditorDebugState
 {
     bool layoutReady                   = false;
@@ -3257,6 +3263,10 @@ public:
     // target and scrolls without editing history or acquiring keyboard focus.
     // Enabled read-only controls allow navigation; pending/composing ones do not.
     bool NavigateSemanticElement(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& expected, size_t element);
+    // Ctrl+click/Ctrl+Enter/UIA request navigation. Local heading fragments
+    // navigate inside the document; external destinations are delegated only.
+    // The library never launches a browser, file, process or network operation.
+    void SetOnLinkActivated(std::function<void(const RichTextLinkActivation&)> callback);
     // F2/UIA source entry changes only local presentation and caret, without
     // taking OS focus. Exact document text/history remain authoritative. An
     // active IME composition or stale/unprepared target refuses the transition.

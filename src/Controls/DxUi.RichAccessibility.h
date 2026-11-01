@@ -197,7 +197,8 @@ public:
         if (! record)
             return UIA_E_ELEMENTNOTAVAILABLE;
         const auto role = record->RichSemantic()->Elements()[element_].role;
-        if (id == UIA_InvokePatternId && (record->RichSemantic()->NavigationTarget(element_) || record->RichSemantic()->SourceEditingRange(element_)))
+        if (id == UIA_InvokePatternId && (role == RichText::SemanticRole::Link || record->RichSemantic()->NavigationTarget(element_) ||
+                                          record->RichSemantic()->SourceEditingRange(element_)))
             *result = static_cast<IInvokeProvider*>(this);
         else if (id == UIA_TogglePatternId && role == RichText::SemanticRole::Task)
             *result = static_cast<IToggleProvider*>(this);
@@ -445,7 +446,8 @@ public:
             return DispatchAccessibilityUiActionToWindowThread(hwnd_, request);
         }
         const auto* record = Record(snapshot);
-        if (! record || (! record->RichSemantic()->NavigationTarget(element_) && ! record->RichSemantic()->SourceEditingRange(element_)))
+        if (! record || (record->RichSemantic()->Elements()[element_].role != RichText::SemanticRole::Link &&
+                         ! record->RichSemantic()->NavigationTarget(element_) && ! record->RichSemantic()->SourceEditingRange(element_)))
             return UIA_E_NOTSUPPORTED;
         if (! record->controlEnabled)
             return UIA_E_ELEMENTNOTENABLED;

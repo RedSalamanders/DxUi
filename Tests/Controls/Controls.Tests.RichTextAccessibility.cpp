@@ -2226,6 +2226,68 @@ void TestRichTextAccessibilityEmbeddedDiagnosticSelection()
     EmbeddedCase([](bool embedded) { SemanticDiagnosticSelection(embedded); });
 }
 
+void SemanticLinkActivation(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true, true);
+    const std::wstring source = L"[outside](https://example.invalid/docs \"Reference\") [first](#hello-world) [second](#hello-world-1) [bad](#%GG)\n\n"
+                                L"# Hello, World\n\nbody\n\n# Hello, World\n";
+    fixture.editor->SetText(source);
+    fixture.editor->SetReadOnly(true);
+    fixture.Publish();
+    const auto document = fixture.editor->GetAcknowledgedSemanticDocument(*fixture.controls);
+    Require(document != nullptr, "link activation has acknowledged semantic geometry");
+    const auto revision = fixture.editor->Revision();
+    const auto focus    = fixture.controls->GetFocusControl();
+    size_t calls{};
+    fixture.editor->SetOnLinkActivated([&](const RichTextLinkActivation& activation)
+    {
+        Require(activation.destination == L"https://example.invalid/docs" && activation.title == L"Reference" &&
+                    source.substr(activation.source.first, activation.source.last - activation.source.first).starts_with(L"[outside]"),
+                "consumer receives the exact immutable destination, title and source ownership");
+        ++calls;
+    });
+    auto simple  = fixture.Simple();
+    auto outside = FindNamedSemanticPart(*simple.get(), L"outside");
+    Require(outside != nullptr, "external link has a real semantic provider");
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    RequireSucceeded(outside->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "external hyperlink Invoke discovery");
+    wil::com_ptr_nothrow<IInvokeProvider> invoke;
+    RequireSucceeded(pattern.query_to(invoke.put()), "external hyperlink Invoke interface");
+    const auto selection = fixture.editor->GetSelection();
+    RequireSucceeded(invoke->Invoke(), "read-only link delegates an activation intent");
+    Require(calls == 1u && fixture.editor->GetSelection() == selection && fixture.controls->GetFocusControl() == focus,
+            "external link activation neither edits source selection nor acquires focus");
+    for (const auto name : {L"first", L"second"})
+    {
+        const auto link = std::ranges::find(document->Elements(), name, &SemanticElement::name);
+        Require(link != document->Elements().end(), "local fragment link exists");
+        const auto index = static_cast<size_t>(link - document->Elements().begin());
+        Require(fixture.editor->NavigateSemanticElement(*fixture.controls, document, index), "local heading fragment is navigable while read-only");
+        const auto heading = name == std::wstring_view(L"first") ? source.find(L"Hello, World") : source.rfind(L"Hello, World");
+        Require(fixture.editor->GetSelection() == Selection{heading, heading + 12u}, "duplicate heading fragments have deterministic distinct targets");
+    }
+    const auto bad       = std::ranges::find(document->Elements(), L"bad", &SemanticElement::name);
+    const auto beforeBad = fixture.editor->GetSelection();
+    Require(bad != document->Elements().end() &&
+                ! fixture.editor->NavigateSemanticElement(*fixture.controls, document, static_cast<size_t>(bad - document->Elements().begin())) &&
+                fixture.editor->GetSelection() == beforeBad && calls == 1u && fixture.editor->GetText() == source && fixture.editor->Revision() == revision &&
+                ! fixture.editor->CanUndo(),
+            "malformed fragments refuse atomically and every navigation preserves source, history and external callback count");
+    const auto lifetime = GetControlLifetimeToken(*fixture.editor);
+    fixture.editor->SetOnLinkActivated([&](const RichTextLinkActivation&) { fixture.controls->SetRoot({}); });
+    RequireSucceeded(invoke->Invoke(), "a delegated link stays handled when the callback retires its editor");
+    Require(lifetime.expired(), "link callback actually retired the owner");
+    Require(invoke->Invoke() == UIA_E_ELEMENTNOTAVAILABLE, "retained link providers cannot invoke a replacement document");
+}
+void TestRichTextAccessibilityWindowLinkActivation()
+{
+    SemanticLinkActivation(false);
+}
+void TestRichTextAccessibilityEmbeddedLinkActivation()
+{
+    EmbeddedCase([](bool embedded) { SemanticLinkActivation(embedded); });
+}
 void SemanticFootnoteNavigation(bool embedded)
 {
     using namespace RichText;
@@ -2851,6 +2913,8 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSemanticFrontMatterDiagnostics);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSemanticFrontMatterDiagnostics);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowFootnoteNavigation);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowLinkActivation);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedLinkActivation);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowDiagramAlternatives);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowMathLiteralFallback);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedMathLiteralFallback);

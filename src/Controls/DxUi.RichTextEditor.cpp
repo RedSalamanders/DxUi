@@ -1,4 +1,5 @@
 #include "DxUi.Internal.h"
+#include "DxUi.MarkdownLabels.h"
 #include "DxUi.RichAccessibilityEpoch.h"
 #include "DxUi.RichEditorLayout.h"
 #include "DxUi.RichFileReferenceContext.h"
@@ -12,6 +13,7 @@
 #include "TextClipboard.h"
 #include <DxUi/RichTextLayout.h>
 #include <cmath>
+#include <set>
 #include <stdexcept>
 #include <wil/result.h>
 
@@ -19,6 +21,78 @@ namespace DxUi
 {
 namespace
 {
+std::optional<RichText::MarkdownRange> HeadingFragment(const RichText::SemanticDocument& document, std::wstring_view destination)
+{
+    if (! destination.starts_with(L'#'))
+        return std::nullopt;
+    if (destination.size() == 1u)
+        return RichText::MarkdownRange{};
+    std::wstring wanted(0u, L' ');
+    try
+    {
+        const auto encoded = RichText::EncodeUtf8(destination.substr(1u));
+        std::string decoded(0u, '\0');
+        decoded.reserve(encoded.size());
+        const auto hex = [](char c) noexcept -> unsigned
+        {
+            if (c >= '0' && c <= '9')
+                return static_cast<unsigned>(c - '0');
+            if (c >= 'a' && c <= 'f')
+                return static_cast<unsigned>(c - 'a') + 10u;
+            if (c >= 'A' && c <= 'F')
+                return static_cast<unsigned>(c - 'A') + 10u;
+            return 16u;
+        };
+        for (size_t index = 0u; index < encoded.size(); ++index)
+        {
+            auto value = encoded[index];
+            if (value == '%')
+            {
+                if (index + 2u >= encoded.size() || hex(encoded[index + 1u]) > 15u || hex(encoded[index + 2u]) > 15u)
+                    return std::nullopt;
+                value = static_cast<char>((hex(encoded[index + 1u]) << 4u) | hex(encoded[index + 2u]));
+                index += 2u;
+            }
+            if (! value)
+                return std::nullopt;
+            decoded.push_back(value);
+        }
+        wanted = RichText::DecodeUtf8(decoded);
+    }
+    catch (const std::invalid_argument&)
+    {
+        return std::nullopt; // A malformed URI fragment never navigates a partial prefix.
+    }
+    catch (const std::length_error&)
+    {
+        return std::nullopt;
+    }
+    std::set<std::wstring> used;
+    for (const auto& element : document.Elements())
+    {
+        if (element.role != RichText::SemanticRole::Heading)
+            continue;
+        const auto folded = RichText::Detail::FoldLabel(element.name);
+        std::wstring base(0u, L' ');
+        for (const auto unit : folded)
+        {
+            if (unit == L' ')
+                base.push_back(L'-');
+            else if (unit != L'\ufffc' && (unit >= 128u || (unit >= L'a' && unit <= L'z') || (unit >= L'0' && unit <= L'9') || unit == L'_' || unit == L'-'))
+                base.push_back(unit);
+        }
+        if (base.empty())
+            base = L"section";
+        std::wstring id(base);
+        size_t suffix = 0u;
+        while (used.contains(id))
+            id = base + L"-" + std::to_wstring(++suffix);
+        used.insert(id);
+        if (id == wanted)
+            return element.syntaxNode < document.Syntax()->Nodes().size() ? document.Syntax()->Nodes()[element.syntaxNode].block.content : element.source;
+    }
+    return std::nullopt;
+}
 D2D1_COLOR_F ResolveMarkdownQuoteFill(const ThemePalette& theme, const TextFieldVisualStyle& style) noexcept
 {
     if (theme.highContrast)
@@ -44,6 +118,7 @@ struct RichTextEditor::State
     RichTextLinkUnderlinePolicy linkUnderlinePolicy = RichTextLinkUnderlinePolicy::Always;
     std::optional<RichText::MarkdownRange> hoveredLink;
     std::optional<RichText::MarkdownRange> caretLink;
+    std::shared_ptr<const std::function<void(const RichTextLinkActivation&)>> onLinkActivated;
     std::weak_ptr<const RichText::SemanticDocument> keyboardNavigationDocument;
     size_t keyboardNavigationElement = RichText::MarkdownNoNode;
     std::vector<RichTextSourceHighlight> highlights;
@@ -1014,11 +1089,12 @@ bool RichTextEditor::SelectMarkdownDiagnostic(ControlHost& host, bool backwards)
 }
 bool RichTextEditor::NavigateSemanticElement(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& expected, size_t element)
 {
-    if (! expected || GetHost() != &host || ! IsEnabled() || GetAcknowledgedSemanticDocument(host) != expected)
+    const auto document = expected; // The callback may reset the caller's shared_ptr.
+    if (! document || element >= document->Elements().size() || GetHost() != &host || ! IsEnabled() || ! IsVisible() ||
+        GetAcknowledgedSemanticDocument(host) != document)
         return false;
-    const auto target = expected->NavigationTarget(element);
-    if (! target)
-        return false;
+    const auto lifetime = GetLifetimeToken();
+    auto target         = document->NavigationTarget(element);
     if (host.GetFocusControl() == this)
     {
         NativeTextInputState input{.text = std::wstring(0u, L' '), .compositionClauseBoundaries = std::vector<size_t>(0u)};
@@ -1026,15 +1102,49 @@ bool RichTextEditor::NavigateSemanticElement(ControlHost& host, const std::share
         if ((host.HasActiveNativeTextInputSession() && ! available) || (available && (input.compositionStartIndex || input.compositionEndIndex)))
             return false;
     }
-    const auto lifetime = GetLifetimeToken();
+    if (lifetime.expired() || GetHost() != &host || GetAcknowledgedSemanticDocument(host) != document)
+        return false;
+    const auto& link = document->Elements()[element];
+    if (! target && link.role == RichText::SemanticRole::Link)
+    {
+        if (link.destination.starts_with(L'#'))
+            target = HeadingFragment(*document, link.destination);
+        else
+        {
+            const auto callback = _state->onLinkActivated;
+            if (! callback)
+                return false;
+            const RichTextLinkActivation activation{link.source, link.destination, link.title};
+            try
+            {
+                (*callback)(activation);
+            }
+            catch (const std::bad_alloc&)
+            {
+                std::terminate(); // Same application-notification contract as text and selection callbacks.
+            }
+            catch (const std::exception&)
+            {
+                Debug::Warning(L"DxUi::RichTextEditor: link notification failed; source retained.");
+            }
+            return true; // A dispatched intent remains handled if the callback retires its owner.
+        }
+    }
+    if (! target)
+        return false;
     if (! ScrollSourceRangeIntoView(host, target->first, target->last, true))
         return false;
-    if (lifetime.expired() || GetHost() != &host || GetAcknowledgedSemanticDocument(host) != expected)
+    if (lifetime.expired() || GetHost() != &host || GetAcknowledgedSemanticDocument(host) != document)
         return false;
     // Selection synchronization can re-enter or destroy the owner. Complete
     // scrolling first and never access this control after SetSelection returns.
     SetSelection({target->first, target->last});
     return true;
+}
+void RichTextEditor::SetOnLinkActivated(std::function<void(const RichTextLinkActivation&)> callback)
+{
+    auto next = callback ? std::make_shared<const std::function<void(const RichTextLinkActivation&)>>(std::move(callback)) : nullptr;
+    _state->onLinkActivated.swap(next);
 }
 bool RichTextEditor::CanChangeSemanticSourcePresentation(ControlHost& host) const
 {
@@ -1632,8 +1742,8 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                     }
                     else
                         continue;
-                    const auto& oldNodes       = rejected.syntax->Nodes();
-                    const auto& newNodes       = currentSyntax->Nodes();
+                    const auto& oldNodes      = rejected.syntax->Nodes();
+                    const auto& newNodes      = currentSyntax->Nodes();
                     const auto containingLeaf = [](const auto& nodes, RichText::MarkdownRange object)
                     {
                         auto best = RichText::MarkdownNoNode;
@@ -2828,12 +2938,20 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
             }
             if (key == VK_RETURN && ! shift)
                 if (const auto document = GetAcknowledgedSemanticDocument(host))
+                {
                     for (const auto& navigation : document->Navigation())
                     {
                         const auto& source = document->Elements()[navigation.element].source;
                         if (source.first < source.last && GetSelection().caret >= source.first && GetSelection().caret < source.last)
                             return NavigateSemanticElement(host, document, navigation.element);
                     }
+                    for (size_t element = 0u; element < document->Elements().size(); ++element)
+                    {
+                        const auto& link = document->Elements()[element];
+                        if (link.role == RichText::SemanticRole::Link && link.source.first <= GetSelection().caret && GetSelection().caret < link.source.last)
+                            return NavigateSemanticElement(host, document, element);
+                    }
+                }
             switch (key)
             {
                 case 'A': return OnSelectAll(host);
@@ -3109,10 +3227,17 @@ bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool ri
         const auto source = HitSource(host, point);
         if (ModifiersContainCtrl(modifiers) && ! ModifiersContainShift(modifiers))
             if (const auto document = GetAcknowledgedSemanticDocument(host))
+            {
                 for (const auto& navigation : document->Navigation())
                     if (const auto bounds = GetSemanticElementBounds(host, navigation.element);
                         bounds && point.x >= bounds->left && point.x <= bounds->right && point.y >= bounds->top && point.y <= bounds->bottom)
                         return NavigateSemanticElement(host, document, navigation.element);
+                for (size_t element = 0u; element < document->Elements().size(); ++element)
+                    if (document->Elements()[element].role == RichText::SemanticRole::Link)
+                        if (const auto bounds = GetSemanticElementBounds(host, element);
+                            bounds && point.x >= bounds->left && point.x <= bounds->right && point.y >= bounds->top && point.y <= bounds->bottom)
+                            return NavigateSemanticElement(host, document, element);
+            }
         std::shared_ptr<const RichText::MarkdownCommandPlan> taskPlan;
         D2D1_RECT_F taskRect{};
         if (Editable() && ! ModifiersContainShift(modifiers))

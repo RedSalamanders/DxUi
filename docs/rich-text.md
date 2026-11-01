@@ -1427,3 +1427,11 @@ rectangle or rounded labels. Source-provenance rules remain unchanged.
 Aligned rows alternate right-aligned left operands and left-aligned right operands at each ampersand pair. Cases use left-aligned expression/condition columns (at most two); ordinary matrices center their columns. Gathered rows have one column. Geometry tests compare the actual cached glyph positions consumed by drawing.
 
 Over-capacity notation conservatively retains the remaining physical inline line (display notation: logical leaf) as literal source with a diagnostic. This prevents nested Markdown interpretation and bounds repeated failed delimiter scans. The consumer inspector uses MathMaximumSourceUnits and clears rather than accepting an oversized value.
+
+`SetOnLinkActivated` receives external link intents without opening anything in the
+library. Ctrl+click, Ctrl+Enter and UIA Invoke share this route, including read-only
+editors. The callback borrows destination/title text from a retained immutable
+publication and may retire the editor. Local fragments resolve heading IDs using
+Unicode reference folding, spaces as hyphens and ASCII punctuation removal
+(except `_` and `-`); repeated IDs gain source-ordered numeric suffixes. `#` moves
+to source start. Unresolved or malformed UTF-8 fragments leave selection unchanged.
