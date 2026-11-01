@@ -627,6 +627,14 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
         check(result->outcome == FlowchartOutcome::Unsupported && result->source == source && result->nodes.empty() && result->edges.empty(),
               "incomplete or doubly labelled inline edges preserve exact source");
     }
+    for (const auto source : {L"flowchart LR\nA -- \"quoted\" --> B\n", L"flowchart LR\nA -- a|b --> B\n"})
+    {
+        parser.Begin(source, 26u);
+        const auto result = Complete(parser);
+        check(result->outcome == FlowchartOutcome::Unsupported && result->diagnostic.issue == FlowchartIssue::UnsupportedLabelMarkup &&
+                  result->source == source && result->nodes.empty() && result->edges.empty(),
+              "inline edge markup is retained as source rather than displayed literally");
+    }
     std::wstring oversizedInline = L"flowchart LR\nA -- ";
     oversizedInline.append(NativeFlowchartParser::MaximumLabelUnits + 1u, L'x');
     oversizedInline += L" --> B\n";

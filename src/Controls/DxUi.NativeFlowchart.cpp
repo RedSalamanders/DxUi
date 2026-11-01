@@ -534,6 +534,9 @@ struct NativeFlowchartParser::Preparation
                         --labelEnd;
                     if (close == end || labelEnd == begin)
                         return Error(FlowchartIssue::UnsupportedEdge, edgeStart, end, FlowchartOutcome::Unsupported);
+                    const auto markup = Text().substr(begin, labelEnd - begin).find_first_of(L"\"|");
+                    if (markup != std::wstring_view::npos)
+                        return Error(FlowchartIssue::UnsupportedLabelMarkup, begin + markup, begin + markup + 1u, FlowchartOutcome::Unsupported);
                     auto labelAt = begin;
                     if (! PlainText(labelAt, labelEnd, edge.label))
                         return false;

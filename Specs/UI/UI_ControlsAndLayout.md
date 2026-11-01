@@ -1680,7 +1680,8 @@ dotted `-.->` / `-.-`, thick `==>` / `===`, and invisible `~~~`; visible edges m
 carry `|label|` or bounded plain inline text (`-- text -->`, `-- text ---`,
 `-. text .->`, `-. text .-`, `== text ==>`, `== text ===`). Each edge expands the Cartesian product of its
 left and right endpoint groups in stable source order; a chain continues from
-the preceding right-hand group. Other expanded, reversed and named edge syntax
+the preceding right-hand group. Quotes and pipe characters inside inline edge text
+remain unsupported rather than being displayed literally. Other expanded, reversed and named edge syntax
 is unsupported. In particular `A---oB`/`A---xB` MUST NOT be silently
 treated as edges to IDs `oB`/`xB`; use whitespace before such IDs for a plain line.
 Quoted labels allow Unicode scalar text and `\"`, `\\`, `\n` escapes. Unquoted

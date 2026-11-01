@@ -1,0 +1,1 @@
+- Preserve unsupported Mermaid inline edge markup as source with a diagnostic.
