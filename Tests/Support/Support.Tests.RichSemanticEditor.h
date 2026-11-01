@@ -1222,9 +1222,29 @@ template <typename Prepare> void InlineMathSourceEditing(ControlHost& host, Prep
     Check(semantic && std::ranges::any_of(semantic->Elements(),
                                           [&](const auto& item) { return item.role == SemanticRole::Math && item.source == MarkdownRange{2u, 2u}; }),
           "empty math insertion remains an inline owner between paired delimiters");
+    Check(semantic && std::ranges::none_of(semantic->Syntax()->Inlines(), [](const auto& node)
+          { return node.kind == MarkdownInlineKind::Text && node.source == MarkdownRange{2u, 3u}; }),
+          "zero-width inline source sentinel cannot become a text node over the adjacent delimiter");
     Check(editor->Undo(), "undo restores math between delimiters");
     prepare();
     Check(editor->OnKeyDown(host, VK_ESCAPE, 0u), "leave restored inline session");
+    prepare();
+    editor->SetText(L"$x$");
+    prepare();
+    editor->SetSelection({0u, 0u});
+    Check(editor->OnKeyDown(host, VK_F2, 0u), "standalone math opens an inline source session");
+    prepare();
+    editor->SetSelection({1u, 2u});
+    Check(editor->ReplaceSelection(L""), "the expression interior may become empty");
+    prepare();
+    semantic = editor->GetAcknowledgedSemanticDocument(host);
+    Check(editor->GetText() == L"$$" && editor->GetSemanticSourceRegion() &&
+              editor->GetSemanticSourceRegion()->source == MarkdownRange{0u, 2u} && semantic &&
+              std::ranges::any_of(semantic->Elements(), [](const auto& item) { return item.role == SemanticRole::Math && item.source == MarkdownRange{0u, 2u}; }),
+          "an actively edited empty inline expression keeps its inline owner even when its raw source is a display opener");
+    Check(editor->Undo(), "undo restores the deleted inline expression interior");
+    prepare();
+    Check(editor->OnKeyDown(host, VK_ESCAPE, 0u), "leave the restored inline expression");
     prepare();
     editor->SetText(L"$x$");
     prepare();

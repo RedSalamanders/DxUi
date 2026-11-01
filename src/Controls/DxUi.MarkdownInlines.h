@@ -1873,6 +1873,12 @@ public:
                 const auto first = cursor_;
                 cursor_          = static_cast<std::size_t>(
                     std::lower_bound(offsets_.begin() + static_cast<std::ptrdiff_t>(cursor_), offsets_.end(), sourceRegion_->source.last) - offsets_.begin());
+                // A zero-width source owner has a synthetic U+FFFC boundary in
+                // this private scan buffer. Consume that sentinel here; if it
+                // is scanned again as text it aliases the next real source
+                // unit and can detach or corrupt the empty editable owner.
+                if (sourceRegion_->source.first == sourceRegion_->source.last && cursor_ == first && cursor_ < text_.size() && text_[cursor_] == L'\ufffc')
+                    ++cursor_;
                 const auto index     = Append(Kind::SourceEditor,
                                               first,
                                               cursor_,
