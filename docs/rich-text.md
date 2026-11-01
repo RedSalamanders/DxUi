@@ -156,6 +156,10 @@ is at the start of its content; ordinary text inside the heading is unaffected.
 `GetSourceCaretLocation()` reports a zero-based logical source line and UTF-16
 column, independent of visual wrapping; its scan is allocation-free and linear
 in the source prefix. CRLF counts as one line break.
+`GetPreparedCaretWordSourceRanges(host)` maps the current displayed word to
+source ranges using the shared word and grapheme policies. It can return several
+disjoint ranges around hidden markup, or an empty range list for generated text;
+stale layout returns no result. Source-mode projection may require a bounded copy.
 
 Supplying `RichTextContextMenuLabels` opts into the default edit menu. A consumer
 context callback takes precedence. HWND-less embedded consumers can obtain the

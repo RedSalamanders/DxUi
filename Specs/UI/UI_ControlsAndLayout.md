@@ -1343,6 +1343,13 @@ zero-based logical source line and UTF-16 column, treating CRLF as one break.
 They visit immutable source pieces without allocating or flattening, in time
 proportional to the inspected prefix. Invalid snapshots, offsets and edit
 boundaries have no location; visual wrapping and reordered content do not alter it.
+`GetPreparedCaretWordSourceRanges` requires current prepared layout and returns
+the caret's UIA word expanded to complete Unicode graphemes as source-owned
+ranges. Hidden delimiters and generated display text do not become source;
+transformed spans retain their complete source owner and disjoint ranges stay
+separate. Source-mode queries may copy the bounded display projection; semantic
+queries reuse its retained display text. A stale layout or storage failure
+returns no result.
 
 ### Semantic document preparation (M4c bounded preview)
 

@@ -3449,6 +3449,10 @@ public:
     // Accessible ranges use source offsets; geometry follows the current rich
     // projection. Includes complete lines that are partially visible.
     [[nodiscard]] std::optional<std::pair<size_t, size_t>> GetVisibleSourceRange(const ControlHost& host) const noexcept;
+    // Display word containing the caret, mapped to exact source-owned ranges.
+    // Generated display text may have no source; transformed objects retain
+    // their complete source owner. Requires this host's current prepared layout.
+    [[nodiscard]] std::optional<std::vector<RichText::MarkdownRange>> GetPreparedCaretWordSourceRanges(const ControlHost& host) const noexcept;
     // Owner-thread accessibility geometry/scrolling. Offsets include hidden
     // syntax; scrolling preserves selection/history and never acquires focus.
     [[nodiscard]] std::optional<std::vector<std::pair<size_t, size_t>>> GetSourceVisualLineRanges(const ControlHost& host) const noexcept;

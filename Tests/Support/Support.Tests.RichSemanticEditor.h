@@ -194,6 +194,42 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     host.SetRoot(std::move(root));
     prepare();
     host.SetFocusControl(editor, false);
+    editor->SetText(L"**hello** &amp;\r\n");
+    editor->SetSelection({4u, 4u});
+    Check(! editor->GetPreparedCaretWordSourceRanges(host), "caret-word query refuses stale geometry");
+    prepare();
+    const auto boldWord = editor->GetPreparedCaretWordSourceRanges(host);
+    Check(boldWord && boldWord->size() == 1u && (*boldWord)[0] == MarkdownRange{2u, 7u},
+          "prepared caret word excludes hidden emphasis delimiters");
+    editor->SetSelection({12u, 12u});
+    const auto entityWord = editor->GetPreparedCaretWordSourceRanges(host);
+    Check(entityWord && entityWord->size() == 1u && (*entityWord)[0] == MarkdownRange{10u, 15u},
+          "prepared caret word retains the complete atomic entity source");
+    editor->SetText(L"he**ll**o");
+    prepare();
+    editor->SetSelection({4u, 4u});
+    const auto splitWord = editor->GetPreparedCaretWordSourceRanges(host);
+    Check(splitWord && splitWord->size() == 3u && (*splitWord)[0] == MarkdownRange{0u, 2u} && (*splitWord)[1] == MarkdownRange{4u, 6u} &&
+              (*splitWord)[2] == MarkdownRange{8u, 9u},
+          "one displayed word maps to disjoint source ranges without claiming hidden syntax");
+    editor->SetText(L"**a\u0301** \U0001f600");
+    prepare();
+    editor->SetSelection({3u, 3u});
+    const auto combinedWord = editor->GetPreparedCaretWordSourceRanges(host);
+    Check(combinedWord && combinedWord->size() == 1u && (*combinedWord)[0] == MarkdownRange{2u, 4u},
+          "prepared caret word cannot split a combining grapheme");
+    editor->SetSelection({7u, 7u});
+    const auto emojiWord = editor->GetPreparedCaretWordSourceRanges(host);
+    Check(emojiWord && emojiWord->size() == 1u && (*emojiWord)[0] == MarkdownRange{7u, 9u},
+          "prepared caret word cannot split a supplementary emoji");
+    editor->SetViewMode(ViewMode::Source);
+    editor->SetText(L"word\r\nnext");
+    prepare();
+    editor->SetSelection({6u, 6u});
+    const auto sourceWord = editor->GetPreparedCaretWordSourceRanges(host);
+    Check(sourceWord && sourceWord->size() == 1u && (*sourceWord)[0] == MarkdownRange{6u, 10u},
+          "source caret word maps past CRLF without including the separator");
+    editor->SetViewMode(ViewMode::Rich);
     editor->SetText(L"One one only");
     const auto searchSource  = editor->Snapshot();
     const auto searchMatches = FindInSource(searchSource, L"one", {.wholeWord = true});

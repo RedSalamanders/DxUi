@@ -15,6 +15,7 @@
 #include "DxUi.TextElements.h"
 #include "Support/Diagnostics.h"
 #include "TextClipboard.h"
+#include <DxUi/AccessibilityTextUnits.h>
 #include <DxUi/RichTextLayout.h>
 #include <UIAutomation.h>
 #include <cmath>
@@ -3629,6 +3630,49 @@ bool RichTextEditor::AcceptsTypedText() const noexcept
 {
     return Editable();
 }
+std::optional<std::vector<RichText::MarkdownRange>> RichTextEditor::GetPreparedCaretWordSourceRanges(const ControlHost& host) const noexcept
+{
+    try
+    {
+        if (! LayoutIsCurrent(host))
+            return std::nullopt;
+        const auto& projection = _state->layout;
+        const auto caret = projection.ToDisplay(GetSelection().caret);
+        const auto source = Snapshot();
+        const auto resolve = [&](std::wstring_view display, const RichText::SourceDisplayMap* map)
+            -> std::optional<std::vector<RichText::MarkdownRange>>
+        {
+            const auto word = GetEnclosingAccessibilityTextUnitSpan(display, caret, TextUnit_Word);
+            if (word.start >= word.end)
+                return std::optional<std::vector<RichText::MarkdownRange>>(std::in_place, 0u);
+            const auto first = GetEnclosingAccessibilityTextUnitSpan(display, word.start, TextUnit_Character).start;
+            const auto last = GetEnclosingAccessibilityTextUnitSpan(display, word.end - 1u, TextUnit_Character).end;
+            if (map)
+            {
+                const auto ranges = map->SourceRanges({first, last});
+                for (const auto range : ranges)
+                    if (! source.IsBoundary(range.first) || ! source.IsBoundary(range.last))
+                        return std::nullopt;
+                return std::optional<std::vector<RichText::MarkdownRange>>(std::in_place, ranges.begin(), ranges.end());
+            }
+            const auto sourceFirst = projection.ToSource(first);
+            const auto sourceLast = projection.ToSource(last, true);
+            if (sourceFirst > sourceLast || ! source.IsBoundary(sourceFirst) || ! source.IsBoundary(sourceLast))
+                return std::nullopt;
+            return std::optional<std::vector<RichText::MarkdownRange>>(std::in_place, 1u, RichText::MarkdownRange{sourceFirst, sourceLast});
+        };
+        if (const auto* semantic = projection.SemanticGeometry())
+            return resolve(semantic->Document().Map().Display(), &semantic->Document().Map());
+        const std::wstring display = projection.DisplayText();
+        return resolve(display, nullptr);
+    }
+    catch (const std::exception&)
+    {
+        // Prepared geometry can retire or temporary storage can fail; publish no range.
+        return std::nullopt;
+    }
+}
+
 std::optional<std::vector<std::pair<size_t, size_t>>> RichTextEditor::GetSourceVisualLineRanges(const ControlHost& host) const noexcept
 {
     try
