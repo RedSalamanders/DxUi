@@ -107,6 +107,46 @@ inline void ReorderedFootnoteCaretSitesAndSourceLines()
         const auto ranges = geometry.SourceRange({0u, source.size()});
         Check(! ranges.empty(), "whole-source selection paints reordered real text without owning generated backlinks");
     }
+    {
+        constexpr std::wstring_view source = L"[^n]: note\n\nmain[^n]\n";
+        const auto document                = RichSemanticDocumentTests::Build(source, MarkdownProfile::RichMarkdown);
+        PreparedSemanticGeometry geometry;
+        LayoutOptions options;
+        options.widthDip = 360.0f;
+        geometry.Begin(factory.get(), document, options);
+        Complete(geometry);
+        const auto main = source.find(L"main"), note = source.find(L"note");
+        auto forward       = SourceCaretHit{main + 4u, MarkdownNoNode};
+        bool enteredFooter = false;
+        for (unsigned step = 0u; step != 32u; ++step)
+        {
+            const auto next = geometry.StepSource(forward.position, forward.site, true);
+            if (next.position == forward.position && next.site == forward.site)
+                break;
+            forward = next;
+            if (forward.position >= note && forward.position < note + 4u)
+            {
+                enteredFooter = true;
+                break;
+            }
+        }
+        Check(enteredFooter, "Right enters a visually later footnote whose source occurs before main text");
+        auto backward    = SourceCaretHit{note, MarkdownNoNode};
+        bool enteredMain = false;
+        for (unsigned step = 0u; step != 32u; ++step)
+        {
+            const auto next = geometry.StepSource(backward.position, backward.site, false);
+            if (next.position == backward.position && next.site == backward.site)
+                break;
+            backward = next;
+            if (backward.position >= main && backward.position <= source.size())
+            {
+                enteredMain = true;
+                break;
+            }
+        }
+        Check(enteredMain, "Left from the footer returns to visually earlier main text at a later raw source offset");
+    }
     const auto atomic = RichSemanticDocumentTests::Build(L"![a very long image alternative that wraps over many SDK lines](local)\n");
     PreparedSemanticGeometry wrapped;
     LayoutOptions narrow;
@@ -720,6 +760,48 @@ inline void ParagraphsTablesAndSourceRanges()
     geometry.Clear();
     Check(! geometry.Ready() && ! geometry.Pending() && geometry.Height() == 0.0f, "semantic retirement releases both staged and published SDK graphs");
     SemanticSpacingPolicy();
+}
+inline void PaddedCodePresentation()
+{
+    const auto factory = Factory();
+    const std::wstring source = L"```cpp\nint x;\n```\n";
+    const auto document = RichSemanticDocumentTests::Build(source);
+    const auto code = std::ranges::find(document->Elements(), SemanticRole::Code, &SemanticElement::role);
+    Check(code != document->Elements().end(), "code frame fixture has a semantic code element");
+    const auto element = static_cast<std::size_t>(code - document->Elements().begin());
+    const auto prepare = [&](float width, MarkdownPresentationStyle style)
+    {
+        auto geometry = std::make_unique<PreparedSemanticGeometry>();
+        LayoutOptions options;
+        options.widthDip = width;
+        options.markdownPresentation = style;
+        geometry->Begin(factory.get(), document, options);
+        Complete(*geometry);
+        return geometry;
+    };
+    const auto legacy = prepare(200.0f, MarkdownPresentationStyle::Default);
+    const auto subtle = prepare(200.0f, MarkdownPresentationStyle::Subtle);
+    const auto oldFrame = legacy->ElementBounds(element), frame = subtle->ElementBounds(element);
+    const auto position = source.find(L"int");
+    const auto caret = subtle->SourceCaret(position);
+    Check(oldFrame && frame && frame->bottom - frame->top >= oldFrame->bottom - oldFrame->top + 11.9f &&
+              caret.x >= frame->left + 5.9f && caret.y >= frame->top + 5.9f,
+          "subtle code frame reserves inner padding and preserves source caret geometry");
+    const auto unlabeled = RichSemanticDocumentTests::Build(L"```\nint x;\n```\n");
+    PreparedSemanticGeometry noLabel;
+    LayoutOptions labelOptions;
+    labelOptions.widthDip = 200.0f;
+    labelOptions.markdownPresentation = MarkdownPresentationStyle::Subtle;
+    noLabel.Begin(factory.get(), unlabeled, labelOptions);
+    Complete(noLabel);
+    const auto noLabelCode = std::ranges::find(unlabeled->Elements(), SemanticRole::Code, &SemanticElement::role);
+    const auto noLabelBounds = noLabel.ElementBounds(static_cast<std::size_t>(noLabelCode - unlabeled->Elements().begin()));
+    Check(noLabelBounds && frame && frame->bottom - frame->top >= noLabelBounds->bottom - noLabelBounds->top &&
+              subtle->HitTestSource(caret.x, caret.y + caret.height * 0.5f).position == position,
+          "language badge reserves nonselectable header space while code caret still resolves to source");
+    const auto narrow = prepare(5.0f, MarkdownPresentationStyle::Subtle);
+    const auto bounds = narrow->ElementBounds(element);
+    Check(bounds && bounds->right - bounds->left <= 5.01f, "narrow code frame clamps its horizontal padding to the viewport");
 }
 inline void MarkdownSubtlePresentation()
 {

@@ -2239,6 +2239,15 @@ void SemanticLinkActivation(bool embedded)
     Require(document != nullptr, "link activation has acknowledged semantic geometry");
     const auto revision = fixture.editor->Revision();
     const auto focus    = fixture.controls->GetFocusControl();
+    auto initialRoot = fixture.Simple();
+    auto initialOutside = FindNamedSemanticPart(*initialRoot.get(), L"outside");
+    auto initialLocal = FindNamedSemanticPart(*initialRoot.get(), L"first");
+    wil::com_ptr_nothrow<IUnknown> initialPattern;
+    Require(initialOutside && initialLocal, "external and local links are discoverable before registration");
+    RequireSucceeded(initialOutside->GetPatternProvider(UIA_InvokePatternId, initialPattern.put()), "unregistered external link pattern");
+    Require(! initialPattern, "external link is inert until a handler is registered");
+    RequireSucceeded(initialLocal->GetPatternProvider(UIA_InvokePatternId, initialPattern.put()), "local fragment pattern");
+    Require(bool(initialPattern), "local fragment remains invokable without an external handler");
     size_t calls{};
     fixture.editor->SetOnLinkActivated([&](const RichTextLinkActivation& activation)
     {
@@ -2247,6 +2256,10 @@ void SemanticLinkActivation(bool embedded)
                 "consumer receives the exact immutable destination, title and source ownership");
         ++calls;
     });
+    fixture.Publish();
+    initialPattern.reset();
+    Require(initialOutside->GetPatternProvider(UIA_InvokePatternId, initialPattern.put()) == UIA_E_ELEMENTNOTAVAILABLE,
+            "registration retires the previous immutable UIA publication");
     auto simple  = fixture.Simple();
     auto outside = FindNamedSemanticPart(*simple.get(), L"outside");
     Require(outside != nullptr, "external link has a real semantic provider");
@@ -2274,8 +2287,22 @@ void SemanticLinkActivation(bool embedded)
                 fixture.editor->GetSelection() == beforeBad && calls == 1u && fixture.editor->GetText() == source && fixture.editor->Revision() == revision &&
                 ! fixture.editor->CanUndo(),
             "malformed fragments refuse atomically and every navigation preserves source, history and external callback count");
-    const auto lifetime = GetControlLifetimeToken(*fixture.editor);
+    fixture.editor->SetOnLinkActivated({});
+    Require(invoke->Invoke() == UIA_E_ELEMENTNOTAVAILABLE, "removing the handler retires the old action provider");
+    fixture.Publish();
+    simple = fixture.Simple();
+    outside = FindNamedSemanticPart(*simple.get(), L"outside");
+    pattern.reset();
+    RequireSucceeded(outside->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "removed external handler query");
+    Require(! pattern, "external link returns to inert UIA semantics");
     fixture.editor->SetOnLinkActivated([&](const RichTextLinkActivation&) { fixture.controls->SetRoot({}); });
+    fixture.Publish();
+    simple = fixture.Simple();
+    outside = FindNamedSemanticPart(*simple.get(), L"outside");
+    RequireSucceeded(outside->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "restored external handler query");
+    invoke.reset();
+    RequireSucceeded(pattern.query_to(invoke.put()), "restored external handler interface");
+    const auto lifetime = GetControlLifetimeToken(*fixture.editor);
     RequireSucceeded(invoke->Invoke(), "a delegated link stays handled when the callback retires its editor");
     Require(lifetime.expired(), "link callback actually retired the owner");
     Require(invoke->Invoke() == UIA_E_ELEMENTNOTAVAILABLE, "retained link providers cannot invoke a replacement document");

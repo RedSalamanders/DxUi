@@ -59,6 +59,7 @@ void TestRichSemanticGeometryParagraphsTablesAndSourceRanges()
 void TestRichSemanticGeometryMarkdownSubtlePresentation()
 {
     RichSemanticTests::Run(RichSemanticGeometryTests::MarkdownSubtlePresentation);
+    RichSemanticTests::Run(RichSemanticGeometryTests::PaddedCodePresentation);
 }
 void TestRichSemanticDocumentHeadingMarginsAndIndentation()
 {

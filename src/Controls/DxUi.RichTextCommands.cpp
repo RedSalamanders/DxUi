@@ -623,6 +623,32 @@ struct MarkdownCommandPlanner
         }
         return prefix.content >= prefix.markerEnd && prefix.content <= line.bodyEnd;
     }
+    bool ContinuationPrefix(std::size_t leaf, const PhysicalLine& line, std::size_t at, std::wstring& prefix) const
+    {
+        std::vector<ItemPrefix> markers(0u);
+        for (auto owner = Ancestor(leaf, Kind::ListItem); owner != MarkdownNoNode; owner = ParentItem(owner))
+        {
+            if (Line(nodes[owner].block.source.first).first != line.first)
+                continue;
+            ItemPrefix marker;
+            if (! Prefix(owner, marker) || marker.first < line.first || marker.content > at)
+                return false;
+            markers.push_back(marker);
+        }
+        prefix.clear();
+        auto cursor = line.first;
+        for (auto marker = markers.rbegin(); marker != markers.rend(); ++marker)
+        {
+            if (marker->first < cursor)
+                return false;
+            prefix += Slice(cursor, marker->first);
+            const auto before = Columns(Slice(line.first, marker->first));
+            prefix.append(Columns(Slice(marker->first, marker->content), before) - before, L' ');
+            cursor = marker->content;
+        }
+        prefix += Slice(cursor, at);
+        return true;
+    }
     std::size_t LabelStart(std::size_t item, const ItemPrefix& prefix) const
     {
         auto at = prefix.content;
@@ -1578,24 +1604,26 @@ void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
     const auto& lastLine  = Line(end);
     const auto begin = firstLine.first, finish = lastLine.end;
     std::wstring containerPrefix(0u, L' ');
-    const auto leaf = NodeAt(Kind::Paragraph, first);
-    if (leaf != MarkdownNoNode && nodes[leaf].parent != MarkdownNoNode && nodes[nodes[leaf].parent].block.kind == Kind::BlockQuote)
+    std::wstring continuationPrefix(0u, L' ');
+    std::size_t firstContent = begin;
+    const auto leaf          = NodeAt(Kind::Paragraph, first);
+    if (leaf != MarkdownNoNode && nodes[leaf].parent != MarkdownNoNode && nodes[nodes[leaf].parent].block.kind != Kind::Document)
     {
         if (last > nodes[leaf].block.source.last)
             return;
         for (auto parent = nodes[leaf].parent; parent != MarkdownNoNode; parent = nodes[parent].parent)
-            if (nodes[parent].block.kind != Kind::Document && nodes[parent].block.kind != Kind::BlockQuote)
+            if (nodes[parent].block.kind != Kind::Document && nodes[parent].block.kind != Kind::BlockQuote && nodes[parent].block.kind != Kind::List &&
+                nodes[parent].block.kind != Kind::ListItem)
                 return;
-        std::size_t firstContent{};
-        if (! OuterOffset(leaf, firstLine, firstContent))
+        if (! OuterOffset(leaf, firstLine, firstContent) || ! ContinuationPrefix(leaf, firstLine, firstContent, continuationPrefix))
             return;
         containerPrefix = Slice(firstLine.first, firstContent);
         for (const auto& line : lines)
         {
-            if (line.first < begin || line.first >= finish)
+            if (line.first <= begin || line.first >= finish)
                 continue;
             std::size_t content{};
-            if (! OuterOffset(leaf, line, content) || Slice(line.first, content) != containerPrefix)
+            if (! OuterOffset(leaf, line, content) || Slice(line.first, content) != continuationPrefix)
                 return;
         }
     }
@@ -1604,7 +1632,8 @@ void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
         const auto& node = nodes[i];
         if (node.block.source.last <= begin || node.block.source.first >= finish)
             continue;
-        if (node.block.kind != Kind::Paragraph && node.block.kind != Kind::BlankLine && (containerPrefix.empty() || node.block.kind != Kind::BlockQuote))
+        if (node.block.kind != Kind::Paragraph && node.block.kind != Kind::BlankLine &&
+            (containerPrefix.empty() || (node.block.kind != Kind::BlockQuote && node.block.kind != Kind::List && node.block.kind != Kind::ListItem)))
             return;
     }
     size_t longest = 0u, run = 0u;
@@ -1621,7 +1650,7 @@ void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
     std::wstring closing(0u, L' ');
     if (lastLine.end == lastLine.bodyEnd)
         closing += Eol(lastLine);
-    closing += containerPrefix;
+    closing += continuationPrefix;
     closing += fence;
     if (lastLine.end != lastLine.bodyEnd)
         closing += Eol(lastLine);
@@ -1632,7 +1661,13 @@ void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
     }
     else
     {
-        Add(begin, begin, opening);
+        if (containerPrefix == continuationPrefix)
+            Add(begin, begin, opening);
+        else
+        {
+            opening += continuationPrefix;
+            Add(begin, firstContent, opening);
+        }
         Add(finish, finish, closing);
     }
     plan.applicable_ = true;
@@ -1660,34 +1695,9 @@ void MarkdownCommandPlanner::HardBreak()
     std::size_t at{};
     if (caret > line.bodyEnd || ! OuterOffset(leaf, line, at) || caret < at)
         return;
-    std::wstring prefix(Slice(line.first, at));
-    if (const auto item = Ancestor(leaf, Kind::ListItem); item != MarkdownNoNode)
-    {
-        // Every list marker that starts on this physical line becomes its
-        // equivalent indentation. Keep intervening quote prefixes verbatim.
-        std::vector<ItemPrefix> markers(0u);
-        for (auto owner = item; owner != MarkdownNoNode; owner = ParentItem(owner))
-        {
-            if (Line(nodes[owner].block.source.first).first != line.first)
-                continue;
-            ItemPrefix marker;
-            if (! Prefix(owner, marker) || marker.first < line.first || marker.content > at)
-                return;
-            markers.push_back(marker);
-        }
-        prefix.clear();
-        auto cursor = line.first;
-        for (auto marker = markers.rbegin(); marker != markers.rend(); ++marker)
-        {
-            if (marker->first < cursor)
-                return;
-            prefix += Slice(cursor, marker->first);
-            const auto before = Columns(Slice(line.first, marker->first));
-            prefix.append(Columns(Slice(marker->first, marker->content), before) - before, L' ');
-            cursor = marker->content;
-        }
-        prefix += Slice(cursor, at);
-    }
+    std::wstring prefix(0u, L' ');
+    if (! ContinuationPrefix(leaf, line, at, prefix))
+        return;
     std::wstring insertion(L"  ");
     insertion += Eol(line);
     insertion += prefix;

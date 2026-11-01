@@ -274,7 +274,7 @@ struct SemanticBox
 {
     PreparedLayout layout;
     SemanticParagraph paragraph;
-    float x{}, y{}, width{}, height{};
+    float x{}, y{}, width{}, height{}, codeGutter{};
     D2D1_RECT_F frame{};
     std::optional<MarkdownEmptyLine> sourceCaret;
     bool caretOnly{}, markerOnly{}, markerLayout{};
@@ -329,7 +329,8 @@ bool SameOptions(const LayoutOptions& a, const LayoutOptions& b) noexcept
            a.codeFontFamily == b.codeFontFamily && a.headingFontSizeDip == b.headingFontSizeDip &&
            a.headingLineHeightMultiplier == b.headingLineHeightMultiplier && a.paragraphSpacingAfterLines == b.paragraphSpacingAfterLines &&
            a.listItemSpacingDip == b.listItemSpacingDip && a.semanticSpacing == b.semanticSpacing && a.locale == b.locale &&
-           a.readingDirection == b.readingDirection && a.textAlignment == b.textAlignment && a.markdownPresentation == b.markdownPresentation;
+           a.readingDirection == b.readingDirection && a.textAlignment == b.textAlignment && a.markdownPresentation == b.markdownPresentation &&
+           a.codeCopyAction == b.codeCopyAction;
 }
 void Union(std::optional<D2D1_RECT_F>& bounds, const D2D1_RECT_F& rectangle) noexcept
 {
@@ -400,13 +401,18 @@ struct PreparedSemanticGeometry::State
           imageEpochs(epochs),
           rejected(0u),
           boxes(0u),
+          codeNumbers(0u),
           glyphBoxes(0u),
           nodeElements(document->Syntax()->Nodes().size(), MarkdownNoNode),
           bounds(document->Elements().size()),
           sourceLines(0u) // Fallible size constructor: MSVC Debug's noexcept default allocates an iterator proxy.
     {
         if (options.markdownPresentation == MarkdownPresentationStyle::Subtle)
+        {
             decorations = std::make_unique<MarkdownDecorations>();
+            if (! document->Syntax()->SourceRegion())
+                codeLabels = std::make_unique<std::vector<std::unique_ptr<PreparedLayout>>>(document->Elements().size());
+        }
         if ((imageResources && ! imageResources->placements.empty()) || ! SemanticExtensionAccess::Maths(*document).empty())
         {
             const RichImageResourceSet empty;
@@ -443,6 +449,14 @@ struct PreparedSemanticGeometry::State
     std::unique_ptr<NativeDiagramGeometry> native;
     std::vector<std::unique_ptr<SemanticBox>> boxes;
     std::unique_ptr<MarkdownDecorations> decorations;
+    std::unique_ptr<std::vector<std::unique_ptr<PreparedLayout>>> codeLabels;
+    struct CodeNumber
+    {
+        std::unique_ptr<PreparedLayout> layout;
+        D2D1_POINT_2F origin{};
+        D2D1_RECT_F clip{};
+    };
+    std::vector<CodeNumber> codeNumbers;
     // Source caret boxes are in physical source order, while their zero-width
     // display anchors may coincide with or follow generated marker text. Keep
     // the glyph search index in display order instead of assuming both orders
@@ -543,9 +557,11 @@ struct PreparedSemanticGeometry::Preparation
         BodyLine,
         NativeObjects,
         NativeImages,
+        CodeLabels,
         MarkerLayouts,
         TableAllocate,
         Layouts,
+        CodeNumbers,
         RowPlacement,
         IndexSourceBoxes,
         SourceLines,
@@ -598,7 +614,9 @@ struct PreparedSemanticGeometry::Preparation
         PreparedLayout layout;
     };
     std::vector<std::unique_ptr<EmptyLayout>> emptyLayouts;
-    std::size_t nativeIndex{};
+    std::size_t nativeIndex{}, codeLabelIndex{}, codeNumberBox{}, codeNumberLine{}, codeNumberOffset{}, codeNumberValue = 1u;
+    float codeNumberY{};
+    bool codeNumberNeeded = true;
     std::size_t imageIndex{};
     std::vector<std::unique_ptr<SemanticBox>> markers;
     std::vector<float> gutters;
@@ -1033,7 +1051,7 @@ struct PreparedSemanticGeometry::Preparation
             if (! next.boxes.empty())
             {
                 next.height = std::max(next.options.fontSizeDip, y);
-                phase       = footerRanges.empty() ? Phase::SourceLines : Phase::IndexSourceBoxes;
+                phase       = Phase::CodeNumbers;
                 return;
             }
         }
@@ -1179,6 +1197,20 @@ struct PreparedSemanticGeometry::Preparation
                 return formula.display && next.document->Elements()[formula.element].display == content.display;
             }))
                 options.textAlignment = DWRITE_TEXT_ALIGNMENT_CENTER;
+        }
+        const bool paddedCode = ! table && ! caretOnly && next.options.markdownPresentation == MarkdownPresentationStyle::Subtle &&
+                                ! next.document->Syntax()->SourceRegion() &&
+                                (node.block.kind == MarkdownBlockKind::FencedCode || node.block.kind == MarkdownBlockKind::IndentedCode) &&
+                                next.document->Elements()[content.element].role == SemanticRole::Code;
+        const auto* label = paddedCode && next.codeLabels ? (*next.codeLabels)[content.element].get() : nullptr;
+        const float codeHeader = paddedCode ? std::max(label ? label->Height() + 3.0f : 0.0f, next.options.codeCopyAction && box->width >= 96.0f ? 18.0f : 0.0f) : 0.0f;
+        const float codeInset = paddedCode ? std::min(6.0f, std::max(0.0f, (box->width - 1.0f) * 0.5f)) : 0.0f;
+        if (paddedCode)
+        {
+            box->codeGutter = box->width >= 96.0f ? 40.0f : 0.0f;
+            box->x += codeInset + (rtl ? 0.0f : box->codeGutter);
+            box->y += 6.0f + codeHeader;
+            box->width -= 2.0f * codeInset + box->codeGutter;
         }
         options.widthDip = std::max(1.0f, box->width);
         auto* native     = next.native ? next.native->Find(content.element) : nullptr;
@@ -1415,6 +1447,9 @@ struct PreparedSemanticGeometry::Preparation
         }
         box->height = box->layout.Height();
         box->frame  = D2D1::RectF(box->x, box->y, box->x + box->width, box->y + box->height);
+        if (paddedCode)
+            box->frame = D2D1::RectF(box->x - codeInset - (rtl ? 0.0f : box->codeGutter), box->y - 6.0f - codeHeader,
+                                     box->x + box->width + codeInset + (rtl ? box->codeGutter : 0.0f), box->y + box->height + 6.0f);
         if (native)
             box->frame = D2D1::RectF(box->x + native->bounds.left, box->y + native->bounds.top, box->x + native->bounds.right, box->y + native->bounds.bottom);
         float bottom = box->frame.bottom;
@@ -1813,7 +1848,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 if (! work.state->images || work.imageIndex == work.state->images->placements.size())
                 {
                     work.raster.reset();
-                    work.phase = Preparation::Phase::MarkerLayouts;
+                    work.phase = Preparation::Phase::CodeLabels;
                     continue;
                 }
                 if (work.state->images->placements[work.imageIndex].math)
@@ -1854,6 +1889,43 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 // Do not count it again in the common phase-step tail.
                 continue;
             }
+            else if (work.phase == Preparation::Phase::CodeLabels)
+            {
+                const auto elements = work.state->document->Elements();
+                if (! work.state->codeLabels || work.codeLabelIndex == elements.size())
+                {
+                    work.phase = Preparation::Phase::MarkerLayouts;
+                    continue;
+                }
+                if (result.layoutsPrepared == budget.maximumLayouts)
+                    break;
+                const auto index = work.codeLabelIndex++;
+                const auto& element = elements[index];
+                const auto& nodes = work.state->document->Syntax()->Nodes();
+                if (element.role == SemanticRole::Code && element.syntaxNode < nodes.size() &&
+                    nodes[element.syntaxNode].block.kind == MarkdownBlockKind::FencedCode)
+                {
+                    auto language = work.state->document->Syntax()->Slice(nodes[element.syntaxNode].block.info);
+                    while (! language.empty() && (language.front() == L' ' || language.front() == L'\t'))
+                        language.remove_prefix(1u);
+                    const auto end = language.find_first_of(L" \t\r\n");
+                    if (end != language.npos)
+                        language = language.substr(0u, end);
+                    if (! language.empty() && language.size() <= 128u)
+                    {
+                        ::DxUi::RichText::Document labelSource{std::wstring(language)};
+                        auto projection = Project(labelSource.Snapshot(), labelSource.Revision(), ViewMode::Source);
+                        auto options = work.state->options;
+                        options.widthDip = std::max(1.0f, options.widthDip - 12.0f);
+                        options.fontSizeDip = std::max(1.0f, options.fontSizeDip * 0.75f);
+                        options.lineHeightMultiplier = 0.0f;
+                        auto label = std::make_unique<PreparedLayout>();
+                        label->Prepare(work.state->factory.get(), std::move(projection), options);
+                        (*work.state->codeLabels)[index] = std::move(label);
+                        ++result.layoutsPrepared;
+                    }
+                }
+            }
             else if (work.phase == Preparation::Phase::MarkerLayouts)
             {
                 if (result.layoutsPrepared == budget.maximumLayouts)
@@ -1869,6 +1941,54 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                     break;
                 work.LayoutOne();
                 result.layoutsPrepared += work.lastLayoutCalls;
+            }
+            else if (work.phase == Preparation::Phase::CodeNumbers)
+            {
+                const auto& boxes = work.state->boxes;
+                if (work.codeNumberBox == boxes.size())
+                {
+                    work.phase = work.footerRanges.empty() ? Preparation::Phase::SourceLines : Preparation::Phase::IndexSourceBoxes;
+                    continue;
+                }
+                const auto& box = *boxes[work.codeNumberBox];
+                const auto lines = box.layout.LineMetrics();
+                if (box.codeGutter == 0.0f || lines.size() > 4096u || work.codeNumberLine == lines.size() ||
+                    work.state->codeNumbers.size() == 4096u)
+                {
+                    ++work.codeNumberBox;
+                    work.codeNumberLine = work.codeNumberOffset = 0u;
+                    work.codeNumberValue = 1u;
+                    work.codeNumberY = 0.0f;
+                    work.codeNumberNeeded = true;
+                    continue;
+                }
+                const auto line = lines[work.codeNumberLine];
+                const auto& text = box.layout.Content().text;
+                if (work.codeNumberNeeded && line.length > 0u)
+                {
+                    if (result.layoutsPrepared == budget.maximumLayouts)
+                        break;
+                    ::DxUi::RichText::Document labelSource{std::to_wstring(work.codeNumberValue)};
+                    auto projection = Project(labelSource.Snapshot(), labelSource.Revision(), ViewMode::Source);
+                    auto options = work.state->options;
+                    options.widthDip = box.codeGutter - 8.0f;
+                    options.fontFamily = options.codeFontFamily;
+                    options.fontSizeDip = options.codeFontSizeDip > 0.0f ? options.codeFontSizeDip : options.fontSizeDip;
+                    options.textAlignment = DWRITE_TEXT_ALIGNMENT_TRAILING;
+                    auto layout = std::make_unique<PreparedLayout>();
+                    layout->Prepare(work.state->factory.get(), std::move(projection), options);
+                    const bool rtl = options.readingDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT;
+                    const float x = rtl ? box.x + box.width + 4.0f : box.x - box.codeGutter + 4.0f;
+                    work.state->codeNumbers.push_back({std::move(layout), D2D1::Point2F(x, box.y + work.codeNumberY), box.frame});
+                    ++result.layoutsPrepared;
+                }
+                const auto end = std::min(text.size(), work.codeNumberOffset + static_cast<std::size_t>(line.length));
+                work.codeNumberNeeded = end > work.codeNumberOffset && (text[end - 1u] == L'\r' || text[end - 1u] == L'\n');
+                if (work.codeNumberNeeded)
+                    ++work.codeNumberValue;
+                work.codeNumberOffset = end;
+                work.codeNumberY += line.height;
+                ++work.codeNumberLine;
             }
             else if (work.phase == Preparation::Phase::RowPlacement)
                 work.PlaceRowOne();
@@ -2198,24 +2318,37 @@ SourceCaretHit PreparedSemanticGeometry::StepSource(std::size_t source, std::siz
             if (forwards ? result > source : result < source)
                 return {result, index};
         }
-    auto neighbor = index;
+    auto neighbor            = index;
+    const auto footnoteOwner = [&](const SemanticBox& candidate) noexcept
+    {
+        const auto& nodes = state.document->Syntax()->Nodes();
+        for (auto node = candidate.paragraph.syntaxNode; node < nodes.size(); node = nodes[node].parent)
+            if (nodes[node].block.kind == MarkdownBlockKind::FootnoteDefinition)
+                return node;
+        return MarkdownNoNode;
+    };
+    const auto currentFootnote = footnoteOwner(box);
     while (forwards ? neighbor + 1u < state.boxes.size() : neighbor > 0u)
     {
         neighbor           = forwards ? neighbor + 1u : neighbor - 1u;
         const auto& target = *state.boxes[neighbor];
+        if (target.markerOnly)
+            continue;
+        const auto targetFootnote = footnoteOwner(target);
+        const bool reordered      = currentFootnote != targetFootnote && (currentFootnote != MarkdownNoNode || targetFootnote != MarkdownNoNode);
         if (target.sourceCaret)
         {
             const auto insertion = target.sourceCaret->insertion;
             // Equal ACPs are meaningful only for explicit visual source sites,
             // such as padded cells. Generated marker anchors must not reverse
             // direction or add an invisible extra arrow stop between layouts.
-            if (forwards ? insertion >= source : insertion <= source)
+            if (reordered || (forwards ? insertion >= source : insertion <= source))
                 return {insertion, neighbor};
             continue;
         }
         auto position = forwards ? target.paragraph.display.first : target.paragraph.display.last;
         auto raw      = map.ToSource(position, forwards ? MappingAffinity::Leading : MappingAffinity::Trailing);
-        if (forwards ? raw > source : raw < source)
+        if (reordered ? raw != source && state.Belongs(target, raw) : (forwards ? raw > source : raw < source))
             return {raw, neighbor};
         while (forwards ? position < target.paragraph.display.last : position > target.paragraph.display.first)
         {
@@ -2225,7 +2358,7 @@ SourceCaretHit PreparedSemanticGeometry::StepSource(std::size_t source, std::siz
                 break;
             position = map.SnapDisplayBoundary(next, forwards ? MappingAffinity::Trailing : MappingAffinity::Leading);
             raw      = map.ToSource(position, forwards ? MappingAffinity::Trailing : MappingAffinity::Leading);
-            if (forwards ? raw > source : raw < source)
+            if (reordered ? raw != source && state.Belongs(target, raw) : (forwards ? raw > source : raw < source))
                 return {raw, neighbor};
         }
     }
@@ -2435,8 +2568,36 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
         if (! bounds || bounds->bottom <= top || bounds->top >= bottom)
             continue;
         const auto rectangle = D2D1::RectF(bounds->left + origin.x, bounds->top + origin.y, bounds->right + origin.x, bounds->bottom + origin.y);
-        if (elements[i].role == SemanticRole::Quote && quoteFill)
+        const auto nodeIndex = elements[i].syntaxNode;
+        const bool styledCode = elements[i].role == SemanticRole::Code &&
+                                state.options.markdownPresentation == MarkdownPresentationStyle::Subtle &&
+                                ! state.document->Syntax()->SourceRegion() && nodeIndex < state.document->Syntax()->Nodes().size() &&
+                                (state.document->Syntax()->Nodes()[nodeIndex].block.kind == MarkdownBlockKind::FencedCode ||
+                                 state.document->Syntax()->Nodes()[nodeIndex].block.kind == MarkdownBlockKind::IndentedCode);
+        if ((elements[i].role == SemanticRole::Quote || styledCode) && quoteFill)
             target->FillRectangle(rectangle, quoteFill);
+        const auto copy = styledCode && state.options.codeCopyAction ? CodeCopyBounds(rectangle, state.options.readingDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT) : std::nullopt;
+        if (styledCode && state.codeLabels && (*state.codeLabels)[i])
+        {
+            auto clip = rectangle;
+            if (copy)
+            {
+                if (state.options.readingDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT)
+                    clip.left = copy->right + 2.0f;
+                else
+                    clip.right = copy->left - 2.0f;
+            }
+            target->PushAxisAlignedClip(clip, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+            const auto restore = wil::scope_exit([&]() noexcept { target->PopAxisAlignedClip(); });
+            (*state.codeLabels)[i]->Draw(target, decoration, D2D1::Point2F(clip.left + 6.0f, clip.top + 3.0f));
+        }
+        if (copy)
+        {
+            target->DrawRectangle(*copy, decoration);
+            target->DrawRectangle(D2D1::RectF(copy->left + 5.0f, copy->top + 4.0f, copy->left + 12.0f, copy->top + 13.0f), decoration);
+            target->DrawLine(D2D1::Point2F(copy->left + 7.0f, copy->top + 15.0f), D2D1::Point2F(copy->left + 14.0f, copy->top + 15.0f), decoration);
+            target->DrawLine(D2D1::Point2F(copy->left + 14.0f, copy->top + 15.0f), D2D1::Point2F(copy->left + 14.0f, copy->top + 6.0f), decoration);
+        }
         if (elements[i].role == SemanticRole::Image && state.images && state.images->Placed(i))
             continue;
         if (elements[i].role == SemanticRole::Cell && state.options.markdownPresentation == MarkdownPresentationStyle::Subtle)
@@ -2449,6 +2610,15 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
             target->DrawLine(D2D1::Point2F(x, rectangle.top), D2D1::Point2F(x, rectangle.bottom), decoration, 2.0f);
         }
     }
+    for (const auto& number : state.codeNumbers)
+        if (number.clip.bottom > top && number.clip.top < bottom)
+        {
+            const auto clip = D2D1::RectF(number.clip.left + origin.x, number.clip.top + origin.y,
+                                          number.clip.right + origin.x, number.clip.bottom + origin.y);
+            target->PushAxisAlignedClip(clip, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+            const auto restore = wil::scope_exit([&]() noexcept { target->PopAxisAlignedClip(); });
+            number.layout->Draw(target, decoration, D2D1::Point2F(number.origin.x + origin.x, number.origin.y + origin.y));
+        }
     if (const auto* decorations = state.decorations.get())
     {
         for (const auto& rule : decorations->headingRules)

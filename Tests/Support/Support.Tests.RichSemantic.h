@@ -307,6 +307,7 @@ inline void ListsAndHeadings()
         request.text    = L"cpp";
         Exact(L"hello\n", {0u, 5u}, request, L"~~~cpp\nhello\n~~~\n", std::nullopt, profile);
         Exact(L"> hello\n", {2u, 7u}, request, L"> ~~~cpp\n> hello\n> ~~~\n", std::nullopt, profile);
+        Exact(L"- hello\n", {2u, 7u}, request, L"- ~~~cpp\n  hello\n  ~~~\n", std::nullopt, profile);
         Exact(L"a ~~~ b\n", {0u, 7u}, request, L"~~~~cpp\na ~~~ b\n~~~~\n", std::nullopt, profile);
         Exact(L"~~~\nhello\n~~~\n", {5u, 5u}, request, L"hello\n", std::nullopt, profile);
         Exact(L"> ~~~\n> hello\n> ~~~\n", {9u, 9u}, request, L"> hello\n", std::nullopt, profile);

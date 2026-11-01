@@ -37,6 +37,7 @@ struct LayoutOptions
     std::optional<float> listItemSpacingDip;         // Finite 0..256 DIP between items.
     std::optional<SemanticSpacing> semanticSpacing;
     MarkdownPresentationStyle markdownPresentation = MarkdownPresentationStyle::Default;
+    bool codeCopyAction = false; // Host supplies an explicit copy-intent callback.
 };
 struct CaretGeometry
 {

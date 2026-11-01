@@ -1470,7 +1470,9 @@ __declspec(noinline) static int RunFunctionalTests()
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-rich-incremental-preparation")
     {
         MarkdownSourceCorrelationTests::LexicalEdits(Check);
+        RichSemanticTests::Run(RichSemanticGeometryTests::PaddedCodePresentation);
         TestEmbeddedSemanticReusePixels(gpu);
+        TestEmbeddedCodeLineNumberPixels(gpu);
         TestEmbeddedImageResources(gpu);
         DxUi::EmbeddedHost view;
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
@@ -1479,6 +1481,65 @@ __declspec(noinline) static int RunFunctionalTests()
         RichSemanticTests::Run([&] {
             RichSemanticEditorTests::SemanticGeometryReuse(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "incremental preparation"); });
         });
+        std::vector<DxUi::RichText::CodeToken> tokens(0u);
+        Check(DxUi::RichText::TokenizeBuiltinCode(L"json", L"{\"a\": true, \"b\": 3}", tokens) && tokens.size() >= 4u,
+              "builtin JSON tokenizer emits bounded literal and keyword ranges");
+        Check(DxUi::RichText::TokenizeBuiltinCode(L"cpp", L"int x; // comment", tokens) && tokens.size() == 2u,
+              "builtin C-like tokenizer recognizes keywords and comments");
+        Check(DxUi::RichText::TokenizeBuiltinCode(L"pwsh", L"function f { # comment\n}", tokens) && tokens.size() == 2u,
+              "builtin PowerShell tokenizer recognizes keywords and comments");
+        Check(DxUi::RichText::TokenizeBuiltinCode(L"diff", L"+added\n-removed\n", tokens) && tokens.size() == 2u,
+              "builtin diff tokenizer recognizes changed lines");
+        Check(! DxUi::RichText::TokenizeBuiltinCode(L"unknown", L"text", tokens) && tokens.empty(), "unknown code language is ordinary ink");
+        auto owned = std::make_unique<DxUi::RichTextEditor>();
+        auto* editor = owned.get();
+        view.Controls().SetRoot(std::move(owned));
+        editor->SetMarkdownAnalysisProfile(DxUi::RichText::MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        editor->SetText(L"```json\n{\"a\": true}\n```\n");
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "ordinary code preparation");
+        Hr(gpu.Resize(480u, 240u), "resize tokenizer raster fixture");
+        std::vector<std::uint8_t> ordinaryPixels, coloredPixels;
+        gpu.Bind();
+        Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "ordinary code composite");
+        Hr(gpu.Read(ordinaryPixels), "ordinary code raster");
+        unsigned calls = 0u;
+        editor->SetCodeTokenizer([&](std::wstring_view language, std::wstring_view code, std::vector<DxUi::RichText::CodeToken>& out) {
+            ++calls;
+            Check(language == L"json" && code.find(L"true") != code.npos, "code callback borrows current language and display body");
+            return DxUi::RichText::TokenizeBuiltinCode(language, code, out);
+        });
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "tokenized code preparation");
+        Check(calls == 1u && editor->GetText() == L"```json\n{\"a\": true}\n```\n", "tokenization is cached and does not edit source");
+        gpu.Bind();
+        Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "colored code composite");
+        Hr(gpu.Read(coloredPixels), "colored code raster");
+        Check(ordinaryPixels != coloredPixels, "prepared token ranges change rendered glyph ink");
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "idle tokenized preparation");
+        Check(calls == 1u, "idle preparation does not reinvoke tokenizer");
+        editor->SetCodeTokenizer([&](std::wstring_view, std::wstring_view, std::vector<DxUi::RichText::CodeToken>& out) {
+            out.push_back({{999u, 1000u}, DxUi::RichText::CodeTokenRole::Keyword});
+            return true;
+        });
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "invalid tokenizer result uses ordinary ink");
+        bool edited = false;
+        editor->SetCodeTokenizer([&](std::wstring_view, std::wstring_view, std::vector<DxUi::RichText::CodeToken>&) {
+            if (! edited)
+            {
+                edited = true;
+                editor->SetText(L"plain replacement");
+            }
+            return true;
+        });
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "reentrant tokenizer edit retries current source");
+        Check(edited && editor->GetText() == L"plain replacement", "reentrant tokenizer cannot publish stale code ranges");
+        editor->SetText(L"```cpp\nint x;\n```\n");
+        editor->SetCodeTokenizer([&](std::wstring_view, std::wstring_view, std::vector<DxUi::RichText::CodeToken>&) {
+            view.Controls().SetRoot({});
+            return true;
+        });
+        static_cast<void>(PrepareRichEmbeddedContent(view, 480u, 240u));
+        Check(view.Controls().GetRoot() == nullptr, "tokenizer may retire its owner without use after free");
         return 0;
     }
     TestMultilineCaretViewport(gpu);
@@ -1593,6 +1654,7 @@ __declspec(noinline) static int RunFunctionalTests()
     RichSemanticTests::Run(RichSemanticDocumentTests::SchedulingAndAdmission);
     RichSemanticTests::Run(RichSemanticGeometryTests::ParagraphsTablesAndSourceRanges);
     RichSemanticTests::Run(RichSemanticGeometryTests::MarkdownSubtlePresentation);
+    RichSemanticTests::Run(RichSemanticGeometryTests::PaddedCodePresentation);
     RichSemanticTests::Run(RichSemanticGeometryTests::AtomicNavigationAndCancellation);
     RichSemanticTests::Run(RichSemanticGeometryTests::SourceCaretSites);
     RichSemanticTests::Run(RichSemanticGeometryTests::HangingMarkersLinksAndHtml);
@@ -1674,6 +1736,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichDocumentGeometryMaximumStorageBudget();
     TestRichDocumentGeometryReplacementPeakBudget();
     TestEmbeddedSemanticReusePixels(gpu);
+    TestEmbeddedCodeLineNumberPixels(gpu);
     TestEmbeddedRichGeometryReuseAndRetirement(gpu);
     TestRetainedRichTextSchedulingCanRetireOwner(gpu);
     TestRetainedRichTextFailedPreparation(gpu);

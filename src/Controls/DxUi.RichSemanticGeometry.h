@@ -9,6 +9,15 @@
 
 namespace DxUi::RichText::Detail
 {
+// The visual and input routes share this hit rectangle. Narrow code frames
+// omit the action so it never covers editable text.
+inline std::optional<D2D1_RECT_F> CodeCopyBounds(D2D1_RECT_F frame, bool rtl) noexcept
+{
+    if (frame.right - frame.left < 96.0f || frame.bottom - frame.top < 20.0f)
+        return std::nullopt;
+    const auto left = rtl ? frame.left + 4.0f : frame.right - 22.0f;
+    return D2D1_RECT_F{left, frame.top + 3.0f, left + 18.0f, frame.top + 21.0f};
+}
 struct RichImageResourceSet;
 // Dormant owner-thread seam for observing real uploads and injecting driver
 // HRESULT failures. It is never consulted during painting/composition.

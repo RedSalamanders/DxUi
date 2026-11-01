@@ -1076,6 +1076,10 @@ the policy-only bounded preparation rebuild. Re-enabling remote admission create
 fresh remote identities; old completions MUST never republish pixels. Every policy
 transition MUST preserve exact document source, selection, history and IME state.
 
+In the opt-in Subtle Markdown style, fenced and indented code blocks have a neutral themed fill and a six-DIP inner frame; narrow viewports clamp horizontal insets to retain a one-DIP text width. Their source caret and selection use the inset content geometry. A fenced block with a language token of at most 128 UTF-16 units shows that token in a nonselectable prepared header; longer labels are omitted. At widths of at least 96 DIP, a nonselectable gutter displays prepared physical line numbers, aligned after wrapping and mirrored for right-to-left layout. Preparation admits at most 4096 number layouts per document, omits blocks with more than 4096 visual lines and stops numbering when that cap is reached; narrower frames omit the gutter. Default presentation retains its original code frame.
+
+An application may register a localized accessible name and code-copy intent callback. In Subtle style the prepared header then exposes a pointer action and a distinct UIA Invoke child; Ctrl+Shift+C invokes the block containing the source caret. The callback receives a borrowed counted rendered-code view with the block's normalized line endings, including any NUL; the application owns clipboard format policy. The existing code-element Invoke remains source editing. Stale, canceled, detached, or retired gestures and peers cannot invoke a replacement owner, and the action never changes source, selection or history.
+An optional code tokenizer receives borrowed language and rendered code views on the owner preparation thread. Built-in JSON, C-like, PowerShell and diff tokenizers supply bounded comment, keyword and literal spans. Application results must contain at most 4096 sorted, disjoint, nonempty UTF-16 ranges within the code body, without splitting surrogate pairs; invalid results or tokenizer failures use ordinary ink. The editor stages all ranges until the current semantic publication is complete, validates owner, binding and source after every callback, and invokes at most one code tokenizer per preparation turn. Paint uses the cached ranges; selected text and high contrast take precedence. Changing the tokenizer requests a fresh owner preparation without editing source or history.
 Image requests MUST execute in caller-owned scheduling, with callback-free
 cancellation and source/base/binding/visibility validation at owner completion.
 The caller authorizes file access, including any UNC policy. Source replacement,
@@ -2001,7 +2005,7 @@ an enabled binding and no active composition. It selects and scrolls without
 editing history or acquiring keyboard focus; read-only navigation is allowed.
 UIA exposes internal references/backlinks as Hyperlink + Invoke, dispatching
 native mutations to the owner and rejecting embedded foreign-thread mutation.
-External destinations remain inert. Source/presentation/binding retirement MUST
+External destinations remain inert until the application registers a link activation handler; registration and removal retire the prior semantic accessibility publication. Source/presentation/binding retirement MUST
 make held navigation providers unavailable before a replacement publication.
 Ctrl+click activates internal links; Ctrl+Enter at a source-bearing reference
 activates its definition. Ctrl+Tab and Ctrl+Shift+Tab cycle generated backlinks in display order without changing the raw selection; the focused backlink has a visible outline and Ctrl+Enter activates it. Navigation is refused during composition and never transfers keyboard focus.

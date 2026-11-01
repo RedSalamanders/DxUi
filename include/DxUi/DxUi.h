@@ -3,6 +3,7 @@
 #include "MarkdownSyntax.h"
 #include "PreparedTreeAccessibility.h"
 #include "RichImage.h"
+#include "RichCodeTokenizer.h"
 #include "RichMarkdown.h"
 #include "RichSemantic.h"
 #include "RichSemanticDocument.h"
@@ -3281,6 +3282,14 @@ public:
     [[nodiscard]] const RichTextEditorAppearance& GetAppearance() const noexcept;
     void SetZoom(float zoom);
     [[nodiscard]] float GetZoom() const noexcept;
+    // Optional owner-thread code coloring; an empty callback restores ordinary ink.
+    void SetCodeTokenizer(RichText::CodeTokenizer tokenizer);
+    // Borrowed rendered code text is valid only during the owner-thread callback.
+    void SetOnCodeCopyRequested(std::function<void(std::wstring_view)> callback, std::wstring accessibleName = L"Copy code");
+    [[nodiscard]] std::wstring_view GetCodeCopyAccessibleName() const noexcept;
+    HRESULT InvokeSemanticCodeCopy(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& document, size_t element) noexcept;
+    // Unclipped host-DIP bounds; may lie outside the viewport.
+    [[nodiscard]] std::optional<D2D1_RECT_F> GetSemanticCodeCopyBounds(const ControlHost& host, size_t element) const noexcept;
     void SetLinkUnderlinePolicy(RichTextLinkUnderlinePolicy policy);
     [[nodiscard]] RichTextLinkUnderlinePolicy GetLinkUnderlinePolicy() const noexcept;
     // Current semantic source style; source mode/pending geometry returns false.
@@ -3340,6 +3349,7 @@ public:
     // navigate inside the document; external destinations are delegated only.
     // The library never launches a browser, file, process or network operation.
     void SetOnLinkActivated(std::function<void(const RichTextLinkActivation&)> callback);
+    [[nodiscard]] bool HasLinkActivationHandler() const noexcept;
     // Current prepared geometry only. Programmatic scrolling does not change
     // source, selection, undo history or focus; read-only views allow it.
     [[nodiscard]] std::optional<RichTextScrollInfo> GetScrollInfo() const noexcept;
@@ -3492,6 +3502,7 @@ private:
     [[nodiscard]] std::optional<RichText::MarkdownRange> CaretLinkDisplayRange() const noexcept;
     void UpdateCaretLinkDisplayRange() noexcept;
     bool PrepareSourceInk();
+    HRESULT PrepareCodeInk(const std::shared_ptr<const RichText::SemanticDocument>& document);
     [[nodiscard]] std::optional<RichText::MarkdownRange> HoveredLinkDisplayRange(ControlHost& host, D2D1_POINT_2F point) const;
     [[nodiscard]] std::optional<RichText::MarkdownRange> ActiveParagraphDisplayRange() const;
     [[nodiscard]] bool Editable() const noexcept;
