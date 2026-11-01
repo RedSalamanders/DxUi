@@ -1,5 +1,6 @@
 #pragma once
 #include "DxUi.MathFontTable.h"
+#include "DxUi.NativeMathDimension.h"
 #include "DxUi.NativeColor.h"
 #include "DxUi.NativeColorPalette.h"
 #include <DxUi/Configuration.h>
@@ -618,7 +619,8 @@ class PreparedMath final
                         throw std::length_error("Invalid mathematical space node");
                     break;
                 case MathKind::Fraction:
-                    if (node.text != L"frac" && node.text != L"dfrac" && node.text != L"tfrac" && node.text != L"atop" && node.text != L"cfrac")
+                    if (node.text != L"frac" && node.text != L"dfrac" && node.text != L"tfrac" && node.text != L"atop" && node.text != L"cfrac" &&
+                        !(node.text.starts_with(L"rule:") && ParseMathDimension(std::wstring_view(node.text).substr(5u))))
                         throw std::length_error("Invalid mathematical fraction style");
                     if (node.children.size() != 2u)
                         throw std::length_error("Invalid mathematical pair node");
@@ -1091,7 +1093,7 @@ class PreparedMath final
                     top.below = std::max(top.below, box.size * .35f);
                 }
                 const float axisAtSize = MathConstantAt(12u, box.size, axis);
-                const float rule       = std::max(1.f, MathConstantAt(144u, box.size, fractionRuleThickness));
+                const float rule = FractionRule(node.text, box.size);
                 const float topGap     = MathConstantAt(box.display ? 140u : 136u, box.size, box.display ? fractionNumeratorDisplayGap : fractionNumeratorGap);
                 const float bottomGap =
                     MathConstantAt(box.display ? 152u : 148u, box.size, box.display ? fractionDenominatorDisplayGap : fractionDenominatorGap);
@@ -1273,6 +1275,21 @@ class PreparedMath final
             if (node.kind == Style && node.children.size() == 1u)
                 box.extent = child(0u);
         }
+    }
+    float FractionRule(std::wstring_view name, float size) const noexcept
+    {
+        if (name == L"atop")
+            return 0.f;
+        if (! name.starts_with(L"rule:"))
+            return std::max(1.f, MathConstantAt(144u, size, fractionRuleThickness));
+        const auto dimension = ParseMathDimension(name.substr(5u));
+        if (! dimension)
+            return 0.f; // Admission validates the immutable node before preparation.
+        if (dimension->unit == MathDimensionUnit::Point)
+            return dimension->value * (4.f / 3.f);
+        if (dimension->unit == MathDimensionUnit::Ex)
+            return dimension->value * size * (mathData ? mathData->xHeightEm : .45f);
+        return dimension->value * size;
     }
     void Stroke(float x1, float y1, float x2, float y2, float thickness)
     {
@@ -1591,7 +1608,7 @@ class PreparedMath final
                 top.below = std::max(top.below, box.size * .35f);
             }
             const float axisAtSize = MathConstantAt(12u, box.size, axis);
-            const float scaledRule = std::max(1.f, MathConstantAt(144u, box.size, fractionRuleThickness));
+            const float scaledRule = FractionRule(node.text, box.size);
             const float topGap     = MathConstantAt(box.display ? 140u : 136u, box.size, box.display ? fractionNumeratorDisplayGap : fractionNumeratorGap);
             const float bottomGap  = MathConstantAt(box.display ? 152u : 148u, box.size, box.display ? fractionDenominatorDisplayGap : fractionDenominatorGap);
             const float topShift =
@@ -1603,7 +1620,7 @@ class PreparedMath final
             const float ruleY = baseline - axisAtSize;
             Place(ChildAt(index, 0u), x + (box.extent.width - top.width) / 2.f, baseline - topShift);
             Place(ChildAt(index, 1u), x + (box.extent.width - bottom.width) / 2.f, baseline + bottomShift);
-            if (node.text != L"atop")
+            if (scaledRule > 0.f)
                 Stroke(x + 2.f, ruleY, x + box.extent.width - 2.f, ruleY, scaledRule);
             return;
         }

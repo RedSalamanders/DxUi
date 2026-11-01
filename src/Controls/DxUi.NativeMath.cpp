@@ -1,4 +1,5 @@
 #include "DxUi.NativeMathSymbols.h"
+#include "DxUi.NativeMathDimension.h"
 #include "DxUi.NativeColor.h"
 #include <DxUi/RichDocument.h>
 #include <DxUi/RichMath.h>
@@ -548,14 +549,14 @@ class Parser
                 Reject(MathIssue::UnsupportedCommand);
             return value[0u];
         };
-        if (! rule.empty() && rule != L"0pt" && rule != L"0em" && rule != L"0ex" && rule != L"0")
+        if (! rule.empty() && ! Detail::ParseMathDimension(rule))
             Reject(MathIssue::UnsupportedCommand);
         if (! style.empty() && style != L"0" && style != L"1" && style != L"2" && style != L"3")
             Reject(MathIssue::UnsupportedCommand);
         const auto leftGlyph = delimiter(left), rightGlyph = delimiter(right);
         auto numerator = Atom(depth + 1u);
         auto denominator = Atom(depth + 1u);
-        auto fraction = Make(MathKind::Fraction, rule.empty() ? L"frac" : L"atop", {std::move(numerator), std::move(denominator)});
+        auto fraction = Make(MathKind::Fraction, rule.empty() ? std::wstring(L"frac") : L"rule:" + rule, {std::move(numerator), std::move(denominator)});
         if (leftGlyph != L'.' || rightGlyph != L'.')
             fraction = Make(MathKind::Delimited, std::wstring{leftGlyph, rightGlyph}, {std::move(fraction)});
         if (! style.empty())
@@ -1194,16 +1195,33 @@ class Parser
                 atom = Make(MathKind::Scripts, L"", {std::move(atom), std::move(sub), std::move(super)});
             return hasSub || hasSuper;
     }
+    std::wstring RuleDimensionSource()
+    {
+        Space();
+        const auto first = at;
+        while (at < source.size() && ((source[at] >= L'0' && source[at] <= L'9') || source[at] == L'.'))
+            ++at;
+        if (at + 2u <= source.size() && (source.substr(at, 2u) == L"pt" || source.substr(at, 2u) == L"em" || source.substr(at, 2u) == L"ex"))
+            at += 2u;
+        const auto dimension = source.substr(first, at - first);
+        if (! Detail::ParseMathDimension(dimension))
+            Reject(MathIssue::UnsupportedCommand);
+        return std::wstring(dimension);
+    }
     MathNode InfixRow(std::vector<MathNode>& children, std::wstring_view declaration, unsigned depth,
                       bool grouped, bool cell, bool right, bool indexClose, bool stopBrace)
     {
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
 #endif
+        const auto dimension = declaration == L"above" ? RuleDimensionSource() : std::wstring(0u, L' ');
         auto numerator = Make(MathKind::Row, L"", std::move(children));
         auto denominator = Row(depth, grouped, cell, right, indexClose, stopBrace, false);
-        if (declaration == L"over" || declaration == L"atop")
-            return Make(MathKind::Fraction, declaration == L"over" ? L"frac" : L"atop", {std::move(numerator), std::move(denominator)});
+                if (declaration == L"over" || declaration == L"atop" || declaration == L"above")
+        {
+            const auto kind = declaration == L"over" ? std::wstring(L"frac") : declaration == L"atop" ? std::wstring(L"atop") : L"rule:" + dimension;
+            return Make(MathKind::Fraction, std::wstring(kind), {std::move(numerator), std::move(denominator)});
+        }
         const auto environment = declaration == L"choose" ? L"pmatrix" : declaration == L"brace" ? L"Bmatrix" : L"bmatrix";
         return Make(MathKind::Matrix, environment, {std::move(numerator), std::move(denominator)}, 1u);
     }
@@ -1317,7 +1335,7 @@ class Parser
                 while (end < source.size() && Letter(source[end]))
                     ++end;
                 const auto declaration = source.substr(first, end - first);
-                if (declaration == L"over" || declaration == L"atop" || declaration == L"choose" || declaration == L"brace" || declaration == L"brack")
+                if (declaration == L"over" || declaration == L"atop" || declaration == L"above" || declaration == L"choose" || declaration == L"brace" || declaration == L"brack")
                 {
                     if (! infixAllowed)
                         Reject(MathIssue::UnsupportedCommand);

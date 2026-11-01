@@ -772,7 +772,7 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         check(expression && expression.root.children.size() == 1u && expression.root.children[0u].kind == MathKind::Style &&
                   expression.root.children[0u].text == L"displaystyle" && expression.root.children[0u].children[0u].kind == MathKind::Delimited &&
                   expression.root.children[0u].children[0u].text == L"()" &&
-                  expression.root.children[0u].children[0u].children[0u].text == L"atop",
+                  expression.root.children[0u].children[0u].children[0u].text == L"rule:0pt",
               "general fraction records independently specified style, fences and absent rule");
 #if DXUI_ENABLE_DIAGNOSTICS
         Detail::PreparedMath layout(factory, std::make_shared<const MathExpression>(expression), 24.f);
@@ -782,7 +782,7 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         check(layout.GlyphLayouts().size() == 2u && layout.Size().width > 0.f, "general fraction prepares both SDK-shaped operands and fences");
 #endif
     }
-    for (const auto source : {L"\\genfrac{(}{)}{2pt}{0}{a}{b}", L"\\genfrac{(}{)}{}{4}{a}{b}", L"\\genfrac{?}{}{}{}{a}{b}",
+    for (const auto source : {L"\\genfrac{(}{)}{-2pt}{0}{a}{b}", L"\\genfrac{(}{)}{}{4}{a}{b}", L"\\genfrac{?}{}{}{}{a}{b}",
                               L"\\genfrac{}{}{}{}{a}"})
         check(! ParseMath(source), "unsupported general fraction dimensions, style and delimiters reject the whole source");
     {
@@ -929,6 +929,43 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
                   ! ParseMath(L"\\begin{matrix}a\\crammed b\\end{matrix}"),
               "row separator remains scoped, refuses unsupported spacing and cannot consume longer commands");
     }
+#if DXUI_ENABLE_DIAGNOSTICS
+    for (const auto& [source, expected] : {std::pair{L"a\\above 2pt b", 8.f / 3.f}, std::pair{L"\\genfrac{}{}{.25em}{}{a}{b}", 6.f},
+                                          std::pair{L"a\\above 0pt b", 0.f}})
+    {
+        const auto expression = ParseMath(source);
+        check(static_cast<bool>(expression), "bounded explicit fraction rule dimension parses");
+        Detail::PreparedMath layout(factory, std::make_shared<const MathExpression>(expression), 24.f);
+        while (! layout.Advance()) {}
+        const auto lines = layout.StrokeLayouts();
+        check(expected == 0.f ? lines.empty() : lines.size() == 1u && std::abs(lines[0u].thickness - expected) < .001f,
+              "explicit point and em rule thickness is retained in staged geometry");
+    }
+#endif
+#if DXUI_ENABLE_DIAGNOSTICS
+    {
+        wil::com_ptr<IDWriteFontCollection> collection;
+        THROW_IF_FAILED(factory->GetSystemFontCollection(collection.put()));
+        UINT32 familyIndex{};
+        BOOL found{};
+        THROW_IF_FAILED(collection->FindFamilyName(L"Cambria Math", &familyIndex, &found));
+        check(found, "ex rule oracle requires the system math font");
+        wil::com_ptr<IDWriteFontFamily> family;
+        THROW_IF_FAILED(collection->GetFontFamily(familyIndex, family.put()));
+        wil::com_ptr<IDWriteFont> font;
+        THROW_IF_FAILED(family->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, font.put()));
+        DWRITE_FONT_METRICS metrics{};
+        font->GetMetrics(&metrics);
+        const float exRatio = metrics.designUnitsPerEm && metrics.xHeight ? static_cast<float>(metrics.xHeight) / metrics.designUnitsPerEm : .45f;
+        const auto expression = ParseMath(L"a\\above .5ex b");
+        Detail::PreparedMath layout(factory, std::make_shared<const MathExpression>(expression), 24.f);
+        while (! layout.Advance()) {}
+        check(layout.StrokeLayouts().size() == 1u && std::abs(layout.StrokeLayouts()[0u].thickness - 12.f * exRatio) < .001f,
+              "ex rule thickness uses the actual resolved font's x-height");
+    }
+#endif
+    check(! ParseMath(L"a\\above -1pt b") && ! ParseMath(L"a\\above 65pt b") && ! ParseMath(L"a\\above 1zz b"),
+          "negative, oversized and unsupported rule dimensions fail closed");
     const auto binomial = ParseMath(L"\\binom{n}{k}");
     check(binomial && binomial.root.children.size() == 1u && binomial.root.children[0u].kind == MathKind::Matrix &&
               binomial.root.children[0u].text == L"pmatrix" && binomial.root.children[0u].columns == 1u && binomial.root.children[0u].children.size() == 2u,
