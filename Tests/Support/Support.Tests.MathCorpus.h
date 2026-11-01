@@ -1041,6 +1041,28 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         check(! ParseMath(source), "unsupported or incomplete text accents preserve the complete source");
     for (const auto source : {L"\\genfrac ( ] {2pt}{1}a{a+1}", L"{a\\above{2pt} b+1}", L"\\genfrac\\langle\\rangle{0pt}{}{a}{b}"})
         check(static_cast<bool>(ParseMath(source)), "pinned KaTeX general-fraction delimiter and grouped-dimension forms parse completely");
+#if DXUI_ENABLE_DIAGNOSTICS
+    {
+        auto formats = std::make_shared<Detail::MathTextFormats>(factory, L"Cambria Math", L"en-us", L"Arial", L"Consolas");
+        for (const auto& [command, familyName] : {std::pair{L"textsf", L"Arial"}, std::pair{L"texttt", L"Consolas"}, std::pair{L"textrm", L"Cambria Math"}})
+        {
+            const auto expression = std::make_shared<const MathExpression>(ParseMath(L"\\" + std::wstring(command) + L"{Ab0}"));
+            check(static_cast<bool>(*expression), "bounded text-family command parses");
+            Detail::PreparedMath layout(factory, expression, 24.f, false, nullptr, 96.f, formats);
+            while (! layout.Advance()) {}
+            const auto& glyph = layout.GlyphLayouts()[0u];
+            UINT32 length{};
+            THROW_IF_FAILED(glyph.layout->GetFontFamilyNameLength(0u, &length));
+            std::wstring actual(length + 1u, L'\0');
+            THROW_IF_FAILED(glyph.layout->GetFontFamilyName(0u, actual.data(), static_cast<UINT32>(actual.size())));
+            actual.resize(length);
+            check(actual == familyName, "DirectWrite layout receives the explicitly configured text family");
+        }
+        check(formats->Size() >= 3u, "distinct text families do not alias the same cached format");
+        check(static_cast<bool>(ParseMath(L"\\colorbox{red}{\\textsf{Ab}}")) && static_cast<bool>(ParseMath(L"\\texttt{caf\\'e}")),
+              "colored text and decoded accents preserve explicit family roles");
+    }
+#endif
     const auto binomial = ParseMath(L"\\binom{n}{k}");
     check(binomial && binomial.root.children.size() == 1u && binomial.root.children[0u].kind == MathKind::Matrix &&
               binomial.root.children[0u].text == L"pmatrix" && binomial.root.children[0u].columns == 1u && binomial.root.children[0u].children.size() == 2u,

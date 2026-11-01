@@ -740,7 +740,7 @@ class Parser
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
 #endif
-        if (name == L"text" || name == L"textbf" || name == L"textit" || name == L"textup" || name == L"textmd" || name == L"textnormal" || name == L"operatorname")
+        if (name == L"text" || name == L"textbf" || name == L"textit" || name == L"textup" || name == L"textmd" || name == L"textnormal" || name == L"textrm" || name == L"textsf" || name == L"texttt" || name == L"operatorname")
         {
             const bool starred = name == L"operatorname" && at < source.size() && source[at] == L'*';
             if (starred)
@@ -749,8 +749,8 @@ class Parser
             result.italic        = false;
             result.atomClass     = name == L"operatorname" ? MathAtomClass::Operator : MathAtomClass::Ordinary;
             result.displayLimits = starred;
-            if (name == L"textup" || name == L"textmd" || name == L"textnormal")
-                return Make(MathKind::Style, name == L"textup" ? L"mathrm" : name == L"textmd" ? L"textmd" : L"mathnormal", {std::move(result)});
+            if (name == L"textup" || name == L"textmd" || name == L"textnormal" || name == L"textrm" || name == L"textsf" || name == L"texttt")
+                return Make(MathKind::Style, name == L"textup" ? std::wstring(L"mathrm") : std::wstring(name), {std::move(result)});
             if (name == L"textbf" || name == L"textit")
                 return Make(MathKind::Style, name == L"textbf" ? L"mathbf" : L"mathit", {std::move(result)});
             return result;
@@ -1074,8 +1074,10 @@ class Parser
                 }
                 else if (name == L"textcolor" || name == L"colorbox" || name == L"fcolorbox")
                     append(ColorCommand(name, depth, true));
-                else if (name == L"textbf" || name == L"textit" || name == L"textrm")
-                    append(Make(MathKind::Style, name == L"textbf" ? L"mathbf" : name == L"textit" ? L"mathit" : L"mathrm",
+                else if (name == L"textbf" || name == L"textit" || name == L"textrm" || name == L"textsf" || name == L"texttt" ||
+                         name == L"textup" || name == L"textmd" || name == L"textnormal")
+                    append(Make(MathKind::Style, name == L"textbf" ? std::wstring(L"mathbf") : name == L"textit" ? std::wstring(L"mathit") :
+                                                  name == L"textup" ? std::wstring(L"mathrm") : std::wstring(name),
                                 {TextColorBody(depth + 1u)}));
                 else
                     Reject(MathIssue::UnsupportedCommand);
@@ -1149,7 +1151,7 @@ class Parser
             L"not", L"frac", L"dfrac", L"tfrac", L"cfrac", L"binom", L"dbinom", L"tbinom", L"overset", L"underset", L"stackrel", L"sqrt", L"substack"};
         if (std::ranges::find(structured, name) != std::end(structured))
             return StructuredCommand(name, depth);
-        static constexpr std::wstring_view styled[] = {L"text",       L"textbf",     L"textit",   L"textup", L"textmd", L"textnormal", L"operatorname", L"mathrm",    L"mathbf",   L"mathit",
+        static constexpr std::wstring_view styled[] = {L"text",       L"textbf",     L"textit",   L"textup", L"textmd", L"textnormal", L"textrm", L"textsf", L"texttt", L"operatorname", L"mathrm",    L"mathbf",   L"mathit",
                                                        L"mathnormal", L"boldsymbol", L"bm",       L"mathbb",       L"mathcal",   L"mathfrak", L"mathsf",
                                                        L"mathtt",     L"mathord",    L"mathop",   L"mathbin",      L"mathrel",   L"mathopen", L"mathclose",
                                                        L"mathpunct",  L"mathinner",  L"overline", L"underline",    L"bar",       L"hat",      L"widehat",

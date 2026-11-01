@@ -45,13 +45,17 @@ extern thread_local std::span<const std::uint8_t> testRichMathTableOverride;
 // Shared only by one owner-thread staging generation. Published formula glyphs
 // do not query or mutate this cache during paint. Fonts/formats survive through
 // the formula's lifetime; no process-global cache or factory identity is used.
+enum class MathTextFamily { Math, Sans, Monospace };
 class MathTextFormats final
 {
 public:
-    explicit MathTextFormats(IDWriteFactory* factory, std::wstring_view family = L"Cambria Math", std::wstring_view locale = L"en-us")
+    explicit MathTextFormats(IDWriteFactory* factory, std::wstring_view family = L"Cambria Math", std::wstring_view locale = L"en-us",
+                             std::wstring_view sansFamily = L"Segoe UI", std::wstring_view monoFamily = L"Consolas")
         : factory_(factory),
           family_(ValidateName(family, false)),
           locale_(ValidateName(locale, true)),
+          sansFamily_(ValidateName(sansFamily, false)),
+          monoFamily_(ValidateName(monoFamily, false)),
           formats_(0u)
     {
         if (! factory)
@@ -73,17 +77,17 @@ public:
     {
         return formats_.size();
     }
-    IDWriteTextFormat* Get(float size, bool bold, bool italic)
+    IDWriteTextFormat* Get(float size, bool bold, bool italic, MathTextFamily textFamily = MathTextFamily::Math)
     {
         if (! std::isfinite(size) || size <= 0.f || size > 4096.f)
             throw std::invalid_argument("Invalid mathematical format size");
         for (const auto& entry : formats_)
-            if (entry.size == size && entry.bold == bold && entry.italic == italic)
+            if (entry.size == size && entry.bold == bold && entry.italic == italic && entry.family == textFamily)
                 return entry.format.get();
         if (formats_.size() == 4096u)
             throw std::length_error("Mathematical text format capacity exceeded");
         wil::com_ptr<IDWriteTextFormat> format;
-        THROW_IF_FAILED(factory_->CreateTextFormat(family_.c_str(),
+        THROW_IF_FAILED(factory_->CreateTextFormat(textFamily == MathTextFamily::Sans ? sansFamily_.c_str() : textFamily == MathTextFamily::Monospace ? monoFamily_.c_str() : family_.c_str(),
                                                    nullptr,
                                                    bold ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_NORMAL,
                                                    italic ? DWRITE_FONT_STYLE_ITALIC : DWRITE_FONT_STYLE_NORMAL,
@@ -94,7 +98,7 @@ public:
 #if DXUI_ENABLE_DIAGNOSTICS
         ++testRichMathTextFormats;
 #endif
-        formats_.push_back({size, bold, italic, std::move(format)});
+        formats_.push_back({size, bold, italic, textFamily, std::move(format)});
         return formats_.back().format.get();
     }
 
@@ -109,10 +113,11 @@ private:
     {
         float size;
         bool bold, italic;
+        MathTextFamily family;
         wil::com_ptr<IDWriteTextFormat> format;
     };
     wil::com_ptr<IDWriteFactory> factory_;
-    std::wstring family_, locale_;
+    std::wstring family_, locale_, sansFamily_, monoFamily_;
     std::vector<Entry> formats_;
 };
 // DWrite supplies the actual shaped face and glyph. Source-codepoint lookup is
@@ -296,6 +301,7 @@ class PreparedMath final
         float font{};
         bool bold{};
         bool italic{};
+        MathTextFamily textFamily = MathTextFamily::Math;
         wil::com_ptr<IDWriteTextLayout> layout;
         Extent extent;
         D2D1_POINT_2F origin{};
@@ -658,7 +664,7 @@ class PreparedMath final
                         node.text != L"boldsymbol" && node.text != L"bm" && node.text != L"mathbb" && node.text != L"mathcal" && node.text != L"mathfrak" &&
                         node.text != L"mathsf" && node.text != L"mathtt" && node.text != L"mathord" && node.text != L"mathop" && node.text != L"mathbin" &&
                         node.text != L"mathrel" && node.text != L"mathopen" && node.text != L"mathclose" && node.text != L"mathpunct" &&
-                        node.text != L"mathinner" && node.text != L"textmd" && node.text != L"displaystyle" && node.text != L"textstyle" && node.text != L"scriptstyle" &&
+                        node.text != L"mathinner" && node.text != L"textsf" && node.text != L"texttt" && node.text != L"textrm" && node.text != L"textnormal" && node.text != L"textmd" && node.text != L"displaystyle" && node.text != L"textstyle" && node.text != L"scriptstyle" &&
                         node.text != L"scriptscriptstyle" && node.text != L"tiny" && node.text != L"sixptsize" && node.text != L"scriptsize" &&
                         node.text != L"footnotesize" && node.text != L"small" && node.text != L"normalsize" && node.text != L"large" &&
                         node.text != L"Large" && node.text != L"LARGE" && node.text != L"huge" && node.text != L"Huge" &&
@@ -713,7 +719,7 @@ class PreparedMath final
         return shape != L'.';
     }
     std::size_t Flatten(const MathNode& node, float size, bool bold, bool italic, bool forceItalic, bool display, unsigned scriptLevel,
-                        int namedSizeIndex = -1, std::uint32_t foreground = NoColor)
+                        int namedSizeIndex = -1, std::uint32_t foreground = NoColor, MathTextFamily textFamily = MathTextFamily::Math)
     {
         const auto index = boxes.size();
         boxes.push_back({&node, 0u, 0u, std::numeric_limits<std::size_t>::max(), {}, 0.f, node.atomClass, size, scriptLevel, display});
@@ -745,7 +751,7 @@ class PreparedMath final
             if (node.largeOperator && display)
                 size = std::max(size, font * displayOperatorMinimum);
             const auto glyphIndex = glyphs.size();
-            glyphs.push_back({&node, index, size, bold, forceItalic ? italic : italic || node.italic, {}, {}, {}});
+            glyphs.push_back({&node, index, size, bold, forceItalic ? italic : italic || node.italic, textFamily, {}, {}, {}});
             boxes[index].glyph    = glyphIndex;
             boxes[index].endChild = boxes.size();
             return index;
@@ -761,6 +767,7 @@ class PreparedMath final
             bool childForceItalic = forceItalic;
             auto childLevel       = scriptLevel;
             auto childNamedSize = namedSizeIndex;
+            auto childFamily = textFamily;
             constexpr std::array<float, 11u> namedScales{.5f, .6f, .7f, .8f, .9f, 1.f, 1.2f, 1.44f, 1.728f, 2.074f, 2.488f};
             constexpr std::array<std::array<unsigned, 3u>, 11u> sizeStyle{{{0, 0, 0}, {1, 0, 0}, {2, 0, 0}, {3, 1, 0}, {4, 1, 0},
                                                                           {5, 2, 0}, {6, 3, 1}, {7, 5, 2}, {8, 6, 5}, {9, 7, 6}, {10, 9, 8}}};
@@ -771,6 +778,9 @@ class PreparedMath final
             };
             if (node.kind == MathKind::Style)
             {
+                if (node.text == L"textsf") childFamily = MathTextFamily::Sans;
+                else if (node.text == L"texttt") childFamily = MathTextFamily::Monospace;
+                else if (node.text == L"textrm" || node.text == L"textnormal") childFamily = MathTextFamily::Math;
                 if (node.text == L"mathbf")
                 {
                     childBold        = true;
@@ -781,7 +791,7 @@ class PreparedMath final
                     childBold = true;
                 else if (node.text == L"textmd")
                     childBold = false;
-                else if (node.text == L"mathnormal")
+                else if (node.text == L"mathnormal" || node.text == L"textnormal")
                 {
                     childBold        = false;
                     childItalic      = false;
@@ -862,7 +872,7 @@ class PreparedMath final
             }
             else if (node.kind == MathKind::Delimiter)
                 childSize = size;
-            Flatten(child, childSize, childBold, childItalic, childForceItalic, childDisplay, childLevel, childNamedSize, foreground);
+            Flatten(child, childSize, childBold, childItalic, childForceItalic, childDisplay, childLevel, childNamedSize, foreground, childFamily);
         }
         boxes[index].firstChild = firstChild;
         boxes[index].endChild   = boxes.size();
@@ -2167,7 +2177,7 @@ public:
         if (cursor < glyphs.size())
         {
             auto& leaf   = glyphs[cursor];
-            auto* format = textFormats->Get(leaf.font, leaf.bold, leaf.italic);
+            auto* format = textFormats->Get(leaf.font, leaf.bold, leaf.italic, leaf.textFamily);
             wil::com_ptr<IDWriteTextLayout> layout;
             THROW_IF_FAILED(
                 factory->CreateTextLayout(leaf.node->text.data(), static_cast<UINT32>(leaf.node->text.size()), format, 65536.f, 65536.f, layout.put()));

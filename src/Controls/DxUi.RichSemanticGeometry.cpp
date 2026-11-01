@@ -270,7 +270,7 @@ struct NativeImageGeometry
                 if (! placement.math)
                 {
                     if (! textFormats)
-                        textFormats = std::make_shared<MathTextFormats>(write, options.mathFontFamily, options.locale);
+                        textFormats = std::make_shared<MathTextFormats>(write, options.mathFontFamily, options.locale, options.fontFamily, options.codeFontFamily);
                     const auto& expression = maths[index].expression;
                     if (expression->root.kind == MathKind::Style && expression->root.text == L"tag")
                     {
