@@ -401,6 +401,92 @@ static void TestPreparedCommandStateAllocationFailures(GraphicsFixture& gpu)
     }
 }
 
+static void TestPreparedCommandStateComplexAllocationFailures(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    using namespace DxUi::RichText;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "complex prepared state fixture graphics");
+    const auto sweep = [&](std::wstring_view spelling, std::wstring_view selected, MarkdownCommand command)
+    {
+        EmbeddedHost view;
+        Hr(view.Attach(graphics), "attach complex prepared state fixture");
+        auto owned   = std::make_unique<RichTextEditor>(std::wstring(spelling));
+        auto* editor = owned.get();
+        editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        view.Controls().SetRoot(std::move(owned));
+        const auto caret = spelling.find(selected);
+        Check(caret != spelling.npos, "complex prepared state fixture has its selected text");
+        editor->SetSelection({caret, caret});
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare complex command state fixture");
+        MarkdownCommandRequest previous;
+        previous.command = MarkdownCommand::InsertEscapedText;
+        previous.text    = L"prior";
+        MarkdownCommandRequest next;
+        next.command     = command;
+        next.text        = L"replacement";
+        next.destination = L"https://example.invalid/new";
+        next.title       = L"updated";
+        Check(editor->PrepareMarkdownCommandState(previous), "prepare prior complex command state");
+        const auto oldState = editor->QueryMarkdownCommandState(previous);
+        Check(oldState && oldState->available.has_value(), "prior complex command state is exact");
+        const auto source    = editor->Snapshot();
+        const auto selection = editor->GetSelection();
+        const auto revision  = editor->Revision();
+        size_t requests{};
+        {
+            const auto oldCounting = countAllocations;
+            const auto oldCalls = allocations, oldBytes = allocationBytes;
+            const auto restore = wil::scope_exit([=] noexcept
+            {
+                countAllocations = oldCounting;
+                allocations      = oldCalls;
+                allocationBytes  = oldBytes;
+            });
+            allocations = allocationBytes = 0u;
+            countAllocations              = true;
+            Check(editor->PrepareMarkdownCommandState(next), "measure complex command preparation");
+            countAllocations = false;
+            requests         = allocations;
+        }
+        const auto expected = editor->QueryMarkdownCommandState(next);
+        Check(requests > 0u && requests < 2048u && expected && expected->available.has_value(), "complex command preparation has bounded observed allocations");
+        std::cout << "complex prepared command=" << static_cast<unsigned>(command) << " allocation points=" << requests << std::endl;
+        for (size_t failure = 0u; failure < requests; ++failure)
+        {
+            Check(editor->PrepareMarkdownCommandState(previous), "restore prior complex command state");
+            bool failed = false;
+            {
+                const auto oldFailure = failAllocationAfter;
+                const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+                failAllocationAfter   = failure;
+                try
+                {
+                    static_cast<void>(editor->PrepareMarkdownCommandState(next));
+                }
+                catch (const std::bad_alloc&)
+                {
+                    failed = true;
+                }
+            }
+            const auto actual = editor->QueryMarkdownCommandState(previous);
+            Check(failed && actual && actual->available == oldState->available && editor->Snapshot().IsSameRevision(source) &&
+                      editor->GetSelection() == selection && editor->Revision() == revision && ! editor->CanUndo(),
+                  "complex preparation failure preserves the previous cache and source transaction");
+        }
+        Check(editor->PrepareMarkdownCommandState(next), "complex command state retries after faults");
+        const auto actual = editor->QueryMarkdownCommandState(next);
+        Check(actual && actual->available == expected->available, "complex command retry retains exact availability");
+    };
+    constexpr std::wstring_view anchor = L"<a href=\"https://example.invalid\">label</a>";
+    constexpr std::wstring_view table  = L"| a | b |\n|---|---|\n| x | y |\n";
+    sweep(anchor, L"label", MarkdownCommand::SetLink);
+    sweep(anchor, L"label", MarkdownCommand::RemoveLink);
+    sweep(table, L"x", MarkdownCommand::InsertTableRow);
+    sweep(table, L"x", MarkdownCommand::SetTableCell);
+}
+
 static void TestRichFileDropTransactionAllocationFailures(GraphicsFixture& gpu)
 {
     using namespace DxUi;
