@@ -436,14 +436,20 @@ bool RichTextEditor::CompleteImageRequest(const RichText::RichImageRequest& requ
     if (_state->RejectsNativeGeometry(
             document, std::max(1.0f, viewport.right - viewport.left), IsRightToLeft(), host->GetTypographyRevision(), host->GetResourceGeneration()))
         return false;
-    const auto previous = _state->images.Snapshot();
+    const bool alreadyDirty = _state->images.HasUnpublished();
     if (! _state->images.Complete(request, std::move(image)))
         return false;
-    if (previous != _state->images.Snapshot())
+    if (! alreadyDirty && _state->images.HasUnpublished())
     {
         RetireSemanticAccessibility();
-        RetireLayout();
-        RequestInvalidate();
+        _state->hoveredLink.reset();
+        _state->caretLink.reset();
+        if (_state->layout.HasPendingPreparation())
+            ++_state->cancelledPreparations;
+        _state->layout.Invalidate();
+        _state->requestActive = false;
+        RequestContentPreparation(false);
+        RequestInvalidate(); // May retire this control; no member access follows.
     }
     return true;
 }
@@ -2074,6 +2080,8 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         const auto effectiveMode =
             state.markdownRendering && state.mode == RichText::ViewMode::Rich && ! semanticDocument ? RichText::ViewMode::Source : state.mode;
         const auto revision = Revision(), binding = state.bindingRevision;
+        if (semanticDocument)
+            state.images.Publish();
         const bool sameRequest = state.requestActive && state.layout.HasPendingPreparation() && state.requestFactory == factory &&
                                  state.requestRevision == revision && state.requestBinding == binding && state.requestTypography == typography &&
                                  state.requestResources == resources && state.requestWidth == width && state.requestMode == state.mode;

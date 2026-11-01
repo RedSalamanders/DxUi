@@ -1082,7 +1082,7 @@ The caller authorizes file access, including any UNC policy. Source replacement,
 presentation withdrawal, hide/rebind/destruction MUST cancel old jobs; completed
 pixels MAY survive unrelated edits and device replacement. Failed/capacity
 completion MUST remain cached across unrelated source edits while preserving editable source/alternative. Explicit reload, document location or remote-image policy changes retry failed sources.
-Resource-only completion MUST NOT edit source/history/selection or cancel IME.
+Resource-only completion MUST NOT edit source/history/selection or cancel IME. Multiple accepted image completions before the next owner preparation stage pixels privately and publish one immutable resource snapshot; allocation failure preserves the previous publication and leaves staged pixels retryable.
 Request preparation processes at most four image candidates per owner turn;
 caller adapters MUST wake valid queued work when draining or cancel-pruning
 results frees a completion reservation; closure MUST serialize posting with

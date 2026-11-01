@@ -72,8 +72,18 @@ template <typename Check> inline void Admission(Check&& check)
     check(requests.size() == 1u && resources.Statistics().imageElements == 128u,
           "native image placement ceiling retains excess alternatives while coalescing duplicate files");
     const auto picture = Picture();
-    check(resources.Complete(requests[0], picture) && resources.Snapshot()->placements.size() == 128u,
-          "one immutable image supplies every admitted duplicate placement");
+    check(resources.Complete(requests[0], picture) && resources.HasUnpublished(), "completion stages an unpublished resource snapshot");
+    resources.Publish();
+    check(resources.Snapshot()->placements.size() == 128u, "one immutable image supplies every admitted duplicate placement");
+    resources.Begin(Semantic(L"![a](a.png) ![b](b.png)"), L"C:\\docs\\note.md", 1u, 1u);
+    finish(resources);
+    resources.Take(requests);
+    const auto oldSnapshot = resources.Snapshot();
+    check(requests.size() == 2u && resources.Complete(requests[0], picture) && resources.Complete(requests[1], picture) && resources.HasUnpublished() &&
+              resources.Snapshot() == oldSnapshot,
+          "an image burst stages all completions without replacing the immutable publication");
+    resources.Publish();
+    check(! resources.HasUnpublished() && resources.Snapshot()->placements.size() == 2u, "one owner publication exposes both completed sources");
     source.clear();
     for (unsigned i = 0u; i < 33u; ++i)
         source.append(L"![image](source").append(std::to_wstring(i)).append(L".png) ");

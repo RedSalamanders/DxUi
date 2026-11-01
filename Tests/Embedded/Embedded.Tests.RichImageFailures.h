@@ -23,6 +23,7 @@ static void TestRichImageResourceAllocationFailures()
         std::vector<RichImageRequest> jobs(0u);
         state->Take(jobs);
         Check(jobs.size() == 1u && state->Complete(jobs[0], picture), "image failure fixture starts with ready pixels");
+        state->Publish();
         return state;
     };
     const auto observe = [&](auto&& operation)
@@ -91,19 +92,21 @@ static void TestRichImageResourceAllocationFailures()
         state->Take(output);
         Check(output.size() == 3u, "dispatch retry does not lose or duplicate a source");
     }
-    const auto completes = observe([&] { Check(measured->Complete(measuredJobs[0], picture), "baseline image completion"); });
-    for (std::size_t point = 0u; point < completes; ++point)
+    Check(measured->Complete(measuredJobs[0], picture), "stage baseline image completion");
+    const auto publications = observe([&] { measured->Publish(); });
+    for (std::size_t point = 0u; point < publications; ++point)
     {
         auto state = seed();
         stage(*state);
         std::vector<RichImageRequest> jobs(0u);
         state->Take(jobs);
-        const auto held   = state->Snapshot();
-        const bool failed = inject(point, [&] { state->Complete(jobs[0], picture); });
-        Check(failed && state->Snapshot() == held && ! jobs[0].Cancelled() && state->Statistics().pendingSources == 3u,
-              "failed image completion preserves the request and prior immutable publication");
-        Check(state->Complete(jobs[0], picture) && jobs[0].Cancelled() && state->Snapshot()->placements.size() == 2u,
-              "completion retry publishes both duplicate placements exactly once");
+        const auto held = state->Snapshot();
+        Check(state->Complete(jobs[0], picture), "stage image completion before publication failure");
+        const bool failed = inject(point, [&] { state->Publish(); });
+        Check(failed && state->Snapshot() == held && jobs[0].Cancelled() && state->HasUnpublished() && state->Statistics().readySources == 1u,
+              "failed publication retains the prior snapshot and committed private pixels for retry");
+        state->Publish();
+        Check(! state->HasUnpublished() && state->Snapshot()->placements.size() == 2u, "publication retry exposes both duplicate placements exactly once");
     }
     const auto before      = allocations;
     const auto oldCounting = countAllocations;

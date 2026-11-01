@@ -75,7 +75,8 @@ public:
             CancelPublishedExcept(local);
             entries_.swap(local);
             bindings_.swap(bindings);
-            snapshot_ = std::move(snapshot);
+            snapshot_      = std::move(snapshot);
+            snapshotDirty_ = false;
             UpdateDecodedBytes();
         }
         // Staged jobs were not exposed to the application. Their ownership list
@@ -103,6 +104,7 @@ public:
         snapshot_.reset();
         decodedBytes_  = 0u;
         policyChanged_ = false;
+        snapshotDirty_ = false;
     }
     bool Begin(std::shared_ptr<const SemanticDocument> document, std::wstring_view base, std::uint64_t location, std::uint64_t binding)
     {
@@ -203,10 +205,11 @@ public:
         CancelPublishedExcept(stage.entries);
         entries_.swap(stage.entries);
         bindings_.swap(stage.bindings);
-        document_ = stage.document;
-        location_ = stage.location;
-        binding_  = stage.binding;
-        snapshot_ = std::move(snapshot);
+        document_      = stage.document;
+        location_      = stage.location;
+        binding_       = stage.binding;
+        snapshot_      = std::move(snapshot);
+        snapshotDirty_ = false;
         UpdateDecodedBytes();
         policyChanged_  = false;
         stage.committed = true;
@@ -249,17 +252,15 @@ public:
         const auto additional =
             image && std::none_of(entries_.begin(), entries_.end(), [&](const auto& entry) { return entry.image == image; }) ? image->Pixels().size() : 0u;
         const bool fits = image && additional <= MaximumDecodedBytes - decodedBytes_;
-        std::shared_ptr<const RichImageResourceSet> snapshot;
-        if (fits)
-            snapshot = MakeSnapshot(entries_, bindings_, static_cast<std::size_t>(found - entries_.begin()), image);
-        found->pending = false;
-        found->failed  = ! fits;
+        found->pending  = false;
+
+        found->failed = ! fits;
         found->request->cancelled.store(true, std::memory_order_relaxed);
         if (fits)
         {
             decodedBytes_ += additional;
-            found->image = std::move(image);
-            snapshot_    = std::move(snapshot);
+            found->image   = std::move(image);
+            snapshotDirty_ = true;
         }
         if (next_)
         {
@@ -268,6 +269,18 @@ public:
                 *staged = *found;
         }
         return true;
+    }
+    bool HasUnpublished() const noexcept
+    {
+        return snapshotDirty_;
+    }
+    void Publish()
+    {
+        if (! snapshotDirty_)
+            return;
+        auto next      = MakeSnapshot(entries_, bindings_);
+        snapshot_      = std::move(next);
+        snapshotDirty_ = false;
     }
     std::shared_ptr<const RichImageResourceSet> Snapshot() const noexcept
     {
@@ -376,6 +389,6 @@ private:
     std::unique_ptr<Stage> next_;
     std::uint64_t location_{}, binding_{}, nextId_{};
     std::size_t decodedBytes_{};
-    bool remoteEnabled_{}, policyChanged_{};
+    bool remoteEnabled_{}, policyChanged_{}, snapshotDirty_{};
 };
 } // namespace DxUi::RichText::Detail
