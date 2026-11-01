@@ -1392,7 +1392,10 @@ physical IME/AT, native ARM64 runtime and D4c performance acceptance remain open
 semantic names/help: footnotes, equations, diagram vocabulary/fallbacks, metadata
 diagnostics and source-entry/exit hints. `SemanticBuilder::SetAccessibilityLabels`
 and `RichTextEditor::SetAccessibilityLabels` accept a shared const dictionary;
-null uses byte-identical English defaults. Entries copy their construction-time
+installing a different identity schedules retained native or embedded preparation,
+while reinstalling the same identity leaves settled work unchanged. The host
+scheduling callback may retire the editor; it is the setter's final owner access.
+Null uses byte-identical English defaults. Entries copy their construction-time
 views and require a unique known `AccessibilityTextId`, nonempty valid UTF-16 with
 no NUL and at most 1,024 units per entry. Missing entries use their English default.
 Footnote name/help templates contain `{0}` exactly once. Return-reference

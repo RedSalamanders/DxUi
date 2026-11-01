@@ -1241,7 +1241,8 @@ and allow reordering. Entries must be nonempty valid UTF-16 without NUL, at most
 Static help entries use literal text. Authored diagram labels, TeX source, link
 titles and image alternatives remain unchanged. Changing labels retires stale UIA
 children and rebuilds semantic metadata while preserving source, selection and
-undo/redo. Held semantic documents keep their earlier labels. Foreign UIA reads
+undo/redo. A changed dictionary schedules preparation in embedded and native
+hosts; setting the same identity does not reschedule it. Held semantic documents keep their earlier labels. Foreign UIA reads
 consult immutable data without calling application code.
 
 The bounded M4f implementation and M4 component closeout are

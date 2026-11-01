@@ -2088,7 +2088,11 @@ void SemanticAccessibilityLabels(bool embedded)
     const std::array entries{AccessibilityTextOverride{AccessibilityTextId::UnsupportedEquation, L"Équation non prise en charge; source conservée."},
                              AccessibilityTextOverride{AccessibilityTextId::ExitSource, L"Quitter la source exacte avec Échap."}};
     const auto labels = std::make_shared<const AccessibilityLabels>(entries);
+    if (embedded)
+        Require(! fixture.view.NeedsPreparation(), "localized embedded view is settled before changing labels");
     fixture.editor->SetAccessibilityLabels(labels);
+    if (embedded)
+        Require(fixture.view.NeedsPreparation(), "changing labels schedules embedded semantic preparation");
     wil::unique_variant retired;
     Require(original->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE,
             "changing labels immediately withdraws an older semantic provider");
@@ -2105,7 +2109,11 @@ void SemanticAccessibilityLabels(bool embedded)
     Require(link && ReadProviderStringProperty(*link.get(), UIA_HelpTextPropertyId, "authored link help") == L"Authored title",
             "localization cannot replace an authored link title");
     const auto localized = fixture.editor->GetSemanticDocument();
+    if (embedded)
+        Require(! fixture.view.NeedsPreparation(), "localized embedded view is settled after publication");
     fixture.editor->SetAccessibilityLabels(labels);
+    if (embedded)
+        Require(! fixture.view.NeedsPreparation(), "reusing the same label identity does not reschedule preparation");
     Require(fixture.editor->GetSemanticDocument() == localized &&
                 ReadProviderStringProperty(*math.get(), UIA_HelpTextPropertyId, "unchanged dictionary help") == entries[0u].text,
             "setting the same immutable dictionary keeps the current semantic identity");

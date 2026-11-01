@@ -14,6 +14,52 @@
 #include <DxUi/RichSemanticDocument.h>
 #include <type_traits>
 
+static void TestRichLabelWakeupAndRetirement(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create graphics for label wakeup");
+    EmbeddedHost view;
+    struct CallbackState
+    {
+        EmbeddedHost* view{};
+        bool retire{}, retired{};
+        size_t requests{};
+    } state{&view};
+    EmbeddedCallbacks callbacks{};
+    callbacks.context = &state;
+    callbacks.requestPreparation = [](void* context) noexcept
+    {
+        auto& current = *static_cast<CallbackState*>(context);
+        ++current.requests;
+        if (current.retire)
+        {
+            current.retire = false;
+            current.view->Controls().SetRoot(nullptr);
+            current.retired = true;
+        }
+    };
+    Hr(view.Attach(graphics, callbacks), "attach label wakeup host");
+    auto root = std::make_unique<RichTextEditor>(L"text");
+    auto* editor = root.get();
+    view.Controls().SetRoot(std::move(root));
+    Hr(PrepareRichEmbeddedContent(view, 320u, 120u), "settle label wakeup host");
+    const std::array entries{RichText::AccessibilityTextOverride{RichText::AccessibilityTextId::ExitSource, L"Localized exit"}};
+    const auto labels = std::make_shared<const RichText::AccessibilityLabels>(entries);
+    const auto before = state.requests;
+    {
+        const auto previous = failAllocationAfter;
+        const auto restore = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
+        failAllocationAfter = 0u;
+        editor->SetAccessibilityLabels(labels);
+    }
+    Check(view.NeedsPreparation() && state.requests == before + 1u, "label setter requests preparation without allocating");
+    Hr(PrepareRichEmbeddedContent(view, 320u, 120u), "settle changed labels before retirement");
+    state.retire = true;
+    editor->SetAccessibilityLabels(nullptr);
+    Check(state.retired && ! view.Controls().GetRoot(), "label wakeup callback can retire the editor before the setter returns");
+}
+
 static void TestRichInputAllocationFailureAtomicity()
 {
     using namespace DxUi;

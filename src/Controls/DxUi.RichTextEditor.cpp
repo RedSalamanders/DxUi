@@ -1603,7 +1603,8 @@ void RichTextEditor::SetAccessibilityLabels(std::shared_ptr<const RichText::Acce
     _state->semantic.SetAccessibilityLabels(std::move(labels));
     _state->semanticRejected.reset();
     _state->nativeGeometryRejected.reset();
-    RetireLayout(); // Last owner access: an application scheduling callback can retire this control.
+    RetireLayout(); // Marks preparation pending without calling the application.
+    RequestInvalidate(); // Last owner access: scheduling can retire this control.
 }
 std::shared_ptr<const RichText::AccessibilityLabels> RichTextEditor::GetAccessibilityLabels() const noexcept
 {
