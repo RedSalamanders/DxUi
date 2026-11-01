@@ -181,8 +181,11 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     THROW_IF_FAILED(custom->GetLocaleName(locale.data(), static_cast<UINT32>(locale.size())));
     family.pop_back();
     locale.pop_back();
-    check(family == L"Segoe UI" && locale == L"fr-FR" && custom->GetFontWeight() == DWRITE_FONT_WEIGHT_BOLD &&
-              custom->GetFontStyle() == DWRITE_FONT_STYLE_ITALIC && custom->GetFontSize() == 22.f && configured->Get(22.f, true, true) == custom,
+    // DirectWrite canonicalizes the supplied fr-FR name to fr-fr. Locale tags
+    // are case-insensitive; query the real SDK property, not its input spelling.
+    check(family == L"Segoe UI" && CompareStringOrdinal(locale.data(), static_cast<int>(locale.size()), L"fr-FR", 5, TRUE) == CSTR_EQUAL &&
+              custom->GetFontWeight() == DWRITE_FONT_WEIGHT_BOLD && custom->GetFontStyle() == DWRITE_FONT_STYLE_ITALIC && custom->GetFontSize() == 22.f &&
+              configured->Get(22.f, true, true) == custom,
           "native formats retain explicit mathematical family, locale, size and style with stable reuse");
     Detail::PreparedMath differentFamily(factory, cachedExpression, 24.f, false, &anchor, 96.f, configured);
     while (! differentFamily.Advance())

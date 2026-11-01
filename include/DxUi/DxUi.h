@@ -3120,8 +3120,10 @@ struct RichTextEditorAppearance
     float headingScaleStep     = 0.15f;
     std::array<float, 6> headingFontSizeDip{};
     std::array<float, 6> headingLineHeightMultiplier{};
-    std::wstring bodyFontFamily; // Empty inherits the host body family.
-    std::wstring codeFontFamily; // Empty inherits the host monospace family.
+    // Explicit size construction lets Debug iterator-proxy allocation fail
+    // normally instead of terminating inside the STL's noexcept empty ctor.
+    std::wstring bodyFontFamily = std::wstring(0u, L' '); // Empty inherits the host body family.
+    std::wstring codeFontFamily = std::wstring(0u, L' '); // Empty inherits the host monospace family.
     // Semantic-only minimum gaps; either override credits real blank-source
     // caret lines. Unset paragraph gap is then an 8-DIP minimum. Null/null
     // preserves the existing 8-DIP gap after every semantic box.
@@ -3130,7 +3132,7 @@ struct RichTextEditorAppearance
     bool operator==(const RichTextEditorAppearance&) const noexcept = default;
     std::optional<RichText::SemanticSpacing> semanticSpacing;
     RichText::MarkdownPresentationStyle markdownPresentation = RichText::MarkdownPresentationStyle::Default;
-    std::wstring mathFontFamily; // Empty keeps Cambria Math; independent of body/code fonts.
+    std::wstring mathFontFamily                              = std::wstring(0u, L' '); // Empty keeps Cambria Math; independent of body/code fonts.
 };
 struct RichTextSourceHighlight
 {
@@ -3251,7 +3253,7 @@ class RichTextEditor : public Control
 {
 public:
     using DefaultContextMenuLabels = RichTextContextMenuLabels;
-    explicit RichTextEditor(std::wstring text = {});
+    explicit RichTextEditor(std::wstring text = std::wstring(0u, L' '));
     ~RichTextEditor() noexcept override;
     // Source UTF-16 offsets, including hidden Markdown delimiters. Invalid
     // text/ranges throw without changing the document. SetText clears history.

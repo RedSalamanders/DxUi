@@ -78,6 +78,10 @@ retry. No parser result changes the existing frame performance HOLD.
 MSVC Debug iterator proxies allocate even in default/noexcept STL container
 constructors. Parser staging and node values use explicit fallible zero-size
 construction and copies rather than noexcept allocator-backed container moves.
+RichText appearance font overrides and the editor's empty default argument use
+the same explicit fallible construction. A public aggregate's implicit exception
+specification does not protect against an allocating STL constructor declared
+`noexcept`; fault coverage must reach each owned override, not only the first one.
 The allocation sweep must cover admission, growth, reference extraction, nested
 inline values/links, tables/tasks/tagfilter and compaction. Literal text coalesces
 into runs rather than retaining one string per scalar. An 8,193-unit emphasis

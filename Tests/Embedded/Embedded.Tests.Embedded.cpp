@@ -1226,7 +1226,10 @@ __declspec(noinline) static int RunFunctionalTests()
         const auto restore = wil::scope_exit([=] noexcept { std::set_terminate(previous); });
 #pragma warning(pop)
         if (std::wstring_view(__wargv[1]) == L"--test-rich-input-failures")
+        {
+            TestRichAppearanceConstructionFailureAtomicity();
             TestRichInputAllocationFailureAtomicity();
+        }
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-layout-clear")
             TestRichPreparedLayoutClearAllocationBudget(true);
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-geometry-failures")
@@ -1617,6 +1620,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestUnicodeGraphemeForwardWalkAllocationBudget();
     TestUnicodeBulkMovementAndDeletionAllocationBudget();
     TestRichTextUtf8RejectionAllocationBudget();
+    TestRichAppearanceConstructionFailureAtomicity();
     TestRichInputAllocationFailureAtomicity();
     TestRichDocumentFragmentedHistoryStorageBudget();
     RichTextStateReplacementTests::Core(Check);

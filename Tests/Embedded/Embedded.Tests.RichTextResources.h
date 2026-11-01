@@ -93,6 +93,64 @@ static void TestRichPreparedWordFailureAtomicity(GraphicsFixture& gpu)
     }
 }
 
+static void TestRichAppearanceConstructionFailureAtomicity()
+{
+    static_assert(! std::is_nothrow_default_constructible_v<DxUi::RichTextEditorAppearance>);
+    size_t requests{};
+    bool valid{};
+    {
+        const auto oldCounting = countAllocations;
+        const auto oldCalls = allocations, oldBytes = allocationBytes;
+        const auto restore = wil::scope_exit([=] noexcept
+        {
+            countAllocations = oldCounting;
+            allocations      = oldCalls;
+            allocationBytes  = oldBytes;
+        });
+        allocations = allocationBytes = 0u;
+        countAllocations              = true;
+        {
+            DxUi::RichTextEditorAppearance appearance;
+            valid = appearance.bodyFontFamily.empty() && appearance.codeFontFamily.empty() && appearance.mathFontFamily.empty();
+        }
+        countAllocations = false;
+        requests         = allocations;
+    }
+    Check(valid && requests <= 8u, "default appearance retains empty font overrides with a bounded construction schedule");
+    for (size_t failure = 0u; failure < requests; ++failure)
+    {
+        bool rejected{};
+        {
+            const auto oldFailure = failAllocationAfter;
+            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+            failAllocationAfter   = failure;
+            try
+            {
+                [[maybe_unused]] DxUi::RichTextEditorAppearance appearance;
+            }
+            catch (const std::bad_alloc&)
+            {
+                rejected = true;
+            }
+        }
+        Check(rejected, "every default appearance allocation propagates instead of terminating inside a noexcept STL constructor");
+    }
+    bool rejected{};
+    {
+        const auto oldFailure = failAllocationAfter;
+        const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+        failAllocationAfter   = 0u;
+        try
+        {
+            [[maybe_unused]] DxUi::RichTextEditor editor;
+        }
+        catch (const std::bad_alloc&)
+        {
+            rejected = true;
+        }
+    }
+    Check(rejected, "default editor argument or owner allocation is fallible before publication");
+}
 static void TestRichInputAllocationFailureAtomicity()
 {
     using namespace DxUi;
