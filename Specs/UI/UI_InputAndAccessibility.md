@@ -1248,11 +1248,11 @@ exception never triggers a second fallback menu.
 Ctrl+Backspace and Ctrl+Delete erase to the preceding or following word boundary;
 rich-view deletion maps visible fragments through the structural source planner.
 An active source-edit session bounds word deletion to its own interval.
-Adjacent direct BMP letter, digit or underscore typing is one undo group for at most 64 UTF-16
+Adjacent direct letter, digit, underscore, supplementary scalar and combining-mark typing is one undo group for at most 64 UTF-16
 units and one second between input events. A selection move, command, punctuation,
 whitespace, or source revision change ends the group. IME transactions retain
 their native composition history policy.
-Source-view and source-region Backspace/Delete runs on those same characters
+Source-view and source-region Backspace/Delete runs on those same text elements
 coalesce in the same bounded way; direction or explicit word deletion ends a run.
 The source-exact SetQuote command toggles or adds/removes one quote level for
 supported selected physical text lines as one transaction, including list-owned

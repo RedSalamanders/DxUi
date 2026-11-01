@@ -263,6 +263,18 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     Check(editor->OnChar(host, L'a', 0u) && editor->OnChar(host, L'b', 0u) && editor->OnChar(host, L'c', 0u) && editor->GetText() == L"abc" && editor->Undo() &&
               editor->GetText().empty(),
           "adjacent direct word typing coalesces into one undo");
+    Check(editor->OnChar(host, static_cast<wchar_t>(0xd83d), 0u) && editor->OnChar(host, static_cast<wchar_t>(0xde00), 0u) && editor->OnChar(host, L'a', 0u) &&
+              editor->OnChar(host, L'\u0301', 0u) && editor->GetText() == L"\U0001f600a\u0301" && editor->Undo() && editor->GetText().empty(),
+          "supplementary scalars and combining marks join a bounded typing group without splitting UTF-16");
+    editor->SetViewMode(ViewMode::Source);
+    editor->SetText(L"\U0001f600a\u0301");
+    prepare();
+    editor->SetSelection({4u, 4u});
+    Check(editor->OnKeyDown(host, VK_BACK, 0u) && editor->OnKeyDown(host, VK_BACK, 0u) && editor->GetText().empty() && editor->Undo() &&
+              editor->GetText() == L"\U0001f600a\u0301",
+          "adjacent source grapheme deletions restore both whole elements in one undo");
+    editor->SetViewMode(ViewMode::Rich);
+    editor->SetText(L"");
     Check(editor->OnChar(host, L'a', 0u) && editor->OnChar(host, L' ', 0u) && editor->OnChar(host, L'b', 0u) && editor->Undo() && editor->GetText() == L"a ",
           "whitespace ends a typing undo group");
     editor->SetText(L"");

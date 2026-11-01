@@ -93,6 +93,31 @@ std::optional<RichText::MarkdownRange> HeadingFragment(const RichText::SemanticD
     }
     return std::nullopt;
 }
+// Group complete UTF-16 text elements without splitting supplementary scalars
+// or combining sequences. Punctuation and whitespace still terminate a run.
+bool IsHistoryWordElement(std::wstring_view text) noexcept
+{
+    if (text.empty())
+        return false;
+    for (size_t i = 0u; i < text.size(); ++i)
+    {
+        const auto c = text[i];
+        if (IsUtf16LeadSurrogate(c))
+        {
+            if (++i == text.size() || ! IsUtf16TrailSurrogate(text[i]))
+                return false;
+            continue;
+        }
+        if (IsUtf16TrailSurrogate(c))
+            return false;
+        WORD type1 = 0u, type3 = 0u;
+        if (c != L'_' && (! GetStringTypeW(CT_CTYPE1, &c, 1, &type1) ||
+                          ((type1 & (C1_ALPHA | C1_DIGIT)) == 0u &&
+                           (! GetStringTypeW(CT_CTYPE3, &c, 1, &type3) || (type3 & (C3_NONSPACING | C3_DIACRITIC | C3_VOWELMARK)) == 0u))))
+            return false;
+    }
+    return true;
+}
 D2D1_COLOR_F ResolveMarkdownQuoteFill(const ThemePalette& theme, const TextFieldVisualStyle& style) noexcept
 {
     if (theme.highContrast)
@@ -3748,9 +3773,7 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                     return true;
             }
         const auto selection = GetSelection();
-        WORD characterType   = 0u;
-        const bool word = text.size() == 1u &&
-                          (text[0] == L'_' || (GetStringTypeW(CT_CTYPE1, text.data(), 1, &characterType) && (characterType & (C1_ALPHA | C1_DIGIT)) != 0u));
+        const bool word      = IsHistoryWordElement(text);
         if (word && selection.Start() == selection.End())
         {
             const auto now      = GetTickCount64();
@@ -4201,21 +4224,23 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                     }
                     else
                         range = GetTextElementDeletionRange(source.Text(), selection.caret, backwards);
-                    WORD characterType   = 0u;
-                    const auto character = range.last == range.first + 1u ? source.Slice(range.first, range.last) : std::wstring{};
-                    const bool word      = range.last == range.first + 1u &&
-                                           (character[0] == L'_' ||
-                                            (GetStringTypeW(CT_CTYPE1, character.data(), 1, &characterType) && (characterType & (C1_ALPHA | C1_DIGIT)) != 0u));
+                    const auto character = source.Slice(range.first, range.last);
+                    const bool word      = IsHistoryWordElement(character) && character.size() <= 64u;
                     if (word)
                     {
                         const auto now      = GetTickCount64();
                         const auto previous = _state->typingRun;
                         const auto kind     = backwards ? State::TypingRun::Kind::Backspace : State::TypingRun::Kind::Delete;
-                        merge = previous && previous->kind == kind && previous->revision == Revision() &&
-                                previous->selectionEpoch == _state->document.selectionEpoch_ && previous->caret == selection.caret &&
-                                now >= previous->lastTick && now - previous->lastTick <= 1000u && previous->units < 64u && _state->document.CanUndo();
-                        _state->typingRun =
-                            State::TypingRun{kind, Revision() + 1u, _state->document.selectionEpoch_, now, range.first, merge ? previous->units + 1u : 1u};
+                        merge               = previous && previous->kind == kind && previous->revision == Revision() &&
+                                              previous->selectionEpoch == _state->document.selectionEpoch_ && previous->caret == selection.caret &&
+                                              now >= previous->lastTick && now - previous->lastTick <= 1000u && previous->units + character.size() <= 64u &&
+                                              _state->document.CanUndo();
+                        _state->typingRun   = State::TypingRun{kind,
+                                                               Revision() + 1u,
+                                                               _state->document.selectionEpoch_,
+                                                               now,
+                                                               range.first,
+                                                               merge ? previous->units + character.size() : character.size()};
                     }
                     else
                         _state->typingRun.reset();
