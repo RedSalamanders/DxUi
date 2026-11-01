@@ -63,6 +63,73 @@ foreach($item in $generators){
         }
     }
 }
+function Write-TestRepinnedGenerator([string]$OriginalScript,[string]$FixtureScript,[hashtable]$PinChanges){
+    # This fixture-only copy keeps the production generator and its immutable pins unchanged.
+    $scriptText=[IO.File]::ReadAllText($OriginalScript)
+    foreach($oldHash in $PinChanges.Keys){
+        Assert-True ($scriptText.Contains($oldHash)) "fixture locates the original $oldHash pin"
+        $scriptText=$scriptText.Replace($oldHash,$PinChanges[$oldHash])
+    }
+    [IO.File]::WriteAllText($FixtureScript,$scriptText,[Text.UTF8Encoding]::new($false))
+}
+function Assert-GeneratorFailure([string]$Script,[string]$Inputs,[string]$Output,[string]$Expected){
+    $message=''
+    try { & $Script -InputDirectory $Inputs -OutputPath $Output }
+    catch { $message=$_.Exception.Message }
+    Assert-Equal $Expected $message 'generator reaches the intended malformed-data guard'
+    Assert-True (-not(Test-Path -LiteralPath $Output)) 'malformed repinned input does not publish output'
+}
+Invoke-FixtureCase 'repinned Markdown corpus rejects incomplete inventory' {
+    param($root)
+    $original=Join-Path $repository 'ThirdParty/Markdown'
+    $inputs=Join-Path $root 'inputs'
+    Copy-Item -LiteralPath $original -Destination $inputs -Recurse
+    $relative='corpora/CommonMark-0.31.2-spec.json'
+    $file=Join-Path $inputs $relative
+    $oldHash=(Get-FileHash -LiteralPath (Join-Path $original $relative)).Hash
+    $examples=@(Get-Content -LiteralPath $file -Raw | ConvertFrom-Json)
+    [IO.File]::WriteAllText($file,(ConvertTo-Json -InputObject $examples[1..($examples.Count-1)] -Depth 20),[Text.UTF8Encoding]::new($false))
+    $script=Join-Path $root 'generator.ps1'
+    Write-TestRepinnedGenerator (Join-Path $repository 'Tools/Generate-MarkdownTestData.ps1') $script @{$oldHash=(Get-FileHash -LiteralPath $file).Hash}
+    Assert-GeneratorFailure $script $inputs (Join-Path $root 'output.h') 'Incomplete original Markdown corpus.'
+}
+Invoke-FixtureCase 'repinned Mermaid expectations reject duplicate ids, invalid outcomes and missing rows' {
+    param($root)
+    $original=Join-Path $repository 'ThirdParty/Markdown/mermaid-11.4.1'
+    $inputs=Join-Path $root 'inputs'
+    Copy-Item -LiteralPath $original -Destination $inputs -Recurse
+    $file=Join-Path $inputs 'dxui-flowchart-expectations.json'
+    $oldHash=(Get-FileHash -LiteralPath (Join-Path $original 'dxui-flowchart-expectations.json')).Hash
+    foreach($variant in @('duplicate','invalid-outcome','missing-row')){
+        $examples=@(Get-Content -LiteralPath (Join-Path $original 'dxui-flowchart-expectations.json') -Raw | ConvertFrom-Json)
+        if($variant -eq 'duplicate'){$examples[1].id=$examples[0].id}
+        elseif($variant -eq 'invalid-outcome'){$examples[1].outcome='Other'}
+        else{$examples=$examples[1..($examples.Count-1)]}
+        [IO.File]::WriteAllText($file,(ConvertTo-Json -InputObject $examples -Depth 20),[Text.UTF8Encoding]::new($false))
+        $script=Join-Path $root "generator-$variant.ps1"
+        Write-TestRepinnedGenerator (Join-Path $repository 'Tools/Generate-NativeFlowchartTestData.ps1') $script @{$oldHash=(Get-FileHash -LiteralPath $file).Hash}
+        $expected=if($variant -eq 'missing-row'){'Incomplete native Mermaid corpus inventory'}else{'Invalid independent flowchart expectation'}
+        Assert-GeneratorFailure $script $inputs (Join-Path $root "output-$variant.h") $expected
+    }
+}
+Invoke-FixtureCase 'repinned Mermaid family rejects a missing source example' {
+    param($root)
+    $original=Join-Path $repository 'ThirdParty/Markdown/mermaid-11.4.1'
+    $inputs=Join-Path $root 'inputs'
+    Copy-Item -LiteralPath $original -Destination $inputs -Recurse
+    $file=Join-Path $inputs 'architecture.md.txt'
+    [IO.File]::WriteAllText($file,'No Mermaid examples remain.',[Text.UTF8Encoding]::new($false))
+    $collectionFile=Join-Path $inputs 'collection.json'
+    $oldHash=(Get-FileHash -LiteralPath (Join-Path $original 'collection.json')).Hash
+    $collection=@(Get-Content -LiteralPath $collectionFile -Raw | ConvertFrom-Json)
+    $entry=@($collection | Where-Object file -eq 'architecture.md.txt')
+    Assert-Equal 1 $entry.Count 'the fixture updates exactly one family source pin'
+    $entry[0].sha256=(Get-FileHash -LiteralPath $file).Hash
+    [IO.File]::WriteAllText($collectionFile,(ConvertTo-Json -InputObject $collection -Depth 20),[Text.UTF8Encoding]::new($false))
+    $script=Join-Path $root 'generator.ps1'
+    Write-TestRepinnedGenerator (Join-Path $repository 'Tools/Generate-NativeFlowchartTestData.ps1') $script @{$oldHash=(Get-FileHash -LiteralPath $collectionFile).Hash}
+    Assert-GeneratorFailure $script $inputs (Join-Path $root 'output.h') 'Declared diagram family has no original example: architecture.md'
+}
 Invoke-FixtureCase 'Unicode 17 first-strong tables include defaults and explicit neutral exceptions' {
     param($root)
     $expected=[byte[]]::new(0x110000)
