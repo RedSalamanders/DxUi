@@ -401,9 +401,9 @@ class Parser
                 result.displayLimits = starred;
                 return result;
             }
-            if (name == L"mathrm" || name == L"mathbf" || name == L"mathit" || name == L"mathbb" || name == L"mathcal" || name == L"mathord" ||
-                name == L"mathop" || name == L"mathbin" || name == L"mathrel" || name == L"mathopen" || name == L"mathclose" || name == L"mathpunct" ||
-                name == L"mathinner")
+            if (name == L"mathrm" || name == L"mathbf" || name == L"mathit" || name == L"mathnormal" || name == L"boldsymbol" || name == L"bm" ||
+                name == L"mathbb" || name == L"mathcal" || name == L"mathord" || name == L"mathop" || name == L"mathbin" || name == L"mathrel" ||
+                name == L"mathopen" || name == L"mathclose" || name == L"mathpunct" || name == L"mathinner")
             {
                 auto body = Atom(depth + 1);
                 if (name == L"mathbb" || name == L"mathcal")

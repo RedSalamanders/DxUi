@@ -255,6 +255,12 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
     Require(scriptStyle->GlyphLayouts().size() == 1u && ordinaryStyle->GlyphLayouts().size() == 1u &&
                 scriptStyle->GlyphLayouts()[0u].font < ordinaryStyle->GlyphLayouts()[0u].font,
             "explicit scriptstyle changes the scoped formula font scale");
+    const auto boldSymbols = prepare(L"\\boldsymbol{x+1}"), normalSymbols = prepare(L"\\mathbf{\\mathnormal{x+1}}");
+    Require(boldSymbols->GlyphLayouts().size() == 3u && boldSymbols->GlyphLayouts()[0u].bold && boldSymbols->GlyphLayouts()[0u].italic &&
+                boldSymbols->GlyphLayouts()[1u].bold && ! boldSymbols->GlyphLayouts()[1u].italic && boldSymbols->GlyphLayouts()[2u].bold &&
+                ! boldSymbols->GlyphLayouts()[2u].italic && normalSymbols->GlyphLayouts().size() == 3u && ! normalSymbols->GlyphLayouts()[0u].bold &&
+                normalSymbols->GlyphLayouts()[0u].italic && ! normalSymbols->GlyphLayouts()[1u].italic,
+            "bold symbols preserve ordinary math italics while mathnormal restores scoped default weight and slant");
     const auto radical = prepare(L"\\sqrt{x}"), accented = prepare(L"\\hat{x}"), plain = prepare(L"x"), fenced = prepare(L"\\left(x\\right)"),
                sizedFence = prepare(L"\\Big(");
     Require(radical->Size().width > plain->Size().width && radical->Size().height > plain->Size().height && accented->Size().height > plain->Size().height &&

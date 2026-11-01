@@ -224,6 +224,13 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
                   expression.root.children[0u].text == symbol.value,
               "named mathematical symbols retain independently specified Unicode identity");
     }
+    for (const auto name : {L"boldsymbol", L"bm", L"mathnormal"})
+    {
+        const auto expression = ParseMath(L"\\" + std::wstring(name) + L"{x+1}");
+        check(expression && expression.root.children.size() == 1u && expression.root.children[0u].kind == MathKind::Style &&
+                  expression.root.children[0u].text == name,
+              "bounded math font commands retain distinct scoped style nodes");
+    }
     const auto operators = ParseMath(L"a-b*c~d");
     check(operators && operators.root.children.size() == 7u && operators.root.children[1u].text == L"−" &&
               operators.root.children[1u].atomClass == MathAtomClass::Binary && operators.root.children[3u].text == L"∗" &&

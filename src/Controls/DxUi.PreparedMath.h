@@ -305,10 +305,11 @@ class PreparedMath final
                         throw std::length_error("Invalid mathematical unary node");
                     break;
                 case MathKind::Style:
-                    if (node.text != L"mathrm" && node.text != L"mathbf" && node.text != L"mathit" && node.text != L"mathbb" && node.text != L"mathcal" &&
-                        node.text != L"mathord" && node.text != L"mathop" && node.text != L"mathbin" && node.text != L"mathrel" && node.text != L"mathopen" &&
-                        node.text != L"mathclose" && node.text != L"mathpunct" && node.text != L"mathinner" && node.text != L"displaystyle" &&
-                        node.text != L"textstyle" && node.text != L"scriptstyle" && node.text != L"scriptscriptstyle")
+                    if (node.text != L"mathrm" && node.text != L"mathbf" && node.text != L"mathit" && node.text != L"mathnormal" &&
+                        node.text != L"boldsymbol" && node.text != L"bm" && node.text != L"mathbb" && node.text != L"mathcal" && node.text != L"mathord" &&
+                        node.text != L"mathop" && node.text != L"mathbin" && node.text != L"mathrel" && node.text != L"mathopen" && node.text != L"mathclose" &&
+                        node.text != L"mathpunct" && node.text != L"mathinner" && node.text != L"displaystyle" && node.text != L"textstyle" &&
+                        node.text != L"scriptstyle" && node.text != L"scriptscriptstyle")
                         throw std::length_error("Invalid mathematical style");
                     if (node.children.size() != 1u)
                         throw std::length_error("Invalid mathematical unary node");
@@ -394,6 +395,14 @@ class PreparedMath final
                     childBold        = true;
                     childItalic      = false;
                     childForceItalic = true;
+                }
+                else if (node.text == L"boldsymbol" || node.text == L"bm")
+                    childBold = true;
+                else if (node.text == L"mathnormal")
+                {
+                    childBold        = false;
+                    childItalic      = false;
+                    childForceItalic = false;
                 }
                 if (node.text == L"mathrm" || node.text == L"mathbb" || node.text == L"mathcal")
                 {
