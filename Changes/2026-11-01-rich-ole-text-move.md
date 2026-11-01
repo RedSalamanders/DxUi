@@ -1,0 +1,1 @@
+- Route opt-in Unicode text MOVE gestures through the application-owned OLE adapter, with same-document token checks, one-undo movement, and a guarded external completion path. A focused no-activation COM transport probe passed; whole-source runtime qualification remains pending.

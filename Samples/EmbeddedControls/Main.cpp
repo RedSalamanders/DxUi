@@ -34,6 +34,9 @@ struct App
     DxUi::TextInputServices textServices;
     DxUi::RichFileDropAdapter dropAdapter;
     std::shared_ptr<DxUi::RichFileDropReceiver> dropReceiver;
+    wil::com_ptr_nothrow<IDataObject> textDragData;
+    std::optional<DxUi::RichTextSourceMove> textDragMove;
+    bool textDragMoved = false;
     using DropRegistration = wil::unique_any<HWND, decltype(&RevokeDragDrop), RevokeDragDrop>;
     DropRegistration dropRegistration;
     std::shared_ptr<EmbeddedTextClient> textClient;
@@ -427,6 +430,48 @@ struct App
                         app->RefreshText();
                     return committed;
                 }
+                bool PreviewText(POINTL screen) noexcept override
+                {
+                    if (! app->textDragMove || ! app->textDragData || ! app->textDragMove->IsOwnerAlive() || ! app->scene.rich || ! app->window || app->dpi <= 0.f)
+                        return false;
+                    POINT client{screen.x, screen.y};
+                    if (! ScreenToClient(app->window.get(), &client))
+                        return false;
+                    const auto point = D2D1::Point2F(float(client.x) * 96.f / app->dpi, float(client.y) * 96.f / app->dpi);
+                    if (! app->View().PreviewFileDrop(point) || ! app->textDragMove || ! app->textDragMove->IsOwnerAlive())
+                        return false;
+                    const auto position = app->scene.rich->HitTestSourceDropPoint(app->View().Controls(), point);
+                    if (! position)
+                        return false;
+                    const auto selected = app->scene.rich->GetSelection();
+                    return *position < selected.Start() || *position > selected.End();
+                }
+                bool DropText(POINTL screen, IDataObject& data, DxUi::RichFileDropGuard guard) noexcept override
+                {
+                    if (&data != app->textDragData.get() || ! PreviewText(screen) || ! app->textDragMove || ! app->textDragMove->IsOwnerAlive() ||
+                        (guard.current && ! guard.current(guard.context)))
+                        return false;
+                    POINT client{screen.x, screen.y};
+                    if (! ScreenToClient(app->window.get(), &client))
+                        return false;
+                    const auto position = app->scene.rich->HitTestSourceDropPoint(
+                        app->View().Controls(), D2D1::Point2F(float(client.x) * 96.f / app->dpi, float(client.y) * 96.f / app->dpi));
+                    if (! position || (guard.current && ! guard.current(guard.context)) || ! app->textDragMove || ! app->textDragMove->IsOwnerAlive())
+                        return false;
+                    try
+                    {
+                        app->textDragMoved = app->scene.rich->MoveSelectedSource(*app->textDragMove, *position);
+                        return app->textDragMoved;
+                    }
+                    catch (const std::bad_alloc&)
+                    {
+                        return false; // Source staging did not commit.
+                    }
+                    catch (const std::exception&)
+                    {
+                        return false; // The source transaction is atomic on failure.
+                    }
+                }
 
             private:
                 App* app; // Borrowed; the application retires the adapter before destroying its window or view.
@@ -435,6 +480,38 @@ struct App
             RETURN_IF_FAILED(dropAdapter.Attach(dropReceiver));
             RETURN_IF_FAILED(RegisterDragDrop(window.get(), dropAdapter.Target()));
             dropRegistration.reset(window.get());
+            scene.rich->SetOnSourceDragRequested([this](const DxUi::RichTextSourceMove& move, std::wstring_view text)
+            {
+                wil::com_ptr_nothrow<IDataObject> data;
+                wil::com_ptr_nothrow<IDropSource> source;
+                if (FAILED(DxUi::CreateRichTextDragData(text, data.put())) || FAILED(DxUi::CreateRichTextDragSource(source.put())))
+                    return;
+                auto* editor = scene.rich;
+                textDragMove = move;
+                textDragData = data;
+                textDragMoved = false;
+                DWORD effect{};
+                const HRESULT result = DoDragDrop(data.get(), source.get(), DROPEFFECT_MOVE, &effect);
+                const bool movedHere = textDragMoved;
+                textDragData.reset();
+                textDragMove.reset();
+                if (move.IsOwnerAlive())
+                {
+                    if (! movedHere && result == DRAGDROP_S_DROP && effect == DROPEFFECT_MOVE)
+                    {
+                        try
+                        {
+                            static_cast<void>(editor->CompleteExternalSourceMove(move));
+                        }
+                        catch (const std::bad_alloc&)
+                        {
+                            // Leave the source intact if external-move completion cannot stage deletion.
+                        }
+                    }
+                    else if (! movedHere)
+                        editor->CancelSourceMove();
+                }
+            });
         }
         RECT scaled{0, 0, LONG(float(gpu.width) * dpi / 96), LONG(float(gpu.height) * dpi / 96)};
         if (! AdjustWindowRectExForDpi(&scaled, style, FALSE, 0, UINT(dpi)))

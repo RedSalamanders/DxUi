@@ -251,6 +251,18 @@ static void TestRichSourceMoveTransaction()
     Check(editor.MoveSelectedSource(*current, 0u) && editor.GetText() == L"twoone  three", "move to an earlier source position");
     editor.SetReadOnly(true);
     Check(! editor.BeginSourceMove(), "read-only editor does not begin a move");
+    editor.SetReadOnly(false);
+    editor.SetText(L"one two three");
+    editor.SetSelection({4u, 7u});
+    const auto external = editor.BeginSourceMove();
+    Check(external && editor.CompleteExternalSourceMove(*external) && editor.GetText() == L"one  three" && editor.Undo() &&
+              editor.GetText() == L"one two three", "confirmed external move deletes source in one undoable transaction");
+    editor.SetSelection({4u, 7u});
+    const auto staleExternal = editor.BeginSourceMove();
+    editor.SetSelection({0u, 0u});
+    editor.SetSelection({4u, 7u});
+    Check(staleExternal && ! editor.CompleteExternalSourceMove(*staleExternal) && editor.GetText() == L"one two three",
+          "stale external completion leaves the original source intact");
 }
 
 static void TestRichTripleClickParagraph(GraphicsFixture& gpu)

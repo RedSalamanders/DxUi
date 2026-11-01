@@ -6,6 +6,7 @@
 #define NOMINMAX
 #endif
 #include <memory>
+#include <string_view>
 #include <objidl.h>
 #include <oleidl.h>
 #include <wil/com.h>
@@ -13,6 +14,10 @@
 
 namespace DxUi
 {
+// Bounded Unicode-text OLE source objects for application-owned DoDragDrop.
+// The data object owns its text; callers release the returned COM interfaces.
+HRESULT CreateRichTextDragData(std::wstring_view text, IDataObject** result) noexcept;
+HRESULT CreateRichTextDragSource(IDropSource** result) noexcept;
 struct RichFileDropGuard
 {
     // Borrowed only for the current Drop callback; check immediately before
@@ -30,6 +35,9 @@ public:
     virtual ~RichFileDropReceiver()                                                                  = default;
     virtual bool Preview(POINTL screenPoint) noexcept                                                = 0;
     virtual bool Drop(POINTL screenPoint, IDataObject& dataObject, RichFileDropGuard guard) noexcept = 0;
+    // Optional text route. The default keeps existing file-only receivers inert.
+    virtual bool PreviewText(POINTL) noexcept { return false; }
+    virtual bool DropText(POINTL, IDataObject&, RichFileDropGuard) noexcept { return false; }
 };
 
 // Explicitly owned by the receiving application. Target() can be registered

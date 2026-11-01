@@ -1256,6 +1256,16 @@ uint64_t RichTextEditor::FileDropEpoch() const noexcept
 {
     return _state->fileDropEpoch;
 }
+std::optional<size_t> RichTextEditor::HitTestSourceDropPoint(const ControlHost& host, D2D1_POINT_2F point) const noexcept
+try
+{
+    const auto hit = FileDropCaret(host, point);
+    return hit ? std::optional(hit->caret) : std::nullopt;
+}
+catch (const std::exception&)
+{
+    return std::nullopt;
+}
 bool RichTextEditor::CommitFileDrop(FileDropPosition position, const TextClipboardContent& content)
 {
     if (content.filePaths.empty())
@@ -2270,6 +2280,18 @@ bool RichTextEditor::MoveSelectedSource(const RichTextSourceMove& move, size_t d
     const std::array edits = destination < first ? std::array{insert, remove} : std::array{remove, insert};
     const auto target = destination < first ? destination : destination - (last - first);
     return ApplySourceEdits(move.source_, move.revision_, edits, {target, target + text.size()});
+}
+bool RichTextEditor::CompleteExternalSourceMove(const RichTextSourceMove& move)
+{
+    if (move.owner_ != this || move.lifetime_.expired() || ! Editable() || MarkdownCommandInputBlocked(GetHost(), this) ||
+        Revision() != move.revision_ || _state->bindingRevision != move.binding_ || _state->document.selectionEpoch_ != move.selectionEpoch_ ||
+        _state->sourceMoveEpoch != move.gestureEpoch_ || ! Snapshot().IsSameRevision(move.source_) || GetSelection() != move.selection_)
+        return false;
+    const auto first = move.selection_.Start(), last = move.selection_.End();
+    if (first == last || ! move.source_.IsBoundary(first) || ! move.source_.IsBoundary(last))
+        return false;
+    const RichText::SourceEdit remove{{first, last}, {}};
+    return ApplySourceEdits(move.source_, move.revision_, std::span(&remove, 1u), {first, first});
 }
 void RichTextEditor::SetSearchQuery(std::wstring_view query, RichText::SourceSearchOptions options)
 {

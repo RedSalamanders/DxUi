@@ -22,6 +22,65 @@ using namespace RichFileDropTests;
 // of TSF's own validation. Production callers go through ControlHost/EmbeddedHost.
 using ServiceRichEditor = RichTextStateReplacementTests::ServiceEditor;
 
+void TestRichTextOleSourceMove()
+{
+    class Receiver final : public RichFileDropReceiver
+    {
+    public:
+        RichTextEditor editor{L"one two three"};
+        std::optional<RichTextSourceMove> move;
+        IDataObject* expected = nullptr;
+        bool Preview(POINTL) noexcept override { return false; }
+        bool Drop(POINTL, IDataObject&, RichFileDropGuard) noexcept override { return false; }
+        bool PreviewText(POINTL) noexcept override { return move.has_value(); }
+        bool DropText(POINTL, IDataObject& data, RichFileDropGuard guard) noexcept override
+        {
+            if (&data != expected || ! move || (guard.current && ! guard.current(guard.context)))
+                return false;
+            try { return editor.MoveSelectedSource(*move, 13u); }
+            catch (const std::exception&) { return false; }
+        }
+    };
+    auto receiver = std::make_shared<Receiver>();
+    receiver->editor.SetSelection({4u, 7u});
+    receiver->move = receiver->editor.BeginSourceMove();
+    wil::com_ptr_nothrow<IDataObject> data;
+    wil::com_ptr_nothrow<IDropSource> source;
+    RequireSucceeded(CreateRichTextDragData(L"two", data.put()), "create owned text data");
+    wil::com_ptr_nothrow<IDataObject> invalid;
+    const std::wstring embeddedNull(L"a\0b", 3u);
+    Require(CreateRichTextDragData(embeddedNull, invalid.put()) == E_INVALIDARG && ! invalid,
+            "Unicode OLE text refuses embedded NUL without publishing an object");
+    RequireSucceeded(CreateRichTextDragSource(source.put()), "create OLE text drag source");
+    receiver->expected = data.get();
+    FORMATETC format{CF_UNICODETEXT, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL};
+    STGMEDIUM medium{};
+    Require(data->GetData(&format, &medium) == S_OK, "text data supplies an owned Unicode medium");
+    const auto release = wil::scope_exit([&] { ReleaseStgMedium(&medium); });
+    const auto* contents = static_cast<const wchar_t*>(GlobalLock(medium.hGlobal));
+    Require(contents && std::wstring_view(contents) == L"two", "OLE Unicode payload preserves exact selected text");
+    static_cast<void>(GlobalUnlock(medium.hGlobal));
+    Require(source->QueryContinueDrag(TRUE, MK_LBUTTON) == DRAGDROP_S_CANCEL && source->QueryContinueDrag(FALSE, 0u) == DRAGDROP_S_DROP,
+            "escape cancels and primary release completes the drag");
+    RichFileDropAdapter adapter;
+    RequireSucceeded(adapter.Attach(receiver), "attach combined file and text target");
+    DWORD effect = DROPEFFECT_MOVE;
+    Require(adapter.Target()->DragEnter(data.get(), 0u, {}, &effect) == S_OK && effect == DROPEFFECT_MOVE,
+            "target admits the same-editor text move");
+    effect = DROPEFFECT_MOVE;
+    Require(adapter.Target()->Drop(data.get(), 0u, {}, &effect) == S_OK && effect == DROPEFFECT_MOVE &&
+                receiver->editor.GetText() == L"one  threetwo" && receiver->editor.Undo() && receiver->editor.GetText() == L"one two three",
+            "OLE drop commits one exact undoable transaction");
+    receiver->editor.SetSelection({4u, 7u});
+    receiver->move = receiver->editor.BeginSourceMove();
+    effect = DROPEFFECT_MOVE;
+    Require(adapter.Target()->DragEnter(data.get(), 0u, {}, &effect) == S_OK && effect == DROPEFFECT_MOVE, "new move is offered");
+    receiver->editor.CancelSourceMove();
+    effect = DROPEFFECT_MOVE;
+    Require(adapter.Target()->Drop(data.get(), 0u, {}, &effect) == S_OK && effect == DROPEFFECT_NONE && receiver->editor.GetText() == L"one two three",
+            "a cancelled token refuses the drop without changing source");
+}
+
 void TestRichTextOleFileListOwnership()
 {
     auto data = Microsoft::WRL::Make<DropDataObject>();
@@ -1271,6 +1330,7 @@ void RunRichTextInputTests()
     DXUI_RUN_TEST(TestRichTextApplicationImageLoading);
     DXUI_RUN_TEST(TestRichTextApplicationImageLoaderLifecycle);
     DXUI_RUN_TEST(TestRichTextImageClipboardTransport);
+    DXUI_RUN_TEST(TestRichTextOleSourceMove);
     DXUI_RUN_TEST(TestRichTextOleFileListOwnership);
     DXUI_RUN_TEST(TestRichTextOleAdapterRevocation);
     DXUI_RUN_TEST(TestRichTextEmbeddedFileDropInsertion);

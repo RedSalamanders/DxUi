@@ -298,6 +298,19 @@ a live move token plus borrowed exact source text. A release before the
 threshold collapses the selection normally. The application owns transport,
 drop effect and cancellation, and must cancel the token if no move commits.
 
+The application-owned `RichFileDropAdapter` also offers its receiver an
+optional Unicode-text MOVE route; a file list wins when both formats are
+offered. The default receiver declines text. Applications must associate the
+offered data object's identity with their live gesture token before invoking
+the guarded same-document move. `CreateRichTextDragData` owns at most the
+document limit of valid UTF-16 with no embedded NUL, and provides
+`CF_UNICODETEXT`; `CreateRichTextDragSource` reports Escape and primary-button
+release to OLE. A target reporting an external MOVE may be followed by
+`CompleteExternalSourceMove`, which deletes only while that token is current;
+otherwise the original source is retained. The supplied embedded sample owns
+registration, capture, OLE lifetime and routing, and does not infer identity
+from a foreign payload.
+
 Bulk Character movement snaps once using the existing nearest/forward-tie
 policy, then walks established boundaries. Negative movement counts the bounded
 prefix and visits its target ordinal. INT_MIN/INT_MAX requests return actual

@@ -11,6 +11,8 @@ own source identities in [the evidence archive](../Measurements/RichText/README.
 or contradictory row. API revision remains 4; pair headers with the exact library.
 The added control triple-click virtual has an ordinary-press default for existing
 source consumers; rebuild control subclasses with their pinned headers and library.
+The file-drop receiver's additive text-move hooks default to declining text;
+receivers and the library must likewise be rebuilt from the same exact pin.
 
 <!-- rich-text-capabilities:begin -->
 | Feature | Status | Limits | Details |

@@ -1588,6 +1588,9 @@ struct DesiredSize
 
 class RichTextSourceMove final
 {
+public:
+    [[nodiscard]] bool IsOwnerAlive() const noexcept { return owner_ && ! lifetime_.expired(); }
+private:
     friend class RichTextEditor;
     const RichTextEditor* owner_ = nullptr;
     std::weak_ptr<int> lifetime_;
@@ -3462,6 +3465,11 @@ public:
     [[nodiscard]] std::optional<RichTextSourceMove> BeginSourceMove() noexcept;
     void CancelSourceMove() noexcept;
     bool MoveSelectedSource(const RichTextSourceMove& move, size_t destination);
+    // Call only after an external OLE target reports a completed MOVE. A stale
+    // token declines deletion, leaving the external copy and source intact.
+    bool CompleteExternalSourceMove(const RichTextSourceMove& move);
+    // Current prepared, editable source insertion point for a text drop.
+    [[nodiscard]] std::optional<size_t> HitTestSourceDropPoint(const ControlHost& host, D2D1_POINT_2F point) const noexcept;
     // Called synchronously after a selected-text pointer drag crosses the drag
     // threshold and capture is released. Text is borrowed for that call.
     void SetOnSourceDragRequested(std::function<void(const RichTextSourceMove&, std::wstring_view)> callback);
