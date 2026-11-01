@@ -301,8 +301,20 @@ bool CanInsertMath(const MarkdownSyntax& syntax, Selection selection, std::wstri
     const auto payload = first == last ? requested : text.substr(first, last - first);
     const auto closer  = display ? std::wstring_view(L"\\]") : std::wstring_view(L"\\)");
     if (payload.empty() || payload.size() > MathMaximumSourceUnits || ! IsValidUtf16(payload) || payload.find(closer) != payload.npos ||
-        payload.size() + 4u > Document::MaximumUnits - (text.size() - (last - first)))
+        payload.size() + (display ? 8u : 4u) > Document::MaximumUnits - (text.size() - (last - first)))
         return false;
+    if (display)
+    {
+        // Display envelopes occupy whole physical lines. Limit insertion to a
+        // top-level paragraph or an empty line so list/quote/table prefixes
+        // cannot be silently detached from the authored content.
+        if ((leaf != MarkdownNoNode && (nodes[leaf].block.kind != MarkdownBlockKind::Paragraph || nodes[leaf].parent == MarkdownNoNode ||
+                                      nodes[nodes[leaf].parent].block.kind != MarkdownBlockKind::Document)) ||
+            (first && text[first - 1u] != L'\r' && text[first - 1u] != L'\n') ||
+            (last < text.size() && text[last] != L'\r' && text[last] != L'\n'))
+            return false;
+        return true;
+    }
     if (payload.find_first_of(L"\r\n") != payload.npos)
     {
         if (! display ||
@@ -1930,11 +1942,16 @@ void MarkdownCommandPlanner::Math(const MarkdownCommandRequest& request)
     const auto first = plan.before_.Start(), last = plan.before_.End();
     const auto payload     = first == last ? request.text : Slice(first, last);
     const auto closer      = request.mathDisplay ? std::wstring_view(L"\\]") : std::wstring_view(L"\\)");
+    const auto newlineAt = plan.syntax_->Source().find_first_of(L"\r\n");
+    const std::wstring_view newline = newlineAt != std::wstring_view::npos && plan.syntax_->Source().substr(newlineAt, 2u) == L"\r\n"
+                                          ? L"\r\n" : L"\n";
     std::wstring insertion = request.mathDisplay ? L"\\[" : L"\\(";
+    if (request.mathDisplay) insertion += newline;
     insertion += payload;
+    if (request.mathDisplay) insertion += newline;
     insertion += closer;
     Add(first, last, insertion);
-    const auto begin = first + 2u, end = begin + payload.size();
+    const auto begin = first + 2u + (request.mathDisplay ? newline.size() : 0u), end = begin + payload.size();
     plan.after_       = plan.before_.anchor <= plan.before_.caret ? Selection{begin, end} : Selection{end, begin};
     explicitSelection = true;
     plan.applicable_  = true;

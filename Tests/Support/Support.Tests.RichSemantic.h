@@ -407,12 +407,16 @@ inline void ListsAndHeadings()
             Exact(L"alpha", {0u, 5u}, request, L"\\(alpha\\)", Selection{2u, 7u}, profile);
             request.mathDisplay = true;
             request.text        = L"x";
-            Exact(L"", {}, request, L"\\[x\\]", Selection{2u, 3u}, profile);
+            Exact(L"", {}, request, L"\\[\nx\n\\]", Selection{3u, 4u}, profile);
             request.text = L"x\ny";
-            Exact(L"", {}, request, L"\\[x\ny\\]", Selection{2u, 5u}, profile);
-            Document displayMath(L"\\[x\ny\\]");
+            Exact(L"", {}, request, L"\\[\nx\ny\n\\]", Selection{3u, 6u}, profile);
+            Exact(L"x\r\n", {0u, 1u}, request, L"\\[\r\nx\r\n\\]\r\n", Selection{4u, 5u}, profile);
+            Unavailable(L"before x after", {7u, 8u}, request, profile);
+            Unavailable(L"> item\n", {2u, 6u}, request, profile);
+            Unavailable(L"- item\n", {2u, 6u}, request, profile);
+            Document displayMath(L"\\[\nx\ny\n\\]");
             const auto displaySyntax = Parse(displayMath, profile);
-            Check(std::ranges::any_of(displaySyntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
+            Check(std::ranges::any_of(displaySyntax->Nodes(), [](const auto& node) { return node.block.kind == MarkdownBlockKind::FencedCode && node.block.fenceMarker == L'['; }),
                   "multiline display insertion remains one math source envelope");
             for (const auto& sample : {std::pair{std::wstring_view(L"$a `$x` tail"), MarkdownInlineKind::Code},
                                        std::pair{std::wstring_view(L"$a <span title=\"$x\">tail"), MarkdownInlineKind::Html},
