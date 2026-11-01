@@ -1979,6 +1979,9 @@ all-space code span retains its spaces. Raw programmatic/TSF replacement MUST NO
 apply this semantic cleanup policy. Unsupported mixed opaque targets reject
 atomically. These operations do not provide general Markdown reformatting,
 structured UIA publication, extension rendering or consumer qualification.
+Semantic visible-range queries include only intersecting text or caret lines;
+table frame padding alone MUST NOT make offscreen cell source or display text
+visible. Intersecting native objects retain their complete source ownership.
 
 ### RichMarkdown metadata envelopes (M5a)
 

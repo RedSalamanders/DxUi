@@ -3104,14 +3104,18 @@ std::pair<std::size_t, std::size_t> PreparedSemanticGeometry::VisibleSourceRange
         {
             if (box->sourceCaret)
             {
+                if (box->y >= bottom || box->y + box->height <= top)
+                    continue; // Empty source sites still require an intersecting caret line.
                 first = std::min(first, box->sourceCaret->source.first);
                 last  = std::max(last, box->sourceCaret->source.last);
             }
             else
             {
                 const auto range = box->layout.VisibleRange(top - box->y, bottom - box->y);
-                first            = std::min(first, map.ToSource(box->paragraph.display.first + range.first));
-                last             = std::max(last, map.ToSource(box->paragraph.display.first + range.second, MappingAffinity::Trailing));
+                if (range.first == range.second && (range.first != box->layout.Content().text.size() || box->y >= bottom || box->y + box->height <= top))
+                    continue; // A padded frame may intersect even though none of its text lines do.
+                first = std::min(first, map.ToSource(box->paragraph.display.first + range.first));
+                last  = std::max(last, map.ToSource(box->paragraph.display.first + range.second, MappingAffinity::Trailing));
             }
         }
     return first <= last ? std::pair{first, last} : std::pair{std::size_t{0u}, std::size_t{0u}};
@@ -3228,8 +3232,10 @@ std::pair<std::size_t, std::size_t> PreparedSemanticGeometry::VisibleRange(float
         if (box->frame.bottom > top && box->frame.top < bottom)
         {
             const auto range = box->layout.VisibleRange(top - box->y, bottom - box->y);
-            first            = std::min(first, box->paragraph.display.first + range.first);
-            last             = std::max(last, box->paragraph.display.first + range.second);
+            if (range.first == range.second && (range.first != box->layout.Content().text.size() || box->y >= bottom || box->y + box->height <= top))
+                continue; // Do not broaden visibility to an offscreen cell's first ACP.
+            first = std::min(first, box->paragraph.display.first + range.first);
+            last  = std::max(last, box->paragraph.display.first + range.second);
         }
     return first <= last ? std::pair{first, last} : std::pair{std::size_t{0u}, std::size_t{0u}};
 }

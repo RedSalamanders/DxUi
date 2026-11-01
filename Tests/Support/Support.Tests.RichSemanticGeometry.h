@@ -1137,6 +1137,13 @@ inline void MathWidthReflowAndTargetReplacement()
     target->SetDpi(96.f, 96.f);
     options.dpi              = 96.f;
     options.readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
+    const auto mathElement = std::ranges::find(coloredDocument->Elements(), SemanticRole::Math, &SemanticElement::role);
+    Check(mathElement != coloredDocument->Elements().end(), "visible atomic-object fixture retains its math element");
+    const auto mathBounds = geometry.ElementBounds(static_cast<std::size_t>(mathElement - coloredDocument->Elements().begin()));
+    Check(mathBounds.has_value(), "visible atomic-object fixture has prepared bounds");
+    const auto mathVisible = geometry.VisibleSourceRange(mathBounds->top + 1.f, mathBounds->bottom - 1.f);
+    Check(mathVisible.first <= mathElement->source.first && mathVisible.second >= mathElement->source.last,
+          "a visible atomic math object retains its complete source range");
     const auto quotedColor   = RichSemanticDocumentTests::Build(L"> $a\\textcolor{blue}{+}b$\n", MarkdownProfile::RichMarkdown);
     geometry.Clear();
     geometry.Begin(factory.get(), quotedColor, options, drawing.get(), {}, {}, target.get());
@@ -1960,6 +1967,28 @@ inline void MarkdownSubtlePresentation()
         Check(columns > 100u, "subtle table separator reaches actual pixels at fractional DPI");
     }
     target->SetDpi(96.f, 96.f);
+    const auto paddingSource  = subtle->VisibleSourceRange(firstRow.top, firstRow.top + 1.f);
+    const auto paddingDisplay = subtle->VisibleRange(firstRow.top, firstRow.top + 1.f);
+    Check(paddingSource == std::pair<std::size_t, std::size_t>{0u, 0u} && paddingDisplay == std::pair<std::size_t, std::size_t>{0u, 0u},
+          "viewport covering only table top padding does not report invisible source or display lines");
+    const auto emptyDocument = RichSemanticDocumentTests::Build(L"| a | b |\n| - | - |\n| x | |\n");
+    PreparedSemanticGeometry emptyTable;
+    LayoutOptions emptyOptions;
+    emptyOptions.widthDip = 520.f;
+    emptyTable.Begin(factory.get(), emptyDocument, emptyOptions);
+    Complete(emptyTable);
+    std::vector<std::size_t> bodyCells(0u);
+    for (std::size_t i = 0u; i < emptyDocument->Elements().size(); ++i)
+        if (emptyDocument->Elements()[i].role == SemanticRole::Cell && ! emptyDocument->Elements()[i].tableHeader)
+            bodyCells.push_back(i);
+    Check(bodyCells.size() == 2u, "empty-cell visibility fixture has two body cells");
+    const auto body = emptyTable.ElementBounds(bodyCells[0u]);
+    Check(body.has_value(), "empty-cell visibility fixture retains its row frame");
+    Check(emptyTable.VisibleSourceRange(body->top, body->top + 1.f) == std::pair<std::size_t, std::size_t>{0u, 0u},
+          "empty and nonempty cells in a padding-only viewport do not claim source visibility");
+    const auto bodyVisible = emptyTable.VisibleSourceRange(body->top + 7.f, body->bottom - 1.f);
+    Check(bodyVisible.second > bodyVisible.first && bodyVisible.first <= emptyDocument->Elements()[bodyCells[0u]].source.first,
+          "an intersecting body line remains visible beside an empty cell");
     const auto separatorX = static_cast<UINT>(std::clamp(std::lround((firstRow.right + secondRowCell.left) * 0.5f), 0l, static_cast<long>(rasterWidth - 1u)));
     const auto verticalY  = static_cast<UINT>(std::clamp(std::lround((firstRow.top + firstRow.bottom) * 0.5f), 0l, static_cast<long>(rasterHeight - 1u)));
     Check(! isRed(subtlePixels, separatorX, verticalY), "subtle table raster has no vertical grid line between intrinsic columns");
