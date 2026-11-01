@@ -1722,7 +1722,7 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
     };
     // Count the actual allocation schedule, including native parsing, captions,
     // normalized-to-raw provenance, diagnostic publication and footer ownership.
-    const std::array<std::wstring_view, 14u> sources = {SemanticDiagramTests::scenarios[5u].source,
+    const std::array<std::wstring_view, 15u> sources = {SemanticDiagramTests::scenarios[5u].source,
                                                         L"main[^n]\r\n\r\n[^n]: note\r\n    > ```mermaid\r\n    > graph LR;A{wide}-->|yes|B\r\n    > ```\r\n",
                                                         SemanticDiagramTests::scenarios[11u].source,
                                                         SemanticDiagramTests::scenarios[8u].source,
@@ -1735,7 +1735,8 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
                                                         L"$$\n\\frac{1}{2}\n$$\n",
                                                         L"```latex\n\\frac{1}{2}\n",
                                                         L"<p>x<sup><b>hello</b></sup> y<sub>world</sub></p>\n",
-                                                        L"x<sup>![alt](image.png)</sup>\n"};
+                                                        L"x<sup>![alt](image.png)</sup>\n",
+                                                        L"<details open>\n<summary><b>More</b></summary>\nBody text\n</details>\n"};
     const auto observe                               = [](auto&& operation)
     {
         const auto oldCounting = countAllocations;
@@ -1756,13 +1757,22 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
     for (const auto source : sources)
     {
         const auto syntax = RichSemanticDocumentTests::Parse(source, MarkdownProfile::RichMarkdown);
+        const auto begin = [&](SemanticBuilder& builder)
+        {
+            if (source.starts_with(L"<details"))
+            {
+                const std::array states{DxUi::RichText::Detail::DisclosureOverride{syntax->Nodes()[1u].identity, false}};
+                DxUi::RichText::Detail::SemanticExtensionAccess::BeginWithPresentation(builder, syntax, {}, states);
+            }
+            else builder.Begin(syntax);
+        };
         SemanticBuilder measured;
         measured.Begin(oldSyntax);
         finishSemantic(measured);
         measured.Begin(pendingSyntax);
         const auto requests = observe([&]
         {
-            measured.Begin(syntax);
+            begin(measured);
             finishSemantic(measured);
         });
         Check(requests > 0u && requests < 4096u, "native semantic preparation has a finite observed allocation schedule");
@@ -1782,7 +1792,7 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
                 failAllocationAfter   = failure;
                 try
                 {
-                    builder.Begin(syntax);
+                    begin(builder);
                     began = true;
                     finishSemantic(builder);
                 }
@@ -1798,7 +1808,7 @@ static void TestSemanticDiagramAllocationFailures(bool trace = false)
                 finishSemantic(builder);
                 Check(builder.Published()->Map().Source() == L"pending", "old pending semantic request remains usable after rejected admission");
             }
-            builder.Begin(syntax);
+            begin(builder);
             finishSemantic(builder);
             Check(builder.Published()->Map().Source() == source, "native semantic preparation retries after every observed C++ failure");
             {

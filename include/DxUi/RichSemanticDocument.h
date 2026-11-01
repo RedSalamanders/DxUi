@@ -10,6 +10,7 @@ namespace Detail
 {
 struct SemanticExtensions;
 struct SemanticExtensionAccess;
+struct DisclosureOverride { std::uint64_t identity{}; bool expanded{}; bool operator==(const DisclosureOverride&) const = default; };
 } // namespace Detail
 enum class SemanticRole
 {
@@ -33,7 +34,8 @@ enum class SemanticRole
     FootnoteReference,
     FootnoteBacklink,
     Diagram,
-    Math
+    Math,
+    Disclosure
 };
 struct SemanticElement
 {
@@ -50,7 +52,7 @@ struct SemanticElement
     unsigned heading{};
     MarkdownTask task{};
     MarkdownAlignment alignment{};
-    bool tableHeader{}, nativeHtml{}, wiki{};
+    bool tableHeader{}, nativeHtml{}, wiki{}, disclosureExpanded{};
     std::size_t rows{}, columns{};
     std::wstring name, destination, title;
 };
@@ -223,7 +225,8 @@ public:
 private:
     // Host-owned geometry rejection is presentation state for one layout key.
     // It never edits syntax and is not a consumer-authored source mask.
-    void BeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyntax> syntax, std::size_t sourceBlock, std::span<const MarkdownRange> sourceObjects);
+    void BeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyntax> syntax, std::size_t sourceBlock, std::span<const MarkdownRange> sourceObjects,
+                                  std::span<const Detail::DisclosureOverride> disclosures = {});
     struct Preparation;
     std::unique_ptr<Preparation> next_;
     std::shared_ptr<const SemanticDocument> published_;

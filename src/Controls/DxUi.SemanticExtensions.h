@@ -35,7 +35,7 @@ struct SemanticDiagram
 struct SemanticExtensions
 {
     static constexpr std::size_t MaximumObjects = 128u, MaximumRecords = MathMaximumDocumentNodes;
-    SemanticExtensions() : diagrams(0u), maths(0u), diagnostics(0u), images(0u), sourceObjects(0u)
+    SemanticExtensions() : diagrams(0u), maths(0u), diagnostics(0u), images(0u), sourceObjects(0u), disclosures(0u)
     {
     }
     std::vector<SemanticDiagram> diagrams;
@@ -49,6 +49,7 @@ struct SemanticExtensions
     std::vector<SemanticDiagnostic> diagnostics;
     std::vector<std::size_t> images;
     std::vector<MarkdownRange> sourceObjects;
+    std::vector<DisclosureOverride> disclosures;
     std::size_t candidates{}, records{};
     bool CanAdmitObject() const noexcept
     {
@@ -65,10 +66,20 @@ struct SemanticExtensionAccess
     {
         return document.extensions_ ? std::span<const MarkdownRange>(document.extensions_->sourceObjects) : std::span<const MarkdownRange>{};
     }
+    static std::span<const DisclosureOverride> Disclosures(const SemanticDocument& document) noexcept
+    {
+        return document.extensions_ ? std::span<const DisclosureOverride>(document.extensions_->disclosures) : std::span<const DisclosureOverride>{};
+    }
     static void BeginWithNativeFallbacks(SemanticBuilder& builder, std::shared_ptr<const MarkdownSyntax> syntax, std::span<const MarkdownRange> sourceObjects)
     {
         const auto sourceBlock = syntax ? syntax->SourceRegionNode() : MarkdownNoNode;
         builder.BeginWithNativeFallbacks(std::move(syntax), sourceBlock, sourceObjects);
+    }
+    static void BeginWithPresentation(SemanticBuilder& builder, std::shared_ptr<const MarkdownSyntax> syntax, std::span<const MarkdownRange> sourceObjects,
+                                      std::span<const DisclosureOverride> disclosures)
+    {
+        const auto sourceBlock = syntax ? syntax->SourceRegionNode() : MarkdownNoNode;
+        builder.BeginWithNativeFallbacks(std::move(syntax), sourceBlock, sourceObjects, disclosures);
     }
     static std::span<const SemanticExtensions::Formula> Maths(const SemanticDocument& document) noexcept
     {

@@ -209,7 +209,7 @@ public:
         if (id == UIA_InvokePatternId && (codeCopy_ || linkAction || record->RichSemantic()->NavigationTarget(element_) ||
                                           (! inlineSource && record->RichSemantic()->SourceEditingRange(element_))))
             *result = static_cast<IInvokeProvider*>(this);
-        else if (! codeCopy_ && id == UIA_ExpandCollapsePatternId && inlineSource)
+        else if (! codeCopy_ && id == UIA_ExpandCollapsePatternId && (inlineSource || role == RichText::SemanticRole::Disclosure))
             *result = static_cast<IExpandCollapseProvider*>(this);
         else if (! codeCopy_ && id == UIA_TogglePatternId && role == RichText::SemanticRole::Task)
             *result = static_cast<IToggleProvider*>(this);
@@ -257,7 +257,8 @@ public:
         {
             case UIA_ControlTypePropertyId:
             {
-                const auto type = element.role == Task                                                                            ? UIA_CheckBoxControlTypeId
+                const auto type = element.role == Disclosure ? UIA_ButtonControlTypeId
+                                  : element.role == Task                                                                            ? UIA_CheckBoxControlTypeId
                                   : element.role == Link || element.role == FootnoteReference || element.role == FootnoteBacklink ? UIA_HyperlinkControlTypeId
                                   : element.role == Image || element.role == Diagram || element.role == Math                      ? UIA_ImageControlTypeId
                                   : element.role == Table                                                                         ? UIA_TableControlTypeId
@@ -293,7 +294,9 @@ public:
             case UIA_IsControlElementPropertyId:
             case UIA_IsContentElementPropertyId: *result = VariantFromBool(true); return S_OK;
             case UIA_ExpandCollapseExpandCollapseStatePropertyId:
-                if ((element.role == Link || element.role == Image) && document.SourceEditingRange(element_))
+                if (element.role == Disclosure)
+                    *result = VariantFromInt(element.disclosureExpanded ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed);
+                else if ((element.role == Link || element.role == Image) && document.SourceEditingRange(element_))
                     *result = VariantFromInt(document.IsSourceEditingElement(element_) ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed);
                 return S_OK;
             case UIA_IsKeyboardFocusablePropertyId:
@@ -582,10 +585,12 @@ public:
         if (! record)
             return UIA_E_ELEMENTNOTAVAILABLE;
         const auto& document = *record->RichSemantic();
-        const auto role      = document.Elements()[element_].role;
-        if (codeCopy_ || (role != RichText::SemanticRole::Link && role != RichText::SemanticRole::Image) || ! document.SourceEditingRange(element_))
+        const auto role = document.Elements()[element_].role;
+        if (codeCopy_ || (role != RichText::SemanticRole::Disclosure &&
+                          ((role != RichText::SemanticRole::Link && role != RichText::SemanticRole::Image) || ! document.SourceEditingRange(element_))))
             return UIA_E_NOTSUPPORTED;
-        *result = document.IsSourceEditingElement(element_) ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed;
+        *result = (role == RichText::SemanticRole::Disclosure ? document.Elements()[element_].disclosureExpanded : document.IsSourceEditingElement(element_))
+                    ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed;
         return S_OK;
     }
     HRESULT STDMETHODCALLTYPE get_ToggleState(ToggleState* result) noexcept override
@@ -752,7 +757,8 @@ private:
             return UIA_E_ELEMENTNOTAVAILABLE;
         const auto& document = record->RichSemantic();
         const auto role      = document->Elements()[element_].role;
-        if (codeCopy_ || (role != RichText::SemanticRole::Link && role != RichText::SemanticRole::Image) || ! document->SourceEditingRange(element_))
+        if (codeCopy_ || (role != RichText::SemanticRole::Disclosure &&
+                          ((role != RichText::SemanticRole::Link && role != RichText::SemanticRole::Image) || ! document->SourceEditingRange(element_))))
             return UIA_E_NOTSUPPORTED;
         if (! record->controlEnabled)
             return UIA_E_ELEMENTNOTENABLED;
@@ -764,6 +770,8 @@ private:
             return UIA_E_ELEMENTNOTENABLED;
         if (editor->GetAcknowledgedSemanticDocument(*host) != document)
             return UIA_E_ELEMENTNOTAVAILABLE;
+        if (role == RichText::SemanticRole::Disclosure)
+            return editor->SetSemanticDisclosure(*host, document, element_, expand) ? S_OK : static_cast<HRESULT>(UIA_E_INVALIDOPERATION);
         if (document->IsSourceEditingElement(element_) == expand)
             return S_OK;
         return (expand ? editor->BeginSemanticSourceEdit(*host, document, element_) : editor->EndSemanticSourceEdit(*host))

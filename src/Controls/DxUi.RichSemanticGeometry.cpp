@@ -2487,7 +2487,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 const auto index    = work.boundsIndex++;
                 const auto& element = elements[index];
                 if (element.role == SemanticRole::Link || element.role == SemanticRole::Image || element.role == SemanticRole::Math ||
-                    element.role == SemanticRole::Task || element.role == SemanticRole::FootnoteReference || element.role == SemanticRole::FootnoteBacklink)
+                    element.role == SemanticRole::Task || element.role == SemanticRole::Disclosure || element.role == SemanticRole::FootnoteReference || element.role == SemanticRole::FootnoteBacklink)
                     for (const auto& rectangle : RangeFromState(*work.state, element.display.first, element.display.last))
                         Union(work.state->bounds[index], rectangle);
             }

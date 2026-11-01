@@ -3443,6 +3443,7 @@ public:
     // taking OS focus. Exact document text/history remain authoritative. An
     // active IME composition or stale/unprepared target refuses the transition.
     bool BeginSemanticSourceEdit(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& expected, size_t element);
+    bool SetSemanticDisclosure(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& expected, size_t element, bool expanded);
     // Hidden Markdown reference definitions have syntax nodes but no normal semantic child.
     bool BeginReferenceDefinitionSourceEdit(ControlHost& host, const std::shared_ptr<const RichText::MarkdownSyntax>& expected, size_t node);
     // Esc/Ctrl+Enter leaves raw presentation; committed edits remain undoable.

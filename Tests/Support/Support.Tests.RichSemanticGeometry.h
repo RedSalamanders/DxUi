@@ -4,6 +4,7 @@
 #include "Controls/DxUi.PreparedLayoutAccess.h"
 #include "Controls/DxUi.PreparedMath.h"
 #include "Controls/DxUi.RichSemanticGeometry.h"
+#include "Controls/DxUi.SemanticExtensions.h"
 #include "Support.Tests.RichSemanticDocument.h"
 #include <cmath>
 #include <iostream>
@@ -447,6 +448,70 @@ template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe obs
     }
     Check(rejected && geometry.Ready() && geometry.Generation() == previousGeneration,
           "a script color glyph without a compatible target rejects only its source-owned HTML leaf and preserves prior geometry");
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::RichMarkdown})
+        for (const bool initiallyOpen : {false, true})
+        {
+            const std::wstring disclosureSource = initiallyOpen ? L"<details open>\n<summary><b>More</b></summary>\nBody text\n</details>\n\n**After**\n"
+                                                      : L"<details>\n<summary><b>More</b></summary>\nBody text\n</details>\n\n**After**\n";
+            const auto syntax = RichSemanticDocumentTests::Parse(disclosureSource, profile);
+            SemanticBuilder builder;
+            builder.Begin(syntax);
+            const auto initial = RichSemanticDocumentTests::Complete(builder, *syntax);
+            const auto summary = std::ranges::find(initial->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
+            Check(summary != initial->Elements().end() && summary->name == L"More" && summary->disclosureExpanded == initiallyOpen &&
+                      initial->Map().Source() == disclosureSource && initial->Map().Display().ends_with(L"After\n") &&
+                      (initial->Map().Display().find(L"Body text") != std::wstring::npos) == initiallyOpen,
+                  "bounded HTML disclosure keeps exact source, authored summary and initial open state");
+            const std::array states{Detail::DisclosureOverride{summary->blockIdentity, ! initiallyOpen}};
+            Detail::SemanticExtensionAccess::BeginWithPresentation(builder, syntax, {}, states);
+            const auto toggled = RichSemanticDocumentTests::Complete(builder, *syntax);
+            const auto next = std::ranges::find(toggled->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
+            Check(next != toggled->Elements().end() && next->disclosureExpanded != initiallyOpen && toggled->Map().Source() == disclosureSource &&
+                      (toggled->Map().Display().find(L"Body text") != std::wstring::npos) != initiallyOpen &&
+                      initial->Map().Source() == disclosureSource, "view-state override reverses presentation without changing immutable source/publication");
+            PreparedSemanticGeometry initialGeometry, toggledGeometry;
+            initialGeometry.Begin(factory.get(), initial, options);
+            toggledGeometry.Begin(factory.get(), toggled, options);
+            Complete(initialGeometry); Complete(toggledGeometry);
+            const auto initialIndex = static_cast<std::size_t>(summary - initial->Elements().begin());
+            const auto toggledIndex = static_cast<std::size_t>(next - toggled->Elements().begin());
+            Check(initialGeometry.ElementBounds(initialIndex).has_value() && toggledGeometry.ElementBounds(toggledIndex).has_value() &&
+                      (initialGeometry.Height() > toggledGeometry.Height()) == initiallyOpen,
+                  "disclosure summary has independently actionable bounds and its body changes actual native layout height");
+            const auto wordPosition = disclosureSource.find(L"More");
+            const auto caret = initialGeometry.SourceCaret(wordPosition);
+            Check(initialGeometry.HitTestSource(caret.x + .1f, caret.y + caret.height * .5f).position == wordPosition,
+                  "summary caret and hit testing retain the exact authored source ACP");
+            std::array<std::size_t, 2u> inkCounts{};
+            for (std::size_t pass = 0u; pass < 2u; ++pass)
+            {
+                target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+                (pass ? toggledGeometry : initialGeometry).Draw(target.get(), ink.get(), ink.get(), {}, 0.f, 100.f);
+                THROW_IF_FAILED(target->EndDraw());
+                THROW_IF_FAILED(bitmap->CopyPixels(nullptr, 1600u, static_cast<UINT>(pixels.size()), pixels.data()));
+                for (std::size_t byte = 0u; byte < pixels.size(); byte += 4u)
+                    inkCounts[pass] += pixels[byte] < 180u;
+            }
+            const auto expandedInk = inkCounts[initiallyOpen ? 0u : 1u];
+            const auto collapsedInk = inkCounts[initiallyOpen ? 1u : 0u];
+            Check(collapsedInk > 10u && expandedInk > collapsedInk + 10u,
+                  "actual offscreen pixels contain a summary in both states and additional visible body ink only when expanded");
+            builder.Begin(syntax);
+            const auto restored = RichSemanticDocumentTests::Complete(builder, *syntax);
+            const auto restoredSummary = std::ranges::find(restored->Elements(), SemanticRole::Disclosure, &SemanticElement::role);
+            Check(restoredSummary != restored->Elements().end() && restoredSummary->disclosureExpanded == initiallyOpen,
+                  "removing view overrides restores authored default even when syntax and native fallbacks are unchanged");
+        }
+    for (const std::wstring disclosureSource : {L"<details><summary></summary>body</details>\n", L"<details><summary>x</summary><summary>y</summary></details>\n",
+                                      L"<details onclick=\"run()\"><summary>x</summary>body</details>\n",
+                                      L"<details><summary>x</summary><p>body</p></details>\n",
+                                      L"<details><summary><a href=\"x\">x</a></summary>body</details>\n"})
+    {
+        const auto literalDisclosure = RichSemanticDocumentTests::Build(disclosureSource, MarkdownProfile::RichMarkdown);
+        Check(literalDisclosure->Map().Source() == disclosureSource && literalDisclosure->Map().Display() == disclosureSource,
+              "unsupported disclosure syntax remains an exact literal HTML leaf");
+    }
+
 }
 inline void HtmlBlockAlignment()
 {

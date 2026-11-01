@@ -1643,6 +1643,15 @@ ordinary nested text styles and links; conflicting nested scripts and embedded
 images or math remain literal. Color fonts require a compatible color-glyph
 target; unavailable support retains the entire affected HTML leaf as source.
 
+A complete HTML block with `<details>` (or `<details open>`) and a nonempty
+first-child `<summary>` presents a native disclosure. Click the summary, use
+Ctrl+Tab then Space, or use UIA ExpandCollapse to reveal or hide its body.
+The bounded form permits native inline text styles in the summary and ordinary
+inline HTML in the body; links and images in the summary, nested block wrappers,
+other attributes and malformed markup stay literal. The state belongs to the
+view and preserves source, selection and undo history. Up to 4,096 changed block
+states are retained and a full source replacement clears them.
+
 Balanced HTML-block `<p>` and `<div>` wrappers accept one quoted `align`
 attribute with `left`, `center` or `right`; physical alignment is preserved in
 left-to-right and right-to-left text. Unsupported values, duplicate attributes

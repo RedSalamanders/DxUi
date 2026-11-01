@@ -279,6 +279,7 @@ struct SemanticBuilder::Preparation
     explicit Preparation(std::shared_ptr<const MarkdownSyntax> syntax,
                          std::size_t sourceBlock,
                          std::span<const MarkdownRange> sourceObjects,
+                         std::span<const Detail::DisclosureOverride> disclosureStates,
                          SoftBreakPolicy softBreakPolicyValue)
         : document(new SemanticDocument(std::move(syntax))),
           output(document->runs_),
@@ -292,6 +293,8 @@ struct SemanticBuilder::Preparation
         document->sourceBlock_ = sourceBlock;
         if (! sourceObjects.empty())
             Extensions().sourceObjects.assign(sourceObjects.begin(), sourceObjects.end());
+        if (! disclosureStates.empty())
+            Extensions().disclosures.assign(disclosureStates.begin(), disclosureStates.end());
         const auto notes = document->syntax_->Footnotes();
         if (std::ranges::any_of(notes, [](const auto& note) { return note.ordinal != 0u; }))
         {
@@ -449,7 +452,8 @@ struct SemanticBuilder::Preparation
             case SemanticRole::Html:
             case SemanticRole::Metadata:
             case SemanticRole::Cell:
-            case SemanticRole::Link: element.name.assign(output.text, element.display.first, element.display.last - element.display.first); break;
+            case SemanticRole::Link:
+            case SemanticRole::Disclosure: element.name.assign(output.text, element.display.first, element.display.last - element.display.first); break;
             case ::DxUi::RichText::SemanticRole::Diagram:
             case ::DxUi::RichText::SemanticRole::Document:
             case ::DxUi::RichText::SemanticRole::Footnote:
@@ -549,6 +553,48 @@ struct SemanticBuilder::Preparation
     }
     void HtmlBlock(const Visit& visit)
     {
+        if (html.wrapper == Detail::NativeHtmlKind::Details)
+        {
+            const auto identity = document->syntax_->Nodes()[visit.node].identity;
+            const auto disclosures = Detail::SemanticExtensionAccess::Disclosures(*document);
+            const auto found = std::lower_bound(disclosures.begin(), disclosures.end(), identity,
+                                                [](const auto& value, auto key) { return value.identity < key; });
+            const bool expanded = found == disclosures.end() || found->identity != identity ? html.disclosureOpen : found->expanded;
+            const auto opening = std::ranges::find_if(html.tags, [](const auto& tag) { return tag.kind == Detail::NativeHtmlKind::Summary && ! tag.closing; });
+            const auto closing = html.tags.begin() + static_cast<std::ptrdiff_t>(opening->mate);
+            const auto summary = Element(SemanticRole::Disclosure, {opening->source.first, closing->source.last}, visit.element, identity);
+            output.Generated(expanded ? L"\u25be " : L"\u25b8 ", opening->source.first, visit.flags, visit.heading);
+            document->elements_[summary].syntaxNode = visit.node;
+            document->elements_[summary].disclosureExpanded = expanded;
+            auto at = opening->last;
+            for (auto tag = opening + 1; tag != closing; ++tag)
+            {
+                if (at < tag->first) Detail::NativeHtmlText(normalized, at, tag->first, output, visit.flags | html.flags, html.heading ? html.heading : visit.heading);
+                HtmlTag(*tag, summary, visit.flags, visit.heading);
+                at = tag->last;
+            }
+            if (at < closing->first) Detail::NativeHtmlText(normalized, at, closing->first, output, visit.flags | html.flags, html.heading ? html.heading : visit.heading);
+            CloseElement(summary);
+            document->elements_[summary].name.erase(0u, 2u); // Generated disclosure glyph is not the authored accessible name.
+            if (expanded)
+            {
+                auto first = closing->last;
+                while (first < html.bodyLast && Detail::HtmlSpace(normalized.text[first])) ++first;
+                if (first < html.bodyLast)
+                {
+                    output.Generated(L"\n", closing->source.last, visit.flags, visit.heading);
+                    at = first;
+                    for (auto tag = closing + 1; tag != html.tags.end() && tag->first < html.bodyLast; ++tag)
+                    {
+                        if (at < tag->first) Detail::NativeHtmlText(normalized, at, tag->first, output, visit.flags | html.flags, html.heading ? html.heading : visit.heading);
+                        HtmlTag(*tag, visit.element, visit.flags, visit.heading);
+                        at = tag->last;
+                    }
+                    if (at < html.bodyLast) Detail::NativeHtmlText(normalized, at, html.bodyLast, output, visit.flags | html.flags, html.heading ? html.heading : visit.heading);
+                }
+            }
+            return;
+        }
         if (html.wrapper == Detail::NativeHtmlKind::Hr)
         {
             output.Emit(L"\ufffc", html.tags.front().source, DisplaySpanKind::Object, visit.flags, visit.heading);
@@ -1671,7 +1717,8 @@ void SemanticBuilder::Begin(std::shared_ptr<const MarkdownSyntax> syntax, std::s
 }
 void SemanticBuilder::BeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyntax> syntax,
                                                std::size_t sourceBlock,
-                                               std::span<const MarkdownRange> sourceObjects)
+                                               std::span<const MarkdownRange> sourceObjects,
+                                               std::span<const Detail::DisclosureOverride> disclosures)
 {
     if (! syntax)
         throw std::invalid_argument("Semantic preparation requires syntax");
@@ -1684,6 +1731,15 @@ void SemanticBuilder::BeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyn
         throw std::length_error("Semantic source/node admission exceeded");
     if (sourceObjects.size() > Detail::SemanticExtensions::MaximumObjects)
         throw std::length_error("Native source fallback capacity exceeded");
+    if (disclosures.size() > 4096u)
+        throw std::length_error("Disclosure view-state capacity exceeded");
+    std::uint64_t previousDisclosure{};
+    for (const auto& value : disclosures)
+    {
+        if (! value.identity || value.identity <= previousDisclosure)
+            throw std::invalid_argument("Disclosure view states must have strictly ordered identities");
+        previousDisclosure = value.identity;
+    }
     std::size_t previousEnd{};
     for (const auto range : sourceObjects)
     {
@@ -1759,7 +1815,8 @@ void SemanticBuilder::BeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyn
             }
     }
     const auto sameFallbacks = [&](const SemanticDocument& document)
-    { return std::ranges::equal(Detail::SemanticExtensionAccess::SourceObjects(document), sourceObjects); };
+    { return std::ranges::equal(Detail::SemanticExtensionAccess::SourceObjects(document), sourceObjects) &&
+             std::ranges::equal(Detail::SemanticExtensionAccess::Disclosures(document), disclosures); };
     if (next_ && next_->document->syntax_ == syntax && next_->document->sourceBlock_ == sourceBlock && sameFallbacks(*next_->document))
         return;
     if (published_ && published_->syntax_ == syntax && published_->sourceBlock_ == sourceBlock && sameFallbacks(*published_))
@@ -1767,7 +1824,7 @@ void SemanticBuilder::BeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyn
         next_.reset();
         return;
     }
-    auto next               = std::make_unique<Preparation>(std::move(syntax), sourceBlock, sourceObjects, softBreakPolicy_);
+    auto next               = std::make_unique<Preparation>(std::move(syntax), sourceBlock, sourceObjects, disclosures, softBreakPolicy_);
     next->document->labels_ = labels_;
     next_.swap(next);
 }

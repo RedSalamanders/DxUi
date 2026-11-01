@@ -494,6 +494,9 @@ struct RichTextEditor::State
     RichText::Detail::RichEditorLayout layout;
     RichText::MarkdownParser markdown;
     RichText::SemanticBuilder semantic;
+    std::vector<RichText::Detail::DisclosureOverride> disclosureStates{0u};
+    std::shared_ptr<const RichText::MarkdownSyntax> disclosureSyntax;
+    std::optional<RichText::SourceSnapshot> disclosureSource;
     RichText::Detail::RichSourceInk sourceInk;
     RichText::Detail::RichSourceGuides sourceGuides;
     RichText::LayoutOptions sourceGuideOptions;
@@ -2115,6 +2118,32 @@ bool RichTextEditor::BeginSemanticSourceEdit(ControlHost& host, const std::share
     SourcePresentationChanged(host);
     return true;
 }
+bool RichTextEditor::SetSemanticDisclosure(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& expected, size_t element, bool expanded)
+{
+    if (! expected || GetAcknowledgedSemanticDocument(host) != expected || ! CanChangeSemanticSourcePresentation(host) || _state->sourceEditing ||
+        element >= expected->Elements().size())
+        return false;
+    const auto& owner = expected->Elements()[element];
+    if (owner.role != RichText::SemanticRole::Disclosure || ! owner.blockIdentity)
+        return false;
+    if (owner.disclosureExpanded == expanded)
+        return true;
+    auto& values = _state->disclosureStates;
+    const auto found = std::lower_bound(values.begin(), values.end(), owner.blockIdentity,
+                                        [](const auto& value, auto key) { return value.identity < key; });
+    if (found != values.end() && found->identity == owner.blockIdentity)
+        found->expanded = expanded;
+    else
+    {
+        if (values.size() == 4096u) return false;
+        values.insert(found, {owner.blockIdentity, expanded});
+    }
+    _state->semantic.Clear();
+    _state->semanticRejected.reset();
+    _state->nativeGeometryRejected.reset();
+    SourcePresentationChanged(host);
+    return true;
+}
 bool RichTextEditor::EndSemanticSourceEdit(ControlHost& host)
 {
     if (! _state->sourceEditing || ! CanChangeSemanticSourcePresentation(host))
@@ -3572,6 +3601,24 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             }
         }
         const auto currentSyntax = GetMarkdownSyntax();
+        if (currentSyntax && state.disclosureSyntax != currentSyntax)
+        {
+            const auto currentSource = Snapshot();
+            if (state.disclosureSource && currentSource.ChangedRangeFrom(*state.disclosureSource).kind == RichText::SourceChangeKind::FullReplacement)
+                state.disclosureStates.clear();
+            if (! state.disclosureStates.empty())
+            {
+                std::vector<uint64_t> identities(0u);
+                for (const auto& node : currentSyntax->Nodes())
+                    if (node.block.kind == RichText::MarkdownBlockKind::HtmlBlock)
+                        identities.push_back(node.identity);
+                std::ranges::sort(identities);
+                std::erase_if(state.disclosureStates, [&](const auto& value)
+                { return ! std::ranges::binary_search(identities, value.identity); });
+            }
+            state.disclosureSyntax = currentSyntax;
+            state.disclosureSource = currentSource;
+        }
         if (state.nativeObjectRejections &&
             ! state.nativeObjectRejections->Matches(
                 nullptr, width, host.GetDpi(), IsRightToLeft(), typography, resources, state.bindingRevision, state.appearanceRevision))
@@ -3685,8 +3732,12 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                     if (! state.semantic.HasPendingPreparation())
                     {
                         richPreparationActive = true;
-                        if (state.nativeObjectRejections)
-                            RichText::Detail::SemanticExtensionAccess::BeginWithNativeFallbacks(state.semantic, syntax, state.nativeObjectRejections->objects);
+                        if (state.nativeObjectRejections || ! state.disclosureStates.empty())
+                            RichText::Detail::SemanticExtensionAccess::BeginWithPresentation(
+                                state.semantic, syntax,
+                                state.nativeObjectRejections ? std::span<const RichText::MarkdownRange>(state.nativeObjectRejections->objects)
+                                                             : std::span<const RichText::MarkdownRange>{},
+                                state.disclosureStates);
                         else
                             state.semantic.Begin(syntax);
                     }
@@ -5654,6 +5705,12 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
             const auto document = _state->keyboardNavigationDocument.lock();
             const auto element  = _state->keyboardNavigationElement;
             if (document && GetAcknowledgedSemanticDocument(host) == document && element < document->Elements().size() &&
+                document->Elements()[element].role == RichText::SemanticRole::Disclosure)
+            {
+                _state->suppressTaskSpace = true;
+                return SetSemanticDisclosure(host, document, element, ! document->Elements()[element].disclosureExpanded);
+            }
+            if (document && GetAcknowledgedSemanticDocument(host) == document && element < document->Elements().size() &&
                 document->Elements()[element].role == RichText::SemanticRole::Task &&
                 (Editable() || (IsEnabled() && _state->taskTogglePolicy == RichTextTaskTogglePolicy::AlwaysInteractive)))
             {
@@ -5727,7 +5784,7 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                     for (std::size_t element = 0u; element < document->Elements().size(); ++element)
                     {
                         const auto role = document->Elements()[element].role;
-                        if (role != RichText::SemanticRole::FootnoteBacklink &&
+                        if (role != RichText::SemanticRole::FootnoteBacklink && role != RichText::SemanticRole::Disclosure &&
                             (role != RichText::SemanticRole::Task || (! Editable() && _state->taskTogglePolicy != RichTextTaskTogglePolicy::AlwaysInteractive)))
                             continue;
                         if (first == RichText::MarkdownNoNode)
@@ -6236,6 +6293,13 @@ bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool ri
                 return SetScrollOffsetDip(info->offsetDip + (point.y < thumb.top ? -step : step));
             }
         }
+        if (! ModifiersContainCtrl(modifiers) && ! ModifiersContainShift(modifiers) && ! ModifiersContainAlt(modifiers))
+            if (const auto document = GetAcknowledgedSemanticDocument(host))
+                for (std::size_t index = 0u; index < document->Elements().size(); ++index)
+                    if (document->Elements()[index].role == RichText::SemanticRole::Disclosure)
+                        if (const auto bounds = GetSemanticElementBounds(host, index); bounds && point.x >= bounds->left && point.x <= bounds->right &&
+                            point.y >= bounds->top && point.y <= bounds->bottom)
+                            return SetSemanticDisclosure(host, document, index, ! document->Elements()[index].disclosureExpanded);
         if (! ModifiersContainCtrl(modifiers) && ! ModifiersContainShift(modifiers) && ! ModifiersContainAlt(modifiers) && _state->onCodeCopyRequested &&
             _state->appearance.markdownPresentation == RichText::MarkdownPresentationStyle::Subtle)
             if (const auto document = GetAcknowledgedSemanticDocument(host); document && ! document->Syntax()->SourceRegion())
