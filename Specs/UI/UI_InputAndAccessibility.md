@@ -1540,3 +1540,8 @@ revision, selection and owner/focus/composition policy before committing an
 admitted replacement. The synchronous edit requires valid source boundaries and
 borrows replacement text only for the call; stale or invalid work MUST NOT
 change source or history.
+
+ScrollPanel commits its offset before notifying the scroll observer. A standard
+exception from that callback is contained at its noexcept boundary and stops the
+older continuation; the committed offset remains. The callback may replace its
+subscription or retire the panel without invalidating the retained call storage.

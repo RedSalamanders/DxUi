@@ -91,3 +91,36 @@ desktop, which CI runs) and the three ARM64 builds; each oracle fails against ma
 ## Current-source disposition — 1 November 2026
 
 The merged historical provider and caret fixes remain source-specific. The wider application-delegate audit below still needs per-path revalidation against current lifetime guards and tests; a shared test may cover overlapping paths, but an unreviewed callback is not a pass. Branch retention and consumer adoption remain separate.
+
+## Delegate continuation audit — 1 November 2026
+
+The review below is bounded to the named Grid/Tree and retained-control callback
+continuations at the `3257a8d2` baseline; it is not a proof for every future
+callback, model getter or host transition. No historical receipt changes source.
+
+- Grid group-layout and pointer/keyboard group toggles revalidate the borrowed
+  model/delegate binding with `GridModelQueryGuard::ResumeAfterCallback`; the
+  checkbox path checks binding after its delegate and data publication. Existing
+  `DxUi.Tests.Grid.cpp` cases include delegate replacement, group publication,
+  checkbox retirement and group-layout reentry; reuse them on the integrated
+  candidate instead of duplicating their fixture.
+- Grid selection/focus and Tree selection/invoke paths use the shared borrowed
+  model guard after application callbacks. Model getters use the stricter current
+  revision/geometry check; explicitly resuming a callback is not a general waiver
+  for stale values. Their existing replacement tests remain required at final source.
+- Button, Toggle, RadioButtons, PageIndicator, TagPicker, MenuBar, TabControl,
+  ColorSwatch and ScrollPanel callbacks were inspected at their immediate
+  continuation sites. Paths ending at the callback have no later owner access;
+  continuing paths retain callable storage and use their local lifetime or
+  identity guards. Host rebinding, deeper child/model traversal and future callback
+  additions still need their own case-specific review; this is not a blanket
+  claim that all control reentrancy is safe.
+- This candidate fixes two further sites: a throwing ScrollPanel scroll observer
+  is contained after its offset commits; Slider release rechecks the original
+  drag generation, host and capture after its preview callback, leaving a newer
+  capture or restarted drag intact. Directed tests cover callback failure with
+  owner retirement, capture transfer and same-slider restart. They are compiled
+  but not yet executed or qualified at final source.
+
+The checklist above remains open for integration review and final-source tests;
+compatibility-branch and consumer ownership are unchanged.

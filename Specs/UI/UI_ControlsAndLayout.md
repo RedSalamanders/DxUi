@@ -521,7 +521,9 @@ Slider 48 DIP of cross-axis room to show the full touch halo and keep neighborin
 viewport or host edge clips both the halo and the control's rendering. Popup and menu overlay layers paint above the halo.
 An acknowledgement through `SetValue` snaps and stops position animation even when it equals the accepted target.
 Non-finite values, range limits and steps leave the previous valid state unchanged. A range whose span overflows
-also leaves the prior range intact. Off-center thumb grabs retain the pointer offset, continue outside bounds under
+also leaves the prior range intact. A release that invokes a preview callback revalidates its drag generation, host and capture owner before committing. A callback that transfers capture cancels only the old draft; a canceled and restarted drag retains its own capture and release.
+
+Off-center thumb grabs retain the pointer offset, continue outside bounds under
 capture, and restore the initial value on cancellation without a later release committing it.
 
 Each control also requires accurate usage documentation in `docs/controls.md`. Code changes review affected docs

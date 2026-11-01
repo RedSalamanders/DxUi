@@ -6791,6 +6791,7 @@ bool Slider::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButto
     {
         return true;
     }
+    ++_dragEpoch;
     _dragInitialValue          = _value;
     _dragging                  = true;
     _touchDragging             = host.GetPointerDevice() == PointerDevice::Touch;
@@ -6839,9 +6840,18 @@ bool Slider::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
 
     const auto life                 = GetLifetimeToken();
     ControlHost* const originalHost = GetHost();
+    const auto dragEpoch = _dragEpoch;
     UpdateValueFromPoint(host, point);
-    if (life.expired())
+    // The preview callback may cancel, restart, detach or transfer capture.
+    // An older release must never end the newer gesture.
+    if (life.expired() || GetHost() != originalHost || _dragEpoch != dragEpoch || ! _dragging)
         return true;
+    if (ControlCaptureAccess::GestureOwner(host) != this)
+    {
+        OnCaptureLost(host);
+        return true;
+    }
+    ++_dragEpoch;
     _dragging                  = false;
     _touchDragging             = false;
     _dragThumbPointerOffsetDip = 0.0f;
@@ -6929,6 +6939,7 @@ void Slider::OnCaptureLost(ControlHost& host)
 {
     if (_dragging)
     {
+        ++_dragEpoch;
         _dragging                  = false;
         _touchDragging             = false;
         _dragThumbPointerOffsetDip = 0.0f;
@@ -10876,7 +10887,10 @@ bool ScrollPanel::NotifyScrollChanged(float previousOffsetDip) noexcept
     if (_scrollOffsetDip != previousOffsetDip && _onScrollChanged)
     {
         const auto onScrollChanged = _onScrollChanged;
-        (*onScrollChanged)(_scrollOffsetDip);
+        // The scroll has committed; a standard application exception stops this
+        // continuation without escaping the noexcept setter/input boundary.
+        if (! TryControlCallback([&] { (*onScrollChanged)(_scrollOffsetDip); }))
+            return false;
     }
     return ! lifetime.expired();
 }

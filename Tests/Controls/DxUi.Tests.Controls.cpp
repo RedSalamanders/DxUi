@@ -603,6 +603,87 @@ void TestScrollPanelThumbGutterDragThroughWindowHost()
     Require(handled, "scroll panel handles captured thumb gutter mouse-up");
 }
 
+void TestSliderReleasePreservesCaptureTransferredByPreview()
+{
+    using namespace DxUi;
+    WindowHost host;
+    auto root = std::make_unique<Panel>();
+    auto* slider = root->AddChild<Slider>();
+    auto* replacement = root->AddChild<Button>(L"replacement");
+    slider->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 40.0f));
+    slider->SetValue(50.0);
+    host.SetRoot(std::move(root));
+    bool armed = false;
+    size_t previews = 0u, cancellations = 0u, commits = 0u;
+    slider->SetOnChange([&](SliderChange change)
+    {
+        if (change.phase == SliderChangePhase::Preview && armed)
+        {
+            ++previews;
+            armed = false;
+            host.CaptureMouse(replacement);
+        }
+        else if (change.phase == SliderChangePhase::Cancel) ++cancellations;
+        else if (change.phase == SliderChangePhase::Commit) ++commits;
+    });
+    Require(slider->OnMouseDown(host, D2D1::Point2F(120.0f, 20.0f), false, 0u), "slider starts the original captured drag");
+    armed = true;
+    Require(slider->OnMouseUp(host, D2D1::Point2F(200.0f, 20.0f), false, 0u), "old release is consumed after preview transfer");
+    Require(previews == 1u && cancellations == 1u && commits == 0u && host.GetCapturedControl() == replacement && slider->GetValue() == 50.0,
+            "preview capture transfer cancels the old draft without releasing or committing the new gesture");
+}
+void TestSliderOldReleaseCannotFinishRestartedDrag()
+{
+    using namespace DxUi;
+    WindowHost host;
+    auto root = std::make_unique<Panel>();
+    auto* slider = root->AddChild<Slider>();
+    slider->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 40.0f));
+    slider->SetValue(50.0);
+    host.SetRoot(std::move(root));
+    bool restart = false;
+    size_t cancellations = 0u, commits = 0u;
+    slider->SetOnChange([&](SliderChange change)
+    {
+        if (change.phase == SliderChangePhase::Preview && restart)
+        {
+            restart = false;
+            slider->OnCaptureLost(host);
+            static_cast<void>(slider->OnMouseDown(host, D2D1::Point2F(120.0f, 20.0f), false, 0u));
+        }
+        else if (change.phase == SliderChangePhase::Cancel) ++cancellations;
+        else if (change.phase == SliderChangePhase::Commit) ++commits;
+    });
+    Require(slider->OnMouseDown(host, D2D1::Point2F(120.0f, 20.0f), false, 0u), "original slider drag starts");
+    restart = true;
+    Require(slider->OnMouseUp(host, D2D1::Point2F(200.0f, 20.0f), false, 0u), "original release triggers cancellation and restart");
+    Require(cancellations == 1u && commits == 0u && host.GetCapturedControl() == slider,
+            "the reentrant replacement drag retains capture without an old commit");
+    Require(slider->OnMouseUp(host, D2D1::Point2F(120.0f, 20.0f), false, 0u) && commits == 1u && ! host.GetCapturedControl(),
+            "the replacement drag receives its own release and commit");
+}
+void TestScrollPanelThrowingScrollCallbackIsContained()
+{
+    using namespace DxUi;
+    WindowHost host;
+    auto root = std::make_unique<Panel>();
+    auto* scroll = root->AddChild<ScrollPanel>();
+    scroll->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 100.0f));
+    scroll->SetContentHeight(500.0f);
+    host.SetRoot(std::move(root));
+    size_t calls = 0u;
+    scroll->SetOnScrollChanged([&](float value)
+    {
+        ++calls;
+        Require(value == 32.0f, "callback observes the committed scroll offset");
+        throw std::runtime_error("synthetic scroll observer failure");
+    });
+    scroll->SetScrollOffset(32.0f);
+    Require(calls == 1u && scroll->GetScrollOffset() == 32.0f, "throwing callback leaves its committed scroll offset intact");
+    scroll->SetOnScrollChanged([&](float) { ++calls; host.SetRoot({}); throw std::runtime_error("synthetic retired observer failure"); });
+    scroll->SetScrollOffset(48.0f);
+    Require(calls == 2u && ! host.GetRoot(), "a callback may retire its owner and throw without a stale continuation");
+}
 void TestScrollPanelScrollCallbackCanReplaceItsOwnCallable()
 {
     using namespace DxUi;
@@ -3589,6 +3670,9 @@ void RunControlTests()
     DXUI_RUN_TEST(TestToggleStateLabelsFollowCheckedState);
     DXUI_RUN_TEST(TestFocusRingPaintPathsHandleMissingDeviceContext);
     DXUI_RUN_TEST(TestScrollPanelThumbGutterDragThroughWindowHost);
+    DXUI_RUN_TEST(TestSliderOldReleaseCannotFinishRestartedDrag);
+    DXUI_RUN_TEST(TestSliderReleasePreservesCaptureTransferredByPreview);
+    DXUI_RUN_TEST(TestScrollPanelThrowingScrollCallbackIsContained);
     DXUI_RUN_TEST(TestScrollPanelScrollCallbackCanReplaceItsOwnCallable);
     DXUI_RUN_TEST(TestScrollPanelScrollDispatchDoesNotCopyCallbackTargets);
     DXUI_RUN_TEST(TestScrollPanelScrollbarTrackCallbackCanDestroyItsOwner);

@@ -1,0 +1,1 @@
+- Preserve newer slider capture and drag gestures across reentrant preview callbacks, and contain throwing scroll observers after committing their offsets.
