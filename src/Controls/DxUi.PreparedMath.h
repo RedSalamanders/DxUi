@@ -618,7 +618,7 @@ class PreparedMath final
                 const auto& baseNode = node.children[0u];
                 const bool limitsAboveBelow =
                     (baseNode.limits == MathLimits::AboveBelow) || (baseNode.limits == MathLimits::Automatic && baseNode.displayLimits && box.display);
-                if (limitsAboveBelow && baseNode.atomClass == MathAtomClass::Operator)
+                if (limitsAboveBelow)
                 {
                     const float scale = box.size / font;
                     box.extent        = {std::max({base.width, sub.width, super.width}) + box.size * .1f,
@@ -844,7 +844,7 @@ class PreparedMath final
             const auto& baseNode = node.children[0u];
             const bool limitsAboveBelow =
                 (baseNode.limits == MathLimits::AboveBelow) || (baseNode.limits == MathLimits::Automatic && baseNode.displayLimits && box.display);
-            if (limitsAboveBelow && baseNode.atomClass == MathAtomClass::Operator)
+            if (limitsAboveBelow)
             {
                 const float center           = x + box.extent.width / 2.f;
                 const float baseX            = center - base.width / 2.f;

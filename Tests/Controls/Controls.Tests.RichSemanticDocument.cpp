@@ -10,6 +10,7 @@
 #include "Support.Tests.SemanticSourceBlock.h"
 #include <DxUi/RichMath.h>
 #include <iterator>
+#include <tuple>
 #include <type_traits>
 
 namespace
@@ -151,6 +152,18 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
     const auto upright = prepare(L"\\mathrm{x}");
     Require(upright->GlyphLayouts().size() == 1u && ! upright->GlyphLayouts()[0u].italic, "upright style overrides the ordinary-variable italic metadata");
 
+    for (const auto& [source, annotation, above] :
+         {std::tuple{L"\\overset{a}{=}", L"a", true}, std::tuple{L"\\underset{b}{=}", L"b", false}, std::tuple{L"\\stackrel{c}{=}", L"c", true}})
+    {
+        const auto arranged = prepare(source);
+        const auto& glyphs  = arranged->GlyphLayouts();
+        const auto label = findText(glyphs, annotation), base = findText(glyphs, L"=");
+        Require(label != glyphs.end() && base != glyphs.end(), "stacked notation shapes its base and annotation");
+        const auto labelBaseline = label->origin.y + label->extent.above;
+        const auto baseBaseline  = base->origin.y + base->extent.above;
+        Require(above ? labelBaseline < baseBaseline : labelBaseline > baseBaseline,
+                "over and under annotations are placed on the requested side of their base");
+    }
     const auto binary = prepare(L"x+y"), ordinaryPlus = prepare(L"x\\mathord{+}y"), unary = prepare(L"+x");
     const auto& binaryGlyphs   = binary->GlyphLayouts();
     const auto& ordinaryGlyphs = ordinaryPlus->GlyphLayouts();

@@ -283,6 +283,22 @@ class Parser
                     return binomial;
                 return Make(MathKind::Style, name == L"dbinom" ? L"displaystyle" : L"textstyle", {std::move(binomial)});
             }
+            if (name == L"overset" || name == L"underset" || name == L"stackrel")
+            {
+                auto annotation = Atom(depth + 1);
+                auto base       = Atom(depth + 1);
+                if (base.kind == MathKind::Row && base.children.size() == 1u)
+                    base.atomClass = base.children[0u].atomClass;
+                if (name == L"stackrel")
+                    base.atomClass = MathAtomClass::Relation;
+                base.limits = MathLimits::AboveBelow;
+                MathNode sub, super;
+                if (name == L"underset")
+                    sub = std::move(annotation);
+                else
+                    super = std::move(annotation);
+                return Make(MathKind::Scripts, L"", {std::move(base), std::move(sub), std::move(super)});
+            }
             if (name == L"sqrt")
             {
                 Space();

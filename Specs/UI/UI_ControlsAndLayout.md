@@ -2067,6 +2067,7 @@ spacing, and a run of primes becomes a superscript of the preceding atom. A
 second explicit superscript on that atom is rejected with the original source.
 Math in a heading uses that run's heading size, and a caret beside a formula
 uses the surrounding text line's DirectWrite caret geometry.
+Native `overset`, `underset` and `stackrel` center bounded annotations above or below their base while retaining its atom class; `stackrel` is relational.
 
 Limits are 4,096 source units, 512 syntax nodes, nesting 24, 16 rows/columns and 128
 cells per formula, 4,096 total mathematical records and 128 combined native objects.

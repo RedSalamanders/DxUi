@@ -1366,7 +1366,7 @@ selection and history remain authoritative; one successful formula owns one atom
 native display position and a `SemanticRole::Math` child named with its TeX notation.
 
 `RichMath.h` exposes the data-only `ParseMath` model. A hash-pinned KaTeX 0.16.11 symbol source supplies 411 explicit alphabetic, one-codepoint commands with native atom classes; the four vertical delimiter commands retain the paired-delimiter glyph contract. Dynamic definitions, accents, operators and spacing remain handled only by the explicit native grammar. Supported notation includes
-fractions (`frac`, `dfrac`, `tfrac`), parenthesized two-row binomials (`binom`, `dbinom`, `tbinom`), indexed roots, simultaneous scripts, Greek and
+fractions (`frac`, `dfrac`, `tfrac`), parenthesized two-row binomials (`binom`, `dbinom`, `tbinom`), indexed roots, simultaneous scripts, above/below annotations (`overset`, `underset`, `stackrel`), Greek and
 operator symbols, named functions, text/operator names, roman/bold/italic and
 blackboard/script alphabets, accents, scalable paired delimiters, matrices, cases,
 aligned and gathered rows. Matrix rows use `\\` and cells use `&`; rows must have
