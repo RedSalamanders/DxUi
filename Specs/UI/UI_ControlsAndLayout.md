@@ -1459,6 +1459,7 @@ part of retained layout/reuse keys and require owner preparation before drawing.
 | Form | Native behavior and validation |
 | --- | --- |
 | b, strong, i, em, u, s, del, code, span, kbd, ins | Attribute-free nested styles: bold, italic, underline, strike, code font or a transparent span. Keyboard text uses the code font; inserted text is underlined. |
+| mark | Attribute-free highlighted text, combinable with the nested styles above. Source delimiters remain hidden with exact source ownership. |
 | a | Exactly one quoted href and optional quoted title, with no other attributes. Destination/title references are decoded; the resolved label is an inert underlined link. |
 | br, br/, br / | Attribute-free void break, mapped atomically from its complete raw tag to one native LF. A closing br tag or another self-closing style tag is unsupported. |
 | p, div, h1-h6, pre | At most one outer wrapper in an HTML block, outside which only whitespace is permitted. Paragraph/heading/code presentation uses existing native styles; nested/sibling block wrappers are unsupported. |
@@ -2068,6 +2069,10 @@ as quotes and code blocks. Inline chips retain source-derived rectangles during
 preparation; painting adds no layout or range mapping. At more than 16,384 chip
 rectangles, the generation omits all cosmetic chips while retaining code font,
 source, selection and accessible content. Header fill is independent of body rows.
+HTML `mark` shares the bounded retained inline-surface geometry in either Markdown
+presentation. Its theme-resolved neutral fill keeps ordinary text ink; high
+contrast outlines the marked range instead. The selected-text pass uses the
+resolved selection surface. No source markup is rewritten.
 The new style's runtime and consumer qualification is tracked in the
 [active plan](../Plans/WIP/SubtleMarkdownPresentation_2026-10-27.md); this contract
 does not establish completed platform or performance qualification.

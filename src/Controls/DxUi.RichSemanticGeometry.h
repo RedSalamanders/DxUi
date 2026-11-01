@@ -115,6 +115,7 @@ public:
     std::uint64_t Revision() const noexcept;
     float Height() const noexcept;
     float Width() const noexcept;
+    bool HasMarkedText() const noexcept;
     std::size_t BoxCount() const noexcept;
     std::size_t ReusedBoxCount() const noexcept;
     bool HasNativeObjects() const noexcept;

@@ -1505,7 +1505,8 @@ owner preparation.
 
 The native HTML presentation also hides complete `<!-- ... -->` comments,
 without interpreting their bodies, and accepts `kbd` as monospace text and `ins`
-as underlined inserted text. Source view, source selection and clipboard copy
+as underlined inserted text. Attribute-free `mark` retains a theme surface,
+including nested emphasis; high contrast outlines the range. Source view, source selection and clipboard copy
 retain every original character. Other unsupported HTML remains literal for the
 complete leaf; no DOM or script execution is involved.
 

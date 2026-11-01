@@ -77,7 +77,7 @@ inline void CheckGraph(const SemanticDocument& document)
     for (const auto& run : document.Runs())
     {
         Check(styled <= map.Display().size() && run.start == styled && run.length > 0u && run.length <= map.Display().size() - styled &&
-                  ! (run.flags & ~(Bold | Italic | Code | Strike | Underline | Link)) && run.heading <= 6u,
+                  ! (run.flags & ~(Bold | Italic | Code | Strike | Underline | Link | Marked)) && run.heading <= 6u,
               "semantic styles partition the complete display");
         styled += run.length;
     }
@@ -277,6 +277,19 @@ inline void NativeHtmlAndLinkPresentation()
             return 0u;
         };
         Check(flags(4u) == Code && flags(6u) == Underline, "keyboard and inserted aliases retain monospace and underline styles");
+        const auto marked = Build(L"one <mark>x <b>y</b></mark> z\n", profile);
+        Check(marked->Map().Display() == L"one x y z\n", "marked HTML text retains its exact nested label and source");
+        bool plainMarked = false, strongMarked = false, followingPlain = false;
+        for (const auto& run : marked->Runs())
+        {
+            plainMarked    = plainMarked || (run.start <= 4u && 4u < run.start + run.length && run.flags == Marked);
+            strongMarked   = strongMarked || (run.start <= 6u && 6u < run.start + run.length && run.flags == (Marked | Bold));
+            followingPlain = followingPlain || (run.start <= 8u && 8u < run.start + run.length && run.flags == Regular);
+        }
+        Check(plainMarked && strongMarked && followingPlain, "marked style combines with nested emphasis and ends at its matching close");
+        Check(Build(L"one <mark onclick='x'>bad</mark>\n", profile)->Map().Display() == L"one <mark onclick='x'>bad</mark>\n",
+              "marked text never admits active or unknown attributes");
+        CheckGraph(*marked);
         CheckGraph(*comments);
         CheckGraph(*aliases);
     }

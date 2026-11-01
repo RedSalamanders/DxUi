@@ -226,7 +226,7 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
     for (const auto& run : projection.runs)
     {
         if (run.start > projection.text.size() || run.length > projection.text.size() - run.start || run.heading > 6 ||
-            (run.flags & ~(Bold | Italic | Code | Strike | Underline | Link)) || ! IsEditBoundary(projection.text, run.start) ||
+            (run.flags & ~(Bold | Italic | Code | Strike | Underline | Link | Marked)) || ! IsEditBoundary(projection.text, run.start) ||
             ! IsEditBoundary(projection.text, run.start + run.length))
             throw std::invalid_argument("Invalid rich-text style range");
     }
