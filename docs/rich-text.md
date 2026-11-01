@@ -159,7 +159,8 @@ in the source prefix. CRLF counts as one line break.
 `GetPreparedCaretWordSourceRanges(host)` maps the current displayed word to
 source ranges using the shared word and grapheme policies. It can return several
 disjoint ranges around hidden markup, or an empty range list for generated text;
-stale layout returns no result. Source-mode projection may require a bounded copy.
+stale layout returns no result. It examines a local prepared-display window,
+expanding to cover unusually long words or grapheme clusters.
 
 Supplying `RichTextContextMenuLabels` opts into the default edit menu. A consumer
 context callback takes precedence. HWND-less embedded consumers can obtain the

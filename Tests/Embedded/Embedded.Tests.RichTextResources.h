@@ -60,6 +60,39 @@ static void TestRichLabelWakeupAndRetirement(GraphicsFixture& gpu)
     Check(state.retired && ! view.Controls().GetRoot(), "label wakeup callback can retire the editor before the setter returns");
 }
 
+static void TestRichPreparedWordFailureAtomicity(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create graphics for caret-word fault tests");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "attach caret-word fault host");
+    auto root = std::make_unique<RichTextEditor>(L"**word**");
+    auto* editor = root.get();
+    editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
+    editor->SetMarkdownRenderingEnabled(true);
+    view.Controls().SetRoot(std::move(root));
+    for (const auto mode : {RichText::ViewMode::Source, RichText::ViewMode::Rich})
+    {
+        editor->SetViewMode(mode);
+        editor->SetSelection({3u, 3u});
+        Hr(PrepareRichEmbeddedContent(view, 320u, 120u), "prepare caret-word fault fixture");
+        const auto source = editor->Snapshot();
+        const auto selection = editor->GetSelection();
+        const auto revision = editor->Revision();
+        std::optional<std::vector<RichText::MarkdownRange>> failed;
+        {
+            const auto previous = failAllocationAfter;
+            const auto restore = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
+            failAllocationAfter = 0u;
+            failed = editor->GetPreparedCaretWordSourceRanges(view.Controls());
+        }
+        Check(! failed && editor->Snapshot().IsSameRevision(source) && editor->GetSelection() == selection && editor->Revision() == revision,
+              "caret-word allocation refusal preserves source, selection and revision in each presentation mode");
+        Check(editor->GetPreparedCaretWordSourceRanges(view.Controls()).has_value(), "caret-word query succeeds after allocation recovery");
+    }
+}
+
 static void TestRichInputAllocationFailureAtomicity()
 {
     using namespace DxUi;

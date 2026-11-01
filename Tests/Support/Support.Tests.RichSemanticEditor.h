@@ -2,6 +2,7 @@
 #include "Controls/DxUi.PreparedMath.h"
 #include "Controls/DxUi.RichSemanticGeometry.h"
 #include "Controls/DxUi.RichSourceWindow.h"
+#include "Controls/DxUi.RichSourceWindow.h"
 #include "Support.Tests.CountingWriteFactory.h"
 #include "Support.Tests.RichSemantic.h"
 #include <DxUi/DxUi.h>
@@ -229,6 +230,43 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     const auto sourceWord = editor->GetPreparedCaretWordSourceRanges(host);
     Check(sourceWord && sourceWord->size() == 1u && (*sourceWord)[0] == MarkdownRange{6u, 10u},
           "source caret word maps past CRLF without including the separator");
+    editor->SetMarkdownRenderingEnabled(false);
+    editor->SetViewMode(ViewMode::Rich);
+    editor->SetText(L"he**ll**o");
+    prepare();
+    editor->SetSelection({4u, 4u});
+    const auto prototypeWord = editor->GetPreparedCaretWordSourceRanges(host);
+    Check(prototypeWord && prototypeWord->size() == 3u && (*prototypeWord)[0] == MarkdownRange{0u, 2u} &&
+              (*prototypeWord)[1] == MarkdownRange{4u, 6u} && (*prototypeWord)[2] == MarkdownRange{8u, 9u},
+          "prototype rich projection preserves disjoint word source around hidden markers");
+    std::wstring manyWords(60000u, L' ');
+    for (size_t at = 0u; at < manyWords.size(); at += 5u)
+        manyWords.replace(at, 4u, L"word");
+    size_t reads = 0u;
+    const auto localWord = DxUi::RichText::Detail::PreparedDisplayWordRange(manyWords.size(), 30002u, [&](size_t at) { ++reads; return manyWords[at]; });
+    Check(localWord.first == 30000u && localWord.last == 30004u && reads < 2048u,
+          "ordinary words in a long prepared display require bounded local reads");
+    std::wstring giantWord(60000u, L'x');
+    size_t giantReads = 0u;
+    const auto giant = DxUi::RichText::Detail::PreparedDisplayWordRange(giantWord.size(), 30000u, [&](size_t at) { ++giantReads; return giantWord[at]; });
+    Check(giant.first == 0u && giant.last == giantWord.size() && giantReads < giantWord.size() * 4u,
+          "a document-wide word expands to its complete source without repeated full scans");
+    const std::wstring boundaryText = std::wstring(300u, L'x') + L" C:\\alpha\\beta\r\na\u0301 \U0001f469\u200d\U0001f4bb end";
+    for (const auto position : {size_t{0u}, size_t{127u}, size_t{300u}, size_t{302u}, size_t{305u}, size_t{311u},
+                                boundaryText.find(L'a', 310u), boundaryText.find(L"\U0001f469"), boundaryText.size()})
+    {
+        const auto expected = GetEnclosingAccessibilityTextUnitSpan(boundaryText, position, TextUnit_Word);
+        auto first = expected.start, last = expected.end;
+        if (first < last)
+        {
+            first = GetEnclosingAccessibilityTextUnitSpan(boundaryText, first, TextUnit_Character).start;
+            last = GetEnclosingAccessibilityTextUnitSpan(boundaryText, last - 1u, TextUnit_Character).end;
+        }
+        const auto actual = DxUi::RichText::Detail::PreparedDisplayWordRange(boundaryText.size(), position, [&](size_t at) { return boundaryText[at]; });
+        Check(actual.first == first && actual.last == last, "windowed word boundaries agree with the canonical full-display Unicode oracle");
+    }
+    std::cout << "prepared word displayUnits=" << manyWords.size() << " localReads=" << reads << " giantReads=" << giantReads << '\n';
+    editor->SetMarkdownRenderingEnabled(true);
     editor->SetViewMode(ViewMode::Rich);
     editor->SetText(L"One one only");
     const auto searchSource  = editor->Snapshot();

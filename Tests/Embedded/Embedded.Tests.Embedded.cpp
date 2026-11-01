@@ -1635,6 +1635,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichDocumentSameContentAllocationBudget();
     TestRichDocumentAllocationFailureAtomicity();
     TestRichLabelWakeupAndRetirement(gpu);
+    TestRichPreparedWordFailureAtomicity(gpu);
     TestRichDefaultMenuModelAllocationFailureAtomicity();
     TestReadOnlyParsedSnapshotAllocationFailures();
     TestRichSourceChangeAllocationBudget();

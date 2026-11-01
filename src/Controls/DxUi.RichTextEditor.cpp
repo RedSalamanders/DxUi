@@ -2267,14 +2267,8 @@ std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownComma
         else if (flag)
             no = true;
     }
-<<<<<<< HEAD
-    result.headingLevel                = mixedHeading ? 0u : heading;
-    _state->lastListStateAncestorSteps = 0u;
-    result.listKind                    = UniformListKind(*document->Syntax(), first, last, _state->lastListStateAncestorSteps);
-=======
     result.headingLevel = mixedHeading ? 0u : heading;
     result.listKind = UniformListKind(*document->Syntax(), first, last, _state->lastListStateAncestorSteps);
->>>>>>> c67fb31c (Reset list-state work for early query returns)
     if (request.command == MarkdownCommand::SetHeading)
     {
         result.active = seen && ! mixedHeading && heading == request.headingLevel;
@@ -3637,34 +3631,36 @@ std::optional<std::vector<RichText::MarkdownRange>> RichTextEditor::GetPreparedC
         if (! LayoutIsCurrent(host))
             return std::nullopt;
         const auto& projection = _state->layout;
-        const auto caret = projection.ToDisplay(GetSelection().caret);
         const auto source = Snapshot();
-        const auto resolve = [&](std::wstring_view display, const RichText::SourceDisplayMap* map)
-            -> std::optional<std::vector<RichText::MarkdownRange>>
-        {
-            const auto word = GetEnclosingAccessibilityTextUnitSpan(display, caret, TextUnit_Word);
-            if (word.start >= word.end)
-                return std::optional<std::vector<RichText::MarkdownRange>>(std::in_place, 0u);
-            const auto first = GetEnclosingAccessibilityTextUnitSpan(display, word.start, TextUnit_Character).start;
-            const auto last = GetEnclosingAccessibilityTextUnitSpan(display, word.end - 1u, TextUnit_Character).end;
-            if (map)
-            {
-                const auto ranges = map->SourceRanges({first, last});
-                for (const auto range : ranges)
-                    if (! source.IsBoundary(range.first) || ! source.IsBoundary(range.last))
-                        return std::nullopt;
-                return std::optional<std::vector<RichText::MarkdownRange>>(std::in_place, ranges.begin(), ranges.end());
-            }
-            const auto sourceFirst = projection.ToSource(first);
-            const auto sourceLast = projection.ToSource(last, true);
-            if (sourceFirst > sourceLast || ! source.IsBoundary(sourceFirst) || ! source.IsBoundary(sourceLast))
-                return std::nullopt;
-            return std::optional<std::vector<RichText::MarkdownRange>>(std::in_place, 1u, RichText::MarkdownRange{sourceFirst, sourceLast});
-        };
+        const auto displayLength = projection.DisplayLength();
+        const auto displayCaret = projection.ToDisplay(GetSelection().caret);
+        const auto word = RichText::Detail::PreparedDisplayWordRange(displayLength, displayCaret, [&](size_t index) { return projection.DisplayUnit(index); });
+        if (word.first == word.last)
+            return std::optional<std::vector<RichText::MarkdownRange>>(std::in_place, 0u);
         if (const auto* semantic = projection.SemanticGeometry())
-            return resolve(semantic->Document().Map().Display(), &semantic->Document().Map());
-        const std::wstring display = projection.DisplayText();
-        return resolve(display, nullptr);
+        {
+            const auto ranges = semantic->Document().Map().SourceRanges({word.first, word.last});
+            for (const auto range : ranges)
+                if (! source.IsBoundary(range.first) || ! source.IsBoundary(range.last))
+                    return std::nullopt;
+            return std::optional<std::vector<RichText::MarkdownRange>>(std::in_place, ranges.begin(), ranges.end());
+        }
+        std::vector<RichText::MarkdownRange> ranges(0u);
+        for (size_t index = word.first; index < word.last; ++index)
+        {
+            const auto first = projection.ToSource(index);
+            const auto last = projection.ToSource(index + 1u, true);
+            if (first > last || (! ranges.empty() && first < ranges.back().first))
+                return std::nullopt;
+            if (! ranges.empty() && first <= ranges.back().last)
+                ranges.back().last = std::max(ranges.back().last, last);
+            else if (first != last)
+                ranges.push_back({first, last});
+        }
+        for (const auto range : ranges)
+            if (! source.IsBoundary(range.first) || ! source.IsBoundary(range.last))
+                return std::nullopt;
+        return std::optional<std::vector<RichText::MarkdownRange>>(std::in_place, ranges.begin(), ranges.end());
     }
     catch (const std::exception&)
     {

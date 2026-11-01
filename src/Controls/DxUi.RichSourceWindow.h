@@ -2,6 +2,7 @@
 #include "DxUi.Internal.h"
 #include "DxUi.RichProjectionWindow.h"
 #include "DxUi.TextElements.h"
+#include <DxUi/AccessibilityTextUnits.h>
 #include <DxUi/RichDocument.h>
 
 // A proven ASCII-to-ASCII break is independent of any preceding Unicode 17
@@ -12,6 +13,51 @@ namespace DxUi::RichText::Detail
 inline bool StableSourceBreak(wchar_t previous, wchar_t current) noexcept
 {
     return previous <= 0x7f && current <= 0x7f && ! (previous == L'\r' && current == L'\n');
+}
+// Uses the existing UIA word and Unicode grapheme policies over a local
+// prepared-display window. Uncertain boundaries expand to a proven ASCII
+// break or document edge; unusually long words/clusters may span the source.
+template <typename UnitAt> TextElementRange PreparedDisplayWordRange(size_t length, size_t caret, UnitAt&& unitAt)
+{
+    caret = (std::min)(caret, length);
+    const auto stableLeft = [&](size_t at)
+    {
+        while (at && ! StableSourceBreak(unitAt(at - 1u), unitAt(at)))
+            --at;
+        return at;
+    };
+    const auto stableRight = [&](size_t at)
+    {
+        while (at < length && ! StableSourceBreak(unitAt(at - 1u), unitAt(at)))
+            ++at;
+        return at;
+    };
+    auto first = stableLeft(caret > 128u ? caret - 128u : 0u);
+    auto last = stableRight(caret + (std::min)(size_t{128u}, length - caret));
+    for (;;)
+    {
+        std::wstring text(last - first, L'\0');
+        for (size_t index = first; index < last; ++index)
+            text[index - first] = unitAt(index);
+        const auto word = GetEnclosingAccessibilityTextUnitSpan(text, caret - first, TextUnit_Word);
+        TextElementRange range{word.start, word.end};
+        if (word.start < word.end)
+            range = {GetEnclosingAccessibilityTextUnitSpan(text, word.start, TextUnit_Character).start,
+                     GetEnclosingAccessibilityTextUnitSpan(text, word.end - 1u, TextUnit_Character).end};
+        const bool rootDriveAmbiguous = first && range.first == 2u && text.size() >= 2u && text[1u] == L':';
+        const auto span = last - first;
+        if (first && (range.first == 0u || rootDriveAmbiguous))
+        {
+            first = stableLeft(first > span ? first - span : 0u);
+            continue;
+        }
+        if (last < length && range.last == text.size())
+        {
+            last = stableRight(last + (std::min)(span, length - last));
+            continue;
+        }
+        return {first + range.first, first + range.last};
+    }
 }
 inline size_t SourceWindowLeft(const SourceSnapshot& source, size_t limit)
 {
