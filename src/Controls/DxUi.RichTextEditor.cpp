@@ -3257,7 +3257,23 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                                                                   value->Elements()[element].nativeHtml);
                 }))
                 {
-                    std::ranges::sort(objects, {}, &RichText::MarkdownRange::first);
+                    std::ranges::sort(objects, [](const auto& a, const auto& b)
+                    { return a.first < b.first || (a.first == b.first && a.last > b.last); });
+                    // A script-bearing HTML leaf can enclose a previously
+                    // rejected inline formula. One literal leaf subsumes that
+                    // smaller object; keep fallback ranges disjoint.
+                    std::vector<RichText::MarkdownRange> disjoint(0u);
+                    disjoint.reserve(objects.size());
+                    for (const auto range : objects)
+                    {
+                        if (! disjoint.empty() && range.first < disjoint.back().last)
+                        {
+                            if (range.last <= disjoint.back().last) continue;
+                            return E_INVALIDARG;
+                        }
+                        disjoint.push_back(range);
+                    }
+                    objects.swap(disjoint);
                     if (! state.nativeObjectRejections)
                     {
                         auto& rejected      = state.nativeObjectRejections.emplace();

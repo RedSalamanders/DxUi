@@ -27,6 +27,7 @@ namespace DxUi::RichText::Detail
 thread_local const RichImageRasterCalls* testRichImageRasterCalls{};
 thread_local IDWriteFactory* testRichSemanticWriteFactory{};
 thread_local HRESULT testRichMathLineMetricsFailure{S_OK};
+thread_local bool testRichScriptTargetUnsupported{};
 thread_local unsigned testRichPreparationFailure{};
 thread_local std::size_t testRichPreparationFailureAttempts{};
 thread_local HRESULT testRichMathGlyphMetricsFailure{S_OK};
@@ -1724,7 +1725,13 @@ struct PreparedSemanticGeometry::Preparation
                 auto& destination = marked ? box->markChips : box->codeChips;
                 destination.insert(destination.end(), chips.begin(), chips.end());
             }
-        if (! PreparedLayoutAccess::ScriptTargetSupported(box->layout, raster.get()))
+        bool scriptSupported = PreparedLayoutAccess::ScriptTargetSupported(box->layout, raster.get());
+#if DXUI_ENABLE_DIAGNOSTICS
+        if (testRichScriptTargetUnsupported && std::ranges::any_of(box->layout.Content().runs, [](const auto& run)
+            { return (run.flags & (Superscript | Subscript)) != 0u; }))
+            scriptSupported = false;
+#endif
+        if (! scriptSupported)
             next.Reject(content.element);
         box->height = box->layout.Height();
         box->frame  = D2D1::RectF(box->x, box->y, box->x + box->width, box->y + box->height);

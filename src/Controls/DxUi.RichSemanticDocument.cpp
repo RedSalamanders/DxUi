@@ -1692,7 +1692,29 @@ void SemanticBuilder::BeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyn
                    ((info.starts_with(L"mermaid") && (info.size() == 7u || info[7u] == L' ' || info[7u] == L'\t')) || info == L"math" || info == L"latex" ||
                     node.block.fenceMarker == L'$' || node.block.fenceMarker == L'[');
         });
-        if (syntax->Profile() != MarkdownProfile::RichMarkdown || (! inlineMath && ! diagram))
+        bool scriptHtml = false;
+        if (! inlineMath && ! diagram)
+        {
+            const auto& nodes = syntax->Nodes();
+            const auto leaf = std::ranges::find_if(nodes, [&](const auto& node)
+            {
+                return node.block.source == range && (node.block.kind == MarkdownBlockKind::HtmlBlock || node.block.kind == MarkdownBlockKind::Paragraph ||
+                       node.block.kind == MarkdownBlockKind::AtxHeading || node.block.kind == MarkdownBlockKind::SetextHeading ||
+                       node.block.kind == MarkdownBlockKind::TableCell);
+            });
+            if (leaf != nodes.end())
+            {
+                Detail::SemanticValue normalized;
+                const auto index = static_cast<std::size_t>(leaf - nodes.begin());
+                Detail::NormalizeSemanticLeaf(*syntax, index, normalized);
+                Detail::NativeHtmlPlan plan;
+                if (leaf->block.kind == MarkdownBlockKind::HtmlBlock) plan.Block(normalized);
+                else plan.Inline(*syntax, *leaf, normalized);
+                scriptHtml = plan.valid && std::ranges::any_of(plan.tags, [](const auto& tag)
+                { return tag.kind == Detail::NativeHtmlKind::Sup || tag.kind == Detail::NativeHtmlKind::Sub; });
+            }
+        }
+        if (! scriptHtml && (syntax->Profile() != MarkdownProfile::RichMarkdown || (! inlineMath && ! diagram)))
             throw std::invalid_argument("Native source fallback requires an exact native syntax owner");
         previousEnd = range.last;
     }

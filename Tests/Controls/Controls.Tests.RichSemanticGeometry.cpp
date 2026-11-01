@@ -40,6 +40,23 @@ void TestRichSemanticNativeFallbackSyntaxOwnership()
     const auto retry = RichSemanticDocumentTests::Complete(builder, *syntax);
     Require(retry->Diagnostics().empty() && retry->Map().Display() == original->Map().Display(),
             "clearing presentation rejection retries the unchanged syntax");
+    for (const auto profile : {MarkdownProfile::CommonMark0312, MarkdownProfile::RichMarkdown})
+        for (const std::wstring source : {L"<p>x<sup>word</sup></p>\n", L"x<sub>word</sub>\n"})
+        {
+            const auto htmlSyntax = RichSemanticDocumentTests::Parse(source, profile);
+            builder.Begin(htmlSyntax);
+            const auto htmlOriginal = RichSemanticDocumentTests::Complete(builder, *htmlSyntax);
+            const auto owner = std::ranges::find_if(htmlOriginal->Elements(), [](const auto& element) { return element.nativeHtml; });
+            Require(owner != htmlOriginal->Elements().end(), "HTML fallback fixture has an admitted native owner");
+            const std::array htmlRanges{owner->source};
+            Detail::SemanticExtensionAccess::BeginWithNativeFallbacks(builder, htmlSyntax, htmlRanges);
+            const auto htmlFallback = RichSemanticDocumentTests::Complete(builder, *htmlSyntax);
+            Require(htmlFallback->Map().Source() == source && htmlFallback->Map().Display().find(source) != std::wstring::npos &&
+                        htmlFallback->Diagnostics().empty(), "exact HTML leaf falls back without a diagram diagnostic");
+            builder.Begin(htmlSyntax);
+            const auto htmlRetry = RichSemanticDocumentTests::Complete(builder, *htmlSyntax);
+            Require(htmlRetry->Map().Display() == htmlOriginal->Map().Display(), "clearing the target rejection retries native HTML");
+        }
     const std::wstring fenceSource = L"```math\n\\frac{1}{2}\n```\n";
     const auto fenceSyntax         = RichSemanticDocumentTests::Parse(fenceSource, MarkdownProfile::RichMarkdown);
     builder.Begin(fenceSyntax);

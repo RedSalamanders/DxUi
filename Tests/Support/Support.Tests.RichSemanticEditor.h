@@ -2684,6 +2684,34 @@ template <typename Prepare> void NativeObjectFailureContainment(ControlHost& hos
               editor->GetText() == diagramSource && ! editor->CanUndo(),
           "a wider view retries the original diagram without source edits or hidden stale state");
 
+#if DXUI_ENABLE_DIAGNOSTICS
+    {
+        const auto previousUnsupported = RichText::Detail::testRichScriptTargetUnsupported;
+        const auto resetUnsupported = wil::scope_exit([=]() noexcept { RichText::Detail::testRichScriptTargetUnsupported = previousUnsupported; });
+        const std::wstring htmlSource = L"# Before\n\n<p>x<sup>emoji</sup></p>\n\n**After**\n";
+        editor->SetText(htmlSource);
+        editor->SetSelection({2u, 2u});
+        RichText::Detail::testRichScriptTargetUnsupported = true;
+        prepare();
+        const auto fallback = editor->GetAcknowledgedSemanticDocument(host);
+        Check(fallback && fallback->Map().Source() == htmlSource && fallback->Map().Display().find(L"<p>x<sup>emoji</sup></p>") != std::wstring::npos &&
+                  fallback->Map().Display().ends_with(L"After\n") && fallback->Diagnostics().empty(),
+              "unsupported script target falls back to exact HTML source while adjacent rich content stays native");
+        const auto advances = editor->DebugGetState().preparationAdvances;
+        prepare();
+        Check(editor->DebugGetState().preparationAdvances == advances && editor->GetSelection() == Selection{2u, 2u} && ! editor->CanUndo(),
+              "unchanged HTML fallback key does not retry or alter selection/history");
+        RichText::Detail::testRichScriptTargetUnsupported = false;
+        appearance.bodyFontSizeDip += 1.f;
+        editor->SetAppearance(appearance);
+        prepare();
+        const auto retry = editor->GetAcknowledgedSemanticDocument(host);
+        Check(retry && retry != fallback && retry->Map().Display().find(L"xemoji") != std::wstring::npos &&
+                  editor->GetText() == htmlSource && editor->GetSelection() == Selection{2u, 2u} && ! editor->CanUndo(),
+              "a changed typography key retries the unchanged HTML source and restores native script presentation");
+    }
+#endif
+
     for (const std::wstring fence :
          {L"> ```mermaid\r\n> graph LR;A[alpha]-->B[beta]\r\n> ```\r\n", L"- ```mermaid\r\n  graph LR;A[alpha]-->B[beta]\r\n  ```\r\n"})
     {
