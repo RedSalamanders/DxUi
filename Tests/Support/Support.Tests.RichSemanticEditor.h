@@ -778,6 +778,79 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     Check(deepHeading && deepHeading->available == std::optional<bool>{true} &&
               editor->ExecuteMarkdownCommand(stateRequest) == MarkdownCommandStatus::Changed && editor->Undo() && editor->GetText() == deepLists,
           "heading admission and execution recover nested prefixes beyond the fixed stack");
+    editor->SetText(L"word");
+    prepare();
+    editor->SetSelection({0u, 4u});
+    MarkdownCommandRequest preparedRequest;
+    for (const auto command : {MarkdownCommand::ToggleStyle,
+                               MarkdownCommand::SetList,
+                               MarkdownCommand::SetQuote,
+                               MarkdownCommand::SetLink,
+                               MarkdownCommand::InsertImage,
+                               MarkdownCommand::SetCodeBlock,
+                               MarkdownCommand::RemoveLink,
+                               MarkdownCommand::DeleteTableRow})
+    {
+        preparedRequest.command     = command;
+        preparedRequest.destination = L"https://example.invalid/image.png";
+        const bool expected         = command != MarkdownCommand::RemoveLink && command != MarkdownCommand::DeleteTableRow;
+        Check(editor->PrepareMarkdownCommandState(preparedRequest), "current owner prepares one exact command-state request");
+        const auto prepared = editor->QueryMarkdownCommandState(preparedRequest);
+        const auto status   = editor->ExecuteMarkdownCommand(preparedRequest);
+        Check(prepared && prepared->available == std::optional<bool>{expected} && (status != MarkdownCommandStatus::Unavailable) == expected,
+              "prepared state agrees with independently expected structural command availability");
+        if (status == MarkdownCommandStatus::Changed)
+        {
+            Check(editor->Undo() && editor->GetText() == L"word", "prepared command execution restores exact source with one undo");
+            prepare();
+            editor->SetSelection({0u, 4u});
+        }
+    }
+    preparedRequest.command           = MarkdownCommand::ToggleStyle;
+    unsigned preparationNotifications = 0u;
+    editor->SetOnTextChanged([&] { ++preparationNotifications; });
+    editor->SetOnSelectionChanged([&] { ++preparationNotifications; });
+    Check(editor->PrepareMarkdownCommandState(preparedRequest) && preparationNotifications == 0u,
+          "prepare a reusable style state without source or selection callbacks");
+    editor->SetOnTextChanged({});
+    editor->SetOnSelectionChanged({});
+    auto differentRequest  = preparedRequest;
+    differentRequest.title = L"different";
+    const auto different   = editor->QueryMarkdownCommandState(differentRequest);
+    Check(different && ! different->available, "prepared request payloads are compared by exact value");
+    editor->SetSelection({1u, 1u});
+    editor->SetSelection({0u, 4u});
+    const auto moved = editor->QueryMarkdownCommandState(preparedRequest);
+    Check(moved && ! moved->available, "selection changes retire a prepared result even when the old coordinates return");
+    std::wstring mutableTitle(L"original");
+    preparedRequest.title = mutableTitle;
+    Check(editor->PrepareMarkdownCommandState(preparedRequest), "prepare an owned request payload");
+    mutableTitle[0]       = L'O';
+    const auto mutated    = editor->QueryMarkdownCommandState(preparedRequest);
+    auto originalRequest  = preparedRequest;
+    originalRequest.title = L"original";
+    const auto original   = editor->QueryMarkdownCommandState(originalRequest);
+    Check(mutated && ! mutated->available && original && original->available == std::optional<bool>{true},
+          "the prepared key owns request payloads independently of caller storage");
+    auto invalidRequest        = originalRequest;
+    invalidRequest.command     = MarkdownCommand::SetLink;
+    invalidRequest.destination = L"javascript:example";
+    RichSemanticTests::Reject<std::invalid_argument>([&] { static_cast<void>(editor->PrepareMarkdownCommandState(invalidRequest)); },
+                                                     "invalid prepared command payload is reported by the planner");
+    const auto afterInvalid = editor->QueryMarkdownCommandState(originalRequest);
+    Check(afterInvalid && afterInvalid->available == std::optional<bool>{true}, "invalid preparation preserves the previous prepared result");
+    editor->SetReadOnly(true);
+    const auto readOnly = editor->QueryMarkdownCommandState(originalRequest);
+    editor->SetReadOnly(false);
+    const auto restoredPolicy = editor->QueryMarkdownCommandState(originalRequest);
+    Check(readOnly && readOnly->available == std::optional<bool>{false} && restoredPolicy && ! restoredPolicy->available,
+          "read-only transitions retire prepared availability instead of reviving it");
+    Check(editor->PrepareMarkdownCommandState(originalRequest), "prepare a result before source changes");
+    editor->SetText(L"word!");
+    prepare();
+    editor->SetSelection({0u, 4u});
+    const auto changedSource = editor->QueryMarkdownCommandState(originalRequest);
+    Check(changedSource && ! changedSource->available, "source publication retires prepared command availability");
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
     for (const bool referenced : {false, true})
     {

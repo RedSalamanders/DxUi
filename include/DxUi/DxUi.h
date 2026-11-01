@@ -3439,6 +3439,10 @@ public:
     // advance preparation. Plans also guard syntax identity and source selection.
     // Read-only/disabled/source-view/pending/composing targets are unavailable.
     RichText::MarkdownCommandStatus ExecuteMarkdownCommand(const RichText::MarkdownCommandRequest& request);
+    // Prepare exact availability for one request using the current planner.
+    // Returns false when the current owner state cannot be prepared; allocation
+    // and invalid-request failures propagate. This does not publish callbacks.
+    bool PrepareMarkdownCommandState(const RichText::MarkdownCommandRequest& request);
     [[nodiscard]] std::optional<RichText::MarkdownCommandState> QueryMarkdownCommandState(const RichText::MarkdownCommandRequest& request) const noexcept;
     RichText::MarkdownCommandStatus ApplyMarkdownCommand(const RichText::MarkdownCommandPlan& plan);
     bool Undo();
@@ -3523,6 +3527,8 @@ private:
     std::unique_ptr<State> _state;
     [[nodiscard]] D2D1_RECT_F TextViewport() const noexcept;
     [[nodiscard]] bool LayoutIsCurrent(const ControlHost& host) const noexcept;
+    [[nodiscard]] RichText::MarkdownCommandPlan BuildCurrentMarkdownCommand(const RichText::MarkdownCommandRequest& request,
+                                                                              const std::shared_ptr<const RichText::MarkdownSyntax>& syntax) const;
     void RequireCurrentLayout(const ControlHost& host) const;
     void UpdateCaretScroll() const;
     void RetireLayout(bool retainGeometry = false) const noexcept;

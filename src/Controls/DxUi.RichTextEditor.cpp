@@ -373,6 +373,43 @@ struct RichTextEditor::State
     {
     }
     RichText::Document document;
+    struct PreparedCommandState
+    {
+        PreparedCommandState(const RichText::MarkdownCommandRequest& value,
+                             const RichText::SourceSnapshot& sourceValue,
+                             std::shared_ptr<const RichText::MarkdownSyntax> syntaxValue)
+            : request(value),
+              text(value.text),
+              destination(value.destination),
+              title(value.title),
+              source(sourceValue),
+              syntax(std::move(syntaxValue))
+        {
+            // The key owns each payload; the scalar request never retains the
+            // caller's borrowed views.
+            request.text        = {};
+            request.destination = {};
+            request.title       = {};
+        }
+        bool Matches(const RichText::MarkdownCommandRequest& value) const noexcept
+        {
+            return request.command == value.command && request.listKind == value.listKind && request.style == value.style &&
+                   request.quoteAction == value.quoteAction && request.mathDisplay == value.mathDisplay && request.headingLevel == value.headingLevel &&
+                   request.listStart == value.listStart && request.targetCell == value.targetCell && request.tableColumns == value.tableColumns &&
+                   request.tableBodyRows == value.tableBodyRows && request.tableCellCaretOffset == value.tableCellCaretOffset && text == value.text &&
+                   destination == value.destination && title == value.title;
+        }
+        RichText::MarkdownCommandRequest request;
+        std::wstring text, destination, title;
+        RichText::SourceSnapshot source;
+        std::shared_ptr<const RichText::MarkdownSyntax> syntax;
+        const ControlHost* host{};
+        const void* geometry{};
+        uint64_t revision{}, selectionEpoch{}, bindingRevision{}, imageLocationRevision{};
+        size_t sourceCaretSite = RichText::MarkdownNoNode;
+        bool layoutCurrent{}, available{};
+    };
+    std::unique_ptr<PreparedCommandState> preparedCommand;
     struct TypingRun
     {
         enum class Kind
@@ -2176,14 +2213,10 @@ RichText::MarkdownCommandStatus RichTextEditor::ApplyMarkdownCommand(const RichT
     // access follows it; the result describes this committed attempt.
     return changed ? MarkdownCommandStatus::Changed : MarkdownCommandStatus::Unchanged;
 }
-RichText::MarkdownCommandStatus RichTextEditor::ExecuteMarkdownCommand(const RichText::MarkdownCommandRequest& request)
+RichText::MarkdownCommandPlan RichTextEditor::BuildCurrentMarkdownCommand(const RichText::MarkdownCommandRequest& request,
+                                                                          const std::shared_ptr<const RichText::MarkdownSyntax>& syntax) const
 {
     using namespace RichText;
-    if (! Editable() || ! _state->markdownRendering || _state->mode != ViewMode::Rich || _state->sourceEditing)
-        return MarkdownCommandStatus::Unavailable;
-    const auto syntax = GetMarkdownSyntax();
-    if (! syntax)
-        return MarkdownCommandStatus::Unavailable;
     auto resolved = request;
     std::wstring imageDestination(0u, L' ');
     if (request.command == MarkdownCommand::InsertImage)
@@ -2203,8 +2236,45 @@ RichText::MarkdownCommandStatus RichTextEditor::ExecuteMarkdownCommand(const Ric
                 if (node < syntax->Nodes().size() && syntax->Nodes()[node].block.kind == MarkdownBlockKind::TableCell)
                     resolved.targetCell = node;
             }
-    const auto plan = BuildMarkdownCommand(Snapshot(), Revision(), syntax, GetSelection(), resolved);
+    return BuildMarkdownCommand(Snapshot(), Revision(), syntax, GetSelection(), resolved);
+}
+RichText::MarkdownCommandStatus RichTextEditor::ExecuteMarkdownCommand(const RichText::MarkdownCommandRequest& request)
+{
+    using namespace RichText;
+    if (! Editable() || ! _state->markdownRendering || _state->mode != ViewMode::Rich || _state->sourceEditing)
+        return MarkdownCommandStatus::Unavailable;
+    const auto syntax = GetMarkdownSyntax();
+    if (! syntax)
+        return MarkdownCommandStatus::Unavailable;
+    const auto plan = BuildCurrentMarkdownCommand(request, syntax);
     return ApplyMarkdownCommand(plan);
+}
+bool RichTextEditor::PrepareMarkdownCommandState(const RichText::MarkdownCommandRequest& request)
+{
+    using namespace RichText;
+    if (request.text.size() > Document::MaximumUnits || request.destination.size() > Document::MaximumUnits || request.title.size() > Document::MaximumUnits)
+        throw std::length_error("Structural request text exceeds source capacity");
+    if (! Editable() || ! _state->markdownRendering || _state->mode != ViewMode::Rich || _state->sourceEditing || MarkdownCommandInputBlocked(GetHost(), this))
+        return false;
+    const auto document = GetSemanticDocument();
+    const auto syntax   = GetMarkdownSyntax();
+    if (! document || ! syntax || document->Syntax() != syntax)
+        return false;
+    const auto plan             = BuildCurrentMarkdownCommand(request, syntax);
+    const auto source           = Snapshot();
+    auto next                   = std::make_unique<State::PreparedCommandState>(request, source, syntax);
+    const auto* host            = GetHost();
+    next->host                  = host;
+    next->layoutCurrent         = host && LayoutIsCurrent(*host);
+    next->geometry              = next->layoutCurrent ? _state->layout.SemanticGeometry() : nullptr;
+    next->revision              = Revision();
+    next->selectionEpoch        = _state->document.selectionEpoch_;
+    next->bindingRevision       = _state->bindingRevision;
+    next->imageLocationRevision = _state->imageLocationRevision;
+    next->sourceCaretSite       = _state->sourceCaretSite;
+    next->available             = plan.IsApplicable() && (plan.AfterCell() == MarkdownNoNode || (next->layoutCurrent && next->geometry));
+    _state->preparedCommand.swap(next);
+    return true;
 }
 std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownCommandState(const RichText::MarkdownCommandRequest& request) const noexcept
 {
@@ -2218,14 +2288,19 @@ std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownComma
         result.available = false;
         return result;
     }
-    const auto document = GetSemanticDocument();
-    if (! document)
-        return std::nullopt;
-    const auto selection    = GetSelection();
     const bool inputBlocked = MarkdownCommandInputBlocked(GetHost(), this);
+    const auto document     = GetSemanticDocument();
+    if (! document)
+    {
+        if (! inputBlocked)
+            return std::nullopt;
+        result.available = false;
+        return result;
+    }
+    const auto selection = GetSelection();
     const auto noteOwner = FindCommandFootnoteOwner(*document->Syntax(), selection);
-    if (! noteOwner || request.text.size() > Document::MaximumUnits ||
-        request.destination.size() > Document::MaximumUnits || request.title.size() > Document::MaximumUnits)
+    if (! noteOwner || request.text.size() > Document::MaximumUnits || request.destination.size() > Document::MaximumUnits ||
+        request.title.size() > Document::MaximumUnits)
     {
         result.available = false;
         return result;
@@ -2308,11 +2383,24 @@ std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownComma
     // positive result is unknown until that proof is shared with this query.
     if (noteOwner.value() != MarkdownNoNode && result.available == std::optional<bool>{true})
         result.available.reset();
-    if (inputBlocked || ((request.command == MarkdownCommand::InsertParagraph || request.command == MarkdownCommand::InsertHardBreak) &&
-                         ! IsSingleLineCommandSelection(*document->Syntax(), selection)) ||
+    if (inputBlocked ||
+        ((request.command == MarkdownCommand::InsertParagraph || request.command == MarkdownCommand::InsertHardBreak) &&
+         ! IsSingleLineCommandSelection(*document->Syntax(), selection)) ||
         ((request.command != MarkdownCommand::SetList || ! request.listStart || request.listStart.value() <= 999999999u) &&
          ! IsCommandFeatureEnabled(*document->Syntax(), request.command, request.style, request.listKind)))
         result.available = false;
+    else if (const auto* prepared = _state->preparedCommand.get();
+             prepared && prepared->Matches(request) && prepared->syntax == document->Syntax() && prepared->revision == Revision() &&
+             prepared->selectionEpoch == _state->document.selectionEpoch_ && prepared->source.IsSameRevision(Snapshot()) &&
+             prepared->bindingRevision == _state->bindingRevision && prepared->imageLocationRevision == _state->imageLocationRevision &&
+             prepared->sourceCaretSite == _state->sourceCaretSite && prepared->host == GetHost())
+    {
+        const auto* host         = GetHost();
+        const bool layoutCurrent = host && LayoutIsCurrent(*host);
+        const auto* geometry     = layoutCurrent ? _state->layout.SemanticGeometry() : nullptr;
+        if (prepared->layoutCurrent == layoutCurrent && prepared->geometry == geometry)
+            result.available = prepared->available;
+    }
     return result;
 }
 bool RichTextEditor::Undo()
@@ -2712,6 +2800,7 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
 }
 void RichTextEditor::SelectionChanged(bool synchronizeTextInput, bool preservePreferredCaretX, bool publishSelection, bool revealCaret)
 {
+    _state->preparedCommand.reset();
     _state->keyboardNavigationDocument.reset();
     _state->keyboardNavigationElement = RichText::MarkdownNoNode;
     ++_state->fileDropEpoch;
@@ -2795,6 +2884,7 @@ D2D1_RECT_F RichTextEditor::ScrollbarTrack() const noexcept
 }
 void RichTextEditor::RetireLayout(bool retainGeometry) const noexcept
 {
+    _state->preparedCommand.reset();
     _state->selectionMask.reset();
     _state->selectionLayer.reset();
     _state->selectionLayerWidth = _state->selectionLayerHeight = 0.0f;
@@ -6114,6 +6204,7 @@ void RichTextEditor::PropagateHost(ControlHost* host) noexcept
 {
     if (GetHost() != host)
     {
+        _state->preparedCommand.reset();
         _state->images.Cancel();
         RetireSemanticAccessibility();
         ++_state->bindingRevision;
@@ -6151,6 +6242,7 @@ void RichTextEditor::OnDensityChanged() noexcept
 }
 void RichTextEditor::OnEnabledChanged(bool) noexcept
 {
+    _state->preparedCommand.reset();
     _state->pendingLeadSurrogate = 0;
     _state->dragging             = false;
     _state->scrollbarDragging    = false;

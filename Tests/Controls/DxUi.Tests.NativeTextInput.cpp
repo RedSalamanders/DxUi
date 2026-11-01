@@ -9725,6 +9725,12 @@ void TestRichCommandStateDuringNativeComposition()
     RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE), "advise composition state sink");
     wil::com_ptr_nothrow<ITfContextOwnerCompositionSink> compositions;
     RequireSucceeded(store.query_to(compositions.put()), "query composition state sink");
+    MarkdownCommandRequest request;
+    request.command = MarkdownCommand::ToggleStyle;
+    request.style   = MarkdownTextStyle::Strong;
+    Require(raw->PrepareMarkdownCommandState(request), "prepare command state before native composition");
+    const auto beforeComposition = raw->QueryMarkdownCommandState(request);
+    Require(beforeComposition && beforeComposition->available == std::optional<bool>{true}, "prepared command is initially available");
     ClientComposition composition;
     composition.range.start  = 3;
     composition.range.length = 0;
@@ -9734,9 +9740,6 @@ void TestRichCommandStateDuringNativeComposition()
     RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session), "start composition state lock");
     RequireSucceeded(session, "start composition state session");
     Require(accepted != FALSE, "native composition started");
-    MarkdownCommandRequest request;
-    request.command  = MarkdownCommand::ToggleStyle;
-    request.style    = MarkdownTextStyle::Strong;
     const auto state = raw->QueryMarkdownCommandState(request);
     Require(state && state->active && state->available == std::optional<bool>{false} &&
                 raw->ExecuteMarkdownCommand(request) == MarkdownCommandStatus::Unavailable && raw->GetText() == L"**a**",
@@ -9744,6 +9747,9 @@ void TestRichCommandStateDuringNativeComposition()
     sink.onLockGranted = [&](DWORD) noexcept { return compositions->OnEndComposition(&composition); };
     RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session), "end composition state lock");
     RequireSucceeded(session, "end composition state session");
+    const auto afterComposition = raw->QueryMarkdownCommandState(request);
+    Require(afterComposition && afterComposition->available == std::optional<bool>{true},
+            "unchanged source, selection and policy restore the prepared result after composition ends");
     RequireSucceeded(store->UnadviseSink(&sink), "unadvise composition state sink");
 }
 

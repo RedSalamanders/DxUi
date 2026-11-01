@@ -1345,8 +1345,23 @@ Heading availability shares the planner's source and container-prefix admission,
 including task-list restrictions, Setext conversion and resulting source capacity.
 Its prefix proof uses a bounded stack with parent-link recovery at deeper nesting;
 the recovery can add ancestor-depth work. Inside resolved footnote definitions,
-positive command availability remains unknown until the planner's final physical
-prefix checks can also be proved without constructing edits.
+an unprepared positive command availability remains unknown until the planner's final physical
+prefix checks can also be proved without constructing edits. Consumers needing
+exact availability for an arbitrary command and its payload may call
+`PrepareMarkdownCommandState` on the owner thread, then read the same request
+with `QueryMarkdownCommandState`. Preparation uses the actual command planner,
+owns the request payload and keeps at most one result; it may allocate or throw,
+does not commit an edit or notify consumers, and preserves the previous prepared
+result on failure. A false preparation result means the owner or semantic input
+is currently unavailable. Query remains allocation-free: an unprepared request
+has unknown availability unless a cheap proof applies, while a matching prepared
+result reports the planner's exact availability. The key includes source and
+syntax identity, selection epoch, attachment, path policy and the current table
+caret site and geometry. Source, selection, presentation, enabled, read-only,
+attachment and geometry retirement discard the cached result. Composition
+always refuses command execution and reports unavailable during composition;
+if it ends without changing the keyed inputs, the same prepared result remains
+valid. Consumers must prepare again when a key changes.
 When a focused native input session has an active or indeterminate composition,
 command-state availability is false for every structural command, matching
 execution; current style and list presentation remain queryable.

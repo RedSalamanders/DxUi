@@ -133,8 +133,16 @@ tab when `sourceTabUsesTabs` is set. Ctrl+Tab remains host traversal. Optional
 Markdown shortcuts use Ctrl+Shift+0–6 for heading clear/levels, Ctrl+Shift+X for
 strike, Ctrl+backtick for code and Ctrl+K for the consumer's link-edit request.
 The feature is disabled by default. `QueryMarkdownCommandState` returns current
-style/heading/list presentation and explicitly unknown applicability where a
-nonallocating planner predicate is not yet available.
+style/heading/list presentation without allocation. Applicability is unknown
+when neither an immediate proof nor an exact prepared result is available.
+For an arbitrary request, call `PrepareMarkdownCommandState(request)` on the
+owner thread, then query the same request. Preparation can allocate or throw;
+it runs the execution planner without editing or notifying, and retains one owned
+request/result. A false return means the current owner state cannot be prepared.
+Changing source, selection, presentation, binding or policy retires the result;
+prepare again for the new state. Request payloads are copied and compared by
+value. While native composition is active the query reports unavailable; if it
+ends with the same keyed inputs, the prepared result remains valid.
 During an active or indeterminate native composition, every structural command
 reports unavailable while its current style presentation remains visible.
 Task, table and strikethrough commands also report unavailable when the active

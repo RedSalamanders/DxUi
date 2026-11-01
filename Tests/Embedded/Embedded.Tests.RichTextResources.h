@@ -309,6 +309,81 @@ static void TestRichFileDropTransportAllocationFailures()
               "file-drop transport permits an exact retry after allocation failure");
     }
 }
+static void TestPreparedCommandStateAllocationFailures(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    using namespace DxUi::RichText;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "prepared command state fixture graphics");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "attach prepared command state fixture");
+    auto owned   = std::make_unique<RichTextEditor>(L"word");
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    view.Controls().SetRoot(std::move(owned));
+    editor->SetSelection({0u, 4u});
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare command state fixture");
+    MarkdownCommandRequest previous;
+    previous.command = MarkdownCommand::ToggleStyle;
+    MarkdownCommandRequest next;
+    next.command     = MarkdownCommand::SetLink;
+    next.destination = L"https://example.invalid/target";
+    next.title       = L"title";
+    Check(editor->PrepareMarkdownCommandState(previous), "prepare old command-state cache");
+    const auto source    = editor->Snapshot();
+    const auto selection = editor->GetSelection();
+    const auto revision  = editor->Revision();
+    size_t requests{};
+    {
+        const auto oldCounting = countAllocations;
+        const auto oldCalls = allocations, oldBytes = allocationBytes;
+        const auto restore = wil::scope_exit([=] noexcept
+        {
+            countAllocations = oldCounting;
+            allocations      = oldCalls;
+            allocationBytes  = oldBytes;
+        });
+        allocations = allocationBytes = 0u;
+        countAllocations              = true;
+        Check(editor->PrepareMarkdownCommandState(next), "measure exact command-state preparation");
+        countAllocations = false;
+        requests         = allocations;
+    }
+    Check(requests > 0u && requests < 2048u, "prepared command state has finite allocation points");
+    for (size_t failure = 0u; failure < requests; ++failure)
+    {
+        Check(editor->PrepareMarkdownCommandState(previous), "restore prior prepared state before fault");
+        bool failed = false;
+        {
+            const auto oldFailure = failAllocationAfter;
+            const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+            failAllocationAfter   = failure;
+            try
+            {
+                static_cast<void>(editor->PrepareMarkdownCommandState(next));
+            }
+            catch (const std::bad_alloc&)
+            {
+                failed = true;
+            }
+        }
+        const auto state = editor->QueryMarkdownCommandState(previous);
+        Check(failed && state && state->available == std::optional<bool>{true} && editor->Snapshot().IsSameRevision(source) &&
+                  editor->GetSelection() == selection && editor->Revision() == revision && ! editor->CanUndo(),
+              "each preparation allocation failure preserves the previous cache and source transaction");
+    }
+    Check(editor->PrepareMarkdownCommandState(next), "prepared state retries after every allocation failure");
+    {
+        const auto oldFailure = failAllocationAfter;
+        const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+        failAllocationAfter   = 0u;
+        const auto result     = editor->QueryMarkdownCommandState(next);
+        Check(result && result->available == std::optional<bool>{true}, "prepared command-state lookup allocates no storage");
+    }
+    std::cout << "prepared command-state allocation points=" << requests << '\n';
+}
+
 static void TestRichFileDropTransactionAllocationFailures(GraphicsFixture& gpu)
 {
     using namespace DxUi;

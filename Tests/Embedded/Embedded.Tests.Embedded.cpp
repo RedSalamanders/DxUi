@@ -1628,6 +1628,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestEmbeddedLocalizedRecordedServiceCommit(gpu);
     TestEmbeddedRetainedObjectSourceEditing(gpu);
     TestEmbeddedImagePathPaste(gpu);
+    TestPreparedCommandStateAllocationFailures(gpu);
     TestEmbeddedFileReferencePaste(gpu);
     TestEmbeddedImageResources(gpu);
     RichImageTests::Core(Check);
