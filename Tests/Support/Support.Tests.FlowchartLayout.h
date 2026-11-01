@@ -423,15 +423,23 @@ template <typename Check> inline void Corpus(Check&& check)
             continue;
         const auto graph = Graph(example.source);
         const auto first = Place(graph, check, 1u), batched = Place(graph, check, 113u);
-        if (example.number == 91u)
-        {
-            check(first->issue == FlowchartLayoutIssue::DiagramExtent && batched->issue == FlowchartLayoutIssue::DiagramExtent && first->nodes.empty() &&
-                      first->edges.empty() && first->groups.empty() && batched->nodes.empty() && batched->edges.empty() && batched->groups.empty(),
-                  "known overlapping reference subgraphs reject complete geometry identically for both budgets");
-            ++admitted;
-            continue;
-        }
         Invariants(*first, check);
+        check(first->groups.size() == graph->groups.size(), "all admitted source groups retain geometry");
+        for (std::size_t group = 0u; group < first->groups.size(); ++group)
+        {
+            const auto& bounds = first->groups[group].bounds;
+            const auto bit = static_cast<std::uint16_t>(1u << group);
+            for (std::size_t node = 0u; node < first->nodes.size(); ++node)
+            {
+                const auto& shape = first->nodes[node].bounds;
+                if (graph->nodes[node].groupMask & bit)
+                    check(bounds.x <= shape.x && bounds.y <= shape.y && bounds.x + bounds.width >= shape.x + shape.width &&
+                              bounds.y + bounds.height >= shape.y + shape.height, "group bounds contain each authored member");
+                else
+                    check(bounds.x >= shape.x + shape.width || bounds.x + bounds.width <= shape.x || bounds.y >= shape.y + shape.height ||
+                              bounds.y + bounds.height <= shape.y, "group bounds do not cover an unrelated node");
+            }
+        }
         check(first->nodes.size() == batched->nodes.size() && first->edges.size() == batched->edges.size() &&
                   Near(first->extent.width, batched->extent.width) && Near(first->extent.height, batched->extent.height),
               "one-event and batched graph requests have deterministic extents and topology");
@@ -443,6 +451,24 @@ template <typename Check> inline void Corpus(Check&& check)
         ++admitted;
     }
     check(admitted == 32u, "geometry covers every admitted original reference graph");
+    for (const auto direction : {L"TB", L"BT", L"LR", L"RL"})
+    {
+        const auto source = std::wstring(L"flowchart ") + direction + L"\nc1-->a2\nsubgraph ide1 [one]\na1-->a2\nend\n";
+        const auto graph = Graph(source);
+        const auto plan = Place(graph, check, 7u);
+        Invariants(*plan, check);
+        check(plan->groups.size() == 1u && plan->nodes.size() == 3u && plan->edges.size() == 2u &&
+                  graph->nodes[0u].key == L"c1" && graph->nodes[1u].key == L"a2" && graph->nodes[2u].key == L"a1",
+              "mixed group and external node retain source identities and complete geometry in each direction");
+        if (plan->groups.size() == 1u && plan->nodes.size() == 3u)
+        {
+            const auto& group = plan->groups[0u].bounds;
+            const auto& outsider = plan->nodes[0u].bounds;
+            check(group.x >= outsider.x + outsider.width || group.x + group.width <= outsider.x ||
+                      group.y >= outsider.y + outsider.height || group.y + group.height <= outsider.y,
+                  "mixed group envelope remains disjoint from the external node");
+        }
+    }
     const auto fanoutGraph = Graph(L"flowchart LR;A & B --> C & D --> E");
     const auto fanoutPlan  = Place(fanoutGraph, check, 7u);
     check(fanoutGraph->outcome == FlowchartOutcome::Prepared && fanoutPlan->nodes.size() == 5u && fanoutPlan->edges.size() == 6u,

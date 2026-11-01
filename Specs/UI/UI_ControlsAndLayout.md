@@ -1818,7 +1818,9 @@ separation; unlabeled lanes may be shared only when their inclusive rank interva
 do not intersect. Labeled lanes remain exclusive. When two ranks contain exactly one
 member of each non-nested group, columns align in group order and reserve the
 largest node or title width, preserving model identity while avoiding unrelated
-group overlap. Other group configurations retain collision detection.
+group overlap. A two-rank single group with one member per rank and one
+ungrouped sibling uses separate member and sibling columns. Other group
+configurations retain collision detection.
 Endpoint corridors remain outside full rank rows, including for skipped-rank edges,
 cycles, self-loops and parallel edges. Crossings are permitted; optimal routing
 and upstream Mermaid coordinate compatibility are not claimed.

@@ -683,6 +683,39 @@ struct NativeFlowchartLayout::Preparation
     {
         if (cursor == plan->nodes.size())
         {
+            // A single two-rank group with one external sibling cannot use
+            // independently centered rows: the group envelope then covers the
+            // sibling. Align the two members in a column beside that sibling.
+            // Keep model order/indices intact and leave all other topologies
+            // to the general collision-checked router.
+            if (graph->groups.size() == 1u && graph->groups[0u].parentMask == 0u && graph->nodes.size() == 3u && maximumRank == 1u && ! hasNotes)
+            {
+                std::size_t outsider = NoIndex, upper = NoIndex, lower = NoIndex;
+                for (std::size_t i = 0u; i < graph->nodes.size(); ++i)
+                {
+                    if (graph->nodes[i].groupMask == 0u && rank[i] == 0u && outsider == NoIndex) outsider = i;
+                    else if (graph->nodes[i].groupMask == 1u && rank[i] == 0u && upper == NoIndex) upper = i;
+                    else if (graph->nodes[i].groupMask == 1u && rank[i] == 1u && lower == NoIndex) lower = i;
+                }
+                if (outsider != NoIndex && upper != NoIndex && lower != NoIndex)
+                {
+                    const auto column = bandLeft + plan->nodes[outsider].bounds.width + NodeGap + 16.0;
+                    const auto groupWidth = std::max({plan->nodes[upper].bounds.width, plan->nodes[lower].bounds.width, Cross(groupLabels[0u])});
+                    if (column + groupWidth + rightWidth + Margin + 8.0 > MaximumExtent)
+                    {
+                        Fail(FlowchartLayoutIssue::DiagramExtent);
+                        return;
+                    }
+                    for (const auto index : {outsider, upper, lower})
+                    {
+                        auto& node = plan->nodes[index];
+                        const auto x = index == outsider ? bandLeft : column;
+                        node.label.x += x - node.bounds.x;
+                        node.bounds.x = x;
+                    }
+                    bandWidth = column - bandLeft + groupWidth + 8.0;
+                }
+            }
             Then(hasNotes ? Stage::NotePositions : Stage::GroupPositions);
             return;
         }
