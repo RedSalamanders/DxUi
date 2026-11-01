@@ -164,22 +164,28 @@ public:
     unsigned runs{};
 };
 #pragma warning(pop)
-inline bool SameMathFontFile(IDWriteFontFace* left, IDWriteFontFace* right) noexcept
+inline bool SameMathFontFile(IDWriteFontFace* left, IDWriteFontFace* right)
 {
     if (! left || ! right || left->GetType() != right->GetType() || left->GetIndex() != right->GetIndex())
         return false;
     UINT32 leftCount{}, rightCount{};
-    if (FAILED(left->GetFiles(&leftCount, nullptr)) || FAILED(right->GetFiles(&rightCount, nullptr)) || leftCount != 1u || rightCount != 1u)
+    THROW_IF_FAILED(left->GetFiles(&leftCount, nullptr));
+    THROW_IF_FAILED(right->GetFiles(&rightCount, nullptr));
+    if (leftCount != 1u || rightCount != 1u)
         return false;
     wil::com_ptr<IDWriteFontFile> a, b;
-    if (FAILED(left->GetFiles(&leftCount, a.put())) || FAILED(right->GetFiles(&rightCount, b.put())))
-        return false;
+    THROW_IF_FAILED(left->GetFiles(&leftCount, a.put()));
+    THROW_IF_FAILED(right->GetFiles(&rightCount, b.put()));
     wil::com_ptr<IDWriteFontFileLoader> aLoader, bLoader;
+    THROW_IF_FAILED(a->GetLoader(aLoader.put()));
+    THROW_IF_FAILED(b->GetLoader(bLoader.put()));
+    if (aLoader.get() != bLoader.get())
+        return false;
     const void *aKey{}, *bKey{};
     UINT32 aSize{}, bSize{};
-    return SUCCEEDED(a->GetLoader(aLoader.put())) && SUCCEEDED(b->GetLoader(bLoader.put())) && aLoader.get() == bLoader.get() &&
-           SUCCEEDED(a->GetReferenceKey(&aKey, &aSize)) && SUCCEEDED(b->GetReferenceKey(&bKey, &bSize)) && aSize == bSize &&
-           (! aSize || (aKey && bKey && std::memcmp(aKey, bKey, aSize) == 0));
+    THROW_IF_FAILED(a->GetReferenceKey(&aKey, &aSize));
+    THROW_IF_FAILED(b->GetReferenceKey(&bKey, &bSize));
+    return aSize == bSize && (! aSize || (aKey && bKey && std::memcmp(aKey, bKey, aSize) == 0));
 }
 // PreparedMath owns all shaping and geometry. The syntax tree is admitted and
 // indexed once; Advance shapes one text leaf per call and finalizes from cached
