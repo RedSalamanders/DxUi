@@ -271,6 +271,8 @@ std::atomic<HANDLE> g_accessibilityUiActionPostedEvent{nullptr};
 std::atomic<DWORD> g_accessibilityUiActionDispatchTimeoutOverrideMs{0u};
 std::atomic<uint32_t> g_accessibilityUiActionExecutionCount{0u};
 std::atomic<uint64_t> g_accessibilitySnapshotBuildCount{0u};
+thread_local HRESULT g_richAccessibilityFontFailure = S_OK;
+thread_local size_t g_richAccessibilityFontFailureCount{};
 std::atomic<size_t> g_accessibilityOffscreenSelectedRowMaterializationLimitOverride{0u};
 thread_local bool g_accessibilityResolutionCounting       = false;
 thread_local uint64_t g_accessibilityResolutionVisitCount = 0u;
@@ -2308,7 +2310,15 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
                         if (! format)
                             THROW_HR(E_UNEXPECTED);
                         family.resize(static_cast<size_t>(format->GetFontFamilyNameLength()) + 1u);
-                        THROW_IF_FAILED(format->GetFontFamilyName(family.data(), static_cast<UINT32>(family.size())));
+                        auto result = format->GetFontFamilyName(family.data(), static_cast<UINT32>(family.size()));
+#if DXUI_ENABLE_DIAGNOSTICS
+                        if (FAILED(g_richAccessibilityFontFailure))
+                        {
+                            ++g_richAccessibilityFontFailureCount;
+                            result = g_richAccessibilityFontFailure;
+                        }
+#endif
+                        THROW_IF_FAILED(result);
                         family.pop_back();
                     };
                     auto* body = host.GetTextFormat(FontRole::Body);
@@ -14382,6 +14392,15 @@ bool RaiseWindowHostAccessibilityNotification(HWND hwnd, std::wstring_view notif
 
 #if DXUI_ENABLE_DIAGNOSTICS
 
+void DebugSetRichAccessibilityFontFailureForTest(HRESULT failure) noexcept
+{
+    g_richAccessibilityFontFailure      = failure;
+    g_richAccessibilityFontFailureCount = 0u;
+}
+size_t DebugGetRichAccessibilityFontFailureCountForTest() noexcept
+{
+    return g_richAccessibilityFontFailureCount;
+}
 void DebugSetAccessibilityUiActionHandlerStallForTest(HANDLE enteredEvent, HANDLE releaseEvent) noexcept
 {
     g_accessibilityUiActionHandlerEnteredEvent.store(enteredEvent, std::memory_order_release);

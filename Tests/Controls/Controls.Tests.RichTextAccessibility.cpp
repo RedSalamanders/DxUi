@@ -697,6 +697,48 @@ void TestRichTextAccessibilityWindowSourceAndRanges()
 {
     SourceAndRanges(false);
 }
+#if DXUI_ENABLE_DIAGNOSTICS
+void RichAccessibilityFontFailure(bool embedded)
+{
+    RichAccessibilityFixture fixture(embedded, true, true);
+    auto simple             = fixture.Simple();
+    const auto oldName      = ReadProviderStringProperty(*simple.get(), UIA_NamePropertyId, "read the published rich accessible name");
+    const auto oldText      = fixture.editor->GetText();
+    const auto oldSelection = fixture.editor->GetSelection();
+    const auto oldRevision  = fixture.editor->Revision();
+    DebugSetRichAccessibilityFontFailureForTest(E_FAIL);
+    const auto restore = wil::scope_exit([] { DebugSetRichAccessibilityFontFailureForTest(S_OK); });
+    fixture.editor->SetAccessibleName(L"Changed rich name");
+    if (embedded)
+    {
+        RequireSucceeded(PrepareEmbeddedContentForTests(fixture.view, fixture.viewportWidth, 240), "prepare embedded rich name change");
+        Require(fixture.bridge->Update() == E_FAIL, "embedded snapshot boundary reports a font SDK failure");
+    }
+    else
+        fixture.controls->RefreshAccessibilitySnapshot();
+    const auto during =
+        ReadProviderStringProperty(*simple.get(), UIA_NamePropertyId, "held provider retains its previous coherent snapshot after font failure");
+    Require(during == oldName && DebugGetRichAccessibilityFontFailureCountForTest() > 0u, "actual font-query failure leaves the old accessible name published");
+    Require(fixture.editor->GetText() == oldText && fixture.editor->GetSelection() == oldSelection && fixture.editor->Revision() == oldRevision &&
+                ! fixture.editor->CanUndo(),
+            "failed accessibility publication leaves source, selection and history unchanged");
+    DebugSetRichAccessibilityFontFailureForTest(S_OK);
+    if (embedded)
+        Require(fixture.bridge->Update() == S_OK, "embedded snapshot publication retries after font recovery");
+    else
+        fixture.controls->RefreshAccessibilitySnapshot();
+    const auto after = ReadProviderStringProperty(*simple.get(), UIA_NamePropertyId, "read the recovered rich accessible name");
+    Require(after == L"Changed rich name", "font recovery publishes the current snapshot");
+}
+void TestRichTextAccessibilityWindowFontFailure()
+{
+    RichAccessibilityFontFailure(false);
+}
+void TestRichTextAccessibilityEmbeddedFontFailure()
+{
+    EmbeddedCase([](bool embedded) { RichAccessibilityFontFailure(embedded); });
+}
+#endif
 void TestRichTextAccessibilityEmbeddedSourceAndRanges()
 {
     EmbeddedCase([](bool embedded) { SourceAndRanges(embedded); });
@@ -3817,6 +3859,10 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedDiagramAlternatives);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedFootnoteNavigation);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSourceAndRanges);
+#if DXUI_ENABLE_DIAGNOSTICS
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowFontFailure);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedFontFailure);
+#endif
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedSourceAndRanges);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowClientNavigationAndEvents);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedClientNavigationAndEvents);

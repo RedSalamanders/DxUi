@@ -659,6 +659,9 @@ void DebugSetAccessibilityOffscreenSelectedRowMaterializationLimitForTest(size_t
 // largest uint64_t when the window has no registered host.
 [[nodiscard]] uint64_t DebugGetAccessibilityFocusResolutionCountForTest(HWND hwnd) noexcept;
 [[nodiscard]] uint64_t DebugGetAccessibilitySnapshotBuildCountForTest() noexcept;
+// Owner-thread-only deterministic failure at the rich snapshot font query.
+void DebugSetRichAccessibilityFontFailureForTest(HRESULT failure) noexcept;
+[[nodiscard]] size_t DebugGetRichAccessibilityFontFailureCountForTest() noexcept;
 // Owner-thread-only mutation-interest override for this exact HWND attachment. Nullopt restores automatic interest;
 // null HWND with nullopt clears the calling thread's override. Other hosts, queries and UIA listeners are unchanged.
 [[nodiscard]] bool DebugSetAccessibilityMutationInterestForTest(HWND hwnd, std::optional<bool> interested) noexcept;
