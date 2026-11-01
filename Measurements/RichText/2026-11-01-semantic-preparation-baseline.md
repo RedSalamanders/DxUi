@@ -13,7 +13,7 @@ owning paired policy. The process was x64 Release on Windows 10.0.26300, AMD Ryz
 - Linked probe SHA-256: `9226614208852c5947c2d82fd55513937edd93f871fbdc2db21a5d9e75aa04ea`.
 
 The warning-free standalone probe links `Tests/Embedded/DxUi.RichPreparationBenchmark.vcxproj`
-against the exact test-enabled Release output specified by `TargetRoot`. Run the
+against the exact test-enabled Release output specified by `TargetRoot`. The recorded producer is the project as committed at `4c8d54f4`; later six-profile declarations require a fresh paired run before acceptance. Run the
 resulting `DxUi.RichPreparationBenchmark.exe` once per process. It owns no HWND,
 worker or timer and makes no external file/network requests. Its process-local
 baseline receipt is `.build/rich-preparation-probe/baseline-final.json`.
