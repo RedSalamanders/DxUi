@@ -8,6 +8,9 @@ options. H1/H2 gain subtle separators, tables fit their contents with horizontal
 rules, standalone display equations/diagrams center, and quotes use a shaded
 surface. `Default` preserves the existing presentation. This setting does not
 rewrite Markdown or affect Source-view styling, selection or undo history.
+Table columns measure both natural and minimum nonbreaking widths. A wrapping
+column yields space to an unbreakable word before emergency character breaks
+are needed; right-to-left cells use the same widths and source geometry.
 Exact library/header pairing is required when adopting the new public fields.
 
 `RichTextEditor::SetAppearance` owns the editor's frame and text viewport. Keep

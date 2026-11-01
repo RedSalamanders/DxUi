@@ -2038,8 +2038,12 @@ Source text, selection, undo history, source view and semantic roles do not chan
 
 Subtle H1/H2 headings have a one-DIP separator below the text, included in element
 bounds and backed by at least fourteen DIP of following space. Tables use bounded
-natural column measurements plus twelve DIP of cell padding, proportionally
-shrunk when necessary, and draw horizontal row rules without vertical cell borders.
+natural and minimum nonbreaking column measurements plus twelve DIP of cell padding.
+When natural widths exceed the viewport, columns first retain their widest word or
+native object's minimum and share remaining width according to their wrappable
+content. Only when the summed minima exceed the viewport are those minima reduced
+proportionally, allowing DirectWrite's emergency character breaks. Tables draw
+horizontal row rules without vertical cell borders.
 RTL placement and explicit cell alignment remain supported. Standalone diagrams
 and display-only mathematical paragraphs center through prepared DWrite geometry,
 so source hit testing and caret placement agree with drawing. Inline math retains

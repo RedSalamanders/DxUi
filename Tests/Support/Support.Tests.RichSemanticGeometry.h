@@ -771,6 +771,41 @@ inline void MarkdownSubtlePresentation()
     const auto first  = subtle->ElementBounds(cellIndices[0u]);
     const auto second = subtle->ElementBounds(cellIndices[1u]);
     Check(first && second && second->right - second->left > first->right - first->left, "intrinsic table sizing gives unequal content-driven column widths");
+    // A long wrappable neighbor must not steal a word's intrinsic minimum.
+    // Obtain the independent SDK oracle directly, rather than calling the
+    // private helper used by semantic table allocation.
+    const std::wstring word = L"UnbreakableIdentifier";
+    wil::com_ptr<IDWriteTextFormat> wordFormat;
+    THROW_IF_FAILED(factory->CreateTextFormat(L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL,
+                                              18.0f, L"en-us", wordFormat.put()));
+    wil::com_ptr<IDWriteTextLayout> wordLayout;
+    THROW_IF_FAILED(factory->CreateTextLayout(word.data(), static_cast<UINT32>(word.size()), wordFormat.get(), 4096.0f, 4096.0f, wordLayout.put()));
+    float wordMinimum{};
+    THROW_IF_FAILED(wordLayout->DetermineMinWidth(&wordMinimum));
+    const auto minimumDocument = RichSemanticDocumentTests::Build(
+        L"| id | description |\n| --- | --- |\n| UnbreakableIdentifier | many short words which can wrap without breaking words across a long column |\n");
+    for (const auto direction : {DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT})
+    {
+        PreparedSemanticGeometry minimumTable;
+        LayoutOptions minimumOptions;
+        minimumOptions.widthDip = 360.0f;
+        minimumOptions.markdownPresentation = MarkdownPresentationStyle::Subtle;
+        minimumOptions.readingDirection = direction;
+        minimumTable.Begin(factory.get(), minimumDocument, minimumOptions);
+        Complete(minimumTable);
+        const auto cells = minimumDocument->Elements();
+        const auto cell = std::ranges::find_if(cells, [](const auto& value) {
+            return value.role == SemanticRole::Cell && value.name == L"UnbreakableIdentifier";
+        });
+        Check(cell != cells.end(), "intrinsic minimum fixture owns the exact body cell");
+        const auto bounds = minimumTable.ElementBounds(static_cast<std::size_t>(cell - cells.begin()));
+        Check(bounds && bounds->right - bounds->left + .1f >= wordMinimum + 12.0f,
+              "wrappable column yields space to an unbreakable word in either direction");
+        const auto wordSource = minimumDocument->Syntax()->Source().find(word);
+        const auto caret = minimumTable.SourceCaret(wordSource);
+        Check(caret.height > 0.0f && minimumTable.HitTestSource(caret.x, caret.y + caret.height * .5f).position == wordSource,
+              "minimum-width allocation keeps the source caret aligned with its cell");
+    }
     for (const auto [width, direction] : {std::pair{520.0f, DWRITE_READING_DIRECTION_LEFT_TO_RIGHT},
                                           std::pair{230.0f, DWRITE_READING_DIRECTION_LEFT_TO_RIGHT},
                                           std::pair{520.0f, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT}})

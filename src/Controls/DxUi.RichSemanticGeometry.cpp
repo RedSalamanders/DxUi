@@ -624,14 +624,15 @@ struct PreparedSemanticGeometry::Preparation
     std::vector<std::size_t> sourceBoxes;
     struct TableSizing
     {
-        TableSizing() : preferred(0u), widths(0u), probeWidths(0u), probeParagraphs(0u), probes(0u)
+        TableSizing() : preferred(0u), minimum(0u), widths(0u), probeWidths(0u), probeParagraphs(0u), probes(0u)
         {
         }
         std::size_t table{}, columns{};
         std::size_t widthIndex{};
-        float indent{}, preferredTotal{}, scale{};
+        float indent{}, preferredTotal{}, minimumTotal{}, scale{};
+        bool compressMinimum{};
         SemanticParagraph firstContent;
-        std::vector<float> preferred, widths, probeWidths;
+        std::vector<float> preferred, minimum, widths, probeWidths;
         std::vector<std::size_t> probeParagraphs;
         std::vector<std::unique_ptr<SemanticBox>> probes;
     };
@@ -908,6 +909,8 @@ struct PreparedSemanticGeometry::Preparation
             sizing->firstContent = content;
             sizing->preferred.assign(content.columns, 24.0f);
             sizing->preferredTotal = 24.0f * static_cast<float>(content.columns);
+            sizing->minimum.assign(content.columns, 24.0f);
+            sizing->minimumTotal = sizing->preferredTotal;
             sizing->probeWidths.assign(content.columns, -1.0f);
             sizing->probeParagraphs.assign(content.columns, MarkdownNoNode);
             sizing->probes.resize(content.columns);
@@ -924,6 +927,7 @@ struct PreparedSemanticGeometry::Preparation
         measured.PrepareSemanticOwned(state->factory.get(), projection, options, true);
         const auto textBounds         = measured.HorizontalTextBounds();
         float textWidth               = std::max(0.0f, textBounds.second);
+        float minimumWidth            = measured.MinimumTextWidth();
         const auto includeObjectWidth = [&](MarkdownRange object, float objectWidth)
         {
             if (object.first < content.display.first || object.last > content.display.last || object.first >= object.last)
@@ -932,6 +936,7 @@ struct PreparedSemanticGeometry::Preparation
             const auto leading  = measured.Caret(local);
             const auto trailing = measured.Caret(local + (object.last - object.first));
             textWidth += std::max(0.0f, std::min(objectWidth, options.widthDip) - std::abs(trailing.x - leading.x));
+            minimumWidth = std::max(minimumWidth, std::min(objectWidth, options.widthDip));
         };
         if (state->images)
             for (const auto& image : state->images->placements)
@@ -942,12 +947,16 @@ struct PreparedSemanticGeometry::Preparation
             const auto extent = diagram->paint->Geometry()->extent;
             includeObjectWidth(state->document->Elements()[diagram->element].display, static_cast<float>(extent.width));
         }
-        const auto width = textWidth + 12.0f;
-        if (! std::isfinite(width) || width <= 0.0f)
+        const auto minimum = minimumWidth + 12.0f;
+        const auto width = std::max(textWidth + 12.0f, minimum);
+        if (! std::isfinite(width) || ! std::isfinite(minimum) || width <= 0.0f)
             throw std::overflow_error("Nonfinite intrinsic table column width");
         const auto previous               = sizing->preferred[content.column];
         sizing->preferred[content.column] = std::max(previous, width);
         sizing->preferredTotal += sizing->preferred[content.column] - previous;
+        const auto previousMinimum = sizing->minimum[content.column];
+        sizing->minimum[content.column] = std::max(previousMinimum, minimum);
+        sizing->minimumTotal += sizing->minimum[content.column] - previousMinimum;
         const bool hasInlineObjects =
             (state->native && state->native->Find(content.element)) || (state->images && std::ranges::any_of(state->images->placements, [&](const auto& image) {
             return image.display.first >= content.display.first && image.display.last <= content.display.last;
@@ -980,13 +989,21 @@ struct PreparedSemanticGeometry::Preparation
                                     (state->options.semanticSpacing ? state->options.semanticSpacing->containerIndentDip : 16.0f);
             sizing.indent         = std::min(state->options.widthDip - 1.0f, baseIndent + Gutter(sizing.firstContent));
             const auto available  = std::max(1.0f, state->options.widthDip - sizing.indent);
-            if (! std::isfinite(sizing.preferredTotal) || sizing.preferredTotal <= 0.0f)
+            if (! std::isfinite(sizing.preferredTotal) || sizing.preferredTotal <= 0.0f || ! std::isfinite(sizing.minimumTotal) || sizing.minimumTotal <= 0.0f)
                 throw std::overflow_error("Nonfinite intrinsic semantic table width");
-            sizing.scale = sizing.preferredTotal > available ? available / sizing.preferredTotal : 1.0f;
+            // First preserve each column's widest nonbreaking word/object.
+            // Remaining width is shared by its capacity to wrap. Only when
+            // even the summed minima do not fit do we permit emergency breaks.
+            sizing.compressMinimum = sizing.minimumTotal > available;
+            const auto flexible = sizing.preferredTotal - sizing.minimumTotal;
+            sizing.scale = sizing.compressMinimum ? available / sizing.minimumTotal :
+                           flexible > 0.0f ? std::clamp((available - sizing.minimumTotal) / flexible, 0.0f, 1.0f) : 0.0f;
             sizing.widths.reserve(sizing.columns);
         }
-        const auto preferred = sizing.preferred[sizing.widthIndex++];
-        sizing.widths.push_back(std::max(0.01f, preferred * sizing.scale));
+        const auto column = sizing.widthIndex++;
+        const auto minimum = sizing.minimum[column];
+        const auto width = sizing.compressMinimum ? minimum * sizing.scale : minimum + (sizing.preferred[column] - minimum) * sizing.scale;
+        sizing.widths.push_back(std::max(0.01f, width));
         if (sizing.widthIndex == sizing.columns)
         {
             ++tableAllocateIndex;
