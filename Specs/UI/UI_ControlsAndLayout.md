@@ -1710,7 +1710,8 @@ rank. Rectangles/rounded rectangles pad labels, circles contain the padded label
 diagonal, diamonds contain twice the padded width/height, and stadium capsules
 keep the complete measured label inside their straight middle band. Their centerline
 ports lie on the capsule boundary in all four flow directions. Direction changes
-flow without rotating text. Every edge gets a distinct exterior lane; endpoint
+flow without rotating text. Every edge gets a distinct exterior lane sized for its own
+label and minimum separation, rather than the widest label in the graph; endpoint
 corridors remain outside full rank rows, including for skipped-rank edges,
 cycles, self-loops and parallel edges. Crossings are permitted; optimal routing
 and upstream Mermaid coordinate compatibility are not claimed.

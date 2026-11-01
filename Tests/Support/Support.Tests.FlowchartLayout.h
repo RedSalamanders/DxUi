@@ -108,6 +108,20 @@ template <typename Check> inline void Geometry(Check&& check)
               cycles->edges[2u].route == FlowchartRoute::Self && cycles->edges[3u].route == FlowchartRoute::Forward &&
               cycles->edges[0u].path[2u].x != cycles->edges[3u].path[2u].x,
           "stable DFS distinguishes cycles and self loops while parallel edges own separate lanes");
+    const auto lanesGraph = Graph(L"graph TD;A-->|wide|B;A-->C;A-->D;B-->|back|A;C-->A");
+    const std::vector<FlowchartSize> laneNodes(lanesGraph->nodes.size(), {16.0, 12.0});
+    std::vector<FlowchartSize> laneLabels(lanesGraph->edges.size(), FlowchartSize{});
+    laneLabels[0u] = {100.0, 12.0};
+    laneLabels[3u] = {80.0, 12.0};
+    NativeFlowchartLayout laneLayout;
+    laneLayout.Begin(lanesGraph, laneNodes, laneLabels);
+    const auto variableLanes = Complete(laneLayout, check);
+    check(variableLanes->issue == FlowchartLayoutIssue::None && variableLanes->edges.size() == 5u &&
+              Near(variableLanes->edges[1u].path[2u].x - variableLanes->edges[0u].path[2u].x, 108.0) &&
+              Near(variableLanes->edges[2u].path[2u].x - variableLanes->edges[1u].path[2u].x, 16.0) &&
+              variableLanes->edges[0u].label.x + variableLanes->edges[0u].label.width < variableLanes->edges[1u].path[2u].x &&
+              variableLanes->edges[3u].label.x + variableLanes->edges[3u].label.width < variableLanes->nodes[0u].bounds.x,
+          "wide labels reserve only their own lane, on both sides of the graph");
     for (const auto direction : {std::wstring_view(L"BT"), std::wstring_view(L"LR"), std::wstring_view(L"RL")})
     {
         const auto oriented = Place(Graph(std::wstring(L"graph ") + std::wstring(direction) + L";A-->B"), check);
