@@ -1621,6 +1621,11 @@ on the same atom remains source with a diagnostic. Formula preparation uses the 
 heading font size with the shared 1.15 math scale; the caret at a formula edge
 follows its text line.
 
+Script and fraction gap constraints use staged DirectWrite ink bounds for a
+single shaped leaf through transparent wrappers. Other compound operands retain
+conservative box bounds. Measurement and placement share the same staged shifts;
+paint performs no font queries.
+
 `LayoutOptions::mathFontFamily` selects the mathematical family independently of
 body and code text; it defaults to Cambria Math. The retained appearance's
 `mathFontFamily` override is empty by default and preserves that choice. Math

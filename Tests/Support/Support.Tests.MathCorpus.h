@@ -301,6 +301,85 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         THROW_IF_FAILED(font->CreateFontFace(face.put()));
         DWRITE_FONT_METRICS fontMetrics{};
         face->GetMetrics(&fontMetrics);
+        {
+            const void* bytes{};
+            UINT32 byteCount{};
+            void* context{};
+            BOOL exists{};
+            THROW_IF_FAILED(face->TryGetFontTable(DWRITE_MAKE_OPENTYPE_TAG('M', 'A', 'T', 'H'), &bytes, &byteCount, &context, &exists));
+            const auto releaseTable = wil::scope_exit([&]() noexcept { if (context) face->ReleaseFontTable(context); });
+            check(exists && bytes && fontMetrics.designUnitsPerEm, "SDK shift oracle has the actual system MATH table");
+            if (exists && bytes && fontMetrics.designUnitsPerEm)
+            {
+                const Detail::MathFontTable table(std::span(static_cast<const std::uint8_t*>(bytes), byteCount));
+                const auto record = table.MathConstant(36u);
+                const auto minShift = record ? table.AdjustedValue(record.value(), 24.f, 96.f, fontMetrics.designUnitsPerEm) : std::nullopt;
+                check(minShift.has_value(), "SDK MATH table supplies the superscript minimum shift");
+                for (const auto source : {L"H^x", L".^x"})
+                {
+                    auto expression = std::make_shared<const MathExpression>(ParseMath(source));
+                    Detail::PreparedMath prepared(factory, expression, 24.f);
+                    while (! prepared.Advance())
+                    {
+                    }
+                    const auto& glyphs = prepared.GlyphLayouts();
+                    check(glyphs.size() == 2u, "SDK shift fixture shapes a base and superscript");
+                    if (glyphs.size() != 2u || ! minShift)
+                        continue;
+                    DWRITE_LINE_METRICS line{};
+                    UINT32 count{};
+                    DWRITE_OVERHANG_METRICS ink{};
+                    THROW_IF_FAILED(glyphs[0u].layout->GetLineMetrics(&line, 1u, &count));
+                    THROW_IF_FAILED(glyphs[0u].layout->GetOverhangMetrics(&ink));
+                    const float expected = std::max(minShift.value(), std::max(0.f, line.baseline + ink.top) - 24.f * .08f);
+                    const float actual = glyphs[0u].origin.y + glyphs[0u].extent.above - glyphs[1u].origin.y - glyphs[1u].extent.above;
+                    check(std::abs(actual - expected) < .05f, "superscript baseline uses actual glyph ink and SDK MATH minimum");
+                }
+                const auto constant = [&](std::size_t offset) -> std::optional<float>
+                {
+                    const auto entry = table.MathConstant(offset);
+                    return entry ? table.AdjustedValue(entry.value(), 24.f, 96.f, fontMetrics.designUnitsPerEm) : std::nullopt;
+                };
+                const auto axis = constant(12u), denominator = constant(128u), gap = constant(148u), rule = constant(144u);
+                check(axis && denominator && gap && rule, "SDK MATH table supplies fraction constants");
+                auto fractionExpression = std::make_shared<const MathExpression>(ParseMath(L"\\frac{H}{.}"));
+                Detail::PreparedMath fraction(factory, fractionExpression, 24.f);
+                while (! fraction.Advance())
+                {
+                }
+                const auto& fractionGlyphs = fraction.GlyphLayouts();
+                check(fractionGlyphs.size() == 2u, "SDK fraction oracle shapes both operands");
+                if (fractionGlyphs.size() == 2u && axis && denominator && gap && rule)
+                {
+                    DWRITE_LINE_METRICS line{};
+                    UINT32 count{};
+                    DWRITE_OVERHANG_METRICS ink{};
+                    THROW_IF_FAILED(fractionGlyphs[1u].layout->GetLineMetrics(&line, 1u, &count));
+                    THROW_IF_FAILED(fractionGlyphs[1u].layout->GetOverhangMetrics(&ink));
+                    const float expected = std::max(denominator.value(), std::max(0.f, line.baseline + ink.top) + gap.value() +
+                                                                            std::max(1.f, rule.value()) * .5f - axis.value());
+                    const float actual = fractionGlyphs[1u].origin.y + fractionGlyphs[1u].extent.above - fraction.Baseline();
+                    check(std::abs(actual - expected) < .05f, "fraction denominator uses actual glyph ink and SDK MATH gaps");
+                }
+                auto pairedExpression = std::make_shared<const MathExpression>(ParseMath(L"H_i^x"));
+                Detail::PreparedMath paired(factory, pairedExpression, 24.f);
+                while (! paired.Advance())
+                {
+                }
+                const auto& pairedGlyphs = paired.GlyphLayouts();
+                const auto scriptGap = constant(52u);
+                check(pairedGlyphs.size() == 3u && scriptGap, "paired-script SDK oracle has both scripts and a minimum gap");
+                if (pairedGlyphs.size() == 3u && scriptGap)
+                {
+                    DWRITE_OVERHANG_METRICS subInk{}, superInk{};
+                    THROW_IF_FAILED(pairedGlyphs[1u].layout->GetOverhangMetrics(&subInk));
+                    THROW_IF_FAILED(pairedGlyphs[2u].layout->GetOverhangMetrics(&superInk));
+                    const float subTop = pairedGlyphs[1u].origin.y - subInk.top;
+                    const float superBottom = pairedGlyphs[2u].origin.y + pairedGlyphs[2u].layout->GetMaxHeight() + superInk.bottom;
+                    check(subTop - superBottom + .05f >= scriptGap.value(), "paired scripts preserve the SDK MATH ink gap");
+                }
+            }
+        }
         const auto strikeExpression = std::make_shared<const MathExpression>(ParseMath(L"\\sout{x}"));
         Detail::PreparedMath strike(factory, strikeExpression, 24.f);
         while (! strike.Advance())

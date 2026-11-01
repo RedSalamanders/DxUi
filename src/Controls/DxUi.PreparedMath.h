@@ -401,6 +401,8 @@ class PreparedMath final
         float leftOverhang{}, topOverhang{}, rightOverhang{}, bottomOverhang{};
         UINT16 mathGlyph{};
         float inkAbove{}, inkBelow{};
+        float visualAbove{}, visualBelow{};
+        bool hasVisualInk{};
         bool needsKern{};
     };
     struct MathFontData
@@ -479,6 +481,7 @@ class PreparedMath final
         unsigned scriptLevel{};
         bool display{};
         float subKern{}, superKern{}, scriptLeftPad{};
+        float upperShift{}, lowerShift{};
         std::uint32_t color{NoColor};
         std::size_t rowTag{std::numeric_limits<std::size_t>::max()};
     };
@@ -1139,6 +1142,27 @@ class PreparedMath final
     {
         return ScriptBaseAdvance(index) + ItalicCorrection(index);
     }
+    // A single shaped leaf and transparent one-child wrappers share a baseline.
+    // For other constructions the retained layout box is the conservative bound.
+    Extent InkExtent(std::size_t index) const noexcept
+    {
+        const auto original = boxes[index].extent;
+        while ((boxes[index].node->kind == MathKind::Row ||
+                (boxes[index].node->kind == MathKind::Style && ! ColorBox(boxes[index].node->text))) &&
+               boxes[index].firstChild < boxes[index].endChild)
+        {
+            const auto first = boxes[index].firstChild;
+            if (NextSibling(first) != boxes[index].endChild)
+                return original;
+            index = first;
+        }
+        if (boxes[index].node->kind != MathKind::Text || boxes[index].node->text.empty())
+            return original;
+        const auto& glyph = glyphs[boxes[index].glyph];
+        if (! glyph.hasVisualInk)
+            return original;
+        return {original.width, glyph.visualAbove, glyph.visualBelow};
+    }
     float AtomSpace(MathAtomClass left, MathAtomClass right, float size, unsigned styleLevel) const noexcept
     {
         // Class pairs and tight-script entries follow KaTeX v0.16.11's TeX
@@ -1266,10 +1290,12 @@ class PreparedMath final
                     MathConstantAt(box.display ? 152u : 148u, box.size, box.display ? fractionDenominatorDisplayGap : fractionDenominatorGap);
                 const float topShift =
                     std::max(MathConstantAt(box.display ? 124u : 120u, box.size, box.display ? fractionNumeratorDisplayShift : fractionNumeratorShift),
-                             axisAtSize + top.below + topGap + rule * .5f);
+                             axisAtSize + (node.text == L"cfrac" ? top.below : InkExtent(ChildAt(reverse, 0u)).below) + topGap + rule * .5f);
                 const float bottomShift =
                     std::max(MathConstantAt(box.display ? 132u : 128u, box.size, box.display ? fractionDenominatorDisplayShift : fractionDenominatorShift),
-                             bottom.above + bottomGap + rule * .5f - axisAtSize);
+                             InkExtent(ChildAt(reverse, 1u)).above + bottomGap + rule * .5f - axisAtSize);
+                box.upperShift = topShift;
+                box.lowerShift = bottomShift;
                 box.extent = {std::max(top.width, bottom.width) + box.size * .4f, topShift + top.above, bottomShift + bottom.below};
                 continue;
             }
@@ -1295,12 +1321,15 @@ class PreparedMath final
                     continue;
                 }
                 const float scriptGap    = MathConstantAt(52u, box.size, scriptGapMinimum);
-                const float subShift     = std::max(MathConstantAt(24u, box.size, subscriptShift), base.below + box.size * .12f);
-                const float superShift   = std::max(MathConstantAt(36u, box.size, superscriptShift), base.above - box.size * .08f);
-                const float availableGap = superShift + subShift - super.below - sub.above;
-                const float extra        = std::max(0.f, (scriptGap - availableGap) / 2.f);
                 const auto baseIndex     = ChildAt(reverse, 0u);
                 const auto subIndex = ChildAt(reverse, 1u), superIndex = ChildAt(reverse, 2u);
+                const auto baseInk       = InkExtent(baseIndex);
+                const float subShift     = std::max(MathConstantAt(24u, box.size, subscriptShift), baseInk.below + box.size * .12f);
+                const float superShift   = std::max(MathConstantAt(36u, box.size, superscriptShift), baseInk.above - box.size * .08f);
+                const float availableGap = superShift + subShift - InkExtent(superIndex).below - InkExtent(subIndex).above;
+                const float extra = sub.width > 0.f && super.width > 0.f ? std::max(0.f, (scriptGap - availableGap) / 2.f) : 0.f;
+                box.lowerShift           = subShift + extra;
+                box.upperShift           = superShift + extra;
                 box.subKern        = sub.width > 0.f ? ScriptKern(baseIndex, subIndex, subShift + extra, false) : 0.f;
                 box.superKern      = super.width > 0.f ? ScriptKern(baseIndex, superIndex, superShift + extra, true) : 0.f;
                 const float subX   = ScriptBaseAdvance(baseIndex) + box.subKern;
@@ -2156,17 +2185,9 @@ class PreparedMath final
         }
         const float axisAtSize = MathConstantAt(12u, box.size, axis);
         const float scaledRule = FractionRule(node.text, box.size);
-        const float topGap     = MathConstantAt(box.display ? 140u : 136u, box.size, box.display ? fractionNumeratorDisplayGap : fractionNumeratorGap);
-        const float bottomGap  = MathConstantAt(box.display ? 152u : 148u, box.size, box.display ? fractionDenominatorDisplayGap : fractionDenominatorGap);
-        const float topShift =
-            std::max(MathConstantAt(box.display ? 124u : 120u, box.size, box.display ? fractionNumeratorDisplayShift : fractionNumeratorShift),
-                     axisAtSize + top.below + topGap + scaledRule * .5f);
-        const float bottomShift =
-            std::max(MathConstantAt(box.display ? 132u : 128u, box.size, box.display ? fractionDenominatorDisplayShift : fractionDenominatorShift),
-                     bottom.above + bottomGap + scaledRule * .5f - axisAtSize);
         const float ruleY = baseline - axisAtSize;
-        Place(ChildAt(index, 0u), x + (box.extent.width - top.width) / 2.f, baseline - topShift);
-        Place(ChildAt(index, 1u), x + (box.extent.width - bottom.width) / 2.f, baseline + bottomShift);
+        Place(ChildAt(index, 0u), x + (box.extent.width - top.width) / 2.f, baseline - box.upperShift);
+        Place(ChildAt(index, 1u), x + (box.extent.width - bottom.width) / 2.f, baseline + box.lowerShift);
         if (scaledRule > 0.f)
             Stroke(x + 2.f, ruleY, x + box.extent.width - 2.f, ruleY, scaledRule);
         return;
@@ -2211,14 +2232,10 @@ class PreparedMath final
                 Place(sub, center - boxes[sub].extent.width / 2.f - italicCorrection / 2.f, baseline + baseBelowShift + boxes[sub].extent.above);
             return;
         }
-        const float subShift   = std::max(MathConstantAt(24u, box.size, subscriptShift), base.below + box.size * .12f);
-        const float superShift = std::max(MathConstantAt(36u, box.size, superscriptShift), base.above - box.size * .08f);
-        const float gapNeed = MathConstantAt(52u, box.size, scriptGapMinimum) - (superShift + subShift - boxes[super].extent.below - boxes[sub].extent.above);
-        const float correction = std::max(0.f, gapNeed / 2.f);
         const auto baseX       = x + box.scriptLeftPad;
         Place(baseIndex, baseX, baseline);
-        Place(sub, baseX + ScriptBaseAdvance(baseIndex) + box.subKern, baseline + subShift + correction);
-        Place(super, baseX + ScriptAnchor(baseIndex) + box.superKern, baseline - superShift - correction);
+        Place(sub, baseX + ScriptBaseAdvance(baseIndex) + box.subKern, baseline + box.lowerShift);
+        Place(super, baseX + ScriptAnchor(baseIndex) + box.superKern, baseline - box.upperShift);
         return;
     }
     void PlaceExtensibleArrow(std::size_t index, float x, float baseline)
@@ -2613,6 +2630,12 @@ public:
             THROW_IF_FAILED(layout->SetMaxHeight(std::max(1.f, layoutHeight)));
             DWRITE_OVERHANG_METRICS overhang{};
             THROW_IF_FAILED(layout->GetOverhangMetrics(&overhang));
+            if (std::isfinite(overhang.top) && std::isfinite(overhang.bottom))
+            {
+                leaf.visualAbove = std::max(0.f, line.baseline + overhang.top);
+                leaf.visualBelow = std::max(0.f, layoutHeight + overhang.bottom - line.baseline);
+                leaf.hasVisualInk = std::isfinite(leaf.visualAbove + leaf.visualBelow) && leaf.visualAbove + leaf.visualBelow > 0.f;
+            }
             const float leftInk = std::isfinite(overhang.left) ? std::max(0.f, overhang.left) : 0.f;
             const float rightOverhang =
                 std::isfinite(overhang.right) ? std::max(0.f, layoutWidth + overhang.right - metrics.widthIncludingTrailingWhitespace) : 0.f;

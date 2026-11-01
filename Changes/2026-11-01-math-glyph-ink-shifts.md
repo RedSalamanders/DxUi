@@ -1,0 +1,1 @@
+- Use staged glyph ink for mathematical script and fraction spacing, with conservative bounds for compound operands and shared measured and painted shifts.
