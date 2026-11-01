@@ -3755,7 +3755,20 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                 const auto callback = _state->onFindRequested;
                 if (! callback)
                     return false;
-                (*callback)();
+                try
+                {
+                    (*callback)();
+                }
+                catch (const std::bad_alloc&)
+                {
+                    // Observer allocation failure remains fatal at the native input boundary.
+                    std::terminate();
+                }
+                catch (const std::exception&)
+                {
+                    // The find request was already delivered; do not replay it.
+                    Debug::Warning(L"DxUi::RichTextEditor: find request callback failed.");
+                }
                 return true;
             }
             if (! control && key == VK_F3 && ! _state->searchQuery.empty())

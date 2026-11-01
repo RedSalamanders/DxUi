@@ -561,6 +561,16 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     Check(editor->ExecuteMarkdownCommand(request) == MarkdownCommandStatus::Changed && dynamic_cast<Label*>(host.GetRoot()),
           "structural command callback can retire its owner without a stale continuation");
     prepare();
+    auto findOwner   = std::make_unique<RichTextEditor>(L"find");
+    auto* findEditor = findOwner.get();
+    findEditor->SetSearchShortcutsEnabled(true);
+    findEditor->SetOnFindRequested([&] { host.SetRoot(std::make_unique<Label>(L"replacement")); });
+    host.SetRoot(std::move(findOwner));
+    prepare();
+    host.SetFocusControl(findEditor, false);
+    Check(findEditor->OnKeyDown(host, 'F', MK_CONTROL) && dynamic_cast<Label*>(host.GetRoot()),
+          "find request callback can retire its editor without a stale continuation");
+    prepare();
 }
 template <typename Prepare> void MathAndBroaderDiagrams(ControlHost& host, Prepare&& prepare)
 {

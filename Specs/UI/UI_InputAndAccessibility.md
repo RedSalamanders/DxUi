@@ -1208,6 +1208,8 @@ maps an optional active match into the existing source-highlight presentation.
 Optional search shortcuts route Ctrl+F to the consumer's find-request callback
 and F3/Shift+F3 to next/previous matches of the configured query; they are
 disabled by default. The consumer owns the find interface and query updates.
+The find-request delegate is held across dispatch, may retire its editor, and
+is delivered once; observer allocation failure follows the fatal observer policy.
 Selection, source-highlight and native composition rectangles are staged with
 current layout before painting; selection or highlight changes retire their
 prepared geometry until the host prepares the replacement.
