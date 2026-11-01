@@ -40,6 +40,18 @@ void TestRichSemanticNativeFallbackSyntaxOwnership()
     const auto retry = RichSemanticDocumentTests::Complete(builder, *syntax);
     Require(retry->Diagnostics().empty() && retry->Map().Display() == original->Map().Display(),
             "clearing presentation rejection retries the unchanged syntax");
+    const std::wstring fenceSource = L"```math\n\\frac{1}{2}\n```\n";
+    const auto fenceSyntax = RichSemanticDocumentTests::Parse(fenceSource, MarkdownProfile::RichMarkdown);
+    builder.Begin(fenceSyntax);
+    const auto fenceOriginal = RichSemanticDocumentTests::Complete(builder, *fenceSyntax);
+    const auto formula = std::ranges::find(fenceOriginal->Elements(), SemanticRole::Math, &SemanticElement::role);
+    Require(formula != fenceOriginal->Elements().end(), "math fence owns a source-backed native formula");
+    const std::array fenceRanges{formula->source};
+    Detail::SemanticExtensionAccess::BeginWithNativeFallbacks(builder, fenceSyntax, fenceRanges);
+    const auto fenceFallback = RichSemanticDocumentTests::Complete(builder, *fenceSyntax);
+    Require(fenceFallback->Map().Source() == fenceSource && fenceFallback->Map().Display().find(fenceSource) != std::wstring::npos &&
+                fenceFallback->Diagnostics().size() == 1u,
+            "native math fence failure falls back to the complete exact source");
 }
 void TestRichSemanticNativeObjectSharedContract()
 {

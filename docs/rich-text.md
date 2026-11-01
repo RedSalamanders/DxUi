@@ -1345,8 +1345,10 @@ RichMarkdown recognizes `$...$`, `$$...$$`, `\(...\)` and `\[...\]` inside ordin
 inline leaves. Single-dollar math is single-line and requires nonspace content edges;
 a closing dollar followed by a digit is currency text. Explicit `\(...\)` delimiters
 permit edge whitespace and a following digit, while retaining the physical-line bound.
-Escaped delimiters, code spans,
-fenced/indented code and CommonMark/GFM profiles retain their existing grammar.
+Escaped delimiters, code spans, other fenced/indented code and CommonMark/GFM
+profiles retain their existing grammar. Closed `math` and `latex` fenced blocks
+render as display-style native formulas with source-owned editing and UIA ranges;
+unclosed fences and unsupported formulas preserve exact source with a diagnostic.
 Display delimiters may span logical lines of one Markdown paragraph. Blank paragraphs
 and GFM table boundaries still delimit leaves. Original source, delimiters, CRLF,
 selection and history remain authoritative; one successful formula owns one atomic

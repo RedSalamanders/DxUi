@@ -1023,6 +1023,51 @@ struct SemanticBuilder::Preparation
             visits.push_back(close);
             return;
         }
+        auto fenceInfo = syntax.Slice(node.block.info);
+        while (! fenceInfo.empty() && (fenceInfo.back() == L' ' || fenceInfo.back() == L'\t')) fenceInfo.remove_suffix(1u);
+        const bool mathFence = syntax.Profile() == MarkdownProfile::RichMarkdown && node.block.kind == MarkdownBlockKind::FencedCode &&
+                               (fenceInfo == L"math" || fenceInfo == L"latex");
+        if (mathFence && analyzeNative)
+        {
+            Detail::NormalizeSemanticLeaf(syntax, visit.node, normalized);
+            auto& extensions = Extensions();
+            const bool sourceFallback = NativeSourceFallback(node.block.source);
+            auto expression = node.block.closed && ! sourceFallback ? std::make_shared<MathExpression>(ParseMath(normalized.text))
+                                                                   : std::shared_ptr<MathExpression>{};
+            const auto count = [](auto&& self, const MathNode& value) -> std::size_t
+            {
+                std::size_t result = 1u;
+                for (const auto& child : value.children) result += self(self, child);
+                return result;
+            };
+            const auto records = expression ? count(count, expression->root) : 0u;
+            const bool capacity = expression && (expression->issue == MathIssue::Capacity ||
+                (*expression && (records > 4096u - extensions.mathRecords ||
+                 extensions.maths.size() + extensions.diagrams.size() + extensions.images.size() >= Detail::SemanticExtensions::MaximumObjects)));
+            auto& formula = document->elements_[visit.element];
+            formula.role = SemanticRole::Math;
+            formula.name = normalized.text;
+            close = BeginLeafParagraph(visit, true);
+            if (expression && *expression && ! capacity)
+            {
+                formula.title = L"Mathematical expression. Exact TeX source is available as document text.";
+                output.Emit(L"\ufffc", node.block.source, DisplaySpanKind::Object, visit.flags, visit.heading);
+                extensions.maths.push_back({visit.element, std::move(expression), true});
+                extensions.mathRecords += records;
+            }
+            else
+            {
+                extensions.diagnostics.push_back({capacity ? SemanticDiagnosticKind::MathCapacity : SemanticDiagnosticKind::UnsupportedMath,
+                                                  node.block.source, visit.element});
+                formula.title = ! node.block.closed ? L"Missing closing math fence. Exact source is preserved."
+                              : sourceFallback ? L"Equation cannot be prepared natively for this view. Exact source is preserved."
+                              : capacity ? L"Equation exceeds native object capacity. Exact source is preserved."
+                                         : L"Unsupported native equation. Exact source is preserved.";
+                output.Emit(syntax.Slice(node.block.source), node.block.source, DisplaySpanKind::Source, Code, 0u);
+            }
+            visits.push_back(close);
+            return;
+        }
         if (NativeSourceFallback(node.block.source))
         {
             DiagramDiagnostic(visit, SemanticDiagnosticKind::DiagramCapacity, node.block.source, Label(AccessibilityTextId::DiagramGeometryCapacity));
@@ -1419,16 +1464,18 @@ void SemanticBuilder::BeginWithNativeFallbacks(std::shared_ptr<const MarkdownSyn
     {
         if (range.first >= range.last || range.last > syntax->Source().size() || range.first < previousEnd)
             throw std::invalid_argument("Native source fallbacks must be disjoint source-ordered objects");
-        const bool math =
+        const bool inlineMath =
             std::ranges::any_of(syntax->Inlines(), [&](const auto& node) { return node.kind == MarkdownInlineKind::Math && node.source == range; });
-        const bool diagram = ! math && std::ranges::any_of(syntax->Nodes(),
+        const bool diagram = ! inlineMath && std::ranges::any_of(syntax->Nodes(),
                                                            [&](const auto& node)
         {
-            const auto info = syntax->Slice(node.block.info);
-            return node.block.kind == MarkdownBlockKind::FencedCode && node.block.source == range && info.starts_with(L"mermaid") &&
-                   (info.size() == 7u || info[7u] == L' ' || info[7u] == L'\t');
+            auto info = syntax->Slice(node.block.info);
+            while (! info.empty() && (info.back() == L' ' || info.back() == L'\t')) info.remove_suffix(1u);
+            return node.block.kind == MarkdownBlockKind::FencedCode && node.block.source == range &&
+                   ((info.starts_with(L"mermaid") && (info.size() == 7u || info[7u] == L' ' || info[7u] == L'\t')) ||
+                    info == L"math" || info == L"latex");
         });
-        if (syntax->Profile() != MarkdownProfile::RichMarkdown || (! math && ! diagram))
+        if (syntax->Profile() != MarkdownProfile::RichMarkdown || (! inlineMath && ! diagram))
             throw std::invalid_argument("Native source fallback requires an exact native syntax owner");
         previousEnd = range.last;
     }

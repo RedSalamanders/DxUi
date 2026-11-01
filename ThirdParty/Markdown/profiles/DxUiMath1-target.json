@@ -474,7 +474,7 @@
   "currentImplementation": {
     "profile": "DxUiNativeMath1",
     "coverage": "Owned fixtures in Tests/Support/Support.Tests.MathCorpus.h and Controls.Tests.RichSemanticDocument.cpp cover the implemented parser, atom/style layout and local fallback. Target command/envelope lists and desired per-case diagnostics remain distinct from current support.",
-    "envelopes": "Inline dollar and explicit slash math, plus inline-scanned double-dollar/bracket display forms; fenced math/latex and strict own-line/unclosed-display policies are target work, not implemented claims.",
+    "envelopes": "Inline dollar and explicit slash math, inline-scanned double-dollar/bracket display forms, and closed math/latex fenced blocks are implemented. Unclosed math fences retain exact source with a diagnostic; strict own-line and unclosed delimiter-display policies remain target work.",
     "layout": "Selected OpenType MATH constants, DPI device corrections and bounded vertical/horizontal variants and assemblies, with shaped text overhang and stroke delimiter/accent fallbacks. Complete font variant, MathKern and mathematical-font fallback qualification remain open.",
     "qualification": "See current-source build/test and paired performance receipts; fixture authorship and target data alone are not passing evidence."
   }

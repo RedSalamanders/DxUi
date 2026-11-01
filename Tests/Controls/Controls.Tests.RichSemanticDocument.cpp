@@ -864,6 +864,28 @@ void TestRichSemanticNativeMathematicsAndBroaderMermaid()
                 mindDiagram->name.find(L"First") != std::wstring::npos && mindDiagram->name.find(L"Leaf") != std::wstring::npos &&
                 mindDiagram->name.find(L"Second") != std::wstring::npos,
             "Mind map semantic alternative preserves hierarchy labels and exact source");
+    for (const auto* info : {L"math", L"latex"})
+    {
+        const auto fenceSource = std::wstring(L"```") + info + L"\n\\frac{1}{2}\n```\n";
+        const auto fenceDocument = RichSemanticDocumentTests::Build(fenceSource, MarkdownProfile::RichMarkdown);
+        const auto formula = std::ranges::find(fenceDocument->Elements(), SemanticRole::Math, &SemanticElement::role);
+        Require(fenceDocument->Map().Source() == fenceSource && formula != fenceDocument->Elements().end() &&
+                    fenceDocument->Map().Display().find(L'\ufffc') != std::wstring::npos && fenceDocument->Diagnostics().empty(),
+                "closed display math fence prepares a native object and preserves exact source");
+        const auto index = static_cast<std::size_t>(formula - fenceDocument->Elements().begin());
+        Require(fenceDocument->SourceEditingNode(index).has_value() && fenceDocument->SourceEditingRange(index).has_value(),
+                "math fence source edit is owned by its complete block");
+    }
+    const std::wstring unclosedMath = L"```math\nx + 1\n";
+    const auto unclosedDocument = RichSemanticDocumentTests::Build(unclosedMath, MarkdownProfile::RichMarkdown);
+    Require(unclosedDocument->Map().Source() == unclosedMath && unclosedDocument->Map().Display().find(unclosedMath) != std::wstring::npos &&
+                std::ranges::any_of(unclosedDocument->Diagnostics(), [](const auto& diagnostic) { return diagnostic.kind == SemanticDiagnosticKind::UnsupportedMath; }),
+            "unclosed math fence retains its exact source and diagnostic");
+    const std::wstring rejectedMath = L"```latex\n\\input{secret}\n```\n";
+    const auto rejectedDocument = RichSemanticDocumentTests::Build(rejectedMath, MarkdownProfile::RichMarkdown);
+    Require(rejectedDocument->Map().Source() == rejectedMath && rejectedDocument->Map().Display().find(rejectedMath) != std::wstring::npos &&
+                std::ranges::any_of(rejectedDocument->Diagnostics(), [](const auto& diagnostic) { return diagnostic.kind == SemanticDiagnosticKind::UnsupportedMath; }),
+            "unsupported fenced math retains its exact source and diagnostic");
 }
 void TestRichSemanticDocumentStructuralStyleValues()
 {

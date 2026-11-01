@@ -2039,6 +2039,17 @@ void SemanticDiagramAlternatives(bool embedded)
     wil::com_ptr_nothrow<ITextRangeProvider> mindRange;
     RequireSucceeded(text->RangeFromChild(mindImage.get(), mindRange.put()), "Mind map source range");
     Require(ReadTextRangeText(*mindRange.get(), -1, "Mind map exact raw fence") == mind, "Mind map UIA range owns the original fence");
+    const std::wstring mathFence = L"```math\n\\frac{1}{2}\n```\n";
+    fixture.editor->SetText(mathFence);
+    fixture.Publish();
+    const auto mathImage = FindSemanticPart(*simple.get(), UIA_ImageControlTypeId);
+    Require(mathImage != nullptr, "display math fence exposes its native image provider");
+    const auto mathName = ReadProviderStringProperty(*mathImage.get(), UIA_NamePropertyId, "display math alternative");
+    Require(mathName.find(L"\\frac{1}{2}") != std::wstring::npos, "display math alternative retains authored TeX");
+    wil::com_ptr_nothrow<ITextRangeProvider> mathRange;
+    RequireSucceeded(text->RangeFromChild(mathImage.get(), mathRange.put()), "display math fence source range");
+    Require(ReadTextRangeText(*mathRange.get(), -1, "display math fence exact source") == mathFence,
+            "display math UIA range owns the complete original fence");
 }
 void SemanticMathLiteralFallback(bool embedded)
 {

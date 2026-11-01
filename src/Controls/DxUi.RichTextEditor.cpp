@@ -1900,8 +1900,8 @@ bool RichTextEditor::BeginSemanticSourceEdit(ControlHost& host, const std::share
     const auto source = expected->SourceEditingRange(element);
     if (! source || _state->sourceEditing)
         return false;
-    const bool inlineMath = expected->Elements()[element].role == RichText::SemanticRole::Math;
     const auto node       = expected->SourceEditingNode(element);
+    const bool inlineMath = expected->Elements()[element].role == RichText::SemanticRole::Math && ! node;
     const auto caret      = inlineMath ? source->first : expected->Syntax()->Nodes()[*node].block.content.first;
     auto session          = _state->nextSourceEditingSession++;
     if (! session)
