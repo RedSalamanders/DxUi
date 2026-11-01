@@ -207,23 +207,32 @@ inline void TransactionRejections()
     const auto revision  = document.Revision();
     const auto selection = document.GetSelection();
     const auto undo = document.CanUndo(), redo = document.CanRedo();
-    const auto reject = [&]<typename Exception>(std::span<const SourceEdit> edits, Selection after)
+    const auto reject = [&]<typename Exception>(std::span<const SourceEdit> edits, Selection after, const char* reason)
     {
-        Reject<Exception>([&] { ApplySourceEdits(document, source, revision, edits, after); }, "invalid source edit plan must fail");
+        Reject<Exception>([&] { ApplySourceEdits(document, source, revision, edits, after); }, reason);
         Check(document.Text() == before && document.Revision() == revision && document.GetSelection() == selection && document.CanUndo() == undo &&
                   document.CanRedo() == redo && document.Snapshot().IsSameRevision(source),
               "rejected edit plan preserves complete published state");
     };
-    reject.operator()<std::out_of_range>(std::array{SourceEdit{{1u, 2u}, L""}}, {});
-    reject.operator()<std::out_of_range>(std::array{SourceEdit{{3u, 4u}, L""}}, {});
-    reject.operator()<std::invalid_argument>(std::array{SourceEdit{{0u, 3u}, L""}, SourceEdit{{1u, 3u}, L""}}, {});
-    reject.operator()<std::invalid_argument>(std::array{SourceEdit{{5u, 6u}, L""}, SourceEdit{{0u, 1u}, L""}}, {});
-    reject.operator()<std::invalid_argument>(std::array{SourceEdit{{1u, 1u}, L"a"}, SourceEdit{{1u, 1u}, L"b"}}, {});
-    reject.operator()<std::invalid_argument>(std::array{SourceEdit{{0u, 1u}, std::wstring_view(L"\0", 1u)}}, {});
-    reject.operator()<std::out_of_range>(std::array{SourceEdit{{0u, 1u}, L"\r"}}, {2u, 2u});
+    reject.operator()<std::out_of_range>(std::array{SourceEdit{{1u, 2u}, L""}}, {}, "edit cannot split a UTF-16 scalar");
+    reject.operator()<std::out_of_range>(std::array{SourceEdit{{3u, 4u}, L""}}, {}, "edit cannot split a CRLF pair");
+    reject.operator()<std::invalid_argument>(std::array{SourceEdit{{0u, 3u}, L""}, SourceEdit{{1u, 3u}, L""}}, {}, "overlapping edits are rejected");
+    reject.operator()<std::invalid_argument>(std::array{SourceEdit{{5u, 6u}, L""}, SourceEdit{{0u, 1u}, L""}}, {}, "unordered edits are rejected");
+    reject.operator()<std::invalid_argument>(std::array{SourceEdit{{1u, 1u}, L"a"}, SourceEdit{{1u, 1u}, L"b"}}, {}, "duplicate edit positions are rejected");
+    const wchar_t unpaired = static_cast<wchar_t>(0xd800u);
+    reject.operator()<std::invalid_argument>(std::array{SourceEdit{{0u, 1u}, std::wstring_view(&unpaired, 1u)}}, {},
+                                             "unpaired replacement surrogate is rejected");
+    reject.operator()<std::out_of_range>(std::array{SourceEdit{{0u, 1u}, L"\r"}}, {2u, 2u}, "future selection cannot split a UTF-16 scalar");
     const std::wstring tooLarge(Document::MaximumUnits, L'x');
-    reject.operator()<std::length_error>(std::array{SourceEdit{{0u, 0u}, tooLarge}}, {});
-    reject.operator()<std::out_of_range>({}, {7u, 0u});
+    reject.operator()<std::length_error>(std::array{SourceEdit{{0u, 0u}, tooLarge}}, {}, "transaction source capacity is enforced");
+    reject.operator()<std::out_of_range>({}, {7u, 0u}, "selection beyond source is rejected");
+    Document counted(L"abc");
+    const auto countedBefore = counted.Snapshot();
+    const std::wstring expected{L'a', L'\0', L'c'};
+    Check(ApplySourceEdits(counted, countedBefore, counted.Revision(), std::array{SourceEdit{{1u, 2u}, std::wstring_view(L"\0", 1u)}}, {2u, 2u}) &&
+              counted.Text() == expected && counted.GetSelection() == Selection{2u, 2u} && counted.Undo() && counted.Text() == L"abc" &&
+              counted.Redo() && counted.Text() == expected,
+          "counted NUL replacement is source-exact and remains one undoable transaction");
     Document join(L"aX\nb");
     const auto joinSnapshot = join.Snapshot();
     const auto joinRevision = join.Revision();
