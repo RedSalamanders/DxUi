@@ -1551,6 +1551,28 @@ template <typename Prepare> void InlineMathSourceEditing(ControlHost& host, Prep
               editor->GetSemanticSourceRegion()->inlineKind == MarkdownInlineSourceKind::Math,
           "a nested math trailing edge opens the more specific source owner");
     Check(editor->OnKeyDown(host, VK_ESCAPE, 0u), "nested math source session exits");
+    for (const auto& example : {std::pair{std::wstring_view(L"$x$[long label](destination)"), MarkdownInlineSourceKind::Link},
+                                std::pair{std::wstring_view(L"[x](a)![long alternative](picture.png)"), MarkdownInlineSourceKind::Image},
+                                std::pair{std::wstring_view(L"![x](a)$longformula$"), MarkdownInlineSourceKind::Math}})
+    {
+        const auto boundary = example.second == MarkdownInlineSourceKind::Link ? 3u : example.second == MarkdownInlineSourceKind::Image ? 6u : 7u;
+        editor->SetText(std::wstring(example.first));
+        prepare();
+        editor->SetSelection({boundary, boundary});
+        Check(editor->OnKeyDown(host, VK_F2, 0u) && editor->GetSemanticSourceRegion() &&
+                  editor->GetSemanticSourceRegion()->inlineKind == example.second && editor->GetSemanticSourceRegion()->source.first == boundary,
+              "at adjacent inline objects the leading envelope wins regardless of relative size");
+        Check(editor->OnKeyDown(host, VK_ESCAPE, 0u), "adjacent source session exits");
+    }
+    const std::wstring nestedImage(L"[![alt](image.png)](destination)");
+    editor->SetText(nestedImage);
+    prepare();
+    const auto imageEnd = nestedImage.find(L')') + 1u;
+    editor->SetSelection({imageEnd, imageEnd});
+    Check(editor->OnKeyDown(host, VK_F2, 0u) && editor->GetSemanticSourceRegion() &&
+              editor->GetSemanticSourceRegion()->inlineKind == MarkdownInlineSourceKind::Image,
+          "a nested image trailing edge selects its more specific owner inside the link");
+    Check(editor->OnKeyDown(host, VK_ESCAPE, 0u), "nested image source session exits");
 }
 template <typename Prepare> void ScrollbarAndNotifications(ControlHost& host, Prepare&& prepare)
 {

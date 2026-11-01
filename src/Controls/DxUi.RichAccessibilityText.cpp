@@ -9,7 +9,7 @@ namespace
 {
 using Id                               = AccessibilityTextId;
 constexpr std::wstring_view defaults[] = {L"Invoke or press F2 to edit exact source.",
-                                          L"Invoke or press Esc to leave exact source editing. Edits remain undoable.",
+                                          L"Press Esc to leave exact source editing. Edits remain undoable.",
                                           L"Editing exact equation source.",
                                           L"Mathematical expression. Exact TeX source is available as document text.",
                                           L"Equation cannot be prepared natively for this view. Exact source is preserved.",

@@ -5272,13 +5272,18 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
             if (const auto document = GetAcknowledgedSemanticDocument(host))
             {
                 const auto caret = GetSelection().caret;
-                auto containing = RichText::MarkdownNoNode, trailing = RichText::MarkdownNoNode;
-                std::size_t containingLength = std::numeric_limits<std::size_t>::max(), trailingLength = containingLength;
+                auto containing = RichText::MarkdownNoNode, trailing = RichText::MarkdownNoNode, leading = RichText::MarkdownNoNode;
+                std::size_t containingLength = std::numeric_limits<std::size_t>::max(), trailingLength = containingLength, leadingLength = containingLength;
                 for (std::size_t element = 0u; element < document->Elements().size(); ++element)
                     if (const auto range = document->SourceEditingRange(element))
                     {
                         const auto source = *range;
                         const auto length = source.last - source.first;
+                        if (caret == source.first && length < leadingLength)
+                        {
+                            leading       = element;
+                            leadingLength = length;
+                        }
                         if (caret >= source.first && caret < source.last && length < containingLength)
                         {
                             containing       = element;
@@ -5290,6 +5295,8 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                             trailingLength = length;
                         }
                     }
+                if (leading != RichText::MarkdownNoNode)
+                    return BeginSemanticSourceEdit(host, document, leading);
                 if (trailing != RichText::MarkdownNoNode && trailingLength < containingLength)
                     return BeginSemanticSourceEdit(host, document, trailing);
                 if (containing != RichText::MarkdownNoNode)

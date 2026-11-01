@@ -2495,6 +2495,11 @@ void SemanticInlineLinkImageSourceEditing(bool embedded)
         Require(pattern && SUCCEEDED(pattern.query_to(expansion.put())), "inline source offers a separate collapse action");
         RequireSucceeded(expansion->get_ExpandCollapseState(&state), "read expanded inline source state");
         Require(state == ExpandCollapseState_Expanded, "inline source reports expanded state");
+        wil::unique_variant help;
+        RequireSucceeded(raw->GetPropertyValue(UIA_HelpTextPropertyId, &help), "read inline source exit help");
+        Require(help.vt == VT_BSTR && std::wstring_view(help.bstrVal).find(L"Invoke") == std::wstring_view::npos &&
+                    std::wstring_view(help.bstrVal).find(L"Esc") != std::wstring_view::npos,
+                "inline source exit help does not suggest an unavailable Invoke action");
         fixture.editor->SetReadOnly(true);
         fixture.Publish();
         Require(! fixture.editor->ReplaceSelection(L"x"), "read-only object source cannot mutate");
