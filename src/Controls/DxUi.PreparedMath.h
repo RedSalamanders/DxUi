@@ -236,6 +236,11 @@ inline bool SameMathFontFile(IDWriteFontFace* left, IDWriteFontFace* right)
 class PreparedMath final
 {
     static constexpr std::uint32_t NoColor = 0xffffffffu;
+    static bool ExtensibleArrow(std::wstring_view name) noexcept
+    {
+        return name == L"xrightarrow" || name == L"xleftarrow" || name == L"xleftrightarrow" || name == L"xRightarrow" ||
+               name == L"xLeftarrow" || name == L"xLeftrightarrow" || name == L"xmapsto" || name == L"xlongequal";
+    }
     static std::optional<std::uint32_t> ColorArgument(std::wstring_view text, std::wstring_view prefix) noexcept
     {
         if (! text.starts_with(prefix) || text.size() != prefix.size() + 6u)
@@ -611,10 +616,10 @@ class PreparedMath final
                         node.text != L"mathring" && node.text != L"underbar" && node.text != L"utilde" &&
                         node.text != L"overbrace" && node.text != L"underbrace" && node.text != L"overgroup" && node.text != L"undergroup" &&
                         node.text != L"boxed" && node.text != L"cancel" && node.text != L"bcancel" && node.text != L"xcancel" && node.text != L"sout" && node.text != L"phase" && node.text != L"angl" &&
-                        ! ColorBox(node.text))
+                        ! ColorBox(node.text) && ! ExtensibleArrow(node.text))
                         throw std::length_error("Invalid mathematical accent");
-                    if (node.children.size() != 1u)
-                        throw std::length_error("Invalid mathematical unary node");
+                    if (node.children.size() != (ExtensibleArrow(node.text) ? 2u : 1u))
+                        throw std::length_error("Invalid mathematical accent arguments");
                     break;
                 case MathKind::Style:
                     if (node.text != L"mathrm" && node.text != L"mathbf" && node.text != L"mathit" && node.text != L"mathnormal" &&
@@ -801,6 +806,12 @@ class PreparedMath final
                     childLevel = 2u;
                     childSize  = scaledSize(childLevel);
                 }
+            }
+            else if (node.kind == MathKind::Accent && ExtensibleArrow(node.text))
+            {
+                childLevel = nextLevel;
+                childSize = scaledSize(childLevel);
+                childDisplay = false;
             }
             else if (node.kind == MathKind::Matrix)
             {
@@ -1120,6 +1131,16 @@ class PreparedMath final
                 const auto width         = std::accumulate(widths.begin(), widths.begin() + node.columns, 0.f) +
                                            box.size * .65f * static_cast<float>(node.columns - 1u) + leftPadding + rightPadding;
                 box.extent               = {width, totalHeight * .5f + box.size * .25f, std::max(0.f, totalHeight * .5f - box.size * .25f)};
+                continue;
+            }
+            if (node.kind == Accent && ExtensibleArrow(node.text) && node.children.size() == 2u)
+            {
+                const auto upper = child(0u), lower = child(1u);
+                const float gap = box.size * .2f;
+                const float axisAtSize = MathConstantAt(12u, box.size, axis);
+                box.extent.width = std::max(box.size, std::max(upper.width, lower.width) + box.size * .8f);
+                box.extent.above = axisAtSize + gap + upper.above + upper.below;
+                box.extent.below = std::max(0.f, gap + lower.above + lower.below - axisAtSize);
                 continue;
             }
             if (node.kind == Accent && node.children.size() == 1u)
@@ -1586,6 +1607,41 @@ class PreparedMath final
         {
             const auto width = box.extent.width;
             Fence(node.text.empty() ? L'.' : node.text[0], x, baseline - box.extent.above, baseline + box.extent.below, width, stroke, box.size);
+            return;
+        }
+        if (node.kind == Accent && ExtensibleArrow(node.text) && node.children.size() == 2u)
+        {
+            const auto upper = ChildAt(index, 0u), lower = ChildAt(index, 1u);
+            const auto center = x + box.extent.width * .5f;
+            const auto y = baseline - MathConstantAt(12u, box.size, axis);
+            const auto gap = box.size * .2f;
+            Place(upper, center - boxes[upper].extent.width * .5f, y - gap - boxes[upper].extent.below);
+            Place(lower, center - boxes[lower].extent.width * .5f, y + gap + boxes[lower].extent.above);
+            const float left = x + stroke, right = x + box.extent.width - stroke;
+            const float head = std::min(box.size * .2f, box.extent.width * .2f);
+            const bool leftArrow = node.text == L"xleftarrow" || node.text == L"xleftrightarrow" || node.text == L"xLeftarrow" || node.text == L"xLeftrightarrow";
+            const bool rightArrow = node.text != L"xleftarrow" && node.text != L"xLeftarrow" && node.text != L"xlongequal";
+            const bool doubled = node.text == L"xRightarrow" || node.text == L"xLeftarrow" || node.text == L"xLeftrightarrow" || node.text == L"xlongequal";
+            if (doubled)
+            {
+                const float separation = std::max(stroke, box.size * .05f);
+                Stroke(left, y - separation, right, y - separation, stroke);
+                Stroke(left, y + separation, right, y + separation, stroke);
+            }
+            else
+                Stroke(left, y, right, y, stroke);
+            if (leftArrow)
+            {
+                Stroke(left + head, y - head, left, y, stroke);
+                Stroke(left, y, left + head, y + head, stroke);
+            }
+            if (rightArrow)
+            {
+                Stroke(right - head, y - head, right, y, stroke);
+                Stroke(right, y, right - head, y + head, stroke);
+            }
+            if (node.text == L"xmapsto")
+                Stroke(left, y - head, left, y + head, stroke);
             return;
         }
         if (node.kind == Accent && node.children.size() == 1u)

@@ -469,6 +469,26 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         check(above ? center < lines[0u].first.y : center > lines[0u].first.y, "brace or group curvature faces away from its body");
     }
 #endif
+#if DXUI_ENABLE_DIAGNOSTICS
+    for (const auto& [name, strokes] : std::array{std::pair{L"xrightarrow", 3u}, std::pair{L"xleftarrow", 3u}, std::pair{L"xleftrightarrow", 5u},
+                                                  std::pair{L"xRightarrow", 4u}, std::pair{L"xLeftarrow", 4u}, std::pair{L"xLeftrightarrow", 6u},
+                                                  std::pair{L"xmapsto", 4u}, std::pair{L"xlongequal", 2u}})
+    {
+        const auto expression = std::make_shared<const MathExpression>(ParseMath(L"\\" + std::wstring(name) + L"[below]{above}"));
+        check(static_cast<bool>(*expression), "extensible relation with optional lower and required upper text parses");
+        Detail::PreparedMath layout(factory, expression, 24.f);
+        while (! layout.Advance())
+        {
+        }
+        const auto glyphs = layout.GlyphLayouts();
+        check(glyphs.size() == 2u && layout.StrokeLayouts().size() == strokes && glyphs[0u].origin.y < glyphs[1u].origin.y,
+              "extensible relation has its specified heads and places upper and lower labels separately");
+        check(layout.Size().width >= glyphs[0u].extent.width && layout.Size().width >= glyphs[1u].extent.width,
+              "arrow shaft fits its widest label");
+    }
+#endif
+    check(! ParseMath(L"\\xrightarrow[unfinished{x}") && ! ParseMath(L"\\xrightarrow"),
+          "unclosed or missing arrow labels reject the complete formula");
     check(static_cast<bool>(ParseMath(L"\\boxed{\\xcancel{a+b}}")) && ! ParseMath(L"\\boxed") && ! ParseMath(L"\\cancel{"),
           "nested annotations parse and incomplete operands fail closed");
     // The named sizes and factors are pinned independently to KaTeX 0.16.11 Options.js.

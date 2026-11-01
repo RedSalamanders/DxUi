@@ -374,6 +374,21 @@ class Parser
     }
     // Keep recursive parser frames small in unoptimized MSVC builds. Literal
     // symbol tables and unrelated command temporaries belong in separate frames.
+    MathNode ExtensibleArrowCommand(std::wstring_view name, unsigned depth)
+    {
+            Space();
+            auto lower = Make(MathKind::Row);
+            if (at < source.size() && source[at] == L'[')
+            {
+                ++at;
+                lower = Row(depth + 1u, false, false, false, true);
+            }
+            auto upper = Atom(depth + 1u);
+            auto arrow = Make(MathKind::Accent, std::wstring(name), {std::move(upper), std::move(lower)});
+            arrow.atomClass = MathAtomClass::Relation;
+            return arrow;
+
+    }
     MathNode StructuredCommand(std::wstring_view name, unsigned depth)
     {
         if (name == L"not")
@@ -866,6 +881,9 @@ class Parser
         const auto name                                 = source.substr(first, at - first);
         if (name == L"textcolor" || name == L"colorbox" || name == L"fcolorbox")
             return ColorCommand(name, depth);
+        if (name == L"xrightarrow" || name == L"xleftarrow" || name == L"xleftrightarrow" || name == L"xRightarrow" || name == L"xLeftarrow" ||
+            name == L"xLeftrightarrow" || name == L"xmapsto" || name == L"xlongequal")
+            return ExtensibleArrowCommand(name, depth);
         static constexpr std::wstring_view structured[] = {
             L"not", L"frac", L"dfrac", L"tfrac", L"binom", L"dbinom", L"tbinom", L"overset", L"underset", L"stackrel", L"sqrt", L"substack", L"begin"};
         if (std::ranges::find(structured, name) != std::end(structured))
