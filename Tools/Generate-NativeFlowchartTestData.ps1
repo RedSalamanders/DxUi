@@ -11,7 +11,7 @@ $pins=@{
     'collection.json'='157DEAF02EC36597EB5012AF8CE1EDF3CA710281CFC6E3E65493BD74A540799A'
     'syntax-inventory.json'='5CBAD5692330F513128C4D6CAF59A6ACE18A530073DEC9098208FC559FE48231'
     'dxui-flowchart-expectations.json'='158E436513D9318CF56590C154394513FB4252B74547377ADDD51B82B03FAD43'
-    'dxui-family-matrix.json'='5A49B46D69193C2D0D911DEC1A0BC79210164F4F75C175E9F89589823475C3B5'
+    'dxui-family-matrix.json'='3284F77116CA03CCF995409124684FFD5EBCCE053D3965B5157FEA87D9B468AF'
 }
 foreach($name in $pins.Keys){
     if((Get-FileHash -LiteralPath (Join-Path $InputDirectory $name)).Hash -cne $pins[$name]){throw "Pinned native flowchart input differs: $name"}

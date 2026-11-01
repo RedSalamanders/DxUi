@@ -51,12 +51,12 @@
     "sha256": "732CCBA438703C76951E5E958E53C65FCBBE836D97665C51CC068E7A993AE068",
     "support": "limited-class",
     "firstExample": {
-      "reason": "first-example-uses-note-directive",
-      "issue": "UnsupportedStatement",
+      "reason": "bounded-class-notes-and-members",
+      "issue": "None",
       "direction": "TopBottom",
-      "outcome": "Unsupported",
-      "edges": 0,
-      "nodes": 0
+      "outcome": "Prepared",
+      "edges": 4,
+      "nodes": 6
     }
   },
   {

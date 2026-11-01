@@ -1314,12 +1314,15 @@ native display position and a `SemanticRole::Math` child named with its TeX nota
 
 `RichMath.h` exposes the data-only `ParseMath` model. A hash-pinned KaTeX 0.16.11 symbol source supplies 411 explicit alphabetic, one-codepoint commands with native atom classes; the four vertical delimiter commands retain the paired-delimiter glyph contract. Dynamic definitions, accents, operators and spacing remain handled only by the explicit native grammar. Supported notation includes
 fractions (`frac`, `dfrac`, `tfrac`), parenthesized two-row binomials (`binom`, `dbinom`, `tbinom`), indexed roots, simultaneous scripts, above/below annotations (`overset`, `underset`, `stackrel`), Greek and
-operator symbols, named functions, text/operator names, roman/bold/italic and
-blackboard/script alphabets, accents, scalable paired delimiters, matrices, cases,
+operator symbols, named functions, text/operator names (including `\textbf` and
+`\textit`), roman/bold/italic and blackboard, script, Fraktur, sans-serif and
+monospace alphabets, accents, scalable paired delimiters, matrices, cases,
 aligned and gathered rows. Matrix rows use `\\` and cells use `&`; shorter rows
 are padded with empty cells to the widest row, within the total-cell limit. User macros, packages, file input, evaluation and full LaTeX
 compatibility are unsupported. Rejection retains the complete literal equation with
 a source-ranged diagnostic, rather than drawing a misleading partial expression.
+Alphabet mapping covers ASCII letters; blackboard, sans-serif and monospace also
+map ASCII digits, while other characters are preserved.
 
 The bounded native profile records atom classes, font styles, script style and
 operator limit policy in its typed model. Variables are italic by default; numbers,
@@ -1328,7 +1331,8 @@ ordinary spacing. Explicit math atom wrappers, display/text/script declarations,
 `limits`/`nolimits`, starred `operatorname`, sized `big`/`Big`/`bigg`/`Bigg` delimiters,
 and `tilde`/`widetilde` are admitted. Escaped `\|` produces a double vertical bar
 as an ordinary atom and as a scalable or sized delimiter. Paired and sized
-delimiters also accept `\lparen`, `\rparen`, `\lt`, `\gt`, `/` and `\backslash`.
+delimiters also accept `\lparen`, `\rparen`, `\lt`, `\gt`, `/`, `\backslash` and
+single or double up, down and up-down arrows.
 Text groups collapse source whitespace and remove grouping braces while retaining escaped literal braces. Matrix rows may
 have a trailing separator; gathered rows have one column and cases at most two.
 `\boldsymbol` and `\bm` request bold while retaining the current math slant;
@@ -1377,6 +1381,9 @@ colon members and bounded multiline `class Name { ... }` member blocks, directed
 One alphabetic `<<annotation>>` per existing class is accepted on a separate line
 or inside its block and displayed as `«annotation»` above the class name; repeated,
 nonalphabetic or undefined-class annotations retain source.
+Quoted `note "text"` and `note for Name "text"` provide standalone and attached
+class notes. Simple `namespace Name { ... }` groups can nest four levels; IDs
+remain globally unique and overlapping groups retain source with a diagnostic.
 State/class layouts use the deterministic native graph router; members are plain
 multiline node labels. Inheritance uses a hollow triangle without a line through its
 interior. Flowchart stadiums use capsule outlines and shape-aware connection ports;
@@ -1393,8 +1400,8 @@ and `<br />` line breaks. Other HTML and unsupported references retain source.
 Plain hashes, comparison characters and ordinary `fa:` substrings remain text;
 actual Font Awesome icon markers still retain the original diagram as source.
 This is not
-Mermaid coordinate compatibility. Advanced composite-state syntax, class namespaces/generics,
-class compartments, relationship multiplicities, other stereotypes, styling,
+Mermaid coordinate compatibility. Advanced composite-state syntax, class generics,
+other stereotypes, styling,
 interaction directives and other diagram families remain exact fenced source.
 Unsupported shape productions retain the complete fence instead of becoming plain
 rectangle or rounded labels. Source-provenance rules remain unchanged.
