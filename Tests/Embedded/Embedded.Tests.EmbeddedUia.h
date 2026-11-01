@@ -563,6 +563,55 @@ __declspec(noinline) static void TestEmbeddedTreeBadgeStatusNotificationsArePerI
     const auto replacementItems = walk.client.Children(treeElement.value());
     walk.Expect(replacementItems.size() == 3u && walk.client.StringProperty(replacementItems.back(), UIA_ItemStatusPropertyId) == L"Replacement",
                 "the replacement TreeItem exposes its own current status after the stale event is pruned");
+    std::vector<TreeItemData> burst;
+    for (uint64_t id = 100u; id < 130u; ++id)
+        burst.push_back(TreeItemData{.id = id, .text = L"Row " + std::to_wstring(id), .badgeText = L"before"});
+    model.SetItems(burst);
+    PublishEmbeddedView(test, bridge, "publish the large Tree before its badge burst");
+    static_cast<void>(walk.client.WaitOutTheStream());
+    const auto burstMark = walk.client.Mark();
+    for (auto& item : burst)
+        item.badgeText = L"after";
+    model.SetItems(std::move(burst));
+    PublishEmbeddedView(test, bridge, "publish more than the individual Tree status limit");
+    walk.Expect(walk.client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs,
+                                      [&]
+    {
+        const auto heard = walk.client.DistinctSince(burstMark);
+        return std::ranges::any_of(heard, [](const UiaTest::HeardEvent& event) { return event.kind == UiaTest::EventKind::Structure; });
+    }),
+                "a large badge burst invalidates the accessible children");
+    const auto burstEvents = walk.client.DistinctSince(burstMark);
+    walk.Expect(std::ranges::none_of(burstEvents,
+                                     [](const UiaTest::HeardEvent& event)
+    { return event.kind == UiaTest::EventKind::Property && event.id == UIA_ItemStatusPropertyId; }),
+                "a large badge burst does not enqueue per-item status notifications");
+    burst.clear();
+    for (uint64_t id = 100u; id < 130u; ++id)
+        burst.push_back(TreeItemData{.id = id, .text = L"Row " + std::to_wstring(id), .badgeText = L"after"});
+    ResetEvent(entered.get());
+    ResetEvent(release.get());
+    DxUi::DebugSetAccessibilityPropertyDeliveryGateForTest(&test.view.Controls(), entered.get(), release.get());
+    auto releaseBurstGate = wil::scope_exit([&]() noexcept
+    {
+        SetEvent(release.get());
+        DxUi::DebugSetAccessibilityPropertyDeliveryGateForTest(nullptr, nullptr, nullptr);
+    });
+    burst[0].badgeText    = L"active";
+    model.SetItems(burst);
+    PublishEmbeddedView(test, bridge, "hold one TreeItem status event");
+    Check(WaitForSingleObject(entered.get(), 10000u) == WAIT_OBJECT_0, "the status delivery reaches its gate");
+    for (size_t index = 1u; index < 26u; ++index)
+    {
+        burst[index].badgeText = L"queued";
+        model.SetItems(burst);
+        PublishEmbeddedView(test, bridge, "queue distinct TreeItem status events");
+    }
+    Check(DxUi::DebugCountPendingTreeItemPropertiesForTest(test.view.Controls(), UIA_ItemStatusPropertyId) == 20u,
+          "distinct held TreeItem statuses are bounded to twenty pending registrations");
+    SetEvent(release.get());
+    DxUi::DebugSetAccessibilityPropertyDeliveryGateForTest(nullptr, nullptr, nullptr);
+    releaseBurstGate.release();
 }
 #endif
 

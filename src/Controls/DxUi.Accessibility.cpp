@@ -5771,6 +5771,22 @@ public:
     {
     }
 
+    AccessibilityProvider(WindowHostAccessibilityTarget* target,
+                          HWND hwnd,
+                          const ControlPath& path,
+                          uint64_t treeItemId,
+                          const AccessibilityControlIdentity& identity,
+                          TreeItemTag,
+                          EventTag) noexcept
+        : _target(target),
+          _hwnd(hwnd),
+          _path(path),
+          _kind(AccessibilityFragmentKind::TreeItem),
+          _treeItemId(treeItemId),
+          _identity(identity)
+    {
+    }
+
     AccessibilityProvider(WindowHostAccessibilityTarget* target, HWND hwnd, const ControlPath& path, size_t gridColumnIndex, GridHeaderTag) noexcept
         : _target(target),
           _hwnd(hwnd),
@@ -12636,7 +12652,10 @@ void RaiseSelectionEvents(WindowHostAccessibilityTarget& target, HWND hwnd, cons
             : change.itemKind == AccessibilityFragmentKind::GridRow
                 ? new (std::nothrow)
                       AccessibilityProvider(&target, hwnd, change.path, id, AccessibilityFragmentKind::GridRow, record->gridModelAssignmentGeneration)
-                : new (std::nothrow) AccessibilityProvider(&target, hwnd, change.path, id, AccessibilityProvider::TreeItemTag{});
+            : record
+                ? new (std::nothrow) AccessibilityProvider(
+                      &target, hwnd, change.path, id, CaptureControlIdentity(*record), AccessibilityProvider::TreeItemTag{}, AccessibilityProvider::EventTag{})
+                : nullptr;
         if (! raw)
         {
             static_cast<void>(target.Release());
@@ -12693,13 +12712,22 @@ void RaiseSelectionEvents(WindowHostAccessibilityTarget& target, HWND hwnd, cons
     }
 }
 
+void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
+                                 const AccessibilityControlNavigationSnapshot& record,
+                                 IRawElementProviderSimple* provider,
+                                 PROPERTYID id,
+                                 const VARIANT& previous,
+                                 const VARIANT& current,
+                                 std::optional<uint64_t> treeItemId) noexcept;
+
 // One tree item's ExpandCollapse state change, raised from the item's own element.
 void RaiseTreeItemExpansionChange(
     WindowHostAccessibilityTarget& target, const AccessibilityControlNavigationSnapshot& record, uint64_t itemId, bool wasExpanded, bool expanded) noexcept
 {
     const auto state = [](bool value) noexcept { return VariantFromInt(value ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed); };
     static_cast<void>(target.AddRef());
-    auto* const raw = new (std::nothrow) AccessibilityProvider(&target, target.hwnd, record.path, itemId, AccessibilityProvider::TreeItemTag{});
+    auto* const raw = new (std::nothrow) AccessibilityProvider(
+        &target, target.hwnd, record.path, itemId, CaptureControlIdentity(record), AccessibilityProvider::TreeItemTag{}, AccessibilityProvider::EventTag{});
     if (! raw)
     {
         static_cast<void>(target.Release());
@@ -12707,8 +12735,12 @@ void RaiseTreeItemExpansionChange(
     }
     wil::com_ptr_nothrow<IRawElementProviderSimple> provider;
     provider.attach(static_cast<IRawElementProviderSimple*>(raw));
-    static_cast<void>(
-        UiaRaiseAutomationPropertyChangedEvent(provider.get(), UIA_ExpandCollapseExpandCollapseStatePropertyId, state(wasExpanded), state(expanded)));
+    const auto previous = state(wasExpanded);
+    const auto current  = state(expanded);
+    if (target.embedded)
+        QueueEmbeddedPropertyChange(target, record, provider.get(), UIA_ExpandCollapseExpandCollapseStatePropertyId, previous, current, itemId);
+    else
+        static_cast<void>(UiaRaiseAutomationPropertyChangedEvent(provider.get(), UIA_ExpandCollapseExpandCollapseStatePropertyId, previous, current));
     NotifyPropertyEventRaisedForTest(UIA_ExpandCollapseExpandCollapseStatePropertyId);
 }
 
@@ -12762,12 +12794,22 @@ template <typename Connected>
 [[nodiscard]] bool RaiseTreeItemStatusChanges(WindowHostAccessibilityTarget& target,
                                               const AccessibilityControlNavigationSnapshot& before,
                                               const AccessibilityControlNavigationSnapshot& record,
+                                              bool& structureChanged,
                                               const Connected& connected) noexcept
 {
     if (before.treeItems.size() != record.treeItems.size() ||
         ! std::ranges::equal(
             before.treeItems, record.treeItems, {}, &AccessibilityTreeItemSnapshotRecord::itemId, &AccessibilityTreeItemSnapshotRecord::itemId))
         return true;
+
+    constexpr size_t maximumItemEvents = 20u;
+    size_t changed{};
+    for (size_t index = 0u; index < record.treeItems.size(); ++index)
+        if (before.treeItems[index].badgeText != record.treeItems[index].badgeText && ++changed > maximumItemEvents)
+        {
+            structureChanged = true;
+            return true;
+        }
 
     for (size_t index = 0u; index < record.treeItems.size(); ++index)
     {
@@ -12781,8 +12823,13 @@ template <typename Connected>
             return true;
 
         static_cast<void>(target.AddRef());
-        AccessibilityProvider* const raw =
-            new (std::nothrow) AccessibilityProvider(&target, target.hwnd, record.path, currentItem.itemId, AccessibilityProvider::TreeItemTag{});
+        AccessibilityProvider* const raw = new (std::nothrow) AccessibilityProvider(&target,
+                                                                                    target.hwnd,
+                                                                                    record.path,
+                                                                                    currentItem.itemId,
+                                                                                    CaptureControlIdentity(record),
+                                                                                    AccessibilityProvider::TreeItemTag{},
+                                                                                    AccessibilityProvider::EventTag{});
         if (! raw)
         {
             static_cast<void>(target.Release());
@@ -13488,24 +13535,41 @@ void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
             return;
         }
         property.registration = std::move(registration);
-        const std::scoped_lock lock(target.structureNotificationMutex);
-        if (! target.structureNotificationWork)
+        bool overflow{};
         {
-            target.structureNotificationWork.reset(CreateThreadpoolWork(DeliverAccessibilityNotifications, &target, nullptr));
-            if (! target.structureNotificationWork)
+            const std::scoped_lock lock(target.structureNotificationMutex);
+            if (treeItemId)
             {
-                Debug::Error(L"DxUi: embedded property notification work creation failed ({:08X})", HRESULT_FROM_WIN32(GetLastError()));
-                return;
+                size_t queued{};
+                for (const auto& pending : target.pendingProperties)
+                    if (pending.treeItemId && pending.controlIdentity == property.controlIdentity && pending.propertyId == id &&
+                        AreControlPathsEqual(pending.path, property.path))
+                        ++queued;
+                overflow = queued >= 20u;
+            }
+            if (! overflow)
+            {
+                if (! target.structureNotificationWork)
+                {
+                    target.structureNotificationWork.reset(CreateThreadpoolWork(DeliverAccessibilityNotifications, &target, nullptr));
+                    if (! target.structureNotificationWork)
+                    {
+                        Debug::Error(L"DxUi: embedded property notification work creation failed ({:08X})", HRESULT_FROM_WIN32(GetLastError()));
+                        return;
+                    }
+                }
+                target.pendingProperties.push_back(std::move(property));
+                target.structureNotificationPending = true;
+                if (! target.structureNotificationScheduled)
+                {
+                    target.structureNotificationScheduled = true;
+                    static_cast<void>(target.AddRef());
+                    SubmitThreadpoolWork(target.structureNotificationWork.get());
+                }
             }
         }
-        target.pendingProperties.push_back(std::move(property));
-        target.structureNotificationPending = true;
-        if (! target.structureNotificationScheduled)
-        {
-            target.structureNotificationScheduled = true;
-            static_cast<void>(target.AddRef());
-            SubmitThreadpoolWork(target.structureNotificationWork.get());
-        }
+        if (overflow)
+            QueueStructureInvalidation(target);
     }
     catch (const std::bad_alloc&)
     {
@@ -13616,7 +13680,7 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
                 structureChanged = true;
             if (! RaiseTreeExpansionChanges(target, *before, record, connected))
                 return;
-            if (! RaiseTreeItemStatusChanges(target, *before, record, connected))
+            if (! RaiseTreeItemStatusChanges(target, *before, record, structureChanged, connected))
                 return;
         }
         if (before->RichSemantic() != record.RichSemantic() || before->RichSemanticRevision() != record.RichSemanticRevision())
@@ -14216,6 +14280,17 @@ void DebugSetAccessibilityPropertyDeliveryGateForTest(ControlHost* host, HANDLE 
         g_accessibilityPropertyDeliveryGateHolders.wait(holders);
     g_accessibilityPropertyDeliveryGateEnteredEvent.store(nullptr, std::memory_order_release);
     g_accessibilityPropertyDeliveryGateReleaseEvent.store(nullptr, std::memory_order_release);
+}
+
+size_t DebugCountPendingTreeItemPropertiesForTest(ControlHost& host, int property) noexcept
+{
+    auto* const target = static_cast<WindowHostAccessibilityTarget*>(EmbeddedAccessibilityAccess::Target(host));
+    if (! target)
+        return 0u;
+    const std::scoped_lock lock(target->structureNotificationMutex);
+    return static_cast<size_t>(std::ranges::count_if(target->pendingProperties, [property](const AccessibilityPendingProperty& pending) {
+        return pending.treeItemId.has_value() && pending.propertyId == property;
+    }));
 }
 
 void DebugSetAccessibilitySelectionEventHookForTest(AccessibilitySelectionEventHookForTest hook, void* context) noexcept
