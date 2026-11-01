@@ -263,6 +263,29 @@ std::optional<std::size_t> FindCodeLanguageTarget(const MarkdownSyntax& syntax, 
     }
     return std::nullopt;
 }
+static std::optional<std::wstring_view> CodeExitPrefix(const MarkdownSyntax& syntax, std::size_t index) noexcept
+{
+    const auto& nodes = syntax.Nodes();
+    const auto& node  = nodes[index];
+    for (auto parent = node.parent; parent != MarkdownNoNode; parent = nodes[parent].parent)
+        if (nodes[parent].block.kind != MarkdownBlockKind::Document && nodes[parent].block.kind != MarkdownBlockKind::BlockQuote)
+            return std::nullopt;
+    if (nodes[node.parent].block.kind == MarkdownBlockKind::Document)
+        return std::wstring_view{};
+    const auto text = syntax.Source();
+    auto marker     = node.block.info.first;
+    while (marker > node.block.source.first && (text[marker - 1u] == L' ' || text[marker - 1u] == L'\t'))
+        --marker;
+    const auto fenceEnd = marker;
+    while (marker > node.block.source.first && text[marker - 1u] == node.block.fenceMarker)
+        --marker;
+    if (fenceEnd - marker < node.block.fenceLength)
+        return std::nullopt;
+    auto line = marker;
+    while (line && text[line - 1u] != L'\r' && text[line - 1u] != L'\n')
+        --line;
+    return text.substr(line, marker - line);
+}
 std::optional<std::size_t> FindExitCodeBlock(const MarkdownSyntax& syntax, Selection selection) noexcept
 {
     if (selection.Start() != selection.End())
@@ -274,15 +297,19 @@ std::optional<std::size_t> FindExitCodeBlock(const MarkdownSyntax& syntax, Selec
         const auto& node = nodes[i];
         const auto range = node.block.source;
         const auto caret = selection.caret;
-        if (node.block.kind != MarkdownBlockKind::FencedCode || node.parent == MarkdownNoNode || nodes[node.parent].block.kind != MarkdownBlockKind::Document ||
-            range.first > caret || ! (caret < range.last || (caret == range.last && caret == text.size() && ! node.block.closed)))
+        if (node.block.kind != MarkdownBlockKind::FencedCode || node.parent == MarkdownNoNode || range.first > caret ||
+            ! (caret < range.last || (caret == range.last && caret == text.size() && ! node.block.closed)))
             continue;
+        const auto prefix = CodeExitPrefix(syntax, i);
+        if (! prefix)
+            return std::nullopt;
         auto eol = text.find_first_of(L"\r\n", range.first);
         if (eol == text.npos)
             eol = text.find_first_of(L"\r\n");
         const std::size_t eolUnits = eol == text.npos ? 2u : text[eol] == L'\r' && eol + 1u < text.size() && text[eol + 1u] == L'\n' ? 2u : 1u;
         const bool hasEnd          = range.last > 0u && (text[range.last - 1u] == L'\r' || text[range.last - 1u] == L'\n');
-        const auto inserted        = (hasEnd ? 0u : eolUnits) + (node.block.closed ? 0u : node.block.fenceLength + eolUnits) + eolUnits;
+        const auto inserted =
+            (hasEnd ? 0u : eolUnits) + (node.block.closed ? 0u : prefix->size() + node.block.fenceLength + eolUnits) + prefix->size() + eolUnits;
         if (inserted > Document::MaximumUnits - text.size())
             return std::nullopt;
         return i;
@@ -1713,6 +1740,7 @@ void MarkdownCommandPlanner::ExitCode()
     if (! found)
         return;
     const auto& node  = nodes[found.value()];
+    const auto prefix = CodeExitPrefix(*plan.syntax_, found.value()).value();
     const auto at     = node.block.source.last;
     const auto eol    = Eol(Line(node.block.source.first));
     const bool hasEnd = at > 0u && (text[at - 1u] == L'\r' || text[at - 1u] == L'\n');
@@ -1721,9 +1749,11 @@ void MarkdownCommandPlanner::ExitCode()
         insertion += eol;
     if (! node.block.closed)
     {
+        insertion += prefix;
         insertion.append(node.block.fenceLength, node.block.fenceMarker);
         insertion += eol;
     }
+    insertion += prefix;
     const auto caret = at + insertion.size();
     insertion += eol;
     Add(at, at, insertion);

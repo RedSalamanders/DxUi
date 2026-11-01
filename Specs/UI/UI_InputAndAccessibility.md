@@ -1273,7 +1273,7 @@ When a list marker belongs to the opening fence line, it is transferred to the
 first body line, or retained as an empty list item when the fence has no body. SetCodeLanguage
 replaces a current fence info string, including one in a list or quote.
 Unclosed-fence unwrapping is unavailable pending its source-prefix policy.
-Ctrl+Enter in a top-level fenced block exits to an empty following source line;
+Ctrl+Enter in a top-level or quote-contained fenced block exits to an empty following source line;
 an unclosed block receives its matching closing fence first, in one undo step.
 InsertMath in the RichMarkdown profile wraps a selected source expression, or
 inserts a supplied nonempty expression, using inline or display delimiters.
