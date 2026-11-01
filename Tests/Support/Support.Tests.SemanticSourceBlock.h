@@ -476,6 +476,18 @@ template <typename Prepare, typename Check> inline void Retained(SourceEditingEd
     check(editor.Undo(), "physical-line join undo restores exact source");
     prepare();
     check(editor.EndSemanticSourceEdit(host), "joined source envelope can leave editing");
+    constexpr std::wstring_view keyboardSource = L"- item\n```\ncode\n```\n";
+    enter(keyboardSource);
+    for (unsigned step = 0u; step < 6u && editor.GetSemanticSourceRegion(); ++step)
+    {
+        check(editor.OnKeyDown(host, VK_UP, 0u), "keyboard movement is handled in a source region");
+        prepare();
+    }
+    check(! editor.GetSemanticSourceRegion() && editor.GetSelection().caret < keyboardSource.find(L"```"),
+          "keyboard movement outside the fence retires its raw source presentation");
+    editor.SetSelection({6u, 6u});
+    check(editor.OnChar(host, L'\r', 0u) && editor.GetText().starts_with(L"- item\n- "),
+          "Enter in the preceding list uses semantic continuation after keyboard source exit");
     enter(cases[5u]);
     editor.SetSelection({0u, 0u});
     check(! editor.GetSemanticSourceRegion(), "moving the caret outside a local source scope retires raw presentation");
