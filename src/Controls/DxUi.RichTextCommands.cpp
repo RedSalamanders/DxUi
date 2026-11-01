@@ -1306,11 +1306,13 @@ void MarkdownCommandPlanner::Quote(MarkdownQuoteAction action)
     }
     const bool allQuoted = std::ranges::all_of(selected, &SelectedLine::quoted);
     const bool anyQuoted = std::ranges::any_of(selected, &SelectedLine::quoted);
-    if ((action == MarkdownQuoteAction::Toggle && anyQuoted != allQuoted) || (action == MarkdownQuoteAction::Outdent && ! allQuoted))
+    if (action == MarkdownQuoteAction::Outdent && ! allQuoted)
         return;
     const bool remove = action == MarkdownQuoteAction::Outdent || (action == MarkdownQuoteAction::Toggle && allQuoted);
     for (const auto& line : selected)
     {
+        if (action == MarkdownQuoteAction::Toggle && anyQuoted && ! allQuoted && line.quoted)
+            continue;
         if (! remove)
             Add(line.at, line.at, L"> ");
         else

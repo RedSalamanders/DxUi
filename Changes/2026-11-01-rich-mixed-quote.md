@@ -1,0 +1,1 @@
+- Allow mixed quote toggles to quote previously unquoted selected lines without deepening existing quotes; native qualification remains pending.
