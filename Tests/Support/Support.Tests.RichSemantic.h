@@ -324,6 +324,7 @@ inline void ListsAndHeadings()
         Exact(L"~~~\nx", {4u, 4u}, request, L"~~~\nx\n~~~\n\n", Selection{10u, 10u}, profile);
         request.command = MarkdownCommand::InsertHardBreak;
         Exact(L"hello\n", {2u, 2u}, request, L"he  \nllo\n", Selection{5u, 5u}, profile);
+        Exact(L"hello\n", {1u, 4u}, request, L"h  \no\n", Selection{4u, 4u}, profile);
         Exact(L"> hello\r\n", {4u, 4u}, request, L"> he  \r\n> llo\r\n", Selection{10u, 10u}, profile);
         Exact(L"- item\n", {4u, 4u}, request, L"- it  \n  em\n", Selection{9u, 9u}, profile);
         request.command = MarkdownCommand::InsertMath;

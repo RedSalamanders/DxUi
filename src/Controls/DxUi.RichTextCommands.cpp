@@ -1540,15 +1540,22 @@ void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
 
 void MarkdownCommandPlanner::HardBreak()
 {
-    if (plan.before_.Start() != plan.before_.End())
-        return;
-    const auto caret = plan.before_.caret;
+    const auto first = plan.before_.Start(), last = plan.before_.End();
+    const auto caret = first;
     const auto leaf  = LeafAt(caret);
-    if (leaf == MarkdownNoNode || nodes[leaf].block.kind != Kind::Paragraph)
+    if (leaf == MarkdownNoNode || nodes[leaf].block.kind != Kind::Paragraph || last > nodes[leaf].block.content.last || Line(first).first != Line(last).first)
         return;
-    for (const auto range : opaqueInlines)
-        if (range.first < caret && caret < range.last)
+    for (const auto& node : plan.syntax_->Inlines())
+    {
+        const bool intersects = first == last ? node.source.first < first && first < node.source.last : node.source.first < last && node.source.last > first;
+        if (node.kind == MarkdownInlineKind::Text || ! intersects)
+            continue;
+        const bool style =
+            node.kind == MarkdownInlineKind::Strong || node.kind == MarkdownInlineKind::Emphasis || node.kind == MarkdownInlineKind::Strikethrough;
+        const auto body = style ? InlineBody(node) : std::nullopt;
+        if (! body || first < body->first || last > body->last)
             return;
+    }
     const auto& line = Line(caret);
     std::size_t at{};
     if (caret > line.bodyEnd || ! OuterOffset(leaf, line, at) || caret < at)
@@ -1576,7 +1583,7 @@ void MarkdownCommandPlanner::HardBreak()
     std::wstring insertion(L"  ");
     insertion += Eol(line);
     insertion += prefix;
-    Add(caret, caret, insertion);
+    Add(first, last, insertion);
     plan.after_       = {caret + insertion.size(), caret + insertion.size()};
     explicitSelection = true;
     plan.applicable_  = true;
