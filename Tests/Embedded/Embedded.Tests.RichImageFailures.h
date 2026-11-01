@@ -121,7 +121,7 @@ static void TestRichImageResourceAllocationFailures()
     measured->Clear();
     countAllocations = oldCounting;
     Check(allocations == before, "coalesced image state, idle dispatch and retirement allocate no C++ storage");
-    std::cout << "image resource allocation points stage=" << stages << " take=" << takes << " complete=" << completes << " idle/retire=0\n";
+    std::cout << "image resource allocation points stage=" << stages << " take=" << takes << " publish=" << publications << " idle/retire=0\n";
 
     const auto remoteCandidate = RichImageResourceTests::Semantic(
         L"![local](one.png) ![remote](HTTPS://Example.test/Picture.png?rev=One) ![duplicate](https://example.test/Picture.png?rev=One) "
