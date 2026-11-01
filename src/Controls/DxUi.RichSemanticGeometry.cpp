@@ -406,7 +406,11 @@ struct PreparedSemanticGeometry::State
           sourceLines(0u) // Fallible size constructor: MSVC Debug's noexcept default allocates an iterator proxy.
     {
         if (options.markdownPresentation == MarkdownPresentationStyle::Subtle)
+        {
             decorations = std::make_unique<MarkdownDecorations>();
+            if (! document->Syntax()->SourceRegion())
+                codeLabels = std::make_unique<std::vector<std::unique_ptr<PreparedLayout>>>(document->Elements().size());
+        }
         if ((imageResources && ! imageResources->placements.empty()) || ! SemanticExtensionAccess::Maths(*document).empty())
         {
             const RichImageResourceSet empty;
@@ -443,6 +447,7 @@ struct PreparedSemanticGeometry::State
     std::unique_ptr<NativeDiagramGeometry> native;
     std::vector<std::unique_ptr<SemanticBox>> boxes;
     std::unique_ptr<MarkdownDecorations> decorations;
+    std::unique_ptr<std::vector<std::unique_ptr<PreparedLayout>>> codeLabels;
     // Source caret boxes are in physical source order, while their zero-width
     // display anchors may coincide with or follow generated marker text. Keep
     // the glyph search index in display order instead of assuming both orders
@@ -543,6 +548,7 @@ struct PreparedSemanticGeometry::Preparation
         BodyLine,
         NativeObjects,
         NativeImages,
+        CodeLabels,
         MarkerLayouts,
         TableAllocate,
         Layouts,
@@ -598,7 +604,7 @@ struct PreparedSemanticGeometry::Preparation
         PreparedLayout layout;
     };
     std::vector<std::unique_ptr<EmptyLayout>> emptyLayouts;
-    std::size_t nativeIndex{};
+    std::size_t nativeIndex{}, codeLabelIndex{};
     std::size_t imageIndex{};
     std::vector<std::unique_ptr<SemanticBox>> markers;
     std::vector<float> gutters;
@@ -1167,11 +1173,13 @@ struct PreparedSemanticGeometry::Preparation
                                 ! next.document->Syntax()->SourceRegion() &&
                                 (node.block.kind == MarkdownBlockKind::FencedCode || node.block.kind == MarkdownBlockKind::IndentedCode) &&
                                 next.document->Elements()[content.element].role == SemanticRole::Code;
+        const auto* label = paddedCode && next.codeLabels ? (*next.codeLabels)[content.element].get() : nullptr;
+        const float codeHeader = label ? label->Height() + 3.0f : 0.0f;
         const float codeInset = paddedCode ? std::min(6.0f, std::max(0.0f, (box->width - 1.0f) * 0.5f)) : 0.0f;
         if (paddedCode)
         {
             box->x += codeInset;
-            box->y += 6.0f;
+            box->y += 6.0f + codeHeader;
             box->width -= 2.0f * codeInset;
         }
         options.widthDip = std::max(1.0f, box->width);
@@ -1410,7 +1418,7 @@ struct PreparedSemanticGeometry::Preparation
         box->height = box->layout.Height();
         box->frame  = D2D1::RectF(box->x, box->y, box->x + box->width, box->y + box->height);
         if (paddedCode)
-            box->frame = D2D1::RectF(box->x - codeInset, box->y - 6.0f, box->x + box->width + codeInset, box->y + box->height + 6.0f);
+            box->frame = D2D1::RectF(box->x - codeInset, box->y - 6.0f - codeHeader, box->x + box->width + codeInset, box->y + box->height + 6.0f);
         if (native)
             box->frame = D2D1::RectF(box->x + native->bounds.left, box->y + native->bounds.top, box->x + native->bounds.right, box->y + native->bounds.bottom);
         float bottom = box->frame.bottom;
@@ -1809,7 +1817,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 if (! work.state->images || work.imageIndex == work.state->images->placements.size())
                 {
                     work.raster.reset();
-                    work.phase = Preparation::Phase::MarkerLayouts;
+                    work.phase = Preparation::Phase::CodeLabels;
                     continue;
                 }
                 if (work.state->images->placements[work.imageIndex].math)
@@ -1850,7 +1858,43 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 // Do not count it again in the common phase-step tail.
                 continue;
             }
-            else if (work.phase == Preparation::Phase::MarkerLayouts)
+            else if (work.phase == Preparation::Phase::CodeLabels)
+            {
+                const auto elements = work.state->document->Elements();
+                if (! work.state->codeLabels || work.codeLabelIndex == elements.size())
+                {
+                    work.phase = Preparation::Phase::MarkerLayouts;
+                    continue;
+                }
+                if (result.layoutsPrepared == budget.maximumLayouts)
+                    break;
+                const auto index = work.codeLabelIndex++;
+                const auto& element = elements[index];
+                const auto& nodes = work.state->document->Syntax()->Nodes();
+                if (element.role == SemanticRole::Code && element.syntaxNode < nodes.size() &&
+                    nodes[element.syntaxNode].block.kind == MarkdownBlockKind::FencedCode)
+                {
+                    auto language = work.state->document->Syntax()->Slice(nodes[element.syntaxNode].block.info);
+                    while (! language.empty() && (language.front() == L' ' || language.front() == L'\t'))
+                        language.remove_prefix(1u);
+                    const auto end = language.find_first_of(L" \t\r\n");
+                    if (end != language.npos)
+                        language = language.substr(0u, end);
+                    if (! language.empty() && language.size() <= 128u)
+                    {
+                        ::DxUi::RichText::Document labelSource{std::wstring(language)};
+                        auto projection = Project(labelSource.Snapshot(), labelSource.Revision(), ViewMode::Source);
+                        auto options = work.state->options;
+                        options.widthDip = std::max(1.0f, options.widthDip - 12.0f);
+                        options.fontSizeDip = std::max(1.0f, options.fontSizeDip * 0.75f);
+                        options.lineHeightMultiplier = 0.0f;
+                        auto label = std::make_unique<PreparedLayout>();
+                        label->Prepare(work.state->factory.get(), std::move(projection), options);
+                        (*work.state->codeLabels)[index] = std::move(label);
+                        ++result.layoutsPrepared;
+                    }
+                }
+            }            else if (work.phase == Preparation::Phase::MarkerLayouts)
             {
                 if (result.layoutsPrepared == budget.maximumLayouts)
                     break;
@@ -2439,6 +2483,12 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                                  state.document->Syntax()->Nodes()[nodeIndex].block.kind == MarkdownBlockKind::IndentedCode);
         if ((elements[i].role == SemanticRole::Quote || styledCode) && quoteFill)
             target->FillRectangle(rectangle, quoteFill);
+        if (styledCode && state.codeLabels && (*state.codeLabels)[i])
+        {
+            target->PushAxisAlignedClip(rectangle, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+            const auto restore = wil::scope_exit([&]() noexcept { target->PopAxisAlignedClip(); });
+            (*state.codeLabels)[i]->Draw(target, decoration, D2D1::Point2F(rectangle.left + 6.0f, rectangle.top + 3.0f));
+        }
         if (elements[i].role == SemanticRole::Image && state.images && state.images->Placed(i))
             continue;
         if (elements[i].role == SemanticRole::Cell && state.options.markdownPresentation == MarkdownPresentationStyle::Subtle)

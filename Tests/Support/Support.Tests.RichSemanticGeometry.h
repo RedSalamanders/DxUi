@@ -747,6 +747,18 @@ inline void PaddedCodePresentation()
     Check(oldFrame && frame && frame->bottom - frame->top >= oldFrame->bottom - oldFrame->top + 11.9f &&
               caret.x >= frame->left + 5.9f && caret.y >= frame->top + 5.9f,
           "subtle code frame reserves inner padding and preserves source caret geometry");
+    const auto unlabeled = RichSemanticDocumentTests::Build(L"```\nint x;\n```\n");
+    PreparedSemanticGeometry noLabel;
+    LayoutOptions labelOptions;
+    labelOptions.widthDip = 200.0f;
+    labelOptions.markdownPresentation = MarkdownPresentationStyle::Subtle;
+    noLabel.Begin(factory.get(), unlabeled, labelOptions);
+    Complete(noLabel);
+    const auto noLabelCode = std::ranges::find(unlabeled->Elements(), SemanticRole::Code, &SemanticElement::role);
+    const auto noLabelBounds = noLabel.ElementBounds(static_cast<std::size_t>(noLabelCode - unlabeled->Elements().begin()));
+    Check(noLabelBounds && frame && frame->bottom - frame->top > noLabelBounds->bottom - noLabelBounds->top + 5.0f &&
+              subtle->HitTestSource(caret.x, caret.y + caret.height * 0.5f).position == position,
+          "language badge reserves nonselectable header space while code caret still resolves to source");
     const auto narrow = prepare(5.0f, MarkdownPresentationStyle::Subtle);
     const auto bounds = narrow->ElementBounds(element);
     Check(bounds && bounds->right - bounds->left <= 5.01f, "narrow code frame clamps its horizontal padding to the viewport");
