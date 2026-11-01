@@ -707,7 +707,22 @@ void ControlHost::ActivateNativeTextInputSession(Control* control, bool transfer
 void ControlHost::SecureClearNativeTextInputStateCache() noexcept
 {
     SecureWipe::SecureClear(_nativeTextInputStateCache.text);
-    _nativeTextInputStateCache      = NativeTextInputState{};
+    auto& state = _nativeTextInputStateCache;
+    state.selectionAnchorIndex.reset();
+    state.caretIndex = state.firstVisibleLine = 0u;
+    state.readOnly = state.masked = state.multiline = false;
+    state.compositionStartIndex.reset();
+    state.compositionEndIndex.reset();
+    state.conversionTargetStartIndex.reset();
+    state.conversionTargetEndIndex.reset();
+    state.compositionCursorIndex.reset();
+    state.compositionClauseBoundaries.clear();
+    state.flowDirection             = FlowDirection::LeftToRight;
+    state.readingDirection          = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
+    state.passwordRevealMode        = PasswordRevealMode::Peek;
+    state.passwordRevealState       = PasswordRevealState::Hidden;
+    state.maskLengthPolicy          = PasswordMaskLengthPolicy::Exact;
+    state.secretVisibleDotCount     = 0u;
     _nativeTextInputStateCacheValid = false;
 }
 
