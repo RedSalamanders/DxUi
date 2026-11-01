@@ -63,6 +63,15 @@ static void TestRichInputAllocationFailureAtomicity()
             }
             if (! measure)
             {
+                if (handled || editor.GetText() != L"alpha beta" || editor.GetSelection() != selection || editor.Revision() != revision || editor.CanUndo() ||
+                    notifications != 0u)
+                    std::fprintf(stdout,
+                                 "Input allocation atomicity: operation=%u failure=%zu handled=%u revision=%llu notifications=%u\n",
+                                 operation,
+                                 failure,
+                                 handled ? 1u : 0u,
+                                 static_cast<unsigned long long>(editor.Revision()),
+                                 notifications);
                 Check(! handled && editor.GetText() == L"alpha beta" && editor.GetSelection() == selection && editor.Revision() == revision &&
                           ! editor.CanUndo() && notifications == 0u,
                       "every observed precommit input allocation failure declines atomically");

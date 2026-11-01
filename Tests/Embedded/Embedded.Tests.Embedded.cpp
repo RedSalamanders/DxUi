@@ -32,7 +32,7 @@ static void Check(bool value, const char* text)
     ++checks;
     if (! value)
     {
-        std::cerr << "FAIL: " << text << '\n';
+        DxUiTestFailureReports::WriteFailure(text);
         std::exit(1);
     }
 }
@@ -1195,7 +1195,7 @@ __declspec(noinline) static int RunFunctionalTests()
          std::wstring_view(__wargv[1]) == L"--test-rich-semantic-document-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-semantic-uia-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-semantic-query-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-command-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-command-host-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-footnote-failures" ||
-         std::wstring_view(__wargv[1]) == L"--test-rich-capacity-failures"))
+         std::wstring_view(__wargv[1]) == L"--test-rich-capacity-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-input-failures"))
     {
         // Isolate unexpected noexcept termination without a CRT dialog. This
         // handler belongs only to the explicit diagnostic child, never a suite
@@ -1225,7 +1225,9 @@ __declspec(noinline) static int RunFunctionalTests()
 #pragma warning(disable : 5039)
         const auto restore = wil::scope_exit([=] noexcept { std::set_terminate(previous); });
 #pragma warning(pop)
-        if (std::wstring_view(__wargv[1]) == L"--test-rich-layout-clear")
+        if (std::wstring_view(__wargv[1]) == L"--test-rich-input-failures")
+            TestRichInputAllocationFailureAtomicity();
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-layout-clear")
             TestRichPreparedLayoutClearAllocationBudget(true);
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-geometry-failures")
         {
@@ -1479,7 +1481,8 @@ __declspec(noinline) static int RunFunctionalTests()
         Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "incremental borrowed graphics");
         Hr(view.Attach(graphics), "incremental embedded view");
         RichSemanticTests::Run([&] {
-            RichSemanticEditorTests::SemanticGeometryReuse(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "incremental preparation"); });
+            RichSemanticEditorTests::SemanticGeometryReuse(view.Controls(),
+                                                           [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "incremental preparation"); });
         });
         std::vector<DxUi::RichText::CodeToken> tokens(0u);
         Check(DxUi::RichText::TokenizeBuiltinCode(L"json", L"{\"a\": true, \"b\": 3}", tokens) && tokens.size() >= 4u,
@@ -1491,7 +1494,7 @@ __declspec(noinline) static int RunFunctionalTests()
         Check(DxUi::RichText::TokenizeBuiltinCode(L"diff", L"+added\n-removed\n", tokens) && tokens.size() == 2u,
               "builtin diff tokenizer recognizes changed lines");
         Check(! DxUi::RichText::TokenizeBuiltinCode(L"unknown", L"text", tokens) && tokens.empty(), "unknown code language is ordinary ink");
-        auto owned = std::make_unique<DxUi::RichTextEditor>();
+        auto owned   = std::make_unique<DxUi::RichTextEditor>();
         auto* editor = owned.get();
         view.Controls().SetRoot(std::move(owned));
         editor->SetMarkdownAnalysisProfile(DxUi::RichText::MarkdownProfile::RichMarkdown);
@@ -1504,7 +1507,8 @@ __declspec(noinline) static int RunFunctionalTests()
         Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "ordinary code composite");
         Hr(gpu.Read(ordinaryPixels), "ordinary code raster");
         unsigned calls = 0u;
-        editor->SetCodeTokenizer([&](std::wstring_view language, std::wstring_view code, std::vector<DxUi::RichText::CodeToken>& out) {
+        editor->SetCodeTokenizer([&](std::wstring_view language, std::wstring_view code, std::vector<DxUi::RichText::CodeToken>& out)
+        {
             ++calls;
             Check(language == L"json" && code.find(L"true") != code.npos, "code callback borrows current language and display body");
             return DxUi::RichText::TokenizeBuiltinCode(language, code, out);
@@ -1517,13 +1521,15 @@ __declspec(noinline) static int RunFunctionalTests()
         Check(ordinaryPixels != coloredPixels, "prepared token ranges change rendered glyph ink");
         Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "idle tokenized preparation");
         Check(calls == 1u, "idle preparation does not reinvoke tokenizer");
-        editor->SetCodeTokenizer([&](std::wstring_view, std::wstring_view, std::vector<DxUi::RichText::CodeToken>& out) {
+        editor->SetCodeTokenizer([&](std::wstring_view, std::wstring_view, std::vector<DxUi::RichText::CodeToken>& out)
+        {
             out.push_back({{999u, 1000u}, DxUi::RichText::CodeTokenRole::Keyword});
             return true;
         });
         Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "invalid tokenizer result uses ordinary ink");
         bool edited = false;
-        editor->SetCodeTokenizer([&](std::wstring_view, std::wstring_view, std::vector<DxUi::RichText::CodeToken>&) {
+        editor->SetCodeTokenizer([&](std::wstring_view, std::wstring_view, std::vector<DxUi::RichText::CodeToken>&)
+        {
             if (! edited)
             {
                 edited = true;
@@ -1534,7 +1540,8 @@ __declspec(noinline) static int RunFunctionalTests()
         Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "reentrant tokenizer edit retries current source");
         Check(edited && editor->GetText() == L"plain replacement", "reentrant tokenizer cannot publish stale code ranges");
         editor->SetText(L"```cpp\nint x;\n```\n");
-        editor->SetCodeTokenizer([&](std::wstring_view, std::wstring_view, std::vector<DxUi::RichText::CodeToken>&) {
+        editor->SetCodeTokenizer([&](std::wstring_view, std::wstring_view, std::vector<DxUi::RichText::CodeToken>&)
+        {
             view.Controls().SetRoot({});
             return true;
         });
@@ -1679,7 +1686,8 @@ __declspec(noinline) static int RunFunctionalTests()
         Hr(transactionView.Attach(transactionGraphics), "transaction embedded view");
         RichSemanticTests::Run([&]
         {
-            RichSemanticEditorTests::SemanticGeometryReuse(transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic reuse"); });
+            RichSemanticEditorTests::SemanticGeometryReuse(transactionView.Controls(),
+                                                           [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic reuse"); });
             RichSemanticEditorTests::Transactions(transactionView.Controls(),
                                                   [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded transaction preparation"); });
             RichSemanticEditorTests::StructuralCommands(transactionView.Controls(),
