@@ -887,6 +887,23 @@ void NativeHtmlAndMarkersClient(bool embedded)
     Require(client.DocumentText(editor) == empty && client.TextCaretPosition(editor) == 6u &&
                 client.TextPositionFromPoint(editor, toScreen(emptyPoint)) == 6u && client.TextSelectionText(editor).empty() && ! fixture.editor->CanUndo(),
             "real native/embedded client observes the interior empty HTML insertion with no invented source/history");
+    std::array<float, 3u> caretX{};
+    const std::array<std::wstring, 3u> aligned = {L"<p align=\"left\">word</p>\n", L"<div align=\"center\">word</div>\n",
+                                                 L"<p align=\"right\">word</p>\n"};
+    for (std::size_t index = 0u; index < aligned.size(); ++index)
+    {
+        fixture.editor->SetText(aligned[index]);
+        fixture.Publish();
+        const auto word = aligned[index].find(L"word");
+        fixture.editor->SetSelection({word, word + 4u});
+        fixture.Publish();
+        const auto position = fixture.editor->TryGetTextInputCaretRect(*fixture.controls, word);
+        Require(position && client.DocumentText(editor) == aligned[index] && client.TextSelectionText(editor) == L"word",
+                "native and embedded clients retain the aligned wrapper and selected exact source");
+        caretX[index] = position->left;
+    }
+    Require(caretX[0u] + 40.f < caretX[1u] && caretX[1u] + 40.f < caretX[2u],
+            "native and embedded aligned HTML caret geometry follows physical left, center and right placement");
 }
 void TestRichTextAccessibilityWindowNativeHtmlAndMarkersClient()
 {

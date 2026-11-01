@@ -1537,6 +1537,11 @@ It defaults to false for existing layouts. Wheel input bubbles at either edge.
 Geometry getters and drawing only read the offset; caret reveal runs during
 owner preparation.
 
+Balanced HTML-block `<p>` and `<div>` wrappers accept one quoted `align`
+attribute with `left`, `center` or `right`; physical alignment is preserved in
+left-to-right and right-to-left text. Unsupported values, duplicate attributes
+and other attributes keep the complete HTML leaf as editable literal source.
+
 The native HTML presentation also hides complete `<!-- ... -->` comments,
 without interpreting their bodies, and accepts `kbd` as monospace text and `ins`
 as underlined inserted text. Attribute-free `mark` retains a theme surface,

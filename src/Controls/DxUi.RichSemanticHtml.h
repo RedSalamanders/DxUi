@@ -128,6 +128,7 @@ struct NativeHtmlTag
     // first/last are normalized block-leaf offsets; mate is a tag-vector index.
     std::size_t first{}, last{}, mate = MarkdownNoNode;
     bool closing{};
+    MarkdownAlignment alignment{};
     unsigned flagsAfter{}, headingAfter{};
     std::wstring destination, title, alternative;
 };
@@ -155,7 +156,7 @@ inline bool ParseNativeHtmlTag(std::wstring_view value, NativeHtmlTag& tag)
     if (found == std::end(names))
         return false;
     tag.kind  = static_cast<NativeHtmlKind>(found - std::begin(names));
-    bool href = false, title = false, alternative = false;
+    bool href = false, title = false, alternative = false, alignment = false;
     const auto complete = [&]() noexcept { return tag.closing || (tag.kind != NativeHtmlKind::A && tag.kind != NativeHtmlKind::Img) || href; };
     for (;;)
     {
@@ -167,15 +168,19 @@ inline bool ParseNativeHtmlTag(std::wstring_view value, NativeHtmlTag& tag)
         if (value[at] == L'/')
             return ! tag.closing && (tag.kind == NativeHtmlKind::Br || tag.kind == NativeHtmlKind::Img || tag.kind == NativeHtmlKind::Hr) && complete() &&
                    at + 1u == value.size() - 1u;
-        if (at == before || tag.closing || (tag.kind != NativeHtmlKind::A && tag.kind != NativeHtmlKind::Img))
+        if (at == before || tag.closing || (tag.kind != NativeHtmlKind::A && tag.kind != NativeHtmlKind::Img &&
+                                             tag.kind != NativeHtmlKind::P && tag.kind != NativeHtmlKind::Div))
             return false;
         const auto nameFirst = at;
         while (at < value.size() && HtmlLower(value[at]) >= L'a' && HtmlLower(value[at]) <= L'z')
             ++at;
         const auto name    = value.substr(nameFirst, at - nameFirst);
         const bool isImage = tag.kind == NativeHtmlKind::Img;
-        const bool isHref = HtmlName(name, isImage ? L"src" : L"href"), isTitle = HtmlName(name, L"title"), isAlternative = isImage && HtmlName(name, L"alt");
-        if ((! isHref && ! isTitle && ! isAlternative) || (isHref ? href : isTitle ? title : alternative))
+        const bool isAnchor = tag.kind == NativeHtmlKind::A;
+        const bool isHref = (isImage || isAnchor) && HtmlName(name, isImage ? L"src" : L"href");
+        const bool isTitle = (isImage || isAnchor) && HtmlName(name, L"title"), isAlternative = isImage && HtmlName(name, L"alt");
+        const bool isAlignment = (tag.kind == NativeHtmlKind::P || tag.kind == NativeHtmlKind::Div) && HtmlName(name, L"align");
+        if ((! isHref && ! isTitle && ! isAlternative && ! isAlignment) || (isHref ? href : isTitle ? title : isAlternative ? alternative : alignment))
             return false;
         while (at < value.size() && HtmlSpace(value[at]))
             ++at;
@@ -205,10 +210,18 @@ inline bool ParseNativeHtmlTag(std::wstring_view value, NativeHtmlTag& tag)
             tag.title = decoded;
             title     = true;
         }
-        else
+        else if (isAlternative)
         {
             tag.alternative = decoded;
             alternative     = true;
+        }
+        else
+        {
+            if (HtmlName(decoded, L"left")) tag.alignment = MarkdownAlignment::Left;
+            else if (HtmlName(decoded, L"center")) tag.alignment = MarkdownAlignment::Center;
+            else if (HtmlName(decoded, L"right")) tag.alignment = MarkdownAlignment::Right;
+            else return false;
+            alignment = true;
         }
     }
 }

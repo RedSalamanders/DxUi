@@ -1566,7 +1566,7 @@ part of retained layout/reuse keys and require owner preparation before drawing.
 | hr, hr/ | One standalone attribute-free rule in its HTML block, with only surrounding whitespace. It uses native thematic-break geometry, accessibility and source editing. Inline or attributed forms remain literal. |
 | a | Exactly one quoted href and optional quoted title, with no other attributes. Destination/title references are decoded; the resolved label is an inert underlined link. |
 | br, br/, br / | Attribute-free void break, mapped atomically from its complete raw tag to one native LF. A closing br tag or another self-closing style tag is unsupported. |
-| p, div, h1-h6, pre | At most one outer wrapper in an HTML block, outside which only whitespace is permitted. Paragraph/heading/code presentation uses existing native styles; nested/sibling block wrappers are unsupported. |
+| p, div, h1-h6, pre | At most one outer wrapper in an HTML block, outside which only whitespace is permitted. `p` and `div` optionally accept one quoted `align` attribute with `left`, `center`, or `right` (case-insensitive), interpreted as physical paragraph alignment in either reading direction. Paragraph/heading/code presentation uses existing native styles; nested/sibling block wrappers and other attributes are unsupported. |
 | `<!-- ... -->` | Complete comments are hidden; their bodies are never scanned as tags, Markdown or entities. Their exact source remains available in Source view and raw ACPs. |
 
 One leaf permits at most 4,096 tags and 32 simultaneous opening tags. Unknown

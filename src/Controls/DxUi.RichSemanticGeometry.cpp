@@ -1371,12 +1371,6 @@ struct PreparedSemanticGeometry::Preparation
             box->x += 6.0f;
             box->y += 6.0f;
             box->width = std::max(1.0f, cellWidth - 12.0f);
-            if (content.alignment == MarkdownAlignment::Center)
-                options.textAlignment = DWRITE_TEXT_ALIGNMENT_CENTER;
-            else if (content.alignment == MarkdownAlignment::Left)
-                options.textAlignment = rtl ? DWRITE_TEXT_ALIGNMENT_TRAILING : DWRITE_TEXT_ALIGNMENT_LEADING;
-            else if (content.alignment == MarkdownAlignment::Right)
-                options.textAlignment = rtl ? DWRITE_TEXT_ALIGNMENT_LEADING : DWRITE_TEXT_ALIGNMENT_TRAILING;
         }
         else if (next.options.markdownPresentation == MarkdownPresentationStyle::Subtle)
         {
@@ -1386,6 +1380,12 @@ struct PreparedSemanticGeometry::Preparation
             }))
                 options.textAlignment = DWRITE_TEXT_ALIGNMENT_CENTER;
         }
+        if (content.alignment == MarkdownAlignment::Center)
+            options.textAlignment = DWRITE_TEXT_ALIGNMENT_CENTER;
+        else if (content.alignment == MarkdownAlignment::Left)
+            options.textAlignment = rtl ? DWRITE_TEXT_ALIGNMENT_TRAILING : DWRITE_TEXT_ALIGNMENT_LEADING;
+        else if (content.alignment == MarkdownAlignment::Right)
+            options.textAlignment = rtl ? DWRITE_TEXT_ALIGNMENT_LEADING : DWRITE_TEXT_ALIGNMENT_TRAILING;
         const bool paddedCode = ! table && ! caretOnly && next.options.markdownPresentation == MarkdownPresentationStyle::Subtle &&
                                 ! next.document->Syntax()->SourceRegion() &&
                                 (node.block.kind == MarkdownBlockKind::FencedCode || node.block.kind == MarkdownBlockKind::IndentedCode) &&

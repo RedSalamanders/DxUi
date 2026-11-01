@@ -214,6 +214,69 @@ inline void LiteralFootnoteBlockCaretSites()
     Check(geometry.Ready() && geometry.BoxCount() == 1u && geometry.SourceLines().size() == 1026u,
           "many literal note blank lines remain real source lines without creating duplicate layout boxes");
 }
+inline void HtmlBlockAlignment()
+{
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
+    auto factory = Factory();
+    wil::com_ptr<ID2D1Factory> drawing;
+    THROW_IF_FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, drawing.put()));
+    wil::com_ptr<IWICImagingFactory> imaging;
+    THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    for (const auto direction : {DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT})
+    {
+        std::array<float, 3u> left{};
+        std::array<unsigned, 3u> firstInk{};
+        const std::array<std::wstring_view, 3u> sources = {L"<p align=\"left\">word</p>\n", L"<div align=\"center\">word</div>\n", L"<p align=\"right\">word</p>\n"};
+        const std::array expected = {MarkdownAlignment::Left, MarkdownAlignment::Center, MarkdownAlignment::Right};
+        for (std::size_t i = 0u; i < sources.size(); ++i)
+        {
+            const auto document = RichSemanticDocumentTests::Build(sources[i], MarkdownProfile::RichMarkdown);
+            Check(document->Map().Source() == sources[i] && document->Map().Display() == L"word\n" && document->Paragraphs().size() == 1u &&
+                      document->Paragraphs()[0u].alignment == expected[i],
+                  "balanced alignment wrapper preserves exact source and typed semantic paragraph alignment");
+            LayoutOptions options;
+            options.widthDip = 400.f;
+            options.readingDirection = direction;
+            PreparedSemanticGeometry geometry;
+            geometry.Begin(factory.get(), document, options);
+            Complete(geometry);
+            left[i] = geometry.SourceCaret(sources[i].find(L"word")).x;
+            constexpr UINT width = 400u, height = 100u, stride = width * 4u;
+            wil::com_ptr<IWICBitmap> bitmap;
+            THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+            wil::com_ptr<ID2D1RenderTarget> target;
+            THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), D2D1::RenderTargetProperties(), target.put()));
+            wil::com_ptr<ID2D1SolidColorBrush> ink;
+            THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), ink.put()));
+            target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+            geometry.Draw(target.get(), ink.get(), ink.get(), {}, 0.f, 100.f);
+            THROW_IF_FAILED(target->EndDraw());
+            std::vector<BYTE> pixels(static_cast<std::size_t>(stride) * height);
+            THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+            firstInk[i] = width;
+            for (UINT y = 0u; y < height; ++y)
+                for (UINT x = 0u; x < width; ++x)
+                {
+                    const auto offset = static_cast<std::size_t>(y) * stride + static_cast<std::size_t>(x) * 4u;
+                    if (pixels[offset] < 200u && pixels[offset + 1u] < 200u && pixels[offset + 2u] < 200u)
+                        firstInk[i] = std::min(firstInk[i], x);
+                }
+        }
+        Check(firstInk[0u] < 400u && firstInk[0u] + 80u < firstInk[1u] && firstInk[1u] + 80u < firstInk[2u],
+              "rendered pixels follow physical left, center and right alignment in both reading directions");
+        Check(left[0u] + 80.f < left[1u] && left[1u] + 80.f < left[2u],
+              "left, center and right HTML alignment produce distinct physical caret positions in both reading directions");
+    }
+    for (const auto source : {L"<p align=\"justify\">word</p>\n", L"<p align=\"left\" align=\"right\">word</p>\n",
+                              L"<div style=\"text-align:center\">word</div>\n"})
+    {
+        const auto document = RichSemanticDocumentTests::Build(source, MarkdownProfile::RichMarkdown);
+        Check(document->Map().Source() == source && document->Map().Display() == source,
+              "unsupported or duplicate alignment attributes preserve the complete literal source");
+    }
+}
 inline void DiagramLabelWidthReflow()
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);

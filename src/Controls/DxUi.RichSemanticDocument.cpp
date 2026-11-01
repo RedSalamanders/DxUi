@@ -576,7 +576,9 @@ struct SemanticBuilder::Preparation
                                          visit.indent,
                                          visit.flags,
                                          visit.heading,
-                                         document->syntax_->Nodes()[visit.node].alignment});
+                                         document->syntax_->Nodes()[visit.node].block.kind == MarkdownBlockKind::HtmlBlock && document->elements_[element].nativeHtml
+                                             ? document->elements_[element].alignment
+                                                                                  : document->syntax_->Nodes()[visit.node].alignment});
         return index;
     }
     static std::size_t FirstVisibleChild(const std::vector<MarkdownNode>& nodes, const MarkdownNode& owner)
@@ -1130,6 +1132,13 @@ struct SemanticBuilder::Preparation
             else if (html.wrapper)
             {
                 const auto kind = *html.wrapper;
+                if (kind == Detail::NativeHtmlKind::P || kind == Detail::NativeHtmlKind::Div)
+                    for (const auto& tag : html.tags)
+                        if (tag.kind == kind && ! tag.closing)
+                        {
+                            document->elements_[visit.element].alignment = tag.alignment;
+                            break;
+                        }
                 if (Detail::HtmlHeading(kind))
                 {
                     visit.heading                              = Detail::HtmlHeading(kind);
