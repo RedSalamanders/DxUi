@@ -168,6 +168,10 @@ struct RichTextEditor::State
     std::vector<HighlightRectangle> highlightRectangles{0u};
     std::vector<DecorationRectangle> decorationRectangles{0u};
     std::vector<D2D1_RECT_F> compositionRectangles{0u}, conversionRectangles{0u};
+    wil::com_ptr<ID2D1PathGeometry> selectionMask;
+    wil::com_ptr<ID2D1Layer> selectionLayer;
+    float selectionLayerWidth{}, selectionLayerHeight{};
+    uint64_t selectionLayerGeneration{};
     bool overlaySelectionDirty = true, overlayHighlightsDirty = true;
     bool focusMode = false;
     std::wstring documentFilePath;
@@ -2017,6 +2021,9 @@ D2D1_RECT_F RichTextEditor::ScrollbarTrack() const noexcept
 }
 void RichTextEditor::RetireLayout(bool retainGeometry) const noexcept
 {
+    _state->selectionMask.reset();
+    _state->selectionLayer.reset();
+    _state->selectionLayerWidth = _state->selectionLayerHeight = 0.0f;
     ++_state->fileDropEpoch;
     _state->overlaySelectionDirty = _state->overlayHighlightsDirty = true;
     _state->sourceInk.Clear();
@@ -2066,6 +2073,33 @@ void RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
     {
         const auto selection = GetSelection();
         auto selected        = layout.SourceRange(selection.Start(), selection.End());
+        wil::com_ptr<ID2D1PathGeometry> mask;
+        wil::com_ptr<ID2D1Layer> layer = state.selectionLayer;
+        const auto viewport            = TextViewport();
+        const auto width = std::max(1.0f, viewport.right - viewport.left), height = std::max(1.0f, viewport.bottom - viewport.top);
+        if (selected.size() > 1u)
+        {
+            auto* context = host.GetDeviceContext();
+            THROW_HR_IF(E_UNEXPECTED, ! context);
+            wil::com_ptr<ID2D1Factory> factory;
+            context->GetFactory(factory.put());
+            THROW_IF_FAILED(factory->CreatePathGeometry(mask.put()));
+            wil::com_ptr<ID2D1GeometrySink> sink;
+            THROW_IF_FAILED(mask->Open(sink.put()));
+            sink->SetFillMode(D2D1_FILL_MODE_WINDING);
+            for (const auto& rectangle : selected)
+            {
+                sink->BeginFigure(D2D1::Point2F(rectangle.left, rectangle.top), D2D1_FIGURE_BEGIN_FILLED);
+                sink->AddLine(D2D1::Point2F(rectangle.right, rectangle.top));
+                sink->AddLine(D2D1::Point2F(rectangle.right, rectangle.bottom));
+                sink->AddLine(D2D1::Point2F(rectangle.left, rectangle.bottom));
+                sink->EndFigure(D2D1_FIGURE_END_CLOSED);
+            }
+            THROW_IF_FAILED(sink->Close());
+            if (! layer || state.selectionLayerWidth != width || state.selectionLayerHeight != height ||
+                state.selectionLayerGeneration != host.GetResourceGeneration())
+                THROW_IF_FAILED(context->CreateLayer(D2D1::SizeF(width, height), layer.put()));
+        }
         std::vector<D2D1_RECT_F> composition(0u), conversion(0u);
         NativeTextInputState input{.text = std::wstring(0u, L' '), .compositionClauseBoundaries = std::vector<size_t>(0u)};
         if (host.TryReadNativeTextInputState(this, input) && layout.SourceMatches(input.text) && input.compositionStartIndex && input.compositionEndIndex)
@@ -2079,6 +2113,11 @@ void RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
             }
         }
         state.selectionRectangles.swap(selected);
+        state.selectionMask.swap(mask);
+        state.selectionLayer.swap(layer);
+        state.selectionLayerWidth      = width;
+        state.selectionLayerHeight     = height;
+        state.selectionLayerGeneration = host.GetResourceGeneration();
         state.compositionRectangles.swap(composition);
         state.conversionRectangles.swap(conversion);
         state.overlaySelectionDirty = false;
@@ -3089,12 +3128,16 @@ void RichTextEditor::Paint(ControlHost& host) const
         selectedLinks.emphasisBrush     = selectedTextBrush;
         selectedLinks.inactiveLinkBrush = selectedTextBrush;
         selectedLinks.inkBrushes.fill(selectedTextBrush);
+        bool selectionVisible = false;
         for (const auto& rectangle : rectangles)
         {
             const auto translated = D2D1::RectF(rectangle.left + origin.x, rectangle.top + origin.y, rectangle.right + origin.x, rectangle.bottom + origin.y);
             if (translated.bottom <= viewport.top || translated.top >= viewport.bottom)
                 continue;
             context->FillRectangle(translated, selectionBrush);
+            selectionVisible = true;
+            if (state.selectionMask)
+                continue;
             context->PushAxisAlignedClip(translated, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
             const auto restoreSelectionClip = wil::scope_exit([context]() noexcept { context->PopAxisAlignedClip(); });
             state.layout.Draw(context,
@@ -3103,6 +3146,28 @@ void RichTextEditor::Paint(ControlHost& host) const
                               origin,
                               rectangle.top,
                               rectangle.bottom,
+                              selectedDiagramFill,
+                              0.65f,
+                              decorated ? &selectedLinks : nullptr,
+                              subtleMarkdown ? selectedDiagramFill : nullptr);
+        }
+        if (selectionVisible && state.selectionMask && state.selectionLayer)
+        {
+            const auto parameters = D2D1::LayerParameters1(viewport,
+                                                           state.selectionMask.get(),
+                                                           D2D1_ANTIALIAS_MODE_PER_PRIMITIVE,
+                                                           D2D1::Matrix3x2F::Translation(origin.x, origin.y),
+                                                           1.0f,
+                                                           nullptr,
+                                                           D2D1_LAYER_OPTIONS1_INITIALIZE_FROM_BACKGROUND);
+            context->PushLayer(parameters, state.selectionLayer.get());
+            const auto restoreSelectionLayer = wil::scope_exit([context]() noexcept { context->PopLayer(); });
+            state.layout.Draw(context,
+                              selectedTextBrush,
+                              selectedTextBrush,
+                              origin,
+                              state.scrollDip,
+                              state.scrollDip + viewport.bottom - viewport.top,
                               selectedDiagramFill,
                               0.65f,
                               decorated ? &selectedLinks : nullptr,
@@ -4414,7 +4479,8 @@ void RichTextEditor::PropagateHost(ControlHost* host) noexcept
 }
 void RichTextEditor::OnBoundsChanged() noexcept
 {
-    const auto viewport = TextViewport();
+    _state->overlaySelectionDirty = true;
+    const auto viewport           = TextViewport();
     if (_state->layoutWidth != std::max(1.0f, viewport.right - viewport.left))
         RetireLayout(true);
     else

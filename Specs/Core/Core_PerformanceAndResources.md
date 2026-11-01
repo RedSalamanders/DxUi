@@ -331,6 +331,15 @@ qualification replays them exactly. Repetitions inside a block are not treated a
   Populated, misplaced or nested lookalikes remain unsupported ignored inputs.
   A failed attempt revokes reuse; recognizing its status marker permits a fresh
   `Rebuild` and supplies no passing build or runtime evidence.
+
+RichTextEditor prepares selection ranges and an optional union mask before
+composition. Multiline selection redraws selected text once through that mask,
+rather than repainting a document for every line. One retained layer is bounded
+by the control viewport, reused within its resource generation, and released on
+layout retirement/hide/detachment. Mask creation and layer allocation occur only
+in preparation; single-rectangle selections retain the direct clip route.
+Actual draw-call counts, exact raster parity and paired/resource evidence are
+separate required checks for this rendering change.
   Both receipts are revoked before build and on failed publication. Resolved C++/HLSL source bytes and the owned native
   include closure belong to each side's build identity, never the shared compiler comparison. Arbitrary external or
   ignored native inputs, response/path-bearing option overrides, custom outputs, precompiled headers and modules are

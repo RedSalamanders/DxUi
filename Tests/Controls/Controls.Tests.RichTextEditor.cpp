@@ -1,6 +1,7 @@
 #include "Controls.Tests.RichTextEditor.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.RichMarkdown.h"
+#include "Controls/DxUi.RichEditorLayout.h"
 #include "Controls/TextClipboard.h"
 #include "Support.Tests.ClipboardFixture.h"
 #include "Support.Tests.Footnotes.h"
@@ -801,6 +802,28 @@ void TestRichTextEditorClipboardAtomicityAndSourceContract()
             "clipboard callback may retire owner without resuming paste");
 }
 
+void TestRichTextEditorSelectionDrawWork()
+{
+#if DXUI_ENABLE_DIAGNOSTICS
+    AttachedHostWindow window;
+    std::wstring source(0u, L' ');
+    for (unsigned line = 0u; line < 40u; ++line)
+        source += L"A selected fixture line.\n";
+    auto owned   = std::make_unique<RichTextEditor>(source);
+    auto* editor = owned.get();
+    editor->SetViewMode(ViewMode::Source);
+    window.Host().SetRoot(std::move(owned));
+    RenderEditor(window);
+    editor->SetSelection({0u, source.size()});
+    Detail::testRichLayoutDrawCalls = 0u;
+    RenderEditor(window);
+    const auto draws = Detail::testRichLayoutDrawCalls;
+    Require(editor->DebugGetState().preparedSelectionRectangles >= 20u, "selection workload includes many independently prepared source lines");
+    Require(draws >= 2u && draws <= 4u, "multiline selection paints one base and one masked selected-text pass per frame");
+    Require(editor->GetSelection() == Selection{0u, source.size()} && editor->GetText() == source && ! editor->CanUndo(),
+            "selection rendering preserves exact source and selection without history");
+#endif
+}
 void TestRichTextEditorScrollAndHostClock()
 {
     AttachedHostWindow window;
@@ -1848,6 +1871,7 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorNativeUnicodeRoutingAndNavigation);
     DXUI_RUN_TEST(TestRichTextEditorClipboardAtomicityAndSourceContract);
     DXUI_RUN_TEST(TestRichTextEditorScrollAndHostClock);
+    DXUI_RUN_TEST(TestRichTextEditorSelectionDrawWork);
     DXUI_RUN_TEST(TestRichTextEditorCatalogAndRebinding);
     // Repeated timing is an explicit diagnostic. Ordinary native behavior is
     // independently covered below; Debug/ASan need not repeat five timing trials.

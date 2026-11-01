@@ -3,6 +3,9 @@
 
 namespace DxUi::RichText::Detail
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+inline thread_local std::size_t testRichLayoutDrawCalls{};
+#endif
 // The retained control keeps its v0 behavior until semantic rendering is
 // explicitly enabled. Each target stages its complete graph before switching;
 // a new source request cannot mix one map with the other engine's geometry.
@@ -197,6 +200,9 @@ public:
               const LinkDrawing* links = nullptr,
               ID2D1Brush* quoteFill    = nullptr) const
     {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ++testRichLayoutDrawCalls;
+#endif
         if (activeSemantic_)
             semantic_.Draw(target, brush, decoration, origin, top, bottom, fill, imageOpacity, links, quoteFill);
         else
