@@ -296,6 +296,9 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
     const auto raggedMatrix = prepare(L"\\begin{matrix}a&b\\\\c\\end{matrix}");
     Require(raggedMatrix->GlyphLayouts().size() == 3u && raggedMatrix->Size().width > 0.f && raggedMatrix->Size().height > 0.f,
             "a ragged matrix prepares visible cells and an implicit empty cell");
+    const auto substack = prepare(L"\\substack{i=0\\\\j=1}");
+    Require(substack->Size().height > ordinaryStyle->Size().height && ! substack->GlyphLayouts().empty(),
+            "substack publishes distinct measured rows in native geometry");
     const auto slashFences = prepare(L"\\left/\\frac{x}{y}\\right\\backslash");
     Require(slashFences->Size().width > 0.f && slashFences->Size().height > 0.f &&
                 slashFences->VariantLayouts().size() + slashFences->StrokeLayouts().size() >= 2u,

@@ -388,6 +388,37 @@ class Parser
                 }
                 return Make(MathKind::Root, L"", {Atom(depth + 1), std::move(index)});
             }
+            if (name == L"substack")
+            {
+                Space();
+                if (at == source.size() || source[at++] != L'{')
+                    Reject(MathIssue::MissingRequiredArgument);
+                std::vector<MathNode> rows(0u);
+                while (true)
+                {
+                    if (rows.size() == 16u)
+                        Reject(MathIssue::Capacity);
+                    rows.push_back(Row(depth + 1u, false, true, false, false, true));
+                    if (source.substr(at, 2u) == L"\\\\")
+                    {
+                        at += 2u;
+                        Space();
+                        if (at < source.size() && source[at] == L'}')
+                        {
+                            ++at;
+                            break;
+                        }
+                        continue;
+                    }
+                    if (at < source.size() && source[at] == L'}')
+                    {
+                        ++at;
+                        break;
+                    }
+                    Reject();
+                }
+                return Make(MathKind::Matrix, L"gathered", std::move(rows), 1u);
+            }
             if (name == L"begin")
                 return Matrix(GroupText(), depth);
             if (name == L"text" || name == L"operatorname")
@@ -636,7 +667,7 @@ class Parser
             value += source[at++];
         return Make(MathKind::Text, std::move(value));
     }
-    MathNode Row(unsigned depth, bool grouped, bool cell, bool right = false, bool indexClose = false)
+    MathNode Row(unsigned depth, bool grouped, bool cell, bool right = false, bool indexClose = false, bool stopBrace = false)
     {
         std::vector<MathNode> children(0u);
         while (at < source.size())
@@ -652,6 +683,8 @@ class Parser
             if (right && source.substr(at, 6) == L"\\right" && (at + 6 == source.size() || ! Letter(source[at + 6])))
                 break;
             if (cell && (source[at] == L'&' || source.substr(at, 2) == L"\\\\" || source.substr(at, 5) == L"\\end{"))
+                break;
+            if (stopBrace && source[at] == L'}')
                 break;
             if (source[at] == L'}')
             {
@@ -672,7 +705,7 @@ class Parser
                     if (depth >= 24u)
                         Reject();
                     at = end;
-                    children.push_back(Make(MathKind::Style, std::wstring(declaration), {Row(depth + 1, grouped, cell, right, indexClose)}));
+                    children.push_back(Make(MathKind::Style, std::wstring(declaration), {Row(depth + 1, grouped, cell, right, indexClose, stopBrace)}));
                     return Make(MathKind::Row, L"", std::move(children));
                 }
             }

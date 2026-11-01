@@ -313,6 +313,24 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     }
     for (const auto source : {L"\\begin{equation}a\\\\b\\end{equation}", L"\\begin{gather}a&b\\end{gather}", L"\\begin{align}a\\end{align*}"})
         check(! ParseMath(source), "environment aliases preserve row, column and matching-name restrictions");
+    for (const auto source : {L"\\substack{i=0\\\\j=1}", L"\\substack{i=0\\\\j=1\\\\}"})
+    {
+        const auto stacked = ParseMath(source);
+        check(stacked && stacked.root.children.size() == 1u && stacked.root.children[0u].kind == MathKind::Matrix &&
+                  stacked.root.children[0u].text == L"gathered" && stacked.root.children[0u].columns == 1u && stacked.root.children[0u].children.size() == 2u,
+              "substack lays out centered one-column rows and tolerates a trailing row separator");
+    }
+    check(static_cast<bool>(ParseMath(L"\\sum_{\\substack{i=0\\\\j=1}}")) && ! ParseMath(L"\\substack{a&b}") && ! ParseMath(L"\\substack{a\\\\b"),
+          "substack composes with operator limits and rejects extra columns and missing braces");
+    std::wstring substackLimit = L"\\substack{";
+    for (unsigned row = 0u; row < 16u; ++row)
+    {
+        if (row)
+            substackLimit += L"\\\\";
+        substackLimit += L'x';
+    }
+    check(static_cast<bool>(ParseMath(substackLimit + L"}")) && ! ParseMath(substackLimit + L"\\\\x}"),
+          "substack admits at most 16 rows without publishing excess geometry");
     for (const auto& [source, style] : {std::pair{L"\\dbinom{n}{k}", L"displaystyle"}, std::pair{L"\\tbinom{n}{k}", L"textstyle"}})
     {
         const auto expression = ParseMath(source);
