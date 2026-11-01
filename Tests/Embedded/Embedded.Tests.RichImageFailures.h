@@ -169,6 +169,7 @@ static void TestRichImageResourceAllocationFailures()
             }
             Check(state->Complete(job, picture), "mixed admission retry accepts each current completion");
         }
+        state->Publish();
         Check(localSources == 1u && remoteSources == 2u && state->Snapshot()->placements.size() == 4u,
               "mixed admission retry publishes both duplicate remote placements exactly once");
     }
@@ -206,6 +207,7 @@ static void TestRichImageGeometryAllocationFailures()
     std::vector<RichImageRequest> jobs(0u);
     resources.Take(jobs);
     Check(jobs.size() == 1u && resources.Complete(jobs[0], RichImageResourceTests::Pattern()), "image geometry has one shared immutable decoded source");
+    resources.Publish();
     const auto images = resources.Snapshot();
     LayoutOptions options;
     options.widthDip  = 400.f;

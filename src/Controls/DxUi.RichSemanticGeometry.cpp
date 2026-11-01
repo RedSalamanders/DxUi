@@ -8,7 +8,7 @@
 #include <limits>
 #include <stdexcept>
 #include <tuple>
-#include <unordered_map>
+#include <map>
 #include <wil/resource.h>
 #include <wil/result.h>
 // Windows SDK WRL owns its interlocked/volatile implementation and target semantics.
@@ -614,7 +614,7 @@ struct PreparedSemanticGeometry::Preparation
           raster(state->images ? target : nullptr),
           previousState(previous),
           previousNativeState(previousNative),
-          reusable(0u),
+          reusable(std::less<std::uint64_t>{}),
           emptyLayouts(0u),
           markers(state->document->Paragraphs().size()),
           gutters(state->document->Syntax()->Nodes().size(), 0.0f),
@@ -636,7 +636,10 @@ struct PreparedSemanticGeometry::Preparation
     wil::com_ptr<ID2D1RenderTarget> raster; // Retained only across cooperative staging; released before publication.
     const State* previousState{};
     const State* previousNativeState{};
-    std::unordered_multimap<std::uint64_t, std::size_t> reusable;
+    // MSVC's unordered hash-vector allocator constructor is noexcept even
+    // though Debug iterator-proxy construction allocates. The ordered index
+    // has fallible construction and bounded logarithmic per-item operations.
+    std::multimap<std::uint64_t, std::size_t> reusable;
     std::size_t reuseIndex{};
     struct EmptyLayout
     {
