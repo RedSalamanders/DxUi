@@ -204,6 +204,8 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
         throw std::invalid_argument("Invalid native flowchart preparation admission");
     if (graph->direction < FlowchartDirection::TopBottom || graph->direction > FlowchartDirection::RightLeft)
         throw std::invalid_argument("Invalid native flowchart direction");
+    if (! ValidSequenceModel(*graph))
+        throw std::invalid_argument("Invalid sequence timeline model");
     if (! graph->groups.empty() && graph->family != NativeDiagramFamily::Flowchart && graph->family != NativeDiagramFamily::State &&
         graph->family != NativeDiagramFamily::Class)
         throw std::invalid_argument("Groups require a supported diagram profile");
@@ -386,7 +388,7 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                         work.stage = Preparation::Stage::Publish;
                         break;
                     }
-                    if (state.geometry->edges[work.cursor].hasArrow)
+                    if (state.geometry->edges[work.cursor].hasArrow && ! state.geometry->edges[work.cursor].openArrow)
                     {
                         const auto& edge = state.geometry->edges[work.cursor];
                         if (edge.relation == FlowchartRelation::Aggregation || edge.relation == FlowchartRelation::Composition)

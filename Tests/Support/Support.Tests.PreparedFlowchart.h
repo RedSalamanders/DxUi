@@ -782,6 +782,35 @@ template <typename Check> inline void SequenceRaster(Check&& check)
     for (double y = participant.y + participant.height + 2.0; y < participant.y + participant.height + 18.0; y += 2.0)
         lifelineInk += blueNear(lifelineX, y);
     check(lifelineInk > 0u, "participant has a visible lifeline below its header");
+    const auto published = prepared.Geometry();
+    const std::vector<FlowchartSize> nodeSizes(graph->nodes.size(), {16.0, 12.0}), edgeSizes(graph->edges.size(), {24.0, 12.0});
+    for (unsigned variant = 0u; variant < 7u; ++variant)
+    {
+        auto invalid = std::make_shared<FlowchartModel>(*graph);
+        switch (variant)
+        {
+            case 0u: invalid->direction = FlowchartDirection::LeftRight; break;
+            case 1u: invalid->nodes[0u].shape = FlowchartShape::Rounded; break;
+            case 2u: invalid->groups.emplace_back(); break;
+            case 3u: invalid->edges[0u].relation = FlowchartRelation::Inheritance; break;
+            case 4u: invalid->edges[0u].style = FlowchartLineStyle::Thick; break;
+            case 5u: invalid->edges[0u].fromCardinality = L"1"; break;
+            case 6u: invalid->edges[0u].minimumRanks = 2u; break;
+        }
+        check(! ValidSequenceModel(*invalid), "direct sequence model validator rejects unsupported topology or message kinds");
+        bool layoutRejected{}, paintRejected{};
+        try
+        {
+            NativeFlowchartLayout layout;
+            const std::vector<FlowchartSize> groups(invalid->groups.size());
+            layout.Begin(invalid, nodeSizes, edgeSizes, {}, {}, groups);
+        }
+        catch (const std::invalid_argument&) { layoutRejected = true; }
+        try { prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u}); }
+        catch (const std::invalid_argument&) { paintRejected = true; }
+        check(layoutRejected && paintRejected && prepared.Ready() && prepared.Geometry() == published,
+              "layout and paint reject forged sequence models while preserving the prior publication");
+    }
 }
 template <typename Check> inline void StateNoteRaster(Check&& check)
 {

@@ -155,6 +155,21 @@ struct FlowchartModel
     std::vector<FlowchartEdge> edges;
     std::vector<FlowchartGroup> groups;
 };
+inline bool ValidSequenceModel(const FlowchartModel& graph) noexcept
+{
+    if (graph.family != NativeDiagramFamily::Sequence) return true;
+    if (graph.direction != FlowchartDirection::TopBottom || ! graph.groups.empty()) return false;
+    for (const auto& node : graph.nodes)
+        if (node.shape != FlowchartShape::Rectangle || node.groupMask || node.compartmentCount || node.label.empty() ||
+            node.identifier.first >= node.identifier.last || node.identifier.last > graph.source.size())
+            return false;
+    for (const auto& edge : graph.edges)
+        if (edge.from >= graph.nodes.size() || edge.to >= graph.nodes.size() || edge.relation != FlowchartRelation::Arrow || ! edge.arrow ||
+            (edge.style != FlowchartLineStyle::Solid && edge.style != FlowchartLineStyle::Dotted) || edge.minimumRanks != 1u || edge.label.empty() ||
+            ! edge.fromCardinality.empty() || ! edge.toCardinality.empty() || edge.source.first >= edge.source.last || edge.source.last > graph.source.size())
+            return false;
+    return true;
+}
 class NativeFlowchartParser
 {
 public:

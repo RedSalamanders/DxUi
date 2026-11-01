@@ -914,6 +914,8 @@ void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
         throw std::invalid_argument("Flowchart layout needs a prepared bounded graph and exact label measurements");
     if (graph->direction < FlowchartDirection::TopBottom || graph->direction > FlowchartDirection::RightLeft)
         throw std::invalid_argument("Invalid flowchart layout direction");
+    if (! ValidSequenceModel(*graph))
+        throw std::invalid_argument("Invalid sequence timeline model");
     for (const auto& node : graph->nodes)
         if (node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Note ||
             (node.shape == FlowchartShape::Note &&
