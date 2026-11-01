@@ -824,7 +824,7 @@ void DrawMultilineSelection(ControlHost& host,
         if (selectionStart < selectionEnd)
         {
             UINT32 actualCount = 0u;
-            std::vector<DWRITE_HIT_TEST_METRICS> metrics(static_cast<size_t>(selectionEnd - selectionStart) + 4u);
+            std::vector<DWRITE_HIT_TEST_METRICS> metrics(64u);
             HRESULT hr = layout->HitTestTextRange(static_cast<UINT32>(selectionStart),
                                                   static_cast<UINT32>(selectionEnd - selectionStart),
                                                   snappedRect.left,
@@ -2750,6 +2750,11 @@ bool TextField::SupportsTextInput() const noexcept
     return true;
 }
 
+bool TextField::AcceptsTypedText() const noexcept
+{
+    return ! IsReadOnly() && IsEnabled();
+}
+
 std::optional<D2D1_RECT_F> TextField::GetTextInputViewportRect() const noexcept
 {
     const D2D1_RECT_F textRect = GetTextRect();
@@ -2835,7 +2840,7 @@ std::optional<std::vector<D2D1_RECT_F>> TextField::GetTextInputRangeRects(const 
         }
 
         UINT32 actualCount = 0u;
-        std::vector<DWRITE_HIT_TEST_METRICS> metrics((rangeEnd - rangeStart) + 4u);
+        std::vector<DWRITE_HIT_TEST_METRICS> metrics(64u);
         HRESULT hr = layout->HitTestTextRange(static_cast<UINT32>(rangeStart),
                                               static_cast<UINT32>(rangeEnd - rangeStart),
                                               textRect.left - _horizontalScrollDip,
@@ -2890,7 +2895,7 @@ std::optional<std::vector<D2D1_RECT_F>> TextField::GetTextInputRangeRects(const 
     const float multilineScrollDip                     = MeasureWrappedLineOffsetDip(lineMetrics, _multilineFirstVisibleLine);
 
     UINT32 actualCount = 0u;
-    std::vector<DWRITE_HIT_TEST_METRICS> metrics((rangeEnd - rangeStart) + 4u);
+    std::vector<DWRITE_HIT_TEST_METRICS> metrics(64u);
     HRESULT hr = multilineLayout->HitTestTextRange(static_cast<UINT32>(rangeStart),
                                                    static_cast<UINT32>(rangeEnd - rangeStart),
                                                    textRect.left,

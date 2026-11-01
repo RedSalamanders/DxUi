@@ -1363,6 +1363,11 @@ bool Control::SupportsTextInput() const noexcept
     return false;
 }
 
+bool Control::AcceptsTypedText() const noexcept
+{
+    return SupportsTextInput();
+}
+
 std::optional<D2D1_RECT_F> Control::GetTextInputViewportRect() const noexcept
 {
     return std::nullopt;

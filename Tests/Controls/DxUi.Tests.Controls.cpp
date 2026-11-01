@@ -1366,6 +1366,20 @@ void TestTagPickerWrapsBadgesInsideInputFrame()
     Require(inputRect.top > tagPicker->DebugGetDisplayTagRect(0u).top, "tag picker wraps the embedded input to a later row when badges need width");
 }
 
+void TestTagPickerClearChildrenCompactsDerivedSlots()
+{
+    using namespace DxUi;
+    TagPicker picker;
+    const auto initial = picker.GetChildren().size();
+    Require(initial == 1u, "picker begins with its owned combo");
+    for (unsigned cycle = 0u; cycle < 8u; ++cycle)
+    {
+        picker.AddChild<Button>(L"Extra");
+        picker.ClearChildren();
+        Require(picker.GetChildren().size() == initial && picker.GetChildren().front(), "derived children leave no null or growing slots");
+    }
+}
+
 void TestTagPickerSuggestionsTrackSelectedBadges()
 {
     using namespace DxUi;
@@ -3593,6 +3607,7 @@ void RunControlTests()
     DXUI_RUN_TEST(TestColorSwatchStoresConfiguredArgbAndEmptyState);
     DXUI_RUN_TEST(TestTagPickerWrapsBadgesInsideInputFrame);
     DXUI_RUN_TEST(TestTagPickerSuggestionsTrackSelectedBadges);
+    DXUI_RUN_TEST(TestTagPickerClearChildrenCompactsDerivedSlots);
     DXUI_RUN_TEST(TestTagPickerKeyboardNavigationCommitsFilteredSuggestionOnEnter);
     DXUI_RUN_TEST(TestToggleRightClickInvokesContextMenuWithoutChangingState);
     DXUI_RUN_TEST(TestCheckboxRightClickInvokesContextMenuWithoutChangingState);

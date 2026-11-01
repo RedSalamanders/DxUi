@@ -211,7 +211,12 @@ class Parser
             ++at;
             if (at == source.size())
                 Reject();
-            if (source[at] == L'{' || source[at] == L'}' || source[at] == L'|')
+            if (source[at] == L'|')
+            {
+                ++at;
+                return L'\u2016';
+            }
+            if (source[at] == L'{' || source[at] == L'}')
                 return source[at++];
             const auto first = at;
             while (at < source.size() && Letter(source[at]))
@@ -489,7 +494,7 @@ class Parser
                 const auto escaped = source[at++];
                 if (std::wstring_view(L",;:! ").find(escaped) != source.npos)
                     return Make(MathKind::Space, std::wstring(1, escaped));
-                if (std::wstring_view(L"{}%_$&#\\").find(escaped) != source.npos)
+                if (std::wstring_view(L"{}%_$&#").find(escaped) != source.npos)
                     return Make(MathKind::Text, std::wstring(1, escaped));
             }
             Reject();

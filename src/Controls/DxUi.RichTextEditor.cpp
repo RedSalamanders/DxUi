@@ -402,7 +402,8 @@ bool RichTextEditor::TryPrepareClipboardPaste(const TextClipboardContent& conten
         std::size_t totalFileUnits{};
         for (const auto& file : content.filePaths)
         {
-            if (file.empty() || ! RichText::IsValidUtf16(file) || file.find(L'\0') != file.npos || file.size() > TextClipboardContent::MaximumFileUnits)
+            if (file.empty() || ! RichText::IsValidUtf16(file) || file.find(L'\0') != file.npos || file.find_first_of(L"\"\r\n") != file.npos ||
+                file.size() > TextClipboardContent::MaximumFileUnits)
                 throw std::invalid_argument("Invalid Unicode clipboard file path");
             if (file.size() > TextClipboardContent::MaximumTotalFileUnits - totalFileUnits)
                 throw std::length_error("Clipboard file capacity exceeded");
@@ -440,7 +441,10 @@ bool RichTextEditor::TryPrepareClipboardPaste(const TextClipboardContent& conten
                 if (! staged.empty())
                     staged.append(eol);
                 staged.push_back(L'"');
-                staged.append(file);
+                if (references)
+                    RichText::Detail::AppendMarkdownLiteralPath(file, staged);
+                else
+                    staged.append(file);
                 staged.push_back(L'"');
                 if (staged.size() > RichText::Document::MaximumUnits)
                     throw std::length_error("Clipboard file source capacity exceeded");
@@ -1635,44 +1639,50 @@ bool RichTextEditor::SupportsTextInput() const noexcept
 {
     return true;
 }
+bool RichTextEditor::AcceptsTypedText() const noexcept
+{
+    return Editable();
+}
 std::optional<std::vector<std::pair<size_t, size_t>>> RichTextEditor::GetSourceVisualLineRanges(const ControlHost& host) const noexcept
 {
     try
     {
-        RequireCurrentLayout(host);
-        const auto& projection = _state->layout;
-        std::vector<std::pair<size_t, size_t>> ranges(0u);
-        if (const auto* semantic = projection.SemanticGeometry())
-        {
-            const auto lines = semantic->SourceLines();
-            return std::optional<std::vector<std::pair<size_t, size_t>>>(std::in_place, lines.begin(), lines.end());
-        }
-        size_t displayStart = 0;
-        size_t sourceStart  = 0;
-        do
-        {
-            size_t displayEnd = _state->layout.LineBoundary(displayStart, true);
-            if (displayEnd < projection.DisplayLength() && projection.DisplayUnit(displayEnd) == L'\n')
-                ++displayEnd;
-            // Earliest source affinity makes adjacent lines partition exact
-            // source, including hidden markers and original CRLF pairs.
-            const size_t sourceEnd = displayEnd == projection.DisplayLength() ? projection.SourceLength() : projection.SourceBoundary(displayEnd);
-            ranges.emplace_back(sourceStart, sourceEnd);
-            if (displayEnd >= projection.DisplayLength() || displayEnd <= displayStart)
-            {
-                if (projection.DisplayLength() && projection.DisplayUnit(projection.DisplayLength() - 1u) == L'\n')
-                    ranges.emplace_back(projection.SourceLength(), projection.SourceLength());
-                break;
-            }
-            sourceStart  = sourceEnd;
-            displayStart = displayEnd;
-        } while (true);
-        return std::optional<std::vector<std::pair<size_t, size_t>>>(std::in_place, ranges);
+        return SourceVisualLineRangesFallible(host);
     }
     catch (const std::exception&)
     {
         return std::nullopt;
     }
+}
+std::optional<std::vector<std::pair<size_t, size_t>>> RichTextEditor::SourceVisualLineRangesFallible(const ControlHost& host) const
+{
+    RequireCurrentLayout(host);
+    const auto& projection = _state->layout;
+    std::vector<std::pair<size_t, size_t>> ranges(0u);
+    if (const auto* semantic = projection.SemanticGeometry())
+    {
+        const auto lines = semantic->SourceLines();
+        return std::optional<std::vector<std::pair<size_t, size_t>>>(std::in_place, lines.begin(), lines.end());
+    }
+    size_t displayStart = 0;
+    size_t sourceStart  = 0;
+    do
+    {
+        size_t displayEnd = _state->layout.LineBoundary(displayStart, true);
+        if (displayEnd < projection.DisplayLength() && projection.DisplayUnit(displayEnd) == L'\n')
+            ++displayEnd;
+        const size_t sourceEnd = displayEnd == projection.DisplayLength() ? projection.SourceLength() : projection.SourceBoundary(displayEnd);
+        ranges.emplace_back(sourceStart, sourceEnd);
+        if (displayEnd >= projection.DisplayLength() || displayEnd <= displayStart)
+        {
+            if (projection.DisplayLength() && projection.DisplayUnit(projection.DisplayLength() - 1u) == L'\n')
+                ranges.emplace_back(projection.SourceLength(), projection.SourceLength());
+            break;
+        }
+        sourceStart  = sourceEnd;
+        displayStart = displayEnd;
+    } while (true);
+    return std::optional<std::vector<std::pair<size_t, size_t>>>(std::in_place, ranges);
 }
 bool RichTextEditor::ScrollSourceRangeIntoView(ControlHost& host, size_t sourceStart, size_t sourceEnd, bool alignToTop) noexcept
 {
@@ -2346,7 +2356,11 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                     if (ExecuteMarkdownCommand(request) != RichText::MarkdownCommandStatus::Unavailable)
                         return true;
                 }
-                text = L"\r\n";
+                const auto source = _state->document.Snapshot();
+                const auto view   = source.Text();
+                const auto ending = view.find_first_of(L"\r\n");
+                text = ending == view.npos ? L"\r\n"
+                                           : view.substr(ending, view[ending] == L'\r' && ending + 1u < view.size() && view[ending + 1u] == L'\n' ? 2u : 1u);
             }
             else if (character >= L' ' && character != L'\x7f')
                 text.assign(1, character);
@@ -2359,13 +2373,13 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                 RichText::MarkdownCommandRequest request;
                 request.command    = RichText::MarkdownCommand::SetTableCell;
                 request.targetCell = geometry->SourceSyntaxNode(GetSelection().caret, _state->sourceCaretSite);
+                request.text       = text;
                 if (text == L"|")
-                    text = L"\\|";
+                    request.text = L"\\|";
                 else if (text == L"\\")
-                    text = L"\\\\";
-                request.text = text;
-                static_cast<void>(ExecuteMarkdownCommand(request));
-                return true;
+                    request.text = L"\\\\";
+                if (ExecuteMarkdownCommand(request) != RichText::MarkdownCommandStatus::Unavailable)
+                    return true;
             }
         static_cast<void>(ReplaceSelection(std::move(text)));
         return true;

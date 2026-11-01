@@ -638,8 +638,8 @@ bool Splitter::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
     }
     if (virtualKey == VK_ESCAPE && _dragging)
     {
+        const auto releaseCapture = ReleaseUnchangedCaptureOnExit(host, *this);
         OnCaptureLost(host);
-        host.ReleaseMouseCapture();
         return true;
     }
     if (_dragging)
@@ -1913,8 +1913,8 @@ bool ColorPicker::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         case VK_ESCAPE:
             if (_drag != Drag::None)
             {
+                const auto releaseCapture = ReleaseUnchangedCaptureOnExit(host, *this);
                 OnCaptureLost(host);
-                host.ReleaseMouseCapture();
             }
             else
             {

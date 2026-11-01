@@ -2927,7 +2927,7 @@ void TestTreeMultiSelectPaintsEverySelectedRowWithTheSelectionColors()
         Require(tree.DebugGetRowVisualState(theme, index, true, state) && state.selected, "a selected row of an unfocused tree reports itself selected");
         Require(state.fillArgb == PackColorForTest(theme.selectionInactiveFill),
                 "a selected row of an unfocused tree is filled with the inactive selection color");
-        Require(state.textArgb == PackColorForTest(ResolveInactiveSelectionTextColor(theme, theme.selectionText, theme.surfaceBackground)),
+        Require(state.textArgb == PackColorForTest(ResolveInactiveSelectionTextColor(theme, theme.text, theme.surfaceBackground)),
                 "a selected row of an unfocused tree uses text contrasting with its painted inactive fill");
     }
 
@@ -2936,10 +2936,17 @@ void TestTreeMultiSelectPaintsEverySelectedRowWithTheSelectionColors()
         const ThemePalette polarityTheme = MakeDefaultThemePalette(dark);
         Require(tree.DebugGetRowVisualState(polarityTheme, 0u, true, state), "unfocused Tree resolves selected text in both light and dark themes");
         const D2D1_COLOR_F paintedFill = CompositeOverBackground(polarityTheme.selectionInactiveFill, polarityTheme.surfaceBackground);
-        Require(state.textArgb ==
-                    PackColorForTest(ResolveInactiveSelectionTextColor(polarityTheme, polarityTheme.selectionText, polarityTheme.surfaceBackground)),
+        Require(state.textArgb == PackColorForTest(ResolveInactiveSelectionTextColor(polarityTheme, polarityTheme.text, polarityTheme.surfaceBackground)),
                 "unfocused Tree preserves readable text or substitutes contrast over the painted alpha selection");
     }
+
+    auto distinctTextTheme                  = MakeDefaultThemePalette(false);
+    distinctTextTheme.surfaceBackground     = D2D1::ColorF(D2D1::ColorF::White);
+    distinctTextTheme.selectionInactiveFill = D2D1::ColorF(D2D1::ColorF::White);
+    distinctTextTheme.text                  = D2D1::ColorF(D2D1::ColorF::Black);
+    distinctTextTheme.selectionText         = D2D1::ColorF(0x000099);
+    Require(tree.DebugGetRowVisualState(distinctTextTheme, 0u, true, state) && state.textArgb == 0xff000000u,
+            "an unfocused selection prefers normal black text even when blue selection text also has sufficient contrast");
 
     const auto checkHighContrastPair = [&](uint32_t backgroundArgb, uint32_t textArgb, uint32_t selectionArgb, uint32_t selectionTextArgb, bool darkBase)
     {

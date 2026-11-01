@@ -29,6 +29,38 @@ inline constexpr float kToggleTrackTrailingPaddingDip = 4.0f;
 
 [[nodiscard]] std::weak_ptr<int> GetControlLifetimeToken(const Control& control) noexcept;
 
+struct ControlCaptureAccess
+{
+    [[nodiscard]] static Control* GestureOwner(const ControlHost& host) noexcept
+    {
+        Control* owner = host.GetCapturedControl();
+        while (const auto* panel = dynamic_cast<const ScrollPanel*>(owner))
+        {
+            Control* const child = panel->LiveInnerCaptured();
+            if (! child || child == owner)
+                break;
+            owner = child;
+        }
+        return owner;
+    }
+};
+
+// A cancellation callback can replace the tree or capture another control. Release only the cancelling control's
+// unchanged gesture, including nested ScrollPanel forwarding. Weak tokens reject address reuse after destruction.
+[[nodiscard]] inline auto ReleaseUnchangedCaptureOnExit(ControlHost& host, Control& cancelling) noexcept
+{
+    Control* const gesture     = &cancelling;
+    Control* const captured    = ControlCaptureAccess::GestureOwner(host) == gesture ? host.GetCapturedControl() : nullptr;
+    const auto lifetime        = captured ? GetControlLifetimeToken(*captured) : std::weak_ptr<int>{};
+    const auto gestureLifetime = GetControlLifetimeToken(cancelling);
+    return wil::scope_exit([&host, captured, gesture, lifetime, gestureLifetime]() noexcept
+    {
+        if (captured && ! lifetime.expired() && ! gestureLifetime.expired() && host.GetCapturedControl() == captured &&
+            ControlCaptureAccess::GestureOwner(host) == gesture)
+            host.ReleaseMouseCapture();
+    });
+}
+
 struct ControlModelQueryAccess
 {
     template <typename Owner> [[nodiscard]] static auto InvalidateGeometry(Owner& owner) noexcept

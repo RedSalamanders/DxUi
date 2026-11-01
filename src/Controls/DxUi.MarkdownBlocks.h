@@ -821,6 +821,10 @@ class MarkdownBlocks
             const auto reference = ReferenceAt(text, cursor);
             if (! reference.end)
                 break;
+            // Reference extraction splices before the paragraph rather than using Add's tail linkage.
+            // It must still share the complete block/inline graph admission ceiling.
+            if (nodes_.size() >= MarkdownSyntax::MaximumNodeRecords)
+                throw std::length_error("Markdown reference node capacity exceeded");
             const auto index = nodes_.size();
             nodes_.emplace_back();
             tails_.push_back(MarkdownNoNode);

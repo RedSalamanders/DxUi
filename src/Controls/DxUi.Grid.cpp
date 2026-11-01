@@ -1168,24 +1168,43 @@ void Grid::SetModel(IGridModel* model) noexcept
         ++_modelAssignment;
     // Non-owning pointer assignment. Caller responsible for model lifetime.
     ++_modelRevision;
+    // The assignment is unconditional: the caller may retire the previous borrowed model as soon as this returns.
+    _model                            = model;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
-    std::vector<uint64_t> previousSelection;
+    std::optional<std::vector<uint64_t>> previousSelection;
+    bool selectionSnapshotAvailable = true;
     try
     {
-        previousSelection.assign(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+        previousSelection.emplace(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
     }
     catch (const std::bad_alloc&)
     {
-        return;
+        selectionSnapshotAvailable = false;
+        _selectionModel.Clear();
+        _currentRowId.reset();
+        _focusedRowIndex.reset();
     }
     catch (const std::exception&)
     {
-        return;
+        selectionSnapshotAvailable = false;
+        _selectionModel.Clear();
+        _currentRowId.reset();
+        _focusedRowIndex.reset();
     }
     const std::optional<uint64_t> previousFocus = _currentRowId;
     ReleaseCellTextResources(); // Also returns tables the old model grew.
-    _model = model;
     GridModelQueryGuard guard(*this, lifetime, model);
+    const auto clearFailedModelView = [&]() noexcept
+    {
+        if (! guard.IsCurrent())
+            return;
+        _selectionModel.Clear();
+        _currentRowId.reset();
+        _focusedRowIndex.reset();
+        _verticalScrollDip   = 0.0f;
+        _horizontalScrollDip = 0.0f;
+        RefreshAccessibilitySnapshot();
+    };
     _lastPaintHadAnimatedVisibleCells = false;
     _animatedVisibleCellStateValid    = false;
     _columnWidths.clear();
@@ -1229,12 +1248,14 @@ void Grid::SetModel(IGridModel* model) noexcept
     }
     catch (const std::bad_alloc&)
     {
-        // Model snapshot allocation failure leaves the newly assigned model installed with cleared view state.
+        // Preserve a nested replacement; only this assignment owns its failed reconciliation state.
+        clearFailedModelView();
         return;
     }
     catch (const std::exception&)
     {
         // A model getter failure aborts this update without crossing the noexcept public boundary.
+        clearFailedModelView();
         return;
     }
     try
@@ -1253,7 +1274,7 @@ void Grid::SetModel(IGridModel* model) noexcept
     {
         return;
     }
-    if (! NotifySelectionAndFocusChanges(previousSelection, previousFocus) || ! guard.ResumeAfterCallback())
+    if (selectionSnapshotAvailable && (! NotifySelectionAndFocusChanges(previousSelection.value(), previousFocus) || ! guard.ResumeAfterCallback()))
     {
         return;
     }
@@ -1433,12 +1454,18 @@ std::wstring_view Grid::GetEmptyStateText() const noexcept
 
 void Grid::SetHeaderBusy(bool busy) noexcept
 {
+    if (_headerBusy == busy)
+        return;
     _headerBusy = busy;
+    RequestInvalidate();
 }
 
 void Grid::SetHeaderBusyColumn(std::optional<size_t> columnIndex) noexcept
 {
+    if (_headerBusyColumn == columnIndex)
+        return;
     _headerBusyColumn = columnIndex;
+    RequestInvalidate();
 }
 
 void Grid::SetSortSpec(const GridSortSpec& sortSpec) noexcept
@@ -1468,6 +1495,7 @@ void Grid::SetSortSpec(const GridSortSpec& sortSpec) noexcept
     _sortGlyphTransition.to          = sortSpec;
     _sortGlyphTransition.startTickMs = host->GetAnimationTickMs();
     _sortGlyphTransition.active      = true;
+    RequestInvalidate();
 }
 
 GridSortSpec Grid::GetSortSpec() const noexcept
@@ -6349,6 +6377,12 @@ bool Grid::IsSameHitTarget(const HitInfo& before, const HitInfo& after) noexcept
     return before.zone == after.zone && before.rowIndex == after.rowIndex && before.groupIndex == after.groupIndex && before.columnIndex == after.columnIndex &&
            before.stableId == after.stableId && before.onScrollbarThumb == after.onScrollbarThumb && before.rectDip.left == after.rectDip.left &&
            before.rectDip.top == after.rectDip.top && before.rectDip.right == after.rectDip.right && before.rectDip.bottom == after.rectDip.bottom;
+}
+
+void Grid::OnBoundsChanged() noexcept
+{
+    const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
+    ClampScrollOffsets();
 }
 
 void Grid::ClampScrollOffsets(const bool normalizeVertical) noexcept

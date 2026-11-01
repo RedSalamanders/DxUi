@@ -1,6 +1,7 @@
 # Delivery review 2026-10-31
 
-Status: NOT STARTED. The sequence below is ready to implement. No library, test, or tooling code has changed for it.
+Status: ACTIVE. The 1 November worktree implements and tests the current-source DX repairs under
+[the delivery sequencer](CodeReview_2026-10-31.md). Individual acceptance rows remain open until their tests execute.
 Date: 2026-10-31.
 Source: `include/` and `src/` are byte-identical among this worktree `d98d7605` (`ej/code-review-20261030`), the delivery tip `f2940cc265db79458b6615492779b839c5c1b94a` (31 Oct 2026, merge of #152), and current `origin/main` `07ff5741cc0cbcd10f7aa5e9e120d0c4b0c16d92` (merge of #154). The commits after the delivery tip are CI evidence roots and a changelog fold. Line numbers below are that shared source.
 Owning contracts: [input and accessibility](../../UI/UI_InputAndAccessibility.md), [controls and layout](../../UI/UI_ControlsAndLayout.md), [toolchain and consumption](../../Build/Build_ToolchainAndConsumption.md), and [embedded hosting](../../Rendering/Rendering_EmbeddedD3D11.md).

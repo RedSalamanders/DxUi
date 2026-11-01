@@ -1,6 +1,7 @@
 # Code review of the 15-day window (2026-10-16 to 2026-10-31)
 
-Status: SPEC READY. Review only: no library, test or tooling code changed. Remediation follows the
+Status: ACTIVE. The 1 November implementation revalidates this historical review against
+`4423074d` in `ej/dxui-wip-delivery-20261101`. Remediation follows the
 [sequence](#sequence). The overlapping DX-* repair text stays in
 [Delivery review 2026-10-31](DeliveryReview_2026-10-31.md); this plan is the full delivery sequencer.
 Pin prerequisites are the Wave 0 decisions and Wave 1-2 repairs. DX-1 and the lower-priority DX items
@@ -22,6 +23,20 @@ Owning contracts: [controls](../../UI/UI_ControlsAndLayout.md),
 [performance](../../Core/Core_PerformanceAndResources.md),
 [validation](../../Testing/Testing_Validation.md) and
 [toolchain](../../Build/Build_ToolchainAndConsumption.md).
+
+## 1 November implementation checkpoint
+
+The owner explicitly requested all remaining library features, including file drops,
+metadata validation and the remaining math/diagram work. Native ARM64 runtime tests
+are explicitly deferred until a later native host; cross-builds remain required.
+The four local foreground suites have explicit approval for the restoring lease's
+automatic-start countdown. This is authorization, not a test result.
+
+The first core patch builds in x64 Debug with zero warnings/errors. Its ordinary
+suites are running; no runtime, performance or delivery qualification is claimed yet.
+The retained original and rejected reuse attempts remain separate from the fresh
+baseline Release build and measurements. Parallel feature branches are unqualified
+until reviewed, integrated and tested together. The complete checklist below stays open.
 
 `apiRevision` stays 4. Do not publish an API revision 5 for this work.
 

@@ -51,7 +51,12 @@ template <typename Check> inline void ParserBounds(Check&& check)
         dense.append(L"*x* ");
     auto html = Table(1u, 10920u);
     html.append(L"\n<hr>\n\n<hr>\n");
-    const std::wstring rejected[] = {Table(100u, 400u), Table(1u, 10922u), global, dense, html};
+    std::wstring references(0u, L' ');
+    for (std::size_t i = 0u; i < 10921u; ++i)
+        references.append(L"- -\n");
+    for (std::size_t i = 0u; i < 3641u; ++i)
+        references.append(L"[a]:b\n");
+    const std::wstring rejected[] = {Table(100u, 400u), Table(1u, 10922u), global, dense, html, references};
     for (const auto& source : rejected)
     {
         check(source.size() <= Document::MaximumUnits, "amplification fixtures fit source admission before exercising the independent node limit");

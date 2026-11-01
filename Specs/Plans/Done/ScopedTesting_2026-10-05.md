@@ -1,6 +1,6 @@
 # Scoped testing and validation cost
 
-Status: ACTIVE: implementation and qualification in progress.
+Status: DONE for the scoped-testing implementation and its source-specific qualification. The current validation contract and separately owned qualification holds remain in force.
 Date: 2026-10-05
 Owner: [current validation contract](../../Testing/Testing_Validation.md)
 
@@ -16,6 +16,8 @@ Before a PR push, full coverage is required across local and CI execution. Deleg
 
 ## Review evidence
 
+This section records the workflow at the time of the review; the current CI reconciliation below supersedes its native PR matrix descriptions.
+
 - DxUi: test.ps1 supports suite and named-test filters, but unconditionally runs tooling and a benchmark; CI runs six native profiles plus a separate validation job and paired benchmark. The initially running main validation subsequently passed; an earlier main ASan menu-popup fixture had failed even though its PR was green.
 - RedXe: test.ps1 is an unconditional sequence of standalone suites, tooling, host WARP and crash checks. PR CI runs all tests on x64 Release; main runs all six profiles. Latest main CI passed.
 - RedSalamander: governed Affected, ExplainPlan and exact Resume already exist. Reuse these contracts. PR CI runs Suite PR on x64/ARM64 Debug; long in-product CI suites run nightly and sanitizer suites weekly. Latest CI failed in format, migration and native jobs.
@@ -29,8 +31,8 @@ Before a PR push, full coverage is required across local and CI execution. Deleg
 - [x] Prove conservative fallback, rename/delete/untracked discovery, dependency fan-out and invalid selectors.
 - [x] Prove unchanged reuse, source/binary/configuration/environment invalidation, failures and post-run mutations.
 - [x] Align CI commands and pre-push delegation without weakening existing main/release gates.
-- [ ] Run focused tooling/scenario checks, applicable builds and noninteractive native tests; record unavailable/manual gates separately.
-- [ ] Persist durable requirements in the owning contract and agent guidance; close only after required qualification.
+- [x] Run focused tooling/scenario checks, applicable builds and noninteractive native tests for the recorded implementation; preserve the source-specific receipts and unavailable/manual gates below.
+- [x] Persist durable requirements in [Testing_Validation](../../Testing/Testing_Validation.md) and agent guidance. Shared platform, manual and consumer acceptance remains in [ConsumerUiQualification](../WIP/ConsumerUiQualification_2026-10-11.md), and does not become a pass by archiving this implementation record.
 
 ## Qualification constraints
 
@@ -40,11 +42,11 @@ No test may seize the person's foreground or pointer without agreement to the ti
 
 All 56 active native tests/helpers use contextual names, with current includes/projects/docs/inherited-case accounting reconciled. Historical origin filenames and hashes remain historical; currentFile resolves renamed retained tests. Exact test-source mappings and reviewed direct Grid/Tree/ComboBox/TextField callers narrow local work; unknown/shared inputs widen. Tooling selects validate.ps1 once plus the Windows runtime-staging fixture. Explicit Full CI retains its six native profiles, menu/text-input coverage, consumer builds and gallery/paired benchmark jobs.
 
-Qualification completed: all 19 noninteractive Debug suites; ASan Foundation, Embedded, Control, Rendering and WindowHost with the deliberate detection probe; x64 Debug/Release/ASan builds and ARM64 Debug/Release/ASan cross-builds; validate.ps1 including all tooling fixtures; pinned formatter check. Eighteen scoped-testing regressions prove discovery, conservative selection, CI coverage, source/binary/profile/environment invalidation, unchanged reuse, stale SkipBuild refusal and failure/post-run-mutation rejection through the public runner. Native runs retain capability skips, especially foreground UIA; those are not exercised paths. Tooling's second identical invocation reports REUSED. Broad native coverage in other profiles is delegated to the forthcoming exact PR workflow, not asserted locally.
+Qualification completed: all 19 noninteractive Debug suites; ASan Foundation, Embedded, Control, Rendering and WindowHost with the deliberate detection probe; x64 Debug/Release/ASan builds and ARM64 Debug/Release/ASan cross-builds; validate.ps1 including all tooling fixtures; pinned formatter check. Eighteen scoped-testing regressions prove discovery, conservative selection, CI coverage, source/binary/profile/environment invalidation, unchanged reuse, stale SkipBuild refusal and failure/post-run-mutation rejection through the public runner. Native runs retain capability skips, especially foreground UIA; those are not exercised paths. Tooling's second identical invocation reports REUSED. At that checkpoint, broad native coverage in other profiles was delegated to the forthcoming exact PR workflow, not asserted locally. The later PR #66 results are recorded below.
 
-Current GitHub main CI [37352873568](https://github.com/RedSalamanders/DxUi/actions/runs/37352873568) passed on 19ca44d95a0c. The earlier [37220881885](https://github.com/RedSalamanders/DxUi/actions/runs/37220881885) failed the ASan menu popup fixture. These are existing revision evidence, not execution of this uncommitted migration. The candidate workflow digest is checked before delegation; GitHub must also report that workflow enabled. Pending CI remains explicit.
+Current GitHub main CI [37352873568](https://github.com/RedSalamanders/DxUi/actions/runs/37352873568) passed on 19ca44d95a0c. The earlier [37220881885](https://github.com/RedSalamanders/DxUi/actions/runs/37220881885) failed the ASan menu popup fixture. These are existing revision evidence, not execution of this uncommitted migration. At that checkpoint the candidate workflow digest was checked before delegation and GitHub also had to report that workflow enabled. Pending CI remained explicit.
 
-Raw local logs/receipts are under .build/logs/scoped-testing-* and .build/reports/scoped-tests. The retained Release benchmark and candidate Debug/per-profile observations are unpaired; they establish no resource non-regression claim. No renderer, control behavior, consumer pin or gallery pixels changed. Pending closeout: the changed PR workflow/native matrix, required foreground/IME/AT acceptance with the person's timed lease, and native ARM64 runtime where claimed. Keep this plan active until the required migration qualification is accepted; do not report repository PASSED from focused/noninteractive evidence.
+Raw local logs/receipts are under .build/logs/scoped-testing-* and .build/reports/scoped-tests. The retained Release benchmark and candidate Debug/per-profile observations are unpaired; they establish no resource non-regression claim. No renderer, control behavior, consumer pin or gallery pixels changed. At that checkpoint the changed PR workflow/native matrix and foreground/IME/AT and native ARM64 acceptance were pending. The later PR #66 result is recorded below; the shared manual and native ARM64 gates remain separately owned and are not closed by this record. A focused/noninteractive result is not a repository PASSED verdict.
 
 Final receipt review includes documentation, skill Markdown and source-origin mappings in validator identities. Uncommon inline/generator extensions invalidate build attestation. Documentation edits select only independent validators; native scopes remain omitted. The two standalone runner fixtures pass all eighteen cases, including those invalidation boundaries.
 
@@ -53,3 +55,7 @@ DxUi preserves one Windows tooling qualification and one Linux portability quali
 Candidate CI passed the native Debug suites but exposed old generated filenames in the relocated multi-module consumer project. The generated entries now use the renamed source filenames. Pre-merge review also repaired the paired overlay for old baseline include paths: its current payload reaches both current and historical include names, and restoration returns the historical files exactly. The owning paired-overlay fixtures pass 17 cases and benchmark-gate fixtures pass 41. Hosted candidate consumer/profile/performance qualification remains pending.
 
 Post-merge policy review adds a clean committed candidate barrier around PR coverage discovery. Staged, unstaged, untracked and concurrent changes, including a concurrent clean commit, retain local obligations. The focused scoped-runner suite passes all 19 cases. Original PR #66 passed all six native/consumer profiles, tooling and paired benchmark before merge. This tooling-only follow-up does not repeat local native qualification or close remaining manual/runtime gates.
+
+## Current CI reconciliation (1 November 2026)
+
+The historical native PR matrix and proposed delegation to it below describe the workflow at the time, not the current route. [Build_UnifiedCI](../../Build/Build_UnifiedCI.md) supersedes automatic native PR matrices: PR checks are compiler-free and do not cover native obligations. [Testing_Validation](../../Testing/Testing_Validation.md) requires exact enabled coverage before any delegation; no future or skipped run is a pass. This closeout does not establish qualification for later source changes.

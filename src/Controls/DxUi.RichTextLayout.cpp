@@ -318,7 +318,7 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
     const auto headingRun = std::ranges::find_if(projection.runs, [](const auto& run) { return run.heading != 0u; });
     if (semanticDisplay && headingRun != projection.runs.end() && options.headingLineHeightMultiplier[headingRun->heading - 1u] > 0.0f)
         lineHeight = options.headingLineHeightMultiplier[headingRun->heading - 1u];
-    if (lineHeight > 0.0f && ! textOffset)
+    if (lineHeight > 0.0f)
     {
         auto size = fontSize;
         for (const auto& run : projection.runs)

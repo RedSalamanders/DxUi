@@ -109,7 +109,7 @@ struct AcpRange
 }
 
 [[nodiscard]] std::optional<D2D1_RECT_F> TryResolveTextStoreRangeRect(
-    const ControlHost& host, const Control& control, const AcpRange& range, const D2D1_RECT_F& bounds, bool& clipped) noexcept
+    const ControlHost& host, const Control& control, const AcpRange& range, const D2D1_RECT_F& bounds, bool& clipped)
 {
     clipped = false;
     std::optional<D2D1_RECT_F> result;
@@ -201,6 +201,10 @@ struct AcpRange
 class NativeTextStoreTarget final : public TextStoreTarget
 {
 public:
+    [[nodiscard]] size_t GetMaximumDocumentTextUnits() const noexcept override
+    {
+        return dynamic_cast<const RichTextEditor*>(GetLiveControl()) ? RichText::Document::MaximumUnits : (std::numeric_limits<size_t>::max)();
+    }
     NativeTextStoreTarget(ControlHost& host, Control& control, bool hostDeferredWorkEligible) noexcept
         : _host(&host),
           _control(&control),
@@ -560,6 +564,7 @@ public:
         return S_OK;
     }
     HRESULT GetRangeScreenRect(LONG acpStart, LONG acpEnd, RECT* prc, BOOL* pfClipped) const noexcept override
+    try
     {
         TextInputState state{};
         Control* const control = GetLiveControl();
@@ -588,6 +593,13 @@ public:
         *prc       = DipRectToScreenRect(*_host, rectDip.value());
         *pfClipped = clipped ? TRUE : FALSE;
         return S_OK;
+    }
+    catch (const std::bad_alloc&)
+    {
+        // TSF is a COM boundary. A geometry query cannot unwind through it.
+        *prc       = RECT{};
+        *pfClipped = TRUE;
+        return E_OUTOFMEMORY;
     }
     HRESULT GetScreenRect(RECT* prc) const noexcept override
     {
@@ -1341,6 +1353,13 @@ public:
 
         pdcs->dwDynamicFlags = 0u;
         pdcs->dwStaticFlags  = TS_SS_NOHIDDENTEXT;
+        TextInputState state{};
+        if (! ReadState(state))
+            return TS_E_INVALIDPOS;
+        if (state.readOnly)
+            pdcs->dwDynamicFlags |= TS_SD_READONLY;
+        if (state.multiline)
+            pdcs->dwStaticFlags |= TS_SS_MULTILINE;
         return S_OK;
     }
 
@@ -1362,6 +1381,8 @@ public:
         }
 
         const AcpRange range = ClampAcpRange(acpTestStart, acpTestEnd, state.text.size());
+        if (state.readOnly)
+            return TS_E_READONLY;
         if (! ReplacementFitsCapacity(state.text.size(), range, cch))
             return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
         *pacpResultStart = ToAcp(range.start);
@@ -1781,7 +1802,7 @@ private:
         }
         if (state.readOnly)
         {
-            return E_ACCESSDENIED;
+            return TS_E_READONLY;
         }
         if (cch > 0u && ! pchText)
         {
@@ -1887,6 +1908,7 @@ public:
 
         const bool textChanged      = currentState.text != _observedState.text;
         const bool selectionChanged = ! IsSameSelection(currentState, _observedState);
+        const bool readOnlyChanged  = currentState.readOnly != _observedState.readOnly;
         const bool layoutChanged    = textChanged || selectionChanged || currentState.firstVisibleLine != _observedState.firstVisibleLine ||
                                       currentState.masked != _observedState.masked || currentState.multiline != _observedState.multiline ||
                                       ! IsSameRect(currentViewport, _observedViewport);
@@ -1915,16 +1937,22 @@ public:
                 _lockFlags != 0u || ! _hasObservedState || _observedState.text != notificationState.text ||
                 ! IsSameSelection(_observedState, notificationState) || _observedState.firstVisibleLine != notificationState.firstVisibleLine ||
                 _observedState.masked != notificationState.masked || _observedState.multiline != notificationState.multiline ||
-                ! IsSameRect(_observedViewport, currentViewport))
+                _observedState.readOnly != notificationState.readOnly || ! IsSameRect(_observedViewport, currentViewport))
                 return false;
 
             TextInputState latestState{};
             return target->ReadState(latestState) && ! latestState.masked && latestState.text == notificationState.text &&
                    IsSameSelection(latestState, notificationState) && latestState.firstVisibleLine == notificationState.firstVisibleLine &&
                    latestState.masked == notificationState.masked && latestState.multiline == notificationState.multiline &&
-                   IsSameRect(target->ResolveTextViewportBounds(), currentViewport);
+                   latestState.readOnly == notificationState.readOnly && IsSameRect(target->ResolveTextViewportBounds(), currentViewport);
         };
 
+        if (readOnlyChanged && (sinkMask & TS_AS_STATUS_CHANGE) != 0u)
+        {
+            static_cast<void>(sink->OnStatusChange(notificationState.readOnly ? TS_SD_READONLY : 0u));
+            if (! continuationIsCurrent())
+                return false;
+        }
         if (textChanged && (sinkMask & TS_AS_TEXT_CHANGE) != 0u)
         {
 #if DXUI_ENABLE_DIAGNOSTICS

@@ -325,6 +325,14 @@ void TestLabelZeroSpacingOverrideMatchesDefaultLayout()
             RequireSucceeded(measuredOverride.Measure({host}, measureBounds, overrideSize), "measure the exact-default RTL override");
             Require(Close(defaultSize.sizeDip.width, overrideSize.sizeDip.width) && Close(defaultSize.sizeDip.height, overrideSize.sizeDip.height),
                     "skipping an explicit zero-spacing mutation preserves default wrapped RTL metrics");
+            Require(defaultSize.baselineDip && overrideSize.baselineDip && Close(defaultSize.baselineDip.value(), overrideSize.baselineDip.value()),
+                    "explicit default typography retains the shaped first-line baseline");
+            measuredDefault.SetText(L"one two three four     ");
+            measuredOverride.SetText(L"one two three four     ");
+            RequireSucceeded(measuredDefault.Measure({host}, measureBounds, defaultSize), "measure wrapped default trailing whitespace");
+            RequireSucceeded(measuredOverride.Measure({host}, measureBounds, overrideSize), "measure wrapped override trailing whitespace");
+            Require(Close(defaultSize.sizeDip.width, overrideSize.sizeDip.width) && defaultSize.overflow == overrideSize.overflow,
+                    "wrapped typography overrides measure ink rather than hanging trailing spaces");
 
             auto root   = std::make_unique<Panel>();
             auto* label = root->AddChild<Label>();

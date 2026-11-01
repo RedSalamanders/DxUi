@@ -2,6 +2,7 @@
 #include "Support/Diagnostics.h"
 #include <DxUi/Embedded.h>
 #include <DxUi/FrameRuntime.h>
+#include <DxUi/TextInputServices.h>
 #include <DxUiCompositePS.h>
 #include <DxUiCompositeVS.h>
 #include <algorithm>
@@ -1185,7 +1186,13 @@ try
     auto* editor = dynamic_cast<RichTextEditor*>(_host.GetFocusControl());
     if (! editor)
         return E_NOTIMPL;
-    return editor->TryPrepareClipboardPaste(content, replacement) ? S_OK : S_FALSE;
+    if (editor->TryPrepareClipboardPaste(content, replacement))
+        return S_OK;
+    if (! content.filePaths.empty())
+        return S_FALSE;
+    // Rich source paste preserves CR/LF spelling. Ordinary TextField clients retain service normalization.
+    replacement = content.text;
+    return S_OK;
 }
 catch (const std::bad_alloc&)
 {

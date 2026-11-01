@@ -214,6 +214,35 @@ void TestSplitterDragPreviewsCommitsAndCancels()
     Require(! splitter->OnMouseDown(host, D2D1::Point2F(153.0f, 50.0f), true, 0), "a right press does not start a drag");
 }
 
+void TestSplitterEscapePreservesReplacementCapture()
+{
+    for (const bool transferInCallback : {false, true})
+    {
+        WindowHost host;
+        auto root      = std::make_unique<Panel>();
+        auto* splitter = root->AddChild<Splitter>();
+        auto* other    = root->AddChild<Button>(L"Other");
+        splitter->SetBounds(D2D1::RectF(0, 0, 300, 100));
+        splitter->SetPosition(100);
+        size_t cancels{};
+        splitter->SetOnChange([&](SplitterChange change)
+        {
+            if (change.phase == SplitterChangePhase::Cancel)
+            {
+                ++cancels;
+                if (transferInCallback)
+                    host.CaptureMouse(other);
+            }
+        });
+        host.SetRoot(std::move(root));
+        Require(splitter->OnMouseDown(host, D2D1::Point2F(103, 50), false, 0), "start splitter gesture before capture transfer");
+        if (! transferInCallback)
+            host.CaptureMouse(other);
+        Require(splitter->OnKeyDown(host, VK_ESCAPE, 0) && cancels == 1u && host.GetCapturedControl() == other,
+                "splitter Escape preserves an unrelated replacement capture");
+    }
+}
+
 void TestSplitterKeyboardStepsAndCommits()
 {
     WindowHost host;
@@ -1962,6 +1991,7 @@ void RunEditorControlTests()
     DXUI_RUN_TEST(TestSplitterClampsToPaneMinimums);
     DXUI_RUN_TEST(TestSplitterHitBoundsCoverOnlySeparator);
     DXUI_RUN_TEST(TestSplitterDragPreviewsCommitsAndCancels);
+    DXUI_RUN_TEST(TestSplitterEscapePreservesReplacementCapture);
     DXUI_RUN_TEST(TestSplitterKeyboardStepsAndCommits);
     DXUI_RUN_TEST(TestSplitterHorizontalOrientationAndCursors);
     DXUI_RUN_TEST(TestSplitterDisabledAndRequestPosition);

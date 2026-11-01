@@ -174,7 +174,19 @@ struct NativeFlowchartParser::Preparation
         const auto id    = Text().substr(start, idEnd - start);
         if (id.size() > MaximumIdentifierUnits)
             return Error(FlowchartIssue::IdentifierCapacity, start, idEnd, FlowchartOutcome::Capacity);
-        for (const auto reserved : {L"end", L"subgraph", L"direction", L"style", L"class", L"classDef", L"click", L"linkStyle", L"note"})
+        for (const auto reserved : {L"end",
+                                    L"subgraph",
+                                    L"direction",
+                                    L"style",
+                                    L"class",
+                                    L"classDef",
+                                    L"click",
+                                    L"linkStyle",
+                                    L"note",
+                                    L"accTitle",
+                                    L"accDescr",
+                                    L"title",
+                                    L"cssClass"})
             if (id == reserved)
                 return Error(FlowchartIssue::UnsupportedStatement, start, idEnd, FlowchartOutcome::Unsupported);
         FlowchartNode candidate;
@@ -396,6 +408,8 @@ struct NativeFlowchartParser::Preparation
             Skip(at, end);
             if (at == end)
                 return true;
+            if (Text().substr(at, 3u) == L":::")
+                return Error(FlowchartIssue::UnsupportedStatement, at, end, FlowchartOutcome::Unsupported);
             if (model->family != NativeDiagramFamily::Flowchart && Text()[at] == L':')
             {
                 ++at;

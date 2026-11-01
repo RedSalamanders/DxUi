@@ -427,9 +427,12 @@ row, it starts the ordinary 400 ms cascade delay after showing the popup; anothe
 pointer move is unnecessary. Keyboard-initialized selection, disabled rows and
 rows without children do not start this pointer timer. Existing child ownership
 and same-row movement preserve an already pending timer.
-Keyboard navigation cancels pending pointer cascade timers throughout the popup
-chain. A previously queued timer must not replace or close a keyboard-focused
-child. AltGr's modifier event preserves the existing pointer timer behavior.
+Keyboard navigation that takes a row or changes the popup chain, and UIA row focus,
+cancel pending pointer cascade timers throughout the popup chain synchronously.
+Unmatched characters, Backspace character echoes and inert keys preserve pointer
+timers. A previously queued timer must not replace or close a newly focused child.
+A later genuine pointer or wheel hover may schedule a timer under the new ownership
+generation. AltGr's modifier event preserves the existing pointer timer behavior.
 A menu's row layouts and accessibility proxies exist only while it is open: closing it returns them, even
 while a client still holds its row elements. `DebugGetContextMenuResources` counts them exactly (popups, row text
 layouts and the accessibility records of menu-popup snapshots, wherever held), so a test asserts that a closed menu
@@ -1153,8 +1156,9 @@ from input. If an active text-service session's cached state cannot be copied,
 structural commands MUST return Unavailable without mutating source/history.
 TryReadNativeTextInputState returning false leaves its output unspecified; callers
 MUST ignore it. Its allocation-failure path MUST NOT construct a new aggregate.
-Hardware Enter falls back to raw CRLF if no current structural plan
-is available. Shift+Enter always keeps that raw replacement behavior.
+Hardware Enter falls back to the document's first CR, LF or CRLF spelling if no
+current structural plan is available; a document without an EOL uses CRLF.
+Source view and Shift+Enter use this same single undoable raw insertion policy.
 
 In semantic Rich view Ctrl+B/I toggle Markdown styles and Ctrl+Enter toggles
 tasks. Enter continues/exits lists or inserts table rows. Tab/Shift+Tab first

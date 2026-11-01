@@ -1954,7 +1954,7 @@ std::optional<std::vector<D2D1_RECT_F>> ComboBox::GetTextInputRangeRects(const C
     }
 
     UINT32 actualCount = 0u;
-    std::vector<DWRITE_HIT_TEST_METRICS> metrics((rangeEnd - rangeStart) + 4u);
+    std::vector<DWRITE_HIT_TEST_METRICS> metrics(64u);
     HRESULT hr = layout->HitTestTextRange(static_cast<UINT32>(rangeStart),
                                           static_cast<UINT32>(rangeEnd - rangeStart),
                                           textRect.left - _editableHorizontalScrollDip,

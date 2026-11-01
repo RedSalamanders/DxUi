@@ -874,7 +874,6 @@ HRESULT TextInputServices::Clipboard(TextClipboardCommand command, TextClipboard
             replacement.resize(written);
             if (transform)
             {
-                content.text.assign(replacement);
                 std::wstring transformed(0u, L' ');
                 const auto result = transform->TransformPaste(snapshot, content, transformed);
                 if (result == S_OK)

@@ -237,7 +237,7 @@ class MarkdownInlines
             nodes_[tail_].source.last = range.last;
             return tail_;
         }
-        if (nodes_.size() >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
+        if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || nodes_.size() >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
             throw std::length_error("Markdown inline node capacity exceeded");
         const auto index = nodes_.size();
         nodes_.emplace_back();
@@ -297,7 +297,7 @@ class MarkdownInlines
     }
     void OpaqueHtmlBlock()
     {
-        if (nodes_.size() >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
+        if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || nodes_.size() >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
             throw std::length_error("Markdown HTML inline node capacity exceeded");
         const auto index = nodes_.size();
         nodes_.emplace_back();
@@ -489,6 +489,8 @@ class MarkdownInlines
             const auto openNode = open.node, closeNode = close.node;
             const auto first = nodes_[openNode].nextSibling, last = previous_[closeNode];
             const auto wrapper = nodes_.size();
+            if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || wrapper >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
+                throw std::length_error("Markdown emphasis node capacity exceeded");
             nodes_.emplace_back();
             previous_.push_back(openNode);
             nodes_[wrapper].kind         = close.marker == L'~' ? Kind::Strikethrough : use == 2u ? Kind::Strong : Kind::Emphasis;
@@ -857,6 +859,8 @@ class MarkdownInlines
         const auto link          = Append(Kind::Link, cursor_, end + 1u);
         nodes_[link].destination = email ? std::wstring(L"mailto:") + std::wstring(content) : std::wstring(content);
         const auto child         = nodes_.size();
+        if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || child >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
+            throw std::length_error("Markdown autolink node capacity exceeded");
         nodes_.emplace_back();
         previous_.push_back(MarkdownNoNode);
         nodes_[child].kind      = Kind::Text;
@@ -1069,6 +1073,8 @@ class MarkdownInlines
                                    : scheme == 4u ? std::wstring(L"http://") + std::wstring(rest.substr(0u, length))
                                                   : std::wstring(rest.substr(0u, length));
         const auto child         = nodes_.size();
+        if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || child >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
+            throw std::length_error("Markdown autolink node capacity exceeded");
         nodes_.emplace_back();
         previous_.push_back(MarkdownNoNode);
         nodes_[child].kind      = Kind::Text;

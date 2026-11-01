@@ -133,13 +133,14 @@ Repair [PR #119](https://github.com/RedSalamanders/DxUi/pull/119), initial run [
 - [x] Execute the local build/native/tooling matrix; passing receipts, failed attempts and remaining acceptance limits are recorded below.
 - [ ] Measure frozen baseline/candidate executable and DLL sizes, archive sizes, build duration and counterbalanced runtime/resource samples on unchanged fixtures. Preserve every failed/noisy attempt; do not silently rebaseline.
 - [ ] Publish reviewed local evidence and a five-repository settings-difference report. Application measurements stay in their owning repository.
-- [ ] Fold the changelog, validate formatting/specs/tooling, and move this plan to Done only after its local implementation and required qualification complete.
+- [ ] Validate formatting, specs and tooling for closeout. Keep any new Changes fragment in its change; folding is a separate post-merge pull request under the current Changes contract.
+- [ ] Reconcile the five-repository report and exact consumer repair/adoption evidence; retain unresolved shared platform, manual and performance-policy gates in [ConsumerUiQualification](ConsumerUiQualification_2026-10-11.md). Close only once the plan-specific evidence above is complete.
 
 ## Scope and decisions
 
 The owning contract is [Build_ToolchainAndConsumption](../../Build/Build_ToolchainAndConsumption.md). The standalone library, all sample/test executables and every consumer's final EXE/DLL must participate. Resource-only satellites have no C++ functions, and an external Makefile project is not evidence that the external repository's compilation changed.
 
-Use the installed default 14.52 patch and validate its family; never hard-code a developer installation or silently accept another compiler family. Full LTCG preserves RedXe's existing avoidance of stale incremental LTCG products. `/OPT:ICF` remains governed by the toolset/WPO defaults and existing project policy.
+Use the installed default 14.52 patch and validate its family; never hard-code a developer installation or silently accept another compiler family. Full LTCG preserves RedXe's existing avoidance of stale incremental LTCG products. At the time of this experiment, `/OPT:ICF` followed the then-existing toolset/WPO defaults and project policy. The later [native build policy](NativeBuildPolicyCoherence_2026-10-28.md) explicitly enables it in Release and disables it in Debug/ASan.
 
 The other four repositories each own an indexed plan with this filename. Their existing DxUi API pins remain intact: ordinary MSBuild project-reference properties carry WPO and the exact selected toolset. Compiler-policy changes require separate cache identity and fresh archive/product evidence.
 

@@ -21,7 +21,10 @@ Five repositories implement the same policy without implicitly advancing DxUi pi
 - [x] Publish zero-warning guidance and normative build/path/terminal contracts, with meaningful tooling tests.
 - [x] Execute affected tests, evaluated profiles, required native builds and applicable local x64 runtime qualification; retain every failed result and distinguish ARM64 cross-builds from runtime tests.
 - [ ] Freeze matching Release artifacts, report before/after image sizes and complete quiet paired performance measurements.
-- [ ] Fold/check the changelog; validate formatting/specs/tooling and close this plan only after all required gates pass.
+- [ ] Validate formatting, specs and tooling for closeout; retain a Changes fragment for any new change. Changelog folding is a separate post-merge pull request under the current Changes contract.
+- [ ] Close only after the size and quiet paired measurements are reviewed. Shared manual, native-runtime and consumer gates remain in [ConsumerUiQualification](ConsumerUiQualification_2026-10-11.md).
+
+The 29 October source-specific matrix below does not qualify later changes. The shared performance-policy and control-stability holds remain open in the qualification ledger; a quiet measurement alone is not a policy verdict.
 
 ## Decisions and limits
 

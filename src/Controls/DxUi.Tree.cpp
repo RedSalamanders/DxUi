@@ -80,7 +80,7 @@ struct TreeResolvedRowVisuals final
     else if (selected)
     {
         visuals.fill = focused ? theme.selectionFill : theme.selectionInactiveFill;
-        visuals.text = focused ? theme.selectionText : ResolveInactiveSelectionTextColor(theme, theme.selectionText, theme.surfaceBackground);
+        visuals.text = focused ? theme.selectionText : ResolveInactiveSelectionTextColor(theme, theme.text, theme.surfaceBackground);
     }
     else if (hovered)
     {
@@ -841,6 +841,7 @@ void Tree::SetMultiSelectEnabled(bool enabled) noexcept
 
 void Tree::SetSelectedItemId(std::optional<uint64_t> itemId) noexcept
 {
+    const auto lifetime = GetLifetimeToken();
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     std::optional<size_t> selectedIndex;
     if (_model && itemId)
@@ -869,6 +870,8 @@ void Tree::SetSelectedItemId(std::optional<uint64_t> itemId) noexcept
     if (! guard.IsCurrent())
         return;
     RefreshAccessibilitySnapshot();
+    if (! lifetime.expired())
+        RequestInvalidate();
 }
 
 std::optional<uint64_t> Tree::GetSelectedItemId() const noexcept
@@ -980,7 +983,10 @@ try
     }
     if (! guard.IsCurrent())
         return;
+    const auto lifetime = GetLifetimeToken();
     RefreshAccessibilitySnapshot();
+    if (! lifetime.expired())
+        RequestInvalidate();
 }
 catch (const std::exception&)
 {
@@ -1884,7 +1890,7 @@ bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
 
 bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
-    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     if (rightButton)
     {
         _singleClickInvokeItemId.reset();
@@ -1921,7 +1927,7 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
         if (collapse)
         {
             const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
-            if (! CollapseSelectionToItem(collapseId) || selfLifetime.expired())
+            if (! CollapseSelectionToItem(collapseId) || selfLifetime.expired() || ! guard.ResumeAfterCallback())
             {
                 return false;
             }
@@ -2807,6 +2813,12 @@ D2D1_RECT_F Tree::GetVerticalThumbHitRect() const noexcept
     const float extent         = GetVerticalScrollableExtent();
     return guard.IsCurrent() ? ComputeScrollbarThumbHitRect(track, ScrollbarOrientation::Vertical, viewportHeight, totalHeight, _verticalScrollDip, extent)
                              : D2D1::RectF();
+}
+
+void Tree::OnBoundsChanged() noexcept
+{
+    const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
+    ClampScrollOffset();
 }
 
 void Tree::ClampScrollOffset() noexcept

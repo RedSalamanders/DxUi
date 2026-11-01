@@ -253,7 +253,7 @@ retires, rebinds or supersedes the editor stops the old notification.
 
 The preview implements pointer selection/word selection, Shift extension, host
 capture and cancellation, logical DirectWrite cluster navigation, word navigation,
-line/document Home/End, Up/Down/PageUp/PageDown, Backspace/Delete, Enter as CRLF,
+line/document Home/End, Up/Down/PageUp/PageDown, Backspace/Delete, Enter in the document's first EOL spelling (CRLF when absent),
 Ctrl+A/C/X/V/Z/Y, Ctrl+Shift+Z and Ctrl+B/I. Copy/cut transfers exact selected
 Markdown source and original EOLs through the host's bounded Unicode clipboard;
 busy/failed clipboard writes never cut. Paste validates before committing and
@@ -283,7 +283,10 @@ One paste is one undoable source transaction. Multiple files use blank-line
 separators and preserve clipboard order, including mixed image/link lists. Image
 descriptions use the filename stem; text links display the complete
 filename. If any structured path cannot be represented safely, the complete list
-keeps its original spellings as quoted literal source. Code, HTML, metadata, active source editing and Source mode keep literal
+keeps its original displayed spellings as quoted literal text; Rich mode escapes
+Markdown punctuation so a filename cannot become a live image or link. Malformed
+Unicode, NUL, quotes and CR/LF inside structured paths reject the complete batch.
+Extended-length Windows paths remain supported. Code, HTML, metadata, active source editing and Source mode keep literal
 text. Partial inline code/link/image contexts also keep literal text. Pending
 analysis uses ordinary Unicode paste. Read-only/disabled/composing editors reject
 mutation. Native and application-owned embedded TSF clipboard routes reject stale
@@ -1164,7 +1167,8 @@ control and current published analysis. `ApplyMarkdownCommand(plan)` also checks
 the current syntax owner; it does not revive a plan from a replaced publication.
 Composition blocks structural commands. Pending analysis never triggers an inline
 parse: explicit commands report Unavailable; hardware Enter can still insert a
-raw CRLF. Source view, TSF imports and programmatic replacements retain exact raw
+the document's first EOL spelling, or CRLF when none exists. Source-view Enter
+and Shift+Enter use the same policy. TSF imports and programmatic replacements retain exact raw
 replacement semantics. Pure plans have no host binding and are also usable with
 `BuildMarkdownCommand` / `ApplyMarkdownCommand(Document&, plan)`.
 

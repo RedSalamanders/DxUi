@@ -146,6 +146,24 @@ void TestRichTextEditorUnicodeCharacterTransactions()
     Require(editor.GetText() == L"\r\n" && IsValidUtf16(editor.GetText()), "mode transition retires pending scalar");
 }
 
+void TestRichTextEditorEnterPreservesDocumentLineEndings()
+{
+    ControlHost host;
+    for (const auto ending : {std::wstring_view(L"\n"), std::wstring_view(L"\r"), std::wstring_view(L"\r\n")})
+        for (const auto mode : {ViewMode::Source, ViewMode::Rich})
+            for (const auto modifiers : {UINT{0u}, UINT{MK_SHIFT}})
+            {
+                const auto source = std::wstring(L"first") + std::wstring(ending) + L"last";
+                RichTextEditor editor(source);
+                editor.SetViewMode(mode);
+                editor.SetSelection({source.size(), source.size()});
+                Require(editor.OnChar(host, L'\r', modifiers) && editor.GetText() == source + std::wstring(ending),
+                        "source, Shift+Enter and unavailable paragraph commands preserve the document EOL");
+                Require(editor.Undo() && editor.GetText() == source && editor.GetSelection() == Selection{source.size(), source.size()},
+                        "one undo restores source spelling and the original caret after Enter");
+            }
+}
+
 void TestRichTextEditorFormattingAndModePreserveSource()
 {
     ControlHost host;
@@ -1817,6 +1835,7 @@ void RunRichTextEditorTests()
     ScopedNonActivatingTestWindows nonActivating;
     DXUI_RUN_TEST(TestRichTextEditorTransactionsAndValidation);
     DXUI_RUN_TEST(TestRichTextEditorUnicodeCharacterTransactions);
+    DXUI_RUN_TEST(TestRichTextEditorEnterPreservesDocumentLineEndings);
     DXUI_RUN_TEST(TestRichTextEditorFormattingAndModePreserveSource);
     DXUI_RUN_TEST(TestRichTextEditorCallbackRetirementAndFailure);
     DXUI_RUN_TEST(TestRichTextEditorSelectionPublicationAndRetirement);

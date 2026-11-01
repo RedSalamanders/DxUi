@@ -20,6 +20,11 @@ function Refuses([scriptblock]$Body,[string]$Pattern){
 $clean=Join-Path $ScratchRoot 'clean.log'
 [IO.File]::WriteAllText($clean,'Build succeeded. 0 Warning(s) 0 Error(s)')
 Assert-NativeBuildDiagnostics -LogPath $clean
+foreach($incomplete in @('', 'Build succeeded.', '0 Warning(s) 0 Error(s)', 'Build succeeded. 0 Warning(s)', 'Build FAILED. 0 Warning(s) 0 Error(s)', 'Build succeeded. 1 Warning(s) 0 Error(s)')){
+    $partial=Join-Path $ScratchRoot 'incomplete.log'
+    [IO.File]::WriteAllText($partial,$incomplete)
+    Refuses {Assert-NativeBuildDiagnostics -LogPath $partial} 'Zero-warning'
+}
 foreach($diagnostic in @(
     'source.cpp(4): warning C4100: unused parameter',
     '2>C:\work\source.cpp(4): warning C4365: sign conversion',

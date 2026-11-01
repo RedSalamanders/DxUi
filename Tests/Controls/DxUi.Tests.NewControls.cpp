@@ -1424,6 +1424,36 @@ void TestSliderOffCenterGrabAndCancel()
             "capture cancellation restores the draft and late release cannot commit it");
 }
 
+void TestSliderEscapePreservesReplacementCapture()
+{
+    using namespace DxUi;
+    for (const bool transferInCallback : {false, true})
+    {
+        WindowHost host;
+        auto root    = std::make_unique<Panel>();
+        auto* slider = root->AddChild<Slider>();
+        auto* other  = root->AddChild<Button>(L"Other");
+        slider->SetBounds(D2D1::RectF(0, 0, 220, 48));
+        slider->SetValue(50);
+        size_t cancels{};
+        slider->SetOnChange([&](SliderChange change)
+        {
+            if (change.phase == SliderChangePhase::Cancel)
+            {
+                ++cancels;
+                if (transferInCallback)
+                    host.CaptureMouse(other);
+            }
+        });
+        host.SetRoot(std::move(root));
+        Require(slider->OnMouseDown(host, D2D1::Point2F(118, 40), false, 0), "start slider gesture before capture transfer");
+        if (! transferInCallback)
+            host.CaptureMouse(other);
+        Require(slider->OnKeyDown(host, VK_ESCAPE, 0) && cancels == 1u && host.GetCapturedControl() == other,
+                "Escape cancels once without releasing a replacement capture, before or during its callback");
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Toolbar
 // ---------------------------------------------------------------------------
@@ -2999,6 +3029,7 @@ void RunNewControlTests()
     DXUI_RUN_TEST(TestSliderRejectsNonFiniteRangeAndSteps);
     DXUI_RUN_TEST(TestSliderRangeAndStepSettersKeepDependentValuesValid);
     DXUI_RUN_TEST(TestSliderOffCenterGrabAndCancel);
+    DXUI_RUN_TEST(TestSliderEscapePreservesReplacementCapture);
 
     // Toolbar
     DXUI_RUN_TEST(TestToolbarAddButtonCreatesChildren);

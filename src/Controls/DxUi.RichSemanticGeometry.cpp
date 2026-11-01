@@ -817,7 +817,7 @@ struct PreparedSemanticGeometry::Preparation
         PreparedLayout measured;
         measured.PrepareSemanticOwned(state->factory.get(), projection, options, true);
         const auto textBounds         = measured.HorizontalTextBounds();
-        float textWidth               = std::max(0.0f, textBounds.second - textBounds.first);
+        float textWidth               = std::max(0.0f, textBounds.second);
         const auto includeObjectWidth = [&](MarkdownRange object, float objectWidth)
         {
             if (object.first < content.display.first || object.last > content.display.last || object.first >= object.last)

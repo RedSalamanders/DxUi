@@ -47,6 +47,7 @@ inline constexpr Scenario prepared[] = {
     {L"atom overrides", L"a\\mathbin{*}b\\mathrel{=}c+\\mathop{arg}\\limits_x"},
 };
 inline constexpr Scenario rejected[] = {
+    {L"row separator outside environment", L"a\\\\b"},
     {L"E01 missing fraction argument", L"\\frac{a}"},
     {L"E02 missing index close", L"\\sqrt[3{x}"},
     {L"E03 missing script argument", L"x_"},

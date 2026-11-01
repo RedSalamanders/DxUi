@@ -237,8 +237,15 @@ void TestGridNoexceptGeometryContainsThrowingGroupGetter()
 
     Grid grid;
     grid.SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 120.0f));
+    MutableTextGridModel oldModel({{99u, {L"old"}}});
+    grid.SetModel(&oldModel);
+    const std::array<uint64_t, 1u> oldSelection{99u};
+    grid.SetSelectedRowIds(oldSelection);
+    Require(grid.GetSelectionModel().GetCount() == 1u, "old model has a selection before replacement failure");
     grid.SetModel(&model);
 
+    Require(grid.GetModel() == &model && grid.GetSelectionModel().GetCount() == 0u,
+            "failed new-model reconciliation still installs the borrowed model and clears old-model selection");
     Require(grid.GetVisibleColumnCount() == 0u, "Grid noexcept geometry returns empty visibility when collecting a throwing borrowed group snapshot");
 }
 

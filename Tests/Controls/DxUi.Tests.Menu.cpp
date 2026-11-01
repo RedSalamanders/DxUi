@@ -5652,6 +5652,12 @@ void TestMenuKeyboardInputCancelsPendingSubmenuHoverTimers()
         bool geometryReady                               = false;
         bool openMovesSucceeded                          = false;
         bool openPendingBeforeKeyboard                   = false;
+        bool unmatchedCharactersPreservedOpen            = false;
+        bool accessibilityCanceledOpen                   = false;
+        bool accessibilitySurvivedOpenTimer              = false;
+        bool unmatchedCharactersPreservedClose           = false;
+        bool accessibilityCanceledClose                  = false;
+        bool accessibilitySurvivedCloseTimer             = false;
         bool openTimerCanceledImmediatelyAfterHome       = false;
         bool keyboardChildOpened                         = false;
         bool keyboardChildSurvivedStaleOpenTimer         = false;
@@ -5752,6 +5758,22 @@ void TestMenuKeyboardInputCancelsPendingSubmenuHoverTimers()
             };
             const auto child              = [&]() noexcept { return FindOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B11"); };
             const auto rootStateAvailable = [&]() noexcept { return DebugGetContextMenuPopupState(root, rootState); };
+            const auto focusAccessibleRow = [](HWND popup, size_t index) noexcept
+            {
+                wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+                provider.attach(CreateWindowHostAccessibilityProvider(popup));
+                wil::com_ptr_nothrow<IRawElementProviderFragment> fragment, row;
+                if (! provider || FAILED(provider.query_to(fragment.put())) || FAILED(fragment->Navigate(NavigateDirection_FirstChild, row.put())))
+                    return false;
+                for (size_t item = 0u; row && item < index; ++item)
+                {
+                    wil::com_ptr_nothrow<IRawElementProviderFragment> next;
+                    if (FAILED(row->Navigate(NavigateDirection_NextSibling, next.put())))
+                        return false;
+                    row.swap(next);
+                }
+                return row && SUCCEEDED(row->SetFocus());
+            };
 
             // OPEN: create a pending B1 open, then Home cancels it before Right opens B11.
             observed.openMovesSucceeded = moveToRow(b2) && moveToRow(b1);
@@ -5763,6 +5785,15 @@ void TestMenuKeyboardInputCancelsPendingSubmenuHoverTimers()
             {
                 observed.openPendingBeforeKeyboard =
                     rootState.hoverTimerActive && rootState.hoverTimerPendingOpen && rootState.hoverTimerItemIndex == std::optional<size_t>{0u};
+                static_cast<void>(SendMessageW(root, WM_CHAR, L'z', 0));
+                static_cast<void>(SendMessageW(root, WM_CHAR, L'\b', 0));
+                observed.unmatchedCharactersPreservedOpen = rootStateAvailable() && rootState.hoverTimerActive && rootState.hoverTimerPendingOpen;
+                observed.accessibilityCanceledOpen        = focusAccessibleRow(root, 1u) && rootStateAvailable() &&
+                                                            rootState.keyboardIndex == std::optional<size_t>{1u} && ! rootState.hoverTimerActive;
+                static_cast<void>(SendMessageW(root, WM_TIMER, 1u, 0));
+                observed.accessibilitySurvivedOpenTimer = ! child() && rootStateAvailable() && rootState.keyboardIndex == std::optional<size_t>{1u};
+                observed.openMovesSucceeded             = observed.openMovesSucceeded && moveToRow(b2) && moveToRow(b1) && rootStateAvailable() &&
+                                                          rootState.hoverTimerActive && rootState.hoverTimerPendingOpen;
                 static_cast<void>(SendMessageW(root, WM_KEYDOWN, VK_HOME, 0));
                 observed.openTimerCanceledImmediatelyAfterHome = rootStateAvailable() && ! rootState.hoverTimerActive;
                 static_cast<void>(SendMessageW(root, WM_KEYDOWN, VK_RIGHT, 0));
@@ -5801,6 +5832,14 @@ void TestMenuKeyboardInputCancelsPendingSubmenuHoverTimers()
                     if (submenu && moveToRow(b2))
                     {
                         observed.closePendingBeforeKeyboard = rootStateAvailable() && rootState.hoverTimerActive && rootState.hoverTimerPendingClose;
+                        static_cast<void>(SendMessageW(submenu, WM_CHAR, L'z', 0));
+                        static_cast<void>(SendMessageW(submenu, WM_CHAR, L'\b', 0));
+                        observed.unmatchedCharactersPreservedClose = rootStateAvailable() && rootState.hoverTimerActive && rootState.hoverTimerPendingClose;
+                        observed.accessibilityCanceledClose        = focusAccessibleRow(submenu, 1u) && rootStateAvailable() && ! rootState.hoverTimerActive;
+                        static_cast<void>(SendMessageW(root, WM_TIMER, 1u, 0));
+                        childState = {};
+                        observed.accessibilitySurvivedCloseTimer =
+                            child() == submenu && DebugGetContextMenuPopupState(submenu, childState) && childState.keyboardIndex == std::optional<size_t>{1u};
                         static_cast<void>(SendMessageW(submenu, WM_KEYDOWN, VK_DOWN, 0));
                         observed.closeTimerCanceledImmediatelyAfterFirstDown = rootStateAvailable() && ! rootState.hoverTimerActive;
                         static_cast<void>(SendMessageW(submenu, WM_KEYDOWN, VK_DOWN, 0));
@@ -5874,6 +5913,11 @@ void TestMenuKeyboardInputCancelsPendingSubmenuHoverTimers()
     Require(observed.handlerRan && observed.popupIdentityValid, "the one-shot owner callback receives its owned root popup");
     Require(observed.geometryReady, "the callback calibrates both menu rows from live popup geometry and DPI");
     Require(observed.openMovesSucceeded && observed.openPendingBeforeKeyboard, "pointer B2-to-B1 arms the B1 pending-open timer");
+    Require(observed.unmatchedCharactersPreservedOpen && observed.unmatchedCharactersPreservedClose,
+            "unmatched characters and Backspace preserve stationary pointer open and close timers");
+    Require(observed.accessibilityCanceledOpen && observed.accessibilitySurvivedOpenTimer && observed.accessibilityCanceledClose &&
+                observed.accessibilitySurvivedCloseTimer,
+            "UIA focus cancels the entire cascade synchronously and survives stale native open/close WM_TIMER delivery");
     Require(observed.openTimerCanceledImmediatelyAfterHome, "Home cancels the root pending-open timer before Right opens a child");
     Require(observed.keyboardChildOpened, "Right opens B11 with keyboard focus");
     Require(observed.keyboardChildSurvivedStaleOpenTimer && observed.keyboardChildIndexAfterOpenTimer == 0,

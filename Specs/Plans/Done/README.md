@@ -1,5 +1,9 @@
 # Completed plans
 
+- [CI run scope](CiRunScope_2026-10-04.md) — archived historical implementation; the former hosted native-PR observation is superseded by unified CI, not claimed as passed.
+
+- [Scoped testing](ScopedTesting_2026-10-05.md) — implementation and recorded source-specific qualification; current candidate, native ARM64, manual and consumer gates remain separately owned.
+
 - [Performance control diagnostics](PerformanceControlDiagnostics_2026-10-28.md) — completed 2026-10-28 for the separate v3 scenario/phase extension, six local/hosted native profiles, 57 x64 suite executions, fixed 34-process diagnostics and bounded paired-CI replay. PR122 merges with the qualified tree. Canonical inputs and policy stay unchanged; shared policy/control and consumer R10/hosted ARM64 holds remain open in their owning plans.
 
 - [Acrylic menu visual-capture pointer fixture](MenuAcrylicVisualCapturePointer_2026-10-25.md) — completed 2026-10-26: merged PR #104, local Release Full/Menu and all six hosted profiles; 123 individual Menu cases per profile. The old failure cause, parent ARM64 focus-restoration gate and paired performance remain open.

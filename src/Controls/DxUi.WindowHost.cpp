@@ -3718,7 +3718,7 @@ try
                 // A focused editor takes the character a printable key produces (its WM_CHAR follows), so the key-down
                 // is not the application's as well. Preserve the guarded Space character permission before this return.
                 if (msg == WM_KEYDOWN && ! ModifiersContainAlt(modifiers) && ! ModifiersContainCtrl(modifiers) && _focusedControl &&
-                    _focusedControl->SupportsTextInput() && KeyProducesPrintableCharacter(static_cast<UINT>(wp)))
+                    _focusedControl->AcceptsTypedText() && KeyProducesPrintableCharacter(static_cast<UINT>(wp)))
                 {
                     return 0;
                 }
@@ -4266,6 +4266,13 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
 #endif
             Debug::Warning(L"DxUi::ControlHost: ResizeBuffers failed; deferring swap-chain recreation to a later visible render: 0x{:08X}", hrResize);
             DiscardSizeDependentResources(L"resize-buffers-failed");
+            if (IsDeviceLossHResult(hrResize))
+            {
+                DiscardDeviceResources();
+                ResetSharedWindowHostGraphicsResources();
+                _forceFullPresentAfterBufferReset = true;
+                Invalidate();
+            }
             return false;
         }
 

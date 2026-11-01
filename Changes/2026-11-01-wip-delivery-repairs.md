@@ -1,0 +1,1 @@
+- Reconcile the DxUi WIP reviews against current source and repair menu focus/timer ownership, rich-text source insertion and TSF limits/status, Grid/Tree model and geometry updates, capture cancellation, layout metrics, parser admission and native device-loss recovery; retain source-bound validation and unfinished feature/qualification gates in the delivery plans.

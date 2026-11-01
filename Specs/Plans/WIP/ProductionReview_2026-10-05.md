@@ -1174,7 +1174,7 @@ Tooling:
   - [SliderTouchHalo](SliderTouchHalo_2026-10-04.md) still lists the merge as open.
   - [TreeReorder](../Done/TreeReorder_2026-09-21.md) historically retained a row-straddle limit #38 removed; its current archival note identifies the correction.
   - [GridTextOverflow](GridTextOverflow_2026-09-21.md) describes the replaced V11 cache.
-  - [CiRunScope](CiRunScope_2026-10-04.md)'s validation figure does not reproduce.
+  - [CiRunScope](../Done/CiRunScope_2026-10-04.md)'s validation figure does not reproduce.
   - The Done index omits three plans.
 
   (`process-docs-specs-5`, `-6`, `tree-13`, `grid-multiline-10`, `process-docs-specs-7`, `-4`, Q25)

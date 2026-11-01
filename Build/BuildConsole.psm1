@@ -1,4 +1,4 @@
-# Shared build-console contract, version 1. Kept identical in the five independent repositories.
+# Shared build-console formatting contract, version 1; DxUi additionally requires completed MSBuild summaries.
 Set-StrictMode -Version Latest
 
 function Get-NativeBuildDiagnostics {
@@ -7,7 +7,12 @@ function Get-NativeBuildDiagnostics {
     $full=[IO.Path]::GetFullPath($LogPath)
     if(-not(Test-Path -LiteralPath $full -PathType Leaf)){throw "Build diagnostics log is missing: $full"}
     $warnings=0;$errors=0
+    $succeeded=$false;$warningSummary=$null;$errorSummary=$null
     foreach($line in [IO.File]::ReadLines($full)){
+        if($line -match '\bBuild succeeded\.'){ $succeeded=$true }
+        if($line -match '\bBuild FAILED\.'){ $succeeded=$false }
+        if($line -match '(?<count>\d+)\s+Warning\(s\)'){ $warningSummary=[int]$Matches['count'] }
+        if($line -match '(?<count>\d+)\s+Error\(s\)'){ $errorSummary=[int]$Matches['count'] }
         # Same canonical MSBuild header grammar as RedSalamander's MSBuildInvocation.
         # Diagnostic-looking text in a message is not a second diagnostic.
         $match=[regex]::Match($line,'^\s*(?:\d+>)?\s*(?:(?:[a-z]:)?[^:\r\n]*:\s*)??(?:[^:\r\n]*?\s+)??(?<kind>warning|error)(?:\s+[^:\s]+)?\s*:',
@@ -16,7 +21,7 @@ function Get-NativeBuildDiagnostics {
             if($match.Groups['kind'].Value -ieq 'warning'){++$warnings}else{++$errors}
         }
     }
-    return [pscustomobject]@{LogPath=$full;WarningCount=$warnings;ErrorCount=$errors}
+    return [pscustomobject]@{LogPath=$full;WarningCount=$warnings;ErrorCount=$errors;BuildSucceeded=$succeeded;WarningSummary=$warningSummary;ErrorSummary=$errorSummary}
 }
 
 function Assert-NativeBuildDiagnostics {
@@ -25,6 +30,10 @@ function Assert-NativeBuildDiagnostics {
     $result=Get-NativeBuildDiagnostics -LogPath $LogPath
     if($result.WarningCount -ne 0 -or $result.ErrorCount -ne 0){
         throw "Zero-warning build validation failed: $($result.WarningCount) warning(s), $($result.ErrorCount) error(s). Log: $($result.LogPath)"
+    }
+    if(-not $result.BuildSucceeded -or $null -eq $result.WarningSummary -or $null -eq $result.ErrorSummary -or
+       $result.WarningSummary -ne 0 -or $result.ErrorSummary -ne 0){
+        throw "Zero-warning build validation failed: a completed successful MSBuild log with explicit zero warning/error summaries is required. Log: $($result.LogPath)"
     }
 }
 

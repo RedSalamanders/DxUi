@@ -83,6 +83,8 @@ public:
     uint32_t textChangeCount           = 0u;
     uint32_t selectionChangeCount      = 0u;
     uint32_t layoutChangeCount         = 0u;
+    uint32_t statusChangeCount         = 0u;
+    DWORD lastStatusFlags              = 0u;
     uint32_t editTransactionStartCount = 0u;
     uint32_t editTransactionEndCount   = 0u;
     uint32_t editTransactionDepth      = 0u;
@@ -138,8 +140,10 @@ public:
         return onLayoutChange ? onLayoutChange(lcode, vcView) : S_OK;
     }
 
-    HRESULT STDMETHODCALLTYPE OnStatusChange(DWORD /*dwFlags*/) noexcept override
+    HRESULT STDMETHODCALLTYPE OnStatusChange(DWORD dwFlags) noexcept override
     {
+        ++statusChangeCount;
+        lastStatusFlags = dwFlags;
         return S_OK;
     }
 
@@ -9662,7 +9666,7 @@ void TestRichTextNativeTsfCompositionAndDisconnection()
     wil::com_ptr_nothrow<ITextStoreACP> store;
     store.attach(host.DebugCreateNativeTextInputTextStoreForTest());
     Require(store != nullptr, "rich editor creates the shared native ACP store");
-    RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE), "advise rich ACP sink");
+    RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE | TS_AS_STATUS_CHANGE), "advise rich ACP sink");
     wil::com_ptr_nothrow<ITfContextOwnerCompositionSink> compositions;
     RequireSucceeded(store.query_to(compositions.put()), "rich ACP store composition sink");
     ClientComposition composition;
@@ -9688,6 +9692,40 @@ void TestRichTextNativeTsfCompositionAndDisconnection()
     RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session), "rich ACP commit lock");
     RequireSucceeded(session, "rich ACP composition commit");
     Require(notices == 1 && raw->Undo() && raw->GetText() == L"**a**" && ! raw->CanUndo(), "TSF composition creates exactly one undo entry");
+    TS_STATUS status{};
+    RequireSucceeded(store->GetStatus(&status), "rich ACP exposes current status");
+    Require((status.dwStaticFlags & TS_SS_MULTILINE) != 0u && (status.dwDynamicFlags & TS_SD_READONLY) == 0u, "rich ACP is multiline and editable");
+    raw->SetReadOnly(true);
+    NotifyTextStoreChanged(store.get());
+    RequireSucceeded(store->GetStatus(&status), "read-only ACP status remains available");
+    Require((status.dwDynamicFlags & TS_SD_READONLY) != 0u && sink.statusChangeCount == 1u && sink.lastStatusFlags == TS_SD_READONLY,
+            "read-only transition reports dynamic status and a status-only notification");
+    LONG rejectedFirst{}, rejectedLast{};
+    Require(store->QueryInsert(0, 0, 1u, &rejectedFirst, &rejectedLast) == TS_E_READONLY, "read-only insert admission uses the TSF read-only result");
+    raw->SetReadOnly(false);
+    NotifyTextStoreChanged(store.get());
+    RequireSucceeded(store->GetStatus(&status), "editable ACP status is restored");
+    Require((status.dwDynamicFlags & TS_SD_READONLY) == 0u && sink.statusChangeCount == 2u && sink.lastStatusFlags == 0u,
+            "returning to editable publishes the complete cleared dynamic status");
+    raw->SetText(std::wstring(RichText::Document::MaximumUnits - 1u, L'x'));
+    const auto end = raw->Snapshot().Length();
+    raw->SetSelection({end, end});
+    Require(store->QueryInsert(static_cast<LONG>(end), static_cast<LONG>(end), 2u, &rejectedFirst, &rejectedLast) == HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW),
+            "native TSF rejects a replacement beyond the rich document ceiling before staging");
+    HRESULT oversizedResult = E_UNEXPECTED, exactResult = E_UNEXPECTED;
+    sink.onLockGranted = [&](DWORD) noexcept
+    {
+        TS_TEXTCHANGE change{};
+        LONG first{}, last{};
+        oversizedResult = store->InsertTextAtSelection(0u, L"yz", 2u, &first, &last, &change);
+        exactResult     = store->InsertTextAtSelection(0u, L"z", 1u, &first, &last, &change);
+        return exactResult;
+    };
+    RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session), "capacity-bound rich ACP lock");
+    RequireSucceeded(session, "the exact-boundary replacement remains committable after an oversized refusal");
+    Require(oversizedResult == HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW) && exactResult == S_OK &&
+                raw->Snapshot().Length() == RichText::Document::MaximumUnits && raw->GetText().back() == L'z',
+            "capacity refusal preserves staged content and accepts exactly one remaining UTF16 unit");
     RequireSucceeded(store->UnadviseSink(&sink), "unadvise retained rich ACP sink");
     host.SetRoot(std::make_unique<Label>(L"replacement"));
     LONG first = 0, last = 0;

@@ -1,8 +1,8 @@
 # CI run scope
 
-- **Status**: ACTIVE (4 October 2026). The rules, the scope step and the workflow wiring are implemented and pass the
-  tooling tests; the hosted behavior remains to be observed on this change's pull request and the next
-  documentation-only one.
+- **Status**: DONE as historical implementation, with the former hosted-observation requirement superseded on
+  1 November 2026. The current CI contract is [Build_UnifiedCI](../../Build/Build_UnifiedCI.md). This closeout
+  does not claim the old hosted observations passed or qualify the unified pipeline.
 - **Owner**: Repository tooling and CI.
 - **Scope**: Run the validation workflow once per change, and leave the native jobs out of a documentation-only pull
   request, without weakening the push runs of main, which consumers adopt. The native matrix itself (configurations,
@@ -30,15 +30,17 @@ A review of the last 200 workflow runs (30 September to 4 October) found:
   jobs; a push to main and a manual run never do; any other path, a path the rules do not name or a failed scope runs
   them.
 - [x] Tooling tests (`Tools/tests/Test-NativeScope.ps1`), the testing contract, `Tools/README.md` and `CONTRIBUTING.md`.
-- [ ] Observe on hosted CI: this change's pull request runs the native jobs (it changes `ci.yml` and tools), a
-  documentation-only pull request skips them with the scope summary, and its merge to main runs all six.
-- [ ] Move this plan to Done.
+- [x] Retire the former hosted-observation requirement as superseded: PRs now use compiler-free checks;
+  main native qualification follows the quiet-period and two-architecture Release gate in the current contract.
+  The old code-PR native matrix and documentation-only skip are not current acceptance criteria.
+- [x] Archive this implementation record; current hosted acceptance remains with the unified CI rollout.
 
 ## Validation
 
 `validate.ps1` (the validators and the tooling tests, `Test-NativeScope.ps1` and the unchanged workflow checks of
-`Test-BenchmarkGate.ps1` included) and `format.ps1 -Check` pass. Applied to the changed files of the last 40 pull
-requests, the rules skip the native jobs for 5 (#26, #34, #49, #52 and #58) and run them for the other 35.
+`Test-BenchmarkGate.ps1` included) and `format.ps1 -Check` pass. The original retrospective claimed five of 40 PRs would skip native jobs. The later
+[production review](../WIP/ProductionReview_2026-10-05.md) found that its inclusion of #34 did not reproduce;
+treat that count as disputed historical analysis, not verified evidence.
 
 ## Not in this plan
 
@@ -46,3 +48,7 @@ The ARM64 jobs take the longest (25 to 34 minutes), a third to a half of it in t
 build the consumer twice. Running those builds as jobs of their own would shorten the wall time at more runner minutes,
 a trade the developer decides. Making a native job a required check would first need an aggregate job, since a
 documentation-only pull request reports them skipped.
+
+## Current evidence boundary (1 November 2026)
+
+[CI run 41301128985](https://github.com/RedSalamanders/DxUi/actions/runs/41301128985) at `4423074dee2410acb28e62b41072e6c561a79eb8` and [run 41228969822](https://github.com/RedSalamanders/DxUi/actions/runs/41228969822) at `5f31f2b3fcee2528c5a32c83285ee1d656019a26` completed successfully with only the coordinator job executed. Neither is a native qualification result. Current rollout qualification and platform, consumer and performance obligations remain separate.

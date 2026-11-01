@@ -274,7 +274,14 @@ LayoutPreparationStatus PreparedDocumentLayout::BeginPreparation(
     next.factory        = factory;
     request->compatible = compatible;
     request->change     = change;
-    if (compatible && change.kind != SourceChangeKind::FullReplacement && ! state_->chunks.empty())
+    if (options.lineHeightMultiplier > 0.0f)
+    {
+        // A private origin line cannot have one height while a uniform SDK layout has another.
+        // Select canonical geometry directly instead of preparing then discarding incompatible chunks.
+        request->exactPlacement = false;
+        request->phase          = Preparation::Phase::Reference;
+    }
+    else if (compatible && change.kind != SourceChangeKind::FullReplacement && ! state_->chunks.empty())
     {
         request->reusable.resize(next.projection.Blocks().size(), nullptr);
         request->phase = Preparation::Phase::Reuse;

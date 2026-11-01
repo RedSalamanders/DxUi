@@ -2465,7 +2465,34 @@ bool ControlHost::PreparePendingPageLayout() noexcept
         }
     }
     // Reentrant replacement requests another preparation; never publish its deferred geometry as complete.
-    if (contentPending && rootCurrent() && _capturedControl)
+    Control* const pendingCapture     = contentPending && rootCurrent() ? _capturedControl : nullptr;
+    Control* const pendingGesture     = pendingCapture ? ControlCaptureAccess::GestureOwner(*this) : nullptr;
+    const auto pendingCaptureLifetime = pendingCapture ? GetControlLifetimeToken(*pendingCapture) : std::weak_ptr<int>{};
+    const auto pendingGestureLifetime = pendingGesture ? GetControlLifetimeToken(*pendingGesture) : std::weak_ptr<int>{};
+    // Inspect the current gesture's ancestor path once, after all preparation
+    // callbacks. Resolving capture for every prepared control made this pass
+    // quadratic for a deeply nested ScrollPanel chain.
+    const auto pendingOnPath = [&](auto&& self, Control& control, bool ancestorsVisible) noexcept -> std::optional<bool>
+    {
+        const auto lifetime = GetControlLifetimeToken(control);
+        const bool visible  = ancestorsVisible && control.IsVisible();
+        const bool pending  = visible && control._contentPreparationEnabled && control._contentPreparationPending;
+        if (&control == pendingGesture)
+            return pending;
+        const auto count = control.GetLogicalChildCount();
+        for (size_t index = 0u; index < count && ! lifetime.expired() && rootCurrent(); ++index)
+        {
+            auto* const child = control.GetLogicalChild(index);
+            if (lifetime.expired() || ! rootCurrent())
+                return std::nullopt;
+            if (child)
+                if (const auto found = self(self, *child, visible); found.has_value())
+                    return pending || found.value();
+        }
+        return std::nullopt;
+    };
+    if (pendingGesture && pendingOnPath(pendingOnPath, *root, true).value_or(false) && rootCurrent() && ! pendingCaptureLifetime.expired() &&
+        _capturedControl == pendingCapture && ! pendingGestureLifetime.expired() && ControlCaptureAccess::GestureOwner(*this) == pendingGesture)
     {
         // Pending geometry cannot receive the matching Up. Cancel the logical
         // gesture rather than leave capture/drafts active across reflow.
@@ -2634,7 +2661,7 @@ void CardPanel::Paint(ControlHost& host) const
     Panel::Paint(host);
 }
 
-Separator::Separator() noexcept
+Separator::Separator()
 {
     SetFocusable(false);
     SetAccessibilityRole(AccessibilityRole::Separator);
@@ -6726,8 +6753,8 @@ bool Slider::OnKeyDown(ControlHost& host, UINT virtualKey, UINT /*modifiers*/)
 
     if (virtualKey == VK_ESCAPE && _dragging)
     {
+        const auto releaseCapture = ReleaseUnchangedCaptureOnExit(host, *this);
         OnCaptureLost(host);
-        host.ReleaseMouseCapture();
         return true;
     }
 
@@ -7207,6 +7234,8 @@ void TagPicker::ClearChildren() noexcept
         if (const auto children = GetChildren(); index < children.size() && children[index] && children[index].get() != _combo)
             static_cast<void>(Panel::TakeChild(index));
     }
+    if (! lifetime.expired())
+        std::erase_if(AccessChildren(), [](const std::unique_ptr<Control>& child) noexcept { return ! child; });
 }
 
 bool TagPicker::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)

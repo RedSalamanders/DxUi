@@ -35,6 +35,12 @@ namespace DxUi
 {
 struct EmbeddedAccessibilityAccess
 {
+    [[nodiscard]] static std::optional<std::vector<std::pair<size_t, size_t>>> SourceLines(const RichTextEditor& editor, const ControlHost& host)
+    {
+        if (! editor.LayoutIsCurrent(host))
+            return std::nullopt;
+        return editor.SourceVisualLineRangesFallible(host);
+    }
     [[nodiscard]] static std::shared_ptr<const RichText::Detail::AccessibilityEpoch> RichSemanticEpoch(const RichTextEditor& editor) noexcept
     {
         return editor.AccessibilitySemanticEpoch();
@@ -4494,11 +4500,11 @@ struct TextRangeSpanMoveResult
 
 [[nodiscard]] std::optional<std::vector<TextRangeSpan>> TryResolveTextRangeVisualLineSpans(const ControlHost& host,
                                                                                            const Control& control,
-                                                                                           std::wstring_view text) noexcept
+                                                                                           std::wstring_view text)
 {
     if (const auto* editor = dynamic_cast<const RichTextEditor*>(&control))
     {
-        const auto ranges = editor->GetSourceVisualLineRanges(host);
+        const auto ranges = EmbeddedAccessibilityAccess::SourceLines(*editor, host);
         if (! ranges)
             return std::nullopt;
         std::vector<TextRangeSpan> spans;
@@ -4607,7 +4613,7 @@ struct TextRangeSpanMoveResult
 [[nodiscard]] std::optional<TextRangeSpan> TryGetEnclosingTextRangeVisualLineSpan(const ControlHost& host,
                                                                                   const Control& control,
                                                                                   std::wstring_view text,
-                                                                                  size_t position) noexcept
+                                                                                  size_t position)
 {
     const std::optional<std::vector<TextRangeSpan>> spans = TryResolveTextRangeVisualLineSpans(host, control, text);
     if (! spans || spans->empty())
@@ -4619,7 +4625,7 @@ struct TextRangeSpanMoveResult
 }
 
 [[nodiscard]] std::optional<TextRangeSpanMoveResult> TryMoveTextRangeSpanByVisualLine(
-    const ControlHost& host, const Control& control, std::wstring_view text, const TextRangeSpan& range, int count) noexcept
+    const ControlHost& host, const Control& control, std::wstring_view text, const TextRangeSpan& range, int count)
 {
     const TextRangeSpan clampedRange = ClampTextRangeSpan(range.start, range.end, text.size());
     if (count == 0)
@@ -4693,7 +4699,7 @@ struct TextRangeSpanMoveResult
 }
 
 [[nodiscard]] std::optional<TextRangeUnitMoveResult> TryMoveTextRangePositionByVisualLine(
-    const ControlHost& host, const Control& control, std::wstring_view text, size_t position, int count) noexcept
+    const ControlHost& host, const Control& control, std::wstring_view text, size_t position, int count)
 {
     const size_t clampedPosition = (std::min)(position, text.size());
     if (count == 0)
@@ -6224,6 +6230,7 @@ HRESULT AccessibilityTextRangeProvider::CompareEndpoints(TextPatternRangeEndpoin
                                                          ITextRangeProvider* targetRange,
                                                          TextPatternRangeEndpoint targetEndpoint,
                                                          int* outResult) noexcept
+try
 {
     if (outResult)
         *outResult = {};
@@ -6258,6 +6265,11 @@ HRESULT AccessibilityTextRangeProvider::CompareEndpoints(TextPatternRangeEndpoin
 
     *outResult = position < targetPosition ? -1 : (position > targetPosition ? 1 : 0);
     return S_OK;
+}
+catch (const std::bad_alloc&)
+{
+    // COM boundary: allocation failure leaves the initialized output and both ranges unchanged.
+    return E_OUTOFMEMORY;
 }
 
 // Attribute values borrow the immutable snapshot. Comparing runs therefore
@@ -6360,6 +6372,7 @@ HRESULT SetSourceAttribute(VARIANT* result, const RichSourceAttribute& value) no
 }
 
 HRESULT AccessibilityTextRangeProvider::ExpandToEnclosingUnit(TextUnit unit) noexcept
+try
 {
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
@@ -6421,7 +6434,6 @@ HRESULT AccessibilityTextRangeProvider::ExpandToEnclosingUnit(TextUnit unit) noe
 
     const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
     const std::wstring text = ResolveText();
-    _boundsOverrideDip.reset();
     TextRangeSpan expandedRange{};
     if (supportedUnit == TextUnit_Document)
     {
@@ -6448,14 +6460,21 @@ HRESULT AccessibilityTextRangeProvider::ExpandToEnclosingUnit(TextUnit unit) noe
                 : GetTextRangeLineSpanAtPosition(text, range.start);
     }
 
-    _rangeStart           = expandedRange.start;
-    _rangeEnd             = expandedRange.end;
+    _rangeStart = expandedRange.start;
+    _rangeEnd   = expandedRange.end;
+    _boundsOverrideDip.reset();
     const wchar_t* detail = supportedUnit == TextUnit_Character ? L"expand-character"
                             : supportedUnit == TextUnit_Word    ? L"expand-word"
                             : supportedUnit == TextUnit_Line    ? L"expand-line"
                                                                 : L"expand-document";
     Debug::Perf::Emit(L"dxui.uia.text_range_us", detail, Debug::Perf::ElapsedUs(startedAt), _rangeEnd - _rangeStart, text.size(), S_OK);
     return S_OK;
+}
+
+catch (const std::bad_alloc&)
+{
+    // COM boundary: fallible preparation precedes the endpoint/geometry commit.
+    return E_OUTOFMEMORY;
 }
 
 HRESULT AccessibilityTextRangeProvider::FindAttribute(TEXTATTRIBUTEID attributeId, VARIANT value, BOOL backward, ITextRangeProvider** outRange) noexcept
@@ -6618,6 +6637,7 @@ HRESULT AccessibilityTextRangeProvider::GetAttributeValue(TEXTATTRIBUTEID attrib
 }
 
 HRESULT AccessibilityTextRangeProvider::GetBoundingRectangles(SAFEARRAY** outRectangles) noexcept
+try
 {
     if (outRectangles)
         *outRectangles = nullptr;
@@ -6722,6 +6742,12 @@ HRESULT AccessibilityTextRangeProvider::GetBoundingRectangles(SAFEARRAY** outRec
     return hr;
 }
 
+catch (const std::bad_alloc&)
+{
+    // COM boundary: leave the result null when preparing text or rectangles runs out of memory.
+    return E_OUTOFMEMORY;
+}
+
 HRESULT AccessibilityTextRangeProvider::GetEnclosingElement(IRawElementProviderSimple** outElement) noexcept
 {
     if (outElement)
@@ -6768,6 +6794,7 @@ HRESULT AccessibilityTextRangeProvider::GetEnclosingElement(IRawElementProviderS
 }
 
 HRESULT AccessibilityTextRangeProvider::GetText(int maxLength, BSTR* outText) noexcept
+try
 {
     if (outText)
         *outText = {};
@@ -6804,7 +6831,14 @@ HRESULT AccessibilityTextRangeProvider::GetText(int maxLength, BSTR* outText) no
     return hr;
 }
 
+catch (const std::bad_alloc&)
+{
+    // COM boundary: text-copy failure must not terminate the host or publish a partial BSTR.
+    return E_OUTOFMEMORY;
+}
+
 HRESULT AccessibilityTextRangeProvider::Move(TextUnit unit, int count, int* outMoved) noexcept
+try
 {
     if (outMoved)
         *outMoved = {};
@@ -6956,7 +6990,14 @@ HRESULT AccessibilityTextRangeProvider::Move(TextUnit unit, int count, int* outM
     return S_OK;
 }
 
+catch (const std::bad_alloc&)
+{
+    // COM boundary: move calculation allocates before changing the range.
+    return E_OUTOFMEMORY;
+}
+
 HRESULT AccessibilityTextRangeProvider::MoveEndpointByUnit(TextPatternRangeEndpoint endpoint, TextUnit unit, int count, int* outMoved) noexcept
+try
 {
     if (outMoved)
         *outMoved = {};
@@ -7080,6 +7121,12 @@ HRESULT AccessibilityTextRangeProvider::MoveEndpointByUnit(TextPatternRangeEndpo
     const wchar_t* detail = unit == TextUnit_Line ? L"move-endpoint-line" : unit == TextUnit_Word ? L"move-endpoint-word" : L"move-endpoint-character";
     Debug::Perf::Emit(L"dxui.uia.text_range_us", detail, Debug::Perf::ElapsedUs(startedAt), _rangeEnd - _rangeStart, text.size(), S_OK);
     return S_OK;
+}
+
+catch (const std::bad_alloc&)
+{
+    // COM boundary: preserve the previous endpoints when line/text preparation fails.
+    return E_OUTOFMEMORY;
 }
 
 HRESULT AccessibilityTextRangeProvider::MoveEndpointByRange(TextPatternRangeEndpoint endpoint,
@@ -7456,6 +7503,8 @@ HRESULT AccessibilityTextRangeProvider::ExecuteScrollIntoViewOnWindowThread(bool
     const bool scrolled = editor->ScrollSourceRangeIntoView(*host, range.start, range.end, alignToTop);
     if (lifetime.expired() || ! _target || _target->ResolveHost() != host || ResolveMutableControl() != control)
         return UIA_E_ELEMENTNOTAVAILABLE;
+    if (scrolled)
+        RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
     return scrolled ? S_OK : static_cast<HRESULT>(UIA_E_INVALIDOPERATION);
 }
 

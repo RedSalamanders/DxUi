@@ -170,9 +170,14 @@ template <typename Prepare, typename Check> inline void RetainedFileReferences(D
     prepare();
     content.filePaths.push_back(L"relative.txt");
     check(editor.TryPrepareClipboardPaste(content, replacement) &&
-              replacement == L"\"C:\\docs\\media\\a.png\"\r\n\"C:\\docs\\files\\report.pdf\"\r\n\"D:\\other.txt\"\r\n\"relative.txt\"",
-          "an unrepresentable structured path preserves the entire original list as literal text");
-    replacement = L"sentinel";
+              replacement ==
+                  L"\"C\\:\\\\docs\\\\media\\\\a\\.png\"\r\n\"C\\:\\\\docs\\\\files\\\\report\\.pdf\"\r\n\"D\\:\\\\other\\.txt\"\r\n\"relative\\.txt\"",
+          "an unrepresentable structured path preserves the entire displayed list as escaped literal text");
+    content.filePaths = {L"\\\\?\\C:\\docs\\a.png"};
+    check(editor.TryPrepareClipboardPaste(content, replacement) && replacement == L"![a](a.png)",
+          "structured paste preserves supported extended-length Windows paths");
+    content.filePaths = {L"C:\\docs\\a.png", L"relative.txt"};
+    replacement       = L"sentinel";
     content.filePaths.back().assign(1u, wchar_t(0xd800));
     try
     {
@@ -182,6 +187,25 @@ template <typename Prepare, typename Check> inline void RetainedFileReferences(D
     catch (const std::invalid_argument&)
     {
         check(replacement == L"sentinel" && editor.GetText() == L"ok" && ! editor.CanUndo(), "malformed list fails before partial output or history");
+    }
+    content.filePaths = {L"C:\\docs\\report.pdf"};
+    for (const auto invalid : {L"C:\\docs\\bad\"![image](x).png", L"C:\\docs\\line\n![image](x).png", L"C:\\docs\\line\rbreak.pdf"})
+    {
+        content.filePaths          = {L"C:\\docs\\a.png", invalid};
+        replacement                = L"sentinel";
+        const auto beforeRevision  = editor.Revision();
+        const auto beforeSelection = editor.GetSelection();
+        try
+        {
+            static_cast<void>(editor.TryPrepareClipboardPaste(content, replacement));
+            check(false, "invalid quoted file spellings reject the complete paste batch");
+        }
+        catch (const std::invalid_argument&)
+        {
+            check(replacement == L"sentinel" && editor.GetText() == L"ok" && editor.Revision() == beforeRevision && editor.GetSelection() == beforeSelection &&
+                      ! editor.CanUndo(),
+                  "invalid file paths publish neither a representable prefix nor active Markdown fallback");
+        }
     }
     content.filePaths = {L"C:\\docs\\report.pdf"};
     editor.SetViewMode(ViewMode::Source);

@@ -1752,6 +1752,7 @@ protected:
     virtual void OnHoverChanged(ControlHost& host, bool hovered);
     virtual void OnCaptureLost(ControlHost& host);
     [[nodiscard]] virtual bool SupportsTextInput() const noexcept;
+    [[nodiscard]] virtual bool AcceptsTypedText() const noexcept;
     [[nodiscard]] virtual std::optional<D2D1_RECT_F> GetTextInputViewportRect() const noexcept;
     [[nodiscard]] virtual std::optional<D2D1_RECT_F> GetTextInputCaretRect(const ControlHost& host, size_t controlTextIndex) const noexcept;
     [[nodiscard]] virtual std::optional<std::vector<D2D1_RECT_F>> GetTextInputRangeRects(const ControlHost& host,
@@ -2069,7 +2070,7 @@ enum class SeparatorOrientation : uint8_t
 class Separator final : public Control
 {
 public:
-    Separator() noexcept;
+    Separator();
     void SetOrientation(SeparatorOrientation orientation) noexcept;
     [[nodiscard]] SeparatorOrientation GetOrientation() const noexcept;
     void Paint(ControlHost& host) const override;
@@ -3311,6 +3312,7 @@ protected:
     void CancelContentPreparation() noexcept override;
     [[nodiscard]] bool AcceptsTextInputDuringPreparation() const noexcept override;
     [[nodiscard]] bool SupportsTextInput() const noexcept override;
+    [[nodiscard]] bool AcceptsTypedText() const noexcept override;
     [[nodiscard]] std::optional<D2D1_RECT_F> GetTextInputViewportRect() const noexcept override;
     [[nodiscard]] std::optional<D2D1_RECT_F> GetTextInputCaretRect(const ControlHost& host, size_t sourceIndex) const noexcept override;
     [[nodiscard]] std::optional<std::vector<D2D1_RECT_F>> GetTextInputRangeRects(const ControlHost& host, size_t sourceStart, size_t sourceEnd) const override;
@@ -3329,6 +3331,7 @@ protected:
 
 private:
     friend struct EmbeddedAccessibilityAccess;
+    [[nodiscard]] std::optional<std::vector<std::pair<size_t, size_t>>> SourceVisualLineRangesFallible(const ControlHost& host) const;
     [[nodiscard]] std::shared_ptr<const RichText::Detail::AccessibilityEpoch> AccessibilitySemanticEpoch() const noexcept;
     void RetireSemanticAccessibility() const noexcept;
     struct State;
@@ -3434,6 +3437,7 @@ protected:
     void OnDensityChanged() noexcept override;
     void OnHostDpiChanged(ControlHost& host) noexcept override;
     [[nodiscard]] bool SupportsTextInput() const noexcept override;
+    [[nodiscard]] bool AcceptsTypedText() const noexcept override;
     [[nodiscard]] std::optional<D2D1_RECT_F> GetTextInputViewportRect() const noexcept override;
     [[nodiscard]] std::optional<D2D1_RECT_F> GetTextInputCaretRect(const ControlHost& host, size_t controlTextIndex) const noexcept override;
     [[nodiscard]] std::optional<std::vector<D2D1_RECT_F>> GetTextInputRangeRects(const ControlHost& host,
@@ -4311,6 +4315,8 @@ private:
 #pragma warning(disable : 4625 4626 5026 5027)
 class ScrollPanel : public Panel
 {
+    friend struct ControlCaptureAccess;
+
 public:
     ScrollPanel() = default;
 
@@ -4602,6 +4608,7 @@ public:
     // Multi-select only: selects every visible item (Ctrl+A); the focused item stays, or is the first item.
     bool OnSelectAll(ControlHost& host) override;
     void OnDensityChanged() noexcept override;
+    void OnBoundsChanged() noexcept override;
 
 private:
     enum class HitZone : uint8_t
@@ -4971,6 +4978,7 @@ public:
 protected:
     void PropagateHost(ControlHost* host) noexcept override;
     void OnHidden() noexcept override;
+    void OnBoundsChanged() noexcept override;
 
 private:
     enum class HitZone : uint8_t
