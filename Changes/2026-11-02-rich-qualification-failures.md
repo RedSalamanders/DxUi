@@ -1,0 +1,1 @@
+- Preserve rich heading preparation under injected allocation failure in MSVC Debug by using fallible bounded ordered cache construction; correct rich-text allocation, math-limit, accent, heading-outline and cooperative device-recovery test oracles while retaining exact source, undo, placement and rendered-frame assertions.
