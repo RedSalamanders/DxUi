@@ -101,8 +101,8 @@ void TestRichSemanticNativeObjectSharedContract()
             window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native geometry parity"); });
         RichSemanticEditorTests::OverCapacityPaddedCellTyping(
             window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native over-capacity table"); });
-        RichSemanticEditorTests::ImagePreparationWorkMetric(
-            window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native image work metric"); });
+        RichSemanticEditorTests::ImagePreparationWorkMetric(window.Host(),
+                                                            [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native image work metric"); });
         RichSemanticEditorTests::NativeObjectSourceContract(
             window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare shared native object contract"); });
     });
