@@ -66,7 +66,7 @@ class PreparedMath final
                 const auto value = parsed.MathConstant(offset);
                 if (value)
                 {
-                    constants[offset / 4u] = value.value();
+                    constants[offset / 4u]       = value.value();
                     constantPresent[offset / 4u] = true;
                 }
             }
@@ -76,7 +76,7 @@ class PreparedMath final
                 const auto correction = parsed.ItalicCorrectionRecord(glyph);
                 if (correction)
                 {
-                    corrections[index] = correction->value;
+                    corrections[index]       = correction->value;
                     correctionDevices[index] = static_cast<std::uint32_t>(correction->device);
                 }
                 const auto construction = parsed.VerticalConstruction(glyph);
@@ -227,7 +227,7 @@ class PreparedMath final
             if (testRichMathTableOverride.size() > 4u * 1024u * 1024u)
                 return;
             bytes = testRichMathTableOverride.data();
-            size = static_cast<UINT32>(testRichMathTableOverride.size());
+            size  = static_cast<UINT32>(testRichMathTableOverride.size());
         }
 #endif
         if (! bytes || size < 26 || bytes[0] != 0 || bytes[1] != 1)
@@ -247,7 +247,7 @@ class PreparedMath final
         if (! mathData || mathData->table.size() < 16u || mathData->designUnits == 0u)
             return;
         const auto* bytes = mathData->table.data();
-        const auto size = mathData->table.size();
+        const auto size   = mathData->table.size();
         const auto offset = static_cast<unsigned>((bytes[4] << 8u) | bytes[5]);
         if (offset == 0u || offset > size || size - offset < 16u)
             return;
@@ -291,7 +291,7 @@ class PreparedMath final
         fractionRuleThickness           = readDesignValue(144u, fractionRuleThickness);
         fractionDenominatorGap          = readDesignValue(148u, fractionDenominatorGap);
         fractionDenominatorDisplayGap   = readDesignValue(152u, fractionDenominatorDisplayGap);
-        const auto candidateAxis = readDesignValue(12u, axis);
+        const auto candidateAxis        = readDesignValue(12u, axis);
         if (std::isfinite(candidateAxis) && candidateAxis > 0 && candidateAxis < font)
             axis = candidateAxis;
     }
@@ -304,9 +304,8 @@ class PreparedMath final
     [[nodiscard]] float MathConstantAt(unsigned valueOffset, float size, float rootValue) const noexcept
     {
         const auto fallback = rootValue * size / font;
-        const auto index = valueOffset / 4u;
-        if (! mathData || size == font || index >= mathData->constants.size() || ! mathData->constantPresent[index] ||
-            ! mathData->constants[index].device)
+        const auto index    = valueOffset / 4u;
+        if (! mathData || size == font || index >= mathData->constants.size() || ! mathData->constantPresent[index] || ! mathData->constants[index].device)
             return fallback;
         const auto adjusted = MathFontTable(mathData->table).AdjustedValue(mathData->constants[index], size, dpi, mathData->designUnits);
         return adjusted && adjusted.value() >= 0.f && adjusted.value() <= size * 2.f ? adjusted.value() : fallback;
@@ -372,10 +371,10 @@ class PreparedMath final
                 case MathKind::Style:
                     if (node.text != L"mathrm" && node.text != L"mathbf" && node.text != L"mathit" && node.text != L"mathnormal" &&
                         node.text != L"boldsymbol" && node.text != L"bm" && node.text != L"mathbb" && node.text != L"mathcal" && node.text != L"mathfrak" &&
-                        node.text != L"mathsf" && node.text != L"mathtt" && node.text != L"mathord" &&
-                        node.text != L"mathop" && node.text != L"mathbin" && node.text != L"mathrel" && node.text != L"mathopen" && node.text != L"mathclose" &&
-                        node.text != L"mathpunct" && node.text != L"mathinner" && node.text != L"displaystyle" && node.text != L"textstyle" &&
-                        node.text != L"scriptstyle" && node.text != L"scriptscriptstyle")
+                        node.text != L"mathsf" && node.text != L"mathtt" && node.text != L"mathord" && node.text != L"mathop" && node.text != L"mathbin" &&
+                        node.text != L"mathrel" && node.text != L"mathopen" && node.text != L"mathclose" && node.text != L"mathpunct" &&
+                        node.text != L"mathinner" && node.text != L"displaystyle" && node.text != L"textstyle" && node.text != L"scriptstyle" &&
+                        node.text != L"scriptscriptstyle")
                         throw std::length_error("Invalid mathematical style");
                     if (node.children.size() != 1u)
                         throw std::length_error("Invalid mathematical unary node");
@@ -470,7 +469,8 @@ class PreparedMath final
                     childItalic      = false;
                     childForceItalic = false;
                 }
-                if (node.text == L"mathrm" || node.text == L"mathbb" || node.text == L"mathcal" || node.text == L"mathfrak" || node.text == L"mathsf" || node.text == L"mathtt")
+                if (node.text == L"mathrm" || node.text == L"mathbb" || node.text == L"mathcal" || node.text == L"mathfrak" || node.text == L"mathsf" ||
+                    node.text == L"mathtt")
                 {
                     childItalic      = false;
                     childForceItalic = true;
@@ -730,15 +730,17 @@ class PreparedMath final
             {
                 const auto top = child(0u), bottom = child(1u);
                 const float axisAtSize = MathConstantAt(12u, box.size, axis);
-                const float rule      = std::max(1.f, MathConstantAt(144u, box.size, fractionRuleThickness));
-                const float topGap    = MathConstantAt(box.display ? 140u : 136u, box.size, box.display ? fractionNumeratorDisplayGap : fractionNumeratorGap);
-                const float bottomGap = MathConstantAt(box.display ? 152u : 148u, box.size, box.display ? fractionDenominatorDisplayGap : fractionDenominatorGap);
+                const float rule       = std::max(1.f, MathConstantAt(144u, box.size, fractionRuleThickness));
+                const float topGap     = MathConstantAt(box.display ? 140u : 136u, box.size, box.display ? fractionNumeratorDisplayGap : fractionNumeratorGap);
+                const float bottomGap =
+                    MathConstantAt(box.display ? 152u : 148u, box.size, box.display ? fractionDenominatorDisplayGap : fractionDenominatorGap);
                 const float topShift =
                     std::max(MathConstantAt(box.display ? 124u : 120u, box.size, box.display ? fractionNumeratorDisplayShift : fractionNumeratorShift),
                              axisAtSize + top.below + topGap + rule * .5f);
-                const float bottomShift = std::max(MathConstantAt(box.display ? 132u : 128u, box.size, box.display ? fractionDenominatorDisplayShift : fractionDenominatorShift),
-                                                   bottom.above + bottomGap + rule * .5f - axisAtSize);
-                box.extent              = {std::max(top.width, bottom.width) + box.size * .4f, topShift + top.above, bottomShift + bottom.below};
+                const float bottomShift =
+                    std::max(MathConstantAt(box.display ? 132u : 128u, box.size, box.display ? fractionDenominatorDisplayShift : fractionDenominatorShift),
+                             bottom.above + bottomGap + rule * .5f - axisAtSize);
+                box.extent = {std::max(top.width, bottom.width) + box.size * .4f, topShift + top.above, bottomShift + bottom.below};
                 continue;
             }
             if (node.kind == Root && node.children.size() == 2u)
@@ -757,9 +759,9 @@ class PreparedMath final
                     (baseNode.limits == MathLimits::AboveBelow) || (baseNode.limits == MathLimits::Automatic && baseNode.displayLimits && box.display);
                 if (limitsAboveBelow)
                 {
-                    box.extent        = {std::max({base.width, sub.width, super.width}) + box.size * .1f,
-                                         base.above + (super.width > 0.f ? super.below + super.above + MathConstantAt(64u, box.size, upperLimitGap) : 0.f),
-                                         base.below + (sub.width > 0.f ? sub.above + sub.below + MathConstantAt(72u, box.size, lowerLimitGap) : 0.f)};
+                    box.extent = {std::max({base.width, sub.width, super.width}) + box.size * .1f,
+                                  base.above + (super.width > 0.f ? super.below + super.above + MathConstantAt(64u, box.size, upperLimitGap) : 0.f),
+                                  base.below + (sub.width > 0.f ? sub.above + sub.below + MathConstantAt(72u, box.size, lowerLimitGap) : 0.f)};
                     continue;
                 }
                 const float scriptGap    = MathConstantAt(52u, box.size, scriptGapMinimum);
@@ -991,19 +993,19 @@ class PreparedMath final
             return false;
         const MathFontTable table(mathData->table);
         const auto minimum = static_cast<std::uint32_t>(std::ceil(required));
-        const auto choice = minimum <= 65535u ? table.HorizontalVariantAt(construction, static_cast<std::uint16_t>(minimum)) : std::nullopt;
-        const auto plan = choice ? std::optional<MathFontTable::AssemblyPlan>{} : table.HorizontalAssemblyAt(construction, minimum);
-        const auto count = choice ? 1u : plan ? plan->count : 0u;
+        const auto choice  = minimum <= 65535u ? table.HorizontalVariantAt(construction, static_cast<std::uint16_t>(minimum)) : std::nullopt;
+        const auto plan    = choice ? std::optional<MathFontTable::AssemblyPlan>{} : table.HorizontalAssemblyAt(construction, minimum);
+        const auto count   = choice ? 1u : plan ? plan->count : 0u;
         constexpr std::size_t MaximumAssemblyPartsPerFormula = 512u;
         if (! count || variants.size() >= MaximumAssemblyPartsPerFormula || count > MaximumAssemblyPartsPerFormula - variants.size())
             return false;
         const auto totalAdvance = choice ? static_cast<std::uint32_t>(choice->advance) : plan->advance;
-        const float units = size / static_cast<float>(mathData->designUnits);
-        const float span = static_cast<float>(totalAdvance) * units;
+        const float units       = size / static_cast<float>(mathData->designUnits);
+        const float span        = static_cast<float>(totalAdvance) * units;
         if (! std::isfinite(span) || span <= 0.f)
             return false;
         const float scaleX = (std::min)(1.f, width / span);
-        const float start = x + (width - span * scaleX) / 2.f;
+        const float start  = x + (width - span * scaleX) / 2.f;
         std::array<DWRITE_GLYPH_METRICS, 64u> metrics{};
         float inkTop = (std::numeric_limits<float>::max)(), inkBottom = -(std::numeric_limits<float>::max)();
         for (std::size_t index = 0u; index < count; ++index)
@@ -1018,12 +1020,14 @@ class PreparedMath final
                 metrics[index] = metrics[previous];
             else if (! OptionalFontOperation(GlyphMetrics(glyph, metrics[index])))
                 return false;
-            if (! choice && std::abs(static_cast<std::int64_t>(metrics[index].advanceWidth) -
-                                     static_cast<std::int64_t>(plan->placements[index].part.advance)) > 2)
+            if (! choice &&
+                std::abs(static_cast<std::int64_t>(metrics[index].advanceWidth) - static_cast<std::int64_t>(plan->placements[index].part.advance)) > 2)
                 return false;
-            inkTop = std::min(inkTop, (static_cast<float>(metrics[index].topSideBearing) - static_cast<float>(metrics[index].verticalOriginY)) * units);
-            inkBottom = std::max(inkBottom, (static_cast<float>(metrics[index].advanceHeight) - static_cast<float>(metrics[index].verticalOriginY) -
-                                            static_cast<float>(metrics[index].bottomSideBearing)) * units);
+            inkTop    = std::min(inkTop, (static_cast<float>(metrics[index].topSideBearing) - static_cast<float>(metrics[index].verticalOriginY)) * units);
+            inkBottom = std::max(inkBottom,
+                                 (static_cast<float>(metrics[index].advanceHeight) - static_cast<float>(metrics[index].verticalOriginY) -
+                                  static_cast<float>(metrics[index].bottomSideBearing)) *
+                                     units);
         }
         const auto height = inkBottom - inkTop;
         if (! std::isfinite(height) || height < 0.f || height > bottom - top)
@@ -1032,16 +1036,17 @@ class PreparedMath final
         std::array<VariantGlyph, 64u> staged{};
         for (std::size_t index = 0u; index < count; ++index)
         {
-            const auto glyph = choice ? choice->glyph : plan->placements[index].part.glyph;
-            const auto offset = choice ? 0u : plan->placements[index].offset;
-            const auto origin = start + static_cast<float>(offset) * units * scaleX;
+            const auto glyph   = choice ? choice->glyph : plan->placements[index].part.glyph;
+            const auto offset  = choice ? 0u : plan->placements[index].offset;
+            const auto origin  = start + static_cast<float>(offset) * units * scaleX;
             const auto& metric = metrics[index];
-            const auto left = origin + static_cast<float>(metric.leftSideBearing) * units * scaleX;
-            const auto partWidth = (static_cast<float>(metric.advanceWidth) - static_cast<float>(metric.leftSideBearing) -
-                                    static_cast<float>(metric.rightSideBearing)) * units * scaleX;
+            const auto left    = origin + static_cast<float>(metric.leftSideBearing) * units * scaleX;
+            const auto partWidth =
+                (static_cast<float>(metric.advanceWidth) - static_cast<float>(metric.leftSideBearing) - static_cast<float>(metric.rightSideBearing)) * units *
+                scaleX;
             const auto partTop = baseline + (static_cast<float>(metric.topSideBearing) - static_cast<float>(metric.verticalOriginY)) * units;
-            const auto partHeight = (static_cast<float>(metric.advanceHeight) - static_cast<float>(metric.topSideBearing) -
-                                     static_cast<float>(metric.bottomSideBearing)) * units;
+            const auto partHeight =
+                (static_cast<float>(metric.advanceHeight) - static_cast<float>(metric.topSideBearing) - static_cast<float>(metric.bottomSideBearing)) * units;
             if (! std::isfinite(origin + left + partWidth + partTop + partHeight) || partWidth < 0.f || partHeight < 0.f || left < x - .01f ||
                 left + partWidth > x + width + .01f)
                 return false;
@@ -1124,13 +1129,14 @@ class PreparedMath final
             const auto top = boxes[ChildAt(index, 0u)].extent, bottom = boxes[ChildAt(index, 1u)].extent;
             const float axisAtSize = MathConstantAt(12u, box.size, axis);
             const float scaledRule = std::max(1.f, MathConstantAt(144u, box.size, fractionRuleThickness));
-            const float topGap = MathConstantAt(box.display ? 140u : 136u, box.size, box.display ? fractionNumeratorDisplayGap : fractionNumeratorGap);
-            const float bottomGap = MathConstantAt(box.display ? 152u : 148u, box.size, box.display ? fractionDenominatorDisplayGap : fractionDenominatorGap);
+            const float topGap     = MathConstantAt(box.display ? 140u : 136u, box.size, box.display ? fractionNumeratorDisplayGap : fractionNumeratorGap);
+            const float bottomGap  = MathConstantAt(box.display ? 152u : 148u, box.size, box.display ? fractionDenominatorDisplayGap : fractionDenominatorGap);
             const float topShift =
                 std::max(MathConstantAt(box.display ? 124u : 120u, box.size, box.display ? fractionNumeratorDisplayShift : fractionNumeratorShift),
                          axisAtSize + top.below + topGap + scaledRule * .5f);
-            const float bottomShift = std::max(MathConstantAt(box.display ? 132u : 128u, box.size, box.display ? fractionDenominatorDisplayShift : fractionDenominatorShift),
-                                               bottom.above + bottomGap + scaledRule * .5f - axisAtSize);
+            const float bottomShift =
+                std::max(MathConstantAt(box.display ? 132u : 128u, box.size, box.display ? fractionDenominatorDisplayShift : fractionDenominatorShift),
+                         bottom.above + bottomGap + scaledRule * .5f - axisAtSize);
             const float ruleY = baseline - axisAtSize;
             Place(ChildAt(index, 0u), x + (box.extent.width - top.width) / 2.f, baseline - topShift);
             Place(ChildAt(index, 1u), x + (box.extent.width - bottom.width) / 2.f, baseline + bottomShift);
@@ -1173,8 +1179,8 @@ class PreparedMath final
             }
             const float subShift   = std::max(MathConstantAt(24u, box.size, subscriptShift), base.below + box.size * .12f);
             const float superShift = std::max(MathConstantAt(36u, box.size, superscriptShift), base.above - box.size * .08f);
-            const float gapNeed = MathConstantAt(52u, box.size, scriptGapMinimum) -
-                                  (superShift + subShift - boxes[super].extent.below - boxes[sub].extent.above);
+            const float gapNeed =
+                MathConstantAt(52u, box.size, scriptGapMinimum) - (superShift + subShift - boxes[super].extent.below - boxes[sub].extent.above);
             const float correction = std::max(0.f, gapNeed / 2.f);
             Place(baseIndex, x, baseline);
             Place(sub, x + ScriptBaseAdvance(baseIndex), baseline + subShift + correction);
@@ -1204,7 +1210,7 @@ class PreparedMath final
         if (node.kind == Accent && node.children.size() == 1u)
         {
             Place(ChildAt(index, 0u), x, baseline);
-            const float y = node.text == L"underline" ? baseline + box.extent.below - 2.f : baseline - box.extent.above + box.size * .1f;
+            const float y    = node.text == L"underline" ? baseline + box.extent.below - 2.f : baseline - box.extent.above + box.size * .1f;
             const auto shape = node.text == L"widehat" ? L'\u0302' : node.text == L"widetilde" ? L'\u0303' : node.text == L"vec" ? L'\u20d7' : L'\0';
             if (shape && AddHorizontalAccent(shape, x, baseline - box.extent.above, baseline - box.extent.above + box.size * .3f, box.extent.width, box.size))
                 return;
@@ -1389,8 +1395,12 @@ class PreparedMath final
     }
 
 public:
-    PreparedMath(IDWriteFactory* write, std::shared_ptr<const MathExpression> value, float size, bool display = false,
-                 const PreparedMath* constants = nullptr, float deviceDpi = 96.f)
+    PreparedMath(IDWriteFactory* write,
+                 std::shared_ptr<const MathExpression> value,
+                 float size,
+                 bool display                  = false,
+                 const PreparedMath* constants = nullptr,
+                 float deviceDpi               = 96.f)
         : expression(std::move(value)),
           factory(write),
           glyphs(0u),
@@ -1401,8 +1411,8 @@ public:
           dpi(deviceDpi),
           displayStyle(display)
     {
-        if (! expression || ! *expression || ! std::isfinite(size) || size <= 0.f || size > 4096.f ||
-            ! std::isfinite(deviceDpi) || deviceDpi <= 0.f || deviceDpi > 4096.f || ! write)
+        if (! expression || ! *expression || ! std::isfinite(size) || size <= 0.f || size > 4096.f || ! std::isfinite(deviceDpi) || deviceDpi <= 0.f ||
+            deviceDpi > 4096.f || ! write)
             throw std::invalid_argument("Invalid mathematical preparation request");
 #if DXUI_ENABLE_DIAGNOSTICS
         ++testRichMathPreparations;

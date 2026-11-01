@@ -5,7 +5,10 @@
 #include <msctf.h>
 
 // Module-local adapter using only public headers. Disconnect before destroying the view or HWND.
-class EmbeddedTextClient final : public DxUi::TextInputClient, public DxUi::TextClipboardPasteTransform, public DxUi::TextClipboardFilePaste, public DxUi::TextClipboardHtmlPaste
+class EmbeddedTextClient final : public DxUi::TextInputClient,
+                                 public DxUi::TextClipboardPasteTransform,
+                                 public DxUi::TextClipboardFilePaste,
+                                 public DxUi::TextClipboardHtmlPaste
 {
 public:
     EmbeddedTextClient(DxUi::EmbeddedHost& view, HWND window, uint64_t focus, float dpi) noexcept : _view(&view), _window(window), _focus(focus), _dpi(dpi)

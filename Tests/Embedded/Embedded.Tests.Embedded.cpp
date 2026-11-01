@@ -1485,8 +1485,10 @@ __declspec(noinline) static int RunFunctionalTests()
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "incremental borrowed graphics");
         Hr(view.Attach(graphics), "incremental embedded view");
-        RichSemanticTests::Run([&] {
-            RichSemanticEditorTests::SemanticGeometryReuse(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "incremental preparation"); });
+        RichSemanticTests::Run([&]
+        {
+            RichSemanticEditorTests::SemanticGeometryReuse(view.Controls(),
+                                                           [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "incremental preparation"); });
             RichSemanticEditorTests::PendingSourceWindowTransport(view.Controls());
             RichSemanticEditorTests::UrlOnSelectionPaste(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "URL paste"); });
             RichSemanticEditorTests::SourceHorizontalAndGuides(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "source guides"); });
@@ -1701,11 +1703,15 @@ __declspec(noinline) static int RunFunctionalTests()
         Hr(transactionView.Attach(transactionGraphics), "transaction embedded view");
         RichSemanticTests::Run([&]
         {
-            RichSemanticEditorTests::SemanticGeometryReuse(transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic reuse"); });
+            RichSemanticEditorTests::SemanticGeometryReuse(transactionView.Controls(),
+                                                           [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic reuse"); });
             RichSemanticEditorTests::PendingSourceWindowTransport(transactionView.Controls());
-            RichSemanticEditorTests::UrlOnSelectionPaste(transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "URL paste"); });
-            RichSemanticEditorTests::SourceHorizontalAndGuides(transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "source guides"); });
-            RichSemanticEditorTests::RichTableHorizontalOverflow(transactionView.Controls(), [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "table overflow"); });
+            RichSemanticEditorTests::UrlOnSelectionPaste(transactionView.Controls(),
+                                                         [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "URL paste"); });
+            RichSemanticEditorTests::SourceHorizontalAndGuides(transactionView.Controls(),
+                                                               [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "source guides"); });
+            RichSemanticEditorTests::RichTableHorizontalOverflow(transactionView.Controls(),
+                                                                 [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "table overflow"); });
             RichSemanticEditorTests::Transactions(transactionView.Controls(),
                                                   [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded transaction preparation"); });
             RichSemanticEditorTests::StructuralCommands(transactionView.Controls(),
@@ -1719,7 +1725,9 @@ __declspec(noinline) static int RunFunctionalTests()
                 Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded in-document math and broader diagrams");
             });
             for (const UINT dpi : {96u, 144u, 192u})
-                RichSemanticEditorTests::MathRunFontSize(transactionView.Controls(), [&] {
+                RichSemanticEditorTests::MathRunFontSize(transactionView.Controls(),
+                                                         [&]
+                {
                     Hr(PrepareRichEmbeddedContent(transactionView, 480u * dpi / 96u, 240u * dpi / 96u, static_cast<float>(dpi)),
                        "prepare styled embedded math at the requested DPI");
                 });

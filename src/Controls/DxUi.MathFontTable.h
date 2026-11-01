@@ -94,28 +94,28 @@ public:
         const auto first = U16(offset), last = U16(offset + 2u), format = U16(offset + 4u);
         if (! first || ! last || ! format || first.value() > last.value() || format.value() < 1u || format.value() > 3u)
             return std::nullopt; // Includes VariationIndex; it needs a separate variable-font store.
-        const auto bits = 1u << format.value();
+        const auto bits    = 1u << format.value();
         const auto perWord = 16u / bits;
-        const auto count = static_cast<std::size_t>(last.value() - first.value()) + 1u;
-        const auto words = (count + perWord - 1u) / perWord;
+        const auto count   = static_cast<std::size_t>(last.value() - first.value()) + 1u;
+        const auto words   = (count + perWord - 1u) / perWord;
         if (words > (bytes.size() - offset - 6u) / 2u)
             return std::nullopt;
         if (ppem < first.value() || ppem > last.value())
             return std::int16_t{0};
         const auto index = ppem - first.value();
-        const auto word = U16(offset + 6u + static_cast<std::size_t>(index / perWord) * 2u);
+        const auto word  = U16(offset + 6u + static_cast<std::size_t>(index / perWord) * 2u);
         if (! word)
             return std::nullopt;
         const auto shift = 16u - bits * (index % perWord + 1u);
-        const auto raw = (word.value() >> shift) & ((1u << bits) - 1u);
+        const auto raw   = (word.value() >> shift) & ((1u << bits) - 1u);
         return static_cast<std::int16_t>((raw & (1u << (bits - 1u))) ? static_cast<int>(raw) - static_cast<int>(1u << bits) : static_cast<int>(raw));
     }
     [[nodiscard]] std::optional<float> AdjustedValue(ValueRecord record, float fontSizeDip, float dpi, std::uint16_t unitsPerEm) const noexcept
     {
         if (! std::isfinite(fontSizeDip) || fontSizeDip <= 0.f || fontSizeDip > 4096.f || ! std::isfinite(dpi) || dpi <= 0.f || dpi > 4096.f || ! unitsPerEm)
             return std::nullopt;
-        const auto ppem = static_cast<std::uint32_t>(std::round(fontSizeDip * dpi / 96.f));
-        auto value = fontSizeDip * static_cast<float>(record.value) / static_cast<float>(unitsPerEm);
+        const auto ppem  = static_cast<std::uint32_t>(std::round(fontSizeDip * dpi / 96.f));
+        auto value       = fontSizeDip * static_cast<float>(record.value) / static_cast<float>(unitsPerEm);
         const auto delta = DeviceDelta(record.device, ppem);
         if (delta)
             value += static_cast<float>(delta.value()) * 96.f / dpi;

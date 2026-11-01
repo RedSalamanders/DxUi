@@ -55,8 +55,8 @@ void TestRichSemanticNativeMathAndBroaderDiagrams()
             bool handled{};
             static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_DPICHANGED, MAKEWPARAM(dpi, dpi), 0, handled));
             Require(handled && window.Host().GetDpi() == static_cast<float>(dpi), "owned native fixture adopts the requested DPI without activation");
-            RichSemanticEditorTests::MathRunFontSize(
-                window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare styled math at the requested DPI"); });
+            RichSemanticEditorTests::MathRunFontSize(window.Host(),
+                                                     [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare styled math at the requested DPI"); });
         }
     });
 }

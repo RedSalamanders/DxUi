@@ -115,43 +115,43 @@ template <typename Check> inline void Core(Check&& check)
               "diagram help uses the authored description or generated graph summary");
     }
     {
-        const auto doc = Build(L"```mermaid\nclassDiagram\nInterface <|.. Implementation\n```", check);
+        const auto doc      = Build(L"```mermaid\nclassDiagram\nInterface <|.. Implementation\n```", check);
         const auto diagrams = SemanticExtensionAccess::Diagrams(*doc);
         check(diagrams.size() == 1u && doc->Elements()[diagrams.front().element].name.find(L"Implementation implements Interface") != std::wstring::npos,
               "class realization exposes implementation semantics in the accessible alternative");
     }
     {
-        const auto doc = Build(L"```mermaid\nclassDiagram\nA \"1\" --> \"0..*\" B\n```", check);
+        const auto doc      = Build(L"```mermaid\nclassDiagram\nA \"1\" --> \"0..*\" B\n```", check);
         const auto diagrams = SemanticExtensionAccess::Diagrams(*doc);
         check(diagrams.size() == 1u && doc->Elements()[diagrams.front().element].name.find(L"A [1] \u2192 B [0..*]") != std::wstring::npos,
               "class cardinalities remain attached to the correct accessible endpoints");
     }
     {
-        const auto doc = Build(L"```mermaid\ngraph TD\nsubgraph O[Outer]\nsubgraph I[Inner]\nA-->B\nend\nend\n```", check);
+        const auto doc      = Build(L"```mermaid\ngraph TD\nsubgraph O[Outer]\nsubgraph I[Inner]\nA-->B\nend\nend\n```", check);
         const auto diagrams = SemanticExtensionAccess::Diagrams(*doc);
         check(diagrams.size() == 1u && doc->Elements()[diagrams.front().element].name.find(L"Groups: Outer: A; B; Inner: A; B;") != std::wstring::npos,
               "nested group titles and memberships occur in the accessible graph alternative");
     }
     {
-        const auto doc = Build(L"```mermaid\nstateDiagram-v2\nstate Outer {\nstate Inner {\nA-->B\n}\n}\n```", check);
+        const auto doc      = Build(L"```mermaid\nstateDiagram-v2\nstate Outer {\nstate Inner {\nA-->B\n}\n}\n```", check);
         const auto diagrams = SemanticExtensionAccess::Diagrams(*doc);
         check(diagrams.size() == 1u && doc->Elements()[diagrams.front().element].name.find(L"Groups: Outer: A; B; Inner: A; B;") != std::wstring::npos,
               "state composite hierarchy appears in the accessible graph alternative");
     }
     {
-        const auto doc = Build(L"```mermaid\nstateDiagram-v2\nS\nnote right of S: Review this state\n```", check);
+        const auto doc      = Build(L"```mermaid\nstateDiagram-v2\nS\nnote right of S: Review this state\n```", check);
         const auto diagrams = SemanticExtensionAccess::Diagrams(*doc);
         check(diagrams.size() == 1u && doc->Elements()[diagrams.front().element].name.find(L"S note: Review this state") != std::wstring::npos,
               "state notes expose their target and text in the accessible graph alternative");
     }
     {
-        const auto doc = Build(L"```mermaid\nstateDiagram-v2\nS\nnote left of S\nFirst line\nSecond line\nend note\n```", check);
+        const auto doc      = Build(L"```mermaid\nstateDiagram-v2\nS\nnote left of S\nFirst line\nSecond line\nend note\n```", check);
         const auto diagrams = SemanticExtensionAccess::Diagrams(*doc);
         check(diagrams.size() == 1u && doc->Elements()[diagrams.front().element].name.find(L"S note: First line\nSecond line") != std::wstring::npos,
               "multiline notes retain their text and target in the accessible alternative");
     }
     {
-        const auto doc = Build(L"```mermaid\nclassDiagram\nWhole *-- Part\n```", check);
+        const auto doc      = Build(L"```mermaid\nclassDiagram\nWhole *-- Part\n```", check);
         const auto diagrams = SemanticExtensionAccess::Diagrams(*doc);
         check(diagrams.size() == 1u && doc->Elements()[diagrams.front().element].name.find(L"Part is part of Whole") != std::wstring::npos,
               "composition exposes whole and part in the accessible alternative");
@@ -253,7 +253,7 @@ template <typename Check> inline void Geometry(Check&& check)
         }
     }
     const auto mathDocument = Build(L"$x^2$", check);
-    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    const auto initialized  = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
         THROW_IF_FAILED(initialized);
     const auto apartment = wil::scope_exit([&]() noexcept
@@ -266,8 +266,8 @@ template <typename Check> inline void Geometry(Check&& check)
     wil::com_ptr<IWICBitmap> bitmap;
     THROW_IF_FAILED(imaging->CreateBitmap(512u, 256u, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
     wil::com_ptr<ID2D1RenderTarget> target;
-    const auto properties = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
-                                                           D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+    const auto properties =
+        D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
     THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
     LayoutOptions mathOptions;
     mathOptions.widthDip = 480.f;
@@ -288,7 +288,7 @@ template <typename Check> inline void Geometry(Check&& check)
     for (const auto invalidDpi : {0.f, 4097.f})
     {
         auto invalid = mathOptions;
-        invalid.dpi = invalidDpi;
+        invalid.dpi  = invalidDpi;
         bool rejected{};
         try
         {
@@ -298,7 +298,8 @@ template <typename Check> inline void Geometry(Check&& check)
         {
             rejected = true;
         }
-        check(rejected && mathGeometry.Begin(real.get(), mathDocument, mathOptions, drawing.get(), {1u, 1u}, {}, target.get()) == LayoutPreparationStatus::Complete,
+        check(rejected &&
+                  mathGeometry.Begin(real.get(), mathDocument, mathOptions, drawing.get(), {1u, 1u}, {}, target.get()) == LayoutPreparationStatus::Complete,
               "invalid DPI preserves the previous published native geometry");
     }
 }

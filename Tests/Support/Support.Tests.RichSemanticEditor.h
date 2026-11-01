@@ -882,13 +882,13 @@ template <typename Prepare> void MathRunFontSize(ControlHost& host, Prepare&& pr
 {
     {
         const std::wstring source = L"Body $x$ and $\\frac{1}{2}$\n\n<code>$x$</code>\n\n## <code>$x$</code>";
-        auto root = std::make_unique<RichTextEditor>(source);
-        auto* editor = root.get();
+        auto root                 = std::make_unique<RichTextEditor>(source);
+        auto* editor              = root.get();
         editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
         editor->SetMarkdownRenderingEnabled(true);
-        auto appearance = editor->GetAppearance();
-        appearance.bodyFontSizeDip = 16.f;
-        appearance.codeFontSizeDip = 32.f;
+        auto appearance                   = editor->GetAppearance();
+        appearance.bodyFontSizeDip        = 16.f;
+        appearance.codeFontSizeDip        = 32.f;
         appearance.headingFontSizeDip[1u] = 48.f;
         editor->SetAppearance(appearance);
         host.SetRoot(std::move(root));
@@ -901,18 +901,17 @@ template <typename Prepare> void MathRunFontSize(ControlHost& host, Prepare&& pr
             if (semantic->Elements()[index].role == SemanticRole::Math && count < maths.size())
                 maths[count++] = index;
         Check(count == maths.size(), "body, tall, code and code-heading formulas are independently prepared");
-        const auto body = editor->GetSemanticElementBounds(host, maths[0]);
-        const auto code = editor->GetSemanticElementBounds(host, maths[2]);
+        const auto body    = editor->GetSemanticElementBounds(host, maths[0]);
+        const auto code    = editor->GetSemanticElementBounds(host, maths[2]);
         const auto heading = editor->GetSemanticElementBounds(host, maths[3]);
         Check(body && code && heading, "each styled formula has measured owner geometry");
-        const auto bodyHeight = body->bottom - body->top;
-        const auto codeHeight = code->bottom - code->top;
+        const auto bodyHeight    = body->bottom - body->top;
+        const auto codeHeight    = code->bottom - code->top;
         const auto headingHeight = heading->bottom - heading->top;
-        Check(codeHeight > bodyHeight * 1.8f && codeHeight < bodyHeight * 2.2f &&
-                  headingHeight > codeHeight * 1.35f && headingHeight < codeHeight * 1.65f,
+        Check(codeHeight > bodyHeight * 1.8f && codeHeight < bodyHeight * 2.2f && headingHeight > codeHeight * 1.35f && headingHeight < codeHeight * 1.65f,
               "math uses the enclosing body, code and explicit heading sizes before the shared math scale");
         const auto adjacent = editor->TryGetTextInputCaretRect(host, 1u);
-        const auto edge = editor->TryGetTextInputCaretRect(host, semantic->Elements()[maths[1]].source.first);
+        const auto edge     = editor->TryGetTextInputCaretRect(host, semantic->Elements()[maths[1]].source.first);
         Check(adjacent && edge && std::abs(adjacent->top - edge->top) < 0.1f && std::abs(adjacent->bottom - edge->bottom) < 0.1f,
               "caret beside a tall formula follows its text line at the current DPI");
     }
@@ -2035,15 +2034,18 @@ inline void SourceWindowUnicodeParity()
     std::vector<std::wstring> cases;
     cases.push_back(std::wstring(400u, L'a') + L" \r\nC:\\folder\\file -- next \U0001f600a\u0301 text" + std::wstring(400u, L'z'));
     std::wstring regional(200u, L'x');
-    for (unsigned i = 0u; i < 200u; ++i) regional += L"\U0001f1e6";
+    for (unsigned i = 0u; i < 200u; ++i)
+        regional += L"\U0001f1e6";
     regional += std::wstring(200u, L'y');
     cases.push_back(regional);
     std::wstring indic(180u, L'x');
-    for (unsigned i = 0u; i < 180u; ++i) indic += L"\u0915\u094d";
+    for (unsigned i = 0u; i < 180u; ++i)
+        indic += L"\u0915\u094d";
     indic += L"\u0915" + std::wstring(180u, L'y');
     cases.push_back(indic);
     std::wstring emoji(200u, L'x');
-    for (unsigned i = 0u; i < 150u; ++i) emoji += L"\U0001f469\u200d";
+    for (unsigned i = 0u; i < 150u; ++i)
+        emoji += L"\U0001f469\u200d";
     emoji += L"\U0001f469" + std::wstring(200u, L'y');
     cases.push_back(emoji);
     auto counted = std::wstring(180u, L'x');
@@ -2056,9 +2058,14 @@ inline void SourceWindowUnicodeParity()
         const auto source = document.Snapshot();
         for (size_t caret = 0u; caret <= text.size(); caret += 7u)
         {
-            if (! source.IsBoundary(caret)) continue;
-            for (const auto operation : {SourceWindowOperation::Previous, SourceWindowOperation::Next, SourceWindowOperation::PreviousWord,
-                                         SourceWindowOperation::NextWord, SourceWindowOperation::DeleteBackward, SourceWindowOperation::DeleteForward})
+            if (! source.IsBoundary(caret))
+                continue;
+            for (const auto operation : {SourceWindowOperation::Previous,
+                                         SourceWindowOperation::Next,
+                                         SourceWindowOperation::PreviousWord,
+                                         SourceWindowOperation::NextWord,
+                                         SourceWindowOperation::DeleteBackward,
+                                         SourceWindowOperation::DeleteForward})
             {
                 TextElementRange expected{};
                 switch (operation)
@@ -2077,8 +2084,8 @@ inline void SourceWindowUnicodeParity()
     }
     Document longAscii(std::wstring(65536u, L'a'));
     const auto snapshot = longAscii.Snapshot();
-    const auto first = SourceWindowLeft(snapshot, 32768u - 128u);
-    const auto last = SourceWindowRight(snapshot, 32768u + 128u);
+    const auto first    = SourceWindowLeft(snapshot, 32768u - 128u);
+    const auto last     = SourceWindowRight(snapshot, 32768u + 128u);
     Check(last - first <= 258u, "ordinary source caret obtains a bounded local context");
     const auto wholeWord = SourceWindowRange(snapshot, 32768u, SourceWindowOperation::PreviousWord);
     Check(wholeWord.first == 0u && wholeWord.last == 32768u, "unbroken long words expand safely to their true boundary");
@@ -2086,26 +2093,25 @@ inline void SourceWindowUnicodeParity()
 inline void PendingSourceWindowTransport(ControlHost& host)
 {
     const std::wstring source = std::wstring(500u, L'a') + L"\r\n\U0001f469\u200d\U0001f4bb text" + std::wstring(500u, L'z');
-    auto owned = std::make_unique<RichTextEditor>(source);
-    auto* editor = owned.get();
+    auto owned                = std::make_unique<RichTextEditor>(source);
+    auto* editor              = owned.get();
     editor->SetViewMode(ViewMode::Source);
     host.SetRoot(std::move(owned));
     host.SetFocusControl(editor, false);
     editor->SetSelection({500u, 500u});
-    Check(editor->OnKeyDown(host, VK_RIGHT, 0u) && editor->GetSelection() == Selection{502u, 502u},
-          "pending layout moves across CRLF as one element");
-    Check(editor->OnKeyDown(host, VK_RIGHT, 0u) && editor->GetSelection() == Selection{507u, 507u},
-          "pending layout moves across a full emoji ZWJ cluster");
-    Check(editor->OnKeyDown(host, VK_BACK, 0u) && editor->GetText() == std::wstring(500u, L'a') + L"\r\n text" + std::wstring(500u, L'z') &&
-              editor->Undo() && editor->GetText() == source, "pending layout erases one emoji cluster with one undo");
+    Check(editor->OnKeyDown(host, VK_RIGHT, 0u) && editor->GetSelection() == Selection{502u, 502u}, "pending layout moves across CRLF as one element");
+    Check(editor->OnKeyDown(host, VK_RIGHT, 0u) && editor->GetSelection() == Selection{507u, 507u}, "pending layout moves across a full emoji ZWJ cluster");
+    Check(editor->OnKeyDown(host, VK_BACK, 0u) && editor->GetText() == std::wstring(500u, L'a') + L"\r\n text" + std::wstring(500u, L'z') && editor->Undo() &&
+              editor->GetText() == source,
+          "pending layout erases one emoji cluster with one undo");
 }
 template <typename Prepare> void UrlOnSelectionPaste(ControlHost& host, Prepare&& prepare)
 {
-    auto owned = std::make_unique<RichTextEditor>(L"hello **world**");
+    auto owned   = std::make_unique<RichTextEditor>(L"hello **world**");
     auto* editor = owned.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
     editor->SetMarkdownRenderingEnabled(true);
-    auto appearance = editor->GetAppearance();
+    auto appearance                = editor->GetAppearance();
     appearance.pasteUrlOnSelection = true;
     editor->SetAppearance(appearance);
     host.SetRoot(std::move(owned));
@@ -2116,39 +2122,40 @@ template <typename Prepare> void UrlOnSelectionPaste(ControlHost& host, Prepare&
     content.text = L"https://example.invalid/a";
     std::wstring replacement;
     const bool transformedUrl = editor->TryPrepareClipboardPaste(content, replacement);
-    Check(transformedUrl && replacement == L"[hello](<https://example.invalid/a>)",
-          "URL paste prepares a source-aware selected link");
+    Check(transformedUrl && replacement == L"[hello](<https://example.invalid/a>)", "URL paste prepares a source-aware selected link");
     Check(editor->ReplaceSelection(replacement) && editor->GetText() == L"[hello](<https://example.invalid/a>) **world**" && editor->Undo() &&
-              editor->GetText() == L"hello **world**", "URL paste is one undo transaction");
+              editor->GetText() == L"hello **world**",
+          "URL paste is one undo transaction");
     prepare();
     editor->SetSelection({0u, 5u});
     content.text = L"HTTPS://example.invalid/a";
     Check(editor->TryPrepareClipboardPaste(content, replacement) && replacement == L"[hello](<HTTPS://example.invalid/a>)",
           "URL schemes match case insensitively while preserving destination spelling");
     content.text = L"https://bad url";
-    replacement = L"sentinel";
+    replacement  = L"sentinel";
     Check(! editor->TryPrepareClipboardPaste(content, replacement) && replacement == L"sentinel", "invalid URL retains ordinary paste");
-    content.text = L"https://example.invalid/a";
+    content.text                   = L"https://example.invalid/a";
     appearance.pasteUrlOnSelection = false;
     editor->SetAppearance(appearance);
     Check(! editor->TryPrepareClipboardPaste(content, replacement), "URL paste is opt in");
-    content.htmlFragment = L"<b>hello</b>";
+    content.htmlFragment    = L"<b>hello</b>";
     content.hasHtmlFragment = true;
-    editor->SetHtmlPasteConverter([](std::wstring_view html) -> std::optional<std::wstring> {
-        return html == L"<b>hello</b>" ? std::optional<std::wstring>{L"**hello**"} : std::nullopt;
-    });
+    editor->SetHtmlPasteConverter([](std::wstring_view html) -> std::optional<std::wstring>
+    { return html == L"<b>hello</b>" ? std::optional<std::wstring>{L"**hello**"} : std::nullopt; });
     Check(editor->TryPrepareClipboardPaste(content, replacement) && replacement == L"**hello**",
           "application HTML converter receives counted fragment and prepares Markdown");
     const auto originalRevision = editor->Revision();
-    editor->SetHtmlPasteConverter([&](std::wstring_view) -> std::optional<std::wstring> {
+    editor->SetHtmlPasteConverter([&](std::wstring_view) -> std::optional<std::wstring>
+    {
         editor->SetText(L"changed during conversion");
         return L"stale";
     });
     replacement = L"sentinel";
-    bool stale = false;
+    bool stale  = false;
     Check(! editor->TryPrepareClipboardPaste(content, replacement, &stale) && stale && replacement == L"sentinel" && editor->Revision() != originalRevision,
           "reentrant converter cannot publish a stale replacement");
-    editor->SetHtmlPasteConverter([&](std::wstring_view) -> std::optional<std::wstring> {
+    editor->SetHtmlPasteConverter([&](std::wstring_view) -> std::optional<std::wstring>
+    {
         host.SetFocusControl(nullptr);
         return L"stale focus";
     });

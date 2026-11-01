@@ -341,7 +341,7 @@ static void TestHtmlClipboardFragment()
     const std::string body = "<b>hello</b>";
     const auto header = std::format("Version:1.0\r\nStartHTML:{:010}\r\nEndHTML:{:010}\r\nStartFragment:{:010}\r\nEndFragment:{:010}\r\n", 105, 117, 105, 117);
     Check(header.size() == 105u, "CF_HTML test header has stable byte offsets");
-    const auto bytes = header + body;
+    const auto bytes      = header + body;
     std::wstring fragment = L"sentinel";
     Check(DecodeClipboardHtml(std::as_bytes(std::span(bytes.data(), bytes.size())), fragment) == S_OK && fragment == L"<b>hello</b>",
           "CF_HTML decoder honors byte offsets and UTF-8");
@@ -351,21 +351,21 @@ static void TestHtmlClipboardFragment()
     utf8Body.push_back(static_cast<char>(0xb1));
     utf8Body += "</b>";
     const auto utf8End = 105u + utf8Body.size();
-    const auto utf8Header = std::format("Version:1.0\r\nStartHTML:{:010}\r\nEndHTML:{:010}\r\nStartFragment:{:010}\r\nEndFragment:{:010}\r\n",
-                                        105u, utf8End, 105u, utf8End);
+    const auto utf8Header =
+        std::format("Version:1.0\r\nStartHTML:{:010}\r\nEndHTML:{:010}\r\nStartFragment:{:010}\r\nEndFragment:{:010}\r\n", 105u, utf8End, 105u, utf8End);
     const auto utf8Bytes = utf8Header + utf8Body;
     Check(DecodeClipboardHtml(std::as_bytes(std::span(utf8Bytes.data(), utf8Bytes.size())), fragment) == S_OK && fragment == L"<b>\u6771</b>",
           "CF_HTML byte offsets preserve a multibyte UTF-8 fragment");
-    auto invalid = bytes;
+    auto invalid                 = bytes;
     invalid[invalid.size() - 1u] = static_cast<char>(0xff);
-    fragment = L"sentinel";
+    fragment                     = L"sentinel";
     Check(FAILED(DecodeClipboardHtml(std::as_bytes(std::span(invalid.data(), invalid.size())), fragment)) && fragment == L"sentinel",
           "invalid UTF-8 does not publish a fragment");
-    fragment = L"sentinel";
+    fragment              = L"sentinel";
     const auto oldFailure = failAllocationAfter;
-    failAllocationAfter = 0u;
-    const auto failed = DecodeClipboardHtml(std::as_bytes(std::span(bytes.data(), bytes.size())), fragment);
-    failAllocationAfter = oldFailure;
+    failAllocationAfter   = 0u;
+    const auto failed     = DecodeClipboardHtml(std::as_bytes(std::span(bytes.data(), bytes.size())), fragment);
+    failAllocationAfter   = oldFailure;
     Check(failed == E_OUTOFMEMORY && fragment == L"sentinel", "HTML allocation failure preserves the prior output");
     auto owner = reinterpret_cast<HWND>(1);
     ClipboardTransportFixture transport(owner, Check);
@@ -378,14 +378,14 @@ static void TestHtmlClipboardFragment()
         std::memcpy(memory, bytes.data(), bytes.size());
     }
     TextClipboardContent content;
-    Check(ReadTextClipboardContent(SystemTextClipboard(), owner, content, true, true) == S_OK && content.hasHtmlFragment && content.htmlFragment == L"<b>hello</b>" &&
-              transport.opens == 1u && transport.closes == 1u,
+    Check(ReadTextClipboardContent(SystemTextClipboard(), owner, content, true, true) == S_OK && content.hasHtmlFragment &&
+              content.htmlFragment == L"<b>hello</b>" && transport.opens == 1u && transport.closes == 1u,
           "structured clipboard reads HTML through one private ownership attempt");
     transport.fileData.reset(GlobalAlloc(GMEM_MOVEABLE, 1u));
     Check(bool(transport.fileData), "allocate irrelevant private file medium");
     TextClipboardContent htmlOnly;
-    Check(ReadTextClipboardContent(SystemTextClipboard(), owner, htmlOnly, false, true) == S_OK && htmlOnly.filePaths.empty() &&
-              htmlOnly.hasHtmlFragment && htmlOnly.htmlFragment == L"<b>hello</b>",
+    Check(ReadTextClipboardContent(SystemTextClipboard(), owner, htmlOnly, false, true) == S_OK && htmlOnly.filePaths.empty() && htmlOnly.hasHtmlFragment &&
+              htmlOnly.htmlFragment == L"<b>hello</b>",
           "HTML-only read ignores file media in the same ownership attempt");
     TextClipboardContent oldRead;
     Check(FAILED(ReadTextClipboardContent(SystemTextClipboard(), owner, oldRead, true)) && ! oldRead.hasHtmlFragment,

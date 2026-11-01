@@ -106,7 +106,9 @@ struct FlowchartNode
 };
 struct FlowchartGroup
 {
-    FlowchartGroup() : key(0u, L' '), title(0u, L' ') {}
+    FlowchartGroup() : key(0u, L' '), title(0u, L' ')
+    {
+    }
     std::wstring key, title;
     MarkdownRange source;
     std::uint16_t parentMask{};
@@ -130,7 +132,13 @@ struct FlowchartEdge
 struct FlowchartModel
 {
     explicit FlowchartModel(std::wstring_view text, std::uint64_t value)
-        : source(text), revision(value), accessibleTitle(0u, L' '), accessibleDescription(0u, L' '), nodes(0u), edges(0u), groups(0u)
+        : source(text),
+          revision(value),
+          accessibleTitle(0u, L' '),
+          accessibleDescription(0u, L' '),
+          nodes(0u),
+          edges(0u),
+          groups(0u)
     {
     }
     std::wstring source;

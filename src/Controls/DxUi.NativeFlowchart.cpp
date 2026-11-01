@@ -177,8 +177,8 @@ struct NativeFlowchartParser::Preparation
     {
         if (at == end)
             return Error(FlowchartIssue::UnsupportedStatement, at, end, FlowchartOutcome::Unsupported);
-        auto& node = model->nodes[nodeIndex];
-        const bool method = Text().substr(at, end - at).find(L'(') != std::wstring_view::npos;
+        auto& node          = model->nodes[nodeIndex];
+        const bool method   = Text().substr(at, end - at).find(L'(') != std::wstring_view::npos;
         const bool boundary = ! node.compartmentCount || method != node.lastCompartmentMethod;
         if (boundary && node.compartmentCount == node.compartmentStarts.size())
             return Error(FlowchartIssue::LabelCapacity, at, end, FlowchartOutcome::Capacity);
@@ -236,21 +236,21 @@ struct NativeFlowchartParser::Preparation
         FlowchartNode note;
         note.key.assign(L"@note");
         note.key.append(std::to_wstring(model->nodes.size()));
-        note.identifier = {start, start + 4u};
+        note.identifier  = {start, start + 4u};
         note.declaration = {start, end};
-        note.shape = FlowchartShape::Note;
-        note.noteTarget = target;
-        note.noteLeft = left;
-        note.groupMask = model->nodes[target].groupMask;
+        note.shape       = FlowchartShape::Note;
+        note.noteTarget  = target;
+        note.noteLeft    = left;
+        note.groupMask   = model->nodes[target].groupMask;
         note.label.assign(text);
         const auto noteIndex = model->nodes.size();
         model->nodes.push_back(note);
         FlowchartEdge edge;
-        edge.from = target;
-        edge.to = noteIndex;
-        edge.source = {start, end};
+        edge.from     = target;
+        edge.to       = noteIndex;
+        edge.source   = {start, end};
         edge.relation = FlowchartRelation::Note;
-        edge.style = FlowchartLineStyle::Dotted;
+        edge.style    = FlowchartLineStyle::Dotted;
         model->edges.push_back(edge);
         return true;
     }
@@ -734,7 +734,7 @@ struct NativeFlowchartParser::Preparation
         if (model->family == NativeDiagramFamily::State && (statement.starts_with(L"note right of ") || statement.starts_with(L"note left of ")))
         {
             const auto noteStart = at;
-            const bool left = statement.starts_with(L"note left of ");
+            const bool left      = statement.starts_with(L"note left of ");
             at += left ? 13u : 14u;
             std::size_t target{};
             if (! Node(at, end, target))
@@ -742,10 +742,10 @@ struct NativeFlowchartParser::Preparation
             Skip(at, end);
             if (at == end)
             {
-                noteBlock = true;
-                noteBlockLeft = left;
-                noteBlockStart = noteStart;
-                noteBlockTarget = target;
+                noteBlock        = true;
+                noteBlockLeft    = left;
+                noteBlockStart   = noteStart;
+                noteBlockTarget  = target;
                 noteBlockHasLine = false;
                 noteBlockText.clear();
                 return true;
@@ -915,8 +915,8 @@ struct NativeFlowchartParser::Preparation
                 return false;
             bool reverse{};
             const auto relationText = Text().substr(at, end - at);
-            bool inlineLabel   = false;
-            const auto readEnd = [&](std::size_t start, FlowchartLineStyle style, std::size_t& finish, std::size_t& ranks, bool& arrow)
+            bool inlineLabel        = false;
+            const auto readEnd      = [&](std::size_t start, FlowchartLineStyle style, std::size_t& finish, std::size_t& ranks, bool& arrow)
             {
                 const wchar_t marker = style == FlowchartLineStyle::Dotted ? L'.' : style == FlowchartLineStyle::Thick ? L'=' : L'-';
                 auto cursor          = start;
@@ -1010,16 +1010,15 @@ struct NativeFlowchartParser::Preparation
                       relationText.starts_with(L"--o") || relationText.starts_with(L"*..") || relationText.starts_with(L"o..") ||
                       relationText.starts_with(L"..*") || relationText.starts_with(L"..o")))
             {
-                reverse = relationText[0] == L'*' || relationText[0] == L'o';
+                reverse           = relationText[0] == L'*' || relationText[0] == L'o';
                 const auto marker = relationText[reverse ? 0u : 2u];
-                edge.arrow = true;
-                edge.relation = marker == L'*' ? FlowchartRelation::Composition : FlowchartRelation::Aggregation;
-                edge.style = relationText[1u] == L'.' ? FlowchartLineStyle::Dotted : FlowchartLineStyle::Solid;
+                edge.arrow        = true;
+                edge.relation     = marker == L'*' ? FlowchartRelation::Composition : FlowchartRelation::Aggregation;
+                edge.style        = relationText[1u] == L'.' ? FlowchartLineStyle::Dotted : FlowchartLineStyle::Solid;
                 at += 3u;
             }
-            else if (model->family == NativeDiagramFamily::Class &&
-                     (Text().substr(at, 4u) == L"<|--" || Text().substr(at, 4u) == L"--|>" ||
-                      Text().substr(at, 4u) == L"<|.." || Text().substr(at, 4u) == L"..|>"))
+            else if (model->family == NativeDiagramFamily::Class && (Text().substr(at, 4u) == L"<|--" || Text().substr(at, 4u) == L"--|>" ||
+                                                                     Text().substr(at, 4u) == L"<|.." || Text().substr(at, 4u) == L"..|>"))
             {
                 reverse       = Text()[at] == L'<';
                 edge.arrow    = true;
@@ -1147,7 +1146,10 @@ struct NativeFlowchartParser::Preparation
                 return;
             if (classBlock || descriptionBlock || noteBlock || groupDepth)
             {
-                const auto start = noteBlock ? noteBlockStart : descriptionBlock ? descriptionBlockStart : classBlock ? classBlockStart : model->groups[groupStack[groupDepth - 1u]].source.first;
+                const auto start = noteBlock          ? noteBlockStart
+                                   : descriptionBlock ? descriptionBlockStart
+                                   : classBlock       ? classBlockStart
+                                                      : model->groups[groupStack[groupDepth - 1u]].source.first;
                 Error(FlowchartIssue::UnexpectedToken, start, scan);
                 return;
             }

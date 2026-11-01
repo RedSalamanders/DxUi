@@ -197,9 +197,9 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
                                                  FlowchartResourceEpoch resourceEpoch)
 {
     if (! write || ! drawing || ! graph || graph->outcome != FlowchartOutcome::Prepared || graph->nodes.size() > NativeFlowchartParser::MaximumNodes ||
-        graph->edges.size() > NativeFlowchartParser::MaximumEdges || graph->groups.size() > 16u || graph->source.size() > NativeFlowchartParser::MaximumSourceUnits ||
-        ! std::isfinite(typography.fontSizeDip) || typography.fontSizeDip <= 0.0f || typography.fontSizeDip > 512.0f || typography.fontFamily.size() > 1024u ||
-        typography.locale.size() > 1024u ||
+        graph->edges.size() > NativeFlowchartParser::MaximumEdges || graph->groups.size() > 16u ||
+        graph->source.size() > NativeFlowchartParser::MaximumSourceUnits || ! std::isfinite(typography.fontSizeDip) || typography.fontSizeDip <= 0.0f ||
+        typography.fontSizeDip > 512.0f || typography.fontFamily.size() > 1024u || typography.locale.size() > 1024u ||
         (typography.readingDirection != DWRITE_READING_DIRECTION_LEFT_TO_RIGHT && typography.readingDirection != DWRITE_READING_DIRECTION_RIGHT_TO_LEFT))
         throw std::invalid_argument("Invalid native flowchart preparation admission");
     if (graph->direction < FlowchartDirection::TopBottom || graph->direction > FlowchartDirection::RightLeft)
@@ -224,17 +224,18 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
                 throw std::invalid_argument("Invalid nested group membership");
         for (std::size_t index = 0u; index < node.compartmentCount; ++index)
             if (! node.compartmentStarts[index] || node.compartmentStarts[index] >= node.label.size() ||
-                node.label[node.compartmentStarts[index] - 1u] != L'\n' ||
-                (index && node.compartmentStarts[index] <= node.compartmentStarts[index - 1u]))
+                node.label[node.compartmentStarts[index] - 1u] != L'\n' || (index && node.compartmentStarts[index] <= node.compartmentStarts[index - 1u]))
                 throw std::invalid_argument("Invalid class compartment offset");
     }
     for (const auto& edge : graph->edges)
         if (edge.label.size() > NativeFlowchartParser::MaximumLabelUnits || edge.fromCardinality.size() > 32u || edge.toCardinality.size() > 32u ||
             ((! edge.fromCardinality.empty() || ! edge.toCardinality.empty()) && graph->family != NativeDiagramFamily::Class) ||
-            edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() ||
-            edge.minimumRanks == 0u || edge.minimumRanks > NativeFlowchartParser::MaximumLinkRanks || edge.relation < FlowchartRelation::Line ||
-            edge.relation > FlowchartRelation::Composition || edge.arrow != (edge.relation != FlowchartRelation::Line && edge.relation != FlowchartRelation::Note) ||
-            (edge.relation == FlowchartRelation::Note && (graph->nodes[edge.to].shape != FlowchartShape::Note || graph->nodes[edge.to].noteTarget != edge.from)))
+            edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() || edge.minimumRanks == 0u ||
+            edge.minimumRanks > NativeFlowchartParser::MaximumLinkRanks || edge.relation < FlowchartRelation::Line ||
+            edge.relation > FlowchartRelation::Composition ||
+            edge.arrow != (edge.relation != FlowchartRelation::Line && edge.relation != FlowchartRelation::Note) ||
+            (edge.relation == FlowchartRelation::Note &&
+             (graph->nodes[edge.to].shape != FlowchartShape::Note || graph->nodes[edge.to].noteTarget != edge.from)))
             throw std::invalid_argument("Invalid native flowchart edge");
     if (next_ && next_->state->Matches(write, drawing, graph, typography, resourceEpoch))
         return LayoutPreparationStatus::Pending;
@@ -271,37 +272,41 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                     if (work.cursor == nodes + (state.hasCardinality ? 3u : 1u) * edges)
                     {
                         work.cursor = 0u;
-                        work.stage = Preparation::Stage::GroupLabels;
+                        work.stage  = Preparation::Stage::GroupLabels;
                         break;
                     }
-                    const auto node = work.cursor < nodes;
-                    const auto group = node ? 0u : (work.cursor - nodes) / edges;
-                    const auto index = node ? work.cursor : (work.cursor - nodes) % edges;
-                    const auto* edge = node ? nullptr : &state.graph->edges[index];
-                    const auto& label = node ? state.graph->nodes[index].label
+                    const auto node   = work.cursor < nodes;
+                    const auto group  = node ? 0u : (work.cursor - nodes) / edges;
+                    const auto index  = node ? work.cursor : (work.cursor - nodes) % edges;
+                    const auto* edge  = node ? nullptr : &state.graph->edges[index];
+                    const auto& label = node          ? state.graph->nodes[index].label
                                         : group == 0u ? edge->label
-                                        : group == 1u ? edge->fromCardinality : edge->toCardinality;
+                                        : group == 1u ? edge->fromCardinality
+                                                      : edge->toCardinality;
                     if (node || ! label.empty())
                     {
                         if (result.layoutsPrepared == budget.maximumLayouts)
                             return result;
                         ++result.layoutsPrepared;
-                        auto& preparedLabel = node ? state.nodeLabels[index]
+                        auto& preparedLabel = node          ? state.nodeLabels[index]
                                               : group == 0u ? state.edgeLabels[index]
-                                              : group == 1u ? state.fromCardinalities[index] : state.toCardinalities[index];
-                        auto& measuredSize = node ? state.nodeSizes[index]
-                                             : group == 0u ? state.edgeSizes[index]
-                                             : group == 1u ? state.fromCardinalitySizes[index] : state.toCardinalitySizes[index];
+                                              : group == 1u ? state.fromCardinalities[index]
+                                                            : state.toCardinalities[index];
+                        auto& measuredSize  = node          ? state.nodeSizes[index]
+                                              : group == 0u ? state.edgeSizes[index]
+                                              : group == 1u ? state.fromCardinalitySizes[index]
+                                                            : state.toCardinalitySizes[index];
                         state.Label(label, preparedLabel, measuredSize);
                         if (node)
                         {
-                            auto& prepared = state.nodeLabels[index];
+                            auto& prepared    = state.nodeLabels[index];
                             const auto& model = state.graph->nodes[index];
                             for (std::size_t compartment = 0u; compartment < model.compartmentCount; ++compartment)
                             {
                                 FLOAT x{}, y{};
                                 DWRITE_HIT_TEST_METRICS hit{};
-                                THROW_IF_FAILED(prepared.layout->HitTestTextPosition(static_cast<UINT32>(model.compartmentStarts[compartment]), FALSE, &x, &y, &hit));
+                                THROW_IF_FAILED(
+                                    prepared.layout->HitTestTextPosition(static_cast<UINT32>(model.compartmentStarts[compartment]), FALSE, &x, &y, &hit));
                                 if (! std::isfinite(y))
                                     throw std::overflow_error("Nonfinite class compartment position");
                                 prepared.compartmentY[compartment] = y + prepared.origin.y;

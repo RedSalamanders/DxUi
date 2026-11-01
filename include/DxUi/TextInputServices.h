@@ -71,7 +71,7 @@ public:
 class SelectiveStructuredTextClipboard
 {
 public:
-    virtual ~SelectiveStructuredTextClipboard() = default;
+    virtual ~SelectiveStructuredTextClipboard()                                                                                  = default;
     virtual HRESULT ReadSelectedContent(HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml) noexcept = 0;
 };
 // Application-side optional source-paste transform. Called on the attaching UI
@@ -90,7 +90,7 @@ public:
 class TextClipboardHtmlPaste
 {
 public:
-    virtual ~TextClipboardHtmlPaste() = default;
+    virtual ~TextClipboardHtmlPaste()                                                  = default;
     virtual bool AcceptsHtml(const EmbeddedTextInputSnapshot& snapshot) const noexcept = 0;
 };
 // Optional additive path for controls whose prepared caret site is richer than

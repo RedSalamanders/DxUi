@@ -75,8 +75,7 @@ template <typename Check> inline void Geometry(Check&& check)
                 check(vertical ? Near(point.x, edge.path[0].x) : Near(point.y, edge.path[0].y),
                       "independent pair routes have straight, noncrossing centerlines");
             const auto& target = pairs->nodes[5u - index].bounds;
-            check(vertical ? Near(edge.path.back().x, target.x + target.width / 2.0)
-                           : Near(edge.path.back().y, target.y + target.height / 2.0),
+            check(vertical ? Near(edge.path.back().x, target.x + target.width / 2.0) : Near(edge.path.back().y, target.y + target.height / 2.0),
                   "reordered route still terminates at its original target");
         }
         for (std::size_t first = 0u; first < pairs->edges.size(); ++first)

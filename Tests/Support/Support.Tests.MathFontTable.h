@@ -101,8 +101,8 @@ template <typename Check> void Run(Check&& check)
               "truncated glyph assemblies fall back without reading beyond the table");
     check(! assembly.VerticalAssemblyAt(20u, 1000000u), "glyph assemblies cap the number of repeated parts");
     const auto horizontalAssembly = assembly.HorizontalAssemblyAt(20u, 320u);
-    check(horizontalAssembly && horizontalAssembly->count == 4u && horizontalAssembly->advance == 320u &&
-              horizontalAssembly->placements[1u].offset == 87u && horizontalAssembly->placements[3u].offset == 220u,
+    check(horizontalAssembly && horizontalAssembly->count == 4u && horizontalAssembly->advance == 320u && horizontalAssembly->placements[1u].offset == 87u &&
+              horizontalAssembly->placements[3u].offset == 220u,
           "horizontal assemblies use the independently expected left-to-right connector placements");
     put(52u, 2u);
     check(! assembly.VerticalAssemblyAt(20u, 320u), "unknown glyph-part flags are rejected");
@@ -112,7 +112,7 @@ template <typename Check> void Run(Check&& check)
     std::array<std::uint8_t, 64u> horizontalBytes{};
     const auto setHorizontal = [&](std::size_t offset, std::uint16_t value)
     {
-        horizontalBytes[offset] = static_cast<std::uint8_t>(value >> 8u);
+        horizontalBytes[offset]      = static_cast<std::uint8_t>(value >> 8u);
         horizontalBytes[offset + 1u] = static_cast<std::uint8_t>(value & 0xffu);
     };
     setHorizontal(0u, 1u);
@@ -131,7 +131,7 @@ template <typename Check> void Run(Check&& check)
     setHorizontal(50u, 2000u);
     const DxUi::RichText::Detail::MathFontTable horizontal(horizontalBytes);
     const auto construction = horizontal.HorizontalConstruction(5u);
-    const auto selected = construction ? horizontal.HorizontalVariantAt(construction.value(), 1500u) : std::nullopt;
+    const auto selected     = construction ? horizontal.HorizontalVariantAt(construction.value(), 1500u) : std::nullopt;
     check(construction && construction.value() == 40u && selected && selected->glyph == 12u && selected->advance == 2000u &&
               ! horizontal.HorizontalConstruction(6u),
           "horizontal coverage follows the vertical construction array and chooses the smallest adequate variant");
@@ -139,29 +139,36 @@ template <typename Check> void Run(Check&& check)
     {
         const DxUi::RichText::Detail::MathFontTable truncated(std::span(horizontalBytes.data(), length));
         const auto partial = truncated.HorizontalConstruction(5u);
-        check(! partial || ! truncated.HorizontalVariantAt(partial.value(), 1500u),
-              "truncated horizontal variants never read beyond the supplied table");
+        check(! partial || ! truncated.HorizontalVariantAt(partial.value(), 1500u), "truncated horizontal variants never read beyond the supplied table");
     }
     std::array<std::uint8_t, 64u> deviceBytes{};
     const auto setDevice = [&](std::size_t offset, std::uint16_t value)
     {
-        deviceBytes[offset] = static_cast<std::uint8_t>(value >> 8u);
+        deviceBytes[offset]      = static_cast<std::uint8_t>(value >> 8u);
         deviceBytes[offset + 1u] = static_cast<std::uint8_t>(value & 0xffu);
     };
     setDevice(0u, 1u);
     setDevice(4u, 40u);
-    setDevice(10u, 11u); setDevice(12u, 15u); setDevice(14u, 1u); setDevice(16u, 0x5540u);
-    setDevice(20u, 8u); setDevice(22u, 11u); setDevice(24u, 2u); setDevice(26u, 0x123fu);
-    setDevice(30u, 9u); setDevice(32u, 10u); setDevice(34u, 3u); setDevice(36u, 0x807fu);
-    setDevice(48u, 200u); setDevice(50u, 20u); // constants parent 40 + relative device offset 20
+    setDevice(10u, 11u);
+    setDevice(12u, 15u);
+    setDevice(14u, 1u);
+    setDevice(16u, 0x5540u);
+    setDevice(20u, 8u);
+    setDevice(22u, 11u);
+    setDevice(24u, 2u);
+    setDevice(26u, 0x123fu);
+    setDevice(30u, 9u);
+    setDevice(32u, 10u);
+    setDevice(34u, 3u);
+    setDevice(36u, 0x807fu);
+    setDevice(48u, 200u);
+    setDevice(50u, 20u); // constants parent 40 + relative device offset 20
     const DxUi::RichText::Detail::MathFontTable devices(deviceBytes);
     const auto constant = devices.MathConstant(8u);
     check(constant && constant->value == 200 && constant->device == 60u, "MATH value records resolve device offsets from their parent table");
-    check(devices.DeviceDelta(10u, 11u).value_or(0) == 1 && devices.DeviceDelta(10u, 15u).value_or(0) == 1 &&
-              devices.DeviceDelta(10u, 16u).value_or(1) == 0,
+    check(devices.DeviceDelta(10u, 11u).value_or(0) == 1 && devices.DeviceDelta(10u, 15u).value_or(0) == 1 && devices.DeviceDelta(10u, 16u).value_or(1) == 0,
           "two-bit device values and out-of-range sizes follow the OpenType packed example");
-    check(devices.DeviceDelta(20u, 8u).value_or(0) == 1 && devices.DeviceDelta(20u, 10u).value_or(0) == 3 &&
-              devices.DeviceDelta(20u, 11u).value_or(0) == -1,
+    check(devices.DeviceDelta(20u, 8u).value_or(0) == 1 && devices.DeviceDelta(20u, 10u).value_or(0) == 3 && devices.DeviceDelta(20u, 11u).value_or(0) == -1,
           "four-bit device deltas preserve signed high-to-low nibble order");
     check(devices.DeviceDelta(30u, 9u).value_or(0) == -128 && devices.DeviceDelta(30u, 10u).value_or(0) == 127,
           "eight-bit device deltas preserve signed extremes");

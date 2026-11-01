@@ -145,15 +145,14 @@ inline void UnicodeAndAdmission()
     Reject<std::invalid_argument>([&] { SourceDisplayMap::Build(L"", std::wstring_view(L"\0", 1u), {}); },
                                   "counted display still requires a covering partition");
     const auto countedNul = std::wstring_view(L"\0", 1u);
-    const auto rawNul = SourceDisplayMap::Build(countedNul, countedNul, std::array{DisplaySpan{{0u, 1u}, {0u, 1u}, DisplaySpanKind::Source}});
+    const auto rawNul     = SourceDisplayMap::Build(countedNul, countedNul, std::array{DisplaySpan{{0u, 1u}, {0u, 1u}, DisplaySpanKind::Source}});
     Check(rawNul->Source() == countedNul && rawNul->Display() == countedNul && rawNul->ToDisplay(1u) == 1u && rawNul->ToSource(1u) == 1u,
           "a covering identity span retains counted NUL in both coordinate domains");
     const auto visibleNul = SourceDisplayMap::Build(countedNul, L"\ufffd", std::array{DisplaySpan{{0u, 1u}, {0u, 1u}, DisplaySpanKind::Transformed}});
     Check(visibleNul->Source() == countedNul && visibleNul->Display() == L"\ufffd" && visibleNul->ToDisplay(1u) == 1u && visibleNul->ToSource(1u) == 1u,
           "a transformed span preserves counted source NUL while displaying the replacement character");
     const wchar_t unpaired = static_cast<wchar_t>(0xd800u);
-    Reject<std::invalid_argument>([&] { SourceDisplayMap::Build(std::wstring_view(&unpaired, 1u), L"", {}); },
-                                  "source maps reject unpaired UTF-16 surrogates");
+    Reject<std::invalid_argument>([&] { SourceDisplayMap::Build(std::wstring_view(&unpaired, 1u), L"", {}); }, "source maps reject unpaired UTF-16 surrogates");
     Reject<std::length_error>([&] { SourceDisplayMap::Build(std::wstring(Document::MaximumUnits + 1u, L'x'), L"", {}); }, "source capacity bound");
     Reject<std::length_error>([&] { SourceDisplayMap::Build(L"", std::wstring(SourceDisplayMap::MaximumDisplayUnits + 1u, L'x'), {}); },
                               "display amplification bound");
@@ -231,8 +230,8 @@ inline void TransactionRejections()
     reject.operator()<std::invalid_argument>(std::array{SourceEdit{{5u, 6u}, L""}, SourceEdit{{0u, 1u}, L""}}, {}, "unordered edits are rejected");
     reject.operator()<std::invalid_argument>(std::array{SourceEdit{{1u, 1u}, L"a"}, SourceEdit{{1u, 1u}, L"b"}}, {}, "duplicate edit positions are rejected");
     const wchar_t unpaired = static_cast<wchar_t>(0xd800u);
-    reject.operator()<std::invalid_argument>(std::array{SourceEdit{{0u, 1u}, std::wstring_view(&unpaired, 1u)}}, {},
-                                             "unpaired replacement surrogate is rejected");
+    reject.operator()<std::invalid_argument>(
+        std::array{SourceEdit{{0u, 1u}, std::wstring_view(&unpaired, 1u)}}, {}, "unpaired replacement surrogate is rejected");
     reject.operator()<std::out_of_range>(std::array{SourceEdit{{0u, 1u}, L"\r"}}, {2u, 2u}, "future selection cannot split a UTF-16 scalar");
     const std::wstring tooLarge(Document::MaximumUnits, L'x');
     reject.operator()<std::length_error>(std::array{SourceEdit{{0u, 0u}, tooLarge}}, {}, "transaction source capacity is enforced");
@@ -241,8 +240,8 @@ inline void TransactionRejections()
     const auto countedBefore = counted.Snapshot();
     const std::wstring expected{L'a', L'\0', L'c'};
     Check(ApplySourceEdits(counted, countedBefore, counted.Revision(), std::array{SourceEdit{{1u, 2u}, std::wstring_view(L"\0", 1u)}}, {2u, 2u}) &&
-              counted.Text() == expected && counted.GetSelection() == Selection{2u, 2u} && counted.Undo() && counted.Text() == L"abc" &&
-              counted.Redo() && counted.Text() == expected,
+              counted.Text() == expected && counted.GetSelection() == Selection{2u, 2u} && counted.Undo() && counted.Text() == L"abc" && counted.Redo() &&
+              counted.Text() == expected,
           "counted NUL replacement is source-exact and remains one undoable transaction");
     Document join(L"aX\nb");
     const auto joinSnapshot = join.Snapshot();

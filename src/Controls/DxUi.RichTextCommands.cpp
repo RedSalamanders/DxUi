@@ -2154,7 +2154,7 @@ void MarkdownCommandPlanner::Join(bool backwards)
                 return MarkdownRange{at, last};
             };
             const auto first = std::ranges::lower_bound(lines, Line(nodes[quote].block.source.first).first, {}, &PhysicalLine::first);
-            const auto last = std::ranges::lower_bound(lines, nodes[quote].block.source.last, {}, &PhysicalLine::first);
+            const auto last  = std::ranges::lower_bound(lines, nodes[quote].block.source.last, {}, &PhysicalLine::first);
             if (first == last || std::ranges::any_of(first, last, [&](const auto& line) { return ! markerFor(line); }))
                 return; // An unproven outer prefix cannot be outdented safely.
             const auto opening = markerFor(*first).value();
@@ -3286,7 +3286,8 @@ std::optional<Detail::FileReferenceContext> Detail::FileReferenceInsertionContex
                 const auto header = planner.nodes[table].firstChild;
                 if (header == MarkdownNoNode || planner.nodes[header].block.kind != Kind::TableRow)
                     return std::nullopt;
-                const auto cellCount = [&](std::size_t parent) noexcept {
+                const auto cellCount = [&](std::size_t parent) noexcept
+                {
                     std::size_t count{};
                     for (auto child = planner.nodes[parent].firstChild; child != MarkdownNoNode; child = planner.nodes[child].nextSibling)
                         count += planner.nodes[child].block.kind == Kind::TableCell ? 1u : 0u;

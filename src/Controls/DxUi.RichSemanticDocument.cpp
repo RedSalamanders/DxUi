@@ -806,7 +806,7 @@ struct SemanticBuilder::Preparation
                 if (! DiagramAlternative({L" Connections: "}))
                     return;
                 work.cursor = 0u;
-                work.phase = Phase::Edges;
+                work.phase  = Phase::Edges;
                 return;
             }
             const auto index = work.cursor++;
@@ -837,21 +837,23 @@ struct SemanticBuilder::Preparation
             }
             if (! edge.fromCardinality.empty() || ! edge.toCardinality.empty())
             {
-                const auto action = edge.relation == Detail::FlowchartRelation::Realization ? L" implements "
+                const auto action = edge.relation == Detail::FlowchartRelation::Realization   ? L" implements "
                                     : edge.relation == Detail::FlowchartRelation::Inheritance ? L" inherits "
                                     : edge.relation == Detail::FlowchartRelation::Composition ? L" is part of "
                                     : edge.relation == Detail::FlowchartRelation::Aggregation ? L" is aggregated by "
-                                    : edge.arrow ? L" \u2192 " : L" \u2014 ";
-                DiagramAlternative({id(edge.from), L" [", edge.fromCardinality, L"]", action, id(edge.to), L" [", edge.toCardinality,
-                                    L"] ", edge.label, L"; "});
+                                    : edge.arrow                                              ? L" \u2192 "
+                                                                                              : L" \u2014 ";
+                DiagramAlternative(
+                    {id(edge.from), L" [", edge.fromCardinality, L"]", action, id(edge.to), L" [", edge.toCardinality, L"] ", edge.label, L"; "});
                 return;
             }
             if (edge.relation == Detail::FlowchartRelation::Inheritance || edge.relation == Detail::FlowchartRelation::Realization ||
                 edge.relation == Detail::FlowchartRelation::Composition || edge.relation == Detail::FlowchartRelation::Aggregation)
             {
-                const auto action = edge.relation == Detail::FlowchartRelation::Realization ? L" implements " : L" inherits ";
-                const auto description = edge.relation == Detail::FlowchartRelation::Composition ? L" is part of "
-                                         : edge.relation == Detail::FlowchartRelation::Aggregation ? L" is aggregated by " : action;
+                const auto action      = edge.relation == Detail::FlowchartRelation::Realization ? L" implements " : L" inherits ";
+                const auto description = edge.relation == Detail::FlowchartRelation::Composition   ? L" is part of "
+                                         : edge.relation == Detail::FlowchartRelation::Aggregation ? L" is aggregated by "
+                                                                                                   : action;
                 if (edge.label.empty())
                     DiagramAlternative({id(edge.from), description, id(edge.to), L"; "});
                 else
@@ -875,11 +877,11 @@ struct SemanticBuilder::Preparation
         result.bodyUnits.assign(normalized.units.begin(), normalized.units.end());
         result.sourceEnd = node.block.content.last;
         extensions.records += graph.nodes.size() + graph.edges.size() + graph.groups.size();
-        auto& element  = document->elements_[work.visit.element];
-        element.role   = SemanticRole::Diagram;
-        element.title  = graph.family == Detail::NativeDiagramFamily::State   ? L"State diagram. Source is available as document text."
-                         : graph.family == Detail::NativeDiagramFamily::Class ? L"Class diagram. Source is available as document text."
-                                                                              : L"Flowchart. Source is available as document text.";
+        auto& element = document->elements_[work.visit.element];
+        element.role  = SemanticRole::Diagram;
+        element.title = graph.family == Detail::NativeDiagramFamily::State   ? L"State diagram. Source is available as document text."
+                        : graph.family == Detail::NativeDiagramFamily::Class ? L"Class diagram. Source is available as document text."
+                                                                             : L"Flowchart. Source is available as document text.";
         if (! graph.accessibleTitle.empty())
         {
             if (graph.accessibleDescription.empty())

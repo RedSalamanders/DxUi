@@ -152,8 +152,7 @@ template <typename Check> inline void Service(ServiceEditor& editor, ControlHost
 {
     editor.SetText(L"a\r\nb\U0001f600");
     editor.SetSelection({6u, 3u});
-    check(editor.GetSourceCaretLocation() == SourceLocation{1u, 0u},
-          "editor reports the logical source location of the caret, including reversed selections");
+    check(editor.GetSourceCaretLocation() == SourceLocation{1u, 0u}, "editor reports the logical source location of the caret, including reversed selections");
     for (const auto& example : examples)
     {
         editor.SetText(std::wstring(example.before));

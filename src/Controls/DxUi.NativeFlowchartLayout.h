@@ -84,8 +84,8 @@ public:
                std::span<const FlowchartSize> nodeLabels,
                std::span<const FlowchartSize> edgeLabels,
                std::span<const FlowchartSize> fromCardinalities = {},
-               std::span<const FlowchartSize> toCardinalities = {},
-               std::span<const FlowchartSize> groupLabels = {});
+               std::span<const FlowchartSize> toCardinalities   = {},
+               std::span<const FlowchartSize> groupLabels       = {});
     // An event handles one node, edge, DFS transition or rank. A stable Kahn
     // choice scans at most 256 nodes. Units are not elapsed-time guarantees.
     // Begin copies at most 768 measurements into fixed bounded staging arrays.

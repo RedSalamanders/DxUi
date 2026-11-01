@@ -151,12 +151,11 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
             "variables use math italics while numeric runs and named operators stay upright");
     const auto upright = prepare(L"\\mathrm{x}");
     Require(upright->GlyphLayouts().size() == 1u && ! upright->GlyphLayouts()[0u].italic, "upright style overrides the ordinary-variable italic metadata");
-    const auto boldText = prepare(L"\\textbf{bold text}");
+    const auto boldText   = prepare(L"\\textbf{bold text}");
     const auto italicText = prepare(L"\\textit{italic text}");
-    Require(boldText->GlyphLayouts().size() == 1u && boldText->GlyphLayouts()[0u].node->text == L"bold text" &&
-                boldText->GlyphLayouts()[0u].bold && ! boldText->GlyphLayouts()[0u].italic &&
-                italicText->GlyphLayouts().size() == 1u && italicText->GlyphLayouts()[0u].node->text == L"italic text" &&
-                ! italicText->GlyphLayouts()[0u].bold && italicText->GlyphLayouts()[0u].italic,
+    Require(boldText->GlyphLayouts().size() == 1u && boldText->GlyphLayouts()[0u].node->text == L"bold text" && boldText->GlyphLayouts()[0u].bold &&
+                ! boldText->GlyphLayouts()[0u].italic && italicText->GlyphLayouts().size() == 1u &&
+                italicText->GlyphLayouts()[0u].node->text == L"italic text" && ! italicText->GlyphLayouts()[0u].bold && italicText->GlyphLayouts()[0u].italic,
             "text style commands retain their text and select the requested native font style");
     Require(! ParseMath(L"\\textbf{unclosed"), "malformed styled text rejects the entire formula");
 
@@ -233,43 +232,53 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
         std::array<std::uint8_t, 232u> fixture{};
         const auto setValue = [&](std::size_t offset, std::uint16_t value)
         {
-            fixture[offset] = static_cast<std::uint8_t>(value >> 8u);
+            fixture[offset]      = static_cast<std::uint8_t>(value >> 8u);
             fixture[offset + 1u] = static_cast<std::uint8_t>(value & 0xffu);
         };
-        setValue(0u, 1u); setValue(4u, 10u); // version and MathConstants parent
-        setValue(46u, 3200u); setValue(48u, 190u); // superscript shift and relative Device table
-        setValue(200u, 24u); setValue(202u, 48u); setValue(204u, 3u); // 8-bit deltas over ppem 24..48
-        setValue(206u, 0x0100u); setValue(230u, 0xff00u); // +1 pixel at 24, -1 pixel at 48
-        const auto priorTable = DxUi::RichText::Detail::testRichMathTableOverride;
+        setValue(0u, 1u);
+        setValue(4u, 10u); // version and MathConstants parent
+        setValue(46u, 3200u);
+        setValue(48u, 190u); // superscript shift and relative Device table
+        setValue(200u, 24u);
+        setValue(202u, 48u);
+        setValue(204u, 3u); // 8-bit deltas over ppem 24..48
+        setValue(206u, 0x0100u);
+        setValue(230u, 0xff00u); // +1 pixel at 24, -1 pixel at 48
+        const auto priorTable   = DxUi::RichText::Detail::testRichMathTableOverride;
         const auto restoreTable = wil::scope_exit([priorTable]() noexcept { DxUi::RichText::Detail::testRichMathTableOverride = priorTable; });
         DxUi::RichText::Detail::testRichMathTableOverride = fixture;
-        const auto value = std::make_shared<const MathExpression>(ParseMath(L"\\mathrm{x}^2"));
-        const auto beforeReads = DxUi::RichText::Detail::testRichMathConstantReads;
+        const auto value                                  = std::make_shared<const MathExpression>(ParseMath(L"\\mathrm{x}^2"));
+        const auto beforeReads                            = DxUi::RichText::Detail::testRichMathConstantReads;
         DxUi::RichText::Detail::PreparedMath lowDpi(factory.get(), value, 24.f, false, nullptr, 96.f);
-        while (! lowDpi.Advance()) {}
+        while (! lowDpi.Advance())
+        {
+        }
         DxUi::RichText::Detail::PreparedMath highDpi(factory.get(), value, 24.f, false, &lowDpi, 192.f);
-        while (! highDpi.Advance()) {}
-        const auto& lowGlyphs = lowDpi.GlyphLayouts();
+        while (! highDpi.Advance())
+        {
+        }
+        const auto& lowGlyphs  = lowDpi.GlyphLayouts();
         const auto& highGlyphs = highDpi.GlyphLayouts();
         Require(lowGlyphs.size() == 2u && highGlyphs.size() == 2u, "device-corrected script fixture retains both source glyphs");
-        const auto lowShift = lowGlyphs[1u].origin.y - lowGlyphs[0u].origin.y;
+        const auto lowShift  = lowGlyphs[1u].origin.y - lowGlyphs[0u].origin.y;
         const auto highShift = highGlyphs[1u].origin.y - highGlyphs[0u].origin.y;
-        Require(std::abs(highShift - lowShift - 1.5f) < .02f,
-                "actual script placement converts independent ppem device deltas at 96 and 192 DPI");
+        Require(std::abs(highShift - lowShift - 1.5f) < .02f, "actual script placement converts independent ppem device deltas at 96 and 192 DPI");
         const auto nestedExpression = std::make_shared<const MathExpression>(ParseMath(L"\\mathrm{x}^{\\mathrm{y}^2}"));
         DxUi::RichText::Detail::PreparedMath nestedLow(factory.get(), nestedExpression, 24.f, false, &lowDpi, 96.f);
         DxUi::RichText::Detail::PreparedMath nestedHigh(factory.get(), nestedExpression, 24.f, false, &lowDpi, 192.f);
-        while (! nestedLow.Advance()) {}
-        while (! nestedHigh.Advance()) {}
-        const auto& nestedLowGlyphs = nestedLow.GlyphLayouts();
+        while (! nestedLow.Advance())
+        {
+        }
+        while (! nestedHigh.Advance())
+        {
+        }
+        const auto& nestedLowGlyphs  = nestedLow.GlyphLayouts();
         const auto& nestedHighGlyphs = nestedHigh.GlyphLayouts();
         Require(nestedLowGlyphs.size() == 3u && nestedHighGlyphs.size() == 3u, "nested device fixture retains all three glyphs");
-        const auto nestedDelta = (nestedHighGlyphs[2u].origin.y - nestedHighGlyphs[1u].origin.y) -
-                                 (nestedLowGlyphs[2u].origin.y - nestedLowGlyphs[1u].origin.y);
-        Require(std::abs(nestedDelta) < .02f,
-                "nested scripts use their own ppem instead of scaling the root's unrelated device delta");
-        Require(DxUi::RichText::Detail::testRichMathConstantReads == beforeReads + 1u,
-                "DPI-specific math values reuse one owned font-table snapshot");
+        const auto nestedDelta =
+            (nestedHighGlyphs[2u].origin.y - nestedHighGlyphs[1u].origin.y) - (nestedLowGlyphs[2u].origin.y - nestedLowGlyphs[1u].origin.y);
+        Require(std::abs(nestedDelta) < .02f, "nested scripts use their own ppem instead of scaling the root's unrelated device delta");
+        Require(DxUi::RichText::Detail::testRichMathConstantReads == beforeReads + 1u, "DPI-specific math values reuse one owned font-table snapshot");
     }
 #endif
     if (! isolatedFence->VariantLayouts().empty())
@@ -359,14 +368,14 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
     const auto uprightAccent = prepare(L"\\vec{\\mathrm{abcdefghijk}}");
     if (! uprightAccent->VariantLayouts().empty())
     {
-        const auto oldMetricFailure = DxUi::RichText::Detail::testRichMathGlyphMetricsFailure;
-        const auto oldIndexFailure = DxUi::RichText::Detail::testRichMathGlyphIndexFailure;
+        const auto oldMetricFailure      = DxUi::RichText::Detail::testRichMathGlyphMetricsFailure;
+        const auto oldIndexFailure       = DxUi::RichText::Detail::testRichMathGlyphIndexFailure;
         const auto restoreAccentFailures = wil::scope_exit([oldMetricFailure, oldIndexFailure]() noexcept
         {
             DxUi::RichText::Detail::testRichMathGlyphMetricsFailure = oldMetricFailure;
-            DxUi::RichText::Detail::testRichMathGlyphIndexFailure = oldIndexFailure;
+            DxUi::RichText::Detail::testRichMathGlyphIndexFailure   = oldIndexFailure;
         });
-        const auto accentExpression = std::make_shared<const MathExpression>(ParseMath(L"\\vec{\\mathrm{abcdefghijk}}"));
+        const auto accentExpression      = std::make_shared<const MathExpression>(ParseMath(L"\\vec{\\mathrm{abcdefghijk}}"));
         for (const bool failMetric : {false, true})
         {
             DxUi::RichText::Detail::PreparedMath interrupted(factory.get(), accentExpression, 24.f);
@@ -377,7 +386,9 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
             HRESULT failureCode = S_OK;
             try
             {
-                while (! interrupted.Advance()) {}
+                while (! interrupted.Advance())
+                {
+                }
             }
             catch (const wil::ResultException& failure)
             {
@@ -385,7 +396,9 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
             }
             Require(failureCode == E_OUTOFMEMORY, "horizontal font lookup preserves transient glyph failure for owner retry");
             DxUi::RichText::Detail::PreparedMath retry(factory.get(), accentExpression, 24.f);
-            while (! retry.Advance()) {}
+            while (! retry.Advance())
+            {
+            }
             Require(! retry.VariantLayouts().empty(), "horizontal accent retries successfully after transient failure");
         }
     }
@@ -397,9 +410,9 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
         Require(part.left >= -.01f && part.top >= -.01f && part.left + part.width <= accentSize.width + .01f &&
                     part.top + part.height <= accentSize.height + .01f,
                 "horizontal font accent ink remains within prepared formula bounds");
-        accentLeft = std::min(accentLeft, part.left);
-        accentRight = std::max(accentRight, part.left + part.width);
-        accentTop = std::min(accentTop, part.top);
+        accentLeft   = std::min(accentLeft, part.left);
+        accentRight  = std::max(accentRight, part.left + part.width);
+        accentTop    = std::min(accentTop, part.top);
         accentBottom = std::max(accentBottom, part.top + part.height);
     }
     if (horizontalAccent->VariantLayouts().size() > 2u && accentSize.width < 240.f && accentSize.height < 100.f)
@@ -410,8 +423,8 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
         THROW_IF_FAILED(imaging->CreateBitmap(256u, 128u, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
         const auto drawing = PreparedFlowchartTests::DrawingFactory();
         wil::com_ptr<ID2D1RenderTarget> target;
-        const auto properties = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
-                                                               D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+        const auto properties =
+            D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
         THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
         wil::com_ptr<ID2D1SolidColorBrush> brush;
         THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(1.f, 1.f, 1.f, 1.f), brush.put()));
@@ -422,8 +435,8 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
         std::vector<BYTE> pixels(256u * 128u * 4u);
         THROW_IF_FAILED(bitmap->CopyPixels(nullptr, 256u * 4u, static_cast<UINT>(pixels.size()), pixels.data()));
         unsigned columns{}, gap{}, maximumGap{};
-        for (auto column = static_cast<unsigned>(8.f + std::ceil(accentLeft)) + 2u;
-             column + 2u < static_cast<unsigned>(8.f + std::floor(accentRight)); ++column)
+        for (auto column = static_cast<unsigned>(8.f + std::ceil(accentLeft)) + 2u; column + 2u < static_cast<unsigned>(8.f + std::floor(accentRight));
+             ++column)
         {
             bool hit{};
             for (auto row = static_cast<unsigned>(8.f + std::floor(accentTop)); row <= static_cast<unsigned>(8.f + std::ceil(accentBottom)); ++row)
@@ -835,7 +848,7 @@ void TestRichSemanticDocumentPinnedSourceCases()
             if (! IsValidSourceUtf16(cases[index]))
             {
                 RichSemanticTests::Reject<std::invalid_argument>([&] { RichSemanticDocumentTests::Parse(cases[index], profile); },
-                                                                  "unpaired source UTF-16 remains outside parser admission");
+                                                                 "unpaired source UTF-16 remains outside parser admission");
                 ++rejectedSource;
                 continue;
             }

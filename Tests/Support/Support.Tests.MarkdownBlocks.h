@@ -493,9 +493,10 @@ inline std::wstring ModelSignature(const FlowchartModel& model)
     {
         result.append(std::to_wstring(edge.from)).push_back(L'>');
         result.append(std::to_wstring(edge.to)).push_back(L':');
-        result.push_back(edge.relation == FlowchartRelation::Inheritance ? L'I'
+        result.push_back(edge.relation == FlowchartRelation::Inheritance   ? L'I'
                          : edge.relation == FlowchartRelation::Aggregation ? L'G'
-                         : edge.relation == FlowchartRelation::Composition ? L'C' : (edge.arrow ? L'A' : L'L'));
+                         : edge.relation == FlowchartRelation::Composition ? L'C'
+                                                                           : (edge.arrow ? L'A' : L'L'));
         result.push_back(L':');
         result.append(edge.label).push_back(L';');
     }
@@ -571,8 +572,8 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
     parser.Begin(L"flowchart TD\nsubgraph O[Outer]\nsubgraph I[Inner]\nA-->B\nend\nend\n", 1u);
     const auto nestedGroups = Complete(parser);
     check(nestedGroups->outcome == FlowchartOutcome::Prepared && nestedGroups->groups.size() == 2u && nestedGroups->nodes.size() == 2u &&
-              nestedGroups->groups[0].title == L"Outer" && nestedGroups->groups[1].title == L"Inner" &&
-              nestedGroups->groups[1].parentMask == 1u && nestedGroups->nodes[0].groupMask == 3u && nestedGroups->nodes[1].groupMask == 3u,
+              nestedGroups->groups[0].title == L"Outer" && nestedGroups->groups[1].title == L"Inner" && nestedGroups->groups[1].parentMask == 1u &&
+              nestedGroups->nodes[0].groupMask == 3u && nestedGroups->nodes[1].groupMask == 3u,
           "nested group titles and source membership retain their parent relationship");
     parser.Begin(L"stateDiagram-v2\nstate First {\n[*]-->A\nA-->[*]\n}\nstate Second {\n[*]-->B\nB-->[*]\n}\n", 1u);
     const auto scopedTerminals = Complete(parser);
@@ -581,8 +582,8 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
           "initial and final pseudostates have distinct identities in separate composites");
     parser.Begin(L"stateDiagram-v2\nstate \"Outer title\" as O {\nstate I {\nA-->B\n}\n}\n", 1u);
     const auto nestedStates = Complete(parser);
-    check(nestedStates->outcome == FlowchartOutcome::Prepared && nestedStates->groups.size() == 2u &&
-              nestedStates->groups[0].title == L"Outer title" && nestedStates->groups[1].parentMask == 1u,
+    check(nestedStates->outcome == FlowchartOutcome::Prepared && nestedStates->groups.size() == 2u && nestedStates->groups[0].title == L"Outer title" &&
+              nestedStates->groups[1].parentMask == 1u,
           "state composites retain quoted titles and nested membership");
     parser.Begin(L"stateDiagram-v2\nstate O {\nS\nnote left of S: Review this state\n}\n", 1u);
     const auto stateNote = Complete(parser);
@@ -599,7 +600,8 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
     parser.Begin(L"stateDiagram-v2\nnote right of S\nmissing terminator\n", 1u);
     const auto unclosedNote = Complete(parser);
     check(unclosedNote->outcome == FlowchartOutcome::Malformed && unclosedNote->diagnostic.issue == FlowchartIssue::UnexpectedToken &&
-              unclosedNote->nodes.empty() && unclosedNote->edges.empty(), "unterminated state notes preserve source without a partial graph");
+              unclosedNote->nodes.empty() && unclosedNote->edges.empty(),
+          "unterminated state notes preserve source without a partial graph");
     std::wstring maximumNote = L"stateDiagram-v2\nnote right of S\n";
     maximumNote.append(NativeFlowchartParser::MaximumLabelUnits, L'x');
     maximumNote += L"\nend note\n";
@@ -611,24 +613,23 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
     maximumNote.insert(maximumNote.find(L"\nend note"), 1u, L'x');
     parser.Begin(maximumNote, 1u);
     const auto oversizedNote = Complete(parser);
-    check(oversizedNote->outcome == FlowchartOutcome::Capacity && oversizedNote->diagnostic.issue == FlowchartIssue::LabelCapacity && oversizedNote->nodes.empty(),
+    check(oversizedNote->outcome == FlowchartOutcome::Capacity && oversizedNote->diagnostic.issue == FlowchartIssue::LabelCapacity &&
+              oversizedNote->nodes.empty(),
           "oversized multiline notes discard staged graph state");
-    for (const auto source : {L"graph TD\nsubgraph G\nA\n", L"graph TD\nsubgraph A\nend\n",
-                              L"graph TD\nsubgraph A\nX\nend\nsubgraph B\nX\nend\n"})
+    for (const auto source : {L"graph TD\nsubgraph G\nA\n", L"graph TD\nsubgraph A\nend\n", L"graph TD\nsubgraph A\nX\nend\nsubgraph B\nX\nend\n"})
     {
         parser.Begin(source, 1u);
         const auto rejected = Complete(parser);
         check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == source && rejected->nodes.empty() && rejected->groups.empty(),
               "unclosed, empty and conflicting groups preserve exact source without a partial graph");
     }
-    for (const auto& [source, from, to] : {std::tuple{L"classDiagram\nInterface <|.. Implementation\n", 1u, 0u},
-                                           std::tuple{L"classDiagram\nImplementation ..|> Interface\n", 0u, 1u}})
+    for (const auto& [source, from, to] :
+         {std::tuple{L"classDiagram\nInterface <|.. Implementation\n", 1u, 0u}, std::tuple{L"classDiagram\nImplementation ..|> Interface\n", 0u, 1u}})
     {
         parser.Begin(source, 1u);
         const auto model = Complete(parser);
-        check(model->outcome == FlowchartOutcome::Prepared && model->edges.size() == 1u && model->edges[0].from == from &&
-                  model->edges[0].to == to && model->edges[0].relation == FlowchartRelation::Realization &&
-                  model->edges[0].style == FlowchartLineStyle::Dotted,
+        check(model->outcome == FlowchartOutcome::Prepared && model->edges.size() == 1u && model->edges[0].from == from && model->edges[0].to == to &&
+                  model->edges[0].relation == FlowchartRelation::Realization && model->edges[0].style == FlowchartLineStyle::Dotted,
               "class realization uses a dotted line and hollow inheritance endpoint in either spelling");
     }
     parser.Begin(L"classDiagram\nClient .. Service\n", 1u);
@@ -636,15 +637,14 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
     check(association->outcome == FlowchartOutcome::Prepared && association->edges.size() == 1u && association->edges[0].relation == FlowchartRelation::Line &&
               association->edges[0].style == FlowchartLineStyle::Dotted,
           "class dotted association retains its line type and no arrowhead");
-    for (const auto& [op, reverse, relation, style] : {
-             std::tuple{L"*--", true, FlowchartRelation::Composition, FlowchartLineStyle::Solid},
-             std::tuple{L"--*", false, FlowchartRelation::Composition, FlowchartLineStyle::Solid},
-             std::tuple{L"o--", true, FlowchartRelation::Aggregation, FlowchartLineStyle::Solid},
-             std::tuple{L"--o", false, FlowchartRelation::Aggregation, FlowchartLineStyle::Solid},
-             std::tuple{L"*..", true, FlowchartRelation::Composition, FlowchartLineStyle::Dotted},
-             std::tuple{L"..*", false, FlowchartRelation::Composition, FlowchartLineStyle::Dotted},
-             std::tuple{L"o..", true, FlowchartRelation::Aggregation, FlowchartLineStyle::Dotted},
-             std::tuple{L"..o", false, FlowchartRelation::Aggregation, FlowchartLineStyle::Dotted}})
+    for (const auto& [op, reverse, relation, style] : {std::tuple{L"*--", true, FlowchartRelation::Composition, FlowchartLineStyle::Solid},
+                                                       std::tuple{L"--*", false, FlowchartRelation::Composition, FlowchartLineStyle::Solid},
+                                                       std::tuple{L"o--", true, FlowchartRelation::Aggregation, FlowchartLineStyle::Solid},
+                                                       std::tuple{L"--o", false, FlowchartRelation::Aggregation, FlowchartLineStyle::Solid},
+                                                       std::tuple{L"*..", true, FlowchartRelation::Composition, FlowchartLineStyle::Dotted},
+                                                       std::tuple{L"..*", false, FlowchartRelation::Composition, FlowchartLineStyle::Dotted},
+                                                       std::tuple{L"o..", true, FlowchartRelation::Aggregation, FlowchartLineStyle::Dotted},
+                                                       std::tuple{L"..o", false, FlowchartRelation::Aggregation, FlowchartLineStyle::Dotted}})
     {
         const auto source = std::wstring(L"classDiagram\nA ") + op + L" B\n";
         parser.Begin(source, 1u);
@@ -656,9 +656,9 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
     parser.Begin(L"classDiagram\nA : +size: int\nA : +draw()\nA : +other: int\n<<interface>> A\n", 1u);
     const auto compartments = Complete(parser);
     check(compartments->outcome == FlowchartOutcome::Prepared && compartments->nodes.size() == 1u &&
-              compartments->nodes[0].label == L"«interface»\nA\n+size: int\n+draw()\n+other: int" &&
-              compartments->nodes[0].compartmentCount == 3u && compartments->nodes[0].compartmentStarts[0] == 14u &&
-              compartments->nodes[0].compartmentStarts[1] == 25u && compartments->nodes[0].compartmentStarts[2] == 33u,
+              compartments->nodes[0].label == L"«interface»\nA\n+size: int\n+draw()\n+other: int" && compartments->nodes[0].compartmentCount == 3u &&
+              compartments->nodes[0].compartmentStarts[0] == 14u && compartments->nodes[0].compartmentStarts[1] == 25u &&
+              compartments->nodes[0].compartmentStarts[2] == 33u,
           "class compartments follow source group changes and survive a later annotation prefix");
     std::wstring tooMany = L"classDiagram\nclass A {\n";
     for (std::size_t index = 0u; index < 17u; ++index)
@@ -670,9 +670,8 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
           "excess class compartments preserve source and discard staged graph");
     parser.Begin(L"classDiagram\nInterface \"1\" <|.. \"0..*\" Implementation : uses\n", 1u);
     const auto multiplicities = Complete(parser);
-    check(multiplicities->outcome == FlowchartOutcome::Prepared && multiplicities->edges.size() == 1u &&
-              multiplicities->edges[0].from == 1u && multiplicities->edges[0].to == 0u &&
-              multiplicities->edges[0].fromCardinality == L"0..*" && multiplicities->edges[0].toCardinality == L"1" &&
+    check(multiplicities->outcome == FlowchartOutcome::Prepared && multiplicities->edges.size() == 1u && multiplicities->edges[0].from == 1u &&
+              multiplicities->edges[0].to == 0u && multiplicities->edges[0].fromCardinality == L"0..*" && multiplicities->edges[0].toCardinality == L"1" &&
               multiplicities->edges[0].label == L"uses",
           "class cardinalities follow their original endpoints when relations reverse");
     parser.Begin(L"classDiagram\nA \"invalid!\" --> B\n", 1u);

@@ -720,7 +720,8 @@ bool RichTextEditor::TryPrepareClipboardPaste(const TextClipboardContent& conten
 {
     if (stale)
         *stale = false;
-    const auto prepareFileReference = [&]() {
+    const auto prepareFileReference = [&]()
+    {
         try
         {
             return TryPrepareFileReferencesAt(content, GetSelection(), replacement);
@@ -737,20 +738,21 @@ bool RichTextEditor::TryPrepareClipboardPaste(const TextClipboardContent& conten
     if (! content.filePaths.empty())
         return prepareFileReference();
     const auto selection = GetSelection();
-    if (Editable() && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich && content.hasHtmlFragment && content.htmlFragment.size() <= RichText::Document::MaximumUnits &&
-        RichText::IsValidUtf16(content.htmlFragment) && _state->htmlPasteConverter)
+    if (Editable() && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich && content.hasHtmlFragment &&
+        content.htmlFragment.size() <= RichText::Document::MaximumUnits && RichText::IsValidUtf16(content.htmlFragment) && _state->htmlPasteConverter)
     {
         const auto converter = _state->htmlPasteConverter;
-        const auto lifetime = GetLifetimeToken();
-        const auto revision = Revision();
-        const auto binding = _state->bindingRevision;
-        const auto host = GetHost();
-        const auto focus = host ? host->GetFocusControl() : nullptr;
+        const auto lifetime  = GetLifetimeToken();
+        const auto revision  = Revision();
+        const auto binding   = _state->bindingRevision;
+        const auto host      = GetHost();
+        const auto focus     = host ? host->GetFocusControl() : nullptr;
         try
         {
             auto converted = (*converter)(content.htmlFragment);
-            if (lifetime.expired() || GetHost() != host || (host && host->GetFocusControl() != focus) || Revision() != revision || _state->bindingRevision != binding || GetSelection() != selection ||
-                _state->htmlPasteConverter != converter || ! Editable() || ! _state->markdownRendering || _state->mode != RichText::ViewMode::Rich)
+            if (lifetime.expired() || GetHost() != host || (host && host->GetFocusControl() != focus) || Revision() != revision ||
+                _state->bindingRevision != binding || GetSelection() != selection || _state->htmlPasteConverter != converter || ! Editable() ||
+                ! _state->markdownRendering || _state->mode != RichText::ViewMode::Rich)
             {
                 if (stale)
                     *stale = true;
@@ -768,18 +770,20 @@ bool RichTextEditor::TryPrepareClipboardPaste(const TextClipboardContent& conten
         }
         catch (const std::exception&)
         {
-            if (stale && (lifetime.expired() || GetHost() != host || (host && host->GetFocusControl() != focus) || Revision() != revision || _state->bindingRevision != binding || GetSelection() != selection ||
-                          _state->htmlPasteConverter != converter || ! Editable() || ! _state->markdownRendering || _state->mode != RichText::ViewMode::Rich))
+            if (stale && (lifetime.expired() || GetHost() != host || (host && host->GetFocusControl() != focus) || Revision() != revision ||
+                          _state->bindingRevision != binding || GetSelection() != selection || _state->htmlPasteConverter != converter || ! Editable() ||
+                          ! _state->markdownRendering || _state->mode != RichText::ViewMode::Rich))
                 *stale = true;
             // Application converter failure retains ordinary Unicode paste unless the target changed.
             return false;
         }
     }
-    if (! Editable() || ! _state->appearance.pasteUrlOnSelection || ! _state->markdownRendering ||
-        _state->mode != RichText::ViewMode::Rich || selection.Start() == selection.End())
+    if (! Editable() || ! _state->appearance.pasteUrlOnSelection || ! _state->markdownRendering || _state->mode != RichText::ViewMode::Rich ||
+        selection.Start() == selection.End())
         return prepareFileReference();
     const std::wstring_view url(content.text);
-    const auto startsScheme = [&](std::wstring_view prefix) noexcept {
+    const auto startsScheme = [&](std::wstring_view prefix) noexcept
+    {
         if (url.size() <= prefix.size())
             return false;
         for (size_t index = 0u; index < prefix.size(); ++index)
@@ -798,11 +802,11 @@ bool RichTextEditor::TryPrepareClipboardPaste(const TextClipboardContent& conten
     if (! syntax)
         return prepareFileReference();
     RichText::MarkdownCommandRequest request;
-    request.command = RichText::MarkdownCommand::SetLink;
+    request.command     = RichText::MarkdownCommand::SetLink;
     request.destination = url;
     try
     {
-        const auto plan = RichText::BuildMarkdownCommand(Snapshot(), Revision(), syntax, selection, request);
+        const auto plan  = RichText::BuildMarkdownCommand(Snapshot(), Revision(), syntax, selection, request);
         const auto edits = plan.Edits();
         if (! plan.IsApplicable() || edits.size() != 1u || edits[0].source.first != selection.Start() || edits[0].source.last != selection.End())
             return prepareFileReference();
@@ -1116,21 +1120,21 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
     const bool sourceInkChanged = previous.colorizeMarkdownSource != next.colorizeMarkdownSource;
     // Staged strings publish without allocator-backed aggregate moves; Debug
     // STL proxies can allocate during those moves.
-    auto& value                       = _state->appearance;
-    value.markdownPresentation        = next.markdownPresentation;
-    value.drawBorder                  = next.drawBorder;
-    value.drawFocusIndicator          = next.drawFocusIndicator;
-    value.blendWithWindowBackground   = next.blendWithWindowBackground;
-    value.useAccentLinkColor          = next.useAccentLinkColor;
-    value.colorizeMarkdownSource      = next.colorizeMarkdownSource;
-    value.directSourceInkPreview      = next.directSourceInkPreview;
-    value.showVerticalScrollbar       = next.showVerticalScrollbar;
-    value.sourceMonospace             = next.sourceMonospace;
-    value.tableOverflow               = next.tableOverflow;
-    value.sourceWrap                  = next.sourceWrap;
-    value.sourceLineNumbers           = next.sourceLineNumbers;
-    value.sourceWhitespaceMarks       = next.sourceWhitespaceMarks;
-    value.pasteUrlOnSelection         = next.pasteUrlOnSelection;
+    auto& value                     = _state->appearance;
+    value.markdownPresentation      = next.markdownPresentation;
+    value.drawBorder                = next.drawBorder;
+    value.drawFocusIndicator        = next.drawFocusIndicator;
+    value.blendWithWindowBackground = next.blendWithWindowBackground;
+    value.useAccentLinkColor        = next.useAccentLinkColor;
+    value.colorizeMarkdownSource    = next.colorizeMarkdownSource;
+    value.directSourceInkPreview    = next.directSourceInkPreview;
+    value.showVerticalScrollbar     = next.showVerticalScrollbar;
+    value.sourceMonospace           = next.sourceMonospace;
+    value.tableOverflow             = next.tableOverflow;
+    value.sourceWrap                = next.sourceWrap;
+    value.sourceLineNumbers         = next.sourceLineNumbers;
+    value.sourceWhitespaceMarks     = next.sourceWhitespaceMarks;
+    value.pasteUrlOnSelection       = next.pasteUrlOnSelection;
 
     value.zoom                        = next.zoom;
     value.tabStopDip                  = next.tabStopDip;
@@ -3995,10 +3999,10 @@ void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool by
             else
             {
                 using Operation = RichText::Detail::SourceWindowOperation;
-                const auto operation = key == VK_LEFT ? (byWord ? Operation::PreviousWord : Operation::Previous)
-                                                      : (byWord ? Operation::NextWord : Operation::Next);
+                const auto operation =
+                    key == VK_LEFT ? (byWord ? Operation::PreviousWord : Operation::Previous) : (byWord ? Operation::NextWord : Operation::Next);
                 const auto range = RichText::Detail::SourceWindowRange(source, selection.caret, operation);
-                next = key == VK_LEFT ? range.first : range.last;
+                next             = key == VK_LEFT ? range.first : range.last;
             }
             SetSelection({extend ? selection.anchor : next, next});
             return;
@@ -4155,7 +4159,8 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
             const auto& map = document->Map();
             for (const auto& node : document->Syntax()->Nodes())
             {
-                const bool heading = node.block.kind == RichText::MarkdownBlockKind::AtxHeading || node.block.kind == RichText::MarkdownBlockKind::SetextHeading;
+                const bool heading =
+                    node.block.kind == RichText::MarkdownBlockKind::AtxHeading || node.block.kind == RichText::MarkdownBlockKind::SetextHeading;
                 if ((node.block.kind != RichText::MarkdownBlockKind::Paragraph && ! (backwards && heading)) || selection.caret < node.block.content.first ||
                     selection.caret > node.block.content.last)
                     continue;
@@ -4263,8 +4268,8 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
         if (_state->markdownRendering || _state->mode == RichText::ViewMode::Source)
         {
             using Operation = RichText::Detail::SourceWindowOperation;
-            const auto operation = byWord ? (backwards ? Operation::PreviousWord : Operation::NextWord)
-                                          : (backwards ? Operation::DeleteBackward : Operation::DeleteForward);
+            const auto operation =
+                byWord ? (backwards ? Operation::PreviousWord : Operation::NextWord) : (backwards ? Operation::DeleteBackward : Operation::DeleteForward);
             const auto range = RichText::Detail::SourceWindowRange(Snapshot(), selection.caret, operation);
             if (range.first == range.last)
                 return false;
@@ -4922,21 +4927,23 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                     const auto binding   = _state->bindingRevision;
                     const auto location  = _state->imageLocationRevision;
                     const auto selection = GetSelection();
-                    const auto focus = host.GetFocusControl();
+                    const auto focus     = host.GetFocusControl();
                     TextClipboardContent content;
-                    const bool available = host.ReadClipboardContent(content, bool(_state->htmlPasteConverter) && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich);
-                    if (available && ! lifetime.expired() && GetHost() == &host && host.GetFocusControl() == focus && _state->bindingRevision == binding && Revision() == revision &&
-                        _state->imageLocationRevision == location && GetSelection() == selection)
+                    const bool available = host.ReadClipboardContent(
+                        content, bool(_state->htmlPasteConverter) && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich);
+                    if (available && ! lifetime.expired() && GetHost() == &host && host.GetFocusControl() == focus && _state->bindingRevision == binding &&
+                        Revision() == revision && _state->imageLocationRevision == location && GetSelection() == selection)
                     {
                         if (! content.filePaths.empty())
                             static_cast<void>(ApplyClipboardFilePaste(content));
                         else
                         {
                             std::wstring replacement(0u, L' ');
-                            bool stalePaste = false;
+                            bool stalePaste        = false;
                             const bool transformed = TryPrepareClipboardPaste(content, replacement, &stalePaste);
-                            if (stalePaste || lifetime.expired() || GetHost() != &host || host.GetFocusControl() != focus || _state->bindingRevision != binding || Revision() != revision ||
-                                _state->imageLocationRevision != location || GetSelection() != selection)
+                            if (stalePaste || lifetime.expired() || GetHost() != &host || host.GetFocusControl() != focus ||
+                                _state->bindingRevision != binding || Revision() != revision || _state->imageLocationRevision != location ||
+                                GetSelection() != selection)
                                 return true;
                             if (transformed)
                                 static_cast<void>(ReplaceSelection(std::move(replacement)));

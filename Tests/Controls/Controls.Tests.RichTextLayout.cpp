@@ -368,7 +368,7 @@ void TestRichTextLayoutOptionsFailureAtomicityAndRetirement()
     invalid                    = options;
     invalid.listItemSpacingDip = 257.0f;
     Reject([&] { layout.Prepare(factory.get(), projection, invalid); }, "out-of-range semantic list spacing rejected at public layout admission");
-    invalid = options;
+    invalid     = options;
     invalid.dpi = 0.f;
     Reject([&] { layout.Prepare(factory.get(), projection, invalid); }, "invalid device DPI rejected at public layout admission");
     auto malformed                = projection;

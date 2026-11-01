@@ -62,22 +62,22 @@ public:
             return LastClipboardError();
         const auto close = wil::scope_exit([&calls]() noexcept { calls.close(); });
         if (includeFiles)
-        if (const auto data = calls.getData(CF_HDROP))
-        {
-            const auto bytes   = GlobalSize(data);
-            const auto* buffer = static_cast<const std::byte*>(GlobalLock(data));
-            if (! buffer)
-                return LastClipboardError();
-            const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(data); });
-            const auto result = DecodeClipboardFilePaths(std::span(buffer, bytes), staged);
-            if (result == S_OK)
+            if (const auto data = calls.getData(CF_HDROP))
             {
-                content.Swap(staged);
-                return S_OK;
+                const auto bytes   = GlobalSize(data);
+                const auto* buffer = static_cast<const std::byte*>(GlobalLock(data));
+                if (! buffer)
+                    return LastClipboardError();
+                const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(data); });
+                const auto result = DecodeClipboardFilePaths(std::span(buffer, bytes), staged);
+                if (result == S_OK)
+                {
+                    content.Swap(staged);
+                    return S_OK;
+                }
+                if (FAILED(result))
+                    return result;
             }
-            if (FAILED(result))
-                return result;
-        }
         const auto result = ReadUnicodeClipboardData(calls.getData(CF_UNICODETEXT), staged.text);
         if (FAILED(result))
             return result;
@@ -85,7 +85,7 @@ public:
         if (htmlFormat)
             if (const auto data = calls.getData(htmlFormat))
             {
-                const auto bytes = GlobalSize(data);
+                const auto bytes   = GlobalSize(data);
                 const auto* buffer = static_cast<const std::byte*>(GlobalLock(data));
                 if (buffer)
                 {
@@ -155,10 +155,11 @@ try
     constexpr size_t maximumBytes = 4u * 65536u + 4096u;
     if (buffer.empty() || buffer.size() > maximumBytes)
         return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
-    const auto bytes = std::string_view(reinterpret_cast<const char*>(buffer.data()), buffer.size());
-    const auto readOffset = [&](std::string_view key, size_t& result) noexcept {
+    const auto bytes      = std::string_view(reinterpret_cast<const char*>(buffer.data()), buffer.size());
+    const auto readOffset = [&](std::string_view key, size_t& result) noexcept
+    {
         const auto header = bytes.substr(0u, (std::min)(bytes.size(), size_t{4096u}));
-        auto at = header.find(key);
+        auto at           = header.find(key);
         if (at == header.npos || (at && header[at - 1u] != '\n'))
             return false;
         at += key.size();
@@ -171,9 +172,8 @@ try
         return parsed.ec == std::errc{} && parsed.ptr == header.data() + end;
     };
     size_t htmlFirst{}, htmlLast{}, first{}, last{};
-    if (! readOffset("StartHTML:", htmlFirst) || ! readOffset("EndHTML:", htmlLast) ||
-        ! readOffset("StartFragment:", first) || ! readOffset("EndFragment:", last) ||
-        htmlFirst > first || first > last || last > htmlLast || htmlLast > bytes.size())
+    if (! readOffset("StartHTML:", htmlFirst) || ! readOffset("EndHTML:", htmlLast) || ! readOffset("StartFragment:", first) ||
+        ! readOffset("EndFragment:", last) || htmlFirst > first || first > last || last > htmlLast || htmlLast > bytes.size())
         return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
     const auto header = bytes.substr(0u, htmlFirst);
     for (const auto key : {std::string_view{"StartHTML:"}, std::string_view{"EndHTML:"}, std::string_view{"StartFragment:"}, std::string_view{"EndFragment:"}})

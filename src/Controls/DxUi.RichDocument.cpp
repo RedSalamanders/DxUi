@@ -492,7 +492,10 @@ std::optional<SourceLocation> SourceSnapshot::LocationAt(std::size_t offset) con
         return std::nullopt;
     SourceLocation location;
     bool previousCr = false;
-    PieceTreeNode::VisitRange(RootNode(), 0u, offset, [&](std::wstring_view fragment) noexcept
+    PieceTreeNode::VisitRange(RootNode(),
+                              0u,
+                              offset,
+                              [&](std::wstring_view fragment) noexcept
     {
         for (const wchar_t c : fragment)
         {
