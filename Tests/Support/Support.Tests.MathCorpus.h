@@ -990,6 +990,25 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         }
     }
 #endif
+#if DXUI_ENABLE_DIAGNOSTICS
+    {
+        const auto plain = std::make_shared<const MathExpression>(ParseMath(L"a+b"));
+        for (const auto source : {L"a\\notag+b", L"a\\nonumber+b"})
+        {
+            const auto expression = std::make_shared<const MathExpression>(ParseMath(source));
+            check(static_cast<bool>(*expression), "equation-number suppression parses as a declaration");
+            Detail::PreparedMath original(factory, plain, 24.f), suppressed(factory, expression, 24.f);
+            while (! original.Advance()) {}
+            while (! suppressed.Advance()) {}
+            check(std::abs(original.Size().width - suppressed.Size().width) < .01f &&
+                      original.GlyphLayouts().size() == suppressed.GlyphLayouts().size(),
+                  "number suppression adds no painted atom or spacing");
+        }
+        check(static_cast<bool>(ParseMath(L"\\begin{align}a&=b\\notag\\\\c&=d\\nonumber\\end{align}")),
+              "number suppression is accepted independently for aligned rows");
+        check(! ParseMath(L"a\\notagged b"), "number-suppression name does not consume a longer unknown command");
+    }
+#endif
     for (const auto source : {L"\\genfrac{(}{)}{-2pt}{0}{a}{b}", L"\\genfrac{(}{)}{}{4}{a}{b}", L"\\genfrac{?}{}{}{}{a}{b}",
                               L"\\genfrac{}{}{}{}{a}"})
         check(! ParseMath(source), "unsupported general fraction dimensions, style and delimiters reject the whole source");

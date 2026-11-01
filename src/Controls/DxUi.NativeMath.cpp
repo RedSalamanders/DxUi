@@ -1561,8 +1561,14 @@ class Parser
                 while (end < source.size() && Letter(source[end]))
                     ++end;
                 const auto declaration = source.substr(first, end - first);
-                if (declaration == L"over" || declaration == L"atop" || declaration == L"above" || declaration == L"choose" || declaration == L"brace" ||
-                    declaration == L"brack")
+                if (declaration == L"nonumber" || declaration == L"notag")
+                {
+                    // This profile never synthesizes equation numbers; consume the
+                    // declaration without adding an atom or changing manual tags.
+                    at = end;
+                    continue;
+                }
+                if (declaration == L"over" || declaration == L"atop" || declaration == L"above" || declaration == L"choose" || declaration == L"brace" || declaration == L"brack")
                 {
                     if (! infixAllowed)
                         Reject(MathIssue::UnsupportedCommand);
