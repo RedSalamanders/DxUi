@@ -1,0 +1,1 @@
+- Add bounded scoped legacy math font switches with explicit nested override handling.

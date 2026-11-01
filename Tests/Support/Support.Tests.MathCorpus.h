@@ -951,6 +951,16 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     for (unsigned i = 0u; i < MathMaximumGroupDepth; ++i)
         nestedArrays += L"\\end{array}";
     check(static_cast<bool>(ParseMath(nestedArrays)), "64 nested arrays fit the ordinary thread stack");
+    std::wstring nestedSwitches(0u, L' ');
+    for (unsigned i = 0u; i < MathMaximumGroupDepth; ++i)
+        nestedSwitches += L"\\bf ";
+    nestedSwitches += L'x';
+    check(static_cast<bool>(ParseMath(nestedSwitches)), "64 scoped font declarations fit the ordinary thread stack");
+    std::wstring nestedSans(0u, L' ');
+    for (unsigned i = 0u; i < MathMaximumGroupDepth; ++i)
+        nestedSans += L"\\sf ";
+    nestedSans += L'x';
+    check(static_cast<bool>(ParseMath(nestedSans)), "64 nested remapping declarations fit the ordinary thread stack");
 #if DXUI_ENABLE_DIAGNOSTICS
     const auto lowestObservedStack         = Detail::testRichMathLowestStackAddress;
     Detail::testRichMathLowestStackAddress = 0u;
@@ -1143,6 +1153,30 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
               "colored text and decoded accents preserve explicit family roles");
     }
 #endif
+    for (const auto command : {L"bf", L"it", L"rm", L"sf", L"tt", L"cal"})
+        check(static_cast<bool>(ParseMath(L"{" + std::wstring(L"\\") + command + L" x}")), "bounded legacy math font declaration parses");
+#if DXUI_ENABLE_DIAGNOSTICS
+    {
+        const auto expression = ParseMath(L"{\\sf x {\\rm y}}");
+        Detail::PreparedMath layout(factory, std::make_shared<const MathExpression>(expression), 24.f);
+        while (! layout.Advance()) {}
+        const auto& glyphs = layout.GlyphLayouts();
+        check(glyphs.size() == 2u && glyphs[0u].node->text != L"x" && glyphs[1u].node->text == L"y",
+              "inner roman declaration overrides the enclosing sans alphabet");
+    }
+#endif
+#if DXUI_ENABLE_DIAGNOSTICS
+    {
+        const auto expression = ParseMath(L"\\bold{x}y");
+        Detail::PreparedMath layout(factory, std::make_shared<const MathExpression>(expression), 24.f);
+        while (! layout.Advance()) {}
+        check(layout.GlyphLayouts().size() == 2u && layout.GlyphLayouts()[0u].bold && ! layout.GlyphLayouts()[1u].bold,
+              "bold alias consumes one argument instead of styling the remaining row");
+    }
+#endif
+    for (const auto source : {L"\\bold{x}y", L"\\frak{A}B", L"\\Bbb{A}B"})
+        check(static_cast<bool>(ParseMath(source)), "font aliases accept one bounded argument");
+    check(! ParseMath(L"{\\sf x \\text{word}}"), "unimplemented text-family nesting retains source instead of rewriting text glyphs");
     const auto binomial = ParseMath(L"\\binom{n}{k}");
     check(binomial && binomial.root.children.size() == 1u && binomial.root.children[0u].kind == MathKind::Matrix &&
               binomial.root.children[0u].text == L"pmatrix" && binomial.root.children[0u].columns == 1u && binomial.root.children[0u].children.size() == 2u,
