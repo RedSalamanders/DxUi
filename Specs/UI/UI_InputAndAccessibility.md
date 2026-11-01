@@ -261,6 +261,12 @@ source and ACP. Explicit noncollapsed source intervals keep their original
 meaning; rich ranges still require valid scalar/CRLF endpoints. Text-service
 geometry and explicit selection setters do not silently snap to navigation stops.
 
+The native host resolves the I-beam cursor over enabled TextField text content
+and the RichTextEditor text viewport, including read-only text. TextField clear
+and password-reveal buttons and the editor's surrounding chrome keep their
+normal cursor. Embedded consumers can query the same cursor kind and supply the
+appropriate platform cursor.
+
 Bulk Character movement snaps once using the existing nearest/forward-tie
 policy, then walks established boundaries. Negative movement counts the bounded
 prefix and visits its target ordinal. INT_MIN/INT_MAX requests return actual

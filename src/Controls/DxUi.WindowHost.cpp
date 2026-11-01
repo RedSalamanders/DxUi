@@ -5605,12 +5605,14 @@ HCURSOR ControlHost::ResolveCursorHandle(WindowHostCursorKind cursorKind) const 
     static const HCURSOR horizontalCursor = LoadCursorW(nullptr, IDC_SIZEWE);
     static const HCURSOR handCursor       = LoadCursorW(nullptr, IDC_HAND);
     static const HCURSOR verticalCursor   = LoadCursorW(nullptr, IDC_SIZENS);
+    static const HCURSOR textCursor       = LoadCursorW(nullptr, IDC_IBEAM);
 
     switch (cursorKind)
     {
         case WindowHostCursorKind::HorizontalResize: return horizontalCursor ? horizontalCursor : arrowCursor;
         case WindowHostCursorKind::Hand: return handCursor ? handCursor : arrowCursor;
         case WindowHostCursorKind::VerticalResize: return verticalCursor ? verticalCursor : arrowCursor;
+        case WindowHostCursorKind::IBeam: return textCursor ? textCursor : arrowCursor;
         case WindowHostCursorKind::Default:
         default: return arrowCursor;
     }

@@ -1864,6 +1864,14 @@ void TextField::OnEnabledChanged(bool enabled) noexcept
     }
 }
 
+WindowHostCursorKind TextField::ResolveCursorKind(ControlHost&, D2D1_POINT_2F point) const noexcept
+{
+    if (! IsEnabled() || ! IsVisible() || (IsClearButtonVisible() && PointInRect(GetClearButtonRect(), point)) ||
+        (IsPasswordRevealButtonVisible() && PointInRect(GetPasswordRevealButtonRect(), point)))
+        return WindowHostCursorKind::Default;
+    return PointInRect(GetTextRect(), point) ? WindowHostCursorKind::IBeam : WindowHostCursorKind::Default;
+}
+
 bool TextField::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
     _pendingLeadSurrogate = 0;

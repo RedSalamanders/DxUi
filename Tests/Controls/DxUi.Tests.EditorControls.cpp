@@ -340,6 +340,31 @@ void TestSplitterHorizontalOrientationAndCursors()
     Require(vertical->OnMouseUp(host, D2D1::Point2F(103.0f, 50.0f), false, 0), "the vertical separator drag ends");
 }
 
+void TestTextControlsRequestTextCursor()
+{
+    WindowHost host;
+    auto root = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>();
+    auto* editor = root->AddChild<RichTextEditor>();
+    field->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 40.0f));
+    field->SetText(L"text");
+    field->SetClearButtonEnabled(true);
+    editor->SetBounds(D2D1::RectF(0.0f, 50.0f, 240.0f, 150.0f));
+    host.SetRoot(std::move(root));
+    static_cast<Panel*>(host.GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 180.0f));
+    host.SetFocusControl(field);
+
+    Require(host.DebugResolveCursorKindForPoint(D2D1::Point2F(30.0f, 20.0f)) == WindowHostCursorKind::IBeam,
+            "text field content requests an I-beam");
+    Require(host.DebugResolveCursorKindForPoint(D2D1::Point2F(230.0f, 20.0f)) == WindowHostCursorKind::Default,
+            "the text field clear button keeps its normal cursor");
+    Require(host.DebugResolveCursorKindForPoint(D2D1::Point2F(30.0f, 80.0f)) == WindowHostCursorKind::IBeam,
+            "rich editor content requests an I-beam");
+    editor->SetEnabled(false);
+    Require(editor->ResolveCursorKind(host, D2D1::Point2F(30.0f, 80.0f)) == WindowHostCursorKind::Default,
+            "disabled text does not request an I-beam");
+}
+
 void TestSplitterDisabledAndRequestPosition()
 {
     WindowHost host;
@@ -2042,6 +2067,7 @@ void RunEditorControlTests()
     DXUI_RUN_TEST(TestMovingAControlAnnouncesWhatItNowInheritsOnce);
     DXUI_RUN_TEST(TestPageHostInheritsItsControlParentFlowAndDensity);
     DXUI_RUN_TEST(TestPanelSkipsTheSlotOfAChildMovedOutThroughGetChildren);
+    DXUI_RUN_TEST(TestTextControlsRequestTextCursor);
     DXUI_RUN_TEST(TestEditorControlsAreCatalogued);
     DXUI_RUN_TEST(TestEditorControlPressesLeaveAControlTheFocusCallbackDestroyed);
 }

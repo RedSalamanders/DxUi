@@ -1555,6 +1555,7 @@ enum class WindowHostCursorKind : uint8_t
     HorizontalResize,
     Hand,
     VerticalResize,
+    IBeam,
 };
 
 enum class AccessibilityRole : uint8_t
@@ -3525,6 +3526,7 @@ public:
     bool OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F point) noexcept override;
     bool OnCopy(ControlHost& host) noexcept override;
     bool OnSelectAll(ControlHost& host) noexcept override;
+    [[nodiscard]] WindowHostCursorKind ResolveCursorKind(ControlHost& host, D2D1_POINT_2F pointDip) const noexcept override;
 
 protected:
     [[nodiscard]] HRESULT PrepareContent(ControlHost& host) noexcept override;
@@ -3674,6 +3676,7 @@ public:
     bool OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip) override;
     bool OnCopy(ControlHost& host) override;
     bool OnSelectAll(ControlHost& host) override;
+    [[nodiscard]] WindowHostCursorKind ResolveCursorKind(ControlHost& host, D2D1_POINT_2F pointDip) const noexcept override;
 
 protected:
     [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;

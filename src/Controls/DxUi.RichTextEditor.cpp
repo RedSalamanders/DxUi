@@ -6211,6 +6211,14 @@ bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool ri
         return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
     }
 }
+WindowHostCursorKind RichTextEditor::ResolveCursorKind(ControlHost&, D2D1_POINT_2F point) const noexcept
+{
+    const auto viewport = TextViewport();
+    return IsEnabled() && IsVisible() && point.x >= viewport.left && point.x < viewport.right && point.y >= viewport.top && point.y < viewport.bottom
+               ? WindowHostCursorKind::IBeam
+               : WindowHostCursorKind::Default;
+}
+
 bool RichTextEditor::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT) noexcept
 {
     const auto inputLifetime  = GetLifetimeToken();
