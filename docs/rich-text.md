@@ -146,6 +146,10 @@ Alt+Up/Down moves a physical line inside a paragraph, a whole sibling list item
 in Rich mode, or a raw physical line in Source mode. The selection follows the
 moved text and Undo restores the original source in one step. List marker numbers
 are retained; moving across a list boundary is unavailable.
+`RenumberList` explicitly renumbers an ordered sibling list from its first
+marker or the supplied `listStart`. Marker punctuation is preserved and owned
+continuations follow any digit-width change. Overflow and ambiguous indentation
+reject the whole command; untouched lists are never renumbered implicitly.
 The feature is disabled by default. `QueryMarkdownCommandState` returns current
 style/heading/list presentation without allocation. Applicability is unknown
 when neither an immediate proof nor an exact prepared result is available.

@@ -2353,7 +2353,7 @@ std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownComma
 {
     using namespace RichText;
     _state->lastListStateAncestorSteps = 0u;
-    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::MoveLineDown))
+    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::RenumberList))
         return std::nullopt;
     MarkdownCommandState result;
     if (! Editable() || ! _state->markdownRendering || _state->mode != ViewMode::Rich || _state->sourceEditing)

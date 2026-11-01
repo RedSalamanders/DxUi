@@ -1568,6 +1568,7 @@ struct MarkdownCommandPlanner
     void Task();
     void Table(const MarkdownCommandRequest& request);
     void MoveLine(bool up);
+    void Renumber(const MarkdownCommandRequest& request);
     void Delete(std::span<const MarkdownRange> ranges);
     std::optional<MarkdownRange> InlineBody(const MarkdownInline& node) const;
     bool InlineSelection(std::size_t& leaf) const
@@ -1827,6 +1828,54 @@ struct MarkdownCommandPlanner
     }
 };
 #pragma warning(pop)
+
+void MarkdownCommandPlanner::Renumber(const MarkdownCommandRequest& request)
+{
+    const auto item = NodeAt(Kind::ListItem, plan.before_.Start());
+    if (item == MarkdownNoNode)
+        return;
+    const auto list = nodes[item].parent;
+    if (list == MarkdownNoNode || nodes[list].block.kind != Kind::List || (nodes[list].listMarker != L'.' && nodes[list].listMarker != L')') ||
+        plan.before_.End() > nodes[list].block.source.last)
+        return;
+    const auto first = nodes[list].firstChild;
+    if (first == MarkdownNoNode)
+        return;
+    ItemPrefix initial;
+    if (! Prefix(first, initial))
+        return;
+    auto number = request.listStart.value_or(initial.number);
+    if (number > 999999999u)
+        throw std::out_of_range("Ordered list start exceeds Markdown capacity");
+    std::size_t count = 0u;
+    for (auto node = first; node != MarkdownNoNode; node = nodes[node].nextSibling)
+        ++count;
+    if (count && count - 1u > 999999999u - number)
+        throw std::length_error("Ordered list numbering exceeds Markdown capacity");
+    for (auto node = first; node != MarkdownNoNode; node = nodes[node].nextSibling, ++number)
+    {
+        ItemPrefix prefix;
+        if (! Prefix(node, prefix))
+            return;
+        wchar_t digits[9]{};
+        auto current = number;
+        std::size_t length = 0u;
+        do
+        {
+            digits[length++] = static_cast<wchar_t>(L'0' + current % 10u);
+            current /= 10u;
+        } while (current);
+        std::wstring marker(length, L'0');
+        for (std::size_t i = 0u; i < length; ++i)
+            marker[i] = digits[length - i - 1u];
+        const auto oldLength = prefix.markerEnd - prefix.first - 1u;
+        const auto delta = static_cast<int>(length) - static_cast<int>(oldLength);
+        if (! ShiftFollowing(node, Line(nodes[node].block.source.first), delta))
+            return;
+        Add(prefix.first, prefix.markerEnd - 1u, marker);
+    }
+    plan.applicable_ = true;
+}
 
 void MarkdownCommandPlanner::MoveLine(bool up)
 {
@@ -3911,6 +3960,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
         case ::DxUi::RichText::MarkdownCommand::InsertFootnote:
         case ::DxUi::RichText::MarkdownCommand::MoveLineUp:
         case ::DxUi::RichText::MarkdownCommand::MoveLineDown:
+        case ::DxUi::RichText::MarkdownCommand::RenumberList:
         default: return;
     }
     plan.applicable_ = true;
@@ -4152,7 +4202,7 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
 {
     if (request.text.size() > Document::MaximumUnits || request.destination.size() > Document::MaximumUnits || request.title.size() > Document::MaximumUnits)
         throw std::length_error("Structural request text exceeds source capacity");
-    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::MoveLineDown))
+    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::RenumberList))
         throw std::invalid_argument("Invalid Markdown command");
     Detail::MarkdownCommandPlanner builder(source, revision, std::move(syntax), selection);
     // Footnote labels and unresolved definitions are protected source.
@@ -4185,6 +4235,7 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
         case MarkdownCommand::InsertFootnote: builder.Footnote(request); break;
         case MarkdownCommand::MoveLineUp: builder.MoveLine(true); break;
         case MarkdownCommand::MoveLineDown: builder.MoveLine(false); break;
+        case MarkdownCommand::RenumberList: builder.Renumber(request); break;
         case MarkdownCommand::InsertTable:
         case MarkdownCommand::InsertTableRow:
         case MarkdownCommand::DeleteTableRow:

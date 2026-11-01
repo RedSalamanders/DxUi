@@ -1071,6 +1071,13 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     prepare();
     editor->SetSelection({2u, 2u});
     Check(! editor->OnKeyDown(host, VK_UP, kModifierAlt), "Alt+Up at the list boundary is unavailable");
+    MarkdownCommandRequest renumber;
+    renumber.command = MarkdownCommand::RenumberList;
+    renumber.listStart = 9u;
+    exact(L"4. first\n4. second\n   tail\n", {3u, 3u}, renumber, L"9. first\n10. second\n    tail\n");
+    Check(editor->PrepareMarkdownCommandState(renumber), "ordered list renumber state prepares through the planner");
+    const auto renumberState = editor->QueryMarkdownCommandState(renumber);
+    Check(renumberState && renumberState->available == std::optional<bool>{true}, "ordered list renumber has an exact prepared state");
     editor->SetViewMode(ViewMode::Source);
     editor->SetText(L"one\r\ntwo");
     editor->SetSelection({1u, 3u});

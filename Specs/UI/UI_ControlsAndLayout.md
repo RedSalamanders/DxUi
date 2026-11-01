@@ -1755,6 +1755,10 @@ adjacent sibling list item including nested contents, as one source transaction.
 Source mode moves physical lines directly. Selection follows its original text;
 mixed ownership, list boundaries, active source sessions and composition refuse
 the action. Original list markers are not renumbered automatically.
+`RenumberList` explicitly numbers the current ordered sibling list from its
+first marker or the requested `listStart`, preserving punctuation and adjusting
+owned continuation indentation when marker width changes. It rejects overflow
+or ambiguous indentation atomically and is one undoable transaction.
 
 Semantic visual deletion MUST remove empty owned Markdown/validated inline
 HTML wrappers only when their complete body is deleted, recursively. Block HTML

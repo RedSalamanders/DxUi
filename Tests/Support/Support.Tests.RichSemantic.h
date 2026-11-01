@@ -955,6 +955,18 @@ inline void MoveLinesAndItems()
     request.command = MarkdownCommand::MoveLineDown;
     Exact(L"alpha\nbeta", {1u, 4u}, request, L"beta\nalpha", Selection{6u, 9u});
     Unavailable(L"- only\n", {2u, 2u}, request);
+    request.command = MarkdownCommand::RenumberList;
+    Exact(L"9. a\n1. b\n   nested\n", {3u, 3u}, request, L"9. a\n10. b\n    nested\n");
+    request.listStart = 3u;
+    Exact(L"7) a\n7) b\n", {3u, 3u}, request, L"3) a\n4) b\n");
+    Unavailable(L"- a\n- b\n", {2u, 2u}, request);
+    Document overflow(L"999999999. a\n1. b\n");
+    const auto syntax = Parse(overflow);
+    request.listStart.reset();
+    Reject<std::length_error>([&] {
+        static_cast<void>(BuildMarkdownCommand(overflow.Snapshot(), overflow.Revision(), syntax, {11u, 11u}, request));
+    }, "renumbering rejects overflow before publishing edits");
+    Check(overflow.Text() == L"999999999. a\n1. b\n" && ! overflow.CanUndo(), "renumber overflow preserves source and history");
 }
 inline void GuardsAndDeletion()
 {
