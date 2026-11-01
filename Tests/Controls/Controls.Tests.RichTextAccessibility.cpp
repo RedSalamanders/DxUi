@@ -1376,6 +1376,8 @@ void ReadOnlyParsedSnapshotAdoption(bool embedded)
     mirror->SetAppearance(appearance);
     Require(mirror->SynchronizeReadOnlySourceSnapshot(source, selection), "target holds the exact source snapshot before parse reuse");
     fixture.Publish();
+    Require(mirror->SetScrollOffsetDip(120.0f), "scroll the prepared source view before syntax adoption");
+    fixture.Publish();
     const auto independent = mirror->GetMarkdownSyntax();
     const auto lines       = mirror->GetSourceVisualLineRanges(*fixture.controls);
     const auto before      = mirror->DebugGetState();
