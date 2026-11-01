@@ -6013,11 +6013,13 @@ void TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop()
             return;
         }
 
+        ContextMenuPopupStateWaitDiagnostics childStateWait{};
         if (! WaitForContextMenuPopupState(bSubmenuHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
             return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
-        }, popupState))
+        }, popupState, std::chrono::milliseconds(800), &childStateWait))
         {
-            driverFailure = "Right arrow on B1 focuses B11 before left-arrow validation";
+            driverFailure = std::format("Right arrow on B1 focuses B11 before left-arrow validation; {}",
+                                        DescribeContextMenuPopupStateWaitFailure(bSubmenuHwnd, ownerWindow.Hwnd(), childStateWait));
             return;
         }
 
