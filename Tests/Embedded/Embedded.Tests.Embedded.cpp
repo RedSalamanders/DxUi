@@ -1530,6 +1530,7 @@ __declspec(noinline) static int RunFunctionalTests()
         RichSemanticTests::Run([&]
         {
 #if DXUI_ENABLE_DIAGNOSTICS
+            RichSemanticEditorTests::SelectionCancellationPublication(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded selection cancellation"); });
             RichSemanticEditorTests::TitleTooltipContract(view.Controls(),
                                                           [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded title tooltip preparation"); },
                                                           [&](D2D1_POINT_2F point, UINT modifiers)

@@ -1,0 +1,1 @@
+- Publish the end of a rich editor selection gesture synchronously when the editor is hidden or disabled.

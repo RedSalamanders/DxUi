@@ -92,7 +92,7 @@ transient notifications never become committed text or history events;
 `SetText` remains silent for the text callback.
 `IsSelectionGestureActive` identifies pointer selection/press updates. Consumers
 may hide transient selection UI and return immediately while it is true.
-Matching pointer release or capture cancellation MUST publish a final inactive
+Hiding or disabling the editor during a selection gesture MUST synchronously publish its inactive state; later capture cleanup MUST NOT duplicate that notification. Matching pointer release or capture cancellation MUST publish a final inactive
 gesture notification even when the source endpoints did not change. No polling
 timer or consumer subclass of pointer/key handlers is required.
 

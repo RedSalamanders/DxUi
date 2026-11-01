@@ -33,6 +33,51 @@ public:
     }
 };
 #pragma warning(pop)
+template<typename Prepare>
+void SelectionCancellationPublication(ControlHost& host, Prepare prepare)
+{
+    for (const bool hide : {false, true})
+    {
+        auto owned = std::make_unique<RichTextEditor>(L"alpha beta");
+        auto* editor = owned.get();
+        editor->SetBounds(D2D1::RectF(0.f, 0.f, 400.f, 100.f));
+        host.SetRoot(std::move(owned));
+        prepare();
+        host.SetFocusControl(editor, false);
+        prepare();
+        unsigned active = 0u, inactive = 0u;
+        editor->SetOnSelectionChanged([&] { editor->IsSelectionGestureActive() ? ++active : ++inactive; });
+        const auto caret = editor->TryGetTextInputCaretRect(host, 0u);
+        Check(caret.has_value(), "selection cancellation fixture has caret geometry");
+        if (! caret)
+            return;
+        const auto point = D2D1::Point2F(caret->left + .1f, (caret->top + caret->bottom) * .5f);
+        Check(editor->OnMouseDown(host, point, false, 0u) && active == 1u, "selection gesture reports its active state");
+        if (hide)
+            editor->SetVisible(false);
+        else
+            editor->SetEnabled(false);
+        Check(inactive == 1u && ! editor->IsSelectionGestureActive(), "hide or disable synchronously reports selection completion");
+        host.ReleaseMouseCapture();
+        Check(inactive == 1u, "later capture cleanup does not duplicate selection completion");
+    }
+    auto owned = std::make_unique<RichTextEditor>(L"alpha");
+    auto* editor = owned.get();
+    editor->SetBounds(D2D1::RectF(0.f, 0.f, 400.f, 100.f));
+    host.SetRoot(std::move(owned));
+    prepare();
+    host.SetFocusControl(editor, false);
+    prepare();
+    const auto caret = editor->TryGetTextInputCaretRect(host, 0u);
+    Check(caret.has_value(), "retiring observer fixture has caret geometry");
+    if (! caret)
+        return;
+    const auto point = D2D1::Point2F(caret->left + .1f, (caret->top + caret->bottom) * .5f);
+    Check(editor->OnMouseDown(host, point, false, 0u), "begin selection before retiring observer");
+    editor->SetOnSelectionChanged([&] { host.SetRoot(std::make_unique<Label>(L"replacement")); });
+    editor->SetVisible(false);
+    Check(dynamic_cast<Label*>(host.GetRoot()) != nullptr, "completion observer can replace the editor synchronously");
+}
 inline HRESULT PrepareUntilSettled(DirectPrepareRichTextEditor& editor, ControlHost& host)
 {
     for (std::size_t turn = 0u; turn < 1024u; ++turn)

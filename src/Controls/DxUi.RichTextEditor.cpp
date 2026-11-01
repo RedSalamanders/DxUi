@@ -7232,6 +7232,7 @@ void RichTextEditor::OnEnabledChanged(bool) noexcept
 {
     auto* tooltipHost              = GetHost();
     const bool wasMiddleAutoScroll = _state->middleAutoScroll;
+    const bool wasSelecting        = _state->dragging;
     const auto tooltipLifetime     = GetLifetimeToken();
     if (tooltipHost)
         tooltipHost->InvalidateRichTitleTooltip(this);
@@ -7247,11 +7248,14 @@ void RichTextEditor::OnEnabledChanged(bool) noexcept
     _state->blinkEpoch.reset();
     if (wasMiddleAutoScroll && tooltipHost && ControlCaptureAccess::GestureOwner(*tooltipHost) == this)
         tooltipHost->ReleaseMouseCapture();
+    if (! tooltipLifetime.expired() && GetHost() == tooltipHost && wasSelecting)
+        PublishSelectionChanged(); // Last: the observer can retire or rebind this editor.
 }
 void RichTextEditor::OnHidden() noexcept
 {
     auto* tooltipHost              = GetHost();
     const bool wasMiddleAutoScroll = _state->middleAutoScroll;
+    const bool wasSelecting        = _state->dragging;
     const auto tooltipLifetime     = GetLifetimeToken();
     if (tooltipHost)
         tooltipHost->InvalidateRichTitleTooltip(this);
@@ -7268,6 +7272,8 @@ void RichTextEditor::OnHidden() noexcept
     _state->blinkEpoch.reset();
     if (wasMiddleAutoScroll && tooltipHost && ControlCaptureAccess::GestureOwner(*tooltipHost) == this)
         tooltipHost->ReleaseMouseCapture();
+    if (! tooltipLifetime.expired() && GetHost() == tooltipHost && wasSelecting)
+        PublishSelectionChanged(); // Last: the observer can retire or rebind this editor.
 }
 void RichTextEditor::OnFocusChanged(ControlHost& host, bool focused)
 {
