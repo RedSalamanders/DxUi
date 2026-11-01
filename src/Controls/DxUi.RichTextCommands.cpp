@@ -1635,11 +1635,12 @@ void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
         if (node.parent == MarkdownNoNode || last > node.block.source.last)
             return;
         const auto& opening = Line(node.block.source.first);
-        if (! node.block.closed || node.block.source.last <= opening.end)
+        if (node.block.source.last < opening.end)
             return;
-        const auto& closing = Line(node.block.source.last - 1u);
-        if (closing.first < opening.end)
+        const auto& closing = Line(node.block.source.last ? node.block.source.last - 1u : 0u);
+        if (node.block.closed && closing.first < opening.end)
             return;
+        const auto bodyEnd         = node.block.closed ? closing.first : node.block.source.last;
         bool openingOwnsListMarker = false;
         for (auto parent = node.parent; parent != MarkdownNoNode; parent = nodes[parent].parent)
         {
@@ -1659,15 +1660,15 @@ void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
                 ++marker;
             if (marker == opening.bodyEnd || text[marker] != node.block.fenceMarker)
                 return;
-            if (opening.end == closing.first)
+            if (opening.end == bodyEnd)
             {
                 std::wstring emptyItem(Slice(opening.first, markerEnd));
-                emptyItem += Slice(closing.bodyEnd, closing.end);
-                Add(opening.first, closing.end, emptyItem);
+                emptyItem += node.block.closed ? Slice(closing.bodyEnd, closing.end) : Slice(opening.bodyEnd, opening.end);
+                Add(opening.first, node.block.closed ? closing.end : opening.end, emptyItem);
                 plan.applicable_ = true;
                 return;
             }
-            if (opening.end > closing.first)
+            if (opening.end > bodyEnd)
                 return;
             std::size_t bodyStart{};
             const auto& firstBody = Line(opening.end);
@@ -1675,9 +1676,19 @@ void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
                 return;
             Add(opening.first, bodyStart, Slice(opening.first, markerEnd));
         }
+        else if (! node.block.closed && opening.end == bodyEnd && Ancestor(fenced, Kind::BlockQuote) != MarkdownNoNode)
+        {
+            std::size_t prefixEnd{};
+            if (! OuterOffset(fenced, opening, prefixEnd))
+                return;
+            std::wstring emptyQuote(Slice(opening.first, prefixEnd));
+            emptyQuote += Slice(opening.bodyEnd, opening.end);
+            Add(opening.first, opening.end, emptyQuote);
+        }
         else
             Add(opening.first, opening.end, L"");
-        Add(closing.first, closing.end, L"");
+        if (node.block.closed)
+            Add(closing.first, closing.end, L"");
         plan.applicable_ = true;
         return;
     }

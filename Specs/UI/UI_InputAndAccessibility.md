@@ -1270,11 +1270,11 @@ An intersected fenced code block is quoted or unquoted as a whole, preserving
 its fence and body lines.
 SetCodeBlock wraps supported top-level paragraph lines or a container-owned
 paragraph with representable physical prefixes in a tilde fence longer than any
-contained run, or unwraps a closed top-level or representable container fence.
+contained run, or unwraps a top-level or representable container fence, whether
+closed or unclosed.
 When a list marker belongs to the opening fence line, it is transferred to the
 first body line, or retained as an empty list item when the fence has no body. SetCodeLanguage
 replaces a current fence info string, including one in a list or quote.
-Unclosed-fence unwrapping is unavailable pending its source-prefix policy.
 Ctrl+Enter in a top-level or representable quote/list-contained fenced block exits to an empty following source line;
 an unclosed block receives its matching closing fence first, in one undo step.
 InsertMath in the RichMarkdown profile wraps a selected source expression, or

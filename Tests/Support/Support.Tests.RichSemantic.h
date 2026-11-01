@@ -315,6 +315,10 @@ inline void ListsAndHeadings()
         Exact(L"> ~~~\n> hello\n> ~~~\n", {9u, 9u}, request, L"> hello\n", std::nullopt, profile);
         Exact(L"- ~~~\n  hello\n  ~~~\n", {9u, 9u}, request, L"- hello\n", std::nullopt, profile);
         Exact(L"- ~~~\n  ~~~\n", {4u, 4u}, request, L"- \n", std::nullopt, profile);
+        Exact(L"~~~\nhello", {4u, 4u}, request, L"hello", std::nullopt, profile);
+        Exact(L"> ~~~\n> hello", {8u, 8u}, request, L"> hello", std::nullopt, profile);
+        Exact(L"- ~~~\n  hello", {9u, 9u}, request, L"- hello", std::nullopt, profile);
+        Exact(L"- ~~~", {4u, 4u}, request, L"- ", std::nullopt, profile);
         request.command = MarkdownCommand::SetCodeLanguage;
         request.text    = L"rust";
         Document languageState(L"~~~cpp\nhello\n~~~\n");
