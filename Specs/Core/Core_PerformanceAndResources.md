@@ -966,7 +966,13 @@ private invisible origin lines. Reuse additionally requires an identical documen
 origin; height-changing edits may rebuild the entire suffix and must report every
 prepared source unit. Inexact origins and empty displayed suffixes fall back
 explicitly; count whole-layout work separately from chunk reuse. Owner preparation may construct that cache; cached
-embedded composition must allocate and prepare nothing. No per-control worker or
+embedded composition must allocate and prepare nothing. `PreparedDocumentLayout::Draw`
+uses only published reference/chunk layouts and never creates a compatibility layout,
+joins a projection or changes preparation statistics. Reference-cache comparison walks
+prepared blocks and coalesced style runs without materializing a whole projection; only
+a required replacement layout joins it. Semantic geometry obtains a missing diagram
+factory from its supplied raster target, keeping extension inspection inside that service.
+No per-control worker or
 periodic timer follows from reference DLL recalculation code.
 
 The 1,024-line/512-edit source/history/geometry fixture is bounded by 8 MiB retained

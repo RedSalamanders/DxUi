@@ -262,6 +262,15 @@ inline void MathWidthReflowAndTargetReplacement()
     Complete(geometry);
     Check(DxUi::RichText::Detail::testRichMathPreparations == preparations + 6u && DxUi::RichText::Detail::testRichMathConstantReads == reads + 3u,
           "font change rebuilds math rather than reusing stale geometry");
+    const auto diagram = RichSemanticDocumentTests::Build(L"```mermaid\nflowchart LR\nA[Start] --> B[Finish]\n```\n", MarkdownProfile::RichMarkdown);
+    geometry.Clear();
+    geometry.Begin(factory.get(), diagram, options, nullptr, {}, {}, target.get());
+    Complete(geometry);
+    const auto generation = geometry.Generation();
+    Check(geometry.Ready() && geometry.BoxCount() != 0u, "native objects derive their factory from the supplied raster target");
+    Check(geometry.Begin(factory.get(), diagram, options, drawing.get(), {}, {}, target.get()) == LayoutPreparationStatus::Complete &&
+              geometry.Generation() == generation,
+          "derived and explicit factory identities reuse the same prepared native objects");
 }
 #endif
 inline void LinkRasterOracle()

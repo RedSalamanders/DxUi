@@ -24,12 +24,41 @@ float AddCoordinate(float left, float right) noexcept
     return result;
 }
 #pragma warning(pop)
-bool SameStyles(const Projection& left, const Projection& right) noexcept
+bool SameStyles(const std::vector<ProjectionBlock>& blocks, const Projection& right) noexcept
 {
-    return left.text == right.text && left.runs.size() == right.runs.size() &&
-           std::equal(left.runs.begin(), left.runs.end(), right.runs.begin(), [](const StyleRun& a, const StyleRun& b) {
-        return a.start == b.start && a.length == b.length && a.flags == b.flags && a.heading == b.heading;
-    });
+    // Compare the exact joined display/runs without materializing source, maps
+    // or a whole Projection merely to reject a compatibility-cache candidate.
+    std::size_t displayStart = 0u, runIndex = 0u;
+    std::optional<StyleRun> joined;
+    const auto flush = [&]() noexcept
+    {
+        if (! joined)
+            return true;
+        if (runIndex == right.runs.size())
+            return false;
+        const auto& expected = right.runs[runIndex++];
+        return joined->start == expected.start && joined->length == expected.length && joined->flags == expected.flags && joined->heading == expected.heading;
+    };
+    for (const auto& item : blocks)
+    {
+        const auto& block = *item.content;
+        if (block.text.size() > right.text.size() - displayStart || std::wstring_view(right.text).substr(displayStart, block.text.size()) != block.text)
+            return false;
+        for (const auto& run : block.runs)
+        {
+            const StyleRun next{displayStart + run.start, run.length, run.flags, run.heading};
+            if (joined && joined->start + joined->length == next.start && joined->flags == next.flags && joined->heading == next.heading)
+                joined->length += next.length;
+            else
+            {
+                if (! flush())
+                    return false;
+                joined = next;
+            }
+        }
+        displayStart += block.text.size();
+    }
+    return displayStart == right.text.size() && flush() && runIndex == right.runs.size();
 }
 bool SameOptions(const LayoutOptions& left, const LayoutOptions& right) noexcept
 {
@@ -97,10 +126,10 @@ struct PreparedDocumentLayout::State
     LayoutOptions options;
     wil::com_ptr<IDWriteFactory> factory;
     std::vector<ChunkPlacement> chunks;
-    mutable std::shared_ptr<const PreparedLayout> reference;
+    std::shared_ptr<const PreparedLayout> reference;
     bool referenceForGeometry{};
     float height{}, width{};
-    mutable LayoutPreparation last;
+    LayoutPreparation last;
 };
 #pragma warning(pop)
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
@@ -440,18 +469,21 @@ LayoutAdvance PreparedDocumentLayout::AdvancePreparation(const LayoutWorkBudget&
                     if (result.layoutsPrepared == budget.maximumLayouts || result.blockSteps == budget.maximumBlockSteps)
                         return leave(LayoutPreparationStatus::Pending);
                     ++result.blockSteps;
-                    // One explicit compatibility work unit; joining a whole
-                    // projection/SDK layout is not a hard CPU-time guarantee.
-                    Projection joined{
-                        std::wstring(0u, L'\0'), std::wstring(0u, L'\0'), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)};
-                    JoinBlocks(joined, blocks, 0u, blocks.size(), next.projection.Mode());
-                    if (request.compatible && state_->reference && SameStyles(joined, state_->reference->Content()))
+                    // One explicit compatibility work unit, not a hard CPU-time
+                    // guarantee. Joining is needed only for a new whole layout.
+                    if (request.compatible && state_->reference && SameStyles(blocks, state_->reference->Content()))
                     {
                         next.reference = state_->reference;
                         ++next.last.wholeLayoutsReused;
                     }
                     else if (! request.exactPlacement)
                     {
+                        Projection joined{std::wstring(0u, L'\0'),
+                                          std::wstring(0u, L'\0'),
+                                          std::vector<std::size_t>(0u),
+                                          std::vector<SourceUnit>(0u),
+                                          std::vector<StyleRun>(0u)};
+                        JoinBlocks(joined, blocks, 0u, blocks.size(), next.projection.Mode());
                         auto reference = std::make_shared<PreparedLayout>();
                         reference->PrepareOwned(next.factory.get(), joined, next.options);
                         next.reference = std::move(reference);
@@ -667,21 +699,11 @@ void PreparedDocumentLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, 
     // Public DirectWrite overhang metrics include glyph ink, but not hinting or
     // strikethrough. Union with logical metrics, allow two target pixels plus
     // float cancellation, and draw all bounded chunks for non-axis transforms.
-    const auto padding         = canCull ? 2.0f / scale + 0.125f : 0.0f;
-    const bool referenceRaster = state.referenceForGeometry || static_cast<bool>(state.reference);
-    if (referenceRaster)
+    const auto padding = canCull ? 2.0f / scale + 0.125f : 0.0f;
+    // Reference geometry is prepared before publication. Rasterization never
+    // constructs layouts, joins projections or changes preparation statistics.
+    if (state.reference)
     {
-        if (! state.reference)
-        {
-            Projection joined{
-                std::wstring(0u, L'\0'), std::wstring(0u, L'\0'), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)};
-            JoinBlocks(joined, state.projection.Blocks(), 0u, state.projection.Blocks().size(), state.projection.Mode());
-            auto reference = std::make_shared<PreparedLayout>();
-            reference->PrepareOwned(state.factory.get(), joined, state.options);
-            state.reference = std::move(reference);
-            ++state.last.wholeLayoutsPrepared;
-            state.last.wholeLayoutSourceUnits = state.projection.SourceLength();
-        }
         state.reference->Draw(target, brush, origin, links);
         return;
     }

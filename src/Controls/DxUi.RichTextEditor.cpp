@@ -2993,14 +2993,6 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             options.tabStopDip       = appearance.tabStopDip;
             options.tableOverflow    = appearance.tableOverflow;
             options.readingDirection = IsRightToLeft() ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
-            wil::com_ptr<ID2D1Factory> drawing;
-            if (semanticDocument && ! RichText::Detail::SemanticExtensionAccess::Diagrams(*semanticDocument).empty())
-            {
-                auto* context = host.GetDeviceContext();
-                if (! context)
-                    THROW_HR(E_UNEXPECTED);
-                context->GetFactory(drawing.put());
-            }
             state.sourceGuideOptions = options;
             state.layout.BeginPreparation(factory,
                                           state.document.Snapshot(),
@@ -3008,7 +3000,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                                           effectiveMode,
                                           options,
                                           semanticDocument,
-                                          drawing.get(),
+                                          nullptr,
                                           {typography, resources},
                                           state.images.Snapshot(),
                                           host.GetDeviceContext());

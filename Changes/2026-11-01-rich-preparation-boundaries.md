@@ -1,0 +1,1 @@
+- Keep whole-reference layouts immutable during drawing, compare prepared text/style blocks without a redundant whole projection, and derive native diagram factories inside semantic geometry from the supplied raster target. Add independent-source reuse/style-change and derived-factory identity checks; final native and performance qualification remains required.

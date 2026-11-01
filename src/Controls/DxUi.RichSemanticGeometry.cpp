@@ -1630,6 +1630,14 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
     const auto nativeCount = diagrams.size() + SemanticExtensionAccess::Maths(*document).size();
     if (nativeCount > RichImageResources::MaximumPlacements || (images && images->placements.size() > RichImageResources::MaximumPlacements - nativeCount))
         throw NativeObjectCapacity("Combined native image/diagram capacity exceeded");
+    // Hosting supplies its raster target, not knowledge of extension storage.
+    // CPU-only callers may still supply a factory without a raster target.
+    wil::com_ptr<ID2D1Factory> targetFactory;
+    if (! diagrams.empty() && ! drawing && raster)
+    {
+        raster->GetFactory(targetFactory.put());
+        drawing = targetFactory.get();
+    }
     if (! diagrams.empty() && ! drawing)
         throw std::invalid_argument("Native semantic objects require a drawing factory");
     const auto same = [&](const State& state)
