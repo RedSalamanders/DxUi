@@ -31,9 +31,9 @@ bool Trail(wchar_t c) noexcept
 struct NativeFlowchartParser::Preparation
 {
     std::shared_ptr<FlowchartModel> model;
-    std::size_t scan{}, first{}, depth{}, statements{};
+    std::size_t scan{}, first{}, depth{}, statements{}, classBlockNode{}, classBlockStart{};
     std::array<bool, MaximumNodes> stateDescriptions{};
-    bool quote{}, escaped{}, pipe{}, comment{}, header{}, done{};
+    bool quote{}, escaped{}, pipe{}, comment{}, header{}, done{}, classBlock{};
     explicit Preparation(std::wstring_view source, std::uint64_t revision) : model(std::make_shared<FlowchartModel>(source, revision))
     {
         if (source.size() > MaximumSourceUnits)
@@ -319,6 +319,26 @@ struct NativeFlowchartParser::Preparation
             header = true;
             return true;
         }
+        if (classBlock)
+        {
+            if (Text().substr(at, end - at) == L"}")
+            {
+                classBlock = false;
+                return true;
+            }
+            const auto memberStart = at;
+            if (! Letter(Text()[at]) && Text()[at] != L'+' && Text()[at] != L'-')
+                return Error(FlowchartIssue::UnsupportedStatement, at, end, FlowchartOutcome::Unsupported);
+            const auto member = Text().substr(at, end - at);
+            if (member.find_first_of(L"{}\";") != std::wstring_view::npos || member.starts_with(L"class ") || member.starts_with(L"direction ") ||
+                member.starts_with(L"click ") || member.starts_with(L"style "))
+                return Error(FlowchartIssue::UnsupportedStatement, at, end, FlowchartOutcome::Unsupported);
+            auto& label = model->nodes[classBlockNode].label;
+            if (label.size() == MaximumLabelUnits)
+                return Error(FlowchartIssue::LabelCapacity, memberStart, end, FlowchartOutcome::Capacity);
+            label.push_back(L'\n');
+            return PlainText(at, end, label, true);
+        }
         if (model->family != NativeDiagramFamily::Flowchart && Text().substr(at, 9u) == L"direction" && (at + 9u == end || Space(Text()[at + 9u])))
         {
             auto token = at + 9u;
@@ -387,6 +407,20 @@ struct NativeFlowchartParser::Preparation
         {
             at += 5u;
             Skip(at, end);
+            if (end > at && Text()[end - 1u] == L'{')
+            {
+                const auto blockStart = end - 1u;
+                std::size_t node{};
+                if (! Node(at, blockStart, node))
+                    return false;
+                Skip(at, blockStart);
+                if (at != blockStart)
+                    return Error(FlowchartIssue::UnsupportedStatement, at, blockStart, FlowchartOutcome::Unsupported);
+                classBlockNode  = node;
+                classBlockStart = blockStart;
+                classBlock      = true;
+                return true;
+            }
         }
         // Explicit size construction may propagate Debug iterator-proxy
         // allocation failure to Advance's failure-atomic boundary.
@@ -529,6 +563,11 @@ struct NativeFlowchartParser::Preparation
         {
             if (! comment && ! Statement(scan))
                 return;
+            if (classBlock)
+            {
+                Error(FlowchartIssue::UnexpectedToken, classBlockStart, scan);
+                return;
+            }
             if (! header)
             {
                 Error(FlowchartIssue::MissingHeader, 0u, scan);

@@ -1084,7 +1084,8 @@ static void TestNativeFlowchartAllocationFailureAtomicity(bool trace = false)
                                     L"graph TD;A[\"" + std::wstring(NativeFlowchartParser::MaximumLabelUnits + 1u, L'x') + L"\"]",
                                     L"flowchart LR;A & B-->|group|C & D-->E",
                                     L"stateDiagram-v2;state \"Ready\" as S;S : Running;S-->T : go",
-                                    L"classDiagram;Base <|-- Derived;Derived : member"};
+                                    L"classDiagram;Base <|-- Derived;Derived : member",
+                                    L"classDiagram\nclass Animal {\n+name: String\n+run()\n}\nAnimal -- Pond\n"};
     std::size_t total{};
     for (const auto& source : sources)
     {

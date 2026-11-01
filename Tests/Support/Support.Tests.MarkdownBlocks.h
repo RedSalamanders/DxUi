@@ -502,6 +502,14 @@ inline constexpr FamilyGrammarExpectation familyGrammarExpectations[] = {
     {L"classDiagram\nS : Ready\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"C|T|S=S\nReady:R;|"},
     {L"stateDiagram-v2\nA --> B : go\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"S|T|A=A:O;B=B:O;|0>1:A:go;"},
     {L"stateDiagram-v2\ndirection   LR\nA --> B\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"S|L|A=A:O;B=B:O;|0>1:A:;"},
+    {L"classDiagram\nclass Animal {\n+name: String\n+run()\n}\nAnimal -- Pond\n",
+     FlowchartOutcome::Prepared,
+     FlowchartIssue::None,
+     L"C|T|Animal=Animal\n+name: String\n+run():R;Pond=Pond:R;|0>1:L:;"},
+    {L"classDiagram\nclass Empty {\n}\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"C|T|Empty=Empty:R;|"},
+    {L"classDiagram\nclass A {\n+field: int\n", FlowchartOutcome::Malformed, FlowchartIssue::UnexpectedToken, {}},
+    {L"classDiagram\nclass A {\n+field: T~int~\n}\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedLabelMarkup, {}},
+    {L"classDiagram\nclass A {\nclass B {\n}\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement, {}},
     {L"classDiagram\nAnimal <|-- Duck\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"C|T|Animal=Animal:R;Duck=Duck:R;|1>0:I:;"},
     {L"classDiagram\nBase --|> Derived\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"C|T|Base=Base:R;Derived=Derived:R;|0>1:I:;"},
     {L"flowchart LR\nid1([This is the text in the box])\n", FlowchartOutcome::Prepared, FlowchartIssue::None, L"F|L|id1=This is the text in the box:S;|"},
@@ -562,6 +570,14 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
     check(capacity->outcome == FlowchartOutcome::Capacity && capacity->diagnostic.issue == FlowchartIssue::LabelCapacity && capacity->nodes.empty() &&
               capacity->edges.empty() && capacity->diagnostic.source.last <= capacity->source.size(),
           "oversized state alias is reported as label capacity and publishes no partial graph");
+    std::wstring oversizedMember = L"classDiagram\nclass A {\n+";
+    oversizedMember.append(NativeFlowchartParser::MaximumLabelUnits, L'x');
+    oversizedMember.append(L"\n}\n");
+    parser.Begin(oversizedMember, 22u);
+    const auto memberCapacity = Complete(parser);
+    check(memberCapacity->source == oversizedMember && memberCapacity->outcome == FlowchartOutcome::Capacity &&
+              memberCapacity->diagnostic.issue == FlowchartIssue::LabelCapacity && memberCapacity->nodes.empty() && memberCapacity->edges.empty(),
+          "oversized class-block members preserve exact source and discard the partial graph");
     std::wstring boundedDescription = L"stateDiagram-v2\nS : ";
     boundedDescription.append(NativeFlowchartParser::MaximumLabelUnits, L'x');
     parser.Begin(boundedDescription, 3u);
