@@ -241,14 +241,14 @@ base-Button layout. This visual-only work MUST NOT set content-geometry-changed 
 geometry, or make input wait for layout readiness. Include the bounded retained COM resource and its preparation
 CPU in measurements; do not infer a process-memory benefit from avoiding per-paint shaping.
 
-On a warm owner pass, a matching configured key retains the layout and its owned format even if the host's bounded
-format cache has evicted its corresponding entry. The key includes host, text revision, typography and resource
-generations, flow and extent. A matching key skips format and factory lookup and text-layout creation. This is a
-narrow owner-pass work reduction, not evidence of lower process memory or a measured performance gain.
+On a warm owner pass, resolve the current effective text-format pointer and check it against the retained key before
+returning. This preserves exact-format identity through bounded host-cache eviction; a changed pointer prepares one
+replacement. A matching key skips the DirectWrite factory lookup and text-layout creation. This is a narrow owner-pass
+work reduction, not evidence of lower process memory or a measured performance gain.
 
 Evicting the bounded configured text-format cache marks visual preparation for the next owner update. Embedded
-hosts trim before that update's visual-preparation traversal. A retained layout with unchanged configured inputs
-remains valid through eviction. Cache trimming is not performed on clean composition frames.
+hosts trim before that update's visual-preparation traversal, allowing retained layouts to rebind to the new exact
+format identity before painting. Cache trimming is not performed on clean composition frames.
 
 Before changing implementation, measure the existing code with the same workload that will measure the candidate.
 Retain the original baseline and measure again after the change. Record exact source/content and executable/fixture
