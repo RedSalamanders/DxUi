@@ -13012,17 +13012,21 @@ template <typename Connected>
     constexpr size_t maximumItemEvents = 20u;
     size_t changed{};
     for (size_t index = 0u; index < record.treeItems.size(); ++index)
-        if (before.treeItems[index].badgeText != record.treeItems[index].badgeText && ++changed > maximumItemEvents)
+    {
+        changed += before.treeItems[index].badgeText != record.treeItems[index].badgeText ? 1u : 0u;
+        changed += before.treeItems[index].text != record.treeItems[index].text ? 1u : 0u;
+        if (changed > maximumItemEvents)
         {
             structureChanged = true;
             return true;
         }
+    }
 
     for (size_t index = 0u; index < record.treeItems.size(); ++index)
     {
-        const AccessibilityTreeItemSnapshotRecord& previousItem = before.treeItems[index];
-        const AccessibilityTreeItemSnapshotRecord& currentItem  = record.treeItems[index];
-        if (previousItem.badgeText == currentItem.badgeText)
+        const auto& previousItem = before.treeItems[index];
+        const auto& currentItem  = record.treeItems[index];
+        if (previousItem.badgeText == currentItem.badgeText && previousItem.text == currentItem.text)
             continue;
         if (! connected())
             return false;
@@ -13044,22 +13048,29 @@ template <typename Connected>
         }
         wil::com_ptr_nothrow<IRawElementProviderSimple> provider;
         provider.attach(static_cast<IRawElementProviderSimple*>(raw));
-        wil::unique_bstr previousText(SysAllocStringLen(previousItem.badgeText.data(), static_cast<UINT>(previousItem.badgeText.size())));
-        wil::unique_bstr currentText(SysAllocStringLen(currentItem.badgeText.data(), static_cast<UINT>(currentItem.badgeText.size())));
-        if ((! previousText && ! previousItem.badgeText.empty()) || (! currentText && ! currentItem.badgeText.empty()))
-            continue;
-        VARIANT oldValue{}, newValue{};
-        oldValue.vt = newValue.vt = VT_BSTR;
-        oldValue.bstrVal          = previousText.get();
-        newValue.bstrVal          = currentText.get();
-        if (connected() && ! record.controlLifetime.expired())
+        const auto raise = [&](PROPERTYID id, const std::wstring& previous, const std::wstring& current)
         {
-            if (target.embedded)
-                QueueEmbeddedPropertyChange(target, record, provider.get(), UIA_ItemStatusPropertyId, oldValue, newValue, currentItem.itemId);
-            else
-                static_cast<void>(UiaRaiseAutomationPropertyChangedEvent(provider.get(), UIA_ItemStatusPropertyId, oldValue, newValue));
-            NotifyPropertyEventRaisedForTest(UIA_ItemStatusPropertyId);
-        }
+            if (previous == current || ! connected() || record.controlLifetime.expired())
+                return;
+            wil::unique_bstr previousText(SysAllocStringLen(previous.data(), static_cast<UINT>(previous.size())));
+            wil::unique_bstr currentText(SysAllocStringLen(current.data(), static_cast<UINT>(current.size())));
+            if ((! previousText && ! previous.empty()) || (! currentText && ! current.empty()))
+                return;
+            VARIANT oldValue{}, newValue{};
+            oldValue.vt = newValue.vt = VT_BSTR;
+            oldValue.bstrVal = previousText.get();
+            newValue.bstrVal = currentText.get();
+            if (connected() && ! record.controlLifetime.expired())
+            {
+                if (target.embedded)
+                    QueueEmbeddedPropertyChange(target, record, provider.get(), id, oldValue, newValue, currentItem.itemId);
+                else
+                    static_cast<void>(UiaRaiseAutomationPropertyChangedEvent(provider.get(), id, oldValue, newValue));
+                NotifyPropertyEventRaisedForTest(id);
+            }
+        };
+        raise(UIA_NamePropertyId, previousItem.text, currentItem.text);
+        raise(UIA_ItemStatusPropertyId, previousItem.badgeText, currentItem.badgeText);
     }
     return connected();
 }

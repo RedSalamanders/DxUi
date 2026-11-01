@@ -454,7 +454,7 @@ __declspec(noinline) static void TestEmbeddedTreeBadgeStatusNotificationsArePerI
     Hr(bridge.Attach(false, 0x5452454542414447ull), "attach the embedded badge-status Tree");
 
     UiaTest::Subscription subscription;
-    subscription.properties = {UIA_ItemStatusPropertyId};
+    subscription.properties = {UIA_ItemStatusPropertyId, UIA_NamePropertyId};
     subscription.structure  = true;
     EmbeddedClientWalk walk(bridge, std::move(subscription));
     const auto viewRoot = walk.client.Navigate(walk.application, UiaTest::Direction::FirstChild);
@@ -468,6 +468,22 @@ __declspec(noinline) static void TestEmbeddedTreeBadgeStatusNotificationsArePerI
                     walk.client.StringProperty(initialItems[1], UIA_ItemStatusPropertyId) == L"B0" &&
                     walk.client.StringProperty(initialItems[2], UIA_ItemStatusPropertyId) == L"C0",
                 "the embedded TreeItem providers expose their initial badge status");
+    static_cast<void>(walk.client.WaitOutTheStream());
+    const auto renameMark = walk.client.Mark();
+    auto renamed = rows(L"A0", L"B0", L"C0");
+    renamed[0u].text = L"Renamed Alpha";
+    model.SetItems(renamed);
+    PublishEmbeddedView(test, bridge, "publish an in-place legacy TreeItem rename");
+    walk.Expect(walk.client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs, [&]
+    {
+        const auto events = walk.client.DistinctSince(renameMark);
+        return std::ranges::any_of(events, [](const UiaTest::HeardEvent& event)
+        { return event.kind == UiaTest::EventKind::Property && event.id == UIA_NamePropertyId &&
+                 event.controlType == UIA_TreeItemControlTypeId && event.value == L"Renamed Alpha"; });
+    }), "embedded client hears the existing item's changed Name");
+    walk.Expect(walk.Name(initialItems[0u]) == L"Renamed Alpha", "the renamed embedded TreeItem retains its identity and new name");
+    model.SetItems(rows(L"A0", L"B0", L"C0"));
+    PublishEmbeddedView(test, bridge, "restore the legacy TreeItem name for status cases");
     static_cast<void>(walk.client.WaitOutTheStream());
     const auto matchesStatus = [](const UiaTest::HeardEvent& event, std::wstring_view name, std::wstring_view value)
     {
@@ -589,6 +605,21 @@ __declspec(noinline) static void TestEmbeddedTreeBadgeStatusNotificationsArePerI
     burst.clear();
     for (uint64_t id = 100u; id < 130u; ++id)
         burst.push_back(TreeItemData{.id = id, .text = L"Row " + std::to_wstring(id), .badgeText = L"after"});
+    static_cast<void>(walk.client.WaitOutTheStream());
+    const auto nameBurstMark = walk.client.Mark();
+    for (auto& item : burst)
+        item.text += L" renamed";
+    model.SetItems(burst);
+    PublishEmbeddedView(test, bridge, "publish more than the individual Tree name limit");
+    walk.Expect(walk.client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs, [&]
+    {
+        const auto heard = walk.client.DistinctSince(nameBurstMark);
+        return std::ranges::any_of(heard, [](const UiaTest::HeardEvent& event) { return event.kind == UiaTest::EventKind::Structure; });
+    }), "a large TreeItem rename burst invalidates children instead of emitting unbounded property events");
+    const auto nameBurst = walk.client.DistinctSince(nameBurstMark);
+    walk.Expect(std::ranges::none_of(nameBurst, [](const UiaTest::HeardEvent& event)
+    { return event.kind == UiaTest::EventKind::Property && event.id == UIA_NamePropertyId && event.controlType == UIA_TreeItemControlTypeId; }),
+                "a large rename burst emits no individual TreeItem Name events");
     ResetEvent(entered.get());
     ResetEvent(release.get());
     DxUi::DebugSetAccessibilityPropertyDeliveryGateForTest(&test.view.Controls(), entered.get(), release.get());

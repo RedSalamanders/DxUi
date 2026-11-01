@@ -1098,7 +1098,7 @@ that event with a diagnostic; it must not manufacture an empty relationship valu
 apartments. There is one active batch and one pending batch,
 with at most one pending entry per current control identity/property ID. Tree-item properties additionally key by
 item ID and admit at most 20 pending items per control and property; overflow queues a children-invalidated event.
-A single publication changing more than 20 item statuses likewise reports children invalidation rather than one event
+A single legacy-tree publication changing more than 20 item names and statuses in total reports children invalidation rather than one event
 per item. Repeated changes preserve the oldest undelivered value and replace the latest value. Each publication removes pending entries for retired controls, so a
 held client cannot accumulate retired control epochs. Batches own scalar/BSTR values and registrations, not row
 snapshots. Disconnect clears the pending batch; an active delivery checks disconnection before each event. Delivery

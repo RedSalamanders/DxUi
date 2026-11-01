@@ -9970,7 +9970,7 @@ void TestTreeBadgeStatusUpdatesReachSubscribedClientWithoutStructureChange()
     Require(firstVisibleBefore > 0u, "the test starts with a nonzero Tree viewport offset");
 
     UiaTest::Subscription subscription;
-    subscription.properties = {UIA_ItemStatusPropertyId};
+    subscription.properties = {UIA_ItemStatusPropertyId, UIA_NamePropertyId};
     subscription.structure  = true;
     SingleControlClient walk(test.window, std::move(subscription));
     const std::vector<UiaTest::ElementId> initialItems = walk.client.Children(walk.root);
@@ -10022,6 +10022,20 @@ void TestTreeBadgeStatusUpdatesReachSubscribedClientWithoutStructureChange()
     update(L"Saved", false, std::nullopt, "changing only dot presentation does not change the accessible status");
     update(L"3", false, std::wstring_view(L"3"), "a non-dot count update raises ItemStatus on the original TreeItem");
     update(L"", false, std::wstring_view(L""), "removing a badge raises an empty ItemStatus on the original TreeItem");
+    static_cast<void>(walk.client.WaitOutTheStream());
+    const auto renameMark = walk.client.Mark();
+    auto renamed = rows(L"", false);
+    renamed[0u].text = L"Renamed General";
+    test.model.SetVisibleItems(std::move(renamed));
+    Require(test.tree->NotifyItemPresentationChanged(1u), "the existing visible TreeItem accepts its renamed presentation");
+    walk.Expect(walk.client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs, [&]
+    {
+        const auto events = walk.client.DistinctSince(renameMark);
+        return std::ranges::any_of(events, [](const UiaTest::HeardEvent& event)
+        { return event.kind == UiaTest::EventKind::Property && event.id == UIA_NamePropertyId &&
+                 event.controlType == UIA_TreeItemControlTypeId && event.value == L"Renamed General"; });
+    }), "native client hears the existing TreeItem's changed Name");
+    walk.Expect(walk.Name(editedItem) == L"Renamed General", "native TreeItem identity remains stable across rename");
     const uint64_t invalidationsBeforeMissing = test.window.Host().DebugGetInvalidateCount();
     Require(! test.tree->NotifyItemPresentationChanged(9999u), "a missing Tree row rejects the presentation notification");
     Require(test.window.Host().DebugGetInvalidateCount() == invalidationsBeforeMissing,
