@@ -364,6 +364,7 @@ function New-PerformanceProjectFixture([string] $Root, [string] $Role = 'library
             ConfigurationType=$(if ($Role -eq 'library') { 'StaticLibrary' } else { 'Application' }); VCToolArchitecture='Native32Bit'; WindowsSDKToolArchitecture='Native32Bit';
             IncludePath="$Root/include;$Root/toolchain/msvc/include"; LibraryPath="$Root/toolchain/msvc/lib/x64;$Root/toolchain/sdk/Lib/10.0/um/x64";
             IntDir="$Root/.build/Intermediate/x64/Release/$(if ($Role -eq 'library') { 'DxUi' } else { 'DxUi.EmbeddedTests' })/";
+            TLogLocation="$Root/.build/Intermediate/x64/Release/$(if ($Role -eq 'library') { 'DxUi/DxUi.tlog' } else { 'DxUi.EmbeddedTests/DxUi.Emb.8B4FAB6F.tlog' })/";
             OutDir="$Root/.build/x64/Release/"; VSInstallDir="$Root/toolchain/vs/"; UniversalCRTSdkDir="$Root/toolchain/sdk/"; UCRTVersion='10.0'; NETFXKitsDir="$Root/toolchain/netfx/";
             ExecutablePath="$Root/toolchain/bin"; FixtureFlag='/fixture0' }).GetEnumerator()) {
         $properties[$entry.Key] = $entry.Value
@@ -1091,12 +1092,18 @@ Invoke-FixtureCase 'failed native build markers permit a guarded retry only in e
             Complete-PerformanceBuildAttestation -Root $fixtureRoot -Platform x64 -Configuration Release -Before $before
             $failed = Start-PerformanceBuildAttestation -Root $fixtureRoot -Platform x64 -Configuration Release
             foreach ($project in @('DxUi','DxUi.EmbeddedTests')) {
-                Set-FixtureFile $fixtureRoot ".build/Intermediate/x64/Release/$project/$project.tlog/unsuccessfulbuild" ''
+                $marker = Join-Path $fixtures[$(if ($project -eq 'DxUi') { 'library' } else { 'benchmark' })].properties.TLogLocation 'unsuccessfulbuild'
+                [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($marker)) | Out-Null
+                [IO.File]::WriteAllText($marker, '')
             }
             Assert-Throws { Assert-PerformanceBuildAttestation -Root $fixtureRoot -Platform x64 -Configuration Release } 'the failed attempt cannot leave a passing final receipt'
             $retry = Start-PerformanceBuildAttestation -Root $fixtureRoot -Platform x64 -Configuration Release
             Assert-True $retry.rebuildRequired 'the failed build retries with Rebuild instead of reusing prior outputs'
             Assert-Equal $failed.buildInputIdentity $retry.buildInputIdentity 'canonical failure status markers are not source inputs'
+            $benchmarkMarker = Join-Path $fixtures['benchmark'].properties.TLogLocation 'unsuccessfulbuild'
+            [IO.File]::WriteAllText($benchmarkMarker, 'unexpected input bytes')
+            Assert-Throws { Start-PerformanceBuildAttestation -Root $fixtureRoot -Platform x64 -Configuration Release } 'a populated failure marker is rejected'
+            [IO.File]::WriteAllText($benchmarkMarker, '')
             foreach ($project in @('DxUi','DxUi.EmbeddedTests')) {
                 foreach ($name in @('unsuccessfulbuild','Other.tlog/unsuccessfulbuild',"$project.tlog/nested/unsuccessfulbuild",'vector',"$project.tlog/vector")) {
                     $path = ".build/Intermediate/x64/Release/$project/$name"

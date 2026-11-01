@@ -325,6 +325,12 @@ qualification replays them exactly. Repetitions inside a block are not treated a
 - Default-output incremental `Build` additionally requires a separate receipt binding every intermediate path and byte
   in the supported platform/configuration profile, including objects, tracking logs and generated shaders for all solution
   projects. Missing or changed cache forces `Rebuild`; final-only `SkipBuild` does not depend on disposable intermediates.
+  An empty `unsuccessfulbuild` marker is recognized only in the evaluated
+  `TLogLocation`, a non-reparse direct `.tlog` child of that project's profile
+  intermediate directory. This includes MSBuild's shortened directory names.
+  Populated, misplaced or nested lookalikes remain unsupported ignored inputs.
+  A failed attempt revokes reuse; recognizing its status marker permits a fresh
+  `Rebuild` and supplies no passing build or runtime evidence.
   Both receipts are revoked before build and on failed publication. Resolved C++/HLSL source bytes and the owned native
   include closure belong to each side's build identity, never the shared compiler comparison. Arbitrary external or
   ignored native inputs, response/path-bearing option overrides, custom outputs, precompiled headers and modules are
