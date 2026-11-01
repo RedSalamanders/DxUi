@@ -1271,6 +1271,41 @@ bool RichTextEditor::ApplySourceEdits(const RichText::SourceSnapshot& expectedSo
     Changed(changed);
     return changed;
 }
+bool RichTextEditor::SelectSourceMatch(std::wstring_view query, bool backwards, RichText::SourceSearchOptions options)
+{
+    if (! IsEnabled())
+        return false;
+    if (auto* host = GetHost(); host && host->GetFocusControl() == this)
+    {
+        NativeTextInputState input{.text = std::wstring(0u, L' '), .compositionClauseBoundaries = std::vector<size_t>(0u)};
+        const bool available = host->TryReadNativeTextInputState(this, input);
+        if ((host->HasActiveNativeTextInputSession() && ! available) || (available && (input.compositionStartIndex || input.compositionEndIndex)))
+            return false;
+    }
+    const auto matches = RichText::FindInSource(Snapshot(), query, options);
+    if (matches.empty())
+        return false;
+    const auto selection = GetSelection();
+    auto index           = backwards ? matches.size() - 1u : 0u;
+    if (backwards)
+    {
+        for (size_t i = matches.size(); i > 0u; --i)
+            if (matches[i - 1u].last <= selection.Start())
+            {
+                index = i - 1u;
+                break;
+            }
+    }
+    else
+        for (size_t i = 0u; i < matches.size(); ++i)
+            if (matches[i].first >= selection.End())
+            {
+                index = i;
+                break;
+            }
+    SetSelection({matches[index].first, matches[index].last});
+    return true;
+}
 size_t RichTextEditor::ReplaceAllSourceMatches(std::wstring_view query, std::wstring_view replacement, RichText::SourceSearchOptions options)
 {
     if (! Editable())

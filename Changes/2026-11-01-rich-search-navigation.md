@@ -1,0 +1,1 @@
+- Add wraparound next and previous source-match selection to the rich editor; native qualification remains pending.

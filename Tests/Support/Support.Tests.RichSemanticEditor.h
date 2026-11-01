@@ -175,6 +175,11 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     prepare();
     host.SetFocusControl(editor, false);
     editor->SetText(L"One one only");
+    Check(editor->SelectSourceMatch(L"one", false, {.wholeWord = true}) && editor->GetSelection() == Selection{0u, 3u} &&
+              editor->SelectSourceMatch(L"one", false, {.wholeWord = true}) && editor->GetSelection() == Selection{4u, 7u} &&
+              editor->SelectSourceMatch(L"one", false, {.wholeWord = true}) && editor->GetSelection() == Selection{0u, 3u} &&
+              editor->SelectSourceMatch(L"one", true, {.wholeWord = true}) && editor->GetSelection() == Selection{4u, 7u},
+          "source match navigation wraps in both directions");
     Check(editor->ReplaceAllSourceMatches(L"one", L"x", {.wholeWord = true}) == 2u && editor->GetText() == L"x x only" && editor->Undo() &&
               editor->GetText() == L"One one only",
           "editor replace-all is case-insensitive and one undo transaction");
