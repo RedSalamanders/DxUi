@@ -418,8 +418,8 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     }
     for (const auto [rows, columns] : {std::pair{65u, 1u}, std::pair{1u, 65u}, std::pair{32u, 33u}})
     {
-        const auto rejected = ParseMath(Matrix(rows, columns));
-        check(! rejected && rejected.issue == MathIssue::Capacity && rejected.root.children.empty(),
+        const auto capacityFailure = ParseMath(Matrix(rows, columns));
+        check(! capacityFailure && capacityFailure.issue == MathIssue::Capacity && capacityFailure.root.children.empty(),
               "matrix rejects first row, column and total-cell overflow independently without partial syntax");
     }
     const auto atNodes   = ParseMath(std::wstring(4095u, L'+'));
