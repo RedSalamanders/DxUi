@@ -1822,3 +1822,32 @@ A published SemanticDocument provides Headings() for source-ordered outline entr
 and ResolveHeadingFragment() for the same fragment targets used by the editor.
 BuildHeadingTableOfContents() returns Markdown links without changing the document;
 its output is bounded by the display-unit limit and throws length_error on overflow.
+
+## Mirrored read-only preview and scroll synchronization
+
+An application can pair an editable RichTextEditor with a separate read-only
+RichTextEditor in its chosen split pane. Configure the preview's Markdown profile,
+semantic presentation and resource policy explicitly, then mirror each committed
+source change on the owner thread. Capture the editable editor's Snapshot and
+use SynchronizeReadOnlySourceSnapshot only while the destination is read-only
+Source view; if it returns false, or the preview uses semantic view, copy the
+snapshot text with SetText. SetText resets the preview's local history; never use
+it to mirror back into the editable editor. The immutable snapshot keeps the
+captured source stable while an update is queued. Drop queued updates when a
+newer source revision or a replaced control supersedes them.
+
+For source-position synchronization, register SetOnScrollChanged on the active
+pane. Once both panes have prepared their current source, obtain the active pane's
+GetVisibleSourceRange(host) and pass its first source offset to the other pane's
+ScrollSourceRangeIntoView(host, first, first, true). The method preserves focus,
+selection and history. Use an application-owned reentrancy guard around the
+programmatic scroll to avoid callbacks echoing between panes; coalesce rapid
+notifications and check control/host lifetime and a matching application source revision before
+applying a queued request. A missing visible range or a false scroll result can mean unavailable geometry,
+a detached or disabled target, or an invalid boundary. Retain only the newest
+request and retry when host preparation or binding changes; do not spin. Snapshot
+identity is shared only after successful synchronization; SetText creates a
+distinct revision, so track the mirrored source revision in application state. Offset alignment is approximate because wrapping,
+hidden syntax, collapsed content and inline objects differ between views. The
+application chooses which pane drives synchronization and how to handle those
+ambiguous positions; no proportional pixel offset is assumed.
