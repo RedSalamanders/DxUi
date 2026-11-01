@@ -3438,18 +3438,21 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
     Changed(changed);
     return changed;
 }
-bool RichTextEditor::InputFailureHandled(const std::weak_ptr<int>& lifetime, uint64_t revision, uint64_t epoch) const noexcept
+bool RichTextEditor::InputFailureHandled(const std::weak_ptr<int>& lifetime, uint64_t revision, uint64_t epoch, RichText::Selection selection) const noexcept
 {
     // Once publication/cancellation has crossed a callback boundary, a native
     // input remains handled even if its follow-up work failed. Precommit OOM
     // declines with the document's atomic transaction intact.
-    return lifetime.expired() || Revision() != revision || _state->fileDropEpoch != epoch || _state->dragging || _state->scrollbarDragging;
+    return lifetime.expired() || Revision() != revision || _state->fileDropEpoch != epoch || GetSelection() != selection || _state->dragging ||
+           _state->scrollbarDragging;
 }
 bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers) noexcept
 {
-    const auto inputLifetime = GetLifetimeToken();
-    const auto inputRevision = Revision(), inputEpoch = _state->fileDropEpoch;
-    const auto pendingLead = _state->pendingLeadSurrogate;
+    const auto inputLifetime  = GetLifetimeToken();
+    const auto inputRevision  = Revision();
+    const auto inputEpoch     = _state->fileDropEpoch;
+    const auto inputSelection = GetSelection();
+    const auto pendingLead    = _state->pendingLeadSurrogate;
     try
     {
         // AltGr arrives as Ctrl+Alt on Windows. Its Unicode WM_CHAR must remain
@@ -3555,20 +3558,22 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
     }
     catch (const std::bad_alloc&)
     {
-        const bool handled = InputFailureHandled(inputLifetime, inputRevision, inputEpoch);
+        const bool handled = InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
         if (! handled)
             _state->pendingLeadSurrogate = pendingLead;
         return handled;
     }
     catch (const std::exception&)
     {
-        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch);
+        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
     }
 }
 bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noexcept
 {
-    const auto inputLifetime = GetLifetimeToken();
-    const auto inputRevision = Revision(), inputEpoch = _state->fileDropEpoch;
+    const auto inputLifetime  = GetLifetimeToken();
+    const auto inputRevision  = Revision();
+    const auto inputEpoch     = _state->fileDropEpoch;
+    const auto inputSelection = GetSelection();
     try
     {
         if (! IsEnabled())
@@ -3969,17 +3974,19 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
     }
     catch (const std::bad_alloc&)
     {
-        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch);
+        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
     }
     catch (const std::exception&)
     {
-        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch);
+        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
     }
 }
 bool RichTextEditor::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F point) noexcept
 {
-    const auto inputLifetime = GetLifetimeToken();
-    const auto inputRevision = Revision(), inputEpoch = _state->fileDropEpoch;
+    const auto inputLifetime  = GetLifetimeToken();
+    const auto inputRevision  = Revision();
+    const auto inputEpoch     = _state->fileDropEpoch;
+    const auto inputSelection = GetSelection();
     try
     {
         if (! IsEnabled() || ! IsVisible())
@@ -4034,11 +4041,11 @@ bool RichTextEditor::OnContextMenu(ControlHost& host, bool keyboardInvocation, D
     }
     catch (const std::bad_alloc&)
     {
-        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch);
+        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
     }
     catch (const std::exception&)
     {
-        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch);
+        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
     }
 }
 bool RichTextEditor::OnCopy(ControlHost& host) noexcept
@@ -4075,8 +4082,10 @@ bool RichTextEditor::OnSelectAll(ControlHost&) noexcept
 }
 bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) noexcept
 {
-    const auto inputLifetime = GetLifetimeToken();
-    const auto inputRevision = Revision(), inputEpoch = _state->fileDropEpoch;
+    const auto inputLifetime  = GetLifetimeToken();
+    const auto inputRevision  = Revision();
+    const auto inputEpoch     = _state->fileDropEpoch;
+    const auto inputSelection = GetSelection();
     try
     {
         if (! IsEnabled() || rightButton)
@@ -4163,17 +4172,19 @@ bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool ri
     }
     catch (const std::bad_alloc&)
     {
-        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch);
+        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
     }
     catch (const std::exception&)
     {
-        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch);
+        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
     }
 }
 bool RichTextEditor::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT) noexcept
 {
-    const auto inputLifetime = GetLifetimeToken();
-    const auto inputRevision = Revision(), inputEpoch = _state->fileDropEpoch;
+    const auto inputLifetime  = GetLifetimeToken();
+    const auto inputRevision  = Revision();
+    const auto inputEpoch     = _state->fileDropEpoch;
+    const auto inputSelection = GetSelection();
     try
     {
         if (! IsEnabled() || rightButton)
@@ -4199,11 +4210,11 @@ bool RichTextEditor::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, 
     }
     catch (const std::bad_alloc&)
     {
-        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch);
+        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
     }
     catch (const std::exception&)
     {
-        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch);
+        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
     }
 }
 std::optional<RichText::MarkdownRange> RichTextEditor::HoveredLinkDisplayRange(ControlHost& host, D2D1_POINT_2F point) const
@@ -4257,8 +4268,10 @@ std::optional<RichText::MarkdownRange> RichTextEditor::ActiveParagraphDisplayRan
 }
 bool RichTextEditor::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT) noexcept
 {
-    const auto inputLifetime = GetLifetimeToken();
-    const auto inputRevision = Revision(), inputEpoch = _state->fileDropEpoch;
+    const auto inputLifetime  = GetLifetimeToken();
+    const auto inputRevision  = Revision();
+    const auto inputEpoch     = _state->fileDropEpoch;
+    const auto inputSelection = GetSelection();
     try
     {
         if (_state->scrollbarDragging)
@@ -4309,11 +4322,11 @@ bool RichTextEditor::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT) n
     }
     catch (const std::bad_alloc&)
     {
-        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch);
+        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
     }
     catch (const std::exception&)
     {
-        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch);
+        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
     }
 }
 bool RichTextEditor::OnMouseLeave(ControlHost&) noexcept
