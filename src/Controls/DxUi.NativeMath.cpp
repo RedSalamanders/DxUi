@@ -5,11 +5,18 @@
 #include <algorithm>
 #include <array>
 #include <cwctype>
+#include <cstdint>
 #include <optional>
 #include <stdexcept>
 
 namespace DxUi::RichText
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+namespace Detail
+{
+thread_local std::uintptr_t testRichMathLowestStackAddress{};
+}
+#endif
 namespace
 {
 struct MathParseFailure
@@ -23,6 +30,17 @@ class Parser
     std::vector<unsigned> matrixRowWidths;
     std::optional<MathNode> equationTag;
     bool starredTag{};
+    static void ObserveStack() noexcept
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        if (Detail::testRichMathLowestStackAddress)
+        {
+            const char marker{};
+            const auto address = reinterpret_cast<std::uintptr_t>(&marker);
+            Detail::testRichMathLowestStackAddress = std::min(Detail::testRichMathLowestStackAddress, address);
+        }
+#endif
+    }
     static bool Letter(wchar_t c) noexcept
     {
         return (c >= L'a' && c <= L'z') || (c >= L'A' && c <= L'Z');
@@ -67,6 +85,9 @@ class Parser
                   std::vector<MathNode>&& children = std::vector<MathNode>(0u),
                   unsigned columns                 = 0)
     {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
         if (++nodes > MathMaximumNodes)
             Reject(MathIssue::Capacity);
         MathNode result{kind, std::move(text), std::move(children), columns};
@@ -134,6 +155,9 @@ class Parser
     }
     std::wstring GroupText(bool textMode = false, bool rejectMathDelimiters = false)
     {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
         Space();
         if (at == source.size() || source[at++] != L'{')
             Reject();
@@ -249,6 +273,9 @@ class Parser
     }
     MathNode Matrix(std::wstring environment, unsigned depth)
     {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
         constexpr std::array names{L"matrix",
                                    L"pmatrix",
                                    L"bmatrix",
@@ -393,6 +420,9 @@ class Parser
             if (source.substr(at, 2) != L"\\\\")
                 Reject();
             at += 2;
+            Space();
+            if (at < source.size() && source[at] == L'[')
+                Reject(MathIssue::UnsupportedCommand);
             rowWidths[rows - 1u] |= rowColumns;
             columns              = std::max(columns, rowColumns);
             rowColumns           = 0;
@@ -477,6 +507,9 @@ class Parser
     // symbol tables and unrelated command temporaries belong in separate frames.
     MathNode ExtensibleArrowCommand(std::wstring_view name, unsigned depth)
     {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
             Space();
             auto lower = Make(MathKind::Row);
             if (at < source.size() && source[at] == L'[')
@@ -492,6 +525,9 @@ class Parser
     }
     MathNode GeneralFraction(unsigned depth)
     {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
         const auto left = GroupText();
         const auto right = GroupText();
         const auto rule = GroupText();
@@ -523,6 +559,9 @@ class Parser
     }
     MathNode StructuredCommand(std::wstring_view name, unsigned depth)
     {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
         if (name == L"not")
         {
             auto operand = Atom(depth + 1u);
@@ -609,6 +648,8 @@ class Parser
                 {
                     at += 2u;
                     Space();
+                    if (at < source.size() && source[at] == L'[')
+                        Reject(MathIssue::UnsupportedCommand);
                     if (at < source.size() && source[at] == L'}')
                     {
                         ++at;
@@ -631,6 +672,9 @@ class Parser
     }
     MathNode StyledCommand(std::wstring_view name, unsigned depth)
     {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
         if (name == L"text" || name == L"textbf" || name == L"textit" || name == L"textup" || name == L"textmd" || name == L"textnormal" || name == L"operatorname")
         {
             const bool starred = name == L"operatorname" && at < source.size() && source[at] == L'*';
@@ -703,6 +747,9 @@ class Parser
     }
     MathNode SymbolCommand(std::wstring_view name)
     {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
         auto sizeName = name;
         if (sizeName.ends_with(L"l") || sizeName.ends_with(L"r"))
             sizeName.remove_suffix(1u);
@@ -1015,6 +1062,9 @@ class Parser
     }
     MathNode Command(unsigned depth)
     {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
         const auto first = at;
         while (at < source.size() && Letter(source[at]))
             ++at;
@@ -1024,10 +1074,12 @@ class Parser
         if (name == L"xrightarrow" || name == L"xleftarrow" || name == L"xleftrightarrow" || name == L"xRightarrow" || name == L"xLeftarrow" ||
             name == L"xLeftrightarrow" || name == L"xmapsto" || name == L"xlongequal")
             return ExtensibleArrowCommand(name, depth);
+        if (name == L"begin")
+            return Matrix(GroupText(), depth);
         if (name == L"genfrac")
             return GeneralFraction(depth);
         static constexpr std::wstring_view structured[] = {
-            L"not", L"frac", L"dfrac", L"tfrac", L"cfrac", L"binom", L"dbinom", L"tbinom", L"overset", L"underset", L"stackrel", L"sqrt", L"substack", L"begin"};
+            L"not", L"frac", L"dfrac", L"tfrac", L"cfrac", L"binom", L"dbinom", L"tbinom", L"overset", L"underset", L"stackrel", L"sqrt", L"substack"};
         if (std::ranges::find(structured, name) != std::end(structured))
             return StructuredCommand(name, depth);
         static constexpr std::wstring_view styled[] = {L"text",       L"textbf",     L"textit",   L"textup", L"textmd", L"textnormal", L"operatorname", L"mathrm",    L"mathbf",   L"mathit",
@@ -1041,6 +1093,9 @@ class Parser
     }
     MathNode Atom(unsigned depth)
     {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
         if (depth > MathMaximumGroupDepth)
             Reject(MathIssue::Capacity);
         Space();
@@ -1064,107 +1119,11 @@ class Parser
             value += source[at++];
         return Make(MathKind::Text, std::move(value));
     }
-    MathNode Row(unsigned depth, bool grouped, bool cell, bool right = false, bool indexClose = false, bool stopBrace = false, bool infixAllowed = true)
+    bool ApplyScripts(MathNode& atom, unsigned depth)
     {
-        std::vector<MathNode> children(0u);
-        while (at < source.size())
-        {
-            Space();
-            if (at == source.size())
-                break;
-            if (indexClose && source[at] == L']')
-            {
-                ++at;
-                return Make(MathKind::Row, L"", std::move(children));
-            }
-            if (right && source.substr(at, 6) == L"\\right" && (at + 6 == source.size() || ! Letter(source[at + 6])))
-                break;
-            if (cell && (source[at] == L'&' || source.substr(at, 2) == L"\\\\" || source.substr(at, 5) == L"\\end{"))
-                break;
-            if (stopBrace && source[at] == L'}')
-                break;
-            if (source[at] == L'}')
-            {
-                if (! grouped)
-                    Reject();
-                ++at;
-                return Make(MathKind::Row, L"", std::move(children));
-            }
-            if (source[at] == L'\\')
-            {
-                const auto first = at + 1;
-                auto end         = first;
-                while (end < source.size() && Letter(source[end]))
-                    ++end;
-                const auto declaration = source.substr(first, end - first);
-                if (declaration == L"over" || declaration == L"atop" || declaration == L"choose" || declaration == L"brace" || declaration == L"brack")
-                {
-                    if (! infixAllowed)
-                        Reject(MathIssue::UnsupportedCommand);
-                    at = end;
-                    auto numerator = Make(MathKind::Row, L"", std::move(children));
-                    auto denominator = Row(depth, grouped, cell, right, indexClose, stopBrace, false);
-                    if (declaration == L"over" || declaration == L"atop")
-                        return Make(MathKind::Fraction, declaration == L"over" ? L"frac" : L"atop", {std::move(numerator), std::move(denominator)});
-                    const auto environment = declaration == L"choose" ? L"pmatrix" : declaration == L"brace" ? L"Bmatrix" :
-                                             declaration == L"brack" ? L"bmatrix" : L"matrix";
-                    return Make(MathKind::Matrix, environment, {std::move(numerator), std::move(denominator)}, 1u);
-                }
-                if (declaration == L"tag")
-                {
-                    if (depth != 0u || equationTag)
-                        Reject();
-                    at = end;
-                    starredTag = at < source.size() && source[at] == L'*';
-                    if (starredTag)
-                        ++at;
-                    Space();
-                    if (at == source.size())
-                        Reject(MathIssue::MissingRequiredArgument);
-                    if (source[at] == L'{')
-                    {
-                        // This profile has no nested math inside text labels;
-                        // escaped dollars are literal text, not delimiters.
-                        auto text = GroupText(true, true);
-                        auto label = Make(MathKind::Text, std::move(text));
-                        label.italic = false;
-                        equationTag.emplace(std::move(label));
-                    }
-                    else
-                    {
-                        auto label = Atom(depth + 1);
-                        label.italic = false;
-                        equationTag.emplace(std::move(label));
-                    }
-                    continue;
-                }
-                if (declaration == L"color")
-                {
-                    if (depth >= MathMaximumGroupDepth)
-                        Reject(MathIssue::Capacity);
-                    at = end;
-                    const auto color = Detail::ParseNativeColor(GroupText());
-                    if (! color)
-                        Reject(MathIssue::UnsupportedCommand);
-                    auto label = std::wstring(L"textcolor:");
-                    label += Detail::EncodeNativeColor(color.value());
-                    AppendColored(children, label, Row(depth + 1u, grouped, cell, right, indexClose, stopBrace, infixAllowed));
-                    return Make(MathKind::Row, L"", std::move(children));
-                }
-                if (declaration == L"displaystyle" || declaration == L"textstyle" || declaration == L"scriptstyle" || declaration == L"scriptscriptstyle" ||
-                    declaration == L"tiny" || declaration == L"sixptsize" || declaration == L"scriptsize" || declaration == L"footnotesize" ||
-                    declaration == L"small" || declaration == L"normalsize" || declaration == L"large" || declaration == L"Large" ||
-                    declaration == L"LARGE" || declaration == L"huge" || declaration == L"Huge")
-                {
-                    if (depth >= MathMaximumGroupDepth)
-                        Reject(MathIssue::Capacity);
-                    at = end;
-                    children.push_back(Make(MathKind::Style, std::wstring(declaration), {Row(depth + 1, grouped, cell, right, indexClose, stopBrace, infixAllowed)}));
-                    return Make(MathKind::Row, L"", std::move(children));
-                }
-            }
-            auto atom = Atom(depth);
-            Space();
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
             MathNode sub, super;
             bool hasSub{}, hasSuper{}, hasModifier{};
             while (at < source.size())
@@ -1225,18 +1184,158 @@ class Parser
             }
             if (hasSub || hasSuper)
                 atom = Make(MathKind::Scripts, L"", {std::move(atom), std::move(sub), std::move(super)});
-            if (! hasSub && ! hasSuper && atom.kind == MathKind::Style && atom.text.starts_with(L"textcolor:") && atom.children.size() == 1u &&
+            return hasSub || hasSuper;
+    }
+    MathNode InfixRow(std::vector<MathNode>& children, std::wstring_view declaration, unsigned depth,
+                      bool grouped, bool cell, bool right, bool indexClose, bool stopBrace)
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
+        auto numerator = Make(MathKind::Row, L"", std::move(children));
+        auto denominator = Row(depth, grouped, cell, right, indexClose, stopBrace, false);
+        if (declaration == L"over" || declaration == L"atop")
+            return Make(MathKind::Fraction, declaration == L"over" ? L"frac" : L"atop", {std::move(numerator), std::move(denominator)});
+        const auto environment = declaration == L"choose" ? L"pmatrix" : declaration == L"brace" ? L"Bmatrix" : L"bmatrix";
+        return Make(MathKind::Matrix, environment, {std::move(numerator), std::move(denominator)}, 1u);
+    }
+    void ParseTag(unsigned depth)
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
+        if (depth != 0u || equationTag)
+            Reject();
+        starredTag = at < source.size() && source[at] == L'*';
+        if (starredTag)
+            ++at;
+        Space();
+        if (at == source.size())
+            Reject(MathIssue::MissingRequiredArgument);
+        if (source[at] == L'{')
+        {
+            auto text = GroupText(true, true);
+            auto label = Make(MathKind::Text, std::move(text));
+            label.italic = false;
+            equationTag.emplace(std::move(label));
+        }
+        else
+        {
+            auto label = Atom(depth + 1u);
+            label.italic = false;
+            equationTag.emplace(std::move(label));
+        }
+    }
+    MathNode ColorRow(std::vector<MathNode>& children, unsigned depth, bool grouped, bool cell, bool right, bool indexClose, bool stopBrace, bool infixAllowed)
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
+        if (depth >= MathMaximumGroupDepth)
+            Reject(MathIssue::Capacity);
+        const auto color = Detail::ParseNativeColor(GroupText());
+        if (! color)
+            Reject(MathIssue::UnsupportedCommand);
+        auto label = std::wstring(L"textcolor:");
+        label += Detail::EncodeNativeColor(color.value());
+        AppendColored(children, label, Row(depth + 1u, grouped, cell, right, indexClose, stopBrace, infixAllowed));
+        return Make(MathKind::Row, L"", std::move(children));
+    }
+    MathNode StyleRow(std::vector<MathNode>& children, std::wstring_view declaration, unsigned depth, bool grouped, bool cell, bool right,
+                      bool indexClose, bool stopBrace, bool infixAllowed)
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
+        if (depth >= MathMaximumGroupDepth)
+            Reject(MathIssue::Capacity);
+        children.push_back(Make(MathKind::Style, std::wstring(declaration), {Row(depth + 1u, grouped, cell, right, indexClose, stopBrace, infixAllowed)}));
+        return Make(MathKind::Row, L"", std::move(children));
+    }
+    void AppendRowAtom(std::vector<MathNode>& children, unsigned depth)
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
+            auto atom = Atom(depth);
+            Space();
+            const bool hasScripts = ApplyScripts(atom, depth);
+            if (! hasScripts && atom.kind == MathKind::Style && atom.text.starts_with(L"textcolor:") && atom.children.size() == 1u &&
                 atom.children[0].kind == MathKind::Row)
             {
                 const auto label = std::wstring(atom.text);
                 AppendColored(children, label, std::move(atom.children[0]));
-                continue;
+                return;
             }
             if (atom.kind == MathKind::Text && atom.atomClass == MathAtomClass::Ordinary && ! children.empty() && children.back().kind == MathKind::Text &&
                 children.back().atomClass == MathAtomClass::Ordinary && children.back().italic == atom.italic)
                 children.back().text.append(atom.text);
             else
                 children.push_back(std::move(atom));
+    }
+    MathNode Row(unsigned depth, bool grouped, bool cell, bool right = false, bool indexClose = false, bool stopBrace = false, bool infixAllowed = true)
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
+        std::vector<MathNode> children(0u);
+        while (at < source.size())
+        {
+            Space();
+            if (at == source.size())
+                break;
+            if (indexClose && source[at] == L']')
+            {
+                ++at;
+                return Make(MathKind::Row, L"", std::move(children));
+            }
+            if (right && source.substr(at, 6) == L"\\right" && (at + 6 == source.size() || ! Letter(source[at + 6])))
+                break;
+            if (cell && (source[at] == L'&' || source.substr(at, 2) == L"\\\\" || source.substr(at, 5) == L"\\end{"))
+                break;
+            if (stopBrace && source[at] == L'}')
+                break;
+            if (source[at] == L'}')
+            {
+                if (! grouped)
+                    Reject();
+                ++at;
+                return Make(MathKind::Row, L"", std::move(children));
+            }
+            if (source[at] == L'\\')
+            {
+                const auto first = at + 1;
+                auto end         = first;
+                while (end < source.size() && Letter(source[end]))
+                    ++end;
+                const auto declaration = source.substr(first, end - first);
+                if (declaration == L"over" || declaration == L"atop" || declaration == L"choose" || declaration == L"brace" || declaration == L"brack")
+                {
+                    if (! infixAllowed)
+                        Reject(MathIssue::UnsupportedCommand);
+                    at = end;
+                    return InfixRow(children, declaration, depth, grouped, cell, right, indexClose, stopBrace);
+                }
+                if (declaration == L"tag")
+                {
+                    at = end;
+                    ParseTag(depth);
+                    continue;
+                }
+                if (declaration == L"color")
+                {
+                    at = end;
+                    return ColorRow(children, depth, grouped, cell, right, indexClose, stopBrace, infixAllowed);
+                }
+                if (declaration == L"displaystyle" || declaration == L"textstyle" || declaration == L"scriptstyle" || declaration == L"scriptscriptstyle" ||
+                    declaration == L"tiny" || declaration == L"sixptsize" || declaration == L"scriptsize" || declaration == L"footnotesize" ||
+                    declaration == L"small" || declaration == L"normalsize" || declaration == L"large" || declaration == L"Large" ||
+                    declaration == L"LARGE" || declaration == L"huge" || declaration == L"Huge")
+                {
+                    at = end;
+                    return StyleRow(children, declaration, depth, grouped, cell, right, indexClose, stopBrace, infixAllowed);
+                }
+            }            AppendRowAtom(children, depth);
         }
         if (grouped || indexClose)
             Reject(indexClose ? MathIssue::MissingRootIndexClose : MathIssue::MissingGroupClose);

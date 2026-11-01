@@ -5,9 +5,17 @@
 #include <DxUi/RichMath.h>
 #include <array>
 #include <cmath>
+#include <cstdint>
+#include <limits>
 #include <iostream>
 #include <tuple>
 
+#if DXUI_ENABLE_DIAGNOSTICS
+namespace DxUi::RichText::Detail
+{
+extern thread_local std::uintptr_t testRichMathLowestStackAddress;
+}
+#endif
 // Owned independent fixtures for the bounded native profile. The M01..M20
 // inputs also appear in the reviewed KaTeX-0.16.11 target inventory; upstream
 // TeX/HTML output is neither evaluated nor imported by the renderer.
@@ -69,7 +77,7 @@ inline constexpr Scenario rejected[] = {
     {L"unknown command", L"\\unknown{x}"},
     {L"unsupported package", L"\\usepackage{amsmath}"},
     {L"unsupported execution", L"\\write18{command}"},
-    {L"unsupported environment", L"\\begin{array}{cc}a&b\\end{array}"},
+    {L"unsupported environment", L"\\begin{CD}a&b\\end{CD}"},
     {L"standalone modifier", L"\\limits x"},
     {L"ordinary modifier", L"x\\nolimits_2"},
     {L"duplicate modifier", L"\\sum\\limits\\nolimits_2"},
@@ -596,7 +604,7 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         {L"\\newcommand{\\foo}{x}", MathIssue::UnsupportedCommand},
         {L"\\input{local}", MathIssue::UnsupportedCommand},
         {L"\\unknown{x}", MathIssue::UnsupportedCommand},
-        {L"\\begin{array}{lr}a&b\\end{array}", MathIssue::UnsupportedEnvironment},
+        {L"\\begin{CD}a&b\\end{CD}", MathIssue::UnsupportedEnvironment},
     };
     for (const auto& [source, issue] : issues)
     {
@@ -686,6 +694,11 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
     check(! ParseMath(L"a\\over b\\atop c") && ! ParseMath(L"a\\over \\displaystyle b\\over c"),
           "a second infix in the same math group is rejected");
     check(static_cast<bool>(ParseMath(L"{a\\over {b\\atop c}}")), "nested groups each admit their own infix");
+#if DXUI_ENABLE_DIAGNOSTICS
+    ULONG_PTR stackLow{}, stackHigh{};
+    GetCurrentThreadStackLimits(&stackLow, &stackHigh);
+    Detail::testRichMathLowestStackAddress = (std::numeric_limits<std::uintptr_t>::max)();
+#endif
     std::wstring nestedInfix(0u, L' ');
     for (unsigned i = 0u; i < MathMaximumGroupDepth; ++i)
         nestedInfix += L"{a\\over ";
@@ -821,6 +834,12 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         nestedArrays += L"\\end{array}";
     check(static_cast<bool>(ParseMath(nestedArrays)), "64 nested arrays fit the ordinary thread stack");
 #if DXUI_ENABLE_DIAGNOSTICS
+    const auto lowestObservedStack = Detail::testRichMathLowestStackAddress;
+    Detail::testRichMathLowestStackAddress = 0u;
+    check(lowestObservedStack > stackLow && lowestObservedStack < stackHigh && lowestObservedStack - stackLow >= 128u * 1024u,
+          "64-level parser cases retain at least 128 KiB of observed thread-stack headroom");
+#endif
+#if DXUI_ENABLE_DIAGNOSTICS
     {
         const auto expression = ParseMath(L"\\begin{array}{|l|r|}a&bb\\end{array}");
         check(expression && expression.root.children[0u].text == L"array:lr:|||", "array retains all three declared vertical boundaries");
@@ -868,6 +887,8 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         check(horizontal >= 2u && vertical >= 3u, "dashed rules stage bounded separate horizontal and vertical segments");
     }
 #endif
+    check(! ParseMath(L"\\begin{matrix}a\\\\[2pt]b\\end{matrix}") && ! ParseMath(L"\\substack{a\\\\[2pt]b}"),
+          "unsupported row spacing retains the complete source instead of becoming literal cell text");
     const auto binomial = ParseMath(L"\\binom{n}{k}");
     check(binomial && binomial.root.children.size() == 1u && binomial.root.children[0u].kind == MathKind::Matrix &&
               binomial.root.children[0u].text == L"pmatrix" && binomial.root.children[0u].columns == 1u && binomial.root.children[0u].children.size() == 2u,

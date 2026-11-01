@@ -445,7 +445,7 @@
     {
       "id": "U04",
       "category": "unsupported",
-      "source": "\\begin{array}{lr}a&b\\end{array}",
+      "source": "\\begin{CD}a&b\\end{CD}",
       "result": "unsupported",
       "diagnostic": "unsupported-environment"
     }

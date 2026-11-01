@@ -1,0 +1,1 @@
+- Reduce bounded math parser recursion frames and reject unsupported explicit row spacing without misrendering it.
