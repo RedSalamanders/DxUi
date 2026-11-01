@@ -333,6 +333,11 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     Check(editor->OnKeyDown(host, VK_DELETE, MK_CONTROL) && editor->GetText() == L"beta" && editor->Undo(),
           "Ctrl+Delete deletes the next source word in one undo transaction");
     editor->SetViewMode(ViewMode::Rich);
+    editor->SetText(L"**hello** world");
+    prepare();
+    editor->SetSelection({15u, 15u});
+    Check(editor->OnKeyDown(host, VK_BACK, MK_CONTROL) && editor->GetText() == L"**hello** " && editor->Undo(),
+          "rich Ctrl+Backspace deletes the mapped word while preserving unrelated markup");
     editor->SetText(L"```\nabc\n```\n");
     prepare();
     editor->SetSelection({5u, 5u});
