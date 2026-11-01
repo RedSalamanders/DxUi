@@ -1935,6 +1935,26 @@ template <typename Prepare> void TaskCheckboxAlignment(ControlHost& host, Prepar
               "check/uncheck remain separate exact-source undo transactions");
         prepare();
     }
+    editor->SetFlowDirection(FlowDirection::LeftToRight);
+    editor->SetReadOnly(true);
+    editor->SetTaskTogglePolicy(RichTextTaskTogglePolicy::AlwaysInteractive);
+    host.SetFocusControl(editor, false);
+    prepare();
+    Check(editor->OnKeyDown(host, VK_TAB, MK_CONTROL) && editor->OnKeyDown(host, VK_SPACE, 0u) && editor->OnChar(host, L' ', 0u) &&
+              editor->GetText() == L"- [x] An unchecked task\r\n- [x] A checked task\r\n",
+          "opt-in read-only task accepts focused Space without inserting the character");
+    editor->SetReadOnly(false);
+    Check(editor->Undo() && editor->GetText() == source, "read-only focused task toggle records one undo");
+    editor->SetReadOnly(true);
+    prepare();
+    const auto readOnlyBounds = editor->TryGetTextInputRangeRects(host, 2u, 5u);
+    Check(readOnlyBounds && readOnlyBounds->size() == 1u, "read-only task retains pointer geometry");
+    const auto bounds = readOnlyBounds->front();
+    const D2D1_POINT_2F point{(bounds.left + bounds.right) / 2.0f, (bounds.top + bounds.bottom) / 2.0f};
+    Check(editor->OnMouseDown(host, point, false, 0u) && editor->OnMouseUp(host, point, false, 0u) && editor->GetText() != source,
+          "opt-in read-only task accepts a captured pointer gesture");
+    editor->SetReadOnly(false);
+    Check(editor->Undo() && editor->GetText() == source, "read-only pointer task toggle records one undo");
 }
 template <typename Prepare> void HangingMarkersLinksAndHtml(ControlHost& host, Prepare&& prepare)
 {

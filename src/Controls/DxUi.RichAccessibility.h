@@ -483,7 +483,7 @@ public:
             return UIA_E_NOTSUPPORTED;
         if (! record->controlEnabled)
             return UIA_E_ELEMENTNOTENABLED;
-        if (record->controlValueReadOnly)
+        if (record->controlValueReadOnly && ! record->controlRichText->readOnlyTasksInteractive)
             return UIA_E_INVALIDOPERATION;
         auto* host   = target_->ResolveHost();
         auto* editor = host ? Detail::RichEditorAccessibilityAccess::As(ResolveIdentifiedControlAtPath(host->GetRoot(), path_, identity_)) : nullptr;
@@ -491,7 +491,7 @@ public:
             return UIA_E_ELEMENTNOTAVAILABLE;
         if (! IsControlEffectivelyInteractive(host->GetRoot(), editor))
             return UIA_E_ELEMENTNOTENABLED;
-        if (editor->IsReadOnly())
+        if (editor->IsReadOnly() && editor->GetTaskTogglePolicy() != RichTextTaskTogglePolicy::AlwaysInteractive)
             return UIA_E_INVALIDOPERATION;
         // Do not touch editor after this call: its committed notification
         // may destroy/rebind the owner. The snapshot keeps only data alive.

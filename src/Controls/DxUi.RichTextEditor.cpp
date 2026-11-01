@@ -623,6 +623,8 @@ struct RichTextEditor::State
     float scrollDip        = 0;
     bool revealCaret       = true;
     bool readOnly          = false;
+    RichTextTaskTogglePolicy taskTogglePolicy = RichTextTaskTogglePolicy::EditableOnly;
+    bool suppressTaskSpace = false;
     bool dragging          = false;
     bool scrollbarDragging = false;
     float scrollbarDragY = 0.0f, scrollbarDragOffset = 0.0f;
@@ -1823,7 +1825,8 @@ std::optional<D2D1_RECT_F> RichTextEditor::GetSemanticElementBounds(const Contro
 bool RichTextEditor::ToggleSemanticTask(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& expected, size_t element)
 {
     using namespace RichText;
-    if (! expected || GetAcknowledgedSemanticDocument(host) != expected || ! Editable() || element >= expected->Elements().size())
+    if (! expected || GetAcknowledgedSemanticDocument(host) != expected || ! IsEnabled() ||
+        (! Editable() && _state->taskTogglePolicy != RichTextTaskTogglePolicy::AlwaysInteractive) || element >= expected->Elements().size())
         return false;
     const auto& task = expected->Elements()[element];
     if (task.role != SemanticRole::Task || task.taskMarker.last - task.taskMarker.first != 3u)
@@ -1837,7 +1840,25 @@ bool RichTextEditor::ToggleSemanticTask(ControlHost& host, const std::shared_ptr
     }
     const wchar_t value = task.task == MarkdownTask::Checked ? L' ' : L'x';
     const SourceEdit edit{{task.taskMarker.first + 1u, task.taskMarker.first + 2u}, std::wstring_view(&value, 1u)};
-    return ApplySourceEdits(Snapshot(), Revision(), std::span(&edit, 1u), GetSelection());
+    const bool changed = RichText::ApplySourceEdits(_state->document, Snapshot(), Revision(), std::span(&edit, 1u), GetSelection());
+    _state->sourceCaretSite = MarkdownNoNode;
+    Changed(changed);
+    return changed;
+}
+void RichTextEditor::SetTaskTogglePolicy(RichTextTaskTogglePolicy policy)
+{
+    if (policy != RichTextTaskTogglePolicy::EditableOnly && policy != RichTextTaskTogglePolicy::AlwaysInteractive)
+        throw std::invalid_argument("Invalid task toggle policy");
+    if (_state->taskTogglePolicy == policy)
+        return;
+    _state->taskTogglePolicy = policy;
+    _state->taskPressPlan.reset();
+    RetireSemanticAccessibility();
+    RequestInvalidate();
+}
+RichTextTaskTogglePolicy RichTextEditor::GetTaskTogglePolicy() const noexcept
+{
+    return _state->taskTogglePolicy;
 }
 bool RichTextEditor::SelectMarkdownDiagnostic(ControlHost& host, bool backwards)
 {
@@ -4794,6 +4815,9 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
     const auto pendingLead    = _state->pendingLeadSurrogate;
     try
     {
+        const bool taskSpace = std::exchange(_state->suppressTaskSpace, false);
+        if (taskSpace && character == L' ')
+            return true;
         // AltGr arrives as Ctrl+Alt on Windows. Its Unicode WM_CHAR must remain
         // insertable, while an isolated command modifier must not type a shortcut.
         if (! Editable() || (ModifiersContainCtrl(modifiers) != ModifiersContainAlt(modifiers)))
@@ -5153,6 +5177,7 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
             return false;
         _state->pendingLeadSurrogate = 0;
         const bool control = ModifiersContainCtrl(modifiers), shift = ModifiersContainShift(modifiers);
+        _state->suppressTaskSpace = false;
         if (! ModifiersContainAlt(modifiers))
         {
             if (key == VK_INSERT && control && ! shift)
@@ -5344,6 +5369,18 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
             return EndSemanticSourceEdit(host);
         if (key == VK_F8 && ! control)
             return SelectMarkdownDiagnostic(host, shift);
+        if (key == VK_SPACE && ! control && ! shift && ! ModifiersContainAlt(modifiers) && _state->keyboardNavigationElement != RichText::MarkdownNoNode)
+        {
+            const auto document = _state->keyboardNavigationDocument.lock();
+            const auto element = _state->keyboardNavigationElement;
+            if (document && GetAcknowledgedSemanticDocument(host) == document && element < document->Elements().size() &&
+                document->Elements()[element].role == RichText::SemanticRole::Task &&
+                (Editable() || (IsEnabled() && _state->taskTogglePolicy == RichTextTaskTogglePolicy::AlwaysInteractive)))
+            {
+                _state->suppressTaskSpace = true;
+                return ToggleSemanticTask(host, document, element);
+            }
+        }
         if (key == VK_F2 && ! control && ! shift)
         {
             if (const auto document = GetAcknowledgedSemanticDocument(host))
@@ -5404,20 +5441,22 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                     std::size_t next = RichText::MarkdownNoNode, previous = RichText::MarkdownNoNode;
                     const auto current = _state->keyboardNavigationDocument.lock() == document ? _state->keyboardNavigationElement : RichText::MarkdownNoNode;
                     bool pastCurrent   = false;
-                    for (const auto& navigation : document->Navigation())
+                    for (std::size_t element = 0u; element < document->Elements().size(); ++element)
                     {
-                        if (document->Elements()[navigation.element].role != RichText::SemanticRole::FootnoteBacklink)
+                        const auto role = document->Elements()[element].role;
+                        if (role != RichText::SemanticRole::FootnoteBacklink &&
+                            (role != RichText::SemanticRole::Task || (! Editable() && _state->taskTogglePolicy != RichTextTaskTogglePolicy::AlwaysInteractive)))
                             continue;
                         if (first == RichText::MarkdownNoNode)
-                            first = navigation.element;
+                            first = element;
                         if (pastCurrent && next == RichText::MarkdownNoNode)
-                            next = navigation.element;
-                        if (navigation.element == current)
+                            next = element;
+                        if (element == current)
                         {
                             previous    = last;
                             pastCurrent = true;
                         }
-                        last = navigation.element;
+                        last = element;
                     }
                     const auto target = shift ? (previous != RichText::MarkdownNoNode ? previous : last) : (next != RichText::MarkdownNoNode ? next : first);
                     if (target != RichText::MarkdownNoNode)
@@ -5937,7 +5976,7 @@ bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool ri
             }
         std::shared_ptr<const RichText::MarkdownCommandPlan> taskPlan;
         D2D1_RECT_F taskRect{};
-        if (Editable() && ! ModifiersContainShift(modifiers))
+        if ((Editable() || (IsEnabled() && _state->taskTogglePolicy == RichTextTaskTogglePolicy::AlwaysInteractive)) && ! ModifiersContainShift(modifiers))
             if (const auto* semantic = _state->layout.SemanticGeometry())
             {
                 const auto& document = semantic->Document();
@@ -6328,7 +6367,15 @@ bool RichTextEditor::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool righ
         point.y >= rect.top && point.y <= rect.bottom)
         try
         {
-            static_cast<void>(ApplyMarkdownCommand(*plan));
+            if (! Editable() && IsEnabled() && _state->taskTogglePolicy == RichTextTaskTogglePolicy::AlwaysInteractive &&
+                ! _state->sourceEditing && GetMarkdownSyntax() == plan->Syntax() && ! MarkdownCommandInputBlocked(&host, this) && plan->IsApplicable())
+            {
+                const bool changed = RichText::ApplyMarkdownCommand(_state->document, *plan);
+                _state->sourceCaretSite = RichText::MarkdownNoNode;
+                Changed(changed);
+            }
+            else
+                static_cast<void>(ApplyMarkdownCommand(*plan));
         }
         catch (const std::bad_alloc&)
         {

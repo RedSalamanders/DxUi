@@ -618,6 +618,7 @@ struct AccessibilityRichTextSnapshot
     }
     std::wstring bodyFont, codeFont, copyName;
     bool externalLinkActivationEnabled = false;
+    bool readOnlyTasksInteractive = false;
     double fontSizePoints              = 0.0;
     double codeFontSizePoints          = 0.0;
     double headingScaleStep            = 0.15;
@@ -2315,6 +2316,7 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
                     readFamily(host.GetTextFormat(FontRole::Monospace), rich->codeFont);
                     rich->fontSizePoints                = static_cast<double>(body->GetFontSize()) * 72.0 / 96.0;
                     rich->externalLinkActivationEnabled = editor->HasLinkActivationHandler();
+                    rich->readOnlyTasksInteractive = editor->GetTaskTogglePolicy() == RichTextTaskTogglePolicy::AlwaysInteractive;
                     const auto& appearance              = editor->GetAppearance();
                     if (! appearance.bodyFontFamily.empty())
                         rich->bodyFont = appearance.bodyFontFamily;

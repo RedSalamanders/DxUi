@@ -1759,6 +1759,12 @@ the action. Original list markers are not renumbered automatically.
 first marker or the requested `listStart`, preserving punctuation and adjusting
 owned continuation indentation when marker width changes. It rejects overflow
 or ambiguous indentation atomically and is one undoable transaction.
+Tasks default to `EditableOnly`. An application may opt into
+`AlwaysInteractive` to permit pointer, focused Space and UIA Toggle actions on
+an enabled read-only editor. Each action changes only the exact task marker and
+records one undo transaction; other source edits remain read-only. Undo becomes
+available under the normal editable policy. Composition, stale publication and
+disabled controls still reject actions. Policy changes retire old task peers.
 
 Semantic visual deletion MUST remove empty owned Markdown/validated inline
 HTML wrappers only when their complete body is deleted, recursively. Block HTML

@@ -150,6 +150,11 @@ are retained; moving across a list boundary is unavailable.
 marker or the supplied `listStart`. Marker punctuation is preserved and owned
 continuations follow any digit-width change. Overflow and ambiguous indentation
 reject the whole command; untouched lists are never renumbered implicitly.
+Task toggles default to editable controls. `SetTaskTogglePolicy` can opt into
+`AlwaysInteractive` for read-only task checkboxes: pointer, Ctrl+Tab then Space,
+and UIA Toggle change the marker as one undoable edit. Other source edits remain
+read-only, and Undo follows the normal editable policy. The application owns
+persistence of the text-change notification.
 The feature is disabled by default. `QueryMarkdownCommandState` returns current
 style/heading/list presentation without allocation. Applicability is unknown
 when neither an immediate proof nor an exact prepared result is available.
