@@ -135,6 +135,8 @@ strike, Ctrl+backtick for code and Ctrl+K for the consumer's link-edit request.
 The feature is disabled by default. `QueryMarkdownCommandState` returns current
 style/heading/list presentation and explicitly unknown applicability where a
 nonallocating planner predicate is not yet available.
+During an active or indeterminate native composition, every structural command
+reports unavailable while its current style presentation remains visible.
 List state considers the complete selected source interval, including nested
 and intervening list kinds, using an allocation-free syntax traversal. Beyond
 64 nested items, parent-link recovery may add work proportional to ancestor depth.

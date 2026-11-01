@@ -9704,6 +9704,49 @@ void TestNativeTextInputBackendKeyToPaintMetricScenario()
 
 } // namespace
 
+void TestRichCommandStateDuringNativeComposition()
+{
+    using namespace DxUi;
+    using namespace DxUi::RichText;
+    AttachedHostWindow window;
+    auto& host = window.Host();
+    auto editor = std::make_unique<RichTextEditor>(L"**a**");
+    auto* raw = editor.get();
+    raw->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+    raw->SetMarkdownRenderingEnabled(true);
+    host.SetRoot(std::move(editor));
+    host.SetFocusControl(raw, false);
+    raw->SetSelection({3u, 3u});
+    Require(PrepareNativeContentForTests(host), "prepare semantic command state for native composition");
+    NativeTextStoreTestSink sink;
+    wil::com_ptr_nothrow<ITextStoreACP> store;
+    store.attach(host.DebugCreateNativeTextInputTextStoreForTest());
+    Require(store != nullptr, "rich command state has a native ACP store");
+    RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE), "advise composition state sink");
+    wil::com_ptr_nothrow<ITfContextOwnerCompositionSink> compositions;
+    RequireSucceeded(store.query_to(compositions.put()), "query composition state sink");
+    ClientComposition composition;
+    composition.range.start = 3;
+    composition.range.length = 0;
+    BOOL accepted = FALSE;
+    sink.onLockGranted = [&](DWORD) noexcept { return compositions->OnStartComposition(&composition, &accepted); };
+    HRESULT session = E_UNEXPECTED;
+    RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session), "start composition state lock");
+    RequireSucceeded(session, "start composition state session");
+    Require(accepted != FALSE, "native composition started");
+    MarkdownCommandRequest request;
+    request.command = MarkdownCommand::ToggleStyle;
+    request.style = MarkdownTextStyle::Strong;
+    const auto state = raw->QueryMarkdownCommandState(request);
+    Require(state && state->active && state->available == std::optional<bool>{false} &&
+                raw->ExecuteMarkdownCommand(request) == MarkdownCommandStatus::Unavailable && raw->GetText() == L"**a**",
+            "active native composition blocks unresolved commands while retaining style state");
+    sink.onLockGranted = [&](DWORD) noexcept { return compositions->OnEndComposition(&composition); };
+    RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session), "end composition state lock");
+    RequireSucceeded(session, "end composition state session");
+    RequireSucceeded(store->UnadviseSink(&sink), "unadvise composition state sink");
+}
+
 void TestRichTextNativeTsfCompositionAndDisconnection()
 {
     using namespace DxUi;
@@ -9790,6 +9833,7 @@ void TestRichTextNativeTsfCompositionAndDisconnection()
 
 void RunRichTextStoreTests()
 {
+    DXUI_RUN_TEST(TestRichCommandStateDuringNativeComposition);
     DXUI_RUN_TEST(TestRichTextNativeTsfCompositionAndDisconnection);
 }
 

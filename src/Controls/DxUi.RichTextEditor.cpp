@@ -26,6 +26,13 @@ namespace DxUi
 {
 namespace
 {
+bool MarkdownCommandInputBlocked(const ControlHost* host, const Control* control) noexcept
+{
+    if (! host || host->GetFocusControl() != control)
+        return false;
+    const auto composition = host->GetNativeTextCompositionActive(control);
+    return (host->HasActiveNativeTextInputSession() && ! composition) || composition.value_or(false);
+}
 std::optional<RichText::MarkdownListKind> UniformListKind(const RichText::MarkdownSyntax& syntax,
                                                          std::size_t first,
                                                          std::size_t last,
@@ -2105,12 +2112,8 @@ RichText::MarkdownCommandStatus RichTextEditor::ApplyMarkdownCommand(const RichT
         return MarkdownCommandStatus::Unavailable;
     if (syntax != plan.Syntax())
         throw std::invalid_argument("Stale Markdown command syntax publication");
-    if (auto* host = GetHost(); host && host->GetFocusControl() == this)
-    {
-        const auto composition = host->GetNativeTextCompositionActive(this);
-        if ((host->HasActiveNativeTextInputSession() && ! composition) || composition.value_or(false))
-            return MarkdownCommandStatus::Unavailable;
-    }
+    if (MarkdownCommandInputBlocked(GetHost(), this))
+        return MarkdownCommandStatus::Unavailable;
     auto site = MarkdownNoNode;
     if (plan.AfterCell() != MarkdownNoNode)
     {
@@ -2174,6 +2177,7 @@ std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownComma
     if (! document)
         return std::nullopt;
     const auto selection = GetSelection();
+    const bool inputBlocked = MarkdownCommandInputBlocked(GetHost(), this);
     if (request.command == MarkdownCommand::JoinBackward || request.command == MarkdownCommand::JoinForward)
     {
         bool simpleApplicable = false;
@@ -2181,27 +2185,19 @@ std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownComma
         if (! leaf)
             result.available = false;
         else if (simpleApplicable)
-        {
-            auto* host = GetHost();
-            const auto composition = host && host->GetFocusControl() == this ? host->GetNativeTextCompositionActive(this) : std::optional<bool>{false};
-            result.available = (! host || host->GetFocusControl() != this || ! host->HasActiveNativeTextInputSession() || composition.has_value()) &&
-                               ! composition.value_or(false);
-        }
+            result.available = ! inputBlocked;
     }
     if (request.command == MarkdownCommand::ExitCodeBlock || request.command == MarkdownCommand::SetCodeLanguage ||
         request.command == MarkdownCommand::InsertMath || request.command == MarkdownCommand::InsertThematicBreak ||
         request.command == MarkdownCommand::InsertEscapedText)
     {
-        auto* host             = GetHost();
-        const auto composition = host && host->GetFocusControl() == this ? host->GetNativeTextCompositionActive(this) : std::optional<bool>{false};
         const bool applicable =
             request.command == MarkdownCommand::ExitCodeBlock       ? FindExitCodeBlock(*document->Syntax(), selection).has_value()
             : request.command == MarkdownCommand::SetCodeLanguage   ? FindCodeLanguageTarget(*document->Syntax(), selection, request.text).has_value()
             : request.command == MarkdownCommand::InsertMath        ? CanInsertMath(*document->Syntax(), selection, request.text, request.mathDisplay)
             : request.command == MarkdownCommand::InsertEscapedText ? CanInsertEscapedText(*document->Syntax(), selection, request.text)
                                                                     : CanInsertThematicBreak(*document->Syntax(), selection);
-        result.available = (! host || host->GetFocusControl() != this || ! host->HasActiveNativeTextInputSession() || composition.has_value()) &&
-                           ! composition.value_or(false) && applicable;
+        result.available = ! inputBlocked && applicable;
     }
     auto first = selection.Start(), last = selection.End();
     if (first == last && first != 0u)
@@ -2255,6 +2251,8 @@ std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownComma
         result.active = result.listKind && result.listKind.value() == request.listKind;
         result.mixed  = ! result.listKind;
     }
+    if (inputBlocked)
+        result.available = false;
     return result;
 }
 bool RichTextEditor::Undo()

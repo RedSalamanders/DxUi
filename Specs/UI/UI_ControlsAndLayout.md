@@ -1328,6 +1328,9 @@ Command-state list membership covers the complete selected source interval,
 including nested items and unlisted gaps, rather than sampling only endpoints.
 The query uses a small bounded stack and parent-link recovery at deeper nesting;
 the latter may add ancestor-depth work. It does not allocate or build edit strings.
+When a focused native input session has an active or indeterminate composition,
+command-state availability is false for every structural command, matching
+execution; current style and list presentation remain queryable.
 At the start of a heading's visible content, `JoinBackward` removes its ATX or
 setext heading spelling through the same structural heading conversion; inside
 the heading it remains unavailable. The operation is a single undo transaction.
