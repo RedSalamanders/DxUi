@@ -618,8 +618,83 @@ template <typename Prepare> void InlineMathSourceEditing(ControlHost& host, Prep
     prepare();
     Check(editor->GetText() == L"$x$" && editor->OnKeyDown(host, VK_F2, 0u), "restored formula leaves its session normally");
 }
+template <typename Prepare> void ScrollbarAndNotifications(ControlHost& host, Prepare&& prepare)
+{
+    std::wstring source(0u, L' ');
+    for (unsigned line = 0u; line < 300u; ++line)
+        source += L"A synthetic document line.\n\n";
+    auto root                        = std::make_unique<RichTextEditor>(source);
+    auto* editor                     = root.get();
+    auto appearance                  = editor->GetAppearance();
+    appearance.showVerticalScrollbar = true;
+    editor->SetAppearance(appearance);
+    editor->SetReadOnly(true);
+    host.SetRoot(std::move(root));
+    Check(! editor->GetScrollInfo() && ! editor->SetScrollOffsetDip(20.0f), "pending scroll API refuses without advancing preparation");
+    prepare();
+    const auto info = editor->GetScrollInfo();
+    Check(info && info->viewportHeightDip > 0.0f && info->contentHeightDip > info->viewportHeightDip && info->offsetDip == 0.0f,
+          "prepared scroll API exposes bounded document and viewport geometry");
+    const auto revision  = editor->Revision();
+    const auto selection = editor->GetSelection();
+    const auto focus     = host.GetFocusControl();
+    size_t events        = 0u;
+    float published      = -1.0f;
+    editor->SetOnScrollChanged([&](float offset)
+    {
+        ++events;
+        published = offset;
+    });
+    Check(editor->SetScrollOffsetDip(48.0f) && events == 1u && published == 48.0f && host.GetFocusControl() == focus && editor->GetText() == source &&
+              editor->GetSelection() == selection && editor->Revision() == revision && ! editor->CanUndo(),
+          "read-only programmatic scroll publishes once without source, history, selection or focus changes");
+    Check(editor->SetScrollOffsetDip(48.0f) && events == 1u && ! editor->SetScrollOffsetDip(std::numeric_limits<float>::quiet_NaN()),
+          "no-op scroll is silent and non-finite requests are rejected");
+    Check(editor->SetScrollOffsetDip(1.0e9f) && events == 2u && std::abs(published - (info->contentHeightDip - info->viewportHeightDip)) < .1f &&
+              ! editor->OnMouseWheel(host, {}, -WHEEL_DELTA, 0u),
+          "scroll clamps to the real extent and wheel input bubbles at the bottom edge");
+    Check(editor->SetScrollOffsetDip(0.0f), "scroll fixture returns to the beginning");
+    const auto viewport = editor->GetTextInputViewportRect();
+    Check(viewport.has_value(), "scroll fixture has a text viewport");
+    const auto bounds = editor->GetBounds();
+    auto point        = D2D1::Point2F(bounds.right - 14.0f, viewport->top + 2.0f);
+    Check(editor->OnMouseDown(host, point, false, 0u) && host.GetCapturedControl() == editor, "visible scrollbar thumb captures its own gesture");
+    point.y += 80.0f;
+    Check(editor->OnMouseMove(host, point, 0u) && editor->GetScrollInfo()->offsetDip > 0.0f && editor->GetSelection() == selection,
+          "thumb drag scrolls without selecting source");
+    Check(editor->OnMouseUp(host, point, false, 0u) && host.GetCapturedControl() == nullptr, "thumb release ends only its capture");
+    Check(editor->SetScrollOffsetDip(0.0f), "scroll fixture resets after drag");
+    editor->SetSelection({source.size(), source.size()});
+    const auto beforeQuery = editor->GetScrollInfo()->offsetDip;
+    static_cast<void>(editor->TryGetTextInputCaretRect(host, source.size()));
+    static_cast<void>(editor->GetVisibleSourceRange(host));
+    Check(editor->GetScrollInfo()->offsetDip == beforeQuery, "geometry queries never reveal the caret or mutate scroll");
+    prepare();
+    Check(editor->GetScrollInfo()->offsetDip > 0.0f, "owner preparation reveals the changed selection");
+    editor->SetFlowDirection(FlowDirection::RightToLeft);
+    prepare();
+    Check(editor->SetScrollOffsetDip(0.0f), "RTL fixture begins at the top");
+    const auto rtlViewport = editor->GetTextInputViewportRect();
+    point                  = D2D1::Point2F(editor->GetBounds().left + 14.0f, rtlViewport->top + 2.0f);
+    Check(editor->OnMouseDown(host, point, false, 0u) && host.GetCapturedControl() == editor && editor->OnKeyDown(host, VK_ESCAPE, 0u) &&
+              host.GetCapturedControl() == nullptr,
+          "RTL scrollbar reserves the leading lane and Escape cancels its gesture");
+    events = 0u;
+    editor->SetOnScrollChanged([&](float offset)
+    {
+        ++events;
+        if (offset > 0.0f)
+            Check(editor->SetScrollOffsetDip(0.0f), "nested scroll can return to the prior offset");
+    });
+    Check(editor->SetScrollOffsetDip(24.0f) && events == 2u && editor->GetScrollInfo()->offsetDip == 0.0f,
+          "reentrant scroll observers publish each committed predecessor exactly once");
+    editor->SetOnScrollChanged([&](float) { host.SetRoot(std::make_unique<Label>(L"Replacement document")); });
+    Check(editor->SetScrollOffsetDip(12.0f) && dynamic_cast<Label*>(host.GetRoot()), "scroll observer may retire its editor safely");
+    prepare();
+}
 template <typename Prepare> void Rendering(ControlHost& host, Prepare&& prepare)
 {
+    ScrollbarAndNotifications(host, prepare);
     const std::wstring original = L"# **Heading**\r\n\r\n| left | right |\n| :--- | ---: |\n| a | b |\n\n> quoted &amp; **bold**\n\n![alt](local)\n";
     auto root                   = std::make_unique<RichTextEditor>(original);
     auto* editor                = root.get();

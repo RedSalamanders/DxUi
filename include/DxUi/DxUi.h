@@ -3098,6 +3098,8 @@ struct RichTextEditorAppearance
     bool useAccentLinkColor        = false;
     bool colorizeMarkdownSource    = false;
     bool directSourceInkPreview    = false;
+    // Reserve a vertical scrollbar lane, including in right-to-left layout.
+    bool showVerticalScrollbar = false;
     // Zero preserves host Tab traversal; 1..16 inserts that many spaces in source/code.
     unsigned sourceTabSpaces   = 0u;
     bool sourceTabUsesTabs     = false; // When enabled, insert a tab instead of spaces.
@@ -3131,6 +3133,10 @@ struct RichTextLinkActivation
     RichText::MarkdownRange source;
     // Borrowed for the callback; the immutable semantic publication stays alive.
     std::wstring_view destination, title;
+};
+struct RichTextScrollInfo
+{
+    float offsetDip{}, viewportHeightDip{}, contentHeightDip{};
 };
 enum class RichTextDecorationKind
 {
@@ -3294,6 +3300,11 @@ public:
     // navigate inside the document; external destinations are delegated only.
     // The library never launches a browser, file, process or network operation.
     void SetOnLinkActivated(std::function<void(const RichTextLinkActivation&)> callback);
+    // Current prepared geometry only. Programmatic scrolling does not change
+    // source, selection, undo history or focus; read-only views allow it.
+    [[nodiscard]] std::optional<RichTextScrollInfo> GetScrollInfo() const noexcept;
+    bool SetScrollOffsetDip(float offsetDip);
+    void SetOnScrollChanged(std::function<void(float)> callback);
     // F2/UIA source entry changes only local presentation and caret, without
     // taking OS focus. Exact document text/history remain authoritative. An
     // active IME composition or stale/unprepared target refuses the transition.
@@ -3424,6 +3435,8 @@ private:
     void Changed(bool sourceChanged, bool synchronizeTextInput = true);
     void SelectionChanged(bool synchronizeTextInput = true, bool preservePreferredCaretX = false, bool publishSelection = true, bool revealCaret = true);
     void PrepareOverlayGeometry(ControlHost& host);
+    [[nodiscard]] D2D1_RECT_F ScrollbarTrack() const noexcept;
+    void PublishScrollChanged() noexcept;
     void PublishSelectionChanged() noexcept;
     void MoveCaret(ControlHost& host, UINT key, bool extend, bool byWord);
     bool Erase(ControlHost& host, bool backwards, bool byWord, bool coalesceHistory = false);

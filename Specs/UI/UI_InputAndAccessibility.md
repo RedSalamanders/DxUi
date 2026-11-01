@@ -1280,3 +1280,17 @@ control.
 Grid SelectionItem AddToSelection and RemoveFromSelection report successful accepted changes when a delegate updates or arranges sibling detail controls. Such geometry changes alone do not retire the row. Destroying/detaching the owner, replacing its model, or reassigning even the same model still invalidates the retained action/provider. Row identity is revalidated after callbacks and accessibility publication.
 
 Native text-store layout notifications include focused text-control bounds and typography changes, window moves, DPI changes, and publication of changed prepared content. Locked TSF notifications use the existing coalesced deferred path; callbacks are lifetime and session guarded.
+
+RichTextEditor exposes prepared `RichTextScrollInfo` and finite, clamped
+`SetScrollOffsetDip` requests. Pending/hidden/detached geometry refuses; disabled
+controls refuse changes, while read-only controls allow navigation. Scrolling
+preserves source, source selection, undo history and focus. Text-store layout and
+accessibility geometry are republished before a committed scroll observer runs;
+application reentrancy is lifetime and binding guarded. Observers hold their own
+callback registration across replacement and publish the predecessor offset
+before invocation. They may scroll reentrantly or retire the control. No-op
+offsets are silent. Automatic caret reveal and clamp occur in preparation;
+painting and geometry queries never mutate scroll. The opt-in vertical scrollbar
+reserves a stable lane before layout (leading for RTL), uses the canonical shared
+thumb geometry/theme, and owns only its captured drag. Escape/capture loss ends
+that gesture. Wheel input at the document edge remains available to ancestors.

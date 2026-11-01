@@ -1435,3 +1435,14 @@ publication and may retire the editor. Local fragments resolve heading IDs using
 Unicode reference folding, spaces as hyphens and ASCII punctuation removal
 (except `_` and `-`); repeated IDs gain source-ordered numeric suffixes. `#` moves
 to source start. Unresolved or malformed UTF-8 fragments leave selection unchanged.
+
+`GetScrollInfo` reports current prepared offset, viewport height and document
+height. `SetScrollOffsetDip` clamps a finite owner-thread request without changing
+source, selection, undo history or focus. Read-only views allow scrolling.
+`SetOnScrollChanged` observes committed offsets, including caret reveal during
+preparation; no-op offsets are silent. Observers may replace themselves, scroll
+again or retire the editor. `showVerticalScrollbar` reserves a theme-colored
+vertical lane (on the left for RTL) and enables thumb dragging and page clicks.
+It defaults to false for existing layouts. Wheel input bubbles at either edge.
+Geometry getters and drawing only read the offset; caret reveal runs during
+owner preparation.

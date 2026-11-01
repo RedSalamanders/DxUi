@@ -241,6 +241,8 @@ struct RichTextEditor::State
     RichText::ViewMode mode = RichText::ViewMode::Rich;
     std::shared_ptr<const std::function<void()>> onTextChanged;
     std::shared_ptr<const std::function<void()>> onSelectionChanged;
+    std::shared_ptr<const std::function<void(float)>> onScrollChanged;
+    float publishedScrollDip = 0.0f;
     RichText::Selection publishedSelection{};
     bool publishedSelectionGesture      = false;
     uint64_t publishedSelectionRevision = 0u;
@@ -255,11 +257,13 @@ struct RichTextEditor::State
     float requestWidth             = 0;
     bool requestActive             = false;
     size_t preparationAdvances = 0, cancelledPreparations = 0, lastAdvanceLayouts = 0, lastAdvanceBlockSteps = 0;
-    float layoutWidth            = 0;
-    float scrollDip              = 0;
-    bool revealCaret             = true;
-    bool readOnly                = false;
-    bool dragging                = false;
+    float layoutWidth      = 0;
+    float scrollDip        = 0;
+    bool revealCaret       = true;
+    bool readOnly          = false;
+    bool dragging          = false;
+    bool scrollbarDragging = false;
+    float scrollbarDragY = 0.0f, scrollbarDragOffset = 0.0f;
     bool caretVisible            = true;
     wchar_t pendingLeadSurrogate = 0;
     std::optional<uint64_t> blinkEpoch;
@@ -1504,6 +1508,70 @@ void RichTextEditor::SetOnSelectionChanged(std::function<void()> callback)
     _state->publishedSelectionRevision = Revision();
     _state->onSelectionChanged.swap(next);
 }
+std::optional<RichTextScrollInfo> RichTextEditor::GetScrollInfo() const noexcept
+{
+    const auto* host = GetHost();
+    if (! host || ! IsVisible() || ! LayoutIsCurrent(*host))
+        return std::nullopt;
+    const auto viewport = TextViewport();
+    return RichTextScrollInfo{_state->scrollDip, std::max(0.0f, viewport.bottom - viewport.top), _state->layout.Height()};
+}
+void RichTextEditor::SetOnScrollChanged(std::function<void(float)> callback)
+{
+    auto next                  = callback ? std::make_shared<const std::function<void(float)>>(std::move(callback)) : nullptr;
+    _state->publishedScrollDip = _state->scrollDip;
+    _state->onScrollChanged.swap(next);
+}
+void RichTextEditor::PublishScrollChanged() noexcept
+{
+    const float offset = _state->scrollDip;
+    if (_state->publishedScrollDip == offset)
+        return;
+    _state->publishedScrollDip = offset;
+    const auto callback        = _state->onScrollChanged;
+    if (! callback)
+        return;
+    try
+    {
+        (*callback)(offset);
+    }
+    catch (const std::bad_alloc&)
+    {
+        // As with committed text/selection observers, allocation failure is fatal.
+        std::terminate();
+    }
+    catch (const std::exception&)
+    {
+        Debug::Warning(L"DxUi::RichTextEditor: scroll notification failed; committed offset retained.");
+    }
+    // The observer may detach or destroy this editor. No owner reads follow.
+}
+bool RichTextEditor::SetScrollOffsetDip(float offsetDip)
+{
+    auto* host      = GetHost();
+    const auto info = GetScrollInfo();
+    if (! info || ! IsEnabled() || ! std::isfinite(offsetDip))
+        return false;
+    const float offset  = std::clamp(offsetDip, 0.0f, std::max(0.0f, info->contentHeightDip - info->viewportHeightDip));
+    _state->revealCaret = false;
+    if (_state->scrollDip == offset)
+        return true;
+    _state->scrollDip = offset;
+    _state->hoveredLink.reset();
+    ++_state->fileDropEpoch;
+    const auto lifetime = GetLifetimeToken();
+    const auto binding  = _state->bindingRevision;
+    host->NotifyTextInputLayoutChanged(this);
+    if (lifetime.expired() || GetHost() != host || _state->bindingRevision != binding)
+        return true;
+    host->RefreshAccessibilitySnapshot();
+    if (lifetime.expired() || GetHost() != host || _state->bindingRevision != binding)
+        return true;
+    RequestInvalidate();
+    if (! lifetime.expired() && GetHost() == host && _state->bindingRevision == binding)
+        PublishScrollChanged();
+    return true;
+}
 bool RichTextEditor::IsSelectionGestureActive() const noexcept
 {
     return _state->dragging;
@@ -1660,12 +1728,30 @@ D2D1_RECT_F RichTextEditor::TextViewport() const noexcept
                                          bounds.top + padding,
                                          std::max(bounds.left + padding, bounds.right - padding),
                                          std::max(bounds.top + padding, bounds.bottom - padding));
+    if (appearance.showVerticalScrollbar)
+    {
+        constexpr float lane = kScrollbarThicknessDip + 4.0f;
+        if (IsRightToLeft())
+            result.left = std::min(result.right, result.left + lane);
+        else
+            result.right = std::max(result.left, result.right - lane);
+    }
     if (appearance.maximumTextWidthDip > 0.0f && result.right - result.left > appearance.maximumTextWidthDip)
     {
         result.left += (result.right - result.left - appearance.maximumTextWidthDip) * 0.5f;
         result.right = result.left + appearance.maximumTextWidthDip;
     }
     return result;
+}
+D2D1_RECT_F RichTextEditor::ScrollbarTrack() const noexcept
+{
+    if (! _state->appearance.showVerticalScrollbar)
+        return D2D1::RectF();
+    const auto bounds   = GetBounds();
+    const auto viewport = TextViewport();
+    const auto padding  = _state->appearance.paddingDip < 0.0f ? (IsCompactDensity() ? 6.0f : 8.0f) : _state->appearance.paddingDip;
+    const float left    = IsRightToLeft() ? bounds.left + padding : bounds.right - padding - kScrollbarThicknessDip;
+    return D2D1::RectF(std::max(bounds.left, left), viewport.top, std::min(bounds.right, left + kScrollbarThicknessDip), viewport.bottom);
 }
 void RichTextEditor::RetireLayout() const noexcept
 {
@@ -1704,6 +1790,13 @@ void RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
 {
     auto& state        = *_state;
     const auto& layout = state.layout;
+    if (state.appearance.showVerticalScrollbar)
+        for (const bool dragging : {false, true})
+        {
+            const auto visuals = ResolveScrollbarVisuals(host.GetTheme(), false, false, dragging);
+            static_cast<void>(host.GetSolidBrush(visuals.track));
+            static_cast<void>(host.GetSolidBrush(visuals.thumb));
+        }
     if (state.overlaySelectionDirty)
     {
         const auto selection = GetSelection();
@@ -1881,7 +1974,9 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         {
             UpdateCaretScroll();
             PrepareOverlayGeometry(host);
-            return PrepareSourceInk() ? S_OK : S_FALSE;
+            const auto result = PrepareSourceInk() ? S_OK : S_FALSE;
+            PublishScrollChanged();
+            return result;
         }
         if (state.markdownProfile && ! GetMarkdownSyntax() && ! state.HasCurrentMarkdownCapacityRejection())
         {
@@ -2178,7 +2273,9 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         UpdateCaretScroll();
         UpdateCaretLinkDisplayRange();
         PrepareOverlayGeometry(host);
-        return PrepareSourceInk() ? S_OK : S_FALSE;
+        const auto result = PrepareSourceInk() ? S_OK : S_FALSE;
+        PublishScrollChanged();
+        return result;
     }
     catch (const RichText::Detail::NativeObjectsRejected& failure)
     {
@@ -2251,7 +2348,6 @@ void RichTextEditor::RequireCurrentLayout(const ControlHost& host) const
     // Geometry queries, input and painting never drain pending preparation.
     if (! LayoutIsCurrent(host))
         throw std::logic_error("Rich-text geometry is pending or unavailable");
-    UpdateCaretScroll();
 }
 void RichTextEditor::UpdateCaretScroll() const
 {
@@ -2270,7 +2366,10 @@ void RichTextEditor::UpdateCaretScroll() const
     }
     state.scrollDip = std::clamp(state.scrollDip, 0.0f, std::max(0.0f, state.layout.Height() - height));
     if (state.scrollDip != previousScroll)
+    {
         state.hoveredLink.reset();
+        ++state.fileDropEpoch;
+    }
 }
 RichTextEditorDebugState RichTextEditor::DebugGetState() const noexcept
 {
@@ -2368,7 +2467,6 @@ bool RichTextEditor::ScrollSourceRangeIntoView(ControlHost& host, size_t sourceS
         // not-current case; only a prepared current layout can reveal a range.
         if (! LayoutIsCurrent(host))
             return false;
-        UpdateCaretScroll();
         const auto& projection = _state->layout;
         const auto rectangles  = projection.SourceRange(sourceStart, sourceEnd);
         // Hidden-only syntax has no painted extent to reveal. Do not jump to
@@ -2391,21 +2489,7 @@ bool RichTextEditor::ScrollSourceRangeIntoView(ControlHost& host, size_t sourceS
         const auto viewport = TextViewport();
         const float height  = std::max(0.0f, viewport.bottom - viewport.top);
         const float offset  = std::clamp(alignToTop ? top : bottom - height, 0.0f, std::max(0.0f, _state->layout.Height() - height));
-        _state->revealCaret = false;
-        if (_state->scrollDip == offset)
-            return true;
-        _state->scrollDip = offset;
-        _state->hoveredLink.reset();
-        // Synchronization and invalidation can invoke application scheduling.
-        // Capture identity before crossing either boundary; never resume on a
-        // detached/replaced editor. Neither operation changes source/history.
-        const auto lifetime = GetLifetimeToken();
-        const auto binding  = _state->bindingRevision;
-        host.SyncTextInput(this);
-        if (lifetime.expired() || GetHost() != &host || _state->bindingRevision != binding)
-            return false;
-        RequestInvalidate();
-        return ! lifetime.expired() && GetHost() == &host && _state->bindingRevision == binding;
+        return SetScrollOffsetDip(offset);
     }
     catch (const std::exception&)
     {
@@ -2617,151 +2701,162 @@ void RichTextEditor::Paint(ControlHost& host) const
     const std::span<const D2D1_RECT_F> rectangles =
         state.overlaySelectionDirty ? std::span<const D2D1_RECT_F>{} : std::span<const D2D1_RECT_F>(state.selectionRectangles);
     const auto origin = D2D1::Point2F(viewport.left, viewport.top - state.scrollDip);
-    context->PushAxisAlignedClip(viewport, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
-    const auto restoreClip = wil::scope_exit([context]() noexcept { context->PopAxisAlignedClip(); });
-    const std::span<const State::DecorationRectangle> decorations =
-        state.overlayHighlightsDirty ? std::span<const State::DecorationRectangle>{} : std::span<const State::DecorationRectangle>(state.decorationRectangles);
-    for (const auto& decoration : decorations)
     {
-        if (decoration.kind != RichTextDecorationKind::Background)
-            continue;
-        auto color = DecorationColor(host.GetTheme(), decoration.role);
-        if (! host.GetTheme().highContrast)
-            color.a *= .18f;
-        auto* brush           = host.GetSolidBrush(color);
-        const auto& rectangle = decoration.rectangle;
-        const auto bounds     = D2D1::RectF(rectangle.left + origin.x, rectangle.top + origin.y, rectangle.right + origin.x, rectangle.bottom + origin.y);
-        if (host.GetTheme().highContrast)
-            context->DrawRectangle(bounds, brush);
-        else
-            context->FillRectangle(bounds, brush);
-    }
-    const std::span<const State::HighlightRectangle> highlights =
-        state.overlayHighlightsDirty ? std::span<const State::HighlightRectangle>{} : std::span<const State::HighlightRectangle>(state.highlightRectangles);
-    for (const auto& highlight : highlights)
-    {
-        auto color = host.GetTheme().selectionFill;
-        color.a *= host.GetTheme().highContrast ? 1.0f : highlight.current ? 0.38f : 0.18f;
-        auto* brush           = host.GetSolidBrush(color);
-        const auto& rectangle = highlight.rectangle;
-        const auto bounds     = D2D1::RectF(rectangle.left + origin.x, rectangle.top + origin.y, rectangle.right + origin.x, rectangle.bottom + origin.y);
-        if (host.GetTheme().highContrast)
-            context->DrawRectangle(bounds, brush, highlight.current ? 2.0f : 1.0f);
-        else
-            context->FillRectangle(bounds, brush);
-    }
-    RichText::LinkDrawing links;
-    links.brush     = appearance.useAccentLinkColor && IsEnabled() ? host.GetSolidBrush(host.GetTheme().accent) : nullptr;
-    links.underline = state.linkUnderlinePolicy == RichTextLinkUnderlinePolicy::Always || host.GetTheme().highContrast;
-    links.hover     = state.hoveredLink;
-    links.caret     = CaretLinkDisplayRange();
-    if (state.mode == RichText::ViewMode::Source && appearance.colorizeMarkdownSource && ! host.GetTheme().highContrast)
-    {
-        links.inkRanges              = state.sourceInk.Ranges();
-        links.directSourceInkPreview = appearance.directSourceInkPreview;
-        // Keep the ordinary first pass beneath true selection. Translucent
-        // selection fill and antialiased selected glyph edges must never retain
-        // colored syntax ink from underneath their selected-text pass.
-        if (selection.anchor != selection.caret)
-            links.inkExclusion = RichText::MarkdownRange{projection.ToDisplay(selection.Start()), projection.ToDisplay(selection.End())};
-        links.inkBrushes = {
-            host.GetSolidBrush(host.GetTheme().subduedText), host.GetSolidBrush(host.GetTheme().accent), host.GetSolidBrush(host.GetTheme().accent)};
-    }
-    const bool dimmed = state.focusMode && state.mode == RichText::ViewMode::Rich && ! host.GetTheme().highContrast && IsEnabled();
-    auto* subdued     = dimmed ? host.GetSolidBrush(host.GetTheme().subduedText) : textBrush;
-    if (dimmed)
-    {
-        links.emphasis          = ActiveParagraphDisplayRange();
-        links.emphasisBrush     = textBrush;
-        links.inactiveLinkBrush = subdued;
-    }
-    const bool decorated = ! links.inkRanges.empty() || dimmed || (state.mode == RichText::ViewMode::Rich && (links.brush || ! links.underline));
-    state.layout.Draw(context,
-                      subdued,
-                      dimmed ? subdued : semanticDecoration,
-                      origin,
-                      state.scrollDip,
-                      state.scrollDip + viewport.bottom - viewport.top,
-                      diagramFill,
-                      1.0f,
-                      decorated ? &links : nullptr,
-                      quoteFill);
-    for (const auto& decoration : decorations)
-    {
-        if (decoration.kind == RichTextDecorationKind::Background)
-            continue;
-        const auto& rectangle = decoration.rectangle;
-        const auto bounds     = D2D1::RectF(rectangle.left + origin.x, rectangle.top + origin.y, rectangle.right + origin.x, rectangle.bottom + origin.y);
-        if (bounds.bottom <= viewport.top || bounds.top >= viewport.bottom || bounds.right <= viewport.left || bounds.left >= viewport.right)
-            continue;
-        auto* brush = host.GetSolidBrush(DecorationColor(host.GetTheme(), decoration.role));
-        if (decoration.kind == RichTextDecorationKind::Foreground)
+        context->PushAxisAlignedClip(viewport, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+        const auto restoreClip                                        = wil::scope_exit([context]() noexcept { context->PopAxisAlignedClip(); });
+        const std::span<const State::DecorationRectangle> decorations = state.overlayHighlightsDirty
+                                                                            ? std::span<const State::DecorationRectangle>{}
+                                                                            : std::span<const State::DecorationRectangle>(state.decorationRectangles);
+        for (const auto& decoration : decorations)
         {
-            context->PushAxisAlignedClip(bounds, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
-            const auto restoreDecorationClip = wil::scope_exit([context]() noexcept { context->PopAxisAlignedClip(); });
-            state.layout.Draw(context, brush, brush, origin, rectangle.top, rectangle.bottom, diagramFill, 1.0f, nullptr, quoteFill);
+            if (decoration.kind != RichTextDecorationKind::Background)
+                continue;
+            auto color = DecorationColor(host.GetTheme(), decoration.role);
+            if (! host.GetTheme().highContrast)
+                color.a *= .18f;
+            auto* brush           = host.GetSolidBrush(color);
+            const auto& rectangle = decoration.rectangle;
+            const auto bounds     = D2D1::RectF(rectangle.left + origin.x, rectangle.top + origin.y, rectangle.right + origin.x, rectangle.bottom + origin.y);
+            if (host.GetTheme().highContrast)
+                context->DrawRectangle(bounds, brush);
+            else
+                context->FillRectangle(bounds, brush);
         }
-        else if (decoration.kind == RichTextDecorationKind::Underline)
-            context->DrawLine(D2D1::Point2F(bounds.left, bounds.bottom - 1.0f), D2D1::Point2F(bounds.right, bounds.bottom - 1.0f), brush, 1.0f);
-        else
+        const std::span<const State::HighlightRectangle> highlights =
+            state.overlayHighlightsDirty ? std::span<const State::HighlightRectangle>{} : std::span<const State::HighlightRectangle>(state.highlightRectangles);
+        for (const auto& highlight : highlights)
         {
-            const float first = std::max(bounds.left, viewport.left), last = std::min(bounds.right, viewport.right);
-            const float step = std::max(3.0f, (last - first) / 1024.0f);
-            for (unsigned i = 0u; i < 1024u; ++i)
+            auto color = host.GetTheme().selectionFill;
+            color.a *= host.GetTheme().highContrast ? 1.0f : highlight.current ? 0.38f : 0.18f;
+            auto* brush           = host.GetSolidBrush(color);
+            const auto& rectangle = highlight.rectangle;
+            const auto bounds     = D2D1::RectF(rectangle.left + origin.x, rectangle.top + origin.y, rectangle.right + origin.x, rectangle.bottom + origin.y);
+            if (host.GetTheme().highContrast)
+                context->DrawRectangle(bounds, brush, highlight.current ? 2.0f : 1.0f);
+            else
+                context->FillRectangle(bounds, brush);
+        }
+        RichText::LinkDrawing links;
+        links.brush     = appearance.useAccentLinkColor && IsEnabled() ? host.GetSolidBrush(host.GetTheme().accent) : nullptr;
+        links.underline = state.linkUnderlinePolicy == RichTextLinkUnderlinePolicy::Always || host.GetTheme().highContrast;
+        links.hover     = state.hoveredLink;
+        links.caret     = CaretLinkDisplayRange();
+        if (state.mode == RichText::ViewMode::Source && appearance.colorizeMarkdownSource && ! host.GetTheme().highContrast)
+        {
+            links.inkRanges              = state.sourceInk.Ranges();
+            links.directSourceInkPreview = appearance.directSourceInkPreview;
+            // Keep the ordinary first pass beneath true selection. Translucent
+            // selection fill and antialiased selected glyph edges must never retain
+            // colored syntax ink from underneath their selected-text pass.
+            if (selection.anchor != selection.caret)
+                links.inkExclusion = RichText::MarkdownRange{projection.ToDisplay(selection.Start()), projection.ToDisplay(selection.End())};
+            links.inkBrushes = {
+                host.GetSolidBrush(host.GetTheme().subduedText), host.GetSolidBrush(host.GetTheme().accent), host.GetSolidBrush(host.GetTheme().accent)};
+        }
+        const bool dimmed = state.focusMode && state.mode == RichText::ViewMode::Rich && ! host.GetTheme().highContrast && IsEnabled();
+        auto* subdued     = dimmed ? host.GetSolidBrush(host.GetTheme().subduedText) : textBrush;
+        if (dimmed)
+        {
+            links.emphasis          = ActiveParagraphDisplayRange();
+            links.emphasisBrush     = textBrush;
+            links.inactiveLinkBrush = subdued;
+        }
+        const bool decorated = ! links.inkRanges.empty() || dimmed || (state.mode == RichText::ViewMode::Rich && (links.brush || ! links.underline));
+        state.layout.Draw(context,
+                          subdued,
+                          dimmed ? subdued : semanticDecoration,
+                          origin,
+                          state.scrollDip,
+                          state.scrollDip + viewport.bottom - viewport.top,
+                          diagramFill,
+                          1.0f,
+                          decorated ? &links : nullptr,
+                          quoteFill);
+        for (const auto& decoration : decorations)
+        {
+            if (decoration.kind == RichTextDecorationKind::Background)
+                continue;
+            const auto& rectangle = decoration.rectangle;
+            const auto bounds     = D2D1::RectF(rectangle.left + origin.x, rectangle.top + origin.y, rectangle.right + origin.x, rectangle.bottom + origin.y);
+            if (bounds.bottom <= viewport.top || bounds.top >= viewport.bottom || bounds.right <= viewport.left || bounds.left >= viewport.right)
+                continue;
+            auto* brush = host.GetSolidBrush(DecorationColor(host.GetTheme(), decoration.role));
+            if (decoration.kind == RichTextDecorationKind::Foreground)
             {
-                const float x = first + static_cast<float>(i) * step;
-                if (x >= last)
-                    break;
-                context->DrawLine(D2D1::Point2F(x, bounds.bottom - 1.0f), D2D1::Point2F(std::min(last, x + step), bounds.bottom - 3.0f), brush, 1.0f);
+                context->PushAxisAlignedClip(bounds, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+                const auto restoreDecorationClip = wil::scope_exit([context]() noexcept { context->PopAxisAlignedClip(); });
+                state.layout.Draw(context, brush, brush, origin, rectangle.top, rectangle.bottom, diagramFill, 1.0f, nullptr, quoteFill);
+            }
+            else if (decoration.kind == RichTextDecorationKind::Underline)
+                context->DrawLine(D2D1::Point2F(bounds.left, bounds.bottom - 1.0f), D2D1::Point2F(bounds.right, bounds.bottom - 1.0f), brush, 1.0f);
+            else
+            {
+                const float first = std::max(bounds.left, viewport.left), last = std::min(bounds.right, viewport.right);
+                const float step = std::max(3.0f, (last - first) / 1024.0f);
+                for (unsigned i = 0u; i < 1024u; ++i)
+                {
+                    const float x = first + static_cast<float>(i) * step;
+                    if (x >= last)
+                        break;
+                    context->DrawLine(D2D1::Point2F(x, bounds.bottom - 1.0f), D2D1::Point2F(std::min(last, x + step), bounds.bottom - 3.0f), brush, 1.0f);
+                }
             }
         }
-    }
-    auto selectedLinks              = links;
-    selectedLinks.brush             = selectedTextBrush;
-    selectedLinks.emphasisBrush     = selectedTextBrush;
-    selectedLinks.inactiveLinkBrush = selectedTextBrush;
-    selectedLinks.inkBrushes.fill(selectedTextBrush);
-    for (const auto& rectangle : rectangles)
-    {
-        const auto translated = D2D1::RectF(rectangle.left + origin.x, rectangle.top + origin.y, rectangle.right + origin.x, rectangle.bottom + origin.y);
-        if (translated.bottom <= viewport.top || translated.top >= viewport.bottom)
-            continue;
-        context->FillRectangle(translated, selectionBrush);
-        context->PushAxisAlignedClip(translated, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
-        const auto restoreSelectionClip = wil::scope_exit([context]() noexcept { context->PopAxisAlignedClip(); });
-        state.layout.Draw(context,
-                          selectedTextBrush,
-                          selectedTextBrush,
-                          origin,
-                          rectangle.top,
-                          rectangle.bottom,
-                          selectedDiagramFill,
-                          0.65f,
-                          decorated ? &selectedLinks : nullptr,
-                          subtleMarkdown ? selectedDiagramFill : nullptr);
-    }
-    if (! state.overlaySelectionDirty)
-    {
-        const auto underline = [&](std::span<const D2D1_RECT_F> ranges, float thickness)
+        auto selectedLinks              = links;
+        selectedLinks.brush             = selectedTextBrush;
+        selectedLinks.emphasisBrush     = selectedTextBrush;
+        selectedLinks.inactiveLinkBrush = selectedTextBrush;
+        selectedLinks.inkBrushes.fill(selectedTextBrush);
+        for (const auto& rectangle : rectangles)
         {
-            for (const auto& rect : ranges)
-                context->DrawLine(D2D1::Point2F(rect.left + origin.x, rect.bottom + origin.y - 1),
-                                  D2D1::Point2F(rect.right + origin.x, rect.bottom + origin.y - 1),
-                                  caretBrush,
-                                  thickness);
-        };
-        underline(state.compositionRectangles, 1.0f);
-        underline(state.conversionRectangles, 2.0f);
+            const auto translated = D2D1::RectF(rectangle.left + origin.x, rectangle.top + origin.y, rectangle.right + origin.x, rectangle.bottom + origin.y);
+            if (translated.bottom <= viewport.top || translated.top >= viewport.bottom)
+                continue;
+            context->FillRectangle(translated, selectionBrush);
+            context->PushAxisAlignedClip(translated, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+            const auto restoreSelectionClip = wil::scope_exit([context]() noexcept { context->PopAxisAlignedClip(); });
+            state.layout.Draw(context,
+                              selectedTextBrush,
+                              selectedTextBrush,
+                              origin,
+                              rectangle.top,
+                              rectangle.bottom,
+                              selectedDiagramFill,
+                              0.65f,
+                              decorated ? &selectedLinks : nullptr,
+                              subtleMarkdown ? selectedDiagramFill : nullptr);
+        }
+        if (! state.overlaySelectionDirty)
+        {
+            const auto underline = [&](std::span<const D2D1_RECT_F> ranges, float thickness)
+            {
+                for (const auto& rect : ranges)
+                    context->DrawLine(D2D1::Point2F(rect.left + origin.x, rect.bottom + origin.y - 1),
+                                      D2D1::Point2F(rect.right + origin.x, rect.bottom + origin.y - 1),
+                                      caretBrush,
+                                      thickness);
+            };
+            underline(state.compositionRectangles, 1.0f);
+            underline(state.conversionRectangles, 2.0f);
+        }
+        if (HasFocus() && IsEnabled() && state.keyboardNavigationElement != RichText::MarkdownNoNode &&
+            state.keyboardNavigationDocument.lock() == GetAcknowledgedSemanticDocument(host))
+            if (const auto bounds = GetSemanticElementBounds(host, state.keyboardNavigationElement))
+                context->DrawRectangle(*bounds, host.GetSolidBrush(host.GetTheme().focusStroke), 1.0f);
+        if (HasFocus() && IsEnabled() && state.caretVisible && state.keyboardNavigationElement == RichText::MarkdownNoNode)
+        {
+            const auto caret = state.layout.SourceCaret(selection.caret, state.sourceCaretSite);
+            const float x    = std::clamp(origin.x + caret.x, viewport.left, std::max(viewport.left, viewport.right - 1.0f));
+            context->DrawLine(D2D1::Point2F(x, origin.y + caret.y), D2D1::Point2F(x, origin.y + caret.y + caret.height), caretBrush, 1.0f);
+        }
     }
-    if (HasFocus() && IsEnabled() && state.keyboardNavigationElement != RichText::MarkdownNoNode &&
-        state.keyboardNavigationDocument.lock() == GetAcknowledgedSemanticDocument(host))
-        if (const auto bounds = GetSemanticElementBounds(host, state.keyboardNavigationElement))
-            context->DrawRectangle(*bounds, host.GetSolidBrush(host.GetTheme().focusStroke), 1.0f);
-    if (HasFocus() && IsEnabled() && state.caretVisible && state.keyboardNavigationElement == RichText::MarkdownNoNode)
+    const float height = std::max(0.0f, viewport.bottom - viewport.top);
+    const float extent = std::max(0.0f, state.layout.Height() - height);
+    if (appearance.showVerticalScrollbar && extent > 0.0f)
     {
-        const auto caret = state.layout.SourceCaret(selection.caret, state.sourceCaretSite);
-        const float x    = std::clamp(origin.x + caret.x, viewport.left, std::max(viewport.left, viewport.right - 1.0f));
-        context->DrawLine(D2D1::Point2F(x, origin.y + caret.y), D2D1::Point2F(x, origin.y + caret.y + caret.height), caretBrush, 1.0f);
+        const auto track = ScrollbarTrack();
+        const auto thumb = ComputeScrollbarThumbRect(track, ScrollbarOrientation::Vertical, height, state.layout.Height(), state.scrollDip, extent);
+        PaintScrollbar(host, track, thumb, ResolveScrollbarVisuals(host.GetTheme(), false, false, state.scrollbarDragging));
     }
 }
 bool RichTextEditor::Tick(ControlHost& host, uint64_t nowTickMs)
@@ -3182,6 +3277,15 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
             _state->typingRun.reset();
         if (ModifiersContainAlt(modifiers))
             return false;
+        if (key == VK_ESCAPE && (_state->scrollbarDragging || _state->dragging))
+        {
+            const auto release        = ReleaseUnchangedCaptureOnExit(host, *this);
+            _state->scrollbarDragging = false;
+            _state->dragging          = false;
+            _state->taskPressPlan.reset();
+            PublishSelectionChanged();
+            return true;
+        }
         if (_state->sourceEditing && (key == VK_ESCAPE || (control && key == VK_RETURN && ! shift) || (key == VK_F2 && ! control && ! shift)))
             return EndSemanticSourceEdit(host);
         if (key == VK_F8 && ! control)
@@ -3242,15 +3346,15 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                         const auto bounds    = geometry ? geometry->ElementBounds(target) : std::nullopt;
                         if (! bounds)
                             return false;
-                        const auto viewport                = TextViewport();
-                        const auto height                  = viewport.bottom - viewport.top;
-                        _state->scrollDip                  = std::clamp(bounds->top, 0.0f, std::max(0.0f, _state->layout.Height() - height));
-                        _state->revealCaret                = false;
                         _state->keyboardNavigationDocument = document;
                         _state->keyboardNavigationElement  = target;
                         _state->caretLink                  = document->Elements()[target].display;
+                        // Even a no-op scroll needs the new keyboard adornment painted.
+                        const auto lifetime = GetLifetimeToken();
                         RequestInvalidate();
-                        return true; // Invalidation may retire this control.
+                        if (lifetime.expired() || GetHost() != &host)
+                            return true;
+                        return SetScrollOffsetDip(bounds->top);
                     }
                 }
             }
@@ -3630,6 +3734,28 @@ bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool ri
         if (lifetime.expired() || GetHost() != &host || host.GetInteractionRevision() != geometry || ! IsEnabled() || ! IsVisible() ||
             host.GetFocusControl() != this)
             return true;
+        if (const auto info = GetScrollInfo(); info && info->contentHeightDip > info->viewportHeightDip)
+        {
+            const auto track = ScrollbarTrack();
+            if (point.x >= track.left && point.x < track.right && point.y >= track.top && point.y < track.bottom)
+            {
+                const float extent = info->contentHeightDip - info->viewportHeightDip;
+                const auto thumb   = ComputeScrollbarThumbHitRect(
+                    track, ScrollbarOrientation::Vertical, info->viewportHeightDip, info->contentHeightDip, info->offsetDip, extent);
+                if (point.y >= thumb.top && point.y < thumb.bottom)
+                {
+                    _state->scrollbarDragging   = true;
+                    _state->scrollbarDragY      = point.y;
+                    _state->scrollbarDragOffset = info->offsetDip;
+                    host.CaptureMouse(this);
+                    if (! lifetime.expired() && GetHost() == &host)
+                        RequestInvalidate();
+                    return true;
+                }
+                const auto step = ComputeScrollbarPageStepDip(track, ScrollbarOrientation::Vertical, info->viewportHeightDip, info->contentHeightDip);
+                return SetScrollOffsetDip(info->offsetDip + (point.y < thumb.top ? -step : step));
+            }
+        }
         const auto source = HitSource(host, point);
         if (ModifiersContainCtrl(modifiers) && ! ModifiersContainShift(modifiers))
             if (const auto document = GetAcknowledgedSemanticDocument(host))
@@ -3775,6 +3901,18 @@ bool RichTextEditor::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT) n
 {
     try
     {
+        if (_state->scrollbarDragging)
+        {
+            const auto info = GetScrollInfo();
+            if (! info || ! IsEnabled() || ControlCaptureAccess::GestureOwner(host) != this || ! std::isfinite(point.y))
+                return false;
+            const auto track   = ScrollbarTrack();
+            const float extent = std::max(0.0f, info->contentHeightDip - info->viewportHeightDip);
+            const auto thumb =
+                ComputeScrollbarThumbHitRect(track, ScrollbarOrientation::Vertical, info->viewportHeightDip, info->contentHeightDip, info->offsetDip, extent);
+            const float travel = (track.bottom - track.top) - (thumb.bottom - thumb.top);
+            return travel > 0.0f && SetScrollOffsetDip(_state->scrollbarDragOffset + (point.y - _state->scrollbarDragY) * extent / travel);
+        }
         const auto hover = IsEnabled() && IsVisible() && _state->linkUnderlinePolicy == RichTextLinkUnderlinePolicy::HoverOrCaret
                                ? HoveredLinkDisplayRange(host, point)
                                : std::nullopt;
@@ -3799,8 +3937,10 @@ bool RichTextEditor::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT) n
         const auto viewport = TextViewport();
         if (point.y < viewport.top || point.y > viewport.bottom)
         {
-            _state->scrollDip   = std::max(0.0f, _state->scrollDip + (point.y < viewport.top ? -20.0f : 20.0f));
-            _state->revealCaret = false;
+            const auto lifetime = GetLifetimeToken();
+            static_cast<void>(SetScrollOffsetDip(_state->scrollDip + (point.y < viewport.top ? -20.0f : 20.0f)));
+            if (lifetime.expired() || GetHost() != &host || ! LayoutIsCurrent(host) || ! _state->dragging)
+                return true;
         }
         const auto source = HitSource(host, point);
         _state->document.SetSelection({GetSelection().anchor, source});
@@ -3827,6 +3967,13 @@ bool RichTextEditor::OnMouseLeave(ControlHost&) noexcept
 }
 bool RichTextEditor::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT) noexcept
 {
+    if (! rightButton && _state->scrollbarDragging)
+    {
+        const auto release        = ReleaseUnchangedCaptureOnExit(host, *this);
+        _state->scrollbarDragging = false;
+        RequestInvalidate();
+        return true;
+    }
     if (rightButton || ! _state->dragging)
         return false;
     _state->dragging       = false;
@@ -3860,13 +4007,12 @@ bool RichTextEditor::OnMouseWheel(ControlHost& host, D2D1_POINT_2F, float delta,
         if (! IsEnabled() || ! std::isfinite(delta))
             return false;
         RequireCurrentLayout(host);
-        const auto viewport = TextViewport();
-        _state->scrollDip =
-            std::clamp(_state->scrollDip - delta / WHEEL_DELTA * 48.0f, 0.0f, std::max(0.0f, _state->layout.Height() - (viewport.bottom - viewport.top)));
-        _state->revealCaret = false;
-        _state->hoveredLink.reset();
-        RequestInvalidate();
-        return true;
+        const auto info = GetScrollInfo();
+        if (! info)
+            return false;
+        const float next = std::clamp(info->offsetDip - delta / WHEEL_DELTA * 48.0f, 0.0f, std::max(0.0f, info->contentHeightDip - info->viewportHeightDip));
+        // Let a containing scroll panel handle wheel input at this view's edge.
+        return next != info->offsetDip && SetScrollOffsetDip(next);
     }
     catch (const std::exception&)
     {
@@ -3883,6 +4029,7 @@ void RichTextEditor::PropagateHost(ControlHost* host) noexcept
         RetireLayout();
         _state->pendingLeadSurrogate = 0;
         _state->dragging             = false;
+        _state->scrollbarDragging    = false;
         _state->blinkEpoch.reset();
     }
     Control::PropagateHost(host);
@@ -3893,7 +4040,10 @@ void RichTextEditor::OnBoundsChanged() noexcept
     if (_state->layoutWidth != std::max(1.0f, viewport.right - viewport.left))
         RetireLayout();
     else
+    {
         _state->revealCaret = true;
+        RequestContentPreparation(false);
+    }
 }
 void RichTextEditor::OnHostDpiChanged(ControlHost&) noexcept
 {
@@ -3911,6 +4061,7 @@ void RichTextEditor::OnEnabledChanged(bool) noexcept
 {
     _state->pendingLeadSurrogate = 0;
     _state->dragging             = false;
+    _state->scrollbarDragging    = false;
     _state->blinkEpoch.reset();
 }
 void RichTextEditor::OnHidden() noexcept
@@ -3919,18 +4070,21 @@ void RichTextEditor::OnHidden() noexcept
     RetireLayout();
     _state->pendingLeadSurrogate = 0;
     _state->dragging             = false;
+    _state->scrollbarDragging    = false;
     _state->blinkEpoch.reset();
 }
 void RichTextEditor::OnFocusChanged(ControlHost& host, bool focused)
 {
     Control::OnFocusChanged(host, focused);
-    _state->dragging = false;
+    _state->dragging          = false;
+    _state->scrollbarDragging = false;
     _state->taskPressPlan.reset();
     SelectionChanged();
 }
 void RichTextEditor::OnCaptureLost(ControlHost&)
 {
-    _state->dragging = false;
+    _state->dragging          = false;
+    _state->scrollbarDragging = false;
     _state->taskPressPlan.reset();
     PublishSelectionChanged();
 }
