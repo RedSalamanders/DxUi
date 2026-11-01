@@ -1,0 +1,1 @@
+- Restore the document location before checking relative bitmap paste in the embedded text-service fixture.

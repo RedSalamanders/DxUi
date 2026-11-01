@@ -1048,6 +1048,7 @@ void TestRichTextApplicationImageClipboard()
     bitmapClipboard.bytes.resize(sizeof(bitmapHeader) + 16u);
     std::memcpy(bitmapClipboard.bytes.data(), &bitmapHeader, sizeof(bitmapHeader));
     editor->SetSelection({7u, 0u});
+    editor->SetDocumentFilePath(L"C:\\docs\\note.md");
     editor->SetBitmapPasteHandler([](std::span<const std::byte>, bool) -> std::optional<std::wstring> { return L"C:\\docs\\bitmap.png"; });
     Require(services.Clipboard(TextClipboardCommand::Paste, &bitmapClipboard) == S_OK && bitmapClipboard.reads == 1u &&
                 editor->GetText() == L"![bitmap](bitmap.png)" && editor->Undo() && editor->GetText() == L"replace",
