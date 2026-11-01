@@ -94,7 +94,9 @@ std::optional<RichText::MarkdownListKind> UniformListKind(const RichText::Markdo
         }
     }
     consume(last);
-    return mixed ? std::nullopt : result.value_or(MarkdownListKind::None);
+    if (mixed)
+        return std::nullopt;
+    return result.value_or(MarkdownListKind::None);
 }
 std::optional<RichText::MarkdownRange> HeadingFragment(const RichText::SemanticDocument& document, std::wstring_view destination)
 {
