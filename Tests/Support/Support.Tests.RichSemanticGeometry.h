@@ -275,7 +275,8 @@ template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe obs
     }
     for (const auto mode : {0u, 1u})
       for (const auto direction : {DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT})
-        for (const float dpi : {96.f, 144.f, 192.f})
+        for (const float dpi : {96.f, 120.f, 144.f, 192.f})
+          for (const float translation : {0.f, .25f, -.25f, .6f})
     {
         const auto sample = RichSemanticDocumentTests::Build(mode == 0u ? L"<p><sup><s><u>abc</u></s></sup></p>\n" : L"<p><sub><s><u>abc</u></s></sub></p>\n",
                                                               MarkdownProfile::RichMarkdown);
@@ -292,6 +293,7 @@ template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe obs
             wil::com_ptr<ID2D1RenderTarget> raster;
             THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(surface.get(), D2D1::RenderTargetProperties(), raster.put()));
             raster->SetDpi(dpi, dpi);
+            raster->SetTransform(D2D1::Matrix3x2F::Translation(translation, translation));
             wil::com_ptr<ID2D1SolidColorBrush> text;
             THROW_IF_FAILED(raster->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
             raster->BeginDraw(); raster->Clear(D2D1::ColorF(D2D1::ColorF::White));
@@ -316,8 +318,16 @@ template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe obs
                 THROW_IF_FAILED(reference->SetStrikethrough(TRUE, {0u, 3u}));
                 DWRITE_LINE_METRICS line{}; UINT32 count{};
                 THROW_IF_FAILED(reference->GetLineMetrics(&line, 1u, &count));
+                wil::com_ptr<IDWriteTextFormat> parentFormat;
+                THROW_IF_FAILED(factory->CreateTextFormat(L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
+                                                          DWRITE_FONT_STRETCH_NORMAL, 18.f, L"en-us", parentFormat.put()));
+                wil::com_ptr<IDWriteTextLayout> parentLayout;
+                THROW_IF_FAILED(factory->CreateTextLayout(L"abc", 3u, parentFormat.get(), 400.f, 1000.f, parentLayout.put()));
+                THROW_IF_FAILED(parentLayout->SetLineSpacing(DWRITE_LINE_SPACING_METHOD_UNIFORM, 18.f * 1.45f, 18.f * 1.05f));
+                DWRITE_LINE_METRICS parentLine{};
+                THROW_IF_FAILED(parentLayout->GetLineMetrics(&parentLine, 1u, &count));
                 const float pixelsPerDip = dpi / 96.f;
-                const float expectedBaseline = std::round(18.f * 1.05f * pixelsPerDip) / pixelsPerDip +
+                const float expectedBaseline = (translation == 0.f ? std::round(parentLine.baseline * pixelsPerDip) / pixelsPerDip : parentLine.baseline) +
                                                (mode == 0u ? -18.f * .30f : 18.f * .20f);
                 raster->DrawTextLayout({0.f, expectedBaseline - line.baseline}, reference.get(), text.get(), D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
             }
@@ -331,9 +341,28 @@ template <typename Observe = std::nullptr_t> inline void HtmlScripts(Observe obs
             inkPixels += expected;
             disagreement += actual != expected;
         }
-        if (disagreement) std::cerr << "script reference mode=" << mode << " dir=" << static_cast<unsigned>(direction) << " dpi=" << dpi << " differing=" << disagreement << '\n';
-        Check(inkPixels > 0u && disagreement == 0u,
-              "script glyph, underline and strike pixels match independently positioned DirectWrite reference ink at each DPI");
+        if (translation == 0.f)
+            Check(inkPixels > 0u && disagreement == 0u,
+                  "script glyph, underline and strike pixels match independently positioned DirectWrite reference ink at each DPI");
+        else
+        {
+            std::size_t unmatched{};
+            for (std::size_t pass = 0u; pass < 2u; ++pass)
+                for (int y = 0; y < 200; ++y)
+                    for (int x = 0; x < 800; ++x)
+                    {
+                        if (comparison[pass][static_cast<std::size_t>((y * 800 + x) * 4)] >= 200u) continue;
+                        bool nearby = false;
+                        for (int dy = -1; dy <= 1 && ! nearby; ++dy)
+                            for (int dx = -1; dx <= 1 && ! nearby; ++dx)
+                                if (x + dx >= 0 && x + dx < 800 && y + dy >= 0 && y + dy < 200)
+                                    nearby = comparison[1u - pass][static_cast<std::size_t>(((y + dy) * 800 + x + dx) * 4)] < 200u;
+                        unmatched += ! nearby;
+                    }
+            if (unmatched) std::cerr << "script translated reference mode=" << mode << " dir=" << static_cast<unsigned>(direction) << " dpi=" << dpi << " unmatched=" << unmatched << '\n';
+            Check(inkPixels > 0u && unmatched == 0u,
+                  "fractionally translated glyphs and decorations stay within one device pixel of independent DirectWrite ink");
+        }
     }
     const std::wstring rtlSource = L"<p>אב <a href=\"local\"><sup><u>דהו</u></sup></a> ז</p>\n";
     const auto rtlDocument = RichSemanticDocumentTests::Build(rtlSource, MarkdownProfile::RichMarkdown);
