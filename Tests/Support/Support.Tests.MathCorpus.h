@@ -1045,6 +1045,64 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
               "unsupported script operands retain exact source");
     }
 #endif
+#if DXUI_ENABLE_DIAGNOSTICS
+    {
+        const auto expression = std::make_shared<const MathExpression>(ParseMath(L"\\hat{f}"));
+        Detail::PreparedMath accent(factory, expression, 24.f);
+        while (! accent.Advance()) {}
+        const auto& glyphs = accent.GlyphLayouts();
+        const auto& strokes = accent.StrokeLayouts();
+        check(glyphs.size() == 1u && strokes.size() == 2u && glyphs[0u].italic,
+              "italic accent skew fixture retains its shaped base and triangular fallback");
+        if (glyphs.size() == 1u && strokes.size() == 2u)
+        {
+            const float actualCenter = (strokes[0u].first.x + strokes[1u].last.x) * .5f;
+            const float expectedCenter = glyphs[0u].origin.x + glyphs[0u].extent.width * .5f +
+                                         std::clamp(glyphs[0u].italicCorrection * .5f, 0.f, 6.f);
+            check(std::abs(actualCenter - expectedCenter) < .01f,
+                  "single italic glyph accent uses bounded shaped-font italic correction");
+        }
+    }
+#endif
+#if DXUI_ENABLE_DIAGNOSTICS
+    {
+        wil::com_ptr<IDWriteFontCollection> skewCollection;
+        THROW_IF_FAILED(factory->GetSystemFontCollection(skewCollection.put()));
+        UINT32 skewIndex{}; BOOL exists{};
+        THROW_IF_FAILED(skewCollection->FindFamilyName(L"Cambria Math", &skewIndex, &exists));
+        check(exists != FALSE, "accent correction oracle has the system math face");
+        wil::com_ptr<IDWriteFontFamily> skewFamily;
+        wil::com_ptr<IDWriteFont> skewFont;
+        wil::com_ptr<IDWriteFontFace> skewFace;
+        THROW_IF_FAILED(skewCollection->GetFontFamily(skewIndex, skewFamily.put()));
+        THROW_IF_FAILED(skewFamily->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, skewFont.put()));
+        THROW_IF_FAILED(skewFont->CreateFontFace(skewFace.put()));
+        const UINT32 scalar = L'f'; UINT16 skewGlyph{}; DWRITE_FONT_METRICS skewMetrics{};
+        THROW_IF_FAILED(skewFace->GetGlyphIndices(&scalar, 1u, &skewGlyph));
+        skewFace->GetMetrics(&skewMetrics);
+        std::array<std::uint8_t, 64u> skewTable{};
+        const auto put = [&](std::size_t offset, std::uint16_t value) { skewTable[offset] = static_cast<std::uint8_t>(value >> 8u); skewTable[offset + 1u] = static_cast<std::uint8_t>(value); };
+        put(0u, 1u); put(4u, 40u); put(6u, 10u); put(10u, 8u); put(18u, 8u); put(20u, 1u); put(22u, 300u);
+        put(26u, 1u); put(28u, 1u); put(30u, skewGlyph);
+        const auto previousTable = Detail::testRichMathTableOverride;
+        const auto restoreTable = wil::scope_exit([&]() noexcept { Detail::testRichMathTableOverride = previousTable; });
+        Detail::testRichMathTableOverride = skewTable;
+        const auto skewExpression = std::make_shared<const MathExpression>(ParseMath(L"\\hat{f}"));
+        Detail::PreparedMath skewAccent(factory, skewExpression, 24.f);
+        while (! skewAccent.Advance()) {}
+        const auto& skewGlyphs = skewAccent.GlyphLayouts(); const auto& skewStrokes = skewAccent.StrokeLayouts();
+        check(skewGlyphs.size() == 1u && skewStrokes.size() == 2u && skewGlyph != 0u && skewMetrics.designUnitsPerEm != 0u,
+              "SDK accent oracle resolves the real face and glyph");
+        if (skewGlyphs.size() == 1u && skewStrokes.size() == 2u && skewMetrics.designUnitsPerEm != 0u)
+        {
+            const float skewCorrection = 300.f * 24.f / skewMetrics.designUnitsPerEm;
+            const float actualCenter = (skewStrokes[0u].first.x + skewStrokes[1u].last.x) * .5f;
+            check(std::abs(skewGlyphs[0u].italicCorrection - skewCorrection) < .01f &&
+                      std::abs(actualCenter - skewGlyphs[0u].origin.x - skewGlyphs[0u].extent.width * .5f - skewCorrection * .5f) < .01f,
+                  "nonzero MATH correction positions the accent independently of right ink overhang");
+        }
+    }
+#endif
     for (const auto source : {L"\\genfrac{(}{)}{-2pt}{0}{a}{b}", L"\\genfrac{(}{)}{}{4}{a}{b}", L"\\genfrac{?}{}{}{}{a}{b}",
                               L"\\genfrac{}{}{}{}{a}"})
         check(! ParseMath(source), "unsupported general fraction dimensions, style and delimiters reject the whole source");

@@ -1787,6 +1787,26 @@ class PreparedMath final
             }
             const bool below = node.text == L"underline" || node.text == L"underbar" || node.text == L"utilde" || node.text == L"underbrace" || node.text == L"undergroup" ||
                                (ArrowAccent(node.text) && node.text.starts_with(L"under"));
+            const bool skewed = node.text == L"bar" || node.text == L"hat" || node.text == L"widehat" || node.text == L"check" ||
+                                node.text == L"widecheck" || node.text == L"breve" || node.text == L"acute" || node.text == L"grave" ||
+                                node.text == L"mathring" || node.text == L"dot" || node.text == L"ddot" || node.text == L"tilde" || node.text == L"widetilde" || node.text == L"vec";
+            if (skewed)
+            {
+                const auto child = ChildAt(index, 0u);
+                std::size_t single = (std::numeric_limits<std::size_t>::max)();
+                for (auto i = child; i < boxes[child].endChild; ++i)
+                    if (boxes[i].glyph != (std::numeric_limits<std::size_t>::max)())
+                    {
+                        if (single != (std::numeric_limits<std::size_t>::max)()) { single = (std::numeric_limits<std::size_t>::max)(); break; }
+                        single = boxes[i].glyph;
+                    }
+                if (single != (std::numeric_limits<std::size_t>::max)() && glyphs[single].italic)
+                {
+                    const auto& glyph = glyphs[single];
+                    x = glyph.origin.x + glyph.extent.width * .5f - box.extent.width * .5f +
+                        std::clamp(glyph.italicCorrection * .5f, 0.f, box.size * .25f);
+                }
+            }
             const float y = below ? baseline + box.extent.below - (node.text == L"underline" ? 2.f : box.size * .1f)
                                   : baseline - box.extent.above + (node.text == L"mathring" ? box.size * .14f + stroke * .5f : box.size * .1f);
             const auto shape = node.text == L"widehat" ? L'\u0302' : node.text == L"widetilde" ? L'\u0303' : node.text == L"vec" ? L'\u20d7' : L'\0';
