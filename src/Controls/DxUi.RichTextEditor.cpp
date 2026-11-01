@@ -2050,10 +2050,15 @@ std::optional<std::vector<D2D1_RECT_F>> RichTextEditor::GetTextInputRangeRects(c
         // temporary into optional would invoke MSVC Debug's noexcept move.
         return std::optional<std::vector<D2D1_RECT_F>>(std::in_place, rectangles);
     }
+    catch (const std::bad_alloc&)
+    {
+        // Fallible geometry propagates to its TSF/UIA boundary, which must
+        // distinguish resource exhaustion from a stale/unavailable layout.
+        throw;
+    }
     catch (const std::exception&)
     {
-        // Native text-store geometry is a noexcept COM boundary. A failed
-        // preparation/allocation reports unavailable layout, never termination.
+        // Invalid or unavailable geometry remains a layout refusal.
         return std::nullopt;
     }
 }

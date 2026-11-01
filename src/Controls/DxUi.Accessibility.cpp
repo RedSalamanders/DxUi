@@ -4037,7 +4037,7 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
             rectangle.bottom = std::clamp(rectangle.bottom, viewport.top, viewport.bottom);
         }
         std::erase_if(*rectangles, [](const auto& rect) { return rect.right <= rect.left || rect.bottom <= rect.top; });
-        return rectangles;
+        return std::optional<std::vector<D2D1_RECT_F>>(std::in_place, rectangles.value());
     }
     if (range.start == range.end)
     {
@@ -6420,7 +6420,7 @@ try
         size_t rangeStart    = 0u;
         size_t rangeEnd      = 0u;
         size_t textLength    = 0u;
-        std::wstring expectedText;
+        std::wstring expectedText(0u, L' ');
         {
             const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
             expectedText              = ResolveText();
@@ -6707,7 +6707,7 @@ try
 
     if (! IsCurrentThreadWindowThread())
     {
-        std::vector<D2D1_RECT_F> boundsDip;
+        std::vector<D2D1_RECT_F> boundsDip(0u);
         float dipToPixelScale    = 1.0f;
         const HRESULT dispatchHr = DispatchBoundingRectanglesToWindowThread(range.start, range.end, boundsDip, dipToPixelScale);
         if (FAILED(dispatchHr))
@@ -6751,7 +6751,11 @@ try
         if (! resolved || ! record || record->controlAccessibleText != text)
             return SetDoubleArray(outRectangles, {});
     }
-    std::vector<D2D1_RECT_F> boundsDip = resolved.value_or(std::vector<D2D1_RECT_F>{ResolveTextPatternViewportRect(control)});
+    std::vector<D2D1_RECT_F> boundsDip(0u);
+    if (resolved)
+        boundsDip.swap(resolved.value());
+    else
+        boundsDip.push_back(ResolveTextPatternViewportRect(control));
     const float dipToPixelScale        = static_cast<float>(host->GetDpi()) / static_cast<float>(USER_DEFAULT_SCREEN_DPI);
     const HRESULT hr                   = SetScreenRectDoubleArray(outRectangles, _target, _hwnd, boundsDip, dipToPixelScale);
     Debug::Perf::Emit(L"dxui.uia.text_range_us", L"bounding-rectangles", Debug::Perf::ElapsedUs(startedAt), boundsDip.size(), range.end - range.start, hr);
@@ -6911,7 +6915,7 @@ try
         size_t rangeStart    = 0u;
         size_t rangeEnd      = 0u;
         size_t textLength    = 0u;
-        std::wstring expectedText;
+        std::wstring expectedText(0u, L' ');
         {
             const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
             expectedText              = ResolveText();
@@ -7073,7 +7077,7 @@ try
         size_t rangeStart    = 0u;
         size_t rangeEnd      = 0u;
         size_t textLength    = 0u;
-        std::wstring expectedText;
+        std::wstring expectedText(0u, L' ');
         {
             const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
             expectedText              = ResolveText();

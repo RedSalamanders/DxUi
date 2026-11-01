@@ -2595,6 +2595,70 @@ static void TestRetainedRichTextUiaRangeAllocationBudget(GraphicsFixture& gpu)
         Check(largestRequest <= 4096, "rich range C++ allocation budget is independent of source size");
         std::cout << "rich UIA ranges sourceUnits=" << units << " largestMetadataRequestBytes=" << largestRequest << '\n';
     }
+    editor->SetText(std::wstring(96u, L'a') + L"\nsecond visual line\nthird line");
+    Hr(PrepareRichEmbeddedContent(view, 480, 240), "prepare observed UIA range-failure source");
+    Hr(view.UpdateAccessibility(placement), "publish observed UIA range-failure source");
+    const auto makeRange = [&]
+    {
+        wil::com_ptr_nothrow<ITextRangeProvider> range;
+        Hr(text->get_DocumentRange(range.put()), "create independent range outside failure schedule");
+        Hr(range->MoveEndpointByRange(TextPatternRangeEndpoint_End, range.get(), TextPatternRangeEndpoint_Start), "collapse failure-fixture range");
+        int moved{};
+        Hr(range->MoveEndpointByUnit(TextPatternRangeEndpoint_End, TextUnit_Character, 4, &moved), "select failure-fixture prefix");
+        Check(moved == 4, "allocation fixture has a real nonempty range");
+        return range;
+    };
+    const auto baseline = makeRange();
+    const auto invoke = [&](ITextRangeProvider& range, unsigned operation)
+    {
+        int value{};
+        wil::unique_bstr resultText;
+        SAFEARRAY* rectangles = nullptr;
+        const auto release = wil::scope_exit([&] noexcept
+        {
+            if (rectangles)
+                SafeArrayDestroy(rectangles);
+        });
+        switch (operation)
+        {
+            case 0u: return range.CompareEndpoints(TextPatternRangeEndpoint_End, baseline.get(), TextPatternRangeEndpoint_Start, &value);
+            case 1u: return range.ExpandToEnclosingUnit(TextUnit_Line);
+            case 2u: return range.GetBoundingRectangles(&rectangles);
+            case 3u: return range.GetText(-1, resultText.put());
+            case 4u: return range.Move(TextUnit_Line, 1, &value);
+            case 5u: return range.MoveEndpointByUnit(TextPatternRangeEndpoint_End, TextUnit_Line, 1, &value);
+            default: return E_INVALIDARG;
+        }
+    };
+    for (unsigned operation = 0u; operation < 6u; ++operation)
+    {
+        auto measured = makeRange();
+        allocations = allocationBytes = 0u;
+        countAllocations = true;
+        const HRESULT result = invoke(*measured.get(), operation);
+        countAllocations = false;
+        const size_t observed = allocations;
+        Hr(result, "observe successful direct UIA range operation");
+        Check(observed > 0u && observed < 256u, "direct UIA range command has a bounded observed allocation schedule");
+        for (size_t point = 0u; point < observed; ++point)
+        {
+            auto range = makeRange();
+            const auto oldFailure = failAllocationAfter;
+            HRESULT failureResult{};
+            {
+                const auto restoreFailure = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+                failAllocationAfter = point;
+                failureResult = invoke(*range.get(), operation);
+            }
+            Check(failureResult == E_OUTOFMEMORY, "every observed direct TextPattern range allocation failure reports E_OUTOFMEMORY");
+            int start{}, end{};
+            Hr(range->CompareEndpoints(TextPatternRangeEndpoint_Start, baseline.get(), TextPatternRangeEndpoint_Start, &start), "compare unchanged range start");
+            Hr(range->CompareEndpoints(TextPatternRangeEndpoint_End, baseline.get(), TextPatternRangeEndpoint_End, &end), "compare unchanged range end");
+            Check(start == 0 && end == 0, "a failed range command preserves both exact source endpoints");
+            Hr(invoke(*range.get(), operation), "retry direct UIA range command after allocation failure");
+        }
+        std::cout << "rich UIA range operation=" << operation << " allocationFailures=" << observed << '\n';
+    }
 }
 
 static void TestRetainedRichTextDefaultFontChunkReuse(GraphicsFixture& gpu)
