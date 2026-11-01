@@ -1755,6 +1755,15 @@ template <typename Prepare> void SemanticWords(ControlHost& host, Prepare&& prep
     editor->SetText(L"changed");
     Check(! editor->GetVisibleSemanticDisplayRange(host) && CountWords(*document) == 4u,
           "pending publication is refused while the immutable old document remains stable");
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::CommonMark0312);
+    editor->SetText(L"before HTTPS://example.test/path after");
+    prepare();
+    const auto plainUrl = editor->GetAcknowledgedSemanticDocument(host);
+    Check(plainUrl && CountWords(*plainUrl) == 2u, "plain URL text is excluded even without an autolink extension");
+    Words urlPart;
+    const auto urlOffset = plainUrl->Map().Display().find(L"example");
+    Check(VisitSemanticWords(*plainUrl, {urlOffset, urlOffset + 3u}, visitor, &urlPart) == 0u,
+          "a viewport clipped inside a plain URL does not expose its fragments as words");
 }
 template <typename Prepare> void ScrollbarAndNotifications(ControlHost& host, Prepare&& prepare)
 {

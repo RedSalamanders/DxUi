@@ -18,6 +18,15 @@ std::size_t VisitSemanticWords(const SemanticDocument& document, MarkdownRange d
     const auto unitAt = [&](std::size_t index) { return text[index]; };
     display.first = Detail::PreparedDisplayWordRange(text.size(), display.first, unitAt).first;
     display.last = Detail::PreparedDisplayWordRange(text.size(), display.last - 1u, unitAt).last;
+    const auto tokenBoundary = [](wchar_t ch)
+    {
+        WORD kind{};
+        return ch == L'<' || ch == L'>' || (GetStringTypeW(CT_CTYPE1, &ch, 1, &kind) && (kind & C1_SPACE) != 0u);
+    };
+    while (display.first > 0u && ! tokenBoundary(text[display.first - 1u]))
+        --display.first;
+    while (display.last < text.size() && ! tokenBoundary(text[display.last]))
+        ++display.last;
     std::vector<MarkdownRange> excluded(0u);
     const auto exclude = [&](MarkdownRange range)
     {
@@ -63,6 +72,31 @@ std::size_t VisitSemanticWords(const SemanticDocument& document, MarkdownRange d
         const auto segment = text.substr(first, last - first);
         for (std::size_t at = 0u; at < segment.size();)
         {
+            const auto startsAscii = [&](std::wstring_view prefix)
+            {
+                if (prefix.size() > segment.size() - at)
+                    return false;
+                for (std::size_t i = 0u; i < prefix.size(); ++i)
+                {
+                    const auto ch = segment[at + i];
+                    if ((ch >= L'A' && ch <= L'Z' ? ch + (L'a' - L'A') : ch) != prefix[i])
+                        return false;
+                }
+                return true;
+            };
+            if ((at == 0u || ! IsWordCharacter(segment[at - 1u])) &&
+                (startsAscii(L"http://") || startsAscii(L"https://") || startsAscii(L"www.") || startsAscii(L"mailto:")))
+            {
+                while (at < segment.size())
+                {
+                    const auto ch = segment[at];
+                    WORD kind{};
+                    if ((GetStringTypeW(CT_CTYPE1, &ch, 1, &kind) && (kind & C1_SPACE) != 0u) || ch == L'<' || ch == L'>')
+                        break;
+                    ++at;
+                }
+                continue;
+            }
             if (! IsWordCharacter(segment[at]))
             {
                 at = StepToNextTextElement(segment, at);
