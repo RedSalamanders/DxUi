@@ -2239,6 +2239,8 @@ std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownComma
         else if (simpleApplicable)
             result.available = ! inputBlocked;
     }
+    if (request.command == MarkdownCommand::SetHeading)
+        result.available = ! inputBlocked && CanSetHeading(*document->Syntax(), selection, request.headingLevel);
     if (request.command == MarkdownCommand::ExitCodeBlock || request.command == MarkdownCommand::SetCodeLanguage ||
         request.command == MarkdownCommand::InsertMath || request.command == MarkdownCommand::InsertThematicBreak ||
         request.command == MarkdownCommand::InsertEscapedText)

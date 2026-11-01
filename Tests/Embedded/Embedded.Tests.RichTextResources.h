@@ -12,6 +12,7 @@
 #include "Support.Tests.SemanticDiagrams.h"
 #include "Support.Tests.SemanticSourceBlock.h"
 #include <DxUi/RichSemanticDocument.h>
+#include <DxUi/RichTextCommands.h>
 #include <type_traits>
 
 static void TestRichLabelWakeupAndRetirement(GraphicsFixture& gpu)
@@ -175,6 +176,31 @@ static void TestRichAppearanceConstructionFailureAtomicity()
     }
     Check(rejected, "default editor argument or owner allocation is fallible before publication");
 }
+static void TestHeadingAdmissionNoAllocation()
+{
+    using namespace DxUi::RichText;
+    std::wstring source(0u, L' ');
+    for (size_t depth = 0u; depth < 66u; ++depth)
+    {
+        source.append(depth * 2u, L' ');
+        source += L"- x\n";
+    }
+    const auto caret = source.rfind(L"- x") + 2u;
+    MarkdownParser parser;
+    parser.Begin(source, 1u, MarkdownProfile::RichMarkdown);
+    while (parser.HasPendingPreparation())
+        parser.Advance();
+    const auto syntax = parser.Published();
+    bool available    = false;
+    {
+        const auto previous = failAllocationAfter;
+        const auto restore  = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
+        failAllocationAfter = 0u;
+        available           = CanSetHeading(*syntax, {caret, caret}, 2u);
+    }
+    Check(available, "heading admission proves deeply nested prefixes without allocation");
+}
+
 static void TestRichInputAllocationFailureAtomicity()
 {
     using namespace DxUi;

@@ -61,6 +61,8 @@ bool IsCommandFeatureEnabled(const MarkdownSyntax& syntax, MarkdownCommand comma
 std::optional<std::size_t> FindCommandFootnoteOwner(const MarkdownSyntax& syntax, Selection selection) noexcept;
 // A selection ending on an EOL still belongs to the preceding physical line.
 bool IsSingleLineCommandSelection(const MarkdownSyntax& syntax, Selection selection) noexcept;
+// Admission for heading conversion, without constructing source edits.
+bool CanSetHeading(const MarkdownSyntax& syntax, Selection selection, unsigned level) noexcept;
 enum class MarkdownCommandStatus
 {
     Unavailable,

@@ -741,6 +741,44 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     Check(exitState && exitState->available == std::optional<bool>{true} && editor->ExecuteMarkdownCommand(stateRequest) == MarkdownCommandStatus::Changed &&
               editor->Undo(),
           "code-exit state uses the same admission as execution without copying the native text cache");
+    struct HeadingAdmissionCase
+    {
+        std::wstring_view source;
+        Selection selection;
+        unsigned level;
+        bool available;
+    };
+    for (const auto& example : {HeadingAdmissionCase{L"alpha", {2u, 2u}, 2u, true},
+                                HeadingAdmissionCase{L"title\n====\n", {2u, 2u}, 1u, true},
+                                HeadingAdmissionCase{L"> - item\n", {6u, 6u}, 3u, true},
+                                HeadingAdmissionCase{L"- [x] task\n", {7u, 7u}, 2u, false},
+                                HeadingAdmissionCase{L"```\nx\n```\n", {4u, 4u}, 1u, false},
+                                HeadingAdmissionCase{L"", {0u, 0u}, 1u, true}})
+    {
+        editor->SetText(std::wstring(example.source));
+        prepare();
+        editor->SetSelection(example.selection);
+        stateRequest.command      = MarkdownCommand::SetHeading;
+        stateRequest.headingLevel = example.level;
+        const auto headingState   = editor->QueryMarkdownCommandState(stateRequest);
+        const auto status         = editor->ExecuteMarkdownCommand(stateRequest);
+        Check(headingState && headingState->available == std::optional<bool>{example.available} &&
+                  (example.available ? status != MarkdownCommandStatus::Unavailable : status == MarkdownCommandStatus::Unavailable),
+              "heading state and execution agree for source, setext, nested containers, task items, code and empty sites");
+        if (status == MarkdownCommandStatus::Changed)
+            Check(editor->Undo() && editor->GetText() == example.source, "heading agreement case restores exact source with one undo");
+    }
+    editor->SetText(deepLists);
+    prepare();
+    const auto deepCaret = deepLists.rfind(L"- x") + 2u;
+    editor->SetSelection({deepCaret, deepCaret});
+    stateRequest.command      = MarkdownCommand::SetHeading;
+    stateRequest.headingLevel = 2u;
+    const auto deepHeading    = editor->QueryMarkdownCommandState(stateRequest);
+    Check(deepHeading && deepHeading->available == std::optional<bool>{true} &&
+              editor->ExecuteMarkdownCommand(stateRequest) == MarkdownCommandStatus::Changed && editor->Undo() && editor->GetText() == deepLists,
+          "heading admission and execution recover nested prefixes beyond the fixed stack");
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
     for (const bool referenced : {false, true})
     {
         const std::wstring source = referenced ? L"note[^n]\n\n[^n]:\n    ~~~cpp\n    x\n    ~~~\n" : L"[^n]:\n    ~~~cpp\n    x\n    ~~~\n";
@@ -749,14 +787,15 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
         const auto at = source.find(L"cpp");
         editor->SetSelection({at, at});
         stateRequest.command = MarkdownCommand::SetCodeLanguage;
-        stateRequest.text = L"rust";
+        stateRequest.text    = L"rust";
         const auto noteState = editor->QueryMarkdownCommandState(stateRequest);
-        const auto status = editor->ExecuteMarkdownCommand(stateRequest);
+        const auto status    = editor->ExecuteMarkdownCommand(stateRequest);
         Check(noteState && (referenced ? ! noteState->available : noteState->available == std::optional<bool>{false}) &&
-                  (referenced ? status == MarkdownCommandStatus::Changed && editor->Undo()
-                              : status == MarkdownCommandStatus::Unavailable) && editor->GetText() == source,
+                  (referenced ? status == MarkdownCommandStatus::Changed && editor->Undo() : status == MarkdownCommandStatus::Unavailable) &&
+                  editor->GetText() == source,
               "command state and execution share footnote ownership admission without changing protected source");
     }
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
     editor->SetText(L"[link](https://example.invalid)");
     prepare();
     editor->SetSelection({2u, 2u});

@@ -1341,6 +1341,12 @@ Command-state list membership covers the complete selected source interval,
 including nested items and unlisted gaps, rather than sampling only endpoints.
 The query uses a small bounded stack and parent-link recovery at deeper nesting;
 the latter may add ancestor-depth work. It does not allocate or build edit strings.
+Heading availability shares the planner's source and container-prefix admission,
+including task-list restrictions, Setext conversion and resulting source capacity.
+Its prefix proof uses a bounded stack with parent-link recovery at deeper nesting;
+the recovery can add ancestor-depth work. Inside resolved footnote definitions,
+positive command availability remains unknown until the planner's final physical
+prefix checks can also be proved without constructing edits.
 When a focused native input session has an active or indeterminate composition,
 command-state availability is false for every structural command, matching
 execution; current style and list presentation remain queryable.

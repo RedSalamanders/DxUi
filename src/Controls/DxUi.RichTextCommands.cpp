@@ -4,6 +4,7 @@
 #include "DxUi.RichSemanticHtml.h"
 #include <DxUi/RichMath.h>
 #include <DxUi/RichTextCommands.h>
+#include <array>
 #include <limits>
 #include <stdexcept>
 
@@ -565,6 +566,269 @@ struct PhysicalLine
 {
     std::size_t first{}, bodyEnd{}, end{};
 };
+static std::size_t PhysicalFirst(std::wstring_view text, std::size_t at) noexcept
+{
+    while (at > 0u && text[at - 1u] != L'\r' && text[at - 1u] != L'\n')
+        --at;
+    return at;
+}
+static PhysicalLine PhysicalAt(std::wstring_view text, std::size_t at) noexcept
+{
+    const auto first    = PhysicalFirst(text, at);
+    std::size_t bodyEnd = at;
+    while (bodyEnd < text.size() && text[bodyEnd] != L'\r' && text[bodyEnd] != L'\n')
+        ++bodyEnd;
+    auto end = bodyEnd;
+    if (end < text.size() && text[end++] == L'\r' && end < text.size() && text[end] == L'\n')
+        ++end;
+    return {first, bodyEnd, end};
+}
+// Consumes only container prefixes proven by the syntax tree.
+static bool CommandOuterOffset(std::wstring_view text,
+                               const std::vector<MarkdownNode>& nodes,
+                               std::size_t node,
+                               const PhysicalLine& line,
+                               std::size_t& at) noexcept
+{
+    auto firstContent = line.first;
+    while (firstContent < line.bodyEnd && Space(text[firstContent]))
+        ++firstContent;
+    if (firstContent == line.bodyEnd)
+    {
+        at = line.first;
+        return true;
+    }
+    std::array<std::size_t, 64u> parents{};
+    std::size_t parentCount = 0u;
+    for (auto i = nodes[node].parent; i != MarkdownNoNode; i = nodes[i].parent)
+        if (nodes[i].block.kind == Kind::BlockQuote || nodes[i].block.kind == Kind::ListItem || nodes[i].block.kind == Kind::FootnoteDefinition)
+        {
+            if (parentCount < parents.size())
+                parents[parentCount] = i;
+            ++parentCount;
+        }
+    at                   = line.first;
+    unsigned column      = 0u;
+    const auto takeSpace = [&](unsigned count)
+    {
+        const auto target = column + count;
+        while (column < target && at < line.bodyEnd && Space(text[at]))
+        {
+            const auto next = text[at] == L'\t' ? column + 4u - column % 4u : column + 1u;
+            if (next > target)
+                return false;
+            column = next;
+            ++at;
+        }
+        return column == target;
+    };
+    while (parentCount != 0u)
+    {
+        --parentCount;
+        auto ownerIndex = MarkdownNoNode;
+        if (parentCount < parents.size())
+            ownerIndex = parents[parentCount];
+        else
+        {
+            std::size_t position = 0u;
+            for (auto i = nodes[node].parent; i != MarkdownNoNode; i = nodes[i].parent)
+                if (nodes[i].block.kind == Kind::BlockQuote || nodes[i].block.kind == Kind::ListItem || nodes[i].block.kind == Kind::FootnoteDefinition)
+                {
+                    if (position++ == parentCount)
+                    {
+                        ownerIndex = i;
+                        break;
+                    }
+                }
+        }
+        const auto& owner = nodes[ownerIndex];
+        if (owner.block.kind == Kind::FootnoteDefinition)
+        {
+            if (PhysicalFirst(text, owner.block.source.first) == line.first)
+            {
+                if (owner.block.content.first < at || owner.block.content.first > line.bodyEnd)
+                    return false;
+                column = Columns(text.substr(line.first, owner.block.content.first - line.first));
+                at     = owner.block.content.first;
+            }
+            else if (! takeSpace(owner.contentIndent))
+                return false;
+            continue;
+        }
+        if (owner.block.kind == Kind::ListItem && PhysicalFirst(text, owner.block.source.first) != line.first)
+        {
+            if (! takeSpace(owner.contentIndent))
+                return false;
+            continue;
+        }
+        while (at < line.bodyEnd && Space(text[at]))
+        {
+            column = text[at] == L'\t' ? column + 4u - column % 4u : column + 1u;
+            ++at;
+        }
+        if (owner.block.kind == Kind::BlockQuote)
+        {
+            if (at == line.bodyEnd || text[at] != L'>')
+                return false;
+            ++at;
+            ++column;
+            if (at < line.bodyEnd && Space(text[at]))
+            {
+                column = text[at] == L'\t' ? column + 4u - column % 4u : column + 1u;
+                ++at;
+            }
+        }
+        else
+        {
+            const auto marker = nodes[owner.parent].listMarker;
+            while (at < line.bodyEnd && Digit(text[at]))
+            {
+                ++at;
+                ++column;
+            }
+            if (at == line.bodyEnd || text[at] != marker)
+                return false;
+            ++at;
+            ++column;
+            unsigned padding = 0u;
+            auto end         = at;
+            auto endColumn   = column;
+            while (end < line.bodyEnd && Space(text[end]))
+            {
+                endColumn = text[end] == L'\t' ? endColumn + 4u - endColumn % 4u : endColumn + 1u;
+                ++end;
+            }
+            padding = endColumn - column;
+            if (padding > 4u || end == line.bodyEnd)
+                padding = padding ? 1u : 0u;
+            if (! takeSpace(padding))
+                return false;
+        }
+    }
+    return true;
+}
+
+static bool InspectHeading(const MarkdownSyntax& syntax, Selection selection, unsigned level) noexcept
+{
+    const auto text   = syntax.Source();
+    const auto& nodes = syntax.Nodes();
+    if (syntax.SourceRegion() || level > 6u || selection.End() > text.size() || ! IsEditBoundary(text, selection.Start()) ||
+        ! IsEditBoundary(text, selection.End()))
+        return false;
+    for (const auto& node : nodes)
+        if (node.block.source.first < selection.End() && node.block.source.last > selection.Start() &&
+            (node.block.kind == Kind::FencedCode || node.block.kind == Kind::IndentedCode || node.block.kind == Kind::HtmlBlock ||
+             node.block.kind == Kind::FrontMatter || node.block.kind == Kind::Table || node.block.kind == Kind::ThematicBreak))
+            return false;
+    auto end = selection.End();
+    if (end > selection.Start() && PhysicalAt(text, end).first == end)
+        --end;
+    auto active = MarkdownNoNode;
+    if (selection.Start() == selection.End())
+        for (const auto kind : {Kind::Paragraph, Kind::AtxHeading, Kind::SetextHeading, Kind::TableCell})
+        {
+            const auto candidate = CommandNodeAt(syntax, kind, selection.caret);
+            if (candidate != MarkdownNoNode && (active == MarkdownNoNode || nodes[candidate].block.source.last - nodes[candidate].block.source.first <
+                                                                                nodes[active].block.source.last - nodes[active].block.source.first))
+                active = candidate;
+        }
+    bool found          = false;
+    std::size_t removed = 0u, inserted = 0u;
+    const auto account = [&](std::size_t oldSize, std::size_t newSize) noexcept
+    {
+        if (oldSize > text.size() - removed || newSize > Document::MaximumUnits - inserted)
+            return false;
+        removed += oldSize;
+        inserted += newSize;
+        return true;
+    };
+    for (std::size_t i = 1u; i < nodes.size(); ++i)
+    {
+        const auto& node = nodes[i];
+        const auto kind  = node.block.kind;
+        if ((kind != Kind::Paragraph && kind != Kind::AtxHeading && kind != Kind::SetextHeading) || node.block.source.last < selection.Start() ||
+            node.block.source.first > end || (selection.Start() == selection.End() && i != active) || node.lines.empty())
+            continue;
+        for (auto parent = node.parent; parent != MarkdownNoNode; parent = nodes[parent].parent)
+            if (nodes[parent].block.kind == Kind::ListItem)
+            {
+                if (level && nodes[parent].task != MarkdownTask::None)
+                    return false;
+                break;
+            }
+        found = true;
+        if (kind == Kind::SetextHeading && level > 0u && level <= 2u)
+        {
+            const auto underline = PhysicalAt(text, node.lines.back().source.last);
+            std::size_t start{};
+            if (! CommandOuterOffset(text, nodes, i, underline, start))
+                return false;
+            while (start < underline.bodyEnd && Space(text[start]))
+                ++start;
+            auto last = start;
+            while (last < underline.bodyEnd && (text[last] == L'=' || text[last] == L'-'))
+                ++last;
+            if (! account(last - start, std::max(std::size_t{3u}, last - start)))
+                return false;
+            continue;
+        }
+        if (kind == Kind::SetextHeading)
+        {
+            const auto underline = PhysicalAt(text, node.lines.back().source.last);
+            if (! account(underline.end - underline.first, 0u))
+                return false;
+        }
+        for (const auto& content : node.lines)
+        {
+            const auto line = PhysicalAt(text, content.source.first);
+            std::size_t start{};
+            if (! CommandOuterOffset(text, nodes, i, line, start))
+                return false;
+            while (start < line.bodyEnd && Space(text[start]))
+                ++start;
+            auto markerEnd = start;
+            if (kind == Kind::AtxHeading)
+            {
+                while (markerEnd < line.bodyEnd && text[markerEnd] == L'#')
+                    ++markerEnd;
+                if (level == 0u)
+                {
+                    while (markerEnd < line.bodyEnd && Space(text[markerEnd]))
+                        ++markerEnd;
+                    auto close = line.bodyEnd;
+                    while (close > node.block.content.last && Space(text[close - 1u]))
+                        --close;
+                    auto closeFirst = close;
+                    while (closeFirst > node.block.content.last && text[closeFirst - 1u] == L'#')
+                        --closeFirst;
+                    if (! account(close - closeFirst, 0u))
+                        return false;
+                }
+                if (! account(markerEnd - start, level))
+                    return false;
+            }
+            else if (level && ! account(0u, level + 1u))
+                return false;
+        }
+    }
+    if (! found && selection.Start() == selection.End())
+    {
+        bool opaque = false;
+        for (const auto kind : {Kind::FencedCode, Kind::IndentedCode, Kind::HtmlBlock, Kind::FrontMatter, Kind::Table})
+            opaque |= CommandNodeAt(syntax, kind, selection.caret) != MarkdownNoNode;
+        const auto line = PhysicalAt(text, selection.caret);
+        if (! opaque && (line.first == line.bodyEnd || std::ranges::any_of(syntax.EmptyLines(), [&](const auto& empty) {
+            return empty.insertion == selection.caret && empty.source.first == line.first;
+        })))
+        {
+            found = true;
+            if (level && ! account(0u, level + 1u))
+                return false;
+        }
+    }
+    return found && inserted <= Document::MaximumUnits - (text.size() - removed);
+}
+
 struct ItemPrefix
 {
     std::size_t first{}, markerEnd{}, content{};
@@ -711,105 +975,9 @@ struct MarkdownCommandPlanner
         }
         return MarkdownNoNode;
     }
-    // Only consumes container prefixes already proven by the syntax tree. A
-    // partly consumed tab or missing lazy prefix has no editable raw boundary;
-    // reject it instead of guessing a destructive substring.
     bool OuterOffset(std::size_t node, const PhysicalLine& line, std::size_t& at) const
     {
-        auto firstContent = line.first;
-        while (firstContent < line.bodyEnd && Space(text[firstContent]))
-            ++firstContent;
-        if (firstContent == line.bodyEnd)
-        {
-            at = line.first;
-            return true;
-        }
-        std::vector<std::size_t> parents(0u);
-        for (auto i = nodes[node].parent; i != MarkdownNoNode; i = nodes[i].parent)
-            if (nodes[i].block.kind == Kind::BlockQuote || nodes[i].block.kind == Kind::ListItem || nodes[i].block.kind == Kind::FootnoteDefinition)
-                parents.push_back(i);
-        at                   = line.first;
-        unsigned column      = 0u;
-        const auto takeSpace = [&](unsigned count)
-        {
-            const auto target = column + count;
-            while (column < target && at < line.bodyEnd && Space(text[at]))
-            {
-                const auto next = text[at] == L'\t' ? column + 4u - column % 4u : column + 1u;
-                if (next > target)
-                    return false;
-                column = next;
-                ++at;
-            }
-            return column == target;
-        };
-        for (auto p = parents.rbegin(); p != parents.rend(); ++p)
-        {
-            const auto& owner = nodes[*p];
-            if (owner.block.kind == Kind::FootnoteDefinition)
-            {
-                if (Line(owner.block.source.first).first == line.first)
-                {
-                    if (owner.block.content.first < at || owner.block.content.first > line.bodyEnd)
-                        return false;
-                    column = Columns(Slice(line.first, owner.block.content.first));
-                    at     = owner.block.content.first;
-                }
-                else if (! takeSpace(owner.contentIndent))
-                    return false;
-                continue;
-            }
-            if (owner.block.kind == Kind::ListItem && Line(owner.block.source.first).first != line.first)
-            {
-                if (! takeSpace(owner.contentIndent))
-                    return false;
-                continue;
-            }
-            while (at < line.bodyEnd && Space(text[at]))
-            {
-                column = text[at] == L'\t' ? column + 4u - column % 4u : column + 1u;
-                ++at;
-            }
-            if (owner.block.kind == Kind::BlockQuote)
-            {
-                if (at == line.bodyEnd || text[at] != L'>')
-                    return false;
-                ++at;
-                ++column;
-                if (at < line.bodyEnd && Space(text[at]))
-                {
-                    column = text[at] == L'\t' ? column + 4u - column % 4u : column + 1u;
-                    ++at;
-                }
-            }
-            else
-            {
-                const auto marker = nodes[owner.parent].listMarker;
-                while (at < line.bodyEnd && Digit(text[at]))
-                {
-                    ++at;
-                    ++column;
-                }
-                if (at == line.bodyEnd || text[at] != marker)
-                    return false;
-                ++at;
-                ++column;
-                unsigned padding = 0u;
-                auto end         = at;
-                auto endColumn   = column;
-                while (end < line.bodyEnd && Space(text[end]))
-                {
-                    endColumn = text[end] == L'\t' ? endColumn + 4u - endColumn % 4u : endColumn + 1u;
-                    ++end;
-                }
-                padding = endColumn - column;
-                if (padding > 4u || end == line.bodyEnd)
-                    padding = padding ? 1u : 0u;
-                if (! takeSpace(padding))
-                    return false;
-            }
-        }
-        return true;
+        return CommandOuterOffset(text, nodes, node, line, at);
     }
     bool Prefix(std::size_t item, ItemPrefix& prefix) const
     {
@@ -1279,6 +1447,8 @@ struct MarkdownCommandPlanner
     {
         if (level > 6u)
             throw std::invalid_argument("Heading level must be zero through six");
+        if (! CanSetHeading(*plan.syntax_, plan.before_, level))
+            return;
         if (HasOpaqueSelection())
             return;
         auto end = plan.before_.End();
@@ -3404,6 +3574,11 @@ void MarkdownCommandPlanner::Delete(std::span<const MarkdownRange> ranges)
     }
 }
 } // namespace Detail
+
+bool CanSetHeading(const MarkdownSyntax& syntax, Selection selection, unsigned level) noexcept
+{
+    return Detail::InspectHeading(syntax, selection, level);
+}
 
 std::wstring Detail::EscapeFileReferenceLiteral(std::wstring_view value)
 {
