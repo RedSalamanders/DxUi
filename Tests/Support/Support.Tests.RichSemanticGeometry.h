@@ -310,6 +310,16 @@ inline void MathWidthReflowAndTargetReplacement()
     Check(inlineTag->Map().Display().find(L"$x\\tag{A}$") != std::wstring_view::npos &&
               std::ranges::any_of(inlineTag->Diagnostics(), [](const auto& item) { return item.kind == SemanticDiagnosticKind::UnsupportedMath; }),
           "inline tagged equations retain exact source with an unsupported diagnostic");
+    const auto nestedTag = RichSemanticDocumentTests::Build(L"> $$x+1\\tag{Eq. 1}$$\n", MarkdownProfile::RichMarkdown);
+    geometry.Clear();
+    options.widthDip = 240.f;
+    geometry.Begin(factory.get(), nestedTag, options, drawing.get(), {}, {}, target.get());
+    Complete(geometry);
+    const auto taggedElement = std::ranges::find(nestedTag->Elements(), SemanticRole::Math, &SemanticElement::role);
+    Check(taggedElement != nestedTag->Elements().end(), "nested tagged equation retains its math source element");
+    const auto taggedBounds = geometry.ElementBounds(static_cast<std::size_t>(taggedElement - nestedTag->Elements().begin()));
+    Check(taggedBounds && taggedBounds->left > 0.f && taggedBounds->right <= options.widthDip && taggedBounds->right > taggedBounds->left,
+          "tagged placeholder occupies the containing quote width after its indentation");
     const auto diagram = RichSemanticDocumentTests::Build(L"```mermaid\nflowchart LR\nA[Start] --> B[Finish]\n```\n", MarkdownProfile::RichMarkdown);
     geometry.Clear();
     geometry.Begin(factory.get(), diagram, options, nullptr, {}, {}, target.get());
