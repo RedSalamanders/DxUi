@@ -1114,10 +1114,12 @@ public:
             const auto marker = ListMarker(cursor);
             // Missing prefixes continue only an existing paragraph, and only
             // when this line cannot start an interrupting block in its own right.
+            // The pinned GFM reference closes the unmatched quote before a
+            // type-seven HTML block; CommonMark 0.31.2 keeps it lazy.
             const bool listSibling = marker.valid && matched > 1u && nodes_[open_[matched - 1u]].block.kind == Kind::List;
-            const bool interrupts  = listSibling || Thematic(cursor) || HtmlStart(cursor, true) || (cursor.Indent() <= 3u && trimmed.Peek() == L'>') ||
-                                     Atx(cursor) || Fence(cursor) || FootnoteAt(cursor, true).valid ||
-                                     (marker.valid && ! marker.empty && (! marker.ordered || marker.start == 1u));
+            const bool interrupts  = listSibling || Thematic(cursor) || HtmlStart(cursor, sourceProfile_ != MarkdownProfile::Gfm029) ||
+                                     (cursor.Indent() <= 3u && trimmed.Peek() == L'>') || Atx(cursor) || Fence(cursor) || FootnoteAt(cursor, true).valid ||
+                                     marker.valid;
             if (paragraph && ! empty && ! interrupts && ! startsSourceRegion)
             {
                 Content(leaf_, trimmed, bodyEnd);

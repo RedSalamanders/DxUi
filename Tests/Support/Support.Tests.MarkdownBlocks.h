@@ -71,6 +71,12 @@ template <typename Check> inline void CheckDeclarationProfile(const MarkdownSynt
           "declaration block start follows the exact selected CommonMark or GFM profile");
     check(syntax.Source() == (uppercase ? L"<!DOCTYPE html>\nfoo" : L"<!doctype html>\nfoo"), "profile-sensitive declaration recognition retains exact source");
 }
+template <typename Check> inline void CheckLazyHtmlProfile(const MarkdownSyntax& syntax, Check&& check)
+{
+    const auto expected =
+        syntax.Profile() == MarkdownProfile::Gfm029 ? L"<blockquote><p></p></blockquote><htmlblock></htmlblock>" : L"<blockquote><p></p></blockquote>";
+    check(BlockSignature(syntax) == expected && syntax.Source() == L"> a\n<custom>", "unmatched quote and type-seven HTML follow the selected pinned profile");
+}
 struct Scenario
 {
     std::wstring_view name, source, signature;
@@ -83,6 +89,12 @@ struct IdentityEdge
 inline constexpr IdentityEdge identityEdges[] = {{L"alpha", {0u, 1u}}, {L"alpha", {4u, 5u}}, {L"\U0001f600alpha", {0u, 2u}}, {L"alpha\U0001f600", {5u, 7u}}};
 inline constexpr Scenario scenarios[]         = {
     {L"nested quote and lazy continuation", L"> > alpha\ncontinued\n", L"<blockquote><blockquote><p></p></blockquote></blockquote>"},
+    {L"unmatched quote before ordered start", L"> a\n2. b", L"<blockquote><p></p></blockquote><ol><li></li></ol>"},
+    {L"unmatched quote before empty item", L"> a\n-", L"<blockquote><p></p></blockquote><ul><li></li></ul>"},
+    {L"type-seven HTML remains lazy inside unmatched quote", L"> a\n<custom>", L"<blockquote><p></p></blockquote>"},
+    {L"matched paragraph cannot be interrupted by ordered start", L"a\n2. b", L"<p></p>"},
+    {L"matched paragraph interprets a single dash as setext", L"a\n-", L"<h2></h2>"},
+    {L"matched paragraph cannot be interrupted by type-seven HTML", L"a\n<custom>", L"<p></p>"},
     {L"nested lists and ordered start", L"- alpha\n  1. beta\n  2. gamma\n- delta\n", L"<ul><li><ol><li></li><li></li></ol></li><li></li></ul>"},
     {L"loose list", L"- alpha\n\n- beta\n", L"<ul><li><p></p></li><li><p></p></li></ul>"},
     {L"nested list followed by a loose outer paragraph", L"* foo\n  * bar\n\n  baz\n", L"<ul><li><p></p><ul><li></li></ul><p></p></li></ul>"},

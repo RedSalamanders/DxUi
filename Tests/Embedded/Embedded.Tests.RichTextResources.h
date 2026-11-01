@@ -3680,6 +3680,15 @@ static void TestEmbeddedLosslessMarkdownPreparation(GraphicsFixture& gpu)
     }
     const auto held = editor->GetMarkdownSyntax();
     for (const auto profile : {MarkdownProfile::Gfm029, MarkdownProfile::CommonMark0312, MarkdownProfile::RichMarkdown})
+    {
+        editor->SetMarkdownAnalysisProfile(profile);
+        editor->SetText(L"> a\n<custom>");
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded profile-specific lazy HTML");
+        const auto parsed = editor->GetMarkdownSyntax();
+        Check(parsed != nullptr, "embedded lazy HTML syntax is published");
+        MarkdownBlockTests::CheckLazyHtmlProfile(*parsed, Check);
+    }
+    for (const auto profile : {MarkdownProfile::Gfm029, MarkdownProfile::CommonMark0312, MarkdownProfile::RichMarkdown})
         for (const bool uppercase : {false, true})
         {
             editor->SetMarkdownAnalysisProfile(profile);

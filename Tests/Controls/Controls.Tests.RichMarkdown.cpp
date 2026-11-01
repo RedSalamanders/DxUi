@@ -523,6 +523,12 @@ void TestLosslessMarkdownInlineScenariosAndExtensionIdentity()
 void TestLosslessMarkdownBlockScenariosAndNodeIdentity()
 {
     for (const auto profile : {MarkdownProfile::Gfm029, MarkdownProfile::CommonMark0312, MarkdownProfile::RichMarkdown})
+    {
+        MarkdownParser lazyHtml;
+        lazyHtml.Begin(L"> a\n<custom>", 1u, profile);
+        MarkdownBlockTests::CheckLazyHtmlProfile(*CompleteMarkdown(lazyHtml, 1u), Require);
+    }
+    for (const auto profile : {MarkdownProfile::Gfm029, MarkdownProfile::CommonMark0312, MarkdownProfile::RichMarkdown})
         for (const bool uppercase : {false, true})
         {
             MarkdownParser declaration;

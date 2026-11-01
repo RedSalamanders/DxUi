@@ -1307,6 +1307,10 @@ rendering/editing remain later gates.
 The Gfm029 HTML declaration block start requires an uppercase ASCII letter after
 `<!`, as in its pinned grammar; CommonMark0312 and RichMarkdown accept either
 ASCII letter case.
+When a quote prefix fails to match, a valid list marker starts a new block
+outside that quote, including an empty item or a non-one ordered start. A
+type-seven HTML opener closes that quote in Gfm029; CommonMark0312 and
+RichMarkdown preserve the lazy paragraph continuation.
 Begin validates/owns at most 65,536 UTF-16 units, accepting raw NUL and rejecting
 unpaired surrogates. Reference-label folding replaces raw NUL with U+FFFD before
 matching, consistently with normalized inline text; exact Source() stays intact.
