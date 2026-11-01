@@ -21,7 +21,7 @@ Use only after the person at the desktop explicitly agrees to automatic start an
 dialog defaults to Start and starts after 30 seconds if nobody clicks; Cancel, Esc, closing the dialog and Ctrl+C stop the run.
 All desktop checks, the warning, suite accounting and verified restoration still apply. Ordinary -Interactive retains its Cancel default.
 .PARAMETER SkipBuild
-Requires the canonical current v2 build attestation before any native desktop probe, filter/watchdog self-check or suite.
+Requires both the canonical current v2 build attestation and the complete native test-source/artifact receipt before any native desktop probe, filter/watchdog self-check or suite.
 Missing, old or stale source/dependency/toolchain/output identity fails closed; build.ps1 creates the attestation.
 The bounded SkipBuildGate phase reports UTC/elapsed diagnostics without changing receipt or native assertions.
 .PARAMETER SkipTooling
@@ -92,6 +92,13 @@ else {
     Import-Module (Join-Path $PSScriptRoot 'Tools/PerformancePolicy.psm1') -Force
     Invoke-DxUiBuildPhase -Phase SkipBuildGate -Body {
         Assert-PerformanceBuildAttestation -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration
+        Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Force
+        $inputIdentity = Get-ScopedBuildInputIdentity $PSScriptRoot $Platform
+        $artifactIdentity = Get-ScopedArtifactIdentity $PSScriptRoot $Platform $Configuration
+        $receipt = Join-Path $PSScriptRoot ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/build.json"
+        if (-not (Test-ScopedReceipt $receipt (Get-ScopedDigest ($inputIdentity+"`n"+$artifactIdentity)))) {
+            throw 'SkipBuild refused: native test sources, dependencies or artifacts changed, or no complete native test receipt exists. Run build.ps1 or test.ps1 without -SkipBuild.'
+        }
     }
 }
 $leaseExecutable = Join-Path $PSScriptRoot ".build/$Platform/$Configuration/DxUi.InteractiveLease.exe"

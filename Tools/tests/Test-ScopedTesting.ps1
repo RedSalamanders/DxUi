@@ -525,6 +525,14 @@ try {
             Assert-Scope (@(Get-ScopedPrCoverage $delegate $claim x64 Release).Count -eq 0) 'A widened coverage claim was delegated'
             $missing=[pscustomobject]@{repository='fixture/example';defaultBranch='main';prContractFiles=@('.github/workflows/ci.yml','runner.ps1','gone.ps1');prWorkflowDigest=$contract.prWorkflowDigest;prCoverage=$coverage.prCoverage}
             Assert-Scope (@(Get-ScopedPrCoverage $delegate $missing x64 Release).Count -eq 0) 'A missing contract file was delegated'
+            $closure=[pscustomobject]@{repository='fixture/example';defaultBranch='main';prContractClosure=$true;prContractFiles=@('.github/workflows/ci.yml');prWorkflowDigest='';prCoverage=$coverage.prCoverage}
+            $closure.prWorkflowDigest=Get-ScopedPrContractDigest $delegate $closure
+            [IO.Directory]::CreateDirectory((Join-Path $delegate 'Tools')) | Out-Null
+            [IO.File]::WriteAllText((Join-Path $delegate 'Tools/new-ci-script.ps1'),'new CI behavior')
+            Assert-Scope ((Get-ScopedPrContractDigest $delegate $closure) -cne $closure.prWorkflowDigest) 'New CI tooling did not change the reviewed closure'
+            Remove-Item -LiteralPath (Join-Path $delegate 'Tools/new-ci-script.ps1')
+            $closure.prCoverage=@([pscustomobject]@{platform='x64';configuration='Release';scopes=@('Other')})
+            Assert-Scope ((Get-ScopedPrContractDigest $delegate $closure) -cne $closure.prWorkflowDigest) 'Manifest behavior changed without changing the reviewed closure'
             $noWorkflow=[pscustomobject]@{repository='fixture/example';defaultBranch='main';prContractFiles=@('runner.ps1');prWorkflowDigest='';prCoverage=$coverage.prCoverage}
             $threw=$false;try{[void](Get-ScopedPrContractDigest $delegate $noWorkflow)}catch{$threw=$true}
             Assert-Scope $threw 'A contract without the workflow has a digest'

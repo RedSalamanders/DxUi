@@ -7,16 +7,33 @@ function Get-NativeBuildDiagnostics {
     $full=[IO.Path]::GetFullPath($LogPath)
     if(-not(Test-Path -LiteralPath $full -PathType Leaf)){throw "Build diagnostics log is missing: $full"}
     $warnings=0;$errors=0
-    $succeeded=$false;$warningSummary=$null;$errorSummary=$null
+    $succeeded=$false;$warningSummary=$null;$errorSummary=$null;$summaryStage=0
+    # Use linear matching when available; older supported runtimes fail closed at the fixed timeout.
+    $options=[Text.RegularExpressions.RegexOptions]::IgnoreCase -bor [Text.RegularExpressions.RegexOptions]::CultureInvariant
+    if ([Enum]::IsDefined([Text.RegularExpressions.RegexOptions], 'NonBacktracking')) {
+        $options = $options -bor [Enum]::Parse([Text.RegularExpressions.RegexOptions], 'NonBacktracking')
+    }
+    $diagnostic=[regex]::new('^\s*(?:\d+>)?\s*(?:(?:[a-z]:)?[^:\r\n]*:\s*)??(?:[^:\r\n]*?\s+)??(?<kind>warning|error)(?:\s+[^:\s]+)?\s*:',
+        $options, [TimeSpan]::FromMilliseconds(500))
     foreach($line in [IO.File]::ReadLines($full)){
-        if($line -match '\bBuild succeeded\.'){ $succeeded=$true }
-        if($line -match '\bBuild FAILED\.'){ $succeeded=$false }
-        if($line -match '(?<count>\d+)\s+Warning\(s\)'){ $warningSummary=[int]$Matches['count'] }
-        if($line -match '(?<count>\d+)\s+Error\(s\)'){ $errorSummary=[int]$Matches['count'] }
-        # Same canonical MSBuild header grammar as RedSalamander's MSBuildInvocation.
-        # Diagnostic-looking text in a message is not a second diagnostic.
-        $match=[regex]::Match($line,'^\s*(?:\d+>)?\s*(?:(?:[a-z]:)?[^:\r\n]*:\s*)??(?:[^:\r\n]*?\s+)??(?<kind>warning|error)(?:\s+[^:\s]+)?\s*:',
-            [Text.RegularExpressions.RegexOptions]::IgnoreCase -bor [Text.RegularExpressions.RegexOptions]::CultureInvariant)
+        if($line -match '^\s*Build succeeded\.\s*$'){
+            $summaryStage=1;$succeeded=$false;$warningSummary=$null;$errorSummary=$null
+        }elseif($line -match '^\s*Build FAILED\.\s*$'){
+            $summaryStage=0;$succeeded=$false;$warningSummary=$null;$errorSummary=$null
+        }elseif($succeeded -and $line -notmatch '^\s*$'){
+            $succeeded=$false;$warningSummary=$null;$errorSummary=$null
+        }elseif($summaryStage -gt 0 -and $line -notmatch '^\s*$'){
+            if($summaryStage -eq 1 -and $line -match '^\s*0+ Warning\(s\)\s*$'){
+                $warningSummary=0;$summaryStage=2
+            }elseif($summaryStage -eq 2 -and $line -match '^\s*0+ Error\(s\)\s*$'){
+                $errorSummary=0;$summaryStage=3
+            }elseif($summaryStage -eq 3 -and $line -match '^\s*Time Elapsed \d{2,}:\d{2}:\d{2}\.\d{2,7}\s*$'){
+                $succeeded=$true;$summaryStage=0
+            }else{
+                $summaryStage=0;$succeeded=$false;$warningSummary=$null;$errorSummary=$null
+            }
+        }
+        $match=$diagnostic.Match($line)
         if($match.Success){
             if($match.Groups['kind'].Value -ieq 'warning'){++$warnings}else{++$errors}
         }

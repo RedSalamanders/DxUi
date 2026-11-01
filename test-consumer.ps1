@@ -21,6 +21,7 @@ Import-Module (Join-Path $PSScriptRoot 'Tools/VisualStudio.psm1') -Force
 $installation=Get-DxUiVisualStudioInstallation
 $msbuild=Join-Path $installation 'MSBuild/Current/Bin/MSBuild.exe'
 Import-Module (Join-Path $checkout 'Tools/ConsumerBuild.psm1') -Force
+Import-Module (Join-Path $checkout 'Build/BuildConsole.psm1') -Force
 $buildIdentity=Get-DxUiConsumerBuildIdentity -DxUiRoot $checkout -MSBuildPath $msbuild -Platform $Platform -DisableStlAnnotations:$DisableStlAnnotations
 $otherIdentity=Get-DxUiConsumerBuildIdentity -DxUiRoot $checkout -MSBuildPath $msbuild -Platform $Platform -DisableStlAnnotations:(-not $DisableStlAnnotations)
 if ($buildIdentity.Fingerprint -eq $otherIdentity.Fingerprint) { throw 'STL annotation policy did not isolate the dependency output fingerprint.' }
@@ -78,8 +79,10 @@ Add-Content -LiteralPath (Join-Path $consumer 'DxUi.cpp') -Encoding utf8 -Value 
 $project = $project.Replace('<ClCompile Include="Samples/EmbeddedControls/Main.cpp" />', '<ClCompile Include="Samples/EmbeddedControls/Main.cpp" /><ClCompile Include="ConsumerApi.Tests.Revision4.cpp" />' + ($headerUnits -join ''))
 $projectPath=Join-Path $consumer 'ExternalConsumer.vcxproj'
 $project | Set-Content -LiteralPath $projectPath -Encoding utf8
-& $msbuild $projectPath /nologo /m /verbosity:minimal "/p:Configuration=$Configuration" "/p:Platform=$Platform"
+$consumerBuildLog=Join-Path $consumer 'ExternalConsumer.build.log'
+& $msbuild $projectPath /nologo /m /verbosity:minimal "/p:Configuration=$Configuration" "/p:Platform=$Platform" "/flp:logfile=$consumerBuildLog;verbosity=normal;encoding=UTF-8"
 if ($LASTEXITCODE -ne 0) { throw 'The external public consumer failed to build.' }
+Assert-NativeBuildDiagnostics -LogPath $consumerBuildLog
 & (Join-Path $consumer 'bin/ExternalConsumer.exe') --output (Join-Path $consumer 'public-consumer.png')
 if ($LASTEXITCODE -ne 0) { throw 'The relocated public consumer failed to render.' }
 & (Join-Path $consumer 'bin/ExternalConsumer.exe') --complex-ui --output (Join-Path $consumer 'complex-consumer.png')
@@ -110,8 +113,10 @@ foreach ($moduleName in @('NativeModuleA','NativeModuleB','NativeModuleDriver'))
     }
     $modulePath = Join-Path $consumer "$moduleName.vcxproj"
     $moduleProject.Save($modulePath)
-    & $msbuild $modulePath /nologo /m /verbosity:minimal "/p:Configuration=$Configuration" "/p:Platform=$Platform"
+    $moduleBuildLog=Join-Path $consumer "$moduleName.build.log"
+    & $msbuild $modulePath /nologo /m /verbosity:minimal "/p:Configuration=$Configuration" "/p:Platform=$Platform" "/flp:logfile=$moduleBuildLog;verbosity=normal;encoding=UTF-8"
     if ($LASTEXITCODE -ne 0) { throw "The native module consumer $moduleName failed to build." }
+    Assert-NativeBuildDiagnostics -LogPath $moduleBuildLog
 }
 & (Join-Path $consumer 'bin/NativeModuleDriver.exe')
 if ($LASTEXITCODE -ne 0) { throw 'Native DxUi dispatch or animation crossed static module ownership.' }

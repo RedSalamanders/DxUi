@@ -7,7 +7,7 @@ Root entry points (`build.ps1`, `test.ps1`, `Test-Changes.ps1`, `Test-PrePush.ps
 are the stable developer interface. `validate.ps1` runs the five
 validators and the tooling tests in turn and reports every failure before it fails; CI's validation job runs it, and
 `test.ps1` runs the tooling tests beside its native suites. CI gives `build.ps1` and the subsequent
-`test.ps1 -Full -SkipTooling -SkipBuild` separate finite windows; SkipBuild verifies the canonical v2 attestation
+`test.ps1 -Full -SkipTooling -SkipBuild` separate finite windows; SkipBuild verifies both the canonical v2 and complete native test-source/artifact attestations
 before native probes or self-checks. Fixed top-level timing records diagnose orchestration and do not qualify native performance.
 After successful suite and evidence completion, `test.ps1` clears an expected nested probe's stale native exit
 status. Callers still use fresh-process completion or immediate invocation success; failures remain errors.

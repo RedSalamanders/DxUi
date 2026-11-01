@@ -139,7 +139,7 @@ END/FAIL records with UTC and monotonic elapsed milliseconds. Consumer-owned out
 separate attestation contract, so the two default-output attestation phases apply only to default builds. Timing
 records add no input paths or environment values and cannot replace operation output or its original failure;
 these diagnostics are not native workload measurements or performance acceptance.
-`test.ps1 -SkipBuild` first requires the canonical current v2 attestation, inside the fixed SkipBuildGate timing
+`test.ps1 -SkipBuild` also requires the complete scoped native test-source/dependency/artifact receipt, which default `build.ps1` revokes before compilation and publishes only after a successful stable build. A missing or stale receipt forces a Rebuild, including test edits whose timestamps did not change. `test.ps1 -SkipBuild` first requires the canonical current v2 attestation, inside the fixed SkipBuildGate timing
 phase, before any native desktop probe, filter/watchdog self-check or suite. Source, dependency, resolved toolchain
 or final-artifact drift refuses early; no fallback relabels or rebuilds an invalid receipt. The later native and
 before/after measurement checks remain required. CI separates the official build and receipt-verified Full stages

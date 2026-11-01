@@ -153,12 +153,27 @@ Invoke-DxUiBuildPhase -Phase DependencyAdmission -Body {
 }
 $defaultOutput = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '.build')).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
 $attestPerformanceBuild = (-not $ProductionOnly) -and [string]::Equals($output, $defaultOutput, [StringComparison]::OrdinalIgnoreCase)
+if (-not $attestPerformanceBuild) { $target = 'Rebuild' }
 if ($attestPerformanceBuild) {
     # Consumer-owned output roots retain their separate integration contract. Default builds also serve performance.ps1
     # and test.ps1 -SkipBuild, so bind compiled source/dependencies and the resolved toolchain before invoking MSBuild.
     $performanceBuildBefore = Invoke-DxUiBuildPhase -Phase PreBuildAttestation -Body {
         Start-PerformanceBuildAttestation -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration
     }
+    Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Force
+    $scopedBuildBefore = Get-ScopedBuildInputIdentity $PSScriptRoot $Platform
+    $scopedBuildReceipt = Join-Path $PSScriptRoot ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/build.json"
+    $scopedReuse = $false
+    try {
+        $scopedArtifact = Get-ScopedArtifactIdentity $PSScriptRoot $Platform $Configuration
+        $scopedReuse = Test-ScopedReceipt $scopedBuildReceipt (Get-ScopedDigest ($scopedBuildBefore+"`n"+$scopedArtifact))
+    } catch [System.IO.IOException] { $scopedReuse = $false }
+      catch [System.Management.Automation.RuntimeException] { $scopedReuse = $false }
+    if (-not $scopedReuse) {
+        $target = 'Rebuild'
+        Write-Host 'Rebuilding because the complete native test-source receipt is missing or stale.' -ForegroundColor Yellow
+    }
+    if (Test-Path -LiteralPath $scopedBuildReceipt) { Remove-Item -LiteralPath $scopedBuildReceipt }
     if ($performanceBuildBefore.rebuildRequired) {
         $target = 'Rebuild'
         Write-Host 'Rebuilding because no current v2 attestation binds these exact inputs, tools and artifacts.' -ForegroundColor Yellow
@@ -173,7 +188,7 @@ $arguments = @((Join-Path $PSScriptRoot 'DxUi.sln'), '/m', '/nologo', '/verbosit
     "/flp:logfile=$log;verbosity=normal;encoding=UTF-8")
 if ($ProductionOnly) {
     if ($Configuration -ne 'Release') { throw 'ProductionOnly requires Release.' }
-    $arguments[4] = if ($Rebuild) { '/t:DxUi:Rebuild' } else { '/t:DxUi' }
+    $arguments[4] = if ($target -eq 'Rebuild') { '/t:DxUi:Rebuild' } else { '/t:DxUi' }
 }
 Write-Host 'Build configuration:' -ForegroundColor Cyan
 Write-Host "  Configuration: $Configuration"
@@ -209,6 +224,12 @@ if ($attestPerformanceBuild) {
     Invoke-DxUiBuildPhase -Phase PostBuildAttestation -Body {
         Complete-PerformanceBuildAttestation -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration -Before $performanceBuildBefore
     }
+    Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Force
+    if ((Get-ScopedBuildInputIdentity $PSScriptRoot $Platform) -cne $scopedBuildBefore) {
+        throw 'Compiled source or installed dependencies changed during the build; no native test receipt was published.'
+    }
+    $scopedArtifact = Get-ScopedArtifactIdentity $PSScriptRoot $Platform $Configuration
+    Write-ScopedReceipt $scopedBuildReceipt (Get-ScopedDigest ($scopedBuildBefore+"`n"+$scopedArtifact))
 }
 
 $profileOutput=Join-Path $output "$Platform/$Configuration"

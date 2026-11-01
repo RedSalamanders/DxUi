@@ -627,6 +627,7 @@
     }
   ],
   "prCoverage": [],
+  "prContractClosure": true,
   "prContractFiles": [
     ".ci/project.json",
     ".github/workflows/ci.yml",

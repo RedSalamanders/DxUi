@@ -85,3 +85,4 @@ The organization's shared engine runs a weekly and explicit manual metadata obse
 Qualification uploads retain adapter evidence separately from workspace logs. Never mix an external sandbox root
 with workspace paths in one artifact input; the Windows drive-root common ancestor can become drive-relative.
 This preserves diagnostics after failure without moving test data or bypassing native acceptance.
+The PR delegation identity binds exact bytes and the membership of `.github/`, `.ci/`, `Build/`, `Tools/`, `Tests/`, root PowerShell entrypoints, `Directory.Build.*`, and the manifest (excluding its own digest). Coverage remains empty for compiler-free PRs; a stale or unreviewed digest cannot delegate execution. CODEOWNERS covers those tracked policy surfaces, subject to the repository's independently configured review rules.
