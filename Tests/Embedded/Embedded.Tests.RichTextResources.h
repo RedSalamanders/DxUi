@@ -3679,6 +3679,16 @@ static void TestEmbeddedLosslessMarkdownPreparation(GraphicsFixture& gpu)
         Check(pixels == originalPixels, "lossless analysis does not silently replace or change the v0 formatted renderer");
     }
     const auto held = editor->GetMarkdownSyntax();
+    editor->SetText(L"> [a]: /u\n> text\n");
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded reference and paragraph prefixes");
+    const auto referenceSyntax = editor->GetMarkdownSyntax();
+    Check(referenceSyntax != nullptr, "embedded reference prefix syntax is published");
+    MarkdownBlockTests::CheckReferencePrefix(*referenceSyntax, Check);
+    editor->SetText(L"> [a]: /u\r\n> [b]: /v\r\n> text\r\n");
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded consecutive reference prefixes");
+    const auto referencesSyntax = editor->GetMarkdownSyntax();
+    Check(referencesSyntax != nullptr, "embedded consecutive-reference syntax is published");
+    MarkdownBlockTests::CheckReferencePrefixesCrLf(*referencesSyntax, Check);
     for (const auto profile : {MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
         for (const auto& scenario : MarkdownBlockTests::splitTables)
         {

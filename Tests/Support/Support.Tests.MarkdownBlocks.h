@@ -100,6 +100,44 @@ template <typename Check> inline void CheckSplitTable(const MarkdownSyntax& synt
     check(table.block.kind == MarkdownBlockKind::Table && table.parent == paragraph->parent && syntax.Slice(table.block.source) == scenario.table,
           "only the final paragraph line becomes the source-exact table header");
 }
+template <typename Check> inline void CheckReferencePrefix(const MarkdownSyntax& syntax, Check&& check)
+{
+    const auto& nodes     = syntax.Nodes();
+    const auto definition = std::ranges::find_if(nodes, [](const auto& node) { return node.block.kind == MarkdownBlockKind::ReferenceDefinition; });
+    check(definition != nodes.end() && syntax.Slice(definition->block.source) == L"> [a]: /u\n", "definition owns its line and not the next quote prefix");
+    if (definition == nodes.end())
+        return;
+    check(definition->nextSibling < nodes.size(), "definition has its following paragraph sibling");
+    if (definition->nextSibling >= nodes.size())
+        return;
+    const auto& paragraph = nodes[definition->nextSibling];
+    check(paragraph.block.kind == MarkdownBlockKind::Paragraph && syntax.Slice(paragraph.block.source) == L"> text\n" &&
+              syntax.Slice(paragraph.block.content) == L"text",
+          "residual paragraph owns the following physical prefix and its own content");
+}
+template <typename Check> inline void CheckReferencePrefixesCrLf(const MarkdownSyntax& syntax, Check&& check)
+{
+    const auto& nodes = syntax.Nodes();
+    const auto first  = std::ranges::find_if(nodes, [](const auto& node) { return node.block.kind == MarkdownBlockKind::ReferenceDefinition; });
+    check(first != nodes.end() && syntax.Slice(first->block.source) == L"> [a]: /u\r\n", "first definition ends before the next CRLF quote prefix");
+    if (first == nodes.end() || first->nextSibling >= nodes.size())
+    {
+        check(false, "first definition has a second sibling");
+        return;
+    }
+    const auto& second = nodes[first->nextSibling];
+    check(second.block.kind == MarkdownBlockKind::ReferenceDefinition && syntax.Slice(second.block.source) == L"> [b]: /v\r\n",
+          "second definition retains exactly its own physical line");
+    if (second.nextSibling >= nodes.size())
+    {
+        check(false, "second definition has a paragraph sibling");
+        return;
+    }
+    const auto& paragraph = nodes[second.nextSibling];
+    check(paragraph.block.kind == MarkdownBlockKind::Paragraph && syntax.Slice(paragraph.block.source) == L"> text\r\n" &&
+              syntax.Slice(paragraph.block.content) == L"text",
+          "residual paragraph retains its CRLF quote prefix after consecutive definitions");
+}
 struct Scenario
 {
     std::wstring_view name, source, signature;

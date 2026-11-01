@@ -850,7 +850,13 @@ class MarkdownBlocks
         offsets.push_back(original.block.source.last);
         const auto parent  = original.parent;
         std::size_t cursor = 0, previous = MarkdownNoNode, lineCursor = 0u;
-        const auto before = previousSibling_[paragraph];
+        const auto before           = previousSibling_[paragraph];
+        const auto physicalBoundary = [&](std::size_t offset)
+        {
+            const auto& lines = nodes_[paragraph].lines;
+            const auto line   = std::lower_bound(lines.begin(), lines.end(), offset, [](const auto& entry, auto value) { return entry.source.first < value; });
+            return line != lines.begin() && line != lines.end() && line->source.first == offset ? std::prev(line)->source.last : offset;
+        };
         while (cursor < text.size())
         {
             const auto reference = ReferenceAt(text, cursor);
@@ -868,7 +874,7 @@ class MarkdownBlocks
             auto& node         = nodes_.back();
             node.parent        = parent;
             node.block.kind    = Kind::ReferenceDefinition;
-            node.block.source  = {cursor ? offsets[cursor] : nodes_[paragraph].block.source.first, offsets[reference.end]};
+            node.block.source  = {cursor ? physicalBoundary(offsets[cursor]) : nodes_[paragraph].block.source.first, physicalBoundary(offsets[reference.end])};
             node.block.content = node.block.source;
             node.label         = {offsets[reference.labelFirst], offsets[reference.labelEnd]};
             node.destination   = {offsets[reference.destinationFirst], offsets[reference.destinationEnd]};
@@ -908,7 +914,7 @@ class MarkdownBlocks
             nodes_[previous].nextSibling = paragraph;
             previousSibling_[paragraph]  = previous;
             auto& node                   = nodes_[paragraph];
-            node.block.source.first      = offsets[cursor];
+            node.block.source.first      = physicalBoundary(offsets[cursor]);
             node.block.content.first     = offsets[cursor];
             const auto firstLine = std::find_if(node.lines.begin(), node.lines.end(), [&](const auto& line) { return line.source.last > offsets[cursor]; });
             node.lines.erase(node.lines.begin(), firstLine);

@@ -522,6 +522,22 @@ void TestLosslessMarkdownInlineScenariosAndExtensionIdentity()
 }
 void TestLosslessMarkdownBlockScenariosAndNodeIdentity()
 {
+    {
+        constexpr std::wstring_view source = L"> [a]: /u\n> text\n";
+        MarkdownParser reference;
+        reference.Begin(source, 1u);
+        const auto syntax = CompleteMarkdown(reference, 1u);
+        CheckMarkdownPartitions(*syntax, source);
+        MarkdownBlockTests::CheckReferencePrefix(*syntax, Require);
+    }
+    {
+        constexpr std::wstring_view source = L"> [a]: /u\r\n> [b]: /v\r\n> text\r\n";
+        MarkdownParser reference;
+        reference.Begin(source, 1u);
+        const auto syntax = CompleteMarkdown(reference, 1u);
+        CheckMarkdownPartitions(*syntax, source);
+        MarkdownBlockTests::CheckReferencePrefixesCrLf(*syntax, Require);
+    }
     for (const auto profile : {MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
         for (const auto& scenario : MarkdownBlockTests::splitTables)
         {

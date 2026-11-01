@@ -1314,6 +1314,9 @@ RichMarkdown preserve the lazy paragraph continuation.
 For a valid GFM table delimiter after a multi-line paragraph, only its last
 physical line becomes the table header; preceding lines remain a paragraph,
 and each block retains its original source prefixes and EOLs.
+When reference definitions are split from a following paragraph, each block
+owns its own physical-line prefix and EOL; prefix-stripped content coordinates
+remain distinct from the complete source range.
 Begin validates/owns at most 65,536 UTF-16 units, accepting raw NUL and rejecting
 unpaired surrogates. Reference-label folding replaces raw NUL with U+FFFD before
 matching, consistently with normalized inline text; exact Source() stays intact.
