@@ -469,7 +469,13 @@ class Parser
                 }
             Reject(MathIssue::UnsupportedCommand);
         }
-        if (name == L"frac" || name == L"dfrac" || name == L"tfrac")
+        if (name == L"cfrac")
+        {
+            Space();
+            if (at < source.size() && source[at] == L'[')
+                Reject(MathIssue::UnsupportedCommand);
+        }
+        if (name == L"frac" || name == L"dfrac" || name == L"tfrac" || name == L"cfrac")
             return Make(MathKind::Fraction, std::wstring(name), {Atom(depth + 1), Atom(depth + 1)});
         if (name == L"binom" || name == L"dbinom" || name == L"tbinom")
         {
@@ -938,7 +944,7 @@ class Parser
         if (name == L"genfrac")
             return GeneralFraction(depth);
         static constexpr std::wstring_view structured[] = {
-            L"not", L"frac", L"dfrac", L"tfrac", L"binom", L"dbinom", L"tbinom", L"overset", L"underset", L"stackrel", L"sqrt", L"substack", L"begin"};
+            L"not", L"frac", L"dfrac", L"tfrac", L"cfrac", L"binom", L"dbinom", L"tbinom", L"overset", L"underset", L"stackrel", L"sqrt", L"substack", L"begin"};
         if (std::ranges::find(structured, name) != std::end(structured))
             return StructuredCommand(name, depth);
         static constexpr std::wstring_view styled[] = {L"text",       L"textbf",     L"textit",   L"textup", L"textmd", L"textnormal", L"operatorname", L"mathrm",    L"mathbf",   L"mathit",

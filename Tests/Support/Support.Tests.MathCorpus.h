@@ -774,6 +774,20 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
 #endif
     check(static_cast<bool>(ParseMath(L"\\begin{drcases}a&b\\end{drcases}")) &&
               ! ParseMath(L"\\begin{drcases}a&b&c\\end{drcases}"), "reverse display cases retain the two-column admission bound");
+#if DXUI_ENABLE_DIAGNOSTICS
+    {
+        const auto continued = ParseMath(L"\\cfrac{x}{y}");
+        check(continued && continued.root.children[0u].kind == MathKind::Fraction && continued.root.children[0u].text == L"cfrac",
+              "continued fraction retains its display style and numerator strut identity");
+        Detail::PreparedMath withStrut(factory, std::make_shared<const MathExpression>(continued), 24.f);
+        Detail::PreparedMath ordinary(factory, std::make_shared<const MathExpression>(ParseMath(L"\\dfrac{x}{y}")), 24.f);
+        while (! withStrut.Advance()) {}
+        while (! ordinary.Advance()) {}
+        check(withStrut.Size().height >= ordinary.Size().height && withStrut.GlyphLayouts().size() == 2u && withStrut.StrokeLayouts().size() == 1u,
+              "continued fraction reserves its numerator strut without losing its rule or operands");
+    }
+#endif
+    check(! ParseMath(L"\\cfrac[l]{x}{y}"), "unimplemented continued-fraction alignment retains exact source");
     const auto binomial = ParseMath(L"\\binom{n}{k}");
     check(binomial && binomial.root.children.size() == 1u && binomial.root.children[0u].kind == MathKind::Matrix &&
               binomial.root.children[0u].text == L"pmatrix" && binomial.root.children[0u].columns == 1u && binomial.root.children[0u].children.size() == 2u,

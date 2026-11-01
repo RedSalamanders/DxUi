@@ -587,7 +587,7 @@ class PreparedMath final
                         throw std::length_error("Invalid mathematical space node");
                     break;
                 case MathKind::Fraction:
-                    if (node.text != L"frac" && node.text != L"dfrac" && node.text != L"tfrac" && node.text != L"atop")
+                    if (node.text != L"frac" && node.text != L"dfrac" && node.text != L"tfrac" && node.text != L"atop" && node.text != L"cfrac")
                         throw std::length_error("Invalid mathematical fraction style");
                     if (node.children.size() != 2u)
                         throw std::length_error("Invalid mathematical pair node");
@@ -788,7 +788,7 @@ class PreparedMath final
             else if (node.kind == MathKind::Fraction)
             {
                 auto fractionDisplay = display;
-                if (node.text == L"dfrac")
+                if (node.text == L"dfrac" || node.text == L"cfrac")
                     fractionDisplay = true;
                 else if (node.text == L"tfrac")
                     fractionDisplay = false;
@@ -1055,7 +1055,13 @@ class PreparedMath final
             const auto child = [&](std::size_t offset) { return boxes[ChildAt(reverse, offset)].extent; };
             if (node.kind == Fraction && node.children.size() == 2u)
             {
-                const auto top = child(0u), bottom = child(1u);
+                auto top = child(0u);
+                const auto bottom = child(1u);
+                if (node.text == L"cfrac")
+                {
+                    top.above = std::max(top.above, box.size * .85f);
+                    top.below = std::max(top.below, box.size * .35f);
+                }
                 const float axisAtSize = MathConstantAt(12u, box.size, axis);
                 const float rule       = std::max(1.f, MathConstantAt(144u, box.size, fractionRuleThickness));
                 const float topGap     = MathConstantAt(box.display ? 140u : 136u, box.size, box.display ? fractionNumeratorDisplayGap : fractionNumeratorGap);
@@ -1532,7 +1538,13 @@ class PreparedMath final
             return;
         if (node.kind == Fraction && node.children.size() == 2u)
         {
-            const auto top = boxes[ChildAt(index, 0u)].extent, bottom = boxes[ChildAt(index, 1u)].extent;
+            auto top = boxes[ChildAt(index, 0u)].extent;
+            const auto bottom = boxes[ChildAt(index, 1u)].extent;
+            if (node.text == L"cfrac")
+            {
+                top.above = std::max(top.above, box.size * .85f);
+                top.below = std::max(top.below, box.size * .35f);
+            }
             const float axisAtSize = MathConstantAt(12u, box.size, axis);
             const float scaledRule = std::max(1.f, MathConstantAt(144u, box.size, fractionRuleThickness));
             const float topGap     = MathConstantAt(box.display ? 140u : 136u, box.size, box.display ? fractionNumeratorDisplayGap : fractionNumeratorGap);
