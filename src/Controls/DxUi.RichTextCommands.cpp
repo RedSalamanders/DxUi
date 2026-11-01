@@ -1819,6 +1819,10 @@ void MarkdownCommandPlanner::Math(const MarkdownCommandRequest& request)
     plan.applicable_  = true;
 }
 
+namespace
+{
+std::wstring LiteralMarkdown(std::wstring_view value);
+}
 void MarkdownCommandPlanner::ClearFormatting()
 {
     if (plan.before_.Start() == plan.before_.End())
@@ -1838,6 +1842,21 @@ void MarkdownCommandPlanner::ClearFormatting()
             break;
         }
         only = &node;
+    }
+    if (only && only->kind == MarkdownInlineKind::Link && text[only->source.first] != L'[')
+    {
+        const auto body = InlineBody(*only);
+        if (! body || first > body->first || last < body->last)
+            return;
+        // Escape the visible autolink spelling so removing its delimiters does
+        // not immediately create another angle or extended autolink.
+        const auto replacement = LiteralMarkdown(Slice(body->first, body->last));
+        Add(only->source.first, only->source.last, replacement);
+        const auto end    = only->source.first + replacement.size();
+        plan.after_       = plan.before_.anchor <= plan.before_.caret ? Selection{only->source.first, end} : Selection{end, only->source.first};
+        explicitSelection = true;
+        plan.applicable_  = true;
+        return;
     }
     if (only && (only->kind == MarkdownInlineKind::Strong || only->kind == MarkdownInlineKind::Emphasis || only->kind == MarkdownInlineKind::Strikethrough ||
                  only->kind == MarkdownInlineKind::Code))

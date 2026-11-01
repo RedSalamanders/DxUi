@@ -1299,8 +1299,9 @@ the existing text and line-ending convention; unsupported container positions
 decline rather than rewriting a prefix.
 ClearFormatting removes complete selected strong, emphasis, strikethrough and link
 wrappers as one transaction. Single-style partial ranges and inline-code spans
-reuse the structural style splitter; mixed nested partial selections, bare
-autolinks and object intersections remain unavailable pending further splitting.
+reuse the structural style splitter. A completely selected angle or bare
+autolink becomes escaped visible text so reparsing does not recreate the link;
+mixed nested partial selections and object intersections remain unavailable pending further splitting.
 InsertEscapedText inserts or replaces a plain source selection with bounded,
 single-line literal text, escaping ASCII Markdown punctuation.
 InsertImage creates an inert Markdown image with escaped alt/title and a

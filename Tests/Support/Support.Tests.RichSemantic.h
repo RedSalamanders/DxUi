@@ -394,6 +394,11 @@ inline void ListsAndHeadings()
         Exact(L"**word**", {2u, 6u}, request, L"word", Selection{0u, 4u}, profile);
         Exact(L"**a *b* c**", {2u, 9u}, request, L"a b c", Selection{0u, 5u}, profile);
         Exact(L"[word](https://example.invalid)", {1u, 5u}, request, L"word", Selection{0u, 4u}, profile);
+        Exact(L"<https://example.invalid>", {1u, 24u}, request, L"https\\:\\/\\/example\\.invalid", std::nullopt, profile);
+        Document literalUrl(L"https\\:\\/\\/example\\.invalid");
+        const auto literalUrlSyntax = Parse(literalUrl, profile);
+        Check(std::ranges::none_of(literalUrlSyntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Link; }),
+              "cleared autolink spelling does not become another link after reparsing");
         Exact(L"**word**", {3u, 5u}, request, L"**w**or**d**", Selection{5u, 7u}, profile);
         Exact(L"`word`", {1u, 5u}, request, L"word", Selection{0u, 4u}, profile);
         request.command = MarkdownCommand::InsertEscapedText;
