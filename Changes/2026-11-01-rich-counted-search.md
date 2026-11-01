@@ -1,0 +1,1 @@
+- Kept counted NUL queries searchable across the complete rich-text source instead of treating them as malformed text.

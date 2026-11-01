@@ -151,6 +151,10 @@ inline void UnicodeAndAdmission()
 }
 inline void TransactionOracles()
 {
+    const std::wstring nulSource(L"A\0B A\0B", 7u);
+    Document nulSearch(nulSource);
+    Check(FindInSource(nulSearch.Snapshot(), std::wstring_view(nulSource).substr(0u, 3u)) == std::vector<MarkdownRange>{{0u, 3u}, {4u, 7u}},
+          "source search preserves the complete counted NUL query and source length");
     Document search(L"Alpha alpha alphabet\r\nALPHA");
     const auto matches = FindInSource(search.Snapshot(), L"alpha", {.wholeWord = true});
     Check(matches == std::vector<MarkdownRange>{{0u, 5u}, {6u, 11u}, {22u, 27u}}, "ordinal whole-word search returns source ranges");

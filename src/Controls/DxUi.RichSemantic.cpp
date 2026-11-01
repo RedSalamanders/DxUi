@@ -10,7 +10,7 @@ namespace DxUi::RichText
 {
 std::vector<MarkdownRange> FindInSource(const SourceSnapshot& snapshot, std::wstring_view query, SourceSearchOptions options)
 {
-    if (! IsValidUtf16(query))
+    if (! IsValidSourceUtf16(query))
         throw std::invalid_argument("Invalid search UTF-16");
     std::vector<MarkdownRange> result(0u);
     if (query.empty() || query.size() > snapshot.Length())
