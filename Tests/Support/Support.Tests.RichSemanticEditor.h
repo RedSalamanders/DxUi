@@ -487,6 +487,19 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     const auto nestedList = editor->QueryMarkdownCommandState(stateRequest);
     Check(nestedList && ! nestedList->mixed && nestedList->listKind == MarkdownListKind::Ordered,
           "selection wholly inside a nested item reports its innermost list kind");
+    std::wstring deepLists(0u, L' ');
+    for (size_t depth = 0u; depth < 66u; ++depth)
+    {
+        deepLists.append(depth * 2u, L' ');
+        deepLists += L"- x\n";
+    }
+    deepLists += L"\nroot\n";
+    editor->SetText(deepLists);
+    prepare();
+    editor->SetSelection({0u, deepLists.size()});
+    const auto deepState = editor->QueryMarkdownCommandState(stateRequest);
+    Check(deepState && deepState->mixed && ! deepState->listKind,
+          "deep nested list state restores ancestors beyond the fixed stack and detects the unlisted tail");
     editor->SetText(L"**word** plain");
     prepare();
     editor->SetSelection({2u, 14u});

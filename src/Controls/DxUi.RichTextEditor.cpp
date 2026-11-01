@@ -30,18 +30,18 @@ std::optional<RichText::MarkdownListKind> UniformListKind(const RichText::Markdo
 {
     using namespace RichText;
     const auto& nodes = syntax.Nodes();
-    // The syntax node cap fits in uint16_t. This bounded stack avoids heap
-    // allocation while traversing nested item intervals in source order.
-    static_assert(MarkdownSyntax::MaximumNodeRecords <= static_cast<std::size_t>(UINT16_MAX) + 1u);
-    std::array<std::uint16_t, MarkdownSyntax::MaximumNodeRecords> items;
+    // Common depths use a small fixed stack. Deeper valid syntax restores the
+    // parent item from syntax links, preserving exactness without heap storage.
+    std::array<std::size_t, 64u> items;
     std::size_t depth = 0u, cursor = first;
+    std::size_t active = MarkdownNoNode;
     std::optional<MarkdownListKind> result;
     bool mixed = false;
     const auto kindAtTop = [&]() noexcept
     {
         if (! depth)
             return MarkdownListKind::None;
-        const auto& item = nodes[items[depth - 1u]];
+        const auto& item = nodes[active];
         if (item.task != MarkdownTask::None)
             return MarkdownListKind::Task;
         const auto marker = nodes[item.parent].listMarker;
@@ -69,7 +69,10 @@ std::optional<RichText::MarkdownListKind> UniformListKind(const RichText::Markdo
             if (current.block.kind == MarkdownBlockKind::ListItem)
             {
                 consume(current.block.source.first);
-                items[depth++] = static_cast<std::uint16_t>(node);
+                if (depth < items.size())
+                    items[depth] = node;
+                ++depth;
+                active = node;
             }
             if (current.firstChild != MarkdownNoNode)
             {
@@ -81,6 +84,16 @@ std::optional<RichText::MarkdownListKind> UniformListKind(const RichText::Markdo
         {
             consume(current.block.source.last);
             --depth;
+            if (! depth)
+                active = MarkdownNoNode;
+            else if (depth <= items.size())
+                active = items[depth - 1u];
+            else
+            {
+                active = current.parent;
+                while (active != MarkdownNoNode && nodes[active].block.kind != MarkdownBlockKind::ListItem)
+                    active = nodes[active].parent;
+            }
         }
         if (current.nextSibling != MarkdownNoNode)
         {

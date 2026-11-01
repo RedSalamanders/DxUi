@@ -136,7 +136,8 @@ The feature is disabled by default. `QueryMarkdownCommandState` returns current
 style/heading/list presentation and explicitly unknown applicability where a
 nonallocating planner predicate is not yet available.
 List state considers the complete selected source interval, including nested
-and intervening list kinds, using a bounded allocation-free syntax traversal.
+and intervening list kinds, using an allocation-free syntax traversal. Beyond
+64 nested items, parent-link recovery may add work proportional to ancestor depth.
 For backward and forward structural join, noncollapsed selections and carets
 outside supported text leaves or away from their visible edge are known to be
 unavailable. Plain paragraphs without a compatible sibling are also unavailable;
