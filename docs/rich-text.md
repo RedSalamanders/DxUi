@@ -65,9 +65,32 @@ source edits clear them so a search owner can recompute current results.
 ordinal case-insensitive and whole-word matching. Whole-word boundaries treat
 letters, digits, underscore, combining marks and surrogate units as word
 characters; this is a conservative source rule, not linguistic word breaking.
-The owner can submit those ranges as source highlights and replace matches
-with one revision-checked `ApplySourceEdits` transaction. Search UI, navigation
-bindings and the richer decoration kinds remain separate work.
+`SetSearchMatches` accepts the source snapshot, matches and optional active
+index. `SelectSourceMatch` navigates with wraparound, while
+`ReplaceSelectedSourceMatch` and `ReplaceAllSourceMatches` use undoable source
+transactions. `SetSearchShortcutsEnabled(true)` opts into F3/Shift+F3; Ctrl+F
+calls the consumer's `SetOnFindRequested` callback. The consumer owns the search
+interface and query refresh after edits.
+
+`SetDecorations` takes a current source snapshot and up to 256 background,
+underline, squiggle or foreground annotations using accent, subdued, warning or
+error theme roles. Edits retire them; preparation admits at most 4096 mapped
+rectangles. Selection and annotations are staged before Paint. Annotation UIA
+exposure, high-contrast pixel qualification and performance evidence remain open.
+
+`sourceTabSpaces` enables source/code Tab indentation using 1–16 spaces, or a
+tab when `sourceTabUsesTabs` is set. Ctrl+Tab remains host traversal. Optional
+Markdown shortcuts use Ctrl+Shift+0–6 for heading clear/levels, Ctrl+Shift+X for
+strike, Ctrl+backtick for code and Ctrl+K for the consumer's link-edit request.
+The feature is disabled by default. `QueryMarkdownCommandState` returns current
+style/heading/list presentation and explicitly unknown applicability where a
+nonallocating planner predicate is not yet available.
+
+Supplying `RichTextContextMenuLabels` opts into the default edit menu. A consumer
+context callback takes precedence. HWND-less embedded consumers can obtain the
+default menu model and dispatch a chosen command through the editor; the host
+remains responsible for presenting that model. Native popup qualification remains
+pending.
 `SetFocusModeEnabled(true)` draws inactive paragraphs with subdued text while the
 caret paragraph stays normal, including the final source insertion. Selection
 remains fully legible; source mode and high contrast disable dimming. These options work in both hosting modes and create no timer,
