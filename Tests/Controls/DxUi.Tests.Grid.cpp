@@ -486,6 +486,11 @@ void TestSelectionModel()
             "bulk assignment filters duplicates and missing ids and retains its anchor");
     Require(selection.GetOrderedSelection().front() == 20000u && selection.GetOrderedSelection().back() == 2u,
             "bulk assignment retains visible order independently of membership order");
+    const std::array<uint64_t, 5u> repeatedVisible{4u, 2u, 4u, 3u, 2u};
+    const std::array<uint64_t, 4u> repeatedRequested{2u, 4u, 2u, 99u};
+    selection.AssignInOrder(repeatedVisible, repeatedRequested, 2u);
+    Require(selection.GetOrderedSelection().size() == 2u && selection.GetOrderedSelection()[0] == 4u && selection.GetOrderedSelection()[1] == 2u,
+            "bulk assignment keeps each selected ID once in its first visible position");
 }
 
 // The exception contract of the selection model is unchanged by its ascending copy: the mutators that set one id or flip one stay

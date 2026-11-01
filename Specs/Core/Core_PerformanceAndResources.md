@@ -2,7 +2,8 @@
 
 Bulk Grid and Tree selection builds a staged visible-order list with hash membership and a fixed-width radix-sorted
 membership copy. Its expected work is linear in visible and requested IDs, including reverse-ordered IDs; allocation
-failure preserves the previously published selection. The final requested visible ID remains focus and anchor.
+failure preserves the previously published selection. Repeated IDs occur only once in first-visible order; the final
+requested visible ID remains focus and anchor. Hash membership is expected linear, not an adversarial worst-case bound.
 Tree pointer hit testing computes the expander lane without shaping badge text or changing the badge measurement cache;
 paint and input share the same lane geometry, including reserved-space and right-to-left layouts.
 

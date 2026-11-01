@@ -1073,11 +1073,11 @@ void GridSelectionModel::AssignInOrder(std::span<const uint64_t> visibleRowIds, 
 {
     // Stage both membership representations before publication. Hash membership and fixed-width radix sorting avoid
     // inserting each requested ID into the middle of the sorted vector on a large reverse-order selection.
-    const std::unordered_set<uint64_t> requested(requestedRowIds.begin(), requestedRowIds.end());
+    std::unordered_set<uint64_t> requested(requestedRowIds.begin(), requestedRowIds.end());
     std::vector<uint64_t> ordered;
     ordered.reserve((std::min)(visibleRowIds.size(), requestedRowIds.size()));
     for (const uint64_t id : visibleRowIds)
-        if (requested.contains(id))
+        if (requested.erase(id) != 0u)
             ordered.push_back(id);
     std::vector<uint64_t> sorted(ordered);
     if (! std::ranges::is_sorted(sorted))
