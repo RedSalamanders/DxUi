@@ -1065,7 +1065,32 @@ class PreparedMath final
         const auto outer  = right ? x + width : x;
         const auto inner  = right ? x : x + width;
         const auto middle = (top + bottom) / 2.f;
-        if (shape == L'(' || shape == L')')
+        if (shape == L'↑' || shape == L'↓' || shape == L'↕' || shape == L'⇑' || shape == L'⇓' || shape == L'⇕')
+        {
+            const bool doubled = shape == L'⇑' || shape == L'⇓' || shape == L'⇕';
+            const bool up = shape == L'↑' || shape == L'↕' || shape == L'⇑' || shape == L'⇕';
+            const bool down = shape == L'↓' || shape == L'↕' || shape == L'⇓' || shape == L'⇕';
+            const float center = x + width * .5f;
+            const float head = std::min((bottom - top) * .25f, width * .7f);
+            if (doubled)
+            {
+                Stroke(x + width / 3.f, top + (up ? head * .35f : 0.f), x + width / 3.f, bottom - (down ? head * .35f : 0.f), thickness);
+                Stroke(x + 2.f * width / 3.f, top + (up ? head * .35f : 0.f), x + 2.f * width / 3.f, bottom - (down ? head * .35f : 0.f), thickness);
+            }
+            else
+                Stroke(center, top, center, bottom, thickness);
+            if (up)
+            {
+                Stroke(x, top + head, center, top, thickness);
+                Stroke(center, top, x + width, top + head, thickness);
+            }
+            if (down)
+            {
+                Stroke(x, bottom - head, center, bottom, thickness);
+                Stroke(center, bottom, x + width, bottom - head, thickness);
+            }
+        }
+        else if (shape == L'(' || shape == L')')
         {
             Stroke(inner, top, outer, top + (bottom - top) * .2f, thickness);
             Stroke(outer, top + (bottom - top) * .2f, outer, bottom - (bottom - top) * .2f, thickness);

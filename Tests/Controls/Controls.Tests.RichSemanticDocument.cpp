@@ -171,6 +171,38 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
     }
     const auto sizedArrow = prepare(L"\\Big\\updownarrow");
     Require(sizedArrow->Size().height > 0.f, "explicitly sized vertical arrow delimiters prepare");
+#if DXUI_ENABLE_DIAGNOSTICS
+    {
+        const auto previousTable = Detail::testRichMathTableOverride;
+        const auto restoreTable = wil::scope_exit([previousTable]() noexcept { Detail::testRichMathTableOverride = previousTable; });
+        const std::array<std::uint8_t, 1u> missingTable{0u};
+        Detail::testRichMathTableOverride = missingTable;
+        for (const auto& [source, shafts, up, down] :
+             {std::tuple{L"\\Big\\uparrow", 1u, true, false}, std::tuple{L"\\Big\\downarrow", 1u, false, true},
+              std::tuple{L"\\Big\\updownarrow", 1u, true, true}, std::tuple{L"\\Big\\Uparrow", 2u, true, false},
+              std::tuple{L"\\Big\\Downarrow", 2u, false, true}, std::tuple{L"\\Big\\Updownarrow", 2u, true, true}})
+        {
+            const auto fallback = prepare(source);
+            const auto& lines = fallback->StrokeLayouts();
+            Require(fallback->VariantLayouts().empty() && lines.size() == shafts + (up ? 2u : 0u) + (down ? 2u : 0u),
+                    "missing MATH table draws the correct number of arrow shafts and heads");
+            for (std::size_t index = 0u; index < shafts; ++index)
+                Require(lines[index].first.x == lines[index].last.x && lines[index].first.y < lines[index].last.y,
+                        "arrow fallback has vertical shafts");
+            if (up)
+                Require(lines[shafts].first.y > lines[shafts].last.y && lines[shafts + 1u].first.y < lines[shafts + 1u].last.y &&
+                            lines[shafts].last.x == lines[shafts + 1u].first.x && lines[shafts].last.y == lines[shafts + 1u].first.y,
+                        "upper arrow head joins at its upper tip");
+            if (down)
+            {
+                const auto first = shafts + (up ? 2u : 0u);
+                Require(lines[first].first.y < lines[first].last.y && lines[first + 1u].first.y > lines[first + 1u].last.y &&
+                            lines[first].last.x == lines[first + 1u].first.x && lines[first].last.y == lines[first + 1u].first.y,
+                        "lower arrow head joins at its lower tip");
+            }
+        }
+    }
+#endif
 
     for (const auto& [source, annotation, above] :
          {std::tuple{L"\\overset{a}{=}", L"a", true}, std::tuple{L"\\underset{b}{=}", L"b", false}, std::tuple{L"\\stackrel{c}{=}", L"c", true}})
