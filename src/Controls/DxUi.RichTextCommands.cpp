@@ -150,7 +150,8 @@ bool IsCommandFeatureEnabled(const MarkdownSyntax& syntax, MarkdownCommand comma
         return HasMarkdownExtension(extensions, MarkdownExtensions::TaskLists);
     if (command == MarkdownCommand::ToggleStyle && style == MarkdownTextStyle::Strikethrough)
         return HasMarkdownExtension(extensions, MarkdownExtensions::Strikethrough);
-    if (command >= MarkdownCommand::InsertTable && command <= MarkdownCommand::PreviousTableCell)
+    if ((command >= MarkdownCommand::InsertTable && command <= MarkdownCommand::PreviousTableCell) ||
+        (command >= MarkdownCommand::SetTableAlignment && command <= MarkdownCommand::MoveTableColumnRight))
         return HasMarkdownExtension(extensions, MarkdownExtensions::Tables);
     return true;
 }
@@ -3289,6 +3290,147 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
     };
     switch (request.command)
     {
+        case MarkdownCommand::SetTableAlignment:
+        {
+            if (request.tableAlignment != MarkdownAlignment::None && request.tableAlignment != MarkdownAlignment::Left &&
+                request.tableAlignment != MarkdownAlignment::Center && request.tableAlignment != MarkdownAlignment::Right)
+                throw std::invalid_argument("Invalid table alignment");
+            const auto slots = MarkdownTableCells(text, separatorRange);
+            if (column >= slots.size())
+                return;
+            const auto slot = slots[column];
+            auto first = slot.first, last = slot.last;
+            if (first < last && text[first] == L':')
+                ++first;
+            if (last > first && text[last - 1u] == L':')
+                --last;
+            if (first == last || std::ranges::any_of(text.substr(first, last - first), [](wchar_t c) { return c != L'-'; }))
+                return;
+            std::wstring marker(0u, L' ');
+            if (request.tableAlignment == MarkdownAlignment::Left || request.tableAlignment == MarkdownAlignment::Center)
+                marker += L':';
+            marker.append(text.substr(first, last - first));
+            if (request.tableAlignment == MarkdownAlignment::Right || request.tableAlignment == MarkdownAlignment::Center)
+                marker += L':';
+            Add(slot.first, slot.last, marker);
+            plan.applicable_ = true;
+            return;
+        }
+        case MarkdownCommand::MoveTableRowUp:
+        case MarkdownCommand::MoveTableRowDown:
+        {
+            if ((request.command == MarkdownCommand::MoveTableRowUp && rowIndex == 0u) ||
+                (request.command == MarkdownCommand::MoveTableRowDown && rowIndex + 1u == rows.size()))
+                return;
+            const auto other = rows[request.command == MarkdownCommand::MoveTableRowUp ? rowIndex - 1u : rowIndex + 1u];
+            const auto from = nodes[row].block.content, to = nodes[other].block.content;
+            if (plan.before_.Start() < from.first || plan.before_.End() > from.last)
+                return;
+            std::wstring fromReplacement(Slice(to.first, to.last));
+            std::wstring toReplacement(Slice(from.first, from.last));
+            std::size_t separatorGrowth = 0u;
+            const auto padHeader        = [&](MarkdownRange incoming, std::wstring& replacement)
+            {
+                const auto slots = MarkdownTableCells(text, incoming, false);
+                if (slots.size() > columns)
+                {
+                    if (slots.size() > 64u || slots.size() > 4096u / rows.size())
+                        throw std::length_error("Moved table header exceeds command capacity");
+                    const auto separators = MarkdownTableCells(text, separatorRange, false);
+                    const auto at         = separators.back().last;
+                    const bool terminal   = at < text.size() && text[at] == L'|';
+                    std::wstring tail(0u, L' ');
+                    for (auto c = columns; c < slots.size(); ++c)
+                        tail += terminal ? L"| --- " : L" | ---";
+                    separatorGrowth = tail.size();
+                    Add(at, at, tail);
+                    return;
+                }
+                if (slots.size() == columns)
+                    return;
+                const auto at       = slots.back().last;
+                const bool terminal = at < text.size() && text[at] == L'|';
+                std::wstring tail(0u, L' ');
+                for (auto c = slots.size(); c < columns; ++c)
+                    tail += terminal ? L"|  " : L" | ";
+                replacement.insert(at - incoming.first, tail);
+            };
+            if (rowIndex == 0u)
+                padHeader(to, fromReplacement);
+            else if (other == rows.front())
+                padHeader(from, toReplacement);
+            Add(from.first, from.last, fromReplacement);
+            Add(to.first, to.last, toReplacement);
+            const auto target =
+                to.first + (from.first < to.first ? fromReplacement.size() + separatorGrowth : 0u) - (from.first < to.first ? (from.last - from.first) : 0u);
+            plan.after_       = {target + plan.before_.anchor - from.first, target + plan.before_.caret - from.first};
+            explicitSelection = true;
+            plan.applicable_  = true;
+            return;
+        }
+        case MarkdownCommand::MoveTableColumnLeft:
+        case MarkdownCommand::MoveTableColumnRight:
+        {
+            const bool left = request.command == MarkdownCommand::MoveTableColumnLeft;
+            if ((left && column == 0u) || (! left && column + 1u >= columns))
+                return;
+            const auto other    = left ? column - 1u : column + 1u;
+            const auto selected = nodes[cell].block.content;
+            if (plan.before_.Start() < selected.first || plan.before_.End() > selected.last)
+                return;
+            std::vector<MarkdownRange> ranges(0u);
+            ranges.push_back(nodes[rows.front()].block.content);
+            ranges.push_back(separatorRange);
+            for (std::size_t r = 1u; r < rows.size(); ++r)
+                ranges.push_back(nodes[rows[r]].block.content);
+            const auto selectedRange = nodes[row].block.content;
+            std::ptrdiff_t delta     = 0;
+            for (const auto range : ranges)
+            {
+                auto slots = MarkdownTableCells(text, range, false);
+                if (slots.empty())
+                    return;
+                const auto oldSlot = column < slots.size() ? slots[column] : MarkdownRange{selected.first, selected.first};
+                if (column >= slots.size() && other >= slots.size())
+                {
+                    if (range.first == selectedRange.first && range.last == selectedRange.last)
+                    {
+                        plan.after_       = {static_cast<std::size_t>(static_cast<std::ptrdiff_t>(plan.before_.anchor) + delta),
+                                             static_cast<std::size_t>(static_cast<std::ptrdiff_t>(plan.before_.caret) + delta)};
+                        explicitSelection = true;
+                    }
+                    continue; // Two implicit empty cells need no spelling.
+                }
+                std::wstring replacement(Slice(range.first, range.last));
+                if (slots.size() <= std::max(column, other))
+                {
+                    const auto at       = slots.back().last;
+                    const bool terminal = at < text.size() && text[at] == L'|';
+                    std::wstring tail(0u, L' ');
+                    for (auto c = slots.size(); c <= std::max(column, other); ++c)
+                        tail += terminal ? L"|  " : L" | ";
+                    replacement.insert(at - range.first, tail);
+                }
+                const auto paddedSlots = MarkdownTableCells(replacement, {0u, replacement.size()}, false);
+                const auto first = paddedSlots[std::min(column, other)], second = paddedSlots[std::max(column, other)];
+                const std::wstring firstValue(std::wstring_view(replacement).substr(first.first, first.last - first.first));
+                const std::wstring secondValue(std::wstring_view(replacement).substr(second.first, second.last - second.first));
+                replacement.replace(second.first, second.last - second.first, firstValue);
+                replacement.replace(first.first, first.last - first.first, secondValue);
+                if (range.first == selectedRange.first && range.last == selectedRange.last)
+                {
+                    const auto movedSlots = MarkdownTableCells(replacement, {0u, replacement.size()}, false);
+                    const auto newFirst   = movedSlots[other].first;
+                    const auto base       = static_cast<std::size_t>(static_cast<std::ptrdiff_t>(range.first) + delta) + newFirst;
+                    plan.after_           = {base + plan.before_.anchor - oldSlot.first, base + plan.before_.caret - oldSlot.first};
+                    explicitSelection     = true;
+                }
+                Add(range.first, range.last, replacement);
+                delta += static_cast<std::ptrdiff_t>(replacement.size()) - static_cast<std::ptrdiff_t>(range.last - range.first);
+            }
+            plan.applicable_ = true;
+            return;
+        }
         case MarkdownCommand::NextTableCell:
         case MarkdownCommand::PreviousTableCell:
         {
@@ -3731,7 +3873,7 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
 {
     if (request.text.size() > Document::MaximumUnits || request.destination.size() > Document::MaximumUnits || request.title.size() > Document::MaximumUnits)
         throw std::length_error("Structural request text exceeds source capacity");
-    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::InsertEscapedText))
+    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::MoveTableColumnRight))
         throw std::invalid_argument("Invalid Markdown command");
     Detail::MarkdownCommandPlanner builder(source, revision, std::move(syntax), selection);
     // Footnote labels and unresolved definitions are protected source.
@@ -3768,7 +3910,12 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
         case MarkdownCommand::DeleteTableColumn:
         case MarkdownCommand::SetTableCell:
         case MarkdownCommand::NextTableCell:
-        case MarkdownCommand::PreviousTableCell: builder.Table(request); break;
+        case MarkdownCommand::PreviousTableCell:
+        case MarkdownCommand::SetTableAlignment:
+        case MarkdownCommand::MoveTableRowUp:
+        case MarkdownCommand::MoveTableRowDown:
+        case MarkdownCommand::MoveTableColumnLeft:
+        case MarkdownCommand::MoveTableColumnRight: builder.Table(request); break;
         default: throw std::invalid_argument("Invalid Markdown command");
     }
     builder.RestrictToNote(note.value());

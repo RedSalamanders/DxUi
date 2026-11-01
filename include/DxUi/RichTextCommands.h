@@ -33,7 +33,12 @@ enum class MarkdownCommand
     InsertImage,
     ExitCodeBlock,
     ClearFormatting,
-    InsertEscapedText
+    InsertEscapedText,
+    SetTableAlignment,
+    MoveTableRowUp,
+    MoveTableRowDown,
+    MoveTableColumnLeft,
+    MoveTableColumnRight
 };
 enum class MarkdownQuoteAction
 {
@@ -108,6 +113,7 @@ struct MarkdownCommandRequest
     // Borrowed only while building. Cell text is raw single-line Markdown;
     // destination/title are semantic Unicode values serialized by the planner.
     std::wstring_view text, destination, title;
+    MarkdownAlignment tableAlignment = MarkdownAlignment::None;
 };
 struct MarkdownCommandEdit
 {

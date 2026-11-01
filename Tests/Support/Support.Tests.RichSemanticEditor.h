@@ -888,6 +888,22 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
               "command state and execution share footnote ownership admission without changing protected source");
     }
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+    const std::wstring stateTable(L"| a | b |\n| - | - |\n| x | y |\n");
+    editor->SetText(stateTable);
+    prepare();
+    const auto stateY = stateTable.find(L"y");
+    editor->SetSelection({stateY, stateY});
+    MarkdownCommandRequest tableState;
+    tableState.command        = MarkdownCommand::SetTableAlignment;
+    tableState.tableAlignment = MarkdownAlignment::Center;
+    Check(editor->PrepareMarkdownCommandState(tableState), "prepare table-alignment state");
+    const auto centered               = editor->QueryMarkdownCommandState(tableState);
+    auto differentAlignment           = tableState;
+    differentAlignment.tableAlignment = MarkdownAlignment::Right;
+    const auto notPrepared            = editor->QueryMarkdownCommandState(differentAlignment);
+    Check(centered && centered->available == std::optional<bool>{true} && notPrepared && ! notPrepared->available &&
+              editor->ExecuteMarkdownCommand(tableState) == MarkdownCommandStatus::Changed && editor->Undo() && editor->GetText() == stateTable,
+          "prepared table alignment keys its payload and executes as one exact undo transaction");
     editor->SetText(L"[link](https://example.invalid)");
     prepare();
     editor->SetSelection({2u, 2u});

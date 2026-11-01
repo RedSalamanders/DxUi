@@ -487,6 +487,89 @@ static void TestPreparedCommandStateComplexAllocationFailures(GraphicsFixture& g
     sweep(table, L"x", MarkdownCommand::SetTableCell);
 }
 
+static void TestTableCommandPreparationAllocationFailures(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    using namespace DxUi::RichText;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "table command failure fixture graphics");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "attach table command failure fixture");
+    const std::wstring source(L"| a | b |\n| :- | -: |\n| x | y |\n| m | n |\n");
+    auto owned   = std::make_unique<RichTextEditor>(source);
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    view.Controls().SetRoot(std::move(owned));
+    const auto caret = source.find(L"y");
+    editor->SetSelection({caret, caret});
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare table command failure fixture");
+    MarkdownCommandRequest previous;
+    previous.command    = MarkdownCommand::InsertEscapedText;
+    previous.text       = L"prior";
+    const auto snapshot = editor->Snapshot();
+    const auto revision = editor->Revision();
+    for (const auto command : {MarkdownCommand::SetTableAlignment,
+                               MarkdownCommand::MoveTableRowUp,
+                               MarkdownCommand::MoveTableRowDown,
+                               MarkdownCommand::MoveTableColumnLeft,
+                               MarkdownCommand::MoveTableColumnRight})
+    {
+        const auto selected = command == MarkdownCommand::MoveTableColumnRight ? source.find(L"x") : caret;
+        editor->SetSelection({selected, selected});
+        const auto selection = editor->GetSelection();
+        Check(editor->PrepareMarkdownCommandState(previous), "prepare prior table state");
+        const auto oldState = editor->QueryMarkdownCommandState(previous);
+        Check(oldState && oldState->available.has_value(), "prior table state is exact");
+        MarkdownCommandRequest request;
+        request.command        = command;
+        request.tableAlignment = MarkdownAlignment::Center;
+        size_t requests{};
+        {
+            const auto oldCounting = countAllocations;
+            const auto oldCalls = allocations, oldBytes = allocationBytes;
+            const auto restore = wil::scope_exit([=] noexcept
+            {
+                countAllocations = oldCounting;
+                allocations      = oldCalls;
+                allocationBytes  = oldBytes;
+            });
+            allocations = allocationBytes = 0u;
+            countAllocations              = true;
+            Check(editor->PrepareMarkdownCommandState(request), "measure table command preparation");
+            countAllocations = false;
+            requests         = allocations;
+        }
+        const auto expected = editor->QueryMarkdownCommandState(request);
+        Check(expected && expected->available == std::optional<bool>{true} && requests > 0u && requests < 2048u,
+              "table command fixture measures an available bounded preparation");
+        std::cout << "table command=" << static_cast<unsigned>(command) << " allocation points=" << requests << std::endl;
+        for (size_t failure = 0u; failure < requests; ++failure)
+        {
+            Check(editor->PrepareMarkdownCommandState(previous), "restore prior state before table allocation failure");
+            bool failed = false;
+            {
+                const auto oldFailure = failAllocationAfter;
+                const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+                failAllocationAfter   = failure;
+                try
+                {
+                    static_cast<void>(editor->PrepareMarkdownCommandState(request));
+                }
+                catch (const std::bad_alloc&)
+                {
+                    failed = true;
+                }
+            }
+            const auto actual = editor->QueryMarkdownCommandState(previous);
+            Check(failed && actual && actual->available == oldState->available && editor->Snapshot().IsSameRevision(snapshot) &&
+                      editor->GetSelection() == selection && editor->Revision() == revision && ! editor->CanUndo(),
+                  "table preparation failure preserves prior state, source, selection and history");
+        }
+        Check(editor->PrepareMarkdownCommandState(request), "table command preparation retries after allocation failures");
+    }
+}
+
 static void TestRichFileDropTransactionAllocationFailures(GraphicsFixture& gpu)
 {
     using namespace DxUi;

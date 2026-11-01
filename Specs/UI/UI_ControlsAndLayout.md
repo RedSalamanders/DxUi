@@ -1721,6 +1721,16 @@ forward navigation from the last cell appends a row. Limits are 64 columns,
 256 body rows, 4,096 declared cells and the existing 64 Ki UTF-16 source cap.
 New structure uses local EOL, then first document EOL, then CRLF. Cell source
 must be single-line Unicode with escaped pipes and no dangling escape.
+`SetTableAlignment` changes only the selected column's delimiter colons, retaining
+its hyphen and surrounding whitespace spelling. `MoveTableRowUp/Down` exchange
+adjacent row contents, including the header, while retaining each physical line's
+container prefix and EOL. A sparse promoted header gains the missing empty cells;
+a wider one extends the delimiter within the declared table limits.
+`MoveTableColumnLeft/Right` exchange adjacent raw cells
+and their delimiter alignment in every row; implicit empty cells are materialized
+only when needed. Boundary moves and selections outside the owned row or cell
+are unavailable. Directional selection follows the moved content. These commands
+use the same syntax-local `targetCell`, atomic source transaction and undo path.
 
 Semantic visual deletion MUST remove empty owned Markdown/validated inline
 HTML wrappers only when their complete body is deleted, recursively. Block HTML

@@ -396,7 +396,8 @@ struct RichTextEditor::State
             return request.command == value.command && request.listKind == value.listKind && request.style == value.style &&
                    request.quoteAction == value.quoteAction && request.mathDisplay == value.mathDisplay && request.headingLevel == value.headingLevel &&
                    request.listStart == value.listStart && request.targetCell == value.targetCell && request.tableColumns == value.tableColumns &&
-                   request.tableBodyRows == value.tableBodyRows && request.tableCellCaretOffset == value.tableCellCaretOffset && text == value.text &&
+                   request.tableBodyRows == value.tableBodyRows && request.tableAlignment == value.tableAlignment &&
+                   request.tableCellCaretOffset == value.tableCellCaretOffset && text == value.text &&
                    destination == value.destination && title == value.title;
         }
         RichText::MarkdownCommandRequest request;
@@ -2231,7 +2232,9 @@ RichText::MarkdownCommandPlan RichTextEditor::BuildCurrentMarkdownCommand(const 
             imageDestination.assign(*reference, marker + 2u, reference->size() - marker - 3u);
             resolved.destination = imageDestination;
         }
-    if (resolved.targetCell == MarkdownNoNode && request.command >= MarkdownCommand::InsertTableRow && request.command <= MarkdownCommand::PreviousTableCell)
+    if (resolved.targetCell == MarkdownNoNode &&
+        ((request.command >= MarkdownCommand::InsertTableRow && request.command <= MarkdownCommand::PreviousTableCell) ||
+         (request.command >= MarkdownCommand::SetTableAlignment && request.command <= MarkdownCommand::MoveTableColumnRight)))
         if (auto* host = GetHost(); host && LayoutIsCurrent(*host))
             if (const auto* geometry = _state->layout.SemanticGeometry())
             {
@@ -2283,7 +2286,7 @@ std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownComma
 {
     using namespace RichText;
     _state->lastListStateAncestorSteps = 0u;
-    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::InsertEscapedText))
+    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::MoveTableColumnRight))
         return std::nullopt;
     MarkdownCommandState result;
     if (! Editable() || ! _state->markdownRendering || _state->mode != ViewMode::Rich || _state->sourceEditing)

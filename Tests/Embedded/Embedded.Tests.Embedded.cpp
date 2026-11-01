@@ -1631,6 +1631,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestEmbeddedImagePathPaste(gpu);
     TestPreparedCommandStateAllocationFailures(gpu);
     TestPreparedCommandStateComplexAllocationFailures(gpu);
+    TestTableCommandPreparationAllocationFailures(gpu);
     TestEmbeddedFileReferencePaste(gpu);
     TestEmbeddedImageResources(gpu);
     RichImageTests::Core(Check);

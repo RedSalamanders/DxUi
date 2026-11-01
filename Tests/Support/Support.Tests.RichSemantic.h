@@ -816,6 +816,61 @@ inline void Tables()
     request.command = MarkdownCommand::DeleteTableRow;
     Exact(L"| a |\n| - |\n| x |", {2u, 2u}, request, L"| x |\n| - |\n");
     Exact(L"| a | b |\n| - | - |\n|😀|x|\n", {2u, 2u}, request, L"|😀|x|\n| - | - |\n", Selection{1u, 1u});
+
+    const std::wstring table(L"| a | b |\r\n| :--- | ---: |\r\n| x | y |\r\n| m | n |\r\n");
+    const auto x = table.find(L"x"), y = table.find(L"y");
+    request                = {};
+    request.command        = MarkdownCommand::SetTableAlignment;
+    request.tableAlignment = MarkdownAlignment::Center;
+    Exact(table, {y, y}, request, L"| a | b |\r\n| :--- | :---: |\r\n| x | y |\r\n| m | n |\r\n");
+    request.command = MarkdownCommand::MoveTableRowDown;
+    const std::wstring movedRow(L"| a | b |\r\n| :--- | ---: |\r\n| m | n |\r\n| x | y |\r\n");
+    const auto movedX = movedRow.find(L"x");
+    Exact(table, {x + 1u, x}, request, movedRow, Selection{movedX + 1u, movedX});
+    request.command = MarkdownCommand::MoveTableRowUp;
+    Exact(movedRow, {movedX + 1u, movedX}, request, table, Selection{x + 1u, x});
+    Unavailable(table, {table.find(L"a"), table.find(L"a")}, request);
+    request.command = MarkdownCommand::MoveTableRowDown;
+    const std::wstring movedHeader(L"| x | y |\r\n| :--- | ---: |\r\n| a | b |\r\n| m | n |\r\n");
+    const auto headerA = table.find(L"a"), movedA = movedHeader.find(L"a");
+    Exact(table, {headerA, headerA + 1u}, request, movedHeader, Selection{movedA, movedA + 1u});
+    const std::wstring extraCell(L"| a |\n| - |\n| x | y |\n");
+    const std::wstring widerHeader(L"| x | y |\n| - | --- |\n| a |\n");
+    Exact(extraCell, {extraCell.find(L"a"), extraCell.find(L"a")}, request, widerHeader, Selection{widerHeader.find(L"a"), widerHeader.find(L"a")});
+    const auto checkTableColumns = [](std::wstring_view spelling, std::size_t expected)
+    {
+        Document document(spelling);
+        const auto syntax    = Parse(document);
+        const auto& nodes    = syntax->Nodes();
+        const auto tableNode = std::ranges::find_if(nodes, [](const auto& node) { return node.block.kind == MarkdownBlockKind::Table; });
+        Check(tableNode != nodes.end() && tableNode->firstChild != MarkdownNoNode, "moved header remains a parsed table");
+        auto cell           = nodes[tableNode->firstChild].firstChild;
+        std::size_t columns = 0u;
+        for (; cell != MarkdownNoNode; cell = nodes[cell].nextSibling)
+            ++columns;
+        Check(columns == expected, "promoted sparse or wide row retains its declared column count");
+    };
+    checkTableColumns(widerHeader, 2u);
+    request.command = MarkdownCommand::MoveTableColumnRight;
+    const std::wstring movedColumn(L"| b | a |\r\n| ---: | :--- |\r\n| y | x |\r\n| n | m |\r\n");
+    const auto columnX = movedColumn.find(L"x");
+    Exact(table, {x + 1u, x}, request, movedColumn, Selection{columnX + 1u, columnX});
+    request.command = MarkdownCommand::MoveTableColumnLeft;
+    Exact(movedColumn, {columnX + 1u, columnX}, request, table, Selection{x + 1u, x});
+    Unavailable(table, {x, x}, request);
+    request.command = MarkdownCommand::MoveTableColumnRight;
+    const std::wstring paddedMove(L"| a | b | c |\n| - | - | - |\n| x |\n");
+    const std::wstring paddedMoved(L"| b | a | c |\n| - | - | - |\n|  | x |\n");
+    const auto paddedX = paddedMove.find(L"x"), paddedTarget = paddedMoved.find(L"x");
+    Exact(paddedMove, {paddedX, paddedX}, request, paddedMoved, Selection{paddedTarget, paddedTarget});
+    request.command = MarkdownCommand::MoveTableRowUp;
+    const std::wstring paddedHeader(L"| x |  |  |\n| - | - | - |\n| a | b | c |\n");
+    Exact(paddedMove, {paddedX, paddedX}, request, paddedHeader, Selection{paddedHeader.find(L"x"), paddedHeader.find(L"x")});
+    checkTableColumns(paddedHeader, 3u);
+    request.command    = MarkdownCommand::MoveTableColumnLeft;
+    request.targetCell = cells.back();
+    const std::wstring reorderedPadding(L"| a | c | b |\r\n| :- | --- | -: |\r\n| x |\r\n");
+    Exact(padded.Text(), {padded.Text().size(), padded.Text().size()}, request, reorderedPadding, Selection{reorderedPadding.size(), reorderedPadding.size()});
 }
 inline void GuardsAndDeletion()
 {

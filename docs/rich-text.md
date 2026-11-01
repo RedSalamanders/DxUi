@@ -1177,6 +1177,16 @@ replacement semantics. Pure plans have no host binding and are also usable with
 | Tasks | ToggleTask changes the checkbox state character, retaining the original marker, spaces and label. Multiple selected existing tasks invert independently; converting mixed items to tasks preserves existing states. CommonMark without TaskLists rejects the command. Pointer press stages a plan; matching release inside the checkbox commits once. Capture/focus loss, leaving the checkbox, source/layout replacement and stale selection cancel the gesture. |
 | Tables | InsertTable creates a bounded GFM scaffold at an empty site or over a selected single-line paragraph. Insert/DeleteTableRow and Insert/DeleteTableColumn preserve unaffected cell bytes, escapes, edge pipes, alignment markers and EOLs. Deleting a header promotes the next body row while retaining the separator; deleting the last row/column removes the table. SetTableCell accepts raw single-line Markdown with escaped pipes. Missing padded cells materialize only the necessary delimiters/cells. Next/PreviousTableCell retain separate native affinity at equal ACPs; Tab from the final cell appends one row. |
 
+`SetTableAlignment` changes the target column's delimiter colons without rewriting
+its whitespace or hyphens. `MoveTableRowUp/Down` exchange adjacent row contents,
+including a header, while retaining each line's container prefix and EOL. A
+sparse row moved into the header gains empty cells; a wider row extends the
+delimiter if the table remains within its limits.
+`MoveTableColumnLeft/Right` exchange adjacent cell spellings and delimiter alignment
+throughout the table, materializing missing cells only when required. Selection
+follows moved content; boundary moves and selections outside the owned row or
+cell are unavailable. These operations are one undo transaction.
+
 Table commands admit at most 64 columns, 256 body rows and 4,096 declared cells,
 within the existing 64 Ki UTF-16 source cap. `targetCell` is an optional index in
 the exact plan syntax, required to distinguish padded cells sharing an ACP.
