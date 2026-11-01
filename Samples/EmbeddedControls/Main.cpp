@@ -482,6 +482,12 @@ struct App
             dropRegistration.reset(window.get());
             scene.rich->SetOnSourceDragRequested([this](const DxUi::RichTextSourceMove& move, std::wstring_view text)
             {
+                // The embedded host has released its logical capture before this
+                // callback; the application owns and must release HWND capture too.
+                if (window && GetCapture() == window.get())
+                    ReleaseCapture();
+                if (! move.IsOwnerAlive())
+                    return;
                 wil::com_ptr_nothrow<IDataObject> data;
                 wil::com_ptr_nothrow<IDropSource> source;
                 if (FAILED(DxUi::CreateRichTextDragData(text, data.put())) || FAILED(DxUi::CreateRichTextDragSource(source.put())))
