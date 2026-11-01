@@ -303,6 +303,8 @@ inline void ListsAndHeadings()
         Exact(L"- item\n", {2u, 2u}, request, L"- > item\n", std::nullopt, profile);
         Exact(L"> a\n# b\n", {0u, 7u}, request, L"> a\n> # b\n", std::nullopt, profile);
         Exact(L"a\n\nb\n", {0u, 4u}, request, L"> a\n> \n> b\n", std::nullopt, profile);
+        Exact(L"~~~\nx\n~~~\n", {4u, 4u}, request, L"> ~~~\n> x\n> ~~~\n", std::nullopt, profile);
+        Exact(L"> ~~~\n> x\n> ~~~\n", {8u, 8u}, request, L"~~~\nx\n~~~\n", std::nullopt, profile);
         request.command = MarkdownCommand::SetCodeBlock;
         request.text    = L"cpp";
         Exact(L"hello\n", {0u, 5u}, request, L"~~~cpp\nhello\n~~~\n", std::nullopt, profile);

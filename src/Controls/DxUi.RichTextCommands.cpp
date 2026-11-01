@@ -1519,6 +1519,23 @@ void MarkdownCommandPlanner::Quote(MarkdownQuoteAction action)
         --end;
     for (std::size_t i = 1u; i < nodes.size(); ++i)
     {
+        if (nodes[i].block.kind == Kind::FencedCode)
+        {
+            const auto range      = nodes[i].block.source;
+            const bool intersects = plan.before_.Start() == plan.before_.End()
+                                        ? range.first <= end && (end < range.last || (end == range.last && end == text.size() && ! nodes[i].block.closed))
+                                        : range.first < plan.before_.End() && range.last > plan.before_.Start();
+            if (! intersects)
+                continue;
+            for (auto line = std::ranges::lower_bound(lines, range.first, {}, &PhysicalLine::first); line != lines.end() && line->first < range.last; ++line)
+            {
+                std::size_t at{};
+                if (! OuterOffset(i, *line, at))
+                    return;
+                selected.push_back({line->first, at, Ancestor(i, Kind::BlockQuote) != MarkdownNoNode});
+            }
+            continue;
+        }
         if (! TextLeaf(nodes[i].block.kind) || nodes[i].block.kind == Kind::TableCell)
             continue;
         for (const auto& content : nodes[i].lines)
