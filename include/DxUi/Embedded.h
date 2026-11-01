@@ -134,6 +134,8 @@ public:
     {
         return _host;
     }
+    // Hide, zero-size and device loss cancel composition and retire input tokens, while retaining a still-owned logical focus.
+    // The next successful visible, sized Prepare creates a fresh text session for that focus.
     void SetVisible(bool visible) noexcept;
     void MarkDirty() noexcept;
     [[nodiscard]] bool NeedsPreparation() const noexcept;

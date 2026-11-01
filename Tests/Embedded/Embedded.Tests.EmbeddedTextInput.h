@@ -395,30 +395,52 @@ static void TestEmbeddedTextInput(GraphicsFixture& gpu)
     preview(L"temporary");
     field->SetText(L"External update");
     view.SetVisible(false);
-    Check(field->GetText() == L"External update" && notifications == 0, "external value survives composition cancellation");
+    Check(field->GetText() == L"External update" && notifications == 0 && view.Controls().GetFocusControl() == field,
+          "external value and logical focus survive surface suspension");
     Check(view.ReadTextInput(snapshot) == S_FALSE && snapshot.state.text.empty(), "hidden text snapshot clears old data");
     view.SetVisible(true);
     Hr(view.Prepare(480, 240), "reshow text");
-    view.Controls().SetFocusControl(field);
     preview(L"hidden draft");
+    state = read();
+    auto staleRevision = snapshot.revision;
+    auto oldFocusId = snapshot.focusId;
     view.SetVisible(false);
-    Check(field->GetText() == L"External update" && notifications == 0, "hide rolls back preview");
+    Check(field->GetText() == L"External update" && notifications == 0 && view.Controls().GetFocusControl() == field,
+          "hide rolls back preview while retaining its logical owner");
     view.SetVisible(true);
     Hr(view.Prepare(480, 240), "prepare text again");
-    view.Controls().SetFocusControl(field);
+    state = read();
+    Check(snapshot.focusId != oldFocusId && ! state.compositionStartIndex && state.text == L"External update" &&
+              view.ApplyTextInput(staleRevision, {}, Action::Cancel) == HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH),
+          "reshow creates a fresh session and rejects the stale composition revision");
     preview(L"focus draft");
     view.CancelTextInput();
-    Check(field->GetText() == L"External update" && view.ReadTextInput(snapshot) == S_FALSE, "OS focus loss cancels text session");
+    Check(field->GetText() == L"External update" && view.ReadTextInput(snapshot) == S_FALSE && ! view.Controls().GetFocusControl(),
+          "explicit OS focus loss cancels text session and clears logical focus");
     view.Controls().SetFocusControl(field);
     preview(L"zero draft");
-    Check(view.Prepare(0, 240) == S_FALSE && field->GetText() == L"External update", "zero-size suspension rolls back preview");
+    state = read();
+    staleRevision = snapshot.revision;
+    oldFocusId = snapshot.focusId;
+    Check(view.Prepare(0, 240) == S_FALSE && field->GetText() == L"External update" && view.Controls().GetFocusControl() == field,
+          "zero-size suspension rolls back preview and retains logical focus");
     Hr(view.Prepare(480, 240), "resume nonzero text");
-    view.Controls().SetFocusControl(field);
+    state = read();
+    Check(snapshot.focusId != oldFocusId && ! state.compositionStartIndex &&
+              view.ApplyTextInput(staleRevision, {}, Action::Cancel) == HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH),
+          "sized recovery creates a fresh session and rejects the stale revision");
     preview(L"device draft");
+    state = read();
+    staleRevision = snapshot.revision;
+    oldFocusId = snapshot.focusId;
     Hr(view.ReplaceDevice(pool), "text device replacement");
-    Check(field->GetText() == L"External update" && view.ReadTextInput(snapshot) == S_FALSE, "device replacement cancels input before reprepare");
+    Check(field->GetText() == L"External update" && view.ReadTextInput(snapshot) == S_FALSE && view.Controls().GetFocusControl() == field,
+          "device replacement retires the text session but retains logical focus");
     Hr(view.Prepare(480, 240), "reprepare text device");
-    view.Controls().SetFocusControl(field);
+    state = read();
+    Check(snapshot.focusId != oldFocusId && ! state.compositionStartIndex &&
+              view.ApplyTextInput(staleRevision, {}, Action::Cancel) == HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH),
+          "device recovery creates a fresh session and rejects the stale revision");
     state                   = read();
     const auto beforeDetach = snapshot.revision;
     view.Detach();

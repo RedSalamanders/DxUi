@@ -49,7 +49,7 @@ mutation is not limited to Composite. The application rebinds its state before i
 
 Share an explicit GraphicsDevice pool among views using the same device generation. Each view owns its control tree,
 focus/capture, drafts and surface. Release old-generation graphics references on device loss while retaining logical
-state. Graphics recovery must not execute unrelated application operations.
+state. Graphics recovery must not execute unrelated application operations. Surface loss, hiding and zero-size suspension cancel composition and retire old text-session and dispatch tokens while retaining a still-owned logical focus. A successful visible sized preparation creates a fresh input session for that focus; explicit CancelTextInput on OS focus loss still clears it.
 
 Device replacement and detach release the view's owned targets, surfaces and graphics references without calling
 ClearState or Flush on the application's supplied immediate context. Native swap-chain retirement owns that

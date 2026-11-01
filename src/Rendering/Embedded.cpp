@@ -294,7 +294,10 @@ void EmbeddedHost::ReleaseSurface() noexcept
     CancelPointer();
     if (! operationIsCurrent())
         return;
-    CancelTextInput();
+    // Surface loss retires composition and all issued input receipts, but the
+    // still-owned logical focus is restored when a visible surface is prepared.
+    ++_textInputRevision;
+    _host.DeactivateTextInput();
     if (! operationIsCurrent())
         return;
     auto& s = *attachedState;
@@ -609,6 +612,12 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         s.dirty                       = s.revision != revision;
         ++s.stats.preparations;
         _host.PublishPreparedContent();
+        if (auto* focused = _host.GetFocusControl(); focused && focused != _host._nativeTextInputControl && focused->SupportsTextInput())
+        {
+            _host.ActivateTextInput(focused, false);
+            if (! preparationIsCurrent())
+                return E_ABORT;
+        }
         if (! preparationIsCurrent())
             return E_ABORT;
         s.coherent              = s.coherent && interactionRevision == _host._interactionRevision;
