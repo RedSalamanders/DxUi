@@ -3160,6 +3160,8 @@ struct RichTextEditorDebugState
     size_t lastAdvanceSemanticWork     = 0;
     bool sourceInkPreparationPending   = false;
     size_t sourceInkRangeCount         = 0;
+    size_t preparedSelectionRectangles = 0, preparedHighlightRectangles = 0;
+    bool overlayGeometryPending = false;
 };
 
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
@@ -3396,6 +3398,7 @@ private:
     bool CommitFileDrop(FileDropPosition position, const TextClipboardContent& content);
     void Changed(bool sourceChanged, bool synchronizeTextInput = true);
     void SelectionChanged(bool synchronizeTextInput = true, bool preservePreferredCaretX = false, bool publishSelection = true, bool revealCaret = true);
+    void PrepareOverlayGeometry(ControlHost& host);
     void PublishSelectionChanged() noexcept;
     void MoveCaret(ControlHost& host, UINT key, bool extend, bool byWord);
     bool Erase(ControlHost& host, bool backwards, bool byWord, bool coalesceHistory = false);

@@ -185,6 +185,17 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
           "editor replace-all is case-insensitive and one undo transaction");
     editor->SetText(L"word");
     prepare();
+    editor->SetSelection({0u, 4u});
+    const std::array highlights{RichTextSourceHighlight{0u, 2u, true}};
+    editor->SetSourceHighlights(highlights);
+    Check(editor->DebugGetState().overlayGeometryPending, "selection and highlight changes invalidate prepared overlay geometry");
+    prepare();
+    Check(! editor->DebugGetState().overlayGeometryPending && editor->DebugGetState().preparedSelectionRectangles != 0u &&
+              editor->DebugGetState().preparedHighlightRectangles != 0u,
+          "selection and search rectangles are prepared before composition");
+    editor->ClearSourceHighlights();
+    prepare();
+    Check(editor->DebugGetState().preparedHighlightRectangles == 0u, "cleared highlights retire their prepared rectangles");
     editor->SetText(L"");
     Check(editor->OnChar(host, L'a', 0u) && editor->OnChar(host, L'b', 0u) && editor->OnChar(host, L'c', 0u) && editor->GetText() == L"abc" && editor->Undo() &&
               editor->GetText().empty(),

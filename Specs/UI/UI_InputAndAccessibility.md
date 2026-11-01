@@ -1199,6 +1199,9 @@ can highlight matches and apply replacements in one revision-checked edit.
 active native composition and read-only editing, with one undo for all matches.
 `SelectSourceMatch` navigates those exact matches in either direction and wraps
 at the source boundary; selection and scrolling use the ordinary editor policy.
+Selection, source-highlight and native composition rectangles are staged with
+current layout before painting; selection or highlight changes retire their
+prepared geometry until the host prepares the replacement.
 An editor context-menu callback receives focus first. Keyboard invocation retains
 the selection; a pointer invocation outside it moves the caret to the hit source
 position. Selection callback reentry that changes the target cancels the menu.

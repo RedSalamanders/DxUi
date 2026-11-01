@@ -134,6 +134,15 @@ struct RichTextEditor::State
     std::weak_ptr<const RichText::SemanticDocument> keyboardNavigationDocument;
     size_t keyboardNavigationElement = RichText::MarkdownNoNode;
     std::vector<RichTextSourceHighlight> highlights;
+    struct HighlightRectangle
+    {
+        D2D1_RECT_F rectangle{};
+        bool current{};
+    };
+    std::vector<D2D1_RECT_F> selectionRectangles{0u};
+    std::vector<HighlightRectangle> highlightRectangles{0u};
+    std::vector<D2D1_RECT_F> compositionRectangles{0u}, conversionRectangles{0u};
+    bool overlaySelectionDirty = true, overlayHighlightsDirty = true;
     bool focusMode = false;
     std::wstring documentFilePath;
     uint64_t imageLocationRevision = 1u;
@@ -873,14 +882,22 @@ void RichTextEditor::SetSourceHighlights(std::span<const RichTextSourceHighlight
         return;
     std::vector<RichTextSourceHighlight> next(highlights.begin(), highlights.end());
     _state->highlights.swap(next);
-    RequestInvalidate();
+    _state->overlayHighlightsDirty = true;
+    const auto lifetime            = GetLifetimeToken();
+    RequestContentPreparation(false);
+    if (! lifetime.expired())
+        RequestInvalidate();
 }
 void RichTextEditor::ClearSourceHighlights() noexcept
 {
     if (_state->highlights.empty())
         return;
     _state->highlights.clear();
-    RequestInvalidate();
+    _state->overlayHighlightsDirty = true;
+    const auto lifetime            = GetLifetimeToken();
+    RequestContentPreparation(false);
+    if (! lifetime.expired())
+        RequestInvalidate();
 }
 std::span<const RichTextSourceHighlight> RichTextEditor::GetSourceHighlights() const noexcept
 {
@@ -1552,7 +1569,8 @@ void RichTextEditor::SelectionChanged(bool synchronizeTextInput, bool preservePr
             RetireLayout();
         }
     }
-    _state->pendingLeadSurrogate = 0;
+    _state->pendingLeadSurrogate  = 0;
+    _state->overlaySelectionDirty = true;
     if (! preservePreferredCaretX)
         _state->preferredCaretX.reset();
     _state->revealCaret  = revealCaret;
@@ -1565,6 +1583,9 @@ void RichTextEditor::SelectionChanged(bool synchronizeTextInput, bool preservePr
     // composition ownership marker. Public changes supersede that preview.
     if (synchronizeTextInput && host)
         host->SyncTextInput(this);
+    if (lifetime.expired() || GetHost() != host)
+        return;
+    RequestContentPreparation(false);
     if (lifetime.expired() || GetHost() != host)
         return;
     RequestInvalidate();
@@ -1592,6 +1613,7 @@ D2D1_RECT_F RichTextEditor::TextViewport() const noexcept
 void RichTextEditor::RetireLayout() const noexcept
 {
     ++_state->fileDropEpoch;
+    _state->overlaySelectionDirty = _state->overlayHighlightsDirty = true;
     _state->sourceInk.Clear();
     _state->hoveredLink.reset();
     _state->caretLink.reset();
@@ -1620,6 +1642,47 @@ bool RichTextEditor::LayoutIsCurrent(const ControlHost& host) const noexcept
 bool RichTextEditor::AcceptsTextInputDuringPreparation() const noexcept
 {
     return true; // Source/selection/transactions are independent of glyph preparation.
+}
+void RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
+{
+    auto& state        = *_state;
+    const auto& layout = state.layout;
+    if (state.overlaySelectionDirty)
+    {
+        const auto selection = GetSelection();
+        auto selected        = layout.SourceRange(selection.Start(), selection.End());
+        std::vector<D2D1_RECT_F> composition(0u), conversion(0u);
+        NativeTextInputState input{.text = std::wstring(0u, L' '), .compositionClauseBoundaries = std::vector<size_t>(0u)};
+        if (host.TryReadNativeTextInputState(this, input) && layout.SourceMatches(input.text) && input.compositionStartIndex && input.compositionEndIndex)
+        {
+            auto staged = layout.SourceRange(*input.compositionStartIndex, *input.compositionEndIndex);
+            composition.swap(staged);
+            if (input.conversionTargetStartIndex && input.conversionTargetEndIndex)
+            {
+                auto target = layout.SourceRange(*input.conversionTargetStartIndex, *input.conversionTargetEndIndex);
+                conversion.swap(target);
+            }
+        }
+        state.selectionRectangles.swap(selected);
+        state.compositionRectangles.swap(composition);
+        state.conversionRectangles.swap(conversion);
+        state.overlaySelectionDirty = false;
+    }
+    if (state.overlayHighlightsDirty)
+    {
+        std::vector<State::HighlightRectangle> rectangles(0u);
+        for (const auto& highlight : state.highlights)
+            for (const auto& rectangle : layout.SourceRange(highlight.start, highlight.start + highlight.length))
+                rectangles.push_back({rectangle, highlight.current});
+        for (const bool current : {false, true})
+        {
+            auto color = host.GetTheme().selectionFill;
+            color.a *= host.GetTheme().highContrast ? 1.0f : current ? 0.38f : 0.18f;
+            static_cast<void>(host.GetSolidBrush(color));
+        }
+        state.highlightRectangles.swap(rectangles);
+        state.overlayHighlightsDirty = false;
+    }
 }
 void RichTextEditor::CancelContentPreparation() noexcept
 {
@@ -1740,6 +1803,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         if (LayoutIsCurrent(host))
         {
             UpdateCaretScroll();
+            PrepareOverlayGeometry(host);
             return PrepareSourceInk() ? S_OK : S_FALSE;
         }
         if (state.markdownProfile && ! GetMarkdownSyntax() && ! state.HasCurrentMarkdownCapacityRejection())
@@ -2024,12 +2088,14 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             state.requestActive = false;
             return S_FALSE;
         }
-        state.layoutWidth        = width;
-        state.typographyRevision = typography;
-        state.resourceGeneration = resources;
-        state.requestActive      = false;
+        state.layoutWidth           = width;
+        state.typographyRevision    = typography;
+        state.resourceGeneration    = resources;
+        state.requestActive         = false;
+        state.overlaySelectionDirty = state.overlayHighlightsDirty = true;
         UpdateCaretScroll();
         UpdateCaretLinkDisplayRange();
+        PrepareOverlayGeometry(host);
         return PrepareSourceInk() ? S_OK : S_FALSE;
     }
     catch (const RichText::Detail::NativeObjectsRejected& failure)
@@ -2153,7 +2219,10 @@ RichTextEditorDebugState RichTextEditor::DebugGetState() const noexcept
             _state->semanticAdvances,
             _state->lastAdvanceSemanticWork,
             _state->sourceInk.Pending(),
-            _state->sourceInk.Ranges().size()};
+            _state->sourceInk.Ranges().size(),
+            _state->selectionRectangles.size(),
+            _state->highlightRectangles.size(),
+            _state->overlaySelectionDirty || _state->overlayHighlightsDirty};
 }
 bool RichTextEditor::SupportsTextInput() const noexcept
 {
@@ -2461,23 +2530,24 @@ void RichTextEditor::Paint(ControlHost& host) const
     }
     const auto selection   = state.document.GetSelection();
     const auto& projection = state.layout;
-    const auto rectangles  = projection.SourceRange(selection.Start(), selection.End());
-    const auto origin      = D2D1::Point2F(viewport.left, viewport.top - state.scrollDip);
+    const std::span<const D2D1_RECT_F> rectangles =
+        state.overlaySelectionDirty ? std::span<const D2D1_RECT_F>{} : std::span<const D2D1_RECT_F>(state.selectionRectangles);
+    const auto origin = D2D1::Point2F(viewport.left, viewport.top - state.scrollDip);
     context->PushAxisAlignedClip(viewport, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
     const auto restoreClip = wil::scope_exit([context]() noexcept { context->PopAxisAlignedClip(); });
-    for (const auto& highlight : state.highlights)
+    const std::span<const State::HighlightRectangle> highlights =
+        state.overlayHighlightsDirty ? std::span<const State::HighlightRectangle>{} : std::span<const State::HighlightRectangle>(state.highlightRectangles);
+    for (const auto& highlight : highlights)
     {
         auto color = host.GetTheme().selectionFill;
         color.a *= host.GetTheme().highContrast ? 1.0f : highlight.current ? 0.38f : 0.18f;
-        auto* brush = host.GetSolidBrush(color);
-        for (const auto& rectangle : projection.SourceRange(highlight.start, highlight.start + highlight.length))
-        {
-            const auto bounds = D2D1::RectF(rectangle.left + origin.x, rectangle.top + origin.y, rectangle.right + origin.x, rectangle.bottom + origin.y);
-            if (host.GetTheme().highContrast)
-                context->DrawRectangle(bounds, brush, highlight.current ? 2.0f : 1.0f);
-            else
-                context->FillRectangle(bounds, brush);
-        }
+        auto* brush           = host.GetSolidBrush(color);
+        const auto& rectangle = highlight.rectangle;
+        const auto bounds     = D2D1::RectF(rectangle.left + origin.x, rectangle.top + origin.y, rectangle.right + origin.x, rectangle.bottom + origin.y);
+        if (host.GetTheme().highContrast)
+            context->DrawRectangle(bounds, brush, highlight.current ? 2.0f : 1.0f);
+        else
+            context->FillRectangle(bounds, brush);
     }
     RichText::LinkDrawing links;
     links.brush     = appearance.useAccentLinkColor && IsEnabled() ? host.GetSolidBrush(host.GetTheme().accent) : nullptr;
@@ -2539,22 +2609,18 @@ void RichTextEditor::Paint(ControlHost& host) const
                           decorated ? &selectedLinks : nullptr,
                           subtleMarkdown ? selectedDiagramFill : nullptr);
     }
-    NativeTextInputState input;
-    if (host.TryReadNativeTextInputState(this, input) && projection.SourceMatches(input.text) && input.compositionStartIndex && input.compositionEndIndex)
+    if (! state.overlaySelectionDirty)
     {
-        const auto underline = [&](size_t first, size_t last, float thickness)
+        const auto underline = [&](std::span<const D2D1_RECT_F> ranges, float thickness)
         {
-            if (first > last || last > projection.SourceLength())
-                return;
-            for (const auto& rect : projection.SourceRange(first, last))
+            for (const auto& rect : ranges)
                 context->DrawLine(D2D1::Point2F(rect.left + origin.x, rect.bottom + origin.y - 1),
                                   D2D1::Point2F(rect.right + origin.x, rect.bottom + origin.y - 1),
                                   caretBrush,
                                   thickness);
         };
-        underline(*input.compositionStartIndex, *input.compositionEndIndex, 1.0f);
-        if (input.conversionTargetStartIndex && input.conversionTargetEndIndex)
-            underline(*input.conversionTargetStartIndex, *input.conversionTargetEndIndex, 2.0f);
+        underline(state.compositionRectangles, 1.0f);
+        underline(state.conversionRectangles, 2.0f);
     }
     if (HasFocus() && IsEnabled() && state.keyboardNavigationElement != RichText::MarkdownNoNode &&
         state.keyboardNavigationDocument.lock() == GetAcknowledgedSemanticDocument(host))
