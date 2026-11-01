@@ -330,7 +330,9 @@ inline void ListsAndHeadings()
         Exact(L"text\n\n---\n", {7u, 7u}, request, L"text\n\n> ---\n", std::nullopt, profile);
         Exact(L"    code\n", {5u, 5u}, request, L">     code\n", std::nullopt, profile);
         Exact(L"- ~~~\n  x\n  ~~~\n", {8u, 8u}, request, L"- > ~~~\n  > x\n  > ~~~\n", std::nullopt, profile);
-        Exact(L"- ---\n", {4u, 4u}, request, L"- > ---\n", std::nullopt, profile);
+        Exact(L"* ---\n", {4u, 4u}, request, L"* > ---\n", std::nullopt, profile);
+        Exact(L"- ---\n", {4u, 4u}, request, L"> - ---\n", std::nullopt, profile);
+        Exact(L"[id]: /target\n", {2u, 2u}, request, L"> [id]: /target\n", std::nullopt, profile);
         if (profile == MarkdownProfile::RichMarkdown)
         {
             Unavailable(L"---\n", {1u, 1u}, request, profile);
