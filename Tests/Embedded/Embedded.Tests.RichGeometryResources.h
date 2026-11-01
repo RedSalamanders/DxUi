@@ -345,6 +345,17 @@ static void TestHtmlClipboardFragment()
     std::wstring fragment = L"sentinel";
     Check(DecodeClipboardHtml(std::as_bytes(std::span(bytes.data(), bytes.size())), fragment) == S_OK && fragment == L"<b>hello</b>",
           "CF_HTML decoder honors byte offsets and UTF-8");
+    std::string utf8Body = "<b>";
+    utf8Body.push_back(static_cast<char>(0xe6));
+    utf8Body.push_back(static_cast<char>(0x9d));
+    utf8Body.push_back(static_cast<char>(0xb1));
+    utf8Body += "</b>";
+    const auto utf8End = 105u + utf8Body.size();
+    const auto utf8Header = std::format("Version:1.0\r\nStartHTML:{:010}\r\nEndHTML:{:010}\r\nStartFragment:{:010}\r\nEndFragment:{:010}\r\n",
+                                        105u, utf8End, 105u, utf8End);
+    const auto utf8Bytes = utf8Header + utf8Body;
+    Check(DecodeClipboardHtml(std::as_bytes(std::span(utf8Bytes.data(), utf8Bytes.size())), fragment) == S_OK && fragment == L"<b>\u6771</b>",
+          "CF_HTML byte offsets preserve a multibyte UTF-8 fragment");
     auto invalid = bytes;
     invalid[invalid.size() - 1u] = static_cast<char>(0xff);
     fragment = L"sentinel";
