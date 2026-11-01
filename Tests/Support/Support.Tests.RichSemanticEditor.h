@@ -1908,13 +1908,13 @@ template <typename Prepare> void SourceHorizontalAndGuides(ControlHost& host, Pr
     Check(wrapped && wrapped->offsetDip == 0.0f && wrapped->contentWidthDip <= wrapped->viewportWidthDip + 0.1f,
           "reenabling wrapping retires overflow and clamps the horizontal offset");
     const auto unzoomedViewport = editor->TryGetTextInputViewportRect();
-    appearance.zoom = 2.0f;
+    appearance.zoom             = 2.0f;
     editor->SetAppearance(appearance);
     prepare();
     const auto zoomedViewport = editor->TryGetTextInputViewportRect();
     Check(unzoomedViewport && zoomedViewport && zoomedViewport->left > unzoomedViewport->left && editor->GetText() == source,
           "source line-number lane grows for zoom without changing source");
-    appearance.zoom = 1.0f;
+    appearance.zoom       = 1.0f;
     appearance.sourceWrap = false;
     editor->SetAppearance(appearance);
     editor->SetFlowDirection(FlowDirection::RightToLeft);

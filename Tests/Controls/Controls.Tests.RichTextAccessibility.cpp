@@ -1968,8 +1968,8 @@ void SemanticMathLiteralFallback(bool embedded)
     using namespace RichText;
     RichAccessibilityFixture fixture(embedded, true, true);
     fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
-    const auto verify = [&](const std::wstring& source, std::wstring_view expression, std::wstring_view helpText, std::wstring_view linkTitle,
-                            bool unsupportedSyntax)
+    const auto verify =
+        [&](const std::wstring& source, std::wstring_view expression, std::wstring_view helpText, std::wstring_view linkTitle, bool unsupportedSyntax)
     {
         fixture.editor->SetText(source);
         fixture.Publish();
@@ -2006,9 +2006,9 @@ void SemanticMathLiteralFallback(bool embedded)
         }),
                 "literal math remains a semantic Math element over its complete source envelope");
         if (unsupportedSyntax)
-            Require(std::ranges::any_of(semantic->Diagnostics(),
-                                        [](const auto& diagnostic) { return diagnostic.kind == SemanticDiagnosticKind::UnsupportedMath; }),
-                    "unknown math command has an independent unsupported-syntax diagnostic");
+            Require(
+                std::ranges::any_of(semantic->Diagnostics(), [](const auto& diagnostic) { return diagnostic.kind == SemanticDiagnosticKind::UnsupportedMath; }),
+                "unknown math command has an independent unsupported-syntax diagnostic");
         auto text = TextProvider(fixture);
         wil::com_ptr_nothrow<ITextRangeProvider> raw;
         RequireSucceeded(text->RangeFromChild(math.get(), raw.put()), "literal math exact raw source range");
