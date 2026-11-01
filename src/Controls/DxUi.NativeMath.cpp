@@ -727,6 +727,28 @@ class Parser
         AppendRowSpacings(name, depth, rows.size());
         return Make(MathKind::Matrix, std::move(name), std::move(rows), 1u);
     }
+    static bool UnaryAccent(std::wstring_view name) noexcept
+    {
+        static constexpr std::wstring_view names[] = {
+            L"overbrace", L"underbrace", L"overgroup", L"undergroup", L"boxed", L"cancel", L"bcancel", L"xcancel", L"sout", L"phase", L"angl",
+            L"overline", L"underline", L"bar", L"hat", L"widehat", L"vec", L"dot", L"ddot", L"tilde", L"widetilde", L"check", L"widecheck",
+            L"breve", L"acute", L"grave", L"mathring", L"underbar", L"utilde", L"overleftarrow", L"overrightarrow", L"overleftrightarrow",
+            L"Overrightarrow", L"underleftarrow", L"underrightarrow", L"underleftrightarrow", L"overleftharpoon", L"overrightharpoon"};
+        return std::ranges::find(names, name) != std::end(names);
+    }
+    MathNode UnaryAccentCommand(std::wstring_view name, unsigned depth)
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
+        auto result = Make(MathKind::Accent, std::wstring(name), {Atom(depth + 1u)});
+        if (name == L"overbrace" || name == L"underbrace" || name == L"overgroup" || name == L"undergroup")
+        {
+            result.atomClass = MathAtomClass::Operator;
+            result.limits = MathLimits::AboveBelow;
+        }
+        return result;
+    }
     MathNode StructuredCommand(std::wstring_view name, unsigned depth)
     {
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -807,7 +829,13 @@ class Parser
             return Matrix(GroupText(), depth);
         Reject(MathIssue::UnsupportedCommand);
     }
-    MathNode StyledCommand(std::wstring_view name, unsigned depth)
+    static bool MathStyleCommand(std::wstring_view name) noexcept
+    {
+        static constexpr std::wstring_view names[] = {
+            L"bold", L"frak", L"Bbb", L"mathrm", L"mathbf", L"mathit", L"mathnormal", L"boldsymbol", L"bm", L"mathbb", L"mathcal", L"mathfrak", L"mathsf", L"mathtt", L"pmb", L"mathord", L"mathop", L"mathbin", L"mathrel", L"mathopen", L"mathclose", L"mathpunct", L"mathinner"};
+        return std::ranges::find(names, name) != std::end(names);
+    }
+    MathNode MathStyle(std::wstring_view name, unsigned depth)
     {
 #if DXUI_ENABLE_DIAGNOSTICS
         ObserveStack();
@@ -815,26 +843,6 @@ class Parser
         if (name == L"bold") name = L"mathbf";
         else if (name == L"frak") name = L"mathfrak";
         else if (name == L"Bbb") name = L"mathbb";
-        if (name == L"text" || name == L"textbf" || name == L"textit" || name == L"textup" || name == L"textmd" || name == L"textnormal" || name == L"textrm" || name == L"textsf" || name == L"texttt" || name == L"emph" || name == L"operatorname")
-        {
-            const bool starred = name == L"operatorname" && at < source.size() && source[at] == L'*';
-            if (starred)
-                ++at;
-            auto result          = Make(MathKind::Text, GroupText(true));
-            result.italic        = false;
-            result.atomClass     = name == L"operatorname" ? MathAtomClass::Operator : MathAtomClass::Ordinary;
-            result.displayLimits = starred;
-            if (name == L"textup" || name == L"textmd" || name == L"textnormal" || name == L"textrm" || name == L"textsf" || name == L"texttt" || name == L"emph")
-                return Make(MathKind::Style, name == L"textup" ? std::wstring(L"mathrm") : std::wstring(name), {std::move(result)});
-            if (name == L"textbf" || name == L"textit")
-                return Make(MathKind::Style, name == L"textbf" ? L"mathbf" : L"mathit", {std::move(result)});
-            return result;
-        }
-        if (name == L"mathrm" || name == L"mathbf" || name == L"mathit" || name == L"mathnormal" || name == L"boldsymbol" || name == L"bm" ||
-            name == L"mathbb" || name == L"mathcal" || name == L"mathfrak" || name == L"mathsf" || name == L"mathtt" || name == L"pmb" || name == L"mathord" ||
-            name == L"mathop" || name == L"mathbin" || name == L"mathrel" || name == L"mathopen" || name == L"mathclose" || name == L"mathpunct" ||
-            name == L"mathinner")
-        {
             auto body = Atom(depth + 1);
             if (name == L"mathbb" || name == L"mathcal" || name == L"mathfrak" || name == L"mathsf" || name == L"mathtt")
                 Alphabet(body, name);
@@ -859,20 +867,31 @@ class Parser
             else if (name == L"mathinner")
                 result.atomClass = MathAtomClass::Inner;
             return result;
-        }
-        if (name == L"overbrace" || name == L"underbrace" || name == L"overgroup" || name == L"undergroup")
+
+    }
+    MathNode StyledCommand(std::wstring_view name, unsigned depth)
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
+        if (name == L"bold") name = L"mathbf";
+        else if (name == L"frak") name = L"mathfrak";
+        else if (name == L"Bbb") name = L"mathbb";
+        if (name == L"text" || name == L"textbf" || name == L"textit" || name == L"textup" || name == L"textmd" || name == L"textnormal" || name == L"textrm" || name == L"textsf" || name == L"texttt" || name == L"emph" || name == L"operatorname")
         {
-            auto result      = Make(MathKind::Accent, std::wstring(name), {Atom(depth + 1u)});
-            result.atomClass = MathAtomClass::Operator;
-            result.limits    = MathLimits::AboveBelow;
+            const bool starred = name == L"operatorname" && at < source.size() && source[at] == L'*';
+            if (starred)
+                ++at;
+            auto result          = Make(MathKind::Text, GroupText(true));
+            result.italic        = false;
+            result.atomClass     = name == L"operatorname" ? MathAtomClass::Operator : MathAtomClass::Ordinary;
+            result.displayLimits = starred;
+            if (name == L"textup" || name == L"textmd" || name == L"textnormal" || name == L"textrm" || name == L"textsf" || name == L"texttt" || name == L"emph")
+                return Make(MathKind::Style, name == L"textup" ? std::wstring(L"mathrm") : std::wstring(name), {std::move(result)});
+            if (name == L"textbf" || name == L"textit")
+                return Make(MathKind::Style, name == L"textbf" ? L"mathbf" : L"mathit", {std::move(result)});
             return result;
         }
-        if (name == L"boxed" || name == L"cancel" || name == L"bcancel" || name == L"xcancel" || name == L"sout" || name == L"phase" || name == L"angl")
-            return Make(MathKind::Accent, std::wstring(name), {Atom(depth + 1)});
-        if (name == L"overline" || name == L"underline" || name == L"bar" || name == L"hat" || name == L"widehat" || name == L"vec" || name == L"dot" ||
-            name == L"ddot" || name == L"tilde" || name == L"widetilde" || name == L"check" || name == L"widecheck" || name == L"breve" || name == L"acute" ||
-            name == L"grave" || name == L"mathring" || name == L"underbar" || name == L"utilde")
-            return Make(MathKind::Accent, std::wstring(name), {Atom(depth + 1)});
         if (name == L"left")
         {
             const auto left = Delimiter();
@@ -1221,6 +1240,10 @@ class Parser
             name == L"xrightharpoonup" || name == L"xrightharpoondown" || name == L"xleftrightharpoons" || name == L"xrightleftharpoons" ||
             name == L"xtwoheadleftarrow" || name == L"xtwoheadrightarrow" || name == L"xtofrom")
             return ExtensibleArrowCommand(name, depth);
+        if (MathStyleCommand(name))
+            return MathStyle(name, depth);
+        if (UnaryAccent(name))
+            return UnaryAccentCommand(name, depth);
         if (name == L"begin")
             return Matrix(GroupText(), depth);
         if (name == L"substack")

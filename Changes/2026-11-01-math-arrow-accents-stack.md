@@ -1,0 +1,3 @@
+# Directed mathematical accents and stack headroom
+
+The bounded mathematical profile stages over/under arrow accents and over-harpoons. Parser and preparation dispatch isolate unary work to preserve the ordinary-thread stack at the admitted nesting boundary.
