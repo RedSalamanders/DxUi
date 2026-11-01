@@ -390,7 +390,7 @@ void TestRichTextLayoutOptionsFailureAtomicityAndRetirement()
     malformed.units.clear();
     Reject([&] { layout.Prepare(factory.get(), malformed, options); }, "missing display mapping rejected");
     malformed                    = projection;
-    malformed.runs.front().flags = 0x80;
+    malformed.runs.front().flags = 0x200;
     Reject([&] { layout.Prepare(factory.get(), malformed, options); }, "unknown style bits rejected");
     malformed                     = projection;
     malformed.runs.front().start  = projection.text.size() - 1;
