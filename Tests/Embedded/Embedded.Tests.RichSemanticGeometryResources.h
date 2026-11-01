@@ -53,16 +53,23 @@ static void TestRichSemanticEditorQueryFailureBudgets(GraphicsFixture& gpu, bool
                         stderr, "semantic query engine=%u operation=%u allocation failure point=%zu of %zu\n", semantic ? 1u : 0u, operation, point, requests);
                     std::fflush(stderr);
                 }
-                bool available = false;
+                bool available = false, exhausted = false;
                 {
                     const auto previous = failAllocationAfter;
                     const auto restore  = wil::scope_exit([=] noexcept { failAllocationAfter = previous; });
                     failAllocationAfter = point;
-                    available           = query();
+                    try
+                    {
+                        available = query();
+                    }
+                    catch (const std::bad_alloc&)
+                    {
+                        exhausted = true;
+                    }
                 }
-                Check(! available && editor->Revision() == revision && editor->DebugGetState().layoutReady &&
+                Check(! available && exhausted == (operation == 0u) && editor->Revision() == revision && editor->DebugGetState().layoutReady &&
                           editor->DebugGetState().layoutGeneration == generation && editor->GetText() == source && ! editor->CanUndo(),
-                      "each text-service query allocation failure reports unavailable without source/history/geometry mutation");
+                      "range query propagates exhaustion and line query reports unavailable without source/history/geometry mutation");
                 Check(query(), "text-service geometry query succeeds after every injected failure");
             }
             std::cout << "rich semantic query engine=" << semantic << " operation=" << operation << " sweptRequests=" << requests << '\n';
