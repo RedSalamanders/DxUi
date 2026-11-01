@@ -567,16 +567,19 @@ static void TestRichImageRasterFailureAndBudgets()
     const auto runTiled = [&](PreparedSemanticGeometry& value, size_t byteBudget)
     {
         unsigned turns{};
+        size_t transferred{};
         while (value.Pending())
         {
             const auto beforeCopies = calls.copies;
             const auto beforeBytes  = calls.copiedBytes;
             const auto result       = value.Advance({1u, 32u, byteBudget});
+            transferred += result.uploadedBytes;
             Check(result.uploadedBytes <= byteBudget && calls.copies - beforeCopies <= 1u && calls.copiedBytes - beforeBytes <= byteBudget &&
                       result.layoutsPrepared <= 1u && result.blockSteps <= 32u,
                   "each tiled image turn respects byte, copy, layout and event budgets");
             Check(++turns < 30000u, "tiled image preparation makes finite progress");
         }
+        return transferred;
     };
     PreparedSemanticGeometry whole, tiled;
     whole.Begin(write.get(), tiledDocument, options, drawing.get(), {++epoch, epoch}, tiledImages, target.get());
@@ -585,8 +588,8 @@ static void TestRichImageRasterFailureAndBudgets()
     options.widthDip = 360.f;
     const auto beforeReflowUploads = calls.uploads, beforeReflowCopies = calls.copies;
     whole.Begin(write.get(), tiledDocument, options, drawing.get(), {epoch, epoch}, tiledImages, target.get());
-    runTiled(whole, 28u);
-    Check(calls.uploads == beforeReflowUploads && calls.copies == beforeReflowCopies,
+    const auto reflowBytes = runTiled(whole, 28u);
+    Check(! reflowBytes && calls.uploads == beforeReflowUploads && calls.copies == beforeReflowCopies,
           "width-only reflow reuses completed raster bitmaps without uploading or copying tiles");
     const auto reflowPixels = render(whole);
     PreparedSemanticGeometry fresh;
@@ -618,8 +621,8 @@ static void TestRichImageRasterFailureAndBudgets()
     options.widthDip = 360.f;
     const auto afterTilesUploads = calls.uploads, afterTilesCopies = calls.copies;
     tiled.Begin(write.get(), tiledDocument, options, drawing.get(), {epoch, epoch}, tiledImages, target.get());
-    runTiled(tiled, 28u);
-    Check(calls.uploads == afterTilesUploads && calls.copies == afterTilesCopies && render(tiled) == reflowPixels,
+    const auto tiledReflowBytes = runTiled(tiled, 28u);
+    Check(! tiledReflowBytes && calls.uploads == afterTilesUploads && calls.copies == afterTilesCopies && render(tiled) == reflowPixels,
           "width reflow shares a fully tiled bitmap without further copies and preserves fresh geometry pixels");
     options.widthDip = 400.f;
     const auto rowUploads = calls.uploads;
