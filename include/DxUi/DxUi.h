@@ -3373,7 +3373,7 @@ private:
     [[nodiscard]] uint64_t FileDropEpoch() const noexcept;
     bool CommitFileDrop(FileDropPosition position, const TextClipboardContent& content);
     void Changed(bool sourceChanged, bool synchronizeTextInput = true);
-    void SelectionChanged(bool synchronizeTextInput = true, bool preservePreferredCaretX = false, bool publishSelection = true);
+    void SelectionChanged(bool synchronizeTextInput = true, bool preservePreferredCaretX = false, bool publishSelection = true, bool revealCaret = true);
     void PublishSelectionChanged() noexcept;
     void MoveCaret(ControlHost& host, UINT key, bool extend, bool byWord);
     bool Erase(ControlHost& host, bool backwards);

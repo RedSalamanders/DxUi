@@ -82,6 +82,8 @@ public:
         // excludes retained published local jobs, so this retires remote work
         // without canceling a local decode already held by the application.
         next_.reset();
+        for (auto& entry : entries_)
+            entry.failed = false;
         remoteEnabled_ = enabled;
         policyChanged_ = true;
     }
@@ -174,8 +176,12 @@ public:
             {
                 if (stage.entries.size() == MaximumSources)
                     continue;
-                const auto held = std::ranges::find_if(entries_, [&](const auto& entry) {
-                    return (entry.image || (entry.pending && ! entry.request->cancelled.load(std::memory_order_relaxed))) && sameSource(entry);
+                const auto held = std::ranges::find_if(entries_,
+                                                       [&](const auto& entry)
+                {
+                    return (entry.image || (entry.failed && location_ == stage.location && binding_ == stage.binding) ||
+                            (entry.pending && ! entry.request->cancelled.load(std::memory_order_relaxed))) &&
+                           sameSource(entry);
                 });
                 if (held != entries_.end())
                     stage.entries.push_back(*held);
@@ -185,7 +191,7 @@ public:
                         throw std::overflow_error("image request identity exhausted");
                     auto request = std::make_shared<RichImageRequestState>(*path, ++nextId_, kind);
                     stage.introduced.push_back(request);
-                    stage.entries.push_back({std::move(request), {}, true, false});
+                    stage.entries.push_back({std::move(request), {}, true, false, false});
                 }
                 found = std::prev(stage.entries.end());
             }
@@ -247,6 +253,7 @@ public:
         if (fits)
             snapshot = MakeSnapshot(entries_, bindings_, static_cast<std::size_t>(found - entries_.begin()), image);
         found->pending = false;
+        found->failed  = ! fits;
         found->request->cancelled.store(true, std::memory_order_relaxed);
         if (fits)
         {
@@ -290,7 +297,7 @@ private:
     {
         std::shared_ptr<RichImageRequestState> request;
         std::shared_ptr<const RichImage> image;
-        bool pending{}, dispatched{};
+        bool pending{}, dispatched{}, failed{};
     };
     struct Binding
     {

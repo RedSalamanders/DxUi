@@ -74,6 +74,24 @@ void TestRichTextOleAdapterRevocation()
     data->bytes              = RichImagePathTests::DropBuffer(std::wstring_view(list, std::size(list)));
     auto receiver            = std::make_shared<DropReceiver>();
     RichFileDropAdapter adapter;
+    HRESULT mtaAttach           = S_OK;
+    HRESULT uninitializedAttach = S_OK;
+    std::thread apartmentCheck([&]
+    {
+        RichFileDropAdapter foreign;
+        uninitializedAttach       = foreign.Attach(receiver);
+        const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        if (SUCCEEDED(initialized))
+        {
+            mtaAttach = foreign.Attach(receiver);
+            CoUninitialize();
+        }
+        else
+            mtaAttach = initialized;
+    });
+    apartmentCheck.join();
+    Require((uninitializedAttach == CO_E_NOTINITIALIZED || uninitializedAttach == RPC_E_WRONG_THREAD) && mtaAttach == RPC_E_WRONG_THREAD,
+            "an uninitialized or MTA thread cannot attach an OLE drop target");
     RequireSucceeded(adapter.Attach(receiver), "attach revocable OLE adapter");
     wil::com_ptr<IDropTarget> retained = adapter.Target();
     DWORD effect                       = DROPEFFECT_COPY;

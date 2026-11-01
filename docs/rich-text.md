@@ -329,7 +329,7 @@ The caller initializes COM and supplies its WIC factory. It marshals the result
 back to the owner and calls `CompleteImageRequest`; a null result preserves the
 alternative. Source/base/binding/visibility changes cancel tokens and reject stale
 completion. Selection-only changes do not invalidate a file. `ReloadImages`
-explicitly refreshes the cache; the control does not watch the filesystem.
+explicitly refreshes the cache; failed completions stay cached across unrelated edits until reload, document location or remote-image policy changes. The control does not watch the filesystem.
 `Samples/EmbeddedControls/RichImageLoader.h` demonstrates one application-owned
 threadpool callback, fixed queues and owner messages. Its default policy declines
 UNC access; an application can explicitly authorize network files. Neither the

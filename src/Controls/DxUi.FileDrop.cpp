@@ -159,6 +159,13 @@ try
         return E_INVALIDARG;
     if (_state && _state->thread != GetCurrentThreadId())
         return RPC_E_WRONG_THREAD;
+    APTTYPE apartment{};
+    APTTYPEQUALIFIER qualifier{};
+    const HRESULT apartmentResult = CoGetApartmentType(&apartment, &qualifier);
+    if (FAILED(apartmentResult))
+        return apartmentResult;
+    if (apartment != APTTYPE_STA && apartment != APTTYPE_MAINSTA)
+        return RPC_E_WRONG_THREAD;
     Detach();
     auto state      = std::make_shared<State>();
     state->thread   = GetCurrentThreadId();

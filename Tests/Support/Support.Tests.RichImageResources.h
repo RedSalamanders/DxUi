@@ -285,5 +285,18 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
     check(editor.CompleteImageRequest(requests[0], {}), "missing/unsupported decode is an accepted fallback result");
     editor.TakePendingImageRequests(requests);
     check(requests.empty() && editor.GetImageResourceStatistics().failedSources == 1u, "failed image keeps its alternative without an idle retry loop");
+    editor.SetSelection({0u, 0u});
+    check(editor.ReplaceSelection(L"unrelated "), "unrelated edit commits with failed image retained");
+    prepare();
+    editor.TakePendingImageRequests(requests);
+    check(requests.empty() && editor.GetImageResourceStatistics().failedSources == 1u, "failed image is not requested again after unrelated source edits");
+    editor.ReloadImages();
+    prepare();
+    editor.TakePendingImageRequests(requests);
+    check(requests.size() == 1u && editor.CompleteImageRequest(requests[0], {}), "explicit reload retries a failed image");
+    editor.SetRemoteImagesEnabled(! editor.RemoteImagesEnabled());
+    prepare();
+    editor.TakePendingImageRequests(requests);
+    check(requests.size() == 1u, "policy changes retry retained failed sources");
 }
 } // namespace RichImageResourceTests

@@ -974,7 +974,7 @@ character pairs never enter the model. AltGr Unicode entry remains accepted.
 `SynchronizeReadOnlySourceSnapshot(snapshot, selection)` is an owner-thread setter for a read-only Source view.
 It shares the immutable source tree without materializing a replacement string or copying source revision counters.
 Changed source advances the target's own monotonic revision, clears only its undo/redo history, and retires the same
-highlights, image/source-edit state, accessibility and prepared geometry as `SetText`; ordinary selection/text-service
+highlights, image/source-edit state and accessibility as `SetText`. It invalidates stale geometry while retaining reusable immutable chunks and the mirror scroll offset, clamped to the new extent; ordinary selection/text-service
 publication runs last. The parser remains independent and publishes at the target revision. Same-snapshot selection
 changes follow `SetSelection`, including clearing visual caret affinity; identical snapshot/selection is idempotent.
 An absent snapshot, invalid scalar/CRLF boundary, exhausted target revision or incompatible target profile returns
@@ -1072,7 +1072,7 @@ cancellation and source/base/binding/visibility validation at owner completion.
 The caller authorizes file access, including any UNC policy. Source replacement,
 presentation withdrawal, hide/rebind/destruction MUST cancel old jobs; completed
 pixels MAY survive unrelated edits and device replacement. Failed/capacity
-completion MUST stop idle retries while preserving editable source/alternative.
+completion MUST remain cached across unrelated source edits while preserving editable source/alternative. Explicit reload, document location or remote-image policy changes retry failed sources.
 Resource-only completion MUST NOT edit source/history/selection or cancel IME.
 Request preparation processes at most four image candidates per owner turn;
 caller adapters MUST wake valid queued work when draining or cancel-pruning

@@ -203,13 +203,25 @@ bool RichTextEditor::SynchronizeReadOnlySourceSnapshot(const RichText::SourceSna
         _state->markdownCapacityRejected.reset();
         _state->nativeGeometryRejected.reset();
         RetireSemanticAccessibility();
-        _state->scrollDip = 0.0f;
-        RetireLayout();
+        _state->sourceInk.Clear();
+        _state->hoveredLink.reset();
+        _state->caretLink.reset();
+        _state->taskPressPlan.reset();
+        ++_state->fileDropEpoch;
+        if (_state->layout.HasPendingPreparation())
+            ++_state->cancelledPreparations;
+        _state->layout.Invalidate();
+        _state->markdown.Cancel();
+        _state->semantic.Cancel();
+        _state->semanticRejected.reset();
+        _state->markdownRequestActive = false;
+        _state->requestActive         = false;
+        RequestContentPreparation(false);
     }
     _state->sourceCaretSite = RichText::MarkdownNoNode;
     // Match SetText/SetSelection notification ordering, including TSF synchronization and UIA publication.
     // Keep this as the final operation because owner callbacks may re-enter or retire the control.
-    SelectionChanged();
+    SelectionChanged(true, false, true, false);
     return true;
 }
 HRESULT RichTextEditor::TryAdoptReadOnlyMarkdownSyntax(const RichText::SourceSnapshot& source,
@@ -1216,6 +1228,7 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
     if (sourceChanged)
     {
         _state->images.Cancel();
+        _state->hoveredLink.reset();
         UpdateSemanticSourceRegion();
         RetireSemanticAccessibility();
         _state->taskPressPlan.reset();
@@ -1275,7 +1288,7 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
     if (deferSelectionPublication && ! lifetime.expired() && GetHost() == host && Revision() == revision && _state->bindingRevision == binding)
         PublishSelectionChanged();
 }
-void RichTextEditor::SelectionChanged(bool synchronizeTextInput, bool preservePreferredCaretX, bool publishSelection)
+void RichTextEditor::SelectionChanged(bool synchronizeTextInput, bool preservePreferredCaretX, bool publishSelection, bool revealCaret)
 {
     ++_state->fileDropEpoch;
     if (_state->sourceEditing)
@@ -1292,7 +1305,7 @@ void RichTextEditor::SelectionChanged(bool synchronizeTextInput, bool preservePr
     _state->pendingLeadSurrogate = 0;
     if (! preservePreferredCaretX)
         _state->preferredCaretX.reset();
-    _state->revealCaret  = true;
+    _state->revealCaret  = revealCaret;
     _state->caretVisible = true;
     _state->blinkEpoch.reset();
     UpdateCaretLinkDisplayRange();

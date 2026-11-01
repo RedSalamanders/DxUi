@@ -558,6 +558,21 @@ void ScrollingCommands(bool embedded)
             "scrolling changes neither source nor selection nor history");
     Require(! fixture.editor->ScrollSourceRangeIntoView(*fixture.controls, source.size() + 1, source.size() + 1, true),
             "public scroll rejects invalid source bounds");
+    RichText::Document primary(source);
+    Require(fixture.editor->SynchronizeReadOnlySourceSnapshot(primary.Snapshot(), {0u, 0u}), "seed source mirror from primary");
+    fixture.Publish();
+    const auto middle = source.find(L"line40");
+    Require(fixture.editor->ScrollSourceRangeIntoView(*fixture.controls, middle, middle, true), "scroll source mirror independently");
+    fixture.Publish();
+    const auto mirrorOffset = fixture.editor->DebugGetState().scrollOffsetDip;
+    Require(mirrorOffset > 0.0f, "source mirror has a nonzero independent scroll offset");
+    primary.SetSelection({primary.Length(), primary.Length()});
+    Require(primary.ReplaceSelection(L"tail"), "edit primary outside the mirror viewport");
+    Require(fixture.editor->SynchronizeReadOnlySourceSnapshot(primary.Snapshot(), {0u, 0u}), "synchronize changed primary snapshot");
+    fixture.Publish();
+    const auto mirrorState = fixture.editor->DebugGetState();
+    Require(mirrorState.scrollOffsetDip == mirrorOffset && mirrorState.reusedGeometryChunks > 0u,
+            "source synchronization preserves independent scroll and reuses unchanged positioned chunks");
     fixture.editor->SetText(L"");
     fixture.Publish();
     RequireSucceeded(text->get_DocumentRange(document.put()), "empty source range");
