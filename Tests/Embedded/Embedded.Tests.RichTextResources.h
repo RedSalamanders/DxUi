@@ -228,7 +228,9 @@ static void TestRichPageAuthoredColors(GraphicsFixture& gpu)
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create colored-page graphics");
     EmbeddedHost view;
     Hr(view.Attach(graphics), "attach colored-page host");
-    auto owned            = std::make_unique<RichTextEditor>(L"```mermaid\nflowchart TD\nA[Alpha]-->B[Beta]\nstyle A fill:#000,color:#fff\n```\n");
+    // The authored fill must also contrast with the effective stroke: a black
+    // fallback stroke on black fill intentionally causes palette rejection.
+    auto owned = std::make_unique<RichTextEditor>(L"```mermaid\nflowchart TD\nA[Alpha]-->B[Beta]\nstyle A fill:#000,stroke:#fff,color:#fff\n```\n");
     auto* editor          = owned.get();
     auto appearance       = editor->GetAppearance();
     appearance.paddingDip = 0.f;
