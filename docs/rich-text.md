@@ -135,6 +135,8 @@ strike, Ctrl+backtick for code and Ctrl+K for the consumer's link-edit request.
 The feature is disabled by default. `QueryMarkdownCommandState` returns current
 style/heading/list presentation and explicitly unknown applicability where a
 nonallocating planner predicate is not yet available.
+The structural backward-join command removes a heading marker when the caret
+is at the start of its content; ordinary text inside the heading is unaffected.
 `GetSourceCaretLocation()` reports a zero-based logical source line and UTF-16
 column, independent of visual wrapping; its scan is allocation-free and linear
 in the source prefix. CRLF counts as one line break.

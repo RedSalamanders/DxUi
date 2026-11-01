@@ -2123,9 +2123,17 @@ void MarkdownCommandPlanner::Join(bool backwards)
     if (plan.before_.anchor != plan.before_.caret)
         return;
     const auto current = LeafAt(plan.before_.caret);
-    if (current == MarkdownNoNode || nodes[current].block.kind != Kind::Paragraph || nodes[current].lines.empty())
+    if (current == MarkdownNoNode || nodes[current].lines.empty())
         return;
     const auto visible = VisibleBody(current);
+    if (backwards && (nodes[current].block.kind == Kind::AtxHeading || nodes[current].block.kind == Kind::SetextHeading))
+    {
+        if (plan.before_.caret <= visible.first)
+            Heading(0u);
+        return;
+    }
+    if (nodes[current].block.kind != Kind::Paragraph)
+        return;
     if (backwards ? plan.before_.caret > visible.first : plan.before_.caret < visible.last)
         return;
     const auto item = Ancestor(current, Kind::ListItem);

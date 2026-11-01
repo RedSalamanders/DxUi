@@ -1315,6 +1315,9 @@ notification or lifecycle guards. RichTextEditor exposes its own ApplySourceEdit
 adapter through the existing Changed/SelectionChanged path, enforcing those
 guards and invalidating stale parser/geometry access before notification. It
 preserves the pure helper's single history entry and exact source coordinates.
+At the start of a heading's visible content, `JoinBackward` removes its ATX or
+setext heading spelling through the same structural heading conversion; inside
+the heading it remains unavailable. The operation is a single undo transaction.
 `SourceSnapshot::LocationAt` and `RichTextEditor::GetSourceCaretLocation` return
 zero-based logical source line and UTF-16 column, treating CRLF as one break.
 They visit immutable source pieces without allocating or flattening, in time
