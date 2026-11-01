@@ -1089,6 +1089,7 @@ struct MarkdownCommandPlanner
     void ThematicBreak();
     void Image(const MarkdownCommandRequest& request);
     void ClearFormatting();
+    void EscapedText(const MarkdownCommandRequest& request);
     void Join(bool backwards);
     void Style(MarkdownTextStyle style);
     void Link(const MarkdownCommandRequest& request, bool remove);
@@ -2029,6 +2030,33 @@ std::wstring AttributeSource(std::wstring_view value, bool markdown = true)
     return std::wstring(result);
 }
 } // namespace
+void MarkdownCommandPlanner::EscapedText(const MarkdownCommandRequest& request)
+{
+    std::size_t leaf{};
+    if (! InlineSelection(leaf))
+        return;
+    const auto first = plan.before_.Start(), last = plan.before_.End();
+    for (const auto& node : plan.syntax_->Inlines())
+    {
+        const bool intersects = first == last ? node.source.first < first && first < node.source.last : node.source.first < last && node.source.last > first;
+        if (node.kind == MarkdownInlineKind::Text || ! intersects)
+            continue;
+        const bool style =
+            node.kind == MarkdownInlineKind::Strong || node.kind == MarkdownInlineKind::Emphasis || node.kind == MarkdownInlineKind::Strikethrough;
+        const auto body = style ? InlineBody(node) : std::nullopt;
+        if (! body || first < body->first || last > body->last)
+            return;
+    }
+    const auto payload = first == last ? request.text : Slice(first, last);
+    if (payload.empty() || ! IsValidUtf16(payload) || payload.find_first_of(L"\r\n") != payload.npos)
+        return;
+    const auto insertion = LiteralMarkdown(payload);
+    Add(first, last, insertion);
+    const auto end    = first + insertion.size();
+    plan.after_       = {end, end};
+    explicitSelection = true;
+    plan.applicable_  = true;
+}
 void MarkdownCommandPlanner::Image(const MarkdownCommandRequest& request)
 {
     const bool relative = NativeHtmlDestination(request.destination) && request.destination.find(L':') == request.destination.npos;
@@ -2829,6 +2857,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
         case ::DxUi::RichText::MarkdownCommand::InsertImage:
         case ::DxUi::RichText::MarkdownCommand::ExitCodeBlock:
         case ::DxUi::RichText::MarkdownCommand::ClearFormatting:
+        case ::DxUi::RichText::MarkdownCommand::InsertEscapedText:
         default: return;
     }
     plan.applicable_ = true;
@@ -3021,7 +3050,7 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
 {
     if (request.text.size() > Document::MaximumUnits || request.destination.size() > Document::MaximumUnits || request.title.size() > Document::MaximumUnits)
         throw std::length_error("Structural request text exceeds source capacity");
-    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::ClearFormatting))
+    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::InsertEscapedText))
         throw std::invalid_argument("Invalid Markdown command");
     Detail::MarkdownCommandPlanner builder(source, revision, std::move(syntax), selection);
     // Resolved definitions own editable content, while the label and
@@ -3062,6 +3091,7 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
         case MarkdownCommand::InsertImage: builder.Image(request); break;
         case MarkdownCommand::ExitCodeBlock: builder.ExitCode(); break;
         case MarkdownCommand::ClearFormatting: builder.ClearFormatting(); break;
+        case MarkdownCommand::InsertEscapedText: builder.EscapedText(request); break;
         case MarkdownCommand::InsertTable:
         case MarkdownCommand::InsertTableRow:
         case MarkdownCommand::DeleteTableRow:
