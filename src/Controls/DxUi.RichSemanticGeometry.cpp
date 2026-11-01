@@ -23,6 +23,7 @@
 #pragma warning(disable : 4746)
 #include <wrl/implements.h>
 #pragma warning(pop)
+#pragma comment(lib, "shlwapi.lib")
 
 namespace DxUi::RichText::Detail
 {

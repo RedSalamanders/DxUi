@@ -1,5 +1,6 @@
 #pragma once
 #include "Controls/DxUi.RichImageResources.h"
+#include "Controls/DxUi.RichSemanticGeometry.h"
 #include "Support.Tests.RichImage.h"
 #include <DxUi/DxUi.h>
 #include <cmath>

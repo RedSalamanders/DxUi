@@ -8,6 +8,7 @@
 #include <wil/resource.h>
 #include <wincodec.h>
 #include <xmllite.h>
+#pragma comment(lib, "shlwapi.lib")
 #pragma comment(lib, "xmllite.lib")
 
 namespace DxUi::RichText
