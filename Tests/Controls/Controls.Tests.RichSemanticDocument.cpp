@@ -222,12 +222,13 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
     if (! isolatedFence->VariantLayouts().empty())
     {
 #if DXUI_ENABLE_DIAGNOSTICS
-        const auto previousGlyphFailure = Detail::testRichMathGlyphMetricsFailure;
-        const auto restoreGlyphFailure = wil::scope_exit([previousGlyphFailure]() noexcept { Detail::testRichMathGlyphMetricsFailure = previousGlyphFailure; });
-        auto expression                = std::make_shared<const MathExpression>(ParseMath(L"\\Big("));
-        Detail::PreparedMath failedMetrics(factory.get(), expression, 24.f);
-        Detail::testRichMathGlyphMetricsFailure = E_OUTOFMEMORY;
-        HRESULT failureCode                     = S_OK;
+        const auto previousGlyphFailure = DxUi::RichText::Detail::testRichMathGlyphMetricsFailure;
+        const auto restoreGlyphFailure =
+            wil::scope_exit([previousGlyphFailure]() noexcept { DxUi::RichText::Detail::testRichMathGlyphMetricsFailure = previousGlyphFailure; });
+        auto expression = std::make_shared<const MathExpression>(ParseMath(L"\\Big("));
+        DxUi::RichText::Detail::PreparedMath failedMetrics(factory.get(), expression, 24.f);
+        DxUi::RichText::Detail::testRichMathGlyphMetricsFailure = E_OUTOFMEMORY;
+        HRESULT failureCode                                     = S_OK;
         try
         {
             while (! failedMetrics.Advance())
@@ -238,28 +239,29 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
         {
             failureCode = failure.GetErrorCode();
         }
-        Require(failureCode == E_OUTOFMEMORY && Detail::testRichMathGlyphMetricsFailure == S_OK,
+        Require(failureCode == E_OUTOFMEMORY && DxUi::RichText::Detail::testRichMathGlyphMetricsFailure == S_OK,
                 "font glyph metrics preserve transient allocation HRESULT instead of publishing fallback geometry");
-        Detail::PreparedMath recoveredMetrics(factory.get(), expression, 24.f);
+        DxUi::RichText::Detail::PreparedMath recoveredMetrics(factory.get(), expression, 24.f);
         while (! recoveredMetrics.Advance())
         {
         }
         Require(! recoveredMetrics.VariantLayouts().empty(), "fresh formula preparation retries the same font glyph after a transient failure");
-        Detail::PreparedMath unsupportedMetrics(factory.get(), expression, 24.f);
-        Detail::testRichMathGlyphMetricsFailure = DWRITE_E_UNSUPPORTEDOPERATION;
+        DxUi::RichText::Detail::PreparedMath unsupportedMetrics(factory.get(), expression, 24.f);
+        DxUi::RichText::Detail::testRichMathGlyphMetricsFailure = DWRITE_E_UNSUPPORTEDOPERATION;
         while (! unsupportedMetrics.Advance())
         {
         }
         Require(unsupportedMetrics.VariantLayouts().empty() && ! unsupportedMetrics.StrokeLayouts().empty(),
                 "the explicitly unsupported font operation retains the bounded vector fallback");
-        const auto previousIndexFailure = Detail::testRichMathGlyphIndexFailure;
-        const auto restoreIndexFailure  = wil::scope_exit([previousIndexFailure]() noexcept { Detail::testRichMathGlyphIndexFailure = previousIndexFailure; });
+        const auto previousIndexFailure = DxUi::RichText::Detail::testRichMathGlyphIndexFailure;
+        const auto restoreIndexFailure =
+            wil::scope_exit([previousIndexFailure]() noexcept { DxUi::RichText::Detail::testRichMathGlyphIndexFailure = previousIndexFailure; });
         for (const auto source : {L"x", L"\\Big("})
         {
             auto indexExpression = std::make_shared<const MathExpression>(ParseMath(source));
-            Detail::PreparedMath failedIndex(factory.get(), indexExpression, 24.f);
-            Detail::testRichMathGlyphIndexFailure = E_OUTOFMEMORY;
-            HRESULT indexFailure                  = S_OK;
+            DxUi::RichText::Detail::PreparedMath failedIndex(factory.get(), indexExpression, 24.f);
+            DxUi::RichText::Detail::testRichMathGlyphIndexFailure = E_OUTOFMEMORY;
+            HRESULT indexFailure                                  = S_OK;
             try
             {
                 while (! failedIndex.Advance())
@@ -270,7 +272,7 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
             {
                 indexFailure = failure.GetErrorCode();
             }
-            Require(indexFailure == E_OUTOFMEMORY && Detail::testRichMathGlyphIndexFailure == S_OK,
+            Require(indexFailure == E_OUTOFMEMORY && DxUi::RichText::Detail::testRichMathGlyphIndexFailure == S_OK,
                     "italic correction and delimiter glyph-index failures preserve the transient HRESULT");
         }
 #endif

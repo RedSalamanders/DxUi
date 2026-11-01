@@ -1799,7 +1799,7 @@ inline void NativeMathHRESULTFailureContainment(ControlHost& host)
     {
         SemanticWriteFactoryOverride override(host);
         auto expression = std::make_shared<const MathExpression>(ParseMath(L"\\Big("));
-        Detail::PreparedMath probe(override.Get(), expression, 24.f);
+        RichText::Detail::PreparedMath probe(override.Get(), expression, 24.f);
         while (! probe.Advance())
         {
         }
@@ -1808,11 +1808,11 @@ inline void NativeMathHRESULTFailureContainment(ControlHost& host)
             constexpr std::wstring_view source = L"$\\Big($\n";
             auto* editor                       = install(std::wstring(source));
             editor->SetSelection({1u, 1u});
-            const auto priorFailure                 = Detail::testRichMathGlyphMetricsFailure;
-            const auto restoreFailure               = wil::scope_exit([priorFailure]() noexcept { Detail::testRichMathGlyphMetricsFailure = priorFailure; });
-            Detail::testRichMathGlyphMetricsFailure = E_OUTOFMEMORY;
-            const auto failed                       = PrepareUntilSettled(*editor, host);
-            Check(failed == E_OUTOFMEMORY && Detail::testRichMathGlyphMetricsFailure == S_OK,
+            const auto priorFailure   = RichText::Detail::testRichMathGlyphMetricsFailure;
+            const auto restoreFailure = wil::scope_exit([priorFailure]() noexcept { RichText::Detail::testRichMathGlyphMetricsFailure = priorFailure; });
+            RichText::Detail::testRichMathGlyphMetricsFailure = E_OUTOFMEMORY;
+            const auto failed                                 = PrepareUntilSettled(*editor, host);
+            Check(failed == E_OUTOFMEMORY && RichText::Detail::testRichMathGlyphMetricsFailure == S_OK,
                   "glyph-metrics allocation HRESULT stays retryable instead of publishing fallback");
             Check(PrepareUntilSettled(*editor, host) == S_OK, "glyph-metrics allocation failure retries for the unchanged key");
             const auto recovered = editor->GetAcknowledgedSemanticDocument(host);
