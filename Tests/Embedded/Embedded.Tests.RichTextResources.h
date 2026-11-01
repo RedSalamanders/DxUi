@@ -2222,7 +2222,10 @@ static void TestPreparedFlowchartAllocationFailures(bool trace = false)
         const auto graph = capacity ? huge : rich;
         LayoutOptions options;
         if (capacity)
+        {
             options.fontSizeDip = 512.0f;
+            options.diagramLabelWidthDip = 1.0f;
+        }
         std::size_t requests{};
         {
             PreparedFlowchart prepared;
@@ -2240,6 +2243,8 @@ static void TestPreparedFlowchartAllocationFailures(bool trace = false)
             Complete(prepared, Check);
             countAllocations = false;
             requests         = allocations;
+            Check(capacity ? ! prepared.Ready() && prepared.Geometry()->nodes.empty() : prepared.Ready(),
+                  "capacity and prepared scenarios start from independently observed outcomes");
             Check(requests > 0u && requests < 128u, "native diagram has a bounded observed C++ preparation allocation schedule");
         }
         for (std::size_t failure = 0u; failure < requests; ++failure)
