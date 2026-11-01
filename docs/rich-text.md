@@ -1443,7 +1443,7 @@ colon members and bounded multiline `class Name { ... }` member blocks, directed
 State/class layouts use the deterministic native graph router; members are plain
 multiline node labels. Inheritance uses a hollow triangle without a line through its
 interior. Flowchart stadiums use capsule outlines and shape-aware connection ports;
-grouped/chained endpoints expand into bounded Cartesian edge products in source order. Flowchart edges support dotted `-.->` / `-.-`, thick `==>` / `===`, and invisible `~~~` layout constraints; invisible edge labels remain unsupported.
+grouped/chained endpoints expand into bounded Cartesian edge products in source order. Flowchart edges support dotted `-.->` / `-.-`, thick `==>` / `===`, and invisible `~~~` layout constraints. Visible solid, dotted and thick edges accept bounded plain inline text (for example `A -- text --> B`, `A -. text .-> B`, `A == text ==> B`); invisible edge labels remain unsupported.
 This is not
 Mermaid coordinate compatibility. Composite states, class namespaces/generics,
 class compartments, relationship multiplicities, stereotypes, styling,

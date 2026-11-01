@@ -505,7 +505,51 @@ struct NativeFlowchartParser::Preparation
                              edgeStart,
                              std::min(end, at + (relationText.starts_with(L"<|..") ? 4u : 3u)),
                              FlowchartOutcome::Unsupported);
-            if (model->family == NativeDiagramFamily::Class && (Text().substr(at, 4u) == L"<|--" || Text().substr(at, 4u) == L"--|>"))
+            bool inlineLabel = false;
+            if (model->family == NativeDiagramFamily::Flowchart)
+            {
+                struct InlineOperator
+                {
+                    std::wstring_view prefix;
+                    std::wstring_view arrow;
+                    std::wstring_view line;
+                    FlowchartLineStyle style;
+                };
+                constexpr std::array operators{InlineOperator{L"--", L"-->", L"---", FlowchartLineStyle::Solid},
+                                               InlineOperator{L"-.", L".->", L".-", FlowchartLineStyle::Dotted},
+                                               InlineOperator{L"==", L"==>", L"===", FlowchartLineStyle::Thick}};
+                for (const auto& op : operators)
+                {
+                    const auto labelStart = at + op.prefix.size();
+                    if (! relationText.starts_with(op.prefix) || labelStart >= end || ! Space(Text()[labelStart]))
+                        continue;
+                    auto begin = labelStart;
+                    Skip(begin, end);
+                    auto close = begin;
+                    while (close < end && ! Text().substr(close, op.arrow.size()).starts_with(op.arrow) &&
+                           ! Text().substr(close, op.line.size()).starts_with(op.line))
+                        ++close;
+                    auto labelEnd = close;
+                    while (labelEnd > begin && Space(Text()[labelEnd - 1u]))
+                        --labelEnd;
+                    if (close == end || labelEnd == begin)
+                        return Error(FlowchartIssue::UnsupportedEdge, edgeStart, end, FlowchartOutcome::Unsupported);
+                    auto labelAt = begin;
+                    if (! PlainText(labelAt, labelEnd, edge.label))
+                        return false;
+                    edge.arrow    = Text().substr(close, op.arrow.size()) == op.arrow;
+                    edge.relation = edge.arrow ? FlowchartRelation::Arrow : FlowchartRelation::Line;
+                    edge.style    = op.style;
+                    at            = close + (edge.arrow ? op.arrow.size() : op.line.size());
+                    inlineLabel   = true;
+                    break;
+                }
+            }
+            if (inlineLabel)
+            {
+                // The operator and its bounded plain-text label are already consumed.
+            }
+            else if (model->family == NativeDiagramFamily::Class && (Text().substr(at, 4u) == L"<|--" || Text().substr(at, 4u) == L"--|>"))
             {
                 reverse       = Text()[at] == L'<';
                 edge.arrow    = true;
@@ -571,7 +615,7 @@ struct NativeFlowchartParser::Preparation
             {
                 if (model->family != NativeDiagramFamily::Flowchart)
                     return Error(FlowchartIssue::UnsupportedEdge, edgeStart, at + 1u, FlowchartOutcome::Unsupported);
-                if (edge.style == FlowchartLineStyle::Invisible)
+                if (inlineLabel || edge.style == FlowchartLineStyle::Invisible)
                     return Error(FlowchartIssue::UnsupportedEdge, edgeStart, at + 1u, FlowchartOutcome::Unsupported);
                 ++at;
                 if (! Label(at, end, L'|', edge.label))

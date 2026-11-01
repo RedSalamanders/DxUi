@@ -421,7 +421,7 @@ template <typename Check> inline void CheckOriginalCorpus(Check&& check)
                       result->diagnostic.source.first < result->diagnostic.source.last && result->diagnostic.source.last <= result->source.size(),
                   "unsupported original family examples retain their independently classified diagnostic and exact source fallback");
     }
-    check(prepared == 19u && unsupported == 86u && std::size(NativeFlowchartCorpus::familyExamples) == 20u,
+    check(prepared == 25u && unsupported == 80u && std::size(NativeFlowchartCorpus::familyExamples) == 20u,
           "Mermaid corpus has no omitted examples/families and separates graph preparation from rejection");
     CheckFamilyGrammar(check);
     CheckFanout(check);
@@ -606,6 +606,35 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
     const auto invalidInvisible = Complete(parser);
     check(invalidInvisible->outcome == FlowchartOutcome::Unsupported && invalidInvisible->nodes.empty() && invalidInvisible->edges.empty(),
           "an unsupported invisible-edge label retains source instead of silently displaying it");
+    for (const auto& item : {LineCase{L"-- hello world -->", FlowchartLineStyle::Solid, true},
+                             LineCase{L"-- hello world ---", FlowchartLineStyle::Solid, false},
+                             LineCase{L"-. hello world .->", FlowchartLineStyle::Dotted, true},
+                             LineCase{L"-. hello world .-", FlowchartLineStyle::Dotted, false},
+                             LineCase{L"== hello world ==>", FlowchartLineStyle::Thick, true},
+                             LineCase{L"== hello world ===", FlowchartLineStyle::Thick, false}})
+    {
+        const auto source = L"flowchart LR\nA " + std::wstring(item.token) + L" B\n";
+        parser.Begin(source, 23u);
+        const auto result = Complete(parser);
+        check(result->outcome == FlowchartOutcome::Prepared && result->source == source && result->edges.size() == 1u &&
+                  result->edges[0u].style == item.style && result->edges[0u].arrow == item.arrow && result->edges[0u].label == L"hello world",
+              "inline edge labels retain text, line style and arrow semantics");
+    }
+    for (const auto source : {L"flowchart LR\nA -- missing B\n", L"flowchart LR\nA -- text -->|other| B\n"})
+    {
+        parser.Begin(source, 24u);
+        const auto result = Complete(parser);
+        check(result->outcome == FlowchartOutcome::Unsupported && result->source == source && result->nodes.empty() && result->edges.empty(),
+              "incomplete or doubly labelled inline edges preserve exact source");
+    }
+    std::wstring oversizedInline = L"flowchart LR\nA -- ";
+    oversizedInline.append(NativeFlowchartParser::MaximumLabelUnits + 1u, L'x');
+    oversizedInline += L" --> B\n";
+    parser.Begin(oversizedInline, 25u);
+    const auto inlineCapacity = Complete(parser);
+    check(inlineCapacity->outcome == FlowchartOutcome::Capacity && inlineCapacity->diagnostic.issue == FlowchartIssue::LabelCapacity &&
+              inlineCapacity->source == oversizedInline && inlineCapacity->nodes.empty() && inlineCapacity->edges.empty(),
+          "oversized inline edge text retains source and publishes no partial graph");
     std::wstring oversizedMember = L"classDiagram\nclass A {\n+";
     oversizedMember.append(NativeFlowchartParser::MaximumLabelUnits, L'x');
     oversizedMember.append(L"\n}\n");

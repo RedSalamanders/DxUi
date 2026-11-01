@@ -760,14 +760,14 @@
   },
   {
     "id": 70,
-    "outcome": "Unsupported",
-    "nodes": 0,
-    "edges": 0,
-    "direction": "TopBottom",
-    "reason": "expanded-edge-syntax",
-    "issue": "UnsupportedEdge",
-    "diagnosticFirst": 18,
-    "diagnosticLast": 43
+    "outcome": "Prepared",
+    "nodes": 2,
+    "edges": 1,
+    "direction": "LeftRight",
+    "reason": "inline-edge-text",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 71,
@@ -793,14 +793,14 @@
   },
   {
     "id": 73,
-    "outcome": "Unsupported",
-    "nodes": 0,
-    "edges": 0,
-    "direction": "TopBottom",
-    "reason": "expanded-edge-syntax",
-    "issue": "UnsupportedEdge",
-    "diagnosticFirst": 18,
-    "diagnosticLast": 30
+    "outcome": "Prepared",
+    "nodes": 2,
+    "edges": 1,
+    "direction": "LeftRight",
+    "reason": "inline-edge-text",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 74,
@@ -815,14 +815,14 @@
   },
   {
     "id": 75,
-    "outcome": "Unsupported",
-    "nodes": 0,
-    "edges": 0,
-    "direction": "TopBottom",
-    "reason": "expanded-edge-syntax",
-    "issue": "UnsupportedEdge",
-    "diagnosticFirst": 17,
-    "diagnosticLast": 30
+    "outcome": "Prepared",
+    "nodes": 2,
+    "edges": 1,
+    "direction": "LeftRight",
+    "reason": "inline-edge-text",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 76,
@@ -837,14 +837,14 @@
   },
   {
     "id": 77,
-    "outcome": "Unsupported",
-    "nodes": 0,
-    "edges": 0,
-    "direction": "TopBottom",
-    "reason": "expanded-edge-syntax",
-    "issue": "UnsupportedEdge",
-    "diagnosticFirst": 18,
-    "diagnosticLast": 31
+    "outcome": "Prepared",
+    "nodes": 2,
+    "edges": 1,
+    "direction": "LeftRight",
+    "reason": "inline-edge-text",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 78,
@@ -859,14 +859,14 @@
   },
   {
     "id": 79,
-    "outcome": "Unsupported",
-    "nodes": 0,
-    "edges": 0,
-    "direction": "TopBottom",
-    "reason": "expanded-edge-syntax",
-    "issue": "UnsupportedEdge",
-    "diagnosticFirst": 18,
-    "diagnosticLast": 46
+    "outcome": "Prepared",
+    "nodes": 3,
+    "edges": 2,
+    "direction": "LeftRight",
+    "reason": "inline-edge-text",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 80,
@@ -1068,14 +1068,14 @@
   },
   {
     "id": 98,
-    "outcome": "Unsupported",
-    "nodes": 0,
-    "edges": 0,
-    "direction": "TopBottom",
-    "reason": "click-style-class-or-expanded-edge",
-    "issue": "UnsupportedEdge",
-    "diagnosticFirst": 61,
-    "diagnosticLast": 89
+    "outcome": "Prepared",
+    "nodes": 3,
+    "edges": 2,
+    "direction": "LeftRight",
+    "reason": "inline-edge-text",
+    "issue": "None",
+    "diagnosticFirst": 0,
+    "diagnosticLast": 0
   },
   {
     "id": 99,

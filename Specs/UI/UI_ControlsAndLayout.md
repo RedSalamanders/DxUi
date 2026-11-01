@@ -1675,11 +1675,13 @@ node's previous label/shape; a bare endpoint preserves it. Node order is first
 appearance order and edge order is source order, including cycles/self-loops.
 
 An edge chain is `endpoint-group (edge endpoint-group)*`, where an
-`endpoint-group` is one node or nodes joined by `&`, and edge is `-->` or `---`
-optionally followed by `|label|`. Each edge expands the Cartesian product of its
+`endpoint-group` is one node or nodes joined by `&`. Edges include solid `-->` / `---`,
+dotted `-.->` / `-.-`, thick `==>` / `===`, and invisible `~~~`; visible edges may
+carry `|label|` or bounded plain inline text (`-- text -->`, `-- text ---`,
+`-. text .->`, `-. text .-`, `== text ==>`, `== text ===`). Each edge expands the Cartesian product of its
 left and right endpoint groups in stable source order; a chain continues from
-the preceding right-hand group. Expanded, dotted, thick, reversed and named
-edge syntax is unsupported. In particular `A---oB`/`A---xB` MUST NOT be silently
+the preceding right-hand group. Other expanded, reversed and named edge syntax
+is unsupported. In particular `A---oB`/`A---xB` MUST NOT be silently
 treated as edges to IDs `oB`/`xB`; use whitespace before such IDs for a plain line.
 Quoted labels allow Unicode scalar text and `\"`, `\\`, `\n` escapes. Unquoted
 labels keep backslashes literally, trim surrounding horizontal whitespace and must quote delimiter/semicolon
@@ -2122,7 +2124,7 @@ multiline node labels. Inheritance uses the native triangle arrow. This is not
 Mermaid coordinate compatibility. Composite states, class namespaces/generics,
 class compartments, relationship multiplicities, stereotypes, styling,
 interaction directives and other diagram families remain exact fenced source.
-Flowchart edges support dotted `-.->` / `-.-`, thick `==>` / `===`, and invisible `~~~` layout constraints; invisible edge labels remain unsupported. Other flowchart grammar and source-provenance rules remain unchanged.
+Invisible edge labels remain unsupported. Other flowchart grammar and source-provenance rules remain unchanged.
 
 Aligned rows alternate right-aligned left operands and left-aligned right operands at each ampersand pair. Cases use left-aligned expression/condition columns (at most two); ordinary matrices center their columns. Gathered rows have one column. Geometry tests compare the actual cached glyph positions consumed by drawing.
 

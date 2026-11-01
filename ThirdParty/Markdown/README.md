@@ -14,7 +14,7 @@ rendering compatibility. Unsupported families and constructs remain exact
 editable source with explicit diagnostics.
 
 `dxui-flowchart-expectations.json` independently classifies all 105 original
-flowchart fences with reviewed reasons, exact issue codes and UTF-16 diagnostic offsets: 19 admitted graphs and 86 unsupported definitions, including
+flowchart fences with reviewed reasons, exact issue codes and UTF-16 diagnostic offsets: 25 admitted graphs and 80 unsupported definitions, including
 the supported legacy stadium form. The local flowchart subset also expands
 bounded `&` endpoint groups as a stable Cartesian product, including chained
 groups; class and state grammar remain isolated. `dxui-family-matrix.json` accounts for the 22
