@@ -1529,6 +1529,12 @@ remains handled and must not fall through to an unrelated application command.
 Lifetime tokens guard the failure continuation itself. Allocation failure in
 application observer callbacks retains the explicit fatal observer policy;
 ordinary observer exceptions are contained after the committed change.
+Embedded key and character dispatch declines allocation failure before entering
+an application control callback. Once an arbitrary control callback has begun,
+the host cannot infer whether it committed; an allocation failure is consumed
+and cannot authorize a translated character or retarget input. A matching
+character receipt is consumed once before the callback. This does not promise
+rollback of arbitrary consumer code or change the fatal observer policy.
 
 RichTextEditor exposes prepared `RichTextScrollInfo` and finite, clamped
 `SetScrollOffsetDip` requests. Pending/hidden/detached geometry refuses; disabled

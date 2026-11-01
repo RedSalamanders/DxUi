@@ -983,6 +983,7 @@ bool EmbeddedHost::DispatchKeyImpl(UINT key, bool down, UINT modifiers, Embedded
     }
     if (! KeyboardInputIsAvailable())
         return false;
+    bool enteredControlCallback = false;
     try
     {
         _host.PruneStaleInteractionState();
@@ -1003,8 +1004,12 @@ bool EmbeddedHost::DispatchKeyImpl(UINT key, bool down, UINT modifiers, Embedded
             // retire/rebind its owner: never traverse a successor in that frame.
             auto* tabTarget     = _host.GetFocusControl();
             const auto lifetime = tabTarget ? tabTarget->GetLifetimeToken() : std::weak_ptr<int>{};
-            if (tabTarget && tabTarget->OnKeyDown(_host, key, modifiers))
-                return true;
+            if (tabTarget)
+            {
+                enteredControlCallback = true;
+                if (tabTarget->OnKeyDown(_host, key, modifiers))
+                    return true;
+            }
             if (tabTarget && (lifetime.expired() || _host.GetFocusControl() != tabTarget || tabTarget->GetHost() != &_host || ! tabTarget->IsEnabled() ||
                               ! tabTarget->IsVisible()))
                 return true;
@@ -1014,6 +1019,7 @@ bool EmbeddedHost::DispatchKeyImpl(UINT key, bool down, UINT modifiers, Embedded
         if (! target)
             return false;
 
+        enteredControlCallback = true;
         const bool handled = down ? target->OnKeyDown(_host, key, modifiers) : target->OnKeyUp(_host, key, modifiers);
         if (receipt && issuedReceiptSequence != 0u && receipt->_valid && receipt->_embeddedHost == this && receipt->_controlHost == &_host &&
             receipt->_sequence == issuedReceiptSequence)
@@ -1027,7 +1033,13 @@ bool EmbeddedHost::DispatchKeyImpl(UINT key, bool down, UINT modifiers, Embedded
     }
     catch (const std::bad_alloc&)
     {
-        std::terminate();
+        if (receipt && issuedReceiptSequence != 0u && receipt->_valid && receipt->_embeddedHost == this && receipt->_controlHost == &_host &&
+            receipt->_sequence == issuedReceiptSequence)
+            receipt->_allowCharacter = false;
+        Debug::Warning(L"DxUi::EmbeddedHost: key dispatch allocation failed; translated character permission withheld.");
+        // An arbitrary control may have committed before throwing. Do not
+        // retarget that key or authorize a translated character on uncertainty.
+        return enteredControlCallback;
     }
     catch (const std::exception&)
     {
@@ -1043,13 +1055,22 @@ bool EmbeddedHost::DispatchCharacter(wchar_t character, UINT modifiers) noexcept
 {
     if (! KeyboardInputIsAvailable())
         return false;
+    bool enteredControlCallback = false;
     try
     {
         _host.PruneStaleInteractionState();
         if (! KeyboardInputIsAvailable())
             return false;
         auto* target = _host.GetFocusControl();
-        return target && target->OnChar(_host, character, modifiers);
+        if (! target)
+            return false;
+        enteredControlCallback = true;
+        return target->OnChar(_host, character, modifiers);
+    }
+    catch (const std::bad_alloc&)
+    {
+        Debug::Warning(L"DxUi::EmbeddedHost: character dispatch allocation failed.");
+        return enteredControlCallback; // An unknown callback may already have committed.
     }
     catch (const std::exception&)
     {
@@ -1125,7 +1146,10 @@ bool EmbeddedHost::DispatchCharacter(wchar_t character, UINT modifiers, Embedded
     }
     catch (const std::bad_alloc&)
     {
-        std::terminate();
+        // The matching receipt was consumed before dispatch. The control may
+        // have committed before throwing, so never retarget the character.
+        Debug::Warning(L"DxUi::EmbeddedHost: correlated character dispatch allocation failed; receipt consumed.");
+        return true;
     }
     catch (const std::exception&)
     {

@@ -94,6 +94,77 @@ static void TestMultilineCaretViewport(GraphicsFixture& gpu)
 }
 
 // Application-side composition transport; no HWND, TSF context or real IME is created by this fixture.
+static void TestEmbeddedInputCallbackAllocationBoundary(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    struct ThrowingField final : TextField
+    {
+        ThrowingField() : TextField(L"initial") {}
+        ThrowingField(const ThrowingField&) = delete;
+        ThrowingField& operator=(const ThrowingField&) = delete;
+        ThrowingField(ThrowingField&&) = delete;
+        ThrowingField& operator=(ThrowingField&&) = delete;
+        bool failKey{}, failCharacter{}, commitFirst{};
+        bool OnKeyDown(ControlHost& host, UINT key, UINT modifiers) override
+        {
+            if (! failKey)
+                return TextField::OnKeyDown(host, key, modifiers);
+            if (commitFirst)
+                SetText(L"committed key");
+            throw std::bad_alloc();
+        }
+        bool OnChar(ControlHost& host, wchar_t character, UINT modifiers) override
+        {
+            if (! failCharacter)
+                return TextField::OnChar(host, character, modifiers);
+            if (commitFirst)
+                SetText(L"committed character");
+            throw std::bad_alloc();
+        }
+    };
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create embedded input failure graphics");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "attach embedded input failure host");
+    auto root = std::make_unique<Panel>();
+    auto* field = root->AddChild<ThrowingField>();
+    field->SetBounds(D2D1::RectF(0, 0, 240, 40));
+    view.Controls().SetRoot(std::move(root));
+    Hr(PrepareRichEmbeddedContent(view, 320, 160), "prepare embedded input failure fixture");
+    view.Controls().SetFocusControl(field);
+    for (const bool committed : {false, true})
+    {
+        field->SetText(L"initial");
+        field->commitFirst = committed;
+        field->failKey = true;
+        Hr(PrepareRichEmbeddedContent(view, 320, 160), "prepare key failure fixture");
+        EmbeddedKeyDispatchReceipt receipt;
+        Check(view.DispatchKey(VK_SPACE, true, 0u, receipt), "an unknown key callback allocation failure consumes the key");
+        Check(field->GetText() == (committed ? L"committed key" : L"initial") && ! view.ShouldTranslateCharacter(receipt),
+              "key allocation failure preserves actual callback state and withholds translated character");
+        Check(view.DispatchCharacter(L' ', 0u, receipt) && ! view.DispatchCharacter(L' ', 0u, receipt),
+              "failed key's matching receipt is consumed once without a character callback");
+        field->failKey = false;
+        field->SetText(L"initial");
+        Hr(PrepareRichEmbeddedContent(view, 320, 160), "prepare bare character failure fixture");
+        field->failCharacter = true;
+        Check(view.DispatchCharacter(L'x', 0u) && field->GetText() == (committed ? L"committed character" : L"initial"),
+              "bare character allocation failure retains actual callback state and is consumed");
+        field->failCharacter = false;
+        field->SetText(L"initial");
+        Hr(PrepareRichEmbeddedContent(view, 320, 160), "prepare character failure fixture");
+        EmbeddedKeyDispatchReceipt characterReceipt;
+        Check(! view.DispatchKey(VK_SPACE, true, 0u, characterReceipt) && view.ShouldTranslateCharacter(characterReceipt),
+              "unhandled Space issues a matching text receipt");
+        field->failCharacter = true;
+        Check(view.DispatchCharacter(L' ', 0u, characterReceipt), "a throwing correlated character remains consumed");
+        Check(field->GetText() == (committed ? L"committed character" : L"initial") &&
+                  ! view.DispatchCharacter(L' ', 0u, characterReceipt),
+              "character callback's actual state remains intact and its receipt cannot be replayed");
+        field->failCharacter = false;
+    }
+}
+
 static void TestEmbeddedTextInput(GraphicsFixture& gpu)
 {
     using Action = DxUi::EmbeddedTextInputAction;

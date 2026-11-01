@@ -1718,6 +1718,7 @@ __declspec(noinline) static int RunFunctionalTests()
     }
     TestMultilineCaretViewport(gpu);
     TestEmbeddedTextInput(gpu);
+    TestEmbeddedInputCallbackAllocationBoundary(gpu);
     TestEmbeddedTranslatedCharacterOwnership(gpu);
     TestEmbeddedAccessibility(gpu);
     TestPreparedTreeAccessibilitySemantics(gpu);
