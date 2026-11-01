@@ -728,6 +728,61 @@ template <typename Check> inline void GroupRaster(Check&& check)
     check(! rejected.Ready() && rejected.Geometry() && rejected.Geometry()->issue == FlowchartLayoutIssue::DiagramExtent && rejected.Geometry()->groups.empty(),
           "overlapping unrelated groups fail without publishing partial geometry");
 }
+template <typename Check> inline void ConfiguredLabelWidth(Check&& check)
+{
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
+    const auto graph = FlowchartLayoutTests::Graph(L"graph TD;A[\"Unicode αβ שלום words and several more words for wrapping\"]");
+    const auto write = WriteFactory();
+    const auto drawing = DrawingFactory();
+    for (const auto direction : {DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT})
+    {
+        LayoutOptions options;
+        options.readingDirection = direction;
+        options.diagramLabelWidthDip = 100.f;
+        PreparedFlowchart prepared;
+        prepared.Begin(write.get(), drawing.get(), graph, options, {1u, 1u});
+        Complete(prepared, check);
+        const auto first = prepared.Geometry();
+        wil::com_ptr<IDWriteTextFormat> format;
+        THROW_IF_FAILED(write->CreateTextFormat(options.fontFamily.c_str(), nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
+                                                DWRITE_FONT_STRETCH_NORMAL, options.fontSizeDip, options.locale.c_str(), format.put()));
+        THROW_IF_FAILED(format->SetWordWrapping(DWRITE_WORD_WRAPPING_WRAP));
+        THROW_IF_FAILED(format->SetReadingDirection(direction));
+        THROW_IF_FAILED(format->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING));
+        wil::com_ptr<IDWriteTextLayout> layout;
+        THROW_IF_FAILED(write->CreateTextLayout(graph->nodes[0u].label.c_str(), static_cast<UINT32>(graph->nodes[0u].label.size()), format.get(),
+                                                100.f, 65536.f, layout.put()));
+        DWRITE_TEXT_METRICS metrics{};
+        DWRITE_OVERHANG_METRICS ink{};
+        THROW_IF_FAILED(layout->GetMetrics(&metrics));
+        THROW_IF_FAILED(layout->GetOverhangMetrics(&ink));
+        const auto expectedWidth = std::max(metrics.left + metrics.widthIncludingTrailingWhitespace, metrics.layoutWidth + ink.right) -
+                                   std::min(metrics.left, -ink.left);
+        const auto expectedHeight = std::max(metrics.top + metrics.height, metrics.layoutHeight + ink.bottom) - std::min(metrics.top, -ink.top);
+        check(FlowchartLayoutTests::Near(first->nodes[0u].label.width, expectedWidth) &&
+                  FlowchartLayoutTests::Near(first->nodes[0u].label.height, expectedHeight) && expectedHeight > 35.f,
+              "configured Unicode/bidi label wrapping matches independent DirectWrite width and ink metrics");
+        const auto generation = prepared.Generation();
+        check(prepared.Begin(write.get(), drawing.get(), graph, options, {1u, 1u}) == LayoutPreparationStatus::Complete &&
+                  prepared.Generation() == generation, "unchanged explicit label width reuses its prepared geometry");
+        options.diagramLabelWidthDip = 300.f;
+        check(prepared.Begin(write.get(), drawing.get(), graph, options, {1u, 1u}) == LayoutPreparationStatus::Pending,
+              "changing explicit label width retires prepared diagram geometry");
+        Complete(prepared, check);
+        check(prepared.Generation() > generation && prepared.Geometry()->nodes[0u].label.height < first->nodes[0u].label.height,
+              "wider label width publishes independently rewrapped geometry");
+        for (const auto invalid : {-1.f, .5f, 4097.f, std::numeric_limits<float>::quiet_NaN()})
+        {
+            options.diagramLabelWidthDip = invalid;
+            bool rejected{};
+            try { prepared.Begin(write.get(), drawing.get(), graph, options, {1u, 1u}); }
+            catch (const std::invalid_argument&) { rejected = true; }
+            check(rejected && prepared.Ready(), "invalid label width leaves prior prepared geometry intact");
+        }
+    }
+}
 template <typename Check, typename Observe = std::nullptr_t> inline void PaletteRaster(Check&& check, Observe observe = nullptr)
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);

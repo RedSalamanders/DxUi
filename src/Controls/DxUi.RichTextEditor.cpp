@@ -1270,7 +1270,8 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
     const auto validHeight  = [](float value) noexcept { return std::isfinite(value) && (value == 0.0f || (value >= 1.0f && value <= 4.0f)); };
     const auto validSpacing = [](const std::optional<float>& value, float maximum) noexcept
     { return ! value || (std::isfinite(value.value()) && value.value() >= 0.0f && value.value() <= maximum); };
-    if (appearance.sourceTabSpaces > 16u || ! std::isfinite(appearance.maximumTextWidthDip) || appearance.maximumTextWidthDip < 0.0f ||
+    if (! std::isfinite(appearance.diagramLabelWidthDip) || appearance.diagramLabelWidthDip < 0.f || appearance.diagramLabelWidthDip > 4096.f ||
+        (appearance.diagramLabelWidthDip > 0.f && appearance.diagramLabelWidthDip < 1.f) || appearance.sourceTabSpaces > 16u || ! std::isfinite(appearance.maximumTextWidthDip) || appearance.maximumTextWidthDip < 0.0f ||
         appearance.maximumTextWidthDip > 1048576.0f || ! std::isfinite(appearance.paddingDip) ||
         (appearance.paddingDip != -1.0f && (appearance.paddingDip < 0.0f || appearance.paddingDip > 256.0f)) || ! validSize(appearance.bodyFontSizeDip) ||
         ! validSize(appearance.codeFontSizeDip) || ! std::isfinite(appearance.lineHeightMultiplier) ||
@@ -1293,6 +1294,7 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
         previous.sourceWhitespaceMarks != next.sourceWhitespaceMarks || previous.showVerticalScrollbar != next.showVerticalScrollbar ||
         previous.maximumTextWidthDip != next.maximumTextWidthDip || previous.paddingDip != next.paddingDip ||
         previous.bodyFontSizeDip != next.bodyFontSizeDip || previous.codeFontSizeDip != next.codeFontSizeDip ||
+        previous.diagramLabelWidthDip != next.diagramLabelWidthDip ||
 
         previous.lineHeightMultiplier != next.lineHeightMultiplier || previous.headingScaleStep != next.headingScaleStep ||
         previous.bodyFontFamily != next.bodyFontFamily || previous.codeFontFamily != next.codeFontFamily || previous.mathFontFamily != next.mathFontFamily ||
@@ -1326,6 +1328,7 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
     value.paddingDip                  = next.paddingDip;
     value.bodyFontSizeDip             = next.bodyFontSizeDip;
     value.codeFontSizeDip             = next.codeFontSizeDip;
+    value.diagramLabelWidthDip        = next.diagramLabelWidthDip;
     value.lineHeightMultiplier        = next.lineHeightMultiplier;
     value.headingScaleStep            = next.headingScaleStep;
     value.headingFontSizeDip          = next.headingFontSizeDip;
@@ -3489,6 +3492,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             for (auto& headingSize : options.headingFontSizeDip)
                 if (headingSize > 0.0f)
                     headingSize = scale(headingSize);
+            options.diagramLabelWidthDip = appearance.diagramLabelWidthDip;
             options.tabStopDip       = appearance.tabStopDip;
             options.tableOverflow    = appearance.tableOverflow;
             options.readingDirection = IsRightToLeft() ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;

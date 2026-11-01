@@ -214,6 +214,37 @@ inline void LiteralFootnoteBlockCaretSites()
     Check(geometry.Ready() && geometry.BoxCount() == 1u && geometry.SourceLines().size() == 1026u,
           "many literal note blank lines remain real source lines without creating duplicate layout boxes");
 }
+inline void DiagramLabelWidthReflow()
+{
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
+    wil::com_ptr<ID2D1Factory> drawing;
+    THROW_IF_FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, drawing.put()));
+    auto factory = Factory();
+    const auto document = RichSemanticDocumentTests::Build(
+        L"```mermaid\ngraph TD;A[\"Unicode αβ words and several more words for wrapping\"]\n```\n", MarkdownProfile::RichMarkdown);
+    const auto elements = document->Elements();
+    const auto found = std::ranges::find_if(elements, [](const auto& element) { return element.role == SemanticRole::Diagram; });
+    Check(found != elements.end(), "width reflow fixture has a native diagram");
+    const auto element = static_cast<std::size_t>(found - elements.begin());
+    LayoutOptions options;
+    options.widthDip = 600.f;
+    options.diagramLabelWidthDip = 100.f;
+    PreparedSemanticGeometry geometry;
+    geometry.Begin(factory.get(), document, options, drawing.get());
+    Complete(geometry);
+    const auto narrow = geometry.ElementBounds(element);
+    const auto generation = geometry.Generation();
+    options.diagramLabelWidthDip = 300.f;
+    Check(geometry.Begin(factory.get(), document, options, drawing.get()) == LayoutPreparationStatus::Pending,
+          "diagram label cap participates in semantic reuse identity");
+    Complete(geometry);
+    const auto wide = geometry.ElementBounds(element);
+    Check(narrow && wide && wide->right - wide->left > narrow->right - narrow->left &&
+              wide->bottom - wide->top < narrow->bottom - narrow->top && geometry.Generation() > generation,
+          "semantic reflow replaces cached native diagram with its new measured label width");
+}
 inline void DiagramPaletteTargetReplacement()
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);

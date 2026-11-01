@@ -3133,6 +3133,7 @@ struct RichTextEditorAppearance
     std::optional<RichText::SemanticSpacing> semanticSpacing;
     RichText::MarkdownPresentationStyle markdownPresentation = RichText::MarkdownPresentationStyle::Default;
     std::wstring mathFontFamily                              = std::wstring(0u, L' '); // Empty keeps Cambria Math; independent of body/code fonts.
+    float diagramLabelWidthDip = 0.0f; // Zero uses 12.5 times the font size; otherwise 1..4096 DIP.
 };
 struct RichTextSourceHighlight
 {

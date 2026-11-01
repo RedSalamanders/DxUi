@@ -254,12 +254,15 @@ diamonds, double circles, cylinders, stadiums, hexagons, subroutines, asymmetric
 other expanded shapes/edges, advanced subgraph forms, additional styling, icons and executable directives remain
 unsupported. The pinned original corpus distinguishes accepted graphs from
 rejected definitions. Source-independent cooperative CPU geometry passes focused
-x64 Debug checks, with stable ranks, four orientations, direct unambiguous adjacent
-edges and exterior lanes for other forward/back/self/parallel edges. Unlabeled
-nonoverlapping rank intervals can share a lane; labeled lanes remain exclusive. It accepts measured label sizes and creates
-no SDK resources; complete extents are capped at 65,536 DIP per axis. DWrite
-node and edge labels wrap at 12.5 times the selected font size; explicit line
-breaks and complete label text remain visible within the resulting geometry.
+x64 Debug checks, with stable ranks, four orientations and direct corridor elbows
+for eligible unlabeled adjacent edges. Other forward/back/self/parallel edges use
+exterior lanes. Unlabeled nonoverlapping rank intervals can share a lane; labeled
+lanes remain exclusive. Bounded rank reordering is retained only when it reduces
+both endpoint inversions and proper route crossings. It accepts measured label sizes
+and creates no SDK resources; complete extents are capped at 65,536 DIP per axis.
+DWrite node and edge labels wrap at 12.5 times the selected font size by default;
+`diagramLabelWidthDip` selects a 1–4096 DIP maximum, or zero for the default.
+Explicit line breaks and complete label text remain visible within the resulting geometry.
 Shaping and reusable native paint resources pass focused Debug checks, with intercepted
 SDK-call budgets, independent Unicode/bidi/multiline raster checks, separate
 typography/resource invalidation and compatible borrowed-target drawing. Edge

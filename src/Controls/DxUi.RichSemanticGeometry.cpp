@@ -1808,6 +1808,8 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
     { return ! value || (std::isfinite(value.value()) && value.value() >= 0.0f && value.value() <= maximum); };
     if (! factory || ! document || ! std::isfinite(options.widthDip) || options.widthDip <= 0.0f || ! std::isfinite(options.fontSizeDip) ||
         ! std::isfinite(options.dpi) || options.dpi <= 0.0f || options.dpi > 4096.0f || options.fontSizeDip <= 0.0f ||
+        ! std::isfinite(options.diagramLabelWidthDip) || options.diagramLabelWidthDip < 0.f || options.diagramLabelWidthDip > 4096.f ||
+        (options.diagramLabelWidthDip > 0.f && options.diagramLabelWidthDip < 1.f) ||
         ! validSpacing(options.paragraphSpacingAfterLines, 4.0f) || ! validSpacing(options.listItemSpacingDip, 256.0f) ||
         (options.semanticSpacing && ! options.semanticSpacing->IsValid()) ||
         (options.markdownPresentation != MarkdownPresentationStyle::Default && options.markdownPresentation != MarkdownPresentationStyle::Subtle))
@@ -1857,7 +1859,8 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
     const auto* previousNative = state_ && state_->document == document && state_->factory.get() == factory && state_->native &&
                                          state_->native->drawing.get() == drawing && state_->native->epochs == epochs &&
                                          state_->options.fontFamily == options.fontFamily && state_->options.fontSizeDip == options.fontSizeDip &&
-                                         state_->options.locale == options.locale && state_->options.readingDirection == options.readingDirection
+                                         state_->options.locale == options.locale && state_->options.readingDirection == options.readingDirection &&
+                                         state_->options.diagramLabelWidthDip == options.diagramLabelWidthDip
                                      ? state_.get()
                                      : nullptr;
     auto next                  = std::make_unique<Preparation>(

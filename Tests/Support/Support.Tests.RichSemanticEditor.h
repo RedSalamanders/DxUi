@@ -1813,6 +1813,42 @@ template <typename Prepare> void HangingMarkersLinksAndHtml(ControlHost& host, P
           "empty native HTML typing resolves normally and is exactly one source undo");
     prepare();
 }
+template <typename Prepare> void DiagramLabelWidthAppearance(ControlHost& host, Prepare&& prepare)
+{
+    const std::wstring source = L"```mermaid\ngraph TD;A[\"Unicode αβ words and several more words for wrapping\"]\n```\n";
+    auto root = std::make_unique<SourceCaretEditorFixture>(source);
+    auto* editor = root.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    host.SetRoot(std::move(root));
+    prepare();
+    const auto document = editor->GetAcknowledgedSemanticDocument(host);
+    Check(document != nullptr, "diagram appearance fixture publishes semantics");
+    const auto elements = document->Elements();
+    const auto found = std::ranges::find_if(elements, [](const auto& element) { return element.role == SemanticRole::Diagram; });
+    Check(found != elements.end(), "diagram appearance fixture retains its native owner");
+    const auto index = static_cast<std::size_t>(found - elements.begin());
+    const auto before = editor->GetSemanticElementBounds(host, index);
+    const auto generation = editor->DebugGetState().layoutGeneration;
+    editor->SetSelection({0u, 0u});
+    auto appearance = editor->GetAppearance();
+    appearance.diagramLabelWidthDip = 100.f;
+    editor->SetAppearance(appearance);
+    prepare();
+    const auto after = editor->GetSemanticElementBounds(host, index);
+    Check(before && after && after->right - after->left < before->right - before->left &&
+              after->bottom - after->top > before->bottom - before->top && editor->DebugGetState().layoutGeneration > generation &&
+              editor->GetText() == source && editor->GetSelection() == Selection{0u, 0u} && ! editor->CanUndo(),
+          "both hosts publish rewrapped diagram geometry without changing source, selection or history");
+    for (float invalid : {-1.f, .5f, 4097.f, std::numeric_limits<float>::quiet_NaN()})
+    {
+        auto rejected = appearance;
+        rejected.diagramLabelWidthDip = invalid;
+        RichSemanticTests::Reject<std::invalid_argument>([&] { editor->SetAppearance(rejected); }, "invalid diagram width is rejected atomically");
+        Check(editor->GetAppearance() == appearance && editor->GetText() == source && editor->GetSelection() == Selection{0u, 0u},
+              "invalid diagram label width leaves appearance and exact source state unchanged");
+    }
+}
 template <typename Prepare> void SpacingAppearance(ControlHost& host, Prepare&& prepare)
 {
     const std::wstring source = L"- one\n- two\n\na\n\nb";
@@ -2100,6 +2136,7 @@ template <typename Prepare> void SourceCaretSitesPolicy(ControlHost& host, Prepa
 template <typename Prepare> void SourceCaretSites(ControlHost& host, Prepare&& prepare)
 {
     SpacingAppearance(host, prepare);
+    DiagramLabelWidthAppearance(host, prepare);
     SpacingNavigation(host, prepare);
     SourceCaretSitesPolicy(host, prepare, false);
     SourceCaretSitesPolicy(host, prepare, true);

@@ -1866,7 +1866,9 @@ and upstream Mermaid coordinate compatibility are not claimed.
 Native node and edge labels wrap with DirectWrite at 12.5 times the selected font
 size (225 DIP at 18 DIP), preserving explicit line breaks and complete Unicode
 text. Ink and multiline height participate in geometry and capacity checks. This
-is a fixed native typography policy, not a public per-diagram width setting.
+is the default. `diagramLabelWidthDip` optionally sets a 1–4096 DIP width for
+all native diagram labels in the editor; zero retains the font-relative default.
+Changing it invalidates label geometry and preserves source, selection and history.
 
 All shapes, labels, routes and arrowheads MUST fit the complete diagram bounds,
 with a 65,536-DIP extent limit per axis. Node/aggregate extent rejection publishes

@@ -39,7 +39,8 @@ struct FlowchartLabel
 };
 bool SameTypography(const LayoutOptions& a, const LayoutOptions& b) noexcept
 {
-    return a.fontFamily == b.fontFamily && a.fontSizeDip == b.fontSizeDip && a.locale == b.locale && a.readingDirection == b.readingDirection;
+    return a.fontFamily == b.fontFamily && a.fontSizeDip == b.fontSizeDip && a.locale == b.locale && a.readingDirection == b.readingDirection &&
+           a.diagramLabelWidthDip == b.diagramLabelWidthDip;
 }
 D2D1_POINT_2F Point(FlowchartPoint point) noexcept
 {
@@ -262,7 +263,7 @@ struct PreparedFlowchart::State
     {
         wil::com_ptr<IDWriteTextLayout> layout;
         constexpr auto maximum = static_cast<float>(NativeFlowchartLayout::MaximumExtent);
-        const auto labelWidth  = std::min(maximum, std::max(1.f, options.fontSizeDip * 12.5f));
+        const auto labelWidth  = options.diagramLabelWidthDip > 0.f ? options.diagramLabelWidthDip : std::min(maximum, std::max(1.f, options.fontSizeDip * 12.5f));
         THROW_IF_FAILED(write->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format.get(), labelWidth, maximum, layout.put()));
         if (styles)
             for (std::size_t index = 0u; index < styles->count; ++index)
@@ -350,7 +351,9 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
     if (! write || ! drawing || ! graph || graph->outcome != FlowchartOutcome::Prepared || graph->nodes.size() > NativeFlowchartParser::MaximumNodes ||
         graph->edges.size() > NativeFlowchartParser::MaximumEdges || graph->groups.size() > 16u ||
         graph->source.size() > NativeFlowchartParser::MaximumSourceUnits || ! std::isfinite(typography.fontSizeDip) || typography.fontSizeDip <= 0.0f ||
-        typography.fontSizeDip > 512.0f || typography.fontFamily.size() > 1024u || typography.locale.size() > 1024u ||
+        typography.fontSizeDip > 512.0f || ! std::isfinite(typography.diagramLabelWidthDip) || typography.diagramLabelWidthDip < 0.f ||
+        typography.diagramLabelWidthDip > 4096.f || (typography.diagramLabelWidthDip > 0.f && typography.diagramLabelWidthDip < 1.f) ||
+        typography.fontFamily.size() > 1024u || typography.locale.size() > 1024u ||
         (typography.readingDirection != DWRITE_READING_DIRECTION_LEFT_TO_RIGHT && typography.readingDirection != DWRITE_READING_DIRECTION_RIGHT_TO_LEFT))
         throw std::invalid_argument("Invalid native flowchart preparation admission");
     if (graph->direction < FlowchartDirection::TopBottom || graph->direction > FlowchartDirection::RightLeft)
