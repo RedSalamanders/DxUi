@@ -1090,8 +1090,11 @@ class Parser
         }
         Reject(MathIssue::UnsupportedCommand);
     }
-    MathNode TextColorBody(unsigned depth)
+    MathNode TextColorBody(unsigned depth, bool allowDollar = false, bool* sharedSpace = nullptr)
     {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
         if (depth > MathMaximumGroupDepth)
             Reject(MathIssue::Capacity);
         Space();
@@ -1100,6 +1103,8 @@ class Parser
         std::vector<MathNode> children(0u);
         std::wstring text(0u, L' ');
         std::wstring activeColor(0u, L' ');
+        bool localSpace{};
+        bool& previousSpace = sharedSpace ? *sharedSpace : localSpace;
         const auto append = [&](MathNode&& node)
         {
             if (! activeColor.empty())
@@ -1126,13 +1131,13 @@ class Parser
                     return std::move(children[0u]);
                 return Make(MathKind::Row, L"", std::move(children));
             }
-            if (unit == L'$')
+            if (unit == L'$' && ! allowDollar)
                 Reject(MathIssue::UnsupportedCommand);
             if (unit == L'{')
             {
                 --at;
                 flush();
-                append(TextColorBody(depth + 1u));
+                append(TextColorBody(depth + 1u, allowDollar, &previousSpace));
                 continue;
             }
             if (unit == L'%')
@@ -1146,12 +1151,17 @@ class Parser
                 if (at == source.size())
                     Reject(MathIssue::MissingRequiredArgument);
                 if (AppendTextAccent(text))
+                {
+                    previousSpace = false;
                     continue;
+                }
                 if (! Letter(source[at]))
                 {
                     if (std::wstring_view(L"{}%_$&#\\ ").find(source[at]) == std::wstring_view::npos)
                         Reject(MathIssue::UnsupportedCommand);
-                    text.push_back(source[at++]);
+                    const auto escaped = source[at++];
+                    text.push_back(escaped);
+                    previousSpace = escaped == L' ';
                     continue;
                 }
                 const auto start = at;
@@ -1173,18 +1183,22 @@ class Parser
                          name == L"textup" || name == L"textmd" || name == L"textnormal" || name == L"emph" || name == L"pmb")
                     append(Make(MathKind::Style, name == L"textbf" ? std::wstring(L"mathbf") : name == L"textit" ? std::wstring(L"mathit") :
                                                   name == L"textup" ? std::wstring(L"mathrm") : std::wstring(name),
-                                {TextColorBody(depth + 1u)}));
+                                {TextColorBody(depth + 1u, allowDollar, &previousSpace)}));
                 else
                     Reject(MathIssue::UnsupportedCommand);
                 continue;
             }
             if (iswspace(unit))
             {
-                if (text.empty() || text.back() != L' ')
+                if (! previousSpace)
                     text.push_back(L' ');
+                previousSpace = true;
             }
             else
+            {
                 text.push_back(unit);
+                previousSpace = false;
+            }
         }
         Reject(MathIssue::MissingGroupClose);
     }
@@ -1224,6 +1238,18 @@ class Parser
                 output.push_back(Make(MathKind::Style, std::wstring(label), {std::move(child)}));
         }
     }
+    MathNode TextStyleCommand(std::wstring_view name, unsigned depth)
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
+        auto body = TextColorBody(depth + 1u, true);
+        if (name == L"text")
+            return body;
+        const auto style = name == L"textbf" ? std::wstring_view(L"mathbf") : name == L"textit" ? std::wstring_view(L"mathit") :
+                           name == L"textup" ? std::wstring_view(L"mathrm") : name;
+        return Make(MathKind::Style, std::wstring(style), {std::move(body)});
+    }
     MathNode Command(unsigned depth)
     {
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -1241,6 +1267,9 @@ class Parser
             name == L"xrightharpoonup" || name == L"xrightharpoondown" || name == L"xleftrightharpoons" || name == L"xrightleftharpoons" ||
             name == L"xtwoheadleftarrow" || name == L"xtwoheadrightarrow" || name == L"xtofrom")
             return ExtensibleArrowCommand(name, depth);
+        if (name == L"text" || name == L"textbf" || name == L"textit" || name == L"textup" || name == L"textmd" ||
+            name == L"textnormal" || name == L"textrm" || name == L"textsf" || name == L"texttt" || name == L"emph")
+            return TextStyleCommand(name, depth);
         if (MathStyleCommand(name))
             return MathStyle(name, depth);
         if (UnaryAccent(name))

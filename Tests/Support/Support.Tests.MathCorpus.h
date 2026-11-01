@@ -953,6 +953,36 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
                   "double dots stage two horizontally ordered circles");
     }
 #endif
+#if DXUI_ENABLE_DIAGNOSTICS
+    {
+        const auto expression = std::make_shared<const MathExpression>(ParseMath(L"\\textsf{\\textbf{H}}"));
+        check(static_cast<bool>(*expression), "text family and weight commands stack");
+        check(static_cast<bool>(ParseMath(L"\\text{a$b}")), "ordinary text retains its existing literal dollar policy");
+        const auto groupedExpression = std::make_shared<const MathExpression>(ParseMath(L"\\text{a { b}}"));
+        const auto flatExpression = std::make_shared<const MathExpression>(ParseMath(L"\\text{a b}"));
+        Detail::PreparedMath grouped(factory, groupedExpression, 24.f), flat(factory, flatExpression, 24.f);
+        while (! grouped.Advance()) {}
+        while (! flat.Advance()) {}
+        check(std::abs(grouped.Size().width - flat.Size().width) < .01f,
+              "plain grouped text collapses whitespace across group boundaries");
+        auto textFormats = std::make_shared<Detail::MathTextFormats>(factory, L"Cambria Math", L"en-us", L"Arial", L"Consolas");
+        Detail::PreparedMath layout(factory, expression, 24.f, false, nullptr, 96.f, textFormats);
+        while (! layout.Advance()) {}
+        const auto& glyphs = layout.GlyphLayouts();
+        check(glyphs.size() == 1u, "nested text style retains one shaped leaf");
+        if (glyphs.size() == 1u)
+        {
+            DWRITE_FONT_WEIGHT weight{};
+            THROW_IF_FAILED(glyphs[0u].layout->GetFontWeight(0u, &weight));
+            UINT32 length{};
+            THROW_IF_FAILED(glyphs[0u].layout->GetFontFamilyNameLength(0u, &length));
+            std::wstring familyName(length + 1u, L'\0');
+            THROW_IF_FAILED(glyphs[0u].layout->GetFontFamilyName(0u, familyName.data(), static_cast<UINT32>(familyName.size())));
+            familyName.resize(length);
+            check(weight == DWRITE_FONT_WEIGHT_BOLD && familyName == L"Arial", "DirectWrite retains stacked text weight and family");
+        }
+    }
+#endif
     for (const auto source : {L"\\genfrac{(}{)}{-2pt}{0}{a}{b}", L"\\genfrac{(}{)}{}{4}{a}{b}", L"\\genfrac{?}{}{}{}{a}{b}",
                               L"\\genfrac{}{}{}{}{a}"})
         check(! ParseMath(source), "unsupported general fraction dimensions, style and delimiters reject the whole source");
@@ -1081,6 +1111,14 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
             mixed += i % 2u ? L"\\overleftarrow " : L"\\sqrt ";
         mixed += L'x';
         check(static_cast<bool>(ParseMath(mixed)), "mixed unary nesting retains the ordinary parser stack");
+    }
+    {
+        std::wstring deep(0u, L' ');
+        for (unsigned i = 0u; i < MathMaximumGroupDepth; ++i)
+            deep += L"\\textbf{";
+        deep += L'x';
+        deep.append(MathMaximumGroupDepth, L'}');
+        check(static_cast<bool>(ParseMath(deep)), "64 nested text font groups retain the ordinary parser stack");
     }
 #if DXUI_ENABLE_DIAGNOSTICS
     const auto lowestObservedStack         = Detail::testRichMathLowestStackAddress;
