@@ -2466,6 +2466,22 @@ TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, si
     return ComputeItemLayoutMetrics(host, rowTop, item);
 }
 
+namespace
+{
+[[nodiscard]] D2D1_RECT_F ExpanderLane(D2D1_RECT_F content, float rowTop, float rowHeight, float indent, uint32_t depth, bool reserve, bool rtl) noexcept
+{
+    const float left  = content.left + 8.0f + static_cast<float>(depth) * indent;
+    const float width = reserve ? 16.0f : 12.0f;
+    D2D1_RECT_F rect  = D2D1::RectF(left, rowTop + 6.0f, left + width, rowTop + rowHeight - 6.0f);
+    if (rtl)
+    {
+        rect.left  = content.left + content.right - (left + width);
+        rect.right = rect.left + width;
+    }
+    return rect;
+}
+} // namespace
+
 TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, float rowTopDip, const TreeItemData& item) const noexcept
 {
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
@@ -2484,8 +2500,7 @@ TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, fl
     float contentLeft = contentRect.left + 8.0f + (static_cast<float>(item.depth) * _indentDip);
     if (metrics.hasExpander || _appearance.reserveExpanderSpace)
     {
-        const float width    = _appearance.reserveExpanderSpace ? 16.f : 12.f;
-        metrics.expanderRect = D2D1::RectF(contentLeft, metrics.rowRect.top + 6.0f, contentLeft + width, metrics.rowRect.bottom - 6.0f);
+        metrics.expanderRect = ExpanderLane(contentRect, rowTopDip, _rowHeightDip, _indentDip, item.depth, _appearance.reserveExpanderSpace, false);
         contentLeft          = metrics.expanderRect.right + (_appearance.reserveExpanderSpace ? 6.f : 4.f);
     }
 
@@ -2532,7 +2547,7 @@ TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, fl
     return metrics;
 }
 
-Tree::HitInfo Tree::HitTestPoint(const ControlHost& host, PointDip pointDip) const noexcept
+Tree::HitInfo Tree::HitTestPoint(const ControlHost& /*host*/, PointDip pointDip) const noexcept
 {
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
@@ -2594,10 +2609,8 @@ Tree::HitInfo Tree::HitTestPoint(const ControlHost& host, PointDip pointDip) con
     hit.visibleIndex = visibleIndex;
     hit.rectDip      = D2D1::RectF(contentRect.left, rowTop, contentRect.right, rowTop + _rowHeightDip);
 
-    const auto layout = ComputeItemLayoutMetrics(host, rowTop, item);
-    if (! guard.IsCurrent())
-        return {};
-    if (layout.hasExpander && PointInRect(layout.expanderRect, point))
+    if (item.hasChildren && _appearance.showExpanders &&
+        PointInRect(ExpanderLane(contentRect, rowTop, _rowHeightDip, _indentDip, item.depth, _appearance.reserveExpanderSpace, IsRightToLeft()), point))
     {
         hit.zone = HitZone::Expander;
     }

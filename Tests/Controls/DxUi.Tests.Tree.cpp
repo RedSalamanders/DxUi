@@ -2554,6 +2554,14 @@ void TestTreeRightToLeftMirrorsTheExpanderHitTarget()
     static_cast<void>(tree.OnMouseUp(fixture.host, mirroredExpander, false, 0u));
     Require(fixture.delegate.toggleCount == 1u && fixture.delegate.lastToggledItemId == 1u && ! fixture.delegate.lastExpandedState,
             "the RTL-side expander hit toggles the group row");
+    auto appearance                 = tree.GetAppearance();
+    appearance.reserveExpanderSpace = true;
+    tree.SetAppearance(appearance);
+    const auto metrics               = tree.GetItemLayoutMetrics(fixture.host, 0u);
+    const D2D1_POINT_2F reservedEdge = D2D1::Point2F(metrics.expanderRect.left + 1.0f, (metrics.expanderRect.top + metrics.expanderRect.bottom) * 0.5f);
+    Require(tree.OnMouseDown(fixture.host, reservedEdge, false, 0u), "the mirrored reserved expander lane accepts its whole width");
+    static_cast<void>(tree.OnMouseUp(fixture.host, reservedEdge, false, 0u));
+    Require(fixture.delegate.toggleCount == 2u, "the reserved RTL expander hit toggles the same group");
 }
 
 void TestTreeIdempotentAddPreservesFocusAndSelectAllKeepsItsPrimary()
