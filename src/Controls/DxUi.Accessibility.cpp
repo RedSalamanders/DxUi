@@ -6995,9 +6995,10 @@ HRESULT AccessibilityTextRangeProvider::GetEnclosingElement(IRawElementProviderS
         const auto enclosing = SemanticEnclosing(*record, ClampCurrentRange(record->controlAccessibleText.size()));
         if (enclosing != 0u)
         {
-            auto element = RichSemanticElementProvider::Create(_target, _hwnd, *record, enclosing);
+            HRESULT failure{};
+            auto element = RichSemanticElementProvider::Create(_target, _hwnd, *record, enclosing, false, &failure);
             if (! element)
-                return E_OUTOFMEMORY;
+                return failure;
             *outElement = element.detach();
             return S_OK;
         }

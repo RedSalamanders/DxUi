@@ -116,19 +116,30 @@ public:
         static_cast<void>(target_->AddRef());
     }
     static wil::com_ptr_nothrow<IRawElementProviderSimple> Create(
-        WindowHostAccessibilityTarget* target, HWND hwnd, const AccessibilityControlNavigationSnapshot& record, size_t element, bool codeCopy = false) noexcept
+        WindowHostAccessibilityTarget* target, HWND hwnd, const AccessibilityControlNavigationSnapshot& record, size_t element, bool codeCopy = false,
+        HRESULT* failure = nullptr) noexcept
     {
         wil::com_ptr_nothrow<IRawElementProviderSimple> result;
+        if (failure)
+            *failure = UIA_E_ELEMENTNOTAVAILABLE;
         HoldAccessibilityPeerCreationForTest(hwnd);
         if (! target || ! record.HasCurrentRichSemantic() || element == 0u || element >= record.RichSemantic()->Elements().size() ||
             (codeCopy && (element >= record.controlRichText->copyBounds.size() || ! record.controlRichText->copyBounds[element])))
             return result;
+        if (failure)
+            *failure = E_OUTOFMEMORY;
         auto* provider = new (std::nothrow) RichSemanticElementProvider(target, hwnd, record, element, codeCopy);
         if (provider)
         {
             result.attach(provider);
             if (! provider->CaptureSnapshot())
+            {
+                if (failure)
+                    *failure = UIA_E_ELEMENTNOTAVAILABLE;
                 result.reset();
+            }
+            else if (failure)
+                *failure = S_OK;
         }
         return result;
     }
@@ -632,9 +643,10 @@ public:
         index = elements[index].firstChild;
         while (column-- > 0 && index != RichText::MarkdownNoNode)
             index = elements[index].nextSibling;
-        auto cell = Create(target_, hwnd_, *record, index);
+        HRESULT failure{};
+        auto cell = Create(target_, hwnd_, *record, index, false, &failure);
         if (! cell)
-            return E_OUTOFMEMORY;
+            return failure;
         *result = cell.detach();
         return S_OK;
     }
@@ -704,9 +716,10 @@ public:
         const auto index = TableAncestor(*record);
         if (index == RichText::MarkdownNoNode)
             return UIA_E_NOTSUPPORTED;
-        auto table = Create(target_, hwnd_, *record, index);
+        HRESULT failure{};
+        auto table = Create(target_, hwnd_, *record, index, false, &failure);
         if (! table)
-            return E_OUTOFMEMORY;
+            return failure;
         *result = table.detach();
         return S_OK;
     }
@@ -899,9 +912,10 @@ private:
                 for (auto child = elements[row].firstChild; child != RichText::MarkdownNoNode; child = elements[child].nextSibling, ++ordinal)
                     if (elements[child].tableHeader && (! forCell || ordinal == column))
                     {
-                        auto peer = Create(target_, hwnd_, *record, child);
+                        HRESULT failure{};
+                        auto peer = Create(target_, hwnd_, *record, child, false, &failure);
                         if (! peer)
-                            return E_OUTOFMEMORY;
+                            return failure;
                         raw.push_back(peer.get());
                         owners.push_back(std::move(peer));
                     }

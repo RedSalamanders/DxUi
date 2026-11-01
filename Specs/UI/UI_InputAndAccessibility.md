@@ -461,6 +461,8 @@ first complete publication the root has no snapshot and answers `UIA_E_ELEMENTNO
 does, until a later query or flush publishes one. Clients reacquire a collapsed semantic root after its
 control is replaced; retained elements never bind to a replacement at the same path. Grid row, header and cell
 properties return `UIA_E_ELEMENTNOTAVAILABLE` when their record is no longer materialized in the current snapshot.
+Rich semantic child creation reports `UIA_E_ELEMENTNOTAVAILABLE` when its source publication retires during creation;
+an actual peer allocation failure reports `E_OUTOFMEMORY`.
 These rules do not extend borrowed model lifetime or qualify destruction of the entire host from a callback.
 
 Modal and asynchronous menu tracking both activate the root popup
