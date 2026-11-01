@@ -3742,8 +3742,8 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
         const bool control = ModifiersContainCtrl(modifiers), shift = ModifiersContainShift(modifiers);
         if (control || key == VK_ESCAPE || key == VK_RETURN || key == VK_TAB || key == VK_F2)
             _state->typingRun.reset();
-        if (_state->markdownShortcutsEnabled && control && ! ModifiersContainAlt(modifiers) && shift && key >= '0' && key <= '6' && _state->markdownRendering &&
-            _state->mode == RichText::ViewMode::Rich && ! _state->sourceEditing)
+        if (_state->markdownShortcutsEnabled && Editable() && control && ! ModifiersContainAlt(modifiers) && shift && key >= '0' && key <= '6' &&
+            _state->markdownRendering && _state->mode == RichText::ViewMode::Rich && ! _state->sourceEditing)
         {
             RichText::MarkdownCommandRequest request;
             request.command      = RichText::MarkdownCommand::SetHeading;
@@ -3768,7 +3768,8 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
             PublishSelectionChanged();
             return true;
         }
-        if (_state->markdownShortcutsEnabled && control && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich && ! _state->sourceEditing)
+        if (_state->markdownShortcutsEnabled && Editable() && control && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich &&
+            ! _state->sourceEditing)
         {
             if ((! shift && key == VK_OEM_3) || (shift && key == 'X'))
             {

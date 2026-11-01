@@ -297,6 +297,9 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     unsigned linkRequests = 0u;
     editor->SetOnLinkEditRequested([&] { ++linkRequests; });
     Check(editor->OnKeyDown(host, 'K', MK_CONTROL) && linkRequests == 1u, "opt-in Ctrl+K delivers one consumer link-edit request");
+    editor->SetReadOnly(true);
+    Check(! editor->OnKeyDown(host, 'K', MK_CONTROL) && linkRequests == 1u, "read-only Ctrl+K does not request editing");
+    editor->SetReadOnly(false);
     editor->SetMarkdownShortcutsEnabled(false);
     std::size_t notifications = 0u;
     editor->SetOnTextChanged([&] { ++notifications; });
