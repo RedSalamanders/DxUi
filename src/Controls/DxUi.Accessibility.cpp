@@ -13156,11 +13156,18 @@ bool RaiseWindowHostTextInputAutomationEvent(HWND hwnd, const Control* control, 
     if (! host)
         return false;
     ControlPath path{};
-    if (! FindAccessibilityPathForTarget(host->GetRoot(), ControlPath{}, control, path))
+    const bool queued = kind == TextInputAutomationEventKind::ActiveTextPositionChanged ||
+                        kind == TextInputAutomationEventKind::TextEditConversionTargetChanged;
+    const auto snapshot = queued ? std::shared_ptr<const AccessibilitySnapshot>{} : target->snapshot.load(std::memory_order_acquire);
+    // Ordinary notifications only need to validate the current control. Use
+    // the published address index and validate its path; a stale/missing record
+    // retains the original live-tree search and refusal semantics.
+    if (queued ? ! FindAccessibilityPathForTarget(host->GetRoot(), ControlPath{}, control, path)
+               : ! FindWindowHostControlPath(snapshot.get(), host->GetRoot(), control, path))
         return false;
     // Ordinary text/selection/composition events are derived from the final snapshot difference.
     // Caret and conversion events also retain the final requested state in a bounded, reusable queue.
-    if (kind == TextInputAutomationEventKind::ActiveTextPositionChanged || kind == TextInputAutomationEventKind::TextEditConversionTargetChanged)
+    if (queued)
     {
         const auto lifetime = GetControlLifetimeToken(*control);
         size_t index        = 0u;

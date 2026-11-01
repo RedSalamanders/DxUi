@@ -1,0 +1,1 @@
+- Validate ordinary text-event owners using the existing published accessibility index with live-path fallback, avoiding wide-tree searches while preserving stale-owner refusal; directed resolution-count coverage compiles, runtime pending.

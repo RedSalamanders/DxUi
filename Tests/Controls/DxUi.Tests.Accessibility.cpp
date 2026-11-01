@@ -4310,6 +4310,39 @@ void TestAccessibilitySelectorFocusPreservesMembershipAndSelectionDoesNotActivat
     }
 }
 
+void TestAccessibilityTextEventsUseIndexedOwnerValidation()
+{
+    using namespace DxUi;
+    ScopedNonActivatingTestWindows nonActivating;
+    AttachedHostWindow window;
+    auto root = std::make_unique<Panel>();
+    for (size_t index = 0u; index < 256u; ++index)
+        root->AddChild<Label>(L"unrelated sibling");
+    auto* field = root->AddChild<TextField>(L"text event owner");
+    field->SetBounds(D2D1::RectF(0, 0, 160, 28));
+    window.Host().SetRoot(std::move(root));
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+    provider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(provider != nullptr, "text-event fixture has a published accessibility index");
+    Require(DebugSetAccessibilityMutationInterestForTest(window.Hwnd(), false), "keep text-event accounting free of unrelated client refreshes");
+    const auto clearInterest = wil::scope_exit([]() noexcept
+    { Require(DebugSetAccessibilityMutationInterestForTest(nullptr, std::nullopt), "clear text-event mutation-interest override"); });
+    DebugSetAccessibilityResolutionCountingForTest(true);
+    const auto stopCounting = wil::scope_exit([]() noexcept { DebugSetAccessibilityResolutionCountingForTest(false); });
+    DebugResetAccessibilityResolutionVisitCountForTest();
+    for (const auto kind : {TextInputAutomationEventKind::TextChanged, TextInputAutomationEventKind::TextSelectionChanged,
+                            TextInputAutomationEventKind::TextEditCompositionChanged})
+        Require(RaiseWindowHostTextInputAutomationEvent(window.Hwnd(), field, kind), "ordinary text event accepts the indexed live owner");
+    Require(DebugGetAccessibilityResolutionVisitCountForTest() < 32u, "ordinary text events do not scan unrelated siblings");
+    DebugResetAccessibilityResolutionVisitCountForTest();
+    Require(RaiseWindowHostTextInputAutomationEvent(window.Hwnd(), field, TextInputAutomationEventKind::TextEditConversionTargetChanged),
+            "queued conversion event resolves the live owner path");
+    Require(DebugGetAccessibilityResolutionVisitCountForTest() >= 256u, "the special queued event retains live-tree path resolution");
+    field->SetVisible(false);
+    Require(! RaiseWindowHostTextInputAutomationEvent(window.Hwnd(), field, TextInputAutomationEventKind::TextChanged),
+            "indexed text-event validation still rejects a hidden stale owner");
+}
+
 void TestAccessibilityInterestedMutationsBoundFocusedPathResolution()
 {
     using namespace DxUi;
@@ -11522,6 +11555,7 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestAccessibilityPublicationMutationBatchRetainsFinalStateAndReportsCost);
     DXUI_RUN_TEST(TestAccessibilityLazyPublicationCoalescesAndOwnerQueriesStayFresh);
     DXUI_RUN_TEST(TestAccessibilityInterestedMutationsBoundFocusedPathResolution);
+    DXUI_RUN_TEST(TestAccessibilityTextEventsUseIndexedOwnerValidation);
     DXUI_RUN_TEST(TestAccessibilityGetFocusDoesNotBindCapturedSnapshotToReplacementAtSamePath);
     DXUI_RUN_TEST(TestAccessibilitySnapshotDerivedPeerFactoriesRejectSamePathReplacement);
     DXUI_RUN_TEST(TestAccessibilityCaptionReentrancyCannotPublishARetiredRoot);
