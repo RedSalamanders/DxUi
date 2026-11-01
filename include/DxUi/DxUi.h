@@ -2155,6 +2155,10 @@ public:
     [[nodiscard]] uint64_t DebugGetPreparedIconTextLayoutAttemptCount() const noexcept;
     [[nodiscard]] uint64_t DebugGetPreparedIconTextLayoutFactoryLookupCount() const noexcept;
     [[nodiscard]] uint64_t DebugGetPreparedIconTextLayoutPaintCount() const noexcept;
+    [[nodiscard]] uint64_t DebugGetShortcutMeasureCount() const noexcept
+    {
+        return _debugShortcutMeasureCount;
+    }
     void DebugFailNextPreparedIconTextLayoutForTest() noexcept;
     void DebugSetPreparedIconTextLayoutDisabledForTest(bool disabled) noexcept;
 #endif
@@ -2253,6 +2257,7 @@ private:
     uint64_t _debugPreparedIconTextLayoutAttemptCount       = 0u;
     uint64_t _debugPreparedIconTextLayoutFactoryLookupCount = 0u;
     mutable uint64_t _debugPreparedIconTextLayoutPaintCount = 0u;
+    uint64_t _debugShortcutMeasureCount                     = 0u;
     bool _debugFailNextPreparedIconTextLayout               = false;
     bool _debugDisablePreparedIconTextLayout                = false;
 #endif
@@ -2261,6 +2266,11 @@ private:
     ButtonAppearance _appearance = ButtonAppearance::Filled;
     std::wstring _leadingIcon;
     std::wstring _shortcutText;
+    float _preparedShortcutWidthDip          = 0.0f;
+    const ControlHost* _preparedShortcutHost = nullptr;
+    uint64_t _preparedShortcutResources = 0u, _preparedShortcutTypography = 0u;
+    FlowDirection _preparedShortcutFlow = FlowDirection::LeftToRight;
+    bool _preparedShortcutValid         = false;
 };
 #pragma warning(pop)
 

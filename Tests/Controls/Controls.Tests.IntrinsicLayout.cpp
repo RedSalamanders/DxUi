@@ -835,6 +835,16 @@ void TestButtonPreparedIconTextLayoutMatchesDrawTextW()
         requireFallbackParity();
         Require(host.GetResourceGeneration() != resourcesBeforeLoss && button->DebugGetPreparedIconTextLayoutBuildCount() == buildsBeforeLoss + 1u,
                 "device-resource cancellation retires and rebuilds the device-independent layout through owner preparation");
+        button->SetVariant(ButtonVariant::Standard);
+        button->SetShortcutText(L"Ctrl+Shift+F");
+        static_cast<void>(capture());
+        const auto measured = button->DebugGetShortcutMeasureCount();
+        Require(measured != 0u, "shortcut text is measured during visual preparation");
+        static_cast<void>(capture());
+        Require(button->DebugGetShortcutMeasureCount() == measured, "repeated paints do not measure the shortcut again");
+        button->SetShortcutText(L"F2");
+        static_cast<void>(capture());
+        Require(button->DebugGetShortcutMeasureCount() == measured + 1u, "changing the shortcut prepares its new width once");
     });
     Require(WaitForDxUiEventWithSentMessagesUntil(fixture.native_handle(), GetTickCount64() + 30000u) == WAIT_OBJECT_0,
             "the isolated prepared-layout fixture finishes without desktop activation");

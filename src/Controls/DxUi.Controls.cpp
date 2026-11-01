@@ -3012,12 +3012,48 @@ void Button::PrepareVisualContent(ControlHost& host) noexcept
     const std::weak_ptr<int> lifetime     = GetLifetimeToken();
     Control* const root                   = host.GetRoot();
     const std::weak_ptr<int> rootLifetime = root ? GetControlLifetimeToken(*root) : std::weak_ptr<int>{};
+    const uint64_t interactionRevision    = host.GetInteractionRevision();
     const auto hostStillCurrent           = [&]() noexcept
-    { return ! lifetime.expired() && ! rootLifetime.expired() && GetHost() == &host && host.GetRoot() == root && IsControlInTree(root, this); };
+    {
+        return ! lifetime.expired() && ! rootLifetime.expired() && GetHost() == &host && host.GetRoot() == root &&
+               host.GetInteractionRevision() == interactionRevision;
+    };
+    if (! root || rootLifetime.expired() || GetHost() != &host || ! IsControlInTree(root, this))
+        return;
+    if (! _shortcutText.empty())
+    {
+        try
+        {
+            const auto flow       = GetFlowDirection();
+            const auto resources  = host.GetResourceGeneration();
+            const auto typography = host.GetTypographyRevision();
+            if (! _preparedShortcutValid || _preparedShortcutHost != &host || _preparedShortcutResources != resources ||
+                _preparedShortcutTypography != typography || _preparedShortcutFlow != flow)
+            {
+                const std::wstring shortcut = _shortcutText;
+#if DXUI_ENABLE_DIAGNOSTICS
+                ++_debugShortcutMeasureCount;
+#endif
+                const float width = MeasureSingleLineTextWidthDip(&host, shortcut, FontRole::Small, 20.0f, ResolveReadingDirection(flow));
+                if (! hostStillCurrent() || _shortcutText != shortcut || GetFlowDirection() != flow || host.GetResourceGeneration() != resources ||
+                    host.GetTypographyRevision() != typography)
+                    return;
+                _preparedShortcutWidthDip   = width;
+                _preparedShortcutHost       = &host;
+                _preparedShortcutResources  = resources;
+                _preparedShortcutTypography = typography;
+                _preparedShortcutFlow       = flow;
+                _preparedShortcutValid      = true;
+            }
+        }
+        catch (const std::bad_alloc&)
+        {
+            return;
+        }
+    }
     // Toggle and radio-button descendants have distinct Paint implementations; preparing a base-button layout
     // for them would retain a resource that can never be consumed.
-    if (_variant != ButtonVariant::IconOnly || dynamic_cast<const Toggle*>(this) || dynamic_cast<const RadioButton*>(this) || ! root ||
-        rootLifetime.expired() || GetHost() != &host || ! IsControlInTree(root, this))
+    if (_variant != ButtonVariant::IconOnly || dynamic_cast<const Toggle*>(this) || dynamic_cast<const RadioButton*>(this))
     {
         RetirePreparedIconTextLayout();
         return;
@@ -3075,7 +3111,7 @@ void Button::PrepareVisualContent(ControlHost& host) noexcept
         if (lifetime.expired() || rootLifetime.expired())
             return false;
         const auto currentBounds = GetBounds();
-        return GetHost() == &host && host.GetRoot() == root && IsControlInTree(root, this) && _variant == ButtonVariant::IconOnly &&
+        return GetHost() == &host && host.GetRoot() == root && host.GetInteractionRevision() == interactionRevision && _variant == ButtonVariant::IconOnly &&
                _iconTextInputRevision == revision && _text.size() == length && _text[0] == text[0] && (length == 1u || _text[1] == text[1]) &&
                GetFlowDirection() == flow && currentBounds.left == bounds.left && currentBounds.top == bounds.top && currentBounds.right == bounds.right &&
                currentBounds.bottom == bounds.bottom && host.GetResourceGeneration() == resources && host.GetTypographyRevision() == typography;
@@ -3156,6 +3192,8 @@ void Button::PrepareVisualContent(ControlHost& host) noexcept
 
 void Button::CancelVisualContentPreparation() noexcept
 {
+    _preparedShortcutValid = false;
+    _preparedShortcutHost  = nullptr;
     RetirePreparedIconTextLayout();
 }
 
@@ -3346,7 +3384,10 @@ void Button::SetShortcutText(std::wstring text)
 {
     if (_shortcutText == text)
         return;
-    _shortcutText       = std::move(text);
+    _shortcutText             = std::move(text);
+    _preparedShortcutWidthDip = 0.0f;
+    _preparedShortcutValid    = false;
+    EnableVisualContentPreparation();
     const auto lifetime = GetLifetimeToken();
     InvalidateMeasure();
     if (! lifetime.expired())
@@ -3559,7 +3600,7 @@ void Button::Paint(ControlHost& host) const
         }
         if (! _shortcutText.empty())
         {
-            const float width = MeasureSingleLineTextWidthDip(&host, _shortcutText, FontRole::Small, 20.0f, ResolveReadingDirection(flowDirection)) + 10.0f;
+            const float width = _preparedShortcutWidthDip + 10.0f;
             const float left  = rtl ? textBounds.left + 6.0f : textBounds.right - width - 6.0f;
             const float top   = (bounds.top + bounds.bottom - 20.0f) * 0.5f;
             const auto hint   = D2D1::RectF(left, top, left + width, top + 20.0f);
