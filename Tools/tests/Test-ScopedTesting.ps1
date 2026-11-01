@@ -156,6 +156,7 @@ try {
             foreach($path in @('include/DxUi/RichMath.h','include/DxUi/RichSemanticDocument.h','src/Controls/DxUi.RichSemanticDocument.cpp',
                               'src/Controls/DxUi.NativeMath.cpp','src/Controls/DxUi.PreparedMath.h','src/Controls/DxUi.NativeFlowchart.cpp',
                               'src/Controls/DxUi.NativeFlowchartLayout.h','src/Controls/DxUi.PreparedFlowchart.cpp','src/Controls/DxUi.SemanticExtensions.h',
+                              'src/Controls/DxUi.RichTextScriptRenderer.h','src/Controls/DxUi.RichBidi.h',
                               'Tests/Support/Support.Tests.RichSemanticEditor.h','Tests/Support/Support.Tests.MarkdownBlocks.h',
                               'Tests/Support/Support.Tests.FlowchartLayout.h','Tests/Support/Support.Tests.PreparedFlowchart.h')) {
                 $plan=Get-ScopedTestPlan $manifest @($path)

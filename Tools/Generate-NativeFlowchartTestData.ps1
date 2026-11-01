@@ -91,6 +91,22 @@ foreach($family in $familyExamples){
     [void]$output.AppendLine(('    {{{0}, {1}, FlowchartOutcome::{2}, FlowchartIssue::{3}, {4}u, {5}u, FlowchartDirection::{6}, {7}}},' -f `
         (Literal $family.document),(Literal $source),$expected.outcome,$expected.issue,$expected.nodes,$expected.edges,$expected.direction,(Literal $expected.reason)))
 }
+[void]$output.AppendLine('};')
+[void]$output.AppendLine('// Exhaustive parser safety coverage. Independent subset oracles remain above.')
+[void]$output.AppendLine('struct Fence { std::wstring_view document; std::size_t number; std::wstring_view source; };')
+[void]$output.AppendLine('inline constexpr Fence allFences[] = {')
+$fenceCount=0
+foreach($entry in $collection){
+    $fences=[regex]::Matches([IO.File]::ReadAllText((Join-Path $InputDirectory $entry.file)),$pattern)
+    for($index=0;$index -lt $fences.Count;$index++){
+        # No YAML removal or family-dependent preprocessing: every pinned body
+        # reaches the parser byte-for-byte apart from the documented LF EOLs.
+        $source=$fences[$index].Groups[1].Value.Replace("`r`n","`n")
+        [void]$output.AppendLine(('    {{{0}, {1}u, {2}}},' -f (Literal $entry.file),($index+1),(Literal $source)))
+        $fenceCount++
+    }
+}
+if($fenceCount -ne 342){throw 'Incomplete pinned Mermaid fence inventory'}
 [void]$output.AppendLine(@'
 };
 // clang-format on
@@ -102,4 +118,4 @@ if($Check){
 }else{[IO.File]::WriteAllText($OutputPath,$expected,[Text.UTF8Encoding]::new($false))}
 $preparedCount = @($expectations | Where-Object outcome -eq 'Prepared').Count
 $unsupportedCount = @($expectations | Where-Object outcome -eq 'Unsupported').Count
-Write-Host "Native flowchart vectors: $($expectations.Count) original examples, $preparedCount admitted graphs, $unsupportedCount unsupported; $($familyExamples.Count) original family examples (7 limited profiles, 13 unsupported families)."
+Write-Host "Native flowchart vectors: $($expectations.Count) independent original examples, $preparedCount admitted graphs, $unsupportedCount unsupported; $($familyExamples.Count) independent family examples; all $fenceCount pinned Mermaid fences for parser safety."

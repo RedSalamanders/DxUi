@@ -1,0 +1,1 @@
+- Run every pinned Mermaid fence through the bounded parser and preserve independent semantic expectations, source identity and fallback diagnostics.

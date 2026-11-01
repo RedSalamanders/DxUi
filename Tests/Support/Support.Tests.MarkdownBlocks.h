@@ -445,7 +445,43 @@ template <typename Check> inline void CheckOriginalCorpus(Check&& check)
                   "unsupported original family examples retain their independently classified diagnostic and exact source fallback");
     }
     check(prepared == 41u && unsupported == 64u && std::size(NativeFlowchartCorpus::familyExamples) == 20u,
-          "Mermaid corpus has no omitted examples/families and separates graph preparation from rejection");
+          "independent Mermaid subset expectations separate graph preparation from rejection");
+    std::array<std::size_t, 4u> outcomes{};
+    for (const auto& fence : NativeFlowchartCorpus::allFences)
+    {
+        parser.Begin(fence.source, fence.number);
+        std::size_t work{};
+        const auto maximumWork = 16u * (fence.source.size() + 1u);
+        while (parser.HasPendingPreparation() && work < maximumWork)
+        {
+            const auto result = parser.Advance(1u);
+            check(result.workUnits == 1u, "pinned Mermaid parser advances by the requested bounded work unit");
+            ++work;
+        }
+        check(! parser.HasPendingPreparation(), "every pinned Mermaid fence finishes within its finite parser work bound");
+        const auto result = parser.Published();
+        check(result && result->source == fence.source && result->revision == fence.number && ! fence.document.empty(),
+              "every pinned Mermaid fence retains its complete counted definition and inventory identity");
+        const auto outcome = static_cast<std::size_t>(result->outcome);
+        check(outcome < outcomes.size(), "every pinned Mermaid fence publishes a known outcome");
+        ++outcomes[outcome];
+        if (result->outcome == FlowchartOutcome::Prepared)
+        {
+            check(result->diagnostic.issue == FlowchartIssue::None && result->nodes.size() <= NativeFlowchartParser::MaximumNodes &&
+                      result->edges.size() <= NativeFlowchartParser::MaximumEdges,
+                  "admitted original Mermaid fences respect model capacity without a fallback diagnostic");
+            for (const auto& edge : result->edges)
+                check(edge.from < result->nodes.size() && edge.to < result->nodes.size(),
+                      "admitted original Mermaid fences reference only published endpoints");
+        }
+        else
+            check(result->nodes.empty() && result->edges.empty() && result->groups.empty() && result->diagnostic.issue != FlowchartIssue::None &&
+                      result->diagnostic.source.first <= result->diagnostic.source.last && result->diagnostic.source.last <= result->source.size(),
+                  "declined original Mermaid fences retain bounded diagnostics and expose no partial model");
+    }
+    check(std::size(NativeFlowchartCorpus::allFences) == 342u, "all pinned Mermaid fences run, including every family and example collection");
+    std::cout << "Pinned Mermaid fences: " << std::size(NativeFlowchartCorpus::allFences) << "; prepared=" << outcomes[0u]
+              << "; malformed=" << outcomes[1u] << "; unsupported=" << outcomes[2u] << "; capacity=" << outcomes[3u] << '\n';
     CheckFamilyGrammar(check);
     CheckFanout(check);
 }

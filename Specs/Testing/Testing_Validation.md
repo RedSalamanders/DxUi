@@ -41,6 +41,14 @@ tests. Expanded fault probes must inject every observed admission/inline/extensi
 allocation, including MSVC Debug proxies. Qualification still requires the normal
 native/build/tooling matrix; a focused diagnostic is not full qualification.
 
+The Mermaid parser corpus executes all 342 original fences in the pinned 11.4.1
+collection, retaining document and one-based fence identity and the entire body
+(including local YAML). It checks finite cooperative completion, exact source,
+bounded model endpoints and diagnostic ranges, and absence of partial graphs on
+decline. It reports observed outcome counts without promoting those observations
+to independent conformance expectations. The separately reviewed 105 flowchart
+and 20 family vectors continue to assert their independent semantic outcomes.
+
 Intrinsic measurement, opt-in Flex and reusable forms run in the nonactivating Controls suite. The form fixtures
 cover localized labels at multiple DPI/density/flow/column/placement/width combinations; finite bounds and overflow;
 unsupported and growing custom minima; shared text budgets and cache invalidation; exact fractional geometry;
