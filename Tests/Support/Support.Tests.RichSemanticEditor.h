@@ -235,6 +235,22 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     Check(! editor->DebugGetState().overlayGeometryPending && editor->DebugGetState().preparedSelectionRectangles != 0u &&
               editor->DebugGetState().preparedHighlightRectangles != 0u && editor->DebugGetState().preparedDecorationRectangles >= 2u,
           "selection and search rectangles are prepared before composition");
+    Check(editor->GetDecorationStatus() == RichTextDecorationStatus::Ready, "accepted decoration geometry publishes ready status");
+#if DXUI_ENABLE_DIAGNOSTICS
+    editor->DebugSetDecorationRectangleLimitForTest(1u);
+    prepare();
+    Check(editor->GetDecorationStatus() == RichTextDecorationStatus::CapacityExceeded && editor->GetDecorations().size() == 2u &&
+              editor->GetText() == L"word" && editor->DebugGetState().preparedDecorationRectangles == 0u,
+          "reflow capacity rejection retains requests and leaves the document prepared without stale decoration geometry");
+    auto oversized    = decorations;
+    oversized[0].role = RichTextDecorationRole::Warning;
+    RichSemanticTests::Reject<std::length_error>([&] { editor->SetDecorations(decorationSource, oversized); },
+                                                 "setter rejects geometry above the current ceiling before publication");
+    Check(editor->GetDecorations()[0].role == RichTextDecorationRole::Accent, "rejected replacement preserves the previous decoration request");
+    editor->DebugSetDecorationRectangleLimitForTest(4096u);
+    prepare();
+    Check(editor->GetDecorationStatus() == RichTextDecorationStatus::Ready, "a later admissible geometry restores retained decorations");
+#endif
     editor->ClearSourceHighlights();
     prepare();
     Check(editor->DebugGetState().preparedHighlightRectangles == 0u, "cleared highlights retire their prepared rectangles");

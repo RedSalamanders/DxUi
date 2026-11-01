@@ -1220,8 +1220,13 @@ prepared geometry until the host prepares the replacement.
 Revision-guarded source decorations support background, underline, squiggle and
 foreground using accent, subdued, warning and error roles; source edits retire
 them. At most 256 decorations and 4096 prepared decoration rectangles are
-admitted; exceeding the rectangle limit reports insufficient buffer during
-preparation. High contrast uses the theme text color and outlines backgrounds.
+admitted. A nonempty setter requires current geometry and rejects an oversized
+replacement before changing the previous request. If later reflow exceeds the
+rectangle ceiling, requested decorations remain available through the getter,
+status reports CapacityExceeded, stale annotation geometry is withheld, and
+the document continues to prepare and paint. Clients inspect status after
+preparation; subsequent admissible geometry restores the retained request.
+High contrast uses the theme text color and outlines backgrounds.
 An editor context-menu callback receives focus first. Keyboard invocation retains
 the selection; a pointer invocation outside it moves the caret to the hit source
 position. Selection callback reentry that changes the target cancels the menu.

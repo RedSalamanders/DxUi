@@ -74,8 +74,12 @@ interface and query refresh after edits.
 
 `SetDecorations` takes a current source snapshot and up to 256 background,
 underline, squiggle or foreground annotations using accent, subdued, warning or
-error theme roles. Edits retire them; preparation admits at most 4096 mapped
-rectangles. Selection and annotations are staged before Paint. Annotation UIA
+error theme roles. Edits retire them; a nonempty setter requires current geometry
+and rejects a replacement over 4096 mapped rectangles before changing state.
+After reflow, inspect `GetDecorationStatus`: `CapacityExceeded` retains the
+request, withholds stale annotation geometry and leaves document painting
+available. A later admissible layout restores it. Selection and annotations are
+staged before Paint. Annotation UIA
 exposure, high-contrast pixel qualification and performance evidence remain open.
 
 `sourceTabSpaces` enables source/code Tab indentation using 1–16 spaces, or a

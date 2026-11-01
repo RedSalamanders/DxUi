@@ -3155,6 +3155,13 @@ enum class RichTextDecorationRole
     Warning,
     Error
 };
+enum class RichTextDecorationStatus
+{
+    None,
+    Pending,
+    Ready,
+    CapacityExceeded
+};
 struct RichTextDecoration
 {
     size_t start{}, length{};
@@ -3288,6 +3295,10 @@ public:
     // Revision-guarded source annotations. Source changes retire them.
     void SetDecorations(const RichText::SourceSnapshot& expectedSource, std::span<const RichTextDecoration> decorations);
     [[nodiscard]] std::span<const RichTextDecoration> GetDecorations() const noexcept;
+    [[nodiscard]] RichTextDecorationStatus GetDecorationStatus() const noexcept;
+#if DXUI_ENABLE_DIAGNOSTICS
+    void DebugSetDecorationRectangleLimitForTest(size_t limit) noexcept;
+#endif
     // Supplying localized labels enables the built-in editing menu. Null disables it.
     void SetDefaultContextMenuLabels(const RichTextContextMenuLabels* labels);
     void BuildDefaultContextMenuItems(std::vector<MenuFlyoutItem>& items) const;

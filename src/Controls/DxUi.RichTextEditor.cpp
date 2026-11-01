@@ -223,6 +223,8 @@ struct RichTextEditor::State
     std::vector<HighlightRectangle> highlightRectangles{0u};
     std::vector<float> highlightBottoms{0u};
     std::vector<DecorationRectangle> decorationRectangles{0u};
+    RichTextDecorationStatus decorationStatus = RichTextDecorationStatus::None;
+    size_t decorationRectangleLimit           = 4096u;
     std::vector<D2D1_RECT_F> compositionRectangles{0u}, conversionRectangles{0u};
     wil::com_ptr<ID2D1PathGeometry> selectionMask;
     wil::com_ptr<ID2D1Layer> selectionLayer;
@@ -356,6 +358,7 @@ void RichTextEditor::SetText(std::wstring text)
     _state->document.Reset(std::move(text));
     _state->highlights.clear();
     _state->decorations.clear();
+    _state->decorationStatus = RichTextDecorationStatus::None;
     _state->images.Cancel();
     _state->sourceEditing.reset();
     _state->markdownCapacityRejected.reset();
@@ -390,6 +393,7 @@ bool RichTextEditor::SynchronizeReadOnlySourceSnapshot(const RichText::SourceSna
     {
         _state->highlights.clear();
         _state->decorations.clear();
+        _state->decorationStatus = RichTextDecorationStatus::None;
         _state->images.Cancel();
         _state->sourceEditing.reset();
         _state->markdownCapacityRejected.reset();
@@ -1059,8 +1063,23 @@ void RichTextEditor::SetDecorations(const RichText::SourceSnapshot& expectedSour
             throw std::invalid_argument("Invalid rich decoration");
     if (std::ranges::equal(_state->decorations, decorations))
         return;
+    if (! decorations.empty())
+    {
+        const auto* host = GetHost();
+        if (! host || ! LayoutIsCurrent(*host))
+            throw std::logic_error("Rich decoration geometry is not current");
+        size_t rectangleCount = 0u;
+        for (const auto& item : decorations)
+        {
+            const auto rectangles = _state->layout.SourceRange(item.start, item.start + item.length);
+            if (rectangles.size() > _state->decorationRectangleLimit - rectangleCount)
+                throw std::length_error("Rich decoration rectangle capacity exceeded");
+            rectangleCount += rectangles.size();
+        }
+    }
     std::vector<RichTextDecoration> staged(decorations.begin(), decorations.end());
     _state->decorations.swap(staged);
+    _state->decorationStatus       = _state->decorations.empty() ? RichTextDecorationStatus::None : RichTextDecorationStatus::Pending;
     _state->overlayHighlightsDirty = true;
     const auto lifetime            = GetLifetimeToken();
     RequestContentPreparation(false);
@@ -1071,6 +1090,32 @@ std::span<const RichTextDecoration> RichTextEditor::GetDecorations() const noexc
 {
     return _state->decorations;
 }
+RichTextDecorationStatus RichTextEditor::GetDecorationStatus() const noexcept
+{
+    if (! _state->decorations.empty())
+    {
+        const auto* host = GetHost();
+        if (_state->overlayHighlightsDirty || ! host || ! LayoutIsCurrent(*host))
+            return RichTextDecorationStatus::Pending;
+    }
+    return _state->decorationStatus;
+}
+#if DXUI_ENABLE_DIAGNOSTICS
+void RichTextEditor::DebugSetDecorationRectangleLimitForTest(size_t limit) noexcept
+{
+    limit = std::min(limit, size_t{4096u});
+    if (_state->decorationRectangleLimit == limit)
+        return;
+    _state->decorationRectangleLimit = limit;
+    _state->overlayHighlightsDirty   = true;
+    if (! _state->decorations.empty())
+        _state->decorationStatus = RichTextDecorationStatus::Pending;
+    const auto lifetime = GetLifetimeToken();
+    RequestContentPreparation(false);
+    if (! lifetime.expired())
+        RequestInvalidate();
+}
+#endif
 void RichTextEditor::SetDefaultContextMenuLabels(const RichTextContextMenuLabels* labels)
 {
     if (! labels)
@@ -1945,6 +1990,8 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
     if (sourceChanged)
         _state->decorations.clear();
     if (sourceChanged)
+        _state->decorationStatus = RichTextDecorationStatus::None;
+    if (sourceChanged)
     {
         if (_state->imageSource)
             _state->images.SuspendForEdit(Snapshot(), *_state->imageSource);
@@ -2092,6 +2139,8 @@ void RichTextEditor::RetireLayout(bool retainGeometry) const noexcept
     _state->selectionLayerWidth = _state->selectionLayerHeight = 0.0f;
     ++_state->fileDropEpoch;
     _state->overlaySelectionDirty = _state->overlayHighlightsDirty = true;
+    if (! _state->decorations.empty())
+        _state->decorationStatus = RichTextDecorationStatus::Pending;
     _state->sourceInk.Clear();
     _state->hoveredLink.reset();
     _state->caretLink.reset();
@@ -2192,6 +2241,7 @@ void RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
     {
         std::vector<State::HighlightRectangle> rectangles(0u);
         std::vector<State::DecorationRectangle> decorations(0u);
+        bool decorationCapacityExceeded = false;
         std::vector<RichTextSourceHighlight> normalized(0u);
         std::vector<RichText::MarkdownRange> atomic(0u);
         if (! state.highlights.empty())
@@ -2218,12 +2268,17 @@ void RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
             bottoms.push_back(bottom);
         }
         for (const auto& decoration : state.decorations)
-            for (const auto& rectangle : layout.SourceRange(decoration.start, decoration.start + decoration.length))
+        {
+            const auto mapped = layout.SourceRange(decoration.start, decoration.start + decoration.length);
+            if (mapped.size() > state.decorationRectangleLimit - decorations.size())
             {
-                if (decorations.size() == 4096u)
-                    THROW_HR(HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER));
-                decorations.push_back({rectangle, decoration.kind, decoration.role});
+                decorationCapacityExceeded = true;
+                decorations.clear();
+                break;
             }
+            for (const auto& rectangle : mapped)
+                decorations.push_back({rectangle, decoration.kind, decoration.role});
+        }
         for (const auto role :
              {RichTextDecorationRole::Accent, RichTextDecorationRole::Subdued, RichTextDecorationRole::Warning, RichTextDecorationRole::Error})
         {
@@ -2244,6 +2299,9 @@ void RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
         state.highlightRectangles.swap(rectangles);
         state.highlightBottoms.swap(bottoms);
         state.decorationRectangles.swap(decorations);
+        state.decorationStatus       = state.decorations.empty()    ? RichTextDecorationStatus::None
+                                       : decorationCapacityExceeded ? RichTextDecorationStatus::CapacityExceeded
+                                                                    : RichTextDecorationStatus::Ready;
         state.overlayHighlightsDirty = false;
     }
 }
@@ -3042,6 +3100,7 @@ bool RichTextEditor::ImportTextInputState(ControlHost& host, const TextInputStat
         {
             _state->highlights.clear();
             _state->decorations.clear();
+            _state->decorationStatus = RichTextDecorationStatus::None;
             _state->images.Cancel();
             UpdateSemanticSourceRegion();
             RetireSemanticAccessibility();
