@@ -6,6 +6,7 @@
 #include "Support.Tests.RichSemantic.h"
 #include <DxUi/DxUi.h>
 #include <cmath>
+#include <iostream>
 #include <limits>
 #include <new>
 #include <wil/resource.h>
@@ -500,6 +501,27 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     const auto deepState = editor->QueryMarkdownCommandState(stateRequest);
     Check(deepState && deepState->mixed && ! deepState->listKind,
           "deep nested list state restores ancestors beyond the fixed stack and detects the unlisted tail");
+    std::wstring wrappedLists(0u, L' ');
+    for (size_t depth = 0u; depth < 65u; ++depth)
+    {
+        wrappedLists.append(depth * 2u, L' ');
+        wrappedLists += L"- x\n";
+    }
+    for (size_t sibling = 0u; sibling < 12u; ++sibling)
+    {
+        wrappedLists.append(130u, L' ');
+        for (size_t quote = 0u; quote < 20u; ++quote)
+            wrappedLists += L"> ";
+        wrappedLists += L"- x\n";
+    }
+    editor->SetText(wrappedLists);
+    prepare();
+    editor->SetSelection({0u, wrappedLists.size()});
+    const auto wrappedState = editor->QueryMarkdownCommandState(stateRequest);
+    const auto ancestorSteps = editor->DebugGetListStateAncestorSteps();
+    Check(wrappedState && ! wrappedState->mixed && wrappedState->listKind == MarkdownListKind::Unordered && ancestorSteps >= 240u,
+          "deep nested sibling lists exercise parent-link recovery through repeated quote wrappers");
+    std::cout << "list-state source units=" << wrappedLists.size() << " ancestor steps=" << ancestorSteps << '\n';
     editor->SetText(L"intro\n\n- item\n\nending");
     prepare();
     editor->SetSelection({0u, editor->Snapshot().Length()});

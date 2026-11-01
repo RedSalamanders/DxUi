@@ -26,7 +26,10 @@ namespace DxUi
 {
 namespace
 {
-std::optional<RichText::MarkdownListKind> UniformListKind(const RichText::MarkdownSyntax& syntax, std::size_t first, std::size_t last) noexcept
+std::optional<RichText::MarkdownListKind> UniformListKind(const RichText::MarkdownSyntax& syntax,
+                                                         std::size_t first,
+                                                         std::size_t last,
+                                                         std::size_t& ancestorSteps) noexcept
 {
     using namespace RichText;
     const auto& nodes = syntax.Nodes();
@@ -92,7 +95,10 @@ std::optional<RichText::MarkdownListKind> UniformListKind(const RichText::Markdo
             {
                 active = current.parent;
                 while (active != MarkdownNoNode && nodes[active].block.kind != MarkdownBlockKind::ListItem)
+                {
+                    ++ancestorSteps;
                     active = nodes[active].parent;
+                }
             }
         }
         if (current.nextSibling != MarkdownNoNode)
@@ -352,6 +358,7 @@ void UnionHighlights(std::span<const RichTextSourceHighlight> input,
 #pragma warning(disable : 4625 4626 5026 5027)
 struct RichTextEditor::State
 {
+    std::size_t lastListStateAncestorSteps{};
     explicit State(std::wstring text) : document(std::move(text)), searchQuery(0u, L' '), documentFilePath(0u, L' ')
     {
     }
@@ -2231,7 +2238,8 @@ std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownComma
             no = true;
     }
     result.headingLevel = mixedHeading ? 0u : heading;
-    result.listKind = UniformListKind(*document->Syntax(), first, last);
+    _state->lastListStateAncestorSteps = 0u;
+    result.listKind = UniformListKind(*document->Syntax(), first, last, _state->lastListStateAncestorSteps);
     if (request.command == MarkdownCommand::SetHeading)
     {
         result.active = seen && ! mixedHeading && heading == request.headingLevel;
@@ -3567,6 +3575,10 @@ RichTextEditorDebugState RichTextEditor::DebugGetState() const noexcept
             _state->highlightRectangles.size(),
             _state->decorationRectangles.size(),
             _state->overlaySelectionDirty || _state->overlayHighlightsDirty};
+}
+size_t RichTextEditor::DebugGetListStateAncestorSteps() const noexcept
+{
+    return _state->lastListStateAncestorSteps;
 }
 bool RichTextEditor::SupportsTextInput() const noexcept
 {

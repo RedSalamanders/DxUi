@@ -138,6 +138,8 @@ nonallocating planner predicate is not yet available.
 List state considers the complete selected source interval, including nested
 and intervening list kinds, using an allocation-free syntax traversal. Beyond
 64 nested items, parent-link recovery may add work proportional to ancestor depth.
+`DebugGetListStateAncestorSteps()` reports the last query's recovery work for
+qualification of deeply nested list and quote combinations.
 For backward and forward structural join, noncollapsed selections and carets
 outside supported text leaves or away from their visible edge are known to be
 unavailable. Plain paragraphs without a compatible sibling are also unavailable;

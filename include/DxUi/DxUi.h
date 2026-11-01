@@ -3441,6 +3441,7 @@ public:
     void SetOnSelectionChanged(std::function<void()> callback);
     [[nodiscard]] bool IsSelectionGestureActive() const noexcept;
     [[nodiscard]] RichTextEditorDebugState DebugGetState() const noexcept;
+    [[nodiscard]] size_t DebugGetListStateAncestorSteps() const noexcept;
     // Accessible ranges use source offsets; geometry follows the current rich
     // projection. Includes complete lines that are partially visible.
     [[nodiscard]] std::optional<std::pair<size_t, size_t>> GetVisibleSourceRange(const ControlHost& host) const noexcept;
