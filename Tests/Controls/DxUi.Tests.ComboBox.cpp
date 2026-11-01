@@ -1253,6 +1253,26 @@ void TestComboBoxSelectionStopsAfterSelectionChangedDestroysComboBox()
     Require(dynamic_cast<const Panel*>(host.GetRoot()) != nullptr, "ComboBox selection callback leaves the replacement root installed");
 }
 
+void TestComboBoxSubmissionCallbackCanTransferItsOwner()
+{
+    using namespace DxUi;
+    WindowHost original;
+    WindowHost replacement;
+    auto root = std::make_unique<Panel>();
+    auto* panel = root.get();
+    auto* combo = panel->AddChild<ComboBox>();
+    combo->SetEditable(true);
+    original.SetRoot(std::move(root));
+    size_t notifications = 0u;
+    combo->SetOnSubmitted([&]()
+    {
+        ++notifications;
+        replacement.SetRoot(panel->TakeChild(0u));
+    });
+    Require(combo->OnKeyDown(original, VK_RETURN, 0u), "editable submit is consumed");
+    Require(notifications == 1u && replacement.GetRoot() == combo,
+            "submit callback transfers its owner without old-host continuation");
+}
 void TestComboBoxSelectionCallbackCanTransferItsOwner()
 {
     using namespace DxUi;
@@ -1437,6 +1457,7 @@ void TestComboBoxTextChangeSnapshotCleanupRetiresRootBeforeCallerContinues()
 
 void RunComboBoxTests()
 {
+    DXUI_RUN_TEST(TestComboBoxSubmissionCallbackCanTransferItsOwner);
     DXUI_RUN_TEST(TestComboBoxSelectionCallbackCanTransferItsOwner);
     DXUI_RUN_TEST(TestComboBoxPopupCallbackTransferDoesNotOpenOnOldHost);
     DXUI_RUN_TEST(TestComboBoxPopupCallbackKeepsItsCaptureWhenItDestroysTheComboBox);

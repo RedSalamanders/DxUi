@@ -1695,7 +1695,7 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         {
             const auto onSubmitted = _onSubmitted;
             (*onSubmitted)();
-            if (lifetime.expired())
+            if (lifetime.expired() || GetHost() != originalHost)
             {
                 return true;
             }

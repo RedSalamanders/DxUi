@@ -1,0 +1,1 @@
+- Stop editable ComboBox submission continuation when its callback transfers the control to another host.
