@@ -72,7 +72,7 @@ std::optional<RichText::MarkdownRange> HeadingFragment(const RichText::SemanticD
     {
         if (element.role != RichText::SemanticRole::Heading)
             continue;
-        const auto folded = RichText::Detail::FoldLabel(element.name);
+        const auto folded = RichText::Detail::NormalizeMarkdownLabel(element.name, document.Syntax()->Profile());
         std::wstring base(0u, L' ');
         for (const auto unit : folded)
         {

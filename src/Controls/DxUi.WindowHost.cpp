@@ -1351,6 +1351,7 @@ struct ControlHost::FileDropState
     bool busy = false;
 };
 
+ControlHost::ControlHost() = default;
 ControlHost::~ControlHost()
 {
     if (_fileDropState)

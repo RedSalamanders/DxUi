@@ -5840,7 +5840,7 @@ public:
         bool batchInitialRootChildren = false;
     };
 
-    ControlHost() = default;
+    ControlHost();
     ~ControlHost();
 
     ControlHost(const ControlHost&)            = delete;

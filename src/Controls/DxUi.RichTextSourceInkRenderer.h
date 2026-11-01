@@ -1,4 +1,5 @@
 #pragma once
+#include <DxUi/Configuration.h>
 #include <DxUi/RichTextLayout.h>
 #include <algorithm>
 #include <array>
