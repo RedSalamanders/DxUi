@@ -3739,7 +3739,7 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
             SetZoom(next);
             return true;
         }
-        if (key == VK_ESCAPE && (_state->scrollbarDragging || _state->dragging))
+        if (key == VK_ESCAPE && ! _state->sourceEditing && (_state->scrollbarDragging || _state->dragging))
         {
             const auto release        = ReleaseUnchangedCaptureOnExit(host, *this);
             _state->scrollbarDragging = false;
