@@ -29,7 +29,7 @@ struct EmbeddedScene
         auto root = std::make_unique<DxUi::Panel>();
         if (richText)
         {
-            auto* caption = root->AddChild<DxUi::Label>(L"Unicode rich text - F2 edits code/diagram blocks; Esc finishes; Ctrl+Z/Y undo/redo");
+            auto* caption = root->AddChild<DxUi::Label>(L"Unicode rich text - F2 edits source; F8 selects diagnostics; Ctrl+Tab visits backlinks");
             caption->SetBounds(D2D1::RectF(24, 8, 950, 32));
             auto* status = root->AddChild<DxUi::Label>(L"Click a diagram or code block and press F2. Select ordinary text for formatting actions.");
             status->SetBounds(D2D1::RectF(24, 34, 950, 58));
@@ -37,25 +37,27 @@ struct EmbeddedScene
             rich->SetBounds(D2D1::RectF(24, 144, 950, 690));
             rich->SetMarkdownAnalysisProfile(DxUi::RichText::MarkdownProfile::RichMarkdown);
             rich->SetMarkdownRenderingEnabled(true);
-            rich->SetText(L"# Owned Unicode rich text\r\n\r\n"
-                          L"Copy an image file in Explorer, or copy its path, then paste here to display it.\r\n\r\n"
-                          L"```mermaid\r\ngraph LR;A[Unicode \u03b2]-->|edit|B{Source};B-->A\r\n```\r\n\r\n"
-                          L"Edit **bold**, *italic*, ~~deleted~~ and `code`.[^unicode] Try an [underlined link](https://example.invalid).\r\n\r\n"
-                          L"<p>Native <b>HTML</b>, <u>underline</u>, <a href='#sample' title='Inert link'>a link</a> and &copy;.</p>\r\n\r\n"
-                          L"- [x] A checked task\r\n- [ ] An unchecked task\r\n\r\n"
-                          L"## Tables and Unicode\r\n\r\n"
-                          L"| Feature | Example | Status |\r\n| :--- | :---: | ---: |\r\n"
-                          L"| Unicode | \u6771\u4eac \u03b1\u03b2 \U0001f642 | Ready |\r\n"
-                          L"| Empty cell | | Editable |\r\n| Padded cells |\r\n\r\n"
-                          L"> A quote with **emphasis** and an [inert link](https://example.invalid).\r\n\r\n"
-                          L"9. A long ordered item demonstrates a measured hanging marker column. Wrapped text stays aligned with the first text line.\r\n"
-                          L"10. The two-digit marker shares the same text column.\r\n\r\n    A loose continuation keeps its text aligned.\r\n\r\n"
-                          L"```cpp\r\n// Source spelling and Unicode are preserved.\r\nconst auto message = L\"Hello\";\r\n```\r\n\r\n"
-                          L"An image alternative: ![small example](example.png). Source remains exact.[^unicode][^editing]\r\n\r\n"
-                          L"Unsupported HTML stays literal: <span class='custom'>editable source</span>.\r\n\r\n"
-                          L">\r\n\r\n- \r\n\r\n"
-                          L"[^editing]: Selection and editing use original source positions, even when footers move.\r\n"
-                          L"[^unicode]: **Unicode footnotes** retain raw labels, mixed formatting and \u03b2 \U0001f642.\r\n");
+            rich->SetText(
+                L"---\r\ntitle: Unicode field notes\r\nauthor: Sample Editor\r\n---\r\n\r\n"
+                L"# Owned Unicode rich text\r\n\r\n"
+                L"Copy an image file in Explorer, or copy its path, then paste here to display it.\r\n\r\n"
+                L"```mermaid\r\ngraph LR;A[Unicode \u03b2]-->|edit|B{Source};B-->A\r\n```\r\n\r\n"
+                L"Edit **bold**, *italic*, ~~deleted~~ and `code`, with $E=mc^2$.[^unicode] Try an [underlined link](https://example.invalid).\r\n\r\n"
+                L"<p>Native <b>HTML</b>, <u>underline</u>, <a href='#sample' title='Inert link'>a link</a> and &copy;.</p>\r\n\r\n"
+                L"- [x] A checked task\r\n- [ ] An unchecked task\r\n\r\n"
+                L"## Tables and Unicode\r\n\r\n"
+                L"| Feature | Example | Status |\r\n| :--- | :---: | ---: |\r\n"
+                L"| Unicode | \u6771\u4eac \u03b1\u03b2 \U0001f642 | Ready |\r\n"
+                L"| Empty cell | | Editable |\r\n| Padded cells |\r\n\r\n"
+                L"> A quote with **emphasis** and an [inert link](https://example.invalid).\r\n\r\n"
+                L"9. A long ordered item demonstrates a measured hanging marker column. Wrapped text stays aligned with the first text line.\r\n"
+                L"10. The two-digit marker shares the same text column.\r\n\r\n    A loose continuation keeps its text aligned.\r\n\r\n"
+                L"```cpp\r\n// Source spelling and Unicode are preserved.\r\nconst auto message = L\"Hello\";\r\n```\r\n\r\n"
+                L"An image alternative: ![small example](example.png). Source remains exact.[^unicode][^editing]\r\n\r\n"
+                L"Unsupported HTML stays literal: <span class='custom'>editable source</span>. An unresolved note[^missing] demonstrates F8.\r\n\r\n"
+                L">\r\n\r\n- \r\n\r\n"
+                L"[^editing]: Selection and editing use original source positions, even when footers move.\r\n"
+                L"[^unicode]: **Unicode footnotes** retain raw labels, mixed formatting and \u03b2 \U0001f642.\r\n");
             using namespace DxUi::RichText;
             using Action = std::pair<std::wstring_view, MarkdownCommandRequest>;
             const std::array<Action, 18u> actions{{{L"Bold", {.command = MarkdownCommand::ToggleStyle}},

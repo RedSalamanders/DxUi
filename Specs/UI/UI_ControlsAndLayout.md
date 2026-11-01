@@ -1900,7 +1900,7 @@ the initial fallback stage, render the complete definition literally once with
 source ACPs; do not independently render its parsed child subtree or add extra
 caret rows for its child blank trivia. Structural commands touching this fallback
 MUST be unavailable atomically; raw source replacement and undo/redo remain valid.
-Future note-aware structural commands require their own prefix/transaction tests.
+Resolved definitions use the separate note-aware command rules below.
 
 Global resolution uses the existing Unicode 17 default case-fold and ASCII
 whitespace collapse without changing label source. No NFC/NFKC or entity decoding
@@ -1963,7 +1963,7 @@ sites by display order and index visual line units as an ordered raw-source
 partition; generated backlink-only rows add no raw line units. Reordered note
 data MUST remain optional, without enlarging ordinary inline records.
 
-Resolved footnote body selections admit bounded inline style, link and task commands when every staged edit stays within the definition content and inserts no line break. Literal unresolved definitions and other structural commands retain their existing guards.
+Resolved footnote body selections use the ordinary structural planners with note-aware opening-marker and continuation prefixes. Every staged edit must preserve the definition label and existing continuation ownership; inserted physical lines retain the enclosing note and outer containers. Unresolved literal definitions remain guarded. F8 and Shift+F8 select the next or previous exact source diagnostic, wrapping in source order. Selection requires a current syntax/layout, no composition, and a live unchanged host; it changes neither source/history nor focus. The same source selection is exposed through UIA TextPattern.
 
 Retained selection remains one source-contiguous anchor/caret pair. A selection
 crossing main text and a footer may highlight disjoint visual fragments. Copy,

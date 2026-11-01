@@ -170,7 +170,8 @@ envelopes remain guarded. Internal navigation selects and scrolls without editin
 history; read-only navigation is allowed. Ctrl+click, Ctrl+Enter at references
 and UIA Invoke share publication guards. Ctrl+Tab and Ctrl+Shift+Tab cycle outlined
 generated backlinks, and Ctrl+Enter activates the selected backlink. Note-aware
-structural commands and final extension qualification remain open.
+structural edits retain their owning definition prefixes. F8 and Shift+F8 select
+the next or previous diagnostic in exact source order. Final extension qualification remains open.
 Selection across reordered content still selects one raw source interval, which
 can highlight several visual fragments; source copy/deletion follows that interval.
 
@@ -1342,9 +1343,7 @@ Focused x64 Debug proof includes both retained hosts, actual clients, complete
 EditorControls/Accessibility/Embedded runs, 18 independent binding/rendering
 fixtures, exact line/atomic-EOL cases, source edits and observed allocation
 failures. The five themed gallery tiles show numbered/styled bodies and repeated
-backlinks. Final runtime/build profiles remain M5f. Generated backlink keyboard
-traversal and note-aware structural commands remain M5e;
-this preview does not close metadata, math, diagrams or performance acceptance.
+backlinks. Keyboard traversal and guarded note-aware structural planning are implemented; final runtime/build profiles remain M5f. This preview does not close metadata, math, diagrams or performance acceptance.
 
 ## Native in-document mathematics and broader diagrams (RedTilde continuation)
 

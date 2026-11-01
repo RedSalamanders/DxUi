@@ -2193,6 +2193,39 @@ void SemanticInlineMathSourceEditing(bool embedded)
     Require(raw->GetPropertyValue(UIA_NamePropertyId, &retired) == UIA_E_ELEMENTNOTAVAILABLE, "detaching retires the active inline source provider");
     adapter->RebindForTest(fixture.controls);
 }
+void SemanticDiagnosticSelection(bool embedded)
+{
+    using namespace RichText;
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    fixture.editor->SetText(L"first[^missing] and second[^other]\n");
+    fixture.Publish();
+    const auto syntax = fixture.editor->GetMarkdownSyntax();
+    Require(syntax && syntax->Diagnostics().size() == 2u, "diagnostic traversal fixture has two source diagnostics");
+    const auto first    = syntax->Diagnostics()[0].source;
+    const auto second   = syntax->Diagnostics()[1].source;
+    const auto revision = fixture.editor->Revision();
+    const auto focus    = fixture.controls->GetFocusControl();
+    Require(fixture.editor->OnKeyDown(*fixture.controls, VK_F8, 0u) && fixture.editor->GetSelection() == Selection{first.first, first.last},
+            "F8 selects the first exact source diagnostic");
+    Require(fixture.editor->OnKeyDown(*fixture.controls, VK_F8, 0u) && fixture.editor->GetSelection() == Selection{second.first, second.last},
+            "F8 selects the next source diagnostic");
+    Require(fixture.editor->OnKeyDown(*fixture.controls, VK_F8, MK_SHIFT) && fixture.editor->GetSelection() == Selection{first.first, first.last},
+            "Shift+F8 selects the previous diagnostic");
+    Require(fixture.editor->Revision() == revision && ! fixture.editor->CanUndo() && fixture.controls->GetFocusControl() == focus,
+            "diagnostic navigation changes neither source, history nor focus");
+    fixture.editor->SetText(L"changed");
+    Require(! fixture.editor->SelectMarkdownDiagnostic(*fixture.controls), "stale diagnostic publication cannot act after source replacement");
+}
+void TestRichTextAccessibilityWindowDiagnosticSelection()
+{
+    SemanticDiagnosticSelection(false);
+}
+void TestRichTextAccessibilityEmbeddedDiagnosticSelection()
+{
+    EmbeddedCase([](bool embedded) { SemanticDiagnosticSelection(embedded); });
+}
+
 void SemanticFootnoteNavigation(bool embedded)
 {
     using namespace RichText;
@@ -2863,6 +2896,8 @@ void RunRichTextAccessibilityTests()
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedMarkdownSourceAndRanges);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowCountedNul);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedCountedNul);
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowDiagnosticSelection);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedDiagnosticSelection);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowReadOnlySnapshotSynchronization);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedReadOnlySnapshotSynchronization);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowReadOnlyParsedSnapshotAdoption);

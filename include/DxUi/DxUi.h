@@ -3232,6 +3232,8 @@ public:
     // Returns only a completed analysis of current source/profile, never drains
     // pending work. Held results remain immutable after editing or detachment.
     [[nodiscard]] std::shared_ptr<const RichText::MarkdownSyntax> GetMarkdownSyntax() const noexcept;
+    // Select the next exact source diagnostic without changing source/history or focus.
+    bool SelectMarkdownDiagnostic(ControlHost& host, bool backwards = false);
     // Opt-in semantic rendering preview. Requires an analysis profile; clearing
     // that profile also disables rendering. Source view remains exact raw text.
     // Admission overflow displays SourceFallback without changing requested

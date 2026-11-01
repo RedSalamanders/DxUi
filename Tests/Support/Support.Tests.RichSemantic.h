@@ -360,6 +360,31 @@ inline void InlineTasksLinks()
         const auto taskText              = task.find(L"task");
         request.command                  = MarkdownCommand::ToggleTask;
         Exact(task, {taskText, taskText}, request, L"ref[^n]\n\n[^n]: - [x] task\n", std::nullopt, MarkdownProfile::RichMarkdown);
+        request.command = MarkdownCommand::InsertParagraph;
+        Exact(source, {start + 2u, start + 2u}, request, L"ref[^n]\n\n[^n]: bo\n    dy\n", std::nullopt, MarkdownProfile::RichMarkdown);
+        request.command      = MarkdownCommand::SetHeading;
+        request.headingLevel = 2u;
+        Exact(source, {start, start}, request, L"ref[^n]\n\n[^n]: ## body\n", std::nullopt, MarkdownProfile::RichMarkdown);
+        request.command  = MarkdownCommand::SetList;
+        request.listKind = MarkdownListKind::Unordered;
+        Exact(source, {start, start}, request, L"ref[^n]\n\n[^n]: - body\n", std::nullopt, MarkdownProfile::RichMarkdown);
+        request.command       = MarkdownCommand::InsertTable;
+        request.tableColumns  = 2u;
+        request.tableBodyRows = 1u;
+        Exact(source, {start, start + 4u}, request, L"ref[^n]\n\n[^n]: | | |\n    | --- | --- |\n    | | |\n", std::nullopt, MarkdownProfile::RichMarkdown);
+        constexpr std::wstring_view table = L"ref[^n]\n\n[^n]: | a | b |\n    | --- | --- |\n    | c | d |\n";
+        const auto cell                   = table.find(L"d |");
+        request.command                   = MarkdownCommand::InsertTableRow;
+        Exact(table,
+              {cell, cell},
+              request,
+              L"ref[^n]\n\n[^n]: | a | b |\n    | --- | --- |\n    | c | d |\n    | | |\n",
+              std::nullopt,
+              MarkdownProfile::RichMarkdown);
+        request.command                    = MarkdownCommand::InsertParagraph;
+        constexpr std::wstring_view nested = L"ref[^n]\r\n\r\n[^n]: - item\r\n";
+        const auto nestedText              = nested.find(L"item");
+        Exact(nested, {nestedText + 2u, nestedText + 2u}, request, L"ref[^n]\r\n\r\n[^n]: - it\r\n    - em\r\n", std::nullopt, MarkdownProfile::RichMarkdown);
     }
     request.command = MarkdownCommand::ToggleStyle;
     for (const auto style : {MarkdownTextStyle::Strong, MarkdownTextStyle::Emphasis, MarkdownTextStyle::Strikethrough})

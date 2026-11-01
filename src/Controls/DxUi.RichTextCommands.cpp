@@ -595,6 +595,17 @@ struct MarkdownCommandPlanner
             }
         plan.applicable_ = true;
     }
+    bool NoteContinuation(std::wstring& prefix, const PhysicalLine& line, std::size_t source) const
+    {
+        const auto note = NodeAt(Kind::FootnoteDefinition, source);
+        if (note == MarkdownNoNode || Line(nodes[note].block.source.first).first != line.first)
+            return true;
+        std::size_t outer{};
+        if (! OuterOffset(note, line, outer) || nodes[note].block.content.first < outer || nodes[note].block.content.first - line.first > prefix.size())
+            return false;
+        prefix.replace(outer - line.first, nodes[note].block.content.first - outer, nodes[note].contentIndent, L' ');
+        return true;
+    }
     void Continue()
     {
         const auto first = plan.before_.Start(), last = plan.before_.End();
@@ -615,8 +626,11 @@ struct MarkdownCommandPlanner
                     at = content.source.first;
                     break;
                 }
+            std::wstring prefix(Slice(line.first, at));
+            if (! NoteContinuation(prefix, line, first))
+                return;
             std::wstring inserted(Eol(line));
-            inserted += Slice(line.first, at);
+            inserted += prefix;
             Add(first, last, inserted);
             plan.after_       = {first + inserted.size(), first + inserted.size()};
             explicitSelection = true;
@@ -720,6 +734,8 @@ struct MarkdownCommandPlanner
                 }
             }
         }
+        if (! NoteContinuation(prefix, line, first))
+            return;
         std::wstring inserted(Eol(line));
         inserted += prefix;
         Add(first, last, inserted);
@@ -1007,11 +1023,59 @@ struct MarkdownCommandPlanner
         const auto content = nodes[note].block.content.first;
         const auto end     = nodes[note].block.source.last;
         for (const auto& edit : plan.edits_)
-            if (edit.source.first < content || edit.source.last > end || edit.replacement.find_first_of(L"\r\n") != std::wstring::npos)
+        {
+            if (edit.source.first < content || edit.source.last > end)
             {
                 plan.applicable_ = false;
                 return;
             }
+            const auto& boundaryLine = Line(edit.source.first);
+            const auto& line         = edit.source.first == edit.source.last && edit.source.first == boundaryLine.first && edit.source.first > content
+                                           ? Line(edit.source.first - 1u)
+                                           : boundaryLine;
+            std::size_t outer{};
+            if (! OuterOffset(note, line, outer))
+            {
+                plan.applicable_ = false;
+                return;
+            }
+            if (Line(nodes[note].block.source.first).first != line.first)
+            {
+                auto at           = outer;
+                unsigned column   = Columns(Slice(line.first, outer));
+                const auto target = column + nodes[note].contentIndent;
+                while (at < line.bodyEnd && Space(text[at]) && column < target)
+                {
+                    const auto next = text[at] == L'\t' ? column + 4u - column % 4u : column + 1u;
+                    if (next > target)
+                        break;
+                    column = next;
+                    ++at;
+                }
+                if (column != target ||
+                    (edit.source.first < at && ! (edit.source.first == line.first && edit.source.last >= line.end && edit.replacement.empty())))
+                {
+                    plan.applicable_ = false;
+                    return;
+                }
+            }
+            std::wstring continuation(Slice(line.first, outer));
+            continuation.append(nodes[note].contentIndent, L' ');
+            for (std::size_t at = 0u; at < edit.replacement.size(); ++at)
+            {
+                if (edit.replacement[at] != L'\r' && edit.replacement[at] != L'\n')
+                    continue;
+                if (edit.replacement[at] == L'\r' && at + 1u < edit.replacement.size() && edit.replacement[at + 1u] == L'\n')
+                    ++at;
+                const auto remainder = std::wstring_view(edit.replacement).substr(at + 1u);
+                if (! remainder.empty() ? ! remainder.starts_with(continuation)
+                                        : (edit.source.last < end && ! text.substr(edit.source.last).starts_with(continuation)))
+                {
+                    plan.applicable_ = false;
+                    return;
+                }
+            }
+        }
     }
     MarkdownCommandPlan Finish()
     {
@@ -1840,6 +1904,8 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
                 prefix.append(nodes[item].contentIndent, L' ');
             }
         }
+        if (! NoteContinuation(prefix, line, plan.before_.Start()))
+            return;
         std::wstring value = emptyRow(request.tableColumns, false);
         value += Eol(line);
         value += prefix;
@@ -1956,6 +2022,20 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
         plan.after_       = {caret, caret};
         explicitSelection = true;
     };
+    const auto removeTable = [&]
+    {
+        auto first      = nodes[table].block.source.first;
+        const auto note = Ancestor(table, Kind::FootnoteDefinition);
+        std::wstring replacement(0u, L' ');
+        if (note != MarkdownNoNode && first < nodes[note].block.content.first)
+        {
+            first = nodes[note].block.content.first;
+            replacement.assign(Eol(Line(first)));
+        }
+        Add(first, nodes[table].block.source.last, replacement);
+        plan.after_       = {first, first};
+        explicitSelection = true;
+    };
     switch (request.command)
     {
         case MarkdownCommand::NextTableCell:
@@ -2014,9 +2094,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
             {
                 if (rows.size() == 1u)
                 {
-                    Add(nodes[table].block.source.first, nodes[table].block.source.last, L"");
-                    plan.after_       = {nodes[table].block.source.first, nodes[table].block.source.first};
-                    explicitSelection = true;
+                    removeTable();
                     break;
                 }
                 const auto promote      = rows[1u];
@@ -2073,9 +2151,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
                 throw std::length_error("Structural table column capacity exceeded");
             if (! insert && columns == 1u)
             {
-                Add(nodes[table].block.source.first, nodes[table].block.source.last, L"");
-                plan.after_       = {nodes[table].block.source.first, nodes[table].block.source.first};
-                explicitSelection = true;
+                removeTable();
                 break;
             }
             std::vector<MarkdownRange> ranges(0u);
@@ -2344,9 +2420,8 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
     if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::PreviousTableCell))
         throw std::invalid_argument("Invalid Markdown command");
     Detail::MarkdownCommandPlanner builder(source, revision, std::move(syntax), selection);
-    // A resolved definition owns editable inline content, but its label and
-    // continuation prefixes remain structural source. Other note-aware
-    // operations remain unavailable until their complete prefix plans exist.
+    // Resolved definitions own editable content, while the label and
+    // continuation prefixes remain protected structural source.
     auto note = MarkdownNoNode;
     for (std::size_t index = 0u; index < builder.nodes.size(); ++index)
     {
@@ -2355,10 +2430,8 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
             ! (selection.Start() == selection.End() ? builder.NodeAt(MarkdownBlockKind::FootnoteDefinition, selection.Start()) == index
                                                     : node.block.source.first < selection.End() && selection.Start() < node.block.source.last))
             continue;
-        const auto resolved      = std::ranges::find(builder.plan.Syntax()->Footnotes(), index, &MarkdownFootnote::definition);
-        const bool inlineCommand = request.command == MarkdownCommand::ToggleStyle || request.command == MarkdownCommand::SetLink ||
-                                   request.command == MarkdownCommand::RemoveLink || request.command == MarkdownCommand::ToggleTask;
-        if (note != MarkdownNoNode || resolved == builder.plan.Syntax()->Footnotes().end() || ! resolved->ordinal || ! inlineCommand ||
+        const auto resolved = std::ranges::find(builder.plan.Syntax()->Footnotes(), index, &MarkdownFootnote::definition);
+        if (note != MarkdownNoNode || resolved == builder.plan.Syntax()->Footnotes().end() || ! resolved->ordinal ||
             selection.Start() < node.block.content.first || selection.End() > node.block.source.last)
             return builder.Finish();
         note = index;

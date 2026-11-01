@@ -1184,9 +1184,12 @@ void AddComboItems(ComboBox& combo)
         sourceEditor->SetAppearance(sourceAppearance);
         sourceEditor->SetReadOnly(true);
 
-        const Tile tile = flow.Next(*scene.root, L"RichTextEditor / source-exact footnotes", 2u, 400.0f);
-        auto* editor    = scene.root->AddChild<RichTextEditor>(L"[^second]: Unicode \u03b2 and exact source.\n[^first]: **Styled** note body.\n\n"
-                                                               L"### Internal navigation\n\nFirst[^first], second[^second], repeated[^first].\n");
+        const Tile tile = flow.Next(*scene.root, L"RichTextEditor / composed document", 2u, 560.0f);
+        auto* editor    = scene.root->AddChild<RichTextEditor>(L"---\ntitle: Field notes\nauthor: Sample Editor\n---\n\n"
+                                                               L"[^second]: Unicode \u03b2 and exact source.\n[^first]: **Styled** note body.\n\n"
+                                                               L"### Internal navigation\n\nFirst[^first], second[^second], repeated[^first].\n\n"
+                                                               L"Inline $E=mc^2$ and ![sample image](example.png).\n\n"
+                                                               L"```mermaid\ngraph LR;A[Draft]-->B[Ready]\n```\n");
         editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
         editor->SetMarkdownRenderingEnabled(true);
         editor->SetBounds(tile.content);

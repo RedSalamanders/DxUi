@@ -950,6 +950,65 @@ bool RichTextEditor::ToggleSemanticTask(ControlHost& host, const std::shared_ptr
     const SourceEdit edit{{task.taskMarker.first + 1u, task.taskMarker.first + 2u}, std::wstring_view(&value, 1u)};
     return ApplySourceEdits(Snapshot(), Revision(), std::span(&edit, 1u), GetSelection());
 }
+bool RichTextEditor::SelectMarkdownDiagnostic(ControlHost& host, bool backwards)
+{
+    if (GetHost() != &host || ! IsEnabled() || ! IsVisible() || _state->sourceEditing || ! LayoutIsCurrent(host))
+        return false;
+    if (host.GetFocusControl() == this)
+    {
+        NativeTextInputState input{.text = std::wstring(0u, L' '), .compositionClauseBoundaries = std::vector<size_t>(0u)};
+        const bool available = host.TryReadNativeTextInputState(this, input);
+        if ((host.HasActiveNativeTextInputSession() && ! available) || (available && (input.compositionStartIndex || input.compositionEndIndex)))
+            return false;
+    }
+    const auto syntax = GetMarkdownSyntax();
+    if (! syntax || syntax->SourceRegion())
+        return false;
+    const auto semantic  = GetAcknowledgedSemanticDocument(host);
+    const auto selection = GetSelection();
+    const auto source    = Snapshot();
+    std::optional<RichText::MarkdownRange> nearest, wrapped;
+    const auto consider = [&](RichText::MarkdownRange range)
+    {
+        if (range.first > range.last || range.last > source.Length() || ! source.IsBoundary(range.first) || ! source.IsBoundary(range.last))
+            return;
+        const auto key      = std::pair{range.first, range.last};
+        const auto selected = std::pair{selection.Start(), selection.End()};
+        const auto earlier  = [](auto left, auto right) { return std::pair{left.first, left.last} < std::pair{right.first, right.last}; };
+        if (! wrapped || (backwards ? earlier(*wrapped, range) : earlier(range, *wrapped)))
+            wrapped = range;
+        if ((backwards ? key < selected : key > selected) && (! nearest || (backwards ? earlier(*nearest, range) : earlier(range, *nearest))))
+            nearest = range;
+    };
+    for (const auto& diagnostic : syntax->Diagnostics())
+        consider(diagnostic.source);
+    if (semantic && semantic->Syntax() == syntax)
+        for (const auto& diagnostic : semantic->Diagnostics())
+            consider(diagnostic.source);
+    const auto target = nearest ? nearest : wrapped;
+    if (! target)
+        return false;
+    const auto lifetime = GetLifetimeToken();
+    const auto revision = Revision();
+    const auto binding  = _state->bindingRevision;
+    if (! ScrollSourceRangeIntoView(host, target->first, target->last, true))
+        return false;
+    if (lifetime.expired() || GetHost() != &host || Revision() != revision || _state->bindingRevision != binding || GetMarkdownSyntax() != syntax ||
+        GetSelection() != selection || ! Snapshot().IsSameRevision(source))
+        return false;
+    if (host.GetFocusControl() == this)
+    {
+        NativeTextInputState input{.text = std::wstring(0u, L' '), .compositionClauseBoundaries = std::vector<size_t>(0u)};
+        const bool available = host.TryReadNativeTextInputState(this, input);
+        if ((host.HasActiveNativeTextInputSession() && ! available) || (available && (input.compositionStartIndex || input.compositionEndIndex)))
+            return false;
+    }
+    if (lifetime.expired() || GetHost() != &host || Revision() != revision || _state->bindingRevision != binding || GetMarkdownSyntax() != syntax ||
+        GetSelection() != selection || ! Snapshot().IsSameRevision(source) || (semantic && GetAcknowledgedSemanticDocument(host) != semantic))
+        return false;
+    SetSelection({target->first, target->last});
+    return true;
+}
 bool RichTextEditor::NavigateSemanticElement(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& expected, size_t element)
 {
     if (! expected || GetHost() != &host || ! IsEnabled() || GetAcknowledgedSemanticDocument(host) != expected)
@@ -2687,6 +2746,8 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
             return false;
         if (_state->sourceEditing && (key == VK_ESCAPE || (control && key == VK_RETURN && ! shift) || (key == VK_F2 && ! control && ! shift)))
             return EndSemanticSourceEdit(host);
+        if (key == VK_F8 && ! control)
+            return SelectMarkdownDiagnostic(host, shift);
         if (key == VK_F2 && ! control && ! shift)
         {
             if (const auto document = GetAcknowledgedSemanticDocument(host))
