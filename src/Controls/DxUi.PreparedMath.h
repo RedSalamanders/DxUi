@@ -323,7 +323,8 @@ class PreparedMath final
         return name == L"xrightarrow" || name == L"xleftarrow" || name == L"xleftrightarrow" || name == L"xRightarrow" ||
                name == L"xLeftarrow" || name == L"xLeftrightarrow" || name == L"xmapsto" || name == L"xlongequal" ||
                name == L"xhookleftarrow" || name == L"xhookrightarrow" || name == L"xleftharpoonup" || name == L"xleftharpoondown" ||
-               name == L"xrightharpoonup" || name == L"xrightharpoondown" || name == L"xleftrightharpoons" || name == L"xrightleftharpoons";
+               name == L"xrightharpoonup" || name == L"xrightharpoondown" || name == L"xleftrightharpoons" || name == L"xrightleftharpoons" ||
+               name == L"xtwoheadleftarrow" || name == L"xtwoheadrightarrow" || name == L"xtofrom";
     }
     static std::optional<std::uint32_t> ColorArgument(std::wstring_view text, std::wstring_view prefix) noexcept
     {
@@ -1250,7 +1251,7 @@ class PreparedMath final
             if (node.kind == Accent && ExtensibleArrow(node.text) && node.children.size() == 2u)
             {
                 const auto upper = child(0u), lower = child(1u);
-                const float gap = box.size * ((node.text == L"xleftrightharpoons" || node.text == L"xrightleftharpoons") ? .35f : .2f);
+                const float gap = box.size * ((node.text == L"xleftrightharpoons" || node.text == L"xrightleftharpoons" || node.text == L"xtofrom") ? .35f : .2f);
                 const float axisAtSize = MathConstantAt(12u, box.size, axis);
                 box.extent.width       = std::max(box.size, std::max(upper.width, lower.width) + box.size * .8f);
                 box.extent.above       = axisAtSize + gap + upper.above + upper.below;
@@ -1790,7 +1791,7 @@ class PreparedMath final
             const auto upper = ChildAt(index, 0u), lower = ChildAt(index, 1u);
             const auto center = x + box.extent.width * .5f;
             const auto y = baseline - MathConstantAt(12u, box.size, axis);
-            const auto gap = box.size * ((node.text == L"xleftrightharpoons" || node.text == L"xrightleftharpoons") ? .35f : .2f);
+            const auto gap = box.size * ((node.text == L"xleftrightharpoons" || node.text == L"xrightleftharpoons" || node.text == L"xtofrom") ? .35f : .2f);
             Place(upper, center - boxes[upper].extent.width * .5f, y - gap - boxes[upper].extent.below);
             Place(lower, center - boxes[lower].extent.width * .5f, y + gap + boxes[lower].extent.above);
             const float left = x + stroke, right = x + box.extent.width - stroke;
@@ -1799,25 +1800,30 @@ class PreparedMath final
             const bool leftUp = node.text == L"xleftharpoonup", leftDown = node.text == L"xleftharpoondown";
             const bool rightUp = node.text == L"xrightharpoonup", rightDown = node.text == L"xrightharpoondown";
             const bool leftRight = node.text == L"xleftrightharpoons", rightLeft = node.text == L"xrightleftharpoons";
-            if (hookLeft || hookRight || leftUp || leftDown || rightUp || rightDown || leftRight || rightLeft)
+            const bool twoLeft = node.text == L"xtwoheadleftarrow", twoRight = node.text == L"xtwoheadrightarrow";
+            const bool toFrom = node.text == L"xtofrom";
+            if (hookLeft || hookRight || leftUp || leftDown || rightUp || rightDown || leftRight || rightLeft || twoLeft || twoRight || toFrom)
             {
                 const auto leftHead = [&](float shaft, bool upper) { Stroke(left + head, shaft + (upper ? -head : head), left, shaft, stroke); };
                 const auto rightHead = [&](float shaft, bool upper) { Stroke(right - head, shaft + (upper ? -head : head), right, shaft, stroke); };
-                if (leftRight || rightLeft)
+                if (leftRight || rightLeft || toFrom)
                 {
                     const float separation = std::max(stroke, box.size * .08f);
                     Stroke(left, y - separation, right, y - separation, stroke);
                     Stroke(left, y + separation, right, y + separation, stroke);
                     if (leftRight) { leftHead(y - separation, true); rightHead(y + separation, false); }
                     else { rightHead(y - separation, true); leftHead(y + separation, false); }
+                    if (toFrom) { rightHead(y - separation, false); leftHead(y + separation, true); }
                 }
                 else
                 {
                     Stroke(left, y, right, y, stroke);
-                    if (hookLeft || leftUp || leftDown) leftHead(y, ! leftDown);
-                    if (hookRight || rightUp || rightDown) rightHead(y, ! rightDown);
+                    if (hookLeft || leftUp || leftDown || twoLeft) leftHead(y, ! leftDown);
+                    if (hookRight || rightUp || rightDown || twoRight) rightHead(y, ! rightDown);
                     if (hookLeft) { leftHead(y, false); Stroke(right, y, right, y - head, stroke); }
                     if (hookRight) { rightHead(y, false); Stroke(left, y, left, y - head, stroke); }
+                    if (twoLeft) { leftHead(y, false); Stroke(left + 2.f * head, y - head, left + head, y, stroke); Stroke(left + head, y, left + 2.f * head, y + head, stroke); }
+                    if (twoRight) { rightHead(y, false); Stroke(right - 2.f * head, y - head, right - head, y, stroke); Stroke(right - head, y, right - 2.f * head, y + head, stroke); }
                 }
                 return;
             }

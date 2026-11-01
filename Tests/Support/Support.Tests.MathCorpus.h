@@ -863,7 +863,8 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
              std::pair{L"\\xhookleftarrow{a}", 4u}, std::pair{L"\\xhookrightarrow{a}", 4u},
              std::pair{L"\\xleftharpoonup{a}", 2u}, std::pair{L"\\xleftharpoondown{a}", 2u},
              std::pair{L"\\xrightharpoonup{a}", 2u}, std::pair{L"\\xrightharpoondown{a}", 2u},
-             std::pair{L"\\xleftrightharpoons{a}", 4u}, std::pair{L"\\xrightleftharpoons{a}", 4u}})
+             std::pair{L"\\xleftrightharpoons{a}", 4u}, std::pair{L"\\xrightleftharpoons{a}", 4u},
+             std::pair{L"\\xtwoheadleftarrow{a}", 5u}, std::pair{L"\\xtwoheadrightarrow{a}", 5u}, std::pair{L"\\xtofrom{a}", 6u}})
     {
         const auto expression = std::make_shared<const MathExpression>(ParseMath(source));
         check(static_cast<bool>(*expression), "hook and harpoon relations parse");

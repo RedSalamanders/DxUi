@@ -1218,7 +1218,8 @@ class Parser
         if (name == L"xrightarrow" || name == L"xleftarrow" || name == L"xleftrightarrow" || name == L"xRightarrow" || name == L"xLeftarrow" ||
             name == L"xLeftrightarrow" || name == L"xmapsto" || name == L"xlongequal" ||
             name == L"xhookleftarrow" || name == L"xhookrightarrow" || name == L"xleftharpoonup" || name == L"xleftharpoondown" ||
-            name == L"xrightharpoonup" || name == L"xrightharpoondown" || name == L"xleftrightharpoons" || name == L"xrightleftharpoons")
+            name == L"xrightharpoonup" || name == L"xrightharpoondown" || name == L"xleftrightharpoons" || name == L"xrightleftharpoons" ||
+            name == L"xtwoheadleftarrow" || name == L"xtwoheadrightarrow" || name == L"xtofrom")
             return ExtensibleArrowCommand(name, depth);
         if (name == L"begin")
             return Matrix(GroupText(), depth);
