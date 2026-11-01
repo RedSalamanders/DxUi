@@ -277,11 +277,17 @@ struct NativeFlowchartParser::Preparation
                                          : (open == L'[' ? FlowchartShape::Rectangle : (open == L'(' ? FlowchartShape::Rounded : FlowchartShape::Diamond));
             if (stadium)
                 ++at;
-            const bool circle = ! stadium && open == L'(' && at < end && Text()[at] == L'(';
+            const bool circle  = ! stadium && open == L'(' && at < end && Text()[at] == L'(';
+            const bool hexagon = open == L'{' && at < end && Text()[at] == L'{';
             if (circle)
             {
                 ++at;
                 candidate.shape = FlowchartShape::Circle;
+            }
+            if (hexagon)
+            {
+                ++at;
+                candidate.shape = FlowchartShape::Hexagon;
             }
             // Other Mermaid shape openers must not turn into ordinary text.
             if (at < end && (Text()[at] == L'[' || Text()[at] == L'(' || Text()[at] == L'{' || Text()[at] == L'/' || Text()[at] == L'\\'))
@@ -293,6 +299,8 @@ struct NativeFlowchartParser::Preparation
             if (circle && (at == end || Text()[at++] != L')'))
                 return Error(FlowchartIssue::MissingLabelClose, start, at);
             if (stadium && (at == end || Text()[at++] != L')'))
+                return Error(FlowchartIssue::MissingLabelClose, start, at);
+            if (hexagon && (at == end || Text()[at++] != L'}'))
                 return Error(FlowchartIssue::MissingLabelClose, start, at);
             explicitLabel = true;
         }

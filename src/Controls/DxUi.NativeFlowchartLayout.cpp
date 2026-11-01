@@ -161,6 +161,8 @@ struct NativeFlowchartLayout::Preparation
             width *= 2.0;
             height *= 2.0;
         }
+        else if (shape == FlowchartShape::Hexagon)
+            width *= 2.0; // The centered label fits inside the straight middle half.
         else if (shape == FlowchartShape::Stadium)
             // Keep the entire centered label rectangle inside the capsule's
             // straight middle band, independent of its measured text height.
@@ -483,7 +485,7 @@ void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
     if (graph->direction < FlowchartDirection::TopBottom || graph->direction > FlowchartDirection::RightLeft)
         throw std::invalid_argument("Invalid flowchart layout direction");
     for (const auto& node : graph->nodes)
-        if (node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Bar)
+        if (node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Hexagon)
             throw std::invalid_argument("Invalid flowchart layout shape");
     for (const auto& edge : graph->edges)
         if (edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() || edge.minimumRanks == 0u ||

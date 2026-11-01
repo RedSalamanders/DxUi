@@ -186,7 +186,7 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
     if (graph->direction < FlowchartDirection::TopBottom || graph->direction > FlowchartDirection::RightLeft)
         throw std::invalid_argument("Invalid native flowchart direction");
     for (const auto& node : graph->nodes)
-        if (node.label.size() > NativeFlowchartParser::MaximumLabelUnits || node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Bar)
+        if (node.label.size() > NativeFlowchartParser::MaximumLabelUnits || node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Hexagon)
             throw std::invalid_argument("Invalid flowchart node label/shape");
     for (const auto& edge : graph->edges)
         if (edge.label.size() > NativeFlowchartParser::MaximumLabelUnits || edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() ||
@@ -276,6 +276,17 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                                                                         {rect.x + rect.width, rect.y + rect.height / 2.0},
                                                                         {rect.x + rect.width / 2.0, rect.y + rect.height},
                                                                         {rect.x, rect.y + rect.height / 2.0}}};
+                        state.nodePaths[work.cursor]                = Path(state.drawing.get(), points);
+                    }
+                    else if (state.geometry->nodes[work.cursor].shape == FlowchartShape::Hexagon)
+                    {
+                        const auto rect                             = state.geometry->nodes[work.cursor].bounds;
+                        const std::array<FlowchartPoint, 6u> points = {{{rect.x + rect.width * .25, rect.y},
+                                                                        {rect.x + rect.width * .75, rect.y},
+                                                                        {rect.x + rect.width, rect.y + rect.height * .5},
+                                                                        {rect.x + rect.width * .75, rect.y + rect.height},
+                                                                        {rect.x + rect.width * .25, rect.y + rect.height},
+                                                                        {rect.x, rect.y + rect.height * .5}}};
                         state.nodePaths[work.cursor]                = Path(state.drawing.get(), points);
                     }
                     ++work.cursor;
@@ -395,7 +406,7 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
         {
             target->FillRectangle(bounds, stroke);
         }
-        else if (node.shape == FlowchartShape::Diamond)
+        else if (node.shape == FlowchartShape::Diamond || node.shape == FlowchartShape::Hexagon)
         {
             target->FillGeometry(state.nodePaths[index].get(), fill);
             target->DrawGeometry(state.nodePaths[index].get(), stroke);

@@ -1457,6 +1457,7 @@ nonalphabetic or undefined-class annotations retain source.
 State/class layouts use the deterministic native graph router; members are plain
 multiline node labels. Inheritance uses a hollow triangle without a line through its
 interior. Flowchart stadiums use capsule outlines and shape-aware connection ports;
+`{{label}}` hexagons preserve their six-sided outlines and enclose their labels;
 grouped/chained endpoints expand into bounded Cartesian edge products in source order. Flowchart edges support dotted `-.->` / `-.-`, thick `==>` / `===`, and invisible `~~~` layout constraints. Visible solid, dotted and thick edges accept bounded plain inline text (for example `A -- text --> B`, `A -. text .-> B`, `A == text ==> B`); quotes and pipe characters within that text, and invisible edge labels, remain unsupported.
 Visible links can request up to 16 minimum ranks by adding dashes, dots or equals
 signs, including after inline edge text. Forward links constrain the DAG ranking;

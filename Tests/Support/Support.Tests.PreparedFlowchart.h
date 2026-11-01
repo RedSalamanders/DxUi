@@ -606,5 +606,31 @@ template <typename Check> inline void LineStyleRasterOracle(Check&& check)
         check(x < 512u && y < 256u && pixels[(static_cast<std::size_t>(y) * 512u + x) * 4u + 3u] != 0u,
               "fork bar paints opaque pixels away from its connector in each direction");
     }
+    const auto hexagonGraph = FlowchartLayoutTests::Graph(L"flowchart TD;A{{label}}-->B");
+    PreparedFlowchart hexagon;
+    hexagon.Begin(write.get(), drawing.get(), hexagonGraph, {}, {1u, 1u});
+    Complete(hexagon, check);
+    wil::com_ptr<IWICBitmap> bitmap;
+    THROW_IF_FAILED(imaging->CreateBitmap(512u, 256u, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+    const auto properties =
+        D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+    wil::com_ptr<ID2D1RenderTarget> target;
+    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
+    wil::com_ptr<ID2D1SolidColorBrush> stroke, fill;
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(1.f, 1.f, 1.f, 1.f), stroke.put()));
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(0.f, 0.f, 0.f, 0.f), fill.put()));
+    target->BeginDraw();
+    target->Clear(D2D1::ColorF(0.f, 0.f, 0.f, 0.f));
+    check(hexagon.Draw(target.get(), stroke.get(), stroke.get(), fill.get(), D2D1::Point2F(4.f, 4.f)), "hexagon draws offscreen");
+    THROW_IF_FAILED(target->EndDraw());
+    std::vector<BYTE> pixels(512u * 256u * 4u);
+    THROW_IF_FAILED(bitmap->CopyPixels(nullptr, 512u * 4u, static_cast<UINT>(pixels.size()), pixels.data()));
+    const auto bounds = hexagon.Geometry()->nodes[0u].bounds;
+    const auto y      = static_cast<unsigned>(4.0 + bounds.y);
+    const auto middle = static_cast<unsigned>(4.0 + bounds.x + bounds.width * .5);
+    const auto corner = static_cast<unsigned>(4.0 + bounds.x + 1.0);
+    check(y < 256u && middle < 512u && corner < 512u && pixels[(static_cast<std::size_t>(y) * 512u + middle) * 4u + 3u] != 0u &&
+              pixels[(static_cast<std::size_t>(y) * 512u + corner) * 4u + 3u] == 0u,
+          "hexagon has a top edge but no rectangular top-left corner");
 }
 } // namespace PreparedFlowchartTests

@@ -1670,7 +1670,7 @@ An identifier is `[A-Za-z_][A-Za-z0-9_]*` with exact case-sensitive identity.
 `end`, `subgraph`, `direction`, `style`, `class`, `classDef`, `click`,
 `linkStyle` and `note` are reserved. A node is an identifier alone or followed by `[label]`
 (rectangle), `(label)` (rounded), `((label))` (circle), `([label])` (stadium
-capsule) or `{label}` (diamond). Other expanded shape syntax is unsupported. An explicit declaration replaces the
+capsule), `{label}` (diamond) or `{{label}}` (hexagon). Other expanded shape syntax is unsupported. An explicit declaration replaces the
 node's previous label/shape; a bare endpoint preserves it. Node order is first
 appearance order and edge order is source order, including cycles/self-loops.
 
@@ -1717,7 +1717,7 @@ published geometry, or allocate while advancing. Stable first-seen DFS removes
 gray back edges and self-loops from ranking; stable Kahn traversal assigns
 longest-path ranks to the remaining DAG. Nodes retain first-seen order in each
 rank. Rectangles/rounded rectangles pad labels, circles contain the padded label
-diagonal, diamonds contain twice the padded width/height, and stadium capsules
+diagonal, diamonds contain twice the padded width/height, hexagons double padded width to contain the label in their straight middle band, and stadium capsules
 keep the complete measured label inside their straight middle band. Their centerline
 ports lie on the capsule boundary in all four flow directions. Direction changes
 flow without rotating text. Every edge gets a distinct exterior lane sized for its own

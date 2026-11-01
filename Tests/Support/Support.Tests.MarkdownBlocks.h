@@ -422,7 +422,7 @@ template <typename Check> inline void CheckOriginalCorpus(Check&& check)
                       result->diagnostic.source.first < result->diagnostic.source.last && result->diagnostic.source.last <= result->source.size(),
                   "unsupported original family examples retain their independently classified diagnostic and exact source fallback");
     }
-    check(prepared == 28u && unsupported == 77u && std::size(NativeFlowchartCorpus::familyExamples) == 20u,
+    check(prepared == 29u && unsupported == 76u && std::size(NativeFlowchartCorpus::familyExamples) == 20u,
           "Mermaid corpus has no omitted examples/families and separates graph preparation from rejection");
     CheckFamilyGrammar(check);
     CheckFanout(check);
@@ -459,6 +459,7 @@ inline wchar_t ShapeCode(FlowchartShape shape) noexcept
         case FlowchartShape::Diamond: return L'D';
         case FlowchartShape::Stadium: return L'S';
         case FlowchartShape::Bar: return L'B';
+        case FlowchartShape::Hexagon: return L'H';
     }
     return L'?';
 }
@@ -713,6 +714,16 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
         check(result->outcome == FlowchartOutcome::Unsupported && result->source == source && result->nodes.empty() && result->edges.empty(),
               "undefined, repeated and unsupported class annotations retain exact source");
     }
+    parser.Begin(L"flowchart TD\nA{{label}}-->B\n", 35u);
+    const auto hexagon = Complete(parser);
+    check(hexagon->outcome == FlowchartOutcome::Prepared && hexagon->nodes.size() == 2u && hexagon->nodes[0u].shape == FlowchartShape::Hexagon &&
+              hexagon->nodes[0u].label == L"label" && hexagon->edges.size() == 1u,
+          "double-brace flowchart nodes retain the hexagon shape and label");
+    parser.Begin(L"flowchart TD\nA{{label}\n", 36u);
+    const auto unclosedHexagon = Complete(parser);
+    check(unclosedHexagon->outcome == FlowchartOutcome::Malformed && unclosedHexagon->diagnostic.issue == FlowchartIssue::MissingLabelClose &&
+              unclosedHexagon->nodes.empty(),
+          "missing hexagon closer never publishes a partial graph");
     std::wstring oversizedMember = L"classDiagram\nclass A {\n+";
     oversizedMember.append(NativeFlowchartParser::MaximumLabelUnits, L'x');
     oversizedMember.append(L"\n}\n");

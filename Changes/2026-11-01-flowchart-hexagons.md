@@ -1,0 +1,1 @@
+- Render bounded Mermaid hexagon nodes with shape-aware layout.
