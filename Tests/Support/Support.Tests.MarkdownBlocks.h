@@ -77,6 +77,29 @@ template <typename Check> inline void CheckLazyHtmlProfile(const MarkdownSyntax&
         syntax.Profile() == MarkdownProfile::Gfm029 ? L"<blockquote><p></p></blockquote><htmlblock></htmlblock>" : L"<blockquote><p></p></blockquote>";
     check(BlockSignature(syntax) == expected && syntax.Source() == L"> a\n<custom>", "unmatched quote and type-seven HTML follow the selected pinned profile");
 }
+struct SplitTableScenario
+{
+    std::wstring_view source, paragraph, table;
+};
+inline constexpr SplitTableScenario splitTables[] = {
+    {L"intro\n| a | b |\n| - | - |\n| 1 | 2 |\n", L"intro\n", L"| a | b |\n| - | - |\n| 1 | 2 |\n"},
+    {L"> intro\r\n> | a | b |\r\n> | - | - |\r\n> | 1 | 2 |\r\n", L"> intro\r\n", L"> | a | b |\r\n> | - | - |\r\n> | 1 | 2 |\r\n"},
+};
+template <typename Check> inline void CheckSplitTable(const MarkdownSyntax& syntax, const SplitTableScenario& scenario, Check&& check)
+{
+    const auto& nodes    = syntax.Nodes();
+    const auto paragraph = std::ranges::find_if(
+        nodes, [&](const auto& node) { return node.block.kind == MarkdownBlockKind::Paragraph && syntax.Slice(node.block.source) == scenario.paragraph; });
+    check(paragraph != nodes.end(), "earlier paragraph retains its exact source and EOL");
+    if (paragraph == nodes.end())
+        return;
+    check(paragraph->nextSibling < nodes.size(), "table is the next sibling of the retained paragraph");
+    if (paragraph->nextSibling >= nodes.size())
+        return;
+    const auto& table = nodes[paragraph->nextSibling];
+    check(table.block.kind == MarkdownBlockKind::Table && table.parent == paragraph->parent && syntax.Slice(table.block.source) == scenario.table,
+          "only the final paragraph line becomes the source-exact table header");
+}
 struct Scenario
 {
     std::wstring_view name, source, signature;

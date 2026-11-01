@@ -522,6 +522,15 @@ void TestLosslessMarkdownInlineScenariosAndExtensionIdentity()
 }
 void TestLosslessMarkdownBlockScenariosAndNodeIdentity()
 {
+    for (const auto profile : {MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+        for (const auto& scenario : MarkdownBlockTests::splitTables)
+        {
+            MarkdownParser split;
+            split.Begin(scenario.source, 1u, profile);
+            const auto syntax = CompleteMarkdown(split, 1u);
+            CheckMarkdownPartitions(*syntax, scenario.source);
+            MarkdownBlockTests::CheckSplitTable(*syntax, scenario, Require);
+        }
     for (const auto profile : {MarkdownProfile::Gfm029, MarkdownProfile::CommonMark0312, MarkdownProfile::RichMarkdown})
     {
         MarkdownParser lazyHtml;

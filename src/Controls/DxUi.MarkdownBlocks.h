@@ -483,9 +483,9 @@ class MarkdownBlocks
             leaf_ = MarkdownNoNode;
             return false;
         }
-        if (nodes_[leaf_].lines.size() != 1u)
+        if (nodes_[leaf_].lines.empty())
             return false;
-        const auto header = nodes_[leaf_].lines.front();
+        const auto header = nodes_[leaf_].lines.back();
         if (rest.find(L'|') == std::wstring_view::npos &&
             source_.substr(header.source.first, header.source.last - header.source.first).find(L'|') == std::wstring_view::npos)
             return false;
@@ -507,7 +507,25 @@ class MarkdownBlocks
                                 : right ? MarkdownAlignment::Right
                                         : MarkdownAlignment::None);
         }
-        const auto table                 = leaf_;
+        auto table = leaf_;
+        if (nodes_[leaf_].lines.size() > 1u)
+        {
+            const auto preceding = nodes_[leaf_].lines[nodes_[leaf_].lines.size() - 2u].source.last;
+            auto contentEnd      = preceding;
+            if (contentEnd > nodes_[leaf_].block.source.first && source_[contentEnd - 1u] == L'\n')
+                --contentEnd;
+            if (contentEnd > nodes_[leaf_].block.source.first && source_[contentEnd - 1u] == L'\r')
+                --contentEnd;
+            const auto parent = nodes_[leaf_].parent;
+            nodes_[leaf_].lines.pop_back();
+            nodes_[leaf_].block.source.last   = preceding;
+            nodes_[leaf_].block.content.last  = contentEnd;
+            table                             = Add(Kind::Table, parent);
+            nodes_[table].block.source.first  = preceding;
+            nodes_[table].block.content.first = header.source.first;
+            nodes_[table].lines.push_back(header);
+            leaf_ = table;
+        }
         nodes_[table].block.kind         = Kind::Table;
         nodes_[table].block.source.last  = lineEnd_;
         nodes_[table].block.content.last = bodyEnd;

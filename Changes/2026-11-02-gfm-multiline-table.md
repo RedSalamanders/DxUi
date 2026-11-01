@@ -1,0 +1,1 @@
+- Match the pinned GFM table parser when a delimiter follows a multi-line paragraph, preserving the preceding paragraph and original container prefixes and line endings.

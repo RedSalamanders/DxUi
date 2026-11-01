@@ -3679,6 +3679,16 @@ static void TestEmbeddedLosslessMarkdownPreparation(GraphicsFixture& gpu)
         Check(pixels == originalPixels, "lossless analysis does not silently replace or change the v0 formatted renderer");
     }
     const auto held = editor->GetMarkdownSyntax();
+    for (const auto profile : {MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
+        for (const auto& scenario : MarkdownBlockTests::splitTables)
+        {
+            editor->SetMarkdownAnalysisProfile(profile);
+            editor->SetText(std::wstring(scenario.source));
+            Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded split table header");
+            const auto parsed = editor->GetMarkdownSyntax();
+            Check(parsed != nullptr, "embedded split-table syntax is published");
+            MarkdownBlockTests::CheckSplitTable(*parsed, scenario, Check);
+        }
     for (const auto profile : {MarkdownProfile::Gfm029, MarkdownProfile::CommonMark0312, MarkdownProfile::RichMarkdown})
     {
         editor->SetMarkdownAnalysisProfile(profile);
