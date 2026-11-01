@@ -302,6 +302,7 @@ struct RichTextEditor::State
         uint64_t revision{}, selectionEpoch{}, lastTick{};
         size_t caret{}, lineStart{};
         bool nested{};
+        std::shared_ptr<const std::wstring> continuationPrefix;
     };
     std::optional<AutoFormatRun> autoFormatRun;
     struct SmartTypingSite
@@ -4228,11 +4229,12 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
             const auto start      = continuing ? previous->lineStart : selection.caret;
             auto candidate        = source.Slice(start, selection.caret);
             candidate += text;
-            const auto match       = MatchAutoFormat(candidate);
-            bool allowed           = match != AutoFormatMatch::None;
-            bool nested            = continuing && previous->nested;
-            const bool focused     = host.GetFocusControl() == this;
-            const auto composition = focused ? host.GetNativeTextCompositionActive(this) : std::optional<bool>{false};
+            const auto match        = MatchAutoFormat(candidate);
+            bool allowed            = match != AutoFormatMatch::None;
+            bool nested             = continuing && previous->nested;
+            auto continuationPrefix = continuing ? previous->continuationPrefix : nullptr;
+            const bool focused      = host.GetFocusControl() == this;
+            const auto composition  = focused ? host.GetNativeTextCompositionActive(this) : std::optional<bool>{false};
             allowed = allowed && (! focused || ! host.HasActiveNativeTextInputSession() || composition.has_value()) && ! composition.value_or(false);
             if (allowed && ! continuing)
             {
@@ -4263,6 +4265,24 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                             {
                                 lineStart = true;
                                 nested    = kind != RichText::MarkdownBlockKind::Document;
+                                if (nested)
+                                {
+                                    const auto raw = syntax->Source();
+                                    auto line      = selection.caret;
+                                    while (line && raw[line - 1u] != L'\r' && raw[line - 1u] != L'\n')
+                                        --line;
+                                    auto prefix = std::make_shared<std::wstring>(raw.substr(line, selection.caret - line));
+                                    for (auto owner = empty.owner; owner != RichText::MarkdownNoNode; owner = syntax->Nodes()[owner].parent)
+                                    {
+                                        const auto& item = syntax->Nodes()[owner];
+                                        if (item.block.kind != RichText::MarkdownBlockKind::ListItem || item.block.info.first < line ||
+                                            item.block.info.last > selection.caret)
+                                            continue;
+                                        for (auto at = item.block.info.first; at < item.block.info.last; ++at)
+                                            (*prefix)[at - line] = L' ';
+                                    }
+                                    continuationPrefix = std::move(prefix);
+                                }
                             }
                         }
                 allowed = lineStart && lineEnd && syntax != nullptr;
@@ -4277,8 +4297,6 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                                node.block.kind == RichText::MarkdownBlockKind::HtmlBlock))))
                             allowed = false;
             }
-            if (nested && match == AutoFormatMatch::Fence)
-                allowed = false; // A nested fence needs a synthesized continuation prefix.
             if (allowed)
             {
                 std::wstring insertion(text);
@@ -4294,13 +4312,20 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                                                                           : std::wstring_view(L"\n");
                     insertion += eol;
                     caret += eol.size();
+                    if (continuationPrefix)
+                    {
+                        insertion += *continuationPrefix;
+                        caret += continuationPrefix->size();
+                    }
                     insertion += eol;
+                    if (continuationPrefix)
+                        insertion += *continuationPrefix;
                     insertion += candidate;
                 }
                 _state->typingRun.reset();
                 const bool changed = _state->document.ReplaceImpl(selection.caret, selection.caret, insertion, {caret, caret}, true, continuing);
                 if (changed && match == AutoFormatMatch::Prefix)
-                    _state->autoFormatRun = State::AutoFormatRun{Revision(), _state->document.selectionEpoch_, now, caret, start, nested};
+                    _state->autoFormatRun = State::AutoFormatRun{Revision(), _state->document.selectionEpoch_, now, caret, start, nested, continuationPrefix};
                 else
                     _state->autoFormatRun.reset();
                 Changed(changed);

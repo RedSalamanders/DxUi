@@ -349,6 +349,21 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
                   editor->Undo() && editor->GetText() == source,
               "an empty quote or list item admits an atomic nested heading trigger");
     }
+    for (const auto& sample : {std::pair{std::wstring_view(L"> \n"), std::wstring_view(L"> ```\n> \n> ```\n")},
+                               std::pair{std::wstring_view(L"- \n"), std::wstring_view(L"- ```\n  \n  ```\n")}})
+    {
+        editor->SetText(std::wstring(sample.first));
+        prepare();
+        editor->SetSelection({2u, 2u});
+        Check(editor->OnChar(host, L'`', 0u) && editor->OnChar(host, L'`', 0u) && editor->OnChar(host, L'`', 0u) && editor->GetText() == sample.second &&
+                  editor->GetSelection() == Selection{8u, 8u},
+              "nested fence trigger retains a proven continuation prefix and interior caret");
+        prepare();
+        Check(std::ranges::any_of(editor->GetMarkdownSyntax()->Nodes(),
+                                  [](const auto& node) { return node.block.kind == MarkdownBlockKind::FencedCode && node.block.closed; }) &&
+                  editor->Undo() && editor->GetText() == sample.first,
+              "nested generated fence reparses as closed and undoes in one transaction");
+    }
     editor->SetText(L"~~~\n\n~~~");
     prepare();
     editor->SetSelection({4u, 4u});
