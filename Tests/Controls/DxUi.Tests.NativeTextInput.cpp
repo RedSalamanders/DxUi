@@ -7341,6 +7341,8 @@ void TestNativeRichTextStoreCountedNul()
 {
     using namespace DxUi;
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+    Require(IsWindowVisible(window.Hwnd()) != FALSE, "counted-NUL fixture has a visible owned host before native text activation");
     window.Host().SetTextInputBackend(TextInputBackend::Native);
     auto root    = std::make_unique<Panel>();
     auto* editor = root->AddChild<RichTextEditor>(std::wstring(L"A\0B", 3u));

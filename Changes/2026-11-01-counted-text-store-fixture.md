@@ -1,0 +1,1 @@
+- Establish the required visible-host state before testing counted-NUL TSF reads, writes and undo; hidden hosts correctly keep native text services inactive.
