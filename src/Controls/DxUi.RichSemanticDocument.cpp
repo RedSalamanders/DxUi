@@ -5,8 +5,8 @@
 #include <algorithm>
 #include <atomic>
 #include <optional>
-#include <unordered_map>
-#include <unordered_set>
+#include <map>
+#include <set>
 
 namespace DxUi::RichText
 {
@@ -431,11 +431,11 @@ struct SemanticBuilder::Preparation
 #pragma warning(disable : 4625 4626 5026 5027)
     struct HeadingCache
     {
-        HeadingCache() : used(0u), suffixes(0u)
+        HeadingCache() : used(std::less<std::wstring>{}), suffixes(std::less<std::wstring>{})
         {
         }
-        std::unordered_set<std::wstring> used;
-        std::unordered_map<std::wstring, std::size_t> suffixes;
+        std::set<std::wstring> used;
+        std::map<std::wstring, std::size_t> suffixes;
     };
     struct DiagramWork
     {
