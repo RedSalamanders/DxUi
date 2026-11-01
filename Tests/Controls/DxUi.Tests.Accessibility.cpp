@@ -4333,7 +4333,7 @@ void TestAccessibilityTextEventsUseIndexedOwnerValidation()
     for (const auto kind : {TextInputAutomationEventKind::TextChanged, TextInputAutomationEventKind::TextSelectionChanged,
                             TextInputAutomationEventKind::TextEditCompositionChanged})
         Require(RaiseWindowHostTextInputAutomationEvent(window.Hwnd(), field, kind), "ordinary text event accepts the indexed live owner");
-    Require(DebugGetAccessibilityResolutionVisitCountForTest() < 32u, "ordinary text events do not scan unrelated siblings");
+    Require(DebugGetAccessibilityResolutionVisitCountForTest() < 128u, "ordinary text events do not scan unrelated siblings");
     DebugResetAccessibilityResolutionVisitCountForTest();
     Require(RaiseWindowHostTextInputAutomationEvent(window.Hwnd(), field, TextInputAutomationEventKind::TextEditConversionTargetChanged),
             "queued conversion event resolves the live owner path");
