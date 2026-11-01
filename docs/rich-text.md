@@ -1540,7 +1540,9 @@ circular labels are supported. Branches alternate around the root; unsupported
 icons, shapes or indentation preserve the complete source with a diagnostic.
 
 After declaring a flowchart node, `style ID stroke-width:2px` sets its outline
-width to 1, 2 or 3 pixels using the current theme stroke. Other style properties
+width to 1, 2 or 3 pixels using the current theme stroke. A named `classDef`
+with the same property can also be applied using `class ID name` or `ID:::name`;
+its definition may follow the use. Other properties, default or repeated classes
 and unknown targets preserve source with a diagnostic.
 
 Flowchart, state, class, sequence, pie, ER, Gantt and mind map diagrams accept one `accTitle: text` and one

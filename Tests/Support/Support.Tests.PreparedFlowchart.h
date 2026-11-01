@@ -792,9 +792,9 @@ template <typename Check> inline void NodeStrokeRaster(Check&& check)
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) THROW_IF_FAILED(initialized);
     const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
-    const auto graph = FlowchartLayoutTests::Graph(L"flowchart TD\nA[Alpha]\nstyle A stroke-width:3px\n");
+    const auto graph = FlowchartLayoutTests::Graph(L"flowchart TD\nA[Alpha]:::strong\nclassDef strong stroke-width:3px\n");
     check(graph->outcome == FlowchartOutcome::Prepared && graph->nodes.size() == 1u && graph->nodes[0u].strokeWidth == 3u,
-          "bounded node stroke declaration is applied to the intended existing node");
+          "forward class declaration applies bounded node stroke width to its intended node");
     if (graph->outcome != FlowchartOutcome::Prepared || graph->nodes.size() != 1u) return;
     const auto write = WriteFactory();
     const auto drawing = DrawingFactory();
@@ -840,12 +840,19 @@ template <typename Check> inline void NodeStrokeRaster(Check&& check)
     catch (const std::invalid_argument&) { paintRejected = true; }
     check(layoutRejected && paintRejected && prepared.Ready(), "invalid direct stroke widths fail both services before publication");
     for (const auto source : {L"flowchart TD\nA\nstyle A fill:red\n", L"flowchart TD\nA\nstyle A stroke-width:4px\n",
-                              L"flowchart TD\nstyle missing stroke-width:2px\n"})
+                              L"flowchart TD\nstyle missing stroke-width:2px\n", L"flowchart TD\nA:::missing\n",
+                              L"flowchart TD\nA:::strong\nstyle A stroke-width:2px\nclassDef strong stroke-width:3px\n"})
     {
         const auto unsupported = FlowchartLayoutTests::Graph(source);
         check(unsupported->outcome == FlowchartOutcome::Unsupported && unsupported->source == source && unsupported->nodes.empty(),
               "unknown style properties, widths and targets preserve source without a partial model");
     }
+    const auto named = FlowchartLayoutTests::Graph(L"flowchart TD\nA\nclass A strong\nclassDef strong stroke-width:2px\n");
+    check(named->outcome == FlowchartOutcome::Prepared && named->nodes.size() == 1u && named->nodes[0u].strokeWidth == 2u,
+          "named class statement resolves its later definition");
+    const auto direct = FlowchartLayoutTests::Graph(L"flowchart TD\nA\nstyle A stroke-width:2px\n");
+    check(direct->outcome == FlowchartOutcome::Prepared && direct->nodes.size() == 1u && direct->nodes[0u].strokeWidth == 2u,
+          "direct style applies the same bounded width");
 }
 template <typename Check> inline void MindmapRaster(Check&& check)
 {

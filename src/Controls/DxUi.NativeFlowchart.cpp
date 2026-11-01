@@ -41,6 +41,12 @@ struct NativeFlowchartParser::Preparation
     std::array<std::uint8_t, MaximumNodes> pseudoKinds{};
     std::array<std::size_t, 4u> groupStack{};
     std::array<std::size_t, 9u> mindIndent{}, mindStack{};
+    struct WidthClass { std::wstring_view name; unsigned width{}; };
+    struct WidthAssignment { std::size_t node{}; std::wstring_view name; MarkdownRange source; };
+    std::array<WidthClass, 64u> widthClasses{};
+    std::array<WidthAssignment, MaximumNodes> widthAssignments{};
+    std::array<bool, MaximumNodes> directWidth{};
+    std::size_t widthClassCount{}, widthAssignmentCount{};
     std::size_t groupDepth{};
     bool quote{}, escaped{}, pipe{}, comment{}, header{}, done{}, classBlock{}, titleSeen{}, descriptionSeen{}, descriptionBlock{}, descriptionHasLine{};
     bool noteBlock{}, noteBlockLeft{}, noteBlockHasLine{}, erBlock{};
@@ -85,6 +91,23 @@ struct NativeFlowchartParser::Preparation
     {
         while (at < end && Space(Text()[at]))
             ++at;
+    }
+    static unsigned StrokeWidth(std::wstring_view property) noexcept
+    {
+        return property == L"stroke-width:1px" ? 1u : property == L"stroke-width:2px" ? 2u : property == L"stroke-width:3px" ? 3u : 0u;
+    }
+    bool AssignWidthClass(std::size_t node, std::wstring_view name, std::size_t firstUnit, std::size_t lastUnit)
+    {
+        if (name.empty() || ! Letter(name.front()) || ! std::ranges::all_of(name, IdUnit) || name.size() > MaximumIdentifierUnits ||
+            node >= model->nodes.size() || directWidth[node])
+            return Error(FlowchartIssue::UnsupportedStatement, firstUnit, lastUnit, FlowchartOutcome::Unsupported);
+        for (std::size_t i = 0u; i < widthAssignmentCount; ++i)
+            if (widthAssignments[i].node == node)
+                return Error(FlowchartIssue::UnsupportedStatement, firstUnit, lastUnit, FlowchartOutcome::Unsupported);
+        if (widthAssignmentCount == widthAssignments.size())
+            return Error(FlowchartIssue::StatementCapacity, firstUnit, lastUnit, FlowchartOutcome::Capacity);
+        widthAssignments[widthAssignmentCount++] = {node, name, {firstUnit, lastUnit}};
+        return true;
     }
     bool PlainTextUnit(std::size_t& at, std::size_t end, std::wstring& value, bool classMember = false, bool quoted = false)
     {
@@ -1216,6 +1239,39 @@ struct NativeFlowchartParser::Preparation
                 return Error(FlowchartIssue::InvalidDirection, at, end);
             return true;
         }
+        if (model->family == NativeDiagramFamily::Flowchart && Text().substr(at, 8u) == L"classDef" && at + 8u < end && Space(Text()[at + 8u]))
+        {
+            const auto statementStart = at;
+            at += 8u;
+            Skip(at, end);
+            const auto nameStart = at;
+            while (at < end && IdUnit(Text()[at])) ++at;
+            const auto name = Text().substr(nameStart, at - nameStart);
+            Skip(at, end);
+            const auto width = StrokeWidth(Text().substr(at, end - at));
+            if (name.empty() || ! Letter(name.front()) || name == L"default" || name.size() > MaximumIdentifierUnits || ! width)
+                return Error(FlowchartIssue::UnsupportedStatement, statementStart, end, FlowchartOutcome::Unsupported);
+            for (std::size_t i = 0u; i < widthClassCount; ++i)
+                if (widthClasses[i].name == name)
+                    return Error(FlowchartIssue::UnsupportedStatement, statementStart, end, FlowchartOutcome::Unsupported);
+            if (widthClassCount == widthClasses.size())
+                return Error(FlowchartIssue::StatementCapacity, statementStart, end, FlowchartOutcome::Capacity);
+            widthClasses[widthClassCount++] = {name, width};
+            return true;
+        }
+        if (model->family == NativeDiagramFamily::Flowchart && Text().substr(at, 5u) == L"class" && at + 5u < end && Space(Text()[at + 5u]))
+        {
+            const auto statementStart = at;
+            at += 5u;
+            Skip(at, end);
+            const auto keyStart = at;
+            while (at < end && IdUnit(Text()[at])) ++at;
+            const auto key = Text().substr(keyStart, at - keyStart);
+            Skip(at, end);
+            const auto found = std::ranges::find(model->nodes, key, &FlowchartNode::key);
+            if (found == model->nodes.end()) return Error(FlowchartIssue::UnsupportedStatement, statementStart, end, FlowchartOutcome::Unsupported);
+            return AssignWidthClass(static_cast<std::size_t>(found - model->nodes.begin()), Text().substr(at, end - at), statementStart, end);
+        }
         if (model->family == NativeDiagramFamily::Flowchart && Text().substr(at, 5u) == L"style" && at + 5u < end && Space(Text()[at + 5u]))
         {
             const auto statementStart = at;
@@ -1226,13 +1282,15 @@ struct NativeFlowchartParser::Preparation
             const auto key = Text().substr(keyStart, at - keyStart);
             Skip(at, end);
             const auto property = Text().substr(at, end - at);
-            unsigned width{};
-            if (property == L"stroke-width:1px") width = 1u;
-            else if (property == L"stroke-width:2px") width = 2u;
-            else if (property == L"stroke-width:3px") width = 3u;
-            else return Error(FlowchartIssue::UnsupportedStatement, statementStart, end, FlowchartOutcome::Unsupported);
+            const auto width = StrokeWidth(property);
+            if (! width) return Error(FlowchartIssue::UnsupportedStatement, statementStart, end, FlowchartOutcome::Unsupported);
             const auto found = std::ranges::find(model->nodes, key, &FlowchartNode::key);
             if (found == model->nodes.end()) return Error(FlowchartIssue::UnsupportedStatement, statementStart, end, FlowchartOutcome::Unsupported);
+            const auto index = static_cast<std::size_t>(found - model->nodes.begin());
+            for (std::size_t i = 0u; i < widthAssignmentCount; ++i)
+                if (widthAssignments[i].node == index) return Error(FlowchartIssue::UnsupportedStatement, statementStart, end, FlowchartOutcome::Unsupported);
+            if (directWidth[index]) return Error(FlowchartIssue::UnsupportedStatement, statementStart, end, FlowchartOutcome::Unsupported);
+            directWidth[index] = true;
             found->strokeWidth = width;
             return true;
         }
@@ -1347,7 +1405,17 @@ struct NativeFlowchartParser::Preparation
             if (at == end)
                 return true;
             if (Text().substr(at, 3u) == L":::")
-                return Error(FlowchartIssue::UnsupportedStatement, at, end, FlowchartOutcome::Unsupported);
+            {
+                const auto start = at;
+                at += 3u;
+                const auto nameStart = at;
+                while (at < end && IdUnit(Text()[at])) ++at;
+                if (model->family != NativeDiagramFamily::Flowchart || previousGroup.size() != 1u ||
+                    ! AssignWidthClass(previousGroup.front(), Text().substr(nameStart, at - nameStart), start, at))
+                    return model->outcome == FlowchartOutcome::Prepared
+                               ? Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported) : false;
+                continue;
+            }
             if (model->family != NativeDiagramFamily::Flowchart && Text()[at] == L':')
             {
                 ++at;
@@ -1612,6 +1680,18 @@ struct NativeFlowchartParser::Preparation
             {
                 Error(FlowchartIssue::UnsupportedStatement, 0u, scan, FlowchartOutcome::Unsupported);
                 return;
+            }
+            for (std::size_t i = 0u; i < widthAssignmentCount; ++i)
+            {
+                const auto& assignment = widthAssignments[i];
+                const auto classes = std::span(widthClasses).first(widthClassCount);
+                const auto found = std::ranges::find(classes, assignment.name, &WidthClass::name);
+                if (found == classes.end())
+                {
+                    Error(FlowchartIssue::UnsupportedStatement, assignment.source.first, assignment.source.last, FlowchartOutcome::Unsupported);
+                    return;
+                }
+                model->nodes[assignment.node].strokeWidth = found->width;
             }
             done = true;
             return;

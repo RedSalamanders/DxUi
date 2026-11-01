@@ -2381,8 +2381,11 @@ retain the complete fence with a diagnostic.
 Flowcharts also accept `style ID stroke-width:Npx` after the named node has
 been declared, for integer widths 1, 2 or 3. The native outline uses the
 caller-supplied theme stroke and leaves its brush state intact, including in
-high contrast. Other style properties, unknown targets and unsupported widths
-retain the complete source with a diagnostic.
+high contrast. The same property is accepted in up to 64 named `classDef`
+definitions and applied to one existing node by `class ID name` or `ID:::name`;
+definitions may follow their use. Multiple assignments to one node, default
+classes, other properties, unknown targets/classes and unsupported widths retain
+the complete source with a diagnostic.
 
 Flowchart, state, class, sequence, pie, ER, Gantt and mind map diagrams accept one `accTitle: text` and one
 `accDescr: text` or multiline `accDescr {` / `accDescr{` block closed by a
