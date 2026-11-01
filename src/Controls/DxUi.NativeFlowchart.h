@@ -39,6 +39,13 @@ enum class FlowchartRelation
     Arrow,
     Inheritance
 };
+enum class FlowchartLineStyle
+{
+    Solid,
+    Dotted,
+    Thick,
+    Invisible
+};
 enum class FlowchartIssue
 {
     None,
@@ -90,6 +97,7 @@ struct FlowchartEdge
     MarkdownRange source;
     std::wstring label;
     FlowchartRelation relation{};
+    FlowchartLineStyle style{};
     bool arrow{};
 };
 struct FlowchartModel

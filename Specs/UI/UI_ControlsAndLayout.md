@@ -2122,7 +2122,7 @@ multiline node labels. Inheritance uses the native triangle arrow. This is not
 Mermaid coordinate compatibility. Composite states, class namespaces/generics,
 class compartments, relationship multiplicities, stereotypes, styling,
 interaction directives and other diagram families remain exact fenced source.
-The existing flowchart grammar and source-provenance rules remain unchanged.
+Flowchart edges support dotted `-.->` / `-.-`, thick `==>` / `===`, and invisible `~~~` layout constraints; invisible edge labels remain unsupported. Other flowchart grammar and source-provenance rules remain unchanged.
 
 Aligned rows alternate right-aligned left operands and left-aligned right operands at each ampersand pair. Cases use left-aligned expression/condition columns (at most two); ordinary matrices center their columns. Gathered rows have one column. Geometry tests compare the actual cached glyph positions consumed by drawing.
 

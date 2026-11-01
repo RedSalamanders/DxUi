@@ -63,6 +63,11 @@ template <typename Check> inline void Geometry(Check&& check)
               "forward edge follows the independent six-point corridor oracle");
     check(plan->edges[0u].hasArrow && Near(plan->edges[0u].arrow[1u].x, 24.0) && Near(plan->edges[0u].arrow[1u].y, 88.0),
           "arrow head ends on the target shape boundary");
+    const auto styled = Place(Graph(L"flowchart LR\nA -.-> B\nB -.- C\nC ==> D\nD === E\nE ~~~ F\n"), check);
+    check(styled->edges.size() == 5u && styled->edges[0u].style == FlowchartLineStyle::Dotted && styled->edges[1u].style == FlowchartLineStyle::Dotted &&
+              styled->edges[2u].style == FlowchartLineStyle::Thick && styled->edges[3u].style == FlowchartLineStyle::Thick &&
+              styled->edges[4u].style == FlowchartLineStyle::Invisible,
+          "layout preserves all five edge styles, including the invisible ranking constraint");
     const auto relations = Place(Graph(L"classDiagram\nBase <|-- Derived\nDerived --> Client\nClient -- Contract\n"), check);
     check(relations->edges.size() == 3u && relations->edges[0u].relation == FlowchartRelation::Inheritance && relations->edges[0u].hasArrow &&
               relations->edges[1u].relation == FlowchartRelation::Arrow && relations->edges[1u].hasArrow &&

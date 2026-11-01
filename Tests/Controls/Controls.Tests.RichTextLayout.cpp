@@ -1602,6 +1602,7 @@ void TestPreparedFlowchartBorrowedWarpTargets()
 void TestPreparedFlowchartEdgeLabelsCannotBeObscured()
 {
     PreparedFlowchartTests::EdgeLabelRasterOracle(Require);
+    PreparedFlowchartTests::LineStyleRasterOracle(Require);
 }
 void TestRichTextLayoutTransientLinkInkAndUnderlineRestoreSharedState()
 {

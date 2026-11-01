@@ -1133,6 +1133,7 @@ static void TestNativeFlowchartAllocationFailureAtomicity(bool trace = false)
                                     L"graph TD;A[staged];B[another];A-->|\"incomplete label",
                                     L"graph TD;A[\"" + std::wstring(NativeFlowchartParser::MaximumLabelUnits + 1u, L'x') + L"\"]",
                                     L"flowchart LR;A & B-->|group|C & D-->E",
+                                    L"flowchart LR;A-.->B;B==>C;C~~~D",
                                     L"stateDiagram-v2;state \"Ready\" as S;S : Running;S-->T : go",
                                     L"classDiagram;Base <|-- Derived;Derived : member",
                                     L"classDiagram\nclass Animal {\n+name: String\n+run()\n}\nAnimal -- Pond\n"};

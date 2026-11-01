@@ -67,6 +67,7 @@ struct PreparedFlowchart::State
     LayoutOptions options;
     FlowchartResourceEpoch epoch{};
     wil::com_ptr<IDWriteTextFormat> format;
+    wil::com_ptr<ID2D1StrokeStyle> dottedStyle;
     std::vector<FlowchartLabel> nodeLabels, edgeLabels;
     std::vector<FlowchartSize> nodeSizes, edgeSizes;
     std::vector<wil::com_ptr<ID2D1PathGeometry>> nodePaths, arrowPaths;
@@ -95,6 +96,13 @@ struct PreparedFlowchart::State
         THROW_IF_FAILED(format->SetReadingDirection(options.readingDirection));
         THROW_IF_FAILED(format->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING));
         THROW_IF_FAILED(format->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR));
+        if (std::ranges::any_of(graph->edges, [](const auto& edge) { return edge.style == FlowchartLineStyle::Dotted; }))
+        {
+            const auto properties = D2D1::StrokeStyleProperties(
+                D2D1_CAP_STYLE_ROUND, D2D1_CAP_STYLE_ROUND, D2D1_CAP_STYLE_ROUND, D2D1_LINE_JOIN_ROUND, 10.f, D2D1_DASH_STYLE_CUSTOM, 0.f);
+            constexpr std::array<FLOAT, 2u> dashes{1.f, 3.f};
+            THROW_IF_FAILED(drawing->CreateStrokeStyle(properties, dashes.data(), static_cast<UINT32>(dashes.size()), dottedStyle.put()));
+        }
     }
     void Label(std::wstring_view text, FlowchartLabel& output, FlowchartSize& size)
     {
@@ -360,12 +368,16 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
     for (std::size_t index = 0u; index < plan.edges.size(); ++index)
     {
         const auto& edge = plan.edges[index];
+        if (edge.style == FlowchartLineStyle::Invisible)
+            continue;
+        const float lineWidth = edge.style == FlowchartLineStyle::Thick ? 3.f : 1.f;
+        auto* lineStyle       = edge.style == FlowchartLineStyle::Dotted ? state.dottedStyle.get() : nullptr;
         for (std::size_t point = 1u; point < edge.path.size(); ++point)
         {
             auto end = edge.path[point];
             if (edge.relation == FlowchartRelation::Inheritance && state.arrowPaths[index] && point + 1u == edge.path.size())
                 end = {(edge.arrow[1u].x + edge.arrow[2u].x) / 2.0, (edge.arrow[1u].y + edge.arrow[2u].y) / 2.0};
-            target->DrawLine(Point(edge.path[point - 1u]), Point(end), stroke);
+            target->DrawLine(Point(edge.path[point - 1u]), Point(end), stroke, lineWidth, lineStyle);
         }
         if (state.arrowPaths[index])
         {

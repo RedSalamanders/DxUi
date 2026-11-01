@@ -364,6 +364,7 @@ struct NativeFlowchartLayout::Preparation
         const auto fromX = from.bounds.x + from.bounds.width / 2.0, toX = to.bounds.x + to.bounds.width / 2.0;
         placed.path     = {{{fromX, start}, {fromX, first}, {cross, first}, {cross, last}, {toX, last}, {toX, end}}};
         placed.relation = edge.relation;
+        placed.style    = edge.style;
         placed.hasArrow = edge.arrow;
         const auto base = end + (back ? Margin : -Margin);
         placed.arrow    = {{{toX, end}, {toX - 4.0, base}, {toX + 4.0, base}}};
@@ -473,7 +474,8 @@ void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
             throw std::invalid_argument("Invalid flowchart layout shape");
     for (const auto& edge : graph->edges)
         if (edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() || edge.relation < FlowchartRelation::Line ||
-            edge.relation > FlowchartRelation::Inheritance || edge.arrow != (edge.relation != FlowchartRelation::Line))
+            edge.relation > FlowchartRelation::Inheritance || edge.style < FlowchartLineStyle::Solid || edge.style > FlowchartLineStyle::Invisible ||
+            (edge.style == FlowchartLineStyle::Invisible && (edge.arrow || ! edge.label.empty())) || edge.arrow != (edge.relation != FlowchartRelation::Line))
             throw std::invalid_argument("Invalid flowchart layout edge");
     for (const auto value : nodeLabels)
         if (! Valid(value))

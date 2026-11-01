@@ -514,4 +514,65 @@ template <typename Check> inline void EdgeLabelRasterOracle(Check&& check)
     check(capsuleRaster, "stadium raster has rounded capsule corners, a curved top boundary, and filled center rather than rectangular corners");
 }
 
+template <typename Check> inline void LineStyleRasterOracle(Check&& check)
+{
+    wil::com_ptr<IWICImagingFactory> imaging;
+    THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    const auto drawing = DrawingFactory();
+    const auto write   = WriteFactory();
+    std::array<unsigned, 4u> ink{}, pathHits{};
+    constexpr std::array tokens{L"---", L"-.-", L"===", L"~~~"};
+    for (std::size_t index = 0u; index < tokens.size(); ++index)
+    {
+        const auto graph = FlowchartLayoutTests::Graph(L"flowchart LR\nA " + std::wstring(tokens[index]) + L" B\n");
+        PreparedFlowchart prepared;
+        prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
+        Complete(prepared, check);
+        check(prepared.Ready() && prepared.Geometry()->edges.size() == 1u && prepared.Geometry()->edges[0u].style == graph->edges[0u].style,
+              "prepared edge retains its source style");
+        wil::com_ptr<IWICBitmap> bitmap;
+        THROW_IF_FAILED(imaging->CreateBitmap(512u, 256u, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+        const auto properties =
+            D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+        wil::com_ptr<ID2D1RenderTarget> target;
+        THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
+        wil::com_ptr<ID2D1SolidColorBrush> stroke, fill;
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(1.f, 1.f, 1.f, 1.f), stroke.put()));
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(0.f, 0.f, 0.f, 0.f), fill.put()));
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(0.f, 0.f, 0.f, 0.f));
+        check(prepared.Draw(target.get(), stroke.get(), stroke.get(), fill.get(), D2D1::Point2F(4.f, 4.f)), "styled diagram draws offscreen");
+        THROW_IF_FAILED(target->EndDraw());
+        std::vector<BYTE> pixels(512u * 256u * 4u);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, 512u * 4u, static_cast<UINT>(pixels.size()), pixels.data()));
+        for (std::size_t offset = 3u; offset < pixels.size(); offset += 4u)
+            if (pixels[offset])
+                ++ink[index];
+        const auto& path    = prepared.Geometry()->edges[0u].path;
+        std::size_t longest = 1u;
+        double length{};
+        for (std::size_t segment = 1u; segment < path.size(); ++segment)
+        {
+            const auto distance = std::abs(path[segment].x - path[segment - 1u].x) + std::abs(path[segment].y - path[segment - 1u].y);
+            if (distance > length)
+            {
+                length  = distance;
+                longest = segment;
+            }
+        }
+        check(length >= 10.0, "edge fixture has a measurable route segment");
+        const auto a = path[longest - 1u], b = path[longest];
+        for (auto step = static_cast<unsigned>(length * .2); step < static_cast<unsigned>(length * .8); ++step)
+        {
+            const double fraction = static_cast<double>(step) / length;
+            const auto x          = static_cast<unsigned>(std::lround(4.0 + a.x + (b.x - a.x) * fraction));
+            const auto y          = static_cast<unsigned>(std::lround(4.0 + a.y + (b.y - a.y) * fraction));
+            check(x < 512u && y < 256u, "sample stays inside the offscreen target");
+            if (x < 512u && y < 256u && pixels[(static_cast<std::size_t>(y) * 512u + x) * 4u + 3u])
+                ++pathHits[index];
+        }
+    }
+    check(ink[2u] > ink[0u] && pathHits[0u] > pathHits[1u] && pathHits[1u] > 0u && pathHits[3u] == 0u,
+          "thick edges add ink, dotted edges contain visible gaps, and invisible edges add no path pixels");
+}
 } // namespace PreparedFlowchartTests

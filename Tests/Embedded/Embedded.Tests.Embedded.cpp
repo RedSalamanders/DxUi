@@ -1661,6 +1661,7 @@ __declspec(noinline) static int RunFunctionalTests()
     PreparedFlowchartTests::BudgetAndLifecycle(Check);
     PreparedFlowchartTests::RasterOracle(Check);
     PreparedFlowchartTests::EdgeLabelRasterOracle(Check);
+    PreparedFlowchartTests::LineStyleRasterOracle(Check);
     TestRichTextCooperativeFailureDoesNotRetryAutomatically(gpu);
     TestRetainedRichTextSharedViewsAndResources(gpu);
     TestRetainedRichTextSharedViewsAndResources(gpu, true);

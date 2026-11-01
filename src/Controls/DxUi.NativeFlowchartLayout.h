@@ -39,6 +39,7 @@ struct FlowchartPlacedEdge
 {
     FlowchartRoute route{};
     FlowchartRelation relation{};
+    FlowchartLineStyle style{};
     // Six orthogonal vertices include the exact shape attachment points.
     // Crossings are allowed; routing does not promise crossing minimization.
     std::array<FlowchartPoint, 6u> path{};

@@ -126,7 +126,7 @@ explicit document location and bounded preparation/resource handling:
 
 The native extension engine choice is C++ only. `DxUiNativeFlowchart1` currently
 has an internal CPU parser with focused Debug checks for rectangles, rounded nodes, circles,
-diamonds, four directions and plain/arrow edge chains. Other Mermaid families,
+diamonds, four directions and bounded solid, dotted, thick and invisible edge chains. Simple state and class profiles are also available; other Mermaid families,
 expanded shapes/edges, subgraphs, styling, icons and executable directives remain
 unsupported. The pinned original corpus distinguishes accepted graphs from
 rejected definitions. Source-independent cooperative CPU geometry passes focused
@@ -1416,7 +1416,7 @@ colon members and bounded multiline `class Name { ... }` member blocks, directed
 State/class layouts use the deterministic native graph router; members are plain
 multiline node labels. Inheritance uses a hollow triangle without a line through its
 interior. Flowchart stadiums use capsule outlines and shape-aware connection ports;
-grouped/chained endpoints expand into bounded Cartesian edge products in source order.
+grouped/chained endpoints expand into bounded Cartesian edge products in source order. Flowchart edges support dotted `-.->` / `-.-`, thick `==>` / `===`, and invisible `~~~` layout constraints; invisible edge labels remain unsupported.
 This is not
 Mermaid coordinate compatibility. Composite states, class namespaces/generics,
 class compartments, relationship multiplicities, stereotypes, styling,

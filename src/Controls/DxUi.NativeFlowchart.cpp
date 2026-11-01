@@ -482,7 +482,36 @@ struct NativeFlowchartParser::Preparation
             else
             {
                 std::size_t operatorLength{};
-                if (Text().substr(at, 3u) == L"-->")
+                if (model->family == NativeDiagramFamily::Flowchart && Text().substr(at, 4u) == L"-.->")
+                {
+                    edge.arrow     = true;
+                    edge.relation  = FlowchartRelation::Arrow;
+                    edge.style     = FlowchartLineStyle::Dotted;
+                    operatorLength = 4u;
+                }
+                else if (model->family == NativeDiagramFamily::Flowchart && Text().substr(at, 3u) == L"-.-")
+                {
+                    edge.style     = FlowchartLineStyle::Dotted;
+                    operatorLength = 3u;
+                }
+                else if (model->family == NativeDiagramFamily::Flowchart && Text().substr(at, 3u) == L"==>")
+                {
+                    edge.arrow     = true;
+                    edge.relation  = FlowchartRelation::Arrow;
+                    edge.style     = FlowchartLineStyle::Thick;
+                    operatorLength = 3u;
+                }
+                else if (model->family == NativeDiagramFamily::Flowchart && Text().substr(at, 3u) == L"===")
+                {
+                    edge.style     = FlowchartLineStyle::Thick;
+                    operatorLength = 3u;
+                }
+                else if (model->family == NativeDiagramFamily::Flowchart && Text().substr(at, 3u) == L"~~~")
+                {
+                    edge.style     = FlowchartLineStyle::Invisible;
+                    operatorLength = 3u;
+                }
+                else if (Text().substr(at, 3u) == L"-->")
                 {
                     edge.arrow     = true;
                     edge.relation  = FlowchartRelation::Arrow;
@@ -508,6 +537,8 @@ struct NativeFlowchartParser::Preparation
             if (at < end && Text()[at] == L'|')
             {
                 if (model->family != NativeDiagramFamily::Flowchart)
+                    return Error(FlowchartIssue::UnsupportedEdge, edgeStart, at + 1u, FlowchartOutcome::Unsupported);
+                if (edge.style == FlowchartLineStyle::Invisible)
                     return Error(FlowchartIssue::UnsupportedEdge, edgeStart, at + 1u, FlowchartOutcome::Unsupported);
                 ++at;
                 if (! Label(at, end, L'|', edge.label))
