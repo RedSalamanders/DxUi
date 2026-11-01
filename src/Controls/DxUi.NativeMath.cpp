@@ -490,7 +490,7 @@ class Parser
                 result.atomClass = MathAtomClass::Inner;
             return result;
         }
-        if (name == L"boxed" || name == L"cancel" || name == L"bcancel" || name == L"xcancel")
+        if (name == L"boxed" || name == L"cancel" || name == L"bcancel" || name == L"xcancel" || name == L"sout")
             return Make(MathKind::Accent, std::wstring(name), {Atom(depth + 1)});
         if (name == L"overline" || name == L"underline" || name == L"bar" || name == L"hat" || name == L"widehat" || name == L"vec" || name == L"dot" ||
             name == L"ddot" || name == L"tilde" || name == L"widetilde")
@@ -703,7 +703,7 @@ class Parser
                                                        L"mathnormal", L"boldsymbol", L"bm",       L"mathbb",       L"mathcal",   L"mathfrak", L"mathsf",
                                                        L"mathtt",     L"mathord",    L"mathop",   L"mathbin",      L"mathrel",   L"mathopen", L"mathclose",
                                                        L"mathpunct",  L"mathinner",  L"overline", L"underline",    L"bar",       L"hat",      L"widehat",
-                                                       L"vec",        L"dot",        L"ddot",     L"tilde",        L"widetilde", L"left", L"boxed", L"cancel", L"bcancel", L"xcancel"};
+                                                       L"vec",        L"dot",        L"ddot",     L"tilde",        L"widetilde", L"left", L"boxed", L"cancel", L"bcancel", L"xcancel", L"sout"};
         if (std::ranges::find(styled, name) != std::end(styled))
             return StyledCommand(name, depth);
         return SymbolCommand(name);

@@ -542,7 +542,7 @@ class PreparedMath final
                 case MathKind::Accent:
                     if (node.text != L"overline" && node.text != L"underline" && node.text != L"bar" && node.text != L"hat" && node.text != L"widehat" &&
                         node.text != L"tilde" && node.text != L"widetilde" && node.text != L"vec" && node.text != L"dot" && node.text != L"ddot" &&
-                        node.text != L"boxed" && node.text != L"cancel" && node.text != L"bcancel" && node.text != L"xcancel")
+                        node.text != L"boxed" && node.text != L"cancel" && node.text != L"bcancel" && node.text != L"xcancel" && node.text != L"sout")
                         throw std::length_error("Invalid mathematical accent");
                     if (node.children.size() != 1u)
                         throw std::length_error("Invalid mathematical unary node");
@@ -1016,7 +1016,7 @@ class PreparedMath final
             if (node.kind == Accent && node.children.size() == 1u)
             {
                 box.extent = child(0u);
-                if (node.text == L"boxed" || node.text == L"cancel" || node.text == L"bcancel" || node.text == L"xcancel")
+                if (node.text == L"boxed" || node.text == L"cancel" || node.text == L"bcancel" || node.text == L"xcancel" || node.text == L"sout")
                 {
                     const float pad = std::max(1.f, box.size * .12f);
                     box.extent.width += 2.f * pad;
@@ -1454,7 +1454,7 @@ class PreparedMath final
         }
         if (node.kind == Accent && node.children.size() == 1u)
         {
-            if (node.text == L"boxed" || node.text == L"cancel" || node.text == L"bcancel" || node.text == L"xcancel")
+            if (node.text == L"boxed" || node.text == L"cancel" || node.text == L"bcancel" || node.text == L"xcancel" || node.text == L"sout")
             {
                 const float pad = std::max(1.f, box.size * .12f);
                 const float left = x + stroke * .5f, right = x + box.extent.width - stroke * .5f;
@@ -1467,6 +1467,8 @@ class PreparedMath final
                     Stroke(right, bottom, left, bottom, stroke);
                     Stroke(left, bottom, left, top, stroke);
                 }
+                else if (node.text == L"sout")
+                    Stroke(left, (top + bottom) * .5f, right, (top + bottom) * .5f, stroke);
                 else
                 {
                     if (node.text != L"bcancel")

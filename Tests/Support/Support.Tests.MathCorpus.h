@@ -298,7 +298,7 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
 #endif
     for (const auto& [source, count, rising, falling] : std::array{
              std::tuple{L"\\boxed{x}", 4u, false, false}, std::tuple{L"\\cancel{x}", 1u, true, false},
-             std::tuple{L"\\bcancel{x}", 1u, false, true}, std::tuple{L"\\xcancel{x}", 2u, true, true}})
+             std::tuple{L"\\bcancel{x}", 1u, false, true}, std::tuple{L"\\xcancel{x}", 2u, true, true}, std::tuple{L"\\sout{x}", 1u, false, false}})
     {
         const auto expression = std::make_shared<const MathExpression>(ParseMath(source));
         check(static_cast<bool>(*expression), "bounded annotation parses without losing its child");
