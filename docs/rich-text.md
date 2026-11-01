@@ -9,6 +9,8 @@ performance, physical-input or consumer acceptance. Those results retain their
 own source identities in [the evidence archive](../Measurements/RichText/README.md).
 `capabilities.json` owns the table; `validate-specs.ps1` rejects a changed, missing
 or contradictory row. API revision remains 4; pair headers with the exact library.
+The added control triple-click virtual has an ordinary-press default for existing
+source consumers; rebuild control subclasses with their pinned headers and library.
 
 <!-- rich-text-capabilities:begin -->
 | Feature | Status | Limits | Details |

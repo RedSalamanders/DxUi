@@ -166,6 +166,38 @@ static void TestRichTooltipReentrantTransitions(GraphicsFixture& gpu)
     Check(view.Controls().DebugGetPendingTooltipText() == L"Current title", "subsequent hover resolves the current document's authored title");
 }
 
+static void TestRichTripleClickParagraph(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create triple-click graphics");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "attach triple-click host");
+    auto root = std::make_unique<RichTextEditor>(L"alpha beta\n\nsecond line");
+    auto* editor = root.get();
+    editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
+    editor->SetMarkdownRenderingEnabled(true);
+    editor->SetViewMode(RichText::ViewMode::Rich);
+    view.Controls().SetRoot(std::move(root));
+    view.Controls().SetFocusControl(editor);
+    Hr(PrepareRichEmbeddedContent(view, 320u, 120u), "prepare triple-click paragraph");
+    EmbeddedTextInputSnapshot snapshot;
+    Check(view.ReadTextInput(snapshot) == S_OK, "read triple-click text state");
+    D2D1_RECT_F bounds{};
+    bool clipped = true;
+    Check(view.GetTextInputRangeBounds(snapshot.revision, 0u, 5u, bounds, clipped) == S_OK && ! clipped,
+          "first word has visible geometry");
+    const float x = (bounds.left + bounds.right) * 0.5f, y = (bounds.top + bounds.bottom) * 0.5f;
+    for (unsigned click = 0u; click != 3u; ++click)
+    {
+        Check(view.DispatchPointer({PointerAction::Down, x, y}), "paragraph click is dispatched");
+        static_cast<void>(view.DispatchPointer({PointerAction::Up, x, y}));
+        Hr(PrepareRichEmbeddedContent(view, 320u, 120u), "prepare after paragraph click");
+    }
+    Check(editor->GetSelection() == RichText::Selection{0u, 10u}, "third click selects the first semantic paragraph only");
+    Check(editor->Snapshot().Text() == L"alpha beta\n\nsecond line", "triple click preserves source");
+}
+
 static void TestRichPreparedWordFailureAtomicity(GraphicsFixture& gpu)
 {
     using namespace DxUi;

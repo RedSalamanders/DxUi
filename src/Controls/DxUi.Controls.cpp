@@ -11067,7 +11067,7 @@ bool ScrollPanel::DismissOverlayOnPointerDown(ControlHost& host, D2D1_POINT_2F p
 
 bool ScrollPanel::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
-    return DispatchPress(host, point, rightButton, modifiers, false);
+    return DispatchPress(host, point, rightButton, modifiers, 1u);
 }
 
 bool ScrollPanel::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
@@ -11075,15 +11075,21 @@ bool ScrollPanel::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, boo
     // The second press of a double-click reaches the child under the pointer as that child's double-click (a control
     // without one treats it as a press, so a second right-click opens its menu again), and the scrollbar as a press: a
     // second click on the track pages again and a second press on the thumb drags it, as on a native scrollbar.
-    return DispatchPress(host, point, rightButton, modifiers, true);
+    return DispatchPress(host, point, rightButton, modifiers, 2u);
 }
 
-bool ScrollPanel::DispatchPress(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers, bool doubleClick)
+bool ScrollPanel::OnMouseTripleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
+{
+    return DispatchPress(host, point, rightButton, modifiers, 3u);
+}
+
+bool ScrollPanel::DispatchPress(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers, unsigned clickCount)
 {
     const auto forward = [&](Control& child, D2D1_POINT_2F contentPoint)
     {
-        return doubleClick ? child.OnMouseDoubleClick(host, contentPoint, rightButton, modifiers)
-                           : child.OnMouseDown(host, contentPoint, rightButton, modifiers);
+        return clickCount == 3u ? child.OnMouseTripleClick(host, contentPoint, rightButton, modifiers)
+             : clickCount == 2u ? child.OnMouseDoubleClick(host, contentPoint, rightButton, modifiers)
+                                : child.OnMouseDown(host, contentPoint, rightButton, modifiers);
     };
     if ((_innerCapturedChild || _dragThumb) && ! HostCaptureCarriesGesture(host))
     {

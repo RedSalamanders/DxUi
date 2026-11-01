@@ -2321,6 +2321,7 @@ void ControlHost::RememberPointerButtonDown(Control* target, UINT buttonDownMess
     _pendingPointerDoubleClick.downMessage = buttonDownMessage;
     _pendingPointerDoubleClick.pointPx     = POINT{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
     _pendingPointerDoubleClick.tickMs      = GetTickCount64();
+    _pendingPointerDoubleClick.doubleClick = false;
 }
 
 bool ControlHost::ShouldTreatPointerDownAsDoubleClick(Control* target, D2D1_POINT_2F pointDip) const noexcept
@@ -2360,6 +2361,7 @@ void ControlHost::RememberPointerDownDip(Control* target, D2D1_POINT_2F pointDip
     _pendingPointerDoubleClick.pointPx =
         POINT{static_cast<LONG>(std::lround(DipsToPixels(pointDip.x))), static_cast<LONG>(std::lround(DipsToPixels(pointDip.y)))};
     _pendingPointerDoubleClick.tickMs = GetTickCount64();
+    _pendingPointerDoubleClick.doubleClick = false;
 }
 
 HWND ControlHost::GetHwnd() const noexcept
@@ -3486,10 +3488,13 @@ try
             // Many DxUi hosts attach to existing STATIC/custom windows that never emit
             // WM_*BUTTONDBLCLK, so detect the second down here and route it through the
             // same control-level double-click path.
-            const bool doubleClick                  = IsPointerDoubleClickMessage(msg) || ShouldTreatButtonDownAsDoubleClick(target, buttonDownMessage, lp);
+            const bool sameClickSequence            = ShouldTreatButtonDownAsDoubleClick(target, buttonDownMessage, lp);
+            const bool tripleClick                  = ! rightButton && sameClickSequence && _pendingPointerDoubleClick.doubleClick;
+            const bool doubleClick                  = ! tripleClick && (IsPointerDoubleClickMessage(msg) || sameClickSequence);
             const std::weak_ptr<int> targetLifetime = target ? target->GetLifetimeToken() : std::weak_ptr<int>{};
             const uint64_t focusBeforeDispatch      = _focusRequestRevision;
-            const bool controlHandled               = target && (doubleClick ? target->OnMouseDoubleClick(*this, point, rightButton, static_cast<UINT>(wp))
+            const bool controlHandled               = target && (tripleClick ? target->OnMouseTripleClick(*this, point, rightButton, static_cast<UINT>(wp))
+                                                               : doubleClick ? target->OnMouseDoubleClick(*this, point, rightButton, static_cast<UINT>(wp))
                                                                              : target->OnMouseDown(*this, point, rightButton, static_cast<UINT>(wp)));
             Control* liveControl                    = RevalidateInteractiveDispatchedControl(targetLifetime, _root.get(), target);
             if (IsContextMenuDiagnosticsEnabled())
@@ -3559,13 +3564,14 @@ try
                 {
                     CaptureMouse(liveControl);
                 }
-                if (doubleClick)
+                if (tripleClick || (doubleClick && rightButton))
                 {
                     ClearPendingPointerDoubleClick();
                 }
                 else
                 {
                     RememberPointerButtonDown(liveControl, buttonDownMessage, lp);
+                    _pendingPointerDoubleClick.doubleClick = doubleClick;
                 }
             }
             else if (controlHandled)

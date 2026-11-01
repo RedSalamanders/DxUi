@@ -877,25 +877,29 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
             case PointerAction::Down:
             {
                 const auto lifetime    = target->GetLifetimeToken();
-                const bool doubleClick = _host.ShouldTreatPointerDownAsDoubleClick(target, point);
+                const bool sameClickSequence = _host.ShouldTreatPointerDownAsDoubleClick(target, point);
+                const bool tripleClick = sameClickSequence && _host._pendingPointerDoubleClick.doubleClick;
+                const bool doubleClick = sameClickSequence && ! tripleClick;
                 const bool handled =
-                    doubleClick ? target->OnMouseDoubleClick(_host, point, false, event.modifiers) : target->OnMouseDown(_host, point, false, event.modifiers);
+                    tripleClick ? target->OnMouseTripleClick(_host, point, false, event.modifiers)
+                  : doubleClick ? target->OnMouseDoubleClick(_host, point, false, event.modifiers) : target->OnMouseDown(_host, point, false, event.modifiers);
                 Control* const live = (! lifetime.expired() && target->GetHost() == &_host) ? target : nullptr;
                 // Like the native host, capture a handled press after the callback; the callback may remove its control.
                 if (handled && live && ! _host.IsTooltipInspectionActive())
                 {
                     _host.CaptureMouse(live);
-                    if (doubleClick)
+                    if (tripleClick)
                     {
                         _host.ClearPendingPointerDoubleClick();
                     }
                     else
                     {
                         _host.RememberPointerDownDip(live, point);
+                        _host._pendingPointerDoubleClick.doubleClick = doubleClick;
                     }
                     _host.PruneStaleInteractionState();
                 }
-                else if (doubleClick)
+                else if (doubleClick || tripleClick)
                 {
                     _host.ClearPendingPointerDoubleClick();
                 }

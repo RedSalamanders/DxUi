@@ -1643,6 +1643,7 @@ public:
     virtual bool OnMouseLeave(ControlHost& host);
     virtual bool OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers);
     virtual bool OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers);
+    virtual bool OnMouseTripleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers);
     virtual bool OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers);
     virtual bool OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta, UINT modifiers);
     virtual bool OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers);
@@ -3519,6 +3520,7 @@ public:
     bool OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noexcept override;
     bool OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) noexcept override;
     bool OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) noexcept override;
+    bool OnMouseTripleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) noexcept override;
     bool OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT modifiers) noexcept override;
     bool OnMouseLeave(ControlHost& host) noexcept override;
     bool OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) noexcept override;
@@ -4600,6 +4602,7 @@ public:
     bool DismissOverlayOnPointerDown(ControlHost& host, D2D1_POINT_2F point) override;
     bool OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
     bool OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
+    bool OnMouseTripleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
     bool OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT modifiers) override;
     bool OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
     bool OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta, UINT modifiers) override;
@@ -4645,7 +4648,7 @@ private:
     [[nodiscard]] bool HostCaptureCarriesGesture(const ControlHost& host) const noexcept;
     // A press and a double-click take one path: the child under the pointer receives its own kind of event, and the
     // scrollbar treats both as a press.
-    bool DispatchPress(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers, bool doubleClick);
+    bool DispatchPress(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers, unsigned clickCount);
 
     [[nodiscard]] float GetScrollableExtent() const noexcept;
     [[nodiscard]] bool UsesInternalScrollbar() const noexcept;
@@ -6606,6 +6609,7 @@ private:
         UINT downMessage = 0u;
         POINT pointPx{};
         uint64_t tickMs = 0u;
+        bool doubleClick = false;
     };
 
     Control* _hoveredControl             = nullptr;

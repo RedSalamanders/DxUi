@@ -6219,6 +6219,55 @@ WindowHostCursorKind RichTextEditor::ResolveCursorKind(ControlHost&, D2D1_POINT_
                : WindowHostCursorKind::Default;
 }
 
+bool RichTextEditor::OnMouseTripleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT) noexcept
+{
+    const auto inputLifetime = GetLifetimeToken();
+    const auto inputRevision = Revision();
+    const auto inputEpoch = _state->fileDropEpoch;
+    const auto inputSelection = GetSelection();
+    try
+    {
+        if (! IsEnabled() || rightButton || ! LayoutIsCurrent(host))
+            return false;
+        const auto& projection = _state->layout;
+        const size_t caret = projection.ToDisplay(HitSource(host, point));
+        size_t first = caret, last = caret;
+        if (const auto* geometry = projection.SemanticGeometry())
+        {
+            bool found = false;
+            for (const auto& paragraph : geometry->Document().Paragraphs())
+                if (paragraph.display.first <= caret &&
+                    (caret < paragraph.display.last || (caret == paragraph.display.last && caret == projection.DisplayLength())))
+                {
+                    first = paragraph.display.first;
+                    last = paragraph.display.last;
+                    found = true;
+                    break;
+                }
+            if (! found)
+                return false;
+        }
+        else
+        {
+            while (first > 0u && projection.DisplayUnit(first - 1u) != L'\r' && projection.DisplayUnit(first - 1u) != L'\n')
+                --first;
+            while (last < projection.DisplayLength() && projection.DisplayUnit(last) != L'\r' && projection.DisplayUnit(last) != L'\n')
+                ++last;
+        }
+        _state->dragging = false;
+        SetSelection({projection.ToSource(first), projection.ToSource(last, true)});
+        return true;
+    }
+    catch (const std::bad_alloc&)
+    {
+        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
+    }
+    catch (const std::exception&)
+    {
+        return InputFailureHandled(inputLifetime, inputRevision, inputEpoch, inputSelection);
+    }
+}
+
 bool RichTextEditor::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT) noexcept
 {
     const auto inputLifetime  = GetLifetimeToken();

@@ -267,6 +267,13 @@ and password-reveal buttons and the editor's surrounding chrome keep their
 normal cursor. Embedded consumers can query the same cursor kind and supply the
 appropriate platform cursor.
 
+Three successive primary-button presses within the host's double-click time and
+distance on the same control dispatch a triple-click. A RichTextEditor selects
+the hit semantic paragraph in rich mode, or the physical source line in source
+mode, without changing source or history. Native and embedded hosts apply the
+same sequencing, and ScrollPanel forwards the event in content coordinates.
+Controls without a triple-click override receive an ordinary third press.
+
 Bulk Character movement snaps once using the existing nearest/forward-tie
 policy, then walks established boundaries. Negative movement counts the bounded
 prefix and visits its target ordinal. INT_MIN/INT_MAX requests return actual
