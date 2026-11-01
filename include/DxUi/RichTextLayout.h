@@ -46,6 +46,7 @@ struct LayoutOptions
     // Independent mathematical family; a font without MATH uses em/stroke fallbacks.
     std::wstring mathFontFamily = L"Cambria Math";
     float diagramLabelWidthDip = 0.0f; // Zero uses 12.5 times the font size; otherwise 1..4096 DIP.
+    bool autoParagraphDirection = false; // Semantic paragraphs use first-strong text with host fallback.
 };
 struct CaretGeometry
 {

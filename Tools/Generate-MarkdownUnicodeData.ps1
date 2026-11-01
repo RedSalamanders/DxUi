@@ -1,4 +1,4 @@
-# Locale-independent Markdown flanking classes and full default label folding.
+# Locale-independent Markdown flanking, first-strong bidi classes and full default label folding.
 [CmdletBinding()]
 param(
     [string]$InputDirectory=(Join-Path $PSScriptRoot '../ThirdParty/Unicode/17.0.0'),
@@ -23,19 +23,19 @@ $builder=[Text.StringBuilder]::new()
 [void]$builder.AppendLine('#include <cstdint>')
 [void]$builder.AppendLine('namespace DxUi::RichText::Detail::MarkdownUnicodeData {')
 [void]$builder.AppendLine('struct Range { std::uint32_t first, last; };')
-foreach($class in @('Punctuation','Symbol','Space','Alphanumeric')) {
+foreach($class in @('Punctuation','Symbol','Space','Alphanumeric','BidiL','BidiR')) {
     [void]$builder.AppendLine("inline constexpr Range k$class`[] = {")
-    $first=-1; $last=-1; $rangeFirst=-1; $rangeCategory=''
+    $first=-1; $last=-1; $rangeFirst=-1; $rangeCategory=''; $rangeBidi=''
     foreach($line in [IO.File]::ReadLines((Join-Path $InputDirectory 'UnicodeData.txt'))) {
         $fields=$line.Split(';')
         $scalar=[Convert]::ToInt32($fields[0],16)
-        if($fields[1].EndsWith(', First>',[StringComparison]::Ordinal)){$rangeFirst=$scalar;$rangeCategory=$fields[2];continue}
+        if($fields[1].EndsWith(', First>',[StringComparison]::Ordinal)){$rangeFirst=$scalar;$rangeCategory=$fields[2];$rangeBidi=$fields[4];continue}
         $intervalFirst=$scalar
         if($fields[1].EndsWith(', Last>',[StringComparison]::Ordinal)){
-            if($rangeFirst -lt 0 -or $rangeCategory -cne $fields[2] -or $scalar -lt $rangeFirst){throw 'Invalid UnicodeData range pair'}
+            if($rangeFirst -lt 0 -or $rangeCategory -cne $fields[2] -or $rangeBidi -cne $fields[4] -or $scalar -lt $rangeFirst){throw 'Invalid UnicodeData range pair'}
             $intervalFirst=$rangeFirst;$rangeFirst=-1
         }
-        $match=if($class -eq 'Punctuation'){$fields[2] -cmatch '^[PS]'}elseif($class -eq 'Symbol'){$fields[2] -cmatch '^S'}elseif($class -eq 'Alphanumeric'){$fields[2] -cmatch '^[LN]'}else{$fields[2] -ceq 'Zs'}
+        $match=if($class -eq 'Punctuation'){$fields[2] -cmatch '^[PS]'}elseif($class -eq 'Symbol'){$fields[2] -cmatch '^S'}elseif($class -eq 'Alphanumeric'){$fields[2] -cmatch '^[LN]'}elseif($class -eq 'BidiL'){$fields[4] -ceq 'L'}elseif($class -eq 'BidiR'){$fields[4] -cin @('R','AL')}else{$fields[2] -ceq 'Zs'}
         if(-not $match){continue}
         if($first -ge 0 -and $intervalFirst -eq $last+1){$last=$scalar;continue}
         if($first -ge 0){[void]$builder.AppendLine(('{{0x{0:X}u,0x{1:X}u}},' -f $first,$last))}

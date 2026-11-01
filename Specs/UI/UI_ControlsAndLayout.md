@@ -1785,6 +1785,14 @@ existing context-menu and decoration callbacks own the UI. The interval bounds
 word traversal; exclusion preparation currently scans document elements, runs
 and spans and must not be called from Paint. No dictionary or reading-rate policy
 is supplied by the library.
+`autoParagraphDirection` is an opt-in semantic layout policy. Each paragraph
+uses the first Unicode 17 strong L, R or AL scalar outside nested bidi isolates;
+when no strong scalar exists it inherits the host direction. List marker and
+indent placement follow the paragraph. Table cell text resolves independently,
+while physical table column order remains governed by the host direction.
+Changing this policy retires geometry and accessibility publication without
+changing source, history or in-flight image ownership. The direction policy is
+part of the layout and native-resource reuse identity.
 
 Semantic visual deletion MUST remove empty owned Markdown/validated inline
 HTML wrappers only when their complete body is deleted, recursively. Block HTML

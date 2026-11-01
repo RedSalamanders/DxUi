@@ -1,5 +1,6 @@
 #pragma once
 #include "Controls/DxUi.PreparedMath.h"
+#include "Controls/DxUi.RichBidi.h"
 #include "Controls/DxUi.RichSemanticGeometry.h"
 #include "Controls/DxUi.RichSourceWindow.h"
 #include "Support.Tests.CountingWriteFactory.h"
@@ -1718,6 +1719,79 @@ template <typename Prepare> void InlineMathSourceEditing(ControlHost& host, Prep
               ! editor->ReplaceSelection(L"x") && editor->OnKeyDown(host, VK_ESCAPE, 0u),
           "explicit reference source inspection respects read-only and exits");
     editor->SetReadOnly(false);
+}
+template <typename Prepare> void SemanticDirection(ControlHost& host, Prepare&& prepare)
+{
+    const auto ltr = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, rtl = DWRITE_READING_DIRECTION_RIGHT_TO_LEFT;
+    Check(RichText::Detail::FirstStrongDirection(L"123 \u05e9\u05dc\u05d5\u05dd", ltr) == rtl &&
+              RichText::Detail::FirstStrongDirection(L"123 ABC", rtl) == ltr && RichText::Detail::FirstStrongDirection(L"123 !", rtl) == rtl &&
+              RichText::Detail::FirstStrongDirection(L"\u2067\u05e9\u2069ABC", rtl) == ltr &&
+              RichText::Detail::FirstStrongDirection(L"\U0001ee00", ltr) == rtl && RichText::Detail::FirstStrongDirection(L"\U00010400", rtl) == ltr,
+          "first-strong uses pinned bidi classes, skips isolates and handles supplementary scalars");
+    const std::wstring source(L"English\n\n\u05e9\u05dc\u05d5\u05dd\n\n| A | B |\n| - | - |\n| alpha | \u05e9\u05dc\u05d5\u05dd |\n");
+    auto root = std::make_unique<RichTextEditor>(source);
+    auto* editor = root.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+    editor->SetMarkdownRenderingEnabled(true);
+    host.SetRoot(std::move(root));
+    prepare();
+    const auto hebrew = source.find(L"\u05e9\u05dc\u05d5\u05dd");
+    const auto before = editor->TryGetTextInputCaretRect(host, hebrew);
+    const auto document = editor->GetAcknowledgedSemanticDocument(host);
+    std::vector<D2D1_RECT_F> cells(0u);
+    for (std::size_t index = 0u; index < document->Elements().size(); ++index)
+        if (document->Elements()[index].role == SemanticRole::Cell)
+            if (const auto bounds = editor->GetSemanticElementBounds(host, index))
+                cells.push_back(*bounds);
+    auto appearance = editor->GetAppearance();
+    appearance.autoParagraphDirection = true;
+    editor->SetAppearance(appearance);
+    Check(! editor->GetAcknowledgedSemanticDocument(host), "direction change retires old geometry before reflow");
+    prepare();
+    const auto after = editor->TryGetTextInputCaretRect(host, hebrew);
+    Check(before && after && after->left > before->left + 20.0f && editor->GetText() == source,
+          "opt-in first-strong moves a Hebrew paragraph's leading caret without changing source");
+    const auto ltrFirst = editor->TryGetTextInputCaretRect(host, 0u);
+    const auto ltrLast = editor->TryGetTextInputCaretRect(host, 7u);
+    const auto rtlLast = editor->TryGetTextInputCaretRect(host, hebrew + 4u);
+    const auto selection = editor->TryGetTextInputRangeRects(host, hebrew, hebrew + 4u);
+    Check(ltrFirst && ltrLast && rtlLast && ltrFirst->left < ltrLast->left && after->left > rtlLast->left && selection && ! selection->empty(),
+          "mixed paragraph caret order and selection geometry follow each paragraph direction");
+    const auto refreshed = editor->GetAcknowledgedSemanticDocument(host);
+    std::size_t cell = 0u;
+    for (std::size_t index = 0u; index < refreshed->Elements().size(); ++index)
+        if (refreshed->Elements()[index].role == SemanticRole::Cell)
+            if (const auto bounds = editor->GetSemanticElementBounds(host, index))
+            {
+                Check(cell < cells.size() && std::abs(cells[cell].left - bounds->left) < .1f && std::abs(cells[cell].right - bounds->right) < .1f,
+                      "independent cell direction retains table column placement");
+                ++cell;
+            }
+    Check(cell == cells.size() && cell == 4u, "all table cells retain their physical columns");
+    const auto cellHebrew = source.rfind(L"\u05e9\u05dc\u05d5\u05dd");
+    const auto cellStart = editor->TryGetTextInputCaretRect(host, cellHebrew);
+    const auto cellEnd = editor->TryGetTextInputCaretRect(host, cellHebrew + 4u);
+    Check(cellStart && cellEnd && cellStart->left > cellEnd->left, "right-to-left cell caret order follows its text independently");
+    editor->SetFlowDirection(FlowDirection::RightToLeft);
+    prepare();
+    const auto hostRtlLtrFirst = editor->TryGetTextInputCaretRect(host, 0u);
+    const auto hostRtlLtrLast = editor->TryGetTextInputCaretRect(host, 7u);
+    Check(hostRtlLtrFirst && hostRtlLtrLast && hostRtlLtrFirst->left < hostRtlLtrLast->left,
+          "a left-to-right paragraph remains left-to-right under a right-to-left host");
+    editor->SetDocumentFilePath(L"C:\\docs\\example.md");
+    editor->SetText(L"Image ![alt](pending.png)");
+    prepare();
+    std::vector<RichImageRequest> images(0u);
+    editor->TakePendingImageRequests(images);
+    Check(images.size() == 1u, "direction-reflow fixture has an in-flight image");
+    const auto request = images.front();
+    appearance.autoParagraphDirection = false;
+    editor->SetAppearance(appearance);
+    Check(! request.Cancelled() && editor->CompleteImageRequest(request, RichImageResourceTests::Picture()),
+          "direction-only reflow preserves an in-flight image request");
+    prepare();
+    editor->TakePendingImageRequests(images);
+    Check(images.empty() && editor->GetImageResourceStatistics().readySources == 1u, "direction reflow reuses the completed image without another request");
 }
 template <typename Prepare> void SemanticWords(ControlHost& host, Prepare&& prepare)
 {

@@ -3141,6 +3141,7 @@ struct RichTextEditorAppearance
     float diagramLabelWidthDip                               = 0.0f;                   // Zero uses 12.5 times the font size; otherwise 1..4096 DIP.
     RichText::SoftBreakPolicy softBreakPolicy                = RichText::SoftBreakPolicy::Space;
     RichText::MarkdownEnterPolicy enterPolicy                = RichText::MarkdownEnterPolicy::RawNewline;
+    bool autoParagraphDirection = false; // Opt in to first-strong semantic paragraphs.
 };
 struct RichTextSourceHighlight
 {

@@ -1,4 +1,5 @@
 #include "DxUi.RichSemanticGeometry.h"
+#include "DxUi.RichBidi.h"
 #include "DxUi.PaintIndex.h"
 #include "DxUi.PreparedLayoutAccess.h"
 #include "DxUi.PreparedMath.h"
@@ -39,6 +40,18 @@ thread_local std::span<const std::uint8_t> testRichMathTableOverride{};
 #endif
 namespace
 {
+DWRITE_READING_DIRECTION ParagraphDirection(const SemanticDocument& document, const SemanticParagraph& paragraph, const LayoutOptions& options) noexcept
+{
+    if (! options.autoParagraphDirection)
+        return options.readingDirection;
+    const auto text = document.Map().Display();
+    const auto first = paragraph.markerEnd > paragraph.display.first && paragraph.markerEnd <= paragraph.display.last
+                           ? paragraph.markerEnd
+                           : paragraph.display.first;
+    if (first > paragraph.display.last || paragraph.display.last > text.size())
+        return options.readingDirection;
+    return FirstStrongDirection(text.substr(first, paragraph.display.last - first), options.readingDirection);
+}
 HRESULT UploadImageBitmap(
     ID2D1RenderTarget* target, D2D1_SIZE_U size, const void* pixels, UINT32 stride, const D2D1_BITMAP_PROPERTIES& properties, ID2D1Bitmap** bitmap) noexcept
 {
@@ -420,7 +433,7 @@ struct SemanticBox
     float x{}, y{}, width{}, height{}, codeGutter{};
     D2D1_RECT_F frame{};
     std::optional<MarkdownEmptyLine> sourceCaret;
-    bool caretOnly{}, markerOnly{}, markerLayout{};
+    bool caretOnly{}, markerOnly{}, markerLayout{}, rtl{};
     bool authoredColorSurfaceKnown = true;
     const NativeDiagramPlacement* native{};
     const NativeImageGeometry* images{};
@@ -1038,6 +1051,7 @@ struct PreparedSemanticGeometry::Preparation
         box->markerLayout           = true;
         box->paragraph.display.last = content.markerEnd;
         auto options                = state->options;
+        options.readingDirection = ParagraphDirection(*state->document, content, state->options);
         // Native no-wrap measurement is separate from the body's width. Its
         // cached metrics retain the natural advance even for an unusual font.
         options.widthDip      = std::max(options.widthDip, options.fontSizeDip * 32.0f);
@@ -1138,6 +1152,7 @@ struct PreparedSemanticGeometry::Preparation
         if (sizing->columns != content.columns)
             throw std::logic_error("Inconsistent semantic table column count");
         LayoutOptions options = state->options;
+        options.readingDirection = ParagraphDirection(*state->document, content, state->options);
         options.widthDip      = std::max(state->options.widthDip, 1048576.0f);
         options.textAlignment = DWRITE_TEXT_ALIGNMENT_LEADING;
         PreparedLayoutAccess::SemanticInput projection;
@@ -1180,7 +1195,7 @@ struct PreparedSemanticGeometry::Preparation
             (state->native && state->native->Find(content.element)) || (state->images && std::ranges::any_of(state->images->placements, [&](const auto& image) {
             return image.display.first >= content.display.first && image.display.last <= content.display.last;
         }));
-        const bool leadingAligned = state->options.readingDirection == DWRITE_READING_DIRECTION_LEFT_TO_RIGHT &&
+        const bool leadingAligned = options.readingDirection == DWRITE_READING_DIRECTION_LEFT_TO_RIGHT &&
                                     state->options.textAlignment == DWRITE_TEXT_ALIGNMENT_LEADING &&
                                     (content.alignment == MarkdownAlignment::None || content.alignment == MarkdownAlignment::Left);
         if (! hasInlineObjects && leadingAligned && textWidth > sizing->probeWidths[content.column])
@@ -1351,7 +1366,10 @@ struct PreparedSemanticGeometry::Preparation
                 box->sourceCaret->insertion = insertion;
             }
         }
-        const bool rtl = next.options.readingDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT;
+        const auto paragraphDirection = ParagraphDirection(*next.document, content, next.options);
+        const bool localRtl = paragraphDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT;
+        const bool rtl = table ? next.options.readingDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : localRtl;
+        box->rtl = localRtl;
         if (HasSpacingPolicy() && ! rowActive)
         {
             // Empty source sites fill the requested margin. A second source
@@ -1365,6 +1383,7 @@ struct PreparedSemanticGeometry::Preparation
         box->y                = y;
         box->width            = next.options.widthDip - indent;
         LayoutOptions options = next.options;
+        options.readingDirection = paragraphDirection;
         if (table)
         {
             if (! content.columns || content.column >= content.columns)
@@ -1417,9 +1436,9 @@ struct PreparedSemanticGeometry::Preparation
         if (content.alignment == MarkdownAlignment::Center)
             options.textAlignment = DWRITE_TEXT_ALIGNMENT_CENTER;
         else if (content.alignment == MarkdownAlignment::Left)
-            options.textAlignment = rtl ? DWRITE_TEXT_ALIGNMENT_TRAILING : DWRITE_TEXT_ALIGNMENT_LEADING;
+            options.textAlignment = localRtl ? DWRITE_TEXT_ALIGNMENT_TRAILING : DWRITE_TEXT_ALIGNMENT_LEADING;
         else if (content.alignment == MarkdownAlignment::Right)
-            options.textAlignment = rtl ? DWRITE_TEXT_ALIGNMENT_LEADING : DWRITE_TEXT_ALIGNMENT_TRAILING;
+            options.textAlignment = localRtl ? DWRITE_TEXT_ALIGNMENT_LEADING : DWRITE_TEXT_ALIGNMENT_TRAILING;
         const bool paddedCode = ! table && ! caretOnly && next.options.markdownPresentation == MarkdownPresentationStyle::Subtle &&
                                 ! next.document->Syntax()->SourceRegion() &&
                                 (node.block.kind == MarkdownBlockKind::FencedCode || node.block.kind == MarkdownBlockKind::IndentedCode) &&
@@ -1458,7 +1477,7 @@ struct PreparedSemanticGeometry::Preparation
                 return image.display.first >= content.display.first && image.display.last <= content.display.last;
             }));
             const bool ownsProbe        = sizing->probeParagraphs[content.column] == paragraph;
-            if (ownsProbe && measured && measured->paragraph.display == content.display && ! hasInlineObjects && ! rtl &&
+            if (ownsProbe && measured && measured->paragraph.display == content.display && ! hasInlineObjects && ! localRtl &&
                 options.textAlignment == DWRITE_TEXT_ALIGNMENT_LEADING && measured->width <= options.widthDip)
             {
                 box->layout = std::move(measured->layout);
@@ -1700,7 +1719,7 @@ struct PreparedSemanticGeometry::Preparation
                     throw std::logic_error("Native diagram did not produce one atomic SDK object");
                 native->bounds      = rectangles.front();
                 native->caretHeight = options.fontSizeDip;
-                native->rtl         = rtl;
+                native->rtl         = localRtl;
                 box->native         = native;
             }
         }
@@ -1924,7 +1943,8 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
                                          state_->native->drawing.get() == drawing && state_->native->epochs == epochs &&
                                          state_->options.fontFamily == options.fontFamily && state_->options.fontSizeDip == options.fontSizeDip &&
                                          state_->options.locale == options.locale && state_->options.readingDirection == options.readingDirection &&
-                                         state_->options.diagramLabelWidthDip == options.diagramLabelWidthDip
+                                         state_->options.diagramLabelWidthDip == options.diagramLabelWidthDip &&
+                                         state_->options.autoParagraphDirection == options.autoParagraphDirection
                                      ? state_.get()
                                      : nullptr;
     auto next                  = std::make_unique<Preparation>(
@@ -2319,9 +2339,10 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                     options.fontFamily    = options.codeFontFamily;
                     options.fontSizeDip   = options.codeFontSizeDip > 0.0f ? options.codeFontSizeDip : options.fontSizeDip;
                     options.textAlignment = DWRITE_TEXT_ALIGNMENT_TRAILING;
+                    options.readingDirection = box.rtl ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
                     auto layout           = std::make_unique<PreparedLayout>();
                     layout->Prepare(work.state->factory.get(), std::move(projection), options);
-                    const bool rtl = options.readingDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT;
+                    const bool rtl = box.rtl;
                     const float x  = rtl ? box.x + box.width + 4.0f : box.x - box.codeGutter + 4.0f;
                     work.state->codeNumbers.push_back({std::move(layout), D2D1::Point2F(x, box.y + work.codeNumberY), box.frame});
                     ++result.layoutsPrepared;

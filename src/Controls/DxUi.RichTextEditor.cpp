@@ -1317,7 +1317,7 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
     auto next            = appearance; // Stage all owned strings before publishing any option.
     const auto& previous = _state->appearance;
     const bool geometryChanged =
-        previous.tableOverflow != next.tableOverflow || previous.zoom != next.zoom || previous.tabStopDip != next.tabStopDip ||
+        previous.tableOverflow != next.tableOverflow || previous.autoParagraphDirection != next.autoParagraphDirection || previous.zoom != next.zoom || previous.tabStopDip != next.tabStopDip ||
         previous.sourceMonospace != next.sourceMonospace || previous.sourceWrap != next.sourceWrap || previous.sourceLineNumbers != next.sourceLineNumbers ||
         previous.sourceWhitespaceMarks != next.sourceWhitespaceMarks || previous.showVerticalScrollbar != next.showVerticalScrollbar ||
         previous.maximumTextWidthDip != next.maximumTextWidthDip || previous.paddingDip != next.paddingDip ||
@@ -1348,6 +1348,7 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
     value.sourceWrap                = next.sourceWrap;
     value.sourceLineNumbers         = next.sourceLineNumbers;
     value.sourceWhitespaceMarks     = next.sourceWhitespaceMarks;
+    value.autoParagraphDirection    = next.autoParagraphDirection;
     value.pasteUrlOnSelection       = next.pasteUrlOnSelection;
     value.softBreakPolicy           = next.softBreakPolicy;
     value.enterPolicy               = next.enterPolicy;
@@ -3654,6 +3655,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             options.diagramLabelWidthDip = appearance.diagramLabelWidthDip;
             options.tabStopDip           = appearance.tabStopDip;
             options.tableOverflow        = appearance.tableOverflow;
+            options.autoParagraphDirection = appearance.autoParagraphDirection;
             options.readingDirection     = IsRightToLeft() ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
             state.sourceGuideOptions     = options;
             richPreparationActive        = semanticDocument != nullptr;
