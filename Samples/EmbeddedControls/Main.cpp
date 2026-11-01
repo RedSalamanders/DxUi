@@ -434,6 +434,9 @@ struct App
             PointerProbe& operator=(const PointerProbe&) = delete;
             PointerProbe(PointerProbe&&)                 = delete;
             PointerProbe& operator=(PointerProbe&&)      = delete;
+            void Paint(DxUi::ControlHost&) const override
+            {
+            } // Hit-test-only routing fixture.
             bool OnMouseMove(DxUi::ControlHost&, D2D1_POINT_2F, UINT) override
             {
                 ++_observed->moves;
