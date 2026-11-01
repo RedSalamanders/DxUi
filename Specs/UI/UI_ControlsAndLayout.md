@@ -1198,7 +1198,10 @@ allocate private bounded bitmap storage, then copy complete pixel tiles across
 turns; even a budget smaller than one source row makes progress. Bitmap allocation
 itself is indivisible and remains subject to image dimension/decoded-byte bounds.
 Only complete bitmaps can enter a published geometry; duplicate placements share
-the completed bitmap. `LayoutAdvance::uploadedBytes` reports transferred BGRA
+the completed bitmap. A width-only reflow on the same factory, immutable image
+snapshot, target and resource epoch reuses completed raster bitmaps by image
+identity without another upload or tile copy. A target or epoch change rebuilds
+the target-bound bitmap. `LayoutAdvance::uploadedBytes` reports transferred BGRA
 pixel bytes, excluding unused source-row padding. Native image
 geometry MUST use actual inline baseline/aspect rather than the larger SDK line
 selection cell. Text ACPs, UIA alternatives and structural atomicity remain intact.

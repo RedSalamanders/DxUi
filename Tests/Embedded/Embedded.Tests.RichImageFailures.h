@@ -582,6 +582,31 @@ static void TestRichImageRasterFailureAndBudgets()
     whole.Begin(write.get(), tiledDocument, options, drawing.get(), {++epoch, epoch}, tiledImages, target.get());
     runTiled(whole, 4u * 1024u * 1024u);
     const auto expectedPixels = render(whole);
+    options.widthDip = 360.f;
+    const auto beforeReflowUploads = calls.uploads, beforeReflowCopies = calls.copies;
+    whole.Begin(write.get(), tiledDocument, options, drawing.get(), {epoch, epoch}, tiledImages, target.get());
+    runTiled(whole, 28u);
+    Check(calls.uploads == beforeReflowUploads && calls.copies == beforeReflowCopies,
+          "width-only reflow reuses completed raster bitmaps without uploading or copying tiles");
+    const auto reflowPixels = render(whole);
+    PreparedSemanticGeometry fresh;
+    fresh.Begin(write.get(), tiledDocument, options, drawing.get(), {epoch, epoch}, tiledImages, target.get());
+    runTiled(fresh, 4u * 1024u * 1024u);
+    Check(render(fresh) == reflowPixels, "reused bitmap reflow matches independently prepared geometry pixels");
+    const auto beforeEpoch = calls.uploads;
+    whole.Begin(write.get(), tiledDocument, options, drawing.get(), {++epoch, epoch}, tiledImages, target.get());
+    runTiled(whole, 4u * 1024u * 1024u);
+    Check(calls.uploads == beforeEpoch + 1u && render(whole) == reflowPixels,
+          "changed target epoch uploads a new bitmap with identical pixels");
+    wil::com_ptr<IWICBitmap> replacementBitmap;
+    THROW_IF_FAILED(imaging->CreateBitmap(480u, 240u, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, replacementBitmap.put()));
+    wil::com_ptr<ID2D1RenderTarget> replacementTarget;
+    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(replacementBitmap.get(), properties, replacementTarget.put()));
+    const auto beforeTarget = calls.uploads;
+    whole.Begin(write.get(), tiledDocument, options, drawing.get(), {epoch, epoch}, tiledImages, replacementTarget.get());
+    runTiled(whole, 4u * 1024u * 1024u);
+    Check(calls.uploads == beforeTarget + 1u, "changed render target uploads a new bitmap even at the same epoch");
+    options.widthDip = 400.f;
     const auto initialUploads = calls.uploads;
     const auto initialCopies  = calls.copies;
     calls.widestTile = calls.tallestTile = 0u;
@@ -590,6 +615,13 @@ static void TestRichImageRasterFailureAndBudgets()
     Check(calls.uploads - initialUploads == 1u && calls.copies - initialCopies > 64u && calls.widestTile == 7u && calls.tallestTile == 1u,
           "sub-row byte budget creates one bitmap and horizontally tiled copies shared by duplicate placements");
     Check(render(tiled) == expectedPixels, "horizontal tiled uploads retain every patterned pixel");
+    options.widthDip = 360.f;
+    const auto afterTilesUploads = calls.uploads, afterTilesCopies = calls.copies;
+    tiled.Begin(write.get(), tiledDocument, options, drawing.get(), {epoch, epoch}, tiledImages, target.get());
+    runTiled(tiled, 28u);
+    Check(calls.uploads == afterTilesUploads && calls.copies == afterTilesCopies && render(tiled) == reflowPixels,
+          "width reflow shares a fully tiled bitmap without further copies and preserves fresh geometry pixels");
+    options.widthDip = 400.f;
     const auto rowUploads = calls.uploads;
     calls.widestTile = calls.tallestTile = 0u;
     tiled.Begin(write.get(), tiledDocument, options, drawing.get(), {++epoch, epoch}, tiledImages, target.get());

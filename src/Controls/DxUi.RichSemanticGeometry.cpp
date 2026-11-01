@@ -270,6 +270,17 @@ struct NativeImageGeometry
             placement.pixels      = resource.image;
             placement.imageWidth  = document.Elements()[resource.element].imageWidth;
             placement.imageHeight = document.Elements()[resource.element].imageHeight;
+            if (resource.image->SvgBytes().empty() && previous)
+            {
+                const auto priorRaster = std::ranges::find_if(previous->placements, [&](const auto& prior) {
+                    return prior.pixels == placement.pixels && prior.bitmap;
+                });
+                if (priorRaster != previous->placements.end())
+                {
+                    placement.bitmap    = priorRaster->bitmap;
+                    placement.uploadedY = placement.pixels->Height();
+                }
+            }
             if (! resource.image->SvgBytes().empty())
             {
                 const auto size        = placement.Size();
@@ -512,6 +523,8 @@ struct NativeImageGeometry
             }
             return {complete, true, false, static_cast<std::size_t>(columns) * rows * 4u};
         }
+        if (placement.bitmap && placement.uploadedY == height)
+            return {true, false, false, 0u};
         if (! placement.bitmap)
         {
             const auto found = std::find_if(placements.begin(), placements.begin() + static_cast<std::ptrdiff_t>(index), [&](const auto& prior) {
