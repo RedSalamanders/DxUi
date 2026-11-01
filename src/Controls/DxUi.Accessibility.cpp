@@ -136,6 +136,7 @@ constexpr size_t kAccessibilityMaxMaterializedOffscreenSelectedRows = 256u;
 class AccessibilityProvider;
 class AccessibilityTextRangeProvider;
 class RichSemanticElementProvider;
+class RichAnnotationProvider;
 
 struct ControlPath
 {
@@ -574,6 +575,17 @@ struct TextRangeSpan
 
 // Optional data belongs only to a semantic editor. Menus/trees/grids do not pay
 // for extra strings, vector proxies or one rectangle per rich semantic element.
+struct AccessibilityRichAnnotation
+{
+    RichText::MarkdownRange source;
+    RichTextAnnotationKind kind{};
+    std::optional<D2D1_RECT_F> bounds;
+};
+struct AccessibilityAnnotationTypes
+{
+    RichText::MarkdownRange source;
+    unsigned mask{};
+};
 struct AccessibilityRichTextSnapshot
 {
     AccessibilityRichTextSnapshot(std::shared_ptr<const RichText::SemanticDocument> source,
@@ -584,6 +596,9 @@ struct AccessibilityRichTextSnapshot
           bounds(0u),
           copyBounds(0u),
           underlinedLinks(0u),
+          annotations(0u),
+          annotationTypes(0u),
+          formatRuns(0u),
           bodyFont(0u, L' '),
           codeFont(0u, L' '),
           copyName(0u, L' '),
@@ -594,6 +609,13 @@ struct AccessibilityRichTextSnapshot
     std::shared_ptr<const RichText::Detail::AccessibilityEpoch> epoch;
     std::vector<std::optional<D2D1_RECT_F>> bounds, copyBounds;
     std::vector<RichText::MarkdownRange> underlinedLinks;
+    std::vector<AccessibilityRichAnnotation> annotations;
+    std::vector<AccessibilityAnnotationTypes> annotationTypes;
+    std::vector<RichText::StyleRun> formatRuns;
+    [[nodiscard]] std::span<const RichText::StyleRun> SourceFormats() const noexcept
+    {
+        return formatRuns.empty() ? document->SourceRuns() : std::span<const RichText::StyleRun>(formatRuns);
+    }
     std::wstring bodyFont, codeFont, copyName;
     bool externalLinkActivationEnabled = false;
     double fontSizePoints              = 0.0;
@@ -2304,6 +2326,74 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
                         appearance.codeFontSizeDip > 0.0f ? static_cast<double>(appearance.codeFontSizeDip) * 72.0 / 96.0 : rich->fontSizePoints;
                     rich->headingScaleStep   = appearance.headingScaleStep;
                     rich->headingFontSizeDip = appearance.headingFontSizeDip;
+                    if (editor->GetDecorationStatus() == RichTextDecorationStatus::Ready)
+                        for (const auto& decoration : editor->GetDecorations())
+                            if (decoration.annotation != RichTextAnnotationKind::None)
+                            {
+                                std::optional<D2D1_RECT_F> bounds;
+                                if (const auto rectangles = editor->TryGetTextInputRangeRects(host, decoration.start, decoration.start + decoration.length))
+                                    for (const auto& rectangle : rectangles.value())
+                                    {
+                                        if (! bounds)
+                                            bounds = rectangle;
+                                        else
+                                        {
+                                            bounds->left   = std::min(bounds->left, rectangle.left);
+                                            bounds->top    = std::min(bounds->top, rectangle.top);
+                                            bounds->right  = std::max(bounds->right, rectangle.right);
+                                            bounds->bottom = std::max(bounds->bottom, rectangle.bottom);
+                                        }
+                                    }
+                                rich->annotations.push_back({{decoration.start, decoration.start + decoration.length}, decoration.annotation, bounds});
+                            }
+                    if (! rich->annotations.empty())
+                    {
+                        std::vector<size_t> boundaries(0u);
+                        boundaries.reserve(rich->annotations.size() * 2u + 2u);
+                        boundaries.push_back(0u);
+                        boundaries.push_back(document->Map().Source().size());
+                        for (const auto& annotation : rich->annotations)
+                        {
+                            boundaries.push_back(annotation.source.first);
+                            boundaries.push_back(annotation.source.last);
+                        }
+                        std::ranges::sort(boundaries);
+                        const auto duplicate = std::ranges::unique(boundaries);
+                        boundaries.erase(duplicate.begin(), duplicate.end());
+                        rich->annotationTypes.reserve(boundaries.size() - 1u);
+                        for (size_t boundary = 1u; boundary < boundaries.size(); ++boundary)
+                        {
+                            const auto first = boundaries[boundary - 1u], last = boundaries[boundary];
+                            unsigned mask{};
+                            for (const auto& annotation : rich->annotations)
+                                if (annotation.source.first <= first && first < annotation.source.last)
+                                    mask |= 1u << (static_cast<unsigned>(annotation.kind) - 1u);
+                            if (! rich->annotationTypes.empty() && rich->annotationTypes.back().mask == mask)
+                                rich->annotationTypes.back().source.last = last;
+                            else
+                                rich->annotationTypes.push_back({{first, last}, mask});
+                        }
+                        rich->formatRuns.reserve(document->SourceRuns().size() + boundaries.size());
+                        for (const auto& run : document->SourceRuns())
+                        {
+                            auto first      = run.start;
+                            const auto last = run.start + run.length;
+                            for (auto boundary = std::upper_bound(boundaries.begin(), boundaries.end(), first);
+                                 boundary != boundaries.end() && *boundary < last;
+                                 ++boundary)
+                            {
+                                auto split   = run;
+                                split.start  = first;
+                                split.length = *boundary - first;
+                                rich->formatRuns.push_back(split);
+                                first = *boundary;
+                            }
+                            auto split   = run;
+                            split.start  = first;
+                            split.length = last - first;
+                            rich->formatRuns.push_back(split);
+                        }
+                    }
                     for (const auto& run : document->SourceRuns())
                         if ((run.flags & RichText::Link) && editor->IsLinkUnderlineVisible(run.start))
                             rich->underlinedLinks.push_back({run.start, run.start + run.length});
@@ -6167,7 +6257,11 @@ private:
     return element;
 }
 
+wil::com_ptr_nothrow<IRawElementProviderSimple> CreateFirstAnnotation(WindowHostAccessibilityTarget* target,
+                                                                      HWND hwnd,
+                                                                      const AccessibilityControlNavigationSnapshot& record) noexcept;
 #include "DxUi.RichAccessibility.h"
+#include "DxUi.RichAnnotations.h"
 
 size_t AccessibilityTextRangeProvider::SemanticEnclosing(const AccessibilityControlNavigationSnapshot& record, TextRangeSpan range) const noexcept
 {
@@ -6353,14 +6447,14 @@ struct RichSourceAttribute
 }
 [[nodiscard]] size_t SourceFormatIndex(const AccessibilityControlNavigationSnapshot& record, size_t offset) noexcept
 {
-    const auto runs     = record.RichSemantic()->SourceRuns();
+    const auto runs     = record.controlRichText->SourceFormats();
     const auto position = std::min(offset, record.controlAccessibleText.empty() ? 0u : record.controlAccessibleText.size() - 1u);
     const auto found    = std::lower_bound(runs.begin(), runs.end(), position, [](const auto& run, auto value) { return run.start + run.length <= value; });
     return static_cast<size_t>(found - runs.begin());
 }
 [[nodiscard]] RichText::StyleRun SourceFormatAt(const AccessibilityControlNavigationSnapshot& record, size_t offset) noexcept
 {
-    const auto runs  = record.RichSemantic()->SourceRuns();
+    const auto runs  = record.controlRichText->SourceFormats();
     const auto index = SourceFormatIndex(record, offset);
     return index < runs.size() ? runs[index] : RichText::StyleRun{};
 }
@@ -6395,7 +6489,7 @@ HRESULT SetSourceAttribute(VARIANT* result, const RichSourceAttribute& value) no
                                                        int count,
                                                        bool nondegenerate = false) noexcept
 {
-    const auto runs = record.RichSemantic()->SourceRuns();
+    const auto runs = record.controlRichText->SourceFormats();
     if (runs.empty() || count == 0)
         return {position, 0};
     size_t index         = position == record.controlAccessibleText.size() && ! nondegenerate ? runs.size() : SourceFormatIndex(record, position);
@@ -6536,6 +6630,58 @@ HRESULT AccessibilityTextRangeProvider::FindAttribute(TEXTATTRIBUTEID attributeI
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (record->HasCurrentRichSemantic())
     {
+        if (attributeId == UIA_AnnotationTypesAttributeId)
+        {
+            if (value.vt != (VT_ARRAY | VT_I4) || ! value.parray || SafeArrayGetDim(value.parray) != 1u)
+                return E_INVALIDARG;
+            VARTYPE elementType{};
+            if (FAILED(SafeArrayGetVartype(value.parray, &elementType)) || elementType != VT_I4)
+                return E_INVALIDARG;
+            LONG lower{}, upper{};
+            RETURN_IF_FAILED(SafeArrayGetLBound(value.parray, 1u, &lower));
+            RETURN_IF_FAILED(SafeArrayGetUBound(value.parray, 1u, &upper));
+            const auto length = static_cast<int64_t>(upper) - lower + 1;
+            if (length < 0 || length > 4)
+                return S_OK;
+            std::array<LONG, 4u> expected{};
+            for (LONG index = 0; index < length; ++index)
+            {
+                LONG sourceIndex = lower + index;
+                RETURN_IF_FAILED(SafeArrayGetElement(value.parray, &sourceIndex, &expected[static_cast<size_t>(index)]));
+            }
+            std::sort(expected.begin(), expected.begin() + static_cast<ptrdiff_t>(length));
+            const auto matches = [&](size_t position) noexcept
+            {
+                std::array<LONG, 4u> actual{};
+                const auto count = AnnotationTypesAt(*record, position, actual);
+                return count == static_cast<size_t>(length) && std::equal(actual.begin(), actual.begin() + static_cast<ptrdiff_t>(count), expected.begin());
+            };
+            const auto range = ClampCurrentRange(record->controlAccessibleText.size());
+            std::optional<TextRangeSpan> found;
+            for (const auto& run : record->controlRichText->annotationTypes)
+            {
+                const auto first = std::max(range.start, run.source.first), last = std::min(range.end, run.source.last);
+                if (first >= last)
+                    continue;
+                if (matches(first))
+                {
+                    if (found && found->end == first)
+                        found->end = last;
+                    else if (! found || backward)
+                        found = TextRangeSpan{first, last};
+                }
+                else if (found && ! backward)
+                    break;
+            }
+            if (record->controlRichText->annotationTypes.empty() && matches(range.start))
+                found = range;
+            if (range.start == range.end && matches(range.start))
+                found = range;
+            if (! found)
+                return S_OK;
+            *outRange = CreateRange(found->start, found->end);
+            return *outRange ? S_OK : E_OUTOFMEMORY;
+        }
         const auto expected = SourceAttribute(*record, {}, attributeId);
         if (expected.type == VT_EMPTY)
             return UIA_E_NOTSUPPORTED;
@@ -6543,7 +6689,7 @@ HRESULT AccessibilityTextRangeProvider::FindAttribute(TEXTATTRIBUTEID attributeI
             return E_INVALIDARG;
         const auto range = ClampCurrentRange(record->controlAccessibleText.size());
         std::optional<TextRangeSpan> found;
-        for (const auto& run : record->RichSemantic()->SourceRuns())
+        for (const auto& run : record->controlRichText->SourceFormats())
         {
             const auto first = std::max(range.start, run.start), last = std::min(range.end, run.start + run.length);
             if (first >= last)
@@ -6655,8 +6801,10 @@ HRESULT AccessibilityTextRangeProvider::GetAttributeValue(TEXTATTRIBUTEID attrib
     if (semanticRecord && semanticRecord->HasCurrentRichSemantic())
     {
         const auto range = ClampCurrentRange(semanticRecord->controlAccessibleText.size());
+        if (attributeId == UIA_AnnotationTypesAttributeId || attributeId == UIA_AnnotationObjectsAttributeId)
+            return AnnotationAttribute(_target, _hwnd, *semanticRecord, range, attributeId, outValue);
         const auto first = SourceAttribute(*semanticRecord, SourceFormatAt(*semanticRecord, range.start), attributeId);
-        for (const auto& run : semanticRecord->RichSemantic()->SourceRuns())
+        for (const auto& run : semanticRecord->controlRichText->SourceFormats())
         {
             if (run.start >= range.end)
                 break;
@@ -8900,6 +9048,12 @@ HRESULT AccessibilityProvider::Navigate(NavigateDirection direction, IRawElement
         {
             const auto elements = record->RichSemantic()->Elements();
             auto child          = elements[0u].firstChild;
+            const auto count    = record->controlRichText->annotations.size();
+            if (count && (direction == NavigateDirection_LastChild || child == RichText::MarkdownNoNode))
+            {
+                auto peer = RichAnnotationProvider::Create(_target, _hwnd, *record, direction == NavigateDirection_LastChild ? count - 1u : 0u);
+                return peer ? peer.query_to(outProvider) : S_OK;
+            }
             if (direction == NavigateDirection_LastChild && child != RichText::MarkdownNoNode)
                 while (elements[child].nextSibling != RichText::MarkdownNoNode)
                     child = elements[child].nextSibling;
@@ -9736,12 +9890,23 @@ HRESULT AccessibilityProvider::GetCaretRange(BOOL* active, ITextRangeProvider** 
     *range = CreateTextRangeProvider(record->path, caret, caret, CaptureControlIdentity(*record));
     return *range ? S_OK : E_OUTOFMEMORY;
 }
-HRESULT AccessibilityProvider::RangeFromAnnotation(IRawElementProviderSimple*, ITextRangeProvider** range) noexcept
+HRESULT AccessibilityProvider::RangeFromAnnotation(IRawElementProviderSimple* annotation, ITextRangeProvider** range) noexcept
 {
     if (! range)
         return E_POINTER;
-    *range = nullptr;
-    return CaptureSnapshot() ? static_cast<HRESULT>(UIA_E_NOTSUPPORTED) : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
+    *range              = nullptr;
+    const auto snapshot = CaptureSnapshot();
+    if (! snapshot)
+        return UIA_E_ELEMENTNOTAVAILABLE;
+    const auto* record = ResolveSnapshotControlRecord(*snapshot, _kind, _path);
+    const auto* peer   = dynamic_cast<const RichAnnotationProvider*>(annotation);
+    if (! record || ! record->controlSupportsText2)
+        return UIA_E_NOTSUPPORTED;
+    if (! peer || ! peer->BelongsTo(_target, _hwnd, *record))
+        return E_INVALIDARG;
+    const auto source = peer->Source(*record);
+    *range            = CreateTextRangeProvider(record->path, source.first, source.last, CaptureControlIdentity(*record));
+    return *range ? S_OK : E_OUTOFMEMORY;
 }
 
 HRESULT AccessibilityProvider::SetValue(LPCWSTR value) noexcept

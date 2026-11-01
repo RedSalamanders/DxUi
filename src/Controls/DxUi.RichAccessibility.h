@@ -360,6 +360,12 @@ public:
                     break;
                 default: return E_INVALIDARG;
             }
+        if (target == RichText::MarkdownNoNode && ! codeCopy_ && direction == NavigateDirection_NextSibling && element.parent == 0u &&
+            ! record->controlRichText->annotations.empty())
+        {
+            auto peer = CreateFirstAnnotation(target_, hwnd_, *record);
+            return peer ? peer.query_to(result) : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
+        }
         if (target == RichText::MarkdownNoNode)
             return S_OK;
         auto peer = target == 0u ? CreateControlElement(target_, hwnd_, path_, identity_) : Create(target_, hwnd_, *record, target, targetCopy);

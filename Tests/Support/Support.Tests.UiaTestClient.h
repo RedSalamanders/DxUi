@@ -414,6 +414,19 @@ struct TextRangeInfo
     std::vector<ElementId> children;
     ElementId enclosing = 0u;
 };
+struct AnnotationInfo
+{
+    ElementId element{};
+    int type{};
+    std::wstring name, source;
+    bool targetIsEditor{}, parentIsEditor{};
+};
+struct TextAnnotationInfo
+{
+    std::vector<LONG> types;
+    std::vector<AnnotationInfo> objects;
+    bool mixedTypes{}, mixedObjects{};
+};
 
 // The client thread's state. Only the client thread touches it.
 struct Session
@@ -919,6 +932,93 @@ public:
                 wil::com_ptr_nothrow<IUIAutomationElement> child;
                 RETURN_IF_FAILED(children->GetElement(index, child.put()));
                 result.children.push_back(session.Remember(child.get()));
+            }
+            return S_OK;
+        });
+    }
+    [[nodiscard]] TextAnnotationInfo InspectAnnotations(ElementId field, std::wstring needle)
+    {
+        return Ask<TextAnnotationInfo>("source-backed annotations through the actual UIA client",
+                                       [field, needle = std::move(needle)](Session& session, TextAnnotationInfo& result)
+        {
+            auto* element = session.Get(field);
+            if (! element)
+                return E_INVALIDARG;
+            wil::com_ptr_nothrow<IUIAutomationTextPattern2> pattern;
+            RETURN_IF_FAILED(element->GetCurrentPatternAs(UIA_TextPattern2Id, IID_PPV_ARGS(pattern.put())));
+            wil::com_ptr_nothrow<IUIAutomationTextRange> document, range;
+            RETURN_IF_FAILED(pattern->get_DocumentRange(document.put()));
+            if (needle.empty())
+                range = document;
+            else
+            {
+                wil::unique_bstr value(SysAllocStringLen(needle.data(), static_cast<UINT>(needle.size())));
+                RETURN_IF_FAILED(document->FindText(value.get(), FALSE, FALSE, range.put()));
+                if (! range)
+                    return E_INVALIDARG;
+            }
+            wil::com_ptr_nothrow<IUnknown> mixed;
+            RETURN_IF_FAILED(session.automation->get_ReservedMixedAttributeValue(mixed.put()));
+            const auto isMixed = [&](const VARIANT& value) noexcept
+            {
+                wil::com_ptr_nothrow<IUnknown> identity;
+                return value.vt == VT_UNKNOWN && value.punkVal && SUCCEEDED(value.punkVal->QueryInterface(IID_PPV_ARGS(identity.put()))) &&
+                       identity.get() == mixed.get();
+            };
+            wil::unique_variant types, objects;
+            RETURN_IF_FAILED(range->GetAttributeValue(UIA_AnnotationTypesAttributeId, &types));
+            RETURN_IF_FAILED(range->GetAttributeValue(UIA_AnnotationObjectsAttributeId, &objects));
+            result.mixedTypes   = isMixed(types);
+            result.mixedObjects = isMixed(objects);
+            if (types.vt == (VT_ARRAY | VT_I4))
+            {
+                LONG first{}, last{};
+                RETURN_IF_FAILED(SafeArrayGetLBound(types.parray, 1u, &first));
+                RETURN_IF_FAILED(SafeArrayGetUBound(types.parray, 1u, &last));
+                for (LONG index = first; index <= last; ++index)
+                {
+                    LONG type{};
+                    RETURN_IF_FAILED(SafeArrayGetElement(types.parray, &index, &type));
+                    result.types.push_back(type);
+                }
+            }
+            else if (! result.mixedTypes && types.vt != VT_EMPTY)
+                return E_UNEXPECTED;
+            if (result.mixedObjects || objects.vt == VT_EMPTY)
+                return S_OK;
+            if (objects.vt != VT_UNKNOWN || ! objects.punkVal)
+                return E_UNEXPECTED;
+            wil::com_ptr_nothrow<IUIAutomationElementArray> annotations;
+            RETURN_IF_FAILED(objects.punkVal->QueryInterface(IID_PPV_ARGS(annotations.put())));
+            int count{};
+            RETURN_IF_FAILED(annotations->get_Length(&count));
+            wil::com_ptr_nothrow<IUIAutomationTreeWalker> raw;
+            RETURN_IF_FAILED(session.automation->get_RawViewWalker(raw.put()));
+            for (int index = 0; index < count; ++index)
+            {
+                AnnotationInfo actual;
+                wil::com_ptr_nothrow<IUIAutomationElement> annotation, target, parent;
+                wil::com_ptr_nothrow<IUIAutomationAnnotationPattern> annotationPattern;
+                RETURN_IF_FAILED(annotations->GetElement(index, annotation.put()));
+                actual.element = session.Remember(annotation.get());
+                RETURN_IF_FAILED(annotation->GetCurrentPatternAs(UIA_AnnotationPatternId, IID_PPV_ARGS(annotationPattern.put())));
+                RETURN_IF_FAILED(annotationPattern->get_CurrentAnnotationTypeId(&actual.type));
+                wil::unique_bstr name;
+                RETURN_IF_FAILED(annotationPattern->get_CurrentAnnotationTypeName(name.put()));
+                actual.name.assign(name.get(), SysStringLen(name.get()));
+                RETURN_IF_FAILED(annotationPattern->get_CurrentTarget(target.put()));
+                RETURN_IF_FAILED(raw->GetParentElement(annotation.get(), parent.put()));
+                BOOL same{};
+                RETURN_IF_FAILED(session.automation->CompareElements(target.get(), element, &same));
+                actual.targetIsEditor = same != FALSE;
+                RETURN_IF_FAILED(session.automation->CompareElements(parent.get(), element, &same));
+                actual.parentIsEditor = same != FALSE;
+                wil::com_ptr_nothrow<IUIAutomationTextRange> annotated;
+                RETURN_IF_FAILED(pattern->RangeFromAnnotation(annotation.get(), annotated.put()));
+                wil::unique_bstr text;
+                RETURN_IF_FAILED(annotated->GetText(-1, text.put()));
+                actual.source.assign(text.get(), SysStringLen(text.get()));
+                result.objects.push_back(std::move(actual));
             }
             return S_OK;
         });

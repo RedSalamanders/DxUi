@@ -50,6 +50,23 @@ and heading scale. Source mode continues to expose exact raw text without
 inventing semantic styles. Queries read captured owner-published state and never
 perform layout, take focus or retain a consumer callback.
 
+Source decorations MAY opt into generic, highlight, spelling-error or
+grammar-error annotation metadata. `None` is the default and exposes no
+annotation. Only a current semantic publication with ready decoration geometry
+publishes annotation peers, `AnnotationTypes`, `AnnotationObjects` and
+TextPattern2 `RangeFromAnnotation`. Peers MUST retain exact source ranges,
+localized type names, an editor target and a raw-view parent; they MUST NOT add
+TextPattern text or appear as embedded-object children. Format units split at
+every annotation boundary. Type attributes compare distinct type sets, while
+object attributes compare identities: adjacent same-kind annotations can retain
+one type while their objects vary. Type search and queries read bounded prepared
+coverage runs; they MUST NOT reparse, lay out or scan source-format runs against
+every annotation. Source edits retire annotations. Replacement of exposed
+annotation metadata retires old peers even at the same source revision;
+paint-only decoration changes MUST preserve unrelated semantic peers. Pending
+or capacity-exceeded geometry exposes no annotation peers. UIA actions and
+queries neither take focus nor alter source, selection or history.
+
 `SetOnSelectionChanged` publishes owner-thread source-selection state from the
 same canonical path as keyboard, native text/TSF, UIA and programmatic selection.
 It changes neither source nor history. Unchanged source revision, endpoints and

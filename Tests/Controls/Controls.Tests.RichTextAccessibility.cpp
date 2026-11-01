@@ -40,7 +40,9 @@ public:
 #pragma warning(disable : 4625 4626)
 struct RichAccessibilityFixture
 {
-    explicit RichAccessibilityFixture(bool embedded, bool markdownAnalysis = false, bool semanticRendering = false, UINT inputWidth = 480u) : embedded(embedded), viewportWidth(inputWidth)
+    explicit RichAccessibilityFixture(bool embedded, bool markdownAnalysis = false, bool semanticRendering = false, UINT inputWidth = 480u)
+        : embedded(embedded),
+          viewportWidth(inputWidth)
     {
         if (embedded)
         {
@@ -52,7 +54,7 @@ struct RichAccessibilityFixture
         }
         else
         {
-            window   = std::make_unique<AttachedHostWindow>();
+            window = std::make_unique<AttachedHostWindow>();
             if (viewportWidth > 480)
                 Require(SetWindowPos(window->Hwnd(), nullptr, 0, 0, static_cast<int>(viewportWidth), 240, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE) != FALSE,
                         "size offscreen rich accessibility fixture without activation");
@@ -888,8 +890,7 @@ void NativeHtmlAndMarkersClient(bool embedded)
                 client.TextPositionFromPoint(editor, toScreen(emptyPoint)) == 6u && client.TextSelectionText(editor).empty() && ! fixture.editor->CanUndo(),
             "real native/embedded client observes the interior empty HTML insertion with no invented source/history");
     std::array<float, 3u> caretX{};
-    const std::array<std::wstring, 3u> aligned = {L"<p align=\"left\">word</p>\n", L"<div align=\"center\">word</div>\n",
-                                                 L"<p align=\"right\">word</p>\n"};
+    const std::array<std::wstring, 3u> aligned = {L"<p align=\"left\">word</p>\n", L"<div align=\"center\">word</div>\n", L"<p align=\"right\">word</p>\n"};
     for (std::size_t index = 0u; index < aligned.size(); ++index)
     {
         fixture.editor->SetText(aligned[index]);
@@ -2078,7 +2079,7 @@ void SemanticDiagramAlternatives(bool embedded)
     RichAccessibilityFixture narrow(embedded, true, true, 320);
     narrow.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
     const std::wstring compactSource = L"```mermaid\ngraph TD;A\n```\n";
-    const std::wstring combined = compactSource + L"\n" + gantt;
+    const std::wstring combined      = compactSource + L"\n" + gantt;
     narrow.editor->SetText(combined);
     narrow.Publish();
     const auto narrowRoot = narrow.Simple();
@@ -2093,10 +2094,7 @@ void SemanticDiagramAlternatives(bool embedded)
     Require(ReadTextRangeText(*fullRange.get(), -1, "narrow complete source") == combined && narrow.editor->GetText() == combined,
             "width fallback preserves the complete Gantt fence and the surrounding source exactly");
     const auto narrowDocument = narrow.editor->GetAcknowledgedSemanticDocument(*narrow.controls);
-    Require(narrowDocument && std::ranges::count_if(narrowDocument->Elements(), [](const auto& element)
-    {
-        return element.role == SemanticRole::Diagram;
-    }) == 1,
+    Require(narrowDocument && std::ranges::count_if(narrowDocument->Elements(), [](const auto& element) { return element.role == SemanticRole::Diagram; }) == 1,
             "the oversized Gantt falls back locally without suppressing the fitting diagram");
 }
 void SemanticMathLiteralFallback(bool embedded)
@@ -3207,11 +3205,138 @@ void TestRichTextAccessibilityEmbeddedFootnoteNavigation()
 {
     EmbeddedCase(SemanticFootnoteNavigation);
 }
+void DecorationAnnotations(bool embedded)
+{
+    RichAccessibilityFixture fixture(embedded, true, true);
+    fixture.editor->SetText(L"alpha beta **gamma** [target](https://example.invalid)");
+    fixture.editor->SetSelection({10u, 6u});
+    const std::array overrides{RichText::AccessibilityTextOverride{RichText::AccessibilityTextId::SpellingAnnotation, L"Orthographe"},
+                               RichText::AccessibilityTextOverride{RichText::AccessibilityTextId::Annotation, L"Note locale"}};
+    fixture.editor->SetAccessibilityLabels(std::make_shared<const RichText::AccessibilityLabels>(overrides));
+    fixture.Publish();
+    UiaTest::Client client(fixture.Hwnd(), {}, [&] { fixture.Pump(); });
+    const auto editor = FindEditor(client, client.Root());
+    Require(editor != 0u, "annotation client reaches its editor through application parents");
+    const auto source    = fixture.editor->Snapshot();
+    const auto selection = fixture.editor->GetSelection();
+    auto retainedLink    = FindSemanticPart(*fixture.Simple().get(), UIA_HyperlinkControlTypeId);
+    Require(retainedLink != nullptr, "annotation fixture retains an unrelated semantic link peer");
+    std::array decorations{RichTextDecoration{6u, 4u, RichTextDecorationKind::Squiggle, RichTextDecorationRole::Error},
+                           RichTextDecoration{6u, 4u, RichTextDecorationKind::Background, RichTextDecorationRole::Accent},
+                           RichTextDecoration{13u, 5u, RichTextDecorationKind::Underline, RichTextDecorationRole::Warning}};
+    fixture.editor->SetDecorations(source, decorations);
+    fixture.Publish();
+    const auto privateDecoration = client.InspectAnnotations(editor, L"beta");
+    Require(privateDecoration.types.empty() && privateDecoration.objects.empty() && ! privateDecoration.mixedTypes,
+            "decorations expose no annotation unless explicitly opted in");
+    wil::unique_variant linkName;
+    RequireSucceeded(retainedLink->GetPropertyValue(UIA_NamePropertyId, &linkName), "private decoration preserves existing semantic link peer");
+    Require(linkName.vt == VT_BSTR && std::wstring_view(linkName.bstrVal, SysStringLen(linkName.bstrVal)) == L"target",
+            "paint-only decoration changes retain unrelated semantic identities");
+    decorations[0].annotation = RichTextAnnotationKind::SpellingError;
+    decorations[1].annotation = RichTextAnnotationKind::Highlight;
+    decorations[2].annotation = RichTextAnnotationKind::Generic;
+    fixture.editor->SetDecorations(source, decorations);
+    fixture.Publish();
+    const auto beta = client.InspectAnnotations(editor, L"beta");
+    Require(beta.types == std::vector<LONG>{AnnotationType_SpellingError, AnnotationType_Highlighted} && beta.objects.size() == 2u && ! beta.mixedTypes &&
+                ! beta.mixedObjects,
+            "actual native/embedded clients receive distinct annotation types and objects");
+    for (const auto& annotation : beta.objects)
+        Require(annotation.targetIsEditor && annotation.parentIsEditor && annotation.source == L"beta",
+                "annotation target, raw parent and RangeFromAnnotation share the exact source owner");
+    Require(beta.objects[0].name == L"Orthographe" && beta.objects[0].type == AnnotationType_SpellingError,
+            "annotation type names use the immutable localization dictionary");
+    const auto gamma = client.InspectAnnotations(editor, L"gamma");
+    Require(gamma.types == std::vector<LONG>{AnnotationType_Unknown} && gamma.objects.size() == 1u && gamma.objects[0].name == L"Note locale" &&
+                gamma.objects[0].source == L"gamma",
+            "generic annotations have a real localized type name and preserve hidden Markdown source ACPs");
+    const auto mixed = client.InspectAnnotations(editor, {});
+    Require(mixed.mixedTypes && mixed.mixedObjects, "ranges crossing annotation boundaries report mixed types and objects");
+    const auto format = client.InspectTextRange(editor, L"et", {}, true);
+    Require(format.text == L"beta", "format navigation stops at annotation boundaries within a plain source style run");
+    auto text = TextProvider(fixture);
+    wil::com_ptr_nothrow<ITextProvider2> text2;
+    RequireSucceeded(text.query_to(text2.put()), "annotation provider Text2");
+    wil::com_ptr_nothrow<ITextRangeProvider> document, range;
+    RequireSucceeded(text->get_DocumentRange(document.put()), "annotation exact document range");
+    wil::unique_bstr needle(SysAllocString(L"beta"));
+    RequireSucceeded(document->FindText(needle.get(), FALSE, FALSE, range.put()), "annotation beta source range");
+    wil::unique_variant objects, types;
+    RequireSucceeded(range->GetAttributeValue(UIA_AnnotationObjectsAttributeId, &objects), "provider annotation object transport");
+    Require(objects.vt == (VT_ARRAY | VT_UNKNOWN) && objects.parray, "provider returns owned annotation SAFEARRAY");
+    LONG first{};
+    wil::com_ptr_nothrow<IUnknown> object;
+    RequireSucceeded(SafeArrayGetElement(objects.parray, &first, object.put()), "retain annotation peer");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> peer;
+    wil::com_ptr_nothrow<IAnnotationProvider> pattern;
+    RequireSucceeded(object.query_to(peer.put()), "annotation simple peer");
+    RequireSucceeded(object.query_to(pattern.put()), "annotation pattern peer");
+    RequireSucceeded(range->GetAttributeValue(UIA_AnnotationTypesAttributeId, &types), "provider annotation types");
+    wil::com_ptr_nothrow<ITextRangeProvider> found;
+    RequireSucceeded(document->FindAttribute(UIA_AnnotationTypesAttributeId, types, FALSE, found.put()), "find annotated type run");
+    Require(found && ReadTextRangeText(*found.get(), -1, "found annotation source") == L"beta", "annotation type search returns the complete exact run");
+    Require(fixture.editor->Snapshot().IsSameRevision(source) && fixture.editor->GetSelection() == selection && ! fixture.editor->CanUndo(),
+            "annotation publication and client queries preserve source, backward selection and history");
+    auto invalid          = decorations;
+    invalid[0].annotation = static_cast<RichTextAnnotationKind>(99);
+    bool rejected{};
+    try
+    {
+        fixture.editor->SetDecorations(source, invalid);
+    }
+    catch (const std::invalid_argument&)
+    {
+        rejected = true;
+    }
+    int type{};
+    Require(rejected && SUCCEEDED(pattern->get_AnnotationTypeId(&type)) && type == AnnotationType_SpellingError,
+            "invalid annotation metadata leaves the prior immutable publication alive");
+    decorations[0].annotation = RichTextAnnotationKind::GrammarError;
+    fixture.editor->SetDecorations(source, decorations);
+    fixture.Publish();
+    Require(pattern->get_AnnotationTypeId(&type) == UIA_E_ELEMENTNOTAVAILABLE, "same-source replacement cannot retarget an old annotation provider");
+    for (const bool overlapping : {false, true})
+    {
+        const std::array sameType{
+            RichTextDecoration{
+                6u, overlapping ? 3u : 2u, RichTextDecorationKind::Squiggle, RichTextDecorationRole::Error, RichTextAnnotationKind::SpellingError},
+            RichTextDecoration{overlapping ? 7u : 8u,
+                               overlapping ? 3u : 2u,
+                               RichTextDecorationKind::Underline,
+                               RichTextDecorationRole::Warning,
+                               RichTextAnnotationKind::SpellingError}};
+        fixture.editor->SetDecorations(source, sameType);
+        fixture.Publish();
+        const auto constantTypes = client.InspectAnnotations(editor, L"beta");
+        Require(constantTypes.types == std::vector<LONG>{AnnotationType_SpellingError} && ! constantTypes.mixedTypes && constantTypes.mixedObjects,
+                "adjacent and overlapping same-kind annotations retain constant Types while Objects vary");
+    }
+    fixture.editor->SetDecorations(source, {});
+    fixture.Publish();
+    fixture.editor->SetDecorations(source, decorations);
+    fixture.Publish();
+    Require(pattern->get_AnnotationTypeId(&type) == UIA_E_ELEMENTNOTAVAILABLE, "removal and re-addition cannot resurrect a retired annotation peer");
+    fixture.editor->SetText(L"replacement");
+    fixture.Publish();
+    const auto retired = client.InspectAnnotations(editor, L"replacement");
+    Require(retired.types.empty() && retired.objects.empty(), "source edits retire annotations in either host");
+}
+void TestRichTextAccessibilityWindowDecorationAnnotations()
+{
+    DecorationAnnotations(false);
+}
+void TestRichTextAccessibilityEmbeddedDecorationAnnotations()
+{
+    EmbeddedCase(DecorationAnnotations);
+}
 } // namespace
 
 void RunRichTextAccessibilityTests()
 {
     ScopedNonActivatingTestWindows nonActivating;
+    DXUI_RUN_TEST(TestRichTextAccessibilityWindowDecorationAnnotations);
+    DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedDecorationAnnotations);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowPresentationAndLinkCues);
     DXUI_RUN_TEST(TestRichTextAccessibilityEmbeddedPresentationAndLinkCues);
     DXUI_RUN_TEST(TestRichTextAccessibilityWindowSelectionNotifications);

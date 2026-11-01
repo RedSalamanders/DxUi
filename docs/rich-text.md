@@ -125,8 +125,16 @@ over 4096 mapped rectangles before changing state. After reflow, inspect
 `GetDecorationStatus`: `CapacityExceeded` retains the
 request, withholds stale annotation geometry and leaves document painting
 available. A later admissible layout restores it. Selection and annotations are
-staged before Paint. Annotation UIA
-exposure, high-contrast pixel qualification and performance evidence remain open.
+staged before Paint. A decoration may opt into `Generic`, `Highlight`,
+`SpellingError` or `GrammarError` annotation metadata; the default `None` keeps it
+private to painting. In current semantic presentation, UIA exposes source-backed
+annotation peers, type/object range attributes and TextPattern2
+`RangeFromAnnotation`. Type names use the immutable accessibility dictionary.
+Annotation boundaries split format navigation, without adding text or embedded
+objects. Source edits retire annotations; replacing exposed annotation metadata
+retires its old peers. Paint-only changes retain unrelated semantic peers.
+Pending or capacity-exceeded geometry exposes no annotation bounds or peers.
+High-contrast pixel qualification and performance evidence remain delivery gates.
 
 `sourceTabSpaces` enables source/code Tab indentation using 1–16 spaces, or a
 tab when `sourceTabUsesTabs` is set. Ctrl+Tab remains host traversal. Optional
@@ -574,7 +582,8 @@ DocumentRange for the complete grown document. Bounded GetText never returns
 half a supplementary scalar. Retained providers/ranges disconnect on owner replacement. Unknown
 text attributes and annotations are unsupported in source/v0 presentation.
 Explicit semantic presentation adds the bounded M4f attributes/children below;
-rendered-only TextPattern text and annotations remain future scope.
+rendered-only TextPattern text remains future scope. The opt-in decoration
+annotations described above require current semantic presentation.
 The bounded source range commands include scrolling, selection union/subtraction,
 text search and uniform read-only attribute search. The rules below apply in both
 hosts; the M4f opt-in extends them with prepared style and structure.

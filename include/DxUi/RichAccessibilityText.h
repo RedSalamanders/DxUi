@@ -85,6 +85,10 @@ enum class AccessibilityTextId
     MindmapHelp,
     UnclosedDisplayMath,
     UnclosedMathFence,
+    Annotation,
+    HighlightAnnotation,
+    SpellingAnnotation,
+    GrammarAnnotation,
     Count
 };
 struct AccessibilityTextOverride

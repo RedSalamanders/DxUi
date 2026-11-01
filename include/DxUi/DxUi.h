@@ -3133,9 +3133,9 @@ struct RichTextEditorAppearance
     std::optional<RichText::SemanticSpacing> semanticSpacing;
     RichText::MarkdownPresentationStyle markdownPresentation = RichText::MarkdownPresentationStyle::Default;
     std::wstring mathFontFamily                              = std::wstring(0u, L' '); // Empty keeps Cambria Math; independent of body/code fonts.
-    float diagramLabelWidthDip = 0.0f; // Zero uses 12.5 times the font size; otherwise 1..4096 DIP.
-    RichText::SoftBreakPolicy softBreakPolicy = RichText::SoftBreakPolicy::Space;
-    RichText::MarkdownEnterPolicy enterPolicy = RichText::MarkdownEnterPolicy::RawNewline;
+    float diagramLabelWidthDip                               = 0.0f;                   // Zero uses 12.5 times the font size; otherwise 1..4096 DIP.
+    RichText::SoftBreakPolicy softBreakPolicy                = RichText::SoftBreakPolicy::Space;
+    RichText::MarkdownEnterPolicy enterPolicy                = RichText::MarkdownEnterPolicy::RawNewline;
 };
 struct RichTextSourceHighlight
 {
@@ -3178,11 +3178,20 @@ enum class RichTextDecorationStatus
     Ready,
     CapacityExceeded
 };
+enum class RichTextAnnotationKind
+{
+    None,
+    Generic,
+    Highlight,
+    SpellingError,
+    GrammarError
+};
 struct RichTextDecoration
 {
     size_t start{}, length{};
     RichTextDecorationKind kind                               = RichTextDecorationKind::Background;
     RichTextDecorationRole role                               = RichTextDecorationRole::Accent;
+    RichTextAnnotationKind annotation                         = RichTextAnnotationKind::None;
     bool operator==(const RichTextDecoration&) const noexcept = default;
 };
 struct RichTextContextMenuLabels
@@ -3531,7 +3540,7 @@ private:
     [[nodiscard]] D2D1_RECT_F TextViewport() const noexcept;
     [[nodiscard]] bool LayoutIsCurrent(const ControlHost& host) const noexcept;
     [[nodiscard]] RichText::MarkdownCommandPlan BuildCurrentMarkdownCommand(const RichText::MarkdownCommandRequest& request,
-                                                                              const std::shared_ptr<const RichText::MarkdownSyntax>& syntax) const;
+                                                                            const std::shared_ptr<const RichText::MarkdownSyntax>& syntax) const;
     void RequireCurrentLayout(const ControlHost& host) const;
     void UpdateCaretScroll() const;
     void RetireLayout(bool retainGeometry = false) const noexcept;

@@ -82,7 +82,11 @@ constexpr std::wstring_view defaults[] = {L"Invoke or press F2 to edit exact sou
                                           L"Mind map. Nodes: ",
                                           L"Mind map. Source is available as document text.",
                                           L"Missing closing display math delimiter. Exact source is preserved.",
-                                          L"Missing closing math fence. Exact source is preserved."};
+                                          L"Missing closing math fence. Exact source is preserved.",
+                                          L"Annotation",
+                                          L"Highlight",
+                                          L"Spelling error",
+                                          L"Grammar error"};
 static_assert(std::size(defaults) == static_cast<std::size_t>(Id::Count));
 unsigned ArgumentCount(Id id) noexcept
 {

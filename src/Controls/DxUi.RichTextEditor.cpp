@@ -397,8 +397,7 @@ struct RichTextEditor::State
                    request.quoteAction == value.quoteAction && request.mathDisplay == value.mathDisplay && request.headingLevel == value.headingLevel &&
                    request.listStart == value.listStart && request.targetCell == value.targetCell && request.tableColumns == value.tableColumns &&
                    request.tableBodyRows == value.tableBodyRows && request.tableAlignment == value.tableAlignment && request.enterPolicy == value.enterPolicy &&
-                   request.tableCellCaretOffset == value.tableCellCaretOffset && text == value.text &&
-                   destination == value.destination && title == value.title;
+                   request.tableCellCaretOffset == value.tableCellCaretOffset && text == value.text && destination == value.destination && title == value.title;
         }
         RichText::MarkdownCommandRequest request;
         std::wstring text, destination, title;
@@ -1272,10 +1271,10 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
     const auto validSpacing = [](const std::optional<float>& value, float maximum) noexcept
     { return ! value || (std::isfinite(value.value()) && value.value() >= 0.0f && value.value() <= maximum); };
     if (! std::isfinite(appearance.diagramLabelWidthDip) || appearance.diagramLabelWidthDip < 0.f || appearance.diagramLabelWidthDip > 4096.f ||
-        (appearance.diagramLabelWidthDip > 0.f && appearance.diagramLabelWidthDip < 1.f) || appearance.sourceTabSpaces > 16u || ! std::isfinite(appearance.maximumTextWidthDip) || appearance.maximumTextWidthDip < 0.0f ||
-        appearance.maximumTextWidthDip > 1048576.0f || ! std::isfinite(appearance.paddingDip) ||
-        (appearance.paddingDip != -1.0f && (appearance.paddingDip < 0.0f || appearance.paddingDip > 256.0f)) || ! validSize(appearance.bodyFontSizeDip) ||
-        ! validSize(appearance.codeFontSizeDip) || ! std::isfinite(appearance.lineHeightMultiplier) ||
+        (appearance.diagramLabelWidthDip > 0.f && appearance.diagramLabelWidthDip < 1.f) || appearance.sourceTabSpaces > 16u ||
+        ! std::isfinite(appearance.maximumTextWidthDip) || appearance.maximumTextWidthDip < 0.0f || appearance.maximumTextWidthDip > 1048576.0f ||
+        ! std::isfinite(appearance.paddingDip) || (appearance.paddingDip != -1.0f && (appearance.paddingDip < 0.0f || appearance.paddingDip > 256.0f)) ||
+        ! validSize(appearance.bodyFontSizeDip) || ! validSize(appearance.codeFontSizeDip) || ! std::isfinite(appearance.lineHeightMultiplier) ||
         (appearance.lineHeightMultiplier != 0.0f && (appearance.lineHeightMultiplier < 1.0f || appearance.lineHeightMultiplier > 4.0f)) ||
         ! std::isfinite(appearance.headingScaleStep) || appearance.headingScaleStep < 0.0f || appearance.headingScaleStep > 1.0f ||
         ! validFont(appearance.bodyFontFamily) || ! validFont(appearance.codeFontFamily) || ! validFont(appearance.mathFontFamily) ||
@@ -1508,7 +1507,9 @@ void RichTextEditor::SetDecorations(const RichText::SourceSnapshot& expectedSour
         if (item.start > expectedSource.Length() || item.length > expectedSource.Length() - item.start || ! expectedSource.IsBoundary(item.start) ||
             ! expectedSource.IsBoundary(item.start + item.length) ||
             static_cast<unsigned>(item.kind) > static_cast<unsigned>(RichTextDecorationKind::Foreground) ||
-            static_cast<unsigned>(item.role) > static_cast<unsigned>(RichTextDecorationRole::Error))
+            static_cast<unsigned>(item.role) > static_cast<unsigned>(RichTextDecorationRole::Error) ||
+            static_cast<unsigned>(item.annotation) > static_cast<unsigned>(RichTextAnnotationKind::GrammarError) ||
+            (item.annotation != RichTextAnnotationKind::None && item.length == 0u))
             throw std::invalid_argument("Invalid rich decoration");
     if (std::ranges::equal(_state->decorations, decorations))
         return;
@@ -1528,6 +1529,31 @@ void RichTextEditor::SetDecorations(const RichText::SourceSnapshot& expectedSour
         }
     }
     std::vector<RichTextDecoration> staged(decorations.begin(), decorations.end());
+    size_t oldAnnotation{}, newAnnotation{};
+    bool annotationsChanged{};
+    for (;;)
+    {
+        while (oldAnnotation < _state->decorations.size() && _state->decorations[oldAnnotation].annotation == RichTextAnnotationKind::None)
+            ++oldAnnotation;
+        while (newAnnotation < staged.size() && staged[newAnnotation].annotation == RichTextAnnotationKind::None)
+            ++newAnnotation;
+        if (oldAnnotation == _state->decorations.size() || newAnnotation == staged.size())
+        {
+            annotationsChanged = (oldAnnotation == _state->decorations.size()) != (newAnnotation == staged.size());
+            break;
+        }
+        const auto& before = _state->decorations[oldAnnotation++];
+        const auto& after  = staged[newAnnotation++];
+        if (before.start != after.start || before.length != after.length || before.annotation != after.annotation)
+        {
+            annotationsChanged = true;
+            break;
+        }
+    }
+    // Annotation peers retain immutable ranges and must not be rebound to a
+    // replacement decoration at the same index, even on unchanged source.
+    if (annotationsChanged)
+        RetireSemanticAccessibility();
     _state->decorations.swap(staged);
     _state->decorationStatus       = _state->decorations.empty() ? RichTextDecorationStatus::None : RichTextDecorationStatus::Pending;
     _state->overlayHighlightsDirty = true;
@@ -3514,11 +3540,11 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 if (headingSize > 0.0f)
                     headingSize = scale(headingSize);
             options.diagramLabelWidthDip = appearance.diagramLabelWidthDip;
-            options.tabStopDip       = appearance.tabStopDip;
-            options.tableOverflow    = appearance.tableOverflow;
-            options.readingDirection = IsRightToLeft() ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
-            state.sourceGuideOptions = options;
-            richPreparationActive    = semanticDocument != nullptr;
+            options.tabStopDip           = appearance.tabStopDip;
+            options.tableOverflow        = appearance.tableOverflow;
+            options.readingDirection     = IsRightToLeft() ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
+            state.sourceGuideOptions     = options;
+            richPreparationActive        = semanticDocument != nullptr;
             state.layout.BeginPreparation(factory,
                                           state.document.Snapshot(),
                                           revision,
@@ -4223,8 +4249,7 @@ void RichTextEditor::Paint(ControlHost& host) const
         }
         const bool decorated =
             links.markedTextFill || ! links.inkRanges.empty() || dimmed || (state.mode == RichText::ViewMode::Rich && (links.brush || ! links.underline));
-        const RichText::Detail::DiagramColorContext diagramColors{
-            style.text, subtleMarkdown ? host.GetTheme().borderDefault : style.caret, style.fill};
+        const RichText::Detail::DiagramColorContext diagramColors{style.text, subtleMarkdown ? host.GetTheme().borderDefault : style.caret, style.fill};
         state.layout.Draw(context,
                           subdued,
                           dimmed ? subdued : semanticDecoration,
