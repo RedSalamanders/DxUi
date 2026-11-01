@@ -132,8 +132,7 @@ template <typename Check> inline void ParserBounds(Check&& check)
     {
         parser.Begin(angles, 20u, profile);
         const auto syntax = Complete(parser, check);
-        check(syntax->InlineStatistics().autolinkInspectionUnits >= 32000u &&
-                  syntax->InlineStatistics().autolinkInspectionUnits <= angles.size() * 8u,
+        check(syntax->InlineStatistics().autolinkInspectionUnits >= 32000u && syntax->InlineStatistics().autolinkInspectionUnits <= angles.size() * 8u,
               "rejected angle autolinks inspect only their own invalid prefix");
         check(std::ranges::count(syntax->Inlines(), MarkdownInlineKind::Link, &MarkdownInline::kind) == 1,
               "bounded angle search still recognizes a following valid autolink");

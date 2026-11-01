@@ -287,7 +287,8 @@ public:
         RETURN_IF_FAILED(factory->CreateFormatConverter(converter.put()));
         RETURN_IF_FAILED(converter->Initialize(frame.get(), GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone, nullptr, 0.0, WICBitmapPaletteTypeCustom));
         auto staged = std::shared_ptr<RichImage>(new RichImage(width, height));
-        RETURN_IF_FAILED(converter->CopyPixels(nullptr, width * 4u, static_cast<UINT>(staged->pixels_.size()), reinterpret_cast<BYTE*>(staged->pixels_.data())));
+        RETURN_IF_FAILED(
+            converter->CopyPixels(nullptr, width * 4u, static_cast<UINT>(staged->pixels_.size()), reinterpret_cast<BYTE*>(staged->pixels_.data())));
         if (Cancelled(cancellation))
             return HRESULT_FROM_WIN32(ERROR_CANCELLED);
         if (*clsid == CLSID_WICGifDecoder)

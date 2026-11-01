@@ -372,21 +372,20 @@ __declspec(noinline) static void TestEmbeddedSingleTreeEventsReachAClientSubscri
         Hr(test.view.Prepare(320, 160, 96), "prepare the focused tree");
         Hr(bridge.Update(), "publish the focused tree");
         walk.Expect(walk.client.WaitForEvent(EmbeddedHeardProperty(UIA_HasKeyboardFocusPropertyId, UIA_TreeControlTypeId, L"Catégories", L"true")),
-                "a client subscribed to the application's window hears the tree take the keyboard focus");
+                    "a client subscribed to the application's window hears the tree take the keyboard focus");
         walk.Expect(walk.client.WaitForEvent([](const UiaTest::HeardEvent& heard)
         { return heard.kind == UiaTest::EventKind::Focus && heard.controlType == UIA_TreeControlTypeId && heard.name == L"Catégories"; }),
-                "a client hears the focus change the view raises for its tree");
-
+                    "a client hears the focus change the view raises for its tree");
     }
     // UI Automation can deliver duplicate callbacks asynchronously.
     // Seed each predecessor before subscribing so no previous transition can
     // contribute events to the next action's exact event oracle.
-    const auto item = [](std::wstring_view what, std::wstring_view name) { return std::wstring(what) + L" TreeItem '" + std::wstring(name) + L"'"; };
+    const auto item       = [](std::wstring_view what, std::wstring_view name) { return std::wstring(what) + L" TreeItem '" + std::wstring(name) + L"'"; };
     const auto transition = [&](std::optional<uint64_t> predecessor, unsigned operation, size_t expected, std::vector<std::wstring> events, const char* step)
     {
         EmbeddedTreeModel model;
         auto control = std::make_unique<DxUi::Tree>();
-        auto* tree = control.get();
+        auto* tree   = control.get();
         tree->SetModel(&model);
         if (predecessor)
             tree->SetSelectedItemId(predecessor);
@@ -396,7 +395,9 @@ __declspec(noinline) static void TestEmbeddedSingleTreeEventsReachAClientSubscri
         EmbeddedUiaTest::Bridge bridge(test.view, 320, 160);
         Hr(bridge.Attach(), "attach independently seeded selection");
         EmbeddedClientWalk walk(bridge, UiaTest::SelectionEventsSubscription());
-        const auto heard = UiaTest::HearSelectionEvents(walk.client, expected, [&]
+        const auto heard = UiaTest::HearSelectionEvents(walk.client,
+                                                        expected,
+                                                        [&]
         {
             if (operation == 0u)
             {
@@ -414,15 +415,14 @@ __declspec(noinline) static void TestEmbeddedSingleTreeEventsReachAClientSubscri
         });
         walk.ExpectHeard(heard, std::move(events), step);
     };
-    transition(std::nullopt, 0u, 2u, {item(L"Selected", L"Afficheurs"), item(L"IsSelected:true", L"Afficheurs")},
-               "a click on an item of an empty selection");
-    transition(3u, 1u, 3u,
-               {item(L"Selected", L"Volets"), item(L"IsSelected:true", L"Volets"), item(L"IsSelected:false", L"Afficheurs")}, "Up");
-    transition(2u, 2u, 3u,
+    transition(std::nullopt, 0u, 2u, {item(L"Selected", L"Afficheurs"), item(L"IsSelected:true", L"Afficheurs")}, "a click on an item of an empty selection");
+    transition(3u, 1u, 3u, {item(L"Selected", L"Volets"), item(L"IsSelected:true", L"Volets"), item(L"IsSelected:false", L"Afficheurs")}, "Up");
+    transition(2u,
+               2u,
+               3u,
                {item(L"Selected", L"Général"), item(L"IsSelected:true", L"Général"), item(L"IsSelected:false", L"Volets")},
                "the application selecting an item");
-    transition(1u, 3u, 2u, {item(L"Removed", L"Général"), item(L"IsSelected:false", L"Général")},
-               "the application clearing the selection");
+    transition(1u, 3u, 2u, {item(L"Removed", L"Général"), item(L"IsSelected:false", L"Général")}, "the application clearing the selection");
 }
 // Queue embedded TreeItem status changes while delivery is held. Distinct item IDs keep their events separate, repeated updates
 // to one ID coalesce from the original to the latest value, and a removed ID is pruned before its queued event is delivered.

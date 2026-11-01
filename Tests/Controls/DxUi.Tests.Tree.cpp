@@ -1962,11 +1962,13 @@ void TestTreeSingleClickReleaseRevalidatesSelectionCallbackRefresh()
     class RefreshingDelegate final : public ITreeDelegate
     {
     public:
-        RefreshingDelegate(Tree& tree, MutableTreeModel& model, bool removeTarget) noexcept : _tree(tree), _model(model), _removeTarget(removeTarget) {}
-        RefreshingDelegate(const RefreshingDelegate&) = delete;
+        RefreshingDelegate(Tree& tree, MutableTreeModel& model, bool removeTarget) noexcept : _tree(tree), _model(model), _removeTarget(removeTarget)
+        {
+        }
+        RefreshingDelegate(const RefreshingDelegate&)            = delete;
         RefreshingDelegate& operator=(const RefreshingDelegate&) = delete;
-        RefreshingDelegate(RefreshingDelegate&&) = delete;
-        RefreshingDelegate& operator=(RefreshingDelegate&&) = delete;
+        RefreshingDelegate(RefreshingDelegate&&)                 = delete;
+        RefreshingDelegate& operator=(RefreshingDelegate&&)      = delete;
         void OnTreeSelectionSetChanged(std::span<const uint64_t>) override
         {
             if (! armed)
@@ -1986,9 +1988,10 @@ void TestTreeSingleClickReleaseRevalidatesSelectionCallbackRefresh()
             ++invocations;
             invokedId = id;
         }
-        bool armed = false;
+        bool armed         = false;
         unsigned refreshes = 0u, invocations = 0u;
         uint64_t invokedId = 0u;
+
     private:
         Tree& _tree;
         MutableTreeModel& _model;
@@ -2004,10 +2007,9 @@ void TestTreeSingleClickReleaseRevalidatesSelectionCallbackRefresh()
         const std::array<uint64_t, 2u> selection{2u, 3u};
         tree.SetSelectedItemIds(selection);
         const auto point = fixture.RowPoint(2u);
-        delegate.armed = true;
+        delegate.armed   = true;
         Require(tree.OnMouseDown(fixture.host, point, false, 0u), "press a selected row with reorder and single-click invocation enabled");
-        Require(delegate.refreshes == 0u && fixture.host.GetCapturedControl() == &tree,
-                "the press retains the full selection and owns capture until release");
+        Require(delegate.refreshes == 0u && fixture.host.GetCapturedControl() == &tree, "the press retains the full selection and owns capture until release");
         RequireTreeIds(fixture.Selected(), {2u, 3u}, "the press leaves the multi-selection intact");
         static_cast<void>(tree.OnMouseUp(fixture.host, point, false, 0u));
         Require(delegate.refreshes == 1u && fixture.host.GetCapturedControl() == nullptr,

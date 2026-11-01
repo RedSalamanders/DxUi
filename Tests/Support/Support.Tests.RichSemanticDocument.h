@@ -419,15 +419,14 @@ inline void NativeHtmlAndLinkPresentation()
     for (const auto profile : {MarkdownProfile::Gfm029, MarkdownProfile::RichMarkdown})
     {
         constexpr std::wstring_view source = L"| a<br> | b |\n| --- | --- |\n";
-        const auto table = Build(source, profile);
+        const auto table                   = Build(source, profile);
         Check(table->Map().Source() == source && table->Map().Display() == L"a\n\tb\n",
               "a cell ending in an HTML break retains its following generated column separator");
-        const auto tab = std::ranges::find_if(table->Map().Spans(), [](const auto& span)
-                                              { return span.kind == DisplaySpanKind::Generated && span.display.first == 2u && span.display.last == 3u; });
-        Check(tab != table->Map().Spans().end() && tab->source.first == tab->source.last,
-              "the column separator is generated at an empty source boundary");
-        Check(Build(L"one<br>\n", profile)->Map().Display() == L"one\n",
-              "a trailing HTML break still ends an ordinary paragraph without an extra line");
+        const auto tab = std::ranges::find_if(table->Map().Spans(), [](const auto& span) {
+            return span.kind == DisplaySpanKind::Generated && span.display.first == 2u && span.display.last == 3u;
+        });
+        Check(tab != table->Map().Spans().end() && tab->source.first == tab->source.last, "the column separator is generated at an empty source boundary");
+        Check(Build(L"one<br>\n", profile)->Map().Display() == L"one\n", "a trailing HTML break still ends an ordinary paragraph without an extra line");
     }
     for (const auto ruleSource : {L"<hr>\n", L"<HR />\r\n", L"  <hr/>\n"})
     {

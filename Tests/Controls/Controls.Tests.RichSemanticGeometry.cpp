@@ -95,8 +95,8 @@ void TestRichSemanticNativeObjectSharedContract()
     {
         RichSemanticEditorTests::TransientPreviewRetainsChunks(
             window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native transient preview"); });
-        RichSemanticEditorTests::PendingPointerPreservesFocus(
-            window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native pending pointer"); });
+        RichSemanticEditorTests::PendingPointerPreservesFocus(window.Host(),
+                                                              [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native pending pointer"); });
         RichSemanticEditorTests::ReusedEditorGeometryMatchesFresh(
             window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native geometry parity"); });
         RichSemanticEditorTests::OverCapacityPaddedCellTyping(

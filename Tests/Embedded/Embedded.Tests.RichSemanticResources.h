@@ -273,7 +273,7 @@ static void TestRichMarkdownCommandHostFailureAtomicity(GraphicsFixture& gpu)
     const auto revision  = editor->Revision();
     const auto selection = editor->GetSelection();
     const auto plan      = BuildMarkdownCommand(original, revision, editor->GetMarkdownSyntax(), selection, request);
-    bool rejected = false;
+    bool rejected        = false;
     std::optional<bool> composition;
     {
         const auto old      = failAllocationAfter;
@@ -284,7 +284,7 @@ static void TestRichMarkdownCommandHostFailureAtomicity(GraphicsFixture& gpu)
         composition = host.GetNativeTextCompositionActive(editor);
         try
         {
-            (void) editor->ApplyMarkdownCommand(plan);
+            (void)editor->ApplyMarkdownCommand(plan);
         }
         catch (const std::bad_alloc&)
         {
@@ -292,8 +292,8 @@ static void TestRichMarkdownCommandHostFailureAtomicity(GraphicsFixture& gpu)
         }
     }
     Check(composition.has_value() && ! composition.value(), "composition guard remains available under allocation failure");
-    Check(rejected && editor->Snapshot().IsSameRevision(original) && editor->Revision() == revision &&
-              editor->GetSelection() == selection && ! editor->CanUndo(),
+    Check(rejected && editor->Snapshot().IsSameRevision(original) && editor->Revision() == revision && editor->GetSelection() == selection &&
+              ! editor->CanUndo(),
           "structural staging allocation failure preserves source and selection");
     Check(editor->ApplyMarkdownCommand(plan) == MarkdownCommandStatus::Changed && editor->Undo() && editor->Snapshot().IsSameRevision(original),
           "staging failure can retry once and undo exactly");

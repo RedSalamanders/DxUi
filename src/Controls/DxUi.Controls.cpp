@@ -656,25 +656,26 @@ void DrawRoundedRect(ControlHost& host, const D2D1_RECT_F& rect, const D2D1_COLO
     }
 }
 
-template <typename Geometry> void PrepareTopRoundedAttachedRect(ControlHost& host,
-                                const D2D1_RECT_F& rect,
-                                bool stroke,
-                                float radiusDip,
-                                float fillBottomExtensionDip,
-                                float strokeBottomInsetDip,
-                                Geometry& result,
-                                uint64_t* creationCount)
+template <typename Geometry>
+void PrepareTopRoundedAttachedRect(ControlHost& host,
+                                   const D2D1_RECT_F& rect,
+                                   bool stroke,
+                                   float radiusDip,
+                                   float fillBottomExtensionDip,
+                                   float strokeBottomInsetDip,
+                                   Geometry& result,
+                                   uint64_t* creationCount)
 {
-    result = {};
+    result                       = {};
     const D2D1_RECT_F fillRect   = SnapRectToPixel(host, D2D1::RectF(rect.left, rect.top, rect.right, rect.bottom + (std::max)(0.0f, fillBottomExtensionDip)));
     const D2D1_RECT_F strokeRect = SnapRectToPixel(host, rect);
-    result.fillRect = fillRect;
-    auto* dc = host.GetDeviceContext();
+    result.fillRect              = fillRect;
+    auto* dc                     = host.GetDeviceContext();
     if (! dc)
         return;
-    const float width            = (std::max)(0.0f, fillRect.right - fillRect.left);
-    const float height           = (std::max)(0.0f, fillRect.bottom - fillRect.top);
-    const float radius           = std::clamp(radiusDip, 0.0f, (std::min)(width * 0.5f, height));
+    const float width  = (std::max)(0.0f, fillRect.right - fillRect.left);
+    const float height = (std::max)(0.0f, fillRect.bottom - fillRect.top);
+    const float radius = std::clamp(radiusDip, 0.0f, (std::min)(width * 0.5f, height));
     if (width <= 0.0f || height <= 0.0f)
     {
         return;
@@ -9766,12 +9767,12 @@ void TabControl::Paint(ControlHost& host) const
         {
             continue;
         }
-        const D2D1_RECT_F tabRect         = GetTabRect(index);
-        const bool selected               = _selectedIndex.has_value() && _selectedIndex.value() == index;
-        const bool hovered                = _hoveredTabIndex.has_value() && _hoveredTabIndex.value() == index;
-        const bool closeVisible           = IsCloseButtonVisible(index);
-        const D2D1_COLOR_F fill           = selected ? theme.cardBackground : (hovered ? theme.headerHovered : theme.windowBackground);
-        const D2D1_COLOR_F transparent    = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
+        const D2D1_RECT_F tabRect      = GetTabRect(index);
+        const bool selected            = _selectedIndex.has_value() && _selectedIndex.value() == index;
+        const bool hovered             = _hoveredTabIndex.has_value() && _hoveredTabIndex.value() == index;
+        const bool closeVisible        = IsCloseButtonVisible(index);
+        const D2D1_COLOR_F fill        = selected ? theme.cardBackground : (hovered ? theme.headerHovered : theme.windowBackground);
+        const D2D1_COLOR_F transparent = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
         if (selected)
         {
             DrawPreparedTopRoundedAttachedRect(host, _selectedHeaderGeometry, fill, theme.borderDefault);
@@ -10093,35 +10094,44 @@ void TabControl::PrepareVisualContent(ControlHost& host) noexcept
         creationCount = &_debugHeaderGeometryBuildCount;
         if (std::exchange(_debugFailNextHeaderGeometry, false))
         {
-            geometry = {};
+            geometry          = {};
             geometry.fillRect = SnapRectToPixel(host, D2D1::RectF(rect.left, rect.top, rect.right, rect.bottom + kTabAttachFillExtensionDip));
         }
         else
 #endif
-            PrepareTopRoundedAttachedRect(host, rect, stroke, kTabCornerRadiusDip, kTabAttachFillExtensionDip,
-                                          stroke ? kTabAttachStrokeInsetDip : 0.f, geometry, creationCount);
-        geometry.owner = &host;
-        geometry.sourceRect = rect;
+            PrepareTopRoundedAttachedRect(
+                host, rect, stroke, kTabCornerRadiusDip, kTabAttachFillExtensionDip, stroke ? kTabAttachStrokeInsetDip : 0.f, geometry, creationCount);
+        geometry.owner              = &host;
+        geometry.sourceRect         = rect;
         geometry.resourceGeneration = host.GetResourceGeneration();
-        geometry.dpi = host.GetDpi();
-        geometry.valid = geometry.fill && (! stroke || geometry.stroke);
+        geometry.dpi                = host.GetDpi();
+        geometry.valid              = geometry.fill && (! stroke || geometry.stroke);
     };
     prepare(_selectedIndex, true, _selectedHeaderGeometry);
     prepare(_hoveredTabIndex != _selectedIndex ? _hoveredTabIndex : std::nullopt, false, _hoveredHeaderGeometry);
     const auto& theme = host.GetTheme();
-    for (const auto& color : {theme.windowBackground, theme.cardBackground, theme.headerBackground, theme.headerHovered,
-                              theme.borderDefault, theme.border, theme.borderStrong, theme.text, theme.subduedText, theme.focusStrokeOuter, theme.focusStrokeInner})
+    for (const auto& color : {theme.windowBackground,
+                              theme.cardBackground,
+                              theme.headerBackground,
+                              theme.headerHovered,
+                              theme.borderDefault,
+                              theme.border,
+                              theme.borderStrong,
+                              theme.text,
+                              theme.subduedText,
+                              theme.focusStrokeOuter,
+                              theme.focusStrokeInner})
         static_cast<void>(host.GetSolidBrush(color));
-    static_cast<void>(host.GetTextFormat(FontRole::Body, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false,
-                                         ResolveReadingDirection(GetFlowDirection())));
-    static_cast<void>(host.GetTextFormat(FontRole::Icon, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false,
-                                         DWRITE_READING_DIRECTION_LEFT_TO_RIGHT));
+    static_cast<void>(host.GetTextFormat(
+        FontRole::Body, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, ResolveReadingDirection(GetFlowDirection())));
+    static_cast<void>(
+        host.GetTextFormat(FontRole::Icon, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, DWRITE_READING_DIRECTION_LEFT_TO_RIGHT));
 }
 
 void TabControl::CancelVisualContentPreparation() noexcept
 {
     _selectedHeaderGeometry = {};
-    _hoveredHeaderGeometry = {};
+    _hoveredHeaderGeometry  = {};
 }
 void TabControl::PropagateHost(ControlHost* host) noexcept
 {

@@ -2464,7 +2464,7 @@ template <typename Prepare> void Rendering(ControlHost& host, Prepare&& prepare)
               editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic && editor->GetSelection() == Selection{7u, 4u} && ! editor->CanUndo(),
           "native and embedded owners publish one current semantic graph without editing source/history");
     const auto originalBounds = editor->GetBounds();
-    auto narrower = originalBounds;
+    auto narrower             = originalBounds;
     narrower.right -= 20.0f;
     editor->SetBounds(narrower);
     Check(editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Pending && ! editor->GetAcknowledgedSemanticDocument(host),

@@ -451,10 +451,9 @@ void TestLosslessMarkdownInlineScenariosAndExtensionIdentity()
         const std::wstring_view table = L"| a\\|b | `\\|` |\n| --- | --- |\n";
         parser.Begin(table, 1u, profile);
         const auto syntax = CompleteMarkdown(parser, 1u);
-        const auto text = std::ranges::find_if(syntax->Inlines(), [](const auto& node)
-                                               { return node.kind == MarkdownInlineKind::Text && node.value == L"a|b"; });
-        const auto code = std::ranges::find_if(syntax->Inlines(), [](const auto& node)
-                                               { return node.kind == MarkdownInlineKind::Code && node.value == L"|"; });
+        const auto text =
+            std::ranges::find_if(syntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Text && node.value == L"a|b"; });
+        const auto code = std::ranges::find_if(syntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Code && node.value == L"|"; });
         Require(text != syntax->Inlines().end() && text->source.first == 2u && text->source.last == 6u,
                 "escaped table pipe includes its backslash in the contiguous text source");
         Require(code != syntax->Inlines().end() && code->source.first == 9u && code->source.last == 13u,

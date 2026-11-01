@@ -139,7 +139,7 @@ public:
 class TextClipboardSemanticCut
 {
 public:
-    virtual ~TextClipboardSemanticCut() = default;
+    virtual ~TextClipboardSemanticCut()                                                  = default;
     virtual HRESULT ApplySemanticCut(const EmbeddedTextInputSnapshot& snapshot) noexcept = 0;
 };
 class TextClipboardBitmapPaste

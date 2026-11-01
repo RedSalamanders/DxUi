@@ -93,8 +93,8 @@ template <typename Check> inline void Admission(Check&& check)
         std::vector<RichImageRequest> cancelledJobs(0u);
         cancelled.Take(cancelledJobs);
         cancelled.Cancel();
-        check(cancelledJobs.size() == 2u && cancelledJobs[0].Cancelled() && cancelledJobs[1].Cancelled() &&
-                  cancelled.Statistics().pendingSources == 0u && cancelled.Statistics().failedSources == 0u,
+        check(cancelledJobs.size() == 2u && cancelledJobs[0].Cancelled() && cancelledJobs[1].Cancelled() && cancelled.Statistics().pendingSources == 0u &&
+                  cancelled.Statistics().failedSources == 0u,
               "cancelling all in-flight jobs does not report failed sources");
         pending.Cancel();
         check(pending.Statistics().failedSources == 1u && pending.Statistics().pendingSources == 0u && jobs[0].Cancelled(),

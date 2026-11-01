@@ -1137,14 +1137,14 @@ inline void MathWidthReflowAndTargetReplacement()
     target->SetDpi(96.f, 96.f);
     options.dpi              = 96.f;
     options.readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
-    const auto mathElement = std::ranges::find(coloredDocument->Elements(), SemanticRole::Math, &SemanticElement::role);
+    const auto mathElement   = std::ranges::find(coloredDocument->Elements(), SemanticRole::Math, &SemanticElement::role);
     Check(mathElement != coloredDocument->Elements().end(), "visible atomic-object fixture retains its math element");
     const auto mathBounds = geometry.ElementBounds(static_cast<std::size_t>(mathElement - coloredDocument->Elements().begin()));
     Check(mathBounds.has_value(), "visible atomic-object fixture has prepared bounds");
     const auto mathVisible = geometry.VisibleSourceRange(mathBounds->top + 1.f, mathBounds->bottom - 1.f);
     Check(mathVisible.first <= mathElement->source.first && mathVisible.second >= mathElement->source.last,
           "a visible atomic math object retains its complete source range");
-    const auto quotedColor   = RichSemanticDocumentTests::Build(L"> $a\\textcolor{blue}{+}b$\n", MarkdownProfile::RichMarkdown);
+    const auto quotedColor = RichSemanticDocumentTests::Build(L"> $a\\textcolor{blue}{+}b$\n", MarkdownProfile::RichMarkdown);
     geometry.Clear();
     geometry.Begin(factory.get(), quotedColor, options, drawing.get(), {}, {}, target.get());
     Complete(geometry);

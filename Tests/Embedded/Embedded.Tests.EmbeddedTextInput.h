@@ -404,9 +404,9 @@ static void TestEmbeddedTextInput(GraphicsFixture& gpu)
     Check(! view.DispatchKey(VK_SPACE, true, 0u, staleReceipt) && view.ShouldTranslateCharacter(staleReceipt),
           "a text key issues a translatable receipt before suspension");
     preview(L"hidden draft");
-    state = read();
+    state              = read();
     auto staleRevision = snapshot.revision;
-    auto oldFocusId = snapshot.focusId;
+    auto oldFocusId    = snapshot.focusId;
     view.SetVisible(false);
     Check(field->GetText() == L"External update" && notifications == 0 && view.Controls().GetFocusControl() == field,
           "hide rolls back preview while retaining its logical owner");
@@ -424,9 +424,9 @@ static void TestEmbeddedTextInput(GraphicsFixture& gpu)
           "explicit OS focus loss cancels text session and clears logical focus");
     view.Controls().SetFocusControl(field);
     preview(L"zero draft");
-    state = read();
+    state         = read();
     staleRevision = snapshot.revision;
-    oldFocusId = snapshot.focusId;
+    oldFocusId    = snapshot.focusId;
     Check(view.Prepare(0, 240) == S_FALSE && field->GetText() == L"External update" && view.Controls().GetFocusControl() == field,
           "zero-size suspension rolls back preview and retains logical focus");
     Hr(view.Prepare(480, 240), "resume nonzero text");
@@ -435,9 +435,9 @@ static void TestEmbeddedTextInput(GraphicsFixture& gpu)
               view.ApplyTextInput(staleRevision, {}, Action::Cancel) == HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH),
           "sized recovery creates a fresh session and rejects the stale revision");
     preview(L"device draft");
-    state = read();
+    state         = read();
     staleRevision = snapshot.revision;
-    oldFocusId = snapshot.focusId;
+    oldFocusId    = snapshot.focusId;
     Hr(view.ReplaceDevice(pool), "text device replacement");
     Check(field->GetText() == L"External update" && view.ReadTextInput(snapshot) == S_FALSE && view.Controls().GetFocusControl() == field,
           "device replacement retires the text session but retains logical focus");

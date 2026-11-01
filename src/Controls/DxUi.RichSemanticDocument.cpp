@@ -4,8 +4,8 @@
 #include "DxUi.SemanticExtensions.h"
 #include <algorithm>
 #include <atomic>
-#include <optional>
 #include <map>
+#include <optional>
 #include <set>
 
 namespace DxUi::RichText
@@ -2166,8 +2166,7 @@ struct SemanticBuilder::Preparation
                 CloseElement(visit.element);
                 const bool hasNextCell = visit.table != MarkdownNoNode && visit.column + 1u < visit.columns;
                 if (hasNextCell || output.text.empty() || output.text.back() != L'\n')
-                    output.Generated(hasNextCell ? L"\t" : L"\n",
-                                     visit.exactSource ? node.block.source.last : node.block.content.last);
+                    output.Generated(hasNextCell ? L"\t" : L"\n", visit.exactSource ? node.block.source.last : node.block.content.last);
             }
             else
                 CloseElement(visit.element);

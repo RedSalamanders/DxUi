@@ -272,9 +272,8 @@ struct NativeImageGeometry
             placement.imageHeight = document.Elements()[resource.element].imageHeight;
             if (resource.image->SvgBytes().empty() && previous)
             {
-                const auto priorRaster = std::ranges::find_if(previous->placements, [&](const auto& prior) {
-                    return prior.pixels == placement.pixels && prior.bitmap;
-                });
+                const auto priorRaster =
+                    std::ranges::find_if(previous->placements, [&](const auto& prior) { return prior.pixels == placement.pixels && prior.bitmap; });
                 if (priorRaster != previous->placements.end())
                 {
                     placement.bitmap    = priorRaster->bitmap;
