@@ -311,7 +311,7 @@ inline void ListsAndHeadings()
         Exact(L"~~~\nhello\n~~~\n", {5u, 5u}, request, L"hello\n", std::nullopt, profile);
         Exact(L"> ~~~\n> hello\n> ~~~\n", {9u, 9u}, request, L"> hello\n", std::nullopt, profile);
         Exact(L"- ~~~\n  hello\n  ~~~\n", {9u, 9u}, request, L"- hello\n", std::nullopt, profile);
-        Unavailable(L"- ~~~\n  ~~~\n", {4u, 4u}, request, profile);
+        Exact(L"- ~~~\n  ~~~\n", {4u, 4u}, request, L"- \n", std::nullopt, profile);
         request.command = MarkdownCommand::SetCodeLanguage;
         request.text    = L"rust";
         Document languageState(L"~~~cpp\nhello\n~~~\n");

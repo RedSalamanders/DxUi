@@ -1541,16 +1541,27 @@ void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
         }
         if (openingOwnsListMarker)
         {
-            if (opening.end >= closing.first)
-                return; // An empty item needs an explicit list-empty policy.
-            std::size_t markerEnd{}, bodyStart{};
-            const auto& firstBody = Line(opening.end);
-            if (! OuterOffset(fenced, opening, markerEnd) || ! OuterOffset(fenced, firstBody, bodyStart) || bodyStart > firstBody.bodyEnd)
+            std::size_t markerEnd{};
+            if (! OuterOffset(fenced, opening, markerEnd))
                 return;
             auto marker = markerEnd;
             while (marker < opening.bodyEnd && Space(text[marker]))
                 ++marker;
             if (marker == opening.bodyEnd || text[marker] != node.block.fenceMarker)
+                return;
+            if (opening.end == closing.first)
+            {
+                std::wstring emptyItem(Slice(opening.first, markerEnd));
+                emptyItem += Slice(closing.bodyEnd, closing.end);
+                Add(opening.first, closing.end, emptyItem);
+                plan.applicable_ = true;
+                return;
+            }
+            if (opening.end > closing.first)
+                return;
+            std::size_t bodyStart{};
+            const auto& firstBody = Line(opening.end);
+            if (! OuterOffset(fenced, firstBody, bodyStart) || bodyStart > firstBody.bodyEnd)
                 return;
             Add(opening.first, bodyStart, Slice(opening.first, markerEnd));
         }
