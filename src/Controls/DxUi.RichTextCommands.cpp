@@ -116,6 +116,25 @@ std::optional<RuleAdmission> InspectThematicBreak(const MarkdownSyntax& syntax, 
     return RuleAdmission{eol, prefix, suffix};
 }
 } // namespace
+std::optional<std::size_t> FindCommandFootnoteOwner(const MarkdownSyntax& syntax, Selection selection) noexcept
+{
+    const auto& nodes = syntax.Nodes();
+    auto note = MarkdownNoNode;
+    for (size_t index = 0u; index < nodes.size(); ++index)
+    {
+        const auto& node = nodes[index];
+        if (node.block.kind != MarkdownBlockKind::FootnoteDefinition ||
+            ! (selection.Start() == selection.End() ? CommandNodeAt(syntax, MarkdownBlockKind::FootnoteDefinition, selection.Start()) == index
+                                                     : node.block.source.first < selection.End() && selection.Start() < node.block.source.last))
+            continue;
+        const auto resolved = std::ranges::find(syntax.Footnotes(), index, &MarkdownFootnote::definition);
+        if (note != MarkdownNoNode || resolved == syntax.Footnotes().end() || ! resolved->ordinal ||
+            selection.Start() < node.block.content.first || selection.End() > node.block.source.last)
+            return std::nullopt;
+        note = index;
+    }
+    return note;
+}
 bool CanInsertThematicBreak(const MarkdownSyntax& syntax, Selection selection) noexcept
 {
     return InspectThematicBreak(syntax, selection).has_value();
@@ -3537,22 +3556,10 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
     if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::InsertEscapedText))
         throw std::invalid_argument("Invalid Markdown command");
     Detail::MarkdownCommandPlanner builder(source, revision, std::move(syntax), selection);
-    // Resolved definitions own editable content, while the label and
-    // continuation prefixes remain protected structural source.
-    auto note = MarkdownNoNode;
-    for (std::size_t index = 0u; index < builder.nodes.size(); ++index)
-    {
-        const auto& node = builder.nodes[index];
-        if (node.block.kind != MarkdownBlockKind::FootnoteDefinition ||
-            ! (selection.Start() == selection.End() ? builder.NodeAt(MarkdownBlockKind::FootnoteDefinition, selection.Start()) == index
-                                                    : node.block.source.first < selection.End() && selection.Start() < node.block.source.last))
-            continue;
-        const auto resolved = std::ranges::find(builder.plan.Syntax()->Footnotes(), index, &MarkdownFootnote::definition);
-        if (note != MarkdownNoNode || resolved == builder.plan.Syntax()->Footnotes().end() || ! resolved->ordinal ||
-            selection.Start() < node.block.content.first || selection.End() > node.block.source.last)
-            return builder.Finish();
-        note = index;
-    }
+    // Footnote labels and unresolved definitions are protected source.
+    const auto note = FindCommandFootnoteOwner(*builder.plan.Syntax(), selection);
+    if (! note)
+        return builder.Finish();
     switch (request.command)
     {
         case MarkdownCommand::InsertParagraph: builder.Continue(); break;
@@ -3586,7 +3593,7 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
         case MarkdownCommand::PreviousTableCell: builder.Table(request); break;
         default: throw std::invalid_argument("Invalid Markdown command");
     }
-    builder.RestrictToNote(note);
+    builder.RestrictToNote(note.value());
     return builder.Finish();
 }
 MarkdownCommandPlan BuildMarkdownDeletion(const SourceSnapshot& source,

@@ -57,6 +57,8 @@ enum class MarkdownTextStyle
 };
 // Shared extension admission only; source and payload checks remain separate.
 bool IsCommandFeatureEnabled(const MarkdownSyntax& syntax, MarkdownCommand command, MarkdownTextStyle style, MarkdownListKind listKind) noexcept;
+// Resolved footnotes permit edits only inside their owned content.
+std::optional<std::size_t> FindCommandFootnoteOwner(const MarkdownSyntax& syntax, Selection selection) noexcept;
 // A selection ending on an EOL still belongs to the preceding physical line.
 bool IsSingleLineCommandSelection(const MarkdownSyntax& syntax, Selection selection) noexcept;
 enum class MarkdownCommandStatus

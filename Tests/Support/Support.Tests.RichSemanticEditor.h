@@ -741,6 +741,22 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     Check(exitState && exitState->available == std::optional<bool>{true} && editor->ExecuteMarkdownCommand(stateRequest) == MarkdownCommandStatus::Changed &&
               editor->Undo(),
           "code-exit state uses the same admission as execution without copying the native text cache");
+    for (const bool referenced : {false, true})
+    {
+        const std::wstring source = referenced ? L"note[^n]\n\n[^n]:\n    ~~~cpp\n    x\n    ~~~\n" : L"[^n]:\n    ~~~cpp\n    x\n    ~~~\n";
+        editor->SetText(source);
+        prepare();
+        const auto at = source.find(L"cpp");
+        editor->SetSelection({at, at});
+        stateRequest.command = MarkdownCommand::SetCodeLanguage;
+        stateRequest.text = L"rust";
+        const auto noteState = editor->QueryMarkdownCommandState(stateRequest);
+        const auto status = editor->ExecuteMarkdownCommand(stateRequest);
+        Check(noteState && (referenced ? ! noteState->available : noteState->available == std::optional<bool>{false}) &&
+                  (referenced ? status == MarkdownCommandStatus::Changed && editor->Undo()
+                              : status == MarkdownCommandStatus::Unavailable) && editor->GetText() == source,
+              "command state and execution share footnote ownership admission without changing protected source");
+    }
     editor->SetText(L"[link](https://example.invalid)");
     prepare();
     editor->SetSelection({2u, 2u});

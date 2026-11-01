@@ -2223,6 +2223,13 @@ std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownComma
         return std::nullopt;
     const auto selection    = GetSelection();
     const bool inputBlocked = MarkdownCommandInputBlocked(GetHost(), this);
+    const auto noteOwner = FindCommandFootnoteOwner(*document->Syntax(), selection);
+    if (! noteOwner || request.text.size() > Document::MaximumUnits ||
+        request.destination.size() > Document::MaximumUnits || request.title.size() > Document::MaximumUnits)
+    {
+        result.available = false;
+        return result;
+    }
     if (request.command == MarkdownCommand::JoinBackward || request.command == MarkdownCommand::JoinForward)
     {
         bool simpleApplicable = false;
@@ -2295,9 +2302,12 @@ std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownComma
         result.active = result.listKind && result.listKind.value() == request.listKind;
         result.mixed  = ! result.listKind;
     }
-    if (inputBlocked ||
-        ((request.command == MarkdownCommand::InsertParagraph || request.command == MarkdownCommand::InsertHardBreak) &&
-         ! IsSingleLineCommandSelection(*document->Syntax(), selection)) ||
+    // The planner also validates completed edits against note prefixes; a
+    // positive result is unknown until that proof is shared with this query.
+    if (noteOwner.value() != MarkdownNoNode && result.available == std::optional<bool>{true})
+        result.available.reset();
+    if (inputBlocked || ((request.command == MarkdownCommand::InsertParagraph || request.command == MarkdownCommand::InsertHardBreak) &&
+                         ! IsSingleLineCommandSelection(*document->Syntax(), selection)) ||
         ((request.command != MarkdownCommand::SetList || ! request.listStart || request.listStart.value() <= 999999999u) &&
          ! IsCommandFeatureEnabled(*document->Syntax(), request.command, request.style, request.listKind)))
         result.available = false;
