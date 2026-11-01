@@ -2219,6 +2219,10 @@ fence or unsupported expression preserves its exact source with a diagnostic.
 Paired `$$` or `\[` / `\]` delimiters on their own logical lines own display
 math across intervening blank lines. An unclosed opener preserves the complete
 owned source with a diagnostic. Double-dollar text within a sentence is literal.
+The syntax snapshot represents these display owners as fenced-code leaves with
+the `$` or `[` marker respectively; semantic publication recognizes them as
+Math, and source editing addresses the complete leaf. Container termination
+still bounds a nested source leaf.
 Original source, delimiters, CRLF,
 selection and history remain authoritative; one successful formula owns one atomic
 native display position and a `SemanticRole::Math` child named with its TeX notation.
