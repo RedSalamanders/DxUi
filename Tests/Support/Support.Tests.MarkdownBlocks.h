@@ -561,6 +561,11 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
                   model->edges[0].style == FlowchartLineStyle::Dotted,
               "class realization uses a dotted line and hollow inheritance endpoint in either spelling");
     }
+    parser.Begin(L"classDiagram\nClient .. Service\n", 1u);
+    const auto association = Complete(parser);
+    check(association->outcome == FlowchartOutcome::Prepared && association->edges.size() == 1u &&
+              association->edges[0].relation == FlowchartRelation::Line && association->edges[0].style == FlowchartLineStyle::Dotted,
+          "class dotted association retains its line type and no arrowhead");
     for (const auto& expected : familyGrammarExpectations)
     {
         parser.Begin(expected.source, 1u);

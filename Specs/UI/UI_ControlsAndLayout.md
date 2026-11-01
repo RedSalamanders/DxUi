@@ -2208,3 +2208,5 @@ description, or the generated graph summary when only a title is supplied.
 Without an authored title the generated graph summary remains the name.
 
 Class diagrams also accept realization relationships `A <|.. B` and `B ..|> A`, rendered as a dotted line with the hollow triangle at the interface.
+
+Class diagrams also accept dotted association `A .. B` without an arrowhead.

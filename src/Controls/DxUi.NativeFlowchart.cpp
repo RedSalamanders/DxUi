@@ -671,8 +671,7 @@ struct NativeFlowchartParser::Preparation
             bool reverse{};
             const auto relationText = Text().substr(at, end - at);
             if (model->family == NativeDiagramFamily::Class &&
-                (relationText.starts_with(L"--*") || relationText.starts_with(L"--o") ||
-                 (relationText.starts_with(L"..") && ! relationText.starts_with(L"..|>"))))
+                (relationText.starts_with(L"--*") || relationText.starts_with(L"--o")))
                 return Error(FlowchartIssue::UnsupportedEdge,
                              edgeStart,
                              std::min(end, at + 3u),
@@ -810,6 +809,12 @@ struct NativeFlowchartParser::Preparation
                 else if (model->family == NativeDiagramFamily::Class && Text().substr(at, 2u) == L"--")
                 {
                     edge.relation  = FlowchartRelation::Line;
+                    operatorLength = 2u;
+                }
+                else if (model->family == NativeDiagramFamily::Class && Text().substr(at, 2u) == L"..")
+                {
+                    edge.relation  = FlowchartRelation::Line;
+                    edge.style     = FlowchartLineStyle::Dotted;
                     operatorLength = 2u;
                 }
                 else if (Text().substr(at, 3u) == L"---")
