@@ -23,6 +23,15 @@ Every direct WIP plan is indexed once. Before completion, persist enduring disco
 complete implementation and validation, then move the plan to Done and remove its active row. A separate HOLD
 consumer migration does not prevent completing an independently scoped extraction plan.
 
+The WIP index and current plan status lines use these labels:
+
+- **SPEC READY**: the sequence is written and implementation has not started.
+- **ACTIVE**: implementation or qualification is in progress.
+- **HOLD**: the work stays deferred until a separate scope decision.
+
+These labels do not establish qualification or authorize additional scope. Align older current status labels
+when their plans are updated; preserve dated historical status and evidence under their original identities.
+
 Run the three root validation scripts for documentation/dependency changes and the appropriate tests for code.
 Generated measurement reports live under `.build`, never in Specs. Reviewed gallery snapshots live in `docs/gallery`.
 Historical import records are explained under [Done](Done/README.md). See [the active index](Plans/WIP/README.md).

@@ -1,6 +1,7 @@
 # WIP folder quality, 31 October 2026
 
-Status: SPEC READY. This is a review of the folder and a sequence for repairing it.
+Status: ACTIVE. The folder review, authoritative status definitions and pin-gate clarification are recorded.
+The remaining folder repairs stay on the checklist below.
 No library, test or tooling code has changed for it.
 Date: 2026-10-31.
 Audited tip: `5f31f2b3` (merge of #157, 31 October 2026, 19:20 Europe/Paris). `include/` and `src/`
@@ -147,10 +148,10 @@ outside the pin. `apiRevision` stays 4.
 
 ### Where the resolution picks a side
 
-- The pin gate is Waves 0-2 of the 15-day review, not DeliveryReview Wave 1 alone. The maintainer's
-  list and the editor's list both land before the RedTilde pin. DX-1 and the low DX items land on
-  `main` in that same window so they are not left behind the pin; they do not block the wall-compat
-  menu port.
+- The pin gate remains Waves 0-2 of the 15-day review, not DeliveryReview Wave 1 alone. DX-1 and
+  the lower-priority DX items remain Wave 5 follow-ups under that sequencer; this folder review
+  does not add them to the pin prerequisites. DX-1 does not block the RedTilde or RedSalamander bump.
+  The wall-compat menu port does not wait for those follow-ups or Wave 2.
 - The menu port does not wait for Wave 2. The release reading wins for RedPrism and RedXe.
 - Correctness is not frozen for the paired-performance policy. The skeptic's reading wins on the
   label of the pin and loses on blocking the fixes.
@@ -195,12 +196,12 @@ a plan-specific open row. The split is "landed story to Done, open row stays ind
 native-build entry and Subtle Markdown. Entries are supposed to be separated only by blank lines.
 Move the rule into the preamble. This change does that.
 
-### Status words are undefined
+### Status words now have one authoritative definition
 
-`Specs/README.md` describes WIP, Done and a HOLD for a deferred consumer migration. It does not define
-ACTIVE or SPEC READY. Plan bodies also say NOT STARTED, IMPLEMENTING and SPECIFICATION READY. The
-preamble of the index now gives the three index words a working meaning. Promote that sentence into
-`Specs/README.md` when it is accepted, and make plan status lines use only those words.
+At the audited tip, `Specs/README.md` described WIP, Done and a HOLD for a deferred consumer migration
+without defining ACTIVE or SPEC READY. The 1 November follow-up defines all three labels there and
+links the index to that authority. Older plan bodies still say NOT STARTED, IMPLEMENTING and
+SPECIFICATION READY; aligning their current status lines remains part of the folder repair.
 
 ### Two Wave 1s
 
@@ -243,14 +244,15 @@ plans keep only attribution that the ledger does not.
 
 ## Folder repair sequence
 
-- [ ] Promote the index preamble's three status words into `Specs/README.md`, and align every plan
-      status line with them. RichText audit becomes ACTIVE. File drop says SPEC READY.
+- [x] Define the three status labels in `Specs/README.md` and link the index to that authority.
+- [ ] Align older current plan status lines with those definitions. RichText audit becomes ACTIVE.
+      File drop says SPEC READY. Preserve dated historical status notes and evidence.
 - [ ] Rewrite the stale index sentences for the editor plan, PopupReadiness and the rich-text audit.
       State what is still open. Point B2 and the 25 October ARM64 failure at their retained evidence.
 - [ ] Stamp the 10 October and 28 October code reviews as historical registers. Drop them from the
       delivery queue. Leave the files reachable until a Done move updates every inbound link.
-- [ ] Add one paragraph at the top of the 15-day review: Waves 0-2 are the pin gate; DeliveryReview
-      Wave 1 is repair text for a subset; wave numbers elsewhere are not this sequence.
+- [x] Clarify the pin gate at the top of the 15-day review: Waves 0-2 are prerequisites; DX-1 and
+      the lower-priority DX items remain Wave 5 follow-ups. DeliveryReview owns repair text for a subset.
 - [ ] Split each merged-library plan in the table above. The Done record states the landed scope.
       The indexed remainder is the open checklist, or a pointer into ConsumerUiQualification when
       the open row is a shared HOLD.
@@ -340,7 +342,17 @@ are off by a few lines, or name the wrong line for one clause:
 
 ### Rich-text audit register
 
-`RichTextAudit_2026-10-21/findings.md` cites lines against `fa5821c8`. Of 243 unique `src/`, `include/`, `docs/`, `Tests/` or `Specs/` paths with a line number, 7 are still the same text at the same line, 162 are the same text elsewhere in the file, 33 no longer contain that line text, and 40 name a file that is not at that path. The median move is 65 lines. About 69 of the moves are more than 100 lines.
+`RichTextAudit_2026-10-21/findings.md` cites lines against `fa5821c8`. A 1 November recount against
+the audited tip `5f31f2b3` finds 244 distinct primary full-path `path:line` anchors: 7 have the same
+source text at the same line, 162 have that text elsewhere in the file, 35 no longer contain that
+line text, and 40 name a file that is not at that path. These categories sum to 244; the earlier
+243 total and 33 missing-text count did not reconcile.
+
+The count covers backtick-quoted `src/`, `include/`, `docs/`, `Tests/` or `Specs/` anchors that start
+a finding's citation line, deduplicated by path and starting line. It does not count every inline
+citation in a narrative. Source-line text is compared case-sensitively after trimming whitespace;
+when it occurs more than once, displacement uses the nearest matching line. Under that rule the
+median move is 62 lines, and 63 moves exceed 100 lines.
 
 The missing paths are mostly the old `Scope.Tests.*` names. Those suites now live under names such as `Tests/Controls/Controls.Tests.RichSemanticDocument.cpp` and `Tests/Support/Support.Tests.RichSemantic.h`. `RichTextResources.h` is now `Tests/Embedded/Embedded.Tests.RichTextResources.h`. A citation written as `UI\_ControlsAndLayout.md` is the Markdown escape of a file that does exist.
 

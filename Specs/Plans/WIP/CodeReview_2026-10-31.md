@@ -3,6 +3,9 @@
 Status: SPEC READY. Review only: no library, test or tooling code changed. Remediation follows the
 [sequence](#sequence). The overlapping DX-* repair text stays in
 [Delivery review 2026-10-31](DeliveryReview_2026-10-31.md); this plan is the full delivery sequencer.
+Pin prerequisites are the Wave 0 decisions and Wave 1-2 repairs. DX-1 and the lower-priority DX items
+remain Wave 5 follow-ups and do not expand that gate. DX-1 does not block the bump. Qualification and
+exact-pin consumer evidence remain separately required under Wave 6.
 Date: 2026-10-31.
 Window: parent `9945d7fc` (2026-10-13) through `cb94aed5` / delivery tip `f2940cc2` / current `origin/main`
 `93c77750` (merge of #156). `include/` and `src/` are byte-identical among those tips; later `main` commits are
