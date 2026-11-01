@@ -279,11 +279,11 @@ struct NativeImageGeometry
                         const std::wstring empty(0u, L' ');
                         const auto body = std::make_shared<const MathExpression>(expression->root.children[0], empty);
                         const auto label = std::make_shared<const MathExpression>(expression->root.children[1], empty);
-                        placement.math = std::make_shared<PreparedMath>(write, body, font * 1.15f, true, constants, options.dpi, textFormats);
-                        placement.tag = std::make_shared<PreparedMath>(write, label, font * 1.15f, false, placement.math.get(), options.dpi, textFormats);
+                        placement.math = std::make_shared<PreparedMath>(write, body, font * 1.15f, true, constants, options.dpi, textFormats, options.mathAbsoluteUnitScale);
+                        placement.tag = std::make_shared<PreparedMath>(write, label, font * 1.15f, false, placement.math.get(), options.dpi, textFormats, options.mathAbsoluteUnitScale);
                     }
                     else
-                        placement.math = std::make_shared<PreparedMath>(write, expression, font * 1.15f, maths[index].display, constants, options.dpi, textFormats);
+                        placement.math = std::make_shared<PreparedMath>(write, expression, font * 1.15f, maths[index].display, constants, options.dpi, textFormats, options.mathAbsoluteUnitScale);
                 }
                 if (! constants)
                     constants = placement.math.get();
@@ -1890,6 +1890,7 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
     { return ! value || (std::isfinite(value.value()) && value.value() >= 0.0f && value.value() <= maximum); };
     if (! factory || ! document || ! std::isfinite(options.widthDip) || options.widthDip <= 0.0f || ! std::isfinite(options.fontSizeDip) ||
         ! std::isfinite(options.dpi) || options.dpi <= 0.0f || options.dpi > 4096.0f || options.fontSizeDip <= 0.0f ||
+        ! std::isfinite(options.mathAbsoluteUnitScale) || options.mathAbsoluteUnitScale <= 0.f || options.mathAbsoluteUnitScale > 16.f ||
         ! std::isfinite(options.diagramLabelWidthDip) || options.diagramLabelWidthDip < 0.f || options.diagramLabelWidthDip > 4096.f ||
         (options.diagramLabelWidthDip > 0.f && options.diagramLabelWidthDip < 1.f) ||
         ! validSpacing(options.paragraphSpacingAfterLines, 4.0f) || ! validSpacing(options.listItemSpacingDip, 256.0f) ||
@@ -1944,7 +1945,8 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
                                          state_->options.fontFamily == options.fontFamily && state_->options.fontSizeDip == options.fontSizeDip &&
                                          state_->options.locale == options.locale && state_->options.readingDirection == options.readingDirection &&
                                          state_->options.diagramLabelWidthDip == options.diagramLabelWidthDip &&
-                                         state_->options.autoParagraphDirection == options.autoParagraphDirection
+                                         state_->options.autoParagraphDirection == options.autoParagraphDirection &&
+                                         state_->options.mathAbsoluteUnitScale == options.mathAbsoluteUnitScale
                                      ? state_.get()
                                      : nullptr;
     auto next                  = std::make_unique<Preparation>(

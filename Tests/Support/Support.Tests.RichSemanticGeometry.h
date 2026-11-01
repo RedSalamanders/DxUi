@@ -664,6 +664,26 @@ inline void MathWidthReflowAndTargetReplacement()
     Complete(geometry);
     Check(DxUi::RichText::Detail::testRichMathPreparations == preparations + 8u && DxUi::RichText::Detail::testRichMathConstantReads == reads + 4u,
           "the configured mathematical family still reuses finalized geometry across width-only reflow");
+    const auto beforeScale = DxUi::RichText::Detail::testRichMathPreparations;
+    const auto previousWidth = geometry.Width();
+    for (const float invalid : {0.f, -1.f, std::numeric_limits<float>::infinity(), std::numeric_limits<float>::quiet_NaN()})
+    {
+        auto rejected = options;
+        rejected.mathAbsoluteUnitScale = invalid;
+        RichSemanticTests::Reject<std::invalid_argument>([&] { geometry.Begin(factory.get(), document, rejected, drawing.get(), {}, {}, replacement.get()); },
+                                                         "invalid math absolute-unit scale rejects before staging");
+        Check(geometry.Width() == previousWidth && DxUi::RichText::Detail::testRichMathPreparations == beforeScale,
+              "invalid unit scale retains the published generation");
+    }
+    options.mathAbsoluteUnitScale = 2.f;
+    geometry.Begin(factory.get(), document, options, drawing.get(), {}, {}, replacement.get());
+    Complete(geometry);
+    Check(DxUi::RichText::Detail::testRichMathPreparations == beforeScale + 2u,
+          "absolute-unit scale change rebuilds math even when font size and source are unchanged");
+    options.widthDip += 10.f;
+    geometry.Begin(factory.get(), document, options, drawing.get(), {}, {}, replacement.get());
+    Complete(geometry);
+    Check(DxUi::RichText::Detail::testRichMathPreparations == beforeScale + 2u, "width-only reflow still reuses the new math scale");
     const auto tagged = RichSemanticDocumentTests::Build(L"$$\nx+1\\tag{Eq. 1}\n$$\n", MarkdownProfile::RichMarkdown);
     geometry.Clear();
     const auto beforeTagged = DxUi::RichText::Detail::testRichMathPreparations;

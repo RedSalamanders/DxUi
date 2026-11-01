@@ -966,6 +966,29 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
 #endif
     check(! ParseMath(L"a\\above -1pt b") && ! ParseMath(L"a\\above 65pt b") && ! ParseMath(L"a\\above 1zz b"),
           "negative, oversized and unsupported rule dimensions fail closed");
+#if DXUI_ENABLE_DIAGNOSTICS
+    {
+        const auto points = std::make_shared<const MathExpression>(ParseMath(L"a\\above 2pt b"));
+        const auto relative = std::make_shared<const MathExpression>(ParseMath(L"a\\above .25em b"));
+        Detail::PreparedMath base(factory, points, 24.f);
+        Detail::PreparedMath zoomed(factory, points, 24.f, false, nullptr, 96.f, {}, 2.f);
+        Detail::PreparedMath emZoomed(factory, relative, 24.f, false, nullptr, 96.f, {}, 2.f);
+        while (! base.Advance()) {}
+        while (! zoomed.Advance()) {}
+        while (! emZoomed.Advance()) {}
+        check(std::abs(base.StrokeLayouts()[0u].thickness - 8.f / 3.f) < .001f &&
+                  std::abs(zoomed.StrokeLayouts()[0u].thickness - 16.f / 3.f) < .001f &&
+                  std::abs(emZoomed.StrokeLayouts()[0u].thickness - 6.f) < .001f,
+              "absolute unit scale changes point rules without rescaling font-relative em rules");
+        for (const float invalid : {0.f, -1.f, std::numeric_limits<float>::infinity(), std::numeric_limits<float>::quiet_NaN()})
+        {
+            bool rejected{};
+            try { Detail::PreparedMath bad(factory, points, 24.f, false, nullptr, 96.f, {}, invalid); }
+            catch (const std::invalid_argument&) { rejected = true; }
+            check(rejected, "invalid absolute-unit scale rejects before preparation");
+        }
+    }
+#endif
     const auto binomial = ParseMath(L"\\binom{n}{k}");
     check(binomial && binomial.root.children.size() == 1u && binomial.root.children[0u].kind == MathKind::Matrix &&
               binomial.root.children[0u].text == L"pmatrix" && binomial.root.children[0u].columns == 1u && binomial.root.children[0u].children.size() == 2u,

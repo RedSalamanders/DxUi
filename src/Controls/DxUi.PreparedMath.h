@@ -408,7 +408,7 @@ class PreparedMath final
     std::size_t backgroundCount{};
     bool colored{};
     std::size_t cursor{};
-    float font{}, axis{}, dpi{96.f};
+    float font{}, axis{}, dpi{96.f}, absoluteUnitScale{1.f};
     float scriptScale{.7f}, scriptScriptScale{.5f};
     float delimitedMinimum{1.5f}, displayOperatorMinimum{1.4f};
     float subscriptShift{.35f}, superscriptShift{.55f}, scriptGapMinimum{.18f};
@@ -1286,7 +1286,7 @@ class PreparedMath final
         if (! dimension)
             return 0.f; // Admission validates the immutable node before preparation.
         if (dimension->unit == MathDimensionUnit::Point)
-            return dimension->value * (4.f / 3.f);
+            return dimension->value * (4.f / 3.f) * absoluteUnitScale;
         if (dimension->unit == MathDimensionUnit::Ex)
             return dimension->value * size * (mathData ? mathData->xHeightEm : .45f);
         return dimension->value * size;
@@ -2112,7 +2112,8 @@ public:
                  bool display                             = false,
                  const PreparedMath* constants            = nullptr,
                  float deviceDpi                          = 96.f,
-                 std::shared_ptr<MathTextFormats> formats = {})
+                 std::shared_ptr<MathTextFormats> formats = {},
+                 float unitScale = 1.f)
         : expression(std::move(value)),
           factory(write),
           textFormats(std::move(formats)),
@@ -2125,10 +2126,11 @@ public:
           backgroundHeads(0u),
           font(size),
           dpi(deviceDpi),
+          absoluteUnitScale(unitScale),
           displayStyle(display)
     {
         if (! expression || ! *expression || ! std::isfinite(size) || size <= 0.f || size > 4096.f || ! std::isfinite(deviceDpi) || deviceDpi <= 0.f ||
-            deviceDpi > 4096.f || ! write)
+            deviceDpi > 4096.f || ! std::isfinite(unitScale) || unitScale <= 0.f || unitScale > 16.f || ! write)
             throw std::invalid_argument("Invalid mathematical preparation request");
 #if DXUI_ENABLE_DIAGNOSTICS
         ++testRichMathPreparations;

@@ -3667,6 +3667,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             for (auto& headingSize : options.headingFontSizeDip)
                 if (headingSize > 0.0f)
                     headingSize = scale(headingSize);
+            options.mathAbsoluteUnitScale = appearance.zoom;
             options.diagramLabelWidthDip = appearance.diagramLabelWidthDip;
             options.tabStopDip           = appearance.tabStopDip;
             options.tableOverflow        = appearance.tableOverflow;

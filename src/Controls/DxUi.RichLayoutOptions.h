@@ -21,6 +21,6 @@ inline bool SameLayoutOptions(const LayoutOptions& a, const LayoutOptions& b, La
            (use == LayoutOptionsUse::Text ||
             (a.autoParagraphDirection == b.autoParagraphDirection && a.markdownPresentation == b.markdownPresentation &&
              a.codeCopyAction == b.codeCopyAction && a.mathFontFamily == b.mathFontFamily &&
-             a.diagramLabelWidthDip == b.diagramLabelWidthDip));
+             a.diagramLabelWidthDip == b.diagramLabelWidthDip && a.mathAbsoluteUnitScale == b.mathAbsoluteUnitScale));
 }
 } // namespace DxUi::RichText::Detail
