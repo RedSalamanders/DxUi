@@ -796,7 +796,7 @@ void TestRichSemanticNativeMathematicsAndBroaderMermaid()
     const auto fallback = RichSemanticDocumentTests::Build(L"$\\input{private}$", MarkdownProfile::RichMarkdown);
     Require(fallback->Map().Display().find(L"$\\input{private}$") != std::wstring::npos && ! fallback->Diagnostics().empty(),
             "rejected math retains exact editable notation and diagnostic");
-    const auto oversizedSource = L"$" + std::wstring(5000u, L'x') + L"_y_$ **literal tail**";
+    const auto oversizedSource = L"$" + std::wstring(MathMaximumSourceUnits + 1u, L'x') + L"_y_$ **literal tail**";
     const auto oversized       = RichSemanticDocumentTests::Build(oversizedSource, MarkdownProfile::RichMarkdown);
     Require(! oversized->Diagnostics().empty() && oversized->Map().Display().starts_with(oversizedSource) && oversized->Map().Source() == oversizedSource,
             "over-capacity notation retains the entire literal line without interpreting nested Markdown");
