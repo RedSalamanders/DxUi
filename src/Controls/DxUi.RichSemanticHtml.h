@@ -122,7 +122,8 @@ inline bool NativeHtmlDestination(std::wstring_view value, bool image = false) n
     if (colon == std::wstring_view::npos || (path != std::wstring_view::npos && path < colon))
         return true;
     const auto scheme = value.substr(0u, colon);
-    return HtmlName(scheme, L"http") || HtmlName(scheme, L"https") || HtmlName(scheme, image ? L"file" : L"mailto");
+    return HtmlName(scheme, L"http") || HtmlName(scheme, L"https") || HtmlName(scheme, image ? L"file" : L"mailto") ||
+           (image && HtmlName(scheme, L"data"));
 }
 struct NativeHtmlTag
 {

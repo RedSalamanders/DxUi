@@ -235,6 +235,21 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
         editor.SetRemoteImagesEnabled(false);
     }
     {
+        editor.SetText(L"<img src='data:image/png;base64,AAAA' alt='data'>\n");
+        prepare();
+        std::vector<RichImageRequest> htmlData(0u);
+        editor.TakePendingImageRequests(htmlData);
+        check(htmlData.empty(), "HTML data images retain the default opt-in boundary");
+        editor.SetDataImagesEnabled(true);
+        prepare();
+        editor.TakePendingImageRequests(htmlData);
+        check(htmlData.size() == 1u && htmlData.front().SourceKind() == RichImageSourceKind::Data &&
+                  htmlData.front().Source() == L"data:image/png;base64,AAAA",
+              "HTML data images use the same bounded caller-owned admission as Markdown images");
+        editor.SetDataImagesEnabled(false);
+        check(htmlData.front().Cancelled(), "disabling data images cancels a pending HTML data request");
+    }
+    {
         const std::wstring source = L"![data](data:image/png;base64,AAAA)\n\n![remote](https://example.invalid/a.png)\n";
         editor.SetText(source);
         prepare();
