@@ -138,7 +138,7 @@ nonallocating planner predicate is not yet available.
 For backward and forward structural join, noncollapsed selections and carets
 outside supported text leaves or away from their visible edge are known to be
 unavailable. Plain paragraphs without a compatible sibling are also unavailable;
-ordinary document-level paragraph joins report availability, while some
+ordinary document-level paragraph joins and heading removal report availability, while some
 container edges still need their prefix and container predicates.
 The structural backward-join command removes a heading marker when the caret
 is at the start of its content; ordinary text inside the heading is unaffected.

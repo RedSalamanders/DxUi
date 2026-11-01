@@ -174,6 +174,9 @@ std::optional<std::size_t> FindJoinLeaf(const MarkdownSyntax& syntax, Selection 
     const auto visible = JoinVisibleBody(syntax, best);
     if (backwards ? selection.caret > visible.first : selection.caret < visible.last)
         return std::nullopt;
+    if (kind != MarkdownBlockKind::Paragraph && simpleApplicable && nodes[best].parent != MarkdownNoNode &&
+        nodes[nodes[best].parent].block.kind == MarkdownBlockKind::Document)
+        *simpleApplicable = true;
     if (kind == MarkdownBlockKind::Paragraph)
     {
         auto nearest = nodes[best].parent;
