@@ -2939,6 +2939,8 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
         {
             if (! IsValidSourceUtf16(request.text) || request.text.find_first_of(L"\r\n") != std::wstring_view::npos)
                 throw std::invalid_argument("Cell source must be valid single-line Unicode");
+            if (request.tableCellCaretOffset && ! IsEditBoundary(request.text, request.tableCellCaretOffset.value()))
+                throw std::out_of_range("Invalid table cell replacement caret");
             for (std::size_t at = 0u; at < request.text.size(); ++at)
             {
                 if (request.text[at] == L'\\')
@@ -2960,6 +2962,8 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
                 Add(range.first, range.last, request.text);
                 caret = range.first + request.text.size();
             }
+            if (request.tableCellCaretOffset)
+                caret = caret - request.text.size() + request.tableCellCaretOffset.value();
             plan.after_       = {caret, caret};
             explicitSelection = true;
             break;

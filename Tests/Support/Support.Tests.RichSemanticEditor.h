@@ -594,6 +594,24 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     Check(editor->OnKeyDown(host, VK_TAB, 0u) && ! editor->CanUndo(), "Tab crosses two padded cells sharing one raw ACP");
     Check(editor->OnChar(host, L'|', 0u) && editor->GetText() == L"a | b | c\n- | - | -\nx |  | \\|\n",
           "typing materializes only the focused padded cell and escapes a literal pipe");
+    editor->SetText(L"a | b | c\n- | - | -\nx\n");
+    prepare();
+    const auto pairSyntax = editor->GetMarkdownSyntax();
+    std::vector<std::size_t> pairCells(0u);
+    for (std::size_t i = 0u; i < pairSyntax->Nodes().size(); ++i)
+        if (pairSyntax->Nodes()[i].block.kind == MarkdownBlockKind::TableCell)
+            pairCells.push_back(i);
+    editor->SetSelection({editor->GetText().size() - 1u, editor->GetText().size() - 1u});
+    request.targetCell = pairCells[3u];
+    Check(editor->ExecuteMarkdownCommand(request) == MarkdownCommandStatus::Unchanged && editor->OnKeyDown(host, VK_TAB, 0u),
+          "pairing fixture reaches the second padded table cell");
+    editor->SetAutoPairEnabled(true);
+    const std::wstring pairedTable(L"a | b | c\n- | - | -\nx |  | ()\n");
+    const auto pairedCaret = pairedTable.find(L"()") + 1u;
+    Check(editor->OnChar(host, L'(', 0u) && editor->GetText() == pairedTable && editor->GetSelection() == Selection{pairedCaret, pairedCaret} &&
+              editor->Undo() && editor->GetText() == L"a | b | c\n- | - | -\nx\n",
+          "auto-pair materializes only the focused padded cell with an interior caret and one undo");
+    editor->SetAutoPairEnabled(false);
     editor->SetText(L"- [ ] task\n");
     prepare();
     const auto bounds = editor->TryGetTextInputRangeRects(host, 2u, 5u);

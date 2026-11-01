@@ -1260,8 +1260,8 @@ coalesce in the same bounded way; direction or explicit word deletion ends a run
 The default-off direct-typing auto-pair policy inserts matching parentheses,
 brackets, braces, quotes, asterisks or underscores as one undo transaction,
 placing the caret between them or preserving the direction of a wrapped source
-selection. Native composition is never paired. Table-cell input retains its
-structural cell-edit policy.
+selection. Native composition is never paired. Empty table-cell scaffolds use
+their structural cell-edit transaction and retain the interior caret.
 Rich-view deletion also groups adjacent single plain-source erasures; structural
 wrapper removal, transformed tokens and disjoint fragments remain separate
 transactions so their ownership is preserved.

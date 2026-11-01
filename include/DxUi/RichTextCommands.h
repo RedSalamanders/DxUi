@@ -88,6 +88,8 @@ struct MarkdownCommandRequest
     // Other commands infer their target from the exact source selection.
     std::size_t targetCell   = MarkdownNoNode;
     std::size_t tableColumns = 2u, tableBodyRows = 1u;
+    // Optional UTF-16 caret offset in SetTableCell's replacement text.
+    std::optional<std::size_t> tableCellCaretOffset;
     // Borrowed only while building. Cell text is raw single-line Markdown;
     // destination/title are semantic Unicode values serialized by the planner.
     std::wstring_view text, destination, title;

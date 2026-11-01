@@ -712,6 +712,10 @@ inline void Tables()
     request.command = MarkdownCommand::SetTableCell;
     request.text    = L"**new**\\|value";
     Exact(L"a | b\n- | -\nx | y\n", {16u, 16u}, request, L"a | b\n- | -\nx | **new**\\|value\n");
+    request.text                 = L"()";
+    request.tableCellCaretOffset = 1u;
+    Exact(L"a | b\n- | -\nx | y\n", {16u, 16u}, request, L"a | b\n- | -\nx | ()\n", Selection{17u, 17u});
+    request.tableCellCaretOffset.reset();
     Document padded(L"| a | b | c |\r\n| :- | -: | --- |\r\n| x |\r\n");
     const auto syntax = Parse(padded);
     std::vector<std::size_t> cells(0u);
@@ -722,6 +726,12 @@ inline void Tables()
     request.targetCell = cells.back();
     request.text       = L"new";
     Exact(padded.Text(), {padded.Text().size(), padded.Text().size()}, request, L"| a | b | c |\r\n| :- | -: | --- |\r\n| x |  | new |\r\n");
+    request.text                 = L"()";
+    request.tableCellCaretOffset = 1u;
+    const std::wstring pairedCell(L"| a | b | c |\r\n| :- | -: | --- |\r\n| x |  | () |\r\n");
+    const auto pairedCaret = pairedCell.find(L"()") + 1u;
+    Exact(padded.Text(), {padded.Text().size(), padded.Text().size()}, request, pairedCell, Selection{pairedCaret, pairedCaret});
+    request.tableCellCaretOffset.reset();
     request.targetCell = MarkdownNoNode;
     request.command    = MarkdownCommand::NextTableCell;
     Exact(L"a | b\n- | -\nx | y", {16u, 16u}, request, L"a | b\n- | -\nx | y\n| | |", Selection{20u, 20u});

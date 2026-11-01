@@ -7,8 +7,8 @@
 #include "DxUi.RichImagePaths.h"
 #include "DxUi.RichImageResources.h"
 #include "DxUi.RichSemanticGeometry.h"
-#include "DxUi.RichSourceInk.h"
 #include "DxUi.RichSourceGuides.h"
+#include "DxUi.RichSourceInk.h"
 #include "DxUi.SemanticExtensions.h"
 #include "DxUi.TextElements.h"
 #include "Support/Diagnostics.h"
@@ -95,6 +95,20 @@ std::optional<RichText::MarkdownRange> HeadingFragment(const RichText::SemanticD
             return element.syntaxNode < document.Syntax()->Nodes().size() ? document.Syntax()->Nodes()[element.syntaxNode].block.content : element.source;
     }
     return std::nullopt;
+}
+wchar_t AutoPairClosing(wchar_t character) noexcept
+{
+    switch (character)
+    {
+        case L'(': return L')';
+        case L'[': return L']';
+        case L'{': return L'}';
+        case L'"':
+        case L'\'':
+        case L'*':
+        case L'_': return character;
+        default: return 0;
+    }
 }
 // Group complete UTF-16 text elements without splitting supplementary scalars
 // or combining sequences. Punctuation and whitespace still terminate a run.
@@ -416,8 +430,8 @@ void RichTextEditor::SetText(std::wstring text)
     _state->markdownCapacityRejected.reset();
     _state->nativeGeometryRejected.reset();
     RetireSemanticAccessibility();
-    _state->sourceCaretSite = RichText::MarkdownNoNode;
-    _state->scrollDip       = 0;
+    _state->sourceCaretSite     = RichText::MarkdownNoNode;
+    _state->scrollDip           = 0;
     _state->horizontalScrollDip = 0;
     RetireLayout();
     SelectionChanged();
@@ -925,10 +939,11 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
     auto next            = appearance; // Stage all owned strings before publishing any option.
     const auto& previous = _state->appearance;
     const bool geometryChanged =
-        previous.tableOverflow != next.tableOverflow || previous.zoom != next.zoom || previous.tabStopDip != next.tabStopDip || previous.sourceMonospace != next.sourceMonospace || previous.sourceWrap != next.sourceWrap ||
-        previous.sourceLineNumbers != next.sourceLineNumbers || previous.sourceWhitespaceMarks != next.sourceWhitespaceMarks ||
-        previous.showVerticalScrollbar != next.showVerticalScrollbar || previous.maximumTextWidthDip != next.maximumTextWidthDip ||
-        previous.paddingDip != next.paddingDip || previous.bodyFontSizeDip != next.bodyFontSizeDip || previous.codeFontSizeDip != next.codeFontSizeDip ||
+        previous.tableOverflow != next.tableOverflow || previous.zoom != next.zoom || previous.tabStopDip != next.tabStopDip ||
+        previous.sourceMonospace != next.sourceMonospace || previous.sourceWrap != next.sourceWrap || previous.sourceLineNumbers != next.sourceLineNumbers ||
+        previous.sourceWhitespaceMarks != next.sourceWhitespaceMarks || previous.showVerticalScrollbar != next.showVerticalScrollbar ||
+        previous.maximumTextWidthDip != next.maximumTextWidthDip || previous.paddingDip != next.paddingDip ||
+        previous.bodyFontSizeDip != next.bodyFontSizeDip || previous.codeFontSizeDip != next.codeFontSizeDip ||
 
         previous.lineHeightMultiplier != next.lineHeightMultiplier || previous.headingScaleStep != next.headingScaleStep ||
         previous.bodyFontFamily != next.bodyFontFamily || previous.codeFontFamily != next.codeFontFamily ||
@@ -938,20 +953,20 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
     const bool sourceInkChanged = previous.colorizeMarkdownSource != next.colorizeMarkdownSource;
     // Staged strings publish without allocator-backed aggregate moves; Debug
     // STL proxies can allocate during those moves.
-    auto& value                       = _state->appearance;
-    value.markdownPresentation        = next.markdownPresentation;
-    value.drawBorder                  = next.drawBorder;
-    value.drawFocusIndicator          = next.drawFocusIndicator;
-    value.blendWithWindowBackground   = next.blendWithWindowBackground;
-    value.useAccentLinkColor          = next.useAccentLinkColor;
-    value.colorizeMarkdownSource      = next.colorizeMarkdownSource;
-    value.directSourceInkPreview      = next.directSourceInkPreview;
-    value.showVerticalScrollbar       = next.showVerticalScrollbar;
-    value.sourceMonospace             = next.sourceMonospace;
-    value.tableOverflow               = next.tableOverflow;
-    value.sourceWrap                  = next.sourceWrap;
-    value.sourceLineNumbers           = next.sourceLineNumbers;
-    value.sourceWhitespaceMarks       = next.sourceWhitespaceMarks;
+    auto& value                     = _state->appearance;
+    value.markdownPresentation      = next.markdownPresentation;
+    value.drawBorder                = next.drawBorder;
+    value.drawFocusIndicator        = next.drawFocusIndicator;
+    value.blendWithWindowBackground = next.blendWithWindowBackground;
+    value.useAccentLinkColor        = next.useAccentLinkColor;
+    value.colorizeMarkdownSource    = next.colorizeMarkdownSource;
+    value.directSourceInkPreview    = next.directSourceInkPreview;
+    value.showVerticalScrollbar     = next.showVerticalScrollbar;
+    value.sourceMonospace           = next.sourceMonospace;
+    value.tableOverflow             = next.tableOverflow;
+    value.sourceWrap                = next.sourceWrap;
+    value.sourceLineNumbers         = next.sourceLineNumbers;
+    value.sourceWhitespaceMarks     = next.sourceWhitespaceMarks;
 
     value.zoom                        = next.zoom;
     value.tabStopDip                  = next.tabStopDip;
@@ -2121,12 +2136,12 @@ std::optional<RichTextHorizontalScrollInfo> RichTextEditor::GetHorizontalScrollI
     if (! host || ! LayoutIsCurrent(*host))
         return std::nullopt;
     const auto viewport = TextViewport();
-    const float width = std::max(0.0f, viewport.right - viewport.left);
+    const float width   = std::max(0.0f, viewport.right - viewport.left);
     return RichTextHorizontalScrollInfo{_state->horizontalScrollDip, width, std::max(width, _state->layout.Width())};
 }
 void RichTextEditor::SetOnHorizontalScrollChanged(std::function<void(float)> callback)
 {
-    auto next = callback ? std::make_shared<const std::function<void(float)>>(std::move(callback)) : nullptr;
+    auto next                            = callback ? std::make_shared<const std::function<void(float)>>(std::move(callback)) : nullptr;
     _state->publishedHorizontalScrollDip = _state->horizontalScrollDip;
     _state->onHorizontalScrollChanged.swap(next);
 }
@@ -2136,12 +2151,21 @@ void RichTextEditor::PublishHorizontalScrollChanged() noexcept
     if (_state->publishedHorizontalScrollDip == offset)
         return;
     _state->publishedHorizontalScrollDip = offset;
-    const auto callback = _state->onHorizontalScrollChanged;
+    const auto callback                  = _state->onHorizontalScrollChanged;
     if (! callback)
         return;
-    try { (*callback)(offset); }
-    catch (const std::bad_alloc&) { std::terminate(); }
-    catch (const std::exception&) { Debug::Warning(L"DxUi::RichTextEditor: horizontal scroll notification failed; committed offset retained."); }
+    try
+    {
+        (*callback)(offset);
+    }
+    catch (const std::bad_alloc&)
+    {
+        std::terminate();
+    }
+    catch (const std::exception&)
+    {
+        Debug::Warning(L"DxUi::RichTextEditor: horizontal scroll notification failed; committed offset retained.");
+    }
 }
 float RichTextEditor::HorizontalTranslation() const noexcept
 {
@@ -2149,11 +2173,11 @@ float RichTextEditor::HorizontalTranslation() const noexcept
 }
 bool RichTextEditor::SetHorizontalScrollOffsetDip(float offsetDip)
 {
-    auto* host = GetHost();
+    auto* host      = GetHost();
     const auto info = GetHorizontalScrollInfo();
     if (! host || ! info || ! IsEnabled() || ! std::isfinite(offsetDip))
         return false;
-    const auto offset = std::clamp(offsetDip, 0.0f, std::max(0.0f, info->contentWidthDip - info->viewportWidthDip));
+    const auto offset   = std::clamp(offsetDip, 0.0f, std::max(0.0f, info->contentWidthDip - info->viewportWidthDip));
     _state->revealCaret = false;
     if (_state->horizontalScrollDip == offset)
         return true;
@@ -2161,7 +2185,7 @@ bool RichTextEditor::SetHorizontalScrollOffsetDip(float offsetDip)
     _state->hoveredLink.reset();
     ++_state->fileDropEpoch;
     const auto lifetime = GetLifetimeToken();
-    const auto binding = _state->bindingRevision;
+    const auto binding  = _state->bindingRevision;
     const auto revision = Revision();
     host->NotifyTextInputLayoutChanged(this);
     if (lifetime.expired() || GetHost() != host || _state->bindingRevision != binding || Revision() != revision)
@@ -2683,8 +2707,8 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             const auto codeInk = PrepareCodeInk(state.mode == RichText::ViewMode::Rich ? GetSemanticDocument() : nullptr);
             if (codeInk != S_OK)
                 return codeInk;
-            const auto result = PrepareSourceInk() && PrepareSourceGuides(host) ? S_OK : S_FALSE;
-            const auto lifetime = GetLifetimeToken();
+            const auto result          = PrepareSourceInk() && PrepareSourceGuides(host) ? S_OK : S_FALSE;
+            const auto lifetime        = GetLifetimeToken();
             const auto callbackBinding = state.bindingRevision, callbackRevision = Revision();
             PublishHorizontalScrollChanged();
             if (! lifetime.expired() && GetHost() == &host && _state->bindingRevision == callbackBinding && Revision() == callbackRevision)
@@ -2930,8 +2954,8 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             options.listItemSpacingDip          = appearance.listItemSpacingDip;
             options.semanticSpacing             = appearance.semanticSpacing;
             options.markdownPresentation        = appearance.markdownPresentation;
-            options.codeCopyAction               = bool(state.onCodeCopyRequested);
-            options.wrap                         = effectiveMode != RichText::ViewMode::Source || appearance.sourceWrap;
+            options.codeCopyAction              = bool(state.onCodeCopyRequested);
+            options.wrap                        = effectiveMode != RichText::ViewMode::Source || appearance.sourceWrap;
 
             if (! appearance.bodyFontFamily.empty())
                 options.fontFamily = appearance.bodyFontFamily;
@@ -3011,8 +3035,8 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         const auto codeInk = PrepareCodeInk(semanticDocument);
         if (codeInk != S_OK)
             return codeInk;
-        const auto result = PrepareSourceInk() && PrepareSourceGuides(host) ? S_OK : S_FALSE;
-        const auto lifetime = GetLifetimeToken();
+        const auto result          = PrepareSourceInk() && PrepareSourceGuides(host) ? S_OK : S_FALSE;
+        const auto lifetime        = GetLifetimeToken();
         const auto callbackBinding = state.bindingRevision, callbackRevision = Revision();
         PublishHorizontalScrollChanged();
         if (! lifetime.expired() && GetHost() == &host && _state->bindingRevision == callbackBinding && Revision() == callbackRevision)
@@ -3093,11 +3117,11 @@ void RichTextEditor::RequireCurrentLayout(const ControlHost& host) const
 }
 void RichTextEditor::UpdateCaretScroll() const
 {
-    auto& state               = *_state;
-    const auto previousScroll = state.scrollDip;
+    auto& state                   = *_state;
+    const auto previousScroll     = state.scrollDip;
     const auto previousHorizontal = state.horizontalScrollDip;
-    const auto viewport       = TextViewport();
-    const float height        = std::max(0.0f, viewport.bottom - viewport.top);
+    const auto viewport           = TextViewport();
+    const float height            = std::max(0.0f, viewport.bottom - viewport.top);
     if (state.revealCaret)
     {
         const auto caret = state.layout.SourceCaret(state.document.GetSelection().caret, state.sourceCaretSite);
@@ -3105,8 +3129,8 @@ void RichTextEditor::UpdateCaretScroll() const
             state.scrollDip = caret.y;
         if (caret.y + caret.height > state.scrollDip + height)
             state.scrollDip = caret.y + caret.height - height;
-        const float width = std::max(0.0f, viewport.right - viewport.left);
-        const bool reverse = state.mode == RichText::ViewMode::Source && IsRightToLeft();
+        const float width    = std::max(0.0f, viewport.right - viewport.left);
+        const bool reverse   = state.mode == RichText::ViewMode::Source && IsRightToLeft();
         const float visibleX = caret.x + (reverse ? state.horizontalScrollDip : -state.horizontalScrollDip);
         if (visibleX < 0.0f)
             state.horizontalScrollDip += reverse ? -visibleX : visibleX;
@@ -3115,8 +3139,8 @@ void RichTextEditor::UpdateCaretScroll() const
         state.revealCaret = false;
     }
     state.scrollDip = std::clamp(state.scrollDip, 0.0f, std::max(0.0f, state.layout.Height() - height));
-    state.horizontalScrollDip = std::clamp(state.horizontalScrollDip, 0.0f,
-                                           std::max(0.0f, state.layout.Width() - std::max(0.0f, viewport.right - viewport.left)));
+    state.horizontalScrollDip =
+        std::clamp(state.horizontalScrollDip, 0.0f, std::max(0.0f, state.layout.Width() - std::max(0.0f, viewport.right - viewport.left)));
     if (state.scrollDip != previousScroll || state.horizontalScrollDip != previousHorizontal)
     {
         state.hoveredLink.reset();
@@ -3531,8 +3555,7 @@ void RichTextEditor::Paint(ControlHost& host) const
         {
             auto* guideBrush = host.GetSolidBrush(host.GetTheme().highContrast ? style.text : host.GetTheme().subduedText);
             const auto marks = state.sourceGuides.Marks();
-            auto first = std::lower_bound(marks.begin(), marks.end(), state.scrollDip,
-                                          [](const auto& mark, float top) { return mark.y < top; });
+            auto first       = std::lower_bound(marks.begin(), marks.end(), state.scrollDip, [](const auto& mark, float top) { return mark.y < top; });
             while (first != marks.begin() && (first - 1)->y + (first - 1)->height > state.scrollDip)
                 --first;
             for (auto item = first; item != marks.end() && item->y < state.scrollDip + viewport.bottom - viewport.top; ++item)
@@ -3680,15 +3703,14 @@ void RichTextEditor::Paint(ControlHost& host) const
     if (state.mode == RichText::ViewMode::Source && appearance.sourceLineNumbers &&
         state.sourceGuides.Current(Revision(), state.layout.Generation(), true, appearance.sourceWhitespaceMarks))
     {
-        const auto outer = GetBounds();
+        const auto outer  = GetBounds();
         const auto gutter = IsRightToLeft() ? D2D1::RectF(viewport.right, viewport.top, std::min(outer.right, viewport.right + 44.0f), viewport.bottom)
                                             : D2D1::RectF(std::max(outer.left, viewport.left - 44.0f), viewport.top, viewport.left, viewport.bottom);
         context->PushAxisAlignedClip(gutter, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
         const auto restoreGutter = wil::scope_exit([context]() noexcept { context->PopAxisAlignedClip(); });
-        auto* brush = host.GetSolidBrush(host.GetTheme().highContrast ? style.text : host.GetTheme().subduedText);
-        const auto numbers = state.sourceGuides.Numbers();
-        auto first = std::lower_bound(numbers.begin(), numbers.end(), state.scrollDip,
-                                      [](const auto& number, float top) { return number.y < top; });
+        auto* brush              = host.GetSolidBrush(host.GetTheme().highContrast ? style.text : host.GetTheme().subduedText);
+        const auto numbers       = state.sourceGuides.Numbers();
+        auto first = std::lower_bound(numbers.begin(), numbers.end(), state.scrollDip, [](const auto& number, float top) { return number.y < top; });
         while (first != numbers.begin() && (first - 1)->y + (first - 1)->layout->Height() > state.scrollDip)
             --first;
         for (auto item = first; item != numbers.end() && item->y < state.scrollDip + viewport.bottom - viewport.top; ++item)
@@ -4116,24 +4138,24 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                     request.text = L"\\|";
                 else if (text == L"\\")
                     request.text = L"\\\\";
+                else if (_state->autoPairEnabled && text.size() == 1u)
+                {
+                    const auto closing     = AutoPairClosing(text[0]);
+                    const bool focused     = host.GetFocusControl() == this;
+                    const auto composition = focused ? host.GetNativeTextCompositionActive(this) : std::optional<bool>{false};
+                    if (closing && (! focused || ! host.HasActiveNativeTextInputSession() || composition.has_value()) && ! composition.value_or(false))
+                    {
+                        request.text += closing;
+                        request.tableCellCaretOffset = 1u;
+                    }
+                }
                 if (ExecuteMarkdownCommand(request) != RichText::MarkdownCommandStatus::Unavailable)
                     return true;
             }
         const auto selection = GetSelection();
         if (_state->autoPairEnabled && text.size() == 1u)
         {
-            wchar_t closing{};
-            switch (text[0])
-            {
-                case L'(': closing = L')'; break;
-                case L'[': closing = L']'; break;
-                case L'{': closing = L'}'; break;
-                case L'"':
-                case L'\'':
-                case L'*':
-                case L'_': closing = text[0]; break;
-                default: break;
-            }
+            const auto closing             = AutoPairClosing(text[0]);
             const bool focused             = host.GetFocusControl() == this;
             const auto composition         = focused ? host.GetNativeTextCompositionActive(this) : std::optional<bool>{false};
             const bool insideSourceSession = ! _state->sourceEditing || (selection.Start() >= _state->sourceEditing->region.source.first &&
@@ -5099,9 +5121,9 @@ HRESULT RichTextEditor::PrepareCodeInk(const std::shared_ptr<const RichText::Sem
 }
 bool RichTextEditor::PrepareSourceGuides(ControlHost& host)
 {
-    auto& state = *_state;
+    auto& state        = *_state;
     const bool numbers = state.mode == RichText::ViewMode::Source && state.appearance.sourceLineNumbers;
-    const bool marks = state.mode == RichText::ViewMode::Source && state.appearance.sourceWhitespaceMarks;
+    const bool marks   = state.mode == RichText::ViewMode::Source && state.appearance.sourceWhitespaceMarks;
     if (! numbers && ! marks)
     {
         state.sourceGuides.Clear();
@@ -5300,8 +5322,7 @@ bool RichTextEditor::OnMouseWheel(ControlHost& host, D2D1_POINT_2F, float delta,
             const auto info = GetHorizontalScrollInfo();
             if (! info)
                 return false;
-            const float next = std::clamp(info->offsetDip - delta / WHEEL_DELTA * 48.0f, 0.0f,
-                                          std::max(0.0f, info->contentWidthDip - info->viewportWidthDip));
+            const float next = std::clamp(info->offsetDip - delta / WHEEL_DELTA * 48.0f, 0.0f, std::max(0.0f, info->contentWidthDip - info->viewportWidthDip));
             return next != info->offsetDip && SetHorizontalScrollOffsetDip(next);
         }
         const auto info = GetScrollInfo();
