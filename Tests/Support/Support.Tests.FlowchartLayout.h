@@ -429,6 +429,7 @@ template <typename Check> inline void Corpus(Check&& check)
         const auto graph = Graph(example.source);
         const auto first = Place(graph, check, 1u), batched = Place(graph, check, 113u);
         Invariants(*first, check);
+        Invariants(*batched, check);
         check(first->groups.size() == graph->groups.size(), "all admitted source groups retain geometry");
         for (std::size_t group = 0u; group < first->groups.size(); ++group)
         {
@@ -448,6 +449,21 @@ template <typename Check> inline void Corpus(Check&& check)
         check(first->nodes.size() == batched->nodes.size() && first->edges.size() == batched->edges.size() &&
                   Near(first->extent.width, batched->extent.width) && Near(first->extent.height, batched->extent.height),
               "one-event and batched graph requests have deterministic extents and topology");
+        check(first->groups.size() == batched->groups.size(), "budget choice preserves group topology");
+        for (std::size_t index = 0u; index < first->nodes.size(); ++index)
+        {
+            const auto& a = first->nodes[index].bounds;
+            const auto& b = batched->nodes[index].bounds;
+            check(Near(a.x, b.x) && Near(a.y, b.y) && Near(a.width, b.width) && Near(a.height, b.height),
+                  "budget choice preserves every authored node's complete geometry");
+        }
+        for (std::size_t index = 0u; index < first->groups.size(); ++index)
+        {
+            const auto& a = first->groups[index].bounds;
+            const auto& b = batched->groups[index].bounds;
+            check(Near(a.x, b.x) && Near(a.y, b.y) && Near(a.width, b.width) && Near(a.height, b.height),
+                  "budget choice preserves every authored group envelope");
+        }
         for (std::size_t index = 0u; index < first->edges.size(); ++index)
             for (std::size_t point = 0u; point < first->edges[index].path.size(); ++point)
                 check(Near(first->edges[index].path[point].x, batched->edges[index].path[point].x) &&
