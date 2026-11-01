@@ -2372,6 +2372,12 @@ node, connects descendants to their parents, and preserves source order in the
 accessible alternative. Icons, unsupported shapes, tabs and malformed indentation
 retain the complete fence with a diagnostic.
 
+Flowcharts also accept `style ID stroke-width:Npx` after the named node has
+been declared, for integer widths 1, 2 or 3. The native outline uses the
+caller-supplied theme stroke and leaves its brush state intact, including in
+high contrast. Other style properties, unknown targets and unsupported widths
+retain the complete source with a diagnostic.
+
 Flowchart, state, class, sequence, pie, ER, Gantt and mind map diagrams accept one `accTitle: text` and one
 `accDescr: text` or multiline `accDescr {` / `accDescr{` block closed by a
 standalone `}`. Values are plain text, each bounded to 1024 UTF-16 units;

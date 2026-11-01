@@ -1205,6 +1205,26 @@ struct NativeFlowchartParser::Preparation
                 return Error(FlowchartIssue::InvalidDirection, at, end);
             return true;
         }
+        if (model->family == NativeDiagramFamily::Flowchart && Text().substr(at, 5u) == L"style" && at + 5u < end && Space(Text()[at + 5u]))
+        {
+            const auto statementStart = at;
+            at += 5u;
+            Skip(at, end);
+            const auto keyStart = at;
+            while (at < end && ! Space(Text()[at])) ++at;
+            const auto key = Text().substr(keyStart, at - keyStart);
+            Skip(at, end);
+            const auto property = Text().substr(at, end - at);
+            unsigned width{};
+            if (property == L"stroke-width:1px") width = 1u;
+            else if (property == L"stroke-width:2px") width = 2u;
+            else if (property == L"stroke-width:3px") width = 3u;
+            else return Error(FlowchartIssue::UnsupportedStatement, statementStart, end, FlowchartOutcome::Unsupported);
+            const auto found = std::ranges::find(model->nodes, key, &FlowchartNode::key);
+            if (found == model->nodes.end()) return Error(FlowchartIssue::UnsupportedStatement, statementStart, end, FlowchartOutcome::Unsupported);
+            found->strokeWidth = width;
+            return true;
+        }
         bool stateDeclaration = false;
         if (model->family == NativeDiagramFamily::State && Text().substr(at, 5u) == L"state" && at + 5u < end && Space(Text()[at + 5u]))
         {

@@ -1613,6 +1613,7 @@ void TestPreparedFlowchartEdgeLabelsCannotBeObscured()
     PreparedFlowchartTests::ErRaster(Require);
     PreparedFlowchartTests::GanttRaster(Require);
     PreparedFlowchartTests::MindmapRaster(Require);
+    PreparedFlowchartTests::NodeStrokeRaster(Require);
     PreparedFlowchartTests::StateNoteRaster(Require);
 }
 void TestRichTextLayoutTransientLinkInkAndUnderlineRestoreSharedState()

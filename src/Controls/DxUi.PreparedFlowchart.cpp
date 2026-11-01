@@ -239,6 +239,9 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
         throw std::invalid_argument("Invalid native Gantt timeline model");
     if (! ValidMindmapModel(*graph))
         throw std::invalid_argument("Invalid native mindmap hierarchy model");
+    for (const auto& node : graph->nodes)
+        if (node.strokeWidth < 1u || node.strokeWidth > 3u || (graph->family != NativeDiagramFamily::Flowchart && node.strokeWidth != 1u))
+            throw std::invalid_argument("Invalid native node stroke width");
     if (! graph->groups.empty() && graph->family != NativeDiagramFamily::Flowchart && graph->family != NativeDiagramFamily::State &&
         graph->family != NativeDiagramFamily::Class)
         throw std::invalid_argument("Groups require a supported diagram profile");
@@ -661,6 +664,7 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
     {
         const auto& node  = plan.nodes[index];
         const auto bounds = Rect(node.bounds);
+        const auto nodeStrokeWidth = static_cast<float>(state.graph->nodes[index].strokeWidth);
         if (node.shape == FlowchartShape::Bar)
         {
             target->FillRectangle(bounds, stroke);
@@ -668,7 +672,7 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
         else if (node.shape == FlowchartShape::Diamond || node.shape == FlowchartShape::Hexagon)
         {
             target->FillGeometry(state.nodePaths[index].get(), fill);
-            target->DrawGeometry(state.nodePaths[index].get(), stroke);
+            target->DrawGeometry(state.nodePaths[index].get(), stroke, nodeStrokeWidth);
         }
         else if (node.shape == FlowchartShape::Circle)
         {
@@ -676,32 +680,32 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
                                                (bounds.right - bounds.left) / 2.0f,
                                                (bounds.bottom - bounds.top) / 2.0f);
             target->FillEllipse(ellipse, fill);
-            target->DrawEllipse(ellipse, stroke);
+            target->DrawEllipse(ellipse, stroke, nodeStrokeWidth);
         }
         else if (node.shape == FlowchartShape::Rounded)
         {
             const auto rounded = D2D1::RoundedRect(bounds, 8.0f, 8.0f);
             target->FillRoundedRectangle(rounded, fill);
-            target->DrawRoundedRectangle(rounded, stroke);
+            target->DrawRoundedRectangle(rounded, stroke, nodeStrokeWidth);
         }
         else if (node.shape == FlowchartShape::Stadium)
         {
             const auto radius  = (bounds.bottom - bounds.top) / 2.0f;
             const auto stadium = D2D1::RoundedRect(bounds, radius, radius);
             target->FillRoundedRectangle(stadium, fill);
-            target->DrawRoundedRectangle(stadium, stroke);
+            target->DrawRoundedRectangle(stadium, stroke, nodeStrokeWidth);
         }
         else if (node.shape == FlowchartShape::Subroutine)
         {
             target->FillRectangle(bounds, fill);
-            target->DrawRectangle(bounds, stroke);
+            target->DrawRectangle(bounds, stroke, nodeStrokeWidth);
             target->DrawLine(D2D1::Point2F(bounds.left + 8.f, bounds.top), D2D1::Point2F(bounds.left + 8.f, bounds.bottom), stroke);
             target->DrawLine(D2D1::Point2F(bounds.right - 8.f, bounds.top), D2D1::Point2F(bounds.right - 8.f, bounds.bottom), stroke);
         }
         else if (node.shape == FlowchartShape::Note)
         {
             target->FillRectangle(bounds, fill);
-            target->DrawRectangle(bounds, stroke);
+            target->DrawRectangle(bounds, stroke, nodeStrokeWidth);
             target->DrawLine(D2D1::Point2F(bounds.right - 8.f, bounds.top), D2D1::Point2F(bounds.right - 8.f, bounds.top + 8.f), stroke);
             target->DrawLine(D2D1::Point2F(bounds.right - 8.f, bounds.top + 8.f), D2D1::Point2F(bounds.right, bounds.top + 8.f), stroke);
             target->DrawLine(D2D1::Point2F(bounds.right - 8.f, bounds.top), D2D1::Point2F(bounds.right, bounds.top + 8.f), stroke);
@@ -709,7 +713,7 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target, ID2D1Brush* text, ID2D1B
         else
         {
             target->FillRectangle(bounds, fill);
-            target->DrawRectangle(bounds, stroke);
+            target->DrawRectangle(bounds, stroke, nodeStrokeWidth);
         }
         const auto& nodeLabel = state.nodeLabels[index];
         for (std::size_t compartment = 0u; compartment < nodeLabel.compartmentCount; ++compartment)

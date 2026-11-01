@@ -728,6 +728,66 @@ template <typename Check> inline void GroupRaster(Check&& check)
     check(! rejected.Ready() && rejected.Geometry() && rejected.Geometry()->issue == FlowchartLayoutIssue::DiagramExtent && rejected.Geometry()->groups.empty(),
           "overlapping unrelated groups fail without publishing partial geometry");
 }
+template <typename Check> inline void NodeStrokeRaster(Check&& check)
+{
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
+    const auto graph = FlowchartLayoutTests::Graph(L"flowchart TD\nA[Alpha]\nstyle A stroke-width:3px\n");
+    check(graph->outcome == FlowchartOutcome::Prepared && graph->nodes.size() == 1u && graph->nodes[0u].strokeWidth == 3u,
+          "bounded node stroke declaration is applied to the intended existing node");
+    if (graph->outcome != FlowchartOutcome::Prepared || graph->nodes.size() != 1u) return;
+    const auto write = WriteFactory();
+    const auto drawing = DrawingFactory();
+    PreparedFlowchart prepared;
+    prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
+    Complete(prepared, check);
+    wil::com_ptr<IWICImagingFactory> imaging;
+    THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
+    constexpr UINT width = 256u, height = 256u, stride = width * 4u;
+    wil::com_ptr<IWICBitmap> bitmap;
+    THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+    wil::com_ptr<ID2D1RenderTarget> target;
+    const auto properties = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
+                                                           D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
+    wil::com_ptr<ID2D1SolidColorBrush> text, stroke, fill;
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), text.put()));
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Blue), stroke.put()));
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
+    target->BeginDraw(); target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+    check(prepared.Draw(target.get(), text.get(), stroke.get(), fill.get(), {}), "styled node paints with the caller's theme brushes");
+    THROW_IF_FAILED(target->EndDraw());
+    std::vector<BYTE> pixels(stride * height);
+    THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+    const auto box = prepared.Geometry()->nodes[0u].bounds;
+    const auto x = static_cast<UINT>(box.x + box.width / 2.0);
+    const auto y = static_cast<UINT>(box.y);
+    std::size_t ink{};
+    for (int dy = -2; dy <= 2; ++dy)
+    {
+        const auto row = static_cast<UINT>(static_cast<int>(y) + dy);
+        const auto offset = static_cast<std::size_t>(row) * stride + static_cast<std::size_t>(x) * 4u;
+        ink += pixels[offset] > 150u && pixels[offset + 1u] < 180u && pixels[offset + 2u] < 180u;
+    }
+    check(ink >= 3u && stroke->GetOpacity() == 1.0f, "three-pixel styled border paints visibly and preserves caller brush state");
+    auto invalid = std::make_shared<FlowchartModel>(*graph);
+    invalid->nodes[0u].strokeWidth = 4u;
+    bool layoutRejected{}, paintRejected{};
+    const std::vector<FlowchartSize> nodeSizes(1u, {16.0, 12.0});
+    try { NativeFlowchartLayout layout; layout.Begin(invalid, nodeSizes, {}); }
+    catch (const std::invalid_argument&) { layoutRejected = true; }
+    try { prepared.Begin(write.get(), drawing.get(), invalid, {}, {1u, 1u}); }
+    catch (const std::invalid_argument&) { paintRejected = true; }
+    check(layoutRejected && paintRejected && prepared.Ready(), "invalid direct stroke widths fail both services before publication");
+    for (const auto source : {L"flowchart TD\nA\nstyle A fill:red\n", L"flowchart TD\nA\nstyle A stroke-width:4px\n",
+                              L"flowchart TD\nstyle missing stroke-width:2px\n"})
+    {
+        const auto unsupported = FlowchartLayoutTests::Graph(source);
+        check(unsupported->outcome == FlowchartOutcome::Unsupported && unsupported->source == source && unsupported->nodes.empty(),
+              "unknown style properties, widths and targets preserve source without a partial model");
+    }
+}
 template <typename Check> inline void MindmapRaster(Check&& check)
 {
     const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);

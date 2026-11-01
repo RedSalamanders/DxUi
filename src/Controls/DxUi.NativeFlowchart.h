@@ -119,6 +119,7 @@ struct FlowchartNode
     std::uint16_t groupMask{};
     std::size_t noteTarget{};
     bool noteLeft{};
+    unsigned strokeWidth{1u};
     FlowchartShape shape{};
 };
 struct FlowchartGroup

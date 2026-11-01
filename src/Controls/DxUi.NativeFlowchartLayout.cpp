@@ -1091,6 +1091,9 @@ void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
     if (! ValidMindmapModel(*graph))
         throw std::invalid_argument("Invalid mindmap hierarchy model");
     for (const auto& node : graph->nodes)
+        if (node.strokeWidth < 1u || node.strokeWidth > 3u || (graph->family != NativeDiagramFamily::Flowchart && node.strokeWidth != 1u))
+            throw std::invalid_argument("Invalid native node stroke width");
+    for (const auto& node : graph->nodes)
         if (node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Note ||
             (node.shape == FlowchartShape::Note &&
              ((graph->family != NativeDiagramFamily::State && graph->family != NativeDiagramFamily::Class) ||

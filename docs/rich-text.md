@@ -243,7 +243,7 @@ using an explicit document location:
 The native extension engine choice is C++ only. `DxUiNativeFlowchart1` currently
 has an internal CPU parser with focused Debug checks for rectangles, rounded nodes, circles,
 diamonds, stadiums, hexagons and subroutines, four directions and bounded solid, dotted, thick and invisible edge chains. Bounded state, class, sequence, pie, ER, Gantt and mind map profiles are also available; other Mermaid families,
-other expanded shapes/edges, advanced subgraph forms, styling, icons and executable directives remain
+other expanded shapes/edges, advanced subgraph forms, additional styling, icons and executable directives remain
 unsupported. The pinned original corpus distinguishes accepted graphs from
 rejected definitions. Source-independent cooperative CPU geometry passes focused
 x64 Debug checks, with stable ranks, four orientations, direct unambiguous adjacent
@@ -1535,6 +1535,10 @@ The bounded `mindmap` profile draws one root and up to 127 descendants with
 space-indented levels through depth eight. Plain, rectangular, rounded and
 circular labels are supported. Branches alternate around the root; unsupported
 icons, shapes or indentation preserve the complete source with a diagnostic.
+
+After declaring a flowchart node, `style ID stroke-width:2px` sets its outline
+width to 1, 2 or 3 pixels using the current theme stroke. Other style properties
+and unknown targets preserve source with a diagnostic.
 
 Flowchart, state, class, sequence, pie, ER, Gantt and mind map diagrams accept one `accTitle: text` and one
 `accDescr: text` or multiline `accDescr {` / `accDescr{` block closed by a
