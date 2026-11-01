@@ -4084,7 +4084,9 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
             _state->pendingLeadSurrogate = character;
             return true;
         }
-        std::wstring text;
+        // MSVC Debug's noexcept empty-string constructor allocates an iterator
+        // proxy. The size constructor lets this input boundary catch failure.
+        std::wstring text(0u, L' ');
         if (IsUtf16TrailSurrogate(character))
         {
             const auto lead = std::exchange(_state->pendingLeadSurrogate, wchar_t{});
