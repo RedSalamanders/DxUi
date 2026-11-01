@@ -589,6 +589,7 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
     const auto& inlineGlyphs  = inlineSum->GlyphLayouts();
     const auto& displayGlyphs = displaySum->GlyphLayouts();
     const auto& forcedGlyphs  = forcedLimits->GlyphLayouts();
+    const auto glyphBaseline  = [](const auto& glyph) noexcept { return glyph.origin.y + glyph.extent.above; };
     Require(inlineGlyphs.size() == 3u && displayGlyphs.size() == 3u && forcedGlyphs.size() == 3u &&
                 inlineGlyphs[1u].origin.x >= inlineGlyphs[0u].origin.x + inlineGlyphs[0u].extent.width - 1.f &&
                 displayGlyphs[0u].font > inlineGlyphs[0u].font &&
@@ -596,7 +597,11 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
                          (displayGlyphs[0u].origin.x + displayGlyphs[0u].extent.width / 2.f)) < 3.f &&
                 std::abs(forcedGlyphs[2u].origin.x + forcedGlyphs[2u].extent.width / 2.f - (forcedGlyphs[0u].origin.x + forcedGlyphs[0u].extent.width / 2.f)) <
                     3.f &&
-                displayGlyphs[1u].origin.y > inlineGlyphs[1u].origin.y && displayGlyphs[2u].origin.y < inlineGlyphs[2u].origin.y,
+                std::abs(forcedGlyphs[1u].origin.x + forcedGlyphs[1u].extent.width / 2.f - (forcedGlyphs[0u].origin.x + forcedGlyphs[0u].extent.width / 2.f)) <
+                    3.f &&
+                glyphBaseline(displayGlyphs[1u]) - glyphBaseline(displayGlyphs[0u]) > glyphBaseline(inlineGlyphs[1u]) - glyphBaseline(inlineGlyphs[0u]) &&
+                glyphBaseline(displayGlyphs[0u]) - glyphBaseline(displayGlyphs[2u]) > glyphBaseline(inlineGlyphs[0u]) - glyphBaseline(inlineGlyphs[2u]) &&
+                glyphBaseline(forcedGlyphs[1u]) > glyphBaseline(forcedGlyphs[0u]) && glyphBaseline(forcedGlyphs[2u]) < glyphBaseline(forcedGlyphs[0u]),
             "automatic limits stack only in display style while explicit limits always stack around the operator");
 
     const auto inlineIntegral = prepare(L"\\int", false), displayIntegral = prepare(L"\\int", true);
