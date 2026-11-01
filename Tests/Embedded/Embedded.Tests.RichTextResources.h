@@ -234,6 +234,26 @@ static void TestRichMiddleAutoScroll(GraphicsFixture& gpu)
           "ticks scroll without changing source or history");
     Check(view.DispatchPointer({PointerAction::MiddleDown, 40.0f, 90.0f}), "second middle click cancels auto-scroll");
     Check(! view.Controls().GetCapturedControl(), "cancelling releases the retained capture");
+    Check(editor->SetScrollOffsetDip(0.0f), "reset auto-scroll position for overlapping gesture checks");
+    Check(view.DispatchPointer({PointerAction::Down, 40.0f, 40.0f}), "primary press owns the selection gesture");
+    Check(! view.DispatchPointer({PointerAction::MiddleDown, 40.0f, 40.0f}), "middle press cannot overlay an active primary gesture");
+    Check(view.DispatchPointer({PointerAction::Up, 40.0f, 40.0f}), "primary release completes the original gesture");
+    Check(! view.Controls().GetCapturedControl(), "primary release retires capture");
+    const auto released = editor->GetScrollInfo()->offsetDip;
+    static_cast<void>(view.DispatchPointer({PointerAction::Move, 40.0f, 100.0f}));
+    static_cast<void>(editor->Tick(view.Controls(), 200u));
+    static_cast<void>(editor->Tick(view.Controls(), 250u));
+    Check(editor->GetScrollInfo()->offsetDip == released && editor->GetText() == source && ! editor->CanUndo(),
+          "rejected overlapping middle press cannot scroll after primary release");
+    Check(view.DispatchPointer({PointerAction::MiddleDown, 40.0f, 40.0f}), "middle gesture starts after the primary release");
+    Check(view.DispatchPointer({PointerAction::Down, 40.0f, 40.0f}), "primary press cancels the earlier middle gesture");
+    Check(view.DispatchPointer({PointerAction::Cancel}), "capture cancellation retires the replacement primary gesture");
+    const auto cancelled = editor->GetScrollInfo()->offsetDip;
+    static_cast<void>(view.DispatchPointer({PointerAction::Move, 40.0f, 100.0f}));
+    static_cast<void>(editor->Tick(view.Controls(), 300u));
+    static_cast<void>(editor->Tick(view.Controls(), 350u));
+    Check(! view.Controls().GetCapturedControl() && editor->GetScrollInfo()->offsetDip == cancelled,
+          "primary takeover and capture cancellation do not leave auto-scroll running");
 }
 
 static void TestRichSourceMoveTransaction()

@@ -275,7 +275,9 @@ same sequencing, and ScrollPanel forwards the event in content coordinates.
 Controls without a triple-click override receive an ordinary third press.
 
 A middle press in a vertically scrollable RichTextEditor begins pointer-driven
-auto-scroll; displacement below or above the origin controls the direction and
+auto-scroll only when no other pointer gesture owns capture; an active primary
+selection or scrollbar gesture is never overlaid or displaced. Displacement below or above the origin
+controls the direction and
 speed, with an eight-DIP dead zone and an 800 DIP/s maximum. A second middle
 press, a primary press, Escape, loss of capture or focus, disabling, hiding or
 detaching the editor ends the gesture. Ticks use the host animation clock and

@@ -6353,6 +6353,10 @@ bool RichTextEditor::OnMouseMiddleDown(ControlHost& host, D2D1_POINT_2F point, U
         host.ReleaseMouseCapture();
         return true;
     }
+    // An existing pointer gesture owns capture until it completes or cancels.
+    // Do not overlay autoscroll on that gesture or steal another control's capture.
+    if (_state->dragging || _state->sourceMovePress || _state->scrollbarDragging || host.GetCapturedControl())
+        return false;
     const auto info = GetScrollInfo();
     const auto viewport = TextViewport();
     if (! IsEnabled() || ! IsVisible() || ! info || info->contentHeightDip <= info->viewportHeightDip ||
@@ -6360,8 +6364,12 @@ bool RichTextEditor::OnMouseMiddleDown(ControlHost& host, D2D1_POINT_2F point, U
         return false;
     const auto lifetime = GetLifetimeToken();
     host.SetFocusControl(this);
-    if (lifetime.expired() || GetHost() != &host || host.GetFocusControl() != this)
+    if (lifetime.expired() || GetHost() != &host || host.GetFocusControl() != this || ! IsEnabled() || ! IsVisible())
         return true;
+    const auto currentInfo = GetScrollInfo();
+    if (! currentInfo || currentInfo->contentHeightDip <= currentInfo->viewportHeightDip ||
+        _state->dragging || _state->sourceMovePress || _state->scrollbarDragging || host.GetCapturedControl())
+        return false;
     _state->middleAutoScroll = true;
     _state->middleAutoScrollOrigin = _state->middleAutoScrollPoint = point;
     _state->middleAutoScrollTick.reset();

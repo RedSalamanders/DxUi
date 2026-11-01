@@ -838,6 +838,36 @@ void TestRichTextEditorSelectionDrawWork()
             "selection rendering preserves exact source and selection without history");
 #endif
 }
+void TestRichTextEditorPointerGestureExclusion()
+{
+    AttachedHostWindow window;
+    auto editor = std::make_unique<RichTextEditor>(std::wstring(500u, L'\n'));
+    auto* raw = editor.get();
+    window.Host().SetRoot(std::move(editor));
+    RenderEditor(window);
+    const auto point = D2D1::Point2F(40.0f, 40.0f);
+    Require(raw->GetScrollInfo() && raw->GetScrollInfo()->contentHeightDip > raw->GetScrollInfo()->viewportHeightDip,
+            "overlap fixture is vertically scrollable");
+    Require(raw->OnMouseDown(window.Host(), point, false, 0u), "primary press starts selection");
+    Require(! raw->OnMouseMiddleDown(window.Host(), point, 0u), "middle press declines while primary capture is active");
+    Require(raw->OnMouseUp(window.Host(), point, false, 0u) && ! window.Host().GetCapturedControl(), "primary release ends capture");
+    const float released = raw->GetScrollInfo()->offsetDip;
+    static_cast<void>(raw->OnMouseMove(window.Host(), D2D1::Point2F(40.0f, 100.0f), 0u));
+    static_cast<void>(raw->Tick(window.Host(), 200u));
+    static_cast<void>(raw->Tick(window.Host(), 250u));
+    Require(raw->GetScrollInfo()->offsetDip == released, "rejected middle press cannot scroll after primary release");
+    Require(raw->OnMouseMiddleDown(window.Host(), point, 0u), "middle starts after primary release");
+    Require(raw->OnMouseDown(window.Host(), point, false, 0u), "primary press cancels middle before starting selection");
+    bool handled = false;
+    static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_CAPTURECHANGED, 0u, 0, handled));
+    Require(handled, "native capture cancellation is handled");
+    const float cancelled = raw->GetScrollInfo()->offsetDip;
+    static_cast<void>(raw->OnMouseMove(window.Host(), D2D1::Point2F(40.0f, 100.0f), 0u));
+    static_cast<void>(raw->Tick(window.Host(), 300u));
+    static_cast<void>(raw->Tick(window.Host(), 350u));
+    Require(! window.Host().GetCapturedControl() && raw->GetScrollInfo()->offsetDip == cancelled,
+            "capture cancellation after primary takeover leaves no auto-scroll");
+}
 void TestRichTextEditorScrollAndHostClock()
 {
     AttachedHostWindow window;
@@ -1952,6 +1982,7 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorDocumentFocusChromeDoesNotRetireTextGeometry);
     DXUI_RUN_TEST(TestRichTextEditorNativeUnicodeRoutingAndNavigation);
     DXUI_RUN_TEST(TestRichTextEditorClipboardAtomicityAndSourceContract);
+    DXUI_RUN_TEST(TestRichTextEditorPointerGestureExclusion);
     DXUI_RUN_TEST(TestRichTextEditorScrollAndHostClock);
     DXUI_RUN_TEST(TestRichTextEditorSelectionDrawWork);
     DXUI_RUN_TEST(TestRichTextEditorCatalogAndRebinding);
