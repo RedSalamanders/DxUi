@@ -12,6 +12,14 @@ Diagnostics are bounded scalar records after each observed boundary; retain cook
 geometry and focus state without publishing desktop identities. These tests do not qualify native ARM64, real IME,
 physical input or performance acceptance.
 
+Source-guide, code-language and code-line labels prepare their staged v0
+projections through the canonical reference-taking layout access seam. An
+internal by-value transfer must not invoke the aggregate's implicit noexcept
+move: MSVC Debug container-proxy allocation can fail during that move and
+terminate before the owning fault boundary can preserve its prior publication.
+The source-guide allocation sweep exercises every observed preparation failure
+and verifies unchanged published numbers/marks before recovery.
+
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
 

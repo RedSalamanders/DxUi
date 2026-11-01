@@ -1,0 +1,1 @@
+- Keep source-guide and code-label allocation failures inside fallible preparation by transferring staged projections through the canonical layout seam.

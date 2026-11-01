@@ -2297,7 +2297,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                         options.fontSizeDip          = std::max(1.0f, options.fontSizeDip * 0.75f);
                         options.lineHeightMultiplier = 0.0f;
                         auto label                   = std::make_unique<PreparedLayout>();
-                        label->Prepare(work.state->factory.get(), std::move(projection), options);
+                        PreparedLayoutAccess::Prepare(*label, work.state->factory.get(), projection, options);
                         (*work.state->codeLabels)[index] = std::move(label);
                         ++result.layoutsPrepared;
                     }
@@ -2353,7 +2353,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                     options.textAlignment    = DWRITE_TEXT_ALIGNMENT_TRAILING;
                     options.readingDirection = box.rtl ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
                     auto layout              = std::make_unique<PreparedLayout>();
-                    layout->Prepare(work.state->factory.get(), std::move(projection), options);
+                    PreparedLayoutAccess::Prepare(*layout, work.state->factory.get(), projection, options);
                     const bool rtl = box.rtl;
                     const float x  = rtl ? box.x + box.width + 4.0f : box.x - box.codeGutter + 4.0f;
                     work.state->codeNumbers.push_back({std::move(layout), D2D1::Point2F(x, box.y + work.codeNumberY), box.frame});

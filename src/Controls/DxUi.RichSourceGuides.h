@@ -1,4 +1,5 @@
 #pragma once
+#include "DxUi.PreparedLayoutAccess.h"
 #include "DxUi.RichEditorLayout.h"
 #include <DxUi/RichDocument.h>
 #include <DxUi/RichTextLayout.h>
@@ -93,7 +94,9 @@ public:
                     Document number{std::to_wstring(stage.line)};
                     auto projection = Project(number.Snapshot(), number.Revision(), ViewMode::Source);
                     auto label      = std::make_unique<PreparedLayout>();
-                    label->Prepare(factory, std::move(projection), stage.options);
+                    // A by-value call would invoke Projection's implicit
+                    // noexcept move, whose Debug STL proxies may allocate.
+                    PreparedLayoutAccess::Prepare(*label, factory, projection, stage.options);
                     const float position = geometry.SourceCaret(stage.cursor).y;
                     stage.stagedNumbers.emplace_back(std::move(label), position);
                     ++layouts;
