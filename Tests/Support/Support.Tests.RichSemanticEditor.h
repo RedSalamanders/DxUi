@@ -426,7 +426,7 @@ template <typename Prepare> void MathAndBroaderDiagrams(ControlHost& host, Prepa
         prepare();
     }
     {
-        const std::wstring source = L"Before $\\frac{1}{2}$ after\n\n# Heading $\\frac{1}{2}$ end";
+        const std::wstring source = L"Before *mixed* $\\frac{1}{2}$ after\n\n# Heading **bold** $\\frac{1}{2}$ end";
         auto root                 = std::make_unique<RichTextEditor>(source);
         auto* editor              = root.get();
         editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);

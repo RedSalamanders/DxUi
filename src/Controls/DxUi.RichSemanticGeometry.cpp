@@ -169,16 +169,18 @@ struct NativeImageGeometry
             placement.element = maths[index].element;
             placement.display = document.Elements()[placement.element].display;
             float font        = options.fontSizeDip;
-            for (const auto& run : document.Runs())
+            const auto runs   = document.Runs();
+            const auto run    = std::upper_bound(
+                runs.begin(), runs.end(), placement.display.first, [](std::size_t offset, const StyleRun& candidate) { return offset < candidate.start; });
+            if (run != runs.begin())
             {
-                if (placement.display.first < run.start || placement.display.first - run.start >= run.length)
-                    continue;
-                if (run.heading > 0u && run.heading <= options.headingFontSizeDip.size())
+                const auto& candidate = *std::prev(run);
+                if (placement.display.first - candidate.start < candidate.length && candidate.heading > 0u &&
+                    candidate.heading <= options.headingFontSizeDip.size())
                 {
-                    const float overrideSize = options.headingFontSizeDip[run.heading - 1u];
-                    font = overrideSize > 0.0f ? overrideSize : font * (1.0f + options.headingScaleStep * static_cast<float>(7u - run.heading));
+                    const float overrideSize = options.headingFontSizeDip[candidate.heading - 1u];
+                    font = overrideSize > 0.0f ? overrideSize : font * (1.0f + options.headingScaleStep * static_cast<float>(7u - candidate.heading));
                 }
-                break;
             }
             // PreparedMath construction validates bounded AST storage and reads
             // optional MATH constants without HRESULT propagation. Font-local
