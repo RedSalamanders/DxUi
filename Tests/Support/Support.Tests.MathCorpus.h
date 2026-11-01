@@ -451,6 +451,24 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
             check(lines[0u].first.y > layout.Baseline(), "under accents remain below the body baseline");
     }
 #endif
+#if DXUI_ENABLE_DIAGNOSTICS
+    for (const auto& [name, script, above] : std::array{std::tuple{L"overbrace", L"^{n}", true}, std::tuple{L"underbrace", L"_{n}", false},
+                                                        std::tuple{L"overgroup", L"^{n}", true}, std::tuple{L"undergroup", L"_{n}", false}})
+    {
+        auto expression = std::make_shared<const MathExpression>(ParseMath(L"\\" + std::wstring(name) + L"{x}" + script));
+        check(static_cast<bool>(*expression), "bounded brace or group with annotation parses");
+        Detail::PreparedMath layout(factory, expression, 24.f);
+        while (! layout.Advance())
+        {
+        }
+        const auto glyphs = layout.GlyphLayouts();
+        const auto lines = layout.StrokeLayouts();
+        check(glyphs.size() == 2u && lines.size() == 6u && (above ? glyphs[1u].origin.y < glyphs[0u].origin.y : glyphs[1u].origin.y > glyphs[0u].origin.y),
+              "brace or group stages a distinct outline and places its annotation above or below the body");
+        const auto center = lines[2u].last.y;
+        check(above ? center < lines[0u].first.y : center > lines[0u].first.y, "brace or group curvature faces away from its body");
+    }
+#endif
     check(static_cast<bool>(ParseMath(L"\\boxed{\\xcancel{a+b}}")) && ! ParseMath(L"\\boxed") && ! ParseMath(L"\\cancel{"),
           "nested annotations parse and incomplete operands fail closed");
     // The named sizes and factors are pinned independently to KaTeX 0.16.11 Options.js.

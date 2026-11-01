@@ -609,6 +609,7 @@ class PreparedMath final
                         node.text != L"tilde" && node.text != L"widetilde" && node.text != L"vec" && node.text != L"dot" && node.text != L"ddot" &&
                         node.text != L"check" && node.text != L"widecheck" && node.text != L"breve" && node.text != L"acute" && node.text != L"grave" &&
                         node.text != L"mathring" && node.text != L"underbar" && node.text != L"utilde" &&
+                        node.text != L"overbrace" && node.text != L"underbrace" && node.text != L"overgroup" && node.text != L"undergroup" &&
                         node.text != L"boxed" && node.text != L"cancel" && node.text != L"bcancel" && node.text != L"xcancel" && node.text != L"sout" && node.text != L"phase" && node.text != L"angl" &&
                         ! ColorBox(node.text))
                         throw std::length_error("Invalid mathematical accent");
@@ -1141,7 +1142,7 @@ class PreparedMath final
                     box.extent.below += pad;
                     continue;
                 }
-                if (node.text == L"underline" || node.text == L"underbar" || node.text == L"utilde")
+                if (node.text == L"underline" || node.text == L"underbar" || node.text == L"utilde" || node.text == L"underbrace" || node.text == L"undergroup")
                     box.extent.below += box.size * .2f;
                 else
                     box.extent.above += box.size * .3f;
@@ -1662,12 +1663,38 @@ class PreparedMath final
                 return;
             }
             Place(ChildAt(index, 0u), x, baseline);
-            const bool below = node.text == L"underline" || node.text == L"underbar" || node.text == L"utilde";
+            const bool below = node.text == L"underline" || node.text == L"underbar" || node.text == L"utilde" || node.text == L"underbrace" || node.text == L"undergroup";
             const float y = below ? baseline + box.extent.below - (node.text == L"underline" ? 2.f : box.size * .1f)
                                   : baseline - box.extent.above + box.size * (node.text == L"mathring" ? .15f : .1f);
             const auto shape = node.text == L"widehat" ? L'\u0302' : node.text == L"widetilde" ? L'\u0303' : node.text == L"vec" ? L'\u20d7' : L'\0';
             if (shape && AddHorizontalAccent(shape, x, baseline - box.extent.above, baseline - box.extent.above + box.size * .3f, box.extent.width, box.size))
                 return;
+            if (node.text == L"overbrace" || node.text == L"underbrace" || node.text == L"overgroup" || node.text == L"undergroup")
+            {
+                const bool group = node.text == L"overgroup" || node.text == L"undergroup";
+                const float direction = below ? -1.f : 1.f;
+                const float height = box.size * .15f * direction;
+                const float width = box.extent.width;
+                if (group)
+                {
+                    Stroke(x, y + height, x + width * .12f, y + height * .45f, stroke);
+                    Stroke(x + width * .12f, y + height * .45f, x + width * .3f, y + height * .1f, stroke);
+                    Stroke(x + width * .3f, y + height * .1f, x + width * .5f, y, stroke);
+                    Stroke(x + width * .5f, y, x + width * .7f, y + height * .1f, stroke);
+                    Stroke(x + width * .7f, y + height * .1f, x + width * .88f, y + height * .45f, stroke);
+                    Stroke(x + width * .88f, y + height * .45f, x + width, y + height, stroke);
+                }
+                else
+                {
+                    Stroke(x, y + height, x + width * .12f, y + height * .25f, stroke);
+                    Stroke(x + width * .12f, y + height * .25f, x + width * .38f, y + height * .25f, stroke);
+                    Stroke(x + width * .38f, y + height * .25f, x + width * .5f, y, stroke);
+                    Stroke(x + width * .5f, y, x + width * .62f, y + height * .25f, stroke);
+                    Stroke(x + width * .62f, y + height * .25f, x + width * .88f, y + height * .25f, stroke);
+                    Stroke(x + width * .88f, y + height * .25f, x + width, y + height, stroke);
+                }
+            }
+            else
             if (node.text == L"check" || node.text == L"widecheck")
             {
                 Stroke(x, y, x + box.extent.width / 2.f, y + box.size * .15f, stroke);
