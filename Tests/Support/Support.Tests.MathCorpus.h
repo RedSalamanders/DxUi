@@ -1023,8 +1023,42 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         check(horizontal >= 2u && vertical >= 3u, "dashed rules stage bounded separate horizontal and vertical segments");
     }
 #endif
-    check(! ParseMath(L"\\begin{matrix}a\\\\[2pt]b\\end{matrix}") && ! ParseMath(L"\\substack{a\\\\[2pt]b}"),
-          "unsupported row spacing retains the complete source instead of becoming literal cell text");
+    {
+        const auto nested = ParseMath(L"\\begin{matrix}\\begin{matrix}a\\\\[1em]b\\end{matrix}\\\\[2pt]c\\end{matrix}");
+        check(static_cast<bool>(nested), "nested matrix row-spacing scratch remains independent by depth");
+        if (nested)
+        {
+            const auto& outer = nested.root.children[0u];
+            check(outer.text == L"matrix;gaps:2pt,." && outer.children[0u].children[0u].text == L"matrix;gaps:1em,.",
+                  "nested matrix gaps remain attached to their authored rows");
+        }
+    }
+    for (const auto source : {L"\\begin{matrix}a\\\\[-1pt]b\\end{matrix}", L"\\substack{a\\\\[65pt]b}",
+                              L"\\begin{matrix}a\\\\[bogus]b\\end{matrix}", L"\\substack{a\\\\[2ptb}"})
+        check(! ParseMath(source), "invalid row-spacing dimensions retain complete source");
+#if DXUI_ENABLE_DIAGNOSTICS
+    for (const auto& [plainSource, spacedSource] : {
+             std::pair{L"\\begin{matrix}a\\\\b\\end{matrix}", L"\\begin{matrix}a\\\\[2pt]b\\end{matrix}"},
+             std::pair{L"\\substack{a\\\\b}", L"\\substack{a\\\\[2pt]b}"}})
+    {
+        const auto plainExpression = std::make_shared<const MathExpression>(ParseMath(plainSource));
+        const auto spacedExpression = std::make_shared<const MathExpression>(ParseMath(spacedSource));
+        check(static_cast<bool>(*plainExpression) && static_cast<bool>(*spacedExpression), "bounded matrix row spacing parses");
+        Detail::PreparedMath plain(factory, plainExpression, 24.f);
+        Detail::PreparedMath spaced(factory, spacedExpression, 24.f);
+        Detail::PreparedMath zoomed(factory, spacedExpression, 24.f, false, nullptr, 96.f, {}, 2.f);
+        while (! plain.Advance()) {}
+        while (! spaced.Advance()) {}
+        while (! zoomed.Advance()) {}
+        const auto distance = [](const auto& layout) {
+            const auto glyphs = layout.GlyphLayouts();
+            return glyphs.size() == 2u ? glyphs[1u].origin.y - glyphs[0u].origin.y : -1000.f;
+        };
+        check(std::abs(distance(spaced) - distance(plain) - 8.f / 3.f) < .01f &&
+                  std::abs(distance(zoomed) - distance(plain) - 16.f / 3.f) < .01f,
+              "row-spacing point dimensions separate actual glyph origins and follow absolute zoom");
+    }
+#endif
     {
         const auto rows     = ParseMath(L"\\begin{matrix}a\\cr b\\end{matrix}");
         const auto substack = ParseMath(L"\\substack{a\\cr b}");

@@ -30,6 +30,8 @@ class Parser
     std::wstring_view source;
     std::size_t at{}, nodes{};
     std::vector<unsigned> matrixRowWidths;
+    struct RowGap { std::size_t first{}, length{}; };
+    std::optional<std::vector<RowGap>> matrixRowGaps;
     std::optional<MathNode> equationTag;
     bool starredTag{};
     static void ObserveStack() noexcept
@@ -340,6 +342,45 @@ class Parser
         at += solid ? 6u : 10u;
         return true;
     }
+    void ConsumeRowSpacing(unsigned depth, std::size_t row, std::size_t separatorLength)
+    {
+        Space();
+        if (at == source.size() || source[at] != L'[')
+            return;
+        if (separatorLength != 2u)
+            Reject(MathIssue::UnsupportedCommand);
+        const auto first = ++at;
+        while (at < source.size() && source[at] != L']')
+            ++at;
+        if (at == source.size() || ! Detail::ParseMathDimension(source.substr(first, at - first)))
+            Reject(MathIssue::UnsupportedCommand);
+        if (! matrixRowGaps)
+            matrixRowGaps.emplace((MathMaximumGroupDepth + 1u) * MathMaximumRows);
+        (*matrixRowGaps)[static_cast<std::size_t>(depth) * MathMaximumRows + row] = {first, at - first};
+        ++at;
+    }
+    void AppendRowSpacings(std::wstring& name, unsigned depth, std::size_t rows)
+    {
+        if (! matrixRowGaps)
+            return;
+        const auto offset = static_cast<std::size_t>(depth) * MathMaximumRows;
+        bool any{};
+        for (std::size_t row = 0u; row < rows; ++row)
+            any = any || (*matrixRowGaps)[offset + row].length != 0u;
+        if (! any)
+            return;
+        name.append(L";gaps:");
+        for (std::size_t row = 0u; row < rows; ++row)
+        {
+            if (row)
+                name.push_back(L',');
+            const auto gap = (*matrixRowGaps)[offset + row];
+            if (gap.length)
+                name.append(source.substr(gap.first, gap.length));
+            else
+                name.push_back(L'.');
+        }
+    }
     MathNode Matrix(std::wstring environment, unsigned depth)
     {
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -381,6 +422,8 @@ class Parser
             matrixRowWidths.resize((MathMaximumGroupDepth + 1u) * (MathMaximumRows + 1u));
         auto* const rowWidths = matrixRowWidths.data() + static_cast<std::size_t>(depth) * (MathMaximumRows + 1u);
         std::fill_n(rowWidths, MathMaximumRows + 1u, 0u);
+        if (matrixRowGaps)
+            std::fill_n(matrixRowGaps->data() + static_cast<std::size_t>(depth) * MathMaximumRows, MathMaximumRows, RowGap{});
         unsigned columns{}, rowColumns{}, rows{};
         const auto finish = [&]() -> MathNode
         {
@@ -431,6 +474,7 @@ class Parser
             }
             else if (gathered)
                 environment = L"gathered";
+            AppendRowSpacings(environment, depth, rows);
             if (cells.size() == static_cast<std::size_t>(rows) * columns)
                 return Make(MathKind::Matrix, std::move(environment), std::move(cells), columns);
             std::vector<MathNode> rectangular(0u);
@@ -477,10 +521,9 @@ class Parser
             }
             if (! RowSeparatorLength())
                 Reject();
-            at += RowSeparatorLength();
-            Space();
-            if (at < source.size() && source[at] == L'[')
-                Reject(MathIssue::UnsupportedCommand);
+            const auto separatorLength = RowSeparatorLength();
+            at += separatorLength;
+            ConsumeRowSpacing(depth, rows - 1u, separatorLength);
             rowWidths[rows - 1u] |= rowColumns;
             columns    = std::max(columns, rowColumns);
             rowColumns = 0;
@@ -621,6 +664,46 @@ class Parser
         }
         return fraction;
     }
+    MathNode Substack(unsigned depth)
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        ObserveStack();
+#endif
+        Space();
+        if (at == source.size() || source[at++] != L'{')
+            Reject(MathIssue::MissingRequiredArgument);
+        if (matrixRowGaps)
+            std::fill_n(matrixRowGaps->data() + static_cast<std::size_t>(depth) * MathMaximumRows, MathMaximumRows, RowGap{});
+        std::vector<MathNode> rows(0u);
+        while (true)
+        {
+            if (rows.size() == MathMaximumRows)
+                Reject(MathIssue::Capacity);
+            rows.push_back(Row(depth + 1u, false, true, false, false, true));
+            if (RowSeparatorLength())
+            {
+                const auto separatorLength = RowSeparatorLength();
+                at += separatorLength;
+                ConsumeRowSpacing(depth, rows.size() - 1u, separatorLength);
+                Space();
+                if (at < source.size() && source[at] == L'}')
+                {
+                    ++at;
+                    break;
+                }
+                continue;
+            }
+            if (at < source.size() && source[at] == L'}')
+            {
+                ++at;
+                break;
+            }
+            Reject();
+        }
+        std::wstring name(L"gathered");
+        AppendRowSpacings(name, depth, rows.size());
+        return Make(MathKind::Matrix, std::move(name), std::move(rows), 1u);
+    }
     MathNode StructuredCommand(std::wstring_view name, unsigned depth)
     {
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -696,39 +779,6 @@ class Parser
                 index = Row(depth + 1u, false, false, false, true);
             }
             return Make(MathKind::Root, L"", {Atom(depth + 1), std::move(index)});
-        }
-        if (name == L"substack")
-        {
-            Space();
-            if (at == source.size() || source[at++] != L'{')
-                Reject(MathIssue::MissingRequiredArgument);
-            std::vector<MathNode> rows(0u);
-            while (true)
-            {
-                if (rows.size() == MathMaximumRows)
-                    Reject(MathIssue::Capacity);
-                rows.push_back(Row(depth + 1u, false, true, false, false, true));
-                if (RowSeparatorLength())
-                {
-                    at += RowSeparatorLength();
-                    Space();
-                    if (at < source.size() && source[at] == L'[')
-                        Reject(MathIssue::UnsupportedCommand);
-                    if (at < source.size() && source[at] == L'}')
-                    {
-                        ++at;
-                        break;
-                    }
-                    continue;
-                }
-                if (at < source.size() && source[at] == L'}')
-                {
-                    ++at;
-                    break;
-                }
-                Reject();
-            }
-            return Make(MathKind::Matrix, L"gathered", std::move(rows), 1u);
         }
         if (name == L"begin")
             return Matrix(GroupText(), depth);
@@ -1147,10 +1197,12 @@ class Parser
             return ExtensibleArrowCommand(name, depth);
         if (name == L"begin")
             return Matrix(GroupText(), depth);
+        if (name == L"substack")
+            return Substack(depth);
         if (name == L"genfrac")
             return GeneralFraction(depth);
         static constexpr std::wstring_view structured[] = {
-            L"not", L"frac", L"dfrac", L"tfrac", L"cfrac", L"binom", L"dbinom", L"tbinom", L"overset", L"underset", L"stackrel", L"sqrt", L"substack"};
+            L"not", L"frac", L"dfrac", L"tfrac", L"cfrac", L"binom", L"dbinom", L"tbinom", L"overset", L"underset", L"stackrel", L"sqrt"};
         if (std::ranges::find(structured, name) != std::end(structured))
             return StructuredCommand(name, depth);
         static constexpr std::wstring_view styled[] = {L"text",       L"textbf",     L"textit",   L"textup", L"textmd", L"textnormal", L"textrm", L"textsf", L"texttt", L"emph", L"pmb", L"operatorname", L"bold", L"frak", L"Bbb", L"mathrm",    L"mathbf",   L"mathit",
