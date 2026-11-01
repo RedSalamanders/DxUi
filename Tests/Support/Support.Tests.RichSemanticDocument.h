@@ -195,9 +195,14 @@ inline void HeadingOutlineAndFragments()
               ! document->ResolveHeadingFragment(L"https://example.test"),
           "fragment resolution shares exact source targets and rejects malformed external references");
     const auto toc = BuildHeadingTableOfContents(*document);
-    Check(toc == L"- [Hello world](#hello-world)\n  - [Hello world](#hello-world-1)\n- [Hello world-1](#hello-world-1-1)\n- [Hello world](#hello-world-2)\n- "
+    Check(toc == L"- [Hello world](#hello-world)\n  - [Hello world](#hello-world-1)\n- [Hello world\\-1](#hello-world-1-1)\n- [Hello world](#hello-world-2)\n- "
                  L"[Caf\u00e9](#caf%C3%A9)\n- [A &amp; B](#a--b)\n",
           "generated Markdown outline escapes and percent-encodes stable heading references");
+    const auto parsedToc = Build(toc, MarkdownProfile::RichMarkdown);
+    Check(parsedToc->Map().Display().find(L"Hello world-1") != std::wstring_view::npos && std::ranges::any_of(parsedToc->Elements(),
+                                                                                                              [](const auto& item)
+    { return item.role == SemanticRole::Link && item.name == L"Hello world-1" && item.destination == L"#hello-world-1-1"; }),
+          "escaped outline label and fragment round-trip through the Markdown semantic parser");
     Check(document->Map().Source() == source, "outline generation leaves source intact");
 }
 inline void OptionalDefinitionsAndAbbreviations()
