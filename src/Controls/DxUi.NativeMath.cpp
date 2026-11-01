@@ -76,11 +76,13 @@ class Parser
             result.atomClass = MathAtomClass::Inner;
         return result;
     }
-    static void Alphabet(MathNode& node, bool script)
+    static void Alphabet(MathNode& node, std::wstring_view alphabet)
     {
         constexpr std::u32string_view blackboard   = U"𝔸𝔹ℂ𝔻𝔼𝔽𝔾ℍ𝕀𝕁𝕂𝕃𝕄ℕ𝕆ℙℚℝ𝕊𝕋𝕌𝕍𝕎𝕏𝕐ℤ";
         constexpr std::u32string_view calligraphic = U"𝒜ℬ𝒞𝒟ℰℱ𝒢ℋℐ𝒥𝒦ℒℳ𝒩𝒪𝒫𝒬ℛ𝒮𝒯𝒰𝒱𝒲𝒳𝒴𝒵";
         constexpr std::u32string_view lowerScript  = U"𝒶𝒷𝒸𝒹ℯ𝒻ℊ𝒽𝒾𝒿𝓀𝓁𝓂𝓃ℴ𝓅𝓆𝓇𝓈𝓉𝓊𝓋𝓌𝓍𝓎𝓏";
+        constexpr std::u32string_view fraktur      = U"𝔄𝔅ℭ𝔇𝔈𝔉𝔊ℌℑ𝔍𝔎𝔏𝔐𝔑𝔒𝔓𝔔ℜ𝔖𝔗𝔘𝔙𝔚𝔛𝔜ℨ";
+        const auto upper = alphabet == L"mathcal" ? calligraphic : alphabet == L"mathfrak" ? fraktur : blackboard;
         if (node.kind == MathKind::Text)
         {
             std::wstring text(0u, L' ');
@@ -88,10 +90,11 @@ class Parser
             {
                 char32_t scalar = unit;
                 if (unit >= L'A' && unit <= L'Z')
-                    scalar = (script ? calligraphic : blackboard)[static_cast<std::size_t>(unit - L'A')];
+                    scalar = upper[static_cast<std::size_t>(unit - L'A')];
                 else if (unit >= L'a' && unit <= L'z')
-                    scalar = script ? lowerScript[static_cast<std::size_t>(unit - L'a')] : 0x1D552u + unit - L'a';
-                else if (! script && unit >= L'0' && unit <= L'9')
+                    scalar = alphabet == L"mathcal" ? lowerScript[static_cast<std::size_t>(unit - L'a')]
+                             : alphabet == L"mathfrak" ? 0x1D51Eu + unit - L'a' : 0x1D552u + unit - L'a';
+                else if (alphabet == L"mathbb" && unit >= L'0' && unit <= L'9')
                     scalar = 0x1D7D8u + unit - L'0';
                 if (scalar <= 0xFFFF)
                     text += static_cast<wchar_t>(scalar);
@@ -105,7 +108,7 @@ class Parser
             node.text.swap(text);
         }
         for (auto& child : node.children)
-            Alphabet(child, script);
+            Alphabet(child, alphabet);
     }
     std::wstring GroupText(bool textMode = false)
     {
@@ -433,12 +436,12 @@ class Parser
                 return result;
             }
             if (name == L"mathrm" || name == L"mathbf" || name == L"mathit" || name == L"mathnormal" || name == L"boldsymbol" || name == L"bm" ||
-                name == L"mathbb" || name == L"mathcal" || name == L"mathord" || name == L"mathop" || name == L"mathbin" || name == L"mathrel" ||
+                name == L"mathbb" || name == L"mathcal" || name == L"mathfrak" || name == L"mathord" || name == L"mathop" || name == L"mathbin" || name == L"mathrel" ||
                 name == L"mathopen" || name == L"mathclose" || name == L"mathpunct" || name == L"mathinner")
             {
                 auto body = Atom(depth + 1);
-                if (name == L"mathbb" || name == L"mathcal")
-                    Alphabet(body, name == L"mathcal");
+                if (name == L"mathbb" || name == L"mathcal" || name == L"mathfrak")
+                    Alphabet(body, name);
                 auto result = Make(MathKind::Style, std::wstring(name), {std::move(body)});
                 if (name == L"mathord")
                     result.atomClass = MathAtomClass::Ordinary;

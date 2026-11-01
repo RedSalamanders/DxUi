@@ -2126,7 +2126,7 @@ native display position and a `SemanticRole::Math` child named with its TeX nota
 `RichMath.h` exposes the data-only `ParseMath` model. Supported notation includes
 fractions (`frac`, `dfrac`, `tfrac`), indexed roots, simultaneous scripts, Greek and
 operator symbols, named functions, text/operator names, roman/bold/italic and
-blackboard/script alphabets, accents, scalable paired delimiters, matrices, cases,
+blackboard, script and Fraktur alphabets, accents, scalable paired delimiters, matrices, cases,
 aligned and gathered rows. Matrix rows use `\\` and cells use `&`; shorter rows
 are padded with empty cells to the widest row, within the total-cell limit. User macros, packages, file input, evaluation and full LaTeX
 compatibility are unsupported. Rejection retains the complete literal equation with

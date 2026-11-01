@@ -681,8 +681,27 @@ void TestRichSemanticNativeMathematicsAndBroaderMermaid()
                                L"\\text{speed in m/s}",
                                L"\\int_0^1 x dx",
                                L"\\left( a \\rightarrow b \\right)",
-                               L"\\mathbb{R}+\\mathcal{F}"})
+                               L"\\mathbb{R}+\\mathcal{F}+\\mathfrak{ABCxyz}"})
         Require(static_cast<bool>(ParseMath(formula)), "documented mathematical notation parses");
+    const auto fraktur = ParseMath(L"\\mathfrak{CHIRZaz09}");
+    Require(static_cast<bool>(fraktur), "Fraktur alphabet parses");
+    std::wstring frakturText;
+    const auto collect = [&frakturText](const auto& self, const MathNode& node) -> void
+    {
+        if (node.kind == MathKind::Text)
+            frakturText += node.text;
+        for (const auto& child : node.children)
+            self(self, child);
+    };
+    collect(collect, fraktur.root);
+    Require(frakturText == L"ℭℌℑℜℨ𝔞𝔷09", "Fraktur maps Unicode legacy capitals and supplementary lowercase without changing digits");
+    const auto writeFactory = PreparedFlowchartTests::WriteFactory();
+    Detail::PreparedMath frakturPaint(writeFactory.get(), std::make_shared<const MathExpression>(fraktur), 24.f);
+    unsigned frakturTurns{};
+    while (! frakturPaint.Advance())
+        Require(++frakturTurns <= 32u, "Fraktur glyphs prepare within the bounded leaf budget");
+    Require(! frakturPaint.GlyphLayouts().empty() && frakturPaint.Size().width > 0.f && frakturPaint.Size().height > 0.f,
+            "Fraktur participates in native measured layout");
     for (const auto formula : {L"\\input{file}", L"\\frac{a}", L"x^2^3", L"\\begin{matrix}x\\end{cases}"})
         Require(! ParseMath(formula), "malformed, unsafe or unsupported equations reject the complete formula");
     const auto fallback = RichSemanticDocumentTests::Build(L"$\\input{private}$", MarkdownProfile::RichMarkdown);
