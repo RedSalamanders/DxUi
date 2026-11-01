@@ -721,7 +721,15 @@ struct PreparedSemanticGeometry::Preparation
         if (! std::isfinite(height) || height <= 0.0f || ! std::isfinite(paragraphGap))
             throw std::overflow_error("Nonfinite semantic paragraph spacing");
     }
-    CaretGeometry StandaloneMathCaret(const SemanticBox& box, std::size_t position, const LayoutOptions& options, float lineTop, float baseline) const
+    struct MathCaretFontMetric
+    {
+        unsigned flags{}, heading{};
+        float size{}, ascent{}, gap{}, height{};
+    };
+    std::array<MathCaretFontMetric, 128u> mathCaretFonts{};
+    std::size_t mathCaretFontCount{};
+    wil::com_ptr<IDWriteFontCollection> mathCaretCollection;
+    CaretGeometry StandaloneMathCaret(const SemanticBox& box, std::size_t position, const LayoutOptions& options, float lineTop, float baseline)
     {
         const auto& runs   = box.layout.Content().runs;
         const auto found   = std::ranges::find_if(runs, [&](const auto& run) { return run.start <= position && position - run.start < run.length; });
@@ -732,20 +740,27 @@ struct PreparedSemanticGeometry::Preparation
         if (heading)
             size = options.headingFontSizeDip[heading - 1u] > 0.f ? options.headingFontSizeDip[heading - 1u]
                                                                   : size * (1.f + options.headingScaleStep * static_cast<float>(7u - heading));
+        const auto styleFlags = flags & (Bold | Italic | Code);
+        for (std::size_t i = 0u; i < mathCaretFontCount; ++i)
+        {
+            const auto& metric = mathCaretFonts[i];
+            if (metric.flags == styleFlags && metric.heading == heading && metric.size == size)
+                return {0.f, lineTop + baseline - metric.ascent - metric.gap * .5f, metric.height};
+        }
         const auto weight = heading ? ((flags & Bold) ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_SEMI_BOLD)
                                     : ((flags & Bold) ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_NORMAL);
         const auto style  = (flags & Italic) ? DWRITE_FONT_STYLE_ITALIC : DWRITE_FONT_STYLE_NORMAL;
-        wil::com_ptr<IDWriteFontCollection> collection;
-        THROW_IF_FAILED(state->factory->GetSystemFontCollection(collection.put()));
+        if (! mathCaretCollection)
+            THROW_IF_FAILED(state->factory->GetSystemFontCollection(mathCaretCollection.put()));
         UINT32 index{};
         BOOL exists{};
-        THROW_IF_FAILED(collection->FindFamilyName(family.c_str(), &index, &exists));
+        THROW_IF_FAILED(mathCaretCollection->FindFamilyName(family.c_str(), &index, &exists));
         if (! exists)
-            THROW_IF_FAILED(collection->FindFamilyName(L"Segoe UI", &index, &exists));
+            THROW_IF_FAILED(mathCaretCollection->FindFamilyName(L"Segoe UI", &index, &exists));
         if (! exists)
             index = 0u;
         wil::com_ptr<IDWriteFontFamily> selected;
-        THROW_IF_FAILED(collection->GetFontFamily(index, selected.put()));
+        THROW_IF_FAILED(mathCaretCollection->GetFontFamily(index, selected.put()));
         wil::com_ptr<IDWriteFont> font;
         THROW_IF_FAILED(selected->GetFirstMatchingFont(weight, DWRITE_FONT_STRETCH_NORMAL, style, font.put()));
         DWRITE_FONT_METRICS metrics{};
@@ -758,6 +773,8 @@ struct PreparedSemanticGeometry::Preparation
         const float height = (static_cast<float>(metrics.ascent) + static_cast<float>(metrics.descent) + static_cast<float>(metrics.lineGap)) * scale;
         if (! std::isfinite(height) || height <= 0.f)
             throw std::logic_error("Mathematical caret font has invalid line metrics");
+        if (mathCaretFontCount < mathCaretFonts.size())
+            mathCaretFonts[mathCaretFontCount++] = {styleFlags, heading, size, ascent, gap, height};
         return {0.f, lineTop + baseline - ascent - gap * .5f, height};
     }
     void MeasureBodyLine()
