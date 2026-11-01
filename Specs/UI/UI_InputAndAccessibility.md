@@ -1172,7 +1172,13 @@ than traversing a successor. Ordinary live-control layout changes do not alone
 cancel logical traversal. Padded-cell navigation retains a
 revision-local visual site, including multiple cells at one raw ACP. Literal
 pipe/backslash typing in empty/padded cells escapes source spelling. Source view
-and raw TSF replacements do not acquire this structural policy.
+and raw TSF replacements do not acquire this structural policy. The optional
+`sourceTabSpaces` appearance setting (1–16; zero by default) captures Tab in
+Source view, an active source-edit region and code-block content to insert that
+many spaces, or a tab when `sourceTabUsesTabs` is set. A selected set of physical lines is indented in one undo transaction;
+Shift+Tab removes up to that many leading spaces or one leading tab per line.
+Source-region edits never reach outside their active interval. Ctrl+Tab remains
+available for host traversal. Active text composition suppresses this edit.
 
 A task press MUST stage an immutable current source plan without editing text.
 Only matching release inside its checkbox can apply it. Leaving the rectangle,

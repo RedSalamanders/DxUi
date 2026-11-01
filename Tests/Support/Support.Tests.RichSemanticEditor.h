@@ -299,6 +299,32 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     prepare();
     editor->SetSelection({2u, 2u});
     Check(! editor->OnKeyDown(host, VK_TAB, 0u), "ordinary paragraph Tab remains host traversal");
+    auto tabAppearance            = editor->GetAppearance();
+    tabAppearance.sourceTabSpaces = 2u;
+    editor->SetAppearance(tabAppearance);
+    editor->SetViewMode(ViewMode::Source);
+    editor->SetText(L"one\r\ntwo\r\nthree");
+    editor->SetSelection({8u, 0u});
+    Check(editor->OnKeyDown(host, VK_TAB, 0u) && editor->GetText() == L"  one\r\n  two\r\nthree" && editor->GetSelection() == Selection{12u, 0u},
+          "source Tab indents selected physical lines as one backward selection");
+    Check(editor->Undo() && editor->GetText() == L"one\r\ntwo\r\nthree", "multiline indentation is one undo transaction");
+    editor->SetSelection({0u, 8u});
+    Check(editor->OnKeyDown(host, VK_TAB, 0u) && editor->OnKeyDown(host, VK_TAB, MK_SHIFT) && editor->GetText() == L"one\r\ntwo\r\nthree",
+          "Shift+Tab removes indentation on the same lines");
+    Check(! editor->OnKeyDown(host, VK_TAB, MK_CONTROL), "Ctrl+Tab remains available for host focus traversal");
+    tabAppearance.sourceTabUsesTabs = true;
+    editor->SetAppearance(tabAppearance);
+    editor->SetSelection({0u, 0u});
+    Check(editor->OnKeyDown(host, VK_TAB, 0u) && editor->GetText().starts_with(L"\tone"), "source Tab can insert a literal tab");
+    tabAppearance.sourceTabUsesTabs = false;
+    editor->SetAppearance(tabAppearance);
+    editor->SetViewMode(ViewMode::Rich);
+    editor->SetText(L"```\nabc\n```\n");
+    prepare();
+    editor->SetSelection({5u, 5u});
+    Check(editor->OnKeyDown(host, VK_TAB, 0u) && editor->GetText() == L"```\na  bc\n```\n", "code Tab inserts configured spaces");
+    tabAppearance.sourceTabSpaces = 0u;
+    editor->SetAppearance(tabAppearance);
     editor->SetText(L"a | b | c\n- | - | -\nx\n");
     prepare();
     const auto syntax = editor->GetMarkdownSyntax();

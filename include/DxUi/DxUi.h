@@ -3098,12 +3098,15 @@ struct RichTextEditorAppearance
     bool useAccentLinkColor        = false;
     bool colorizeMarkdownSource    = false;
     bool directSourceInkPreview    = false;
-    float maximumTextWidthDip      = 0.0f;
-    float paddingDip               = -1.0f; // Negative one inherits the density-specific inset.
-    float bodyFontSizeDip          = 0.0f;  // Zero inherits the host's body size.
-    float codeFontSizeDip          = 0.0f;  // Zero inherits the body size.
-    float lineHeightMultiplier     = 0.0f;  // Zero retains native spacing; otherwise font-size relative.
-    float headingScaleStep         = 0.15f;
+    // Zero preserves host Tab traversal; 1..16 inserts that many spaces in source/code.
+    unsigned sourceTabSpaces   = 0u;
+    bool sourceTabUsesTabs     = false; // When enabled, insert a tab instead of spaces.
+    float maximumTextWidthDip  = 0.0f;
+    float paddingDip           = -1.0f; // Negative one inherits the density-specific inset.
+    float bodyFontSizeDip      = 0.0f;  // Zero inherits the host's body size.
+    float codeFontSizeDip      = 0.0f;  // Zero inherits the body size.
+    float lineHeightMultiplier = 0.0f;  // Zero retains native spacing; otherwise font-size relative.
+    float headingScaleStep     = 0.15f;
     std::array<float, 6> headingFontSizeDip{};
     std::array<float, 6> headingLineHeightMultiplier{};
     std::wstring bodyFontFamily; // Empty inherits the host body family.

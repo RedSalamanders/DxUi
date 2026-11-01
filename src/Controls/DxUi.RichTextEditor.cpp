@@ -650,9 +650,10 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
     const auto validHeight  = [](float value) noexcept { return std::isfinite(value) && (value == 0.0f || (value >= 1.0f && value <= 4.0f)); };
     const auto validSpacing = [](const std::optional<float>& value, float maximum) noexcept
     { return ! value || (std::isfinite(value.value()) && value.value() >= 0.0f && value.value() <= maximum); };
-    if (! std::isfinite(appearance.maximumTextWidthDip) || appearance.maximumTextWidthDip < 0.0f || appearance.maximumTextWidthDip > 1048576.0f ||
-        ! std::isfinite(appearance.paddingDip) || (appearance.paddingDip != -1.0f && (appearance.paddingDip < 0.0f || appearance.paddingDip > 256.0f)) ||
-        ! validSize(appearance.bodyFontSizeDip) || ! validSize(appearance.codeFontSizeDip) || ! std::isfinite(appearance.lineHeightMultiplier) ||
+    if (appearance.sourceTabSpaces > 16u || ! std::isfinite(appearance.maximumTextWidthDip) || appearance.maximumTextWidthDip < 0.0f ||
+        appearance.maximumTextWidthDip > 1048576.0f || ! std::isfinite(appearance.paddingDip) ||
+        (appearance.paddingDip != -1.0f && (appearance.paddingDip < 0.0f || appearance.paddingDip > 256.0f)) || ! validSize(appearance.bodyFontSizeDip) ||
+        ! validSize(appearance.codeFontSizeDip) || ! std::isfinite(appearance.lineHeightMultiplier) ||
         (appearance.lineHeightMultiplier != 0.0f && (appearance.lineHeightMultiplier < 1.0f || appearance.lineHeightMultiplier > 4.0f)) ||
         ! std::isfinite(appearance.headingScaleStep) || appearance.headingScaleStep < 0.0f || appearance.headingScaleStep > 1.0f ||
         ! validFont(appearance.bodyFontFamily) || ! validFont(appearance.codeFontFamily) || ! std::ranges::all_of(appearance.headingFontSizeDip, validSize) ||
@@ -684,6 +685,8 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
     value.useAccentLinkColor          = next.useAccentLinkColor;
     value.colorizeMarkdownSource      = next.colorizeMarkdownSource;
     value.directSourceInkPreview      = next.directSourceInkPreview;
+    value.sourceTabSpaces             = next.sourceTabSpaces;
+    value.sourceTabUsesTabs           = next.sourceTabUsesTabs;
     value.maximumTextWidthDip         = next.maximumTextWidthDip;
     value.paddingDip                  = next.paddingDip;
     value.bodyFontSizeDip             = next.bodyFontSizeDip;
@@ -2912,6 +2915,103 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
         switch (key)
         {
             case VK_TAB:
+                if (! control && Editable() && _state->appearance.sourceTabSpaces != 0u)
+                {
+                    const auto selection = GetSelection();
+                    const auto snapshot  = Snapshot();
+                    const auto text      = snapshot.Text();
+                    RichText::MarkdownRange scope{0u, text.size()};
+                    bool eligible = _state->mode == RichText::ViewMode::Source;
+                    if (_state->sourceEditing)
+                    {
+                        scope    = _state->sourceEditing->region.source;
+                        eligible = true;
+                    }
+                    else if (! eligible && _state->markdownRendering)
+                    {
+                        if (const auto syntax = GetMarkdownSyntax())
+                            for (const auto& node : syntax->Nodes())
+                                if ((node.block.kind == RichText::MarkdownBlockKind::FencedCode ||
+                                     node.block.kind == RichText::MarkdownBlockKind::IndentedCode) &&
+                                    selection.Start() >= node.block.content.first && selection.End() <= node.block.content.last)
+                                {
+                                    scope    = node.block.content;
+                                    eligible = true;
+                                    break;
+                                }
+                    }
+                    if (eligible && selection.Start() >= scope.first && selection.End() <= scope.last)
+                    {
+                        NativeTextInputState input{.text = std::wstring(0u, L' '), .compositionClauseBoundaries = std::vector<size_t>(0u)};
+                        if (host.GetFocusControl() == this)
+                        {
+                            const bool available = host.TryReadNativeTextInputState(this, input);
+                            if ((host.HasActiveNativeTextInputSession() && ! available) ||
+                                (available && (input.compositionStartIndex || input.compositionEndIndex)))
+                                return true;
+                        }
+                        const std::wstring indent(_state->appearance.sourceTabUsesTabs ? 1u : _state->appearance.sourceTabSpaces,
+                                                  _state->appearance.sourceTabUsesTabs ? L'\t' : L' ');
+                        if (! shift && selection.Start() == selection.End())
+                        {
+                            const RichText::SourceEdit edit{{selection.Start(), selection.End()}, indent};
+                            const auto end = selection.Start() + indent.size();
+                            static_cast<void>(ApplySourceEdits(snapshot, Revision(), std::span(&edit, 1u), {end, end}));
+                            return true;
+                        }
+                        auto line = selection.Start();
+                        while (line > scope.first && text[line - 1u] != L'\n' && text[line - 1u] != L'\r')
+                            --line;
+                        std::vector<RichText::SourceEdit> edits(0u);
+                        while (line <= selection.End() && line < scope.last)
+                        {
+                            if (line == selection.End() && selection.Start() != selection.End())
+                                break;
+                            size_t remove = 0u;
+                            if (shift)
+                            {
+                                if (text[line] == L'\t')
+                                    remove = 1u;
+                                else
+                                    while (remove < _state->appearance.sourceTabSpaces && line + remove < scope.last && text[line + remove] == L' ')
+                                        ++remove;
+                                if (remove != 0u)
+                                    edits.push_back({{line, line + remove}, {}});
+                            }
+                            else
+                                edits.push_back({{line, line}, indent});
+                            while (line < scope.last && text[line] != L'\r' && text[line] != L'\n')
+                                ++line;
+                            if (line == scope.last)
+                                break;
+                            if (text[line++] == L'\r' && line < scope.last && text[line] == L'\n')
+                                ++line;
+                        }
+                        if (! edits.empty())
+                        {
+                            const auto map = [&](size_t offset, bool leading)
+                            {
+                                size_t mapped = offset;
+                                for (const auto& edit : edits)
+                                {
+                                    if (edit.source.first > offset || (leading && edit.source.first == offset))
+                                        break;
+                                    if (edit.source.first == edit.source.last)
+                                        mapped += edit.replacement.size();
+                                    else
+                                        mapped -= (std::min)(offset, edit.source.last) - edit.source.first;
+                                }
+                                return mapped;
+                            };
+                            const auto start = map(selection.Start(), true);
+                            const auto end   = map(selection.End(), false);
+                            const RichText::Selection after =
+                                selection.anchor <= selection.caret ? RichText::Selection{start, end} : RichText::Selection{end, start};
+                            static_cast<void>(ApplySourceEdits(snapshot, Revision(), edits, after));
+                        }
+                        return true;
+                    }
+                }
                 if (! control && ! _state->sourceEditing && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich)
                 {
                     RichText::MarkdownCommandRequest request;
