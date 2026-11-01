@@ -107,6 +107,46 @@ inline void ReorderedFootnoteCaretSitesAndSourceLines()
         const auto ranges = geometry.SourceRange({0u, source.size()});
         Check(! ranges.empty(), "whole-source selection paints reordered real text without owning generated backlinks");
     }
+    {
+        constexpr std::wstring_view source = L"[^n]: note\n\nmain[^n]\n";
+        const auto document                = RichSemanticDocumentTests::Build(source, MarkdownProfile::RichMarkdown);
+        PreparedSemanticGeometry geometry;
+        LayoutOptions options;
+        options.widthDip = 360.0f;
+        geometry.Begin(factory.get(), document, options);
+        Complete(geometry);
+        const auto main = source.find(L"main"), note = source.find(L"note");
+        auto forward       = SourceCaretHit{main + 4u, MarkdownNoNode};
+        bool enteredFooter = false;
+        for (unsigned step = 0u; step != 32u; ++step)
+        {
+            const auto next = geometry.StepSource(forward.position, forward.site, true);
+            if (next.position == forward.position && next.site == forward.site)
+                break;
+            forward = next;
+            if (forward.position >= note && forward.position < note + 4u)
+            {
+                enteredFooter = true;
+                break;
+            }
+        }
+        Check(enteredFooter, "Right enters a visually later footnote whose source occurs before main text");
+        auto backward    = SourceCaretHit{note, MarkdownNoNode};
+        bool enteredMain = false;
+        for (unsigned step = 0u; step != 32u; ++step)
+        {
+            const auto next = geometry.StepSource(backward.position, backward.site, false);
+            if (next.position == backward.position && next.site == backward.site)
+                break;
+            backward = next;
+            if (backward.position >= main && backward.position <= source.size())
+            {
+                enteredMain = true;
+                break;
+            }
+        }
+        Check(enteredMain, "Left from the footer returns to visually earlier main text at a later raw source offset");
+    }
     const auto atomic = RichSemanticDocumentTests::Build(L"![a very long image alternative that wraps over many SDK lines](local)\n");
     PreparedSemanticGeometry wrapped;
     LayoutOptions narrow;

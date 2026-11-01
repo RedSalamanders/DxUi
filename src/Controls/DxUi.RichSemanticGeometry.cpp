@@ -2301,24 +2301,37 @@ SourceCaretHit PreparedSemanticGeometry::StepSource(std::size_t source, std::siz
             if (forwards ? result > source : result < source)
                 return {result, index};
         }
-    auto neighbor = index;
+    auto neighbor            = index;
+    const auto footnoteOwner = [&](const SemanticBox& candidate) noexcept
+    {
+        const auto& nodes = state.document->Syntax()->Nodes();
+        for (auto node = candidate.paragraph.syntaxNode; node < nodes.size(); node = nodes[node].parent)
+            if (nodes[node].block.kind == MarkdownBlockKind::FootnoteDefinition)
+                return node;
+        return MarkdownNoNode;
+    };
+    const auto currentFootnote = footnoteOwner(box);
     while (forwards ? neighbor + 1u < state.boxes.size() : neighbor > 0u)
     {
         neighbor           = forwards ? neighbor + 1u : neighbor - 1u;
         const auto& target = *state.boxes[neighbor];
+        if (target.markerOnly)
+            continue;
+        const auto targetFootnote = footnoteOwner(target);
+        const bool reordered      = currentFootnote != targetFootnote && (currentFootnote != MarkdownNoNode || targetFootnote != MarkdownNoNode);
         if (target.sourceCaret)
         {
             const auto insertion = target.sourceCaret->insertion;
             // Equal ACPs are meaningful only for explicit visual source sites,
             // such as padded cells. Generated marker anchors must not reverse
             // direction or add an invisible extra arrow stop between layouts.
-            if (forwards ? insertion >= source : insertion <= source)
+            if (reordered || (forwards ? insertion >= source : insertion <= source))
                 return {insertion, neighbor};
             continue;
         }
         auto position = forwards ? target.paragraph.display.first : target.paragraph.display.last;
         auto raw      = map.ToSource(position, forwards ? MappingAffinity::Leading : MappingAffinity::Trailing);
-        if (forwards ? raw > source : raw < source)
+        if (reordered ? raw != source && state.Belongs(target, raw) : (forwards ? raw > source : raw < source))
             return {raw, neighbor};
         while (forwards ? position < target.paragraph.display.last : position > target.paragraph.display.first)
         {
@@ -2328,7 +2341,7 @@ SourceCaretHit PreparedSemanticGeometry::StepSource(std::size_t source, std::siz
                 break;
             position = map.SnapDisplayBoundary(next, forwards ? MappingAffinity::Trailing : MappingAffinity::Leading);
             raw      = map.ToSource(position, forwards ? MappingAffinity::Trailing : MappingAffinity::Leading);
-            if (forwards ? raw > source : raw < source)
+            if (reordered ? raw != source && state.Belongs(target, raw) : (forwards ? raw > source : raw < source))
                 return {raw, neighbor};
         }
     }

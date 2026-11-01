@@ -1220,6 +1220,9 @@ by default; Ctrl+0 remains available for zoom reset and AltGr remains text input
 Selection, source-highlight and native composition rectangles are staged with
 current layout before painting; selection or highlight changes retire their
 prepared geometry until the host prepares the replacement.
+Visual arrow navigation enters reordered footnote content in display order even
+when its source offset precedes main text; generated marker anchors are not
+additional logical caret stops.
 Revision-guarded source decorations support background, underline, squiggle and
 foreground using accent, subdued, warning and error roles; source edits retire
 them. At most 256 decorations and 4096 prepared decoration rectangles are
