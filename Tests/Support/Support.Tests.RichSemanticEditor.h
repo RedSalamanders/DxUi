@@ -81,6 +81,50 @@ template <typename Prepare> void PendingPointerPreservesFocus(ControlHost& host,
           "the same press takes focus after editor geometry is current");
     host.ReleaseMouseCapture();
 }
+template <typename Prepare> void ReusedEditorGeometryMatchesFresh(ControlHost& host, Prepare prepare)
+{
+    std::wstring source;
+    for (std::size_t i = 0u; i < 256u; ++i)
+        source += L"line with Unicode \u6771 and wrapped words\r\n";
+    auto root    = std::make_unique<Panel>();
+    auto* reused = root->AddChild<RichTextEditor>(source);
+    auto* fresh  = root->AddChild<RichTextEditor>(source);
+    reused->SetViewMode(ViewMode::Source);
+    fresh->SetViewMode(ViewMode::Source);
+    const auto bounds = D2D1::RectF(0.f, 0.f, 320.f, 200.f);
+    reused->SetBounds(bounds);
+    fresh->SetBounds(bounds);
+    host.SetRoot(std::move(root));
+    prepare();
+    const auto first = source.size() / 2u;
+    reused->SetSelection({first, first + 1u});
+    Check(reused->ReplaceSelection(L"new line\r\nchanged"), "geometry parity fixture edits a middle line");
+    fresh->SetText(reused->GetText());
+    prepare();
+    const auto compare = [&]
+    {
+        reused->SetScrollOffsetDip(0.f);
+        fresh->SetScrollOffsetDip(0.f);
+        const auto text = reused->GetText();
+        const std::array offsets{std::size_t{0u}, first, (std::min)(first + 20u, text.size()), text.size()};
+        for (const auto at : offsets)
+        {
+            const auto a = reused->TryGetTextInputCaretRect(host, at);
+            const auto b = fresh->TryGetTextInputCaretRect(host, at);
+            Check(a && b && std::abs(a->left - b->left) < .125f && std::abs(a->top - b->top) < .125f && std::abs(a->bottom - b->bottom) < .125f,
+                  "reused editor caret geometry matches a fresh editor at source boundaries");
+        }
+        Check(reused->GetSourceVisualLineRanges(host) == fresh->GetSourceVisualLineRanges(host),
+              "reused editor visual source lines match independent fresh geometry");
+    };
+    Check(reused->DebugGetState().reusedGeometryChunks > 0u, "edited editor actually reused unchanged chunks");
+    compare();
+    Check(reused->Undo() && reused->GetText() == source, "geometry parity undo restores original source");
+    fresh->SetText(source);
+    prepare();
+    Check(reused->DebugGetState().reusedGeometryChunks > 0u, "undo retained unchanged chunks");
+    compare();
+}
 template <typename Prepare> void SelectionCancellationPublication(ControlHost& host, Prepare prepare)
 {
     for (const bool hide : {false, true})
