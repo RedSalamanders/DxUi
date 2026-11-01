@@ -2815,7 +2815,7 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                                 [&](std::size_t i)
     {
         const auto& bounds = state.bounds[i];
-        if (! bounds || bounds->bottom <= top || bounds->top >= bottom)
+        if (! bounds)
             return;
         const auto rectangle  = D2D1::RectF(bounds->left + origin.x, bounds->top + origin.y, bounds->right + origin.x, bounds->bottom + origin.y);
         const auto nodeIndex  = elements[i].syntaxNode;

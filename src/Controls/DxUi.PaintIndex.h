@@ -27,31 +27,38 @@ struct PaintIndex
     }
     template <typename Bounds> void Build(std::size_t count, Bounds&& bounds)
     {
-        if (! count)
-            return;
-        leaves = 1u;
-        while (leaves < count)
-            leaves *= 2u;
-        nodes.reserve(leaves * 2u);
-        for (std::size_t i = 0u; i < leaves * 2u; ++i)
-            nodes.emplace_back();
-        for (std::size_t i = 0u; i < count; ++i)
+        PaintIndex staged;
+        if (count)
         {
-            const auto rect   = bounds(i);
-            nodes[leaves + i] = {rect.top, rect.bottom};
+            staged.leaves = 1u;
+            while (staged.leaves < count)
+                staged.leaves *= 2u;
+            staged.nodes.reserve(staged.leaves * 2u);
+            for (std::size_t i = 0u; i < staged.leaves * 2u; ++i)
+                staged.nodes.emplace_back();
+            for (std::size_t i = 0u; i < count; ++i)
+            {
+                const auto rect                 = bounds(i);
+                staged.nodes[staged.leaves + i] = {rect.top, rect.bottom};
+            }
+            for (auto i = staged.leaves; i > 1u;)
+            {
+                --i;
+                const auto& a   = staged.nodes[i * 2u];
+                const auto& b   = staged.nodes[i * 2u + 1u];
+                staged.nodes[i] = {std::min(a.top, b.top), std::max(a.bottom, b.bottom)};
+            }
         }
-        for (auto i = leaves; i > 1u;)
-        {
-            --i;
-            const auto& a = nodes[i * 2u];
-            const auto& b = nodes[i * 2u + 1u];
-            nodes[i]      = {std::min(a.top, b.top), std::max(a.bottom, b.bottom)};
-        }
+        Swap(staged);
     }
     template <typename Visit> void ForEach(float top, float bottom, Visit&& visit) const
     {
         if (! leaves)
             return;
+        // Strokes, antialiasing and squiggles may cross the logical bounds.
+        constexpr float paintOutset = 3.0f;
+        top -= paintOutset;
+        bottom += paintOutset;
         const auto walk = [&](const auto& self, std::size_t index) -> void
         {
             const auto& node = nodes[index];

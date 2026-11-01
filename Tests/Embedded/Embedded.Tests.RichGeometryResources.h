@@ -1,8 +1,43 @@
 #include "Controls/TextClipboard.h"
 #include "Support.Tests.ClipboardFixture.h"
 #pragma once
+#include "Controls/DxUi.PaintIndex.h"
 #include "Controls/DxUi.RichSourceGuides.h"
 #include <DxUi/RichTextLayout.h>
+static void TestPaintIndexTransactionalBuild()
+{
+    using DxUi::RichText::Detail::PaintIndex;
+    const std::array<D2D1_RECT_F, 2u> original{{{0.f, 0.f, 10.f, 10.f}, {0.f, 50.f, 10.f, 60.f}}};
+    const std::array<D2D1_RECT_F, 1u> replacement{{{0.f, 100.f, 10.f, 110.f}}};
+    PaintIndex index;
+    index.Build(original.size(), [&](size_t i) { return original[i]; });
+    const auto count = [&](float top, float bottom)
+    {
+        size_t result{};
+        index.ForEach(top, bottom, [&](size_t) { ++result; });
+        return result;
+    };
+    Check(count(0.f, 5.f) == 1u && count(10.f, 11.f) == 1u, "paint index includes exact-boundary stroke ink");
+    bool failed{};
+    {
+        const auto oldFailure = failAllocationAfter;
+        const auto restore    = wil::scope_exit([=]() noexcept { failAllocationAfter = oldFailure; });
+        failAllocationAfter   = 0u;
+        try
+        {
+            index.Build(replacement.size(), [&](size_t i) { return replacement[i]; });
+        }
+        catch (const std::bad_alloc&)
+        {
+            failed = true;
+        }
+    }
+    Check(failed && count(0.f, 5.f) == 1u && count(100.f, 105.f) == 0u, "failed index rebuild retains the old immutable tree");
+    index.Build(replacement.size(), [&](size_t i) { return replacement[i]; });
+    Check(count(0.f, 5.f) == 0u && count(100.f, 105.f) == 1u, "a second index build replaces the prior tree");
+    index.Build(0u, [&](size_t i) { return replacement[i]; });
+    Check(count(100.f, 105.f) == 0u, "empty index rebuild clears the prior tree");
+}
 static wil::com_ptr<IDWriteFactory> RichGeometryFactory()
 {
     wil::com_ptr<IDWriteFactory> factory;

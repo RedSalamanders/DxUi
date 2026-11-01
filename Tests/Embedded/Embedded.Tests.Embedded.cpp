@@ -1485,6 +1485,7 @@ __declspec(noinline) static int RunFunctionalTests()
         RichSemanticTests::Run(RichSemanticGeometryTests::PaddedCodePresentation);
         RichSemanticTests::Run(RichSemanticEditorTests::SourceWindowUnicodeParity);
         RichSemanticTests::Run(RichSemanticEditorTests::RichSourceWindowParity);
+        TestPaintIndexTransactionalBuild();
         TestEmbeddedSemanticReusePixels(gpu);
         TestEmbeddedCodeLineNumberPixels(gpu);
         TestEmbeddedSourceGuidesPixels(gpu);
@@ -1802,6 +1803,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichDocumentGeometryUnchangedAllocationBudget();
     TestRichDocumentGeometryMaximumStorageBudget();
     TestRichDocumentGeometryReplacementPeakBudget();
+    TestPaintIndexTransactionalBuild();
     TestEmbeddedSemanticReusePixels(gpu);
     TestEmbeddedCodeLineNumberPixels(gpu);
     TestEmbeddedSourceGuidesPixels(gpu);

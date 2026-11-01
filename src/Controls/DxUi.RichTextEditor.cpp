@@ -3974,8 +3974,7 @@ void RichTextEditor::Paint(ControlHost& host) const
                                                [&](size_t index)
             {
                 const auto& decoration = decorations[index];
-                if (decoration.rectangle.bottom <= state.scrollDip || decoration.rectangle.top >= visibleBottom ||
-                    decoration.kind != RichTextDecorationKind::Background)
+                if (decoration.kind != RichTextDecorationKind::Background)
                     return;
                 auto color = DecorationColor(host.GetTheme(), decoration.role);
                 if (! host.GetTheme().highContrast)
@@ -4094,7 +4093,8 @@ void RichTextEditor::Paint(ControlHost& host) const
                     return;
                 const auto& rectangle = decoration.rectangle;
                 const auto bounds = D2D1::RectF(rectangle.left + origin.x, rectangle.top + origin.y, rectangle.right + origin.x, rectangle.bottom + origin.y);
-                if (bounds.bottom <= viewport.top || bounds.top >= viewport.bottom || bounds.right <= viewport.left || bounds.left >= viewport.right)
+                if (bounds.bottom + 3.0f <= viewport.top || bounds.top - 3.0f >= viewport.bottom || bounds.right + 3.0f <= viewport.left ||
+                    bounds.left - 3.0f >= viewport.right)
                     return;
                 auto* brush = host.GetSolidBrush(DecorationColor(host.GetTheme(), decoration.role));
                 if (decoration.kind == RichTextDecorationKind::Foreground)
