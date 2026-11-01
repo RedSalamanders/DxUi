@@ -3492,6 +3492,8 @@ public:
     // Accessible ranges use source offsets; geometry follows the current rich
     // projection. Includes complete lines that are partially visible.
     [[nodiscard]] std::optional<std::pair<size_t, size_t>> GetVisibleSourceRange(const ControlHost& host) const noexcept;
+    // Valid only for the currently acknowledged semantic document and layout.
+    [[nodiscard]] std::optional<RichText::MarkdownRange> GetVisibleSemanticDisplayRange(const ControlHost& host) const noexcept;
     // Display word containing the caret, mapped to exact source-owned ranges.
     // Generated display text may have no source; transformed objects retain
     // their complete source owner. Requires this host's current prepared layout.

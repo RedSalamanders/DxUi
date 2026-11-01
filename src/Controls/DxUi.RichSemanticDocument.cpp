@@ -1,11 +1,132 @@
 #include "DxUi.RichSemanticHtml.h"
 #include "DxUi.SemanticExtensions.h"
+#include "DxUi.RichSourceWindow.h"
 #include <algorithm>
 #include <atomic>
 #include <optional>
 
 namespace DxUi::RichText
 {
+std::size_t VisitSemanticWords(const SemanticDocument& document, MarkdownRange display, SemanticWordVisitor visitor, void* context)
+{
+    const auto text = document.Map().Display();
+    if (display.first > display.last || display.last > text.size())
+        throw std::out_of_range("Invalid semantic word display interval");
+    if (display.first == display.last)
+        return 0u;
+    const auto requested = display;
+    const auto unitAt = [&](std::size_t index) { return text[index]; };
+    display.first = Detail::PreparedDisplayWordRange(text.size(), display.first, unitAt).first;
+    display.last = Detail::PreparedDisplayWordRange(text.size(), display.last - 1u, unitAt).last;
+    std::vector<MarkdownRange> excluded(0u);
+    const auto exclude = [&](MarkdownRange range)
+    {
+        range.first = (std::max)(range.first, display.first);
+        range.last = (std::min)(range.last, display.last);
+        if (range.first < range.last)
+            excluded.push_back(range);
+    };
+    for (const auto& span : document.Map().Spans())
+        if (span.kind == DisplaySpanKind::Generated || span.kind == DisplaySpanKind::Object)
+            exclude(span.display);
+    for (const auto& run : document.Runs())
+        if ((run.flags & Code) != 0u)
+            exclude({run.start, run.start + run.length});
+    for (const auto& element : document.Elements())
+    {
+        if (element.role == SemanticRole::Code || element.role == SemanticRole::Html || element.role == SemanticRole::Metadata ||
+            element.role == SemanticRole::Math || element.role == SemanticRole::Diagram || element.role == SemanticRole::Image)
+            exclude(element.display);
+        else if (element.role == SemanticRole::Link && element.display.last <= text.size())
+        {
+            const auto label = text.substr(element.display.first, element.display.last - element.display.first);
+            const auto colon = label.find(L':');
+            const bool scheme = colon != label.npos && colon > 0u &&
+                                ((label.front() >= L'a' && label.front() <= L'z') || (label.front() >= L'A' && label.front() <= L'Z'));
+            if ((label == element.destination && scheme) || (label.starts_with(L"www.") && element.destination.starts_with(L"http")) ||
+                (element.destination.starts_with(L"mailto:") && label == std::wstring_view(element.destination).substr(7u)))
+                exclude(element.display);
+        }
+    }
+    std::sort(excluded.begin(), excluded.end(), [](auto a, auto b) { return a.first < b.first || (a.first == b.first && a.last < b.last); });
+    std::size_t compact = 0u;
+    for (const auto range : excluded)
+        if (compact && range.first <= excluded[compact - 1u].last)
+            excluded[compact - 1u].last = (std::max)(excluded[compact - 1u].last, range.last);
+        else
+            excluded[compact++] = range;
+    excluded.resize(compact);
+    const auto spans = document.Map().Spans();
+    std::size_t count = 0u, spanIndex = 0u;
+    auto visitSegment = [&](std::size_t first, std::size_t last)
+    {
+        const auto segment = text.substr(first, last - first);
+        for (std::size_t at = 0u; at < segment.size();)
+        {
+            if (! IsWordCharacter(segment[at]))
+            {
+                at = StepToNextTextElement(segment, at);
+                continue;
+            }
+            auto word = Detail::PreparedDisplayWordRange(segment.size(), at, [&](std::size_t index) { return segment[index]; });
+            if (word.last <= at)
+                break;
+            word.first = at;
+            while (word.last > word.first)
+            {
+                const auto ch = segment[word.last - 1u];
+                WORD kind{};
+                if (! GetStringTypeW(CT_CTYPE1, &ch, 1, &kind) || (kind & C1_SPACE) == 0u)
+                    break;
+                --word.last;
+            }
+            const MarkdownRange absolute{first + word.first, first + word.last};
+            at = (std::max)(at + 1u, word.last);
+            if (absolute.first == absolute.last || absolute.first >= requested.last || absolute.last <= requested.first)
+                continue;
+            ++count;
+            if (! visitor)
+                continue;
+            while (spanIndex < spans.size() && spans[spanIndex].display.last <= absolute.first)
+                ++spanIndex;
+            std::vector<MarkdownRange> source(0u);
+            for (auto index = spanIndex; index < spans.size() && spans[index].display.first < absolute.last; ++index)
+            {
+                const auto& span = spans[index];
+                const auto begin = (std::max)(absolute.first, span.display.first), end = (std::min)(absolute.last, span.display.last);
+                if (begin >= end || span.kind == DisplaySpanKind::Generated)
+                    continue;
+                source.push_back(span.kind == DisplaySpanKind::Source
+                                     ? MarkdownRange{span.source.first + begin - span.display.first, span.source.first + end - span.display.first}
+                                     : span.source);
+            }
+            std::sort(source.begin(), source.end(), [](auto a, auto b) { return a.first < b.first || (a.first == b.first && a.last < b.last); });
+            std::size_t size = 0u;
+            for (const auto range : source)
+                if (size && range.first <= source[size - 1u].last)
+                    source[size - 1u].last = (std::max)(source[size - 1u].last, range.last);
+                else
+                    source[size++] = range;
+            source.resize(size);
+            if (! visitor(context, text.substr(absolute.first, absolute.last - absolute.first), absolute, source))
+                return false;
+        }
+        return true;
+    };
+    auto start = display.first;
+    for (const auto range : excluded)
+    {
+        if (! visitSegment(start, range.first))
+            return count;
+        start = range.last;
+    }
+    static_cast<void>(visitSegment(start, display.last));
+    return count;
+}
+std::size_t CountWords(const SemanticDocument& document)
+{
+    return VisitSemanticWords(document, {0u, document.Map().Display().size()}, nullptr, nullptr);
+}
 SemanticDocument::SemanticDocument(std::shared_ptr<const MarkdownSyntax> syntax)
     : syntax_(std::move(syntax)),
       elements_(0u),

@@ -4040,6 +4040,21 @@ std::optional<std::pair<size_t, size_t>> RichTextEditor::GetVisibleSourceRange(c
         return std::nullopt;
     }
 }
+std::optional<RichText::MarkdownRange> RichTextEditor::GetVisibleSemanticDisplayRange(const ControlHost& host) const noexcept
+{
+    if (! GetAcknowledgedSemanticDocument(host))
+        return std::nullopt;
+    try
+    {
+        const auto viewport = TextViewport();
+        const auto range = _state->layout.VisibleRange(_state->scrollDip, _state->scrollDip + viewport.bottom - viewport.top);
+        return RichText::MarkdownRange{range.first, range.second};
+    }
+    catch (const std::exception&)
+    {
+        return std::nullopt;
+    }
+}
 std::optional<D2D1_RECT_F> RichTextEditor::GetTextInputViewportRect() const noexcept
 {
     const auto viewport = TextViewport();

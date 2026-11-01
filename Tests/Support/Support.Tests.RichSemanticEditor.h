@@ -1719,6 +1719,43 @@ template <typename Prepare> void InlineMathSourceEditing(ControlHost& host, Prep
           "explicit reference source inspection respects read-only and exits");
     editor->SetReadOnly(false);
 }
+template <typename Prepare> void SemanticWords(ControlHost& host, Prepare&& prepare)
+{
+    auto root = std::make_unique<RichTextEditor>(L"Alpha **bravo** <em>charlie</em> `skip` $x$ [label](dest) https://example.test");
+    auto* editor = root.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    host.SetRoot(std::move(root));
+    Check(! editor->GetVisibleSemanticDisplayRange(host), "unprepared semantic viewport has no word interval");
+    prepare();
+    const auto document = editor->GetAcknowledgedSemanticDocument(host);
+    const auto visible = editor->GetVisibleSemanticDisplayRange(host);
+    Check(document && visible && CountWords(*document) == 4u, "semantic statistics count prose, including supported inline HTML text, but exclude code math and URLs");
+    struct Words
+    {
+        Words() : values(0u) {}
+        std::vector<std::wstring> values;
+        bool mapped = true;
+    } words;
+    const auto visitor = [](void* context, std::wstring_view text, MarkdownRange, std::span<const MarkdownRange> source)
+    {
+        auto& values = *static_cast<Words*>(context);
+        values.values.emplace_back(text);
+        values.mapped &= ! source.empty();
+        return true;
+    };
+    const auto seen = VisitSemanticWords(*document, *visible, visitor, &words);
+    Check(seen == 4u && words.mapped &&
+              words.values == std::vector<std::wstring>{L"Alpha", L"bravo", L"charlie", L"label"},
+          "visible prose words preserve source fragments and omit hidden syntax");
+    Words partial;
+    const auto bravo = document->Map().Display().find(L"bravo");
+    Check(VisitSemanticWords(*document, {bravo + 2u, bravo + 3u}, visitor, &partial) == 1u &&
+              partial.values == std::vector<std::wstring>{L"bravo"}, "a clipped viewport returns the complete intersecting word");
+    editor->SetText(L"changed");
+    Check(! editor->GetVisibleSemanticDisplayRange(host) && CountWords(*document) == 4u,
+          "pending publication is refused while the immutable old document remains stable");
+}
 template <typename Prepare> void ScrollbarAndNotifications(ControlHost& host, Prepare&& prepare)
 {
     std::wstring source(0u, L' ');

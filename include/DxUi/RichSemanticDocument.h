@@ -176,6 +176,15 @@ private:
     friend class SemanticBuilder;
     friend struct Detail::SemanticExtensionAccess;
 };
+// Visit prose word units in an explicit display interval. Text and source ranges
+// are borrowed for each synchronous callback; false stops traversal. A word
+// intersecting the interval is returned whole. The
+// caller keeps the immutable document alive and checks its publication identity
+// before applying suggestions or decorations. Throws on invalid display ranges
+// or allocation failure. Passing a null callback counts without producing ranges.
+using SemanticWordVisitor = bool (*)(void* context, std::wstring_view text, MarkdownRange display, std::span<const MarkdownRange> source);
+std::size_t VisitSemanticWords(const SemanticDocument& document, MarkdownRange display, SemanticWordVisitor visitor, void* context);
+std::size_t CountWords(const SemanticDocument& document);
 // Owner-serialized pure preparation. Each advance resumes block/inline events;
 // one bounded leaf normalization/value tokenization, image alternative or final
 // map/index build is indivisible. Budgets count events, not wall-clock deadlines.

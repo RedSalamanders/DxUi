@@ -161,6 +161,17 @@ Task toggles default to editable controls. `SetTaskTogglePolicy` can opt into
 and UIA Toggle change the marker as one undoable edit. Other source edits remain
 read-only, and Undo follows the normal editable policy. The application owns
 persistence of the text-change notification.
+For a spelling or status-bar integration, obtain the acknowledged semantic
+document and `GetVisibleSemanticDisplayRange`, then call `VisitSemanticWords`.
+The synchronous callback receives each complete visible prose word and its
+source fragments. Keep the document alive and compare its identity with the
+current publication before applying decorations or suggestions; the existing
+context-menu callback can present consumer-owned suggestions. `CountWords`
+uses the same policy for the whole document. Code, literal HTML blocks, URLs,
+metadata, generated text and native objects are excluded; supported inline HTML
+prose remains included. Word traversal is interval-bounded but exclusion setup
+scans the document's semantic records, so run it outside Paint. Dictionaries,
+reading rates and status-bar presentation remain application policy.
 The feature is disabled by default. `QueryMarkdownCommandState` returns current
 style/heading/list presentation without allocation. Applicability is unknown
 when neither an immediate proof nor an exact prepared result is available.

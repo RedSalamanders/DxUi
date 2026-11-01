@@ -1772,6 +1772,18 @@ an enabled read-only editor. Each action changes only the exact task marker and
 records one undo transaction; other source edits remain read-only. Undo becomes
 available under the normal editable policy. Composition, stale publication and
 disabled controls still reject actions. Policy changes retire old task peers.
+`VisitSemanticWords` enumerates complete prose words intersecting a requested
+display interval with borrowed text and source fragments, using the existing
+Unicode word/grapheme policy. It excludes generated text, code, literal HTML
+blocks, metadata, URLs and native objects; supported inline HTML styling keeps
+its visible prose. `CountWords` applies the same policy to the full immutable
+semantic document. `GetVisibleSemanticDisplayRange` returns a conservative
+current-layout envelope or no value while publication is pending. Consumers
+must validate document identity before publishing decorations or suggestions;
+existing context-menu and decoration callbacks own the UI. The interval bounds
+word traversal; exclusion preparation currently scans document elements, runs
+and spans and must not be called from Paint. No dictionary or reading-rate policy
+is supplied by the library.
 
 Semantic visual deletion MUST remove empty owned Markdown/validated inline
 HTML wrappers only when their complete body is deleted, recursively. Block HTML

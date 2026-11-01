@@ -31,6 +31,7 @@ void TestRichSemanticNativeRetainedTransactions()
         RichSemanticEditorTests::PendingSourceWindowTransport(window.Host());
         RichSemanticEditorTests::PendingRichSourceWindowTransport(window.Host());
         RichSemanticEditorTests::UrlOnSelectionPaste(window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare URL paste"); });
+        RichSemanticEditorTests::SemanticWords(window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare semantic word viewport"); });
         RichSemanticEditorTests::SourceHorizontalAndGuides(window.Host(),
                                                            [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare source guides"); });
         RichSemanticEditorTests::RichTableHorizontalOverflow(window.Host(),
