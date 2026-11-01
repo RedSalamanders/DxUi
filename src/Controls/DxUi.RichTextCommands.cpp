@@ -2137,7 +2137,7 @@ void MarkdownCommandPlanner::Join(bool backwards)
     if (backwards && plan.before_.caret <= visible.first)
     {
         const auto quote = Ancestor(current, Kind::BlockQuote);
-        auto nearest = nodes[current].parent;
+        auto nearest     = nodes[current].parent;
         while (nearest != MarkdownNoNode && nodes[nearest].block.kind != Kind::BlockQuote && nodes[nearest].block.kind != Kind::ListItem)
             nearest = nodes[nearest].parent;
         if (quote != MarkdownNoNode && nearest == quote && nodes[quote].firstChild == current)
