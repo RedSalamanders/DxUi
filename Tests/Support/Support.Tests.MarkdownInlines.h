@@ -131,7 +131,7 @@ inline constexpr Scenario scenarios[] = {
      L"~~a **b**~~ ~c~ ~~~d~~~\n",
      L"<p>~~a <strong>b</strong>~~ ~c~ ~~~d~~~</p>\n",
      L"<p><del>a <strong>b</strong></del> ~c~ ~~~d~~~</p>\n",
-     {}},
+     L"<p><del>a <strong>b</strong></del> <sub>c</sub> ~~~d~~~</p>\n"},
     {L"GFM task and ordinary list items",
      L"- [x] yes\n- [ ] no\n- [x]word\n",
      L"<ul>\n<li>[x] yes</li>\n<li>[ ] no</li>\n<li>[x]word</li>\n</ul>\n",
