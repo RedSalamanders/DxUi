@@ -234,7 +234,7 @@ void TestRichTextNativeFileDropInsertion()
     const auto caret = editor->TryGetTextInputCaretRect(window.Host(), 2u);
     Require(caret.has_value(), "retiring drop has current caret");
     const auto point    = D2D1::Point2F(caret->left + .01f, (caret->top + caret->bottom) * .5f);
-    const auto lifetime = editor->GetLifetimeToken();
+    const auto lifetime = GetControlLifetimeToken(*editor);
     editor->SetOnTextChanged([&] { window.Host().SetRoot({}); });
     auto data = Microsoft::WRL::Make<DropDataObject>();
     Require(data != nullptr, "retiring drop data object");
@@ -290,7 +290,7 @@ void TestRichTextEmbeddedFileDropInsertion()
     const auto currentCaret = editor->TryGetTextInputCaretRect(view.Controls(), 2u);
     Require(currentCaret.has_value(), "detachment drop has current geometry");
     const auto currentPoint = D2D1::Point2F(currentCaret->left + .01f, (currentCaret->top + currentCaret->bottom) * .5f);
-    const auto lifetime     = editor->GetLifetimeToken();
+    const auto lifetime     = GetControlLifetimeToken(*editor);
     data->duringGetData     = [&] { view.Detach(); };
     Require(! view.CommitFileDrop(currentPoint, *data.Get()) && lifetime.expired() && data->releases == 2u,
             "detach during GetData retires the target without dereferencing it and releases its medium");

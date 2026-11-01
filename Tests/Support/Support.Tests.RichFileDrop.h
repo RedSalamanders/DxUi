@@ -18,7 +18,7 @@ using namespace DxUi;
 class DropMediumOwner final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IUnknown>
 {
 public:
-    DropMediumOwner(wil::unique_hglobal value, unsigned* releaseCount) noexcept : memory(std::move(value)), releases(releaseCount)
+    DropMediumOwner(wil::unique_hglobal storage, unsigned* releaseCount) noexcept : memory(std::move(storage)), releases(releaseCount)
     {
     }
     ~DropMediumOwner() override

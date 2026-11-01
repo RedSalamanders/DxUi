@@ -522,8 +522,8 @@ static void RunPreparedTreeReentrantEmbeddedClient(GraphicsFixture& gpu, bool co
         Check(observer->heardLatestProperty.load(), "held property delivery coalesces to the latest literal value");
         if (coalescedBurst && propertyEvent && ! relationshipEvent)
         {
-            const auto deadline = GetTickCount64() + 20000;
-            while (! observer->heardTreeExpansion.load() && GetTickCount64() < deadline)
+            const auto expansionDeadline = GetTickCount64() + 20000;
+            while (! observer->heardTreeExpansion.load() && GetTickCount64() < expansionDeadline)
             {
                 bridge.Pump();
                 Sleep(1);

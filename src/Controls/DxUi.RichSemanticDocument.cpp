@@ -1045,6 +1045,11 @@ struct SemanticBuilder::Preparation
                     case MarkdownDiagnosticCode::YamlFrontMatterCapacity:
                         document->elements_[visit.element].title = L"YAML front matter exceeds the supported validation capacity.";
                         break;
+                    case MarkdownDiagnosticCode::UnclosedFrontMatter:
+                    case MarkdownDiagnosticCode::DuplicateFootnoteDefinition:
+                    case MarkdownDiagnosticCode::UndefinedFootnote:
+                    case MarkdownDiagnosticCode::InvalidTomlFrontMatter:
+                    case MarkdownDiagnosticCode::TomlFrontMatterCapacity:
                     default: break;
                 }
             }

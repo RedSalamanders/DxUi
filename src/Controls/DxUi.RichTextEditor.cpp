@@ -1569,8 +1569,8 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                     }
                     else
                         continue;
-                    const auto oldNodes       = rejected.syntax->Nodes();
-                    const auto newNodes       = currentSyntax->Nodes();
+                    const auto& oldNodes       = rejected.syntax->Nodes();
+                    const auto& newNodes       = currentSyntax->Nodes();
                     const auto containingLeaf = [](const auto& nodes, RichText::MarkdownRange object)
                     {
                         auto best = RichText::MarkdownNoNode;

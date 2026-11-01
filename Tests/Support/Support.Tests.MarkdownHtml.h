@@ -118,6 +118,7 @@ inline std::wstring Inline(const MarkdownSyntax& syntax, std::size_t first, bool
             case ::DxUi::RichText::MarkdownInlineKind::Html:
             case ::DxUi::RichText::MarkdownInlineKind::Image:
             case ::DxUi::RichText::MarkdownInlineKind::Math:
+            case ::DxUi::RichText::MarkdownInlineKind::SourceEditor:
             case ::DxUi::RichText::MarkdownInlineKind::SoftBreak:
             case ::DxUi::RichText::MarkdownInlineKind::Text:
             default: break;

@@ -3563,6 +3563,10 @@ void TestTreeLargeExpansionSkipsAnimation()
         Delegate(MutableTreeModel& model, Tree& tree) : model(model), tree(tree)
         {
         }
+        Delegate(const Delegate&) = delete;
+        Delegate& operator=(const Delegate&) = delete;
+        Delegate(Delegate&&) = delete;
+        Delegate& operator=(Delegate&&) = delete;
         void OnTreeToggleExpanded(uint64_t id, bool expanded) override
         {
             Require(id == 1u, "the large tree toggles the requested row");
