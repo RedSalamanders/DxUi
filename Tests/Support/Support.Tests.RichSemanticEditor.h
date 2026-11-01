@@ -2002,6 +2002,9 @@ template <typename Prepare> void UrlOnSelectionPaste(ControlHost& host, Prepare&
               editor->GetText() == L"hello **world**", "URL paste is one undo transaction");
     prepare();
     editor->SetSelection({0u, 5u});
+    content.text = L"HTTPS://example.invalid/a";
+    Check(editor->TryPrepareClipboardPaste(content, replacement) && replacement == L"[hello](<HTTPS://example.invalid/a>)",
+          "URL schemes match case insensitively while preserving destination spelling");
     content.text = L"https://bad url";
     replacement = L"sentinel";
     Check(! editor->TryPrepareClipboardPaste(content, replacement) && replacement == L"sentinel", "invalid URL retains ordinary paste");

@@ -33,7 +33,7 @@ HRESULT ReadUnicodeClipboardData(HANDLE data, std::wstring& text) noexcept
     const auto unlock = wil::scope_exit([&]() noexcept { GlobalUnlock(data); });
     return DecodeClipboardText(std::span(value, bytes / sizeof(wchar_t)), text);
 }
-class WindowsTextClipboard final : public TextClipboard, public StructuredTextClipboard
+class WindowsTextClipboard final : public TextClipboard, public StructuredTextClipboard, public SelectiveStructuredTextClipboard
 {
 public:
     HRESULT Read(HWND owner, std::wstring& text) noexcept override
@@ -48,6 +48,10 @@ public:
         return ReadUnicodeClipboardData(calls.getData(CF_UNICODETEXT), text);
     }
     HRESULT ReadContent(HWND owner, TextClipboardContent& content) noexcept override
+    {
+        return ReadSelectedContent(owner, content, true, false);
+    }
+    HRESULT ReadSelectedContent(HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml) noexcept override
     try
     {
         if (! owner)
@@ -57,6 +61,7 @@ public:
         if (! calls.open(owner))
             return LastClipboardError();
         const auto close = wil::scope_exit([&calls]() noexcept { calls.close(); });
+        if (includeFiles)
         if (const auto data = calls.getData(CF_HDROP))
         {
             const auto bytes   = GlobalSize(data);
@@ -76,7 +81,7 @@ public:
         const auto result = ReadUnicodeClipboardData(calls.getData(CF_UNICODETEXT), staged.text);
         if (FAILED(result))
             return result;
-        const auto htmlFormat = RegisterClipboardFormatW(L"HTML Format");
+        const auto htmlFormat = includeHtml ? RegisterClipboardFormatW(L"HTML Format") : 0u;
         if (htmlFormat)
             if (const auto data = calls.getData(htmlFormat))
             {
@@ -328,11 +333,31 @@ catch (const std::exception&)
     return E_FAIL;
 }
 HRESULT ReadTextClipboardContent(TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles) noexcept
+{
+    return ReadTextClipboardContent(clipboard, owner, content, includeFiles, false);
+}
+HRESULT ReadTextClipboardContent(TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml) noexcept
 try
 {
-    if (includeFiles)
+    if (includeFiles || includeHtml)
+    {
+        if (auto* selective = dynamic_cast<SelectiveStructuredTextClipboard*>(&clipboard))
+            return selective->ReadSelectedContent(owner, content, includeFiles, includeHtml);
         if (auto* structured = dynamic_cast<StructuredTextClipboard*>(&clipboard))
-            return structured->ReadContent(owner, content);
+        {
+            if (includeFiles && ! includeHtml)
+                return structured->ReadContent(owner, content);
+            TextClipboardContent staged;
+            const auto result = structured->ReadContent(owner, staged);
+            if (result != S_OK)
+                return result;
+            if (! includeFiles && ! staged.filePaths.empty())
+                return S_FALSE; // A legacy transport cannot re-read another format within the same ownership attempt.
+
+            content.Swap(staged);
+            return S_OK;
+        }
+    }
     TextClipboardContent staged;
     const auto result = clipboard.Read(owner, staged.text);
     if (result == S_OK)

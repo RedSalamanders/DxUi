@@ -764,7 +764,20 @@ bool RichTextEditor::TryPrepareClipboardPaste(const TextClipboardContent& conten
         _state->mode != RichText::ViewMode::Rich || selection.Start() == selection.End())
         return false;
     const std::wstring_view url(content.text);
-    if (! (url.starts_with(L"https://") || url.starts_with(L"http://") || url.starts_with(L"mailto:")))
+    const auto startsScheme = [&](std::wstring_view prefix) noexcept {
+        if (url.size() <= prefix.size())
+            return false;
+        for (size_t index = 0u; index < prefix.size(); ++index)
+        {
+            auto character = url[index];
+            if (character >= L'A' && character <= L'Z')
+                character = static_cast<wchar_t>(character + (L'a' - L'A'));
+            if (character != prefix[index])
+                return false;
+        }
+        return true;
+    };
+    if (! (startsScheme(L"https://") || startsScheme(L"http://") || startsScheme(L"mailto:")))
         return false;
     const auto syntax = GetMarkdownSyntax();
     if (! syntax)
@@ -2146,6 +2159,10 @@ void RichTextEditor::SetHtmlPasteConverter(std::function<std::optional<std::wstr
 {
     auto next = converter ? std::make_shared<const std::function<std::optional<std::wstring>(std::wstring_view)>>(std::move(converter)) : nullptr;
     _state->htmlPasteConverter.swap(next);
+}
+bool RichTextEditor::HasHtmlPasteConverter() const noexcept
+{
+    return bool(_state->htmlPasteConverter);
 }
 void RichTextEditor::SetOnCodeCopyRequested(std::function<void(std::wstring_view)> callback, std::wstring accessibleName)
 {
@@ -4854,9 +4871,10 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                     const auto binding   = _state->bindingRevision;
                     const auto location  = _state->imageLocationRevision;
                     const auto selection = GetSelection();
+                    const auto focus = host.GetFocusControl();
                     TextClipboardContent content;
-                    const bool available = host.ReadClipboardContent(content);
-                    if (available && ! lifetime.expired() && GetHost() == &host && _state->bindingRevision == binding && Revision() == revision &&
+                    const bool available = host.ReadClipboardContent(content, bool(_state->htmlPasteConverter) && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich);
+                    if (available && ! lifetime.expired() && GetHost() == &host && host.GetFocusControl() == focus && _state->bindingRevision == binding && Revision() == revision &&
                         _state->imageLocationRevision == location && GetSelection() == selection)
                     {
                         if (! content.filePaths.empty())
@@ -4866,7 +4884,7 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                             std::wstring replacement(0u, L' ');
                             bool stalePaste = false;
                             const bool transformed = TryPrepareClipboardPaste(content, replacement, &stalePaste);
-                            if (stalePaste || lifetime.expired() || GetHost() != &host || _state->bindingRevision != binding || Revision() != revision ||
+                            if (stalePaste || lifetime.expired() || GetHost() != &host || host.GetFocusControl() != focus || _state->bindingRevision != binding || Revision() != revision ||
                                 _state->imageLocationRevision != location || GetSelection() != selection)
                                 return true;
                             if (transformed)

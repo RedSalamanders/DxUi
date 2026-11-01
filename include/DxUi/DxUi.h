@@ -3298,6 +3298,7 @@ public:
     void SetOnCodeCopyRequested(std::function<void(std::wstring_view)> callback, std::wstring accessibleName = L"Copy code");
     // Optional application converter: borrowed validated CF_HTML fragment to Markdown source.
     void SetHtmlPasteConverter(std::function<std::optional<std::wstring>(std::wstring_view)> converter);
+    [[nodiscard]] bool HasHtmlPasteConverter() const noexcept;
     [[nodiscard]] std::wstring_view GetCodeCopyAccessibleName() const noexcept;
     HRESULT InvokeSemanticCodeCopy(ControlHost& host, const std::shared_ptr<const RichText::SemanticDocument>& document, size_t element) noexcept;
     // Unclipped host-DIP bounds; may lie outside the viewport.
@@ -6074,6 +6075,7 @@ public:
     [[nodiscard]] bool CopyTextToClipboard(std::wstring_view text) const noexcept;
     [[nodiscard]] std::optional<std::wstring> ReadTextFromClipboard() const noexcept;
     [[nodiscard]] bool ReadClipboardContent(TextClipboardContent& content) const noexcept;
+    [[nodiscard]] bool ReadClipboardContent(TextClipboardContent& content, bool includeHtml) const noexcept;
 
     // Call after accelerator/TSF pretranslation and before TranslateMessage. For Return/Space key-down
     // directed at this attached HWND, dispatches once through the real window procedure, then translates

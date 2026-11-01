@@ -847,9 +847,11 @@ HRESULT TextInputServices::Clipboard(TextClipboardCommand command, TextClipboard
             auto* transform = dynamic_cast<TextClipboardPasteTransform*>(client.get());
             TextClipboardContent content;
             const bool includeFiles = transform && transform->AcceptsFilePaths(snapshot);
+            auto* html = dynamic_cast<TextClipboardHtmlPaste*>(client.get());
+            const bool includeHtml = transform && html && html->AcceptsHtml(snapshot);
             if (client != _state->client)
                 return TF_E_DISCONNECTED;
-            const HRESULT paste = ReadTextClipboardContent(service, _state->hwnd, content, includeFiles);
+            const HRESULT paste = ReadTextClipboardContent(service, _state->hwnd, content, includeFiles, includeHtml);
             if (paste != S_OK)
                 return paste;
             if (client != _state->client)

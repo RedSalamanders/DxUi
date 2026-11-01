@@ -5,7 +5,7 @@
 #include <msctf.h>
 
 // Module-local adapter using only public headers. Disconnect before destroying the view or HWND.
-class EmbeddedTextClient final : public DxUi::TextInputClient, public DxUi::TextClipboardPasteTransform, public DxUi::TextClipboardFilePaste
+class EmbeddedTextClient final : public DxUi::TextInputClient, public DxUi::TextClipboardPasteTransform, public DxUi::TextClipboardFilePaste, public DxUi::TextClipboardHtmlPaste
 {
 public:
     EmbeddedTextClient(DxUi::EmbeddedHost& view, HWND window, uint64_t focus, float dpi) noexcept : _view(&view), _window(window), _focus(focus), _dpi(dpi)
@@ -27,6 +27,13 @@ public:
     bool AcceptsFilePaths(const DxUi::EmbeddedTextInputSnapshot& snapshot) const noexcept override
     {
         return _view && snapshot.focusId == _focus && dynamic_cast<DxUi::RichTextEditor*>(_view->Controls().GetFocusControl());
+    }
+    bool AcceptsHtml(const DxUi::EmbeddedTextInputSnapshot& snapshot) const noexcept override
+    {
+        if (! _view || snapshot.focusId != _focus)
+            return false;
+        const auto* editor = dynamic_cast<DxUi::RichTextEditor*>(_view->Controls().GetFocusControl());
+        return editor && editor->HasHtmlPasteConverter() && editor->IsMarkdownRenderingEnabled() && editor->GetViewMode() == DxUi::RichText::ViewMode::Rich;
     }
     HRESULT TransformPaste(const DxUi::EmbeddedTextInputSnapshot& snapshot,
                            const DxUi::TextClipboardContent& content,

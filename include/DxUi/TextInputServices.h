@@ -67,6 +67,13 @@ public:
     // over Unicode text; failures leave the supplied owned result unchanged.
     virtual HRESULT ReadContent(HWND owner, TextClipboardContent& content) noexcept = 0;
 };
+// Optional extension for independently selecting rich formats in one ownership attempt.
+class SelectiveStructuredTextClipboard
+{
+public:
+    virtual ~SelectiveStructuredTextClipboard() = default;
+    virtual HRESULT ReadSelectedContent(HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml) noexcept = 0;
+};
 // Application-side optional source-paste transform. Called on the attaching UI
 // thread, outside rendering, before the existing revision-checked commit. It
 // prepares text only: no document mutation or clipboard ownership is delegated.
@@ -78,6 +85,13 @@ public:
     // S_OK supplies a complete replacement; S_FALSE/E_NOTIMPL keeps ordinary
     // Unicode paste. File-only content requires an explicit supported result.
     virtual HRESULT TransformPaste(const EmbeddedTextInputSnapshot& snapshot, const TextClipboardContent& content, std::wstring& replacement) noexcept = 0;
+};
+// Independent HTML opt-in; existing file-paste clients need not change.
+class TextClipboardHtmlPaste
+{
+public:
+    virtual ~TextClipboardHtmlPaste() = default;
+    virtual bool AcceptsHtml(const EmbeddedTextInputSnapshot& snapshot) const noexcept = 0;
 };
 // Optional additive path for controls whose prepared caret site is richer than
 // a source ACP. The client validates the supplied focus/revision and commits

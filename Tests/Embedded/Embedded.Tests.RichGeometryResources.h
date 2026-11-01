@@ -367,9 +367,18 @@ static void TestHtmlClipboardFragment()
         std::memcpy(memory, bytes.data(), bytes.size());
     }
     TextClipboardContent content;
-    Check(ReadTextClipboardContent(SystemTextClipboard(), owner, content, true) == S_OK && content.hasHtmlFragment && content.htmlFragment == L"<b>hello</b>" &&
+    Check(ReadTextClipboardContent(SystemTextClipboard(), owner, content, true, true) == S_OK && content.hasHtmlFragment && content.htmlFragment == L"<b>hello</b>" &&
               transport.opens == 1u && transport.closes == 1u,
           "structured clipboard reads HTML through one private ownership attempt");
+    transport.fileData.reset(GlobalAlloc(GMEM_MOVEABLE, 1u));
+    Check(bool(transport.fileData), "allocate irrelevant private file medium");
+    TextClipboardContent htmlOnly;
+    Check(ReadTextClipboardContent(SystemTextClipboard(), owner, htmlOnly, false, true) == S_OK && htmlOnly.filePaths.empty() &&
+              htmlOnly.hasHtmlFragment && htmlOnly.htmlFragment == L"<b>hello</b>",
+          "HTML-only read ignores file media in the same ownership attempt");
+    TextClipboardContent oldRead;
+    Check(FAILED(ReadTextClipboardContent(SystemTextClipboard(), owner, oldRead, true)) && ! oldRead.hasHtmlFragment,
+          "legacy structured read retains file-first failure without requesting HTML");
     invalid = bytes;
     invalid.replace(invalid.find("StartFragment:") + 14u, 10u, "9999999999");
     Check(FAILED(DecodeClipboardHtml(std::as_bytes(std::span(invalid.data(), invalid.size())), fragment)) && fragment == L"sentinel",

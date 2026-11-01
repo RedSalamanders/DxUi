@@ -12,6 +12,7 @@ HRESULT DecodeClipboardFilePaths(std::span<const std::byte> buffer, TextClipboar
 // returned content owns every path and never aliases the medium.
 HRESULT ReadDataObjectFilePaths(IDataObject* dataObject, TextClipboardContent& content) noexcept;
 HRESULT ReadTextClipboardContent(TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles) noexcept;
+HRESULT ReadTextClipboardContent(TextClipboard& clipboard, HWND owner, TextClipboardContent& content, bool includeFiles, bool includeHtml) noexcept;
 [[nodiscard]] TextClipboard& SystemTextClipboard() noexcept;
 // Test-only override, borrowed on the calling UI thread. Production never installs this.
 #if DXUI_ENABLE_DIAGNOSTICS
