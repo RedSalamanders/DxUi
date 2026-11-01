@@ -1998,6 +1998,14 @@ template <typename Check> inline void StateNoteRaster(Check&& check)
 }
 template <typename Check> inline void LineStyleRasterOracle(Check&& check)
 {
+    const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE)
+        THROW_IF_FAILED(initialized);
+    const auto apartment = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
     wil::com_ptr<IWICImagingFactory> imaging;
     THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
     const auto drawing = DrawingFactory();
