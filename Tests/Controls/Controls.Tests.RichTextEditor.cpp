@@ -1819,6 +1819,43 @@ void TestRichTextEditorNativeImagePixels()
     Require(window.Host().DebugCaptureBitmap(capture), "native selected image raster capture");
     RichImageResourceTests::PatternPixels(
         *editor, window.Host(), capture.bgraPixels, capture.widthPx, capture.heightPx, window.Host().GetDpi() / 96.f, Require, true);
+    constexpr std::string_view svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><rect width='20' height='20' fill='red'/></svg>";
+    std::shared_ptr<const RichImage> vectorImage;
+    Require(SUCCEEDED(RichImage::CreateSvg(20u, 20u, std::as_bytes(std::span(svg)), vectorImage)), "create native SVG image fixture");
+    editor->SetSelection({0u, 0u});
+    editor->SetSvgImagesEnabled(true);
+    editor->SetText(L"![vector](shape.svg)\n");
+    RenderEditor(window);
+    std::vector<RichImageRequest> requests(0u);
+    editor->TakePendingImageRequests(requests);
+    Require(requests.size() == 1u && editor->CompleteImageRequest(requests.front(), vectorImage), "publish native SVG resource");
+    RenderEditor(window);
+    const auto verifySvg = [&]
+    {
+        Require(window.Host().DebugCaptureBitmap(capture), "capture prepared native SVG pixels without activation");
+        const auto document = editor->GetAcknowledgedSemanticDocument(window.Host());
+        Require(static_cast<bool>(document), "native SVG semantic publication is current");
+        const auto image = std::ranges::find(document->Elements(), SemanticRole::Image, &SemanticElement::role);
+        Require(image != document->Elements().end(), "native SVG image remains present");
+        const auto bounds = editor->GetSemanticElementBounds(window.Host(), static_cast<std::size_t>(image - document->Elements().begin()));
+        Require(bounds && std::abs(bounds->right - bounds->left - 20.f) < .02f, "native SVG uses its prepared nominal size");
+        const auto dpiScale = window.Host().GetDpi() / 96.f;
+        const auto x = static_cast<unsigned>((bounds->left + bounds->right) * .5f * dpiScale);
+        const auto y = static_cast<unsigned>((bounds->top + bounds->bottom) * .5f * dpiScale);
+        Require(x < capture.widthPx && y < capture.heightPx, "native SVG oracle samples within the captured target");
+        const auto offset = (static_cast<std::size_t>(y) * capture.widthPx + x) * 4u;
+        Require(capture.bgraPixels[offset] < 5u && capture.bgraPixels[offset + 1u] < 5u && capture.bgraPixels[offset + 2u] > 250u &&
+                    capture.bgraPixels[offset + 3u] > 250u,
+                "native SVG draws its prepared red pixels");
+    };
+    verifySvg();
+    const auto svgRevision = editor->Revision();
+    window.Host().DebugSimulateDeviceLoss();
+    RenderEditor(window);
+    verifySvg();
+    editor->TakePendingImageRequests(requests);
+    Require(requests.empty() && editor->Revision() == svgRevision && editor->GetText() == L"![vector](shape.svg)\n",
+            "native device recovery recreates SVG resources without changing source or re-requesting bytes");
 }
 void TestRichTextEditorNativeLosslessMarkdownPreparation()
 {
