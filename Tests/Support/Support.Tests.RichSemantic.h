@@ -365,7 +365,8 @@ inline void ListsAndHeadings()
         Exact(L"**word**", {2u, 6u}, request, L"word", Selection{0u, 4u}, profile);
         Exact(L"**a *b* c**", {2u, 9u}, request, L"a b c", Selection{0u, 5u}, profile);
         Exact(L"[word](https://example.invalid)", {1u, 5u}, request, L"word", Selection{0u, 4u}, profile);
-        Unavailable(L"**word**", {3u, 5u}, request, profile);
+        Exact(L"**word**", {3u, 5u}, request, L"**w**or**d**", Selection{5u, 7u}, profile);
+        Exact(L"`word`", {1u, 5u}, request, L"word", Selection{0u, 4u}, profile);
         request.command = MarkdownCommand::InsertEscapedText;
         request.text    = L"[x]*";
         Exact(L"", {}, request, L"\\[x\\]\\*", Selection{7u, 7u}, profile);

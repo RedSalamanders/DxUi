@@ -1632,6 +1632,32 @@ void MarkdownCommandPlanner::ClearFormatting()
     if (! InlineSelection(leaf))
         return;
     const auto first = plan.before_.Start(), last = plan.before_.End();
+    const MarkdownInline* only = nullptr;
+    for (const auto& node : plan.syntax_->Inlines())
+    {
+        if (node.kind == MarkdownInlineKind::Text || node.source.first >= last || node.source.last <= first)
+            continue;
+        if (only)
+        {
+            only = nullptr;
+            break;
+        }
+        only = &node;
+    }
+    if (only && (only->kind == MarkdownInlineKind::Strong || only->kind == MarkdownInlineKind::Emphasis || only->kind == MarkdownInlineKind::Strikethrough ||
+                 only->kind == MarkdownInlineKind::Code))
+    {
+        const auto body = InlineBody(*only);
+        if (body && (only->kind == MarkdownInlineKind::Code || first > body->first || last < body->last))
+        {
+            const auto style = only->kind == MarkdownInlineKind::Strong          ? MarkdownTextStyle::Strong
+                               : only->kind == MarkdownInlineKind::Emphasis      ? MarkdownTextStyle::Emphasis
+                               : only->kind == MarkdownInlineKind::Strikethrough ? MarkdownTextStyle::Strikethrough
+                                                                                 : MarkdownTextStyle::Code;
+            Style(style);
+            return;
+        }
+    }
     std::vector<MarkdownRange> removals(0u);
     for (const auto& node : plan.syntax_->Inlines())
     {
