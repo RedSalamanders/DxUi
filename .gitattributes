@@ -53,6 +53,8 @@ Measurements/CiBudget/2026-10-11-cold-build/** -text -whitespace
 Measurements/RichText/** -text -whitespace
 # Unicode conformance/property inputs are pinned by exact upstream bytes.
 ThirdParty/Unicode/** -text
+# Unicode collection receipts retain their original CRLF bytes when extended.
+ThirdParty/Unicode/**/markdown-collection.receipt.txt -whitespace
 ThirdParty/Markdown/** -text
 ThirdParty/Markdown/corpora/** -whitespace
 # Pinned Mermaid originals retain upstream Markdown/grammar whitespace.

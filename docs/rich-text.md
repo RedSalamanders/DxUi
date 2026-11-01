@@ -189,7 +189,8 @@ prose remains included. Word traversal is interval-bounded but exclusion setup
 scans the document's semantic records, so run it outside Paint. Dictionaries,
 reading rates and status-bar presentation remain application policy.
 `RichTextEditorAppearance::autoParagraphDirection` optionally selects first
-strong Unicode direction per semantic paragraph or table cell. Nested bidi
+strong Unicode 17 direction per semantic paragraph or table cell, including
+DerivedBidiClass defaults for unassigned scalars. Nested bidi
 isolates are skipped; a paragraph with no strong scalar inherits the host
 direction. Table column order continues to follow the host. The default remains
 the host direction for all paragraphs. This changes layout only and retains

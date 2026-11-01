@@ -1766,6 +1766,18 @@ template <typename Prepare> void SemanticDirection(ControlHost& host, Prepare&& 
               RichText::Detail::FirstStrongDirection(L"\u2067\u05e9\u2069ABC", rtl) == ltr &&
               RichText::Detail::FirstStrongDirection(L"\U0001ee00", ltr) == rtl && RichText::Detail::FirstStrongDirection(L"\U00010400", rtl) == ltr,
           "first-strong uses pinned bidi classes, skips isolates and handles supplementary scalars");
+    Check(RichText::Detail::FirstStrongDirection(L"\u0378\u05e9", rtl) == ltr &&
+              RichText::Detail::FirstStrongDirection(L"\u0590A", ltr) == rtl &&
+              RichText::Detail::FirstStrongDirection(L"\U00010d3fA", ltr) == rtl &&
+              RichText::Detail::FirstStrongDirection(L"\U0001ee04A", ltr) == rtl,
+          "unassigned scalars use the Unicode L, Hebrew R and supplementary Arabic AL defaults");
+    Check(RichText::Detail::FirstStrongDirection(L"\u20c2\u05e9", ltr) == rtl &&
+              RichText::Detail::FirstStrongDirection(L"\u0605A", rtl) == ltr &&
+              RichText::Detail::FirstStrongDirection(L"\u2065\u05e9", ltr) == rtl &&
+              RichText::Detail::FirstStrongDirection(L"\ufdd0\u05e9", ltr) == rtl &&
+              RichText::Detail::FirstStrongDirection(L"\U0010ffff\u05e9", ltr) == rtl &&
+              RichText::Detail::FirstStrongDirection(L"\u2067\u0590\u2069A", rtl) == ltr,
+          "currency defaults, explicit BN noncharacters and isolates do not become strong");
     const std::wstring source(L"English\n\n\u05e9\u05dc\u05d5\u05dd\n\n| A | B |\n| - | - |\n| alpha | \u05e9\u05dc\u05d5\u05dd |\n");
     auto root    = std::make_unique<RichTextEditor>(source);
     auto* editor = root.get();

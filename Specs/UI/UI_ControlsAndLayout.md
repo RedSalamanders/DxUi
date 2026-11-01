@@ -1860,8 +1860,10 @@ word traversal; exclusion preparation currently scans document elements, runs
 and spans and must not be called from Paint. No dictionary or reading-rate policy
 is supplied by the library.
 `autoParagraphDirection` is an opt-in semantic layout policy. Each paragraph
-uses the first Unicode 17 strong L, R or AL scalar outside nested bidi isolates;
-when no strong scalar exists it inherits the host direction. List marker and
+uses the first Unicode 17 strong L, R or AL scalar outside nested bidi isolates.
+the pinned DerivedBidiClass defaults and explicit overrides apply to unassigned
+scalars and noncharacters as well as assigned characters.
+When no strong scalar exists it inherits the host direction. List marker and
 indent placement follow the paragraph. Table cell text resolves independently,
 while physical table column order remains governed by the host direction.
 Changing this policy retires geometry and accessibility publication without

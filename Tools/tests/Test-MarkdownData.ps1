@@ -16,7 +16,7 @@ $generators=@(
     @{script='Tools/Generate-NativeMathTestData.ps1';inputs='ThirdParty/Markdown/katex-0.16.11';output='Tests/Support/Support.Tests.NativeMathSupportRows.h';
       pins=@('collection.json','support_table.md.txt','LICENSE.txt')},
     @{script='Tools/Generate-MarkdownUnicodeData.ps1';inputs='ThirdParty/Unicode/17.0.0';output='src/Controls/DxUi.MarkdownUnicodeData.h';
-      pins=@('CaseFolding.txt','UnicodeData.txt','LICENSE.txt')},
+      pins=@('CaseFolding.txt','UnicodeData.txt','DerivedBidiClass.txt','LICENSE.txt')},
     @{script='Tools/Generate-NativeFlowchartTestData.ps1';inputs='ThirdParty/Markdown/mermaid-11.4.1';output='Tests/Support/Support.Tests.NativeFlowchartCorpus.h';
       pins=@('collection.json','syntax-inventory.json','dxui-flowchart-expectations.json','dxui-family-matrix.json')+
         @((Get-Content -LiteralPath (Join-Path $repository 'ThirdParty/Markdown/mermaid-11.4.1/collection.json') -Raw | ConvertFrom-Json).file)}
@@ -62,5 +62,41 @@ foreach($item in $generators){
             Assert-True (-not(Test-Path -LiteralPath $output)) 'missing input writes no output'
         }
     }
+}
+Invoke-FixtureCase 'Unicode 17 first-strong tables include defaults and explicit neutral exceptions' {
+    param($root)
+    $expected=[byte[]]::new(0x110000)
+    $lines=[IO.File]::ReadAllLines((Join-Path $repository 'ThirdParty/Unicode/17.0.0/DerivedBidiClass.txt'))
+    foreach($line in $lines){
+        if($line -match '^# @missing:\s*([0-9A-F]+)\.\.([0-9A-F]+);\s*(\w+)'){
+            $first=[Convert]::ToInt32($Matches[1],16);$last=[Convert]::ToInt32($Matches[2],16)
+            $class=switch($Matches[3]){'Left_To_Right'{1}'Right_To_Left'{2}'Arabic_Letter'{2}'European_Terminator'{0}default{throw 'Unexpected bidi default'}}
+            [Array]::Fill($expected,[byte]$class,$first,$last-$first+1)
+        }
+    }
+    foreach($line in $lines){
+        if($line -match '^([0-9A-F]+)(?:\.\.([0-9A-F]+))?\s*;\s*([A-Z]+)\s*#'){
+            $first=[Convert]::ToInt32($Matches[1],16);$last=if($Matches[2]){[Convert]::ToInt32($Matches[2],16)}else{$first}
+            $class=if($Matches[3] -eq 'L'){1}elseif($Matches[3] -in @('R','AL')){2}else{0}
+            [Array]::Fill($expected,[byte]$class,$first,$last-$first+1)
+        }
+    }
+    $actual=[byte[]]::new($expected.Length);$class=0
+    foreach($line in [IO.File]::ReadLines((Join-Path $repository 'src/Controls/DxUi.MarkdownUnicodeData.h'))){
+        if($line -eq 'inline constexpr Range kBidiL[] = {'){$class=1;continue}
+        if($line -eq 'inline constexpr Range kBidiR[] = {'){$class=2;continue}
+        if($class -and $line -eq '};'){$class=0;continue}
+        if($class -and $line -match '^\{0x([0-9A-F]+)u,0x([0-9A-F]+)u\},$'){
+            $first=[Convert]::ToInt32($Matches[1],16);$last=[Convert]::ToInt32($Matches[2],16)
+            [Array]::Fill($actual,[byte]$class,$first,$last-$first+1)
+        }
+    }
+    for($index=0;$index -lt $expected.Length;++$index){
+        if($actual[$index] -ne $expected[$index]){throw ('Bidi class differs at U+{0:X}' -f $index)}
+    }
+    Assert-Equal ([byte]1) $actual[0x0378] 'unassigned ordinary scalar defaults L'
+    Assert-Equal ([byte]2) $actual[0x0590] 'unassigned Hebrew scalar defaults R'
+    Assert-Equal ([byte]0) $actual[0x20c2] 'unassigned currency scalar defaults ET'
+    Assert-Equal ([byte]0) $actual[0xfdd0] 'explicit BN noncharacter overrides L default'
 }
 Complete-TestRun 'Markdown data generation'
