@@ -331,12 +331,27 @@ inline void AuthoredImagePresentation()
               html->Map().Display().find(L"Map overview") != std::wstring::npos && html->Paragraphs().front().alignment == MarkdownAlignment::Right &&
               html->Map().Source() == htmlSource,
           "standalone HTML image accepts explicit caption and alignment without treating title as caption");
-    for (const auto invalid : {L"![map](map.png){width=0}\n", L"![map](map.png){width=12 width=24}\n", L"prefix ![map](map.png){align=center}\n", L"![map](map.png){caption=\"A *styled* text\"}\n"})
+    for (const auto invalid : {L"![map](map.png){width=0}\n", L"![map](map.png){width=12 width=24}\n", L"prefix ![map](map.png){align=center}\n",
+                               L"![map](map.png){caption=\"A *styled* text\"}\n", L"![map](map.png){caption=\"A\x7f B\"}\n"})
     {
         const auto rejected = Build(invalid, MarkdownProfile::RichMarkdown);
         Check(rejected->Map().Display().find(L"![map](map.png){") != std::wstring::npos && rejected->Map().Source() == invalid &&
                   std::ranges::none_of(rejected->Elements(), [](const auto& item) { return item.role == SemanticRole::Image; }),
               "invalid and non-standalone Markdown presentation attributes remain literal");
+    }
+    for (const auto input : {L"![map](map.png){width=2\n\nordinary } text\n", L"![map](map.png){width=2\nordinary } text\n",
+                             L"![map](map.png){width=2 *bad*}\n\nnext } text\n"})
+    {
+        const auto rejected = Build(input, MarkdownProfile::RichMarkdown);
+        CheckGraph(*rejected);
+        const auto display = rejected->Map().Display();
+        const auto marker = display.find(L"ordinary } text");
+        const auto tail = display.find(L"next } text");
+        Check(rejected->Map().Source() == input && display.find(L"![map](map.png){width=2") != display.npos &&
+                  std::ranges::none_of(rejected->Elements(), [](const auto& item) { return item.role == SemanticRole::Image; }) &&
+                  ((marker != display.npos && display.find(L"ordinary } text", marker + 1u) == display.npos) ||
+                   (tail != display.npos && display.find(L"next } text", tail + 1u) == display.npos && display.find(L"*bad*}") != display.npos)),
+              "malformed image suffix stays in its leaf and line without duplicating later content or split inline owners");
     }
     const auto standard = Build(source, MarkdownProfile::Gfm029);
     Check(standard->Map().Display().find(L"{width=") != std::wstring::npos,

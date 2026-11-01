@@ -39,7 +39,7 @@ std::optional<ImagePresentation> ParseImagePresentation(std::wstring_view source
             const auto start = at;
             while (at < last - 1u && source[at] != L'"')
             {
-                if (source[at] < L' ' || source[at] == L'\\') return std::nullopt;
+                if (source[at] < L' ' || source[at] == 0x7fu || source[at] == L'\\') return std::nullopt;
                 ++at;
             }
             if (at == start || at - start > 256u || at >= last - 1u) return std::nullopt;
@@ -1064,14 +1064,33 @@ struct SemanticBuilder::Preparation
         {
             const auto& suffix = document->syntax_->Inlines()[node.nextSibling];
             const auto source = document->syntax_->Source();
-            if (suffix.source.first == node.source.last && suffix.source.first < source.size() && source[suffix.source.first] == L'{')
+            if (suffix.source.first == node.source.last && suffix.source.first < source.size() && source[suffix.source.first] == L'{' &&
+                ! normalized.units.empty() && suffix.source.first < normalized.units.back().source.last &&
+                (visit.clipLast == MarkdownNoNode || suffix.source.first < visit.clipLast))
             {
-                const auto available = std::min<std::size_t>(512u, source.size() - suffix.source.first);
+                // A malformed suffix must never consume a brace from a later
+                // leaf, line, or clipped inline region. The normalized units
+                // are the current leaf's source-owned projection.
+                auto leafEnd = normalized.units.back().source.last;
+                if (visit.clipLast != MarkdownNoNode)
+                    leafEnd = std::min(leafEnd, visit.clipLast);
+                leafEnd = std::min(leafEnd, source.size());
+                auto available = std::min<std::size_t>(512u, leafEnd - suffix.source.first);
+                const auto lineEnd = source.substr(suffix.source.first, available).find_first_of(L"\r\n");
+                if (lineEnd != std::wstring_view::npos)
+                    available = lineEnd;
                 const auto closing = source.substr(suffix.source.first, available).find(L'}');
-                presentationEnd = closing == std::wstring_view::npos ? suffix.source.last : suffix.source.first + closing + 1u;
-                // Never split a non-text inline owner crossing the candidate end.
-                if (suffix.kind != MarkdownInlineKind::Text && suffix.source.last > presentationEnd)
-                    presentationEnd = suffix.source.last;
+                presentationEnd = closing == std::wstring_view::npos ? suffix.source.first + available : suffix.source.first + closing + 1u;
+                // Never split any non-text sibling crossed by the candidate.
+                // Such a node may span a soft break but cannot leave this leaf.
+                for (auto sibling = node.nextSibling; sibling != MarkdownNoNode; sibling = document->syntax_->Inlines()[sibling].nextSibling)
+                {
+                    const auto& item = document->syntax_->Inlines()[sibling];
+                    if (item.source.first >= presentationEnd)
+                        break;
+                    if (item.kind != MarkdownInlineKind::Text && item.source.last > presentationEnd)
+                        presentationEnd = std::min(item.source.last, leafEnd);
+                }
                 const auto parsed = ParseImagePresentation(source, node.source.last, presentationEnd);
                 const bool standalone = ! document->paragraphs_.empty() && document->paragraphs_.back().element == visit.parent &&
                     document->paragraphs_.back().syntaxNode < document->syntax_->Nodes().size() &&
