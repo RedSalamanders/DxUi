@@ -1964,7 +1964,7 @@ void SemanticFrontMatterDiagnostics(bool embedded)
         Require(retired(*metadata.get()), "same-host rebinding cannot resurrect an older semantic epoch");
     }
 }
-wil::com_ptr_nothrow<IRawElementProviderSimple> FindNamedSemanticPart(IRawElementProviderSimple& root, std::wstring_view name, unsigned depth = 0u)
+wil::com_ptr_nothrow<IRawElementProviderSimple> FindNamedSemanticPart(IRawElementProviderSimple& root, std::wstring_view name, unsigned depth = 0u, CONTROLTYPEID type = 0)
 {
     Require(depth < 24u, "named semantic provider walk is bounded");
     wil::com_ptr_nothrow<IRawElementProviderFragment> fragment, child;
@@ -1974,9 +1974,10 @@ wil::com_ptr_nothrow<IRawElementProviderSimple> FindNamedSemanticPart(IRawElemen
     {
         wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
         RequireSucceeded(child.query_to(simple.put()), "named child simple");
-        if (ReadProviderStringProperty(*simple.get(), UIA_NamePropertyId, "named semantic part") == name)
+        if (ReadProviderStringProperty(*simple.get(), UIA_NamePropertyId, "named semantic part") == name &&
+            (! type || ReadProviderLongProperty(*simple.get(), UIA_ControlTypePropertyId, "named semantic part type") == type))
             return simple;
-        auto nested = FindNamedSemanticPart(*simple.get(), name, depth + 1u);
+        auto nested = FindNamedSemanticPart(*simple.get(), name, depth + 1u, type);
         if (nested)
             return nested;
         wil::com_ptr_nothrow<IRawElementProviderFragment> next;
@@ -2536,13 +2537,19 @@ void SemanticWikiActivation(bool embedded)
     RichAccessibilityFixture fixture(embedded, true, true);
     fixture.editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
     fixture.editor->SetMarkdownRenderingEnabled(true);
-    fixture.editor->SetText(L"[[#application|wiki label]]");
+    const std::wstring source = L"[[#application|wiki label]]";
+    fixture.editor->SetText(source);
     fixture.Publish();
     auto simple = fixture.Simple();
-    auto link   = FindNamedSemanticPart(*simple.get(), L"wiki label");
+    const auto sameNameParagraph = FindNamedSemanticPart(*simple.get(), L"wiki label");
+    Require(sameNameParagraph && ReadProviderLongProperty(*sameNameParagraph.get(), UIA_ControlTypePropertyId, "same-name paragraph type") == UIA_TextControlTypeId,
+            "the same-name paragraph precedes the nested wiki hyperlink");
+    auto link = FindNamedSemanticPart(*simple.get(), L"wiki label", 0u, UIA_HyperlinkControlTypeId);
     wil::com_ptr_nothrow<IUnknown> pattern;
     Require(link && SUCCEEDED(link->GetPatternProvider(UIA_InvokePatternId, pattern.put())) && ! pattern,
             "unresolved wiki fragment has no implicit heading Invoke");
+    const auto revision = fixture.editor->Revision();
+    const auto selection = fixture.editor->GetSelection();
     unsigned calls{};
     fixture.editor->SetOnLinkActivated([&](const RichTextLinkActivation& value)
     {
@@ -2550,11 +2557,15 @@ void SemanticWikiActivation(bool embedded)
         ++calls;
     });
     fixture.Publish();
-    link = FindNamedSemanticPart(*simple.get(), L"wiki label");
+    link = FindNamedSemanticPart(*simple.get(), L"wiki label", 0u, UIA_HyperlinkControlTypeId);
+    Require(link != nullptr, "the current application-resolved wiki hyperlink is present");
     RequireSucceeded(link->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "application-resolved wiki Invoke pattern");
     wil::com_ptr_nothrow<IInvokeProvider> invoke;
     Require(pattern && SUCCEEDED(pattern.query_to(invoke.put())) && SUCCEEDED(invoke->Invoke()) && calls == 1u,
             "wiki UIA activation delegates exactly once to the application");
+    Require(fixture.editor->GetText() == source && fixture.editor->Revision() == revision && fixture.editor->GetSelection() == selection &&
+                ! fixture.editor->CanUndo(),
+            "wiki UIA activation preserves source, selection, revision and history");
 }
 void SemanticDisclosure(bool embedded)
 {
