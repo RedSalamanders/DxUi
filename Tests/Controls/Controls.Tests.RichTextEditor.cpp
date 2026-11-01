@@ -998,11 +998,13 @@ void TestRichTextEditorNativeCompatibilityWorkIsReported()
     Require(state.layoutReady && state.retainedGeometryChunks <= 128u, "native compatibility resource graph remains coherent and bounded");
     Require(! state.wholeGeometryFallback && ! state.wholeRasterFallback && state.reusedGeometryChunks > 0u && state.preparedSourceUnits <= 2048u,
             "the actual default 13-DIP native editor reuses positioned chunks without whole-layout preparation or raster fallback");
-    if (state.wholeGeometryFallback || state.wholeRasterFallback)
-        Require(state.wholeLayoutsPrepared > 0u && state.wholeLayoutSourceUnits == seed.size(),
-                "whole-layout compatibility work is explicitly reported rather than attributed to bounded chunk preparation");
-    else
-        Require(state.reusedGeometryChunks > 0u && state.preparedSourceUnits <= 2048u, "native exact-placement path reports actual incremental geometry reuse");
+    auto appearance                 = raw->GetAppearance();
+    appearance.lineHeightMultiplier = 1.5f;
+    raw->SetAppearance(appearance);
+    RenderEditor(window);
+    const auto whole = raw->DebugGetState();
+    Require(whole.layoutReady && whole.wholeGeometryFallback && whole.wholeLayoutsPrepared > 0u && whole.wholeLayoutSourceUnits == raw->GetText().size(),
+            "native editor reports actual whole-layout geometry work when custom line height requires compatibility placement");
 }
 void TestRichTextEditorNativeChunkReuseAndRetirement()
 {
