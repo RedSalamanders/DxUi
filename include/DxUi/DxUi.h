@@ -3,6 +3,7 @@
 #include "MarkdownSyntax.h"
 #include "PreparedTreeAccessibility.h"
 #include "RichImage.h"
+#include "RichCodeTokenizer.h"
 #include "RichMarkdown.h"
 #include "RichSemantic.h"
 #include "RichSemanticDocument.h"
@@ -3281,6 +3282,8 @@ public:
     [[nodiscard]] const RichTextEditorAppearance& GetAppearance() const noexcept;
     void SetZoom(float zoom);
     [[nodiscard]] float GetZoom() const noexcept;
+    // Optional owner-thread code coloring; an empty callback restores ordinary ink.
+    void SetCodeTokenizer(RichText::CodeTokenizer tokenizer);
     void SetLinkUnderlinePolicy(RichTextLinkUnderlinePolicy policy);
     [[nodiscard]] RichTextLinkUnderlinePolicy GetLinkUnderlinePolicy() const noexcept;
     // Current semantic source style; source mode/pending geometry returns false.
@@ -3492,6 +3495,7 @@ private:
     [[nodiscard]] std::optional<RichText::MarkdownRange> CaretLinkDisplayRange() const noexcept;
     void UpdateCaretLinkDisplayRange() noexcept;
     bool PrepareSourceInk();
+    HRESULT PrepareCodeInk(const std::shared_ptr<const RichText::SemanticDocument>& document);
     [[nodiscard]] std::optional<RichText::MarkdownRange> HoveredLinkDisplayRange(ControlHost& host, D2D1_POINT_2F point) const;
     [[nodiscard]] std::optional<RichText::MarkdownRange> ActiveParagraphDisplayRange() const;
     [[nodiscard]] bool Editable() const noexcept;

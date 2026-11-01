@@ -1,6 +1,7 @@
 #include "DxUi.Internal.h"
 #include "DxUi.MarkdownLabels.h"
 #include "DxUi.RichAccessibilityEpoch.h"
+#include "DxUi.RichCodeInk.h"
 #include "DxUi.RichEditorLayout.h"
 #include "DxUi.RichFileReferenceContext.h"
 #include "DxUi.RichImagePaths.h"
@@ -266,6 +267,11 @@ struct RichTextEditor::State
     RichText::MarkdownParser markdown;
     RichText::SemanticBuilder semantic;
     RichText::Detail::RichSourceInk sourceInk;
+    std::shared_ptr<const RichText::CodeTokenizer> codeTokenizer;
+    std::shared_ptr<const RichText::SemanticDocument> codeInkDocument;
+    std::vector<RichText::TextInkRange> codeInk, codeInkStaged;
+    size_t codeInkCursor{};
+    bool codeInkComplete{}, codeCallbackActive{};
     struct SourceEditingSession
     {
         RichText::MarkdownSourceRegion region;
@@ -1899,6 +1905,21 @@ bool RichTextEditor::CanRedo() const noexcept
 {
     return _state->document.CanRedo();
 }
+bool RichText::TokenizeBuiltinCode(std::wstring_view language, std::wstring_view text, std::vector<CodeToken>& tokens)
+{
+    return Detail::TokenizeCode(language, text, tokens);
+}
+void RichTextEditor::SetCodeTokenizer(RichText::CodeTokenizer tokenizer)
+{
+    auto next = tokenizer ? std::make_shared<const RichText::CodeTokenizer>(std::move(tokenizer)) : nullptr;
+    _state->codeTokenizer.swap(next);
+    _state->codeInkDocument.reset();
+    _state->codeInk.clear();
+    _state->codeInkStaged.clear();
+    _state->codeInkCursor = 0u;
+    _state->codeInkComplete = false;
+    RequestContentPreparation();
+}
 void RichTextEditor::SetOnTextChanged(std::function<void()> callback)
 {
     _state->onTextChanged = callback ? std::make_shared<const std::function<void()>>(std::move(callback)) : nullptr;
@@ -2027,6 +2048,10 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
         else
             _state->images.Cancel();
         _state->hoveredLink.reset();
+        _state->codeInkDocument.reset();
+        _state->codeInk.clear();
+        _state->codeInkStaged.clear();
+        _state->codeInkComplete = false;
         UpdateSemanticSourceRegion();
         RetireSemanticAccessibility();
         _state->taskPressPlan.reset();
@@ -2171,6 +2196,10 @@ void RichTextEditor::RetireLayout(bool retainGeometry) const noexcept
     if (! _state->decorations.empty())
         _state->decorationStatus = RichTextDecorationStatus::Pending;
     _state->sourceInk.Clear();
+    _state->codeInkDocument.reset();
+    _state->codeInk.clear();
+    _state->codeInkStaged.clear();
+    _state->codeInkComplete = false;
     _state->hoveredLink.reset();
     _state->caretLink.reset();
     _state->keyboardNavigationDocument.reset();
@@ -2342,6 +2371,8 @@ void RichTextEditor::CancelContentPreparation() noexcept
 HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
 {
     auto& state              = *_state;
+    if (state.codeCallbackActive)
+        return S_FALSE;
     state.lastAdvanceLayouts = state.lastAdvanceBlockSteps = 0u;
     state.lastAdvanceMarkdownWork                          = 0u;
     state.lastAdvanceSemanticWork                          = 0u;
@@ -2450,10 +2481,18 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             static_cast<void>(host.GetSolidBrush(opaque));
             static_cast<void>(host.GetSolidBrush(CompositeOverBackground(style.selectionFill, opaque)));
         }
+        if (state.mode == RichText::ViewMode::Rich && state.codeTokenizer && ! host.GetTheme().highContrast)
+        {
+            static_cast<void>(host.GetSolidBrush(host.GetTheme().subduedText));
+            static_cast<void>(host.GetSolidBrush(host.GetTheme().accent));
+        }
         if (LayoutIsCurrent(host))
         {
             UpdateCaretScroll();
             PrepareOverlayGeometry(host);
+            const auto codeInk = PrepareCodeInk(state.mode == RichText::ViewMode::Rich ? GetSemanticDocument() : nullptr);
+            if (codeInk != S_OK)
+                return codeInk;
             const auto result = PrepareSourceInk() ? S_OK : S_FALSE;
             PublishScrollChanged();
             return result;
@@ -2770,6 +2809,9 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         UpdateCaretScroll();
         UpdateCaretLinkDisplayRange();
         PrepareOverlayGeometry(host);
+        const auto codeInk = PrepareCodeInk(semanticDocument);
+        if (codeInk != S_OK)
+            return codeInk;
         const auto result = PrepareSourceInk() ? S_OK : S_FALSE;
         PublishScrollChanged();
         return result;
@@ -3257,6 +3299,15 @@ void RichTextEditor::Paint(ControlHost& host) const
                 links.inkExclusion = RichText::MarkdownRange{projection.ToDisplay(selection.Start()), projection.ToDisplay(selection.End())};
             links.inkBrushes = {
                 host.GetSolidBrush(host.GetTheme().subduedText), host.GetSolidBrush(host.GetTheme().accent), host.GetSolidBrush(host.GetTheme().accent)};
+        }
+        if (state.mode == RichText::ViewMode::Rich && state.codeInkComplete && state.codeInkDocument == GetSemanticDocument() &&
+            ! host.GetTheme().highContrast)
+        {
+            links.inkRanges = state.codeInk;
+            if (selection.anchor != selection.caret)
+                links.inkExclusion = RichText::MarkdownRange{projection.ToDisplay(selection.Start()), projection.ToDisplay(selection.End())};
+            links.inkBrushes = {host.GetSolidBrush(host.GetTheme().subduedText), host.GetSolidBrush(host.GetTheme().accent),
+                                host.GetSolidBrush(host.GetTheme().accent)};
         }
         const bool dimmed = state.focusMode && state.mode == RichText::ViewMode::Rich && ! host.GetTheme().highContrast && IsEnabled();
         auto* subdued     = dimmed ? host.GetSolidBrush(host.GetTheme().subduedText) : textBrush;
@@ -4588,6 +4639,120 @@ std::optional<RichText::MarkdownRange> RichTextEditor::HoveredLinkDisplayRange(C
             element.display.first <= display && display < element.display.last)
             return element.display;
     return std::nullopt;
+}
+HRESULT RichTextEditor::PrepareCodeInk(const std::shared_ptr<const RichText::SemanticDocument>& document)
+{
+    auto& state = *_state;
+    if (! document || ! state.codeTokenizer)
+    {
+        state.codeInkDocument.reset();
+        state.codeInk.clear();
+        state.codeInkStaged.clear();
+        state.codeInkComplete = false;
+        return S_OK;
+    }
+    if (state.codeInkDocument != document)
+    {
+        state.codeInkDocument = document;
+        state.codeInk.clear();
+        state.codeInkStaged.clear();
+        state.codeInkCursor = 0u;
+        state.codeInkComplete = false;
+    }
+    if (state.codeInkComplete)
+        return S_OK;
+    const auto elements = document->Elements();
+    std::size_t work = 0u;
+    while (state.codeInkCursor < elements.size() && work++ < 256u)
+    {
+        const auto index = state.codeInkCursor;
+        const auto& element = elements[index];
+        if (element.role != RichText::SemanticRole::Code || element.syntaxNode >= document->Syntax()->Nodes().size())
+        {
+            ++state.codeInkCursor;
+            continue;
+        }
+        const auto& node = document->Syntax()->Nodes()[element.syntaxNode];
+        if (node.block.kind != RichText::MarkdownBlockKind::FencedCode && node.block.kind != RichText::MarkdownBlockKind::IndentedCode)
+        {
+            ++state.codeInkCursor;
+            continue;
+        }
+        const auto display = document->Map().Display();
+        if (element.display.last > display.size() || element.display.first > element.display.last)
+        {
+            ++state.codeInkCursor;
+            continue;
+        }
+        const auto code = display.substr(element.display.first, element.display.last - element.display.first);
+        auto language = document->Syntax()->Slice(node.block.info);
+        while (! language.empty() && (language.front() == L' ' || language.front() == L'\t'))
+            language.remove_prefix(1u);
+        const auto end = language.find_first_of(L" \t\r\n");
+        if (end != language.npos)
+            language = language.substr(0u, end);
+        const auto callback = state.codeTokenizer;
+        const auto lifetime = GetLifetimeToken();
+        const auto revision = Revision(), binding = state.bindingRevision;
+        const auto* host = GetHost();
+        std::vector<RichText::CodeToken> tokens(0u);
+        bool accepted = false, allocationFailure = false;
+        state.codeCallbackActive = true;
+        try
+        {
+            accepted = (*callback)(language, code, tokens);
+        }
+        catch (const std::bad_alloc&)
+        {
+            allocationFailure = true;
+        }
+        catch (const std::exception&)
+        {
+            // A failed consumer tokenizer leaves this block in ordinary ink.
+        }
+        if (lifetime.expired())
+            return E_ABORT;
+        _state->codeCallbackActive = false;
+        if (GetHost() != host || Revision() != revision || _state->bindingRevision != binding || _state->codeTokenizer != callback ||
+            _state->codeInkDocument != document)
+            return S_FALSE;
+        if (allocationFailure)
+        {
+            return E_OUTOFMEMORY;
+        }
+        const auto boundary = [&](std::size_t offset)
+        {
+            return offset == 0u || offset == code.size() || !(code[offset] >= 0xDC00 && code[offset] <= 0xDFFF &&
+                                                              code[offset - 1u] >= 0xD800 && code[offset - 1u] <= 0xDBFF);
+        };
+        std::size_t previous = 0u;
+        bool valid = accepted && tokens.size() <= RichText::MaximumCodeTokens - _state->codeInkStaged.size();
+        for (const auto& token : tokens)
+        {
+            if (token.text.first < previous || token.text.first >= token.text.last || token.text.last > code.size() ||
+                static_cast<unsigned>(token.role) > static_cast<unsigned>(RichText::CodeTokenRole::Literal) ||
+                ! boundary(token.text.first) || ! boundary(token.text.last))
+            {
+                valid = false;
+                break;
+            }
+            previous = token.text.last;
+        }
+        if (valid)
+        {
+            _state->codeInkStaged.reserve(_state->codeInkStaged.size() + tokens.size());
+            for (const auto& token : tokens)
+                _state->codeInkStaged.push_back({{element.display.first + token.text.first, element.display.first + token.text.last},
+                                                 static_cast<RichText::TextInkRole>(token.role)});
+        }
+        ++_state->codeInkCursor;
+        return S_FALSE; // One potentially expensive borrowed-input callback per owner turn.
+    }
+    if (state.codeInkCursor < elements.size())
+        return S_FALSE;
+    state.codeInk.swap(state.codeInkStaged);
+    state.codeInkComplete = true;
+    return S_OK;
 }
 bool RichTextEditor::PrepareSourceInk()
 {
