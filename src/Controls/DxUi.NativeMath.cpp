@@ -122,7 +122,7 @@ class Parser
         // An explicitly nested alphabet or text family owns its own glyphs;
         // an enclosing alphabet must not rewrite that override afterward.
         if (node.kind == MathKind::Style &&
-            (node.text == L"mathrm" || node.text == L"mathit" || node.text == L"mathnormal" || node.text == L"mathbb" || node.text == L"mathcal" ||
+            (node.text == L"mathrm" || node.text == L"mathit" || node.text == L"mathnormal" || node.text == L"mathbb" || node.text == L"mathcal" || node.text == L"mathscr" ||
              node.text == L"mathfrak" || node.text == L"mathsf" || node.text == L"mathtt" || node.text == L"textrm" || node.text == L"textsf" ||
              node.text == L"texttt" || node.text == L"textnormal" || node.text == L"emph"))
             return;
@@ -833,8 +833,16 @@ class Parser
     static bool MathStyleCommand(std::wstring_view name) noexcept
     {
         static constexpr std::wstring_view names[] = {
-            L"bold", L"frak", L"Bbb", L"mathrm", L"mathbf", L"mathit", L"mathnormal", L"boldsymbol", L"bm", L"mathbb", L"mathcal", L"mathfrak", L"mathsf", L"mathtt", L"pmb", L"mathord", L"mathop", L"mathbin", L"mathrel", L"mathopen", L"mathclose", L"mathpunct", L"mathinner"};
+            L"bold", L"frak", L"Bbb", L"mathrm", L"mathbf", L"mathit", L"mathnormal", L"boldsymbol", L"bm", L"mathbb", L"mathcal", L"mathscr", L"mathfrak", L"mathsf", L"mathtt", L"pmb", L"mathord", L"mathop", L"mathbin", L"mathrel", L"mathopen", L"mathclose", L"mathpunct", L"mathinner"};
         return std::ranges::find(names, name) != std::end(names);
+    }
+    static bool ScriptAlphabet(const MathNode& node) noexcept
+    {
+        if (node.kind == MathKind::Text)
+            return ! node.text.empty() && std::ranges::all_of(node.text, [](wchar_t ch) { return ch >= L'A' && ch <= L'Z'; });
+        if (node.kind != MathKind::Row)
+            return false;
+        return std::ranges::all_of(node.children, [](const MathNode& child) { return ScriptAlphabet(child); });
     }
     MathNode MathStyle(std::wstring_view name, unsigned depth)
     {
@@ -845,6 +853,8 @@ class Parser
         else if (name == L"frak") name = L"mathfrak";
         else if (name == L"Bbb") name = L"mathbb";
             auto body = Atom(depth + 1);
+            if (name == L"mathscr" && ! ScriptAlphabet(body))
+                Reject(MathIssue::UnsupportedCommand);
             if (name == L"mathbb" || name == L"mathcal" || name == L"mathfrak" || name == L"mathsf" || name == L"mathtt")
                 Alphabet(body, name);
             auto result = Make(MathKind::Style, std::wstring(name), {std::move(body)});

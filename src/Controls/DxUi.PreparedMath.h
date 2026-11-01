@@ -45,25 +45,19 @@ extern thread_local std::span<const std::uint8_t> testRichMathTableOverride;
 // Shared only by one owner-thread staging generation. Published formula glyphs
 // do not query or mutate this cache during paint. Fonts/formats survive through
 // the formula's lifetime; no process-global cache or factory identity is used.
-enum class MathTextFamily
-{
-    Math,
-    Sans,
-    Monospace
-};
+enum class MathTextFamily { Math, Sans, Monospace, Script };
 class MathTextFormats final
 {
 public:
-    explicit MathTextFormats(IDWriteFactory* factory,
-                             std::wstring_view family     = L"Cambria Math",
-                             std::wstring_view locale     = L"en-us",
-                             std::wstring_view sansFamily = L"Segoe UI",
-                             std::wstring_view monoFamily = L"Consolas")
+    explicit MathTextFormats(IDWriteFactory* factory, std::wstring_view family = L"Cambria Math", std::wstring_view locale = L"en-us",
+                             std::wstring_view sansFamily = L"Segoe UI", std::wstring_view monoFamily = L"Consolas",
+                             std::wstring_view scriptFamily = L"Segoe Script")
         : factory_(factory),
           family_(ValidateName(family, false)),
           locale_(ValidateName(locale, true)),
           sansFamily_(ValidateName(sansFamily, false)),
           monoFamily_(ValidateName(monoFamily, false)),
+          scriptFamily_(ValidateName(scriptFamily, false)),
           formats_(0u)
     {
         if (! factory)
@@ -94,10 +88,32 @@ public:
                 return entry.format.get();
         if (formats_.size() == 4096u)
             throw std::length_error("Mathematical text format capacity exceeded");
+        if (textFamily == MathTextFamily::Script && ! scriptVerified_)
+        {
+            wil::com_ptr<IDWriteFontCollection> collection;
+            THROW_IF_FAILED(factory_->GetSystemFontCollection(collection.put()));
+            UINT32 index{};
+            BOOL exists{};
+            THROW_IF_FAILED(collection->FindFamilyName(scriptFamily_.c_str(), &index, &exists));
+            if (! exists)
+                THROW_HR(DWRITE_E_UNSUPPORTEDOPERATION);
+            wil::com_ptr<IDWriteFontFamily> family;
+            wil::com_ptr<IDWriteFont> font;
+            wil::com_ptr<IDWriteFontFace> face;
+            THROW_IF_FAILED(collection->GetFontFamily(index, family.put()));
+            THROW_IF_FAILED(family->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, font.put()));
+            THROW_IF_FAILED(font->CreateFontFace(face.put()));
+            std::array<UINT32, 26u> scalars{};
+            std::array<UINT16, 26u> glyphs{};
+            for (std::size_t i = 0u; i < scalars.size(); ++i)
+                scalars[i] = static_cast<UINT32>(L'A') + static_cast<UINT32>(i);
+            THROW_IF_FAILED(face->GetGlyphIndices(scalars.data(), static_cast<UINT32>(scalars.size()), glyphs.data()));
+            if (std::ranges::find(glyphs, 0u) != glyphs.end())
+                THROW_HR(DWRITE_E_UNSUPPORTEDOPERATION);
+            scriptVerified_ = true;
+        }
         wil::com_ptr<IDWriteTextFormat> format;
-        THROW_IF_FAILED(factory_->CreateTextFormat(textFamily == MathTextFamily::Sans        ? sansFamily_.c_str()
-                                                   : textFamily == MathTextFamily::Monospace ? monoFamily_.c_str()
-                                                                                             : family_.c_str(),
+        THROW_IF_FAILED(factory_->CreateTextFormat(textFamily == MathTextFamily::Sans ? sansFamily_.c_str() : textFamily == MathTextFamily::Monospace ? monoFamily_.c_str() : textFamily == MathTextFamily::Script ? scriptFamily_.c_str() : family_.c_str(),
                                                    nullptr,
                                                    bold ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_NORMAL,
                                                    italic ? DWRITE_FONT_STYLE_ITALIC : DWRITE_FONT_STYLE_NORMAL,
@@ -127,8 +143,9 @@ private:
         wil::com_ptr<IDWriteTextFormat> format;
     };
     wil::com_ptr<IDWriteFactory> factory_;
-    std::wstring family_, locale_, sansFamily_, monoFamily_;
+    std::wstring family_, locale_, sansFamily_, monoFamily_, scriptFamily_;
     std::vector<Entry> formats_;
+    bool scriptVerified_{};
 };
 // DWrite supplies the actual shaped face and glyph. Source-codepoint lookup is
 // not sufficient for font fallback, substitutions or surrogate-pair shaping.
@@ -723,7 +740,7 @@ class PreparedMath final
                     break;
                 case MathKind::Style:
                     if (node.text != L"mathrm" && node.text != L"mathbf" && node.text != L"mathit" && node.text != L"mathnormal" &&
-                        node.text != L"boldsymbol" && node.text != L"bm" && node.text != L"mathbb" && node.text != L"mathcal" && node.text != L"mathfrak" &&
+                        node.text != L"boldsymbol" && node.text != L"bm" && node.text != L"mathbb" && node.text != L"mathcal" && node.text != L"mathscr" && node.text != L"mathfrak" &&
                         node.text != L"mathsf" && node.text != L"mathtt" && node.text != L"mathord" && node.text != L"mathop" && node.text != L"mathbin" &&
                         node.text != L"mathrel" && node.text != L"mathopen" && node.text != L"mathclose" && node.text != L"mathpunct" &&
                         node.text != L"mathinner" && node.text != L"textsf" && node.text != L"texttt" && node.text != L"textrm" && node.text != L"textnormal" && node.text != L"textmd" && node.text != L"emph" && node.text != L"pmb" && node.text != L"displaystyle" && node.text != L"textstyle" && node.text != L"scriptstyle" &&
@@ -804,6 +821,9 @@ class PreparedMath final
         }
         if (node.kind == MathKind::Text)
         {
+            if (textFamily == MathTextFamily::Script &&
+                ! std::ranges::all_of(node.text, [](wchar_t ch) { return ch >= L'A' && ch <= L'Z'; }))
+                throw std::length_error("Unsupported mathematical script alphabet");
             if (node.text.empty())
             {
                 boxes[index].endChild = boxes.size();
@@ -843,6 +863,7 @@ class PreparedMath final
                 if (node.text == L"pmb") childPseudoBold = true;
                 if (node.text == L"textsf") childFamily = MathTextFamily::Sans;
                 else if (node.text == L"texttt") childFamily = MathTextFamily::Monospace;
+                else if (node.text == L"mathscr") childFamily = MathTextFamily::Script;
                 else if (node.text == L"textrm" || node.text == L"textnormal") childFamily = MathTextFamily::Math;
                 if (node.text == L"mathbf")
                 {
@@ -860,7 +881,7 @@ class PreparedMath final
                     childItalic      = false;
                     childForceItalic = false;
                 }
-                if (node.text == L"mathrm" || node.text == L"mathbb" || node.text == L"mathcal" || node.text == L"mathfrak" || node.text == L"mathsf" ||
+                if (node.text == L"mathrm" || node.text == L"mathbb" || node.text == L"mathcal" || node.text == L"mathscr" || node.text == L"mathfrak" || node.text == L"mathsf" ||
                     node.text == L"mathtt")
                 {
                     childItalic      = false;

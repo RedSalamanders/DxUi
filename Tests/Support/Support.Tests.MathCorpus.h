@@ -1009,6 +1009,42 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         check(! ParseMath(L"a\\notagged b"), "number-suppression name does not consume a longer unknown command");
     }
 #endif
+#if DXUI_ENABLE_DIAGNOSTICS
+    {
+        const auto expression = std::make_shared<const MathExpression>(ParseMath(L"\\mathscr{AB}"));
+        check(static_cast<bool>(*expression), "mathematical script admits bounded uppercase alphabet");
+        Detail::PreparedMath script(factory, expression, 24.f);
+        while (! script.Advance()) {}
+        const auto& glyphs = script.GlyphLayouts();
+        check(! glyphs.empty(), "script alphabet stages native glyphs");
+        if (! glyphs.empty())
+        {
+            UINT32 length{};
+            THROW_IF_FAILED(glyphs[0u].layout->GetFontFamilyNameLength(0u, &length));
+            std::wstring actual(length + 1u, L'\0');
+            THROW_IF_FAILED(glyphs[0u].layout->GetFontFamilyName(0u, actual.data(), static_cast<UINT32>(actual.size())));
+            actual.resize(length);
+            check(actual == L"Segoe Script", "script alphabet uses its distinct verified native face");
+        }
+        auto missingFormats = std::make_shared<Detail::MathTextFormats>(factory, L"Cambria Math", L"en-us", L"Arial", L"Consolas", L"DxUi Missing Script Face 72A13");
+        bool missingRefused{};
+        try
+        {
+            Detail::PreparedMath missing(factory, expression, 24.f, false, nullptr, 96.f, missingFormats);
+            while (! missing.Advance()) {}
+        }
+        catch (const wil::ResultException& failure)
+        {
+            missingRefused = failure.GetErrorCode() == DWRITE_E_UNSUPPORTEDOPERATION;
+        }
+        check(missingRefused, "missing script face uses local unsupported-source fallback classification");
+        Detail::PreparedMath recovered(factory, expression, 24.f);
+        while (! recovered.Advance()) {}
+        check(! recovered.GlyphLayouts().empty(), "new format generation retries after script face becomes available");
+        check(! ParseMath(L"\\mathscr{a}") && ! ParseMath(L"\\mathscr{1}") && ! ParseMath(L"\\mathscr{A+B}"),
+              "unsupported script operands retain exact source");
+    }
+#endif
     for (const auto source : {L"\\genfrac{(}{)}{-2pt}{0}{a}{b}", L"\\genfrac{(}{)}{}{4}{a}{b}", L"\\genfrac{?}{}{}{}{a}{b}",
                               L"\\genfrac{}{}{}{}{a}"})
         check(! ParseMath(source), "unsupported general fraction dimensions, style and delimiters reject the whole source");
