@@ -547,12 +547,24 @@ inline constexpr FamilyGrammarExpectation familyGrammarExpectations[] = {
     {L"classDiagram\nnote \"From Duck till Zebra\"\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement, {}},
     {L"classDiagram\nA:::service\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement, {}},
     {L"stateDiagram-v2\nA:::active\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement, {}},
-    {L"flowchart TD\naccTitle: Diagram\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement, {}},
-    {L"flowchart TD\naccDescr: Details\n", FlowchartOutcome::Unsupported, FlowchartIssue::UnsupportedStatement, {}},
 };
 template <typename Check> inline void CheckFamilyGrammar(Check&& check)
 {
     NativeFlowchartParser parser;
+    for (const auto& [source, from, to] :
+         {std::tuple{L"classDiagram\nInterface <|.. Implementation\n", 1u, 0u}, std::tuple{L"classDiagram\nImplementation ..|> Interface\n", 0u, 1u}})
+    {
+        parser.Begin(source, 1u);
+        const auto model = Complete(parser);
+        check(model->outcome == FlowchartOutcome::Prepared && model->edges.size() == 1u && model->edges[0].from == from && model->edges[0].to == to &&
+                  model->edges[0].relation == FlowchartRelation::Inheritance && model->edges[0].style == FlowchartLineStyle::Dotted,
+              "class realization uses a dotted line and hollow inheritance endpoint in either spelling");
+    }
+    parser.Begin(L"classDiagram\nClient .. Service\n", 1u);
+    const auto association = Complete(parser);
+    check(association->outcome == FlowchartOutcome::Prepared && association->edges.size() == 1u && association->edges[0].relation == FlowchartRelation::Line &&
+              association->edges[0].style == FlowchartLineStyle::Dotted,
+          "class dotted association retains its line type and no arrowhead");
     for (const auto& expected : familyGrammarExpectations)
     {
         parser.Begin(expected.source, 1u);
@@ -689,6 +701,25 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
     check(entityCapacity->outcome == FlowchartOutcome::Capacity && entityCapacity->diagnostic.issue == FlowchartIssue::LabelCapacity &&
               entityCapacity->source == entityOverflow && entityCapacity->nodes.empty(),
           "supplementary decoded entities count both UTF-16 units before label admission");
+    for (const auto& [source, label] : {std::pair{L"flowchart LR\nA[\"C# app\"]\n", L"C# app"},
+                                        std::pair{L"flowchart LR\nA[\"Issue #12\"]\n", L"Issue #12"},
+                                        std::pair{L"flowchart LR\nA[\"x > 5\"]\n", L"x > 5"},
+                                        std::pair{L"flowchart LR\nA[\"x < 5\"]\n", L"x < 5"},
+                                        std::pair{L"flowchart LR\nA[\"Progress so far: 3/5\"]\n", L"Progress so far: 3/5"},
+                                        std::pair{L"flowchart LR\nA[\"Sofa: 3 seats\"]\n", L"Sofa: 3 seats"}})
+    {
+        parser.Begin(source, 39u);
+        const auto result = Complete(parser);
+        check(result->outcome == FlowchartOutcome::Prepared && result->source == source && result->nodes.size() == 1u && result->nodes[0u].label == label,
+              "ordinary hash, comparison and icon-like substrings remain plain text");
+    }
+    for (const auto source : {L"flowchart LR\nA[fa:fa-home]\n", L"flowchart LR\nA[\"<b>bold</b>\"]\n", L"flowchart LR\nA[#bogus;]\n"})
+    {
+        parser.Begin(source, 40u);
+        const auto result = Complete(parser);
+        check(result->outcome == FlowchartOutcome::Unsupported && result->source == source && result->nodes.empty(),
+              "real icon, HTML and unknown entity syntax retains exact source");
+    }
     std::wstring oversizedInline = L"flowchart LR\nA -- ";
     oversizedInline.append(NativeFlowchartParser::MaximumLabelUnits + 1u, L'x');
     oversizedInline += L" --> B\n";
@@ -735,6 +766,31 @@ template <typename Check> inline void CheckFamilyGrammar(Check&& check)
     check(unclosedSubroutine->outcome == FlowchartOutcome::Malformed && unclosedSubroutine->diagnostic.issue == FlowchartIssue::MissingLabelClose &&
               unclosedSubroutine->nodes.empty(),
           "missing subroutine closer never publishes a partial graph");
+    for (const auto family : {L"flowchart TD", L"stateDiagram-v2", L"classDiagram"})
+    {
+        const auto source = std::wstring(family) + L"\naccTitle: Overview β\naccDescr {\nFirst line; 100%\n\nSecond line\n}\nA-->B\n";
+        parser.Begin(source, 41u);
+        const auto result = Complete(parser);
+        check(result->outcome == FlowchartOutcome::Prepared && result->source == source && result->accessibleTitle == L"Overview β" &&
+                  result->accessibleDescription == L"First line; 100%\n\nSecond line" && result->nodes.size() == 2u,
+              "bounded accessibility title and multiline description apply to every native diagram family");
+    }
+    for (const auto source :
+         {L"flowchart TD\naccTitle: one\naccTitle: two\nA\n", L"flowchart TD\naccDescr {\nmissing close\n", L"flowchart TD\naccDescr: one\naccDescr: two\nA\n"})
+    {
+        parser.Begin(source, 42u);
+        const auto result = Complete(parser);
+        check(result->outcome != FlowchartOutcome::Prepared && result->source == source && result->nodes.empty() && result->edges.empty(),
+              "duplicate or unclosed accessibility metadata retains exact source without a partial graph");
+    }
+    std::wstring longDescription = L"flowchart TD\naccDescr: ";
+    longDescription.append(NativeFlowchartParser::MaximumLabelUnits + 1u, L'x');
+    longDescription += L"\nA\n";
+    parser.Begin(longDescription, 43u);
+    const auto descriptionCapacity = Complete(parser);
+    check(descriptionCapacity->outcome == FlowchartOutcome::Capacity && descriptionCapacity->diagnostic.issue == FlowchartIssue::LabelCapacity &&
+              descriptionCapacity->source == longDescription && descriptionCapacity->nodes.empty(),
+          "accessibility text obeys the bounded UTF-16 label budget");
     std::wstring oversizedMember = L"classDiagram\nclass A {\n+";
     oversizedMember.append(NativeFlowchartParser::MaximumLabelUnits, L'x');
     oversizedMember.append(L"\n}\n");

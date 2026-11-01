@@ -48,26 +48,26 @@ inline bool Near(double a, double b) noexcept
 template <typename Check> inline void Geometry(Check&& check)
 {
     // Hand-calculated two-rank oracle: 40x32 boxes, 16-DIP endpoint
-    // corridors, 24-DIP rank separation, 8-DIP margins and one exterior lane.
+    // corridors, 24-DIP rank separation, 8-DIP margins and one direct route.
     const auto graph = Graph(L"graph TD;A-->B");
     const auto plan  = Place(graph, check);
-    check(plan->issue == FlowchartLayoutIssue::None && plan->nodes.size() == 2u && plan->edges.size() == 1u && Near(plan->extent.width, 64.0) &&
+    check(plan->issue == FlowchartLayoutIssue::None && plan->nodes.size() == 2u && plan->edges.size() == 1u && Near(plan->extent.width, 56.0) &&
               Near(plan->extent.height, 136.0),
           "two-node graph has independently calculated total extents");
     check(Near(plan->nodes[0u].bounds.x, 8.0) && Near(plan->nodes[0u].bounds.y, 8.0) && Near(plan->nodes[0u].bounds.width, 40.0) &&
               Near(plan->nodes[0u].bounds.height, 32.0) && Near(plan->nodes[1u].bounds.y, 96.0) && plan->nodes[1u].rank == 1u,
           "two-node graph has exact independent shape placement and longest-path ranks");
-    constexpr FlowchartPoint expected[] = {{28.0, 40.0}, {28.0, 56.0}, {56.0, 56.0}, {56.0, 80.0}, {28.0, 80.0}, {28.0, 96.0}};
+    constexpr FlowchartPoint expected[] = {{28.0, 40.0}, {28.0, 56.0}, {28.0, 56.0}, {28.0, 80.0}, {28.0, 80.0}, {28.0, 96.0}};
     for (std::size_t index = 0u; index < std::size(expected); ++index)
         check(Near(plan->edges[0u].path[index].x, expected[index].x) && Near(plan->edges[0u].path[index].y, expected[index].y),
-              "forward edge follows the independent six-point corridor oracle");
+              "unambiguous adjacent ranks use the independent direct centerline oracle");
     check(plan->edges[0u].hasArrow && Near(plan->edges[0u].arrow[1u].x, 24.0) && Near(plan->edges[0u].arrow[1u].y, 88.0),
           "arrow head ends on the target shape boundary");
     for (const auto& [direction, horizontal] : {std::pair{L"TB", false}, std::pair{L"BT", false}, std::pair{L"LR", true}, std::pair{L"RL", true}})
     {
         const auto forkGraph = Graph(L"stateDiagram-v2\ndirection " + std::wstring(direction) + L"\nstate F <<fork>>\nA --> F\nF --> B\n");
         const auto bars      = Place(forkGraph, check);
-        const auto& bar  = bars->nodes[0u];
+        const auto& bar      = bars->nodes[0u];
         check(bar.shape == FlowchartShape::Bar && (horizontal ? bar.bounds.height > bar.bounds.width : bar.bounds.width > bar.bounds.height),
               "fork bars stay perpendicular to the selected graph direction");
     }
@@ -141,6 +141,15 @@ template <typename Check> inline void Geometry(Check&& check)
               variableLanes->edges[0u].label.x + variableLanes->edges[0u].label.width < variableLanes->edges[1u].path[2u].x &&
               variableLanes->edges[3u].label.x + variableLanes->edges[3u].label.width < variableLanes->nodes[0u].bounds.x,
           "wide labels reserve only their own lane, on both sides of the graph");
+    const auto sharedLanes = Place(Graph(L"flowchart TD;A-->B;B-->C;C-->D;D-->E;E-->F;A-->C;D-->F;B-->D"), check);
+    check(sharedLanes->issue == FlowchartLayoutIssue::None && sharedLanes->edges.size() == 8u &&
+              Near(sharedLanes->edges[5u].path[2u].x, sharedLanes->edges[6u].path[2u].x) &&
+              ! Near(sharedLanes->edges[5u].path[2u].x, sharedLanes->edges[7u].path[2u].x),
+          "disjoint exterior rank intervals share a lane while intersecting intervals remain separate");
+    const auto sharedBack = Place(Graph(L"flowchart TD;A-->B;B-->C;C-->D;B-->A;D-->C"), check);
+    check(sharedBack->issue == FlowchartLayoutIssue::None && sharedBack->edges[3u].route == FlowchartRoute::Back &&
+              sharedBack->edges[4u].route == FlowchartRoute::Back && Near(sharedBack->edges[3u].path[2u].x, sharedBack->edges[4u].path[2u].x),
+          "disjoint back-edge intervals share a left-side lane");
     for (const auto direction : {std::wstring_view(L"BT"), std::wstring_view(L"LR"), std::wstring_view(L"RL")})
     {
         const auto oriented = Place(Graph(std::wstring(L"graph ") + std::wstring(direction) + L";A-->B"), check);
@@ -150,6 +159,9 @@ template <typename Check> inline void Geometry(Check&& check)
                   Near(oriented->nodes[0u].label.height, 12.0),
               "orientation preserves horizontal label and shape dimensions");
         check(direction == L"BT" ? first.y > last.y : direction == L"LR" ? first.x < last.x : first.x > last.x, "each direction changes actual flow ordering");
+        for (const auto point : oriented->edges[0u].path)
+            check(direction == L"BT" ? Near(point.x, oriented->edges[0u].path[0u].x) : Near(point.y, oriented->edges[0u].path[0u].y),
+                  "direct routes remain collinear in every reversed or horizontal orientation");
     }
 }
 inline bool InteriorSegment(FlowchartPoint first, FlowchartPoint last, FlowchartRect rect) noexcept

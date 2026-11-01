@@ -84,6 +84,10 @@ public:
     {
         return activeSemantic_ ? semantic_.Height() : v0_.Height();
     }
+    float Width() const noexcept
+    {
+        return activeSemantic_ ? semantic_.Width() : v0_.Width();
+    }
     std::size_t SourceLength() const
     {
         return activeSemantic_ ? semantic_.Document().Map().Source().size() : v0_.SourceLength();

@@ -1079,6 +1079,7 @@ transition MUST preserve exact document source, selection, history and IME state
 In the opt-in Subtle Markdown style, fenced and indented code blocks have a neutral themed fill and a six-DIP inner frame; narrow viewports clamp horizontal insets to retain a one-DIP text width. Their source caret and selection use the inset content geometry. A fenced block with a language token of at most 128 UTF-16 units shows that token in a nonselectable prepared header; longer labels are omitted. At widths of at least 96 DIP, a nonselectable gutter displays prepared physical line numbers, aligned after wrapping and mirrored for right-to-left layout. Preparation admits at most 4096 number layouts per document, omits blocks with more than 4096 visual lines and stops numbering when that cap is reached; narrower frames omit the gutter. Default presentation retains its original code frame.
 
 An application may register a localized accessible name and code-copy intent callback. In Subtle style the prepared header then exposes a pointer action and a distinct UIA Invoke child; Ctrl+Shift+C invokes the block containing the source caret. The callback receives a borrowed counted rendered-code view with the block's normalized line endings, including any NUL; the application owns clipboard format policy. The existing code-element Invoke remains source editing. Stale, canceled, detached, or retired gestures and peers cannot invoke a replacement owner, and the action never changes source, selection or history.
+Source presentation may disable wrapping and opt into physical line numbers and space, tab and line-ending guides. The gutter and guide coordinates are staged cooperatively from the exact counted source and current geometry; they do not add source units, selection, or text-service content. CRLF is one physical ending, and the trailing empty line remains addressable. Published guides use the current viewport and font, support high contrast, and Paint reads cached layouts/coordinates. Horizontal extent and offset apply to unwrapped Source and opt-in overflowing Rich tables; scrolling changes neither source nor history, translates painting, hit testing, TSF and UIA geometry together, clamps to the available extent, and notifies the registered owner callback. Shift+wheel may scroll horizontally; edge input bubbles. Source right-to-left scrolling follows the opposite visual direction.
 An optional code tokenizer receives borrowed language and rendered code views on the owner preparation thread. Built-in JSON, C-like, PowerShell and diff tokenizers supply bounded comment, keyword and literal spans. Application results must contain at most 4096 sorted, disjoint, nonempty UTF-16 ranges within the code body, without splitting surrogate pairs; invalid results or tokenizer failures use ordinary ink. The editor stages all ranges until the current semantic publication is complete, validates owner, binding and source after every callback, and invokes at most one code tokenizer per preparation turn. Paint uses the cached ranges; selected text and high contrast take precedence. Changing the tokenizer requests a fresh owner preparation without editing source or history.
 Image requests MUST execute in caller-owned scheduling, with callback-free
 cancellation and source/base/binding/visibility validation at owner completion.
@@ -1701,6 +1702,9 @@ text. In flowchart node and pipe-edge labels, Mermaid `#name;` and decimal
 controls other than tab/newline, and arbitrary HTML retain exact source. Literal
 ampersands are label text; Markdown labels, icon syntax and inline math labels
 remain unsupported; they MUST NOT silently acquire a different label meaning.
+Hash characters without a well-formed `#name;`/`#number;` reference, plain
+comparison characters and ordinary text containing `fa:` are literal; actual
+`fa:fa-` / variant-prefix icons and HTML-like tags remain unsupported.
 Visible solid, dotted and thick links admit up to 16 minimum ranks using Mermaid's
 extra dash, dot or equals syntax, including the right side of an inline label.
 The DAG ranking honors each forward constraint; a link above the bound or an
@@ -1729,11 +1733,19 @@ rank. Rectangles/rounded rectangles pad labels, circles contain the padded label
 diagonal, diamonds contain twice the padded width/height, hexagons double padded width to contain the label in their straight middle band, subroutines reserve room for inset rules, and stadium capsules
 keep the complete measured label inside their straight middle band. Their centerline
 ports lie on the capsule boundary in all four flow directions. Direction changes
-flow without rotating text. Every edge gets a distinct exterior lane sized for its own
-label and minimum separation, rather than the widest label in the graph; endpoint
+flow without rotating text. An unlabeled forward edge between adjacent single-node
+ranks uses their common centerline when its source has one outgoing and target one
+incoming edge. Other edges use exterior lanes sized for their own labels and minimum
+separation; unlabeled lanes may be shared only when their inclusive rank intervals
+do not intersect. Labeled lanes remain exclusive. Endpoint
 corridors remain outside full rank rows, including for skipped-rank edges,
 cycles, self-loops and parallel edges. Crossings are permitted; optimal routing
 and upstream Mermaid coordinate compatibility are not claimed.
+
+Native node and edge labels wrap with DirectWrite at 12.5 times the selected font
+size (225 DIP at 18 DIP), preserving explicit line breaks and complete Unicode
+text. Ink and multiline height participate in geometry and capacity checks. This
+is a fixed native typography policy, not a public per-diagram width setting.
 
 All shapes, labels, routes and arrowheads MUST fit the complete diagram bounds,
 with a 65,536-DIP extent limit per axis. Node/aggregate extent rejection publishes
@@ -2124,6 +2136,8 @@ operator scripts; a trailing row separator is accepted.
 and substitutes their Unicode negations; other operands retain exact source.
 Unsupported commands remain local exact source. This is a named native profile,
 not a claim of all KaTeX functions or identical TeX font metrics. The Cambria Math face supplies bounded OpenType MATH italic corrections and precomposed vertical delimiter variants when available; larger delimiters use up to 32 distinct part records and 64 total compatible vertical glyph parts per delimiter, with 512 per formula. Connector overlap follows the [OpenType MATH format](https://learn.microsoft.com/en-us/typography/opentype/spec/math); part origins whose ink metrics do not match their advance within two design units use vector fallback. Missing, malformed or oversized font data also falls back. Horizontal assemblies and variable-font device corrections are not implemented. The at-most-4-MiB font snapshot and bounded glyph-indexed tables are shared per geometry generation.
+Font lookup and glyph-query HRESULT failures remain retryable; only a known
+unsupported font operation or absent/invalid font data uses the vector fallback.
 Native `binom`, `dbinom` and `tbinom` form a two-row parenthesized matrix with
 explicit display or text style where requested.
 A hash-verified KaTeX 0.16.11 source generates 411 bounded alphabetic one-codepoint
@@ -2182,3 +2196,17 @@ Invisible edge labels remain unsupported. Other flowchart grammar and source-pro
 Aligned rows alternate right-aligned left operands and left-aligned right operands at each ampersand pair. Cases use left-aligned expression/condition columns (at most two); ordinary matrices center their columns. Gathered rows have one column. Geometry tests compare the actual cached glyph positions consumed by drawing.
 
 Over-capacity notation conservatively retains the remaining physical inline line (display notation: logical leaf) as literal source with a diagnostic. This prevents nested Markdown interpretation and bounds repeated failed delimiter scans. The consumer inspector uses MathMaximumSourceUnits and clears rather than accepting an oversized value.
+
+Flowchart, state and class diagrams accept one `accTitle: text` and one
+`accDescr: text` or multiline `accDescr {` / `accDescr{` block closed by a
+standalone `}`. Values are plain text, each bounded to 1024 UTF-16 units;
+multiline descriptions join trimmed physical lines with LF, retaining empty
+lines. Duplicate declarations, unsupported control characters and unterminated
+blocks retain the original source with a diagnostic. The diagram UI Automation
+name uses the authored title when present; its help text uses the authored
+description, or the generated graph summary when only a title is supplied.
+Without an authored title the generated graph summary remains the name.
+
+Class diagrams also accept realization relationships `A <|.. B` and `B ..|> A`, rendered as a dotted line with the hollow triangle at the interface.
+
+Class diagrams also accept dotted association `A .. B` without an arrowhead.

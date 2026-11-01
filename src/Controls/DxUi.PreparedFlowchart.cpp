@@ -92,7 +92,7 @@ struct PreparedFlowchart::State
                                                 options.fontSizeDip,
                                                 options.locale.c_str(),
                                                 format.put()));
-        THROW_IF_FAILED(format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP));
+        THROW_IF_FAILED(format->SetWordWrapping(DWRITE_WORD_WRAPPING_WRAP));
         THROW_IF_FAILED(format->SetReadingDirection(options.readingDirection));
         THROW_IF_FAILED(format->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING));
         THROW_IF_FAILED(format->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR));
@@ -108,7 +108,8 @@ struct PreparedFlowchart::State
     {
         wil::com_ptr<IDWriteTextLayout> layout;
         constexpr auto maximum = static_cast<float>(NativeFlowchartLayout::MaximumExtent);
-        THROW_IF_FAILED(write->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format.get(), maximum, maximum, layout.put()));
+        const auto labelWidth  = std::min(maximum, std::max(1.f, options.fontSizeDip * 12.5f));
+        THROW_IF_FAILED(write->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format.get(), labelWidth, maximum, layout.put()));
         DWRITE_TEXT_METRICS metrics{};
         DWRITE_OVERHANG_METRICS ink{};
         THROW_IF_FAILED(layout->GetMetrics(&metrics));

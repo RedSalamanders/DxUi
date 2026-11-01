@@ -141,7 +141,21 @@ template <typename Check> inline void BudgetAndLifecycle(Check&& check)
           "swapped typography/resource epochs cannot alias despite identical sum and xor");
     Complete(prepared, check, calls.Get());
     check(calls->layouts == beforeEpochPair + 6u, "each distinct owner epoch pair prepares a fresh bounded label set");
-    const auto huge     = FlowchartLayoutTests::Graph(L"graph TD;A[\"" + std::wstring(1024u, L'W') + L"\"]");
+    const auto longWord = FlowchartLayoutTests::Graph(L"graph TD;A[\"" + std::wstring(100u, L'W') + L"\"]");
+    options.fontSizeDip = 18.0f;
+    prepared.Begin(calls.Get(), drawing.get(), longWord, options, {100u, 101u});
+    Complete(prepared, check, calls.Get());
+    check(prepared.Ready() && prepared.Geometry()->nodes[0u].label.width <= 230.0 && prepared.Geometry()->nodes[0u].label.height > 100.0,
+          "long unbroken Unicode text wraps rather than exceeding the bounded node width");
+    std::wstring hugeSource = L"graph TD;A[\"";
+    for (unsigned row = 0u; row < 512u; ++row)
+    {
+        if (row)
+            hugeSource += L"\\n";
+        hugeSource += L'W';
+    }
+    hugeSource += L"\"]";
+    const auto huge     = FlowchartLayoutTests::Graph(hugeSource);
     options.fontSizeDip = 512.0f;
     prepared.Begin(calls.Get(), drawing.get(), huge, options, {101u, 101u});
     Complete(prepared, check, calls.Get());
@@ -235,7 +249,8 @@ template <typename Check> inline void RasterOracle(Check&& check)
                               L"graph TD;A[\"\u05d0\u05d1\u05d2\"]",
                               L"graph TD;A[\"first\\nsecond\"]",
                               L"graph TD;A[one<br>two #9829;]",
-                              L"classDiagram\nclass Shape\n<<interface>> Shape\n"})
+                              L"classDiagram\nclass Shape\n<<interface>> Shape\n",
+                              L"graph TD;A[\"ordinary Unicode words wrap over several lines without truncation\"]"})
         for (const auto direction : {DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT})
         {
             const auto graph = FlowchartLayoutTests::Graph(source);
@@ -245,6 +260,9 @@ template <typename Check> inline void RasterOracle(Check&& check)
             prepared.Begin(write.get(), drawing.get(), graph, options, {1u, 1u});
             Complete(prepared, check);
             check(prepared.Ready(), "plain Unicode/bidi/multiline labels produce native geometry");
+            if (graph->nodes[0u].label.size() > 50u)
+                check(prepared.Geometry()->nodes[0u].label.width <= 230.0 && prepared.Geometry()->nodes[0u].label.height >= 35.0,
+                      "long Unicode label wraps within its independent 225-DIP typography bound");
             for (const auto dpi : {96.0f, 144.0f, 192.0f})
             {
                 const auto pixels = [&](bool reference)
@@ -279,12 +297,11 @@ template <typename Check> inline void RasterOracle(Check&& check)
                                                                 18.0f,
                                                                 L"en-us",
                                                                 format.put()));
-                        THROW_IF_FAILED(format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP));
+                        THROW_IF_FAILED(format->SetWordWrapping(DWRITE_WORD_WRAPPING_WRAP));
                         THROW_IF_FAILED(format->SetReadingDirection(direction));
                         wil::com_ptr<IDWriteTextLayout> layout;
                         const auto& label = graph->nodes[0u].label;
-                        THROW_IF_FAILED(
-                            write->CreateTextLayout(label.data(), static_cast<UINT32>(label.size()), format.get(), 65536.0f, 65536.0f, layout.put()));
+                        THROW_IF_FAILED(write->CreateTextLayout(label.data(), static_cast<UINT32>(label.size()), format.get(), 225.0f, 65536.0f, layout.put()));
                         DWRITE_TEXT_METRICS metrics{};
                         DWRITE_OVERHANG_METRICS ink{};
                         THROW_IF_FAILED(layout->GetMetrics(&metrics));
@@ -382,14 +399,14 @@ template <typename Check> inline void EdgeLabelRasterOracle(Check&& check)
             wil::com_ptr<IDWriteTextFormat> format;
             THROW_IF_FAILED(write->CreateTextFormat(
                 L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 18.0f, L"en-us", format.put()));
-            THROW_IF_FAILED(format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP));
+            THROW_IF_FAILED(format->SetWordWrapping(DWRITE_WORD_WRAPPING_WRAP));
             for (std::size_t i = 0u; i < graph->edges.size(); ++i)
                 if (! graph->edges[i].label.empty())
                 {
                     const auto& source = graph->edges[i].label;
                     const auto box     = plan->edges[i].label;
                     wil::com_ptr<IDWriteTextLayout> layout;
-                    THROW_IF_FAILED(write->CreateTextLayout(source.data(), static_cast<UINT32>(source.size()), format.get(), 65536.0f, 65536.0f, layout.put()));
+                    THROW_IF_FAILED(write->CreateTextLayout(source.data(), static_cast<UINT32>(source.size()), format.get(), 225.0f, 65536.0f, layout.put()));
                     DWRITE_TEXT_METRICS metrics{};
                     DWRITE_OVERHANG_METRICS ink{};
                     THROW_IF_FAILED(layout->GetMetrics(&metrics));

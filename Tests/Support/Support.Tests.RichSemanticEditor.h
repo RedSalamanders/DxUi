@@ -272,6 +272,22 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     editor->SetText(L"");
     Check(editor->GetDecorations().empty(), "source replacement retires revision-local decorations");
     RichSemanticTests::Reject<std::invalid_argument>([&] { editor->SetDecorations(decorationSource, decorations); }, "stale decoration source is rejected");
+    Check(! editor->IsAutoPairEnabled() && editor->OnChar(host, L'(', 0u) && editor->GetText() == L"(" && editor->Undo(),
+          "direct typing keeps literal punctuation by default");
+    editor->SetAutoPairEnabled(true);
+    Check(editor->OnChar(host, L'(', 0u) && editor->GetText() == L"()" && editor->GetSelection() == Selection{1u, 1u} && editor->Undo() &&
+              editor->GetText().empty(),
+          "opt-in direct punctuation inserts one paired undo transaction with an interior caret");
+    editor->SetText(L"word");
+    editor->SetSelection({4u, 0u});
+    Check(editor->OnChar(host, L'[', 0u) && editor->GetText() == L"[word]" && editor->GetSelection() == Selection{5u, 1u} && editor->Undo() &&
+              editor->GetText() == L"word",
+          "opt-in pairing wraps a reversed selection without changing direction and undoes atomically");
+    editor->SetReadOnly(true);
+    Check(! editor->OnChar(host, L'{', 0u) && editor->GetText() == L"word", "read-only input cannot auto-pair");
+    editor->SetReadOnly(false);
+    editor->SetAutoPairEnabled(false);
+    editor->SetText(L"");
     Check(editor->OnChar(host, L'a', 0u) && editor->OnChar(host, L'b', 0u) && editor->OnChar(host, L'c', 0u) && editor->GetText() == L"abc" && editor->Undo() &&
               editor->GetText().empty(),
           "adjacent direct word typing coalesces into one undo");
@@ -578,6 +594,24 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     Check(editor->OnKeyDown(host, VK_TAB, 0u) && ! editor->CanUndo(), "Tab crosses two padded cells sharing one raw ACP");
     Check(editor->OnChar(host, L'|', 0u) && editor->GetText() == L"a | b | c\n- | - | -\nx |  | \\|\n",
           "typing materializes only the focused padded cell and escapes a literal pipe");
+    editor->SetText(L"a | b | c\n- | - | -\nx\n");
+    prepare();
+    const auto pairSyntax = editor->GetMarkdownSyntax();
+    std::vector<std::size_t> pairCells(0u);
+    for (std::size_t i = 0u; i < pairSyntax->Nodes().size(); ++i)
+        if (pairSyntax->Nodes()[i].block.kind == MarkdownBlockKind::TableCell)
+            pairCells.push_back(i);
+    editor->SetSelection({editor->GetText().size() - 1u, editor->GetText().size() - 1u});
+    request.targetCell = pairCells[3u];
+    Check(editor->ExecuteMarkdownCommand(request) == MarkdownCommandStatus::Unchanged && editor->OnKeyDown(host, VK_TAB, 0u),
+          "pairing fixture reaches the second padded table cell");
+    editor->SetAutoPairEnabled(true);
+    const std::wstring pairedTable(L"a | b | c\n- | - | -\nx |  | ()\n");
+    const auto pairedCaret = pairedTable.find(L"()") + 1u;
+    Check(editor->OnChar(host, L'(', 0u) && editor->GetText() == pairedTable && editor->GetSelection() == Selection{pairedCaret, pairedCaret} &&
+              editor->Undo() && editor->GetText() == L"a | b | c\n- | - | -\nx\n",
+          "auto-pair materializes only the focused padded cell with an interior caret and one undo");
+    editor->SetAutoPairEnabled(false);
     editor->SetText(L"- [ ] task\n");
     prepare();
     const auto bounds = editor->TryGetTextInputRangeRects(host, 2u, 5u);
@@ -1811,7 +1845,7 @@ inline void NativeMathHRESULTFailureContainment(ControlHost& host)
     {
         SemanticWriteFactoryOverride override(host);
         auto expression = std::make_shared<const MathExpression>(ParseMath(L"\\Big("));
-        Detail::PreparedMath probe(override.Get(), expression, 24.f);
+        RichText::Detail::PreparedMath probe(override.Get(), expression, 24.f);
         while (! probe.Advance())
         {
         }
@@ -1820,11 +1854,11 @@ inline void NativeMathHRESULTFailureContainment(ControlHost& host)
             constexpr std::wstring_view source = L"$\\Big($\n";
             auto* editor                       = install(std::wstring(source));
             editor->SetSelection({1u, 1u});
-            const auto priorFailure                 = Detail::testRichMathGlyphMetricsFailure;
-            const auto restoreFailure               = wil::scope_exit([priorFailure]() noexcept { Detail::testRichMathGlyphMetricsFailure = priorFailure; });
-            Detail::testRichMathGlyphMetricsFailure = E_OUTOFMEMORY;
-            const auto failed                       = PrepareUntilSettled(*editor, host);
-            Check(failed == E_OUTOFMEMORY && Detail::testRichMathGlyphMetricsFailure == S_OK,
+            const auto priorFailure   = RichText::Detail::testRichMathGlyphMetricsFailure;
+            const auto restoreFailure = wil::scope_exit([priorFailure]() noexcept { RichText::Detail::testRichMathGlyphMetricsFailure = priorFailure; });
+            RichText::Detail::testRichMathGlyphMetricsFailure = E_OUTOFMEMORY;
+            const auto failed                                 = PrepareUntilSettled(*editor, host);
+            Check(failed == E_OUTOFMEMORY && RichText::Detail::testRichMathGlyphMetricsFailure == S_OK,
                   "glyph-metrics allocation HRESULT stays retryable instead of publishing fallback");
             Check(PrepareUntilSettled(*editor, host) == S_OK, "glyph-metrics allocation failure retries for the unchanged key");
             const auto recovered = editor->GetAcknowledgedSemanticDocument(host);
@@ -1837,6 +1871,86 @@ inline void NativeMathHRESULTFailureContainment(ControlHost& host)
 #endif
 }
 
+template <typename Prepare> void SourceHorizontalAndGuides(ControlHost& host, Prepare&& prepare)
+{
+    std::wstring source(180u, L'x');
+    source += L" space\tend\r\nsecond line\n";
+    auto root    = std::make_unique<RichTextEditor>(source);
+    auto* editor = root.get();
+    editor->SetViewMode(ViewMode::Source);
+    auto appearance                  = editor->GetAppearance();
+    appearance.sourceMonospace       = true;
+    appearance.sourceWrap            = false;
+    appearance.sourceLineNumbers     = true;
+    appearance.sourceWhitespaceMarks = true;
+    editor->SetAppearance(appearance);
+    host.SetRoot(std::move(root));
+    prepare();
+    const auto initial = editor->GetHorizontalScrollInfo();
+    Check(initial && initial->contentWidthDip > initial->viewportWidthDip + 100.0f, "unwrapped source exposes horizontal overflow");
+    const auto before = editor->TryGetTextInputCaretRect(host, 30u);
+    Check(before.has_value(), "source guide fixture has a prepared caret");
+    const auto sourceRevision = editor->Revision();
+    const auto selection      = editor->GetSelection();
+    unsigned events{};
+    editor->SetOnHorizontalScrollChanged([&](float) { ++events; });
+    Check(editor->SetHorizontalScrollOffsetDip(80.0f), "source horizontal scrolling accepts a bounded offset");
+    const auto after = editor->TryGetTextInputCaretRect(host, 30u);
+    Check(after && std::abs((before->left - after->left) - 80.0f) < 0.1f && events == 1u,
+          "horizontal scroll translates TSF/UIA caret geometry and sends one event");
+    const auto hit = editor->TryHitTestTextInputPoint(host, D2D1::Point2F(after->left + 0.1f, (after->top + after->bottom) * 0.5f));
+    Check(hit && *hit == 30u && editor->Revision() == sourceRevision && editor->GetSelection() == selection,
+          "horizontal source hit testing preserves source, selection and revision");
+    appearance.sourceWrap = true;
+    editor->SetAppearance(appearance);
+    prepare();
+    const auto wrapped = editor->GetHorizontalScrollInfo();
+    Check(wrapped && wrapped->offsetDip == 0.0f && wrapped->contentWidthDip <= wrapped->viewportWidthDip + 0.1f,
+          "reenabling wrapping retires overflow and clamps the horizontal offset");
+    appearance.sourceWrap = false;
+    editor->SetAppearance(appearance);
+    editor->SetFlowDirection(FlowDirection::RightToLeft);
+    prepare();
+    Check(editor->SetHorizontalScrollOffsetDip(0.0f), "reset RTL horizontal position");
+    const auto rtlBefore = editor->TryGetTextInputCaretRect(host, 30u);
+    Check(rtlBefore && editor->SetHorizontalScrollOffsetDip(80.0f), "RTL source admits horizontal scrolling");
+    const auto rtlAfter = editor->TryGetTextInputCaretRect(host, 30u);
+    Check(rtlAfter && std::abs((rtlAfter->left - rtlBefore->left) - 80.0f) < 0.1f, "RTL source moves caret geometry toward the opposite overflow edge");
+    const auto viewport = editor->TryGetTextInputViewportRect();
+    Check(viewport.has_value(), "RTL source has a viewport");
+    bool resolved = false;
+    for (std::size_t at = 0u; at < 180u && ! resolved; ++at)
+        if (const auto caret = editor->TryGetTextInputCaretRect(host, at); caret && caret->left >= viewport->left && caret->left + 1.0f < viewport->right)
+        {
+            const auto point  = D2D1::Point2F(caret->left + 0.1f, (caret->top + caret->bottom) * 0.5f);
+            const auto rtlHit = editor->TryHitTestTextInputPoint(host, point);
+            resolved          = rtlHit && *rtlHit == at;
+        }
+    Check(resolved, "a visible RTL caret and hit test resolve the same source ACP after horizontal scrolling");
+}
+template <typename Prepare> void RichTableHorizontalOverflow(ControlHost& host, Prepare&& prepare)
+{
+    std::wstring source = L"| first | second |\n| --- | --- |\n| ";
+    source += std::wstring(120u, L'w');
+    source += L" | end |\n";
+    auto root    = std::make_unique<RichTextEditor>(source);
+    auto* editor = root.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    auto appearance                 = editor->GetAppearance();
+    appearance.markdownPresentation = MarkdownPresentationStyle::Subtle;
+    appearance.tableOverflow        = true;
+    editor->SetAppearance(appearance);
+    host.SetRoot(std::move(root));
+    prepare();
+    const auto info = editor->GetHorizontalScrollInfo();
+    Check(info && info->contentWidthDip > info->viewportWidthDip + 100.0f, "intrinsic table exposes its retained horizontal extent");
+    const auto before = editor->TryGetTextInputCaretRect(host, source.find(L"ww"));
+    Check(before && editor->SetHorizontalScrollOffsetDip(80.0f), "overflow table accepts horizontal offset");
+    const auto after = editor->TryGetTextInputCaretRect(host, source.find(L"ww"));
+    Check(after && std::abs((before->left - after->left) - 80.0f) < 0.1f && editor->GetText() == source,
+          "overflow scrolling translates table source geometry without editing source");
+}
 template <typename Prepare> void SemanticGeometryReuse(ControlHost& host, Prepare&& prepare)
 {
     std::wstring source;

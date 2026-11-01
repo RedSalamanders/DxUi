@@ -100,7 +100,8 @@ class RichSemanticElementProvider final : public IRawElementProviderSimple,
                                           public ITableItemProvider
 {
 public:
-    RichSemanticElementProvider(WindowHostAccessibilityTarget* target, HWND hwnd, const AccessibilityControlNavigationSnapshot& record, size_t element, bool codeCopy) noexcept
+    RichSemanticElementProvider(
+        WindowHostAccessibilityTarget* target, HWND hwnd, const AccessibilityControlNavigationSnapshot& record, size_t element, bool codeCopy) noexcept
         : target_(target),
           hwnd_(hwnd),
           path_(record.path),
@@ -113,10 +114,8 @@ public:
     {
         static_cast<void>(target_->AddRef());
     }
-    static wil::com_ptr_nothrow<IRawElementProviderSimple> Create(WindowHostAccessibilityTarget* target,
-                                                                  HWND hwnd,
-                                                                  const AccessibilityControlNavigationSnapshot& record,
-                                                                  size_t element, bool codeCopy = false) noexcept
+    static wil::com_ptr_nothrow<IRawElementProviderSimple> Create(
+        WindowHostAccessibilityTarget* target, HWND hwnd, const AccessibilityControlNavigationSnapshot& record, size_t element, bool codeCopy = false) noexcept
     {
         wil::com_ptr_nothrow<IRawElementProviderSimple> result;
         HoldAccessibilityPeerCreationForTest(hwnd);
@@ -199,11 +198,11 @@ public:
         if (! record)
             return UIA_E_ELEMENTNOTAVAILABLE;
         const auto& semantic = record->RichSemantic()->Elements()[element_];
-        const auto role = semantic.role;
-        const bool linkAction = role == RichText::SemanticRole::Link &&
-                                (semantic.destination.starts_with(L'#') || record->controlRichText->externalLinkActivationEnabled);
-        if (id == UIA_InvokePatternId && (codeCopy_ || linkAction || record->RichSemantic()->NavigationTarget(element_) ||
-                                          record->RichSemantic()->SourceEditingRange(element_)))
+        const auto role      = semantic.role;
+        const bool linkAction =
+            role == RichText::SemanticRole::Link && (semantic.destination.starts_with(L'#') || record->controlRichText->externalLinkActivationEnabled);
+        if (id == UIA_InvokePatternId &&
+            (codeCopy_ || linkAction || record->RichSemantic()->NavigationTarget(element_) || record->RichSemantic()->SourceEditingRange(element_)))
             *result = static_cast<IInvokeProvider*>(this);
         else if (! codeCopy_ && id == UIA_TogglePatternId && role == RichText::SemanticRole::Task)
             *result = static_cast<IToggleProvider*>(this);
@@ -308,11 +307,10 @@ public:
             return UIA_E_ELEMENTNOTAVAILABLE;
         const auto elements = record->RichSemantic()->Elements();
         const auto& element = elements[element_];
-        size_t target = RichText::MarkdownNoNode;
-        bool targetCopy = false;
-        const auto hasCopy = [&](size_t owner) {
-            return owner < record->controlRichText->copyBounds.size() && bool(record->controlRichText->copyBounds[owner]);
-        };
+        size_t target       = RichText::MarkdownNoNode;
+        bool targetCopy     = false;
+        const auto hasCopy  = [&](size_t owner)
+        { return owner < record->controlRichText->copyBounds.size() && bool(record->controlRichText->copyBounds[owner]); };
         if (codeCopy_)
         {
             if (direction == NavigateDirection_Parent)
@@ -327,22 +325,35 @@ public:
             {
                 case NavigateDirection_Parent: target = element.parent; break;
                 case NavigateDirection_FirstChild:
-                    if (hasCopy(element_)) { target = element_; targetCopy = true; }
-                    else target = element.firstChild;
+                    if (hasCopy(element_))
+                    {
+                        target     = element_;
+                        targetCopy = true;
+                    }
+                    else
+                        target = element.firstChild;
                     break;
                 case NavigateDirection_LastChild:
                     for (auto child = element.firstChild; child != RichText::MarkdownNoNode; child = elements[child].nextSibling)
                         target = child;
-                    if (target == RichText::MarkdownNoNode && hasCopy(element_)) { target = element_; targetCopy = true; }
+                    if (target == RichText::MarkdownNoNode && hasCopy(element_))
+                    {
+                        target     = element_;
+                        targetCopy = true;
+                    }
                     break;
                 case NavigateDirection_NextSibling: target = element.nextSibling; break;
                 case NavigateDirection_PreviousSibling:
                     if (element.parent != RichText::MarkdownNoNode)
                     {
                         for (auto child = elements[element.parent].firstChild; child != element_ && child != RichText::MarkdownNoNode;
-                             child = elements[child].nextSibling)
+                             child      = elements[child].nextSibling)
                             target = child;
-                        if (target == RichText::MarkdownNoNode && hasCopy(element.parent)) { target = element.parent; targetCopy = true; }
+                        if (target == RichText::MarkdownNoNode && hasCopy(element.parent))
+                        {
+                            target     = element.parent;
+                            targetCopy = true;
+                        }
                     }
                     break;
                 default: return E_INVALIDARG;
@@ -493,8 +504,8 @@ public:
         if (! record)
             return UIA_E_ELEMENTNOTAVAILABLE;
         const auto& semantic = record->RichSemantic()->Elements()[element_];
-        const bool linkAction = semantic.role == RichText::SemanticRole::Link &&
-                                (semantic.destination.starts_with(L'#') || record->controlRichText->externalLinkActivationEnabled);
+        const bool linkAction =
+            semantic.role == RichText::SemanticRole::Link && (semantic.destination.starts_with(L'#') || record->controlRichText->externalLinkActivationEnabled);
         if (! codeCopy_ && ! linkAction && ! record->RichSemantic()->NavigationTarget(element_) && ! record->RichSemantic()->SourceEditingRange(element_))
             return UIA_E_NOTSUPPORTED;
         if (! record->controlEnabled)
@@ -673,18 +684,19 @@ public:
     }
 
 private:
-    [[nodiscard]] std::optional<D2D1_RECT_F> CopyBounds(const AccessibilitySnapshot& snapshot, const AccessibilityControlNavigationSnapshot& record) const noexcept
+    [[nodiscard]] std::optional<D2D1_RECT_F> CopyBounds(const AccessibilitySnapshot& snapshot,
+                                                        const AccessibilityControlNavigationSnapshot& record) const noexcept
     {
         if (element_ >= record.controlRichText->copyBounds.size())
             return std::nullopt;
-        auto bounds = record.controlRichText->copyBounds[element_];
-        const auto clip = FindSnapshotFragmentBounds(snapshot, AccessibilityFragmentKind::Control, record.path, 0u, 0u, 0u);
+        auto bounds      = record.controlRichText->copyBounds[element_];
+        const auto clip  = FindSnapshotFragmentBounds(snapshot, AccessibilityFragmentKind::Control, record.path, 0u, 0u, 0u);
         const auto frame = record.controlRichText->bounds[element_];
         if (! bounds || ! clip || ! frame)
             return std::nullopt;
-        bounds->left = std::max({bounds->left, clip->left, frame->left});
-        bounds->top = std::max({bounds->top, clip->top, frame->top});
-        bounds->right = std::min({bounds->right, clip->right, frame->right});
+        bounds->left   = std::max({bounds->left, clip->left, frame->left});
+        bounds->top    = std::max({bounds->top, clip->top, frame->top});
+        bounds->right  = std::min({bounds->right, clip->right, frame->right});
         bounds->bottom = std::min({bounds->bottom, clip->bottom, frame->bottom});
         return bounds->left < bounds->right && bounds->top < bounds->bottom ? bounds : std::nullopt;
     }
@@ -694,7 +706,8 @@ private:
         const auto* record  = snapshot ? FindControlNavigationRecord(*snapshot, path_) : nullptr;
         return record && Matches(*record) && element_ < record->controlRichText->bounds.size() &&
                        (! codeCopy_ || (element_ < record->controlRichText->copyBounds.size() && record->controlRichText->copyBounds[element_]))
-                   ? snapshot : nullptr;
+                   ? snapshot
+                   : nullptr;
     }
     [[nodiscard]] const AccessibilityControlNavigationSnapshot* Record(const std::shared_ptr<const AccessibilitySnapshot>& snapshot) const noexcept
     {

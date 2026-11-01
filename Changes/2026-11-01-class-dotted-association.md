@@ -1,0 +1,1 @@
+- Render bounded Mermaid class dotted associations.

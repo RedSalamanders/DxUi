@@ -6,11 +6,16 @@
 #include <DxUi/RichMath.h>
 #include <algorithm>
 #include <array>
+#include <cstdint>
 #include <iterator>
+#include <limits>
 #include <stdexcept>
 
 namespace DxUi::RichText::Detail
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+inline thread_local std::size_t testMathOwnershipProbeWork{};
+#endif
 // Owned Unicode inline recognizer. The block pass must finish before global
 // references are collected. No decoding is applied inside code or raw HTML.
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
@@ -87,6 +92,7 @@ class MarkdownInlines
     std::vector<FootnoteVisit> footnoteWalk_;
     std::vector<std::size_t> reachableDefinitions_;
     std::vector<std::size_t> previous_, offsets_, backtickNext_;
+    std::vector<std::array<std::uint32_t, 9u>> htmlNext_;
     std::wstring text_;
     std::size_t blockCursor_{}, referenceCursor_{}, cursor_{}, root_ = MarkdownNoNode, tail_ = MarkdownNoNode;
     std::size_t delimiterTail_ = MarkdownNoNode, delimiterHead_ = MarkdownNoNode;
@@ -615,6 +621,66 @@ class MarkdownInlines
             text_.insert(text_.begin() + static_cast<std::ptrdiff_t>(index), L'\ufffc');
         }
         offsets_.push_back(block.block.content.last);
+        // The math ownership probes share one leaf-local index. Multiple
+        // unmatched openers must never each search the remaining leaf anew.
+        htmlNext_.clear();
+        constexpr auto none = std::numeric_limits<std::uint32_t>::max();
+        std::array<std::uint32_t, 9u> next{none, none, none, none, none, none, none, none, none};
+        if (profile_ == MarkdownProfile::RichMarkdown && text_.find_first_of(L"$\\") != std::wstring::npos)
+        {
+            if (text_.size() >= none)
+                throw std::length_error("Markdown inline terminator index capacity exceeded");
+            htmlNext_.resize(text_.size() + 1u);
+            htmlNext_.back() = next;
+            std::size_t slashes{};
+            for (std::size_t i = 0u; i < text_.size(); ++i)
+            {
+                std::uint32_t flags{};
+                const bool escaped = slashes % 2u != 0u;
+                if (! escaped && text_[i] == L'\\' && i + 1u < text_.size())
+                {
+                    if (text_[i + 1u] == L')')
+                        flags |= 1u;
+                    if (text_[i + 1u] == L']')
+                        flags |= 2u;
+                }
+                if (! escaped && text_[i] == L'$')
+                {
+                    if (i && ! SourceSpace(text_[i - 1u]) && (i + 1u == text_.size() || ! Digit(text_[i + 1u])))
+                        flags |= 4u;
+                    if (i + 1u < text_.size() && text_[i + 1u] == L'$')
+                        flags |= 8u;
+                }
+                htmlNext_[i][4] = flags;
+                slashes         = text_[i] == L'\\' ? slashes + 1u : 0u;
+#if DXUI_ENABLE_DIAGNOSTICS
+                ++testMathOwnershipProbeWork;
+#endif
+            }
+        }
+        const auto indexTerminator = [&](std::size_t i)
+        {
+            if (htmlNext_.empty())
+                return;
+#if DXUI_ENABLE_DIAGNOSTICS
+            ++testMathOwnershipProbeWork;
+#endif
+            if (text_[i] == L'>')
+                next[0] = static_cast<std::uint32_t>(i);
+            if (i + 2u < text_.size() && text_[i] == L'-' && text_[i + 1u] == L'-' && text_[i + 2u] == L'>')
+                next[1] = static_cast<std::uint32_t>(i);
+            if (i + 1u < text_.size() && text_[i] == L'?' && text_[i + 1u] == L'>')
+                next[2] = static_cast<std::uint32_t>(i);
+            if (i + 2u < text_.size() && text_[i] == L']' && text_[i + 1u] == L']' && text_[i + 2u] == L'>')
+                next[3] = static_cast<std::uint32_t>(i);
+            const auto flags = htmlNext_[i][4];
+            for (std::size_t bit = 0u; bit < 4u; ++bit)
+                if ((flags & (1u << bit)) != 0u)
+                    next[4u + bit] = static_cast<std::uint32_t>(i);
+            if (text_[i] == L'\n')
+                next[8] = static_cast<std::uint32_t>(i);
+            htmlNext_[i] = next;
+        };
         // Index equal-length backtick runs once, so unmatched runs cannot cause
         // repeated scans over an entire paragraph.
         backtickNext_.assign(text_.size(), MarkdownNoNode);
@@ -623,12 +689,15 @@ class MarkdownInlines
         {
             if (text_[end - 1u] != L'`')
             {
+                indexTerminator(end - 1u);
                 --end;
                 continue;
             }
             auto first = end - 1u;
             while (first > 0u && text_[first - 1u] == L'`')
                 --first;
+            for (auto i = end; i > first; --i)
+                indexTerminator(i - 1u);
             const auto length    = end - first;
             backtickNext_[first] = last[length];
             last[length]         = first;
@@ -835,11 +904,13 @@ class MarkdownInlines
         cursor_ = end;
         return true;
     }
-    static bool Email(std::wstring_view text, bool extended) noexcept
+    static bool Email(std::wstring_view text, bool extended, std::size_t* work = nullptr) noexcept
     {
         std::size_t at = 0u;
         while (at < text.size() && text[at] != L'@')
         {
+            if (work)
+                ++*work;
             if (! AsciiLetter(text[at]) && ! Digit(text[at]) &&
                 std::wstring_view(extended ? L".-_+" : L".!#$%&'*+-/=?^_`{|}~").find(text[at]) == std::wstring_view::npos)
                 return false;
@@ -850,6 +921,8 @@ class MarkdownInlines
         std::size_t label = 0u, dots = 0u;
         for (auto i = at + 1u; i <= text.size(); ++i)
         {
+            if (work)
+                ++*work;
             if (i == text.size() || text[i] == L'.')
             {
                 if (! label || label > 63u || text[i - 1u] == L'-')
@@ -867,24 +940,42 @@ class MarkdownInlines
         }
         return ! extended || (dots && (AsciiLetter(text.back()) || Digit(text.back())));
     }
-    std::optional<std::size_t> AngleAutolinkEnd(std::size_t start) const noexcept
+    std::optional<std::size_t> AngleAutolinkEnd(std::size_t start,
+                                                std::optional<std::size_t> knownEnd = std::nullopt,
+                                                std::size_t* work                   = nullptr) const noexcept
     {
-        const auto end = text_.find(L'>', start + 1u);
+        const auto end = knownEnd ? knownEnd.value() : text_.find(L'>', start + 1u);
         if (end == std::wstring::npos)
             return std::nullopt;
         const auto content = std::wstring_view(text_).substr(start + 1u, end - start - 1u);
-        const auto colon   = content.find(L':');
-        bool uri           = colon >= 2u && colon <= 32u && colon != std::wstring_view::npos && AsciiLetter(content.front());
+        if (work)
+            *work += std::min(content.size(), size_t{33u});
+        const auto colon = content.substr(0u, 33u).find(L':');
+        bool uri         = colon >= 2u && colon <= 32u && colon != std::wstring_view::npos && AsciiLetter(content.front());
         if (uri)
         {
             for (std::size_t i = 1u; i < colon; ++i)
+            {
+                if (work)
+                    ++*work;
                 if (! AsciiLetter(content[i]) && ! Digit(content[i]) && content[i] != L'+' && content[i] != L'.' && content[i] != L'-')
+                {
                     uri = false;
+                    break;
+                }
+            }
             for (const auto c : content)
+            {
+                if (work)
+                    ++*work;
                 if (c <= L' ' || c == L'<' || c == 127)
+                {
                     uri = false;
+                    break;
+                }
+            }
         }
-        const bool email = ! uri && Email(content, false);
+        const bool email = ! uri && Email(content, false, work);
         if (! uri && ! email)
             return std::nullopt;
         return end;
@@ -914,14 +1005,39 @@ class MarkdownInlines
         cursor_ = end + 1u;
         return true;
     }
-    std::size_t HtmlEnd(std::size_t start) const noexcept
+    struct HtmlLookahead
+    {
+        std::size_t angle{}, comment{}, processing{}, cdata{};
+    };
+    std::size_t HtmlEnd(std::size_t start, const HtmlLookahead* lookahead = nullptr, std::size_t* work = nullptr) const noexcept
     {
         const auto input = std::wstring_view(text_).substr(start);
-        auto terminated  = [&](std::wstring_view prefix, std::wstring_view suffix)
+        const auto tick  = [&]() noexcept
+        {
+            if (work)
+                ++*work;
+        };
+        const auto skipSpace = [&](std::size_t& at) noexcept
+        {
+            while (at < input.size() && GrammarSpace(input[at]))
+            {
+                tick();
+                ++at;
+            }
+        };
+        auto terminated = [&](std::wstring_view prefix, std::wstring_view suffix)
         {
             if (! input.starts_with(prefix))
                 return std::size_t{};
-            const auto end = input.find(suffix, prefix.size());
+            auto end = std::wstring_view::npos;
+            if (lookahead)
+            {
+                const auto absolute = suffix == L"-->" ? lookahead->comment : suffix == L"?>" ? lookahead->processing : lookahead->cdata;
+                if (absolute != std::wstring::npos && absolute >= start + prefix.size())
+                    end = absolute - start;
+            }
+            else
+                end = input.find(suffix, prefix.size());
             return end == std::wstring_view::npos ? 0u : end + suffix.size();
         };
         if (input.starts_with(L"<!--"))
@@ -939,17 +1055,20 @@ class MarkdownInlines
             return terminated(L"<![CDATA[", L"]]>");
         if (profile_ != MarkdownProfile::Gfm029 && input.size() > 2u && input[1] == L'!' && AsciiLetter(input[2]))
         {
-            const auto end = input.find(L'>', 3u);
+            const auto end = lookahead ? (lookahead->angle == std::wstring::npos ? std::wstring_view::npos : lookahead->angle - start) : input.find(L'>', 3u);
             return end == std::wstring_view::npos ? 0u : end + 1u;
         }
         if (input.size() > 2u && input[1] == L'!' && input[2] >= L'A' && input[2] <= L'Z')
         {
             auto i = 3u;
             while (i < input.size() && input[i] >= L'A' && input[i] <= L'Z')
+            {
+                tick();
                 ++i;
+            }
             if (i == input.size() || ! GrammarSpace(input[i]))
                 return 0u;
-            const auto end = input.find(L'>', i);
+            const auto end = lookahead ? (lookahead->angle == std::wstring::npos ? std::wstring_view::npos : lookahead->angle - start) : input.find(L'>', i);
             return end == std::wstring_view::npos ? 0u : end + 1u;
         }
         std::size_t i      = 1u;
@@ -960,11 +1079,15 @@ class MarkdownInlines
             return 0u;
         ++i;
         while (i < input.size() && (AsciiLetter(input[i]) || Digit(input[i]) || input[i] == L'-'))
+        {
+            tick();
             ++i;
+        }
         while (i < input.size())
         {
+            tick();
             const auto first = i;
-            SkipSpace(input, i);
+            skipSpace(i);
             if (i == input.size())
                 return 0u;
             if (input[i] == L'>')
@@ -975,23 +1098,29 @@ class MarkdownInlines
                 return 0u;
             ++i;
             while (i < input.size() && (AsciiLetter(input[i]) || Digit(input[i]) || std::wstring_view(L"_.:-").find(input[i]) != std::wstring_view::npos))
+            {
+                tick();
                 ++i;
+            }
             const auto afterName = i;
-            SkipSpace(input, i);
+            skipSpace(i);
             if (i == input.size() || input[i] != L'=')
             {
                 i = afterName;
                 continue;
             }
             ++i;
-            SkipSpace(input, i);
+            skipSpace(i);
             if (i == input.size())
                 return 0u;
             if (input[i] == L'\'' || input[i] == L'"')
             {
                 const auto quote = input[i++];
                 while (i < input.size() && input[i] != quote)
+                {
+                    tick();
                     ++i;
+                }
                 if (i == input.size())
                     return 0u;
                 ++i;
@@ -1001,6 +1130,7 @@ class MarkdownInlines
                 const auto start = i;
                 while (i < input.size() && ! GrammarSpace(input[i]) && input[i] != L'>')
                 {
+                    tick();
                     if (std::wstring_view(L"\"'=<>`").find(input[i]) != std::wstring_view::npos)
                         return 0u;
                     ++i;
@@ -1333,11 +1463,27 @@ class MarkdownInlines
             const auto content = first + width;
             if (content < text_.size() && (! dollars || display || ! SourceSpace(text_[content])))
             {
-                bool endedLine     = false;
-                auto nextAngleEnd  = std::wstring::npos;
-                bool angleEndKnown = false;
-                for (auto end = content; end < std::min(text_.size(), content + MathMaximumSourceUnits + 1u); ++end)
+                bool endedLine         = false;
+                std::size_t* probeWork = nullptr;
+#if DXUI_ENABLE_DIAGNOSTICS
+                probeWork = &testMathOwnershipProbeWork;
+#endif
+                const auto limit         = std::min(text_.size(), content + MathMaximumSourceUnits + 1u);
+                const auto slot          = dollars ? (display ? 7u : 6u) : (display ? 5u : 4u);
+                const auto candidate     = htmlNext_[content + 1u][slot];
+                const auto newline       = htmlNext_[content][8];
+                const bool endsAtNewline = ! display && newline != std::numeric_limits<std::uint32_t>::max() && newline < limit;
+                const bool noCandidate =
+                    candidate == std::numeric_limits<std::uint32_t>::max() || candidate >= limit || (endsAtNewline && candidate >= newline);
+                // A failed opener below capacity, or before a physical newline,
+                // cannot own an opaque fallback. The shared index proves the
+                // absence of any eligible closer without rescanning its suffix.
+                if (noCandidate && (endsAtNewline || text_.size() - content <= MathMaximumSourceUnits))
+                    endedLine = true;
+                for (auto end = content; ! endedLine && end < limit; ++end)
                 {
+                    if (probeWork)
+                        ++*probeWork;
                     if (! display && text_[end] == L'\n')
                     {
                         endedLine = true;
@@ -1345,16 +1491,22 @@ class MarkdownInlines
                     }
                     if (text_[end] == L'`' || text_[end] == L'<')
                     {
-                        if (text_[end] == L'<' && (! angleEndKnown || (nextAngleEnd != std::wstring::npos && end > nextAngleEnd)))
+                        HtmlLookahead htmlLookahead{std::wstring::npos, std::wstring::npos, std::wstring::npos, std::wstring::npos};
+                        if (text_[end] == L'<')
                         {
-                            nextAngleEnd  = text_.find(L'>', end);
-                            angleEndKnown = true;
+                            const auto& next  = htmlNext_[end];
+                            const auto offset = [](std::uint32_t value) -> std::size_t
+                            { return value == std::numeric_limits<std::uint32_t>::max() ? std::wstring::npos : value; };
+                            htmlLookahead = {offset(next[0]), offset(next[1]), offset(next[2]), offset(next[3])};
+                            if (probeWork)
+                                *probeWork += 4u;
                         }
                         std::size_t slashes{};
                         for (auto index = end; index > content && text_[index - 1u] == L'\\'; --index)
                             ++slashes;
                         if (slashes % 2u == 0u && ((text_[end] == L'`' && backtickNext_[end] != MarkdownNoNode) ||
-                                                   (text_[end] == L'<' && nextAngleEnd != std::wstring::npos && (HtmlEnd(end) || AngleAutolinkEnd(end)))))
+                                                   (text_[end] == L'<' && htmlLookahead.angle != std::wstring::npos &&
+                                                    (HtmlEnd(end, &htmlLookahead, probeWork) || AngleAutolinkEnd(end, htmlLookahead.angle, probeWork)))))
                         {
                             endedLine = true; // Let the regular inline scanner own this opaque token.
                             break;
@@ -1612,6 +1764,7 @@ public:
           previous_(0u),
           offsets_(0u),
           backtickNext_(0u),
+          htmlNext_(0u),
           text_(0u, L' ')
     {
     }

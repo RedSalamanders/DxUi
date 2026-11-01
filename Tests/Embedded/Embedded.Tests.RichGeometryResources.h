@@ -1,4 +1,5 @@
 #pragma once
+#include "Controls/DxUi.RichSourceGuides.h"
 #include <DxUi/RichTextLayout.h>
 static wil::com_ptr<IDWriteFactory> RichGeometryFactory()
 {
@@ -300,15 +301,15 @@ static void TestEmbeddedSemanticReusePixels(GraphicsFixture& gpu)
     EmbeddedHost reused, fresh;
     Hr(reused.Attach(graphics), "attach reused pixel view");
     Hr(fresh.Attach(graphics), "attach fresh pixel view");
-    auto first = std::make_unique<RichTextEditor>(source);
-    auto second = std::make_unique<RichTextEditor>(source);
-    auto* firstEditor = first.get();
+    auto first         = std::make_unique<RichTextEditor>(source);
+    auto second        = std::make_unique<RichTextEditor>(source);
+    auto* firstEditor  = first.get();
     auto* secondEditor = second.get();
     for (auto* editor : {firstEditor, secondEditor})
     {
         editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
         editor->SetMarkdownRenderingEnabled(true);
-        auto appearance = editor->GetAppearance();
+        auto appearance                 = editor->GetAppearance();
         appearance.markdownPresentation = RichText::MarkdownPresentationStyle::Subtle;
         editor->SetAppearance(appearance);
     }
@@ -332,6 +333,118 @@ static void TestEmbeddedSemanticReusePixels(GraphicsFixture& gpu)
     Check(reusedPixels == freshPixels, "reused semantic layouts match a fresh WARP render byte for byte");
 }
 
+static void TestSourceGuideAllocationAtomicity()
+{
+    using namespace DxUi::RichText;
+    using namespace DxUi::RichText::Detail;
+    const auto factory = RichGeometryFactory();
+    Document source{L"one two\tthree\r\nnext line\n"};
+    LayoutOptions options;
+    options.widthDip = 240.0f;
+    RichEditorLayout geometry;
+    geometry.BeginPreparation(factory.get(), source.Snapshot(), source.Revision(), ViewMode::Source, options);
+    while (geometry.HasPendingPreparation())
+        static_cast<void>(geometry.AdvancePreparation());
+    const auto finish = [&](RichSourceGuides& guides)
+    {
+        while (! guides.Advance(factory.get(), geometry))
+        {
+        }
+    };
+    const auto seed = [&]
+    {
+        auto guides = std::make_unique<RichSourceGuides>();
+        guides->Begin(source.Snapshot(), 1u, geometry.Generation(), true, true, options);
+        finish(*guides);
+        return guides;
+    };
+    const auto stage = [&](RichSourceGuides& guides)
+    {
+        guides.Begin(source.Snapshot(), 2u, geometry.Generation(), true, true, options);
+        finish(guides);
+    };
+    auto measured          = seed();
+    const auto oldCounting = countAllocations;
+    const auto oldCalls = allocations, oldBytes = allocationBytes;
+    allocations = allocationBytes = 0u;
+    countAllocations              = true;
+    stage(*measured);
+    countAllocations = oldCounting;
+    const auto count = allocations;
+    allocations      = oldCalls;
+    allocationBytes  = oldBytes;
+    Check(count > 0u && count < 512u, "source guide preparation has bounded observed allocations");
+    for (std::size_t point = 0u; point < count; ++point)
+    {
+        auto guides            = seed();
+        const auto numberCount = guides->Numbers().size(), markCount = guides->Marks().size();
+        const auto oldFailure = failAllocationAfter;
+        bool failed           = false;
+        failAllocationAfter   = point;
+        try
+        {
+            stage(*guides);
+        }
+        catch (const std::bad_alloc&)
+        {
+            failed = true;
+        }
+        failAllocationAfter = oldFailure;
+        Check(failed && guides->Numbers().size() == numberCount && guides->Marks().size() == markCount,
+              "guide allocation failure preserves the preceding immutable publication");
+        stage(*guides);
+        Check(guides->Current(2u, geometry.Generation(), true, true) && guides->Numbers().size() == numberCount && guides->Marks().size() == markCount,
+              "guide allocation retry completes without skipped or duplicated source units");
+    }
+}
+static void TestEmbeddedSourceGuidesPixels(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    const std::wstring source = L"alpha  beta\tend\r\nsecond line\n";
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "source guide graphics");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "source guide view");
+    auto owned   = std::make_unique<RichTextEditor>(source);
+    auto* editor = owned.get();
+    editor->SetViewMode(RichText::ViewMode::Source);
+    auto appearance              = editor->GetAppearance();
+    appearance.sourceMonospace   = true;
+    appearance.sourceLineNumbers = true;
+    editor->SetAppearance(appearance);
+    view.Controls().SetRoot(std::move(owned));
+    Hr(gpu.Resize(480u, 240u), "source guide raster size");
+    const auto capture = [&]
+    {
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare source guide pixels");
+        gpu.Bind();
+        Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "source guide composite");
+        std::vector<std::uint8_t> pixels(0u);
+        Hr(gpu.Read(pixels), "source guide readback");
+        return pixels;
+    };
+    const auto plain                 = capture();
+    appearance.sourceWhitespaceMarks = true;
+    editor->SetAppearance(appearance);
+    const auto marked = capture();
+    Check(plain != marked && editor->GetText() == source && ! editor->CanUndo(),
+          "whitespace marks alter rendered pixels without changing counted source or history");
+    appearance.sourceLineNumbers = false;
+    editor->SetAppearance(appearance);
+    const auto noNumbers = capture();
+    Check(noNumbers != marked && editor->GetText() == source, "physical line gutter changes rendered pixels without changing source");
+    appearance.sourceLineNumbers = true;
+    editor->SetAppearance(appearance);
+    std::wstring longSource;
+    for (unsigned line = 0u; line < 600u; ++line)
+        longSource += L"pending \tline\n";
+    editor->SetText(longSource);
+    Hr(view.Prepare(480u, 240u, 96.0f), "begin long source guide preparation");
+    Check(view.NeedsPreparation(), "large guide preparation yields before publication");
+    editor->SetText(source);
+    Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "replace pending source guides");
+    Check(editor->GetText() == source && ! view.NeedsPreparation(), "new source supersedes pending guides without stale publication");
+}
 static void TestEmbeddedCodeLineNumberPixels(GraphicsFixture& gpu)
 {
     using namespace DxUi;
@@ -343,16 +456,22 @@ static void TestEmbeddedCodeLineNumberPixels(GraphicsFixture& gpu)
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "code gutter graphics");
     EmbeddedHost view;
     Hr(view.Attach(graphics), "code gutter view");
-    auto owned = std::make_unique<RichTextEditor>(source);
+    auto owned   = std::make_unique<RichTextEditor>(source);
     auto* editor = owned.get();
     editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
     editor->SetMarkdownRenderingEnabled(true);
-    auto appearance = editor->GetAppearance();
+    auto appearance                 = editor->GetAppearance();
     appearance.markdownPresentation = RichText::MarkdownPresentationStyle::Subtle;
     editor->SetAppearance(appearance);
     std::wstring copied;
     unsigned copyCalls{};
-    editor->SetOnCodeCopyRequested([&](std::wstring_view text) { copied.assign(text); ++copyCalls; }, L"Kopieren");
+    editor->SetOnCodeCopyRequested(
+        [&](std::wstring_view text)
+    {
+        copied.assign(text);
+        ++copyCalls;
+    },
+        L"Kopieren");
     view.Controls().SetRoot(std::move(owned));
     view.Controls().SetFocusControl(editor);
     auto site = std::make_shared<TestEmbeddedAccessibilitySite>();
@@ -370,8 +489,8 @@ static void TestEmbeddedCodeLineNumberPixels(GraphicsFixture& gpu)
         Check(static_cast<bool>(document), "code gutter has current semantics");
         const auto element = std::ranges::find(document->Elements(), RichText::SemanticRole::Code, &RichText::SemanticElement::role);
         Check(element != document->Elements().end(), "code gutter owns a code block");
-        const auto frame = editor->GetSemanticElementBounds(view.Controls(), static_cast<std::size_t>(element - document->Elements().begin()));
-        const auto caret = editor->TryGetTextInputCaretRect(view.Controls(), source.find(L"first line"));
+        const auto frame       = editor->GetSemanticElementBounds(view.Controls(), static_cast<std::size_t>(element - document->Elements().begin()));
+        const auto caret       = editor->TryGetTextInputCaretRect(view.Controls(), source.find(L"first line"));
         const auto secondCaret = editor->TryGetTextInputCaretRect(view.Controls(), source.find(L"second line"));
         Check(frame && caret && secondCaret && secondCaret->top > caret->bottom + 1.0f,
               "wrapped first physical line and second source line have distinct positions");
@@ -379,23 +498,24 @@ static void TestEmbeddedCodeLineNumberPixels(GraphicsFixture& gpu)
         Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "code gutter composite");
         std::vector<std::uint8_t> pixels(0u);
         Hr(gpu.Read(pixels), "code gutter pixels");
-        const auto sample = [&](unsigned x, unsigned y) {
+        const auto sample = [&](unsigned x, unsigned y)
+        {
             const auto at = (static_cast<std::size_t>(y) * gpu.width + x) * 4u;
             return std::array{pixels[at], pixels[at + 1u], pixels[at + 2u]};
         };
-        const auto left = direction == FlowDirection::LeftToRight ? frame->left + 6.0f : frame->right - 46.0f;
-        const auto top = static_cast<unsigned>(std::max(0.0f, caret->top));
-        const auto bottom = static_cast<unsigned>(std::min(static_cast<float>(gpu.height), caret->bottom));
-        const auto firstX = static_cast<unsigned>(std::max(0.0f, left + 2.0f));
-        const auto lastX = static_cast<unsigned>(std::min(static_cast<float>(gpu.width), left + 36.0f));
+        const auto left       = direction == FlowDirection::LeftToRight ? frame->left + 6.0f : frame->right - 46.0f;
+        const auto top        = static_cast<unsigned>(std::max(0.0f, caret->top));
+        const auto bottom     = static_cast<unsigned>(std::min(static_cast<float>(gpu.height), caret->bottom));
+        const auto firstX     = static_cast<unsigned>(std::max(0.0f, left + 2.0f));
+        const auto lastX      = static_cast<unsigned>(std::min(static_cast<float>(gpu.width), left + 36.0f));
         const auto background = sample(firstX, top + 1u);
         unsigned differing{};
         for (auto y = top; y < bottom; ++y)
             for (auto x = firstX; x < lastX; ++x)
                 differing += sample(x, y) != background ? 1u : 0u;
         Check(differing > 4u, "prepared physical line number paints in the correct directional gutter");
-        const auto secondTop = static_cast<unsigned>(std::max(0.0f, secondCaret->top));
-        const auto secondBottom = static_cast<unsigned>(std::min(static_cast<float>(gpu.height), secondCaret->bottom));
+        const auto secondTop        = static_cast<unsigned>(std::max(0.0f, secondCaret->top));
+        const auto secondBottom     = static_cast<unsigned>(std::min(static_cast<float>(gpu.height), secondCaret->bottom));
         const auto secondBackground = sample(firstX, secondTop + 1u);
         unsigned secondDiffering{};
         for (auto y = secondTop; y < secondBottom; ++y)
@@ -411,7 +531,8 @@ static void TestEmbeddedCodeLineNumberPixels(GraphicsFixture& gpu)
         Hr(peer.query_to(simple.put()), "code copy simple provider");
         VARIANT name{};
         Hr(simple->GetPropertyValue(UIA_NamePropertyId, &name), "code copy localized name");
-        Check(name.vt == VT_BSTR && std::wstring_view(name.bstrVal, SysStringLen(name.bstrVal)) == L"Kopieren", "copy action exposes the consumer-localized name");
+        Check(name.vt == VT_BSTR && std::wstring_view(name.bstrVal, SysStringLen(name.bstrVal)) == L"Kopieren",
+              "copy action exposes the consumer-localized name");
         VariantClear(&name);
         wil::com_ptr_nothrow<IUnknown> pattern;
         Hr(simple->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "code copy Invoke pattern");
@@ -428,9 +549,9 @@ static void TestEmbeddedCodeLineNumberPixels(GraphicsFixture& gpu)
         pattern.reset();
         Hr(parentSimple->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "code source edit remains invokable");
         Check(bool(pattern), "copy child does not replace the source-edit action");
-        staleCopy = invoke;
-        const auto before = editor->GetSelection();
-        const auto revision = editor->Revision();
+        staleCopy                = invoke;
+        const auto before        = editor->GetSelection();
+        const auto revision      = editor->Revision();
         const auto previousCalls = copyCalls;
         Check(editor->OnMouseDown(view.Controls(), point, false, 0u) && editor->OnMouseUp(view.Controls(), point, false, 0u),
               "code copy handles a complete pointer gesture");
@@ -459,7 +580,13 @@ static void TestEmbeddedCodeLineNumberPixels(GraphicsFixture& gpu)
     counted.push_back(L'\0');
     counted += L"b\n```\n";
     editor->SetText(counted);
-    editor->SetOnCodeCopyRequested([&](std::wstring_view text) { copied.assign(text); ++copyCalls; }, L"Kopieren");
+    editor->SetOnCodeCopyRequested(
+        [&](std::wstring_view text)
+    {
+        copied.assign(text);
+        ++copyCalls;
+    },
+        L"Kopieren");
     Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "counted code copy preparation");
     editor->SetSelection({4u, 4u});
     Check(editor->OnKeyDown(view.Controls(), 'C', MK_CONTROL | MK_SHIFT) && copied.find(L'\0') != copied.npos && copied.find(L'b') != copied.npos,
@@ -468,8 +595,7 @@ static void TestEmbeddedCodeLineNumberPixels(GraphicsFixture& gpu)
     Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "empty code copy preparation");
     editor->SetSelection({1u, 1u});
     copied = L"sentinel";
-    Check(editor->OnKeyDown(view.Controls(), 'C', MK_CONTROL | MK_SHIFT) && copied.empty(),
-          "empty code copy omits the synthetic caret placeholder");
+    Check(editor->OnKeyDown(view.Controls(), 'C', MK_CONTROL | MK_SHIFT) && copied.empty(), "empty code copy omits the synthetic caret placeholder");
     site->root = nullptr;
 }
 static void TestEmbeddedRichGeometryReuseAndRetirement(GraphicsFixture& gpu)

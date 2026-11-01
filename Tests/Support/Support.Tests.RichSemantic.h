@@ -1,4 +1,5 @@
 #pragma once
+#include "Controls/DxUi.MarkdownInlines.h"
 #include <DxUi/RichSemantic.h>
 #include <DxUi/RichTextCommands.h>
 #include <array>
@@ -382,6 +383,97 @@ inline void ListsAndHeadings()
             const auto comparisonSyntax = Parse(mathComparison, profile);
             Check(std::ranges::any_of(comparisonSyntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
                   "a literal comparison operator does not masquerade as an HTML ownership boundary");
+            Document escapedTick(L"$a \\`b` c$");
+            const auto escapedTickSyntax = Parse(escapedTick, profile);
+            Check(std::ranges::any_of(escapedTickSyntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
+                  "an escaped backtick does not begin an opaque Markdown code span inside math");
+            Document escapedCloser(L"\\(x\\\\)y\\)");
+            const auto escapedCloserSyntax = Parse(escapedCloser, profile);
+            Check(std::ranges::any_of(escapedCloserSyntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
+                  "an escaped closer does not hide a later valid math closer");
+            for (const auto source : {std::wstring_view(L"\\[x\\]"), std::wstring_view(L"$$x$$")})
+            {
+                Document displayCloser{std::wstring(source)};
+                const auto displayCloserSyntax = Parse(displayCloser, profile);
+                Check(std::ranges::any_of(displayCloserSyntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
+                      "indexed display delimiters retain valid closing recognition");
+            }
+            std::wstring oversizedMath(L"\\(");
+            oversizedMath.append(MathMaximumSourceUnits + 1u, L'x');
+            Document oversizedMathSource(oversizedMath);
+            const auto oversizedMathSyntax = Parse(oversizedMathSource, profile);
+            Check(std::ranges::any_of(oversizedMathSyntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
+                  "unclosed notation beyond source capacity retains its opaque fallback");
+#if DXUI_ENABLE_DIAGNOSTICS
+            for (const auto pattern : {std::wstring_view(L"<aa:a"), std::wstring_view(L"<!--")})
+            {
+                std::size_t previousWork{};
+                for (const size_t count : {size_t{400u}, size_t{800u}})
+                {
+                    std::wstring adversarial(L"$");
+                    for (size_t i = 0u; i < count; ++i)
+                        adversarial += pattern;
+                    adversarial += L'>';
+                    Document candidate(adversarial);
+                    DxUi::RichText::Detail::testMathOwnershipProbeWork = 0u;
+                    static_cast<void>(Parse(candidate, profile));
+                    const auto work = DxUi::RichText::Detail::testMathOwnershipProbeWork;
+                    Check(work > 0u && work <= adversarial.size() * 64u && (! previousWork || work <= previousWork * 3u),
+                          "math opaque-ownership lookahead scales linearly on repeated invalid angle prefixes");
+                    previousWork = work;
+                }
+            }
+            std::size_t previousManyWork{};
+            for (const size_t count : {size_t{400u}, size_t{800u}})
+            {
+                std::wstring many(0u, L' ');
+                for (size_t i = 0u; i < count; ++i)
+                    many += L"$x<y$ > ";
+                Document candidate(many);
+                DxUi::RichText::Detail::testMathOwnershipProbeWork = 0u;
+                const auto syntax                                  = Parse(candidate, profile);
+                const auto work                                    = DxUi::RichText::Detail::testMathOwnershipProbeWork;
+                Check(work > 0u && work <= many.size() * 64u && (! previousManyWork || work <= previousManyWork * 3u) &&
+                          std::ranges::count_if(syntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }) ==
+                              static_cast<std::ptrdiff_t>(count),
+                      "many separate math openers share one leaf terminator index with linear-scale work");
+                previousManyWork = work;
+            }
+            for (const auto pattern : {std::wstring_view(L"\\("), std::wstring_view(L"\\(x\\\\)"), std::wstring_view(L"$a$1 ")})
+            {
+                std::size_t previousUnclosedWork{};
+                for (const size_t count : {size_t{300u}, size_t{600u}})
+                {
+                    std::wstring unclosed(0u, L' ');
+                    for (size_t i = 0u; i < count; ++i)
+                        unclosed += pattern;
+                    Document candidate(unclosed);
+                    DxUi::RichText::Detail::testMathOwnershipProbeWork = 0u;
+                    const auto syntax                                  = Parse(candidate, profile);
+                    const auto work                                    = DxUi::RichText::Detail::testMathOwnershipProbeWork;
+                    Check(std::ranges::none_of(syntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }) &&
+                              work <= unclosed.size() * 64u && (! previousUnclosedWork || work <= previousUnclosedWork * 3u),
+                          "unclosed and ineligible-closer math runs retain literal ownership with linear-scale scan work");
+                    previousUnclosedWork = work;
+                }
+            }
+            MarkdownParser cancelled;
+            std::wstring oldSource(L"$x<y$ > ");
+            for (size_t i = 0u; i < 400u; ++i)
+                oldSource += L"$x<y$ ";
+            cancelled.Begin(oldSource, 7u, profile);
+            DxUi::RichText::Detail::testMathOwnershipProbeWork = 0u;
+            for (size_t step = 0u; step < 20000u && cancelled.HasPendingPreparation() && ! DxUi::RichText::Detail::testMathOwnershipProbeWork; ++step)
+                cancelled.Advance(1u);
+            Check(DxUi::RichText::Detail::testMathOwnershipProbeWork > 0u, "cancellation fixture reaches leaf index preparation");
+            cancelled.Cancel();
+            cancelled.Begin(L"$x < y$", 8u, profile);
+            while (cancelled.HasPendingPreparation())
+                cancelled.Advance(113u);
+            Check(cancelled.Published() && cancelled.Published()->Source() == L"$x < y$" &&
+                      std::ranges::any_of(cancelled.Published()->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
+                  "cancelling and replacing an indexed leaf cannot retain its old terminators");
+#endif
             request.mathDisplay = false;
         }
         else
@@ -620,6 +712,16 @@ inline void Tables()
     request.command = MarkdownCommand::SetTableCell;
     request.text    = L"**new**\\|value";
     Exact(L"a | b\n- | -\nx | y\n", {16u, 16u}, request, L"a | b\n- | -\nx | **new**\\|value\n");
+    request.text                 = L"()";
+    request.tableCellCaretOffset = 1u;
+    Exact(L"a | b\n- | -\nx | y\n", {16u, 16u}, request, L"a | b\n- | -\nx | ()\n", Selection{17u, 17u});
+    Document caretBoundarySource(L"a | b\n- | -\nx | y\n");
+    const auto caretBoundarySyntax = Parse(caretBoundarySource);
+    request.text                   = L"\U0001f600";
+    Reject<std::out_of_range>([&] {
+        static_cast<void>(BuildMarkdownCommand(caretBoundarySource.Snapshot(), caretBoundarySource.Revision(), caretBoundarySyntax, {16u, 16u}, request));
+    }, "table replacement caret cannot split a supplementary scalar");
+    request.tableCellCaretOffset.reset();
     Document padded(L"| a | b | c |\r\n| :- | -: | --- |\r\n| x |\r\n");
     const auto syntax = Parse(padded);
     std::vector<std::size_t> cells(0u);
@@ -630,6 +732,12 @@ inline void Tables()
     request.targetCell = cells.back();
     request.text       = L"new";
     Exact(padded.Text(), {padded.Text().size(), padded.Text().size()}, request, L"| a | b | c |\r\n| :- | -: | --- |\r\n| x |  | new |\r\n");
+    request.text                 = L"()";
+    request.tableCellCaretOffset = 1u;
+    const std::wstring pairedCell(L"| a | b | c |\r\n| :- | -: | --- |\r\n| x |  | () |\r\n");
+    const auto pairedCaret = pairedCell.find(L"()") + 1u;
+    Exact(padded.Text(), {padded.Text().size(), padded.Text().size()}, request, pairedCell, Selection{pairedCaret, pairedCaret});
+    request.tableCellCaretOffset.reset();
     request.targetCell = MarkdownNoNode;
     request.command    = MarkdownCommand::NextTableCell;
     Exact(L"a | b\n- | -\nx | y", {16u, 16u}, request, L"a | b\n- | -\nx | y\n| | |", Selection{20u, 20u});

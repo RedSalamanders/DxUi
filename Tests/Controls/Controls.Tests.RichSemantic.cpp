@@ -26,6 +26,10 @@ void TestRichSemanticNativeRetainedTransactions()
     RichSemanticTests::Run([&]
     {
         RichSemanticEditorTests::SemanticGeometryReuse(window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare semantic reuse"); });
+        RichSemanticEditorTests::SourceHorizontalAndGuides(window.Host(),
+                                                           [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare source guides"); });
+        RichSemanticEditorTests::RichTableHorizontalOverflow(window.Host(),
+                                                             [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare table overflow"); });
         RichSemanticEditorTests::Transactions(window.Host(),
                                               [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native source transaction"); });
     });

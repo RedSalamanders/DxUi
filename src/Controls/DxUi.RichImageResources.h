@@ -110,7 +110,8 @@ public:
             auto& entry = entries_[index];
             if (! entry.pending)
                 continue;
-            const bool unaffected = std::ranges::any_of(bindings_, [&](const auto& binding)
+            const bool unaffected = std::ranges::any_of(bindings_,
+                                                        [&](const auto& binding)
             {
                 if (binding.entry != index || binding.element >= elements.size())
                     return false;
@@ -251,7 +252,7 @@ public:
         snapshotDirty_ = false;
         UpdateDecodedBytes();
         policyChanged_  = false;
-        suspended_ = false;
+        suspended_      = false;
         stage.committed = true;
         next_.reset();
         return true;

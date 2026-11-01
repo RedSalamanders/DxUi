@@ -1,0 +1,1 @@
+- Add bounded pluggable code token coloring, Subtle code frames, language badges, line numbers and a localized accessible copy-intent action. Focused x64 Release coverage passes; full platform, allocation and performance qualification remain open.

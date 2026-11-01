@@ -1,0 +1,1 @@
+- Offer default-off paired delimiter typing with atomic undo and selection wrapping.

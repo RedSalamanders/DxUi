@@ -1257,6 +1257,11 @@ whitespace, or source revision change ends the group. IME transactions retain
 their native composition history policy.
 Source-view and source-region Backspace/Delete runs on those same text elements
 coalesce in the same bounded way; direction or explicit word deletion ends a run.
+The default-off direct-typing auto-pair policy inserts matching parentheses,
+brackets, braces, quotes, asterisks or underscores as one undo transaction,
+placing the caret between them or preserving the direction of a wrapped source
+selection. Native composition is never paired. Empty table-cell scaffolds use
+their structural cell-edit transaction and retain the interior caret.
 Rich-view deletion also groups adjacent single plain-source erasures; structural
 wrapper removal, transformed tokens and disjoint fragments remain separate
 transactions so their ownership is preserved.
@@ -1286,6 +1291,11 @@ blank-line and nested multiline admission remains unavailable.
 An unmatched math opener cannot claim a closing delimiter inside a subsequent
 recognized inline code span, HTML token or angle autolink; those tokens retain their Markdown
 ownership and the unmatched opener remains literal.
+Math ownership lookahead uses a leaf-owned, source-bounded terminator index and
+bounded scheme inspection, so multiple openers and repeated invalid angle
+prefixes do not repeatedly scan the remaining leaf for the same terminator.
+The same index excludes escaped and ineligible closing delimiters before a
+failed opener scans; the over-capacity opaque-source fallback is preserved.
 InsertHardBreak preserves representable quote and nested-list prefixes, replacing
 each list marker on the split line with equal-width continuation indentation.
 Unrepresentable lazy prefixes remain unavailable.

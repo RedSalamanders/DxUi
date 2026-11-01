@@ -334,7 +334,7 @@ bool SameOptions(const LayoutOptions& a, const LayoutOptions& b) noexcept
            a.headingLineHeightMultiplier == b.headingLineHeightMultiplier && a.paragraphSpacingAfterLines == b.paragraphSpacingAfterLines &&
            a.listItemSpacingDip == b.listItemSpacingDip && a.semanticSpacing == b.semanticSpacing && a.locale == b.locale &&
            a.readingDirection == b.readingDirection && a.textAlignment == b.textAlignment && a.markdownPresentation == b.markdownPresentation &&
-           a.codeCopyAction == b.codeCopyAction;
+           a.codeCopyAction == b.codeCopyAction && a.wrap == b.wrap;
 }
 void Union(std::optional<D2D1_RECT_F>& bounds, const D2D1_RECT_F& rectangle) noexcept
 {

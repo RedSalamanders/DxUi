@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <stdexcept>
+#include <utility>
 
 namespace DxUi::RichText::Detail
 {
@@ -32,11 +33,11 @@ bool Trail(wchar_t c) noexcept
 struct NativeFlowchartParser::Preparation
 {
     std::shared_ptr<FlowchartModel> model;
-    std::size_t scan{}, first{}, depth{}, statements{}, classBlockNode{}, classBlockStart{};
+    std::size_t scan{}, first{}, depth{}, statements{}, classBlockNode{}, classBlockStart{}, descriptionBlockStart{};
     std::array<bool, MaximumNodes> stateDescriptions{};
     std::array<bool, MaximumNodes> classAnnotations{};
     std::array<std::uint8_t, MaximumNodes> pseudoKinds{};
-    bool quote{}, escaped{}, pipe{}, comment{}, header{}, done{}, classBlock{};
+    bool quote{}, escaped{}, pipe{}, comment{}, header{}, done{}, classBlock{}, titleSeen{}, descriptionSeen{}, descriptionBlock{}, descriptionHasLine{};
     explicit Preparation(std::wstring_view source, std::uint64_t revision) : model(std::make_shared<FlowchartModel>(source, revision))
     {
         if (source.size() > MaximumSourceUnits)
@@ -52,6 +53,8 @@ struct NativeFlowchartParser::Preparation
         model->diagnostic = {issue, source};
         model->nodes.clear();
         model->edges.clear();
+        model->accessibleTitle.clear();
+        model->accessibleDescription.clear();
         done = true;
         return false;
     }
@@ -79,10 +82,16 @@ struct NativeFlowchartParser::Preparation
         const auto entityEnd     = c == L'&' ? remaining.find(L';') : std::wstring_view::npos;
         const bool encodedEntity = c == L'&' && entityEnd != std::wstring_view::npos &&
                                    remaining.substr(1u, entityEnd - 1u).find_first_of(L" \t\r\n|[]{}()") == std::wstring_view::npos;
-        if (c == L'<' || c == L'>' || (c == L'&' && model->family != NativeDiagramFamily::Flowchart) || c == L'`' || c == L'#' || (classMember && c == L'~') ||
-            remaining.starts_with(L"$$") || remaining.starts_with(L"fa:") || remaining.starts_with(L"fab:") || remaining.starts_with(L"fas:") ||
-            remaining.starts_with(L"far:") || remaining.starts_with(L"fal:") || remaining.starts_with(L"fad:") || remaining.starts_with(L"fat:") ||
-            remaining.starts_with(L"fass:") || encodedEntity)
+        const bool html =
+            c == L'<' && (model->family != NativeDiagramFamily::Flowchart ||
+                          (remaining.size() > 1u && (Letter(remaining[1u]) || remaining[1u] == L'/' || remaining[1u] == L'!' || remaining[1u] == L'?') &&
+                           remaining.find(L'>') != std::wstring_view::npos));
+        const bool icon = remaining.starts_with(L"fa:fa-") || remaining.starts_with(L"fab:fa-") || remaining.starts_with(L"fas:fa-") ||
+                          remaining.starts_with(L"far:fa-") || remaining.starts_with(L"fal:fa-") || remaining.starts_with(L"fad:fa-") ||
+                          remaining.starts_with(L"fat:fa-") || remaining.starts_with(L"fass:fa-");
+        if (html || (c == L'>' && model->family != NativeDiagramFamily::Flowchart) || (c == L'&' && model->family != NativeDiagramFamily::Flowchart) ||
+            c == L'`' || (c == L'#' && model->family != NativeDiagramFamily::Flowchart) || (classMember && c == L'~') || remaining.starts_with(L"$$") || icon ||
+            encodedEntity)
             return Error(FlowchartIssue::UnsupportedLabelMarkup, at, at + 1u, FlowchartOutcome::Unsupported);
         if (quoted && c == L'\\')
         {
@@ -156,6 +165,21 @@ struct NativeFlowchartParser::Preparation
         classAnnotations[node] = true;
         return true;
     }
+    bool DescriptionLine(std::size_t start, std::size_t end)
+    {
+        auto& value       = model->accessibleDescription;
+        const auto length = end - start;
+        if (length + (descriptionHasLine ? 1u : 0u) > MaximumLabelUnits - value.size())
+            return Error(FlowchartIssue::LabelCapacity, start, end, FlowchartOutcome::Capacity);
+        for (std::size_t position = start; position < end; ++position)
+            if (Text()[position] < L' ' && Text()[position] != L'\t')
+                return Error(FlowchartIssue::UnsupportedStatement, position, position + 1u, FlowchartOutcome::Unsupported);
+        if (descriptionHasLine)
+            value.push_back(L'\n');
+        value.append(Text().substr(start, length));
+        descriptionHasLine = true;
+        return true;
+    }
     bool Label(std::size_t& at, std::size_t end, wchar_t close, std::wstring& value)
     {
         Skip(at, end);
@@ -198,10 +222,16 @@ struct NativeFlowchartParser::Preparation
             {
                 const auto startReference = at;
                 auto finish               = at + 1u;
-                while (finish < end && finish - at < 33u && Text()[finish] != L';')
+                while (finish < end && finish - at < 33u && (Letter(Text()[finish]) || (Text()[finish] >= L'0' && Text()[finish] <= L'9')))
                     ++finish;
-                if (finish == end || Text()[finish] != L';')
-                    return Error(FlowchartIssue::UnsupportedLabelMarkup, at, std::min(end, finish + 1u), FlowchartOutcome::Unsupported);
+                if (finish == at + 1u || finish == end || Text()[finish] != L';')
+                {
+                    if (value.size() == MaximumLabelUnits)
+                        return Error(FlowchartIssue::LabelCapacity, at, at + 1u, FlowchartOutcome::Capacity);
+                    value.push_back(L'#');
+                    ++at;
+                    continue;
+                }
                 std::array<wchar_t, 35u> spelling{};
                 spelling[0u]        = L'&';
                 const bool numeric  = at + 1u < finish && Text()[at + 1u] >= L'0' && Text()[at + 1u] <= L'9';
@@ -366,6 +396,8 @@ struct NativeFlowchartParser::Preparation
         Skip(at, end);
         while (end > at && Space(Text()[end - 1u]))
             --end;
+        if (at == end && descriptionBlock)
+            return DescriptionLine(at, end);
         if (at == end)
             return true;
         if (++statements > MaximumStatements)
@@ -403,6 +435,45 @@ struct NativeFlowchartParser::Preparation
             header = true;
             return true;
         }
+        if (descriptionBlock)
+        {
+            if (Text().substr(at, end - at) == L"}")
+            {
+                descriptionBlock = false;
+                return true;
+            }
+            return DescriptionLine(at, end);
+        }
+        const auto statement = Text().substr(at, end - at);
+        if (! classBlock && (statement == L"accDescr {" || statement == L"accDescr{"))
+        {
+            if (descriptionSeen)
+                return Error(FlowchartIssue::UnsupportedStatement, at, end, FlowchartOutcome::Unsupported);
+            descriptionSeen       = true;
+            descriptionBlock      = true;
+            descriptionBlockStart = at;
+            return true;
+        }
+        for (const auto& [prefix, title] : {std::pair{std::wstring_view(L"accTitle:"), true}, std::pair{std::wstring_view(L"accDescr:"), false}})
+            if (! classBlock && statement.starts_with(prefix))
+            {
+                auto& seen = title ? titleSeen : descriptionSeen;
+                if (seen)
+                    return Error(FlowchartIssue::UnsupportedStatement, at, end, FlowchartOutcome::Unsupported);
+                auto valueStart = at + prefix.size();
+                Skip(valueStart, end);
+                if (valueStart == end)
+                    return Error(FlowchartIssue::UnsupportedStatement, at, end, FlowchartOutcome::Unsupported);
+                if (end - valueStart > MaximumLabelUnits)
+                    return Error(FlowchartIssue::LabelCapacity, valueStart, end, FlowchartOutcome::Capacity);
+                auto& value = title ? model->accessibleTitle : model->accessibleDescription;
+                for (auto position = valueStart; position < end; ++position)
+                    if (Text()[position] < L' ' && Text()[position] != L'\t')
+                        return Error(FlowchartIssue::UnsupportedStatement, position, position + 1u, FlowchartOutcome::Unsupported);
+                value.assign(Text().substr(valueStart, end - valueStart));
+                seen = true;
+                return true;
+            }
         if (classBlock)
         {
             if (Text().substr(at, end - at) == L"}")
@@ -599,12 +670,8 @@ struct NativeFlowchartParser::Preparation
             const auto edgeStart = at;
             bool reverse{};
             const auto relationText = Text().substr(at, end - at);
-            if (model->family == NativeDiagramFamily::Class &&
-                (relationText.starts_with(L"--*") || relationText.starts_with(L"--o") || relationText.starts_with(L"..") || relationText.starts_with(L"<|..")))
-                return Error(FlowchartIssue::UnsupportedEdge,
-                             edgeStart,
-                             std::min(end, at + (relationText.starts_with(L"<|..") ? 4u : 3u)),
-                             FlowchartOutcome::Unsupported);
+            if (model->family == NativeDiagramFamily::Class && (relationText.starts_with(L"--*") || relationText.starts_with(L"--o")))
+                return Error(FlowchartIssue::UnsupportedEdge, edgeStart, std::min(end, at + 3u), FlowchartOutcome::Unsupported);
             bool inlineLabel   = false;
             const auto readEnd = [&](std::size_t start, FlowchartLineStyle style, std::size_t& finish, std::size_t& ranks, bool& arrow)
             {
@@ -695,11 +762,13 @@ struct NativeFlowchartParser::Preparation
             {
                 // The operator and its bounded plain-text label are already consumed.
             }
-            else if (model->family == NativeDiagramFamily::Class && (Text().substr(at, 4u) == L"<|--" || Text().substr(at, 4u) == L"--|>"))
+            else if (model->family == NativeDiagramFamily::Class && (Text().substr(at, 4u) == L"<|--" || Text().substr(at, 4u) == L"--|>" ||
+                                                                     Text().substr(at, 4u) == L"<|.." || Text().substr(at, 4u) == L"..|>"))
             {
                 reverse       = Text()[at] == L'<';
                 edge.arrow    = true;
                 edge.relation = FlowchartRelation::Inheritance;
+                edge.style    = Text()[at + (reverse ? 2u : 0u)] == L'.' ? FlowchartLineStyle::Dotted : FlowchartLineStyle::Solid;
                 at += 4u;
             }
             else
@@ -735,6 +804,12 @@ struct NativeFlowchartParser::Preparation
                 else if (model->family == NativeDiagramFamily::Class && Text().substr(at, 2u) == L"--")
                 {
                     edge.relation  = FlowchartRelation::Line;
+                    operatorLength = 2u;
+                }
+                else if (model->family == NativeDiagramFamily::Class && Text().substr(at, 2u) == L"..")
+                {
+                    edge.relation  = FlowchartRelation::Line;
+                    edge.style     = FlowchartLineStyle::Dotted;
                     operatorLength = 2u;
                 }
                 else if (Text().substr(at, 3u) == L"---")
@@ -809,9 +884,9 @@ struct NativeFlowchartParser::Preparation
         {
             if (! comment && ! Statement(scan))
                 return;
-            if (classBlock)
+            if (classBlock || descriptionBlock)
             {
-                Error(FlowchartIssue::UnexpectedToken, classBlockStart, scan);
+                Error(FlowchartIssue::UnexpectedToken, descriptionBlock ? descriptionBlockStart : classBlockStart, scan);
                 return;
             }
             if (! header)
@@ -824,7 +899,7 @@ struct NativeFlowchartParser::Preparation
         }
         const auto c       = text[scan];
         const bool newline = c == L'\r' || c == L'\n';
-        if (! comment && ! quote && ! depth && ! pipe && c == L'%' && scan + 1u < text.size() && text[scan + 1u] == L'%')
+        if (! descriptionBlock && ! comment && ! quote && ! depth && ! pipe && c == L'%' && scan + 1u < text.size() && text[scan + 1u] == L'%')
         {
             if (scan + 2u < text.size() && text[scan + 2u] == L'{')
             {
@@ -835,7 +910,7 @@ struct NativeFlowchartParser::Preparation
                 return;
             comment = true;
         }
-        if (newline || (! comment && ! quote && ! depth && ! pipe && c == L';'))
+        if (newline || (! descriptionBlock && ! comment && ! quote && ! depth && ! pipe && c == L';'))
         {
             if (! comment && ! Statement(scan))
                 return;

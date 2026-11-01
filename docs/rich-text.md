@@ -131,6 +131,22 @@ services, selection and history are unchanged. Preparation publishes complete
 disjoint ranges; drawing never parses. High contrast uses the ordinary text
 pair. The 65,536-event presentation bound falls back to the complete uncolored
 source view rather than publishing partial syntax or repeatedly retrying it. `directSourceInkPreview` separately enables an experimental direct renderer; it defaults off and remains performance-unqualified. Source coloring still uses the canonical DirectWrite path when it is off.
+Source view also supports `sourceWrap=false`, `sourceLineNumbers=true`, and
+`sourceWhitespaceMarks=true`. The gutter and guides are prepared from exact
+source; they do not change ACPs, selections or clipboard text. Horizontal offset
+is available through `GetHorizontalScrollInfo`, `SetHorizontalScrollOffsetDip`,
+and `SetOnHorizontalScrollChanged`; Shift+wheel scrolls overflowing content.
+Rich tables with `tableOverflow=true` use the same horizontal offset. Native
+input, hit testing and accessibility geometry follow the painted position.
+
+For opt-in Subtle code blocks, applications can register `SetCodeTokenizer`
+and use `TokenizeBuiltinCode` for JSON, C-like languages, PowerShell or diff.
+Prepared bounded token spans change ink only. The Subtle frame shows a language
+badge and physical line numbers within the documented bounds. Register
+`SetOnCodeCopyRequested` with a localized accessible name to expose pointer,
+keyboard and UIA copy intent; the callback receives counted rendered code and
+owns clipboard transport. All of these features still require the project's
+complete platform, allocation and performance qualification before plan closeout.
 List marker ink uses the parser's exact source token range, so nested, ordered,
 quoted and task-list prefixes stay aligned with their original UTF-16 offsets.
 Each owner preparation advance uses at most 256 work steps shared across block
@@ -159,14 +175,17 @@ explicit document location and bounded preparation/resource handling:
 
 The native extension engine choice is C++ only. `DxUiNativeFlowchart1` currently
 has an internal CPU parser with focused Debug checks for rectangles, rounded nodes, circles,
-diamonds, four directions and bounded solid, dotted, thick and invisible edge chains. Simple state and class profiles are also available; other Mermaid families,
-expanded shapes/edges, subgraphs, styling, icons and executable directives remain
+diamonds, stadiums, hexagons and subroutines, four directions and bounded solid, dotted, thick and invisible edge chains. Simple state and class profiles are also available; other Mermaid families,
+other expanded shapes/edges, subgraphs, styling, icons and executable directives remain
 unsupported. The pinned original corpus distinguishes accepted graphs from
 rejected definitions. Source-independent cooperative CPU geometry passes focused
-x64 Debug checks, with stable ranks, four orientations and separate exterior lanes
-for forward/back/self/parallel edges. It accepts measured label sizes and creates
+x64 Debug checks, with stable ranks, four orientations, direct unambiguous adjacent
+edges and exterior lanes for other forward/back/self/parallel edges. Unlabeled
+nonoverlapping rank intervals can share a lane; labeled lanes remain exclusive. It accepts measured label sizes and creates
 no SDK resources; complete extents are capped at 65,536 DIP per axis. DWrite
-shaping and reusable native paint resources pass focused Debug checks, with intercepted
+node and edge labels wrap at 12.5 times the selected font size; explicit line
+breaks and complete label text remain visible within the resulting geometry.
+Shaping and reusable native paint resources pass focused Debug checks, with intercepted
 SDK-call budgets, independent Unicode/bidi/multiline raster checks, separate
 typography/resource invalidation and compatible borrowed-target drawing. Edge
 labels paint last over padded opaque backgrounds so routes cannot obscure them.
@@ -1428,6 +1447,8 @@ operator scripts; a trailing row separator is accepted.
 and substitutes their Unicode negations; other operands retain exact source.
 Unsupported commands remain local exact source. This is a named native profile,
 not a claim of all KaTeX functions or identical TeX font metrics. Prepared math reads bounded OpenType MATH italic corrections, selects adequate precomposed vertical delimiter variants, and assembles up to 32 distinct part records and 64 total compatible vertical glyph parts per delimiter, with 512 per formula when the active Cambria Math face supplies them. Assembly connector overlap follows the [OpenType MATH format](https://learn.microsoft.com/en-us/typography/opentype/spec/math); part origins whose ink metrics do not match their advance within two design units use vector fallback. Missing, truncated, oversized or unavailable font data also uses vector fallback. Horizontal assemblies and variable-font device corrections are not implemented. The at-most-4-MiB MATH snapshot and glyph-indexed lookup data are shared within one geometry generation; painting performs no font-table reads.
+Font lookup and glyph-query HRESULT failures remain retryable; only a known
+unsupported font operation or absent/invalid font data uses the vector fallback.
 ASCII minus and asterisk use mathematical operator glyphs, tilde supplies spacing,
 and successive primes are raised as one superscript. A second explicit superscript
 on the same atom remains source with a diagnostic. Heading formulas follow the
@@ -1473,6 +1494,8 @@ retain source with a capacity diagnostic.
 Flowchart node and pipe-edge labels decode Mermaid decimal and named `#...;`
 references through the pinned Markdown reference table and accept `<br>`, `<br/>`
 and `<br />` line breaks. Other HTML and unsupported references retain source.
+Plain hashes, comparison characters and ordinary `fa:` substrings remain text;
+actual Font Awesome icon markers still retain the original diagram as source.
 This is not
 Mermaid coordinate compatibility. Composite states, class namespaces/generics,
 class compartments, relationship multiplicities, other stereotypes, styling,
@@ -1520,3 +1543,17 @@ within `1..512` DIP. Source, selection, history and focus are preserved.
 `sourceMonospace` selects the code family for Source view, and `tabStopDip`
 sets an explicit tab interval independently of typed indentation. Both remain
 optional; existing Source view typography is preserved by default.
+
+Flowchart, state and class diagrams accept one `accTitle: text` and one
+`accDescr: text` or multiline `accDescr {` / `accDescr{` block closed by a
+standalone `}`. Values are plain text, each bounded to 1024 UTF-16 units;
+multiline descriptions join trimmed physical lines with LF, retaining empty
+lines. Duplicate declarations, unsupported control characters and unterminated
+blocks retain the original source with a diagnostic. The diagram UI Automation
+name uses the authored title when present; its help text uses the authored
+description, or the generated graph summary when only a title is supplied.
+Without an authored title the generated graph summary remains the name.
+
+Class diagrams also accept realization relationships `A <|.. B` and `B ..|> A`, rendered as a dotted line with the hollow triangle at the interface.
+
+Class diagrams also accept dotted association `A .. B` without an arrowhead.

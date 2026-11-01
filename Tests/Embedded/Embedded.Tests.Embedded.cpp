@@ -1475,14 +1475,19 @@ __declspec(noinline) static int RunFunctionalTests()
         RichSemanticTests::Run(RichSemanticGeometryTests::PaddedCodePresentation);
         TestEmbeddedSemanticReusePixels(gpu);
         TestEmbeddedCodeLineNumberPixels(gpu);
+        TestEmbeddedSourceGuidesPixels(gpu);
+        TestSourceGuideAllocationAtomicity();
         TestEmbeddedImageResources(gpu);
         DxUi::EmbeddedHost view;
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "incremental borrowed graphics");
         Hr(view.Attach(graphics), "incremental embedded view");
-        RichSemanticTests::Run([&] {
+        RichSemanticTests::Run([&]
+        {
             RichSemanticEditorTests::SemanticGeometryReuse(view.Controls(),
                                                            [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "incremental preparation"); });
+            RichSemanticEditorTests::SourceHorizontalAndGuides(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "source guides"); });
+            RichSemanticEditorTests::RichTableHorizontalOverflow(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "table overflow"); });
         });
         std::vector<DxUi::RichText::CodeToken> tokens(0u);
         Check(DxUi::RichText::TokenizeBuiltinCode(L"json", L"{\"a\": true, \"b\": 3}", tokens) && tokens.size() >= 4u,
@@ -1510,7 +1515,8 @@ __declspec(noinline) static int RunFunctionalTests()
         editor->SetCodeTokenizer([&](std::wstring_view language, std::wstring_view code, std::vector<DxUi::RichText::CodeToken>& out)
         {
             ++calls;
-            Check(language == L"json" && code.find(L"true") != code.npos, "code callback borrows current language and display body");
+            Check(language == L"json" && (code.find(L"true") != code.npos || code.find(L"false") != code.npos),
+                  "code callback borrows current language and display body");
             return DxUi::RichText::TokenizeBuiltinCode(language, code, out);
         });
         Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "tokenized code preparation");
@@ -1521,6 +1527,11 @@ __declspec(noinline) static int RunFunctionalTests()
         Check(ordinaryPixels != coloredPixels, "prepared token ranges change rendered glyph ink");
         Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "idle tokenized preparation");
         Check(calls == 1u, "idle preparation does not reinvoke tokenizer");
+        const auto boolean = editor->GetText().find(L"true");
+        editor->SetSelection({boolean, boolean + 4u});
+        Check(editor->ReplaceSelection(L"false"), "edit tokenized source");
+        Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare edited tokenized code");
+        Check(calls == 2u && editor->GetText().find(L"false") != std::wstring::npos, "source edits retokenize the current code publication");
         editor->SetCodeTokenizer([&](std::wstring_view, std::wstring_view, std::vector<DxUi::RichText::CodeToken>& out)
         {
             out.push_back({{999u, 1000u}, DxUi::RichText::CodeTokenRole::Keyword});
@@ -1688,6 +1699,10 @@ __declspec(noinline) static int RunFunctionalTests()
         {
             RichSemanticEditorTests::SemanticGeometryReuse(transactionView.Controls(),
                                                            [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded semantic reuse"); });
+            RichSemanticEditorTests::SourceHorizontalAndGuides(transactionView.Controls(),
+                                                               [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "source guides"); });
+            RichSemanticEditorTests::RichTableHorizontalOverflow(transactionView.Controls(),
+                                                                 [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "table overflow"); });
             RichSemanticEditorTests::Transactions(transactionView.Controls(),
                                                   [&] { Hr(PrepareRichEmbeddedContent(transactionView, 480u, 240u), "embedded transaction preparation"); });
             RichSemanticEditorTests::StructuralCommands(transactionView.Controls(),
@@ -1745,6 +1760,8 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichDocumentGeometryReplacementPeakBudget();
     TestEmbeddedSemanticReusePixels(gpu);
     TestEmbeddedCodeLineNumberPixels(gpu);
+    TestEmbeddedSourceGuidesPixels(gpu);
+    TestSourceGuideAllocationAtomicity();
     TestEmbeddedRichGeometryReuseAndRetirement(gpu);
     TestRetainedRichTextSchedulingCanRetireOwner(gpu);
     TestRetainedRichTextFailedPreparation(gpu);

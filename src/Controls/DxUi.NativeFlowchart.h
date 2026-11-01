@@ -107,11 +107,18 @@ struct FlowchartEdge
 };
 struct FlowchartModel
 {
-    explicit FlowchartModel(std::wstring_view text, std::uint64_t value) : source(text), revision(value), nodes(0u), edges(0u)
+    explicit FlowchartModel(std::wstring_view text, std::uint64_t value)
+        : source(text),
+          revision(value),
+          accessibleTitle(0u, L' '),
+          accessibleDescription(0u, L' '),
+          nodes(0u),
+          edges(0u)
     {
     }
     std::wstring source;
     std::uint64_t revision{};
+    std::wstring accessibleTitle, accessibleDescription;
     FlowchartDirection direction{};
     NativeDiagramFamily family{};
     FlowchartOutcome outcome{};

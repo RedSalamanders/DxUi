@@ -192,9 +192,8 @@ template <typename Check> inline void LexicalEdits(Check&& check)
         {
             const auto& a = reused->Nodes()[node];
             const auto& b = expected->Nodes()[node];
-            check(a.block.kind == b.block.kind && a.block.source == b.block.source && a.block.content == b.block.content &&
-                      a.parent == b.parent && a.firstChild == b.firstChild && a.nextSibling == b.nextSibling && a.firstInline == b.firstInline &&
-                      a.lines.size() == b.lines.size(),
+            check(a.block.kind == b.block.kind && a.block.source == b.block.source && a.block.content == b.block.content && a.parent == b.parent &&
+                      a.firstChild == b.firstChild && a.nextSibling == b.nextSibling && a.firstInline == b.firstInline && a.lines.size() == b.lines.size(),
                   "reused root nodes match fresh block structure and source ownership");
             for (std::size_t line = 0u; line < a.lines.size(); ++line)
                 check(a.lines[line].source == b.lines[line].source && a.lines[line].leadingSpaces == b.lines[line].leadingSpaces,
@@ -202,7 +201,7 @@ template <typename Check> inline void LexicalEdits(Check&& check)
         }
         for (std::size_t index = 0u; index < reused->Lexemes().size(); ++index)
         {
-            const auto& left = reused->Lexemes()[index];
+            const auto& left  = reused->Lexemes()[index];
             const auto& right = expected->Lexemes()[index];
             check(left.kind == right.kind && left.source == right.source && left.valueLength == right.valueLength &&
                       reused->LexemeValue(index) == expected->LexemeValue(index),

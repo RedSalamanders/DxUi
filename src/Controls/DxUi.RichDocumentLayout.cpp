@@ -39,7 +39,7 @@ bool SameOptions(const LayoutOptions& left, const LayoutOptions& right) noexcept
            left.headingLineHeightMultiplier == right.headingLineHeightMultiplier && left.paragraphSpacingAfterLines == right.paragraphSpacingAfterLines &&
            left.listItemSpacingDip == right.listItemSpacingDip && left.semanticSpacing == right.semanticSpacing &&
            left.codeFontFamily == right.codeFontFamily && left.locale == right.locale && left.readingDirection == right.readingDirection &&
-           left.textAlignment == right.textAlignment;
+           left.textAlignment == right.textAlignment && left.wrap == right.wrap;
 }
 void JoinBlocks(Projection& result, const std::vector<ProjectionBlock>& blocks, std::size_t first, std::size_t end, ViewMode mode)
 {
@@ -99,7 +99,7 @@ struct PreparedDocumentLayout::State
     std::vector<ChunkPlacement> chunks;
     mutable std::shared_ptr<const PreparedLayout> reference;
     bool referenceForGeometry{};
-    float height{};
+    float height{}, width{};
     mutable LayoutPreparation last;
 };
 #pragma warning(pop)
@@ -161,6 +161,7 @@ struct PreparedDocumentLayout::Preparation
         const auto& blocks = next->projection.Blocks();
         const auto& block  = blocks[begin];
         const auto bottom  = limit == blocks.size() ? geometry->layout.Height() : geometry->continuationBottom;
+        next->width        = std::max(next->width, geometry->layout.HorizontalTextBounds().second);
         next->chunks.push_back({block.sourceStart, block.displayStart, begin, limit - begin, next->height, bottom - next->height, std::move(geometry)});
         next->height = bottom;
         if (! std::isfinite(bottom))
@@ -183,6 +184,10 @@ bool PreparedDocumentLayout::Ready() const noexcept
 float PreparedDocumentLayout::Height() const noexcept
 {
     return Ready() ? state_->height : 0.0f;
+}
+float PreparedDocumentLayout::Width() const noexcept
+{
+    return Ready() ? state_->width : 0.0f;
 }
 std::uint64_t PreparedDocumentLayout::Generation() const noexcept
 {
@@ -459,6 +464,7 @@ LayoutAdvance PreparedDocumentLayout::AdvancePreparation(const LayoutWorkBudget&
                 {
                     next.referenceForGeometry = true;
                     next.height               = next.reference->Height();
+                    next.width                = next.reference->HorizontalTextBounds().second;
                     next.chunks.clear();
                 }
                 request.phase = Preparation::Phase::Publish;

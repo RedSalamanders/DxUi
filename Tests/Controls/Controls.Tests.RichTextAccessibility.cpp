@@ -2239,9 +2239,9 @@ void SemanticLinkActivation(bool embedded)
     Require(document != nullptr, "link activation has acknowledged semantic geometry");
     const auto revision = fixture.editor->Revision();
     const auto focus    = fixture.controls->GetFocusControl();
-    auto initialRoot = fixture.Simple();
+    auto initialRoot    = fixture.Simple();
     auto initialOutside = FindNamedSemanticPart(*initialRoot.get(), L"outside");
-    auto initialLocal = FindNamedSemanticPart(*initialRoot.get(), L"first");
+    auto initialLocal   = FindNamedSemanticPart(*initialRoot.get(), L"first");
     wil::com_ptr_nothrow<IUnknown> initialPattern;
     Require(initialOutside && initialLocal, "external and local links are discoverable before registration");
     RequireSucceeded(initialOutside->GetPatternProvider(UIA_InvokePatternId, initialPattern.put()), "unregistered external link pattern");
@@ -2290,14 +2290,14 @@ void SemanticLinkActivation(bool embedded)
     fixture.editor->SetOnLinkActivated({});
     Require(invoke->Invoke() == UIA_E_ELEMENTNOTAVAILABLE, "removing the handler retires the old action provider");
     fixture.Publish();
-    simple = fixture.Simple();
+    simple  = fixture.Simple();
     outside = FindNamedSemanticPart(*simple.get(), L"outside");
     pattern.reset();
     RequireSucceeded(outside->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "removed external handler query");
     Require(! pattern, "external link returns to inert UIA semantics");
     fixture.editor->SetOnLinkActivated([&](const RichTextLinkActivation&) { fixture.controls->SetRoot({}); });
     fixture.Publish();
-    simple = fixture.Simple();
+    simple  = fixture.Simple();
     outside = FindNamedSemanticPart(*simple.get(), L"outside");
     RequireSucceeded(outside->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "restored external handler query");
     invoke.reset();
@@ -2318,7 +2318,7 @@ void TestRichTextAccessibilityEmbeddedLinkActivation()
 void SemanticCodeCopyAction(bool embedded)
 {
     RichAccessibilityFixture fixture(embedded, true, true);
-    auto appearance = fixture.editor->GetAppearance();
+    auto appearance                 = fixture.editor->GetAppearance();
     appearance.markdownPresentation = RichText::MarkdownPresentationStyle::Subtle;
     fixture.editor->SetAppearance(appearance);
     const std::wstring source = L"```cpp\nint x;\n```\n";
@@ -2326,7 +2326,13 @@ void SemanticCodeCopyAction(bool embedded)
     fixture.editor->SetSelection({9u, 9u});
     std::wstring copied;
     unsigned calls{};
-    fixture.editor->SetOnCodeCopyRequested([&](std::wstring_view code) { copied.assign(code); ++calls; }, L"Copy example code");
+    fixture.editor->SetOnCodeCopyRequested(
+        [&](std::wstring_view code)
+    {
+        copied.assign(code);
+        ++calls;
+    },
+        L"Copy example code");
     fixture.Publish();
     auto root = fixture.Simple();
     auto copy = FindNamedSemanticPart(*root.get(), L"Copy example code");
@@ -2337,7 +2343,7 @@ void SemanticCodeCopyAction(bool embedded)
     wil::com_ptr_nothrow<IInvokeProvider> invoke;
     RequireSucceeded(pattern.query_to(invoke.put()), "code copy Invoke interface");
     const auto selection = fixture.editor->GetSelection();
-    const auto revision = fixture.editor->Revision();
+    const auto revision  = fixture.editor->Revision();
     RequireSucceeded(invoke->Invoke(), "invoke code copy intent");
     Require(calls == 1u && copied == L"int x;\n" && fixture.editor->GetSelection() == selection && fixture.editor->Revision() == revision &&
                 fixture.editor->GetText() == source && ! fixture.editor->CanUndo(),
@@ -2516,7 +2522,8 @@ void SemanticStructureAndTasks(bool embedded)
 {
     RichAccessibilityFixture fixture(embedded, true, true);
     fixture.editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
-    const std::wstring source = L"# Head\n\n[label](https://example.invalid) ![image alt](image)\n\n- [ ] task\n\n| A | B | C |\n| --- | --- | --- |\n| value |\n";
+    const std::wstring source =
+        L"# Head\n\n[label](https://example.invalid) ![image alt](image)\n\n- [ ] task\n\n| A | B | C |\n| --- | --- | --- |\n| value |\n";
     fixture.editor->SetText(source);
     fixture.editor->SetSelection({5u, 2u});
     fixture.Publish();
