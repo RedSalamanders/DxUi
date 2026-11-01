@@ -1920,7 +1920,7 @@ protected:
     virtual void OnDescendantDetaching(Control& subtree) noexcept;
     virtual void OnDescendantDetached(Control& subtree) noexcept;
     enum class DescendantDetachPhase { Detaching, Detached };
-    void NotifyContainersOfDetaching(Control& subtree, DescendantDetachPhase phase) noexcept;
+    void NotifyContainersOfDetaching(Control& subtree, DescendantDetachPhase phase = DescendantDetachPhase::Detaching) noexcept;
     [[nodiscard]] Control* HitTest(D2D1_POINT_2F point) override;
     [[nodiscard]] const Control* HitTest(D2D1_POINT_2F point) const override;
     [[nodiscard]] Control* HitTestOverlay(D2D1_POINT_2F point) override;

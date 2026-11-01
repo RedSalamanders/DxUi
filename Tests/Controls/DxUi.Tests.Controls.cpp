@@ -2210,6 +2210,25 @@ private:
 };
 #pragma warning(pop)
 
+void TestPanelLegacyDetachNotificationCall()
+{
+    using namespace DxUi;
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
+    class DerivedPanel final : public Panel
+    {
+    public:
+        void Notify(Control& child) noexcept { NotifyContainersOfDetaching(child); }
+        unsigned calls = 0u;
+    protected:
+        void OnDescendantDetaching(Control& /*child*/) noexcept override { ++calls; }
+    };
+#pragma warning(pop)
+    DerivedPanel panel;
+    auto* child = panel.AddChild<Button>(L"Child");
+    panel.Notify(*child);
+    Require(panel.calls == 1u, "the existing one-argument protected notification retains its attached precommit phase");
+}
 void TestScrollPanelPreservesHoverWhenNestedExtractionIsRefused()
 {
     using namespace DxUi;
@@ -3748,6 +3767,7 @@ void RunControlTests()
     DXUI_RUN_TEST(TestScrollPanelOverlayDismissalCanRetireItsOwner);
     DXUI_RUN_TEST(TestMeasuredActionsFailureAndDirectionContracts);
     DXUI_RUN_TEST(TestScrollPanelChildCallbacksCanClearChildrenSafely);
+    DXUI_RUN_TEST(TestPanelLegacyDetachNotificationCall);
     DXUI_RUN_TEST(TestScrollPanelPreservesHoverWhenNestedExtractionIsRefused);
     DXUI_RUN_TEST(TestScrollPanelCommittedHoverCallbackCanRetireHostRoot);
     DXUI_RUN_TEST(TestScrollPanelHoverDepartureStopsAfterHostRebinding);
