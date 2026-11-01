@@ -6,7 +6,9 @@
 #include <DxUi/RichMath.h>
 #include <algorithm>
 #include <array>
+#include <cstdint>
 #include <iterator>
+#include <limits>
 #include <stdexcept>
 
 namespace DxUi::RichText::Detail
@@ -90,6 +92,7 @@ class MarkdownInlines
     std::vector<FootnoteVisit> footnoteWalk_;
     std::vector<std::size_t> reachableDefinitions_;
     std::vector<std::size_t> previous_, offsets_, backtickNext_;
+    std::vector<std::array<std::uint32_t, 4u>> htmlNext_;
     std::wstring text_;
     std::size_t blockCursor_{}, referenceCursor_{}, cursor_{}, root_ = MarkdownNoNode, tail_ = MarkdownNoNode;
     std::size_t delimiterTail_ = MarkdownNoNode, delimiterHead_ = MarkdownNoNode;
@@ -618,6 +621,35 @@ class MarkdownInlines
             text_.insert(text_.begin() + static_cast<std::ptrdiff_t>(index), L'\ufffc');
         }
         offsets_.push_back(block.block.content.last);
+        // The math ownership probes share one leaf-local index. Multiple
+        // unmatched openers must never each search the remaining leaf anew.
+        htmlNext_.clear();
+        constexpr auto none = std::numeric_limits<std::uint32_t>::max();
+        std::array<std::uint32_t, 4u> next{none, none, none, none};
+        if (profile_ == MarkdownProfile::RichMarkdown && text_.find_first_of(L"$\\") != std::wstring::npos)
+        {
+            if (text_.size() >= none)
+                throw std::length_error("Markdown inline terminator index capacity exceeded");
+            htmlNext_.resize(text_.size() + 1u);
+            htmlNext_.back() = next;
+        }
+        const auto indexTerminator = [&](std::size_t i)
+        {
+            if (htmlNext_.empty())
+                return;
+#if DXUI_ENABLE_DIAGNOSTICS
+            ++testMathOwnershipProbeWork;
+#endif
+            if (text_[i] == L'>')
+                next[0] = static_cast<std::uint32_t>(i);
+            if (i + 2u < text_.size() && text_[i] == L'-' && text_[i + 1u] == L'-' && text_[i + 2u] == L'>')
+                next[1] = static_cast<std::uint32_t>(i);
+            if (i + 1u < text_.size() && text_[i] == L'?' && text_[i + 1u] == L'>')
+                next[2] = static_cast<std::uint32_t>(i);
+            if (i + 2u < text_.size() && text_[i] == L']' && text_[i + 1u] == L']' && text_[i + 2u] == L'>')
+                next[3] = static_cast<std::uint32_t>(i);
+            htmlNext_[i] = next;
+        };
         // Index equal-length backtick runs once, so unmatched runs cannot cause
         // repeated scans over an entire paragraph.
         backtickNext_.assign(text_.size(), MarkdownNoNode);
@@ -626,12 +658,15 @@ class MarkdownInlines
         {
             if (text_[end - 1u] != L'`')
             {
+                indexTerminator(end - 1u);
                 --end;
                 continue;
             }
             auto first = end - 1u;
             while (first > 0u && text_[first - 1u] == L'`')
                 --first;
+            for (auto i = end; i > first; --i)
+                indexTerminator(i - 1u);
             const auto length    = end - first;
             backtickNext_[first] = last[length];
             last[length]         = first;
@@ -1397,12 +1432,8 @@ class MarkdownInlines
             const auto content = first + width;
             if (content < text_.size() && (! dollars || display || ! SourceSpace(text_[content])))
             {
-                bool endedLine     = false;
-                auto nextAngleEnd  = std::wstring::npos;
-                bool angleEndKnown = false;
-                HtmlLookahead htmlLookahead{std::wstring::npos, std::wstring::npos, std::wstring::npos, std::wstring::npos};
-                bool htmlLookaheadKnown = false;
-                std::size_t* probeWork  = nullptr;
+                bool endedLine         = false;
+                std::size_t* probeWork = nullptr;
 #if DXUI_ENABLE_DIAGNOSTICS
                 probeWork = &testMathOwnershipProbeWork;
 #endif
@@ -1415,36 +1446,22 @@ class MarkdownInlines
                     }
                     if (text_[end] == L'`' || text_[end] == L'<')
                     {
-                        if (text_[end] == L'<' && (! angleEndKnown || (nextAngleEnd != std::wstring::npos && end > nextAngleEnd)))
-                        {
-                            nextAngleEnd = text_.find(L'>', end);
-                            if (probeWork)
-                                *probeWork += (nextAngleEnd == std::wstring::npos ? text_.size() : nextAngleEnd + 1u) - end;
-                            angleEndKnown = true;
-                        }
+                        HtmlLookahead htmlLookahead{std::wstring::npos, std::wstring::npos, std::wstring::npos, std::wstring::npos};
                         if (text_[end] == L'<')
                         {
-                            const auto advance = [&](std::size_t& position, std::wstring_view suffix)
-                            {
-                                if (! htmlLookaheadKnown || (position != std::wstring::npos && position < end))
-                                {
-                                    position = text_.find(suffix, end);
-                                    if (probeWork)
-                                        *probeWork += (position == std::wstring::npos ? text_.size() : position + suffix.size()) - end;
-                                }
-                            };
-                            htmlLookahead.angle = nextAngleEnd;
-                            advance(htmlLookahead.comment, L"-->");
-                            advance(htmlLookahead.processing, L"?>");
-                            advance(htmlLookahead.cdata, L"]]>");
-                            htmlLookaheadKnown = true;
+                            const auto& next  = htmlNext_[end];
+                            const auto offset = [](std::uint32_t value) -> std::size_t
+                            { return value == std::numeric_limits<std::uint32_t>::max() ? std::wstring::npos : value; };
+                            htmlLookahead = {offset(next[0]), offset(next[1]), offset(next[2]), offset(next[3])};
+                            if (probeWork)
+                                *probeWork += 4u;
                         }
                         std::size_t slashes{};
                         for (auto index = end; index > content && text_[index - 1u] == L'\\'; --index)
                             ++slashes;
                         if (slashes % 2u == 0u && ((text_[end] == L'`' && backtickNext_[end] != MarkdownNoNode) ||
-                                                   (text_[end] == L'<' && nextAngleEnd != std::wstring::npos &&
-                                                    (HtmlEnd(end, &htmlLookahead, probeWork) || AngleAutolinkEnd(end, nextAngleEnd, probeWork)))))
+                                                   (text_[end] == L'<' && htmlLookahead.angle != std::wstring::npos &&
+                                                    (HtmlEnd(end, &htmlLookahead, probeWork) || AngleAutolinkEnd(end, htmlLookahead.angle, probeWork)))))
                         {
                             endedLine = true; // Let the regular inline scanner own this opaque token.
                             break;
@@ -1702,6 +1719,7 @@ public:
           previous_(0u),
           offsets_(0u),
           backtickNext_(0u),
+          htmlNext_(0u),
           text_(0u, L' ')
     {
     }

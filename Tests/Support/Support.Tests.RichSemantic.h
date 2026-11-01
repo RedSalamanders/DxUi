@@ -406,6 +406,38 @@ inline void ListsAndHeadings()
                     previousWork = work;
                 }
             }
+            std::size_t previousManyWork{};
+            for (const size_t count : {size_t{400u}, size_t{800u}})
+            {
+                std::wstring many(0u, L' ');
+                for (size_t i = 0u; i < count; ++i)
+                    many += L"$x<y$ > ";
+                Document candidate(many);
+                DxUi::RichText::Detail::testMathOwnershipProbeWork = 0u;
+                const auto syntax                                  = Parse(candidate, profile);
+                const auto work                                    = DxUi::RichText::Detail::testMathOwnershipProbeWork;
+                Check(work > 0u && work <= many.size() * 64u && (! previousManyWork || work <= previousManyWork * 3u) &&
+                          std::ranges::count_if(syntax->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }) ==
+                              static_cast<std::ptrdiff_t>(count),
+                      "many separate math openers share one leaf terminator index with linear-scale work");
+                previousManyWork = work;
+            }
+            MarkdownParser cancelled;
+            std::wstring oldSource(L"$x<y$ > ");
+            for (size_t i = 0u; i < 400u; ++i)
+                oldSource += L"$x<y$ ";
+            cancelled.Begin(oldSource, 7u, profile);
+            DxUi::RichText::Detail::testMathOwnershipProbeWork = 0u;
+            for (size_t step = 0u; step < 20000u && cancelled.HasPendingPreparation() && ! DxUi::RichText::Detail::testMathOwnershipProbeWork; ++step)
+                cancelled.Advance(1u);
+            Check(DxUi::RichText::Detail::testMathOwnershipProbeWork > 0u, "cancellation fixture reaches leaf index preparation");
+            cancelled.Cancel();
+            cancelled.Begin(L"$x < y$", 8u, profile);
+            while (cancelled.HasPendingPreparation())
+                cancelled.Advance(113u);
+            Check(cancelled.Published() && cancelled.Published()->Source() == L"$x < y$" &&
+                      std::ranges::any_of(cancelled.Published()->Inlines(), [](const auto& node) { return node.kind == MarkdownInlineKind::Math; }),
+                  "cancelling and replacing an indexed leaf cannot retain its old terminators");
 #endif
             request.mathDisplay = false;
         }
