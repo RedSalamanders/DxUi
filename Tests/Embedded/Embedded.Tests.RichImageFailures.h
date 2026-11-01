@@ -685,6 +685,52 @@ static void TestRichImageRasterFailureAndBudgets()
                       "every admitted maximum placement preserves the actual image size");
         }
     Check(measured == 129u, "native placement capacity never removes source images");
+    const auto mixedSource = RichImageResourceTests::MixedCapacitySource();
+    const auto mixed       = RichImageResourceTests::Semantic(mixedSource);
+    resources.Begin(mixed, L"C:\\docs\\note.md", 3u, 1u);
+    while (! resources.Advance())
+    {
+    }
+    resources.Take(jobs);
+    Check(jobs.size() == 1u && resources.Complete(jobs[0], RichImageResourceTests::Picture(8u, 8u)),
+          "mixed native-object ceiling completes a shared image source");
+    resources.Publish();
+    const auto mixedImages = resources.Snapshot();
+    Check(mixedImages->placements.size() == 125u, "two formulas and a diagram leave 125 admitted image placements");
+    geometry.Begin(write.get(), mixed, options, drawing.get(), {++epoch, epoch}, mixedImages, target.get());
+    finish();
+    Check(geometry.HasNativeObjects() && mixed->Map().Source() == mixedSource,
+          "mixed admitted native objects prepare without global capacity failure and preserve all source alternatives");
+    std::size_t mixedImageElements{}, mixedMathElements{}, mixedDiagramElements{};
+    for (std::size_t index = 0u; index < mixed->Elements().size(); ++index)
+    {
+        const auto role = mixed->Elements()[index].role;
+        if (role == SemanticRole::Image || role == SemanticRole::Math || role == SemanticRole::Diagram)
+        {
+            Check(geometry.ElementBounds(index).has_value(), "every mixed native object or source alternative has geometry");
+            mixedImageElements += role == SemanticRole::Image ? 1u : 0u;
+            mixedMathElements += role == SemanticRole::Math ? 1u : 0u;
+            mixedDiagramElements += role == SemanticRole::Diagram ? 1u : 0u;
+        }
+    }
+    Check(mixedImageElements == 126u && mixedMathElements == 2u && mixedDiagramElements == 1u,
+          "the over-limit image remains an accessible alternative alongside admitted native objects");
+    options.widthDip = 260.f;
+    geometry.Begin(write.get(), mixed, options, drawing.get(), {++epoch, epoch}, mixedImages, target.get());
+    finish();
+    Check(resources.Begin(mixed, L"C:\\docs\\note.md", 3u, 1u), "width reflow retains the current image resource generation");
+    resources.Take(jobs);
+    Check(jobs.empty() && resources.Snapshot() == mixedImages && geometry.Ready(),
+          "width reflow publishes geometry without re-requesting completed image sources");
+    options.widthDip = 400.f;
+    resources.Begin(maximum, L"C:\\docs\\note.md", 2u, 1u);
+    while (! resources.Advance())
+    {
+    }
+    resources.Take(jobs);
+    Check(jobs.size() == 1u && resources.Complete(jobs[0], RichImageResourceTests::Picture(8u, 8u)),
+          "restore the independent maximum-image fixture before upload refusal checks");
+    resources.Publish();
     const auto unsupportedBefore = calls.uploads;
     calls.failure                = D2DERR_UNSUPPORTED_OPERATION;
     calls.failAt                 = calls.uploads;

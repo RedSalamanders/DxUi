@@ -19,6 +19,13 @@ inline std::shared_ptr<const DxUi::RichText::SemanticDocument> Semantic(std::wst
         builder.Advance(17u);
     return builder.Published();
 }
+inline std::wstring MixedCapacitySource()
+{
+    std::wstring source(L"$x$ $y$\n\n```mermaid\ngraph TD;A-->B\n```\n\n");
+    for (unsigned index = 0u; index < 126u; ++index)
+        source.append(L"![image](mixed.png)\n\n");
+    return source;
+}
 inline std::shared_ptr<const DxUi::RichText::RichImage> Picture(unsigned width = 96u, unsigned height = 64u)
 {
     std::vector<std::byte> bytes(static_cast<std::size_t>(width) * height * 4u);
@@ -108,6 +115,17 @@ template <typename Check> inline void Admission(Check&& check)
     check(resources.Complete(requests[0], picture) && resources.HasUnpublished(), "completion stages an unpublished resource snapshot");
     resources.Publish();
     check(resources.Snapshot()->placements.size() == 128u, "one immutable image supplies every admitted duplicate placement");
+    const auto mixed = Semantic(MixedCapacitySource());
+    check(SemanticExtensionAccess::Maths(*mixed).size() == 2u && SemanticExtensionAccess::Diagrams(*mixed).size() == 1u &&
+              SemanticExtensionAccess::Images(*mixed).size() == 125u,
+          "math, diagrams, and images share the 128-object semantic admission ceiling");
+    resources.Begin(mixed, L"C:\\docs\\note.md", 2u, 1u);
+    finish(resources);
+    resources.Take(requests);
+    check(requests.size() == 1u && resources.Complete(requests[0], picture), "mixed admitted objects dispatch one shared image request");
+    resources.Publish();
+    check(resources.Snapshot()->placements.size() == 125u && resources.Statistics().decodedBytes == picture->RetainedBytes(),
+          "mixed objects publish every admitted image placement and retain shared pixels once");
     resources.Begin(Semantic(L"![a](a.png) ![b](b.png)"), L"C:\\docs\\note.md", 1u, 1u);
     finish(resources);
     resources.Take(requests);
@@ -158,7 +176,8 @@ template <typename Check> inline void Admission(Check&& check)
     source.clear();
     for (unsigned i = 0u; i < 5u; ++i)
         source.append(L"![image](capacity").append(std::to_wstring(i)).append(L".png) ");
-    resources.Begin(Semantic(source), L"C:\\docs\\note.md", 1u, 1u);
+    const auto saturatedDocument = Semantic(source);
+    resources.Begin(saturatedDocument, L"C:\\docs\\note.md", 1u, 1u);
     finish(resources);
     resources.Take(requests);
     std::array<std::shared_ptr<const RichImage>, 4u> large{};
@@ -171,6 +190,12 @@ template <typename Check> inline void Admission(Check&& check)
     check(resources.Complete(requests[4u], Picture(1u, 1u)) && resources.Statistics().readySources == 4u && resources.Statistics().failedSources == 1u &&
               resources.Statistics().decodedBytes == RichImageResources::MaximumDecodedBytes,
           "over-capacity completion keeps an alternative without growing retained bytes");
+    resources.Publish();
+    const auto saturatedSnapshot = resources.Snapshot();
+    check(resources.Begin(saturatedDocument, L"C:\\docs\\note.md", 1u, 1u), "unchanged saturated resources remain current");
+    resources.Take(requests);
+    check(requests.empty() && resources.Snapshot() == saturatedSnapshot && resources.Statistics().decodedBytes == RichImageResources::MaximumDecodedBytes,
+          "revisiting unchanged saturated resources keeps the immutable snapshot and never requests ready images again");
     resources.Clear();
     check(resources.Statistics().decodedBytes == 0u && ! resources.Snapshot(), "explicit resource reset releases retained cache ownership");
     RichImageRequest retired;
