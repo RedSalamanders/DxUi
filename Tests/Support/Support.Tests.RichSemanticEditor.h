@@ -697,9 +697,50 @@ template <typename Prepare> void ScrollbarAndNotifications(ControlHost& host, Pr
     Check(editor->SetScrollOffsetDip(12.0f) && dynamic_cast<Label*>(host.GetRoot()), "scroll observer may retire its editor safely");
     prepare();
 }
+template <typename Prepare> void ViewPreferences(ControlHost& host, Prepare&& prepare)
+{
+    auto root    = std::make_unique<RichTextEditor>(L"iiWW\tT\n");
+    auto* editor = root.get();
+    editor->SetViewMode(ViewMode::Source);
+    auto appearance            = editor->GetAppearance();
+    appearance.sourceMonospace = true;
+    appearance.bodyFontFamily  = L"Segoe UI";
+    appearance.codeFontFamily  = L"Consolas";
+    appearance.tabStopDip      = 64.0f;
+    editor->SetAppearance(appearance);
+    host.SetRoot(std::move(root));
+    prepare();
+    const auto first    = editor->TryGetTextInputRangeRects(host, 0u, 1u);
+    const auto wide     = editor->TryGetTextInputRangeRects(host, 2u, 3u);
+    const auto afterTab = editor->TryGetTextInputRangeRects(host, 5u, 6u);
+    Check(first && wide && afterTab && ! first->empty() && ! wide->empty() && ! afterTab->empty(), "source font fixture has prepared character rectangles");
+    const float normalWidth = first->front().right - first->front().left;
+    Check(std::abs(normalWidth - (wide->front().right - wide->front().left)) < .1f && std::abs(afterTab->front().left - first->front().left - 64.0f) < .2f,
+          "opt-in source monospace uses the code family and explicit tab stop");
+    const auto source    = editor->Snapshot();
+    const auto selection = editor->GetSelection();
+    const auto revision  = editor->Revision();
+    const auto focus     = host.GetFocusControl();
+    editor->SetReadOnly(true);
+    editor->SetZoom(2.0f);
+    Check(editor->GetZoom() == 2.0f && editor->Snapshot().IsSameRevision(source) && editor->Revision() == revision && editor->GetSelection() == selection &&
+              ! editor->CanUndo() && host.GetFocusControl() == focus,
+          "read-only zoom changes presentation alone");
+    prepare();
+    const auto enlarged = editor->TryGetTextInputRangeRects(host, 0u, 1u);
+    Check(enlarged && ! enlarged->empty() && std::abs((enlarged->front().right - enlarged->front().left) / normalWidth - 2.0f) < .05f,
+          "zoom scales actual prepared glyph geometry");
+    Check(editor->OnKeyDown(host, L'0', MK_CONTROL) && editor->GetZoom() == 1.0f &&
+              editor->OnMouseWheel(host, {}, static_cast<float>(WHEEL_DELTA), MK_CONTROL) && editor->GetZoom() > 1.0f,
+          "Control-zero resets zoom and Control-wheel scales fonts");
+    RichSemanticTests::Reject<std::invalid_argument>([&] { editor->SetZoom(std::numeric_limits<float>::quiet_NaN()); }, "non-finite zoom rejects atomically");
+    Check(editor->GetZoom() > 1.0f && editor->Snapshot().IsSameRevision(source), "rejected zoom preserves prior presentation and source");
+    prepare();
+}
 template <typename Prepare> void Rendering(ControlHost& host, Prepare&& prepare)
 {
     ScrollbarAndNotifications(host, prepare);
+    ViewPreferences(host, prepare);
     const std::wstring original = L"# **Heading**\r\n\r\n| left | right |\n| :--- | ---: |\n| a | b |\n\n> quoted &amp; **bold**\n\n![alt](local)\n";
     auto root                   = std::make_unique<RichTextEditor>(original);
     auto* editor                = root.get();

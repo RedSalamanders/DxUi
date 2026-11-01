@@ -179,6 +179,8 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
     { return ! value || (std::isfinite(value.value()) && value.value() >= 0.0f && value.value() <= maximum); };
     if (! factory || ! std::isfinite(width) || width <= 0 || ! std::isfinite(fontSize) || fontSize <= 0 || ! std::isfinite(options.codeFontSizeDip) ||
         options.codeFontSizeDip < 0.0f || options.codeFontSizeDip > 512.0f || ! std::isfinite(options.lineHeightMultiplier) ||
+        ! std::isfinite(options.tabStopDip) || options.tabStopDip < 0.0f || options.tabStopDip > 4096.0f ||
+        (options.tabStopDip > 0.0f && options.tabStopDip < 1.0f) ||
         (options.lineHeightMultiplier != 0.0f && (options.lineHeightMultiplier < 1.0f || options.lineHeightMultiplier > 4.0f)) ||
         ! std::isfinite(options.headingScaleStep) || options.headingScaleStep < 0.0f || options.headingScaleStep > 1.0f || ! validName(options.fontFamily) ||
         ! validName(options.codeFontFamily) || options.locale.size() > 255 || ! IsValidUtf16(options.locale) ||
@@ -242,6 +244,8 @@ void PreparedLayout::PrepareOwned(IDWriteFactory* factory,
     Check(format->SetWordWrapping(marker || object ? DWRITE_WORD_WRAPPING_NO_WRAP : DWRITE_WORD_WRAPPING_WRAP), "SetWordWrapping");
     Check(format->SetReadingDirection(options.readingDirection), "SetReadingDirection");
     Check(format->SetTextAlignment(options.textAlignment), "SetTextAlignment");
+    if (options.tabStopDip > 0.0f)
+        Check(format->SetIncrementalTabStop(options.tabStopDip), "SetIncrementalTabStop");
     wil::com_ptr<IDWriteTextLayout> layout;
     std::wstring positionedText(0u, L'\0');
     const UINT32 textOffset = verticalOrigin > 0.0f ? 2u : 0u;

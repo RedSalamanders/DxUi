@@ -1452,3 +1452,10 @@ without interpreting their bodies, and accepts `kbd` as monospace text and `ins`
 as underlined inserted text. Source view, source selection and clipboard copy
 retain every original character. Other unsupported HTML remains literal for the
 complete leaf; no DOM or script execution is involved.
+
+`SetZoom` and `GetZoom` expose font scale in `.25..4`; Ctrl+wheel, Ctrl+Plus/Minus
+and Ctrl+zero use the same presentation setting. Effective font sizes remain
+within `1..512` DIP. Source, selection, history and focus are preserved.
+`sourceMonospace` selects the code family for Source view, and `tabStopDip`
+sets an explicit tab interval independently of typed indentation. Both remain
+optional; existing Source view typography is preserved by default.

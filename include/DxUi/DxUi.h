@@ -3100,6 +3100,9 @@ struct RichTextEditorAppearance
     bool directSourceInkPreview    = false;
     // Reserve a vertical scrollbar lane, including in right-to-left layout.
     bool showVerticalScrollbar = false;
+    bool sourceMonospace       = false;
+    float zoom                 = 1.0f; // Font scale, .25..4; source/history are unchanged.
+    float tabStopDip           = 0.0f; // Zero keeps DirectWrite's default; otherwise 1..4096 DIP.
     // Zero preserves host Tab traversal; 1..16 inserts that many spaces in source/code.
     unsigned sourceTabSpaces   = 0u;
     bool sourceTabUsesTabs     = false; // When enabled, insert a tab instead of spaces.
@@ -3253,6 +3256,8 @@ public:
     // heading step 0..1, inset -1 (density default) or 0..256 DIP.
     void SetAppearance(const RichTextEditorAppearance& appearance);
     [[nodiscard]] const RichTextEditorAppearance& GetAppearance() const noexcept;
+    void SetZoom(float zoom);
+    [[nodiscard]] float GetZoom() const noexcept;
     void SetLinkUnderlinePolicy(RichTextLinkUnderlinePolicy policy);
     [[nodiscard]] RichTextLinkUnderlinePolicy GetLinkUnderlinePolicy() const noexcept;
     // Current semantic source style; source mode/pending geometry returns false.

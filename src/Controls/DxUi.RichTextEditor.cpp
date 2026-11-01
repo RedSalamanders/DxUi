@@ -773,6 +773,9 @@ RichText::ViewMode RichTextEditor::GetViewMode() const noexcept
 }
 void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
 {
+    if (! std::isfinite(appearance.zoom) || appearance.zoom < .25f || appearance.zoom > 4.0f || ! std::isfinite(appearance.tabStopDip) ||
+        appearance.tabStopDip < 0.0f || appearance.tabStopDip > 4096.0f || (appearance.tabStopDip > 0.0f && appearance.tabStopDip < 1.0f))
+        throw std::invalid_argument("Invalid rich editor zoom or tab stop");
     const auto validFont = [](std::wstring_view value) noexcept
     { return value.size() <= 255u && value.find(L'\0') == value.npos && RichText::IsValidUtf16(value); };
     const auto validSize    = [](float value) noexcept { return std::isfinite(value) && (value == 0.0f || (value >= 1.0f && value <= 512.0f)); };
@@ -796,9 +799,9 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
     auto next            = appearance; // Stage all owned strings before publishing any option.
     const auto& previous = _state->appearance;
     const bool geometryChanged =
-        previous.showVerticalScrollbar != next.showVerticalScrollbar ||
-        previous.maximumTextWidthDip != next.maximumTextWidthDip || previous.paddingDip != next.paddingDip ||
-        previous.bodyFontSizeDip != next.bodyFontSizeDip || previous.codeFontSizeDip != next.codeFontSizeDip ||
+        previous.zoom != next.zoom || previous.tabStopDip != next.tabStopDip || previous.sourceMonospace != next.sourceMonospace ||
+        previous.showVerticalScrollbar != next.showVerticalScrollbar || previous.maximumTextWidthDip != next.maximumTextWidthDip ||
+        previous.paddingDip != next.paddingDip || previous.bodyFontSizeDip != next.bodyFontSizeDip || previous.codeFontSizeDip != next.codeFontSizeDip ||
         previous.lineHeightMultiplier != next.lineHeightMultiplier || previous.headingScaleStep != next.headingScaleStep ||
         previous.bodyFontFamily != next.bodyFontFamily || previous.codeFontFamily != next.codeFontFamily ||
         previous.headingFontSizeDip != next.headingFontSizeDip || previous.headingLineHeightMultiplier != next.headingLineHeightMultiplier ||
@@ -816,6 +819,9 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
     value.colorizeMarkdownSource      = next.colorizeMarkdownSource;
     value.directSourceInkPreview      = next.directSourceInkPreview;
     value.showVerticalScrollbar       = next.showVerticalScrollbar;
+    value.sourceMonospace             = next.sourceMonospace;
+    value.zoom                        = next.zoom;
+    value.tabStopDip                  = next.tabStopDip;
     value.sourceTabSpaces             = next.sourceTabSpaces;
     value.sourceTabUsesTabs           = next.sourceTabUsesTabs;
     value.maximumTextWidthDip         = next.maximumTextWidthDip;
@@ -849,6 +855,16 @@ void RichTextEditor::SetAppearance(const RichTextEditorAppearance& appearance)
 const RichTextEditorAppearance& RichTextEditor::GetAppearance() const noexcept
 {
     return _state->appearance;
+}
+void RichTextEditor::SetZoom(float zoom)
+{
+    auto appearance = GetAppearance();
+    appearance.zoom = zoom;
+    SetAppearance(appearance);
+}
+float RichTextEditor::GetZoom() const noexcept
+{
+    return _state->appearance.zoom;
 }
 void RichTextEditor::SetLinkUnderlinePolicy(RichTextLinkUnderlinePolicy policy)
 {
@@ -2220,6 +2236,20 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 options.fontFamily = appearance.bodyFontFamily;
             if (! appearance.codeFontFamily.empty())
                 options.codeFontFamily = appearance.codeFontFamily;
+            if (effectiveMode == RichText::ViewMode::Source && appearance.sourceMonospace)
+            {
+                options.fontFamily = options.codeFontFamily;
+                if (options.codeFontSizeDip > 0.0f)
+                    options.fontSizeDip = options.codeFontSizeDip;
+            }
+            const auto scale    = [zoom = appearance.zoom](float size) noexcept { return std::clamp(size * zoom, 1.0f, 512.0f); };
+            options.fontSizeDip = scale(options.fontSizeDip);
+            if (options.codeFontSizeDip > 0.0f)
+                options.codeFontSizeDip = scale(options.codeFontSizeDip);
+            for (auto& headingSize : options.headingFontSizeDip)
+                if (headingSize > 0.0f)
+                    headingSize = scale(headingSize);
+            options.tabStopDip       = appearance.tabStopDip;
             options.readingDirection = IsRightToLeft() ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
             wil::com_ptr<ID2D1Factory> drawing;
             if (semanticDocument && ! RichText::Detail::SemanticExtensionAccess::Diagrams(*semanticDocument).empty())
@@ -3280,6 +3310,12 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
             _state->typingRun.reset();
         if (ModifiersContainAlt(modifiers))
             return false;
+        if (control && ! shift && (key == VK_OEM_PLUS || key == VK_ADD || key == VK_OEM_MINUS || key == VK_SUBTRACT || key == L'0'))
+        {
+            const float next = key == L'0' ? 1.0f : std::clamp(GetZoom() * ((key == VK_OEM_PLUS || key == VK_ADD) ? 1.1f : 1.0f / 1.1f), .25f, 4.0f);
+            SetZoom(next);
+            return true;
+        }
         if (key == VK_ESCAPE && (_state->scrollbarDragging || _state->dragging))
         {
             const auto release        = ReleaseUnchangedCaptureOnExit(host, *this);
@@ -4003,12 +4039,18 @@ bool RichTextEditor::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool righ
         PublishSelectionChanged();
     return true;
 }
-bool RichTextEditor::OnMouseWheel(ControlHost& host, D2D1_POINT_2F, float delta, UINT) noexcept
+bool RichTextEditor::OnMouseWheel(ControlHost& host, D2D1_POINT_2F, float delta, UINT modifiers) noexcept
 {
     try
     {
         if (! IsEnabled() || ! std::isfinite(delta))
             return false;
+        if (ModifiersContainCtrl(modifiers) && ! ModifiersContainAlt(modifiers))
+        {
+            const auto detents = std::clamp(delta / static_cast<float>(WHEEL_DELTA), -8.0f, 8.0f);
+            SetZoom(std::clamp(GetZoom() * std::pow(1.1f, detents), .25f, 4.0f));
+            return true;
+        }
         RequireCurrentLayout(host);
         const auto info = GetScrollInfo();
         if (! info)

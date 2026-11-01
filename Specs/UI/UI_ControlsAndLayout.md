@@ -1440,6 +1440,17 @@ Ctrl+Home retains the exact raw document start.
 Only the following native HTML subset is projected. Tag and attribute names use
 ASCII case-insensitive matching; opening/closing tag identities must balance.
 
+RichTextEditor font zoom is an owner-thread presentation option in `.25..4`.
+It scales inherited/explicit body, code and heading font sizes, clamping the
+effective configured sizes to `1..512` DIP. It preserves source, selection,
+history and focus and is allowed in read-only views. Ctrl+wheel and Ctrl+Plus,
+Minus and zero adjust/reset the same option. Non-finite/out-of-range public
+requests refuse atomically. Optional `sourceMonospace` uses the configured code
+family/size in Source view; false retains the existing body-font presentation.
+`tabStopDip` is zero for the SDK default or `1..4096` DIP, independent of the
+number of spaces inserted by source Tab commands. All typography options are
+part of retained layout/reuse keys and require owner preparation before drawing.
+
 | Form | Native behavior and validation |
 | --- | --- |
 | b, strong, i, em, u, s, del, code, span, kbd, ins | Attribute-free nested styles: bold, italic, underline, strike, code font or a transparent span. Keyboard text uses the code font; inserted text is underlined. |

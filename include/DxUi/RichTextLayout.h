@@ -21,6 +21,7 @@ struct LayoutOptions
     float fontSizeDip          = 18.0f;
     float codeFontSizeDip      = 0.0f;
     float lineHeightMultiplier = 0.0f;
+    float tabStopDip           = 0.0f;
     float headingScaleStep     = 0.15f;
     std::array<float, 6> headingFontSizeDip{};
     std::array<float, 6> headingLineHeightMultiplier{};
