@@ -62,7 +62,7 @@ function Invoke-DxUiParallelSuites {
                     $active.Add([pscustomobject]@{ Run=$run; Process=$process; Exit=$process.WaitForExitAsync();
                             Stdout=$stdout; Stderr=$stderr; OutCopy=$outCopy; ErrCopy=$errCopy; OutPath=$stdoutPath; ErrPath=$stderrPath })
                 } catch {
-                    if ($process) { if (-not $process.HasExited) { $process.Kill($true); [void]$process.WaitForExit(5000) }; $process.Dispose() }
+                    if ($process) { if (-not $process.HasExited) { $process.Kill(); [void]$process.WaitForExit(5000) }; $process.Dispose() }
                     if ($stderr) { $stderr.Dispose() }
                     $stdout.Dispose()
                     throw
@@ -95,7 +95,7 @@ function Invoke-DxUiParallelSuites {
         foreach ($item in $active) {
             try {
                 if (-not $item.Process.HasExited) {
-                    $item.Process.Kill($true)
+                    $item.Process.Kill()
                     if (-not $item.Process.WaitForExit(5000)) { $cleanupProblems.Add("$($item.Run.Name) did not terminate") }
                 }
             } catch { $cleanupProblems.Add("$($item.Run.Name): $($_.Exception.Message)") }
