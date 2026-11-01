@@ -530,10 +530,10 @@ struct MarkdownParser::Preparation
             if (prefix || suffix)
             {
                 const auto oldPosition = prefix ? cursor : commonOldEnd + (cursor - commonNewEnd);
-                const auto& oldNodes = previous->Nodes();
-                if (reusableRootIndex < oldNodes.size())
+                const auto& previousNodes = previous->Nodes();
+                if (reusableRootIndex < previousNodes.size())
                 {
-                    const auto& old = oldNodes[reusableRootIndex];
+                    const auto& old = previousNodes[reusableRootIndex];
                     if (old.parent != 0u || old.block.source.first < oldPosition)
                     {
                         ++reusableRootIndex;

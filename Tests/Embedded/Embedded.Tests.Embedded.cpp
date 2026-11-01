@@ -1467,6 +1467,20 @@ __declspec(noinline) static int RunFunctionalTests()
     CleanPrepareTimerDiagnostic::RunOracle();
     GraphicsFixture gpu;
     Hr(gpu.Create(), "supplied WARP device");
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-rich-incremental-preparation")
+    {
+        MarkdownSourceCorrelationTests::LexicalEdits(Check);
+        TestEmbeddedSemanticReusePixels(gpu);
+        TestEmbeddedImageResources(gpu);
+        DxUi::EmbeddedHost view;
+        std::shared_ptr<DxUi::GraphicsDevice> graphics;
+        Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "incremental borrowed graphics");
+        Hr(view.Attach(graphics), "incremental embedded view");
+        RichSemanticTests::Run([&] {
+            RichSemanticEditorTests::SemanticGeometryReuse(view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "incremental preparation"); });
+        });
+        return 0;
+    }
     TestMultilineCaretViewport(gpu);
     TestEmbeddedTextInput(gpu);
     TestEmbeddedTranslatedCharacterOwnership(gpu);
