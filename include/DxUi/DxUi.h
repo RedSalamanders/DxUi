@@ -3337,6 +3337,8 @@ public:
     // The caller owns URI validation, decoding and transport policy.
     void SetDataImagesEnabled(bool enabled);
     [[nodiscard]] bool DataImagesEnabled() const noexcept;
+    void SetSvgImagesEnabled(bool enabled);
+    [[nodiscard]] bool SvgImagesEnabled() const noexcept;
     // Call after owner preparation. The application executes these bounded
     // source requests in its own worker service and marshals completion to
     // this owner thread. No worker may call a ControlHost or editor directly.

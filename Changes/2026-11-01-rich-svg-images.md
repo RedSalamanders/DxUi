@@ -1,0 +1,1 @@
+- Add opt-in bounded SVG image resources with caller-owned admission and device-generation preparation, retaining alternatives on unsupported targets.

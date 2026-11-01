@@ -61,6 +61,7 @@ class RichImage final
 {
 public:
     static constexpr unsigned MaximumDimension = 4096u, MaximumPixels = 4194304u, MaximumEncodedBytes = 16777216u;
+    static constexpr unsigned MaximumSvgBytes = 262144u, MaximumSvgElements = 2048u, MaximumSvgDepth = 64u, MaximumSvgPathUnits = 65536u;
     unsigned Width() const noexcept
     {
         return width_;
@@ -77,6 +78,21 @@ public:
     {
         return pixels_;
     }
+    std::span<const std::byte> SvgBytes() const noexcept
+    {
+        return svg_;
+    }
+    std::size_t RetainedBytes() const noexcept
+    {
+        return pixels_.size() + svg_.size();
+    }
+    // Explicit opt-in. Only the bounded, non-referencing SVG profile is accepted.
+    // The caller supplies nominal dimensions and initializes COM before this call.
+    static HRESULT CreateSvg(unsigned width,
+                             unsigned height,
+                             std::span<const std::byte> encoded,
+                             std::shared_ptr<const RichImage>& output,
+                             const std::atomic_bool* cancellation = nullptr) noexcept;
     // Exact tightly packed, premultiplied BGRA, top row first. Invalid pixels,
     // capacity, cancellation or allocation failure leave output unchanged.
     static HRESULT CreatePbgra(unsigned width,
@@ -105,8 +121,10 @@ public:
 
 private:
     RichImage(unsigned width, unsigned height);
+    RichImage(unsigned width, unsigned height, std::span<const std::byte> svg);
     unsigned width_, height_;
     std::vector<std::byte> pixels_;
+    std::vector<std::byte> svg_;
     friend class Detail::RichImageDecoder;
 };
 } // namespace DxUi::RichText

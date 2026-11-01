@@ -15,6 +15,8 @@
 #include <tuple>
 #include <wil/resource.h>
 #include <wil/result.h>
+#include <d2d1_3.h>
+#include <shlwapi.h>
 // Windows SDK WRL owns its interlocked/volatile implementation and target semantics.
 // Scope is this system header only. Owner: DxUi maintainers; review: 2027-01-31.
 #pragma warning(push)
@@ -26,6 +28,7 @@ namespace DxUi::RichText::Detail
 {
 #if DXUI_ENABLE_DIAGNOSTICS
 thread_local const RichImageRasterCalls* testRichImageRasterCalls{};
+thread_local bool testRichSvgTargetUnsupported{};
 thread_local IDWriteFactory* testRichSemanticWriteFactory{};
 thread_local HRESULT testRichMathLineMetricsFailure{S_OK};
 thread_local bool testRichScriptTargetUnsupported{};
@@ -161,6 +164,9 @@ struct NativeImagePlacement
     MarkdownRange display;
     std::shared_ptr<const RichImage> pixels;
     wil::com_ptr<ID2D1Bitmap> bitmap;
+    wil::com_ptr<ID2D1DeviceContext5> svgContext;
+    wil::com_ptr<ID2D1SvgDocument> svgDocument;
+    wil::com_ptr<ID2D1Layer> svgLayer;
     std::shared_ptr<PreparedMath> math;
     std::shared_ptr<PreparedMath> tag;
     std::shared_ptr<std::vector<RowTag>> rowTags;
@@ -263,9 +269,9 @@ struct NativeImageGeometry
                                              [&](const auto& value) { return value.image == resource.image; });
             if (prior == resources.placements.begin() + static_cast<std::ptrdiff_t>(index))
             {
-                if (resource.image->Pixels().size() > RichImageResources::MaximumDecodedBytes - bytes)
+                if (resource.image->RetainedBytes() > RichImageResources::MaximumDecodedBytes - bytes)
                     throw NativeObjectCapacity("Prepared image pixel capacity exceeded");
-                bytes += resource.image->Pixels().size();
+                bytes += resource.image->RetainedBytes();
             }
         }
         const auto maths              = SemanticExtensionAccess::Maths(document);
@@ -371,6 +377,42 @@ struct NativeImageGeometry
             return UploadProgress{true, true, true, 0u};
         };
         const auto width = placement.pixels->Width(), height = placement.pixels->Height();
+        if (! placement.pixels->SvgBytes().empty())
+        {
+#if DXUI_ENABLE_DIAGNOSTICS
+            if (testRichSvgTargetUnsupported)
+                return reject();
+#endif
+            const auto found = std::find_if(placements.begin(), placements.begin() + static_cast<std::ptrdiff_t>(index), [&](const auto& prior) {
+                return prior.pixels == placement.pixels;
+            });
+            if (found != placements.begin() + static_cast<std::ptrdiff_t>(index))
+            {
+                placement.svgContext = found->svgContext;
+                placement.svgDocument = found->svgDocument;
+                placement.svgLayer = found->svgLayer;
+                return {true, false, false, 0u};
+            }
+            const auto query = target->QueryInterface(IID_PPV_ARGS(placement.svgContext.put()));
+            if (query == E_NOINTERFACE || query == E_NOTIMPL || query == D2DERR_UNSUPPORTED_OPERATION)
+                return reject();
+            THROW_IF_FAILED(query);
+            const auto bytes = placement.pixels->SvgBytes();
+            wil::com_ptr<IStream> stream;
+            stream.attach(SHCreateMemStream(reinterpret_cast<const BYTE*>(bytes.data()), static_cast<UINT>(bytes.size())));
+            if (! stream)
+                throw std::bad_alloc();
+            const auto create = placement.svgContext->CreateSvgDocument(stream.get(), D2D1::SizeF(static_cast<float>(width), static_cast<float>(height)),
+                                                                         placement.svgDocument.put());
+            if (FAILED(create) && create != E_OUTOFMEMORY && create != D2DERR_RECREATE_TARGET)
+                return reject();
+            THROW_IF_FAILED(create);
+            const auto layer = target->CreateLayer(nullptr, placement.svgLayer.put());
+            if (layer == E_NOTIMPL || layer == D2DERR_UNSUPPORTED_OPERATION)
+                return reject();
+            THROW_IF_FAILED(layer);
+            return {true, true, false, 0u};
+        }
         if (! placement.bitmap)
         {
             const auto found = std::find_if(placements.begin(), placements.begin() + static_cast<std::ptrdiff_t>(index), [&](const auto& prior) {
@@ -3297,6 +3339,22 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                                              (image.bounds.right - image.bounds.left) / image.Size().width,
                                              image.mathPalette.get(),
                                              colorContext);
+                            continue;
+                        }
+                        if (image.svgDocument)
+                        {
+                            const auto svgLeft = origin.x + box->x + image.bounds.left, svgTop = origin.y + box->y + image.bounds.top;
+                            const auto svgRight = origin.x + box->x + image.bounds.right, svgBottom = origin.y + box->y + image.bounds.bottom;
+                            D2D1_MATRIX_3X2_F previous{};
+                            target->GetTransform(&previous);
+                            target->PushLayer(D2D1::LayerParameters(D2D1::RectF(svgLeft, svgTop, svgRight, svgBottom), nullptr,
+                                                                   D2D1_ANTIALIAS_MODE_PER_PRIMITIVE, D2D1::Matrix3x2F::Identity(), imageOpacity),
+                                              image.svgLayer.get());
+                            target->SetTransform(D2D1::Matrix3x2F::Scale((svgRight - svgLeft) / image.Size().width, (svgBottom - svgTop) / image.Size().height) *
+                                                 D2D1::Matrix3x2F::Translation(svgLeft, svgTop) * previous);
+                            image.svgContext->DrawSvgDocument(image.svgDocument.get());
+                            target->SetTransform(previous);
+                            target->PopLayer();
                             continue;
                         }
                         target->DrawBitmap(image.bitmap.get(),

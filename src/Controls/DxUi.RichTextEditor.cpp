@@ -763,6 +763,20 @@ bool RichTextEditor::DataImagesEnabled() const noexcept
 {
     return _state->images.DataImagesEnabled();
 }
+void RichTextEditor::SetSvgImagesEnabled(bool enabled)
+{
+    if (_state->images.SvgImagesEnabled() == enabled)
+        return;
+    _state->images.SetSvgImagesEnabled(enabled);
+    RetireSemanticAccessibility();
+    _state->nativeGeometryRejected.reset();
+    RetireLayout();
+    RequestInvalidate();
+}
+bool RichTextEditor::SvgImagesEnabled() const noexcept
+{
+    return _state->images.SvgImagesEnabled();
+}
 void RichTextEditor::TakePendingImageRequests(std::vector<RichText::RichImageRequest>& requests)
 {
     const auto* host    = GetHost();

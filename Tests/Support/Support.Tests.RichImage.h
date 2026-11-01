@@ -210,6 +210,46 @@ template <typename Check> inline void Core(Check&& check)
     });
     wil::com_ptr<IWICImagingFactory> factory;
     THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(factory.put())));
+    constexpr std::string_view svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'><rect width='10' height='10' fill='#f00'/></svg>";
+    std::shared_ptr<const RichImage> vectorImage;
+    check(SUCCEEDED(RichImage::CreateSvg(10u, 10u, std::as_bytes(std::span(svg)), vectorImage)) && vectorImage &&
+              vectorImage->SvgBytes().size() == svg.size() && vectorImage->Pixels().empty(),
+          "bounded SVG publishes immutable bytes without raster decoding");
+    const auto retained = vectorImage;
+    for (const std::string_view invalid : {"<!DOCTYPE svg [<!ENTITY x SYSTEM 'file:///x'>]><svg xmlns='http://www.w3.org/2000/svg'>&x;</svg>",
+                                           "<svg xmlns='http://www.w3.org/2000/svg'><use href='#x'/></svg>",
+                                           "<svg xmlns='http://www.w3.org/2000/svg'><image href='file:///x'/></svg>",
+                                           "<svg xmlns='http://www.w3.org/2000/svg'><path fill='url(https://example.invalid/x)'/></svg>",
+                                           "<svg xmlns='http://www.w3.org/2000/svg'><style>rect{fill:red}</style></svg>",
+                                           "<svg xmlns='http://www.w3.org/2000/svg'><animate attributeName='x'/></svg>"})
+        check(FAILED(RichImage::CreateSvg(10u, 10u, std::as_bytes(std::span(invalid)), vectorImage)) && vectorImage == retained,
+              "unsafe SVG constructs are rejected without replacing the prior resource");
+    std::atomic_bool svgCancelled{true};
+    check(RichImage::CreateSvg(10u, 10u, std::as_bytes(std::span(svg)), vectorImage, &svgCancelled) == HRESULT_FROM_WIN32(ERROR_CANCELLED) &&
+              vectorImage == retained,
+          "cancellation retains the previous immutable image");
+    std::string oversizedSvg(RichImage::MaximumSvgBytes + 1u, 'x');
+    check(FAILED(RichImage::CreateSvg(10u, 10u, std::as_bytes(std::span(oversizedSvg)), vectorImage)) && vectorImage == retained,
+          "SVG encoded bytes are bounded before parsing");
+    std::string deepSvg("<svg xmlns='http://www.w3.org/2000/svg'>");
+    for (unsigned index = 0u; index < RichImage::MaximumSvgDepth; ++index)
+        deepSvg += "<g>";
+    for (unsigned index = 0u; index < RichImage::MaximumSvgDepth; ++index)
+        deepSvg += "</g>";
+    deepSvg += "</svg>";
+    check(FAILED(RichImage::CreateSvg(10u, 10u, std::as_bytes(std::span(deepSvg)), vectorImage)) && vectorImage == retained,
+          "SVG nesting has a finite admission ceiling");
+    std::string pathSvg("<svg xmlns='http://www.w3.org/2000/svg'><path d='");
+    pathSvg.append(RichImage::MaximumSvgPathUnits + 1u, '0');
+    pathSvg += "'/></svg>";
+    check(FAILED(RichImage::CreateSvg(10u, 10u, std::as_bytes(std::span(pathSvg)), vectorImage)) && vectorImage == retained,
+          "aggregate SVG path data has a finite admission ceiling");
+    std::string manySvg("<svg xmlns='http://www.w3.org/2000/svg'>");
+    for (unsigned index = 0u; index < RichImage::MaximumSvgElements; ++index)
+        manySvg += "<rect/>";
+    manySvg += "</svg>";
+    check(FAILED(RichImage::CreateSvg(10u, 10u, std::as_bytes(std::span(manySvg)), vectorImage)) && vectorImage == retained,
+          "SVG element count has a finite admission ceiling");
     std::array<BYTE, 24u> source{};
     for (unsigned i = 0u; i < 6u; ++i)
     {

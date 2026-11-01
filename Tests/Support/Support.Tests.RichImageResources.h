@@ -71,7 +71,7 @@ template <typename Check> inline void Admission(Check&& check)
     resources.Take(requests);
     check(requests.size() == 1u && resources.Statistics().imageElements == 128u,
           "native image placement ceiling retains excess alternatives while coalescing duplicate files");
-    const auto picture          = Picture();
+    const auto picture = Picture();
     check(resources.Complete(requests[0], picture) && resources.HasUnpublished(), "completion stages an unpublished resource snapshot");
     resources.Publish();
     check(resources.Snapshot()->placements.size() == 128u, "one immutable image supplies every admitted duplicate placement");
@@ -232,6 +232,37 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
     editor.SetMarkdownRenderingEnabled(true);
     editor.SetDocumentFilePath(L"C:\\docs\\note.md");
     {
+        constexpr std::string_view svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'><rect width='10' height='10' fill='red'/></svg>";
+        std::shared_ptr<const RichImage> vectorImage;
+        check(SUCCEEDED(RichImage::CreateSvg(10u, 10u, std::as_bytes(std::span(svg)), vectorImage)), "SVG fixture passes bounded admission");
+        editor.SetText(L"![vector](shape.svg)\n");
+        prepare();
+        std::vector<RichImageRequest> jobs(0u);
+        editor.TakePendingImageRequests(jobs);
+        check(jobs.size() == 1u && ! editor.SvgImagesEnabled() && ! editor.CompleteImageRequest(jobs.front(), vectorImage) && ! jobs.front().Cancelled(),
+              "SVG resources are refused by default without cancelling the caller request");
+        editor.SetSvgImagesEnabled(true);
+        prepare();
+#if DXUI_ENABLE_DIAGNOSTICS
+        const auto previousUnsupported = DxUi::RichText::Detail::testRichSvgTargetUnsupported;
+        const auto restoreUnsupported  = wil::scope_exit([&] noexcept { DxUi::RichText::Detail::testRichSvgTargetUnsupported = previousUnsupported; });
+        DxUi::RichText::Detail::testRichSvgTargetUnsupported = true;
+#endif
+        check(editor.CompleteImageRequest(jobs.front(), vectorImage), "explicit SVG policy accepts the current immutable resource");
+        prepare();
+        check(editor.GetImageResourceStatistics().readySources == 1u && editor.GetImageResourceStatistics().decodedBytes == svg.size(),
+              "SVG retained bytes share the existing resource budget");
+#if DXUI_ENABLE_DIAGNOSTICS
+        const auto fallback = editor.GetAcknowledgedSemanticDocument(host);
+        check(fallback && fallback->Map().Display().find(L"[image: vector]") != std::wstring_view::npos && editor.GetText() == L"![vector](shape.svg)\n",
+              "unsupported SVG target keeps the exact source and image alternative");
+        DxUi::RichText::Detail::testRichSvgTargetUnsupported = false;
+#endif
+        editor.SetSvgImagesEnabled(false);
+        prepare();
+        check(editor.GetImageResourceStatistics().readySources == 0u, "disabling SVG evicts its ready resource");
+    }
+    {
         const std::wstring htmlSource = L"<img src='html.png' alt='A &amp; B' title='Hint'>\n";
         editor.SetText(htmlSource);
         prepare();
@@ -291,8 +322,7 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
         editor.SetDataImagesEnabled(true);
         prepare();
         editor.TakePendingImageRequests(htmlData);
-        check(htmlData.size() == 1u && htmlData.front().SourceKind() == RichImageSourceKind::Data &&
-                  htmlData.front().Source() == L"data:image/png;base64,AAAA",
+        check(htmlData.size() == 1u && htmlData.front().SourceKind() == RichImageSourceKind::Data && htmlData.front().Source() == L"data:image/png;base64,AAAA",
               "HTML data images use the same bounded caller-owned admission as Markdown images");
         editor.SetDataImagesEnabled(false);
         check(htmlData.front().Cancelled(), "disabling data images cancels a pending HTML data request");
@@ -339,7 +369,7 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
     const auto selection = editor.GetSelection();
     std::size_t notices{};
     editor.SetOnTextChanged([&] { ++notices; });
-    const auto picture = Picture();
+    const auto picture          = Picture();
     const auto completedRequest = requests[0];
     check(editor.CompleteImageRequest(requests[0], picture) && requests[0].Cancelled() && ! editor.CompleteImageRequest(requests[0], picture),
           "current completion publishes once and retires its job token");

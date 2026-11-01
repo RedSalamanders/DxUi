@@ -53,7 +53,7 @@ public:
         if (remoteEnabled_ == enabled)
             return;
         if (! enabled)
-            RetireSourceKind(RichImageSourceKind::RemoteHttp);
+            RetireMatching([](const Entry& entry) { return entry.request->sourceKind == RichImageSourceKind::RemoteHttp; });
         // Staged jobs were not exposed to the application. Their ownership list
         // excludes retained published local jobs, so this retires remote work
         // without canceling a local decode already held by the application.
@@ -72,11 +72,27 @@ public:
         if (dataEnabled_ == enabled)
             return;
         if (! enabled)
-            RetireSourceKind(RichImageSourceKind::Data);
+            RetireMatching([](const Entry& entry) { return entry.request->sourceKind == RichImageSourceKind::Data; });
         next_.reset();
         for (auto& entry : entries_)
             entry.failed = false;
         dataEnabled_   = enabled;
+        policyChanged_ = true;
+    }
+    bool SvgImagesEnabled() const noexcept
+    {
+        return svgEnabled_;
+    }
+    void SetSvgImagesEnabled(bool enabled)
+    {
+        if (svgEnabled_ == enabled)
+            return;
+        if (! enabled)
+            RetireMatching([](const Entry& entry) { return entry.image && ! entry.image->SvgBytes().empty(); });
+        next_.reset();
+        for (auto& entry : entries_)
+            entry.failed = false;
+        svgEnabled_    = enabled;
         policyChanged_ = true;
     }
     // Retain only jobs with at least one source occurrence outside the tracked
@@ -287,13 +303,13 @@ public:
     }
     bool Complete(const RichImageRequest& request, std::shared_ptr<const RichImage> image)
     {
-        if (! document_ || ! request.state_ || request.Cancelled())
+        if (! document_ || ! request.state_ || request.Cancelled() || (image && ! image->SvgBytes().empty() && ! svgEnabled_))
             return false;
         const auto found = std::ranges::find(entries_, request.state_, &Entry::request);
         if (found == entries_.end() || ! found->pending || ! found->dispatched)
             return false;
         const auto additional =
-            image && std::none_of(entries_.begin(), entries_.end(), [&](const auto& entry) { return entry.image == image; }) ? image->Pixels().size() : 0u;
+            image && std::none_of(entries_.begin(), entries_.end(), [&](const auto& entry) { return entry.image == image; }) ? image->RetainedBytes() : 0u;
         const bool fits = image && additional <= MaximumDecodedBytes - decodedBytes_;
         found->pending  = false;
 
@@ -319,7 +335,7 @@ public:
     }
     bool ReplaceFrame(const RichImageRequest& request, const std::shared_ptr<const RichImage>& image) noexcept
     {
-        if (! document_ || next_ || ! request.state_ || ! image)
+        if (! document_ || next_ || ! request.state_ || ! image || (! image->SvgBytes().empty() && ! svgEnabled_))
             return false;
         const auto found = std::ranges::find(entries_, request.state_, &Entry::request);
         if (found == entries_.end() || found->pending || ! found->image)
@@ -339,9 +355,9 @@ public:
                 }
             if (! duplicate)
             {
-                if (pixels->Pixels().size() > MaximumDecodedBytes - bytes)
+                if (pixels->RetainedBytes() > MaximumDecodedBytes - bytes)
                     return false;
-                bytes += pixels->Pixels().size();
+                bytes += pixels->RetainedBytes();
             }
         }
         if (found->image != image)
@@ -394,7 +410,7 @@ private:
     {
         std::size_t element{}, entry{};
     };
-    void RetireSourceKind(RichImageSourceKind kind)
+    template <typename Predicate> void RetireMatching(Predicate predicate)
     {
         std::vector<Entry> retained(0u);
         std::vector<Binding> bindings(0u);
@@ -403,7 +419,7 @@ private:
         for (const auto& binding : bindings_)
         {
             const auto& entry = entries_[binding.entry];
-            if (entry.request->sourceKind == kind)
+            if (predicate(entry))
                 continue;
             auto found = std::ranges::find(retained, entry.request, &Entry::request);
             if (found == retained.end())
@@ -486,7 +502,7 @@ private:
             if (entries_[index].image && std::none_of(entries_.begin(), entries_.begin() + static_cast<std::ptrdiff_t>(index), [&](const auto& prior) {
                 return prior.image == entries_[index].image;
             }))
-                decodedBytes_ += entries_[index].image->Pixels().size();
+                decodedBytes_ += entries_[index].image->RetainedBytes();
     }
     std::vector<Entry> entries_;
     std::vector<Binding> bindings_;
@@ -495,6 +511,6 @@ private:
     std::unique_ptr<Stage> next_;
     std::uint64_t location_{}, binding_{}, nextId_{};
     std::size_t decodedBytes_{};
-    bool remoteEnabled_{}, dataEnabled_{}, policyChanged_{}, snapshotDirty_{}, suspended_{};
+    bool remoteEnabled_{}, dataEnabled_{}, svgEnabled_{}, policyChanged_{}, snapshotDirty_{}, suspended_{};
 };
 } // namespace DxUi::RichText::Detail

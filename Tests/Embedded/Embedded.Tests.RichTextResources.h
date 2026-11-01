@@ -3243,6 +3243,54 @@ static void TestEmbeddedImageResources(GraphicsFixture& gpu)
     editor->TakePendingImageRequests(requests);
     Check(requests.empty() && editor->GetText() == source && editor->Revision() == revision && ! editor->CanUndo(),
           "device replacement rebuilds GPU images from held pixels without source/history or repeated I/O");
+    constexpr std::string_view svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><rect width='20' height='20' fill='red'/></svg>";
+    std::shared_ptr<const RichText::RichImage> vectorImage;
+    Hr(RichText::RichImage::CreateSvg(20u, 20u, std::as_bytes(std::span(svg)), vectorImage), "create immutable SVG fixture");
+    editor->SetFlowDirection(FlowDirection::LeftToRight);
+    editor->SetSvgImagesEnabled(true);
+    editor->SetText(L"![vector](shape.svg)\n");
+    prepare();
+    editor->TakePendingImageRequests(requests);
+    Check(requests.size() == 1u && editor->CompleteImageRequest(requests.front(), vectorImage), "publish SVG fixture to embedded owner");
+    prepare();
+    const auto verifySvg = [&](GraphicsFixture& fixture, bool selected = false)
+    {
+        fixture.Bind();
+        Hr(view.Composite(fixture.context.get(), fixture.Viewport()), "SVG actual composition");
+        std::vector<std::uint8_t> data(0u);
+        Hr(fixture.Read(data), "SVG actual pixel readback");
+        const auto document = editor->GetAcknowledgedSemanticDocument(view.Controls());
+        Check(static_cast<bool>(document), "SVG has acknowledged semantic geometry");
+        const auto image = std::ranges::find(document->Elements(), RichText::SemanticRole::Image, &RichText::SemanticElement::role);
+        Check(image != document->Elements().end(), "SVG semantic image remains present");
+        const auto bounds = editor->GetSemanticElementBounds(view.Controls(), static_cast<std::size_t>(image - document->Elements().begin()));
+        Check(bounds && std::abs(bounds->right - bounds->left - 20.f) < .02f, "SVG prepared geometry uses nominal dimensions");
+        const auto x = static_cast<unsigned>((bounds->left + bounds->right) * .5f), y = static_cast<unsigned>((bounds->top + bounds->bottom) * .5f);
+        Check(x < fixture.width && y < fixture.height, "SVG oracle samples within the target");
+        const auto offset = (static_cast<std::size_t>(y) * fixture.width + x) * 4u;
+        const bool red = data[offset] < 5u && data[offset + 1u] < 5u && data[offset + 2u] > 250u && data[offset + 3u] > 250u;
+        Check(selected ? ! red : red, selected ? "SVG selection applies prepared image opacity" : "SVG pixels are rendered by the prepared Direct2D document");
+    };
+    verifySvg(replacement);
+    editor->SetSelection({0u, editor->GetText().size()});
+    prepare();
+    verifySvg(replacement, true);
+    editor->SetSelection({0u, 0u});
+    prepare();
+    const auto svgRevision = editor->Revision();
+    Hr(view.ReplaceDevice(graphics), "replace SVG target device generation");
+    prepare();
+    verifySvg(gpu);
+    editor->TakePendingImageRequests(requests);
+    Check(requests.empty() && editor->Revision() == svgRevision && editor->GetText() == L"![vector](shape.svg)\n",
+          "SVG device replacement recreates device resources from held bytes without re-requesting source");
+    gpu.Bind();
+    const auto svgAllocations = allocations;
+    countAllocations = true;
+    for (unsigned frame = 0u; frame < 12u; ++frame)
+        Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "warm SVG composition");
+    countAllocations = false;
+    Check(allocations == svgAllocations, "warm SVG draw performs no C++ allocations");
 }
 static void TestEmbeddedImagePathPaste(GraphicsFixture& gpu)
 {
