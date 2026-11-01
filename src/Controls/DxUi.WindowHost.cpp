@@ -4397,7 +4397,13 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
                        desiredWidthPx,
                        desiredHeightPx);
         PrepareForSwapChainResize();
-        const HRESULT hrResize = _swapChain->ResizeBuffers(0u, desiredWidthPx, desiredHeightPx, DXGI_FORMAT_UNKNOWN, 0u);
+        HRESULT hrResize{};
+#if DXUI_ENABLE_DIAGNOSTICS
+        if (_debugSizeResourceFailureStage == 4u)
+            hrResize = injected(4u, S_OK);
+        else
+#endif
+            hrResize = _swapChain->ResizeBuffers(0u, desiredWidthPx, desiredHeightPx, DXGI_FORMAT_UNKNOWN, 0u);
         if (FAILED(hrResize))
         {
 #if DXUI_ENABLE_DIAGNOSTICS
