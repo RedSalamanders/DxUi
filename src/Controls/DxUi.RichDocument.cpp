@@ -640,6 +640,23 @@ void Document::SetSelection(Selection selection)
     selection_ = selection;
     ++selectionEpoch_;
 }
+Document::HistoryRing::HistoryRing(HistoryRing&& other) : entries(0u)
+{
+    entries.swap(other.entries);
+    first = std::exchange(other.first, size_t{});
+    count = std::exchange(other.count, size_t{});
+}
+Document::HistoryRing& Document::HistoryRing::operator=(HistoryRing&& other) noexcept
+{
+    if (this != &other)
+    {
+        Clear();
+        entries.swap(other.entries);
+        first = std::exchange(other.first, size_t{});
+        count = std::exchange(other.count, size_t{});
+    }
+    return *this;
+}
 void Document::HistoryRing::PreparePush()
 {
     if (entries.empty())

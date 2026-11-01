@@ -111,6 +111,13 @@ template <typename Check> inline void Core(Check&& check)
     check(redos == Document::MaximumHistory && ring.Text() == copy.Text(), "the wrapped history ring redoes every retained state in order");
     check(ring.Undo() && ring.Undo() && ring.ReplaceSelection(L"y") && ! ring.CanRedo() && copy.CanUndo(),
           "a new edit clears only its own redo ring after wraparound");
+    Document moved(std::move(copy));
+    check(! copy.CanUndo() && ! copy.CanRedo() && moved.CanUndo() && moved.Undo(),
+          "moving a populated document leaves its source history safely empty and transfers undo");
+    Document assigned;
+    assigned = std::move(moved);
+    check(! moved.CanUndo() && ! moved.CanRedo() && assigned.CanUndo() && assigned.CanRedo(),
+          "move assignment transfers both rings and leaves the moved-from history empty");
 }
 
 // The production adapter remains protected. Tests exercise service commits

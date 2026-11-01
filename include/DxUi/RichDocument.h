@@ -157,6 +157,10 @@ private:
         HistoryRing() : entries(0u)
         {
         }
+        HistoryRing(const HistoryRing&)            = default;
+        HistoryRing& operator=(const HistoryRing&) = default;
+        HistoryRing(HistoryRing&& other);
+        HistoryRing& operator=(HistoryRing&& other) noexcept;
         [[nodiscard]] bool Empty() const noexcept
         {
             return count == 0u;
