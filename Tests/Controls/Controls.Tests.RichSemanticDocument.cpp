@@ -639,12 +639,24 @@ void TestRichMathPreparedStyleSpacingScriptsAndLimits()
     const auto tilde = prepare(L"\\widetilde{x}"), doubleDot = prepare(L"\\ddot{x}");
     const auto hasNonHorizontalStroke = [](const auto& strokes)
     { return std::ranges::any_of(strokes, [](const auto& line) { return std::abs(line.first.y - line.last.y) > .01f; }); };
-    Require(hasNonHorizontalStroke(tilde->StrokeLayouts()) && doubleDot->StrokeLayouts().size() == 2u &&
+    const bool nativeAccent = std::ranges::any_of(tilde->VariantLayouts(), [](const auto& glyph) { return glyph.width > 0.f && glyph.height > 0.f; });
+    Require((nativeAccent || hasNonHorizontalStroke(tilde->StrokeLayouts())) && doubleDot->StrokeLayouts().size() == 2u &&
                 std::abs((doubleDot->StrokeLayouts()[0u].first.x + doubleDot->StrokeLayouts()[0u].last.x) / 2.f +
                          (doubleDot->StrokeLayouts()[1u].first.x + doubleDot->StrokeLayouts()[1u].last.x) / 2.f -
                          (doubleDot->GlyphLayouts()[0u].origin.x * 2.f + doubleDot->GlyphLayouts()[0u].extent.width +
                           doubleDot->GlyphLayouts()[0u].rightOverhang - doubleDot->GlyphLayouts()[0u].leftOverhang)) < .05f,
-            "tilde draws a wave and double-dot accents remain symmetric around their base ink bounds");
+            "tilde uses a native variant or wave and double-dot accents remain symmetric around their base ink bounds");
+#if DXUI_ENABLE_DIAGNOSTICS
+    {
+        const auto oldTable = Detail::testRichMathTableOverride;
+        const auto restore  = wil::scope_exit([oldTable]() noexcept { Detail::testRichMathTableOverride = oldTable; });
+        const std::array<std::uint8_t, 1u> noMathTable{0u};
+        Detail::testRichMathTableOverride = noMathTable;
+        const auto fallbackTilde          = prepare(L"\\widetilde{x}");
+        Require(fallbackTilde->VariantLayouts().empty() && hasNonHorizontalStroke(fallbackTilde->StrokeLayouts()),
+                "a font without MATH data paints the tilde with a shaped wave fallback");
+    }
+#endif
 
     const auto escapedOpen = ParseMath(L"\\text{\\{}"), escapedClose = ParseMath(L"\\text{\\}}");
     Require(escapedOpen && escapedClose && escapedOpen.root.children[0u].text == L"{" && escapedClose.root.children[0u].text == L"}",
