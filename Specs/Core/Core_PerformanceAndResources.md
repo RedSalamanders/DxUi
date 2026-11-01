@@ -49,6 +49,14 @@ and a 2048-level quote with 512 lazy lines. Required indentation lookahead is
 capped, thematic suffix rejection uses one line metadata pass, and containers
 finalize once rather than extending every ancestor per lazy line. BlockStatistics
 exposes those deterministic counts; it is not a total CPU/time counter. The maximum
+Autolink preparation separately indexes host/email suffix facts and resumes one
+region edge or source candidate per parser operation. Failed overlapping host
+and email candidates do not rescan their complete suffix. Successful splices
+decode only final text prefixes and the final remaining suffix, once each.
+`InlineStatistics()` exposes indexing/candidate visits and decoded suffix units;
+these counters do not include allocator work or claim a wall-clock deadline.
+The index is bounded by the admitted source length and is retired with staging.
+The maximum
 all-newline source exercises maximum root-trivia and lexical partition counts; owned
 C++ retained storage must stay within 24 MiB and release completely. Replacing
 that maximum result while retaining its previous publication is bounded to

@@ -436,11 +436,17 @@ struct SemanticBuilder::Preparation
             }
             else
             {
-                extensions.diagnostics.push_back({SemanticDiagnosticKind::UnsupportedMath, node.source, element});
+                const bool capacity = expression && (expression->issue == MathIssue::Capacity ||
+                                                     (*expression && (records > 4096u - extensions.mathRecords ||
+                                                                      extensions.maths.size() + extensions.diagrams.size() + extensions.images.size() >=
+                                                                          Detail::SemanticExtensions::MaximumObjects)));
+                extensions.diagnostics.push_back(
+                    {capacity ? SemanticDiagnosticKind::MathCapacity : SemanticDiagnosticKind::UnsupportedMath, node.source, element});
                 auto& formula = document->elements_[element];
                 formula.name  = node.value;
                 formula.title = sourceFallback ? L"Equation cannot be prepared natively for this view. Exact source is preserved."
-                                               : L"Unsupported or oversized native equation. Exact source is preserved.";
+                                : capacity     ? L"Equation exceeds native object capacity. Exact source is preserved."
+                                               : L"Unsupported native equation. Exact source is preserved.";
                 output.Emit(document->syntax_->Slice(node.source), node.source, DisplaySpanKind::Source, flags | Code, visit.heading);
                 formula.display.last = output.text.size();
             }
@@ -794,9 +800,14 @@ struct SemanticBuilder::Preparation
             return;
         }
         auto& extensions = Extensions();
-        auto& result     = extensions.diagrams.emplace_back();
-        result.element   = work.visit.element;
-        result.graph     = work.graph;
+        if (extensions.diagrams.size() + extensions.maths.size() + extensions.images.size() >= Detail::SemanticExtensions::MaximumObjects)
+        {
+            RejectDiagram(SemanticDiagnosticKind::DiagramCapacity, node.block.source, L"Native object capacity exceeded. Source is preserved.");
+            return;
+        }
+        auto& result   = extensions.diagrams.emplace_back();
+        result.element = work.visit.element;
+        result.graph   = work.graph;
         result.bodyUnits.assign(normalized.units.begin(), normalized.units.end());
         result.sourceEnd = node.block.content.last;
         extensions.records += graph.nodes.size() + graph.edges.size();

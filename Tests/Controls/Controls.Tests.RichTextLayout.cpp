@@ -1723,10 +1723,10 @@ void TestRichTextLayoutTransientLinkInkAndUnderlineRestoreSharedState()
 }
 void TestRichTextSourceInkPreparationRolesAndCapacity()
 {
-    const auto parse = [](std::wstring_view source)
+    const auto parse = [](std::wstring_view source, MarkdownProfile profile = MarkdownProfile::Gfm029)
     {
         MarkdownParser parser;
-        parser.Begin(source, 1u, MarkdownProfile::Gfm029);
+        parser.Begin(source, 1u, profile);
         for (size_t turn = 0u; turn < 100000u; ++turn)
             if (parser.Advance().status == MarkdownPreparationStatus::Complete)
                 return parser.Published();
@@ -1763,6 +1763,24 @@ void TestRichTextSourceInkPreparationRolesAndCapacity()
                 "published source ink is bounded, sorted and disjoint");
         previous = range.display.last;
     }
+    const std::wstring nativeSyntax = L"www.example.com user@example.com \\(x\\) \\[y\\]\n";
+    const auto nativeInkSyntax      = parse(nativeSyntax, MarkdownProfile::RichMarkdown);
+    while (! ink.Advance(nativeInkSyntax, [](size_t value) { return value; }))
+        Require(ink.LastWork() <= Detail::RichSourceInk::WorkPerTurn, "native source ink remains cooperatively prepared");
+    for (const auto text : {std::wstring_view(L"www.example.com"), std::wstring_view(L"user@example.com")})
+    {
+        const auto first = nativeSyntax.find(text);
+        Require(roleAt(first) == TextInkRole::Link && roleAt(first + text.size() - 1u) == TextInkRole::Link,
+                "bare URL and email source receive link ink at both exact boundaries");
+    }
+    for (const auto marker : {L"\\(", L"\\)", L"\\[", L"\\]"})
+    {
+        const auto first = nativeSyntax.find(marker);
+        Require(roleAt(first) == TextInkRole::Subtle && roleAt(first + 1u) == TextInkRole::Subtle,
+                "escaped math source delimiters receive two-unit subtle ink");
+    }
+    Require(! roleAt(nativeSyntax.find(L"x\\)")) && ! roleAt(nativeSyntax.find(L"y\\]")),
+            "ordinary mathematical source retains its normal ink between delimiter pairs");
 
     const std::wstring listFixture = L"- outer\n  - nested\n-\t- tab nested\n12. ordered\n> - quoted\n- [x] task\n";
     const auto listSyntax          = parse(listFixture);

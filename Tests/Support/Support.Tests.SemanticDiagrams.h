@@ -109,6 +109,21 @@ template <typename Check> inline void Core(Check&& check)
     check(SemanticExtensionAccess::Diagrams(*limited).size() == SemanticExtensions::MaximumObjects && limited->Diagnostics().size() == 1u &&
               limited->Diagnostics().front().kind == SemanticDiagnosticKind::DiagramCapacity,
           "document object admission occurs before preparing the next graph");
+    for (const bool mathFirst : {false, true})
+    {
+        std::wstring formulas(0u, L' '), graphs(0u, L' ');
+        for (std::size_t index = 0u; index < 100u; ++index)
+            formulas.append(L"$x$ ");
+        formulas.append(L"\n\n");
+        for (std::size_t index = 0u; index < 29u; ++index)
+            graphs.append(scenarios[0u].source);
+        const auto mixed = Build(mathFirst ? formulas + graphs : graphs + formulas, check);
+        check(SemanticExtensionAccess::Diagrams(*mixed).size() + SemanticExtensionAccess::Maths(*mixed).size() == SemanticExtensions::MaximumObjects &&
+                  mixed->Diagnostics().size() == 1u,
+              "math and diagrams share one source-ordered native object limit in either order");
+        check(mixed->Diagnostics().front().kind == (mathFirst ? SemanticDiagnosticKind::DiagramCapacity : SemanticDiagnosticKind::MathCapacity),
+              "the first object beyond the combined limit has the matching exact-source fallback diagnostic");
+    }
     const auto large = Build(L"```mermaid\n" + std::wstring(NativeFlowchartParser::MaximumSourceUnits + 1u, L' ') + L"\n```\n", check);
     check(SemanticExtensionAccess::Diagrams(*large).empty() && large->Diagnostics().size() == 1u &&
               large->Diagnostics().front().kind == SemanticDiagnosticKind::DiagramCapacity,

@@ -206,6 +206,12 @@ struct MarkdownBlockStatistics
     // deterministic diagnostic counters, not elapsed-time or total CPU bounds.
     std::size_t prefixInspectionUnits{}, containerFinalizations{};
 };
+struct MarkdownInlineStatistics
+{
+    // Deterministic autolink indexing/candidate visits and suffix decoding.
+    // These are algorithm diagnostics, not allocator or elapsed-time limits.
+    std::size_t autolinkInspectionUnits{}, autolinkDecodedUnits{};
+};
 enum class MarkdownSourceRegionKind
 {
     Block,
@@ -261,6 +267,7 @@ public:
     std::span<const MarkdownEmptyLine> EmptyLines() const noexcept;
     std::uint64_t DocumentIdentity() const noexcept;
     MarkdownBlockStatistics BlockStatistics() const noexcept;
+    MarkdownInlineStatistics InlineStatistics() const noexcept;
     // A hinted syntax is an editing presentation, not a canonical grammar
     // result. The effective envelope expands to complete physical lines.
     std::optional<MarkdownSourceRegion> SourceRegion() const noexcept;
@@ -305,6 +312,7 @@ private:
     std::vector<MarkdownFootnoteReference> footnoteReferences_;
     std::uint64_t documentIdentity_{};
     MarkdownBlockStatistics blockStatistics_;
+    MarkdownInlineStatistics inlineStatistics_;
     std::optional<MarkdownSourceRegion> sourceRegionRequest_;
     // A borrowed parse wrapper owns no AST/string data. Its sole owner is an
     // original parsed result, never another wrapper; revision and document

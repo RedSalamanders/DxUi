@@ -237,6 +237,10 @@ MarkdownBlockStatistics MarkdownSyntax::BlockStatistics() const noexcept
 {
     return ParsedData().blockStatistics_;
 }
+MarkdownInlineStatistics MarkdownSyntax::InlineStatistics() const noexcept
+{
+    return ParsedData().inlineStatistics_;
+}
 const std::vector<MarkdownLexeme>& MarkdownSyntax::Lexemes() const noexcept
 {
     return ParsedData().lexemes_;
@@ -739,7 +743,11 @@ MarkdownAdvance MarkdownParser::Advance(std::size_t maximumWorkUnits)
             else if (! pending.lexemesComplete)
                 pending.ScanLexicalUnit();
             else if (! pending.inlinesComplete)
+            {
                 pending.inlinesComplete = pending.inlines.Step();
+                if (pending.inlinesComplete)
+                    pending.syntax->inlineStatistics_ = {pending.inlines.AutolinkInspectionUnits(), pending.inlines.AutolinkDecodedUnits()};
+            }
             else if (! pending.identitiesComplete)
                 pending.IdentityUnit();
             else

@@ -48,6 +48,7 @@ class MarkdownInlines
         std::size_t node{}, length{}, previous = MarkdownNoNode, next = MarkdownNoNode;
         wchar_t marker{};
         bool open{}, close{};
+        std::size_t originalLength{};
     };
     struct Bracket
     {
@@ -58,6 +59,17 @@ class MarkdownInlines
     {
         std::size_t node, parent;
     };
+    struct AutolinkFacts
+    {
+        std::size_t hostEnd{}, emailEnd{}, nextAt = MarkdownNoNode, nextDoubleDot = MarkdownNoNode;
+        std::size_t previousDot = MarkdownNoNode, nonDotEnd{}, nonUnderscoreEnd{}, underscores{};
+    };
+    struct AutolinkRegion
+    {
+        AutolinkVisit visit;
+        std::size_t end{}, next = MarkdownNoNode, current{}, deferred = MarkdownNoNode;
+        bool scanning{};
+    };
     struct FootnoteVisit
     {
         std::size_t node{};
@@ -67,6 +79,11 @@ class MarkdownInlines
     std::vector<Delimiter> delimiters_;
     std::vector<Bracket> brackets_;
     std::vector<AutolinkVisit> autolinkWalk_;
+    std::vector<AutolinkFacts> autolinkFacts_;
+    std::optional<AutolinkRegion> autolinkRegion_;
+    std::size_t autolinkFactsCursor_{};
+    unsigned autolinkFactsPhase_{};
+    std::size_t autolinkInspectionUnits_{}, autolinkDecodedUnits_{};
     std::vector<FootnoteVisit> footnoteWalk_;
     std::vector<std::size_t> reachableDefinitions_;
     std::vector<std::size_t> previous_, offsets_, backtickNext_;
@@ -462,7 +479,7 @@ class MarkdownInlines
                 continue;
             }
             const auto marker   = close.marker == L'*' ? 0u : close.marker == L'_' ? 1u : 2u;
-            const auto category = (close.open ? 3u : 0u) + close.length % 3u;
+            const auto category = (close.open ? 3u : 0u) + close.originalLength % 3u;
             auto opener         = close.previous;
             while (opener != bottom && opener != MarkdownNoNode)
             {
@@ -472,8 +489,8 @@ class MarkdownInlines
                     break;
                 }
                 const auto& open = delimiters_[opener];
-                const bool odd   = close.marker != L'~' && (close.open || open.close) && (close.length + open.length) % 3u == 0u &&
-                                   (close.length % 3u != 0u || open.length % 3u != 0u);
+                const bool odd   = close.marker != L'~' && (close.open || open.close) && (close.originalLength + open.originalLength) % 3u == 0u &&
+                                   (close.originalLength % 3u != 0u || open.originalLength % 3u != 0u);
                 if (open.marker == close.marker && open.open && ! odd && (close.marker != L'~' || open.length == close.length))
                     break;
                 opener = open.previous;
@@ -1018,23 +1035,17 @@ class MarkdownInlines
         bool email         = false;
         if (scheme)
         {
-            auto hostEnd = scheme == 4u ? 0u : scheme;
-            while (hostEnd < rest.size())
-            {
-                const auto scalar = Scalar(rest, hostEnd);
-                if (! Contains(MarkdownUnicodeData::kAlphanumeric, scalar) && scalar != L'_' && scalar != L'-' && scalar != L'.')
-                    break;
-                hostEnd = StepToNextCodePoint(rest, hostEnd);
-            }
-            auto domain = rest.substr(scheme == 4u ? 0u : scheme, hostEnd - (scheme == 4u ? 0u : scheme));
-            while (domain.ends_with(L'.'))
-                domain.remove_suffix(1u);
-            const auto dot   = domain.rfind(L'.');
-            const auto prior = dot == std::wstring_view::npos ? dot : domain.substr(0u, dot).rfind(L'.');
-            if (dot == std::wstring_view::npos || domain.starts_with(L'.') || domain.find(L"..") != std::wstring_view::npos ||
-                domain.substr(prior == std::wstring_view::npos ? 0u : prior + 1u).find(L'_') != std::wstring_view::npos)
+            const auto hostFirst  = cursor_ + (scheme == 4u ? 0u : scheme);
+            const auto hostEnd    = std::min(inlineLimit_, autolinkFacts_[hostFirst].hostEnd);
+            const auto domainEnd  = std::max(hostFirst, autolinkFacts_[hostEnd].nonDotEnd);
+            const auto dot        = autolinkFacts_[domainEnd].previousDot;
+            const auto prior      = dot == MarkdownNoNode ? dot : autolinkFacts_[dot].previousDot;
+            const auto lastLabels = prior == MarkdownNoNode ? hostFirst : std::max(hostFirst, prior + 1u);
+            ++autolinkInspectionUnits_;
+            if (domainEnd == hostFirst || dot == MarkdownNoNode || dot < hostFirst || text_[hostFirst] == L'.' ||
+                autolinkFacts_[hostFirst].nextDoubleDot < domainEnd - 1u || autolinkFacts_[domainEnd].underscores != autolinkFacts_[lastLabels].underscores)
                 return false;
-            length = hostEnd;
+            length = hostEnd - cursor_;
             while (length < rest.size() && ! White(Scalar(rest, length)) && rest[length] != L'<')
                 ++length;
             while (length && std::wstring_view(L"?!.,:*_~").find(rest[length - 1u]) != std::wstring_view::npos)
@@ -1068,17 +1079,21 @@ class MarkdownInlines
         {
             if (! emailBoundary_)
                 return false;
-            while (length < rest.size() &&
-                   (AsciiLetter(rest[length]) || Digit(rest[length]) || std::wstring_view(L".-_+@").find(rest[length]) != std::wstring_view::npos))
-                ++length;
-            while (length && rest[length - 1u] == L'.')
-                --length;
+            auto end = std::min(inlineLimit_, autolinkFacts_[cursor_].emailEnd);
+            end      = std::max(cursor_, autolinkFacts_[end].nonDotEnd);
             if (underscoreOpen_)
-                while (length && rest[length - 1u] == L'_')
-                    --length;
-            if (! Email(rest.substr(0u, length), true))
+                end = std::max(cursor_, autolinkFacts_[end].nonUnderscoreEnd);
+            const auto at = autolinkFacts_[cursor_].nextAt;
+            ++autolinkInspectionUnits_;
+            if (at == MarkdownNoNode || at <= cursor_ || at + 1u >= end || autolinkFacts_[at + 1u].nextAt < end)
                 return false;
-            email = true;
+            // The suffix index already proves the complete local-part alphabet.
+            // Validate the domain once per '@', rather than rescanning every
+            // failed suffix of a long a@a@... candidate.
+            if (! Email(std::wstring_view(text_).substr(at - 1u, end - at + 1u), true))
+                return false;
+            length = end - cursor_;
+            email  = true;
         }
         if (! length)
             return false;
@@ -1150,7 +1165,8 @@ class MarkdownInlines
         auto prefix = before;
         if (oldFirst < range.first)
         {
-            nodes_[beginNode].value       = Decode(std::wstring_view(text_).substr(NormalizedOffset(oldFirst), first - NormalizedOffset(oldFirst)));
+            nodes_[beginNode].value = Decode(std::wstring_view(text_).substr(NormalizedOffset(oldFirst), first - NormalizedOffset(oldFirst)));
+            autolinkDecodedUnits_ += first - NormalizedOffset(oldFirst);
             nodes_[beginNode].source.last = range.first;
             prefix                        = beginNode;
         }
@@ -1165,41 +1181,100 @@ class MarkdownInlines
         if (range.last < oldLast)
         {
             const auto end = NormalizedOffset(oldLast);
-            current        = Append(Kind::Text, last, end, Decode(std::wstring_view(text_).substr(last, end - last)));
+            // Defer this suffix until it becomes a final prefix or the region
+            // finishes. Decoding the complete remaining suffix after each URL
+            // made a paragraph of small links quadratic.
+            current                   = Append(Kind::Text, last, end);
+            autolinkRegion_->deferred = current;
         }
         nodes_[tail_].nextSibling = after;
         if (after != MarkdownNoNode)
             previous_[after] = tail_;
     }
-    std::size_t ResolveAutolinks(AutolinkVisit visit)
+    void PrepareAutolinkFactsUnit()
+    {
+        if (! autolinkFactsPhase_)
+        {
+            autolinkFacts_.assign(text_.size() + 1u, AutolinkFacts{});
+            autolinkFactsCursor_ = 0u;
+            autolinkFactsPhase_  = 1u;
+        }
+        else if (autolinkFactsPhase_ == 1u)
+        {
+            if (autolinkFactsCursor_ == text_.size())
+            {
+                autolinkFacts_.back().hostEnd = autolinkFacts_.back().emailEnd = text_.size();
+                autolinkFactsPhase_                                            = 2u;
+                return;
+            }
+            const auto at         = autolinkFactsCursor_++;
+            const auto& prior     = autolinkFacts_[at];
+            auto& next            = autolinkFacts_[at + 1u];
+            next.previousDot      = text_[at] == L'.' ? at : prior.previousDot;
+            next.nonDotEnd        = text_[at] == L'.' ? prior.nonDotEnd : at + 1u;
+            next.nonUnderscoreEnd = text_[at] == L'_' ? prior.nonUnderscoreEnd : at + 1u;
+            next.underscores      = prior.underscores + (text_[at] == L'_' ? 1u : 0u);
+            ++autolinkInspectionUnits_;
+        }
+        else if (autolinkFactsCursor_)
+        {
+            const auto at       = --autolinkFactsCursor_;
+            auto& facts         = autolinkFacts_[at];
+            const auto& next    = autolinkFacts_[at + 1u];
+            const auto scalar   = Scalar(text_, IsUtf16TrailSurrogate(text_[at]) && at ? at - 1u : at);
+            const bool host     = Contains(MarkdownUnicodeData::kAlphanumeric, scalar) || scalar == L'_' || scalar == L'-' || scalar == L'.';
+            const auto c        = text_[at];
+            const bool email    = AsciiLetter(c) || Digit(c) || std::wstring_view(L".-_+@").find(c) != std::wstring_view::npos;
+            facts.hostEnd       = host ? next.hostEnd : at;
+            facts.emailEnd      = email ? next.emailEnd : at;
+            facts.nextAt        = c == L'@' ? at : next.nextAt;
+            facts.nextDoubleDot = c == L'.' && at + 1u < text_.size() && text_[at + 1u] == L'.' ? at : next.nextDoubleDot;
+            ++autolinkInspectionUnits_;
+        }
+        else
+            autolinkFactsPhase_ = 3u;
+    }
+    std::optional<std::size_t> ResolveAutolinks(AutolinkVisit visit)
     {
         // Brackets/code/HTML already own their contents. Outside them, scan a
         // whole contiguous text region BEFORE emphasis: www.example.org*a*
         // belongs to the URL through its interior '*a', with only the trailing
         // '*' excluded. Splice links while preserving untouched delimiter nodes.
-        auto regionEnd = visit.node;
-        while (nodes_[regionEnd].nextSibling != MarkdownNoNode && nodes_[nodes_[regionEnd].nextSibling].kind == Kind::Text)
-            regionEnd = nodes_[regionEnd].nextSibling;
-        const auto originalNext = nodes_[regionEnd].nextSibling;
-        const auto first = NormalizedOffset(nodes_[visit.node].source.first), last = NormalizedOffset(nodes_[regionEnd].source.last);
-        inlineFirst_ = cursor_ = first;
-        inlineLimit_           = last;
-        auto current           = visit.node;
-        autolinkBoundary_      = ! first || White(Scalar(text_, StepToPreviousCodePoint(text_, first))) ||
-                                 std::wstring_view(L"*_~(").find(text_[first - 1u]) != std::wstring_view::npos;
-        emailBoundary_         = true;
-        while (cursor_ < last)
+        if (! autolinkRegion_)
+            autolinkRegion_.emplace(AutolinkRegion{visit, visit.node, MarkdownNoNode, visit.node});
+        auto& region = autolinkRegion_.value();
+        if (! region.scanning)
         {
+            const auto next = nodes_[region.end].nextSibling;
+            if (next != MarkdownNoNode && nodes_[next].kind == Kind::Text)
+            {
+                region.end = next;
+                ++autolinkInspectionUnits_;
+                return std::nullopt;
+            }
+            region.next      = next;
+            const auto first = NormalizedOffset(nodes_[visit.node].source.first);
+            inlineFirst_ = cursor_ = first;
+            inlineLimit_           = NormalizedOffset(nodes_[region.end].source.last);
+            autolinkBoundary_      = ! first || White(Scalar(text_, StepToPreviousCodePoint(text_, first))) ||
+                                     std::wstring_view(L"*_~(").find(text_[first - 1u]) != std::wstring_view::npos;
+            emailBoundary_         = true;
+            region.scanning        = true;
+            return std::nullopt;
+        }
+        if (cursor_ < inlineLimit_)
+        {
+            ++autolinkInspectionUnits_;
             DelimiterHistory(offsets_[cursor_]);
             const auto at = cursor_;
             root_ = tail_ = lastLiteral_ = MarkdownNoNode;
             if (ExtendedAutolink())
             {
                 const auto link = root_;
-                AutolinkSplice(link, at, cursor_, current, visit.parent);
+                AutolinkSplice(link, at, cursor_, region.current, visit.parent);
                 DelimiterHistory(nodes_[link].source.last, nodes_[link].source);
                 autolinkBoundary_ = emailBoundary_ = false;
-                continue;
+                return std::nullopt;
             }
             MarkdownLexeme entity;
             std::uint32_t previous = Scalar(text_, cursor_);
@@ -1210,7 +1285,7 @@ class MarkdownInlines
                                : entity.value[entity.valueLength - 1u];
                 cursor_  = entity.source.last;
             }
-            else if (text_[cursor_] == L'\\' && cursor_ + 1u < last && AsciiPunctuation(text_[cursor_ + 1u]))
+            else if (text_[cursor_] == L'\\' && cursor_ + 1u < inlineLimit_ && AsciiPunctuation(text_[cursor_ + 1u]))
             {
                 previous = text_[cursor_ + 1u];
                 cursor_ += 2u;
@@ -1221,8 +1296,18 @@ class MarkdownInlines
                 White(previous) || (previous < 128u && std::wstring_view(L"*_~(").find(static_cast<wchar_t>(previous)) != std::wstring_view::npos);
             emailBoundary_ = previous >= 128u || (! AsciiLetter(static_cast<wchar_t>(previous)) && ! Digit(static_cast<wchar_t>(previous)) &&
                                                   std::wstring_view(L".-_+").find(static_cast<wchar_t>(previous)) == std::wstring_view::npos);
+            return std::nullopt;
         }
-        return originalNext;
+        if (region.deferred != MarkdownNoNode && region.current == region.deferred)
+        {
+            auto& node       = nodes_[region.deferred];
+            const auto first = NormalizedOffset(node.source.first), last = NormalizedOffset(node.source.last);
+            node.value = Decode(std::wstring_view(text_).substr(first, last - first));
+            autolinkDecodedUnits_ += last - first;
+        }
+        const auto next = region.next;
+        autolinkRegion_.reset();
+        return next;
     }
     void Scan()
     {
@@ -1371,7 +1456,7 @@ class MarkdownInlines
             const bool open   = c == L'_' ? left && (! right || Punctuation(before)) : left;
             const bool close  = c == L'_' ? right && (! left || Punctuation(after)) : right;
             const auto index  = delimiters_.size();
-            delimiters_.push_back({node, length, delimiterTail_, MarkdownNoNode, c, open, close});
+            delimiters_.push_back({node, length, delimiterTail_, MarkdownNoNode, c, open, close, length});
             if (delimiterTail_ != MarkdownNoNode)
                 delimiters_[delimiterTail_].next = index;
             else
@@ -1492,6 +1577,7 @@ public:
           delimiters_(0u),
           brackets_(0u),
           autolinkWalk_(0u),
+          autolinkFacts_(0u),
           footnoteWalk_(0u),
           reachableDefinitions_(0u),
           previous_(0u),
@@ -1499,6 +1585,14 @@ public:
           backtickNext_(0u),
           text_(0u, L' ')
     {
+    }
+    [[nodiscard]] std::size_t AutolinkInspectionUnits() const noexcept
+    {
+        return autolinkInspectionUnits_;
+    }
+    [[nodiscard]] std::size_t AutolinkDecodedUnits() const noexcept
+    {
+        return autolinkDecodedUnits_;
     }
     bool Step()
     {
@@ -1546,15 +1640,26 @@ public:
         {
             if (autolinksActive_)
             {
-                if (! autolinkWalk_.empty())
+                if (autolinkFactsPhase_ < 3u)
                 {
-                    const auto visit = autolinkWalk_.back();
-                    autolinkWalk_.pop_back();
+                    PrepareAutolinkFactsUnit();
+                    return false;
+                }
+                if (autolinkRegion_ || ! autolinkWalk_.empty())
+                {
+                    const auto visit = autolinkRegion_ ? autolinkRegion_->visit : autolinkWalk_.back();
+                    if (! autolinkRegion_)
+                        autolinkWalk_.pop_back();
                     auto next        = nodes_[visit.node].nextSibling;
                     const auto child = nodes_[visit.node].firstChild;
                     const auto kind  = nodes_[visit.node].kind;
                     if (kind == Kind::Text)
-                        next = ResolveAutolinks(visit);
+                    {
+                        const auto resolved = ResolveAutolinks(visit);
+                        if (! resolved)
+                            return false;
+                        next = resolved.value();
+                    }
                     if (next != MarkdownNoNode)
                         autolinkWalk_.push_back({next, visit.parent});
                     if (child != MarkdownNoNode && (kind == Kind::Emphasis || kind == Kind::Strong || kind == Kind::Strikethrough))
@@ -1593,7 +1698,9 @@ public:
                 blocks_[blockCursor_].firstInline = root_;
                 if (HasMarkdownExtension(extensions_, MarkdownExtensions::Autolinks))
                 {
-                    autolinksActive_ = true;
+                    autolinksActive_    = true;
+                    autolinkFactsPhase_ = 0u;
+                    autolinkRegion_.reset();
                     autolinkWalk_.clear();
                     autolinkDelimiter_ = delimiterHead_;
                     underscoreOpen_    = 0u;

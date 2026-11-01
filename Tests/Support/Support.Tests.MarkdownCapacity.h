@@ -87,6 +87,31 @@ template <typename Check> inline void ParserBounds(Check&& check)
               "table-cell preparation yields without exposing its incomplete row");
     parser.Cancel();
     check(parser.Published()->Source() == L"retry" && ! parser.HasPendingPreparation(), "capacity candidates remain cancellable before rejection");
+
+    std::wstring emails(0u, L' '), invalidHosts(0u, L' '), links(0u, L' ');
+    for (std::size_t index = 0u; index < 10000u; ++index)
+        emails.append(L"a@");
+    emails.append(L"a.com");
+    for (std::size_t index = 0u; index < 2500u; ++index)
+        invalidHosts.append(L"_www.bad_.invalid");
+    for (std::size_t index = 0u; index < 2000u; ++index)
+        links.append(L"www.example.com ");
+    const std::wstring autolinks[]    = {emails, invalidHosts, links};
+    const std::size_t expectedLinks[] = {1u, 0u, 2000u};
+    for (std::size_t index = 0u; index < std::size(autolinks); ++index)
+    {
+        parser.Begin(autolinks[index], 10u + index, MarkdownProfile::Gfm029);
+        const auto before = parser.Published();
+        for (std::size_t turn = 0u; turn < 64u; ++turn)
+            check(parser.Advance(1u).workUnits == 1u && parser.Published() == before,
+                  "long autolink candidates remain cooperative and keep their prior immutable publication");
+        const auto syntax     = Complete(parser, check);
+        const auto statistics = syntax->InlineStatistics();
+        check(statistics.autolinkInspectionUnits <= autolinks[index].size() * 8u && statistics.autolinkDecodedUnits <= autolinks[index].size(),
+              "host/email indexing and final suffix decoding grow linearly for hostile candidates and many accepted links");
+        check(static_cast<std::size_t>(std::ranges::count(syntax->Inlines(), MarkdownInlineKind::Link, &MarkdownInline::kind)) == expectedLinks[index],
+              "bounded autolink preparation preserves the independently specified rejected-host and final-email results");
+    }
 }
 template <typename Editor, typename Host, typename Prepare, typename Check>
 inline void EditorFallback(Editor& editor, Host& host, Prepare&& prepare, Check&& check)

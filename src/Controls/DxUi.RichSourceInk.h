@@ -237,6 +237,16 @@ private:
             inlinePhase_ = InlinePhase::Finished;
             return;
         }
+        if (item.kind == MarkdownInlineKind::Math && range.last - range.first >= 2u && source[range.first] == L'\\' &&
+            (source[range.first + 1u] == L'(' || source[range.first + 1u] == L'['))
+        {
+            Add({range.first, range.first + 2u}, TextInkRole::Subtle);
+            const auto close = source[range.first + 1u] == L'(' ? L')' : L']';
+            if (range.last - range.first >= 4u && source[range.last - 2u] == L'\\' && source[range.last - 1u] == close)
+                Add({range.last - 2u, range.last}, TextInkRole::Subtle);
+            inlinePhase_ = InlinePhase::Finished;
+            return;
+        }
         switch (item.kind)
         {
             case MarkdownInlineKind::Code:
@@ -281,7 +291,13 @@ private:
     {
         const auto range  = item.source;
         const auto source = syntax_->Source();
-        linkLast_         = std::min(linkLast_, range.last);
+        if (item.kind == MarkdownInlineKind::Link && source[range.first] != L'[' && source[range.first] != L'<')
+        {
+            Add(range, TextInkRole::Link);
+            inlinePhase_ = InlinePhase::Finished;
+            return;
+        }
+        linkLast_ = std::min(linkLast_, range.last);
         Add({range.first, std::min(range.last, range.first + (item.kind == MarkdownInlineKind::Image ? 2u : 1u))}, TextInkRole::Subtle);
         Add({linkLast_, range.last}, TextInkRole::Subtle);
         if (linkLast_ + 1u < range.last && source[linkLast_] == L']' && source[linkLast_ + 1u] == L'(')

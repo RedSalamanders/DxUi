@@ -92,6 +92,7 @@ inline constexpr Scenario scenarios[] = {
     {L"Unicode punctuation and intraword underscore", L"foo_bar_baz «*café*»\n", L"<p>foo_bar_baz «<em>café</em>»</p>\n", {}, {}},
     {L"supplementary symbol flanking dialect", L"a*\U0001f600*b\n", L"<p>a*\U0001f600*b</p>\n", L"<p>a<em>\U0001f600</em>b</p>\n", L"<p>a*\U0001f600*b</p>\n"},
     {L"nested delimiters", L"***both*** and **bold *em***\n", L"<p><em><strong>both</strong></em> and <strong>bold <em>em</em></strong></p>\n", {}, {}},
+    {L"original delimiter lengths after partial consumption", L"a****b***c\n", L"<p>a*<em><strong>b</strong></em>c</p>\n", {}, {}},
     {L"GFM printed redundant strong convention",
      L"****bold****\n",
      L"<p><strong><strong>bold</strong></strong></p>\n",
