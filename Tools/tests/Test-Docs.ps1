@@ -13,6 +13,27 @@ function Set-DocsFixture([string] $Root) {
     Set-FixtureFile $Root 'README.md' '[Docs](docs/README.md)'
     Set-FixtureFile $Root 'include/DxUi/ControlCatalog.h' 'enum class ControlKind { Label, Button };'
     Set-FixtureFile $Root 'docs/controls.md' "| Label | Caption |`n| Button | Action |`n"
+    Set-FixtureJson $Root 'capabilities.json' @{
+        supported = @('bounded-rich-fixture')
+        pending = @('rich-fixture-conformance')
+        richTextDocumentation = @{
+            schemaVersion = 1
+            features = @(
+                @{ capability = 'bounded-rich-fixture'; feature = 'Fixture'; status = 'Limited'; limits = '16 units'; documentation = '#fixture' },
+                @{ capability = 'rich-fixture-conformance'; feature = 'Complete grammar'; status = 'Not supported'; limits = 'Not qualified'; documentation = '#fixture' }
+            )
+        }
+    }
+    Set-FixtureFile $Root 'docs/rich-text.md' @'
+# Fixture
+
+<!-- rich-text-capabilities:begin -->
+| Feature | Status | Limits | Details |
+| --- | --- | --- | --- |
+| Fixture | Limited | 16 units | [Details](#fixture) |
+| Complete grammar | Not supported | Not qualified | [Details](#fixture) |
+<!-- rich-text-capabilities:end -->
+'@
     $image = [byte[]](0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A) + [Text.Encoding]::ASCII.GetBytes('fixture')
     $entries = foreach ($index in 0..5) {
         Set-FixtureBytes $Root "docs/gallery/$index.png" $image
@@ -32,6 +53,62 @@ Invoke-FixtureCase 'missing control usage fails' {
     Set-DocsFixture $root
     Set-FixtureFile $root 'docs/controls.md' "| Label | Caption |`n"
     Assert-Contains (Test-DxUiDocs $root).Failures 'Missing control usage: Button' 'usage'
+}
+
+Invoke-FixtureCase 'rich text status drift fails' {
+    param($root)
+    Set-DocsFixture $root
+    $path = Join-Path $root 'docs/rich-text.md'
+    Set-FixtureFile $root 'docs/rich-text.md' ([IO.File]::ReadAllText($path).Replace('| Fixture | Limited |', '| Fixture | Supported |'))
+    Assert-True ((Test-DxUiDocs $root).Failures -match 'differs from capabilities.json').Count 'a stale status fails'
+}
+
+Invoke-FixtureCase 'missing rich text matrix row fails' {
+    param($root)
+    Set-DocsFixture $root
+    $path = Join-Path $root 'docs/rich-text.md'
+    Set-FixtureFile $root 'docs/rich-text.md' ([IO.File]::ReadAllText($path) -replace '(?m)^\| Fixture \|.*\r?\n', '')
+    Assert-True ((Test-DxUiDocs $root).Failures -match 'differs from capabilities.json').Count 'a missing row fails'
+}
+
+Invoke-FixtureCase 'unknown rich text capability fails' {
+    param($root)
+    Set-DocsFixture $root
+    $data = Get-Content -LiteralPath (Join-Path $root 'capabilities.json') -Raw | ConvertFrom-Json -AsHashtable
+    $data.richTextDocumentation.features[0].capability = 'invented-capability'
+    Set-FixtureJson $root 'capabilities.json' $data
+    Assert-True ((Test-DxUiDocs $root).Failures -match 'exactly one status list').Count 'an invented capability fails'
+}
+
+Invoke-FixtureCase 'pending rich text mechanism cannot claim support' {
+    param($root)
+    Set-DocsFixture $root
+    $data = Get-Content -LiteralPath (Join-Path $root 'capabilities.json') -Raw | ConvertFrom-Json -AsHashtable
+    $data.richTextDocumentation.features[1].status = 'Supported'
+    Set-FixtureJson $root 'capabilities.json' $data
+    Assert-True ((Test-DxUiDocs $root).Failures -match 'contradicts capability').Count 'an unsupported feature cannot self-approve'
+}
+
+Invoke-FixtureCase 'rich text bounds and unique identities are mandatory' {
+    param($root)
+    Set-DocsFixture $root
+    $data = Get-Content -LiteralPath (Join-Path $root 'capabilities.json') -Raw | ConvertFrom-Json -AsHashtable
+    $data.richTextDocumentation.features[0].limits = ''
+    Set-FixtureJson $root 'capabilities.json' $data
+    Assert-True ((Test-DxUiDocs $root).Failures -match 'nonempty single-line').Count 'empty bounds fail'
+    $data.richTextDocumentation.features[0].limits = '16 units'
+    $data.richTextDocumentation.features += $data.richTextDocumentation.features[0].Clone()
+    Set-FixtureJson $root 'capabilities.json' $data
+    Assert-True ((Test-DxUiDocs $root).Failures -match 'Duplicate rich text matrix entry').Count 'duplicate identities fail'
+}
+
+Invoke-FixtureCase 'rich text usage anchor must exist' {
+    param($root)
+    Set-DocsFixture $root
+    $data = Get-Content -LiteralPath (Join-Path $root 'capabilities.json') -Raw | ConvertFrom-Json -AsHashtable
+    $data.richTextDocumentation.features[0].documentation = '#missing-section'
+    Set-FixtureJson $root 'capabilities.json' $data
+    Assert-True ((Test-DxUiDocs $root).Failures -match 'Missing rich text usage anchor').Count 'a missing usage section fails'
 }
 
 Invoke-FixtureCase 'changed gallery bytes fail' {

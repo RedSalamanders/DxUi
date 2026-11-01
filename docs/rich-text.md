@@ -1,5 +1,41 @@
 # Unicode rich text
 
+## Current capabilities
+
+This table describes the available library mechanisms and their limits. Supported
+means the stated bounded mechanism exists; Limited identifies a preview or a
+partial language profile. Neither status supplies current-source build, runtime,
+performance, physical-input or consumer acceptance. Those results retain their
+own source identities in [the evidence archive](../Measurements/RichText/README.md).
+`capabilities.json` owns the table; `validate-specs.ps1` rejects a changed, missing
+or contradictory row. API revision remains 4; pair headers with the exact library.
+
+<!-- rich-text-capabilities:begin -->
+| Feature | Status | Limits | Details |
+| --- | --- | --- | --- |
+| Source and history | Supported | 65,536 UTF-16 units; 128 undo items; exact counted source | [Details](#reusable-preparation-core) |
+| Retained editor | Limited | Native and embedded preview; complete editor acceptance remains open | [Details](#retained-editor-preview-d2c) |
+| Markdown analysis | Limited | Pinned CommonMark/GFM profiles and bounded RichMarkdown extensions | [Details](#owned-lossless-markdown-preparation) |
+| Semantic rendering | Limited | Explicit opt-in; unsupported leaves preserve literal source | [Details](#semantic-rendering-preview-m4d) |
+| Native HTML | Limited | Validated native subset; whole-leaf fallback; no browser or executable HTML | [Details](#semantic-rendering-preview-m4d) |
+| Images | Limited | Caller-owned decoding and bounded raster publication; remote requests default off | [Details](#retained-editor-preview-d2c) |
+| File-reference paste | Supported | Ordered references; document-relative destinations; one undo transaction | [Details](#retained-editor-preview-d2c) |
+| File-reference drop | Limited | App-owned STA adapter; 16 files; 256 KiB medium; guarded prepared caret | [Details](#retained-editor-preview-d2c) |
+| Metadata envelopes | Supported | Leading RichMarkdown YAML/TOML envelope; exact fences and source | [Details](#leading-metadata-envelopes) |
+| Metadata validation | Limited | Single document; YAML 1.2.2 core schema and TOML 1.0.0; bounded capacity | [Details](#leading-metadata-envelopes) |
+| Footnotes | Limited | RichMarkdown references, reordered bodies and source-exact backlinks | [Details](#footnote-rendering-and-navigation-m5b-preview) |
+| In-place source editing | Supported | Scoped leaf or inline math; unchanged source ACPs and document history | [Details](#retained-editor-preview-d2c) |
+| Decorations and search | Limited | 256 decorations; 4,096 mapped rectangles; source-revision retirement | [Details](#editor-presentation) |
+| Link activation | Supported | Caller callback intent; no browser launch; local fragments use source navigation | [Details](#editor-presentation) |
+| Source presentation | Limited | Optional wrapping, prepared line numbers and whitespace; bounded zoom | [Details](#editor-presentation) |
+| Code presentation | Limited | Prepared token spans; Subtle frame and line labels; caller-owned copy transport | [Details](#editor-presentation) |
+| Semantic accessibility | Limited | Source ranges, typed structure and actions; physical AT qualification separate | [Details](#semantic-accessibility-m4f) |
+| Text services | Limited | Native and embedded TSF/IME and UIA adapters; physical IME qualification separate | [Details](#source-text-services-and-accessibility-d2d) |
+| Native mathematics | Limited | Named DxUiMath1 subset; source-preserving per-object fallback | [Details](#native-in-document-mathematics-and-broader-diagrams) |
+| Native Mermaid | Limited | Bounded flowchart, state and class profiles; unsupported syntax remains source | [Details](#native-in-document-mathematics-and-broader-diagrams) |
+| Complete extension conformance | Not supported | Full-language parity is not established by bounded feature or corpus results | [Details](#current-capabilities) |
+<!-- rich-text-capabilities:end -->
+
 ## Editor presentation
 
 For a quieter Markdown document, set `markdownPresentation` to
@@ -59,7 +95,10 @@ underlines on the whole link while its visible glyphs are hovered or its source
 contains the focused caret. `Always` is the default. Explicit `<u>` style and
 high contrast keep persistent underlines. `useAccentLinkColor=true` opts into
 the theme accent ink. This presentation changes neither destinations nor link
-activation policy; ordinary links remain inert. Source mode keeps raw syntax.
+activation policy. Source mode keeps raw syntax. Register `SetOnLinkActivated`
+to receive a source-backed link intent; the application chooses whether and how
+to open it. The library starts no browser or process. Without a handler, external
+links have no Invoke action. Local heading fragments navigate the current source.
 
 Temporary link and source-ink decoration follows the shared
 [transient raster contract](../Specs/Core/Core_PerformanceAndResources.md#transient-raster-decoration).
@@ -80,9 +119,10 @@ interface and query refresh after edits.
 
 `SetDecorations` takes a current source snapshot and up to 256 background,
 underline, squiggle or foreground annotations using accent, subdued, warning or
-error theme roles. Edits retire them; a nonempty setter requires current geometry
-and rejects a replacement over 4096 mapped rectangles before changing state.
-After reflow, inspect `GetDecorationStatus`: `CapacityExceeded` retains the
+error theme roles. Edits retire them. Before geometry is available, the request
+can be accepted with `Pending` status; current geometry rejects a replacement
+over 4096 mapped rectangles before changing state. After reflow, inspect
+`GetDecorationStatus`: `CapacityExceeded` retains the
 request, withholds stale annotation geometry and leaves document painting
 available. A later admissible layout restores it. Selection and annotations are
 staged before Paint. Annotation UIA
@@ -165,9 +205,10 @@ UIA adapters are implemented in both hosts. Real IME/assistive-technology
 qualification, complete semantic Markdown editing and accepted extensions remain
 separate gates in the [active plan](../Specs/Plans/WIP/RichTextEditor_2026-10-17.md).
 The explicit bounded semantic rendering preview is available under M4d below.
-Images currently show atomic alt text. Decoded local image display and pasting
-image paths as displayed Markdown images are accepted work in M5g, including an
-explicit document location and bounded preparation/resource handling:
+Decoded local images use caller-owned image services and bounded native raster
+publication. Alt text remains the source and accessibility alternative, including
+failed or unsupported images. File-reference paste can insert displayed images
+using an explicit document location:
 
 ```markdown
 ![description](relative/path.png)
@@ -677,7 +718,7 @@ INT_MIN/INT_MAX handling and actual signed counts. It adds no C++ heap work or
 mutable index. This command improvement is separate from Default frame timing
 and does not clear the performance hold.
 
-Tests live in Scope.Tests.RichDocument, RichMarkdown and RichTextLayout under
+Tests live in Controls.Tests.RichDocument, RichMarkdown and RichTextLayout under
 [Tests/Controls](../Tests/Controls), registered in EditorControls. They retain the
 prototype's randomized/history/codec/projection/real-DirectWrite scenarios and
 add cross-piece Unicode/CRLF oracles, slice/failure/no-op contracts, font changes,
@@ -689,91 +730,8 @@ plugin ABIs. It adds headers/functions without changing existing declarations,
 so API revision stays 4. Consume an exact clean pin via the normal
 [props/targets](../Build/DxUi.Consumer.targets); no sibling cpp enumeration.
 
-The standalone prototype consumes exact code pin
-302f3783a5d2ef60f201ca3abf508c1158fde039 through an immutable consumer checkout.
-[Core and broader qualification](../Measurements/RichText/README.md)
-records 57 normal suite runs and all six builds. Consumer linkage/ownership and
-application smoke are separate receipts. Performance comparisons remain
-advice-required; the original baseline and both warning reports are retained.
+Historical source-bound runs are retained in [the qualification history](../Measurements/RichText/2026-11-01-usage-history.md). They do not qualify a later source revision.
 
-The [D2c qualification](../Measurements/RichText/README.md)
-retains the native/embedded, sanitizer, build, gallery and timing evidence for
-this bounded preview. Full OS input/accessibility and conformance are separate
-from these passing v0 gates.
-
-The [D2d qualification](../Measurements/RichText/README.md)
-retains the source-adapter protocol/client, history, retirement, geometry and
-constant-size UIA range allocation evidence. It includes 57 ordinary x64 suite
-passes and six builds. Physical IME/AT, rich structural UIA semantics, native
-ARM64 execution and controlled performance acceptance remain open; both diagnostic
-memory-warning reports are retained.
-
-The [source range-command qualification](../Measurements/RichText/README.md)
-records 57 ordinary x64 suite passes, six builds and 41 named rich-text scenarios
-per x64 profile. Native/embedded command semantics and real-client actions/events
-pass. Performance acceptance is on hold after repeated Default clean-frame p95
-warnings; both failed comparisons and the original baseline are retained.
-
-The [controlled Default investigation](../Measurements/RichText/README.md)
-retains 48 interleaved reports and eight CPU/cache profiles. Its paired clean-p95
-effect is -1.31%, with no judged regression; 13 of 24 same-binary controls cross
-the clean-p95 band and all 24 flag some drift. A consistent slowdown and
-non-regression acceptance are both unestablished. Policy qualification,
-rich-editor workload performance and the original historical gates remain open;
-no library source, threshold, baseline or consumer pin changed.
-
-The [clear/readback follow-up](../Measurements/RichText/README.md)
-retains eight fixed processes with timers-off/on and omitted-command controls.
-Blocking Map accounts for about 96.5% of each side's same-p95 full-frame tail;
-controls remain variable and Windows refused scheduler tracing. This identifies
-a wait boundary, without proving GPU duration, scheduler delay or non-regression.
-The canonical workload and all original acceptance gates remain unchanged.
-
-The [indexed-source qualification](../Measurements/RichText/README.md)
-retains its 57 ordinary x64 suite runs, six builds and both boundary-timer
-modes in each x64 profile. The fragmented Unicode oracle and concurrent snapshot
-reads pass; the fixed lookup-trial median moves from 6.5310 to 0.7234 ms in Release.
-That observation is descriptive, with no paired performance acceptance. ARM64
-runtime, full Markdown/extensions, incremental preparation and physical IME/AT
-remain open. No consumer pin or gallery content changed.
-
-The [Unicode 17 qualification](../Measurements/RichText/README.md)
-retains the original corpus/allocation failures, 57 passing ordinary x64 suite
-runs, six attested builds and all pinned generation inputs. Every profile passes
-the 766-vector corpus and native/embedded behavior cases. The 49,152-unit forward
-walk requests no C++ heap storage; oversized UTF-8 rejection also requests zero
-C++ bytes in both tested cases. The refused ARM64 build-input mutation and its
-two successful recovery builds remain separately recorded.
-
-The [character-command qualification](../Measurements/RichText/README.md)
-adds linear, allocation-free bulk movement and complete-grapheme deletion from
-collapsed interior ACP carets. Explicit noncollapsed source selections retain
-their exact semantics. All 57 ordinary x64 suite runs and six builds pass,
-including native/embedded maximal commands, undo/redo and the original Unicode
-corpus at every offset. Embedded records 5,167 checks per profile; maximal command
-queries request zero C++ bytes. Original failures and descriptive timing trials
-are retained. The performance hold, incremental preparation,
-remaining engine and manual acceptance gates continue under the plan.
-
-The [persistent-storage qualification](../Measurements/RichText/README.md)
-retains all original resource failures, the intermediate Debug proxy failure and
-the successful six-profile rerun. All 57 ordinary x64 suite runs pass, with zero
-native skips. The fragmented source and capped history retain about 1.21 MB of
-C++ storage in Release and 1.31 MB in Debug/ASan, below the fixed 4 MiB fixture
-budget; the original vector implementation retained 40.2 MB. Same-content edits
-request zero C++ allocations in every profile. All five failure sweeps preserve
-complete source/selection/revision/history. Borrowed-input tests destroy or mutate
-caller buffers after return and verify that document content survives. Exact observations and descriptive
-edit/read/backward-query timings are in the packet. Incremental/shared
-preparation, full Markdown/extensions and the performance/manual gates stay open.
-
-The [bounded source-change qualification](../Measurements/RichText/README.md)
-retains all 57 ordinary x64 suite successes, six cross/native build profiles,
-original failures and unchanged fixed operation methods. Source-change queries
-allocate zero C++ bytes; localized transient previews retain about 23 KB in the
-fixed 4,096-preview fixture. Numeric metadata has an explicit 188,664-byte history
-fixture cost. These are functional/resource observations. Incremental geometry,
-shared preparation and frame-performance acceptance remain open in the plan.
 The next bounded preparation follow-through removes redundant source correlation
 when trusted snapshot change metadata is already available, and avoids indexing
 discarded old children for a full replacement. Read-spy and parser identity/event
@@ -802,15 +760,9 @@ intact. `Clear()` releases its state and rejects content/mapping queries until
 prepared again. This helper still uses v0 syntax. Its original qualification
 preceded the guarded geometry integration below and provides no shared host
 scheduling. No complete Markdown claim follows.
-The [projection-block qualification](../Measurements/RichText/README.md)
-retains the original reuse and Debug noexcept failures, 57 final native suite
-successes, six builds, allocation/retention observations and unchanged operation
-methods. Snapshot slicing now propagates allocation failure. Valid block mapping
-and unchanged preparation allocate zero C++ bytes. Exact universal retained
-rendering, shared scheduling and complete syntax profiles remain plan gates; the
-descriptive operation improvements do not resolve frame-performance acceptance.
+Historical source-bound runs are retained in [the qualification history](../Measurements/RichText/2026-11-01-usage-history.md). They do not qualify a later source revision.
 
-The retained editor's bounded geometry update is functionally qualified.
+The retained editor prepares bounded geometry updates.
 `PreparedDocumentLayout` joins source-line projections into chunks targeting
 1,024 source units and caps the published document at 128 chunks. Unchanged
 chunks reuse immutable DirectWrite layouts after source edits; source and geometry
@@ -836,70 +788,9 @@ linear in line count. Positioned lines pass all three x64 profiles and ARM64
 cross-builds. The original height/pixel failures stay preserved; no oracle
 or performance threshold is relaxed to accept the new cache.
 
-The [geometry packet](../Measurements/RichText/README.md)
-retains 57 passing ordinary x64 suite runs, six builds, complete observed
-copy/geometry allocation sweeps, 162 exact WARP image pairs and fixed storage
-bounds. The original Debug point-173 noexcept move failure is preserved. The
-earlier native 13-DIP fixture needed whole-layout compatibility: its descriptive
-128-edit median was 53,381.5 ms versus 51,102.6 ms before, with no controlled timing
-acceptance. New affected Release checks avoid whole work in native and embedded
-13-DIP editors. The [positioned-line packet](../Measurements/RichText/README.md)
-adds 324 exact pixel pairs across default/fractional/large-origin profiles, 57
-ordinary x64 suite successes and all six builds. The unchanged five-trial method
-records medians of 145.909 ms initial preparation and 2,166.98 ms for 128 edits,
-versus the original 522.474/51,102.6 ms. These descriptive shared-host observations
-provide no controlled causal speedup, large-document latency or frame acceptance.
-Universal incremental work and shared preparation remain active work.
+Historical source-bound runs are retained in [the qualification history](../Measurements/RichText/2026-11-01-usage-history.md). They do not qualify a later source revision.
 
-The [thread-state follow-up](../Measurements/RichText/README.md)
-preserves four same-binary observer controls and 1,280 clear/readback frames.
-All captures match, but 17–25 ms query p95 cannot resolve 0.45–0.57 ms frame p95;
-none of 35 acquisition brackets fits inside a frame. There is no Map wait-reason
-or scheduler-delay conclusion. The Windows trace-policy refusal and performance
-HOLD remain open. The separate WARP threading diagnostic is explicit:
-
-```powershell
-./performance-profile.ps1 -Configuration Release -SkipBuild -BoundaryTimers On -WarpRasterMode CallingThread -OutputPath .build/reports/warp-calling.json
-```
-
-Use `-WarpRasterMode Default` for a fresh comparison. The v2 report binds requested
-and actual device flags. Omitting this option retains v1. The option requires
-boundary diagnostics; it changes no library/canonical device default. CallingThread
-names the requested SDK raster policy. Device-reported flags do not prove actual
-application-main-thread execution or isolate scheduler latency.
-
-The five repeated native preparation timing trials are now opt-in through
-`test.ps1 -Suites EditorControls -Tests TestRichTextEditorRetainedPreparationFixedTrials`.
-Ordinary reuse/retirement/geometry/input tests remain enabled; the timing body is
-unchanged. Its explicit Release run passes all five trials against the preserved
-binary. The first collector used the ordinary receipt name and failed after the
-native run passed; the filtered receipt/log and all samples were recovered without
-a native rerun. Both the collector failure and recovery remain retained.
-
-The [WARP policy packet](../Measurements/RichText/README.md)
-retains all 57 ordinary x64 successes, six build profiles, six isolated Debug/ASan
-probes, full tooling/format checks, four native CLI refusals and legacy v1 smoke.
-All 11 changed inputs match their frozen start/end hashes. Flat Project passes
-21 allocation points in Release and 29 in Debug/ASan; no flat-helper defect was
-reproduced under this compiler, and its value API remains unchanged.
-
-The fixed Default/CallingThread/CallingThread/Default study preserves 1,280 frames
-and four byte-identical populated captures. First full-work-window p95 is
-0.7756/4.5538/4.6896/0.4622 ms, respectively. Map still accounts for about 99.6%
-of the p95 frame in both CallingThread runs. Requested/actual flags are 32/32
-and 40/40, but the intervention does not isolate application-main-thread work or
-scheduler delay. Selected-image counters also record compiler activity during
-the study; they cannot establish a quiet host or attribute individual frames.
-Keep all windows/outliers and the original HOLD. This is a complex-UI diagnostic,
-not a rich-editor edit-throughput or baseline/candidate acceptance result.
-
-The earlier explicit native preparation trial recorded initial/edit medians of
-683.7/66,413.6 ms on this shared host. Those observations retain the same library
-fingerprint as the prior guarded geometry; no causal speed/regression conclusion
-follows. The later positioned-line record qualifies exact retained placement;
-cooperative preparation and the full Markdown/extension engine remain active work.
-
-Cooperative preparation is implemented and configuration-qualified. The core exposes `BeginPreparation`,
+The cooperative core exposes `BeginPreparation`,
 `AdvancePreparation` and `CancelPreparation`; synchronous `Prepare` drains those
 phases for direct core users. The control uses shared host turns, never an input/
 geometry callback drain. An embedded pending turn returns S_FALSE with
@@ -1330,7 +1221,7 @@ M5 follows the owner's C++-only decision: an explicit limited Mermaid grammar
 will be implemented natively. Unsupported diagrams remain exact editable source;
 no JavaScript or headless-browser helper is deployed.
 
-## Leading metadata envelopes (M5a, in development)
+## Leading metadata envelopes
 
 RichMarkdown analysis now recognizes a leading YAML `---` or TOML `+++` envelope,
 with an optional initial BOM. Fence lines must be exact, without spaces. YAML
@@ -1355,9 +1246,8 @@ Semantic presentation currently keeps this source fully visible as a literal
 fallback, including fences. Ordinary source edits/undo/redo remain available;
 Markdown style/heading/table commands reject metadata targets. Closed TOML
 content is checked against TOML 1.0.0 and reports invalid input or a nesting-
-capacity refusal while preserving the entire source. TOML validation is in
-development and requires profile qualification. YAML 1.2.2 core-schema validation
-is also under development; it distinguishes invalid syntax, duplicate mapping
+capacity refusal while preserving the entire source. YAML 1.2.2 core-schema validation
+distinguishes invalid syntax, duplicate mapping
 keys, unresolved aliases and explicit capacity limits. Conformance-corpus,
 allocation-failure and native profile qualification remain open in M5.
 Earlier envelope and diagnostic transport tests passed in focused Debug/native/
@@ -1404,7 +1294,7 @@ fixtures, exact line/atomic-EOL cases, source edits and observed allocation
 failures. The five themed gallery tiles show numbered/styled bodies and repeated
 backlinks. Keyboard traversal and guarded note-aware structural planning are implemented; final runtime/build profiles remain M5f. This preview does not close metadata, math, diagrams or performance acceptance.
 
-## Native in-document mathematics and broader diagrams (RedTilde continuation)
+## Native in-document mathematics and broader diagrams
 
 RichMarkdown recognizes `$...$`, `$$...$$`, `\(...\)` and `\[...\]` inside ordinary
 inline leaves. Single-dollar math is single-line and requires nonspace content edges;

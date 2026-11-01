@@ -228,8 +228,64 @@ function Test-DxUiDesignSystem([Parameter(Mandatory)][string] $Root) {
     return New-ValidationResult $failures @()
 }
 
+function Test-DxUiRichTextDocumentation([string] $Root, [Collections.Generic.List[string]] $Failures) {
+    try {
+        $capabilities = Read-JsonFile (Join-Path $Root 'capabilities.json') -StripBom
+        $matrix = Get-RequiredJsonValue $capabilities 'richTextDocumentation'
+        if ((Get-RequiredJsonValue $matrix 'schemaVersion') -ne 1) { throw 'Unsupported rich text documentation schema' }
+        $supported = Get-RequiredJsonValue $capabilities 'supported'
+        $pending = Get-RequiredJsonValue $capabilities 'pending'
+        if ($supported -isnot [array] -or $pending -isnot [array]) { throw 'Capability status lists must be arrays' }
+        $identities = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+        $names = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+        $rows = [Collections.Generic.List[string]]::new()
+        $rows.Add('| Feature | Status | Limits | Details |')
+        $rows.Add('| --- | --- | --- | --- |')
+        $guide = Read-TextFile (Join-Path $Root 'docs/rich-text.md') -StripBom
+        $anchors = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+        foreach ($heading in [regex]::Matches((Get-MarkdownProse $guide), '(?m)^#{1,6} (.+)$')) {
+            $slug = ($heading.Groups[1].Value.Trim().ToLowerInvariant() -replace '[^a-z0-9 -]', '') -replace ' ', '-'
+            [void]$anchors.Add('#' + $slug)
+        }
+        $features = Get-RequiredJsonValue $matrix 'features'
+        if ($features -isnot [array] -or -not $features.Count) { throw 'Rich text capability matrix must be a nonempty array' }
+        foreach ($entry in $features) {
+            $id = Get-RequiredJsonValue $entry 'capability'
+            $name = Get-RequiredJsonValue $entry 'feature'
+            $status = Get-RequiredJsonValue $entry 'status'
+            $limits = Get-RequiredJsonValue $entry 'limits'
+            $link = Get-RequiredJsonValue $entry 'documentation'
+            foreach ($value in @($id, $name, $status, $limits, $link)) {
+                if ($value -isnot [string] -or [string]::IsNullOrWhiteSpace($value) -or $value -match '[\r\n|]') {
+                    throw 'Rich text matrix fields must be nonempty single-line strings without table separators'
+                }
+            }
+            if (-not $identities.Add($id) -or -not $names.Add($name)) { throw "Duplicate rich text matrix entry: $id" }
+            $isSupported = $supported -ccontains $id
+            $isPending = $pending -ccontains $id
+            if ($isSupported -eq $isPending) { throw "Rich text capability must occur in exactly one status list: $id" }
+            if ($status -cnotin @('Supported', 'Limited', 'Not supported')) { throw "Invalid rich text matrix status: $status" }
+            if (($status -ceq 'Not supported') -ne $isPending) { throw "Rich text matrix status contradicts capability: $id" }
+            if ($link -cnotmatch '^#[a-z0-9]+(?:-[a-z0-9]+)*$') { throw "Invalid rich text documentation anchor: $link" }
+            if (-not $anchors.Contains($link)) { throw "Missing rich text usage anchor: $link" }
+            $rows.Add("| $name | $status | $limits | [Details]($link) |")
+        }
+        $begin = '<!-- rich-text-capabilities:begin -->'
+        $end = '<!-- rich-text-capabilities:end -->'
+        $sections = [regex]::Matches($guide, [regex]::Escape($begin) + '\n(?<table>[\s\S]*?)\n' + [regex]::Escape($end))
+        if ($sections.Count -ne 1 -or [regex]::Matches($guide, [regex]::Escape($begin)).Count -ne 1 -or
+            [regex]::Matches($guide, [regex]::Escape($end)).Count -ne 1) { throw 'Rich text guide requires one capability matrix section' }
+        if ($sections[0].Groups['table'].Value -cne ($rows -join "`n")) {
+            throw 'Rich text capability table differs from capabilities.json'
+        }
+    } catch {
+        $Failures.Add("Invalid rich text capability documentation: $($_.Exception.Message)")
+    }
+}
+
 function Test-DxUiDocs([Parameter(Mandatory)][string] $Root) {
     $failures = [Collections.Generic.List[string]]::new()
+    Test-DxUiRichTextDocumentation $Root $failures
     try {
         if (-not (Read-TextFile (Join-Path $Root 'README.md') -StripBom).Contains('](docs/README.md)')) {
             $failures.Add('Root README must link docs/README.md')

@@ -52,6 +52,11 @@ repository and do not close SDK acceptance.
 
 ## Functional evidence
 
+[Archived usage-guide qualification notes](2026-11-01-usage-history.md) preserve
+the earlier source-bound prototype, source-storage, geometry and WARP diagnostic
+history moved out of the current usage guide. They retain the original document's
+Git revision and blob identity and provide no new qualification result.
+
 | Source and coverage | Result and limit |
 | --- | --- |
 | Published repair `b689bddd`, tested merge `d146ba4a`, [CI 39587588088](https://github.com/RedSalamanders/DxUi/actions/runs/39587588088) | Five native profiles pass, including x64 Release and ARM64 ASan. ARM64 Debug fails B2 sibling hover before delayed submenu close. All six original ZIPs and logs are retained and replayed: 125/126 zero-skip child exits pass; 124 scopes qualify because its shared lease failed. Eight consumer variants, both resource fixtures and all four support jobs pass separately. Six gallery PNGs match the previous run. The WIP resume checkpoint retains the unproved investigation paths; no further C++ fix exists yet. |

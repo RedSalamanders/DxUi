@@ -27,7 +27,8 @@ Rebuild consumers with the matching pinned headers and library, as for other sou
 Remote HTTP(S) requests require explicit `SetRemoteImagesEnabled(true)`; the
 caller owns network transport, and disabling immediately retires remote pixels
 while retaining local image work. See [image resources](rich-text.md).
-File drag-and-drop remains a [pending specification and native/embedded test plan](../Specs/Plans/WIP/RichTextFileDrop_2026-10-20.md).
+File drag-and-drop uses an application-owned, revocable STA adapter and guarded prepared caret hit testing; its
+[plan](../Specs/Plans/WIP/RichTextFileDrop_2026-10-20.md) retains the remaining qualification obligations.
 
 ScrollPanel forwards secondary clicks to content children at their scrolled coordinates; scrollbar interaction
 uses the primary button. A double-click reaches the child under the pointer as that child's double-click and the
@@ -394,7 +395,7 @@ code/HTML/metadata source in place; Esc/F2/Ctrl+Enter finishes without undoing
 committed edits. Invalid fences stay literal and repairable. Real IME/AT, final extension,
 platform and performance acceptance remain under the active plan.
 
-RichMarkdown also supplies native inline/display mathematics and bounded state/class Mermaid diagrams. See [the exact syntax and limits](rich-text.md#native-in-document-mathematics-and-broader-diagrams-redtilde-continuation). These objects preserve raw source ACPs and the existing document history.
+RichMarkdown also supplies native inline/display mathematics and bounded state/class Mermaid diagrams. See [the exact syntax and limits](rich-text.md#native-in-document-mathematics-and-broader-diagrams). These objects preserve raw source ACPs and the existing document history.
 
 When `SetOnTextChanged` and `SetOnSelectionChanged` are both registered, a committed edit runs the text callback before the corresponding selection callback. This lets consumers update document-derived facts from the committed snapshot before processing its final selection. Selection-only changes keep their immediate selection notification. A non-notifying text-service preview or cancellation notifies when the source revision changes, even at the same ACP; repeating an unchanged source revision and selection remains silent. Transient imports do not invoke the text callback or create history; `SetText` does not invoke the text callback.
 

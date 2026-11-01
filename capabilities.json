@@ -98,6 +98,17 @@
     "bounded-semantic-style-structure-uia-preview",
     "default-disabled-http-image-request-opt-in",
     "bounded-native-inline-display-math-preview",
+    "bounded-native-rich-images",
+    "bounded-footnotes-preview",
+    "bounded-front-matter-envelope",
+    "bounded-yaml-toml-front-matter-validation",
+    "rich-text-file-reference-paste",
+    "bounded-revocable-file-reference-drop",
+    "bounded-semantic-source-region-editing",
+    "bounded-rich-source-decorations-and-search",
+    "caller-owned-rich-link-activation",
+    "bounded-rich-source-gutters-and-horizontal-scroll",
+    "bounded-code-tokenization-and-copy-intent",
     "native-window-host-explicit-warp-policy",
     "bounded-native-mermaid-state-class-preview",
     "control-catalog",
@@ -136,5 +147,31 @@
     "rich-text-markdown-extension-conformance",
     "direct-source-ink-renderer-performance-qualification",
     "av-control"
-  ]
+  ],
+  "richTextDocumentation": {
+    "schemaVersion": 1,
+    "features": [
+      { "capability": "unicode-rich-text-core-v0", "feature": "Source and history", "status": "Supported", "limits": "65,536 UTF-16 units; 128 undo items; exact counted source", "documentation": "#reusable-preparation-core" },
+      { "capability": "retained-rich-text-editor-v0-preview", "feature": "Retained editor", "status": "Limited", "limits": "Native and embedded preview; complete editor acceptance remains open", "documentation": "#retained-editor-preview-d2c" },
+      { "capability": "bounded-markdown-inline-gfm-analysis-preview", "feature": "Markdown analysis", "status": "Limited", "limits": "Pinned CommonMark/GFM profiles and bounded RichMarkdown extensions", "documentation": "#owned-lossless-markdown-preparation" },
+      { "capability": "bounded-retained-semantic-markdown-rendering-preview", "feature": "Semantic rendering", "status": "Limited", "limits": "Explicit opt-in; unsupported leaves preserve literal source", "documentation": "#semantic-rendering-preview-m4d" },
+      { "capability": "bounded-native-html-links-hanging-markers-preview", "feature": "Native HTML", "status": "Limited", "limits": "Validated native subset; whole-leaf fallback; no browser or executable HTML", "documentation": "#semantic-rendering-preview-m4d" },
+      { "capability": "bounded-native-rich-images", "feature": "Images", "status": "Limited", "limits": "Caller-owned decoding and bounded raster publication; remote requests default off", "documentation": "#retained-editor-preview-d2c" },
+      { "capability": "rich-text-file-reference-paste", "feature": "File-reference paste", "status": "Supported", "limits": "Ordered references; document-relative destinations; one undo transaction", "documentation": "#retained-editor-preview-d2c" },
+      { "capability": "bounded-revocable-file-reference-drop", "feature": "File-reference drop", "status": "Limited", "limits": "App-owned STA adapter; 16 files; 256 KiB medium; guarded prepared caret", "documentation": "#retained-editor-preview-d2c" },
+      { "capability": "bounded-front-matter-envelope", "feature": "Metadata envelopes", "status": "Supported", "limits": "Leading RichMarkdown YAML/TOML envelope; exact fences and source", "documentation": "#leading-metadata-envelopes" },
+      { "capability": "bounded-yaml-toml-front-matter-validation", "feature": "Metadata validation", "status": "Limited", "limits": "Single document; YAML 1.2.2 core schema and TOML 1.0.0; bounded capacity", "documentation": "#leading-metadata-envelopes" },
+      { "capability": "bounded-footnotes-preview", "feature": "Footnotes", "status": "Limited", "limits": "RichMarkdown references, reordered bodies and source-exact backlinks", "documentation": "#footnote-rendering-and-navigation-m5b-preview" },
+      { "capability": "bounded-semantic-source-region-editing", "feature": "In-place source editing", "status": "Supported", "limits": "Scoped leaf or inline math; unchanged source ACPs and document history", "documentation": "#retained-editor-preview-d2c" },
+      { "capability": "bounded-rich-source-decorations-and-search", "feature": "Decorations and search", "status": "Limited", "limits": "256 decorations; 4,096 mapped rectangles; source-revision retirement", "documentation": "#editor-presentation" },
+      { "capability": "caller-owned-rich-link-activation", "feature": "Link activation", "status": "Supported", "limits": "Caller callback intent; no browser launch; local fragments use source navigation", "documentation": "#editor-presentation" },
+      { "capability": "bounded-rich-source-gutters-and-horizontal-scroll", "feature": "Source presentation", "status": "Limited", "limits": "Optional wrapping, prepared line numbers and whitespace; bounded zoom", "documentation": "#editor-presentation" },
+      { "capability": "bounded-code-tokenization-and-copy-intent", "feature": "Code presentation", "status": "Limited", "limits": "Prepared token spans; Subtle frame and line labels; caller-owned copy transport", "documentation": "#editor-presentation" },
+      { "capability": "bounded-semantic-style-structure-uia-preview", "feature": "Semantic accessibility", "status": "Limited", "limits": "Source ranges, typed structure and actions; physical AT qualification separate", "documentation": "#semantic-accessibility-m4f" },
+      { "capability": "retained-rich-text-source-tsf-uia-v0", "feature": "Text services", "status": "Limited", "limits": "Native and embedded TSF/IME and UIA adapters; physical IME qualification separate", "documentation": "#source-text-services-and-accessibility-d2d" },
+      { "capability": "bounded-native-inline-display-math-preview", "feature": "Native mathematics", "status": "Limited", "limits": "Named DxUiMath1 subset; source-preserving per-object fallback", "documentation": "#native-in-document-mathematics-and-broader-diagrams" },
+      { "capability": "bounded-native-mermaid-state-class-preview", "feature": "Native Mermaid", "status": "Limited", "limits": "Bounded flowchart, state and class profiles; unsupported syntax remains source", "documentation": "#native-in-document-mathematics-and-broader-diagrams" },
+      { "capability": "rich-text-markdown-extension-conformance", "feature": "Complete extension conformance", "status": "Not supported", "limits": "Full-language parity is not established by bounded feature or corpus results", "documentation": "#current-capabilities" }
+    ]
+  }
 }

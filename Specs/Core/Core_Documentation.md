@@ -1,12 +1,19 @@
 # Documentation and generated gallery
 
 Status: normative current contract
-Last reviewed: 2026-10-21
+Last reviewed: 2026-11-01
 
 `docs/README.md` is the user entrypoint and MUST be linked from the root README. Documentation covers prerequisites,
 exact-pin consumption, both hosting modes, ownership, input, layout/DPI, themes, recovery, every public control,
 performance measurements and testing. Public examples must use supported headers and accurate API names.
 Clearly distinguish implemented library behavior from pending consumer integration and manual validation.
+The current RichText capability table in `docs/rich-text.md` is an exact projection of
+`capabilities.json.richTextDocumentation`. Each unique feature names one supported or pending capability,
+one of Supported/Limited/Not supported, a nonempty bound and a local usage anchor. Pending capabilities use
+Not supported; supported mechanisms use Supported or Limited. These are implementation descriptions, never
+qualification verdicts. `validate-specs.ps1` validates every row through `Test-DxUiDocs`; a missing, extra or
+contradictory row fails. Historical runs and measurements belong in `Measurements/RichText`, with their
+original source and evidence identities, rather than being presented as current-source acceptance in usage docs.
 Samples MUST run independently of application repositories, settings and services, using library-owned synthetic
 models. Application-specific measurement archives belong in their application's repository. DxUi docs describe
 its independent workloads and link to reviewed library receipts under `Measurements/`; never present consumer
