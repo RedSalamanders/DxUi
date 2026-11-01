@@ -99,6 +99,8 @@ void TestRichSemanticNativeObjectSharedContract()
             window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native pending pointer"); });
         RichSemanticEditorTests::ReusedEditorGeometryMatchesFresh(
             window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native geometry parity"); });
+        RichSemanticEditorTests::OverCapacityPaddedCellTyping(
+            window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native over-capacity table"); });
         RichSemanticEditorTests::NativeObjectSourceContract(
             window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare shared native object contract"); });
     });

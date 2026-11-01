@@ -1668,6 +1668,8 @@ __declspec(noinline) static int RunFunctionalTests()
                 view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare embedded pending pointer"); });
             RichSemanticEditorTests::ReusedEditorGeometryMatchesFresh(
                 view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare embedded geometry parity"); });
+            RichSemanticEditorTests::OverCapacityPaddedCellTyping(
+                view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare embedded over-capacity table"); });
 #if DXUI_ENABLE_DIAGNOSTICS
             RichSemanticEditorTests::SelectionCancellationPublication(
                 view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded selection cancellation"); });

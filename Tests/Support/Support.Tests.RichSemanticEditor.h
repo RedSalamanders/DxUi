@@ -81,6 +81,46 @@ template <typename Prepare> void PendingPointerPreservesFocus(ControlHost& host,
           "the same press takes focus after editor geometry is current");
     host.ReleaseMouseCapture();
 }
+template <typename Prepare> void OverCapacityPaddedCellTyping(ControlHost& host, Prepare prepare)
+{
+    std::wstring source = L"a | b\n- | -\n";
+    for (std::size_t row = 0u; row < 258u; ++row)
+        source += L"x\n";
+    auto root    = std::make_unique<RichTextEditor>(source);
+    auto* editor = root.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
+    editor->SetMarkdownRenderingEnabled(true);
+    editor->SetBounds(D2D1::RectF(0.f, 0.f, 480.f, 240.f));
+    host.SetRoot(std::move(root));
+    prepare();
+    const auto syntax = editor->GetMarkdownSyntax();
+    Check(syntax && editor->GetAcknowledgedSemanticDocument(host), "over-capacity table has current semantic geometry");
+    std::vector<std::size_t> cells(0u);
+    for (std::size_t i = 0u; i < syntax->Nodes().size(); ++i)
+        if (syntax->Nodes()[i].block.kind == MarkdownBlockKind::TableCell)
+            cells.push_back(i);
+    Check(cells.size() >= 4u, "over-capacity table retains its padded first body cell");
+    MarkdownCommandRequest request;
+    request.command    = MarkdownCommand::SetTableCell;
+    request.targetCell = cells[3u];
+    request.text       = L"Q";
+    Check(editor->ExecuteMarkdownCommand(request) == MarkdownCommandStatus::Unavailable && editor->GetText() == source,
+          "table planner refuses the over-capacity cell without changing source");
+    const auto header     = editor->TryGetTextInputRangeRects(host, 4u, 5u);
+    const auto bodyOffset = source.find(L"x\n");
+    const auto body       = editor->TryGetTextInputRangeRects(host, bodyOffset, bodyOffset + 1u);
+    Check(header && body && ! header->empty() && ! body->empty(), "table header and first body row have visible geometry");
+    const D2D1_POINT_2F point{(header->front().left + header->front().right) * .5f, (body->front().top + body->front().bottom) * .5f};
+    Check(point.x > body->front().right, "pointer targets the second column beyond the first cell text");
+    Check(editor->OnMouseDown(host, point, false, 0u), "pointer reaches the padded body cell");
+    const auto caret = editor->GetSelection().caret;
+    Check(caret == bodyOffset + 1u, "padded cell retains its exact row-end source boundary");
+    host.ReleaseMouseCapture();
+    auto expected = source;
+    expected.insert(caret, L"Q");
+    Check(editor->OnChar(host, L'Q', 0u) && editor->GetText() == expected, "typing in an over-capacity padded cell falls back to exact source insertion");
+    Check(editor->Undo() && editor->GetText() == source, "over-capacity insertion is one reversible source edit");
+}
 template <typename Prepare> void ReusedEditorGeometryMatchesFresh(ControlHost& host, Prepare prepare)
 {
     std::wstring source;
