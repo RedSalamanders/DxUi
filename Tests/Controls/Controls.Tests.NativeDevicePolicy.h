@@ -60,6 +60,17 @@ inline void TestWindowHostExplicitWarpPolicyRejectsConflictsAndSurvivesDeviceLos
             Require(isSoftware(peer.Host()) && peer.Host().GetResourceGeneration() != generation,
                     "device replacement advances the resource generation and retains WARP");
             Require(isSoftware(defaultOwner.Host()), "peer recovers coherently on the same WARP pool");
+            for (unsigned stage : {1u, 2u, 3u})
+            {
+                peer.Host().DebugSimulateDeviceLoss();
+                peer.Host().DebugSetNextSizeResourceFailureForTest(stage, DXGI_ERROR_DEVICE_REMOVED);
+                Require(! peer.Host().RenderInitialFrameForShow() && ! peer.Host().DebugHasD2DContext(),
+                        "injected size-resource device removal discards the device instead of retaining a broken one");
+                const auto failureGeneration = peer.Host().GetResourceGeneration();
+                Require(isSoftware(peer.Host()) && peer.Host().GetResourceGeneration() != failureGeneration,
+                        "a later frame recreates the failed stage on a fresh WARP generation");
+                Require(isSoftware(defaultOwner.Host()), "the shared peer follows each replaced device generation");
+            }
             peer.Host().Detach();
             defaultOwner.Host().Detach();
             Require(DxUi::DebugGetSharedWindowHostAttachmentCountForThread(GetCurrentThreadId()) == original,

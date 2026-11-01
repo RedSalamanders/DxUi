@@ -5977,6 +5977,8 @@ public:
     void DebugSetAnimationClockForTest(std::optional<uint64_t> nowTickMs) noexcept;
     [[nodiscard]] IRawElementProviderFragmentRoot* DebugCreateAccessibilityProvider() const noexcept;
     void DebugSimulateDeviceLoss() noexcept;
+    // Stage 1 = swap-chain creation, 2 = back buffer, 3 = target bitmap.
+    void DebugSetNextSizeResourceFailureForTest(unsigned stage, HRESULT failure) noexcept;
     [[nodiscard]] size_t DebugGetBrushCacheSize() const noexcept;
     [[nodiscard]] bool DebugHasFallbackBrush() const noexcept;
     [[nodiscard]] bool DebugHasD2DContext() const noexcept;
@@ -6344,6 +6346,8 @@ private:
     uint64_t _debugReactivationAnnouncementCount                = 0u;
     mutable uint64_t _debugRenderCount                          = 0u;
     mutable uint64_t _debugResizeCount                          = 0u;
+    unsigned _debugSizeResourceFailureStage                     = 0u;
+    HRESULT _debugSizeResourceFailure                           = S_OK;
     mutable uint64_t _debugResizeFailureCount                   = 0u;
     mutable uint64_t _debugSwapChainPrepareD2DFlushFailureCount = 0u;
     mutable uint64_t _debugPresentFailureCount                  = 0u;

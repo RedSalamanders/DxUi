@@ -1034,3 +1034,5 @@ admitted style runs. This optimization retains no additional layout or brush;
 pixel/geometry/copy regressions and measured CPU/memory evidence remain separate.
 
 A paused ProgressBar contributes no animation continuation and keeps its current indeterminate phase. Pausing and resuming use one retained boolean and reset the tick seed; elapsed paused time is not replayed as catch-up work. A host may continue animation for other controls. Regression coverage must observe idle pause, active-to-paused phase preservation and resume without a phase jump, with enabled/indeterminate state unchanged.
+
+Native swap-chain creation, back-buffer retrieval, and target-bitmap creation route device-loss HRESULTs through the same shared-generation retirement and full-repaint recovery as presentation failures. Unrelated preparation failures preserve their existing retry policy.

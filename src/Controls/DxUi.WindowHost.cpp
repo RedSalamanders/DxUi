@@ -2930,6 +2930,11 @@ IRawElementProviderFragmentRoot* ControlHost::DebugCreateAccessibilityProvider()
     return _hwnd ? CreateWindowHostAccessibilityProvider(_hwnd) : nullptr;
 }
 
+void ControlHost::DebugSetNextSizeResourceFailureForTest(unsigned stage, HRESULT failure) noexcept
+{
+    _debugSizeResourceFailureStage = stage;
+    _debugSizeResourceFailure      = failure;
+}
 void ControlHost::DebugSimulateDeviceLoss() noexcept
 {
     DiscardSizeDependentResources(L"debug-simulate-device-loss");
@@ -4213,6 +4218,29 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
         return false;
     }
 
+    const auto recoverDeviceLoss = [&](HRESULT failure) noexcept
+    {
+        if (! IsDeviceLossHResult(failure))
+            return;
+        DiscardSizeDependentResources(L"size-resource-device-lost");
+        DiscardDeviceResources();
+        ResetSharedWindowHostGraphicsResources();
+        _forceFullPresentAfterBufferReset = true;
+        Invalidate();
+    };
+    const auto injected = [&](unsigned stage, HRESULT actual) noexcept
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        if (_debugSizeResourceFailureStage == stage)
+        {
+            _debugSizeResourceFailureStage = 0u;
+            return _debugSizeResourceFailure;
+        }
+#else
+        static_cast<void>(stage);
+#endif
+        return actual;
+    };
     if (! _swapChain)
     {
         SharedWindowHostGraphicsResources& shared = GetSharedWindowHostGraphicsResources();
@@ -4284,11 +4312,13 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
         {
             hrSwapChain = shared.dxgiFactory->CreateSwapChainForHwnd(_d3dDevice.get(), _hwnd, &desc, nullptr, nullptr, _swapChain.addressof());
         }
+        hrSwapChain = injected(1u, hrSwapChain);
         if (FAILED(hrSwapChain) || ! _swapChain)
         {
             Debug::Error(L"DxUi::ControlHost: {} failed: 0x{:08X}",
                          _presentationMode == PresentationMode::CompositionSwapChain ? L"CreateSwapChainForComposition" : L"CreateSwapChainForHwnd",
                          hrSwapChain);
+            recoverDeviceLoss(hrSwapChain);
             return false;
         }
 
@@ -4311,10 +4341,11 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
     const auto createTargetBitmap = [&]() noexcept
     {
         wil::com_ptr<IDXGISurface> surface;
-        const HRESULT hrBuffer = _swapChain->GetBuffer(0u, IID_PPV_ARGS(surface.addressof()));
+        const HRESULT hrBuffer = injected(2u, _swapChain->GetBuffer(0u, IID_PPV_ARGS(surface.addressof())));
         if (FAILED(hrBuffer) || ! surface)
         {
             Debug::Error(L"DxUi::ControlHost: IDXGISwapChain1::GetBuffer failed: 0x{:08X}", hrBuffer);
+            recoverDeviceLoss(hrBuffer);
             return false;
         }
         const D2D1_BITMAP_PROPERTIES1 props = D2D1::BitmapProperties1(
@@ -4323,10 +4354,11 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
                               _presentationMode == PresentationMode::CompositionSwapChain ? D2D1_ALPHA_MODE_PREMULTIPLIED : D2D1_ALPHA_MODE_IGNORE),
             static_cast<float>(_dpi),
             static_cast<float>(_dpi));
-        const HRESULT hrBitmap = _d2dContext->CreateBitmapFromDxgiSurface(surface.get(), &props, _targetBitmap.addressof());
+        const HRESULT hrBitmap = injected(3u, _d2dContext->CreateBitmapFromDxgiSurface(surface.get(), &props, _targetBitmap.addressof()));
         if (FAILED(hrBitmap) || ! _targetBitmap)
         {
             Debug::Error(L"DxUi::ControlHost: CreateBitmapFromDxgiSurface failed: 0x{:08X}", hrBitmap);
+            recoverDeviceLoss(hrBitmap);
             return false;
         }
         _d2dContext->SetTarget(_targetBitmap.get());
