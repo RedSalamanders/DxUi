@@ -214,8 +214,10 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
     {
         if (node.label.size() > NativeFlowchartParser::MaximumLabelUnits || node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Note ||
             node.groupMask >= (1u << graph->groups.size()) ||
-            (node.shape == FlowchartShape::Note && (graph->family != NativeDiagramFamily::State || node.noteTarget >= graph->nodes.size() ||
-                                                    graph->nodes[node.noteTarget].shape == FlowchartShape::Note)))
+            (node.shape == FlowchartShape::Note &&
+             ((graph->family != NativeDiagramFamily::State && graph->family != NativeDiagramFamily::Class) ||
+              (node.noteTarget == MarkdownNoNode ? graph->family != NativeDiagramFamily::Class
+                                                : node.noteTarget >= graph->nodes.size() || graph->nodes[node.noteTarget].shape == FlowchartShape::Note))))
             throw std::invalid_argument("Invalid flowchart node label/shape");
         if (node.compartmentCount > node.compartmentStarts.size() || (node.compartmentCount && graph->family != NativeDiagramFamily::Class))
             throw std::invalid_argument("Invalid class compartment count");

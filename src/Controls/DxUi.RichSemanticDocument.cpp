@@ -794,7 +794,11 @@ struct SemanticBuilder::Preparation
             }
             const auto index = work.cursor++;
             if (graph.nodes[index].shape == Detail::FlowchartShape::Note)
+            {
+                if (graph.nodes[index].noteTarget == MarkdownNoNode)
+                    DiagramAlternative({L"Note: ", graph.nodes[index].label, L"; "});
                 return;
+            }
             DiagramAlternative({id(index), L" = ", graph.nodes[index].label, L"; "});
             return;
         }

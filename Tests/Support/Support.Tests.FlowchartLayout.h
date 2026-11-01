@@ -118,6 +118,24 @@ template <typename Check> inline void Geometry(Check&& check)
               relations->edges[1u].relation == FlowchartRelation::Arrow && relations->edges[1u].hasArrow &&
               relations->edges[2u].relation == FlowchartRelation::Line && ! relations->edges[2u].hasArrow,
           "class inheritance, directed association and plain association retain distinct edge kinds through layout");
+    const auto standaloneNote = Graph(L"classDiagram\nnote \"A standalone note\"\n");
+    const auto standalonePlan = Place(standaloneNote, check);
+    check(standaloneNote->nodes.size() == 1u && standaloneNote->nodes[0].shape == FlowchartShape::Note &&
+              standaloneNote->nodes[0].noteTarget == MarkdownNoNode && standaloneNote->nodes[0].label == L"A standalone note" &&
+              standalonePlan->issue == FlowchartLayoutIssue::None && standalonePlan->nodes.size() == 1u,
+          "standalone class notes retain their label and native note geometry");
+    const auto attachedNote = Graph(L"classDiagram\nclass A\nnote for A \"Attached note\"\n");
+    const auto attachedPlan = Place(attachedNote, check);
+    check(attachedNote->nodes.size() == 2u && attachedNote->nodes[1].shape == FlowchartShape::Note && attachedNote->nodes[1].noteTarget == 0u &&
+              attachedNote->edges.size() == 1u && attachedNote->edges[0].relation == FlowchartRelation::Note &&
+              attachedPlan->issue == FlowchartLayoutIssue::None && attachedPlan->edges.size() == 1u,
+          "attached class notes retain their target, dotted relation and native geometry");
+    for (const auto source : {L"classDiagram\nnote \"unclosed\n", L"classDiagram\nnote for A \"\"\n", L"classDiagram\nnote \"x\" trailing\n"})
+    {
+        const auto rejected = Graph(source);
+        check(rejected->outcome != FlowchartOutcome::Prepared && rejected->source == source && rejected->nodes.empty() && rejected->edges.empty(),
+              "malformed class notes retain exact source without partial graph publication");
+    }
     const auto shapes = Place(Graph(L"graph TD;A[box];B(round);C((circle));D{diamond}"), check);
     check(Near(shapes->nodes[0u].bounds.width, 40.0) && Near(shapes->nodes[1u].bounds.width, 40.0) && Near(shapes->nodes[2u].bounds.width, std::sqrt(2624.0)) &&
               Near(shapes->nodes[2u].bounds.height, std::sqrt(2624.0)) && Near(shapes->nodes[3u].bounds.width, 80.0) &&

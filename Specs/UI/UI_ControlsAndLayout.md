@@ -2225,6 +2225,9 @@ colon members and bounded multiline `class Name { ... }` member blocks, directed
 One alphabetic `<<annotation>>` per existing class is accepted on a separate line
 or inside its block and displayed as `«annotation»` above the class name; repeated,
 nonalphabetic or undefined-class annotations retain source.
+Class diagrams also accept `note "text"` and `note for Name "text"` with
+bounded quoted plain text. Standalone notes occupy their own node; attached notes
+use a dotted connection and expose their target and text in the graph alternative.
 State/class layouts use the deterministic native graph router; members are plain
 multiline node labels. Inheritance uses the native triangle arrow. This is not
 Mermaid coordinate compatibility. Advanced composite-state syntax, class namespaces/generics,

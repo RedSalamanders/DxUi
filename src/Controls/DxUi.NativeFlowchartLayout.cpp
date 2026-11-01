@@ -447,7 +447,7 @@ struct NativeFlowchartLayout::Preparation
         }
         const auto index   = cursor++;
         const auto& source = graph->nodes[index];
-        if (source.shape != FlowchartShape::Note)
+        if (source.shape != FlowchartShape::Note || source.noteTarget == MarkdownNoNode)
             return;
         auto& note         = plan->nodes[index];
         const auto& target = plan->nodes[source.noteTarget];
@@ -812,8 +812,10 @@ void NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> graph,
         throw std::invalid_argument("Invalid flowchart layout direction");
     for (const auto& node : graph->nodes)
         if (node.shape < FlowchartShape::Rectangle || node.shape > FlowchartShape::Note ||
-            (node.shape == FlowchartShape::Note && (graph->family != NativeDiagramFamily::State || node.noteTarget >= graph->nodes.size() ||
-                                                    graph->nodes[node.noteTarget].shape == FlowchartShape::Note)))
+            (node.shape == FlowchartShape::Note &&
+             ((graph->family != NativeDiagramFamily::State && graph->family != NativeDiagramFamily::Class) ||
+              (node.noteTarget == MarkdownNoNode ? graph->family != NativeDiagramFamily::Class
+                                                : node.noteTarget >= graph->nodes.size() || graph->nodes[node.noteTarget].shape == FlowchartShape::Note))))
             throw std::invalid_argument("Invalid flowchart layout shape");
     for (const auto& edge : graph->edges)
         if (edge.from >= graph->nodes.size() || edge.to >= graph->nodes.size() || edge.minimumRanks == 0u ||

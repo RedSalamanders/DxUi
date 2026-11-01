@@ -688,6 +688,45 @@ struct NativeFlowchartParser::Preparation
                 return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
             return ClassAnnotation(node, start, close + 2u);
         }
+        if (model->family == NativeDiagramFamily::Class && statement.starts_with(L"note "))
+        {
+            const auto start = at;
+            at += 5u;
+            std::size_t target = MarkdownNoNode;
+            if (Text().substr(at, 4u) == L"for ")
+            {
+                at += 4u;
+                if (! Node(at, end, target)) return false;
+                Skip(at, end);
+            }
+            if (at == end || Text()[at++] != L'"')
+                return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+            const auto labelStart = at;
+            while (at < end && Text()[at] != L'"')
+            {
+                if (Text()[at] == L'\\' && at + 1u < end) ++at;
+                ++at;
+            }
+            if (at == end) return Error(FlowchartIssue::MissingLabelClose, labelStart, at);
+            std::wstring text(0u, L' ');
+            auto textAt = labelStart;
+            if (! PlainText(textAt, at, text, false, true)) return false;
+            ++at;
+            Skip(at, end);
+            if (at != end || text.empty()) return Error(FlowchartIssue::UnsupportedStatement, start, end, FlowchartOutcome::Unsupported);
+            if (target != MarkdownNoNode) return AddStateNote(target, true, start, end, text);
+            if (model->nodes.size() == MaximumNodes) return Error(FlowchartIssue::NodeCapacity, start, end, FlowchartOutcome::Capacity);
+            FlowchartNode note;
+            note.key.assign(L"@note");
+            note.key.append(std::to_wstring(model->nodes.size()));
+            note.identifier = {start, start + 4u};
+            note.declaration = {start, end};
+            note.shape = FlowchartShape::Note;
+            note.noteTarget = MarkdownNoNode;
+            note.label.swap(text);
+            model->nodes.push_back(std::move(note));
+            return true;
+        }
         if (model->family == NativeDiagramFamily::State && statement.starts_with(L"state") && statement.size() > 5u && Space(statement[5u]) &&
             statement.ends_with(L"{"))
         {

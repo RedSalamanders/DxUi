@@ -706,10 +706,13 @@ template <typename Check> inline void StateNoteRaster(Check&& check)
     THROW_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(imaging.put())));
     for (const auto direction : {L"TD", L"BT", L"LR", L"RL"})
         for (const bool left : {false, true})
+          for (const bool classNote : {false, true})
         {
-            const auto source = std::wstring(L"stateDiagram-v2\ndirection ") + direction + L"\nS\n" +
-                                (left ? L"note left of S\nhello\nworld\nend note\n" : L"note right of S: hello\n");
-            const auto graph  = FlowchartLayoutTests::Graph(source);
+            if (classNote && ! left) continue;
+            const auto source = classNote ? std::wstring(L"classDiagram\ndirection ") + direction + L"\nclass S\nnote for S \"hello\"\n"
+                                          : std::wstring(L"stateDiagram-v2\ndirection ") + direction + L"\nS\n" +
+                                                (left ? L"note left of S\nhello\nworld\nend note\n" : L"note right of S: hello\n");
+            const auto graph = FlowchartLayoutTests::Graph(source);
             PreparedFlowchart prepared;
             prepared.Begin(write.get(), drawing.get(), graph, {}, {1u, 1u});
             Complete(prepared, check);
@@ -749,6 +752,40 @@ template <typename Check> inline void StateNoteRaster(Check&& check)
                 }
             check(ink != 0u, "state note contains visible text ink");
         }
+    const auto standalone = FlowchartLayoutTests::Graph(L"classDiagram\nnote \"Visible standalone note\"\n");
+    PreparedFlowchart note;
+    note.Begin(write.get(), drawing.get(), standalone, {}, {1u, 1u});
+    Complete(note, check);
+    check(note.Ready() && note.Geometry() && note.Geometry()->nodes.size() == 1u && note.Geometry()->edges.empty(),
+          "standalone class note prepares without an attachment");
+    if (note.Ready())
+    {
+        constexpr UINT width = 400u, height = 200u, stride = width * 4u;
+        wil::com_ptr<IWICBitmap> bitmap;
+        THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+        wil::com_ptr<ID2D1RenderTarget> target;
+        const auto properties = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
+                                                               D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+        THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(bitmap.get(), properties, target.put()));
+        wil::com_ptr<ID2D1SolidColorBrush> brush, fill;
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), brush.put()));
+        THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), fill.put()));
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        check(note.Draw(target.get(), brush.get(), brush.get(), fill.get(), {}), "standalone class note paints");
+        THROW_IF_FAILED(target->EndDraw());
+        std::vector<BYTE> pixels(stride * height);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+        const auto label = note.Geometry()->nodes[0].label;
+        std::size_t ink{};
+        for (UINT y = static_cast<UINT>(label.y); y < std::min(height, static_cast<UINT>(std::ceil(label.y + label.height))); ++y)
+            for (UINT x = static_cast<UINT>(label.x); x < std::min(width, static_cast<UINT>(std::ceil(label.x + label.width))); ++x)
+            {
+                const auto offset = static_cast<std::size_t>(y) * stride + x * 4u;
+                ink += pixels[offset] < 80u && pixels[offset + 1u] < 80u && pixels[offset + 2u] < 80u;
+            }
+        check(ink != 0u, "standalone class note contains visible text ink");
+    }
     const auto crowded = FlowchartLayoutTests::Graph(L"stateDiagram-v2\nS\nnote right of S: one\nnote right of S: two\n");
     PreparedFlowchart rejected;
     rejected.Begin(write.get(), drawing.get(), crowded, {}, {1u, 1u});

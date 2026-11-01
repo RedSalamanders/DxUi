@@ -805,6 +805,15 @@ void TestRichSemanticNativeMathematicsAndBroaderMermaid()
         RichSemanticDocumentTests::CheckGraph(*semantic);
         Require(std::ranges::count(semantic->Elements(), SemanticRole::Diagram, &SemanticElement::role) == 1, "broader models become native diagram objects");
     }
+    for (const auto& [body, expected] : {std::pair{L"classDiagram\nnote \"Standalone note\"\n", L"Note: Standalone note"},
+                                         std::pair{L"classDiagram\nclass A\nnote for A \"Attached note\"\n", L"A note: Attached note"}})
+    {
+        const auto sourceWithNote = L"```mermaid\n" + std::wstring(body) + L"```\n";
+        const auto semantic = RichSemanticDocumentTests::Build(sourceWithNote, MarkdownProfile::RichMarkdown);
+        const auto diagram = std::ranges::find(semantic->Elements(), SemanticRole::Diagram, &SemanticElement::role);
+        Require(semantic->Map().Source() == sourceWithNote && diagram != semantic->Elements().end() && diagram->name.find(expected) != std::wstring::npos,
+                "class notes preserve exact source and expose their content in the diagram alternative");
+    }
 }
 void TestRichSemanticDocumentStructuralStyleValues()
 {
