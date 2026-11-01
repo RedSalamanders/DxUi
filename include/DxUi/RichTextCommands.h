@@ -26,7 +26,8 @@ enum class MarkdownCommand
     PreviousTableCell,
     SetQuote,
     SetCodeBlock,
-    SetCodeLanguage
+    SetCodeLanguage,
+    InsertHardBreak
 };
 enum class MarkdownQuoteAction
 {

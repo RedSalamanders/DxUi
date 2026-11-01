@@ -335,6 +335,11 @@ template <typename Prepare> void StructuralCommands(ControlHost& host, Prepare&&
     Check(editor->OnChar(host, L'\r', 0u) && editor->GetText() == L"- item\n- \n", "semantic Enter continues list through ControlHost input");
     Check(editor->Undo(), "keyboard list continuation is undoable");
     prepare();
+    editor->SetText(L"hello\n");
+    prepare();
+    editor->SetSelection({2u, 2u});
+    Check(editor->OnChar(host, L'\r', MK_SHIFT) && editor->GetText() == L"he  \nllo\n" && editor->Undo(),
+          "Shift+Enter inserts an undoable semantic hard break");
     editor->SetText(L"word");
     prepare();
     editor->SetSelection({4u, 0u});

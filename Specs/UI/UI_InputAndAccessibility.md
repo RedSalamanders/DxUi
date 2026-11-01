@@ -1172,7 +1172,9 @@ TryReadNativeTextInputState returning false leaves its output unspecified; calle
 MUST ignore it. Its allocation-failure path MUST NOT construct a new aggregate.
 Hardware Enter falls back to the document's first CR, LF or CRLF spelling if no
 current structural plan is available; a document without an EOL uses CRLF.
-Source view and Shift+Enter use this same single undoable raw insertion policy.
+In supported semantic paragraphs Shift+Enter inserts a Markdown hard-break
+marker and retains quote/list continuation prefixes. Source view and unavailable
+structural cases use the same document-EOL raw insertion policy.
 
 In semantic Rich view Ctrl+B/I toggle Markdown styles and Ctrl+Enter toggles
 tasks. Enter continues/exits lists or inserts table rows. Tab/Shift+Tab first

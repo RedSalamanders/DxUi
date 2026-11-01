@@ -841,6 +841,7 @@ struct MarkdownCommandPlanner
     void SetList(const MarkdownCommandRequest& request);
     void Quote(MarkdownQuoteAction action);
     void CodeBlock(const MarkdownCommandRequest& request);
+    void HardBreak();
     void Join(bool backwards);
     void Style(MarkdownTextStyle style);
     void Link(const MarkdownCommandRequest& request, bool remove);
@@ -1277,6 +1278,50 @@ void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
         Add(finish, finish, closing);
     }
     plan.applicable_ = true;
+}
+
+void MarkdownCommandPlanner::HardBreak()
+{
+    if (plan.before_.Start() != plan.before_.End())
+        return;
+    const auto caret = plan.before_.caret;
+    const auto leaf  = LeafAt(caret);
+    if (leaf == MarkdownNoNode || nodes[leaf].block.kind != Kind::Paragraph)
+        return;
+    for (const auto range : opaqueInlines)
+        if (range.first < caret && caret < range.last)
+            return;
+    const auto& line = Line(caret);
+    std::size_t at{};
+    if (caret > line.bodyEnd || ! OuterOffset(leaf, line, at) || caret < at)
+        return;
+    std::wstring prefix(Slice(line.first, at));
+    if (const auto item = Ancestor(leaf, Kind::ListItem); item != MarkdownNoNode)
+    {
+        if (ParentItem(item) != MarkdownNoNode)
+            return;
+        const auto quote = NodeAt(Kind::BlockQuote, caret);
+        if (quote != MarkdownNoNode && Ancestor(quote, Kind::ListItem) == item)
+            return;
+        ItemPrefix marker;
+        if (! Prefix(item, marker))
+            return;
+        if (Line(nodes[item].block.source.first).first == line.first)
+        {
+            const auto before = Columns(Slice(line.first, marker.first));
+            const auto width  = Columns(Slice(marker.first, marker.content), before) - before;
+            prefix.assign(Slice(line.first, marker.first));
+            prefix.append(width, L' ');
+            prefix += Slice(marker.content, at);
+        }
+    }
+    std::wstring insertion(L"  ");
+    insertion += Eol(line);
+    insertion += prefix;
+    Add(caret, caret, insertion);
+    plan.after_       = {caret + insertion.size(), caret + insertion.size()};
+    explicitSelection = true;
+    plan.applicable_  = true;
 }
 
 void MarkdownCommandPlanner::SetList(const MarkdownCommandRequest& request)
@@ -2576,7 +2621,7 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
 {
     if (request.text.size() > Document::MaximumUnits || request.destination.size() > Document::MaximumUnits || request.title.size() > Document::MaximumUnits)
         throw std::length_error("Structural request text exceeds source capacity");
-    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::SetCodeLanguage))
+    if (static_cast<unsigned>(request.command) > static_cast<unsigned>(MarkdownCommand::InsertHardBreak))
         throw std::invalid_argument("Invalid Markdown command");
     Detail::MarkdownCommandPlanner builder(source, revision, std::move(syntax), selection);
     // Resolved definitions own editable content, while the label and
@@ -2611,6 +2656,7 @@ MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,
         case MarkdownCommand::SetQuote: builder.Quote(request.quoteAction); break;
         case MarkdownCommand::SetCodeBlock:
         case MarkdownCommand::SetCodeLanguage: builder.CodeBlock(request); break;
+        case MarkdownCommand::InsertHardBreak: builder.HardBreak(); break;
         case MarkdownCommand::InsertTable:
         case MarkdownCommand::InsertTableRow:
         case MarkdownCommand::DeleteTableRow:

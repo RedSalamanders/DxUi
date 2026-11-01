@@ -3185,11 +3185,12 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
             _state->pendingLeadSurrogate = 0;
             if (character == L'\r')
             {
-                if (! _state->sourceEditing && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich && ! ModifiersContainShift(modifiers))
+                if (! _state->sourceEditing && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich)
                 {
                     RichText::MarkdownCommandRequest request;
-                    request.command = RichText::MarkdownCommand::InsertParagraph;
-                    if (LayoutIsCurrent(host))
+                    request.command =
+                        ModifiersContainShift(modifiers) ? RichText::MarkdownCommand::InsertHardBreak : RichText::MarkdownCommand::InsertParagraph;
+                    if (! ModifiersContainShift(modifiers) && LayoutIsCurrent(host))
                         if (const auto* geometry = _state->layout.SemanticGeometry())
                         {
                             const auto node = geometry->SourceSyntaxNode(GetSelection().caret, _state->sourceCaretSite);

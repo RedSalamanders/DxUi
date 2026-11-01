@@ -1,0 +1,1 @@
+- Add semantic Shift+Enter hard-break insertion for supported paragraphs, quote prefixes and list items; native qualification and deeply nested container continuation remain pending.
