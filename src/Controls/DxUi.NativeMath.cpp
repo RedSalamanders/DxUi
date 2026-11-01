@@ -403,7 +403,7 @@ class Parser
                                    L"gather*",
                                    L"equation",
                                    L"equation*",
-                                   L"array", L"darray", L"subarray", L"alignat", L"alignat*", L"matrix*", L"pmatrix*", L"bmatrix*", L"Bmatrix*", L"vmatrix*", L"Vmatrix*"};
+                                   L"array", L"darray", L"subarray", L"alignat", L"alignat*", L"alignedat", L"matrix*", L"pmatrix*", L"bmatrix*", L"Bmatrix*", L"vmatrix*", L"Vmatrix*"};
         if (std::ranges::find(names, environment) == names.end())
             Reject(MathIssue::UnsupportedEnvironment);
         const wchar_t matrixAlignment = MatrixAlignment(environment);
@@ -423,7 +423,7 @@ class Parser
             columnSpec = alignment;
             declaredColumns = 1u;
         }
-        else if (environment == L"alignat" || environment == L"alignat*")
+        else if (environment == L"alignat" || environment == L"alignat*" || environment == L"alignedat")
         {
             const auto argument = GroupText();
             unsigned pairs{};
@@ -474,7 +474,7 @@ class Parser
             }
             else if (environment == L"align" || environment == L"align*" || environment == L"split")
                 environment = L"aligned";
-            else if (environment == L"alignat*")
+            else if (environment == L"alignat*" || environment == L"alignedat")
                 environment = L"alignat";
             else if (environment == L"subarray")
                 environment = L"subarray:" + columnSpec;

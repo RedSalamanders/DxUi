@@ -1158,6 +1158,21 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         check(! ParseMath(L"\\begin{darray}{z}a\\end{darray}"), "invalid darray columns retain source");
     }
 #endif
+#if DXUI_ENABLE_DIAGNOSTICS
+    {
+        const auto alignedat = std::make_shared<const MathExpression>(ParseMath(L"\\begin{alignedat}{2}a&b&c&d\\end{alignedat}"));
+        const auto alignat = std::make_shared<const MathExpression>(ParseMath(L"\\begin{alignat}{2}a&b&c&d\\end{alignat}"));
+        check(static_cast<bool>(*alignedat) && static_cast<bool>(*alignat), "alignedat accepts bounded explicit column pairs");
+        Detail::PreparedMath embedded(factory, alignedat, 24.f);
+        Detail::PreparedMath display(factory, alignat, 24.f);
+        while (! embedded.Advance()) {}
+        while (! display.Advance()) {}
+        check(std::abs(embedded.Size().width - display.Size().width) < .01f && embedded.GlyphLayouts().size() == 4u,
+              "alignedat shares explicit no-gap pair geometry");
+        check(! ParseMath(L"\\begin{alignedat}{0}a\\end{alignedat}") && ! ParseMath(L"\\begin{alignedat}{1}a&b&c\\end{alignedat}"),
+              "invalid alignedat pair bounds retain source");
+    }
+#endif
     for (const auto source : {L"\\begin{matrix}a\\\\[-1pt]b\\end{matrix}", L"\\substack{a\\\\[65pt]b}",
                               L"\\begin{matrix}a\\\\[bogus]b\\end{matrix}", L"\\substack{a\\\\[2ptb}"})
         check(! ParseMath(source), "invalid row-spacing dimensions retain complete source");
