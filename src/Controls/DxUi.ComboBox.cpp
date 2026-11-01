@@ -2449,7 +2449,7 @@ void ComboBox::OpenPopup(ControlHost& host) noexcept
 bool ComboBox::RequestPopup(ControlHost& host)
 {
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
-    ControlHost* const originalHost = GetHost();
+    ControlHost* const originalHost   = GetHost();
     auto onPopupRequested             = _onPopupRequested;
     const bool handled                = onPopupRequested && (*onPopupRequested)();
     onPopupRequested.reset();
@@ -2739,7 +2739,7 @@ void ComboBox::CommitSelection(ControlHost& host, size_t itemIndex, bool closePo
         return;
     }
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
-    ControlHost* const originalHost = GetHost();
+    ControlHost* const originalHost   = GetHost();
 
     _selectedIndex    = itemIndex;
     _activePopupIndex = itemIndex;

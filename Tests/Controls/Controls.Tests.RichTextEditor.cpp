@@ -1840,8 +1840,8 @@ void TestRichTextEditorNativeImagePixels()
         const auto bounds = editor->GetSemanticElementBounds(window.Host(), static_cast<std::size_t>(image - document->Elements().begin()));
         Require(bounds && std::abs(bounds->right - bounds->left - 20.f) < .02f, "native SVG uses its prepared nominal size");
         const auto dpiScale = window.Host().GetDpi() / 96.f;
-        const auto x = static_cast<unsigned>((bounds->left + bounds->right) * .5f * dpiScale);
-        const auto y = static_cast<unsigned>((bounds->top + bounds->bottom) * .5f * dpiScale);
+        const auto x        = static_cast<unsigned>((bounds->left + bounds->right) * .5f * dpiScale);
+        const auto y        = static_cast<unsigned>((bounds->top + bounds->bottom) * .5f * dpiScale);
         Require(x < capture.widthPx && y < capture.heightPx, "native SVG oracle samples within the captured target");
         const auto offset = (static_cast<std::size_t>(y) * capture.widthPx + x) * 4u;
         Require(capture.bgraPixels[offset] < 5u && capture.bgraPixels[offset + 1u] < 5u && capture.bgraPixels[offset + 2u] > 250u &&

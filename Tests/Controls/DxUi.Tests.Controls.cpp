@@ -607,13 +607,13 @@ void TestSliderReleasePreservesCaptureTransferredByPreview()
 {
     using namespace DxUi;
     WindowHost host;
-    auto root = std::make_unique<Panel>();
-    auto* slider = root->AddChild<Slider>();
+    auto root         = std::make_unique<Panel>();
+    auto* slider      = root->AddChild<Slider>();
     auto* replacement = root->AddChild<Button>(L"replacement");
     slider->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 40.0f));
     slider->SetValue(50.0);
     host.SetRoot(std::move(root));
-    bool armed = false;
+    bool armed      = false;
     size_t previews = 0u, cancellations = 0u, commits = 0u;
     slider->SetOnChange([&](SliderChange change)
     {
@@ -623,8 +623,10 @@ void TestSliderReleasePreservesCaptureTransferredByPreview()
             armed = false;
             host.CaptureMouse(replacement);
         }
-        else if (change.phase == SliderChangePhase::Cancel) ++cancellations;
-        else if (change.phase == SliderChangePhase::Commit) ++commits;
+        else if (change.phase == SliderChangePhase::Cancel)
+            ++cancellations;
+        else if (change.phase == SliderChangePhase::Commit)
+            ++commits;
     });
     Require(slider->OnMouseDown(host, D2D1::Point2F(120.0f, 20.0f), false, 0u), "slider starts the original captured drag");
     armed = true;
@@ -636,12 +638,12 @@ void TestSliderOldReleaseCannotFinishRestartedDrag()
 {
     using namespace DxUi;
     WindowHost host;
-    auto root = std::make_unique<Panel>();
+    auto root    = std::make_unique<Panel>();
     auto* slider = root->AddChild<Slider>();
     slider->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 40.0f));
     slider->SetValue(50.0);
     host.SetRoot(std::move(root));
-    bool restart = false;
+    bool restart         = false;
     size_t cancellations = 0u, commits = 0u;
     slider->SetOnChange([&](SliderChange change)
     {
@@ -651,8 +653,10 @@ void TestSliderOldReleaseCannotFinishRestartedDrag()
             slider->OnCaptureLost(host);
             static_cast<void>(slider->OnMouseDown(host, D2D1::Point2F(120.0f, 20.0f), false, 0u));
         }
-        else if (change.phase == SliderChangePhase::Cancel) ++cancellations;
-        else if (change.phase == SliderChangePhase::Commit) ++commits;
+        else if (change.phase == SliderChangePhase::Cancel)
+            ++cancellations;
+        else if (change.phase == SliderChangePhase::Commit)
+            ++commits;
     });
     Require(slider->OnMouseDown(host, D2D1::Point2F(120.0f, 20.0f), false, 0u), "original slider drag starts");
     restart = true;
@@ -666,7 +670,7 @@ void TestScrollPanelThrowingScrollCallbackIsContained()
 {
     using namespace DxUi;
     WindowHost host;
-    auto root = std::make_unique<Panel>();
+    auto root    = std::make_unique<Panel>();
     auto* scroll = root->AddChild<ScrollPanel>();
     scroll->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 100.0f));
     scroll->SetContentHeight(500.0f);
@@ -680,7 +684,12 @@ void TestScrollPanelThrowingScrollCallbackIsContained()
     });
     scroll->SetScrollOffset(32.0f);
     Require(calls == 1u && scroll->GetScrollOffset() == 32.0f, "throwing callback leaves its committed scroll offset intact");
-    scroll->SetOnScrollChanged([&](float) { ++calls; host.SetRoot({}); throw std::runtime_error("synthetic retired observer failure"); });
+    scroll->SetOnScrollChanged([&](float)
+    {
+        ++calls;
+        host.SetRoot({});
+        throw std::runtime_error("synthetic retired observer failure");
+    });
     scroll->SetScrollOffset(48.0f);
     Require(calls == 2u && ! host.GetRoot(), "a callback may retire its owner and throw without a stale continuation");
 }

@@ -6840,7 +6840,7 @@ bool Slider::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
 
     const auto life                 = GetLifetimeToken();
     ControlHost* const originalHost = GetHost();
-    const auto dragEpoch = _dragEpoch;
+    const auto dragEpoch            = _dragEpoch;
     UpdateValueFromPoint(host, point);
     // The preview callback may cancel, restart, detach or transfer capture.
     // An older release must never end the newer gesture.

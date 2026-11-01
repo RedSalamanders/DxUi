@@ -1156,42 +1156,65 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         if (*taggedRows)
         {
             const auto& matrix = taggedRows->root.children[0u];
-            check(matrix.kind == MathKind::Matrix && matrix.columns == 2u && matrix.children.size() == 4u &&
-                      matrix.children[0u].text == L"rowtag" && matrix.children[2u].text == L"rowtag" &&
-                      matrix.children[0u].children[1u].kind == MathKind::Row && matrix.children[2u].children[1u].text == L"two",
+            check(matrix.kind == MathKind::Matrix && matrix.columns == 2u && matrix.children.size() == 4u && matrix.children[0u].text == L"rowtag" &&
+                      matrix.children[2u].text == L"rowtag" && matrix.children[0u].children[1u].kind == MathKind::Row &&
+                      matrix.children[2u].children[1u].text == L"two",
                   "tags belong to distinct rows and starred syntax omits generated parentheses");
             Detail::PreparedMath tagged(factory, taggedRows, 24.f, true);
-            while (! tagged.Advance()) {}
+            while (! tagged.Advance())
+            {
+            }
             const auto& anchors = tagged.RowTags();
-            check(anchors.size() == 2u && anchors[0u].baseline < anchors[1u].baseline,
-                  "prepared row tag anchors follow the actual matrix baselines");
+            check(anchors.size() == 2u && anchors[0u].baseline < anchors[1u].baseline, "prepared row tag anchors follow the actual matrix baselines");
             if (anchors.size() == 2u)
             {
-                auto firstLabel = tagged.PrepareRowTag(0u);
+                auto firstLabel  = tagged.PrepareRowTag(0u);
                 auto secondLabel = tagged.PrepareRowTag(1u);
-                while (! firstLabel->Advance()) {}
-                while (! secondLabel->Advance()) {}
+                while (! firstLabel->Advance())
+                {
+                }
+                while (! secondLabel->Advance())
+                {
+                }
                 check(firstLabel->GlyphLayouts().size() == 3u && secondLabel->GlyphLayouts().size() == 1u,
                       "row labels prepare independently with authored starred parentheses policy");
             }
             bool inlineRefused{};
-            try { Detail::PreparedMath inlineTag(factory, taggedRows, 24.f, false); }
-            catch (const std::length_error&) { inlineRefused = true; }
+            try
+            {
+                Detail::PreparedMath inlineTag(factory, taggedRows, 24.f, false);
+            }
+            catch (const std::length_error&)
+            {
+                inlineRefused = true;
+            }
             check(inlineRefused, "row tags refuse inline preparation");
-            auto invalidLabel = std::make_shared<MathExpression>(*taggedRows);
+            auto invalidLabel                                              = std::make_shared<MathExpression>(*taggedRows);
             invalidLabel->root.children[0u].children[0u].children[1u].kind = MathKind::Accent;
             bool invalidRefused{};
-            try { Detail::PreparedMath invalid(factory, invalidLabel, 24.f, true); }
-            catch (const std::length_error&) { invalidRefused = true; }
+            try
+            {
+                Detail::PreparedMath invalid(factory, invalidLabel, 24.f, true);
+            }
+            catch (const std::length_error&)
+            {
+                invalidRefused = true;
+            }
             check(invalidRefused, "direct row-tag data rejects unsupported non-text label shapes");
             auto nestedTag = std::make_shared<MathExpression>(*taggedRows);
-            auto wrapper = nestedTag->root;
+            auto wrapper   = nestedTag->root;
             wrapper.children.clear();
             wrapper.children.push_back(nestedTag->root.children[0u]);
             nestedTag->root.children[0u] = std::move(wrapper);
             bool nestedRefused{};
-            try { Detail::PreparedMath invalid(factory, nestedTag, 24.f, true); }
-            catch (const std::length_error&) { nestedRefused = true; }
+            try
+            {
+                Detail::PreparedMath invalid(factory, nestedTag, 24.f, true);
+            }
+            catch (const std::length_error&)
+            {
+                nestedRefused = true;
+            }
             check(nestedRefused, "direct nested matrix data cannot introduce row tags outside a root environment");
         }
         std::wstring fullTags(L"\\begin{gather}");
@@ -1207,22 +1230,21 @@ template <typename Check> void Run(IDWriteFactory* factory, Check&& check)
         if (*fullTaggedExpression)
         {
             Detail::PreparedMath fullTagged(factory, fullTaggedExpression, 24.f, true);
-            while (! fullTagged.Advance()) {}
+            while (! fullTagged.Advance())
+            {
+            }
             check(fullTagged.RowTags().size() == MathMaximumRows && fullTagged.RowTags().front().baseline < fullTagged.RowTags().back().baseline,
                   "64 row-tag anchors retain source order and distinct matrix baselines");
         }
-        check(! ParseMath(L"\\begin{gather}a\\tag{1}\\tag{2}\\end{gather}") &&
-                  ! ParseMath(L"\\begin{align}a\\tag{1}&b\\tag{2}\\end{align}") &&
-                  ! ParseMath(L"\\begin{align}{a\\tag{1}}&b\\end{align}") &&
-                  ! ParseMath(L"\\tag{outer}\\begin{gather}a\\tag{inner}\\end{gather}") &&
+        check(! ParseMath(L"\\begin{gather}a\\tag{1}\\tag{2}\\end{gather}") && ! ParseMath(L"\\begin{align}a\\tag{1}&b\\tag{2}\\end{align}") &&
+                  ! ParseMath(L"\\begin{align}{a\\tag{1}}&b\\end{align}") && ! ParseMath(L"\\tag{outer}\\begin{gather}a\\tag{inner}\\end{gather}") &&
                   ! ParseMath(L"\\begin{matrix}a\\tag{1}\\end{matrix}"),
               "duplicate row tags and unsupported environments retain exact source");
         check(static_cast<bool>(ParseMath(L"\\begin{align}\\displaystyle a&=b\\tag{1}\\end{align}")),
               "row tags survive scoped math-style declarations in their own cell");
     }
 #endif
-    for (const auto source : {L"\\genfrac{(}{)}{-2pt}{0}{a}{b}", L"\\genfrac{(}{)}{}{4}{a}{b}", L"\\genfrac{?}{}{}{}{a}{b}",
-                              L"\\genfrac{}{}{}{}{a}"})
+    for (const auto source : {L"\\genfrac{(}{)}{-2pt}{0}{a}{b}", L"\\genfrac{(}{)}{}{4}{a}{b}", L"\\genfrac{?}{}{}{}{a}{b}", L"\\genfrac{}{}{}{}{a}"})
         check(! ParseMath(source), "unsupported general fraction dimensions, style and delimiters reject the whole source");
     {
         const auto expression = ParseMath(L"\\begin{alignat*}{2}a&b&c&d\\end{alignat*}");

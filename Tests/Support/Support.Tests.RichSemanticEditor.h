@@ -1567,8 +1567,8 @@ template <typename Prepare> void MathRunFontSize(ControlHost& host, Prepare&& pr
 template <typename Prepare> void ImagePresentationSourceEditing(ControlHost& host, Prepare&& prepare)
 {
     const std::wstring original = L"![map](map.png){width=48 caption=\"Overview\"}\n";
-    auto root = std::make_unique<RichTextEditor>(original);
-    auto* editor = root.get();
+    auto root                   = std::make_unique<RichTextEditor>(original);
+    auto* editor                = root.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
     editor->SetMarkdownRenderingEnabled(true);
     host.SetRoot(std::move(root));
@@ -1576,8 +1576,7 @@ template <typename Prepare> void ImagePresentationSourceEditing(ControlHost& hos
     const auto semantic = editor->GetAcknowledgedSemanticDocument(host);
     Check(semantic != nullptr, "authored image has an acknowledged semantic document");
     const auto image = std::ranges::find(semantic->Elements(), SemanticRole::Image, &SemanticElement::role);
-    Check(image != semantic->Elements().end() && image->source.last == original.size() - 1u,
-          "authored image owner includes the presentation suffix");
+    Check(image != semantic->Elements().end() && image->source.last == original.size() - 1u, "authored image owner includes the presentation suffix");
     const auto index = static_cast<std::size_t>(image - semantic->Elements().begin());
     Check(editor->BeginSemanticSourceEdit(host, semantic, index), "image presentation enters source editing");
     prepare();

@@ -54,12 +54,18 @@ class Parser
     {
         Parser& parser;
         RowTagContext* previous;
-        RowTagScope(Parser& owner, RowTagContext* current) noexcept : parser(owner), previous(owner.activeRowTags) { owner.activeRowTags = current; }
-        RowTagScope(const RowTagScope&) = delete;
+        RowTagScope(Parser& owner, RowTagContext* current) noexcept : parser(owner), previous(owner.activeRowTags)
+        {
+            owner.activeRowTags = current;
+        }
+        RowTagScope(const RowTagScope&)            = delete;
         RowTagScope& operator=(const RowTagScope&) = delete;
-        RowTagScope(RowTagScope&&) = delete;
-        RowTagScope& operator=(RowTagScope&&) = delete;
-        ~RowTagScope() noexcept { parser.activeRowTags = previous; }
+        RowTagScope(RowTagScope&&)                 = delete;
+        RowTagScope& operator=(RowTagScope&&)      = delete;
+        ~RowTagScope() noexcept
+        {
+            parser.activeRowTags = previous;
+        }
     };
     static void ObserveStack() noexcept
     {
@@ -500,7 +506,7 @@ class Parser
         {
             rootRowTags.emplace();
             rootRowTags->depth = depth;
-            rowTags = &rootRowTags.value();
+            rowTags            = &rootRowTags.value();
         }
         RowTagScope tagScope(*this, rowTags);
         MatrixHeader header;
@@ -1674,11 +1680,11 @@ class Parser
         if (starred)
             return std::move(value);
         std::vector<MathNode> children(0u);
-        auto left = Make(MathKind::Text, L"(");
+        auto left   = Make(MathKind::Text, L"(");
         left.italic = false;
         children.push_back(std::move(left));
         children.push_back(std::move(value));
-        auto right = Make(MathKind::Text, L")");
+        auto right   = Make(MathKind::Text, L")");
         right.italic = false;
         children.push_back(std::move(right));
         return Make(MathKind::Row, L"", std::move(children));
@@ -1702,13 +1708,13 @@ class Parser
         MathNode label;
         if (source[at] == L'{')
         {
-            auto text = GroupText(true, true);
-            label = Make(MathKind::Text, std::move(text));
+            auto text    = GroupText(true, true);
+            label        = Make(MathKind::Text, std::move(text));
             label.italic = false;
         }
         else
         {
-            label = Atom(depth + 1u);
+            label        = Atom(depth + 1u);
             label.italic = false;
         }
         if (row && label.kind != MathKind::Text)

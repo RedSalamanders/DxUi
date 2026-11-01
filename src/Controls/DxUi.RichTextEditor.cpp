@@ -832,7 +832,7 @@ bool RichTextEditor::ReplaceImageFrame(ControlHost& host,
 {
     const auto document = expected;
     if (! document || GetHost() != &host || ! IsVisible() || ! _state->markdownRendering || _state->mode != RichText::ViewMode::Rich ||
-        GetAcknowledgedSemanticDocument(host) != document || !_state->images.Current(document, _state->imageLocationRevision, _state->bindingRevision))
+        GetAcknowledgedSemanticDocument(host) != document || ! _state->images.Current(document, _state->imageLocationRevision, _state->bindingRevision))
         return false;
     const auto lifetime = GetLifetimeToken();
     if (host.GetFocusControl() == this)
@@ -843,12 +843,12 @@ bool RichTextEditor::ReplaceImageFrame(ControlHost& host,
             return false;
     }
     if (lifetime.expired() || GetHost() != &host || GetAcknowledgedSemanticDocument(host) != document ||
-        !_state->images.Current(document, _state->imageLocationRevision, _state->bindingRevision))
+        ! _state->images.Current(document, _state->imageLocationRevision, _state->bindingRevision))
         return false;
     const bool alreadyDirty = _state->images.HasUnpublished();
-    if (!_state->images.ReplaceFrame(request, image))
+    if (! _state->images.ReplaceFrame(request, image))
         return false;
-    if (!alreadyDirty && _state->images.HasUnpublished())
+    if (! alreadyDirty && _state->images.HasUnpublished())
     {
         RetireSemanticAccessibility();
         _state->hoveredLink.reset();

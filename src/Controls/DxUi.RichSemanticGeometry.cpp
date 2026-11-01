@@ -9,14 +9,14 @@
 #include "Support/Diagnostics.h"
 #include <array>
 #include <cmath>
+#include <d2d1_3.h>
 #include <limits>
 #include <map>
+#include <shlwapi.h>
 #include <stdexcept>
 #include <tuple>
 #include <wil/resource.h>
 #include <wil/result.h>
-#include <d2d1_3.h>
-#include <shlwapi.h>
 // Windows SDK WRL owns its interlocked/volatile implementation and target semantics.
 // Scope is this system header only. Owner: DxUi maintainers; review: 2027-01-31.
 #pragma warning(push)
@@ -199,9 +199,9 @@ struct NativeImagePlacement
                 if (! (*rowTags)[i].label || ! (*rowTags)[i].ready)
                     continue;
                 const auto label = (*rowTags)[i].label->Size();
-                maxWidth = std::max(maxWidth, label.width);
-                top = std::min(top, anchors[i].baseline - (*rowTags)[i].label->Baseline());
-                bottom = std::max(bottom, anchors[i].baseline + label.height - (*rowTags)[i].label->Baseline());
+                maxWidth         = std::max(maxWidth, label.width);
+                top              = std::min(top, anchors[i].baseline - (*rowTags)[i].label->Baseline());
+                bottom           = std::max(bottom, anchors[i].baseline + label.height - (*rowTags)[i].label->Baseline());
             }
             return D2D1::SizeF(body.width + 2.f * (maxWidth + 8.f), bottom - top);
         }
@@ -223,7 +223,10 @@ struct NativeImagePlacement
                     top = std::min(top, anchors[i].baseline - (*rowTags)[i].label->Baseline());
         return math->Baseline() - top;
     }
-    bool HasTags() const noexcept { return tag || static_cast<bool>(rowTags); }
+    bool HasTags() const noexcept
+    {
+        return tag || static_cast<bool>(rowTags);
+    }
     bool TagsReady() const noexcept
     {
         return (! tag || tagReady) && (! rowTags || std::ranges::all_of(*rowTags, [](const RowTag& row) { return row.ready; }));
@@ -258,15 +261,15 @@ struct NativeImageGeometry
             const auto& resource = resources.placements[index];
             if (! resource.image || resource.element >= document.Elements().size() || document.Elements()[resource.element].role != SemanticRole::Image)
                 throw std::invalid_argument("Invalid prepared image resource binding");
-            auto& placement   = placements[index];
-            placement.element = resource.element;
-            placement.display = document.Elements()[resource.element].display;
-            placement.pixels  = resource.image;
-            placement.imageWidth = document.Elements()[resource.element].imageWidth;
+            auto& placement       = placements[index];
+            placement.element     = resource.element;
+            placement.display     = document.Elements()[resource.element].display;
+            placement.pixels      = resource.image;
+            placement.imageWidth  = document.Elements()[resource.element].imageWidth;
             placement.imageHeight = document.Elements()[resource.element].imageHeight;
-            const auto prior  = std::find_if(resources.placements.begin(),
-                                             resources.placements.begin() + static_cast<std::ptrdiff_t>(index),
-                                             [&](const auto& value) { return value.image == resource.image; });
+            const auto prior      = std::find_if(resources.placements.begin(),
+                                                 resources.placements.begin() + static_cast<std::ptrdiff_t>(index),
+                                                 [&](const auto& value) { return value.image == resource.image; });
             if (prior == resources.placements.begin() + static_cast<std::ptrdiff_t>(index))
             {
                 if (resource.image->RetainedBytes() > RichImageResources::MaximumDecodedBytes - bytes)
@@ -315,9 +318,9 @@ struct NativeImageGeometry
                     });
                     if (prior != previous->placements.end() && prior->element == placement.element)
                     {
-                        placement.math = prior->math;
-                        placement.tag = prior->tag;
-                        placement.rowTags = prior->rowTags;
+                        placement.math        = prior->math;
+                        placement.tag         = prior->tag;
+                        placement.rowTags     = prior->rowTags;
                         placement.mathPalette = prior->mathPalette;
                         placement.bodyReady   = prior->bodyReady;
                         placement.tagReady    = prior->tagReady;
@@ -342,7 +345,8 @@ struct NativeImageGeometry
                             write, label, font * 1.15f, false, placement.math.get(), options.dpi, textFormats, options.mathAbsoluteUnitScale);
                     }
                     else
-                        placement.math = std::make_shared<PreparedMath>(write, expression, font * 1.15f, maths[index].display, constants, options.dpi, textFormats, options.mathAbsoluteUnitScale);
+                        placement.math = std::make_shared<PreparedMath>(
+                            write, expression, font * 1.15f, maths[index].display, constants, options.dpi, textFormats, options.mathAbsoluteUnitScale);
                     if (! placement.math->RowTags().empty())
                         placement.rowTags = std::make_shared<std::vector<NativeImagePlacement::RowTag>>(placement.math->RowTags().size());
                 }
@@ -388,9 +392,9 @@ struct NativeImageGeometry
             });
             if (found != placements.begin() + static_cast<std::ptrdiff_t>(index))
             {
-                placement.svgContext = found->svgContext;
+                placement.svgContext  = found->svgContext;
                 placement.svgDocument = found->svgDocument;
-                placement.svgLayer = found->svgLayer;
+                placement.svgLayer    = found->svgLayer;
                 return {true, false, false, 0u};
             }
             const auto query = target->QueryInterface(IID_PPV_ARGS(placement.svgContext.put()));
@@ -402,8 +406,8 @@ struct NativeImageGeometry
             stream.attach(SHCreateMemStream(reinterpret_cast<const BYTE*>(bytes.data()), static_cast<UINT>(bytes.size())));
             if (! stream)
                 throw std::bad_alloc();
-            const auto create = placement.svgContext->CreateSvgDocument(stream.get(), D2D1::SizeF(static_cast<float>(width), static_cast<float>(height)),
-                                                                         placement.svgDocument.put());
+            const auto create = placement.svgContext->CreateSvgDocument(
+                stream.get(), D2D1::SizeF(static_cast<float>(width), static_cast<float>(height)), placement.svgDocument.put());
             if (FAILED(create) && create != E_OUTOFMEMORY && create != D2DERR_RECREATE_TARGET)
                 return reject();
             THROW_IF_FAILED(create);
@@ -1826,13 +1830,13 @@ struct PreparedSemanticGeometry::Preparation
                                 image.bounds.bottom = image.bounds.top + size.height * scale;
                                 if (image.HasTags())
                                 {
-                                    image.bounds.left = 0.f;
+                                    image.bounds.left  = 0.f;
                                     image.bounds.right = options.widthDip;
                                 }
                                 else
                                     image.bounds.right = image.bounds.left + size.width * scale;
-                                image.tagScale      = scale;
-                                located             = true;
+                                image.tagScale = scale;
+                                located        = true;
                                 break;
                             }
                             lineStart += line.length;
@@ -3312,12 +3316,11 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                             {
                                 const float scale    = image.tagScale;
                                 const float baseline = origin.y + box->y + image.bounds.top + image.Baseline() * scale;
-                                const float left = origin.x + box->x + image.bounds.left;
-                                const float width = image.bounds.right - image.bounds.left;
-                                const float bodyX = left + (width - image.math->Size().width * scale) * .5f;
-                                const float bodyY = baseline - image.math->Baseline() * scale;
-                                image.math->Draw(target, boxText, D2D1::Point2F(bodyX, bodyY), scale,
-                                                 image.mathPalette.get(), colorContext);
+                                const float left     = origin.x + box->x + image.bounds.left;
+                                const float width    = image.bounds.right - image.bounds.left;
+                                const float bodyX    = left + (width - image.math->Size().width * scale) * .5f;
+                                const float bodyY    = baseline - image.math->Baseline() * scale;
+                                image.math->Draw(target, boxText, D2D1::Point2F(bodyX, bodyY), scale, image.mathPalette.get(), colorContext);
                                 if (image.tag)
                                 {
                                     const float tagX = left + width - image.tag->Size().width * scale;
@@ -3326,7 +3329,7 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                                 const auto& anchors = image.math->RowTags();
                                 for (std::size_t tagIndex = 0u; image.rowTags && tagIndex < image.rowTags->size(); ++tagIndex)
                                 {
-                                    const auto& row = (*image.rowTags)[tagIndex];
+                                    const auto& row  = (*image.rowTags)[tagIndex];
                                     const float tagX = left + width - row.label->Size().width * scale;
                                     const float tagY = bodyY + (anchors[tagIndex].baseline - row.label->Baseline()) * scale;
                                     row.label->Draw(target, boxText, D2D1::Point2F(tagX, tagY), scale);
@@ -3347,13 +3350,16 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                             const auto svgRight = origin.x + box->x + image.bounds.right, svgBottom = origin.y + box->y + image.bounds.bottom;
                             D2D1_MATRIX_3X2_F previous{};
                             target->GetTransform(&previous);
-                            target->PushLayer(D2D1::LayerParameters(D2D1::RectF(svgLeft, svgTop, svgRight, svgBottom), nullptr,
-                                                                   D2D1_ANTIALIAS_MODE_PER_PRIMITIVE, D2D1::Matrix3x2F::Identity(), imageOpacity),
+                            target->PushLayer(D2D1::LayerParameters(D2D1::RectF(svgLeft, svgTop, svgRight, svgBottom),
+                                                                    nullptr,
+                                                                    D2D1_ANTIALIAS_MODE_PER_PRIMITIVE,
+                                                                    D2D1::Matrix3x2F::Identity(),
+                                                                    imageOpacity),
                                               image.svgLayer.get());
                             // The SVG document retains its nominal viewport; authored image size
                             // changes the destination rectangle, not that viewport.
                             target->SetTransform(D2D1::Matrix3x2F::Scale((svgRight - svgLeft) / static_cast<float>(image.pixels->Width()),
-                                                                      (svgBottom - svgTop) / static_cast<float>(image.pixels->Height())) *
+                                                                         (svgBottom - svgTop) / static_cast<float>(image.pixels->Height())) *
                                                  D2D1::Matrix3x2F::Translation(svgLeft, svgTop) * previous);
                             image.svgContext->DrawSvgDocument(image.svgDocument.get());
                             target->SetTransform(previous);

@@ -39,11 +39,11 @@ static void TestRichExportAllocationFailures()
             const auto restore = wil::scope_exit([=] noexcept
             {
                 countAllocations = oldCounting;
-                allocations = oldCalls;
-                allocationBytes = oldBytes;
+                allocations      = oldCalls;
+                allocationBytes  = oldBytes;
             });
             allocations = allocationBytes = 0u;
-            countAllocations = true;
+            countAllocations              = true;
             convert();
             observed = allocations;
         }
@@ -53,10 +53,16 @@ static void TestRichExportAllocationFailures()
             bool refused = false;
             {
                 const auto oldFailure = failAllocationAfter;
-                const auto restore = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
-                failAllocationAfter = point;
-                try { convert(); }
-                catch (const std::bad_alloc&) { refused = true; }
+                const auto restore    = wil::scope_exit([=] noexcept { failAllocationAfter = oldFailure; });
+                failAllocationAfter   = point;
+                try
+                {
+                    convert();
+                }
+                catch (const std::bad_alloc&)
+                {
+                    refused = true;
+                }
             }
             Check(refused, "each UTF-8 codec allocation failure propagates without termination");
             convert();
@@ -3268,7 +3274,7 @@ static void TestEmbeddedImageResources(GraphicsFixture& gpu)
         const auto x = static_cast<unsigned>((bounds->left + bounds->right) * .5f), y = static_cast<unsigned>((bounds->top + bounds->bottom) * .5f);
         Check(x < fixture.width && y < fixture.height, "SVG oracle samples within the target");
         const auto offset = (static_cast<std::size_t>(y) * fixture.width + x) * 4u;
-        const bool red = data[offset] < 5u && data[offset + 1u] < 5u && data[offset + 2u] > 250u && data[offset + 3u] > 250u;
+        const bool red    = data[offset] < 5u && data[offset + 1u] < 5u && data[offset + 2u] > 250u && data[offset + 3u] > 250u;
         Check(selected ? ! red : red, selected ? "SVG selection applies prepared image opacity" : "SVG pixels are rendered by the prepared Direct2D document");
     };
     verifySvg(replacement);
@@ -3286,7 +3292,7 @@ static void TestEmbeddedImageResources(GraphicsFixture& gpu)
           "SVG device replacement recreates device resources from held bytes without re-requesting source");
     gpu.Bind();
     const auto svgAllocations = allocations;
-    countAllocations = true;
+    countAllocations          = true;
     for (unsigned frame = 0u; frame < 12u; ++frame)
         Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "warm SVG composition");
     countAllocations = false;

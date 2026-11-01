@@ -1027,8 +1027,8 @@ inline void MathWidthReflowAndTargetReplacement()
     const auto taggedBounds = geometry.ElementBounds(static_cast<std::size_t>(taggedElement - nestedTag->Elements().begin()));
     Check(taggedBounds && taggedBounds->left > 0.f && taggedBounds->right <= options.widthDip && taggedBounds->right > taggedBounds->left,
           "tagged placeholder occupies the containing quote width after its indentation");
-    const auto rowTagged = RichSemanticDocumentTests::Build(
-        L"> $$\n> \\begin{align}a&=b\\tag{ONE}\\\\c&=d\\tag*{TWO}\\end{align}\n> $$\n", MarkdownProfile::RichMarkdown);
+    const auto rowTagged =
+        RichSemanticDocumentTests::Build(L"> $$\n> \\begin{align}a&=b\\tag{ONE}\\\\c&=d\\tag*{TWO}\\end{align}\n> $$\n", MarkdownProfile::RichMarkdown);
     geometry.Clear();
     const auto beforeRowTags = DxUi::RichText::Detail::testRichMathPreparations;
     for (const float rowWidth : {240.f, 360.f})
@@ -1056,8 +1056,7 @@ inline void MathWidthReflowAndTargetReplacement()
         }
         Check(bands >= 2u, "independent row tags paint in distinct trailing bands within the containing quote");
     }
-    Check(DxUi::RichText::Detail::testRichMathPreparations == beforeRowTags + 3u,
-          "row body and both labels retain prepared shapes across width-only reflow");
+    Check(DxUi::RichText::Detail::testRichMathPreparations == beforeRowTags + 3u, "row body and both labels retain prepared shapes across width-only reflow");
     const auto inlineRowTag = RichSemanticDocumentTests::Build(L"Before $\\begin{align}a\\tag{1}\\end{align}$ after", MarkdownProfile::RichMarkdown);
     Check(inlineRowTag->Map().Display().find(L"$\\begin{align}a\\tag{1}\\end{align}$") != std::wstring_view::npos &&
               std::ranges::any_of(inlineRowTag->Diagnostics(), [](const auto& item) { return item.kind == SemanticDiagnosticKind::UnsupportedMath; }),

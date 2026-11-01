@@ -1258,7 +1258,7 @@ void TestComboBoxSubmissionCallbackCanTransferItsOwner()
     using namespace DxUi;
     WindowHost original;
     WindowHost replacement;
-    auto root = std::make_unique<Panel>();
+    auto root   = std::make_unique<Panel>();
     auto* panel = root.get();
     auto* combo = panel->AddChild<ComboBox>();
     combo->SetEditable(true);
@@ -1270,15 +1270,14 @@ void TestComboBoxSubmissionCallbackCanTransferItsOwner()
         replacement.SetRoot(panel->TakeChild(0u));
     });
     Require(combo->OnKeyDown(original, VK_RETURN, 0u), "editable submit is consumed");
-    Require(notifications == 1u && replacement.GetRoot() == combo,
-            "submit callback transfers its owner without old-host continuation");
+    Require(notifications == 1u && replacement.GetRoot() == combo, "submit callback transfers its owner without old-host continuation");
 }
 void TestComboBoxSelectionCallbackCanTransferItsOwner()
 {
     using namespace DxUi;
     WindowHost original;
     WindowHost replacement;
-    auto root = std::make_unique<Panel>();
+    auto root   = std::make_unique<Panel>();
     auto* panel = root.get();
     auto* combo = panel->AddChild<ComboBox>();
     combo->SetItems({ComboBox::Item{L"one", L"One"}, ComboBox::Item{L"two", L"Two"}});
@@ -1298,7 +1297,7 @@ void TestComboBoxPopupCallbackTransferDoesNotOpenOnOldHost()
     using namespace DxUi;
     WindowHost original;
     WindowHost replacement;
-    auto root = std::make_unique<Panel>();
+    auto root   = std::make_unique<Panel>();
     auto* panel = root.get();
     auto* combo = panel->AddChild<ComboBox>();
     combo->SetItems({ComboBox::Item{L"one", L"One"}});
@@ -1306,7 +1305,7 @@ void TestComboBoxPopupCallbackTransferDoesNotOpenOnOldHost()
     bool transferred = false;
     combo->SetOnPopupRequested([&]()
     {
-        auto owner = panel->TakeChild(0u);
+        auto owner  = panel->TakeChild(0u);
         transferred = owner.get() == combo;
         replacement.SetRoot(std::move(owner));
         return false;

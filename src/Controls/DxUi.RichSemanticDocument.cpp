@@ -27,59 +27,79 @@ std::optional<ImagePresentation> ParseImagePresentation(std::wstring_view source
     auto at = first + 1u;
     while (at < last - 1u)
     {
-        while (at < last - 1u && source[at] == L' ') ++at;
-        if (at == last - 1u) break;
+        while (at < last - 1u && source[at] == L' ')
+            ++at;
+        if (at == last - 1u)
+            break;
         const auto nameFirst = at;
-        while (at < last - 1u && source[at] >= L'a' && source[at] <= L'z') ++at;
+        while (at < last - 1u && source[at] >= L'a' && source[at] <= L'z')
+            ++at;
         const auto name = source.substr(nameFirst, at - nameFirst);
-        if (at == last - 1u || source[at++] != L'=') return std::nullopt;
+        if (at == last - 1u || source[at++] != L'=')
+            return std::nullopt;
         if (name == L"caption")
         {
-            if (caption || at >= last - 1u || source[at++] != L'"') return std::nullopt;
+            if (caption || at >= last - 1u || source[at++] != L'"')
+                return std::nullopt;
             const auto start = at;
             while (at < last - 1u && source[at] != L'"')
             {
-                if (source[at] < L' ' || source[at] == 0x7fu || source[at] == L'\\') return std::nullopt;
+                if (source[at] < L' ' || source[at] == 0x7fu || source[at] == L'\\')
+                    return std::nullopt;
                 ++at;
             }
-            if (at == start || at - start > 256u || at >= last - 1u) return std::nullopt;
+            if (at == start || at - start > 256u || at >= last - 1u)
+                return std::nullopt;
             result.caption = {start, at++};
-            caption = true;
+            caption        = true;
         }
         else
         {
             const auto start = at;
-            while (at < last - 1u && source[at] != L' ') ++at;
+            while (at < last - 1u && source[at] != L' ')
+                ++at;
             const auto value = source.substr(start, at - start);
             if (name == L"align")
             {
-                if (align) return std::nullopt;
-                if (value == L"left") result.alignment = MarkdownAlignment::Left;
-                else if (value == L"center") result.alignment = MarkdownAlignment::Center;
-                else if (value == L"right") result.alignment = MarkdownAlignment::Right;
-                else return std::nullopt;
+                if (align)
+                    return std::nullopt;
+                if (value == L"left")
+                    result.alignment = MarkdownAlignment::Left;
+                else if (value == L"center")
+                    result.alignment = MarkdownAlignment::Center;
+                else if (value == L"right")
+                    result.alignment = MarkdownAlignment::Right;
+                else
+                    return std::nullopt;
                 align = true;
             }
             else if (name == L"width" || name == L"height")
             {
-                if (value.empty() || value.size() > 4u || (name == L"width" ? width : height)) return std::nullopt;
+                if (value.empty() || value.size() > 4u || (name == L"width" ? width : height))
+                    return std::nullopt;
                 unsigned size = 0u;
                 for (const auto unit : value)
                 {
-                    if (unit < L'0' || unit > L'9') return std::nullopt;
+                    if (unit < L'0' || unit > L'9')
+                        return std::nullopt;
                     size = size * 10u + static_cast<unsigned>(unit - L'0');
                 }
-                if (! size || size > 4096u) return std::nullopt;
-                if (name == L"width") result.width = size, width = true;
-                else result.height = size, height = true;
+                if (! size || size > 4096u)
+                    return std::nullopt;
+                if (name == L"width")
+                    result.width = size, width = true;
+                else
+                    result.height = size, height = true;
             }
-            else return std::nullopt;
+            else
+                return std::nullopt;
         }
-        if (at < last - 1u && source[at] != L' ') return std::nullopt;
+        if (at < last - 1u && source[at] != L' ')
+            return std::nullopt;
     }
     return width || height || align || caption ? std::optional(result) : std::nullopt;
 }
-}
+} // namespace
 std::size_t VisitSemanticWords(const SemanticDocument& document, MarkdownRange display, SemanticWordVisitor visitor, void* context)
 {
     const auto text = document.Map().Display();
@@ -253,7 +273,8 @@ std::optional<MarkdownRange> SemanticDocument::ResolveHeadingFragment(std::wstri
     if (fragment.size() == 1u)
         return MarkdownRange{};
     std::wstring wanted(0u, L' ');
-    if (! Detail::DecodeHeadingFragment(fragment, wanted)) return std::nullopt;
+    if (! Detail::DecodeHeadingFragment(fragment, wanted))
+        return std::nullopt;
     const auto found = std::ranges::find(headings_, wanted, &SemanticHeading::slug);
     return found == headings_.end() ? std::nullopt : std::optional(found->target);
 }
@@ -946,7 +967,7 @@ struct SemanticBuilder::Preparation
             document->elements_[element].destination = tag.destination;
             document->elements_[element].title       = tag.title;
             document->elements_[element].nativeHtml  = true;
-            document->elements_[element].imageWidth = tag.imageWidth;
+            document->elements_[element].imageWidth  = tag.imageWidth;
             document->elements_[element].imageHeight = tag.imageHeight;
             if (tag.alignment != MarkdownAlignment::None && ! document->paragraphs_.empty())
                 document->paragraphs_.back().alignment = tag.alignment;
@@ -1058,12 +1079,11 @@ struct SemanticBuilder::Preparation
         }
         std::optional<ImagePresentation> presentation;
         std::size_t presentationEnd = node.source.last;
-        bool literalPresentation = false;
-        if (node.kind == MarkdownInlineKind::Image && document->syntax_->Profile() == MarkdownProfile::RichMarkdown &&
-            node.nextSibling != MarkdownNoNode)
+        bool literalPresentation    = false;
+        if (node.kind == MarkdownInlineKind::Image && document->syntax_->Profile() == MarkdownProfile::RichMarkdown && node.nextSibling != MarkdownNoNode)
         {
             const auto& suffix = document->syntax_->Inlines()[node.nextSibling];
-            const auto source = document->syntax_->Source();
+            const auto source  = document->syntax_->Source();
             if (suffix.source.first == node.source.last && suffix.source.first < source.size() && source[suffix.source.first] == L'{' &&
                 ! normalized.units.empty() && suffix.source.first < normalized.units.back().source.last &&
                 (visit.clipLast == MarkdownNoNode || suffix.source.first < visit.clipLast))
@@ -1074,13 +1094,13 @@ struct SemanticBuilder::Preparation
                 auto leafEnd = normalized.units.back().source.last;
                 if (visit.clipLast != MarkdownNoNode)
                     leafEnd = std::min(leafEnd, visit.clipLast);
-                leafEnd = std::min(leafEnd, source.size());
-                auto available = std::min<std::size_t>(512u, leafEnd - suffix.source.first);
+                leafEnd            = std::min(leafEnd, source.size());
+                auto available     = std::min<std::size_t>(512u, leafEnd - suffix.source.first);
                 const auto lineEnd = source.substr(suffix.source.first, available).find_first_of(L"\r\n");
                 if (lineEnd != std::wstring_view::npos)
                     available = lineEnd;
                 const auto closing = source.substr(suffix.source.first, available).find(L'}');
-                presentationEnd = closing == std::wstring_view::npos ? suffix.source.first + available : suffix.source.first + closing + 1u;
+                presentationEnd    = closing == std::wstring_view::npos ? suffix.source.first + available : suffix.source.first + closing + 1u;
                 // Never split any non-text sibling crossed by the candidate.
                 // Such a node may span a soft break but cannot leave this leaf.
                 for (auto sibling = node.nextSibling; sibling != MarkdownNoNode; sibling = document->syntax_->Inlines()[sibling].nextSibling)
@@ -1091,14 +1111,17 @@ struct SemanticBuilder::Preparation
                     if (item.kind != MarkdownInlineKind::Text && item.source.last > presentationEnd)
                         presentationEnd = std::min(item.source.last, leafEnd);
                 }
-                const auto parsed = ParseImagePresentation(source, node.source.last, presentationEnd);
+                const auto parsed     = ParseImagePresentation(source, node.source.last, presentationEnd);
                 const bool standalone = ! document->paragraphs_.empty() && document->paragraphs_.back().element == visit.parent &&
-                    document->paragraphs_.back().syntaxNode < document->syntax_->Nodes().size() &&
-                    document->syntax_->Nodes()[document->paragraphs_.back().syntaxNode].block.kind == MarkdownBlockKind::Paragraph &&
-                    document->syntax_->Nodes()[document->paragraphs_.back().syntaxNode].firstInline == visit.node &&
-                    suffix.kind == MarkdownInlineKind::Text && suffix.nextSibling == MarkdownNoNode && suffix.source.last == presentationEnd;
-                if (standalone && parsed) presentation = parsed;
-                else literalPresentation = true;
+                                        document->paragraphs_.back().syntaxNode < document->syntax_->Nodes().size() &&
+                                        document->syntax_->Nodes()[document->paragraphs_.back().syntaxNode].block.kind == MarkdownBlockKind::Paragraph &&
+                                        document->syntax_->Nodes()[document->paragraphs_.back().syntaxNode].firstInline == visit.node &&
+                                        suffix.kind == MarkdownInlineKind::Text && suffix.nextSibling == MarkdownNoNode &&
+                                        suffix.source.last == presentationEnd;
+                if (standalone && parsed)
+                    presentation = parsed;
+                else
+                    literalPresentation = true;
             }
         }
         if (node.nextSibling != MarkdownNoNode)
@@ -1109,7 +1132,8 @@ struct SemanticBuilder::Preparation
             {
                 sibling.skipUntil = presentationEnd;
                 sibling.clipFirst = std::max(sibling.clipFirst, presentationEnd);
-                if (sibling.clipLast == MarkdownNoNode) sibling.clipLast = document->syntax_->Source().size();
+                if (sibling.clipLast == MarkdownNoNode)
+                    sibling.clipLast = document->syntax_->Source().size();
             }
             visits.push_back(sibling);
         }
@@ -1167,9 +1191,9 @@ struct SemanticBuilder::Preparation
             auto expression           = sourceFallback ? std::shared_ptr<MathExpression>{} : std::make_shared<MathExpression>(ParseMath(node.value));
             auto& extensions          = Extensions();
             bool rowTags{};
-            const auto count          = [&](auto&& self, const MathNode& value) -> std::size_t
+            const auto count = [&](auto&& self, const MathNode& value) -> std::size_t
             {
-                rowTags = rowTags || (value.kind == MathKind::Style && value.text == L"rowtag");
+                rowTags            = rowTags || (value.kind == MathKind::Style && value.text == L"rowtag");
                 std::size_t result = 1;
                 for (const auto& child : value.children)
                     result += self(self, child);
@@ -1178,7 +1202,8 @@ struct SemanticBuilder::Preparation
             const auto records = expression ? count(count, expression->root) : 0u;
             const auto raw     = document->syntax_->Slice(node.source);
             const bool display = raw.starts_with(L"$$") || raw.starts_with(L"\\[");
-            if (expression && *expression && (display || (expression->root.text != L"tag" && ! rowTags)) && extensions.CanAdmitRecords(records) && extensions.CanAdmitObject())
+            if (expression && *expression && (display || (expression->root.text != L"tag" && ! rowTags)) && extensions.CanAdmitRecords(records) &&
+                extensions.CanAdmitObject())
             {
                 output.Emit(L"\ufffc", node.source, DisplaySpanKind::Object, flags, visit.heading);
                 auto& formula        = document->elements_[element];
@@ -1215,9 +1240,9 @@ struct SemanticBuilder::Preparation
             // A Markdown style container can cross an HTML anchor boundary.
             // Resolve its current native owner only when creating an element;
             // never capture a temporary HTML anchor in the style visit stack.
-            const auto owner   = html.linkElement == MarkdownNoNode ? parent : html.linkElement;
+            const auto owner       = html.linkElement == MarkdownNoNode ? parent : html.linkElement;
             const auto ownedSource = presentation ? MarkdownRange{node.source.first, presentationEnd} : node.source;
-            const auto element = Element(node.kind == MarkdownInlineKind::Link ? SemanticRole::Link : SemanticRole::Image, ownedSource, owner);
+            const auto element     = Element(node.kind == MarkdownInlineKind::Link ? SemanticRole::Link : SemanticRole::Image, ownedSource, owner);
             document->elements_[element].destination = node.destination;
             document->elements_[element].title       = node.title;
             document->elements_[element].wiki        = node.wiki;
@@ -1226,7 +1251,7 @@ struct SemanticBuilder::Preparation
                 const auto alternative = ImageAlternative(node);
                 if (presentation)
                 {
-                    document->elements_[element].imageWidth = presentation->width;
+                    document->elements_[element].imageWidth  = presentation->width;
                     document->elements_[element].imageHeight = presentation->height;
                     if (presentation->alignment != MarkdownAlignment::None)
                         document->paragraphs_.back().alignment = presentation->alignment;

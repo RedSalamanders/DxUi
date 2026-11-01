@@ -96,7 +96,7 @@ template <typename Check> inline void Admission(Check&& check)
     for (unsigned step = 0u; step < 16u; ++step)
     {
         auto previousFrame = resources.Snapshot();
-        auto nextFrame = Picture(2u, 2u);
+        auto nextFrame     = Picture(2u, 2u);
         check(resources.ReplaceFrame(requests[0], nextFrame) && resources.Snapshot() == previousFrame && resources.HasUnpublished(),
               "accepted frames stage without mutating the previous immutable publication");
         resources.Publish();
@@ -296,11 +296,12 @@ template <typename Prepare, typename Check> inline void Retained(DxUi::RichTextE
         check(static_cast<bool>(sizedDocument), "authored HTML image publishes current semantic geometry");
         const auto sizedImage = std::ranges::find(sizedDocument->Elements(), SemanticRole::Image, &SemanticElement::role);
         check(sizedImage != sizedDocument->Elements().end() && sizedImage->imageWidth == 48u && sizedImage->imageHeight == 40u &&
-                  sizedDocument->Map().Display().find(L"Overview") != std::wstring::npos && sizedDocument->Paragraphs().front().alignment == MarkdownAlignment::Right,
+                  sizedDocument->Map().Display().find(L"Overview") != std::wstring::npos &&
+                  sizedDocument->Paragraphs().front().alignment == MarkdownAlignment::Right,
               "HTML image retains bounded authored width and height in the semantic publication");
         const auto sizedBounds = editor.GetSemanticElementBounds(host, static_cast<std::size_t>(sizedImage - sizedDocument->Elements().begin()));
-        check(sizedBounds && std::abs(sizedBounds->right - sizedBounds->left - 48.f) < .02f &&
-                  std::abs(sizedBounds->bottom - sizedBounds->top - 40.f) < .02f && editor.GetText() == sizedSource,
+        check(sizedBounds && std::abs(sizedBounds->right - sizedBounds->left - 48.f) < .02f && std::abs(sizedBounds->bottom - sizedBounds->top - 40.f) < .02f &&
+                  editor.GetText() == sizedSource,
               "authored HTML dimensions determine image geometry while source remains exact");
         editor.SetText(L"<img src='https://example.invalid/image.png' alt='remote'>\n");
         prepare();

@@ -309,44 +309,46 @@ inline void OptionalDefinitionsAndAbbreviations()
 inline void AuthoredImagePresentation()
 {
     const std::wstring source = L"![map](map.png){width=48 height=40 align=center caption=\"Map overview\"}\n";
-    const auto document = Build(source, MarkdownProfile::RichMarkdown);
+    const auto document       = Build(source, MarkdownProfile::RichMarkdown);
     CheckGraph(*document);
     const auto image = std::ranges::find(document->Elements(), SemanticRole::Image, &SemanticElement::role);
-    Check(image != document->Elements().end() && image->imageWidth == 48u && image->imageHeight == 40u && image->name == L"map" &&
-              image->source.first == 0u && image->source.last == source.size() - 1u && document->Map().Source() == source,
+    Check(image != document->Elements().end() && image->imageWidth == 48u && image->imageHeight == 40u && image->name == L"map" && image->source.first == 0u &&
+              image->source.last == source.size() - 1u && document->Map().Source() == source,
           "standalone Markdown image retains exact complete source ownership and authored size");
-    Check(document->Map().Display().find(L"Map overview") != std::wstring::npos &&
-              document->Map().Display().find(L"width=") == std::wstring::npos && document->Paragraphs().front().alignment == MarkdownAlignment::Center,
+    Check(document->Map().Display().find(L"Map overview") != std::wstring::npos && document->Map().Display().find(L"width=") == std::wstring::npos &&
+              document->Paragraphs().front().alignment == MarkdownAlignment::Center,
           "caption is explicitly authored and the standalone paragraph is centered");
-    const auto captionAt = document->Map().Display().find(L"Map overview");
+    const auto captionAt  = document->Map().Display().find(L"Map overview");
     const auto imageIndex = static_cast<std::size_t>(image - document->Elements().begin());
-    Check(document->Map().ToSource(captionAt) == source.find(L"Map overview") &&
-              document->SourceEditingRange(imageIndex) == std::optional(image->source),
+    Check(document->Map().ToSource(captionAt) == source.find(L"Map overview") && document->SourceEditingRange(imageIndex) == std::optional(image->source),
           "generated caption maps to its authored anchor and F2 owns the complete image syntax");
     const std::wstring htmlSource = L"<img src='map.png' alt='map' width='48' height='40' align='right' data-caption='Map overview'>\n";
-    const auto html = Build(htmlSource, MarkdownProfile::RichMarkdown);
+    const auto html               = Build(htmlSource, MarkdownProfile::RichMarkdown);
     CheckGraph(*html);
     const auto htmlImage = std::ranges::find(html->Elements(), SemanticRole::Image, &SemanticElement::role);
     Check(htmlImage != html->Elements().end() && htmlImage->imageWidth == 48u && htmlImage->imageHeight == 40u && htmlImage->title.empty() &&
               html->Map().Display().find(L"Map overview") != std::wstring::npos && html->Paragraphs().front().alignment == MarkdownAlignment::Right &&
               html->Map().Source() == htmlSource,
           "standalone HTML image accepts explicit caption and alignment without treating title as caption");
-    for (const auto invalid : {L"![map](map.png){width=0}\n", L"![map](map.png){width=12 width=24}\n", L"prefix ![map](map.png){align=center}\n",
-                               L"![map](map.png){caption=\"A *styled* text\"}\n", L"![map](map.png){caption=\"A\x7f B\"}\n"})
+    for (const auto invalid : {L"![map](map.png){width=0}\n",
+                               L"![map](map.png){width=12 width=24}\n",
+                               L"prefix ![map](map.png){align=center}\n",
+                               L"![map](map.png){caption=\"A *styled* text\"}\n",
+                               L"![map](map.png){caption=\"A\x7f B\"}\n"})
     {
         const auto rejected = Build(invalid, MarkdownProfile::RichMarkdown);
         Check(rejected->Map().Display().find(L"![map](map.png){") != std::wstring::npos && rejected->Map().Source() == invalid &&
                   std::ranges::none_of(rejected->Elements(), [](const auto& item) { return item.role == SemanticRole::Image; }),
               "invalid and non-standalone Markdown presentation attributes remain literal");
     }
-    for (const auto input : {L"![map](map.png){width=2\n\nordinary } text\n", L"![map](map.png){width=2\nordinary } text\n",
-                             L"![map](map.png){width=2 *bad*}\n\nnext } text\n"})
+    for (const auto input :
+         {L"![map](map.png){width=2\n\nordinary } text\n", L"![map](map.png){width=2\nordinary } text\n", L"![map](map.png){width=2 *bad*}\n\nnext } text\n"})
     {
         const auto rejected = Build(input, MarkdownProfile::RichMarkdown);
         CheckGraph(*rejected);
         const auto display = rejected->Map().Display();
-        const auto marker = display.find(L"ordinary } text");
-        const auto tail = display.find(L"next } text");
+        const auto marker  = display.find(L"ordinary } text");
+        const auto tail    = display.find(L"next } text");
         Check(rejected->Map().Source() == input && display.find(L"![map](map.png){width=2") != display.npos &&
                   std::ranges::none_of(rejected->Elements(), [](const auto& item) { return item.role == SemanticRole::Image; }) &&
                   ((marker != display.npos && display.find(L"ordinary } text", marker + 1u) == display.npos) ||
@@ -354,15 +356,13 @@ inline void AuthoredImagePresentation()
               "malformed image suffix stays in its leaf and line without duplicating later content or split inline owners");
     }
     const auto standard = Build(source, MarkdownProfile::Gfm029);
-    Check(standard->Map().Display().find(L"{width=") != std::wstring::npos,
-          "the ordinary GFM profile does not consume RichMarkdown image presentation syntax");
+    Check(standard->Map().Display().find(L"{width=") != std::wstring::npos, "the ordinary GFM profile does not consume RichMarkdown image presentation syntax");
     const auto invalidHtml = Build(L"<img src='map.png' width='0' data-caption='bad'>\n", MarkdownProfile::RichMarkdown);
     Check(invalidHtml->Map().Display().find(L"<img") != std::wstring::npos &&
               std::ranges::none_of(invalidHtml->Elements(), [](const auto& item) { return item.role == SemanticRole::Image; }),
           "invalid HTML presentation preserves the complete source leaf");
     const auto htmlMixed = Build(L"text <img src='map.png' align='center'>\n", MarkdownProfile::RichMarkdown);
-    Check(htmlMixed->Map().Display().find(L"<img") != std::wstring::npos,
-          "non-standalone HTML alignment preserves the complete literal leaf");
+    Check(htmlMixed->Map().Display().find(L"<img") != std::wstring::npos, "non-standalone HTML alignment preserves the complete literal leaf");
 }
 inline void NativeHtmlAndLinkPresentation()
 {

@@ -365,9 +365,8 @@ class PreparedMath final
     {
         if (label.kind == MathKind::Text)
             return label.children.empty();
-        return label.kind == MathKind::Row && label.children.size() == 3u &&
-               label.children[0u].kind == MathKind::Text && label.children[0u].text == L"(" && label.children[0u].children.empty() &&
-               label.children[1u].kind == MathKind::Text && label.children[1u].children.empty() &&
+        return label.kind == MathKind::Row && label.children.size() == 3u && label.children[0u].kind == MathKind::Text && label.children[0u].text == L"(" &&
+               label.children[0u].children.empty() && label.children[1u].kind == MathKind::Text && label.children[1u].children.empty() &&
                label.children[2u].kind == MathKind::Text && label.children[2u].text == L")" && label.children[2u].children.empty();
     }
     static std::optional<std::uint32_t> ColorArgument(std::wstring_view text, std::wstring_view prefix) noexcept
@@ -824,9 +823,9 @@ class PreparedMath final
             {
                 const auto matrixName = MatrixBase(node.text);
                 const bool rootMatrix = current.depth == 0u || (current.depth == 1u && root.kind == MathKind::Row);
-                const bool rowCell = rootMatrix && node.kind == MathKind::Matrix && node.columns && i % node.columns == 0u &&
-                                     (matrixName == L"aligned" || matrixName == L"alignat" || matrixName == L"gathered");
-                pending[top++] = {&node.children[i], current.depth + 1u, rowCell};
+                const bool rowCell    = rootMatrix && node.kind == MathKind::Matrix && node.columns && i % node.columns == 0u &&
+                                        (matrixName == L"aligned" || matrixName == L"alignat" || matrixName == L"gathered");
+                pending[top++]        = {&node.children[i], current.depth + 1u, rowCell};
             }
         }
         return count;
@@ -902,7 +901,7 @@ class PreparedMath final
         boxes[index].firstChild = boxes.size();
         const auto firstChild   = boxes[index].firstChild;
         const auto nextLevel    = scriptLevel < 2u ? scriptLevel + 1u : 2u;
-        const auto childCount = node.kind == MathKind::Style && node.text == L"rowtag" ? 1u : node.children.size();
+        const auto childCount   = node.kind == MathKind::Style && node.text == L"rowtag" ? 1u : node.children.size();
         for (std::size_t childIndex = 0; childIndex < childCount; ++childIndex)
         {
             const auto& child = node.children[childIndex];

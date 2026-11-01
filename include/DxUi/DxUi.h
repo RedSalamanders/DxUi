@@ -2762,7 +2762,7 @@ private:
     void NotifyChange(SliderChangePhase phase, bool notifyLegacy) noexcept;
     std::shared_ptr<const std::function<void(SliderChange)>> _onChange;
     double _dragInitialValue = 0.0;
-    uint64_t _dragEpoch = 0u;
+    uint64_t _dragEpoch      = 0u;
     std::shared_ptr<const std::function<void(double)>> _onValueChanged;
     std::vector<double> _tickMarks;
     double _minimum                     = 0.0;

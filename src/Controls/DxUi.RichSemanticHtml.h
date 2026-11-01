@@ -122,8 +122,7 @@ inline bool NativeHtmlDestination(std::wstring_view value, bool image = false) n
     if (colon == std::wstring_view::npos || (path != std::wstring_view::npos && path < colon))
         return true;
     const auto scheme = value.substr(0u, colon);
-    return HtmlName(scheme, L"http") || HtmlName(scheme, L"https") || HtmlName(scheme, image ? L"file" : L"mailto") ||
-           (image && HtmlName(scheme, L"data"));
+    return HtmlName(scheme, L"http") || HtmlName(scheme, L"https") || HtmlName(scheme, image ? L"file" : L"mailto") || (image && HtmlName(scheme, L"data"));
 }
 struct NativeHtmlTag
 {
@@ -201,8 +200,13 @@ inline bool ParseNativeHtmlTag(std::wstring_view value, NativeHtmlTag& tag)
         const bool isAlignment = (isImage || tag.kind == NativeHtmlKind::P || tag.kind == NativeHtmlKind::Div) && HtmlName(name, L"align");
         const bool isWidth = isImage && HtmlName(name, L"width"), isHeight = isImage && HtmlName(name, L"height");
         const bool isCaption = isImage && HtmlName(name, L"data-caption");
-        if ((! isHref && ! isTitle && ! isAlternative && ! isAlignment && ! isWidth && ! isHeight && ! isCaption) ||
-            (isHref ? href : isTitle ? title : isAlternative ? alternative : isAlignment ? alignment : isWidth ? width : isHeight ? height : caption))
+        if ((! isHref && ! isTitle && ! isAlternative && ! isAlignment && ! isWidth && ! isHeight && ! isCaption) || (isHref          ? href
+                                                                                                                      : isTitle       ? title
+                                                                                                                      : isAlternative ? alternative
+                                                                                                                      : isAlignment   ? alignment
+                                                                                                                      : isWidth       ? width
+                                                                                                                      : isHeight      ? height
+                                                                                                                                      : caption))
             return false;
         while (at < value.size() && HtmlSpace(value[at]))
             ++at;
@@ -242,7 +246,7 @@ inline bool ParseNativeHtmlTag(std::wstring_view value, NativeHtmlTag& tag)
             if (decoded.empty() || decoded.size() > 256u || std::ranges::any_of(decoded, [](wchar_t unit) { return unit < L' ' || unit == 0x7fu; }))
                 return false;
             tag.caption = decoded;
-            caption = true;
+            caption     = true;
         }
         else if (isWidth || isHeight)
         {
@@ -410,12 +414,15 @@ struct NativeHtmlPlan
     }
     bool StandaloneImagePresentation(std::wstring_view text) const
     {
-        if (std::ranges::none_of(tags, [](const auto& tag)
-            { return tag.kind == NativeHtmlKind::Img && (tag.alignment != MarkdownAlignment::None || ! tag.caption.empty()); }))
+        if (std::ranges::none_of(
+                tags, [](const auto& tag) { return tag.kind == NativeHtmlKind::Img && (tag.alignment != MarkdownAlignment::None || ! tag.caption.empty()); }))
             return true;
-        if (tags.size() != 1u || tags.front().kind != NativeHtmlKind::Img) return false;
-        while (! text.empty() && HtmlSpace(text.front())) text.remove_prefix(1u);
-        while (! text.empty() && HtmlSpace(text.back())) text.remove_suffix(1u);
+        if (tags.size() != 1u || tags.front().kind != NativeHtmlKind::Img)
+            return false;
+        while (! text.empty() && HtmlSpace(text.front()))
+            text.remove_prefix(1u);
+        while (! text.empty() && HtmlSpace(text.back()))
+            text.remove_suffix(1u);
         NativeHtmlTag standalone;
         return ParseNativeHtmlTag(text, standalone) && standalone.kind == NativeHtmlKind::Img;
     }
