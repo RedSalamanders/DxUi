@@ -971,6 +971,55 @@ inline void MarkdownSubtlePresentation()
     const auto separatorX = static_cast<UINT>(std::clamp(std::lround((firstRow.right + secondRowCell.left) * 0.5f), 0l, static_cast<long>(rasterWidth - 1u)));
     const auto verticalY  = static_cast<UINT>(std::clamp(std::lround((firstRow.top + firstRow.bottom) * 0.5f), 0l, static_cast<long>(rasterHeight - 1u)));
     Check(! isRed(subtlePixels, separatorX, verticalY), "subtle table raster has no vertical grid line between intrinsic columns");
+    const auto paletteDocument = RichSemanticDocumentTests::Build(L"plain `code` text\n\n| header |\n| --- |\n| body |\n");
+    PreparedSemanticGeometry paletteGeometry;
+    LayoutOptions paletteOptions;
+    paletteOptions.widthDip             = 520.0f;
+    paletteOptions.markdownPresentation = MarkdownPresentationStyle::Subtle;
+    paletteGeometry.Begin(factory.get(), paletteDocument, paletteOptions);
+    Complete(paletteGeometry);
+    wil::com_ptr<ID2D1SolidColorBrush> surfaceBrush;
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(0.0f, 1.0f, 0.0f, 1.0f), surfaceBrush.put()));
+    target->BeginDraw();
+    target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+    paletteGeometry.Draw(target.get(),
+                         textBrush.get(),
+                         decorationBrush.get(),
+                         D2D1::Point2F(),
+                         0.0f,
+                         static_cast<float>(rasterHeight),
+                         fillBrush.get(),
+                         1.0f,
+                         nullptr,
+                         surfaceBrush.get());
+    THROW_IF_FAILED(target->EndDraw());
+    std::vector<BYTE> palettePixels(stride * rasterHeight);
+    THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(palettePixels.size()), palettePixels.data()));
+    const auto isGreen = [&](float x, float y)
+    {
+        const auto pixelX = static_cast<UINT>(std::clamp(std::lround(x), 0l, static_cast<long>(rasterWidth - 1u)));
+        const auto pixelY = static_cast<UINT>(std::clamp(std::lround(y), 0l, static_cast<long>(rasterHeight - 1u)));
+        const auto offset = static_cast<std::size_t>(pixelY) * stride + static_cast<std::size_t>(pixelX) * 4u;
+        return palettePixels[offset] < 32u && palettePixels[offset + 1u] > 220u && palettePixels[offset + 2u] < 32u;
+    };
+    const auto chip = paletteGeometry.SourceRange({7u, 11u});
+    Check(chip.size() == 1u && isGreen((chip.front().left + chip.front().right) * .5f, chip.front().top + 1.0f),
+          "inline code paints a retained semantic surface below its text");
+    bool sawHeader = false, sawBody = false;
+    for (std::size_t elementIndex = 0u; elementIndex < paletteDocument->Elements().size(); ++elementIndex)
+    {
+        const auto& value = paletteDocument->Elements()[elementIndex];
+        if (value.role != SemanticRole::Cell)
+            continue;
+        const auto bounds = paletteGeometry.ElementBounds(elementIndex);
+        Check(bounds.has_value(), "palette fixture cells have retained frames");
+        const bool colored = isGreen(bounds->left + 2.0f, bounds->top + 2.0f);
+        if (value.tableHeader)
+            sawHeader = colored;
+        else
+            sawBody = ! colored;
+    }
+    Check(sawHeader && sawBody, "semantic header fill stays distinct from ordinary body cells");
 }
 inline void AtomicNavigationAndCancellation()
 {

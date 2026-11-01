@@ -273,6 +273,7 @@ struct NativeImageGeometry
 struct SemanticBox
 {
     PreparedLayout layout;
+    std::vector<D2D1_RECT_F> codeChips{0u};
     SemanticParagraph paragraph;
     float x{}, y{}, width{}, height{}, codeGutter{};
     D2D1_RECT_F frame{};
@@ -467,6 +468,8 @@ struct PreparedSemanticGeometry::State
     std::vector<std::optional<D2D1_RECT_F>> bounds;
     std::vector<std::pair<std::size_t, std::size_t>> sourceLines;
     float height{}, width{};
+    std::size_t codeChipCount{};
+    bool codeChipsAvailable = true;
     std::size_t reusedBoxes{};
     const SemanticBox& BoxAt(std::size_t position) const
     {
@@ -1448,6 +1451,25 @@ struct PreparedSemanticGeometry::Preparation
                 box->native         = native;
             }
         }
+        if (next.options.markdownPresentation == MarkdownPresentationStyle::Subtle && next.codeChipsAvailable &&
+            next.document->Elements()[content.element].role != SemanticRole::Code && ! caretOnly)
+            for (const auto& run : box->layout.Content().runs)
+            {
+                if ((run.flags & Code) == 0u || run.length == 0u)
+                    continue;
+                const auto chips = box->layout.Range(run.start, run.start + run.length);
+                // Cosmetic chip storage is independent of source/geometry
+                // admission. Retain at most this many rectangles and omit all
+                // chips consistently if a pathological document exceeds it.
+                constexpr std::size_t maximumCodeChips = 16384u;
+                if (chips.size() > maximumCodeChips - next.codeChipCount)
+                {
+                    next.codeChipsAvailable = false;
+                    break;
+                }
+                next.codeChipCount += chips.size();
+                box->codeChips.insert(box->codeChips.end(), chips.begin(), chips.end());
+            }
         box->height = box->layout.Height();
         box->frame  = D2D1::RectF(box->x, box->y, box->x + box->width, box->y + box->height);
         if (paddedCode)
@@ -2582,7 +2604,9 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                                 ! state.document->Syntax()->SourceRegion() && nodeIndex < state.document->Syntax()->Nodes().size() &&
                                 (state.document->Syntax()->Nodes()[nodeIndex].block.kind == MarkdownBlockKind::FencedCode ||
                                  state.document->Syntax()->Nodes()[nodeIndex].block.kind == MarkdownBlockKind::IndentedCode);
-        if ((elements[i].role == SemanticRole::Quote || styledCode) && quoteFill)
+        const bool tableHeader =
+            elements[i].role == SemanticRole::Cell && elements[i].tableHeader && state.options.markdownPresentation == MarkdownPresentationStyle::Subtle;
+        if ((elements[i].role == SemanticRole::Quote || styledCode || tableHeader) && quoteFill)
             target->FillRectangle(rectangle, quoteFill);
         const auto copy = styledCode && state.options.codeCopyAction
                               ? CodeCopyBounds(rectangle, state.options.readingDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT)
@@ -2661,7 +2685,15 @@ void PreparedSemanticGeometry::Draw(ID2D1RenderTarget* target,
                     if (box->paragraph.table != MarkdownNoNode)
                         target->PopAxisAlignedClip();
                 });
-                auto localLinks        = links ? *links : LinkDrawing{};
+                if (quoteFill && state.codeChipsAvailable)
+                    for (const auto& chip : box->codeChips)
+                    {
+                        const auto rectangle = D2D1::RectF(
+                            origin.x + box->x + chip.left, origin.y + box->y + chip.top, origin.x + box->x + chip.right, origin.y + box->y + chip.bottom);
+                        if (rectangle.bottom > origin.y + top && rectangle.top < origin.y + bottom)
+                            target->FillRoundedRectangle(D2D1::RoundedRect(rectangle, 2.0f, 2.0f), quoteFill);
+                    }
+                auto localLinks = links ? *links : LinkDrawing{};
                 localLinks.displayOrigin += box->paragraph.display.first;
                 box->layout.Draw(target, boxText, D2D1::Point2F(origin.x + box->x, origin.y + box->y), links ? &localLinks : nullptr);
                 if (box->native &&

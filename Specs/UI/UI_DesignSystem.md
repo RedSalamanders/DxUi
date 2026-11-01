@@ -62,6 +62,11 @@ Unicode table, measured hanging list columns and underlined inert links. The
 validated native HTML text subset reuses existing styles; unsupported markup
 keeps literal monospaced leaf contents. Link underlining inherits body/disabled/
 selected text ink by default. Document-surface appearance may opt into accent link ink and hover/caret underlines; explicit underline and high contrast remain persistent. Source highlights use theme selection ink below selection, and optional paragraph focus dimming uses subdued text outside high contrast. Public appearance options own border, background, bounded text column and typography. Table/code/image outlines, quote strokes and rules reuse the caret ink role in the default presentation; selection keeps the existing selected-text/fill roles in every theme.
+The Subtle Markdown presentation resolves neutral strokes from `borderDefault`
+and surfaces from an eight-percent text-over-fill blend. Quotes, fenced code,
+inline code chips and table headers share that surface; table body cells keep
+the document fill. High contrast uses resolved text and surface roles. These
+roles follow the active theme and are never persisted as source formatting.
 Revision-guarded source decorations resolve accent, subdued, warning and error roles through the active theme. Backgrounds are translucent in ordinary contrast and outlined in high contrast; selected text retains selection ink.
 Opt-in `MarkdownPresentationStyle::Subtle` uses neutral `borderDefault` decoration,
 H1/H2 separators, content-sized horizontal-rule tables, centered standalone display

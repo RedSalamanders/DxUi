@@ -2063,6 +2063,11 @@ The editor resolves neutral decoration from `borderDefault` and shades quotes wi
 an eight-percent blend of ordinary text ink over the document fill during preparation.
 This remains visible when input/card roles coincide. High contrast uses resolved text/surface
 colors. Caller-provided drawing brushes remain supported by prepared layouts.
+Subtle table headers and inline code use the same theme-resolved neutral surface
+as quotes and code blocks. Inline chips retain source-derived rectangles during
+preparation; painting adds no layout or range mapping. At more than 16,384 chip
+rectangles, the generation omits all cosmetic chips while retaining code font,
+source, selection and accessible content. Header fill is independent of body rows.
 The new style's runtime and consumer qualification is tracked in the
 [active plan](../Plans/WIP/SubtleMarkdownPresentation_2026-10-27.md); this contract
 does not establish completed platform or performance qualification.
