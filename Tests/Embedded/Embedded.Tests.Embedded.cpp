@@ -1663,6 +1663,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichDocumentAllocationFailureAtomicity();
     TestRichLabelWakeupAndRetirement(gpu);
     TestRichTooltipReentrantTransitions(gpu);
+    TestRichMiddleAutoScroll(gpu);
     TestRichSourceMoveTransaction();
     TestRichTripleClickParagraph(gpu);
     TestRichPreparedWordFailureAtomicity(gpu);

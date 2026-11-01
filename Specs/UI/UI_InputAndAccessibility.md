@@ -274,6 +274,15 @@ mode, without changing source or history. Native and embedded hosts apply the
 same sequencing, and ScrollPanel forwards the event in content coordinates.
 Controls without a triple-click override receive an ordinary third press.
 
+A middle press in a vertically scrollable RichTextEditor begins pointer-driven
+auto-scroll; displacement below or above the origin controls the direction and
+speed, with an eight-DIP dead zone and an 800 DIP/s maximum. A second middle
+press, a primary press, Escape, loss of capture or focus, disabling, hiding or
+detaching the editor ends the gesture. Ticks use the host animation clock and
+bounded elapsed time; there is no control-owned timer. Embedded applications
+forward middle-button events, retain native capture while requested, and drive
+`AdvanceAnimation` while `NeedsAnimation` is true.
+
 `BeginSourceMove` creates a source/selection/binding-guarded token for a
 nonempty editable selection. `MoveSelectedSource` accepts a source-coordinate
 destination outside that selection and performs one source-exact undoable

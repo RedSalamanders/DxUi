@@ -166,6 +166,35 @@ static void TestRichTooltipReentrantTransitions(GraphicsFixture& gpu)
     Check(view.Controls().DebugGetPendingTooltipText() == L"Current title", "subsequent hover resolves the current document's authored title");
 }
 
+static void TestRichMiddleAutoScroll(GraphicsFixture& gpu)
+{
+    using namespace DxUi;
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create auto-scroll graphics");
+    EmbeddedHost view;
+    Hr(view.Attach(graphics), "attach auto-scroll host");
+    std::wstring source(0u, L' ');
+    for (unsigned i = 0u; i != 100u; ++i)
+        source.append(L"a long source line\n");
+    auto root = std::make_unique<RichTextEditor>(source);
+    auto* editor = root.get();
+    view.Controls().SetRoot(std::move(root));
+    Hr(PrepareRichEmbeddedContent(view, 320u, 120u), "prepare auto-scroll text");
+    const auto initial = editor->GetScrollInfo();
+    Check(initial && initial->contentHeightDip > initial->viewportHeightDip, "fixture has a vertical scroll extent");
+    Check(view.DispatchPointer({PointerAction::MiddleDown, 40.0f, 40.0f}), "middle click starts auto-scroll");
+    Check(view.DispatchPointer({PointerAction::MiddleUp, 40.0f, 40.0f}), "middle release retains the auto-scroll gesture");
+    Check(view.DispatchPointer({PointerAction::Move, 40.0f, 90.0f}), "pointer displacement requests animation");
+    for (uint64_t tick = 100u; tick != 180u; tick += 16u)
+        if (view.NeedsAnimation())
+            view.AdvanceAnimation(tick);
+    const auto after = editor->GetScrollInfo();
+    Check(after && after->offsetDip > initial->offsetDip && editor->GetText() == source && ! editor->CanUndo(),
+          "ticks scroll without changing source or history");
+    Check(view.DispatchPointer({PointerAction::MiddleDown, 40.0f, 90.0f}), "second middle click cancels auto-scroll");
+    Check(! view.Controls().GetCapturedControl(), "cancelling releases the retained capture");
+}
+
 static void TestRichSourceMoveTransaction()
 {
     using namespace DxUi;

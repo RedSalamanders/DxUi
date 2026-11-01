@@ -582,6 +582,11 @@ bool Control::OnMouseTripleClick(ControlHost& host, D2D1_POINT_2F point, bool ri
     return OnMouseDown(host, point, rightButton, modifiers);
 }
 
+bool Control::OnMouseMiddleDown(ControlHost&, D2D1_POINT_2F, UINT)
+{
+    return false;
+}
+
 bool Control::OnMouseUp(ControlHost& /*host*/, D2D1_POINT_2F /*point*/, bool /*rightButton*/, UINT /*modifiers*/)
 {
     return false;

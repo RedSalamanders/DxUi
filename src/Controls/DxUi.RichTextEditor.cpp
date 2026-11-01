@@ -631,9 +631,12 @@ struct RichTextEditor::State
     bool revealCaret                          = true;
     bool readOnly                             = false;
     RichTextTaskTogglePolicy taskTogglePolicy = RichTextTaskTogglePolicy::EditableOnly;
-    bool suppressTaskSpace                    = false;
-    bool dragging                             = false;
-    bool scrollbarDragging                    = false;
+    bool suppressTaskSpace = false;
+    bool dragging          = false;
+    bool middleAutoScroll  = false;
+    D2D1_POINT_2F middleAutoScrollOrigin{}, middleAutoScrollPoint{};
+    std::optional<uint64_t> middleAutoScrollTick;
+    bool scrollbarDragging = false;
     float scrollbarDragY = 0.0f, scrollbarDragOffset = 0.0f;
     bool caretVisible            = true;
     wchar_t pendingLeadSurrogate = 0;
@@ -4644,6 +4647,28 @@ void RichTextEditor::Paint(ControlHost& host) const
 bool RichTextEditor::Tick(ControlHost& host, uint64_t nowTickMs)
 {
     auto& state = *_state;
+    if (state.middleAutoScroll && IsEnabled() && IsVisible())
+    {
+        const auto info = GetScrollInfo();
+        const float delta = state.middleAutoScrollPoint.y - state.middleAutoScrollOrigin.y;
+        const float velocity = std::abs(delta) <= 8.0f ? 0.0f : std::clamp(delta * 4.0f, -800.0f, 800.0f);
+        if (! state.middleAutoScrollTick || nowTickMs < *state.middleAutoScrollTick)
+            state.middleAutoScrollTick = nowTickMs;
+        const auto elapsed = std::min<uint64_t>(nowTickMs - *state.middleAutoScrollTick, 50u);
+        state.middleAutoScrollTick = nowTickMs;
+        if (info && velocity != 0.0f)
+        {
+            const float next = std::clamp(info->offsetDip + velocity * static_cast<float>(elapsed) / 1000.0f,
+                                          0.0f, std::max(0.0f, info->contentHeightDip - info->viewportHeightDip));
+            if (next != info->offsetDip)
+            {
+                static_cast<void>(SetScrollOffsetDip(next));
+                return true; // The scroll callback may retire this control.
+            }
+            if (elapsed == 0u)
+                return true;
+        }
+    }
     if (! HasFocus() || ! IsVisible() || ! Editable() || host.GetTheme().reducedMotion)
     {
         const bool changed = ! state.caretVisible;
@@ -5488,11 +5513,13 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
             SetZoom(next);
             return true;
         }
-        if (key == VK_ESCAPE && ! _state->sourceEditing && (_state->scrollbarDragging || _state->dragging))
+        if (key == VK_ESCAPE && ! _state->sourceEditing && (_state->scrollbarDragging || _state->dragging || _state->middleAutoScroll))
         {
             const auto release        = ReleaseUnchangedCaptureOnExit(host, *this);
             _state->scrollbarDragging = false;
             _state->dragging          = false;
+            _state->middleAutoScroll  = false;
+            _state->middleAutoScrollTick.reset();
             _state->codePressGesture  = false;
             _state->codePressDocument.reset();
             _state->taskPressPlan.reset();
@@ -6136,6 +6163,15 @@ bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool ri
     const auto inputSelection = GetSelection();
     try
     {
+        if (_state->middleAutoScroll)
+        {
+            const auto lifetime = GetLifetimeToken();
+            _state->middleAutoScroll = false;
+            _state->middleAutoScrollTick.reset();
+            host.ReleaseMouseCapture();
+            if (lifetime.expired() || GetHost() != &host)
+                return true;
+        }
         if (! IsEnabled() || rightButton)
             return false;
         const auto lifetime = GetLifetimeToken();
@@ -6258,6 +6294,31 @@ WindowHostCursorKind RichTextEditor::ResolveCursorKind(ControlHost&, D2D1_POINT_
     return IsEnabled() && IsVisible() && point.x >= viewport.left && point.x < viewport.right && point.y >= viewport.top && point.y < viewport.bottom
                ? WindowHostCursorKind::IBeam
                : WindowHostCursorKind::Default;
+}
+
+bool RichTextEditor::OnMouseMiddleDown(ControlHost& host, D2D1_POINT_2F point, UINT) noexcept
+{
+    if (_state->middleAutoScroll)
+    {
+        _state->middleAutoScroll = false;
+        _state->middleAutoScrollTick.reset();
+        host.ReleaseMouseCapture();
+        return true;
+    }
+    const auto info = GetScrollInfo();
+    const auto viewport = TextViewport();
+    if (! IsEnabled() || ! IsVisible() || ! info || info->contentHeightDip <= info->viewportHeightDip ||
+        point.x < viewport.left || point.x >= viewport.right || point.y < viewport.top || point.y >= viewport.bottom)
+        return false;
+    const auto lifetime = GetLifetimeToken();
+    host.SetFocusControl(this);
+    if (lifetime.expired() || GetHost() != &host || host.GetFocusControl() != this)
+        return true;
+    _state->middleAutoScroll = true;
+    _state->middleAutoScrollOrigin = _state->middleAutoScrollPoint = point;
+    _state->middleAutoScrollTick.reset();
+    host.CaptureMouse(this);
+    return true;
 }
 
 bool RichTextEditor::OnMouseTripleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT) noexcept
@@ -6564,6 +6625,14 @@ bool RichTextEditor::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT) n
     const auto inputSelection = GetSelection();
     try
     {
+        if (_state->middleAutoScroll)
+        {
+            if (! std::isfinite(point.x) || ! std::isfinite(point.y))
+                return false;
+            _state->middleAutoScrollPoint = point;
+            host.RequestAnimation();
+            return true;
+        }
         if (_state->scrollbarDragging)
         {
             const auto info = GetScrollInfo();
@@ -6748,6 +6817,8 @@ void RichTextEditor::PropagateHost(ControlHost* host) noexcept
         RetireLayout();
         _state->pendingLeadSurrogate = 0;
         _state->dragging             = false;
+        _state->middleAutoScroll     = false;
+        _state->middleAutoScrollTick.reset();
         _state->scrollbarDragging    = false;
         _state->blinkEpoch.reset();
     }
@@ -6785,7 +6856,8 @@ void RichTextEditor::OnDensityChanged() noexcept
 }
 void RichTextEditor::OnEnabledChanged(bool) noexcept
 {
-    auto* tooltipHost          = GetHost();
+    auto* tooltipHost = GetHost();
+    const bool wasMiddleAutoScroll = _state->middleAutoScroll;
     const auto tooltipLifetime = GetLifetimeToken();
     if (tooltipHost)
         tooltipHost->InvalidateRichTitleTooltip(this);
@@ -6794,12 +6866,17 @@ void RichTextEditor::OnEnabledChanged(bool) noexcept
     _state->preparedCommand.reset();
     _state->pendingLeadSurrogate = 0;
     _state->dragging             = false;
+    _state->middleAutoScroll     = false;
+    _state->middleAutoScrollTick.reset();
     _state->scrollbarDragging    = false;
     _state->blinkEpoch.reset();
+    if (wasMiddleAutoScroll && tooltipHost && ControlCaptureAccess::GestureOwner(*tooltipHost) == this)
+        tooltipHost->ReleaseMouseCapture();
 }
 void RichTextEditor::OnHidden() noexcept
 {
-    auto* tooltipHost          = GetHost();
+    auto* tooltipHost = GetHost();
+    const bool wasMiddleAutoScroll = _state->middleAutoScroll;
     const auto tooltipLifetime = GetLifetimeToken();
     if (tooltipHost)
         tooltipHost->InvalidateRichTitleTooltip(this);
@@ -6809,13 +6886,29 @@ void RichTextEditor::OnHidden() noexcept
     RetireLayout();
     _state->pendingLeadSurrogate = 0;
     _state->dragging             = false;
+    _state->middleAutoScroll     = false;
+    _state->middleAutoScrollTick.reset();
     _state->scrollbarDragging    = false;
     _state->blinkEpoch.reset();
+    if (wasMiddleAutoScroll && tooltipHost && ControlCaptureAccess::GestureOwner(*tooltipHost) == this)
+        tooltipHost->ReleaseMouseCapture();
 }
 void RichTextEditor::OnFocusChanged(ControlHost& host, bool focused)
 {
     Control::OnFocusChanged(host, focused);
+    if (! focused && _state->middleAutoScroll)
+    {
+        const auto lifetime = GetLifetimeToken();
+        _state->middleAutoScroll = false;
+        _state->middleAutoScrollTick.reset();
+        if (ControlCaptureAccess::GestureOwner(host) == this)
+            host.ReleaseMouseCapture();
+        if (lifetime.expired() || GetHost() != &host)
+            return;
+    }
     ++_state->sourceMoveEpoch;
+    _state->middleAutoScroll = false;
+    _state->middleAutoScrollTick.reset();
     _state->dragging          = false;
     _state->scrollbarDragging = false;
     _state->taskPressPlan.reset();
@@ -6826,6 +6919,8 @@ void RichTextEditor::OnFocusChanged(ControlHost& host, bool focused)
 void RichTextEditor::OnCaptureLost(ControlHost&)
 {
     ++_state->sourceMoveEpoch;
+    _state->middleAutoScroll = false;
+    _state->middleAutoScrollTick.reset();
     _state->dragging          = false;
     _state->scrollbarDragging = false;
     _state->taskPressPlan.reset();

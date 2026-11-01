@@ -11083,11 +11083,17 @@ bool ScrollPanel::OnMouseTripleClick(ControlHost& host, D2D1_POINT_2F point, boo
     return DispatchPress(host, point, rightButton, modifiers, 3u);
 }
 
+bool ScrollPanel::OnMouseMiddleDown(ControlHost& host, D2D1_POINT_2F point, UINT modifiers)
+{
+    return DispatchPress(host, point, false, modifiers, 4u);
+}
+
 bool ScrollPanel::DispatchPress(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers, unsigned clickCount)
 {
     const auto forward = [&](Control& child, D2D1_POINT_2F contentPoint)
     {
-        return clickCount == 3u ? child.OnMouseTripleClick(host, contentPoint, rightButton, modifiers)
+        return clickCount == 4u ? child.OnMouseMiddleDown(host, contentPoint, modifiers)
+             : clickCount == 3u ? child.OnMouseTripleClick(host, contentPoint, rightButton, modifiers)
              : clickCount == 2u ? child.OnMouseDoubleClick(host, contentPoint, rightButton, modifiers)
                                 : child.OnMouseDown(host, contentPoint, rightButton, modifiers);
     };
@@ -11142,7 +11148,7 @@ bool ScrollPanel::DispatchPress(ControlHost& host, D2D1_POINT_2F point, bool rig
     }
 
     // Scrollbars respond only to the primary button; secondary presses continue to content-space children.
-    if (! rightButton && UsesInternalScrollbar())
+    if (clickCount != 4u && ! rightButton && UsesInternalScrollbar())
     {
         const D2D1_RECT_F track = GetScrollbarTrackRect();
         if (PointInRect(track, point))

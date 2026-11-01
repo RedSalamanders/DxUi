@@ -226,6 +226,19 @@ struct App
                                                  0.0f,
                                                  DxUi::PointerDeviceFromMessageExtraInfo(GetMessageExtraInfo())});
                     return 0;
+                case WM_MBUTTONDOWN:
+                    SetFocus(hwnd);
+                    if (app->View().DispatchPointer({DxUi::PointerAction::MiddleDown, float(GET_X_LPARAM(lp)), float(GET_Y_LPARAM(lp)), UINT(wp)}))
+                    {
+                        if (app->View().Controls().GetCapturedControl())
+                            SetCapture(hwnd);
+                        else if (GetCapture() == hwnd)
+                            ReleaseCapture();
+                    }
+                    return 0;
+                case WM_MBUTTONUP:
+                    app->View().DispatchPointer({DxUi::PointerAction::MiddleUp, float(GET_X_LPARAM(lp)), float(GET_Y_LPARAM(lp)), UINT(wp)});
+                    return 0;
                 case WM_MOUSEMOVE:
                     app->View().DispatchPointer({DxUi::PointerAction::Move,
                                                  float(GET_X_LPARAM(lp)),
@@ -233,7 +246,18 @@ struct App
                                                  UINT(wp),
                                                  0.0f,
                                                  DxUi::PointerDeviceFromMessageExtraInfo(GetMessageExtraInfo())});
+                    if (app->View().NeedsAnimation())
+                        SetTimer(hwnd, 1u, 16u, nullptr);
                     return 0;
+                case WM_TIMER:
+                    if (wp == 1u)
+                    {
+                        static_cast<void>(app->View().AdvanceAnimation(GetTickCount64()));
+                        if (! app->View().NeedsAnimation())
+                            KillTimer(hwnd, 1u);
+                        return 0;
+                    }
+                    break;
                 case WM_MOUSEWHEEL:
                 {
                     POINT point{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
@@ -257,7 +281,11 @@ struct App
                         ReleaseCapture();
                     return 0;
                 case WM_CAPTURECHANGED: app->View().DispatchPointer({DxUi::PointerAction::Cancel}); return 0;
-                case WM_KEYDOWN: static_cast<void>(app->View().DispatchKey(UINT(wp), true, Modifiers())); return 0;
+                case WM_KEYDOWN:
+                    static_cast<void>(app->View().DispatchKey(UINT(wp), true, Modifiers()));
+                    if (! app->View().Controls().GetCapturedControl() && GetCapture() == hwnd)
+                        ReleaseCapture();
+                    return 0;
                 case WM_KEYUP: app->View().DispatchKey(UINT(wp), false, Modifiers()); return 0;
                 case WM_CHAR: app->View().DispatchCharacter(wchar_t(wp), Modifiers()); return 0;
                 case WM_KILLFOCUS:

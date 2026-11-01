@@ -3452,6 +3452,21 @@ try
             Invalidate();
             return 0;
         }
+        case WM_MBUTTONDOWN:
+        {
+            handled = true;
+            SetInputModality(InputModality::Pointer);
+            const auto point = PointFromLParam(lp);
+            Control* target = _capturedControl ? _capturedControl : HitTestControl(point);
+            if (target)
+                static_cast<void>(target->OnMouseMiddleDown(*this, point, static_cast<UINT>(wp)));
+            return 0;
+        }
+        case WM_MBUTTONUP:
+            handled = _capturedControl != nullptr;
+            if (handled)
+                return 0;
+            break;
         case WM_LBUTTONDOWN:
         case WM_RBUTTONDOWN:
         case WM_LBUTTONDBLCLK:

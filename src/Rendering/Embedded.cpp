@@ -828,7 +828,7 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
         if (! InputIsCoherent(true))
             return false;
         if (event.action == PointerAction::Down || event.action == PointerAction::Move || event.action == PointerAction::Up ||
-            event.action == PointerAction::Wheel)
+            event.action == PointerAction::Wheel || event.action == PointerAction::MiddleDown || event.action == PointerAction::MiddleUp)
         {
             _host.SetInputModality(InputModality::Pointer);
             _host.SetPointerDevice(event.device);
@@ -842,6 +842,8 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
                 case PointerAction::Up: inspectionMessage = WM_LBUTTONUP; break;
                 case PointerAction::Wheel: inspectionMessage = WM_MOUSEWHEEL; break;
                 case PointerAction::Cancel: inspectionMessage = WM_CAPTURECHANGED; break;
+                case PointerAction::MiddleDown: inspectionMessage = WM_MBUTTONDOWN; break;
+                case PointerAction::MiddleUp: inspectionMessage = WM_MBUTTONUP; break;
                 case PointerAction::Leave: inspectionMessage = WM_MOUSELEAVE; break;
                 case ::DxUi::PointerAction::Move:
                 default: break;
@@ -874,6 +876,8 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
             return false;
         switch (event.action)
         {
+            case PointerAction::MiddleDown: return target->OnMouseMiddleDown(_host, point, event.modifiers);
+            case PointerAction::MiddleUp: return _host.GetCapturedControl() != nullptr;
             case PointerAction::Down:
             {
                 const auto lifetime    = target->GetLifetimeToken();

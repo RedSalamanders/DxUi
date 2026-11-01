@@ -36,7 +36,9 @@ enum class PointerAction : uint8_t
     Up,
     Wheel,
     Leave,
-    Cancel
+    Cancel,
+    MiddleDown,
+    MiddleUp
 };
 struct PointerEvent
 {

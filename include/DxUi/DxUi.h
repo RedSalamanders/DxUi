@@ -1654,6 +1654,7 @@ public:
     virtual bool OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers);
     virtual bool OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers);
     virtual bool OnMouseTripleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers);
+    virtual bool OnMouseMiddleDown(ControlHost& host, D2D1_POINT_2F point, UINT modifiers);
     virtual bool OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers);
     virtual bool OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta, UINT modifiers);
     virtual bool OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers);
@@ -3536,6 +3537,7 @@ public:
     bool OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) noexcept override;
     bool OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) noexcept override;
     bool OnMouseTripleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) noexcept override;
+    bool OnMouseMiddleDown(ControlHost& host, D2D1_POINT_2F point, UINT modifiers) noexcept override;
     bool OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT modifiers) noexcept override;
     bool OnMouseLeave(ControlHost& host) noexcept override;
     bool OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) noexcept override;
@@ -4618,6 +4620,7 @@ public:
     bool OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
     bool OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
     bool OnMouseTripleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
+    bool OnMouseMiddleDown(ControlHost& host, D2D1_POINT_2F point, UINT modifiers) override;
     bool OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT modifiers) override;
     bool OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
     bool OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta, UINT modifiers) override;
