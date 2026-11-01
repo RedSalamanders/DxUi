@@ -166,7 +166,7 @@ template <typename Check> inline void LexicalEdits(Check&& check)
 {
     std::wstring source;
     for (unsigned line = 0u; line < 120u; ++line)
-        source += L"paragraph &amp; escaped\\* and &#x41;\r\n";
+        source += L"paragraph &amp; escaped\\* and &#x41;\r\n\r\n";
     Document document(source);
     MarkdownParser incremental;
     incremental.Begin(document.Snapshot(), document.Revision(), MarkdownProfile::RichMarkdown);
