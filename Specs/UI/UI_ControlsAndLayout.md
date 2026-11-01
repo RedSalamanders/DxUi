@@ -1105,7 +1105,7 @@ and create no bitmap. Bitmap memory/device HRESULT failures MUST retire staging,
 preserve the prior complete geometry and permit an explicit current retry.
 `D2DERR_UNSUPPORTED_OPERATION` for an image upload is target-local: preparation
 uses the image alternative, tries duplicate shared pixels only once for that
-preparation, and retries after the resource key changes.
+preparation, and permits a retry when the preparation key changes.
 
 The [guide](../../docs/rich-text.md) lists exact navigation/format/clipboard
 commands and v0 limits. Layout survives palette/selection repaint, rebuilds on
