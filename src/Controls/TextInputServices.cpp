@@ -840,6 +840,18 @@ HRESULT TextInputServices::Clipboard(TextClipboardCommand command, TextClipboard
                 return TF_E_DISCONNECTED;
             if (command == TextClipboardCommand::Copy)
                 return S_OK;
+            if (auto* cut = dynamic_cast<TextClipboardSemanticCut*>(client.get()))
+            {
+                const HRESULT result = cut->ApplySemanticCut(snapshot);
+                if (result != E_NOTIMPL)
+                {
+                    if (result == S_OK && client == _state->client)
+                        NotifyChanged();
+                    return result;
+                }
+                if (client != _state->client)
+                    return TF_E_DISCONNECTED;
+            }
         }
         std::wstring replacement(0u, L' ');
         if (command == TextClipboardCommand::Paste)

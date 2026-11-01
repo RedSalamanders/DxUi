@@ -95,6 +95,8 @@ void TestRichSemanticNativeObjectSharedContract()
     {
         RichSemanticEditorTests::TransientPreviewRetainsChunks(
             window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native transient preview"); });
+        RichSemanticEditorTests::PendingPointerPreservesFocus(
+            window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native pending pointer"); });
         RichSemanticEditorTests::NativeObjectSourceContract(
             window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare shared native object contract"); });
     });

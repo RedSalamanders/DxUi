@@ -1975,7 +1975,10 @@ wrappers remain outside this cleanup. Code-span body coverage uses normalized
 display units mapped to their exact source, including the single CommonMark
 padding unit removed at each edge and CR, LF, CRLF or container prefixes; an
 all-space code span retains its spaces. Raw programmatic/TSF replacement MUST NOT
-apply this semantic cleanup policy. Unsupported mixed opaque targets reject
+apply this semantic cleanup policy. An explicit clipboard Cut MUST first publish
+the exact selected source, then apply the same semantic deletion when the owner
+and selection are still current; generic text-service clients retain their raw
+replacement behavior. Unsupported mixed opaque targets reject
 atomically. These operations do not provide general Markdown reformatting,
 structured UIA publication, extension rendering or consumer qualification.
 Semantic visible-range queries include only intersecting text or caret lines;

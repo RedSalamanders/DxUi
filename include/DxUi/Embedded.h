@@ -186,6 +186,7 @@ public:
     // session/revision; prepares source only and never commits or takes focus.
     HRESULT TransformClipboardPaste(uint64_t revision, uint64_t focusId, const TextClipboardContent& content, std::wstring& replacement) noexcept;
     HRESULT ApplyClipboardFilePaste(uint64_t revision, uint64_t focusId, const TextClipboardContent& content) noexcept;
+    HRESULT ApplyClipboardCut(const EmbeddedTextInputSnapshot& snapshot) noexcept;
     HRESULT ApplyClipboardBitmapPaste(uint64_t revision, uint64_t focusId, const TextClipboardContent& content) noexcept;
     // Read a fresh snapshot after every accepted change. A stale revision returns ERROR_REVISION_MISMATCH.
     // Preview changes displayed text/composition without notifying the model. Commit notifies once relative

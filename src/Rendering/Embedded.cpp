@@ -1233,6 +1233,31 @@ HRESULT EmbeddedHost::ReadTextInput(EmbeddedTextInputSnapshot& snapshot) noexcep
         return E_OUTOFMEMORY;
     }
 }
+HRESULT EmbeddedHost::ApplyClipboardCut(const EmbeddedTextInputSnapshot& snapshot) noexcept
+try
+{
+    EmbeddedTextInputSnapshot current;
+    const HRESULT result = ReadTextInput(current);
+    if (result != S_OK)
+        return result;
+    if (current.revision != snapshot.revision || current.focusId != snapshot.focusId || current.state.text != snapshot.state.text ||
+        current.state.caretIndex != snapshot.state.caretIndex || current.state.selectionAnchorIndex != snapshot.state.selectionAnchorIndex)
+        return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
+    if (current.state.readOnly)
+        return E_ACCESSDENIED;
+    if (current.state.compositionStartIndex || current.state.compositionEndIndex)
+        return S_FALSE;
+    auto* editor = dynamic_cast<RichTextEditor*>(_host.GetFocusControl());
+    return editor ? (editor->Erase(_host, false, false) ? S_OK : S_FALSE) : E_NOTIMPL;
+}
+catch (const std::bad_alloc&)
+{
+    return E_OUTOFMEMORY;
+}
+catch (const std::exception&)
+{
+    return E_FAIL;
+}
 HRESULT EmbeddedHost::ApplyClipboardFilePaste(uint64_t revision, uint64_t focusId, const TextClipboardContent& content) noexcept
 try
 {

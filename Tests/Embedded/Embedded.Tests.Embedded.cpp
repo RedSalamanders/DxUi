@@ -1661,6 +1661,8 @@ __declspec(noinline) static int RunFunctionalTests()
         {
             RichSemanticEditorTests::TransientPreviewRetainsChunks(
                 view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare embedded transient preview"); });
+            RichSemanticEditorTests::PendingPointerPreservesFocus(
+                view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare embedded pending pointer"); });
 #if DXUI_ENABLE_DIAGNOSTICS
             RichSemanticEditorTests::SelectionCancellationPublication(
                 view.Controls(), [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "embedded selection cancellation"); });

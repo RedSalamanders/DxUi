@@ -134,6 +134,14 @@ public:
     virtual ~TextClipboardFilePaste()                                                                                       = default;
     virtual HRESULT ApplyFilePaste(const EmbeddedTextInputSnapshot& snapshot, const TextClipboardContent& content) noexcept = 0;
 };
+// Optional source-aware cut after clipboard publication. E_NOTIMPL requests
+// the ordinary text-client replacement; other results are final.
+class TextClipboardSemanticCut
+{
+public:
+    virtual ~TextClipboardSemanticCut() = default;
+    virtual HRESULT ApplySemanticCut(const EmbeddedTextInputSnapshot& snapshot) noexcept = 0;
+};
 class TextClipboardBitmapPaste
 {
 public:

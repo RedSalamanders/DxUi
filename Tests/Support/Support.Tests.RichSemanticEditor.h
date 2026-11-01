@@ -63,6 +63,24 @@ template <typename Prepare> void TransientPreviewRetainsChunks(ControlHost& host
     Check(editor->GetText() == source && editor->DebugGetState().reusedGeometryChunks > 0u && ! editor->CanUndo(),
           "silent preview cancellation restores exact source and reuses unaffected chunks");
 }
+template <typename Prepare> void PendingPointerPreservesFocus(ControlHost& host, Prepare prepare)
+{
+    auto root    = std::make_unique<Panel>();
+    auto* button = root->AddChild<Button>(L"other");
+    auto* editor = root->AddChild<RichTextEditor>(L"before");
+    button->SetBounds(D2D1::RectF(0.f, 0.f, 100.f, 30.f));
+    editor->SetBounds(D2D1::RectF(0.f, 40.f, 300.f, 100.f));
+    host.SetRoot(std::move(root));
+    prepare();
+    host.SetFocusControl(button, false);
+    editor->SetText(L"pending new source");
+    Check(! editor->OnMouseDown(host, D2D1::Point2F(20.f, 55.f), false, 0u) && host.GetFocusControl() == button,
+          "a press with pending editor geometry does not take focus");
+    prepare();
+    Check(editor->OnMouseDown(host, D2D1::Point2F(20.f, 55.f), false, 0u) && host.GetFocusControl() == editor,
+          "the same press takes focus after editor geometry is current");
+    host.ReleaseMouseCapture();
+}
 template <typename Prepare> void SelectionCancellationPublication(ControlHost& host, Prepare prepare)
 {
     for (const bool hide : {false, true})
@@ -2361,6 +2379,15 @@ template <typename Prepare> void Rendering(ControlHost& host, Prepare&& prepare)
     Check(document && document->Syntax() == editor->GetMarkdownSyntax() && document->Map().Source() == original &&
               editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic && editor->GetSelection() == Selection{7u, 4u} && ! editor->CanUndo(),
           "native and embedded owners publish one current semantic graph without editing source/history");
+    const auto originalBounds = editor->GetBounds();
+    auto narrower = originalBounds;
+    narrower.right -= 20.0f;
+    editor->SetBounds(narrower);
+    Check(editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Pending && ! editor->GetAcknowledgedSemanticDocument(host),
+          "width retirement immediately reports pending rather than stale semantic geometry");
+    editor->SetBounds(originalBounds);
+    prepare();
+    Check(editor->GetMarkdownRenderingStatus() == MarkdownRenderingStatus::Semantic, "current geometry restores semantic status");
     const auto hidden = editor->TryGetTextInputRangeRects(host, 0u, 2u);
     Check(hidden && hidden->empty(), "hidden heading syntax has no text-service glyph rectangle");
     const auto left = original.find(L"left"), right = original.find(L"right");

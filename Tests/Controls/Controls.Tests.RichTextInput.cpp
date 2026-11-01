@@ -814,15 +814,25 @@ void TestRichTextApplicationImageClipboard()
     {
     public:
         TextClipboardContent content;
+        std::wstring written;
         std::function<void()> afterRead;
+        std::function<void()> afterWrite;
         std::size_t reads{};
         HRESULT Read(HWND, std::wstring&) noexcept override
         {
             return E_UNEXPECTED;
         }
-        HRESULT Write(HWND, std::wstring_view) noexcept override
+        HRESULT Write(HWND, std::wstring_view text) noexcept override
+        try
         {
-            return E_NOTIMPL;
+            written.assign(text);
+            if (afterWrite)
+                afterWrite();
+            return S_OK;
+        }
+        catch (const std::bad_alloc&)
+        {
+            return E_OUTOFMEMORY;
         }
         HRESULT ReadContent(HWND, TextClipboardContent& result) noexcept override
         try
@@ -839,6 +849,20 @@ void TestRichTextApplicationImageClipboard()
             return E_OUTOFMEMORY;
         }
     } clipboard;
+    editor->SetText(L"x **bold** y");
+    editor->SetSelection({4u, 8u});
+    prepare();
+    RequireSucceeded(services.Clipboard(TextClipboardCommand::Cut, &clipboard), "embedded service performs semantic cut");
+    Require(clipboard.written == L"bold" && editor->GetText() == L"x  y" && editor->Undo() && editor->GetText() == L"x **bold** y" &&
+                editor->GetSelection() == Selection{4u, 8u},
+            "embedded cut copies exact selection and removes its wrapper in one undo");
+    prepare();
+    clipboard.afterWrite = [&] { editor->SetSelection({0u, 1u}); };
+    Require(services.Clipboard(TextClipboardCommand::Cut, &clipboard) == HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH) && editor->GetText() == L"x **bold** y" &&
+                editor->GetSelection() == Selection{0u, 1u},
+            "clipboard write changing selection cannot apply a stale semantic cut");
+    clipboard.afterWrite = {};
+    editor->SetText(L"replace");
     clipboard.content.filePaths = {L"C:\\docs\\images\\\u6771\U0001f600.png"};
     editor->SetSelection({7u, 0u});
     prepare();

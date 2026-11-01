@@ -806,6 +806,13 @@ void TestRichTextEditorClipboardAtomicityAndSourceContract()
     clipboard.text = L"https://example.invalid";
     Require(raw->OnKeyDown(window.Host(), 'V', MK_CONTROL | MK_SHIFT) && raw->GetText() == clipboard.text,
             "Ctrl+Shift+V pastes literal Unicode instead of transforming a URL selection");
+    raw->SetText(L"x **bold** y");
+    raw->SetSelection({4u, 8u});
+    RenderEditor(window);
+    Require(raw->OnKeyDown(window.Host(), 'X', MK_CONTROL) && clipboard.text == L"bold" && raw->GetText() == L"x  y",
+            "rich cut copies selected body and removes its empty source wrapper");
+    Require(raw->Undo() && raw->GetText() == L"x **bold** y" && raw->GetSelection() == Selection{4u, 8u},
+            "rich cut restores exact source and selection in one undo");
     clipboard.text      = L"replacement";
     const auto original = raw->GetText();
     clipboard.afterRead = [&] { raw->SetSelection({1, 1}); };

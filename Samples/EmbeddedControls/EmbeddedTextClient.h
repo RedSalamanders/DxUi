@@ -8,10 +8,15 @@
 class EmbeddedTextClient final : public DxUi::TextInputClient,
                                  public DxUi::TextClipboardPasteTransform,
                                  public DxUi::TextClipboardFilePaste,
+                                 public DxUi::TextClipboardSemanticCut,
                                  public DxUi::TextClipboardHtmlPaste,
                                  public DxUi::TextClipboardBitmapPaste
 {
 public:
+    HRESULT ApplySemanticCut(const DxUi::EmbeddedTextInputSnapshot& snapshot) noexcept override
+    {
+        return _view && snapshot.focusId == _focus ? _view->ApplyClipboardCut(snapshot) : TF_E_DISCONNECTED;
+    }
     EmbeddedTextClient(DxUi::EmbeddedHost& view, HWND window, uint64_t focus, float dpi) noexcept : _view(&view), _window(window), _focus(focus), _dpi(dpi)
     {
     }

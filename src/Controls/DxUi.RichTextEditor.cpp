@@ -1913,7 +1913,9 @@ MarkdownRenderingStatus RichTextEditor::GetMarkdownRenderingStatus() const noexc
     const auto syntax = GetMarkdownSyntax();
     if (syntax && _state->semanticRejected == syntax)
         return MarkdownRenderingStatus::SourceFallback;
-    return GetSemanticDocument() && _state->layout.Ready() && _state->layout.Semantic() ? MarkdownRenderingStatus::Semantic : MarkdownRenderingStatus::Pending;
+    const auto* host = GetHost();
+    return host && LayoutIsCurrent(*host) && GetSemanticDocument() && _state->layout.Semantic() ? MarkdownRenderingStatus::Semantic
+                                                                                                : MarkdownRenderingStatus::Pending;
 }
 std::shared_ptr<const RichText::SemanticDocument> RichTextEditor::GetAcknowledgedSemanticDocument(const ControlHost& host) const noexcept
 {
@@ -4069,6 +4071,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             return S_FALSE;
         }
         state.layout.Invalidate();
+        state.requestActive = false;
         return E_FAIL;
     }
     catch (const std::bad_alloc&)
@@ -6030,7 +6033,7 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                     const auto selection = GetSelection();
                     if (OnCopy(host) && ! lifetime.expired() && GetHost() == &host && _state->bindingRevision == binding && Revision() == revision &&
                         GetSelection() == selection)
-                        static_cast<void>(ReplaceSelection({}));
+                        static_cast<void>(Erase(host, false, false));
                     return true;
                 }
                 case 'V':
@@ -6441,13 +6444,13 @@ bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool ri
             if (lifetime.expired() || GetHost() != &host)
                 return true;
         }
-        if (! IsEnabled() || rightButton)
+        if (! IsEnabled() || rightButton || GetHost() != &host || ! LayoutIsCurrent(host))
             return false;
         const auto lifetime = GetLifetimeToken();
         const auto geometry = host.GetInteractionRevision();
         host.SetFocusControl(this);
         if (lifetime.expired() || GetHost() != &host || host.GetInteractionRevision() != geometry || ! IsEnabled() || ! IsVisible() ||
-            host.GetFocusControl() != this)
+            host.GetFocusControl() != this || ! LayoutIsCurrent(host))
             return true;
         if (const auto info = GetScrollInfo(); info && info->contentHeightDip > info->viewportHeightDip)
         {
@@ -6546,8 +6549,19 @@ bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool ri
                         continue;
                     RichText::MarkdownCommandRequest request;
                     request.command = RichText::MarkdownCommand::ToggleTask;
-                    taskPlan        = std::make_shared<const RichText::MarkdownCommandPlan>(
-                        RichText::BuildMarkdownCommand(Snapshot(), Revision(), document.Syntax(), RichText::Selection{source, source}, request));
+                    try
+                    {
+                        taskPlan = std::make_shared<const RichText::MarkdownCommandPlan>(
+                            RichText::BuildMarkdownCommand(Snapshot(), Revision(), document.Syntax(), RichText::Selection{source, source}, request));
+                    }
+                    catch (const std::bad_alloc&)
+                    {
+                        // A task-plan failure disables only the optional checkbox gesture.
+                    }
+                    catch (const std::logic_error&)
+                    {
+                        // An inadmissible task plan still permits ordinary caret placement.
+                    }
                     taskRect = *bounds;
                     break;
                 }
